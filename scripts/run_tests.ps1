@@ -31,23 +31,6 @@ function Test-RustService($servicePath, $serviceName) {
     Pop-Location
 }
 
-function Test-GoService($servicePath, $serviceName) {
-    Write-TestHeader $serviceName
-
-    Push-Location $servicePath
-
-    Write-Host "[1/3] Running unit tests (short)..." -ForegroundColor Yellow
-    go test -v -short ./... 2>&1 | Select-Object -Last 20
-
-    Write-Host "[2/3] Running all tests..." -ForegroundColor Yellow
-    go test -v ./... 2>&1 | Select-Object -Last 20
-
-    Write-Host "[3/3] Running tests with race detector..." -ForegroundColor Yellow
-    go test -race ./... 2>&1 | Select-Object -Last 10
-
-    Pop-Location
-}
-
 Write-Host ""
 Write-Host "===============================================" -ForegroundColor Green
 Write-Host "  coder-micro-services Test Suite" -ForegroundColor Green
@@ -57,17 +40,13 @@ if ($All -or (-not $Unit -and -not $Integration)) {
     Write-Host "Running ALL tests (unit + integration)..." -ForegroundColor Magenta
 
     Test-RustService "$ProjectRoot\services\api-gateway" "API Gateway (Rust)"
-    Test-RustService "$ProjectRoot\services\token-server" "Token Server (Rust)"
-    Test-GoService "$ProjectRoot\services\auth-service" "Auth Service (Go)"
-    Test-GoService "$ProjectRoot\services\user-service" "User Service (Go)"
+    Test-RustService "$ProjectRoot\services\token-service" "Token Service (Rust)"
 
 } elseif ($Unit) {
     Write-Host "Running UNIT tests only..." -ForegroundColor Magenta
 
     Test-RustService "$ProjectRoot\services\api-gateway" "API Gateway (Rust)"
-    Test-RustService "$ProjectRoot\services\token-server" "Token Server (Rust)"
-    Test-GoService "$ProjectRoot\services\auth-service" "Auth Service (Go)"
-    Test-GoService "$ProjectRoot\services\user-service" "User Service (Go)"
+    Test-RustService "$ProjectRoot\services\token-service" "Token Service (Rust)"
 
 } elseif ($Integration) {
     Write-Host "Running INTEGRATION tests only..." -ForegroundColor Magenta
@@ -75,9 +54,7 @@ if ($All -or (-not $Unit -and -not $Integration)) {
     Write-Host "  cd infrastructure; docker compose -f docker-compose.test-infra.yaml up -d" -ForegroundColor Yellow
 
     Test-RustService "$ProjectRoot\services\api-gateway" "API Gateway (Rust)"
-    Test-RustService "$ProjectRoot\services\token-server" "Token Server (Rust)"
-    Test-GoService "$ProjectRoot\services\auth-service" "Auth Service (Go)"
-    Test-GoService "$ProjectRoot\services\user-service" "User Service (Go)"
+    Test-RustService "$ProjectRoot\services\token-service" "Token Service (Rust)"
 }
 
 Write-Host ""
