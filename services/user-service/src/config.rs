@@ -19,6 +19,7 @@ pub struct ServerCfg {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DatabaseCfg {
+    pub db_type: DbType,
     pub url: String,
     pub max_connections: u32,
 }
