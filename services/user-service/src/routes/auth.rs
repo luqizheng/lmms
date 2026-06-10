@@ -1,17 +1,20 @@
 use crate::config::Config;
-use crate::dto::{InvalidCredsResp, LockedResp, LoginReq, LoginSuccessResp};
+use crate::dto::{
+    ErrorResp, InvalidCredsResp, LockedResp, LoginReq, LoginSuccessResp, RegisterReq,
+    RegisterResp, SetupStatusResp,
+};
 use crate::error::AppError;
-use crate::service::auth_svc::{self, LoginCtx, LoginOutcome};
-use axum::extract::ConnectInfo;
+use crate::service::auth_svc::{self, LoginCtx, LoginOutcome, RegisterError};
+use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::Json;
+use axum::{Json, Router, routing};
 use std::net::SocketAddr;
 
 pub async fn login(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
-    axum::State(state): axum::State<AuthState>,
+    State(state): State<AuthState>,
     Json(req): Json<LoginReq>,
 ) -> Result<axum::response::Response, AppError> {
     if req.username.is_empty() || req.password.is_empty() {
@@ -61,6 +64,76 @@ pub async fn login(
     })
 }
 
+pub async fn register(
+    headers: HeaderMap,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AuthState>,
+    Json(req): Json<RegisterReq>,
+) -> Result<axum::response::Response, AppError> {
+    let _ip = client_ip(&headers, addr);
+    let _ua = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let res = auth_svc::register_admin(
+        &state.pool,
+        &req.username,
+        &req.password,
+        req.email.clone(),
+        req.phone.clone(),
+        req.nickname.clone(),
+    )
+    .await;
+    Ok(match res {
+        Ok(uid) => (
+            StatusCode::CREATED,
+            Json(RegisterResp {
+                id: uid,
+                username: req.username,
+            }),
+        )
+            .into_response(),
+        Err(RegisterError::Closed) => (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResp {
+                error: "registration closed".into(),
+            }),
+        )
+            .into_response(),
+        Err(RegisterError::UsernameTaken) => (
+            StatusCode::CONFLICT,
+            Json(ErrorResp {
+                error: "username taken".into(),
+            }),
+        )
+            .into_response(),
+        Err(RegisterError::InvalidInput(msg)) => (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResp { error: msg }),
+        )
+            .into_response(),
+        Err(RegisterError::Internal(msg)) => {
+            tracing::error!(error = %msg, "register_admin failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResp {
+                    error: "internal".into(),
+                }),
+            )
+                .into_response()
+        }
+    })
+}
+
+pub async fn setup_status(
+    State(state): State<AuthState>,
+) -> Result<Json<SetupStatusResp>, AppError> {
+    let required = auth_svc::setup_status(&state.pool).await?;
+    Ok(Json(SetupStatusResp {
+        setup_required: required,
+    }))
+}
+
 fn client_ip(headers: &HeaderMap, addr: SocketAddr) -> String {
     if let Some(v) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
         if let Some(first) = v.split(',').next() {
@@ -77,9 +150,11 @@ pub struct AuthState {
     pub cfg: Config,
 }
 
-pub fn router(state: AuthState) -> axum::Router {
-    axum::Router::new()
-        .route("/auth/login", axum::routing::post(login))
+pub fn router(state: AuthState) -> Router {
+    Router::new()
+        .route("/api/v1/auth/login", routing::post(login))
+        .route("/api/v1/auth/register", routing::post(register))
+        .route("/api/v1/auth/setup-status", routing::get(setup_status))
         .with_state(state)
 }
 

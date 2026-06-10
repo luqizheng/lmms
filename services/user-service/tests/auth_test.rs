@@ -1,4 +1,4 @@
-//! Integration tests for /auth/login endpoint.
+//! Integration tests for /api/v1/auth/{login,register,setup-status}.
 //! Run with: `cargo test -p user-service --test auth_test -- --test-threads=1`
 
 use redis::AsyncCommands;
@@ -40,6 +40,10 @@ async fn setup() -> Harness {
     .execute(&pool)
     .await
     .expect("run migration");
+
+    // Seed admin/user roles (idempotent)
+    let _ = sqlx::query("INSERT IGNORE INTO roles (code, name, status) VALUES ('admin', '管理员', 1), ('user', '用户', 1)")
+        .execute(&pool).await;
 
     let redis_client = redis::Client::open(redis_url.clone()).expect("redis client");
     let cfg = Config {
@@ -92,13 +96,95 @@ async fn setup() -> Harness {
 }
 
 #[tokio::test]
+async fn setup_status_true_when_no_users() {
+    let h = setup().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("http://{}/api/v1/auth/setup-status", h.addr))
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(resp.status().as_u16(), 200);
+    let body: Value = resp.json().await.expect("parse");
+    assert_eq!(body["setup_required"], true);
+}
+
+#[tokio::test]
+async fn register_then_setup_status_false() {
+    let h = setup().await;
+    let client = reqwest::Client::new();
+
+    let username = format!("admin_{}", uuid::Uuid::new_v4().simple());
+
+    let resp = client
+        .post(format!("http://{}/api/v1/auth/register", h.addr))
+        .json(&serde_json::json!({
+            "username": username,
+            "password": "admin123",
+            "email": "admin@test.local"
+        }))
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(resp.status().as_u16(), 201);
+
+    let resp = client
+        .get(format!("http://{}/api/v1/auth/setup-status", h.addr))
+        .send()
+        .await
+        .expect("request");
+    let body: Value = resp.json().await.expect("parse");
+    assert_eq!(body["setup_required"], false);
+}
+
+#[tokio::test]
+async fn register_second_user_rejected_403() {
+    let h = setup().await;
+    let client = reqwest::Client::new();
+
+    let first = format!("first_{}", uuid::Uuid::new_v4().simple());
+    let second = format!("second_{}", uuid::Uuid::new_v4().simple());
+
+    let resp = client
+        .post(format!("http://{}/api/v1/auth/register", h.addr))
+        .json(&serde_json::json!({ "username": first, "password": "pass1234" }))
+        .send()
+        .await
+        .expect("request 1");
+    assert_eq!(resp.status().as_u16(), 201);
+
+    let resp = client
+        .post(format!("http://{}/api/v1/auth/register", h.addr))
+        .json(&serde_json::json!({ "username": second, "password": "pass1234" }))
+        .send()
+        .await
+        .expect("request 2");
+    assert_eq!(resp.status().as_u16(), 403);
+    let body: Value = resp.json().await.expect("parse");
+    assert_eq!(body["error"], "registration closed");
+}
+
+#[tokio::test]
+async fn register_short_password_returns_400() {
+    let h = setup().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("http://{}/api/v1/auth/register", h.addr))
+        .json(&serde_json::json!({ "username": "shorty", "password": "123" }))
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(resp.status().as_u16(), 400);
+}
+
+#[tokio::test]
 async fn login_invalid_credentials_returns_401() {
     let h = setup().await;
     let username = format!("ghost_{}", uuid::Uuid::new_v4().simple());
 
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("http://{}/auth/login", h.addr))
+        .post(format!("http://{}/api/v1/auth/login", h.addr))
         .json(&serde_json::json!({ "username": username, "password": "wrongpass" }))
         .send()
         .await
@@ -120,10 +206,9 @@ async fn login_invalid_credentials_returns_401() {
 #[tokio::test]
 async fn login_empty_fields_returns_400() {
     let h = setup().await;
-
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("http://{}/auth/login", h.addr))
+        .post(format!("http://{}/api/v1/auth/login", h.addr))
         .json(&serde_json::json!({ "username": "", "password": "" }))
         .send()
         .await
@@ -140,7 +225,7 @@ async fn login_attempts_increment_failure_counter() {
     let client = reqwest::Client::new();
     for _ in 0..3 {
         let resp = client
-            .post(format!("http://{}/auth/login", h.addr))
+            .post(format!("http://{}/api/v1/auth/login", h.addr))
             .json(&serde_json::json!({ "username": username, "password": "wrong" }))
             .send()
             .await

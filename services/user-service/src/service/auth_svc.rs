@@ -241,6 +241,132 @@ pub fn hash_password(password: &str) -> Result<String, AppError> {
         .map_err(|e| AppError::Internal(e.into()))
 }
 
+#[derive(Debug)]
+pub enum RegisterError {
+    Closed,
+    UsernameTaken,
+    InvalidInput(String),
+    Internal(String),
+}
+
+pub async fn setup_status(pool: &DbPool) -> Result<bool, AppError> {
+    if let DbPool::Mysql(p) = pool {
+        let row = sqlx::query("SELECT COUNT(*) AS c FROM users WHERE status = 1")
+            .fetch_one(p)
+            .await?;
+        let c: i64 = row.try_get("c").unwrap_or(0);
+        Ok(c == 0)
+    } else {
+        Err(AppError::UnsupportedDb(pool.db_type()))
+    }
+}
+
+pub async fn register_admin(
+    pool: &DbPool,
+    username: &str,
+    password: &str,
+    email: Option<String>,
+    phone: Option<String>,
+    nickname: Option<String>,
+) -> Result<u64, RegisterError> {
+    if !is_valid_username(username) {
+        return Err(RegisterError::InvalidInput(
+            "username must be 3-32 chars [a-zA-Z0-9_.-]".into(),
+        ));
+    }
+    if password.len() < 6 {
+        return Err(RegisterError::InvalidInput(
+            "password must be at least 6 chars".into(),
+        ));
+    }
+    if let Some(e) = email.as_deref() {
+        if !e.is_empty() && !e.contains('@') {
+            return Err(RegisterError::InvalidInput("invalid email".into()));
+        }
+    }
+    if let Some(p) = phone.as_deref() {
+        if !p.is_empty() && (p.len() != 11 || !p.chars().all(|c| c.is_ascii_digit())) {
+            return Err(RegisterError::InvalidInput("invalid phone".into()));
+        }
+    }
+
+    let hash = hash_password(password).map_err(|e| RegisterError::Internal(e.to_string()))?;
+
+    if let DbPool::Mysql(p) = pool {
+        let mut tx = p
+            .begin()
+            .await
+            .map_err(|e| RegisterError::Internal(e.to_string()))?;
+
+        let row = sqlx::query("SELECT COUNT(*) AS c FROM users WHERE status = 1")
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| RegisterError::Internal(e.to_string()))?;
+        let c: i64 = row.try_get("c").unwrap_or(0);
+        if c > 0 {
+            return Err(RegisterError::Closed);
+        }
+
+        let existing: Option<(u64,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?")
+            .bind(username)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| RegisterError::Internal(e.to_string()))?;
+        if existing.is_some() {
+            return Err(RegisterError::UsernameTaken);
+        }
+
+        let user_code = format!("U-{}", nanoid!(10));
+
+        let res = sqlx::query(
+            "INSERT INTO users (username, user_code, password_hash, email, phone, nickname, status) \
+             VALUES (?, ?, ?, ?, ?, ?, 1)",
+        )
+        .bind(username)
+        .bind(&user_code)
+        .bind(&hash)
+        .bind(email.as_deref().unwrap_or(""))
+        .bind(phone.as_deref().unwrap_or(""))
+        .bind(nickname.as_deref().unwrap_or(username))
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| RegisterError::Internal(e.to_string()))?;
+        let uid = res.last_insert_id();
+
+        let role_row: Option<(u64,)> =
+            sqlx::query_as("SELECT id FROM roles WHERE code = 'admin'")
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| RegisterError::Internal(e.to_string()))?;
+        let role_id = role_row
+            .ok_or_else(|| RegisterError::Internal("admin role not seeded".into()))?
+            .0;
+
+        sqlx::query("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)")
+            .bind(uid)
+            .bind(role_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RegisterError::Internal(e.to_string()))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| RegisterError::Internal(e.to_string()))?;
+        Ok(uid)
+    } else {
+        Err(RegisterError::Internal("unsupported db".into()))
+    }
+}
+
+fn is_valid_username(u: &str) -> bool {
+    let len = u.chars().count();
+    if !(3..=32).contains(&len) {
+        return false;
+    }
+    u.chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,5 +388,15 @@ mod tests {
         let long = "a".repeat(300);
         assert_eq!(truncate_ua(&long).len(), 255);
         assert_eq!(truncate_ua("short"), "short");
+    }
+
+    #[test]
+    fn valid_username_ok() {
+        assert!(is_valid_username("admin"));
+        assert!(is_valid_username("user.name_1-2"));
+        assert!(!is_valid_username("ab"));
+        assert!(!is_valid_username("a".repeat(33).as_str()));
+        assert!(!is_valid_username("用户"));
+        assert!(!is_valid_username("a b"));
     }
 }

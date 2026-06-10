@@ -82,3 +82,31 @@ pub struct LockedResp {
 pub struct InvalidCredsResp {
     pub error: &'static str,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct RegisterReq {
+    pub username: String,
+    pub password: String,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub nickname: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RegisterResp {
+    pub id: u64,
+    pub username: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SetupStatusResp {
+    pub setup_required: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ErrorResp {
+    pub error: String,
+}

@@ -23,3 +23,8 @@ CREATE TABLE IF NOT EXISTS user_login_log (
   INDEX idx_login_log_success (success),
   INDEX idx_login_log_login_at (login_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2026-06-11 首位注册 = admin，幂等 seed
+INSERT IGNORE INTO roles (code, name, status) VALUES
+  ('admin', '系统管理员', 1),
+  ('user',  '普通用户',   1);
