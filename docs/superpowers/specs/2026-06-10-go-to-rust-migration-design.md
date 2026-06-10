@@ -1,7 +1,13 @@
-# Go 服务整体迁 Rust 设计
+# Go 服务整体迁 Rust 设计 [SUPERSEDED]
+
+> **状态：已废弃（Superseded）**。已被 [`2026-06-10-credential-login-user-rust-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md) 取代。**本文件不再实施**。仅作历史记录保留。
+
+---
+
+# Go 服务整体迁 Rust 设计 [ORIGINAL, DO NOT EXECUTE]
 
 日期：2026-06-10
-状态：待审阅
+状态：待审阅（已废弃）
 关联：`2026-06-10-microservice-jwt-verification-design.md`、`2026-06-10-auth-login-security-design.md`、`2026-06-10-notification-service-plan.md`
 
 ---

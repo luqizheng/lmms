@@ -1,4 +1,14 @@
-# Go 服务整体迁 Rust — 主实施计划
+# Go 服务整体迁 Rust — 主实施计划 [SUPERSEDED]
+
+> **状态：已废弃（Superseded）**。已被 [`2026-06-10-credential-login-user-rust-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-credential-login-user-rust-plan.md) 与 [`2026-06-10-credential-login-user-rust-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md) 取代。
+>
+> **本文件不再实施**。本计划前提（Go 服务仍在、需 Big-Bang 迁 Rust、3 个共享 crate 待建）与当前仓库状态严重不符——大多数目标项已由后续 plan 实施完成。仅作历史记录保留。
+>
+> 真实清理项（仓库内 Go 字符串/旧名残留、孤儿配置、过期脚本）见新 plan：[`2026-06-10-go-to-rust-migration-cleanup-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md)。
+
+---
+
+# Go 服务整体迁 Rust — 主实施计划 [ORIGINAL, DO NOT EXECUTE]
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
