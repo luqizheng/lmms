@@ -12,7 +12,8 @@ async fn main() -> Result<()> {
         .init();
 
     let cfg = load_config("config/config.yaml")?;
-    let pool = init_pool(&cfg.database.url, cfg.database.max_connections).await?;
+    let pool = init_pool(&cfg.database).await?;
+    tracing::info!(db_type = ?cfg.database.db_type, "user-service-rust pool ready");
 
     tracing::info!("user-service-rust started on {}:{}", cfg.server.host, cfg.server.port);
     let _ = pool; // placeholder
