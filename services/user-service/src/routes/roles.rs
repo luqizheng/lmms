@@ -6,15 +6,15 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use sqlx::MySqlPool;
+use user_service::db::DbPool;
 
-pub async fn list_roles(State(pool): State<MySqlPool>) -> Result<impl IntoResponse, AppError> {
+pub async fn list_roles(State(pool): State<DbPool>) -> Result<impl IntoResponse, AppError> {
     let items = role_svc::list_roles(&pool).await?;
     Ok(Json(items))
 }
 
 pub async fn create_role(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Json(req): Json<CreateRoleReq>,
 ) -> Result<impl IntoResponse, AppError> {
     let dto = role_svc::create_role(&pool, &req.code, &req.name, req.description.as_deref()).await?;
@@ -22,7 +22,7 @@ pub async fn create_role(
 }
 
 pub async fn get_role(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
 ) -> Result<impl IntoResponse, AppError> {
     let dto = role_svc::get_role(&pool, id).await?;
@@ -30,7 +30,7 @@ pub async fn get_role(
 }
 
 pub async fn update_role(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
     Json(req): Json<UpdateRoleReq>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -39,7 +39,7 @@ pub async fn update_role(
 }
 
 pub async fn delete_role(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
 ) -> Result<impl IntoResponse, AppError> {
     role_svc::delete_role(&pool, id).await?;
@@ -47,7 +47,7 @@ pub async fn delete_role(
 }
 
 pub async fn assign_role_permissions(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
     Json(req): Json<AssignRolePermissionsReq>,
 ) -> Result<impl IntoResponse, AppError> {

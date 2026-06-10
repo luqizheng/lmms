@@ -4,10 +4,10 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use sqlx::MySqlPool;
+use user_service::db::DbPool;
 
 pub async fn get_user_claims(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(user_id): Path<u64>,
 ) -> Result<impl IntoResponse, crate::error::AppError> {
     let claims = claim_svc::fetch_user_claims(&pool, user_id).await?;

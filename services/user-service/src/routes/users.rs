@@ -8,10 +8,10 @@ use axum::{
 };
 use jwt_ctx::Principal;
 use serde_json::json;
-use sqlx::MySqlPool;
+use user_service::db::DbPool;
 
 pub async fn get_current_user(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Extension(principal): Extension<Principal>,
 ) -> Result<impl IntoResponse, AppError> {
     let uid: u64 = principal
@@ -23,7 +23,7 @@ pub async fn get_current_user(
 }
 
 pub async fn update_current_user(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Extension(principal): Extension<Principal>,
     Json(req): Json<UpdateMeReq>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -32,23 +32,28 @@ pub async fn update_current_user(
         .parse()
         .map_err(|_| AppError::Unauthorized)?;
     let profile = json!(req.profile);
-    sqlx::query(
-        "UPDATE users SET email = ?, phone = ?, nickname = ?, profile_json = ?, \
-         updated_at = NOW() WHERE id = ?",
-    )
-    .bind(req.email)
-    .bind(req.phone)
-    .bind(req.nickname)
-    .bind(serde_json::to_string(&profile).unwrap())
-    .bind(uid)
-    .execute(&pool)
-    .await?;
+    match &pool {
+        DbPool::Mysql(p) => {
+            sqlx::query(
+                "UPDATE users SET email = ?, phone = ?, nickname = ?, profile_json = ?, \
+                 updated_at = NOW() WHERE id = ?",
+            )
+            .bind(req.email)
+            .bind(req.phone)
+            .bind(req.nickname)
+            .bind(serde_json::to_string(&profile).unwrap())
+            .bind(uid)
+            .execute(p)
+            .await?;
+        }
+        _ => return Err(AppError::UnsupportedDb(pool.db_type())),
+    }
     let dto = user_svc::fetch_user_with_roles(&pool, uid).await?;
     Ok(Json(dto))
 }
 
 pub async fn list_users(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Query(q): Query<PageQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let items = user_svc::list_users(&pool, q.page, q.size).await?;
@@ -60,7 +65,7 @@ pub async fn list_users(
 }
 
 pub async fn get_user(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
 ) -> Result<impl IntoResponse, AppError> {
     let dto = user_svc::fetch_user_with_roles(&pool, id).await?;
@@ -68,7 +73,7 @@ pub async fn get_user(
 }
 
 pub async fn patch_user_extends(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
     Json(req): Json<PatchExtendsReq>,
 ) -> Result<impl IntoResponse, AppError> {

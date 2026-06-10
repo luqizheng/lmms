@@ -6,10 +6,10 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use sqlx::MySqlPool;
+use user_service::db::DbPool;
 
 pub async fn assign_user_roles(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
     Json(req): Json<AssignUserRolesReq>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -18,7 +18,7 @@ pub async fn assign_user_roles(
 }
 
 pub async fn remove_user_roles(
-    State(pool): State<MySqlPool>,
+    State(pool): State<DbPool>,
     Path(id): Path<u64>,
     Json(req): Json<AssignUserRolesReq>,
 ) -> Result<impl IntoResponse, AppError> {
