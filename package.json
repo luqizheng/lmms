@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "setup": "powershell -ExecutionPolicy Bypass -File tools/setup.ps1",
+    "check:env": "node scripts/check-env.mjs",
     "build": "cargo build --release --manifest-path services/api-gateway/Cargo.toml && cargo build --release --manifest-path services/token-server/Cargo.toml && cd services/auth-service && go build -o bin/auth-service . && cd ../user-service && go build -o bin/user-service .",
     "dev": "docker compose -f infrastructure/docker-compose.test-infra.yaml up -d && pnpm -r --parallel run dev",
     "dev:infra": "docker compose -f infrastructure/docker-compose.test-infra.yaml up -d",
