@@ -36,6 +36,7 @@ impl AppError {
             AppError::Db(sqlx::Error::RowNotFound) => "NOT_FOUND",
             AppError::Db(_) => "DB_ERROR",
             AppError::Internal(_) => "INTERNAL",
+            AppError::UnsupportedDb(_) => "UNSUPPORTED_DB",
         }
     }
 
@@ -47,6 +48,7 @@ impl AppError {
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::Db(sqlx::Error::RowNotFound) => StatusCode::NOT_FOUND,
+            AppError::UnsupportedDb(_) => StatusCode::NOT_IMPLEMENTED,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -54,10 +56,31 @@ impl AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
+        match &self {
+            AppError::UnsupportedDb(t) => {
+                let body = Json(json!({
+                    "error": "unsupported_db",
+                    "db_type": format!("{:?}", t),
+                }));
+                return (self.status(), body).into_response();
+            }
+            _ => {}
+        }
         let body = Json(json!({
             "code": self.code(),
             "message": self.to_string(),
         }));
         (self.status(), body).into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsupported_db_status_is_501() {
+        let resp = AppError::UnsupportedDb(DbType::Dameng).into_response();
+        assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
     }
 }
