@@ -2,3 +2,26 @@
 name = "user-service"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+common = { path = "../../libs/common" }
+jwt-ctx = { path = "../../libs/jwt-ctx" }
+authz = { path = "../../libs/authz" }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "mysql"] }
+redis.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml = "0.9"
+thiserror.workspace = true
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid.workspace = true
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+testcontainers = "0.20"
+testcontainers-modules = { version = "0.8", features = ["mysql"] }
+reqwest.workspace = true

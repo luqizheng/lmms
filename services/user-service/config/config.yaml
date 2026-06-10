@@ -1,57 +1,11 @@
 server:
-  host: "127.0.0.1"
-  port: 6000
-
+  host: "0.0.0.0"
+  port: 8082
 database:
-  type: "mysql"
-  host: "localhost"
-  port: 3306
-  user: "root"
-  password: "rootpass"
-  name: "superpowers"
-
-consul:
-  addr: "http://localhost:8500"
-  service_name: "user-service"
-  service_id_file: "/tmp/user-service-service-id"
-
-# MySQL 配置示例:
-# database:
-#   type: "mysql"
-#   host: "localhost"
-#   port: 3306
-#   user: "root"
-#   password: "password"
-#   name: "database_name"
-
-# MSSQL 配置示例:
-# database:
-#   type: "mssql"
-#   host: "localhost"
-#   port: 1433
-#   user: "sa"
-#   password: "password"
-#   name: "database_name"
-
-# PostgreSQL 配置示例:
-# database:
-#   type: "postgres"
-#   host: "localhost"
-#   port: 5432
-#   user: "postgres"
-#   password: "password"
-#   name: "database_name"
-
-# DM (达梦) 配置示例:
-# database:
-#   type: "dm"
-#   host: "localhost"
-#   port: 5236
-#   user: "SYSDBA"
-#   password: "password"
-#   name: "DAMENG"
-
-# SQLite 配置示例 (用于单元测试):
-# database:
-#   type: "sqlite"
-#   name: "./data/test.db"
+  url: "mysql://user:pass@localhost:3306/kudi"
+  max_connections: 16
+redis:
+  url: "redis://localhost:6379"
+auth:
+  service_token_issuer: "token-service"
+  service_token_audience: "user-service"
