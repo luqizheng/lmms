@@ -14,7 +14,11 @@ pub async fn health(State(pool): State<DbPool>) -> impl IntoResponse {
             .and_then(|g| g.execute("SELECT 1", ()).ok())
             .is_some(),
     };
-    let status_code = if db_ok { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+    let status_code = if db_ok {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
     let body = Json(json!({
         "status": if db_ok { "healthy" } else { "degraded" },
         "service": "user-service-rust",

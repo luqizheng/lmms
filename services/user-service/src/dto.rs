@@ -53,5 +53,32 @@ pub struct PageQuery {
     pub size: u32,
 }
 
-fn default_page() -> u32 { 1 }
-fn default_size() -> u32 { 20 }
+fn default_page() -> u32 {
+    1
+}
+fn default_size() -> u32 {
+    20
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginReq {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LoginSuccessResp {
+    pub code: String,
+    pub expires_in: u32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LockedResp {
+    pub error: &'static str,
+    pub retry_after: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct InvalidCredsResp {
+    pub error: &'static str,
+}

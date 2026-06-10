@@ -1,6 +1,6 @@
-use user_service::error::AppError;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use user_service::error::AppError;
 
 #[test]
 fn validation_maps_to_400() {

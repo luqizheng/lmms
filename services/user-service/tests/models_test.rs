@@ -1,5 +1,5 @@
-use user_service::models::user::{UserRow, UserDTO, UserProfile};
 use serde_json::json;
+use user_service::models::user::{UserDTO, UserProfile, UserRow};
 
 #[test]
 fn user_row_to_dto_includes_all_fields() {

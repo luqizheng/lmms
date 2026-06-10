@@ -48,14 +48,12 @@ pub async fn create_role(
 ) -> Result<RoleDTO, AppError> {
     match pool {
         DbPool::Mysql(p) => {
-            let res = sqlx::query(
-                "INSERT INTO roles (code, name, description) VALUES (?, ?, ?)",
-            )
-            .bind(code)
-            .bind(name)
-            .bind(description)
-            .execute(p)
-            .await;
+            let res = sqlx::query("INSERT INTO roles (code, name, description) VALUES (?, ?, ?)")
+                .bind(code)
+                .bind(name)
+                .bind(description)
+                .execute(p)
+                .await;
 
             let id = match res {
                 Ok(r) => r.last_insert_id(),

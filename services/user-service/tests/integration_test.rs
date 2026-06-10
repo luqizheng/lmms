@@ -13,9 +13,11 @@ async fn setup_pool() -> (ContainerAsync<Mysql>, MySqlPool) {
     let url = format!("mysql://root:secret@{host}:{port}/mysql");
     let pool = MySqlPool::connect(&url).await.expect("connect");
     // Apply migrations
-    let _ = sqlx::query(include_str!("../../migrations/2026_06_10_add_user_code.sql"))
-        .execute(&pool)
-        .await;
+    let _ = sqlx::query(include_str!(
+        "../../migrations/2026_06_10_add_user_code.sql"
+    ))
+    .execute(&pool)
+    .await;
     (container, pool)
 }
 

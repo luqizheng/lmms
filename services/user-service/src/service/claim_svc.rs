@@ -12,19 +12,15 @@ pub struct UserClaims {
     pub status: i8,
 }
 
-pub async fn fetch_user_claims(
-    pool: &DbPool,
-    user_id: u64,
-) -> Result<UserClaims, AppError> {
+pub async fn fetch_user_claims(pool: &DbPool, user_id: u64) -> Result<UserClaims, AppError> {
     match pool {
         DbPool::Mysql(p) => {
-            let row: (u64, String, String, i8) = sqlx::query_as(
-                "SELECT id, username, user_code, status FROM users WHERE id = ?",
-            )
-            .bind(user_id)
-            .fetch_optional(p)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("user id={user_id}")))?;
+            let row: (u64, String, String, i8) =
+                sqlx::query_as("SELECT id, username, user_code, status FROM users WHERE id = ?")
+                    .bind(user_id)
+                    .fetch_optional(p)
+                    .await?
+                    .ok_or_else(|| AppError::NotFound(format!("user id={user_id}")))?;
 
             let roles: Vec<(String,)> = sqlx::query_as(
                 "SELECT r.code FROM roles r \

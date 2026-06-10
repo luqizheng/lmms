@@ -17,7 +17,8 @@ pub async fn create_role(
     State(pool): State<DbPool>,
     Json(req): Json<CreateRoleReq>,
 ) -> Result<impl IntoResponse, AppError> {
-    let dto = role_svc::create_role(&pool, &req.code, &req.name, req.description.as_deref()).await?;
+    let dto =
+        role_svc::create_role(&pool, &req.code, &req.name, req.description.as_deref()).await?;
     Ok(Json(dto))
 }
 

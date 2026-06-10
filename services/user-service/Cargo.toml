@@ -22,8 +22,11 @@ uuid.workspace = true
 chrono = { version = "0.4", features = ["serde"] }
 odbc-api = { version = "8.1", features = ["derive"] }
 encoding_rs = "0.8"
+argon2 = { workspace = true }
+nanoid = "0.4"
+tower-http = { workspace = true }
 
 [dev-dependencies]
 testcontainers = "0.20"
-testcontainers-modules = { version = "0.8", features = ["mysql"] }
+testcontainers-modules = { version = "0.8", features = ["mysql", "redis"] }
 reqwest.workspace = true

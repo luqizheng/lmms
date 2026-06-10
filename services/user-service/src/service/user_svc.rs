@@ -6,10 +6,7 @@ pub fn build_user_dto(row: UserRow, roles: Vec<String>) -> UserDTO {
     row.into_dto(roles)
 }
 
-pub async fn fetch_user_with_roles(
-    pool: &DbPool,
-    user_id: u64,
-) -> Result<UserDTO, AppError> {
+pub async fn fetch_user_with_roles(pool: &DbPool, user_id: u64) -> Result<UserDTO, AppError> {
     match pool {
         DbPool::Mysql(p) => {
             let row = sqlx::query_as::<_, UserRow>(
@@ -29,10 +26,7 @@ pub async fn fetch_user_with_roles(
     }
 }
 
-pub async fn fetch_user_by_code(
-    pool: &DbPool,
-    user_code: &str,
-) -> Result<UserDTO, AppError> {
+pub async fn fetch_user_by_code(pool: &DbPool, user_code: &str) -> Result<UserDTO, AppError> {
     match pool {
         DbPool::Mysql(p) => {
             let row = sqlx::query_as::<_, UserRow>(
@@ -52,10 +46,7 @@ pub async fn fetch_user_by_code(
     }
 }
 
-pub async fn fetch_user_role_codes(
-    pool: &DbPool,
-    user_id: u64,
-) -> Result<Vec<String>, AppError> {
+pub async fn fetch_user_role_codes(pool: &DbPool, user_id: u64) -> Result<Vec<String>, AppError> {
     match pool {
         DbPool::Mysql(p) => {
             let rows: Vec<(String,)> = sqlx::query_as(
@@ -72,11 +63,7 @@ pub async fn fetch_user_role_codes(
     }
 }
 
-pub async fn list_users(
-    pool: &DbPool,
-    page: u32,
-    size: u32,
-) -> Result<Vec<UserDTO>, AppError> {
+pub async fn list_users(pool: &DbPool, page: u32, size: u32) -> Result<Vec<UserDTO>, AppError> {
     match pool {
         DbPool::Mysql(p) => {
             let size = size.clamp(1, 100);
@@ -117,8 +104,7 @@ pub async fn update_user_extends(
                 return Err(AppError::NotFound(format!("user id={user_id}")));
             }
 
-            let s = serde_json::to_string(extends)
-                .map_err(|e| AppError::Internal(e.into()))?;
+            let s = serde_json::to_string(extends).map_err(|e| AppError::Internal(e.into()))?;
             sqlx::query("UPDATE users SET extends_json = ?, updated_at = NOW() WHERE id = ?")
                 .bind(s)
                 .bind(user_id)
@@ -160,9 +146,8 @@ pub async fn remove_user_roles(
     match pool {
         DbPool::Mysql(p) => {
             let placeholders = vec!["?"; role_ids.len()].join(",");
-            let sql = format!(
-                "DELETE FROM user_roles WHERE user_id = ? AND role_id IN ({placeholders})"
-            );
+            let sql =
+                format!("DELETE FROM user_roles WHERE user_id = ? AND role_id IN ({placeholders})");
             let mut q = sqlx::query(&sql).bind(user_id);
             for r in role_ids {
                 q = q.bind(r);
