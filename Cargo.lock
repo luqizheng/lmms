@@ -4172,6 +4172,7 @@ name = "token-service"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "authz",
  "axum 0.8.9",
  "base64 0.22.1",
  "bytes",

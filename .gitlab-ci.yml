@@ -22,60 +22,42 @@ rust_test:
   variables:
     REDIS_URL: redis://192.168.2.130:6379
   before_script:
-    #- export CARGO_REGISTRIES_CRATES_IO_INDEX=https://mirrors.tuna.tsinghua.edu.cn/crates.io-index
-    #- export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
-    #- export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
     - apt-get update && apt-get install -y pkg-config libssl-dev
   script:
-    - cargo test --all --verbose
-
-go_test:
-  stage: test
-  tags:
-    - docker
-  image: zhcoder-docker-registry.com:8000/official/golang:1.25
-  before_script:
-    - export GOPROXY=https://goproxy.cn,direct
-  script:
-    - cd services/auth-service && go test ./... -v -short
-    - cd ../user-service && go test ./... -v -short
+    - cargo test --workspace --all-targets --verbose
 
 build_api_gateway:
   stage: build
-  tags:
-    - shell
+  tags: [shell]
   script:
     - sudo docker build -f Dockerfile.api-gateway -t $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG .
     - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG
     - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:latest
     - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:latest
 
-build_token_server:
+build_token_service:
   stage: build
-  tags:
-    - shell
+  tags: [shell]
   script:
-    - sudo docker build -f Dockerfile.token-server -t $DOCKER_REGISTRY/$DOCKER_REPO/token-server:$IMAGE_TAG .
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-server:$IMAGE_TAG
-    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/token-server:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/token-server:latest
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-server:latest
+    - sudo docker build -f Dockerfile.token-service -t $DOCKER_REGISTRY/$DOCKER_REPO/token-service:$IMAGE_TAG .
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-service:$IMAGE_TAG
+    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/token-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/token-service:latest
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-service:latest
 
-build_auth_service:
+build_credential_login_service:
   stage: build
-  tags:
-    - shell
+  tags: [shell]
   script:
-    - sudo docker build -f Dockerfile.auth-service -t $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:$IMAGE_TAG .
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:$IMAGE_TAG
-    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:latest
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:latest
+    - sudo docker build -f Dockerfile.credential-login-service -t $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:$IMAGE_TAG .
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:$IMAGE_TAG
+    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:latest
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:latest
 
 build_user_service:
   stage: build
-  tags:
-    - shell
+  tags: [shell]
   script:
     - sudo docker build -f Dockerfile.user-service -t $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG .
     - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG
@@ -84,8 +66,7 @@ build_user_service:
 
 deploy:
   stage: deploy
-  tags:
-    - micro-service-runner
+  tags: [micro-service-runner]
   before_script:
     - mkdir -p ~/coder-micro-services
   script:
@@ -102,8 +83,7 @@ deploy:
 
 java_sdk_test:
   stage: test
-  tags:
-    - docker
+  tags: [docker]
   image: maven:3.9-eclipse-temurin-21
   script:
     - cd sdk/java && mvn -B verify
@@ -113,8 +93,7 @@ java_sdk_test:
 
 dotnet_sdk_test:
   stage: test
-  tags:
-    - docker
+  tags: [docker]
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - cd sdk/dotnet && dotnet test --nologo --verbosity minimal
@@ -124,8 +103,7 @@ dotnet_sdk_test:
 
 sdk_publish:
   stage: publish
-  tags:
-    - docker
+  tags: [docker]
   image: maven:3.9-eclipse-temurin-21
   script:
     - cd sdk/java && mvn -B deploy -DskipTests
@@ -137,8 +115,7 @@ sdk_publish:
 
 sdk_publish_dotnet:
   stage: publish
-  tags:
-    - docker
+  tags: [docker]
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - cd sdk/dotnet

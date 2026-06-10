@@ -1,4 +1,0 @@
-[[route]]
-match = "/auth/**"
-service = "auth-service"
-public = true

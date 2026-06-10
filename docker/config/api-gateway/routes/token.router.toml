@@ -1,0 +1,9 @@
+[[route]]
+match = "/api/v1/tokens/**"
+service = "token-service"
+public = true
+
+[[route]]
+match = "/.well-known/**"
+service = "token-service"
+public = true

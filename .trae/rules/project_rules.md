@@ -9,14 +9,14 @@
 | 改动路径                                         | 建议 Skill                        | 时机      |
 | ------------------------------------------------ | --------------------------------- | --------- |
 | `services/*/src/**.rs`                           | `coder-run-tests` -Service <name> | 改完保存  |
-| `services/*/**.go` (非 \_test.go)                | `coder-run-tests` -Service <name> | 改完保存  |
-| `services/*/**_test.go`                          | `coder-run-tests` -Service <name> | 改完保存  |
 | `services/*/tests/**.rs`                         | `coder-run-tests` -Service <name> | 改完保存  |
 | `docker/config/api-gateway/routes/*.router.toml` | `coder-route-validate`            | 改完保存  |
 | `tests/specs/**.yaml`                            | `coder-spec-to-code`              | 新建/修改 |
 | `sdk/java/**/pom.xml`                            | `coder-sdk-publish` (test)        | 改完保存  |
 | `sdk/dotnet/**/*.csproj`                         | `coder-sdk-publish` (test)        | 改完保存  |
 | `infrastructure/docker-compose.*.yaml`           | `coder-microservice-dev`          | 改完保存  |
+
+服务名清单：`token-service` / `api-gateway` / `credential-login-service` / `user-service` / `notification-service`
 
 ---
 
@@ -27,7 +27,6 @@
 | `reports/run-*/summary.md` 出现 fail > 0         | `coder-fix-tests`                 |
 | `reports/latest-fix-prompt.md` 存在且 mtime < 1h | `coder-fix-tests`                 |
 | `cargo build` 失败                               | 先 `cargo check` 看错，不直接 fix |
-| `go test` 编译失败                               | 同上                              |
 
 ---
 
@@ -36,7 +35,6 @@
 ### 修改边界
 
 - AI 触发 `coder-fix-tests` 时**仅改**：
-  - Go: `services/<service>/*_test.go`
   - Rust: `services/<service>/tests/*.rs`
 - **禁止改**：`services/`、`libs/`、`sdk/` 下非 tests 目录的业务源码
 
@@ -84,10 +82,6 @@
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 
-# Go 改动
-go vet ./...
-gofmt -l . | Select-String "."  # 期望空输出
-
 # 路由改动
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 
@@ -101,7 +95,7 @@ cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 
 - ❌ 不要主动 `git push`，除非用户明说
 - ❌ 不要主动 `git commit`，除非用户明说
-- ❌ 不要修 `services/auth-service/integration_test.go` 等业务源码
+- ❌ 不要修 `services/<svc>/src/` 下的业务源码，除非用户授权
 - ❌ 不要把 `private.pem` 加进 commit
 - ❌ 不要在跑 test 时手动改 `reports/` 下的文件
 - ❌ 不要给 SDK 包发版（CI tag 触发，不在本地 push）

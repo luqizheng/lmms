@@ -123,8 +123,16 @@ async fn main() {
             get(routes::jwks::handle_jwks),
         )
         .route(
+            "/.well-known/jwks.json",
+            get(routes::jwks::handle_jwks),
+        )
+        .route(
             "/api/api-keys",
             post(routes::api_key::handle_create_api_key),
+        )
+        .route(
+            "/api/v1/tokens/user-jwt",
+            post(routes::user_jwt::handle_user_jwt),
         )
         .with_state(state);
 

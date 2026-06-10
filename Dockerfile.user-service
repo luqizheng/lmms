@@ -1,0 +1,15 @@
+FROM zhcoder-docker-registry.com:8000/official/rust:1.96-slim AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+COPY Cargo.toml Cargo.lock ./
+COPY libs ./libs
+COPY services/user-service ./services/user-service
+RUN cargo build --release -p user-service
+
+FROM zhcoder-docker-registry.com:8000/official/alpine:3.21
+RUN apk add --no-cache ca-certificates
+WORKDIR /app
+COPY --from=builder /app/target/release/user-service /usr/local/bin/user-service
+COPY docker/config/user-service /app/config
+EXPOSE 8082
+CMD ["/usr/local/bin/user-service", "/app/config/config.yaml"]

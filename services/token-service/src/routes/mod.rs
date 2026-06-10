@@ -4,3 +4,4 @@ pub mod jwks;
 pub mod refresh;
 pub mod resource;
 pub mod revoke;
+pub mod user_jwt;

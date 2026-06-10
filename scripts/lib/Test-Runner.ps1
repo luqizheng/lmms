@@ -1,13 +1,14 @@
 # Test-Runner.ps1
-# 封装 cargo test 与 go test，输出统一 JSON
+# 封装 cargo test，输出统一 JSON
 
 $Root = "d:\projects\coder-micro-services"
 
 $ServiceMap = @{
-    "api-gateway"  = @{ Lang = "rust"; Path = "services\api-gateway" }
-    "token-server" = @{ Lang = "rust"; Path = "services\token-server" }
-    "auth-service" = @{ Lang = "go";    Path = "services\auth-service" }
-    "user-service" = @{ Lang = "go";    Path = "services\user-service" }
+    "api-gateway"              = @{ Lang = "rust"; Path = "services\api-gateway" }
+    "token-service"            = @{ Lang = "rust"; Path = "services\token-service" }
+    "credential-login-service" = @{ Lang = "rust"; Path = "services\credential-login-service" }
+    "user-service"             = @{ Lang = "rust"; Path = "services\user-service" }
+    "notification-service"     = @{ Lang = "rust"; Path = "services\notification-service" }
 }
 
 function Invoke-ServiceTests {
@@ -24,20 +25,12 @@ function Invoke-ServiceTests {
         $prevPref = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
-            if ($cfg.Lang -eq "rust") {
-                # Don't use --message-format=json: it strips libtest's human-readable
-                # "test name ... ok/failed/ignored" output that Report-Builder parses.
-                if ($Type -eq "unit") {
-                    & cargo test --lib 2>&1 | Tee-Object -FilePath $OutputJson | Out-Null
-                } else {
-                    & cargo test --test '*' 2>&1 | Tee-Object -FilePath $OutputJson | Out-Null
-                }
+            # Don't use --message-format=json: it strips libtest's human-readable
+            # "test name ... ok/failed/ignored" output that Report-Builder parses.
+            if ($Type -eq "unit") {
+                & cargo test --lib 2>&1 | Tee-Object -FilePath $OutputJson | Out-Null
             } else {
-                if ($Type -eq "unit") {
-                    & go test -short -json ./... 2>&1 | Tee-Object -FilePath $OutputJson | Out-Null
-                } else {
-                    & go test -json ./... 2>&1 | Tee-Object -FilePath $OutputJson | Out-Null
-                }
+                & cargo test --test '*' 2>&1 | Tee-Object -FilePath $OutputJson | Out-Null
             }
         } catch {
             # capture but don't rethrow - tee'd output is the source of truth
@@ -50,4 +43,6 @@ function Invoke-ServiceTests {
     }
 }
 
-function Get-ServiceList { @("api-gateway", "token-server", "auth-service", "user-service") }
+function Get-ServiceList {
+    @("api-gateway", "token-service", "credential-login-service", "user-service", "notification-service")
+}

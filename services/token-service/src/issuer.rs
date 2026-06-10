@@ -74,6 +74,40 @@ impl TokenIssuer {
         Ok((token, family))
     }
 
+    pub fn issue_user_jwt(
+        &self,
+        user_id: &str,
+        user_code: &str,
+        extra_claims: serde_json::Value,
+        ttl_secs: u64,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        use std::collections::HashSet;
+        let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
+        claims.subject = Some(user_id.to_string());
+        claims.jwt_id = Some(Uuid::new_v4().to_string());
+        claims.issuer = Some(self.issuer.clone());
+        claims.audiences = Some(HashSet::from(["coder-micro-services".to_string()]));
+        claims.expires_at = Some(Self::now() + Duration::from_secs(ttl_secs));
+
+        let mut custom = HashMap::new();
+        custom.insert("scope".to_string(), serde_json::Value::String("access".to_string()));
+        custom.insert("client_id".to_string(), serde_json::Value::String("credential-login-service".to_string()));
+        custom.insert("user_code".to_string(), serde_json::Value::String(user_code.to_string()));
+
+        let reserved = ["iss", "aud", "exp", "iat", "nbf", "sub", "jti"];
+        if let Some(obj) = extra_claims.as_object() {
+            for (k, v) in obj {
+                if reserved.contains(&k.as_str()) {
+                    continue;
+                }
+                custom.insert(k.clone(), v.clone());
+            }
+        }
+        claims.custom = custom;
+
+        Ok(self.key_pair.sign(claims)?)
+    }
+
     pub fn issue_resource_token(
         &self,
         sub: &str,

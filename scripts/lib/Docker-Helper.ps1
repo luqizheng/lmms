@@ -12,8 +12,6 @@ function Invoke-PrePull {
     # 预先拉取基础镜像，避免 build 阶段网络抖动
     $images = @(
         "zhcoder-docker-registry.com:8000/official/alpine:3.21",
-        "zhcoder-docker-registry.com:8000/official/golang:1.22-alpine",
-        "zhcoder-docker-registry.com:8000/official/golang:1.25-alpine",
         "zhcoder-docker-registry.com:8000/official/rust:1.96-slim",
         "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl",
         "zhcoder-docker-registry.com:8000/official/mysql:8.0",
