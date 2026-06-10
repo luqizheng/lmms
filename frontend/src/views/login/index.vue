@@ -64,7 +64,12 @@ const onLogin = async (formEl: FormInstance | undefined) => {
         username: ruleForm.username,
         password: ruleForm.password
       });
-      await useUserStoreHook().setUserInfo();
+      // /users/me 可能暂不可用（业务路由尚未全量上线），失败不阻塞跳转
+      try {
+        await useUserStoreHook().setUserInfo();
+      } catch (_e) {
+        // ignore
+      }
       message(t("login.pureLoginSuccess"), { type: "success" });
       router.push("/welcome");
     } catch (_err) {
