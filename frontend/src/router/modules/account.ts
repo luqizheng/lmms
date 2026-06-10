@@ -35,6 +35,16 @@ export default {
         showLink: false,
         hidden: true
       }
+    },
+    {
+      path: "/register",
+      name: "Register",
+      component: () => import("@/views/login/register.vue"),
+      meta: {
+        title: "注册管理员",
+        showLink: false,
+        hidden: true
+      }
     }
   ]
 } satisfies RouteConfigsTable;

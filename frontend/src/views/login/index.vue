@@ -7,7 +7,8 @@ import { useEventListener } from "@vueuse/core";
 import type { FormInstance } from "element-plus";
 import { $t, transformI18n } from "@/plugins/i18n";
 import { useUserStoreHook } from "@/store/modules/user";
-import { ref, reactive, watch } from "vue";
+import { getSetupStatus } from "@/api/auth";
+import { ref, reactive, watch, onMounted } from "vue";
 import { useTranslationLang } from "@/layout/hooks/useTranslationLang";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 
@@ -27,6 +28,7 @@ const router = useRouter();
 const loading = ref(false);
 const disabled = ref(false);
 const ruleFormRef = ref<FormInstance>();
+const setupRequired = ref(false);
 
 const { t } = useI18n();
 const { dataTheme, themeMode, dataThemeChange } = useDataThemeChange();
@@ -37,6 +39,18 @@ const { locale, translationCh, translationEn } = useTranslationLang();
 const ruleForm = reactive({
   username: "",
   password: ""
+});
+
+onMounted(async () => {
+  try {
+    const r = await getSetupStatus();
+    setupRequired.value = r.data.setup_required;
+    if (setupRequired.value) {
+      router.push("/register");
+    }
+  } catch (_e) {
+    // ignore; user can still try login
+  }
 });
 
 const onLogin = async (formEl: FormInstance | undefined) => {
@@ -180,6 +194,11 @@ watch(
             </el-button>
           </el-form-item>
         </el-form>
+        <div v-if="setupRequired" class="mt-2 text-center">
+          <router-link to="/register" class="text-primary">
+            首次部署？注册管理员
+          </router-link>
+        </div>
       </div>
     </div>
   </div>

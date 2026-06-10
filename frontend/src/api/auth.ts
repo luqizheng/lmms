@@ -11,11 +11,18 @@ export interface LoginResult {
 }
 
 export function login(data: LoginRequest) {
-  return http.request<LoginResult>("post", "/auth/login", { data });
+  return http.request<LoginResult>("post", "/api/v1/auth/login", { data });
 }
 
 export function logout() {
-  return http.request<void>("post", "/auth/logout");
+  return http.request<void>("post", "/api/v1/auth/logout");
+}
+
+export function getSetupStatus() {
+  return http.request<{ setup_required: boolean }>(
+    "get",
+    "/api/v1/auth/setup-status"
+  );
 }
 
 export interface RegisterRequest {
@@ -32,5 +39,5 @@ export interface RegisterResult {
 }
 
 export function register(data: RegisterRequest) {
-  return http.request<RegisterResult>("post", "/auth/register", { data });
+  return http.request<RegisterResult>("post", "/api/v1/auth/register", { data });
 }

@@ -27,33 +27,33 @@ export interface PageResult<T> {
 }
 
 export function getCurrentUser() {
-  return http.request<User>("get", "/users/me");
+  return http.request<User>("get", "/api/v1/users/me");
 }
 
 export function updateCurrentUser(data: Partial<User>) {
-  return http.request<User>("put", "/users/me", { data });
+  return http.request<User>("put", "/api/v1/users/me", { data });
 }
 
 export function listUsers(params: ListUsersQuery) {
-  return http.request<PageResult<User>>("get", "/users", { params });
+  return http.request<PageResult<User>>("get", "/api/v1/users", { params });
 }
 
 export function getUser(id: number) {
-  return http.request<User>("get", `/users/${id}`);
+  return http.request<User>("get", `/api/v1/users/${id}`);
 }
 
 export function patchUserExtends(id: number, data: Record<string, unknown>) {
-  return http.request<User>("patch", `/users/${id}/extends`, { data });
+  return http.request<User>("patch", `/api/v1/users/${id}/extends`, { data });
 }
 
 export function assignUserRoles(id: number, roleIds: number[]) {
-  return http.request<void>("post", `/users/${id}/roles`, {
+  return http.request<void>("post", `/api/v1/users/${id}/roles`, {
     data: { role_ids: roleIds }
   });
 }
 
 export function removeUserRoles(id: number, roleIds: number[]) {
-  return http.request<void>("delete", `/users/${id}/roles`, {
+  return http.request<void>("delete", `/api/v1/users/${id}/roles`, {
     data: { role_ids: roleIds }
   });
 }
