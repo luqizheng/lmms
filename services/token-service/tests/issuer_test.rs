@@ -31,11 +31,6 @@ fn test_issue_access_token_success() {
     claims.expires_at = Some(now_duration + Duration::from_secs(ttl_sec as u64));
 
     let mut custom = HashMap::new();
-    custom.insert("scope".to_string(), serde_json::Value::String("access".to_string()));
-    custom.insert("client_id".to_string(), serde_json::Value::String(client_id.to_string()));
-    custom.insert("permissions".to_string(), serde_json::Value::Array(
-        permissions.iter().map(|p| serde_json::Value::String(p.clone())).collect(),
-    ));
     claims.custom = custom;
 
     let token = key_pair.sign(claims).unwrap();
