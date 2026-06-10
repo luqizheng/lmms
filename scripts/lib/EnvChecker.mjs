@@ -27,7 +27,7 @@ const CHECKS = {
   powershell: {
     label: 'PowerShell',
     required: { major: 5, minor: 1, patch: 0 },
-    cmdWindows: ['powershell.exe', '-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'],
+    cmdWindows: ['powershell.exe', '-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()'],
     cmdUnix: ['pwsh', '-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()'],
     parse: (out) => parseVersion(out.trim()),
     hint: 'install PowerShell 7+ from https://aka.ms/powershell',
@@ -84,11 +84,22 @@ async function detectMsvc() {
   if (process.platform !== 'win32') {
     return { name: 'msvc', label: 'MSVC v143', required: 'required', detected: null, status: 'skip', hint: 'Windows only' };
   }
+  const candidates = [];
   const where = await runCmd(['where', 'vswhere.exe']);
-  if (!where.ok) {
+  if (where.ok) {
+    candidates.push(where.stdout.trim().split(/\r?\n/)[0]);
+  }
+  candidates.push('C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe');
+  candidates.push('C:\\Program Files\\Microsoft Visual Studio\\Installer\\vswhere.exe');
+
+  let vswherePath = null;
+  for (const c of candidates) {
+    const probe = await runCmd(c);
+    if (probe.ok) { vswherePath = c; break; }
+  }
+  if (!vswherePath) {
     return { name: 'msvc', label: 'MSVC v143', required: 'required', detected: null, status: 'fail', hint: 'vswhere.exe not found; install VS Build Tools 2022' };
   }
-  const vswherePath = where.stdout.trim().split(/\r?\n/)[0];
   const probe = await runCmd([
     vswherePath, '-latest',
     '-products', '*',
