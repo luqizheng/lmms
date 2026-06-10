@@ -3,6 +3,8 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::json;
 
+use crate::config::DbType;
+
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
     #[error("validation: {0}")]
@@ -19,6 +21,8 @@ pub enum AppError {
     Db(#[from] sqlx::Error),
     #[error("internal: {0}")]
     Internal(#[from] anyhow::Error),
+    #[error("db type {0:?} not supported for this operation")]
+    UnsupportedDb(DbType),
 }
 
 impl AppError {
