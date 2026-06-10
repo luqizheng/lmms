@@ -74,3 +74,32 @@ async fn role_create_and_assign() {
         .unwrap();
     assert_eq!(count.0, 1);
 }
+
+mod multi_db {
+    use user_service::config::{Config, DbType};
+
+    #[test]
+    fn dameng_yaml_parses() {
+        let yaml = r#"
+server: { host: "0.0.0.0", port: 8082 }
+database:
+  db_type: dameng
+  url: "Driver={DM8 ODBC DRIVER};Server=127.0.0.1;Port=5236;UID=SYSDBA;PWD=x;Schema=DMHR"
+  max_connections: 1
+redis: { url: "redis://localhost:6379" }
+auth: { service_token_issuer: "x", service_token_audience: "y" }
+"#;
+        let cfg: Config = serde_yaml::from_str(yaml).expect("dameng cfg parse");
+        assert_eq!(cfg.database.db_type, DbType::Dameng);
+    }
+
+    #[test]
+    fn unsupported_db_response_is_501() {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        use user_service::error::AppError;
+
+        let resp = AppError::UnsupportedDb(DbType::Dameng).into_response();
+        assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
+    }
+}
