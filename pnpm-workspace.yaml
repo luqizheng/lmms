@@ -1,0 +1,7 @@
+packages:
+  - "common"
+  - "token-server"
+  - "api-gateway"
+  - "auth-service"
+  - "user-service"
+  - "frontend"

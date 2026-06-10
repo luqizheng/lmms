@@ -1,0 +1,16 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+argon2.workspace = true
+anyhow = "1"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "mysql"] }
+redis.workspace = true
+reqwest.workspace = true
+tokio = { workspace = true, features = ["sync"] }

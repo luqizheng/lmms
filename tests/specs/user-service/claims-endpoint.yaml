@@ -1,0 +1,39 @@
+name: user_service_claims_endpoint
+service: user-service
+type: integration
+description: |
+  验证 GET /internal/users/:id/claims 返回 user + roles + permissions 聚合。
+  端点仅内网调用，不经 api-gateway，不挂 JWT 中间件。
+tags:
+  - jwt-verification
+  - claims
+preconditions:
+  - 用户 user_id=1 已存在，关联角色 sales
+  - sales 角色拥有 contract.read / contract.write 权限
+steps:
+  - method: GET
+    path: /internal/users/1/claims
+expected:
+  status: 200
+  body_matches:
+    roles:
+      contains: sales
+    permissions:
+      contains_all:
+        - contract.read
+        - contract.write
+
+---
+name: user_service_claims_not_found
+service: user-service
+type: integration
+description: 不存在的用户返回 404
+tags:
+  - jwt-verification
+  - claims
+steps:
+  - method: GET
+    path: /internal/users/9999/claims
+expected:
+  status: 404
+  body_contains: not_found

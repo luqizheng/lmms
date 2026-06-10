@@ -1,0 +1,14 @@
+[package]
+name = "jwt-ctx"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum.workspace = true
+thiserror.workspace = true
+async-trait = "0.1"
+tower = "0.5"
+
+[dev-dependencies]
+tokio.workspace = true
+tower = { version = "0.5", features = ["util"] }

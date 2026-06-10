@@ -1,0 +1,148 @@
+version: "3.8"
+
+services:
+  consul:
+    image: consul:1.15
+    ports:
+      - "8500:8500"
+    volumes:
+      - ../consul/config.docker.json:/consul/config/services.json:ro
+    command: agent -dev -config-dir=/consul/config
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: superpowers
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile.api-gateway
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../secrets:/app/keys
+      - ../../config:/app/config
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "3000"
+      REDIS_URL: "redis://redis:6379"
+      CONSUL_ADDR: "http://consul:8500"
+      GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
+    depends_on:
+      consul:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+  token-server:
+    build:
+      context: ..
+      dockerfile: Dockerfile.token-server
+    ports:
+      - "4000:4000"
+    volumes:
+      - ../../clients.json:/app/clients.json
+      - ../../secrets:/app/keys
+      - ../../config:/app/config
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "4000"
+      REDIS_URL: "redis://redis:6379"
+      TS_JWT_PRIVATE_KEY_PATH: "/app/keys/private.pem"
+      TS_JWT_PUBLIC_KEY_PATH: "/app/keys/public.pem"
+      TS_CLIENTS_FILE_PATH: "/app/clients.json"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile.auth-service
+    ports:
+      - "5000:5000"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "5000"
+      DATABASE_HOST: mysql
+      DATABASE_PORT: "3306"
+      DATABASE_USER: root
+      DATABASE_PASSWORD: rootpass
+      DATABASE_NAME: superpowers
+      REDIS_ADDR: "redis:6379"
+      TOKEN_SERVER_URL: "http://token-server:4000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      token-server:
+        condition: service_started
+    networks:
+      - superpowers
+
+  user-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile.user-service
+    ports:
+      - "6000:6000"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "6000"
+      DATABASE_HOST: mysql
+      DATABASE_PORT: "3306"
+      DATABASE_USER: root
+      DATABASE_PASSWORD: rootpass
+      DATABASE_NAME: superpowers
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+volumes:
+  redis_data:
+  mysql_data:
+
+networks:
+  superpowers:
+    driver: bridge

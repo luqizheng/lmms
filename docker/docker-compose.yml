@@ -1,0 +1,216 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: zhcoder-docker-registry.com:8000/official/nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ../frontend:/usr/share/nginx/html
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+  redis:
+    image: zhcoder-docker-registry.com:8000/official/redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - superpowers
+
+  mysql:
+    image: zhcoder-docker-registry.com:8000/official/mysql:8.0
+    restart: unless-stopped
+    hostname: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: superpowers
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpass" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - superpowers
+
+  consul:
+    image: zhcoder-docker-registry.com:8000/official/hashicorp/consul:1.20
+    restart: unless-stopped
+    ports:
+      - "8500:8500"
+    command: agent -dev -client=0.0.0.0 -config-dir=/consul/config
+    volumes:
+      - ./config/consul:/consul/config
+    healthcheck:
+      test: [ "CMD", "consul", "members" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  token-server:
+    image: zhcoder-docker-registry.com:8000/micro-server/token-server
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./config/token-server/:/app/config/
+      - ./secrets:/app/keys
+    environment:
+      - RUST_LOG=token_server=debug
+      - TS_SERVER__HOST=0.0.0.0
+      - TS_SERVER__PORT=4000
+      - TS_REDIS__URL=redis://redis:6379
+      - TS_REDIS__PREFIX=coder_
+      - TS_JWT_PRIVATE_KEY_PATH=/app/keys/private.pem
+      - TS_JWT_PUBLIC_KEY_PATH=/app/keys/public.pem
+      - TS_ISSUER=superpowers-token-server
+      - TS_CLIENTS_FILE_PATH=/app/config/clients.json
+      - TS_DEFAULT_ACCESS_TTL_SEC=3600
+      - TS_DEFAULT_REFRESH_TTL_SEC=2592000
+      - TS_DEFAULT_RESOURCE_TTL_SEC=300
+      - TS_CONSUL__ADDR=http://consul:8500
+      - TS_CONSUL__SERVICE_NAME=token-server
+      - TS_CONSUL__SERVICE_ID_FILE=/tmp/token-server-id
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:4000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - superpowers
+
+  api-gateway:
+    image: zhcoder-docker-registry.com:8000/micro-server/api-gateway
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./secrets:/app/keys
+      - ./config/api-gateway:/app/config
+    environment:
+      - RUST_LOG=api_gateway=debug
+      - GW_SERVER__HOST=0.0.0.0
+      - GW_SERVER__PORT=3000
+      - GW_REDIS__URL=redis://redis:6379
+      - GW_REDIS__PREFIX=superpowers_
+      - GW_CONSUL_ADDR=http://consul:8500
+      - GW_JWKS_PUBLIC_KEY_PATH=/app/keys/public.pem
+      - GW_ISSUER=superpowers-token-server
+    depends_on:
+      redis:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+      token-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:3000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - superpowers
+
+  auth-service:
+    image: zhcoder-docker-registry.com:8000/micro-server/auth-service
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../services/auth-service/config:/app/config
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=5000
+      - DATABASE_TYPE=mysql
+      - DATABASE_HOST=mysql
+      - DATABASE_PORT=3306
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=rootpass
+      - DATABASE_NAME=superpowers
+      - REDIS_ADDR=redis:6379
+      - TOKEN_SERVER_URL=http://token-server:4000
+      - CONSUL_ADDR=http://consul:8500
+      - CONSUL_SERVICE_NAME=auth-service
+      - CONSUL_SERVICE_ID_FILE=/tmp/auth-service-id
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      token-server:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:5000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - superpowers
+
+  user-service:
+    image: zhcoder-docker-registry.com:8000/micro-server/user-service
+    restart: unless-stopped
+    ports:
+      - "6000:6000"
+    volumes:
+      - ../services/user-service/config:/app/config
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=6000
+      - DATABASE_TYPE=mysql
+      - DATABASE_HOST=mysql
+      - DATABASE_PORT=3306
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=rootpass
+      - DATABASE_NAME=superpowers
+      - CONSUL_ADDR=http://consul:8500
+      - CONSUL_SERVICE_NAME=user-service
+      - CONSUL_SERVICE_ID_FILE=/tmp/user-service-id
+    depends_on:
+      mysql:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:6000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - superpowers
+
+volumes:
+  redis_data:
+  mysql_data:
+
+networks:
+  superpowers:
+    driver: bridge

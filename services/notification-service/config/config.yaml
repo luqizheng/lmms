@@ -1,0 +1,11 @@
+server:
+  http_addr: "0.0.0.0:8083"
+mysql:
+  url: "mysql://notif:notif@127.0.0.1:3306/notification"
+  max_connections: 10
+redis:
+  url: "redis://127.0.0.1:6379"
+scheduler:
+  tick_secs: 60
+log:
+  level: "info"

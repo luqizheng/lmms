@@ -1,0 +1,20 @@
+name: login_with_valid_credentials
+service: auth-service
+type: integration
+description: 有效凭证登录返回 access_token
+tags:
+  - smoke
+  - auth
+preconditions:
+  - 数据库存在测试用户 test_user / Passw0rd!
+steps:
+  - method: POST
+    path: /auth/login
+    body:
+      username: test_user
+      password: Passw0rd!
+expected:
+  status: 200
+  body_contains: access_token
+data_cleanup:
+  - DELETE FROM users WHERE username='test_user'

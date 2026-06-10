@@ -1,0 +1,20 @@
+[server]
+host = "0.0.0.0"
+port = 4000
+
+[redis]
+url = "redis://localhost:6379"
+prefix = "coder_"
+
+[consul]
+addr = "http://localhost:8500"
+service_name = "token-server"
+service_id_file = "/tmp/token-server-service-id"
+
+jwt_private_key_path = "D:\\projects\\coder-micro-services\\secrets\\private.pem"
+jwt_public_key_path = "D:\\projects\\coder-micro-services\\secrets\\public.pem"
+issuer = "superpowers-token-server"
+clients_file_path = "/app/clients.json"
+default_access_ttl_sec = 3600
+default_refresh_ttl_sec = 2592000
+default_resource_ttl_sec = 300

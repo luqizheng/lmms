@@ -1,0 +1,149 @@
+stages:
+  - test
+  - build
+  - deploy
+  - publish
+
+variables:
+  DOCKER_REGISTRY: zhcoder-docker-registry.com:8000
+  DOCKER_REPO: micro-server
+  DEPLOY_SERVER: 192.168.2.128
+  DEPLOY_USER: kudi
+  DEPLOY_PASSWORD: Ewq321#@!
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  MAVEN_REPO_URL: http://mvn.kudi.repos/repository/maven-releases/
+  NUGET_REPO_URL: http://nuget.kudi.repos/v3/index.json
+
+rust_test:
+  stage: test
+  tags:
+    - docker
+  image: zhcoder-docker-registry.com:8000/official/rust:1.96-slim
+  variables:
+    REDIS_URL: redis://192.168.2.130:6379
+  before_script:
+    #- export CARGO_REGISTRIES_CRATES_IO_INDEX=https://mirrors.tuna.tsinghua.edu.cn/crates.io-index
+    #- export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
+    #- export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup
+    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
+    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    - apt-get update && apt-get install -y pkg-config libssl-dev
+  script:
+    - cargo test --all --verbose
+
+go_test:
+  stage: test
+  tags:
+    - docker
+  image: zhcoder-docker-registry.com:8000/official/golang:1.25
+  before_script:
+    - export GOPROXY=https://goproxy.cn,direct
+  script:
+    - cd services/auth-service && go test ./... -v -short
+    - cd ../user-service && go test ./... -v -short
+
+build_api_gateway:
+  stage: build
+  tags:
+    - shell
+  script:
+    - sudo docker build -f Dockerfile.api-gateway -t $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG .
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG
+    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:latest
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:latest
+
+build_token_server:
+  stage: build
+  tags:
+    - shell
+  script:
+    - sudo docker build -f Dockerfile.token-server -t $DOCKER_REGISTRY/$DOCKER_REPO/token-server:$IMAGE_TAG .
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-server:$IMAGE_TAG
+    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/token-server:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/token-server:latest
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-server:latest
+
+build_auth_service:
+  stage: build
+  tags:
+    - shell
+  script:
+    - sudo docker build -f Dockerfile.auth-service -t $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:$IMAGE_TAG .
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:$IMAGE_TAG
+    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:latest
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/auth-service:latest
+
+build_user_service:
+  stage: build
+  tags:
+    - shell
+  script:
+    - sudo docker build -f Dockerfile.user-service -t $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG .
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG
+    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/user-service:latest
+    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/user-service:latest
+
+deploy:
+  stage: deploy
+  tags:
+    - micro-service-runner
+  before_script:
+    - mkdir -p ~/coder-micro-services
+  script:
+    - rm -rf ~/coder-micro-services
+    - cp -r . ~/coder-micro-services
+    - rm -rf ~/coder-micro-services/.git
+    - cd ~/coder-micro-services
+
+    - sudo /bin/docker-compose -f docker-compose.yml down
+    - sudo /bin/docker-compose -f docker-compose.yml pull
+    - sudo /bin/docker-compose -f docker-compose.yml up -d
+  only:
+    - master
+
+java_sdk_test:
+  stage: test
+  tags:
+    - docker
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd sdk/java && mvn -B verify
+  rules:
+    - changes:
+        - sdk/java/**
+
+dotnet_sdk_test:
+  stage: test
+  tags:
+    - docker
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - cd sdk/dotnet && dotnet test --nologo --verbosity minimal
+  rules:
+    - changes:
+        - sdk/dotnet/**
+
+sdk_publish:
+  stage: publish
+  tags:
+    - docker
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd sdk/java && mvn -B deploy -DskipTests
+      -DaltDeploymentRepository=kudi-maven::default::${MAVEN_REPO_URL}
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  environment:
+    name: maven-releases
+
+sdk_publish_dotnet:
+  stage: publish
+  tags:
+    - docker
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - cd sdk/dotnet
+    - dotnet nuget push "**/*.nupkg" -s ${NUGET_REPO_URL} -k ${NUGET_API_KEY} --skip-duplicate
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  environment:
+    name: nuget-releases

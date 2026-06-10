@@ -1,0 +1,234 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Token Server API",
+    "version": "0.1.0",
+    "description": "OAuth 2.0 token management endpoints exposed by token-server."
+  },
+  "servers": [
+    { "url": "https://gw.kudi.repos", "description": "API Gateway" }
+  ],
+  "paths": {
+    "/api/tokens/access": {
+      "post": {
+        "summary": "Exchange authorization code for token pair",
+        "operationId": "exchangeAuthorizationCode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AccessRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token pair issued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/tokens/refresh": {
+      "post": {
+        "summary": "Refresh access token",
+        "operationId": "refreshToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefreshRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New token pair",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccessResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/tokens/revoke": {
+      "post": {
+        "summary": "Revoke a token",
+        "operationId": "revokeToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RevokeRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Revoked" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/tokens/resource": {
+      "post": {
+        "summary": "Issue resource-scoped token",
+        "operationId": "issueResourceToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResourceRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resource token issued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccessResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/.well-known/jwks.json": {
+      "get": {
+        "summary": "JWKS public key set",
+        "operationId": "getJwks",
+        "responses": {
+          "200": {
+            "description": "Public JWKS",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/api-keys": {
+      "post": {
+        "summary": "Create API key for a client",
+        "operationId": "createApiKey",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateApiKeyRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "API key created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiKeyResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccessRequest": {
+        "type": "object",
+        "required": ["grant_type", "code", "client_id", "client_secret"],
+        "properties": {
+          "grant_type": { "type": "string", "example": "authorization_code" },
+          "code": { "type": "string" },
+          "client_id": { "type": "string" },
+          "client_secret": { "type": "string" }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "required": ["grant_type", "refresh_token", "client_id", "client_secret"],
+        "properties": {
+          "grant_type": { "type": "string", "example": "refresh_token" },
+          "refresh_token": { "type": "string" },
+          "client_id": { "type": "string" },
+          "client_secret": { "type": "string" }
+        }
+      },
+      "RevokeRequest": {
+        "type": "object",
+        "required": ["token", "client_id", "client_secret"],
+        "properties": {
+          "token": { "type": "string" },
+          "client_id": { "type": "string" },
+          "client_secret": { "type": "string" },
+          "token_type_hint": { "type": "string" }
+        }
+      },
+      "ResourceRequest": {
+        "type": "object",
+        "required": ["client_id", "client_secret", "user_id", "resource", "scope"],
+        "properties": {
+          "client_id": { "type": "string" },
+          "client_secret": { "type": "string" },
+          "user_id": { "type": "string" },
+          "resource": { "type": "string" },
+          "scope": { "type": "string" }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "required": ["client_id", "client_secret", "name"],
+        "properties": {
+          "client_id": { "type": "string" },
+          "client_secret": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      },
+      "AccessResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "token_type": { "type": "string" },
+          "expires_in": { "type": "integer", "format": "int64" }
+        }
+      },
+      "ApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "api_key": { "type": "string" },
+          "secret": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Bad request",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  }
+}

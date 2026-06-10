@@ -1,0 +1,28 @@
+name: microservice_jwt_login_token_user
+service: auth-service
+type: integration
+description: |
+  端到端验证：登录 → 换 access token → 调 /api/users/me 走通。
+  覆盖 token-server 调 user-service 拿 claims、api-gateway 注入 X-User-* 头、下游 service 解析 JWT。
+tags:
+  - jwt-verification
+preconditions:
+  - 测试用户 alice / Alice123 已注册
+  - client_id=web-spa / client_secret=web-spa-secret 已配置
+steps:
+  - name: 登录拿 code
+    method: POST
+    path: /api/auth/login
+    body:
+      username: alice
+      password: Alice123
+    expected:
+      status: 200
+      body_contains: code
+
+  - name: 缺 token 应 401
+    method: GET
+    path: /api/users/me
+    expected:
+      status: 401
+      body_contains: missing_token

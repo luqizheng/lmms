@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>KudiCoder.TokenServer.UserSdk</RootNamespace>
+    <AssemblyName>KudiCoder.TokenServer.UserSdk</AssemblyName>
+    <PackageId>KudiCoder.TokenServer.UserSdk</PackageId>
+    <Description>User-to-token-server SDK (login, refresh, revoke, resource, jwks).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Common\KudiCoder.Sdk.Common.csproj" />
+  </ItemGroup>
+</Project>

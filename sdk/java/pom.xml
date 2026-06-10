@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.kudi.coder</groupId>
+  <artifactId>kudi-coder-sdk-parent</artifactId>
+  <version>0.1.0</version>
+  <packaging>pom</packaging>
+
+  <name>Kudi Coder SDK Parent</name>
+  <description>Multi-language SDK suite for coder-micro-services.</description>
+
+  <modules>
+    <module>common</module>
+    <module>user-service-user-sdk</module>
+    <module>user-service-client-sdk</module>
+    <module>token-server-user-sdk</module>
+    <module>token-server-client-sdk</module>
+  </modules>
+
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jackson.version>2.16.1</jackson.version>
+    <junit.version>5.10.1</junit.version>
+    <mockwebserver.version>4.12.0</mockwebserver.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.kudi.coder</groupId>
+        <artifactId>kudi-coder-sdk-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.squareup.okhttp3</groupId>
+        <artifactId>mockwebserver</artifactId>
+        <version>${mockwebserver.version}</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <profiles>
+    <profile>
+      <id>java8</id>
+      <activation><activeByDefault>true</activeByDefault></activation>
+      <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>java17</id>
+      <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>java21</id>
+      <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+      </properties>
+    </profile>
+  </profiles>
+
+  <distributionManagement>
+    <repository>
+      <id>kudi-maven</id>
+      <url>http://mvn.kudi.repos/repository/maven-releases/</url>
+    </repository>
+    <snapshotRepository>
+      <id>kudi-maven</id>
+      <url>http://mvn.kudi.repos/repository/maven-snapshots/</url>
+    </snapshotRepository>
+  </distributionManagement>
+</project>

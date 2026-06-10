@@ -1,0 +1,4 @@
+[[route]]
+match = "/permissions/**"
+service = "user-service"
+public = false

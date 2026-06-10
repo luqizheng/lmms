@@ -1,0 +1,14 @@
+{
+  "clients": [
+    {
+      "client_id": "api-gateway",
+      "client_secret_hash": "$argon2id$v=19$m=65536,t=3,p=4$HERE",
+      "name": "API Gateway",
+      "permissions": ["token:issue", "token:revoke"],
+      "grant_types": ["authorization_code", "refresh_token"],
+      "access_token_ttl_sec": 3600,
+      "refresh_token_ttl_sec": 2592000,
+      "status": "active"
+    }
+  ]
+}

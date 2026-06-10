@@ -1,0 +1,24 @@
+{
+  "services": [
+    {
+      "name": "auth-service",
+      "port": 5000,
+      "check": {
+        "name": "http",
+        "http": "http://localhost:5000/health",
+        "interval": "10s",
+        "timeout": "5s"
+      }
+    },
+    {
+      "name": "user-service",
+      "port": 6000,
+      "check": {
+        "name": "http",
+        "http": "http://localhost:6000/health",
+        "interval": "10s",
+        "timeout": "5s"
+      }
+    }
+  ]
+}

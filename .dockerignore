@@ -1,0 +1,7 @@
+node_modules
+target
+.git
+*.exe
+*.swp
+*.swo
+.DS_Store

@@ -1,0 +1,4 @@
+[[route]]
+match = "/tokens/**"
+service = "token-server"
+public = true
