@@ -115,9 +115,11 @@ git commit -m "chore(scripts): drop go test branches and fix token-service path"
 "docker:build:token-service": "docker build -f Dockerfile.token-service -t zhcoder-docker-registry.com:8000/micro-server/token-service .",
 ```
 
-- [ ] **Step 3: 删 `docker:build:auth-service` 与 `docker:build:user-service`（lines 20-21）**
+- [ ] **Step 3: 删 `docker:build:auth-service`（line 20）**
 
 整行删除。
+
+**`docker:build:user-service` 保留**——`services/user-service/` 是现有 Rust 服务（`services/user-service/Dockerfile` 是 rust 1.81 builder），不是 Go。**plan 原稿写「删 user-service」是错的**。
 
 - [ ] **Step 4: 改聚合 `docker:build`（line 22）**
 
