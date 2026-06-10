@@ -2,6 +2,15 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::fs;
 
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DbType {
+    Mysql,
+    Mssql,
+    Sqlite,
+    Dameng,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerCfg {
     pub host: String,
