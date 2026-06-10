@@ -25,7 +25,7 @@ async fn main() {
 
     let cfg = {
         let b = ::config::Config::builder();
-        let b = b.add_source(::config::File::with_name("config/token-server").required(false));
+        let b = b.add_source(::config::File::with_name("config/token-service").required(false));
         let b = b.add_source(
             ::config::Environment::with_prefix("TS")
                 .prefix_separator("_")
@@ -54,7 +54,7 @@ async fn main() {
         let _ = std::fs::create_dir_all(parent);
     }
 
-    println!("========== token-server config ==========");
+    println!("========== token-service config ==========");
     println!("server.host           : {}", cfg.server.host);
     println!("server.port           : {}", cfg.server.port);
     println!("issuer                : {}", cfg.issuer);
@@ -145,7 +145,7 @@ async fn main() {
         .register(&cfg.server.host, cfg.server.port)
         .await
     {
-        Ok(_) => tracing::info!("token-server registered with consul"),
+        Ok(_) => tracing::info!("token-service registered with consul"),
         Err(e) => tracing::warn!("failed to register with consul: {}", e),
     }
 
@@ -158,6 +158,6 @@ async fn main() {
         std::process::exit(0);
     });
 
-    tracing::info!("token-server listening on {}", addr);
+    tracing::info!("token-service listening on {}", addr);
     axum::serve(listener, app).await.unwrap();
 }

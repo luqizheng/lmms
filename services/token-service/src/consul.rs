@@ -54,7 +54,7 @@ impl ConsulRegistrar {
             }
         }
 
-        let new_id = format!("{}-{}", "token-server", Uuid::new_v4());
+        let new_id = format!("{}-{}", "token-service", Uuid::new_v4());
         if let Err(e) = fs::write(file_path, &new_id) {
             tracing::warn!("failed to write service_id to {}: {}", file_path, e);
         } else {
