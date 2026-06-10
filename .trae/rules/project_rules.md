@@ -54,6 +54,8 @@
 
 - 仓库已切到 `aws_lc_rs` crypto provider
 - 不要回退到 `ring`，会触发 MSVC LNK2019 (fiat_25519 链接错误)
+- **沙箱限制**：Trae IDE 沙箱不加载 vcvarsall，`cargo build` / `cargo test` 会 LNK2019。**所有 cargo 命令必须在真实 PowerShell（vcvarsall x64）跑**，不要在 IDE 终端内直接 `cargo`
+- 沙箱内允许：`Get-Content`、`Select-String`、`git status`/`log`/`diff` 等只读命令
 
 ### PowerShell
 
@@ -108,3 +110,21 @@ cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 - 看上次报告：`Get-Content reports\run-*\summary.md | Select-Object -Last 1`
 - 校验路由：`cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
 - 起本地服务：见 `coder-microservice-dev` skill
+
+---
+
+## Go→Rust 改名映射
+
+| 旧名 | 新名 | 状态 |
+|---|---|---|
+| `auth-service` | `credential-login-service` | **stub**（`src/lib.rs` 仅 `// placeholder`）|
+| `token-server` | `token-service` | 已完成 |
+| `libs/go-jwt-ctx` | `libs/jwt-ctx` | 已完成 |
+| `libs/go-authz` | `libs/authz` | 已完成 |
+| `scripts/e2e_test.go` | （已删）| — |
+| 根 `go.mod` / `go.sum` / `go.work` | （已删）| — |
+
+**当前 stub 清单**（执行 plan 前必读）：
+- `services/credential-login-service` — 仅 `Cargo.toml` + 空 `src/lib.rs` placeholder；业务代码由独立 plan 负责
+
+**清理残留专项 plan**：[`2026-06-10-go-to-rust-migration-cleanup-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md)
