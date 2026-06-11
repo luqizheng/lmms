@@ -21,3 +21,17 @@ Write-Host "  Filter  : $Filter"
 Write-Host "  TestName: $TestName"
 Write-Host "  Rebuild : $Rebuild"
 Write-Host "  E2eDebug: $E2eDebug"
+
+Write-Host '[1/4] Checking e2e dependencies...' -ForegroundColor Yellow
+if (-not (Test-Path 'tests/e2e/node_modules')) {
+    Write-Host '  Installing pnpm packages...'
+    Push-Location tests/e2e
+    try {
+        pnpm install
+        if ($LASTEXITCODE -ne 0) { throw "pnpm install failed with code $LASTEXITCODE" }
+    } finally {
+        Pop-Location
+    }
+} else {
+    Write-Host '  tests/e2e/node_modules exists, skip'
+}
