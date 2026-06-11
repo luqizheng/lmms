@@ -12,12 +12,17 @@ sdk/
     user-service-client-sdk/     # client → user-service
     token-server-user-sdk/       # user → token-server
     token-server-client-sdk/     # client → token-server
+    kudi-http-client/            # 通用服务间 HTTP 客户端（client_credentials + Bearer 透传）
   dotnet/                        # .NET 6 / 9 / 10
     Common/                      # 公共基础
     UserService.UserSdk/
     UserService.ClientSdk/
     TokenServer.UserSdk/
     TokenServer.ClientSdk/
+    KudiCoder.HttpClient/        # 通用服务间 HTTP 客户端
+    tests/KudiCoder.HttpClient.Tests/
+  rust/                          # Rust（workspace 成员）
+    kudi-http-client/            # 通用服务间 HTTP 客户端
   openapi/                       # 离线 OpenAPI 规范
   scripts/                       # openapi-generator 触发脚本
 ```
