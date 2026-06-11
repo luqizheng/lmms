@@ -1,0 +1,18 @@
+server:
+  host: "0.0.0.0"
+  port: 4000
+database:
+  db_type: mysql
+  url: "mysql://token_service:token_pwd@localhost:3306/token_service"
+  max_connections: 16
+consul:
+  addr: "http://localhost:8500"
+  service_name: "token-service"
+  service_id_file: "/tmp/token-service-id"
+jwt_private_key_path: "keys/private.pem"
+jwt_public_key_path: "keys/public.pem"
+issuer: "superpowers-token-service"
+default_access_ttl_sec: 3600
+default_refresh_ttl_sec: 2592000
+default_resource_ttl_sec: 300
+user_service_url: "http://user-service:8080"
