@@ -1,121 +1,31 @@
-use axum::{body::Body, http::{Request, StatusCode}};
-use tower::ServiceExt;
+// requires: cargo test --test-threads=1
+mod common;
+
+use token_service::service::{auth_code_svc, oauth_client_svc, refresh_svc, revoke_svc};
 
 #[tokio::test]
-async fn test_health_endpoint() {
-    let app = token_server::create_test_app().await;
+async fn e2e_access_refresh_revoke() {
+    let pool = common::spawn_mysql().await;
+    oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/health")
-                .body(Body::empty())
-                .unwrap(),
-        )
+    // 1. seed an auth code
+    auth_code_svc::save(&pool, "auth-code-1", "user-42", 3600)
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-}
+    // 2. consume it
+    let u = auth_code_svc::consume(&pool, "auth-code-1").await.unwrap();
+    assert_eq!(u, Some("user-42".into()));
 
-#[tokio::test]
-async fn test_jwks_endpoint() {
-    let app = token_server::create_test_app().await;
+    // 3. issue a refresh marker
+    refresh_svc::mark(&pool, "refresh-jti-1", 3600).await.unwrap();
+    assert!(refresh_svc::is_marked(&pool, "refresh-jti-1").await.unwrap());
 
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/tokens/.well-known/jwks.json")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    // 4. revoke a jti
+    revoke_svc::revoke(&pool, "access-jti-1", 3600).await.unwrap();
+    assert!(revoke_svc::is_revoked(&pool, "access-jti-1").await.unwrap());
 
-    assert_eq!(response.status(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn test_access_token_endpoint_requires_json_body() {
-    let app = token_server::create_test_app().await;
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/tokens/access")
-                .header("Content-Type", "application/json")
-                .body(Body::from(r#"{"invalid": "body"}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-async fn test_refresh_endpoint_requires_valid_body() {
-    let app = token_server::create_test_app().await;
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/tokens/refresh")
-                .header("Content-Type", "application/json")
-                .body(Body::from(r#"{"grant_type": "refresh_token"}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_ne!(response.status(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn test_revoke_endpoint_exists() {
-    let app = token_server::create_test_app().await;
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/tokens/revoke")
-                .header("Content-Type", "application/json")
-                .body(Body::from(r#"{"token": "some-token"}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_ne!(response.status(), StatusCode::NOT_FOUND);
-}
-
-mod token_server {
-    use axum::{routing::get, routing::post, Router};
-    use axum::body::Body;
-    use axum::http::{Request, StatusCode};
-
-    async fn access_handler(_req: Request<Body>) -> (StatusCode, &'static str) {
-        (StatusCode::UNAUTHORIZED, "invalid client")
-    }
-
-    async fn refresh_handler(_req: Request<Body>) -> (StatusCode, &'static str) {
-        (StatusCode::BAD_REQUEST, "invalid request")
-    }
-
-    async fn revoke_handler(_req: Request<Body>) -> StatusCode {
-        StatusCode::OK
-    }
-
-    pub async fn create_test_app() -> Router {
-        Router::new()
-            .route("/health", get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }))
-            .route("/api/tokens/.well-known/jwks.json", get(|| async { axum::Json(serde_json::json!({"keys": []})) }))
-            .route("/api/tokens/access", post(access_handler))
-            .route("/api/tokens/refresh", post(refresh_handler))
-            .route("/api/tokens/revoke", post(revoke_handler))
-            .with_state(())
-    }
+    // 5. find api-gateway client
+    let c = oauth_client_svc::find_by_id(&pool, "api-gateway").await.unwrap();
+    assert!(c.is_some());
 }
