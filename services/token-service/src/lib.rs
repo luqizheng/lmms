@@ -50,6 +50,7 @@ pub mod issuer;
 pub mod models;
 pub mod routes;
 pub mod secret;
+pub mod service;
 pub mod store;
 
 pub use config::{load_config, Config as TokenServerConfig, DatabaseCfg, DbType};

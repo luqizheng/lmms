@@ -9,6 +9,9 @@ mockall = "0.13"
 tokio-test = "0.4"
 tower = { version = "0.5", features = ["util"] }
 hyper = "1"
+testcontainers = "0.20"
+testcontainers-modules = { version = "0.8", features = ["mysql"] }
+reqwest.workspace = true
 
 [dependencies]
 common = { path = "../../libs/common" }
@@ -32,7 +35,7 @@ hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
 bytes = "1"
 authz = { path = "../../libs/authz" }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "macros", "chrono"] }
 serde_yaml = "0.9"
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
