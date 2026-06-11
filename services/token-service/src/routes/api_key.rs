@@ -1,4 +1,5 @@
-use crate::store::client::Client;
+use crate::models::oauth_client::Client;
+use crate::service::oauth_client_svc;
 use crate::TokenServerState;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -26,13 +27,7 @@ pub async fn handle_create_api_key(
 ) -> Result<Json<ApiKeyCreated>, (StatusCode, &'static str)> {
     let client_id = uuid::Uuid::new_v4().to_string();
     let client_secret = uuid::Uuid::new_v4().to_string();
-    use argon2::password_hash::{rand_core::OsRng, SaltString};
-    use argon2::PasswordHasher;
-    let salt = SaltString::generate(&mut OsRng);
-    let hash = argon2::Argon2::default()
-        .hash_password(client_secret.as_bytes(), &salt)
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "hash error"))?
-        .to_string();
+    let hash = crate::secret::hash_client_secret(&client_secret);
 
     let new_client = Client {
         client_id: client_id.clone(),
@@ -45,10 +40,9 @@ pub async fn handle_create_api_key(
         status: "active".into(),
     };
 
-    // 将新 client 追加到内存中（磁盘持久化由管理员手动处理）
-    {
-        state.client_store.add_client(new_client).await;
-    }
+    oauth_client_svc::insert(&state.db, &new_client)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
 
     tracing::info!("created api key client_id={}", client_id);
 
