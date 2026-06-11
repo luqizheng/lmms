@@ -1,4 +1,8 @@
 FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
+RUN export RUSTUP_DIST_SERVER="https://rsproxy.cn"
+RUN export RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup"
+RUN curl --proto '=https' --tlsv1.2 -sSf https://rsproxy.cn/rustup-init.sh | sh
+
 RUN mkdir -p /root/.cargo && cat > /root/.cargo/config.toml << 'EOF'
 [source.crates-io]
 replace-with = 'rsproxy-sparse'
