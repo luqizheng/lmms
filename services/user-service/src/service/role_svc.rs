@@ -18,7 +18,6 @@ pub async fn list_roles(pool: &DbPool) -> Result<Vec<RoleDTO>, AppError> {
             }
             Ok(out)
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -36,7 +35,6 @@ pub async fn get_role(pool: &DbPool, role_id: u64) -> Result<RoleDTO, AppError> 
             let perms = fetch_role_permission_codes(pool, role_id).await?;
             Ok(row.into_dto(perms))
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -64,7 +62,6 @@ pub async fn create_role(
             };
             get_role(pool, id).await
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -89,7 +86,6 @@ pub async fn update_role(
             }
             get_role(pool, role_id).await
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -105,7 +101,6 @@ pub async fn delete_role(pool: &DbPool, role_id: u64) -> Result<(), AppError> {
             }
             Ok(())
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -125,7 +120,6 @@ pub async fn fetch_role_permission_codes(
             .await?;
             Ok(rows.into_iter().map(|(c,)| c).collect())
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -149,6 +143,5 @@ pub async fn assign_role_permissions(
             tx.commit().await?;
             Ok(())
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }

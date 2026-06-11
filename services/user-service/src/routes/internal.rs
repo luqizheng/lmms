@@ -4,7 +4,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use user_service::db::DbPool;
+use crate::db::DbPool;
 
 pub async fn get_user_claims(
     State(pool): State<DbPool>,

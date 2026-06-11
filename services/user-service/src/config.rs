@@ -10,9 +10,6 @@ use std::time::Duration as StdDuration;
 #[serde(rename_all = "lowercase")]
 pub enum DbType {
     Mysql,
-    Mssql,
-    Sqlite,
-    Dameng,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -58,18 +55,18 @@ impl FromStr for Duration {
             if rest.ends_with('m') {
                 let n: u64 = rest
                     .trim_end_matches('m')
-                    .parse()
+                    .parse::<u64>()
                     .map_err(|e| e.to_string())?;
                 Ok(Duration(StdDuration::from_secs(n * 60)))
             } else {
-                let n: u64 = rest.parse().map_err(|e| e.to_string())?;
+                let n: u64 = rest.parse::<u64>().map_err(|e| e.to_string())?;
                 Ok(Duration(StdDuration::from_secs(n)))
             }
         } else if let Some(mins) = s.strip_suffix('m') {
-            let n: u64 = mins.parse().map_err(|e| e.to_string())?;
+            let n: u64 = mins.parse::<u64>().map_err(|e| e.to_string())?;
             Ok(Duration(StdDuration::from_secs(n * 60)))
         } else {
-            let n: u64 = s.parse().map_err(|e| e.to_string())?;
+            let n: u64 = s.parse::<u64>().map_err(|e| e.to_string())?;
             Ok(Duration(StdDuration::from_secs(n)))
         }
     }
@@ -200,52 +197,7 @@ auth: { service_token_issuer: "x", service_token_audience: "y" }
     }
 
     #[test]
-    fn parse_db_type_mssql() {
-        let yaml = r#"
-server: { host: "0.0.0.0", port: 8082 }
-database:
-  db_type: mssql
-  url: "mssql://u:p@localhost:1433/db"
-  max_connections: 8
-redis: { url: "redis://localhost:6379" }
-auth: { service_token_issuer: "x", service_token_audience: "y" }
-"#;
-        let cfg: Config = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(cfg.database.db_type, DbType::Mssql);
-    }
-
-    #[test]
-    fn parse_db_type_sqlite() {
-        let yaml = r#"
-server: { host: "0.0.0.0", port: 8082 }
-database:
-  db_type: sqlite
-  url: "sqlite://./test.db"
-  max_connections: 1
-redis: { url: "redis://localhost:6379" }
-auth: { service_token_issuer: "x", service_token_audience: "y" }
-"#;
-        let cfg: Config = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(cfg.database.db_type, DbType::Sqlite);
-    }
-
-    #[test]
-    fn parse_db_type_dameng() {
-        let yaml = r#"
-server: { host: "0.0.0.0", port: 8082 }
-database:
-  db_type: dameng
-  url: "Driver={DM8 ODBC DRIVER};Server=127.0.0.1;Port=5236;UID=SYSDBA;PWD=x;Schema=DMHR"
-  max_connections: 1
-redis: { url: "redis://localhost:6379" }
-auth: { service_token_issuer: "x", service_token_audience: "y" }
-"#;
-        let cfg: Config = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(cfg.database.db_type, DbType::Dameng);
-    }
-
-    #[test]
-    fn parse_db_type_missing() {
+    fn parse_db_type_default_when_missing() {
         let yaml = r#"
 server: { host: "0.0.0.0", port: 8082 }
 database:
@@ -254,7 +206,8 @@ database:
 redis: { url: "redis://localhost:6379" }
 auth: { service_token_issuer: "x", service_token_audience: "y" }
 "#;
-        assert!(serde_yaml::from_str::<Config>(yaml).is_err());
+        let cfg: Config = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(cfg.database.db_type, DbType::Mysql);
     }
 
     #[test]

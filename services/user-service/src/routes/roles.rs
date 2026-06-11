@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use user_service::db::DbPool;
+use crate::db::DbPool;
 
 pub async fn list_roles(State(pool): State<DbPool>) -> Result<impl IntoResponse, AppError> {
     let items = role_svc::list_roles(&pool).await?;

@@ -7,6 +7,7 @@ use argon2::Argon2;
 use nanoid::nanoid;
 use rand::rngs::OsRng;
 use redis::AsyncCommands;
+use sqlx::Row;
 use tracing::warn;
 
 const KEY_FAIL: &str = "auth:login:fail";
@@ -100,17 +101,16 @@ async fn fetch_user_for_login(
     pool: &DbPool,
     username: &str,
 ) -> Result<Option<(u64, String)>, AppError> {
-    match pool {
-        DbPool::Mysql(p) => {
-            let row: Option<(u64, Option<String>)> = sqlx::query_as(
-                "SELECT id, password_hash FROM users WHERE username = ? AND status = 1",
-            )
-            .bind(username)
-            .fetch_optional(p)
-            .await?;
-            Ok(row.and_then(|(id, h)| h.map(|h| (id, h))))
-        }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
+    if let DbPool::Mysql(p) = pool {
+        let row: Option<(u64, Option<String>)> = sqlx::query_as(
+            "SELECT id, password_hash FROM users WHERE username = ? AND status = 1",
+        )
+        .bind(username)
+        .fetch_optional(p)
+        .await?;
+        Ok(row.and_then(|(id, h)| h.map(|h| (id, h))))
+    } else {
+        unreachable!("only Mysql variant supported")
     }
 }
 
@@ -144,7 +144,7 @@ async fn incr_failure(ctx: &LoginCtx<'_>, username: &str) -> Result<(), AppError
     if n >= ctx.cfg.max_failures as i64 {
         let lock_key = format!("{KEY_LOCK}:{username}");
         let _: () = conn
-            .set_ex(&lock_key, "1", ctx.cfg.lockout_duration.as_secs() as i64)
+            .set_ex(&lock_key, "1", ctx.cfg.lockout_duration.as_secs())
             .await
             .unwrap_or(());
     }
@@ -188,7 +188,7 @@ async fn issue_code(ctx: &LoginCtx<'_>, user_id: u64) -> Result<String, AppError
         .map_err(|e| AppError::Internal(e.into()))?;
     let key = format!("{KEY_CODE}:{code}");
     let _: () = conn
-        .set_ex(&key, user_id as i64, ctx.cfg.code_ttl.as_secs() as i64)
+        .set_ex(&key, user_id, ctx.cfg.code_ttl.as_secs())
         .await
         .map_err(|e| AppError::Internal(e.into()))?;
     Ok(code)
@@ -238,7 +238,7 @@ pub fn hash_password(password: &str) -> Result<String, AppError> {
     Argon2::default()
         .hash_password(password.as_bytes(), &salt)
         .map(|h| h.to_string())
-        .map_err(|e| AppError::Internal(e.into()))
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("hash_password: {e}")))
 }
 
 #[derive(Debug)]

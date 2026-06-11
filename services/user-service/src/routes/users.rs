@@ -8,7 +8,7 @@ use axum::{
 };
 use jwt_ctx::Principal;
 use serde_json::json;
-use user_service::db::DbPool;
+use crate::db::DbPool;
 
 pub async fn get_current_user(
     State(pool): State<DbPool>,
@@ -32,21 +32,18 @@ pub async fn update_current_user(
         .parse()
         .map_err(|_| AppError::Unauthorized)?;
     let profile = json!(req.profile);
-    match &pool {
-        DbPool::Mysql(p) => {
-            sqlx::query(
-                "UPDATE users SET email = ?, phone = ?, nickname = ?, profile_json = ?, \
-                 updated_at = NOW() WHERE id = ?",
-            )
-            .bind(req.email)
-            .bind(req.phone)
-            .bind(req.nickname)
-            .bind(serde_json::to_string(&profile).unwrap())
-            .bind(uid)
-            .execute(p)
-            .await?;
-        }
-        _ => return Err(AppError::UnsupportedDb(pool.db_type())),
+    if let DbPool::Mysql(p) = &pool {
+        sqlx::query(
+            "UPDATE users SET email = ?, phone = ?, nickname = ?, profile_json = ?, \
+             updated_at = NOW() WHERE id = ?",
+        )
+        .bind(req.email)
+        .bind(req.phone)
+        .bind(req.nickname)
+        .bind(serde_json::to_string(&profile).unwrap())
+        .bind(uid)
+        .execute(p)
+        .await?;
     }
     let dto = user_svc::fetch_user_with_roles(&pool, uid).await?;
     Ok(Json(dto))

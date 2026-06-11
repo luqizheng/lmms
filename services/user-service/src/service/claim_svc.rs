@@ -50,7 +50,6 @@ pub async fn fetch_user_claims(pool: &DbPool, user_id: u64) -> Result<UserClaims
                 permissions: perms.into_iter().map(|(c,)| c).collect(),
             })
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -64,6 +63,5 @@ pub async fn list_permissions(pool: &DbPool) -> Result<Vec<PermissionRow>, AppEr
             .await?;
             Ok(rows)
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }

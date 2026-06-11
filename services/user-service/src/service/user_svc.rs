@@ -22,7 +22,6 @@ pub async fn fetch_user_with_roles(pool: &DbPool, user_id: u64) -> Result<UserDT
             let roles = fetch_user_role_codes(pool, user_id).await?;
             Ok(build_user_dto(row, roles))
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -42,7 +41,6 @@ pub async fn fetch_user_by_code(pool: &DbPool, user_code: &str) -> Result<UserDT
             let roles = fetch_user_role_codes(pool, row.id).await?;
             Ok(build_user_dto(row, roles))
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -59,7 +57,6 @@ pub async fn fetch_user_role_codes(pool: &DbPool, user_id: u64) -> Result<Vec<St
             .await?;
             Ok(rows.into_iter().map(|(c,)| c).collect())
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -85,7 +82,6 @@ pub async fn list_users(pool: &DbPool, page: u32, size: u32) -> Result<Vec<UserD
             }
             Ok(out)
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -112,7 +108,6 @@ pub async fn update_user_extends(
                 .await?;
             Ok(())
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -134,7 +129,6 @@ pub async fn assign_user_roles(
             tx.commit().await?;
             Ok(())
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }
 
@@ -155,6 +149,5 @@ pub async fn remove_user_roles(
             q.execute(p).await?;
             Ok(())
         }
-        _ => Err(AppError::UnsupportedDb(pool.db_type())),
     }
 }

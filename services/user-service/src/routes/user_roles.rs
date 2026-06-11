@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use user_service::db::DbPool;
+use crate::db::DbPool;
 
 pub async fn assign_user_roles(
     State(pool): State<DbPool>,
