@@ -90,6 +90,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      mysql:
+        condition: service_healthy
+      user-service:
+        condition: service_started
     networks:
       - superpowers
 
