@@ -12,10 +12,10 @@ pnpm run dev
 pnpm run test:reset
 
 # 3. 装 e2e 依赖（独立 workspace，绕过 frontend engines.pnpm）
-cd tests/e2e
-pnpm install
-cd ../..
+pnpm -C tests/e2e install
 ```
+
+> 脚本 `scripts/run-e2e.ps1` 会自动检测并装 e2e 依赖，这步可省。
 
 ## 跑
 
@@ -27,13 +27,11 @@ pnpm run test:e2e
 pnpm run test:e2e:users
 
 # 单 case
-cd tests/e2e
-pnpm test users -t "update extends"
+pnpm -C tests/e2e test users -t "update extends"
 
 # 调试
 $env:E2E_DEBUG=1
-cd tests/e2e
-pnpm test users --reporter=verbose
+pnpm -C tests/e2e test users --reporter=verbose
 ```
 
 ## 环境变量
@@ -71,8 +69,7 @@ tests/e2e/
 
 ```powershell
 $env:E2E_DEBUG=1
-cd tests/e2e
-pnpm test users -t "list users" --reporter=verbose
+pnpm -C tests/e2e test users -t "list users" --reporter=verbose
 ```
 
 输出形如：
