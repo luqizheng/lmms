@@ -21,12 +21,9 @@ tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 jwt-simple.workspace = true
-redis.workspace = true
 uuid.workspace = true
 argon2.workspace = true
 thiserror.workspace = true
-config.workspace = true
-dotenvy.workspace = true
 rand.workspace = true
 base64.workspace = true
 rsa.workspace = true
@@ -35,6 +32,10 @@ hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
 bytes = "1"
 authz = { path = "../../libs/authz" }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql"] }
+serde_yaml = "0.9"
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
 
 
 
