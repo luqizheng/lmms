@@ -2,6 +2,7 @@ use axum::http::StatusCode;
 use jwt_simple::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::RwLock;
 
 #[derive(Debug, Clone, Default)]
 pub struct JwtClaims {
@@ -61,7 +62,7 @@ fn extract_claims(jwt_claims: &JWTClaims<HashMap<String, serde_json::Value>>) ->
 }
 
 pub struct JwtValidator {
-    public_key: RS256PublicKey,
+    public_key: RwLock<RS256PublicKey>,
     issuer: String,
 }
 
@@ -70,18 +71,27 @@ impl JwtValidator {
         let public_key =
             RS256PublicKey::from_pem(public_key_pem).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok(Self {
-            public_key,
+            public_key: RwLock::new(public_key),
             issuer: issuer.to_string(),
         })
     }
 
+    pub fn update(&self, key: RS256PublicKey) {
+        if let Ok(mut p) = self.public_key.write() {
+            *p = key;
+        }
+    }
+
     pub fn validate(&self, token: &str) -> Result<JwtClaims, StatusCode> {
+        let key = self
+            .public_key
+            .read()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let mut options = VerificationOptions::default();
         options.allowed_issuers = Some(HashSet::from([self.issuer.clone()]));
         options.accept_future = false;
 
-        let claims = self
-            .public_key
+        let claims = key
             .verify_token::<HashMap<String, serde_json::Value>>(token, Some(options))
             .map_err(|e| {
                 tracing::warn!("jwt validation failed: {:?}", e);

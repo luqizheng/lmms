@@ -10,7 +10,7 @@ thiserror.workspace = true
 uuid.workspace = true
 argon2.workspace = true
 anyhow = "1"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "mysql"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql"] }
 redis.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["sync"] }
