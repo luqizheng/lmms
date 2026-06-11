@@ -8,6 +8,7 @@ members = [
     "services/api-gateway",
     "services/user-service",
     "services/notification-service",
+    "sdk/rust/kudi-http-client",
 ]
 resolver = "2"
 
