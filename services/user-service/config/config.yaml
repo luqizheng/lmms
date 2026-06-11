@@ -10,6 +10,10 @@ redis:
 auth:
   service_token_issuer: "token-service"
   service_token_audience: "user-service"
+consul:
+  addr: "http://consul:8500"
+  service_name: "user-service"
+  service_id_file: "/tmp/user-service-id"
 
 login_security:
   max_failures: 6

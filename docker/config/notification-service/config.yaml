@@ -9,3 +9,7 @@ scheduler:
   tick_secs: 60
 log:
   level: "info"
+consul:
+  addr: "http://consul:8500"
+  service_name: "notification-service"
+  service_id_file: "/tmp/notification-service-id"

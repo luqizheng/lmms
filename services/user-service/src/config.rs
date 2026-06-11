@@ -36,6 +36,24 @@ pub struct AuthCfg {
     pub service_token_audience: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ConsulCfg {
+    pub addr: String,
+    pub service_name: String,
+    pub service_id_file: String,
+}
+
+impl Default for ConsulCfg {
+    fn default() -> Self {
+        Self {
+            addr: "http://localhost:8500".into(),
+            service_name: "user-service".into(),
+            service_id_file: "/tmp/user-service-id".into(),
+        }
+    }
+}
+
 /// Parse duration from YAML: integer seconds ("300") or string with unit ("5m", "1m30s").
 #[derive(Debug, Clone, Copy)]
 pub struct Duration(StdDuration);
@@ -167,6 +185,7 @@ impl Default for Config {
                 service_token_audience: "user-service".into(),
             },
             login_security: LoginSecurityCfg::default(),
+            consul: ConsulCfg::default(),
         }
     }
 }

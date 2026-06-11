@@ -28,12 +28,31 @@ pub struct LogCfg {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ConsulCfg {
+    pub addr: String,
+    pub service_name: String,
+    pub service_id_file: String,
+}
+
+impl Default for ConsulCfg {
+    fn default() -> Self {
+        Self {
+            addr: "http://localhost:8500".into(),
+            service_name: "notification-service".into(),
+            service_id_file: "/tmp/notification-service-id".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
     pub server: ServerCfg,
     pub mysql: MysqlCfg,
     pub redis: RedisCfg,
     pub scheduler: SchedulerCfg,
     pub log: LogCfg,
+    pub consul: ConsulCfg,
 }
 
 impl AppConfig {

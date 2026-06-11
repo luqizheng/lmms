@@ -4,6 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
+consul-registrar = { path = "../../libs/consul-registrar" }
 axum = { workspace = true, features = ["ws", "macros"] }
 tokio = { workspace = true }
 tower = { workspace = true }

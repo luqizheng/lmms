@@ -111,8 +111,11 @@ services:
       DATABASE_USER: root
       DATABASE_PASSWORD: rootpass
       DATABASE_NAME: superpowers
+      CONSUL_ADDR: "http://consul:8500"
     depends_on:
       mysql:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     networks:
       - superpowers
@@ -123,10 +126,16 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
     volumes:
       - ../docker/config/notification-service:/app/config:ro
+    environment:
+      CONSUL_ADDR: "http://consul:8500"
     networks:
       - superpowers
 volumes:
