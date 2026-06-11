@@ -1,4 +1,4 @@
-use crate::store::redis;
+use crate::service::revoke_svc;
 use crate::TokenServerState;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -20,15 +20,9 @@ pub async fn handle_revoke(
     State(state): State<TokenServerState>,
     Json(req): Json<RevokeRequest>,
 ) -> Result<Json<RevokeResponse>, (StatusCode, &'static str)> {
-    let mut conn = state.redis_conn.clone();
-    redis::add_to_blacklist(
-        &mut conn,
-        &state.redis_prefix,
-        &req.token_jti,
-        req.expires_in.max(0) as u64,
-    )
-    .await
-    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "redis error"))?;
+    revoke_svc::revoke(&state.db, &req.token_jti, req.expires_in.max(0))
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
 
     tracing::info!("revoked token jti={}", req.token_jti);
     Ok(Json(RevokeResponse { success: true }))
