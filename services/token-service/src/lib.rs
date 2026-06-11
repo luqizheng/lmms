@@ -47,7 +47,9 @@ pub mod config;
 pub mod consul;
 pub mod db;
 pub mod issuer;
+pub mod models;
 pub mod routes;
+pub mod secret;
 pub mod store;
 
 pub use config::{load_config, Config as TokenServerConfig, DatabaseCfg, DbType};
