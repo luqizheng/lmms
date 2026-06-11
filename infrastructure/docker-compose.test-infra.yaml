@@ -39,18 +39,6 @@ services:
     networks:
       - superpowers-test
 
-  notification-service:
-    build: ../services/notification-service
-    ports:
-      - "8083:8083"
-    depends_on:
-      - mysql
-      - redis
-    volumes:
-      - ../docker/config/notification-service:/app/config:ro
-    networks:
-      - superpowers-test
-
 networks:
   superpowers-test:
     driver: bridge

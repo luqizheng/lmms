@@ -49,8 +49,8 @@ services:
 
   api-gateway:
     build:
-      context: ..
-      dockerfile: Dockerfile.api-gateway
+      context: ../services/api-gateway
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
@@ -72,8 +72,8 @@ services:
 
   token-server:
     build:
-      context: ..
-      dockerfile: Dockerfile.token-server
+      context: ../services/token-service
+      dockerfile: Dockerfile
     ports:
       - "4000:4000"
     volumes:
@@ -93,36 +93,10 @@ services:
     networks:
       - superpowers
 
-  auth-service:
-    build:
-      context: ..
-      dockerfile: Dockerfile.auth-service
-    ports:
-      - "5000:5000"
-    environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "5000"
-      DATABASE_HOST: mysql
-      DATABASE_PORT: "3306"
-      DATABASE_USER: root
-      DATABASE_PASSWORD: rootpass
-      DATABASE_NAME: superpowers
-      REDIS_ADDR: "redis:6379"
-      TOKEN_SERVER_URL: "http://token-server:4000"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      token-server:
-        condition: service_started
-    networks:
-      - superpowers
-
   user-service:
     build:
-      context: ..
-      dockerfile: Dockerfile.user-service
+      context: ../services/user-service
+      dockerfile: Dockerfile
     ports:
       - "6000:6000"
     environment:
@@ -138,7 +112,19 @@ services:
         condition: service_healthy
     networks:
       - superpowers
-
+  notification-service:
+    build:
+      context: ../services/notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    depends_on:
+      - mysql
+      - redis
+    volumes:
+      - ../docker/config/notification-service:/app/config:ro
+    networks:
+      - superpowers
 volumes:
   redis_data:
   mysql_data:
