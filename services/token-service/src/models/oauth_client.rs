@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
+use sqlx::types::Json;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ClientRow {
     pub client_id: String,
     pub client_secret_hash: String,
     pub name: String,
-    pub permissions: serde_json::Value, // JSON 列 -> Value
-    pub grant_types: serde_json::Value,
+    pub permissions: Json<Vec<String>>,
+    pub grant_types: Json<Vec<String>>,
     pub access_token_ttl_sec: i64,
     pub refresh_token_ttl_sec: i64,
     pub status: String,
@@ -32,8 +33,8 @@ impl ClientRow {
             client_id: self.client_id,
             client_secret_hash: self.client_secret_hash,
             name: self.name,
-            permissions: serde_json::from_value(self.permissions).unwrap_or_default(),
-            grant_types: serde_json::from_value(self.grant_types).unwrap_or_default(),
+            permissions: self.permissions.0,
+            grant_types: self.grant_types.0,
             access_token_ttl_sec: self.access_token_ttl_sec,
             refresh_token_ttl_sec: self.refresh_token_ttl_sec,
             status: self.status,

@@ -24,8 +24,8 @@ pub async fn find_by_id(
 pub async fn insert(pool: &DbPool, c: &Client) -> Result<(), sqlx::Error> {
     match pool {
         DbPool::Mysql(p) => {
-            let perms = serde_json::to_value(&c.permissions).unwrap_or(serde_json::json!([]));
-            let grants = serde_json::to_value(&c.grant_types).unwrap_or(serde_json::json!([]));
+            let perms = sqlx::types::Json(&c.permissions);
+            let grants = sqlx::types::Json(&c.grant_types);
             sqlx::query(
                 "INSERT INTO oauth_clients \
                  (client_id, client_secret_hash, name, permissions, grant_types, \
