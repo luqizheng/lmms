@@ -1,63 +1,94 @@
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::user::{UserDTO, UserRow};
+use crate::service::user_position_svc;
 
 pub fn build_user_dto(row: UserRow, roles: Vec<String>) -> UserDTO {
     row.into_dto(roles)
 }
 
 pub async fn fetch_user_with_roles(pool: &DbPool, user_id: u64) -> Result<UserDTO, AppError> {
-    match pool {
-        DbPool::Mysql(p) => {
-            let row = sqlx::query_as::<_, UserRow>(
-                "SELECT id, username, email, phone, nickname, status, user_code, \
-                        profile_json, created_at, updated_at \
-                 FROM users WHERE id = ? AND status = 1",
-            )
-            .bind(user_id)
-            .fetch_optional(p)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("user id={user_id}")))?;
+    let DbPool::Mysql(p) = pool;
+    let row = sqlx::query_as::<_, UserRow>(
+        "SELECT id, username, email, phone, nickname, status, user_code, \
+                profile_json, created_at, updated_at \
+         FROM users WHERE id = ? AND status = 1",
+    )
+    .bind(user_id)
+    .fetch_optional(p)
+    .await?
+    .ok_or_else(|| AppError::NotFound(format!("user id={user_id}")))?;
 
-            let roles = fetch_user_role_codes(pool, user_id).await?;
-            Ok(build_user_dto(row, roles))
-        }
-    }
+    let direct = fetch_user_role_codes(pool, user_id).await?;
+    let pos_codes = fetch_user_position_role_codes(pool, user_id).await?;
+    let mut seen = std::collections::HashSet::new();
+    let roles: Vec<String> = direct
+        .into_iter()
+        .chain(pos_codes)
+        .filter(|c| seen.insert(c.clone()))
+        .collect();
+
+    let positions = user_position_svc::list_user_positions(pool, user_id).await?;
+    let mut dto = build_user_dto(row, roles);
+    dto.positions = positions;
+    Ok(dto)
 }
 
 pub async fn fetch_user_by_code(pool: &DbPool, user_code: &str) -> Result<UserDTO, AppError> {
-    match pool {
-        DbPool::Mysql(p) => {
-            let row = sqlx::query_as::<_, UserRow>(
-                "SELECT id, username, email, phone, nickname, status, user_code, \
-                        profile_json, created_at, updated_at \
-                 FROM users WHERE user_code = ? AND status = 1",
-            )
-            .bind(user_code)
-            .fetch_optional(p)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("user_code={user_code}")))?;
+    let DbPool::Mysql(p) = pool;
+    let row = sqlx::query_as::<_, UserRow>(
+        "SELECT id, username, email, phone, nickname, status, user_code, \
+                profile_json, created_at, updated_at \
+         FROM users WHERE user_code = ? AND status = 1",
+    )
+    .bind(user_code)
+    .fetch_optional(p)
+    .await?
+    .ok_or_else(|| AppError::NotFound(format!("user_code={user_code}")))?;
 
-            let roles = fetch_user_role_codes(pool, row.id).await?;
-            Ok(build_user_dto(row, roles))
-        }
-    }
+    let direct = fetch_user_role_codes(pool, row.id).await?;
+    let pos_codes = fetch_user_position_role_codes(pool, row.id).await?;
+    let mut seen = std::collections::HashSet::new();
+    let roles: Vec<String> = direct
+        .into_iter()
+        .chain(pos_codes)
+        .filter(|c| seen.insert(c.clone()))
+        .collect();
+
+    let positions = user_position_svc::list_user_positions(pool, row.id).await?;
+    let mut dto = build_user_dto(row, roles);
+    dto.positions = positions;
+    Ok(dto)
 }
 
 pub async fn fetch_user_role_codes(pool: &DbPool, user_id: u64) -> Result<Vec<String>, AppError> {
-    match pool {
-        DbPool::Mysql(p) => {
-            let rows: Vec<(String,)> = sqlx::query_as(
-                "SELECT r.code FROM roles r \
-                 INNER JOIN user_roles ur ON ur.role_id = r.id \
-                 WHERE ur.user_id = ?",
-            )
-            .bind(user_id)
-            .fetch_all(p)
-            .await?;
-            Ok(rows.into_iter().map(|(c,)| c).collect())
-        }
-    }
+    let DbPool::Mysql(p) = pool;
+    let rows: Vec<(String,)> = sqlx::query_as(
+        "SELECT r.code FROM roles r \
+         INNER JOIN user_roles ur ON ur.role_id = r.id \
+         WHERE ur.user_id = ?",
+    )
+    .bind(user_id)
+    .fetch_all(p)
+    .await?;
+    Ok(rows.into_iter().map(|(c,)| c).collect())
+}
+
+async fn fetch_user_position_role_codes(
+    pool: &DbPool,
+    user_id: u64,
+) -> Result<Vec<String>, AppError> {
+    let DbPool::Mysql(p) = pool;
+    let rows: Vec<(String,)> = sqlx::query_as(
+        "SELECT DISTINCT r.code FROM roles r \
+         INNER JOIN position_roles pr ON pr.role_id = r.id \
+         INNER JOIN user_positions up ON up.position_id = pr.position_id \
+         WHERE up.user_id = ?",
+    )
+    .bind(user_id)
+    .fetch_all(p)
+    .await?;
+    Ok(rows.into_iter().map(|(c,)| c).collect())
 }
 
 pub async fn list_users(pool: &DbPool, page: u32, size: u32) -> Result<Vec<UserDTO>, AppError> {

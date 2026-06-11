@@ -110,3 +110,54 @@ pub struct SetupStatusResp {
 pub struct ErrorResp {
     pub error: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CreateOrgUnitReq {
+    pub code: String,
+    pub name: String,
+    pub parent_id: Option<u64>,
+    #[serde(default)]
+    pub sort: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateOrgUnitReq {
+    pub name: String,
+    pub parent_id: Option<u64>,
+    pub sort: i32,
+    pub status: i8,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreatePositionReq {
+    pub code: String,
+    pub name: String,
+    pub org_unit_id: u64,
+    #[serde(default)]
+    pub level: i8,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdatePositionReq {
+    pub name: String,
+    pub org_unit_id: u64,
+    pub level: i8,
+    pub status: i8,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AssignPositionRolesReq {
+    pub role_ids: Vec<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AssignUserPositionsReq {
+    pub items: Vec<UserPositionItem>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UserPositionItem {
+    pub position_id: u64,
+    #[serde(default)]
+    pub is_primary: bool,
+}

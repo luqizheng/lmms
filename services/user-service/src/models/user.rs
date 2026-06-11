@@ -1,3 +1,4 @@
+use crate::models::user_position::UserPositionDTO;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -49,6 +50,8 @@ pub struct UserDTO {
     pub updated_at: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub extends: BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub positions: Vec<UserPositionDTO>,
 }
 
 impl UserRow {
@@ -67,6 +70,7 @@ impl UserRow {
             created_at: self.created_at,
             updated_at: self.updated_at,
             extends: BTreeMap::new(),
+            positions: Vec::new(),
         }
     }
 }
