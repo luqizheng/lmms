@@ -1,4 +1,4 @@
-use crate::config::ConsulConfig;
+use crate::config::ConsulCfg;
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::Request;
@@ -29,12 +29,12 @@ struct AgentServiceCheck {
 
 pub struct ConsulRegistrar {
     http_client: HttpClient,
-    config: ConsulConfig,
+    config: ConsulCfg,
     service_id: String,
 }
 
 impl ConsulRegistrar {
-    pub fn new(config: &ConsulConfig) -> Self {
+    pub fn new(config: &ConsulCfg) -> Self {
         let http_client: HttpClient = Client::builder(TokioExecutor::new()).build(HttpConnector::new());
         let service_id = Self::load_or_generate_service_id(&config.service_id_file);
 
