@@ -45,11 +45,12 @@ pub struct TokenServerState {
 
 pub mod config;
 pub mod consul;
+pub mod db;
 pub mod issuer;
 pub mod routes;
 pub mod store;
 
-pub use config::TokenServerConfig;
+pub use config::{load_config, Config as TokenServerConfig, DatabaseCfg, DbType};
 pub use consul::ConsulRegistrar;
 pub use issuer::TokenIssuer;
 pub use store::client::ClientStore;
