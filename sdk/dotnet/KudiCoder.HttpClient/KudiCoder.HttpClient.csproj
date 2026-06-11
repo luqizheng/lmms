@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>KudiCoder.HttpClient</RootNamespace>
+    <AssemblyName>KudiCoder.HttpClient</AssemblyName>
+    <PackageId>KudiCoder.HttpClient</PackageId>
+    <Description>Generic HTTP client for inter-service calls with client_credentials or user Bearer passthrough.</Description>
+  </PropertyGroup>
+</Project>
