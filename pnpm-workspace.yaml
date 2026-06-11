@@ -5,3 +5,4 @@ packages:
   - "auth-service"
   - "user-service"
   - "frontend"
+  - "tests/e2e"
