@@ -35,3 +35,29 @@ if (-not (Test-Path 'tests/e2e/node_modules')) {
 } else {
     Write-Host '  tests/e2e/node_modules exists, skip'
 }
+
+if (-not $NoUp) {
+    Write-Host '[2/4] Starting docker compose stack...' -ForegroundColor Yellow
+    $composeArgs = @('-f', 'infrastructure/docker-compose.yml', 'up', '-d')
+    if ($Rebuild) { $composeArgs += '--build', '--pull', 'never' }
+    docker compose @composeArgs
+    if ($LASTEXITCODE -ne 0) { throw "docker compose up failed with code $LASTEXITCODE" }
+
+    Write-Host '[2/4] Waiting for API gateway health...' -ForegroundColor Yellow
+    $deadline = (Get-Date).AddSeconds(120)
+    $healthy = $false
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $r = Invoke-WebRequest 'http://localhost:3000/api/v1/auth/setup-status' -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+            if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) {
+                $healthy = $true
+                break
+            }
+        } catch {}
+        Start-Sleep -Seconds 2
+    }
+    if (-not $healthy) { throw 'API gateway not healthy after 120s. Run: docker compose -f infrastructure/docker-compose.yml logs' }
+    Write-Host '  Gateway is healthy' -ForegroundColor Green
+} else {
+    Write-Host '[2/4] Skipped (NoUp)' -ForegroundColor Yellow
+}
