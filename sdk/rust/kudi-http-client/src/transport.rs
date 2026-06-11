@@ -36,6 +36,7 @@ pub struct ReqwestTransport {
 
 impl ReqwestTransport {
     pub fn new(options: KudiHttpOptions) -> Result<Arc<Self>, KudiHttpError> {
+        crate::ensure_crypto_provider();
         let client = Client::builder()
             .connect_timeout(options.connect_timeout)
             .timeout(options.read_timeout)
