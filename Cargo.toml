@@ -5,7 +5,6 @@ members = [
     "libs/authz",
     "services/token-service",
     "services/api-gateway",
-    "services/credential-login-service",
     "services/user-service",
     "services/notification-service",
 ]
