@@ -802,6 +802,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
+name = "consul-registrar"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2407,6 +2423,7 @@ dependencies = [
  "axum 0.8.9",
  "chrono",
  "config",
+ "consul-registrar",
  "futures",
  "redis",
  "serde",
@@ -4184,6 +4201,7 @@ dependencies = [
  "bytes",
  "chrono",
  "common",
+ "consul-registrar",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -4584,6 +4602,7 @@ dependencies = [
  "axum 0.7.9",
  "chrono",
  "common",
+ "consul-registrar",
  "jwt-ctx",
  "nanoid",
  "rand 0.8.6",

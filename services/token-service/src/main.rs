@@ -107,7 +107,8 @@ async fn main() {
         )
         .with_state(state);
 
-    let consul_registrar = ConsulRegistrar::new(&cfg.consul);
+    let mut consul_registrar =
+        ConsulRegistrar::new(&cfg.consul.addr, &cfg.consul.service_name, &cfg.consul.service_id_file);
     let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 

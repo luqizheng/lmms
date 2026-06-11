@@ -15,6 +15,7 @@ reqwest.workspace = true
 
 [dependencies]
 common = { path = "../../libs/common" }
+consul-registrar = { path = "../../libs/consul-registrar" }
 axum.workspace = true
 tokio.workspace = true
 tower.workspace = true
@@ -35,7 +36,7 @@ hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
 bytes = "1"
 authz = { path = "../../libs/authz" }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "macros", "chrono"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "macros", "chrono", "json"] }
 serde_yaml = "0.9"
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }

@@ -41,7 +41,6 @@ pub struct TokenServerState {
 }
 
 pub mod config;
-pub mod consul;
 pub mod db;
 pub mod issuer;
 pub mod models;
@@ -51,5 +50,5 @@ pub mod service;
 pub mod store;
 
 pub use config::{load_config, Config as TokenServerConfig, DatabaseCfg, DbType};
-pub use consul::ConsulRegistrar;
+pub use consul_registrar::ConsulRegistrar;
 pub use issuer::TokenIssuer;
