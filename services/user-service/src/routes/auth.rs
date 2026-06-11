@@ -155,9 +155,9 @@ pub fn router(state: AuthState) -> Router {
         .route("/api/v1/auth/login", routing::post(login))
         .route("/api/v1/auth/register", routing::post(register))
         .route("/api/v1/auth/setup-status", routing::get(setup_status))
-        .merge(crate::routes::org_units::router())
-        .merge(crate::routes::positions::router())
-        .merge(crate::routes::user_positions::router())
+        .merge(crate::routes::org_units::router().with_state(state.pool.clone()))
+        .merge(crate::routes::positions::router().with_state(state.pool.clone()))
+        .merge(crate::routes::user_positions::router().with_state(state.pool.clone()))
         .with_state(state)
 }
 

@@ -7,5 +7,5 @@ url = "redis://localhost:6379"
 prefix = "superpowers_"
 
 consul_addr = "http://localhost:8500"
-jwks_public_key_path = "D:\\projects\\coder-micro-services\\secrets\\public.pem"
+jwks_url = "http://localhost:4000/.well-known/jwks.json"
 issuer = "superpowers-token-server"

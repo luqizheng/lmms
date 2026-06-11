@@ -112,7 +112,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     println!("server.host          : {}", cfg.server.host);
     println!("server.port          : {}", cfg.server.port);
     println!("issuer               : {}", cfg.issuer);
-    println!("jwks_public_key_path : {}", cfg.jwks_public_key_path);
+    println!("jwks_url             : {}", cfg.jwks_url);
     println!("redis.url            : {}", cfg.redis.url);
     println!("redis.prefix         : {}", cfg.redis.prefix);
     println!("consul.address       : {}", cfg.consul_addr);
@@ -121,11 +121,13 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     print_routes(&table);
     println!("========================================");
 
-    let public_key_pem =
-        std::fs::read_to_string(&cfg.jwks_public_key_path).expect("failed to read public key");
+    let http_client = reqwest::Client::new();
+    let public_key = api_gateway::jwks::fetch_rs256_key(&http_client, &cfg.jwks_url)
+        .await
+        .expect("failed to fetch JWKS public key");
 
-    let jwt_validator =
-        JwtValidator::new(&public_key_pem, &cfg.issuer).expect("failed to create JWT validator");
+    let jwt_validator = JwtValidator::from_key(public_key, &cfg.issuer)
+        .expect("failed to create JWT validator");
 
     let redis_conn = blacklist::connect(&cfg.redis.url)
         .await

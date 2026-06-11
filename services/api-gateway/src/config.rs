@@ -48,7 +48,7 @@ pub struct GatewayConfig {
     #[serde(default)]
     pub consul_addr: String,
     #[serde(default)]
-    pub jwks_public_key_path: String,
+    pub jwks_url: String,
     #[serde(default)]
     pub issuer: String,
 
@@ -65,7 +65,7 @@ impl Default for GatewayConfig {
             },
             redis: RedisConfig::default(),
             consul_addr: "http://127.0.0.1:8500".into(),
-            jwks_public_key_path: "keys/public.pem".into(),
+            jwks_url: "http://127.0.0.1:4000/.well-known/jwks.json".into(),
             issuer: "superpowers-token-server".into(),
             routes: Vec::new(),
         }

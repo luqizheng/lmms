@@ -2,6 +2,7 @@ pub mod blacklist;
 pub mod config;
 pub mod discovery;
 pub mod jwt;
+pub mod jwks;
 pub mod middleware;
 pub mod rewrite;
 pub mod routes_loader;

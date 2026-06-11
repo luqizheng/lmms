@@ -1,0 +1,4 @@
+[[route]]
+match = "/api/v1/auth/**"
+service = "user-service"
+public = true

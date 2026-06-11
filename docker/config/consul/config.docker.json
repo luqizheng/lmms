@@ -11,11 +11,11 @@
       }
     },
     {
-      "name": "token-server",
-      "port": 4000,
+      "name": "token-service",
+      "port": 8080,
       "check": {
         "name": "http",
-        "http": "http://token-server:4000/health",
+        "http": "http://token-service:8080/health",
         "interval": "10s",
         "timeout": "5s"
       }

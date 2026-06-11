@@ -163,6 +163,7 @@ pub struct Config {
     pub redis: RedisCfg,
     pub auth: AuthCfg,
     pub login_security: LoginSecurityCfg,
+    pub consul: ConsulCfg,
 }
 
 impl Default for Config {

@@ -108,7 +108,6 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./secrets:/app/keys
       - ./config/api-gateway:/app/config
     environment:
       - RUST_LOG=api_gateway=debug

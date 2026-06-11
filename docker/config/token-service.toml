@@ -8,7 +8,7 @@ prefix = "coder_"
 
 [consul]
 addr = "http://localhost:8500"
-service_name = "token-server"
+service_name = "token-service"
 service_id_file = "/tmp/token-server-service-id"
 
 jwt_private_key_path = "D:\\projects\\coder-micro-services\\secrets\\private.pem"

@@ -1,0 +1,11 @@
+[server]
+host = "0.0.0.0"
+port = 3000
+
+[redis]
+url = "redis://redis:6379"
+prefix = "superpowers_"
+
+consul_addr = "http://consul:8500"
+jwks_url = "http://token-server:8080/.well-known/jwks.json"
+issuer = "superpowers-token-server"

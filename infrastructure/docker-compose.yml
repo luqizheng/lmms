@@ -6,7 +6,7 @@ services:
     ports:
       - "8500:8500"
     volumes:
-      - ../consul/config.docker.json:/consul/config/services.json:ro
+      - ../config/consul/config.docker.json:/consul/config/services.json:ro
     command: agent -dev -config-dir=/consul/config
     healthcheck:
       test: ["CMD", "consul", "members"]
@@ -49,19 +49,18 @@ services:
 
   api-gateway:
     build:
-      context: ../services/api-gateway
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
     ports:
       - "3000:3000"
+    # environment:
+    #   SERVER_HOST: "0.0.0.0"
+    #   SERVER_PORT: "3000"
+    #   REDIS_URL: "redis://redis:6379"
+    #   CONSUL_ADDR: "http://consul:8500"
+    #   GW_JWKS_URL: "http://token-server:8080/.well-known/jwks.json"
     volumes:
-      - ../../secrets:/app/keys
-      - ../../config:/app/config
-    environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "3000"
-      REDIS_URL: "redis://redis:6379"
-      CONSUL_ADDR: "http://consul:8500"
-      GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
+      - ./config/api-gateway:/app/config
     depends_on:
       consul:
         condition: service_healthy
@@ -72,18 +71,19 @@ services:
 
   token-server:
     build:
-      context: ../services/token-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/token-service/Dockerfile
     ports:
       - "4000:4000"
-    volumes:
-      - ../../clients.json:/app/clients.json
-      - ../../secrets:/app/keys
-      - ../../config:/app/config
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "4000"
       REDIS_URL: "redis://redis:6379"
+      DATABASE_HOST: mysql
+      DATABASE_PORT: "3306"
+      DATABASE_USER: root
+      DATABASE_PASSWORD: rootpass
+      DATABASE_NAME: superpowers
       TS_JWT_PRIVATE_KEY_PATH: "/app/keys/private.pem"
       TS_JWT_PUBLIC_KEY_PATH: "/app/keys/public.pem"
       TS_CLIENTS_FILE_PATH: "/app/clients.json"
@@ -99,10 +99,10 @@ services:
 
   user-service:
     build:
-      context: ../services/user-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/user-service/Dockerfile
     ports:
-      - "6000:6000"
+      - "6000:8080"
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "6000"
@@ -119,10 +119,11 @@ services:
         condition: service_healthy
     networks:
       - superpowers
+
   notification-service:
     build:
-      context: ../services/notification-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
     ports:
       - "8083:8083"
     depends_on:
@@ -132,12 +133,11 @@ services:
         condition: service_healthy
       consul:
         condition: service_healthy
-    volumes:
-      - ../docker/config/notification-service:/app/config:ro
     environment:
       CONSUL_ADDR: "http://consul:8500"
     networks:
       - superpowers
+
 volumes:
   redis_data:
   mysql_data:

@@ -1,10 +1,10 @@
-[[routes]]
+[[route]]
 match = "/api/notifications/ws"
 service = "notification-service"
 strip_prefix = "/api/notifications"
 ws = true
 
-[[routes]]
+[[route]]
 match = "/api/notifications"
 service = "notification-service"
 strip_prefix = "/api/notifications"

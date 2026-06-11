@@ -76,6 +76,13 @@ impl JwtValidator {
         })
     }
 
+    pub fn from_key(public_key: RS256PublicKey, issuer: &str) -> Result<Self, StatusCode> {
+        Ok(Self {
+            public_key: RwLock::new(public_key),
+            issuer: issuer.to_string(),
+        })
+    }
+
     pub fn update(&self, key: RS256PublicKey) {
         if let Ok(mut p) = self.public_key.write() {
             *p = key;

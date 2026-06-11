@@ -1,0 +1,4 @@
+[[route]]
+match = "/roles/**"
+service = "user-service"
+public = false

@@ -1,0 +1,19 @@
+[[route]]
+match = "/api/v1/users/**"
+service = "user-service"
+public = false
+
+[[route]]
+match = "/api/v1/roles/**"
+service = "user-service"
+public = false
+
+[[route]]
+match = "/api/v1/orgs/**"
+service = "user-service"
+public = false
+
+[[route]]
+match = "/api/v1/posts/**"
+service = "user-service"
+public = false
