@@ -1,8 +1,12 @@
 # Credential-Login & User Service 重头做（Rust）设计
 
 日期：2026-06-10
-状态：待审阅
+状态：**Superseded（2026-06-11）**
 取代：`2026-06-10-go-to-rust-migration-design.md`（旧 spec 基于"1:1 复刻 Go 契约"，本设计推翻该方向）
+
+> **Superseded 原因：** `credential-login-service` 服务整体删除，原计划的账号密码登录功能并入 `user-service`。
+> **接替设计：** 登录安全策略见 [`docs/superpowers/specs/2026-06-10-user-service-password-login-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-10-user-service-password-login-design.md)；端到端登录见 [`docs/superpowers/specs/2026-06-11-frontend-e2e-login-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-11-frontend-e2e-login-design.md)。
+> 本 spec 仅作历史决策记录。
 
 ---
 

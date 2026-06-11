@@ -1,5 +1,10 @@
 # Credential-Login & User Service 重头做 — 主实施计划
 
+> **状态：Superseded（2026-06-11）**
+> **原因：** `credential-login-service` 已整体删除，原计划承担的账号密码登录功能并入 `user-service`。
+> **接替：** 实施见 [`docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md)；前端打通见 [`docs/superpowers/plans/2026-06-11-frontend-e2e-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-11-frontend-e2e-login-plan.md)。
+> **本文件保留为历史决策记录，不再执行。**
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 删除 Go 版 auth-service / user-service；新建 Rust 版 credential-login-service 与 user-service；改造 token-server 为 token-service，承担所有 token 签发；删 Go 资产；同步 CI / 脚本 / AI 规则。

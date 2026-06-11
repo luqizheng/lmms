@@ -34,7 +34,7 @@
 - `docker/config/api-gateway/routes/*.router.toml`（新建或修改其中一个路由文件）
 
 ### 不删
-- `services/credential-login-service/`（独立清理 plan）
+- ~~`services/credential-login-service/`~~（2026-06-11 已删除，登录功能并入 user-service）
 
 ---
 

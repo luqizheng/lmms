@@ -12,11 +12,11 @@
 
 | 旧名 | 新名 | 当前状态 |
 |---|---|---|
-| `auth-service` | `credential-login-service` | **stub**（`src/lib.rs` 仅 `// placeholder`；T5 Step 2 删 compose 块的依据）|
+| `auth-service` | `credential-login-service` | **已删除（2026-06-11）**；原登录功能并入 `user-service`；本 plan 内的 compose / 路由 / stub 相关条目相应作废 |
 | `token-server` | `token-service` | 已完成；本 plan 处理所有 `token-server` 字面量与路径 |
 
 **stub 清单**（不要尝试补全业务代码）：
-- `services/credential-login-service` — 仅 `Cargo.toml` + 空 `src/lib.rs`；业务由独立 plan 负责
+- ~~`services/credential-login-service`~~ — **已删除（2026-06-11）**；删除由独立 PR 完成，业务并入 `user-service`，实施见 [`docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md)
 
 **Task 3 例外授权**：`services/token-service/src/{main,consul}.rs` 的修改仅替换字面量字符串（config 路径、日志、`service_id` 前缀），**不触碰任何业务逻辑**。已获用户明文授权（cleanup plan 评审通过）。
 
