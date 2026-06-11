@@ -81,12 +81,11 @@ impl TokenIssuer {
         extra_claims: serde_json::Value,
         ttl_secs: u64,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        use std::collections::HashSet;
         let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
         claims.subject = Some(user_id.to_string());
         claims.jwt_id = Some(Uuid::new_v4().to_string());
         claims.issuer = Some(self.issuer.clone());
-        claims.audiences = Some(HashSet::from(["coder-micro-services".to_string()]));
+        claims.audiences = Some(Audiences::AsString("coder-micro-services".to_string()));
         claims.expires_at = Some(Self::now() + Duration::from_secs(ttl_secs));
 
         let mut custom = HashMap::new();
