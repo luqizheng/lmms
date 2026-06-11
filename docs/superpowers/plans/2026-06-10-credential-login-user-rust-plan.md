@@ -6,7 +6,7 @@
 
 **Architecture:** 单一 Cargo workspace（4 Rust 服务 + 3 共享 crate）；token-service 集中签发 user JWT 与 service JWT；credential-login-service 与 user-service 通过 service JWT 互调内部端点；user-service 数据落 `oa3.member_*`（沿用 docs/member_org.sql），新增 `UserCode` 字段。
 
-**Tech Stack:** Rust 1.78+、`axum 0.8`、`sqlx 0.8` (mysql + runtime-tokio-rustls)、`redis 0.27`、`argon2 0.5`、`jwt-simple 0.12`、`reqwest 0.12`、`nanoid 0.4`、`tracing`、`aws_lc_rs`（沿用 workspace）。
+**Tech Stack:** Rust 1.78+、`axum 0.8`、`sqlx 0.8` (mysql + runtime-tokio-rustls)、`redis 0.27`、`argon2 0.5`、`jwt-simple 0.12`（**API: `claims.audiences: Option<Audiences>`，不是 `Option<HashSet<String>>`；用 `Audiences::AsString(...)` 或 `Audiences::AsSet(...)`**）、`reqwest 0.12`、`nanoid 0.4`、`tracing`、`aws_lc_rs`（沿用 workspace）。
 
 **Spec:** [`docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md)
 
@@ -982,7 +982,7 @@ impl TokenIssuer {
         let mut claims: JWTClaims<HashMap<String, Value>> = JWTClaims::new();
         claims.subject = Some(user_id.to_string());
         claims.issuer = Some(self.issuer.clone());
-        claims.audiences = Some(HashSet::from(["coder-micro-services".to_string()]));
+        claims.audiences = Some(Audiences::AsString("coder-micro-services".to_string()));
         claims.jwt_id = Some(uuid::Uuid::new_v4().to_string());
         let now_secs = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
