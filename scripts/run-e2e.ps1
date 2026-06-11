@@ -61,3 +61,30 @@ if (-not $NoUp) {
 } else {
     Write-Host '[2/4] Skipped (NoUp)' -ForegroundColor Yellow
 }
+
+Write-Host '[3/4] Running E2E tests...' -ForegroundColor Yellow
+$env:E2E_BASE_URL = 'http://localhost:3000'
+if ($E2eDebug) { $env:E2E_DEBUG = '1' }
+
+$vitestArgs = @()
+if ($Filter)   { $vitestArgs += $Filter }
+if ($TestName) { $vitestArgs += '-t', $TestName }
+
+Push-Location tests/e2e
+try {
+    pnpm test @vitestArgs
+    $code = $LASTEXITCODE
+} finally {
+    Pop-Location
+}
+
+Write-Host '[4/4] Done.' -ForegroundColor Yellow
+if ($code -ne 0) {
+    Write-Host "  vitest exit: $code" -ForegroundColor Red
+} else {
+    Write-Host "  vitest exit: 0" -ForegroundColor Green
+}
+Write-Host ''
+Write-Host 'To stop the docker stack:' -ForegroundColor Cyan
+Write-Host '  docker compose -f infrastructure/docker-compose.yml down'
+exit $code
