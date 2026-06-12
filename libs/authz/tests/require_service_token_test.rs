@@ -31,7 +31,7 @@ fn make_key_and_token(aud: &str, sub: &str) -> (String, String) {
 
 #[tokio::test]
 async fn valid_service_token_passes() {
-    let (pk_pem, token) = make_key_and_token("user-service", "credential-login-service");
+    let (pk_pem, token) = make_key_and_token("user-service", "x");
     let app = Router::new()
         .route("/", get(echo))
         .layer(axum_mw::from_fn(require_service_token(

@@ -3,12 +3,11 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { spawn } = require('node:child_process');
-const { ROOT, log } = require('./utils.js');
+const { ROOT } = require('./utils.js');
 
 const SERVICE_MAP = {
   'api-gateway': { lang: 'rust', path: 'services\\api-gateway' },
   'token-service': { lang: 'rust', path: 'services\\token-service' },
-  'credential-login-service': { lang: 'rust', path: 'services\\credential-login-service' },
   'user-service': { lang: 'rust', path: 'services\\user-service' },
   'notification-service': { lang: 'rust', path: 'services\\notification-service' },
 };
@@ -16,22 +15,13 @@ const SERVICE_MAP = {
 const ALL_SERVICES = [
   'api-gateway',
   'token-service',
-  'credential-login-service',
   'user-service',
   'notification-service',
 ];
 
-// 跳过 unit 测试的服务（stub/无业务代码）
-const SKIP_UNIT_SERVICES = new Set(['credential-login-service']);
-
 async function runServiceTests(service, type, outputJson) {
   const cfg = SERVICE_MAP[service];
   if (!cfg) throw new Error(`unknown service: ${service}`);
-  if (type === 'unit' && SKIP_UNIT_SERVICES.has(service)) {
-    log.yellow(`[test] ${service} (unit) skipped (no business code)`);
-    fs.writeFileSync(outputJson, '');
-    return;
-  }
   const svcRoot = path.join(ROOT, cfg.path);
   const prevCwd = process.cwd();
   process.chdir(svcRoot);
@@ -59,4 +49,4 @@ function getServiceList() {
   return [...ALL_SERVICES];
 }
 
-module.exports = { SERVICE_MAP, ALL_SERVICES, SKIP_UNIT_SERVICES, runServiceTests, getServiceList };
+module.exports = { SERVICE_MAP, ALL_SERVICES, runServiceTests, getServiceList };
