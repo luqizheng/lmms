@@ -1,6 +1,6 @@
 ---
 name: coder-run-tests
-description: 调用 test-orchestrator.ps1 跑 coder-micro-services 全量或单服务测试。用于「跑测试」「测一下」「执行测试」等意图。
+description: 调用 test-orchestrator.js 跑 coder-micro-services 全量或单服务测试。用于「跑测试」「测一下」「执行测试」等意图。
 ---
 
 # coder-run-tests
@@ -13,56 +13,57 @@ description: 调用 test-orchestrator.ps1 跑 coder-micro-services 全量或单�
 
 - Docker Desktop 已启动
 - 工作目录：`d:\projects\coder-micro-services`
+- Node.js 18+
 
 ## 步骤
 
 ### 1. 拉起基础设施
 
-```powershell
+```bash
 cd d:\projects\coder-micro-services
-.\scripts\test-orchestrator.ps1 start
+node scripts/test-orchestrator.js start
 ```
 
 ### 2. 重置数据库
 
-```powershell
-.\scripts\test-orchestrator.ps1 reset-db
+```bash
+node scripts/test-orchestrator.js reset-db
 ```
 
 ### 3. 运行测试
 
-```powershell
+```bash
 # 全量
-.\scripts\test-orchestrator.ps1 test-all
+node scripts/test-orchestrator.js test-all
 
 # 单服务
-.\scripts\test-orchestrator.ps1 test-all -Service api-gateway
+node scripts/test-orchestrator.js test-all --service api-gateway
 
 # 单类型
-.\scripts\test-orchestrator.ps1 test-unit
-.\scripts\test-orchestrator.ps1 test-integration
+node scripts/test-orchestrator.js test-unit
+node scripts/test-orchestrator.js test-integration
 ```
 
 ### 4. 生成报告
 
-```powershell
-.\scripts\test-orchestrator.ps1 report
+```bash
+node scripts/test-orchestrator.js report
 ```
 
 报告路径：`reports\run-{ts}\summary.md`
 
 ## 快捷：一键闭环
 
-```powershell
-.\scripts\test-orchestrator.ps1 loop
+```bash
+node scripts/test-orchestrator.js loop
 ```
 
 = start + reset-db + test-all + report
 
 ## 停止
 
-```powershell
-.\scripts\test-orchestrator.ps1 stop
+```bash
+node scripts/test-orchestrator.js stop
 ```
 
 ## 故障

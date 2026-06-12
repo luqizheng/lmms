@@ -1,6 +1,6 @@
 import request from 'supertest';
 
-const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:8080';
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 
 function setAuth(agent: request.Test, token: string): request.Test {
   return agent.set('Authorization', `Bearer ${token}`);

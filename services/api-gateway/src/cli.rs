@@ -17,7 +17,7 @@ pub enum Cmd {
     },
     /// Run the gateway.
     Serve {
-        #[arg(long, default_value = "config/api-gateway/routes")]
+        #[arg(long, default_value = "/app/config/routes")]
         routes: PathBuf,
         /// Admin HTTP port for POST /__admin/reload; 0 disables.
         #[arg(long, default_value_t = 9090)]

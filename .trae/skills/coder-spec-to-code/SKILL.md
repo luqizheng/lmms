@@ -14,17 +14,17 @@ description: 把 tests/specs/*.yaml 测试规格转成 AI 提示词，生成 Go/
 
 ### 1. 校验规格
 
-```powershell
+```bash
 cd d:\projects\coder-micro-services
-.\scripts\test-orchestrator.ps1 validate-specs
+node scripts/test-orchestrator.js validate-specs
 ```
 
 必填字段：`name` / `service` / `type` / `description` / `steps`
 
 ### 2. 生成提示词
 
-```powershell
-.\scripts\test-orchestrator.ps1 generate-prompt
+```bash
+node scripts/test-orchestrator.js generate-prompt
 ```
 
 输出：`reports\spec-to-code-prompt.md`
@@ -39,9 +39,9 @@ cd d:\projects\coder-micro-services
 
 ### 4. 跑生成的测试
 
-```powershell
-.\scripts\test-orchestrator.ps1 reset-db
-.\scripts\test-orchestrator.ps1 test-integration -Service <service>
+```bash
+node scripts/test-orchestrator.js reset-db
+node scripts/test-orchestrator.js test-integration --service <service>
 ```
 
 ## YAML 字段

@@ -10,7 +10,7 @@ AI 协作技能包，位于 `.trae/skills/`，按意图自动匹配：
 
 | Skill | 触发意图 | 核心动作 |
 |-------|---------|---------|
-| `coder-run-tests` | 跑测试、测一下 | test-orchestrator.ps1 loop |
+| `coder-run-tests` | 跑测试、测一下 | node scripts/test-orchestrator.js loop |
 | `coder-fix-tests` | 修测试、fix-prompt | 渲染修复提示词 → 仅改 tests/ |
 | `coder-route-validate` | 校验路由、reload | validate + /__admin/reload |
 | `coder-sdk-publish` | 发 SDK、sdk:publish | mvn verify + dotnet test + push |

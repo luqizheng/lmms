@@ -3,7 +3,7 @@ import { authedReq } from './http';
 
 
 describe('authedReq', () => {
-  const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:8080';
+  const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 
   it('should build a request helper', async () => {
     const r = authedReq('fake-token');

@@ -7,7 +7,7 @@ description: 测试失败后读取 latest-fix-prompt.md，渲染 AI 修复提示
 
 ## 何时用
 
-`test-orchestrator.ps1 report` 检测到失败，或用户说「修测试」「fix-prompt」时。
+`node scripts/test-orchestrator.js report` 检测到失败，或用户说「修测试」「fix-prompt」时。
 
 ## 边界
 
@@ -21,7 +21,7 @@ description: 测试失败后读取 latest-fix-prompt.md，渲染 AI 修复提示
 
 ### 1. 确认有失败
 
-```powershell
+```bash
 cd d:\projects\coder-micro-services
 Get-Content reports\latest-fix-prompt.md
 ```
@@ -35,21 +35,21 @@ Get-Content reports\latest-fix-prompt.md
 
 ### 3. AI 修改后
 
-```powershell
-.\scripts\test-orchestrator.ps1 reset-db
-.\scripts\test-orchestrator.ps1 test-integration
+```bash
+node scripts/test-orchestrator.js reset-db
+node scripts/test-orchestrator.js test-integration
 ```
 
 ### 4. 验证无回归
 
-```powershell
-.\scripts\test-orchestrator.ps1 test-all
+```bash
+node scripts/test-orchestrator.js test-all
 ```
 
 ## 重生成 fix-prompt
 
-```powershell
-.\scripts\test-orchestrator.ps1 fix-prompt
+```bash
+node scripts/test-orchestrator.js fix-prompt
 ```
 
 ## 模板位置

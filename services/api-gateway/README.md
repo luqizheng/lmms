@@ -193,11 +193,11 @@ services:
     command:
       - "serve"
       - "--routes"
-      - "/app/config/api-gateway/routes"
+      - "/app/config/routes"
       - "--admin-port"
       - "9090"
     volumes:
-      - ../../docker/config/api-gateway:/app/config/api-gateway:ro
+      - ../../docker/config/api-gateway/routes:/app/config/routes:ro
     ports:
       - "3000:3000"   # 业务端口
       - "9090:9090"   # admin reload
@@ -231,7 +231,7 @@ docker compose -f infrastructure\docker-compose.test-infra.yaml up -d
 docker compose -f services\api-gateway\docker-compose.yaml up -d --build
 
 # 校验路由
-docker exec api-gateway /app/api-gateway validate --routes /app/config/api-gateway/routes
+docker exec api-gateway /app/api-gateway validate --routes /app/config/routes
 
 # 热重载路由
 curl -X POST http://localhost:9090/__admin/reload

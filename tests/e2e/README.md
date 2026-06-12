@@ -15,7 +15,7 @@ pnpm run test:reset
 pnpm -C tests/e2e install
 ```
 
-> 脚本 `scripts/run-e2e.ps1` 会自动检测并装 e2e 依赖，这步可省。
+> 脚本 `scripts/run-e2e.js` 会自动检测并装 e2e 依赖，这步可省。
 
 ## 跑
 
@@ -38,7 +38,7 @@ pnpm -C tests/e2e test users --reporter=verbose
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `E2E_BASE_URL` | `http://localhost:8080` | API Gateway |
+| `E2E_BASE_URL` | `http://localhost:3000` | API Gateway |
 | `E2E_ADMIN_USER` | `admin` | admin 用户名 |
 | `E2E_ADMIN_PASS` | `admin123` | admin 密码 |
 | `E2E_CLIENT_ID` | `e2e-client` | token 客户端 ID |

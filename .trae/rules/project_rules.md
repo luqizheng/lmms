@@ -48,7 +48,7 @@
 
 - 网络抖动时用 `docker compose up -d --pull never` 绕过镜像拉取
 - 本地镜像 `redis:7-alpine` / `mysql:8.0` / `consul:1.15` 已缓存
-- 不要修改 `Docker-Helper.ps1` 的 `Invoke-PrePull`，那是网络正常时的优化
+- 不要修改 `scripts/lib/Docker-Helper.js` 的 `prePull`，那是网络正常时的优化
 
 ### Rust 工具链
 
@@ -57,11 +57,11 @@
 - **沙箱限制**：Trae IDE 沙箱不加载 vcvarsall，`cargo build` / `cargo test` 会 LNK2019。**所有 cargo 命令必须在真实 PowerShell（vcvarsall x64）跑**，不要在 IDE 终端内直接 `cargo`
 - 沙箱内允许：`Get-Content`、`Select-String`、`git status`/`log`/`diff` 等只读命令
 
-### PowerShell
+### Node.js 编排脚本
 
-- 所有脚本入口在 `scripts/test-orchestrator.ps1`
-- `lib/*.ps1` 用 dot-source，不要用 `Import-Module`
-- 中文输出用 UTF-8 BOM；当前 `summary.md` 已有编码问题待修
+- 所有基础脚本统一为 Node.js：入口 `scripts/test-orchestrator.js`，lib 在 `scripts/lib/*.js`
+- 仅依赖 Node.js 内置模块（`node:fs` / `node:path` / `node:child_process`），不引入第三方包
+- 旧 `.ps1` 已删除；新加脚本请用 `node scripts/xxx.js` 入口形式
 
 ---
 
@@ -79,7 +79,7 @@
 
 每次 commit 前自动跑（如果 AI 改了对应路径）：
 
-```powershell
+```bash
 # Rust 改动
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
@@ -88,7 +88,7 @@ cargo clippy --all-targets -- -D warnings
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 
 # YAML 规格改动
-.\scripts\test-orchestrator.ps1 validate-specs
+node scripts/test-orchestrator.js validate-specs
 ```
 
 ---
@@ -106,7 +106,7 @@ cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 
 ## 速查
 
-- 跑测试：`.\scripts\test-orchestrator.ps1 loop`
+- 跑测试：`node scripts/test-orchestrator.js loop`
 - 看上次报告：`Get-Content reports\run-*\summary.md | Select-Object -Last 1`
 - 校验路由：`cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
 - 起本地服务：见 `coder-microservice-dev` skill

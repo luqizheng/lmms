@@ -60,7 +60,7 @@ services:
     #   CONSUL_ADDR: "http://consul:8500"
     #   GW_JWKS_URL: "http://token-server:8080/.well-known/jwks.json"
     volumes:
-      - ./config/api-gateway:/app/config
+      - ./config/api-gateway:/app/config/api-gateway
     depends_on:
       consul:
         condition: service_healthy

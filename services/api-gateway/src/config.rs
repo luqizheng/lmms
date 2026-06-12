@@ -37,6 +37,18 @@ pub struct RouteTable {
     pub routes: Vec<RouteConfig>,
 }
 
+fn default_consul_addr() -> String {
+    "http://127.0.0.1:8500".into()
+}
+
+fn default_jwks_url() -> String {
+    "http://127.0.0.1:4000/.well-known/jwks.json".into()
+}
+
+fn default_issuer() -> String {
+    "superpowers-token-server".into()
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct GatewayConfig {
     #[serde(default)]
@@ -45,11 +57,11 @@ pub struct GatewayConfig {
     #[serde(default)]
     pub redis: RedisConfig,
 
-    #[serde(default)]
+    #[serde(default = "default_consul_addr")]
     pub consul_addr: String,
-    #[serde(default)]
+    #[serde(default = "default_jwks_url")]
     pub jwks_url: String,
-    #[serde(default)]
+    #[serde(default = "default_issuer")]
     pub issuer: String,
 
     #[serde(default)]

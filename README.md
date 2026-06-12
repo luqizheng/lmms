@@ -13,26 +13,26 @@ A microservices architecture for coder platform, built with Rust and Go.
 - Docker Desktop（Windows 启用 WSL2 backend）
 - Rust 工具链（`rustup` + `cargo`，1.96+）
 - Go 1.22+
-- PowerShell 5.1（Windows 自带）
+- Node.js 18+（跑 `scripts/*.js` 编排器）
 - 已下载基础镜像 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`（仅 docker build 时需要）
 
 ### 一键工作流
 
-```powershell
+```bash
 # 1. 启动基础设施（MySQL / Redis / Consul）
-.\scripts\test-orchestrator.ps1 start
+node scripts/test-orchestrator.js start
 
 # 2. 重置测试数据库（superpowers_test）
-.\scripts\test-orchestrator.ps1 reset-db
+node scripts/test-orchestrator.js reset-db
 
 # 3. 跑全部服务的 unit + integration 测试
-.\scripts\test-orchestrator.ps1 test-all
+node scripts/test-orchestrator.js test-all
 
 # 4. 查看测试报告（最新一次 run 的 summary.md）
-.\scripts\test-orchestrator.ps1 report
+node scripts/test-orchestrator.js report
 
 # 5. 停止基础设施
-.\scripts\test-orchestrator.ps1 stop
+node scripts/test-orchestrator.js stop
 ```
 
 ### 常用子命令
@@ -42,16 +42,16 @@ A microservices architecture for coder platform, built with Rust and Go.
 | `start` | 通过 `infrastructure/docker-compose.test-infra.yaml` 拉起 MySQL / Redis / Consul（3 个容器） |
 | `stop` | 停止并移除上述容器 |
 | `reset-db` | `DROP + CREATE` superpowers_test，并 `FLUSHALL` Redis |
-| `test-unit [-Service <name>]` | 只跑 unit 测试（默认 4 个服务） |
-| `test-integration [-Service <name>]` | 只跑 integration 测试 |
-| `test-all [-Service <name>]` | 跑 unit + integration |
-| `report [-Timestamp <ts>]` | 生成 `summary.md`（默认读最新一次 run 目录） |
+| `test-unit [--service <name>]` | 只跑 unit 测试（默认 4 个服务） |
+| `test-integration [--service <name>]` | 只跑 integration 测试 |
+| `test-all [--service <name>]` | 跑 unit + integration |
+| `report [--timestamp <ts>]` | 生成 `summary.md`（默认读最新一次 run 目录） |
 | `fix-prompt` | 当存在失败用例时，把失败信息渲染成 AI 修复 prompt |
 | `loop` | `start + reset-db + test-all + report` 一条龙 |
 
 ### 单独跑某个服务
 
-```powershell
+```bash
 # Rust 服务
 cd services\api-gateway
 cargo test --lib                 # 单元测试
@@ -93,7 +93,7 @@ go run .                         # 启动服务
 - **MySQL 容器找不到**：`docker ps -a` 看容器名；`start` 启动的容器会自动加 `coder-micro-services` 前缀
 - **cargo 链接错误（fiat_25519）**：本仓库已切到 `aws_lc_rs` crypto provider；如回退到 `ring` 会触发 MSVC LNK2019
 - **服务起不来**：`docker logs <container>` 看基础设施；服务进程日志直接输出到终端
-- **测试数据脏**：执行 `.\scripts\test-orchestrator.ps1 reset-db`
+- **测试数据脏**：执行 `node scripts/test-orchestrator.js reset-db`
 
 ## Services
 
