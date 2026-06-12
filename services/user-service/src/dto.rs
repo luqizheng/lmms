@@ -161,3 +161,38 @@ pub struct UserPositionItem {
     #[serde(default)]
     pub is_primary: bool,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CreateUserReq {
+    pub username: String,
+    pub password: String,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub nickname: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateUserReq {
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub nickname: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AdminResetPasswordReq {
+    pub new_password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChangePasswordReq {
+    pub old_password: String,
+    pub new_password: String,
+}
