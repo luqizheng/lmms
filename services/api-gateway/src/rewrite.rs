@@ -16,6 +16,7 @@ pub enum RewriteError {
     InvalidHeaderValue(String),
 }
 
+#[allow(clippy::result_large_err)]
 pub fn apply(rules: &[RewriteSpec], req: &mut Request<Body>) -> Result<(), Response> {
     for rule in rules {
         match rule {

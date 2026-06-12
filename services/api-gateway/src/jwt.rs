@@ -94,9 +94,11 @@ impl JwtValidator {
             .public_key
             .read()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let mut options = VerificationOptions::default();
-        options.allowed_issuers = Some(HashSet::from([self.issuer.clone()]));
-        options.accept_future = false;
+        let options = VerificationOptions {
+            allowed_issuers: Some(HashSet::from([self.issuer.clone()])),
+            accept_future: false,
+            ..Default::default()
+        };
 
         let claims = key
             .verify_token::<HashMap<String, serde_json::Value>>(token, Some(options))

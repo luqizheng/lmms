@@ -76,6 +76,7 @@ fn do_reload(
 
 #[tokio::main]
 async fn main() {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "api_gateway=debug,info".into()),
@@ -105,8 +106,7 @@ async fn main() {
 
 async fn serve(routes_dir: PathBuf, admin_port: u16) {
     let cfg = load_global_config();
-    let table = routes_loader::load_routes(&routes_dir)
-        .unwrap_or_else(|e| panic!("failed to load routes from {}: {}", routes_dir.display(), e));
+    
 
     println!("========== api-gateway config ==========");
     println!("server.host          : {}", cfg.server.host);
@@ -118,6 +118,16 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     println!("consul.address       : {}", cfg.consul_addr);
     println!("routes.dir           : {}", routes_dir.display());
     println!("admin.port           : {}", admin_port);
+    
+    let table = routes_loader::load_routes(&routes_dir).unwrap_or_else(|e| {
+        tracing::warn!(
+            "failed to load routes from {}: {}; starting with empty route table",
+            routes_dir.display(),
+            e
+        );
+        RouteTable { routes: vec![] }
+    });
+
     print_routes(&table);
     println!("========================================");
 

@@ -72,8 +72,8 @@ fn rejects_unknown_rewrite_type() {
 }
 
 #[test]
-fn errors_when_dir_empty() {
+fn returns_empty_when_dir_empty() {
     let dir = tempdir().unwrap();
-    let err = load_routes(dir.path()).unwrap_err();
-    assert!(err.to_string().contains("no .router.toml"));
+    let table = load_routes(dir.path()).unwrap();
+    assert!(table.routes.is_empty());
 }

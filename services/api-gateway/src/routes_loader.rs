@@ -29,10 +29,6 @@ pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
     let mut entries: Vec<_> = glob::glob(pattern_str)?.filter_map(|e| e.ok()).collect();
     entries.sort();
 
-    if entries.is_empty() {
-        return Err(LoadError::Empty(dir.display().to_string()));
-    }
-
     let mut routes = Vec::new();
     let mut seen = std::collections::HashSet::new();
 

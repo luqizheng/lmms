@@ -108,7 +108,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./config/api-gateway:/app/config/routes
+      - ./config/api-gateway/routes:/app/config/routes
     environment:
       - RUST_LOG=api_gateway=debug
       - GW_SERVER__HOST=0.0.0.0

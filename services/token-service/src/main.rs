@@ -36,6 +36,10 @@ async fn main() {
         .expect("failed to connect to mysql");
     tracing::info!("connected to mysql at {}", cfg.database.url);
 
+    token_service::db::init_schema(&db)
+        .await
+        .expect("init schema");
+
     let seeded = oauth_client_svc::seed_default_clients(&db)
         .await
         .expect("seed default clients");
