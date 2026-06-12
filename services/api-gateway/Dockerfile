@@ -29,6 +29,5 @@ RUN cargo build --release --target x86_64-unknown-linux-musl -p api-gateway
 FROM zhcoder-docker-registry.com:8000/official/alpine:3.21
 WORKDIR /app
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/api-gateway /app/api-gateway
-COPY docker/config/api-gateway /app/config/api-gateway
 ENV RUST_LOG=api_gateway=debug
 CMD ["/app/api-gateway", "serve", "--routes", "/app/config/routes"]

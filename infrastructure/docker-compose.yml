@@ -60,7 +60,7 @@ services:
       GW_JWKS_URL: "http://token-server:4000/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-server"
     volumes:
-      - ./config/api-gateway:/app/config/api-gateway
+      - ./config/api-gateway:/app/config
     depends_on:
       consul:
         condition: service_healthy

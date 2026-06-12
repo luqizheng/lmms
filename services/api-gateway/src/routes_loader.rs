@@ -26,8 +26,13 @@ pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
         .to_str()
         .ok_or_else(|| LoadError::Empty(dir.display().to_string()))?;
 
+    println!("routes_loader.glob   : {}", pattern_str);
     let mut entries: Vec<_> = glob::glob(pattern_str)?.filter_map(|e| e.ok()).collect();
     entries.sort();
+    println!("routes_loader.found  : {} file(s)", entries.len());
+    for e in &entries {
+        println!("routes_loader.entry  : {}", e.display());
+    }
 
     let mut routes = Vec::new();
     let mut seen = std::collections::HashSet::new();
