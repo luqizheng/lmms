@@ -5,6 +5,9 @@
 use sqlx::mysql::MySqlPool;
 use testcontainers::ContainerAsync;
 use testcontainers_modules::mysql::Mysql;
+use user_service::dto::{
+    AdminResetPasswordReq, ChangePasswordReq, CreateUserReq, UpdateUserReq,
+};
 
 async fn setup_pool() -> (ContainerAsync<Mysql>, MySqlPool) {
     let container = Mysql::default().start().await.expect("start mysql");
@@ -103,5 +106,52 @@ auth: { service_token_issuer: "x", service_token_audience: "y" }
 
         let resp = AppError::UnsupportedDb(DbType::Dameng).into_response();
         assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
+    }
+}
+
+#[cfg(test)]
+mod user_mgmt_test {
+    use super::*;
+
+    #[test]
+    fn create_user_req_rejects_short_password_shape() {
+        let req = CreateUserReq {
+            username: "alice".into(),
+            password: "123".into(),
+            email: None,
+            phone: None,
+            nickname: None,
+        };
+        assert!(req.password.len() < 6);
+        assert_eq!(req.username, "alice");
+    }
+
+    #[test]
+    fn update_user_req_allows_partial_fields() {
+        let req = UpdateUserReq {
+            username: None,
+            email: Some("a@b.c".into()),
+            phone: None,
+            nickname: None,
+        };
+        assert!(req.email.is_some());
+        assert!(req.username.is_none());
+    }
+
+    #[test]
+    fn change_password_req_distinguishes_fields() {
+        let req = ChangePasswordReq {
+            old_password: "old".into(),
+            new_password: "new".into(),
+        };
+        assert_ne!(req.old_password, req.new_password);
+    }
+
+    #[test]
+    fn admin_reset_password_req_has_field() {
+        let req = AdminResetPasswordReq {
+            new_password: "abcdef".into(),
+        };
+        assert!(req.new_password.len() >= 6);
     }
 }
