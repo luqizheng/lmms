@@ -180,8 +180,8 @@ function Restart-Services {
 }
 
 function Reset-Database {
-    Write-Host "[db] dropping and recreating superpowers_test..." -ForegroundColor Cyan
-    & docker exec mysql mysql -uroot -prootpass -e "DROP DATABASE IF EXISTS superpowers_test; CREATE DATABASE superpowers_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    Write-Host "[db] dropping and recreating superpowers..." -ForegroundColor Cyan
+    & docker exec mysql mysql -uroot -prootpass -e "DROP DATABASE IF EXISTS superpowers; CREATE DATABASE superpowers CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
     if ($LASTEXITCODE -ne 0) { throw "mysql reset failed" }
 
     Write-Host "[db] flushing redis..." -ForegroundColor Cyan

@@ -257,7 +257,7 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 
 ### 8.4 infrastructure/
 
-- `docker-compose.test-infra.yaml`：4 个服务的 image 改为新 Rust 镜像
+- `docker-compose.yml`：4 个服务的 image 改为新 Rust 镜像
 - `Dockerfile.{auth,user}-service` 替换为 Rust 多阶段 builder
 
 ---

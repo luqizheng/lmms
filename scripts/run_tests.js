@@ -70,7 +70,7 @@ async function main() {
   } else if (opts.integration) {
     log.magenta('Running INTEGRATION tests only...');
     log.yellow('Note: Ensure Docker Compose services are running:');
-    log.yellow('  cd infrastructure; docker compose -f docker-compose.test-infra.yaml up -d');
+    log.yellow('  cd infrastructure; docker compose -f docker-compose.yml up -d');
     await testRustService(path.join(ROOT, 'services', 'api-gateway'), 'API Gateway (Rust)');
     await testRustService(path.join(ROOT, 'services', 'token-service'), 'Token Service (Rust)');
   }

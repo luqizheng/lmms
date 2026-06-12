@@ -65,7 +65,7 @@
 |------|------|
 | `start` | `docker compose -f infrastructure/docker-compose.test.yaml up -d`，等待所有 healthcheck 通过（30s 轮询） |
 | `stop` | `docker compose down -v` |
-| `reset-db` | DROP/CREATE `superpowers_test`；`FLUSHALL`；`docker compose restart` 受影响服务 |
+| `reset-db` | DROP/CREATE `superpowers`；`FLUSHALL`；`docker compose restart` 受影响服务 |
 | `test-unit` | Rust：`cargo test --lib --message-format=json`；Go：`go test -short -json ./...` |
 | `test-integration` | Rust：`cargo test --test '*' --message-format=json`；Go：`go test -json ./...` |
 | `test-all` | 串联 test-unit + test-integration |
@@ -91,8 +91,8 @@
 
 ```
 docker exec mysql mysql -uroot -prootpass -e \
-  "DROP DATABASE IF EXISTS superpowers_test; \
-   CREATE DATABASE superpowers_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+  "DROP DATABASE IF EXISTS superpowers; \
+   CREATE DATABASE superpowers CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 docker exec redis redis-cli FLUSHALL
 

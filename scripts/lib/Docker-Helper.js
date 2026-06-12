@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { log, ROOT } = require('./utils.js');
 
-const COMPOSE_FILE = path.join(ROOT, 'infrastructure', 'docker-compose.test-infra.yaml');
+const COMPOSE_FILE = path.join(ROOT, 'infrastructure', 'docker-compose.yml');
 
 function composeArgs(...extra) {
   return ['compose', '-f', COMPOSE_FILE, ...extra];
@@ -93,7 +93,7 @@ async function getContainerName(service) {
 }
 
 async function resetDatabase() {
-  log.cyan('[db] dropping and recreating superpowers_test...');
+  log.cyan('[db] dropping and recreating superpowers...');
   const mysqlC = await getContainerName('mysql');
   const redisC = await getContainerName('redis');
   if (!mysqlC) throw new Error('mysql container not found');
@@ -103,7 +103,7 @@ async function resetDatabase() {
   const mysqlArgs = [
     'exec', '-e', 'MYSQL_PWD=rootpass', mysqlC, 'mysql', '-uroot',
     '--show-warnings=0', '-e',
-    'DROP DATABASE IF EXISTS superpowers_test; CREATE DATABASE superpowers_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;',
+    'DROP DATABASE IF EXISTS superpowers; CREATE DATABASE superpowers CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;',
   ];
   const mysqlRes = spawnSync('docker', mysqlArgs, { stdio: 'inherit' });
   if (mysqlRes.status !== 0) throw new Error(`mysql reset failed (exit=${mysqlRes.status})`);

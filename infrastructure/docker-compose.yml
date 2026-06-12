@@ -135,6 +135,8 @@ services:
         condition: service_healthy
     environment:
       CONSUL_ADDR: "http://consul:8500"
+    volumes:
+      - ../docker/config/notification-service:/app/config:ro
     networks:
       - superpowers
 

@@ -34,7 +34,7 @@
 | `docker/config/api-gateway/routes/notification.router.toml` | 网关路由 |
 | `docker/config/notification-service/config.yaml` | 容器内配置 |
 | `tests/specs/notification-service/announcement.yaml` | 行为规格 |
-| `infrastructure/docker-compose.test-infra.yaml` | 追加 notification-service 定义 |
+| `infrastructure/docker-compose.yml` | 追加 notification-service 定义 |
 
 ---
 
@@ -1191,7 +1191,7 @@ git commit -m "feat(api-gateway): add notification routes"
 ## Task 14: docker-compose 接入
 
 **Files:**
-- Modify: `infrastructure/docker-compose.test-infra.yaml`
+- Modify: `infrastructure/docker-compose.yml`
 - Create: `docker/config/notification-service/config.yaml`
 
 - [ ] **Step 1: 容器配置**
@@ -1225,7 +1225,7 @@ log:
 - [ ] **Step 3: 提交**
 
 ```bash
-git add infrastructure/docker-compose.test-infra.yaml docker/config/notification-service
+git add infrastructure/docker-compose.yml docker/config/notification-service
 git commit -m "feat(notification-service): wire docker-compose"
 ```
 
