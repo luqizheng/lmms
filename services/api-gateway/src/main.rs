@@ -12,8 +12,8 @@ use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use api_gateway::{
-    AppState, GatewayConfig, JwtValidator, RouteConfig, RouteTable, RouterConfig,
-    ServiceDiscovery, blacklist, middleware, rewrite, router, routes_loader,
+    blacklist, middleware, rewrite, router, routes_loader, AppState, GatewayConfig, JwtValidator,
+    RouteConfig, RouteTable, RouterConfig, ServiceDiscovery,
 };
 use cli::{Cli, Cmd};
 
@@ -97,16 +97,12 @@ async fn main() {
                 std::process::exit(1);
             }
         },
-        Cmd::Serve {
-            routes,
-            admin_port,
-        } => serve(routes, admin_port).await,
+        Cmd::Serve { routes, admin_port } => serve(routes, admin_port).await,
     }
 }
 
 async fn serve(routes_dir: PathBuf, admin_port: u16) {
     let cfg = load_global_config();
-    
 
     println!("========== api-gateway config ==========");
     println!("server.host          : {}", cfg.server.host);
@@ -118,7 +114,21 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     println!("consul.address       : {}", cfg.consul_addr);
     println!("routes.dir           : {}", routes_dir.display());
     println!("admin.port           : {}", admin_port);
-    
+
+    if !routes_dir.exists() {
+        tracing::warn!(
+            "routes dir {} does not exist; creating it",
+            routes_dir.display()
+        );
+        if let Err(e) = std::fs::create_dir_all(&routes_dir) {
+            tracing::error!(
+                "failed to create routes dir {}: {e}; starting with empty route table",
+                routes_dir.display()
+            );
+        }
+    }
+    println!("routes.dir.exists()  : {}", routes_dir.exists());
+
     let table = routes_loader::load_routes(&routes_dir).unwrap_or_else(|e| {
         tracing::warn!(
             "failed to load routes from {}: {}; starting with empty route table",
@@ -136,8 +146,8 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         .await
         .expect("failed to fetch JWKS public key");
 
-    let jwt_validator = JwtValidator::from_key(public_key, &cfg.issuer)
-        .expect("failed to create JWT validator");
+    let jwt_validator =
+        JwtValidator::from_key(public_key, &cfg.issuer).expect("failed to create JWT validator");
 
     let redis_conn = blacklist::connect(&cfg.redis.url)
         .await
@@ -190,7 +200,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
 
     let api_routes = Router::new()
         .route(
-            "/*key",
+            "/{*key}",
             get(proxy_handler)
                 .post(proxy_handler)
                 .put(proxy_handler)
@@ -259,10 +269,7 @@ async fn spawn_admin_server(
     }
 }
 
-async fn proxy_handler(
-    State(state): State<Arc<AppState>>,
-    mut request: Request,
-) -> Response {
+async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request) -> Response {
     let path = request.uri().path().to_string();
     let table = state.route_table.load();
 
