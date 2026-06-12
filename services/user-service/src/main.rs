@@ -14,6 +14,8 @@ async fn main() -> Result<()> {
         .init();
 
     let cfg = load_config("config/config.yaml")?;
+    log_config(&cfg);
+
     let pool = init_pool(&cfg.database).await?;
     let redis_client = redis::Client::open(cfg.redis.url.clone())?;
 
@@ -64,4 +66,43 @@ async fn main() -> Result<()> {
     .await?;
 
     Ok(())
+}
+
+fn mask_url(url: &str) -> String {
+    let Some(scheme_end) = url.find("://") else {
+        return url.to_string();
+    };
+    let after = &url[scheme_end + 3..];
+    let Some(at) = after.find('@') else {
+        return url.to_string();
+    };
+    let creds = &after[..at];
+    let host_part = &after[at..];
+    let Some(colon) = creds.find(':') else {
+        return url.to_string();
+    };
+    let user = &creds[..colon];
+    format!("{}://{}:***{}", &url[..scheme_end], user, host_part)
+}
+
+fn log_config(cfg: &user_service::config::Config) {
+    let db_url = mask_url(&cfg.database.url);
+    let redis_url = mask_url(&cfg.redis.url);
+    println!("========== user-service config ==========");
+    println!("server.host           : {}", cfg.server.host);
+    println!("server.port           : {}", cfg.server.port);
+    println!("database.db_type      : {:?}", cfg.database.db_type);
+    println!("database.url          : {}", db_url);
+    println!("database.max_connections : {}", cfg.database.max_connections);
+    println!("redis.url             : {}", redis_url);
+    println!(
+        "auth.service_token_issuer   : {}",
+        cfg.auth.service_token_issuer
+    );
+    println!(
+        "auth.service_token_audience : {}",
+        cfg.auth.service_token_audience
+    );
+    println!("consul.address        : {}", cfg.consul.addr);
+    println!("=========================================");
 }
