@@ -81,5 +81,5 @@ pub fn router() -> axum::Router<DbPool> {
             "/positions/:id",
             axum::routing::get(get).put(update).delete(delete),
         )
-        .route("/positions/:id/roles", axum::routing::put(assign_roles))
+        .route("/positions/{id}/roles", axum::routing::put(assign_roles))
 }

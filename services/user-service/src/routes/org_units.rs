@@ -67,6 +67,6 @@ pub async fn tree(
 pub fn router() -> axum::Router<DbPool> {
     axum::Router::new()
         .route("/org-units", axum::routing::get(list).post(create))
-        .route("/org-units/:id", axum::routing::get(get).put(update).delete(delete))
-        .route("/org-units/:id/tree", axum::routing::get(tree))
+        .route("/org-units/{id}", axum::routing::get(get).put(update).delete(delete))
+        .route("/org-units/{id}/tree", axum::routing::get(tree))
 }
