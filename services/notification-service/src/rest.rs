@@ -18,10 +18,10 @@ pub struct RestState {
 pub fn router(state: RestState) -> Router {
     Router::new()
         .route("/announcements", post(create).get(list_mine))
-        .route("/announcements/:id", get(detail))
-        .route("/announcements/:id/publish", post(publish))
-        .route("/announcements/:id/revoke", post(revoke))
-        .route("/announcements/:id/read", post(read_one))
+        .route("/announcements/{id}", get(detail))
+        .route("/announcements/{id}/publish", post(publish))
+        .route("/announcements/{id}/revoke", post(revoke))
+        .route("/announcements/{id}/read", post(read_one))
         .route("/unread-count", get(unread_count))
         .with_state(state)
 }

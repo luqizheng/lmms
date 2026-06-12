@@ -18,6 +18,50 @@ impl Db {
         Ok(Self { pool })
     }
 
+    pub async fn ensure_schema(&self) -> anyhow::Result<()> {
+        let stmts: &[&str] = &[
+            "CREATE TABLE IF NOT EXISTS announcements (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                title VARCHAR(255) NOT NULL,
+                body TEXT NOT NULL,
+                publish_at DATETIME NOT NULL,
+                expire_at DATETIME NULL,
+                pinned TINYINT NOT NULL DEFAULT 0,
+                popover TINYINT NOT NULL DEFAULT 0,
+                status VARCHAR(16) NOT NULL,
+                created_by BIGINT UNSIGNED NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_status_publish (status, publish_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+            "CREATE TABLE IF NOT EXISTS announcement_recipients (
+                announcement_id BIGINT UNSIGNED NOT NULL,
+                scope_type VARCHAR(16) NOT NULL,
+                scope_id BIGINT UNSIGNED NOT NULL,
+                PRIMARY KEY (announcement_id, scope_type, scope_id),
+                KEY idx_scope (scope_type, scope_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+            "CREATE TABLE IF NOT EXISTS announcement_deliveries (
+                announcement_id BIGINT UNSIGNED NOT NULL,
+                user_id BIGINT UNSIGNED NOT NULL,
+                delivered_at DATETIME NOT NULL,
+                PRIMARY KEY (announcement_id, user_id),
+                KEY idx_user (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+            "CREATE TABLE IF NOT EXISTS announcement_reads (
+                announcement_id BIGINT UNSIGNED NOT NULL,
+                user_id BIGINT UNSIGNED NOT NULL,
+                read_at DATETIME NOT NULL,
+                PRIMARY KEY (announcement_id, user_id),
+                KEY idx_user (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+        ];
+        for s in stmts {
+            sqlx::query(s).execute(&self.pool).await?;
+        }
+        Ok(())
+    }
+
     pub async fn create_announcement(
         &self,
         a: &CreateAnnouncement,

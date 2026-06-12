@@ -27,8 +27,17 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| "config/config.yaml".to_string());
     let cfg = AppConfig::load(std::path::Path::new(&path))?;
     tracing_subscriber::fmt::init();
+    println!("==== notification-service config ====");
+    println!("config_path: {}", path);
+    match serde_json::to_string_pretty(&cfg) {
+        Ok(s) => println!("{}", s),
+        Err(e) => tracing::warn!("failed to serialize config: {}", e),
+    }
+    println!("======================================");
 
     let db = Db::connect(&cfg.mysql.url, cfg.mysql.max_connections).await?;
+    db.ensure_schema().await?;
+    tracing::info!("notification-service schema ensured");
     let redis = RedisCli::connect(&cfg.redis.url).await?;
     let hub = WsHub::new();
 
@@ -89,4 +98,37 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("notification-service listening on {}", cfg.server.http_addr);
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+fn mask_url(url: &str) -> String {
+    let Some(scheme_end) = url.find("://") else {
+        return url.to_string();
+    };
+    let after = &url[scheme_end + 3..];
+    let Some(at) = after.find('@') else {
+        return url.to_string();
+    };
+    let creds = &after[..at];
+    let host_part = &after[at..];
+    let Some(colon) = creds.find(':') else {
+        return url.to_string();
+    };
+    let user = &creds[..colon];
+    format!("{}://{}:***{}", &url[..scheme_end], user, host_part)
+}
+
+fn log_config(cfg: &AppConfig) {
+    let mysql_url = mask_url(&cfg.mysql.url);
+    let redis_url = mask_url(&cfg.redis.url);
+    println!("========== notification-service config ==========");
+    println!("server.http_addr          : {}", cfg.server.http_addr);
+    println!("mysql.url                 : {}", mysql_url);
+    println!("mysql.max_connections     : {}", cfg.mysql.max_connections);
+    println!("redis.url                 : {}", redis_url);
+    println!("scheduler.tick_secs       : {}", cfg.scheduler.tick_secs);
+    println!("log.level                 : {}", cfg.log.level);
+    println!("consul.addr               : {}", cfg.consul.addr);
+    println!("consul.service_name       : {}", cfg.consul.service_name);
+    println!("consul.service_id_file    : {}", cfg.consul.service_id_file);
+    println!("================================================");
 }
