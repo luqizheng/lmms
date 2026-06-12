@@ -22,7 +22,7 @@ A microservices architecture for coder platform, built with Rust and Go.
 # 1. 启动基础设施（MySQL / Redis / Consul）
 node scripts/test-orchestrator.js start
 
-# 2. 重置测试数据库（superpowers_test）
+# 2. 重置测试数据库（superpowers）
 node scripts/test-orchestrator.js reset-db
 
 # 3. 跑全部服务的 unit + integration 测试
@@ -39,9 +39,9 @@ node scripts/test-orchestrator.js stop
 
 | 命令 | 说明 |
 |------|------|
-| `start` | 通过 `infrastructure/docker-compose.test-infra.yaml` 拉起 MySQL / Redis / Consul（3 个容器） |
+| `start` | 通过 `infrastructure/docker-compose.yml` 拉起 MySQL / Redis / Consul（3 个容器） |
 | `stop` | 停止并移除上述容器 |
-| `reset-db` | `DROP + CREATE` superpowers_test，并 `FLUSHALL` Redis |
+| `reset-db` | `DROP + CREATE` superpowers，并 `FLUSHALL` Redis |
 | `test-unit [--service <name>]` | 只跑 unit 测试（默认 4 个服务） |
 | `test-integration [--service <name>]` | 只跑 integration 测试 |
 | `test-all [--service <name>]` | 跑 unit + integration |
@@ -86,7 +86,7 @@ go run .                         # 启动服务
 
 基础设施的 docker compose 文件位于 `infrastructure/`：
 
-- `docker-compose.test-infra.yaml` — 仅基础设施（3 容器：consul / redis / mysql，配合本地服务进程）
+- `docker-compose.yml` — 仅基础设施（3 容器：consul / redis / mysql，配合本地服务进程）
 
 ### 故障排查
 

@@ -162,7 +162,7 @@ rewrite = [
 
 ## docker-compose 示例
 
-依赖：Consul、Redis（黑名单）、token-service（JWKS）。下面片段接在 `infrastructure/docker-compose.test-infra.yaml` 的服务列表后，复用 `superpowers-test` 网络。
+依赖：Consul、Redis（黑名单）、token-service（JWKS）。下面片段接在 `infrastructure/docker-compose.yml` 的服务列表后，复用 `superpowers` 网络。
 
 `services/api-gateway/docker-compose.yaml`：
 
@@ -202,7 +202,7 @@ services:
       - "3000:3000"   # 业务端口
       - "9090:9090"   # admin reload
     networks:
-      - superpowers-test
+      - superpowers
     restart: unless-stopped
 
   token-service:
@@ -218,14 +218,14 @@ services:
     ports:
       - "4000:4000"
     networks:
-      - superpowers-test
+      - superpowers
 ```
 
 启动与运维：
 
 ```powershell
 # 启动基础设施（consul/redis/mysql）
-docker compose -f infrastructure\docker-compose.test-infra.yaml up -d
+docker compose -f infrastructure\docker-compose.yml up -d
 
 # 启动网关
 docker compose -f services\api-gateway\docker-compose.yaml up -d --build

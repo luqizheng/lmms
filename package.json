@@ -4,8 +4,8 @@
   "scripts": {
     "setup": "node tools/setup.js",
     "build": "cargo build --release --manifest-path services/api-gateway/Cargo.toml && cargo build --release --manifest-path services/token-service/Cargo.toml",
-    "dev": "docker compose -f infrastructure/docker-compose.test-infra.yaml up -d && pnpm -r --parallel run dev",
-    "dev:infra": "docker compose -f infrastructure/docker-compose.test-infra.yaml up -d",
+    "dev": "docker compose -f infrastructure/docker-compose.yml up -d && pnpm -r --parallel run dev",
+    "dev:infra": "docker compose -f infrastructure/docker-compose.yml up -d",
     "test:reset": "node scripts/test-orchestrator.js reset-db",
     "test:unit": "node scripts/test-orchestrator.js test-unit",
     "test:integration": "node scripts/test-orchestrator.js test-integration",
