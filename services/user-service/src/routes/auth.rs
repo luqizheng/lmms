@@ -158,6 +158,7 @@ pub fn router(state: AuthState) -> Router {
         .merge(crate::routes::org_units::router().with_state(state.pool.clone()))
         .merge(crate::routes::positions::router().with_state(state.pool.clone()))
         .merge(crate::routes::user_positions::router().with_state(state.pool.clone()))
+        .merge(crate::routes::users::router())
         .with_state(state)
 }
 
