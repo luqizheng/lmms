@@ -114,7 +114,7 @@ async fn fetch_user_for_login(
     }
 }
 
-fn verify_password(password: &str, hash_str: &str) -> bool {
+pub(crate) fn verify_password(password: &str, hash_str: &str) -> bool {
     let parsed = match PasswordHash::new(hash_str) {
         Ok(h) => h,
         Err(_) => return false,
