@@ -21,9 +21,17 @@ const ALL_SERVICES = [
   'notification-service',
 ];
 
+// 跳过 unit 测试的服务（stub/无业务代码）
+const SKIP_UNIT_SERVICES = new Set(['credential-login-service']);
+
 async function runServiceTests(service, type, outputJson) {
   const cfg = SERVICE_MAP[service];
   if (!cfg) throw new Error(`unknown service: ${service}`);
+  if (type === 'unit' && SKIP_UNIT_SERVICES.has(service)) {
+    log.yellow(`[test] ${service} (unit) skipped (no business code)`);
+    fs.writeFileSync(outputJson, '');
+    return;
+  }
   const svcRoot = path.join(ROOT, cfg.path);
   const prevCwd = process.cwd();
   process.chdir(svcRoot);
@@ -51,4 +59,4 @@ function getServiceList() {
   return [...ALL_SERVICES];
 }
 
-module.exports = { SERVICE_MAP, ALL_SERVICES, runServiceTests, getServiceList };
+module.exports = { SERVICE_MAP, ALL_SERVICES, SKIP_UNIT_SERVICES, runServiceTests, getServiceList };

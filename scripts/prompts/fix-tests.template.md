@@ -1,7 +1,6 @@
 # 任务
 
 修复以下失败的测试。**仅修改各服务下的测试代码**：
-- Go: `services/<service>/*_test.go`
 - Rust: `services/<service>/tests/*.rs`
 
 **禁止**修改 `services/`、`libs/`、`sdk/` 下非 tests 目录的业务源码。

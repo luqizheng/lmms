@@ -31,4 +31,4 @@ WORKDIR /app
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/api-gateway /app/api-gateway
 COPY docker/config/api-gateway /app/config/api-gateway
 ENV RUST_LOG=api_gateway=debug
-CMD ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]
+CMD ["/app/api-gateway", "serve", "--routes", "/app/config/routes"]

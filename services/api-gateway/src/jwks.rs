@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::JwtValidator;
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Jwk {
     kty: String,
     alg: String,
