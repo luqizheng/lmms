@@ -22,7 +22,7 @@
 
 每个服务目录下创建规则文件：
 ```
-services/<name>/.trae/rules/service-rules.md
+services/<name>/AGENTS.md
 ```
 
 ### 1.2 文件格式
@@ -67,7 +67,7 @@ services/<name>/.trae/rules/service-rules.md
 
 ### 2.2 检查流程
 
-1. AI 读取 `services/<name>/.trae/rules/service-rules.md`
+1. AI 读取 `services/<name>/AGENTS.md`
 2. 解析必需组件列表
 3. 检查服务目录是否包含必需文件
 4. 读取环境变量配置（如 `SWAGGER_ENABLED`）
@@ -159,7 +159,7 @@ services/<name>/.trae/rules/service-rules.md
 ### 4.4 check-service-standard.js 功能
 
 - 遍历 `services/` 目录
-- 读取每个服务的 `.trae/rules/service-rules.md`
+- 读取每个服务的 `AGENTS.md`
 - 检查必需组件是否存在
 - 输出检查报告
 
@@ -169,12 +169,12 @@ services/<name>/.trae/rules/service-rules.md
 
 ### 阶段 1：创建规则文件模板
 
-- 创建 `services/.trae/rules/service-rules-template.md`（模板文件）
+- 创建 `services/agents-template.md`（模板文件）
 - 为现有服务创建规则文件：
-  - `services/api-gateway/.trae/rules/service-rules.md`
-  - `services/token-service/.trae/rules/service-rules.md`
-  - `services/notification-service/.trae/rules/service-rules.md`
-  - `services/iam-service/.trae/rules/service-rules.md`
+  - `services/api-gateway/AGENTS.md`
+  - `services/token-service/AGENTS.md`
+  - `services/notification-service/AGENTS.md`
+  - `services/iam-service/AGENTS.md`
 
 ### 阶段 2：创建检查脚本
 
@@ -230,7 +230,7 @@ services/<name>/.trae/rules/service-rules.md
 
 | 改动路径 | 建议 Skill | 时机 |
 |---------|-----------|------|
-| `services/*/.trae/rules/service-rules.md` | 自动检查服务规范 | 新建/修改 |
+| `services/*/AGENTS.md` | 自动检查服务规范 | 新建/修改 |
 | `services/*/src/**/*.rs` | 检查服务规范 + coder-run-tests | 改完保存 |
 ```
 
@@ -242,7 +242,7 @@ services/<name>/.trae/rules/service-rules.md
 
 ## 8. 成功标准
 
-- 所有现有服务都有 `.trae/rules/service-rules.md` 文件
+- 所有现有服务都有 `AGENTS.md` 文件
 - `npm run check:service-standard` 能正确检查所有服务
 - AI 在修改服务文件时能自动提醒缺失组件
 - 环境变量配置能动态调整规范要求
