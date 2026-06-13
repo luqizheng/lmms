@@ -4,8 +4,9 @@ use crate::{
     state::AppState,
     dto::{CreateMenuRequest, UpdateMenuRequest, MenuResponse, MenuListResponse},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use nanoid::nanoid;
+use sqlx::mysql::MySqlQueryResult;
 
 pub struct MenuService {
     state: AppState,
@@ -107,87 +108,63 @@ impl MenuService {
     }
 
     pub async fn update(&self, menu_id: &str, req: UpdateMenuRequest) -> Result<MenuResponse, IamError> {
-        let mut update_fields = vec![];
-        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+        // Check if menu exists
+        let existing = sqlx::query_as!(
+            Menu,
+            "SELECT * FROM menus WHERE id = ? AND deleted_at IS NULL",
+            menu_id
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .ok_or(IamError::MenuNotFound)?;
 
-        if let Some(parent_id) = &req.parent_id {
-            update_fields.push("parent_id = ?");
-            params.push(parent_id.into());
-        }
-        if let Some(name) = &req.name {
-            update_fields.push("name = ?");
-            params.push(name.into());
-        }
-        if let Some(code) = &req.code {
-            update_fields.push("code = ?");
-            params.push(code.into());
-        }
-        if let Some(path) = &req.path {
-            update_fields.push("path = ?");
-            params.push(path.into());
-        }
-        if let Some(component) = &req.component {
-            update_fields.push("component = ?");
-            params.push(component.into());
-        }
-        if let Some(icon) = &req.icon {
-            update_fields.push("icon = ?");
-            params.push(icon.into());
-        }
-        if let Some(sort_order) = &req.sort_order {
-            update_fields.push("sort_order = ?");
-            params.push(sort_order.into());
-        }
-        if let Some(visible) = &req.visible {
-            update_fields.push("visible = ?");
-            params.push(visible.into());
-        }
-        if let Some(permission_id) = &req.permission_id {
-            update_fields.push("permission_id = ?");
-            params.push(permission_id.into());
-        }
-        if let Some(status) = &req.status {
-            update_fields.push("status = ?");
-            params.push(status.into());
-        }
+        let parent_id = req.parent_id.or(existing.parent_id);
+        let name = req.name.unwrap_or(existing.name);
+        let code = req.code.unwrap_or(existing.code);
+        let path = req.path.unwrap_or(existing.path);
+        let component = req.component.or(existing.component);
+        let icon = req.icon.or(existing.icon);
+        let sort_order = req.sort_order.unwrap_or(existing.sort_order);
+        let visible = req.visible.unwrap_or(existing.visible);
+        let permission_id = req.permission_id.or(existing.permission_id);
+        let status = req.status.unwrap_or_else(|| format!("{}", existing.status));
 
-        if update_fields.is_empty() {
-            return self.get(menu_id);
-        }
-
-        update_fields.push("updated_at = ?");
-        params.push(Utc::now().into());
-        params.push(menu_id.into());
-
-        let query_str = format!("UPDATE menus SET {} WHERE id = ? AND deleted_at IS NULL RETURNING *", update_fields.join(", "));
-
-        let menu = sqlx::query_as!(Menu, &query_str, params[..])
-            .fetch_optional(&self.state.db)
-            .await?
-            .ok_or(IamError::MenuNotFound)?;
+        let menu: Menu = sqlx::query_as(
+            "UPDATE menus SET parent_id = ?, name = ?, code = ?, path = ?, component = ?, icon = ?, sort_order = ?, visible = ?, permission_id = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING *",
+        )
+        .bind(&parent_id)
+        .bind(&name)
+        .bind(&code)
+        .bind(&path)
+        .bind(&component)
+        .bind(&icon)
+        .bind(sort_order)
+        .bind(visible)
+        .bind(&permission_id)
+        .bind(&status)
+        .bind(menu_id)
+        .fetch_one(&self.state.db)
+        .await?;
 
         Ok(self.to_response(&menu, vec![]))
     }
 
     pub async fn delete(&self, menu_id: &str) -> Result<(), IamError> {
-        let has_children = sqlx::query!(
-            "SELECT id FROM menus WHERE parent_id = ? AND deleted_at IS NULL",
-            menu_id
+        let has_children: (i32,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM menus WHERE parent_id = ? AND deleted_at IS NULL",
         )
-        .fetch_optional(&self.state.db)
-        .await?
-        .is_some();
+        .bind(menu_id)
+        .fetch_one(&self.state.db)
+        .await?;
 
-        if has_children {
+        if has_children.0 > 0 {
             return Err(IamError::Conflict("Cannot delete menu with children".to_string()));
         }
 
-        let result = sqlx::query!(
-            "UPDATE menus SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
-            Utc::now(),
-            Utc::now(),
-            menu_id
+        let result: MySqlQueryResult = sqlx::query(
+            "UPDATE menus SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
+        .bind(menu_id)
         .execute(&self.state.db)
         .await?;
 

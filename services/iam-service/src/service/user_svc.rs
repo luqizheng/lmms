@@ -7,7 +7,7 @@ use crate::{
 use common_crypto::password::hash_password;
 use chrono::Utc;
 use nanoid::nanoid;
-use sqlx::{FromRow, Row};
+use sqlx::{FromRow, mysql::MySqlQueryResult};
 
 pub struct UserService {
     state: AppState,
@@ -182,7 +182,7 @@ impl UserService {
     }
 
     pub async fn delete(&self, user_id: &str) -> Result<(), IamError> {
-        let result = sqlx::query(
+        let result: MySqlQueryResult = sqlx::query(
             "UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(user_id)

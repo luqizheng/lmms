@@ -5,7 +5,7 @@ use crate::{
 };
 use chrono::Utc;
 use nanoid::nanoid;
-use sqlx::{FromRow, Row};
+use sqlx::{FromRow, mysql::MySqlQueryResult};
 
 pub struct RoleService {
     state: AppState,
@@ -44,16 +44,6 @@ impl RoleService {
         .bind(&req.data_scope)
         .fetch_one(&self.state.db)
         .await?;
-
-        for permission_id in req.permission_ids {
-            let _ = sqlx::query(
-                "INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
-            )
-            .bind(&role_id)
-            .bind(&permission_id)
-            .execute(&self.state.db)
-            .await;
-        }
 
         Ok(self.to_response(&role))
     }
@@ -124,15 +114,31 @@ impl RoleService {
 
         let name = req.name.unwrap_or(role.name);
         let description = req.description.or(role.description);
-        let data_scope = req.data_scope.unwrap_or(role.data_scope);
+        let data_scope = req.data_scope.unwrap_or_else(|| {
+            match role.data_scope.as_str() {
+                "all" => 0,
+                "org" => 1,
+                "dept" => 2,
+                "self" => 3,
+                _ => 0,
+            }
+        });
         let status = req.status.unwrap_or(role.status);
+
+        let data_scope_str = match data_scope {
+            0 => "all",
+            1 => "org",
+            2 => "dept",
+            3 => "self",
+            _ => "all",
+        };
 
         let result: RoleRow = sqlx::query_as(
             "UPDATE roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ? RETURNING id, name, code, description, data_scope, status, created_at, updated_at, deleted_at",
         )
         .bind(&name)
         .bind(&description)
-        .bind(&data_scope)
+        .bind(data_scope_str)
         .bind(&status)
         .bind(role_id)
         .fetch_one(&self.state.db)
@@ -142,7 +148,7 @@ impl RoleService {
     }
 
     pub async fn delete(&self, role_id: &str) -> Result<(), IamError> {
-        let result = sqlx::query(
+        let result: MySqlQueryResult = sqlx::query(
             "UPDATE roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)

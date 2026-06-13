@@ -1,14 +1,30 @@
 use crate::{
     error::IamError,
-    models::{Permission},
     state::AppState,
     dto::{CreatePermissionRequest, UpdatePermissionRequest, PermissionQuery, PermissionResponse, PermissionListResponse},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use nanoid::nanoid;
+use sqlx::{FromRow, mysql::MySqlQueryResult};
 
 pub struct PermissionService {
     state: AppState,
+}
+
+#[derive(FromRow)]
+struct PermissionRow {
+    id: String,
+    code: String,
+    name: String,
+    description: Option<String>,
+    category: String,
+    resource: Option<String>,
+    action: Option<String>,
+    sort_order: i32,
+    status: String,
+    created_at: chrono::DateTime<Utc>,
+    updated_at: chrono::DateTime<Utc>,
+    deleted_at: Option<chrono::DateTime<Utc>>,
 }
 
 impl PermissionService {
@@ -17,18 +33,6 @@ impl PermissionService {
     }
 
     pub async fn create(&self, req: CreatePermissionRequest) -> Result<PermissionResponse, IamError> {
-        let exists = sqlx::query!(
-            "SELECT id FROM permissions WHERE code = ? AND deleted_at IS NULL",
-            req.code
-        )
-        .fetch_optional(&self.state.db)
-        .await?
-        .is_some();
-
-        if exists {
-            return Err(IamError::DuplicatePermission);
-        }
-
         let permission_id = nanoid!();
         let category = match req.category {
             0 => "menu",
@@ -37,20 +41,17 @@ impl PermissionService {
             _ => "api",
         };
 
-        let permission = sqlx::query_as!(
-            Permission,
-            "INSERT INTO permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?) RETURNING *",
-            permission_id,
-            req.code,
-            req.name,
-            req.description,
-            category,
-            req.resource,
-            req.action,
-            req.sort_order.unwrap_or(0),
-            Utc::now(),
-            Utc::now()
+        let permission: PermissionRow = sqlx::query_as(
+            "INSERT INTO permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', NOW(), NOW()) RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
         )
+        .bind(&permission_id)
+        .bind(&req.code)
+        .bind(&req.name)
+        .bind(&req.description)
+        .bind(category)
+        .bind(&req.resource)
+        .bind(&req.action)
+        .bind(req.sort_order.unwrap_or(0))
         .fetch_one(&self.state.db)
         .await?;
 
@@ -58,108 +59,127 @@ impl PermissionService {
     }
 
     pub async fn get(&self, permission_id: &str) -> Result<PermissionResponse, IamError> {
-        let permission = sqlx::query_as!(
-            Permission,
-            "SELECT * FROM permissions WHERE id = ? AND deleted_at IS NULL",
-            permission_id
+        let permission: Option<PermissionRow> = sqlx::query_as(
+            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE id = ? AND deleted_at IS NULL",
         )
+        .bind(permission_id)
         .fetch_optional(&self.state.db)
-        .await?
-        .ok_or(IamError::PermissionNotFound)?;
+        .await?;
 
-        Ok(self.to_response(&permission))
+        match permission {
+            Some(p) => Ok(self.to_response(&p)),
+            None => Err(IamError::PermissionNotFound),
+        }
     }
 
     pub async fn list(&self, query: PermissionQuery) -> Result<PermissionListResponse, IamError> {
-        let offset = (query.page - 1) * query.size;
-        
-        let mut query_str = "SELECT * FROM permissions WHERE deleted_at IS NULL";
-        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+        let offset = ((query.page - 1) * query.size) as i64;
+        let limit = query.size as i64;
 
-        if let Some(keyword) = &query.keyword {
-            query_str += " AND (code LIKE ? OR name LIKE ?)";
-            let like_pattern = format!("%{}%", keyword);
-            params.extend(vec![like_pattern.clone().into(); 2]);
-        }
-
-        if let Some(category) = &query.category {
+        let permissions: Vec<PermissionRow> = if let Some(keyword) = &query.keyword {
+            let pattern = format!("%{}%", keyword);
+            if let Some(category) = query.category {
+                let cat_str = match category {
+                    0 => "menu",
+                    1 => "button",
+                    2 => "api",
+                    _ => "api",
+                };
+                sqlx::query_as(
+                    "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL AND (code LIKE ? OR name LIKE ?) AND category = ? ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+                )
+                .bind(&pattern)
+                .bind(&pattern)
+                .bind(cat_str)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.state.db)
+                .await?
+            } else {
+                sqlx::query_as(
+                    "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL AND (code LIKE ? OR name LIKE ?) ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+                )
+                .bind(&pattern)
+                .bind(&pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.state.db)
+                .await?
+            }
+        } else if let Some(category) = query.category {
             let cat_str = match category {
                 0 => "menu",
                 1 => "button",
                 2 => "api",
                 _ => "api",
             };
-            query_str += " AND category = ?";
-            params.push(cat_str.into());
-        }
-
-        let count: u64 = sqlx::query_scalar!("SELECT COUNT(*) FROM permissions WHERE deleted_at IS NULL", params[..])
-            .fetch_one(&self.state.db)
-            .await?
-            .unwrap_or(0) as u64;
-
-        query_str += " ORDER BY sort_order, created_at LIMIT ? OFFSET ?";
-        params.push(query.size.into());
-        params.push(offset.into());
-
-        let permissions = sqlx::query_as!(Permission, &query_str, params[..])
+            sqlx::query_as(
+                "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL AND category = ? ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+            )
+            .bind(cat_str)
+            .bind(limit)
+            .bind(offset)
             .fetch_all(&self.state.db)
+            .await?
+        } else {
+            sqlx::query_as(
+                "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+            )
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.state.db)
+            .await?
+        };
+
+        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM permissions WHERE deleted_at IS NULL")
+            .fetch_one(&self.state.db)
             .await?;
 
         Ok(PermissionListResponse {
             items: permissions.into_iter().map(|p| self.to_response(&p)).collect(),
-            total: count,
+            total: total.0 as u64,
             page: query.page,
             size: query.size,
         })
     }
 
     pub async fn update(&self, permission_id: &str, req: UpdatePermissionRequest) -> Result<PermissionResponse, IamError> {
-        let mut update_fields = vec![];
-        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+        let permission: Option<PermissionRow> = sqlx::query_as(
+            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(permission_id)
+        .fetch_optional(&self.state.db)
+        .await?;
 
-        if let Some(name) = &req.name {
-            update_fields.push("name = ?");
-            params.push(name.into());
-        }
-        if let Some(description) = &req.description {
-            update_fields.push("description = ?");
-            params.push(description.into());
-        }
-        if let Some(sort_order) = &req.sort_order {
-            update_fields.push("sort_order = ?");
-            params.push(sort_order.into());
-        }
-        if let Some(status) = &req.status {
-            update_fields.push("status = ?");
-            params.push(status.into());
-        }
+        let permission = match permission {
+            Some(p) => p,
+            None => return Err(IamError::PermissionNotFound),
+        };
 
-        if update_fields.is_empty() {
-            return self.get(permission_id);
-        }
+        let name = req.name.unwrap_or(permission.name);
+        let description = req.description.or(permission.description);
+        let sort_order = req.sort_order.unwrap_or(permission.sort_order);
+        let status = req.status.unwrap_or(permission.status);
 
-        update_fields.push("updated_at = ?");
-        params.push(Utc::now().into());
-        params.push(permission_id.into());
+        let result: PermissionRow = sqlx::query_as(
+            "UPDATE permissions SET name = ?, description = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
+        )
+        .bind(&name)
+        .bind(&description)
+        .bind(sort_order)
+        .bind(&status)
+        .bind(permission_id)
+        .fetch_one(&self.state.db)
+        .await?;
 
-        let query_str = format!("UPDATE permissions SET {} WHERE id = ? AND deleted_at IS NULL RETURNING *", update_fields.join(", "));
-
-        let permission = sqlx::query_as!(Permission, &query_str, params[..])
-            .fetch_optional(&self.state.db)
-            .await?
-            .ok_or(IamError::PermissionNotFound)?;
-
-        Ok(self.to_response(&permission))
+        Ok(self.to_response(&result))
     }
 
     pub async fn delete(&self, permission_id: &str) -> Result<(), IamError> {
-        let result = sqlx::query!(
-            "UPDATE permissions SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
-            Utc::now(),
-            Utc::now(),
-            permission_id
+        let result: MySqlQueryResult = sqlx::query(
+            "UPDATE permissions SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
+        .bind(permission_id)
         .execute(&self.state.db)
         .await?;
 
@@ -167,27 +187,27 @@ impl PermissionService {
             return Err(IamError::PermissionNotFound);
         }
 
-        sqlx::query!(
+        let _: MySqlQueryResult = sqlx::query(
             "DELETE FROM role_permissions WHERE permission_id = ?",
-            permission_id
         )
+        .bind(permission_id)
         .execute(&self.state.db)
         .await?;
 
         Ok(())
     }
 
-    fn to_response(&self, permission: &Permission) -> PermissionResponse {
+    fn to_response(&self, permission: &PermissionRow) -> PermissionResponse {
         PermissionResponse {
             id: permission.id.clone(),
             code: permission.code.clone(),
             name: permission.name.clone(),
             description: permission.description.clone(),
-            category: format!("{}", permission.category),
+            category: permission.category.clone(),
             resource: permission.resource.clone(),
             action: permission.action.clone(),
             sort_order: permission.sort_order,
-            status: format!("{}", permission.status),
+            status: permission.status.clone(),
             created_at: permission.created_at,
             updated_at: permission.updated_at,
         }

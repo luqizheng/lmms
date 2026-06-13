@@ -4,8 +4,9 @@ use crate::{
     state::AppState,
     dto::{CreateOrgUnitRequest, UpdateOrgUnitRequest, OrgUnitResponse, AssignUsersRequest},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use nanoid::nanoid;
+use sqlx::mysql::MySqlQueryResult;
 
 pub struct OrgService {
     state: AppState,
@@ -113,67 +114,52 @@ impl OrgService {
     }
 
     pub async fn update(&self, org_unit_id: &str, req: UpdateOrgUnitRequest) -> Result<OrgUnitResponse, IamError> {
-        let mut update_fields = vec![];
-        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+        let existing = sqlx::query_as!(
+            OrgUnit,
+            "SELECT * FROM org_units WHERE id = ? AND deleted_at IS NULL",
+            org_unit_id
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .ok_or(IamError::OrgUnitNotFound)?;
 
-        if let Some(parent_id) = &req.parent_id {
-            update_fields.push("parent_id = ?");
-            params.push(parent_id.into());
-        }
-        if let Some(name) = &req.name {
-            update_fields.push("name = ?");
-            params.push(name.into());
-        }
-        if let Some(code) = &req.code {
-            update_fields.push("code = ?");
-            params.push(code.into());
-        }
-        if let Some(sort_order) = &req.sort_order {
-            update_fields.push("sort_order = ?");
-            params.push(sort_order.into());
-        }
-        if let Some(status) = &req.status {
-            update_fields.push("status = ?");
-            params.push(status.into());
-        }
+        let parent_id = req.parent_id.or(existing.parent_id);
+        let name = req.name.unwrap_or(existing.name);
+        let code = req.code.unwrap_or(existing.code);
+        let sort_order = req.sort_order.unwrap_or(existing.sort_order);
+        let status = req.status.unwrap_or_else(|| format!("{}", existing.status));
 
-        if update_fields.is_empty() {
-            return self.get(org_unit_id);
-        }
-
-        update_fields.push("updated_at = ?");
-        params.push(Utc::now().into());
-        params.push(org_unit_id.into());
-
-        let query_str = format!("UPDATE org_units SET {} WHERE id = ? AND deleted_at IS NULL RETURNING *", update_fields.join(", "));
-
-        let org_unit = sqlx::query_as!(OrgUnit, &query_str, params[..])
-            .fetch_optional(&self.state.db)
-            .await?
-            .ok_or(IamError::OrgUnitNotFound)?;
+        let org_unit: OrgUnit = sqlx::query_as(
+            "UPDATE org_units SET parent_id = ?, name = ?, code = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING *",
+        )
+        .bind(&parent_id)
+        .bind(&name)
+        .bind(&code)
+        .bind(sort_order)
+        .bind(&status)
+        .bind(org_unit_id)
+        .fetch_one(&self.state.db)
+        .await?;
 
         Ok(self.to_response(&org_unit, vec![]))
     }
 
     pub async fn delete(&self, org_unit_id: &str) -> Result<(), IamError> {
-        let has_children = sqlx::query!(
-            "SELECT id FROM org_units WHERE parent_id = ? AND deleted_at IS NULL",
-            org_unit_id
+        let has_children: (i32,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM org_units WHERE parent_id = ? AND deleted_at IS NULL",
         )
-        .fetch_optional(&self.state.db)
-        .await?
-        .is_some();
+        .bind(org_unit_id)
+        .fetch_one(&self.state.db)
+        .await?;
 
-        if has_children {
+        if has_children.0 > 0 {
             return Err(IamError::Conflict("Cannot delete org unit with children".to_string()));
         }
 
-        let result = sqlx::query!(
-            "UPDATE org_units SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
-            Utc::now(),
-            Utc::now(),
-            org_unit_id
+        let result: MySqlQueryResult = sqlx::query(
+            "UPDATE org_units SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
+        .bind(org_unit_id)
         .execute(&self.state.db)
         .await?;
 
@@ -181,12 +167,10 @@ impl OrgService {
             return Err(IamError::OrgUnitNotFound);
         }
 
-        sqlx::query!(
-            "DELETE FROM user_org_units WHERE org_unit_id = ?",
-            org_unit_id
-        )
-        .execute(&self.state.db)
-        .await?;
+        sqlx::query!("DELETE FROM user_org_units WHERE org_unit_id = ?")
+            .bind(org_unit_id)
+            .execute(&self.state.db)
+            .await?;
 
         Ok(())
     }
