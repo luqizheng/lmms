@@ -1,0 +1,24 @@
+app:
+  name: iam-service
+  host: 0.0.0.0
+  port: 3002
+
+database:
+  url: mysql://root:password@localhost:3306/iam_db
+  max_connections: 20
+  min_connections: 5
+
+redis:
+  url: redis://localhost:6379/0
+  ttl_sec: 86400
+
+jwt:
+  private_key_path: keys/private.pem
+  public_key_path: keys/public.pem
+  access_token_ttl_minutes: 15
+  refresh_token_ttl_days: 7
+
+consul:
+  host: localhost
+  port: 8500
+  service_name: iam-service

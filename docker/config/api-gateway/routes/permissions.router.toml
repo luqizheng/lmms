@@ -1,4 +1,4 @@
 [[route]]
 match = "/permissions/**"
-service = "user-service"
+service = "iam-service"
 public = false

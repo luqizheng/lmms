@@ -1,4 +1,4 @@
 [[route]]
 match = "/roles/**"
-service = "user-service"
+service = "iam-service"
 public = false

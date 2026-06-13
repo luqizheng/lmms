@@ -1,0 +1,56 @@
+[package]
+name = "iam-service"
+version = "0.1.0"
+edition = "2021"
+default-run = "iam-service"
+
+[dependencies]
+common-error = { path = "../../libs/common-error" }
+common-log = { path = "../../libs/common-log" }
+common-config = { path = "../../libs/common-config" }
+common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
+common-cache = { path = "../../libs/common-cache", features = ["redis"] }
+common-crypto = { path = "../../libs/common-crypto" }
+common-validator = { path = "../../libs/common-validator" }
+jwt-ctx = { path = "../../libs/jwt-ctx" }
+authz = { path = "../../libs/authz" }
+consul-registrar = { path = "../../libs/consul-registrar" }
+
+axum.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+jwt-simple.workspace = true
+uuid.workspace = true
+argon2.workspace = true
+thiserror.workspace = true
+rand.workspace = true
+base64.workspace = true
+rsa.workspace = true
+
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
+http-body-util = "0.1"
+bytes = "1"
+
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "sqlite", "macros", "chrono", "json"] }
+serde_yaml = "0.9"
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+nanoid = "0.4"
+validator = { version = "0.18", features = ["derive"] }
+
+[dev-dependencies]
+testcontainers = "0.20"
+testcontainers-modules = { version = "0.8", features = ["mysql", "redis"] }
+reqwest = { version = "0.11", features = ["json"] }
+mockall = "0.13"
+
+[[bin]]
+name = "iam-service"
+path = "src/main.rs"

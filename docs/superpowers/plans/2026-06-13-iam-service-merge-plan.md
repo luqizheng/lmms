@@ -1977,4 +1977,1818 @@ impl RoleService {
         Ok(())
     }
 
-    pub async fn assign_permissions(&self, role_id:
+    pub async fn assign_permissions(&self, role_id: &str, permission_ids: Vec<String>) -> Result<(), IamError> {
+        sqlx::query!(
+            "DELETE FROM role_permissions WHERE role_id = ?",
+            role_id
+        )
+        .execute(&self.state.db)
+        .await?;
+
+        for permission_id in permission_ids {
+            sqlx::query!(
+                "INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (?, ?, ?)",
+                role_id,
+                permission_id,
+                Utc::now()
+            )
+            .execute(&self.state.db)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    fn to_response(&self, role: &Role) -> RoleResponse {
+        RoleResponse {
+            id: role.id.clone(),
+            name: role.name.clone(),
+            code: role.code.clone(),
+            description: role.description.clone(),
+            data_scope: format!("{}", role.data_scope),
+            status: format!("{}", role.status),
+            created_at: role.created_at,
+            updated_at: role.updated_at,
+        }
+    }
+}
+```
+
+- [ ] **Step 2: 创建 service/permission_svc.rs**
+
+```rust
+use crate::{
+    error::IamError,
+    models::{Permission},
+    state::AppState,
+    dto::{CreatePermissionRequest, UpdatePermissionRequest, PermissionQuery, PermissionResponse, PermissionListResponse},
+};
+use chrono::{DateTime, Utc};
+use nanoid::nanoid;
+
+pub struct PermissionService {
+    state: AppState,
+}
+
+impl PermissionService {
+    pub fn new(state: AppState) -> Self {
+        Self { state }
+    }
+
+    pub async fn create(&self, req: CreatePermissionRequest) -> Result<PermissionResponse, IamError> {
+        let exists = sqlx::query!(
+            "SELECT id FROM permissions WHERE code = ? AND deleted_at IS NULL",
+            req.code
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .is_some();
+
+        if exists {
+            return Err(IamError::DuplicatePermission);
+        }
+
+        let permission_id = nanoid!();
+        let category = match req.category {
+            0 => "menu",
+            1 => "button",
+            2 => "api",
+            _ => "api",
+        };
+
+        let permission = sqlx::query_as!(
+            Permission,
+            "INSERT INTO permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?) RETURNING *",
+            permission_id,
+            req.code,
+            req.name,
+            req.description,
+            category,
+            req.resource,
+            req.action,
+            req.sort_order.unwrap_or(0),
+            Utc::now(),
+            Utc::now()
+        )
+        .fetch_one(&self.state.db)
+        .await?;
+
+        Ok(self.to_response(&permission))
+    }
+
+    pub async fn get(&self, permission_id: &str) -> Result<PermissionResponse, IamError> {
+        let permission = sqlx::query_as!(
+            Permission,
+            "SELECT * FROM permissions WHERE id = ? AND deleted_at IS NULL",
+            permission_id
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .ok_or(IamError::PermissionNotFound)?;
+
+        Ok(self.to_response(&permission))
+    }
+
+    pub async fn list(&self, query: PermissionQuery) -> Result<PermissionListResponse, IamError> {
+        let offset = (query.page - 1) * query.size;
+        
+        let mut query_str = "SELECT * FROM permissions WHERE deleted_at IS NULL";
+        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+
+        if let Some(keyword) = &query.keyword {
+            query_str += " AND (code LIKE ? OR name LIKE ?)";
+            let like_pattern = format!("%{}%", keyword);
+            params.extend(vec![like_pattern.clone().into(); 2]);
+        }
+
+        if let Some(category) = &query.category {
+            let cat_str = match category {
+                0 => "menu",
+                1 => "button",
+                2 => "api",
+                _ => "api",
+            };
+            query_str += " AND category = ?";
+            params.push(cat_str.into());
+        }
+
+        let count: u64 = sqlx::query_scalar!("SELECT COUNT(*) FROM permissions WHERE deleted_at IS NULL", params[..])
+            .fetch_one(&self.state.db)
+            .await?
+            .unwrap_or(0) as u64;
+
+        query_str += " ORDER BY sort_order, created_at LIMIT ? OFFSET ?";
+        params.push(query.size.into());
+        params.push(offset.into());
+
+        let permissions = sqlx::query_as!(Permission, &query_str, params[..])
+            .fetch_all(&self.state.db)
+            .await?;
+
+        Ok(PermissionListResponse {
+            items: permissions.into_iter().map(|p| self.to_response(&p)).collect(),
+            total: count,
+            page: query.page,
+            size: query.size,
+        })
+    }
+
+    pub async fn update(&self, permission_id: &str, req: UpdatePermissionRequest) -> Result<PermissionResponse, IamError> {
+        let mut update_fields = vec![];
+        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+
+        if let Some(name) = &req.name {
+            update_fields.push("name = ?");
+            params.push(name.into());
+        }
+        if let Some(description) = &req.description {
+            update_fields.push("description = ?");
+            params.push(description.into());
+        }
+        if let Some(sort_order) = &req.sort_order {
+            update_fields.push("sort_order = ?");
+            params.push(sort_order.into());
+        }
+        if let Some(status) = &req.status {
+            update_fields.push("status = ?");
+            params.push(status.into());
+        }
+
+        if update_fields.is_empty() {
+            return self.get(permission_id);
+        }
+
+        update_fields.push("updated_at = ?");
+        params.push(Utc::now().into());
+        params.push(permission_id.into());
+
+        let query_str = format!("UPDATE permissions SET {} WHERE id = ? AND deleted_at IS NULL RETURNING *", update_fields.join(", "));
+
+        let permission = sqlx::query_as!(Permission, &query_str, params[..])
+            .fetch_optional(&self.state.db)
+            .await?
+            .ok_or(IamError::PermissionNotFound)?;
+
+        Ok(self.to_response(&permission))
+    }
+
+    pub async fn delete(&self, permission_id: &str) -> Result<(), IamError> {
+        let result = sqlx::query!(
+            "UPDATE permissions SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+            Utc::now(),
+            Utc::now(),
+            permission_id
+        )
+        .execute(&self.state.db)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(IamError::PermissionNotFound);
+        }
+
+        sqlx::query!(
+            "DELETE FROM role_permissions WHERE permission_id = ?",
+            permission_id
+        )
+        .execute(&self.state.db)
+        .await?;
+
+        Ok(())
+    }
+
+    fn to_response(&self, permission: &Permission) -> PermissionResponse {
+        PermissionResponse {
+            id: permission.id.clone(),
+            code: permission.code.clone(),
+            name: permission.name.clone(),
+            description: permission.description.clone(),
+            category: format!("{}", permission.category),
+            resource: permission.resource.clone(),
+            action: permission.action.clone(),
+            sort_order: permission.sort_order,
+            status: format!("{}", permission.status),
+            created_at: permission.created_at,
+            updated_at: permission.updated_at,
+        }
+    }
+}
+```
+
+- [ ] **Step 3: 创建 service/menu_svc.rs**
+
+```rust
+use crate::{
+    error::IamError,
+    models::{Menu},
+    state::AppState,
+    dto::{CreateMenuRequest, UpdateMenuRequest, MenuResponse, MenuListResponse},
+};
+use chrono::{DateTime, Utc};
+use nanoid::nanoid;
+
+pub struct MenuService {
+    state: AppState,
+}
+
+impl MenuService {
+    pub fn new(state: AppState) -> Self {
+        Self { state }
+    }
+
+    pub async fn create(&self, req: CreateMenuRequest) -> Result<MenuResponse, IamError> {
+        let exists = sqlx::query!(
+            "SELECT id FROM menus WHERE code = ? AND deleted_at IS NULL",
+            req.code
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .is_some();
+
+        if exists {
+            return Err(IamError::DuplicateMenu);
+        }
+
+        let menu_id = nanoid!();
+
+        let menu = sqlx::query_as!(
+            Menu,
+            "INSERT INTO menus (id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?, ?) RETURNING *",
+            menu_id,
+            req.parent_id,
+            req.name,
+            req.code,
+            req.path,
+            req.component,
+            req.icon,
+            req.sort_order.unwrap_or(0),
+            req.visible.unwrap_or(true),
+            req.permission_id,
+            Utc::now(),
+            Utc::now()
+        )
+        .fetch_one(&self.state.db)
+        .await?;
+
+        Ok(self.to_response(&menu, vec![]))
+    }
+
+    pub async fn get(&self, menu_id: &str) -> Result<MenuResponse, IamError> {
+        let menu = sqlx::query_as!(
+            Menu,
+            "SELECT * FROM menus WHERE id = ? AND deleted_at IS NULL",
+            menu_id
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .ok_or(IamError::MenuNotFound)?;
+
+        let children = self.get_children(&menu_id).await?;
+
+        Ok(self.to_response(&menu, children))
+    }
+
+    pub async fn list(&self) -> Result<MenuListResponse, IamError> {
+        let menus = sqlx::query_as!(
+            Menu,
+            "SELECT * FROM menus WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY sort_order"
+        )
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let mut result = Vec::new();
+        for menu in menus {
+            let children = self.get_children(&menu.id).await?;
+            result.push(self.to_response(&menu, children));
+        }
+
+        Ok(MenuListResponse {
+            items: result,
+            total: result.len() as u64,
+        })
+    }
+
+    async fn get_children(&self, parent_id: &str) -> Result<Vec<MenuResponse>, IamError> {
+        let children = sqlx::query_as!(
+            Menu,
+            "SELECT * FROM menus WHERE parent_id = ? AND deleted_at IS NULL ORDER BY sort_order",
+            parent_id
+        )
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let mut result = Vec::new();
+        for child in children {
+            let grandchildren = self.get_children(&child.id).await?;
+            result.push(self.to_response(&child, grandchildren));
+        }
+
+        Ok(result)
+    }
+
+    pub async fn update(&self, menu_id: &str, req: UpdateMenuRequest) -> Result<MenuResponse, IamError> {
+        let mut update_fields = vec![];
+        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+
+        if let Some(parent_id) = &req.parent_id {
+            update_fields.push("parent_id = ?");
+            params.push(parent_id.into());
+        }
+        if let Some(name) = &req.name {
+            update_fields.push("name = ?");
+            params.push(name.into());
+        }
+        if let Some(code) = &req.code {
+            update_fields.push("code = ?");
+            params.push(code.into());
+        }
+        if let Some(path) = &req.path {
+            update_fields.push("path = ?");
+            params.push(path.into());
+        }
+        if let Some(component) = &req.component {
+            update_fields.push("component = ?");
+            params.push(component.into());
+        }
+        if let Some(icon) = &req.icon {
+            update_fields.push("icon = ?");
+            params.push(icon.into());
+        }
+        if let Some(sort_order) = &req.sort_order {
+            update_fields.push("sort_order = ?");
+            params.push(sort_order.into());
+        }
+        if let Some(visible) = &req.visible {
+            update_fields.push("visible = ?");
+            params.push(visible.into());
+        }
+        if let Some(permission_id) = &req.permission_id {
+            update_fields.push("permission_id = ?");
+            params.push(permission_id.into());
+        }
+        if let Some(status) = &req.status {
+            update_fields.push("status = ?");
+            params.push(status.into());
+        }
+
+        if update_fields.is_empty() {
+            return self.get(menu_id);
+        }
+
+        update_fields.push("updated_at = ?");
+        params.push(Utc::now().into());
+        params.push(menu_id.into());
+
+        let query_str = format!("UPDATE menus SET {} WHERE id = ? AND deleted_at IS NULL RETURNING *", update_fields.join(", "));
+
+        let menu = sqlx::query_as!(Menu, &query_str, params[..])
+            .fetch_optional(&self.state.db)
+            .await?
+            .ok_or(IamError::MenuNotFound)?;
+
+        Ok(self.to_response(&menu, vec![]))
+    }
+
+    pub async fn delete(&self, menu_id: &str) -> Result<(), IamError> {
+        let has_children = sqlx::query!(
+            "SELECT id FROM menus WHERE parent_id = ? AND deleted_at IS NULL",
+            menu_id
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .is_some();
+
+        if has_children {
+            return Err(IamError::Conflict("Cannot delete menu with children".to_string()));
+        }
+
+        let result = sqlx::query!(
+            "UPDATE menus SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+            Utc::now(),
+            Utc::now(),
+            menu_id
+        )
+        .execute(&self.state.db)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(IamError::MenuNotFound);
+        }
+
+        Ok(())
+    }
+
+    fn to_response(&self, menu: &Menu, children: Vec<MenuResponse>) -> MenuResponse {
+        MenuResponse {
+            id: menu.id.clone(),
+            parent_id: menu.parent_id.clone(),
+            name: menu.name.clone(),
+            code: menu.code.clone(),
+            path: menu.path.clone(),
+            component: menu.component.clone(),
+            icon: menu.icon.clone(),
+            sort_order: menu.sort_order,
+            visible: menu.visible,
+            status: format!("{}", menu.status),
+            permission_id: menu.permission_id.clone(),
+            created_at: menu.created_at,
+            updated_at: menu.updated_at,
+            children,
+        }
+    }
+}
+```
+
+- [ ] **Step 4: 创建 service/org_svc.rs**
+
+```rust
+use crate::{
+    error::IamError,
+    models::{OrgUnit, UserOrgUnit},
+    state::AppState,
+    dto::{CreateOrgUnitRequest, UpdateOrgUnitRequest, OrgUnitResponse, AssignUsersRequest},
+};
+use chrono::{DateTime, Utc};
+use nanoid::nanoid;
+
+pub struct OrgService {
+    state: AppState,
+}
+
+impl OrgService {
+    pub fn new(state: AppState) -> Self {
+        Self { state }
+    }
+
+    pub async fn create(&self, req: CreateOrgUnitRequest) -> Result<OrgUnitResponse, IamError> {
+        let exists = sqlx::query!(
+            "SELECT id FROM org_units WHERE code = ? AND deleted_at IS NULL",
+            req.code
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .is_some();
+
+        if exists {
+            return Err(IamError::DuplicateOrgUnit);
+        }
+
+        let org_unit_id = nanoid!();
+        let level = if req.parent_id.is_some() {
+            let parent = sqlx::query_as!(
+                OrgUnit,
+                "SELECT level FROM org_units WHERE id = ? AND deleted_at IS NULL",
+                req.parent_id.as_ref().unwrap()
+            )
+            .fetch_optional(&self.state.db)
+            .await?
+            .ok_or(IamError::OrgUnitNotFound)?;
+            parent.level + 1
+        } else {
+            1
+        };
+
+        let org_unit = sqlx::query_as!(
+            OrgUnit,
+            "INSERT INTO org_units (id, parent_id, name, code, level, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?) RETURNING *",
+            org_unit_id,
+            req.parent_id,
+            req.name,
+            req.code,
+            level,
+            req.sort_order.unwrap_or(0),
+            Utc::now(),
+            Utc::now()
+        )
+        .fetch_one(&self.state.db)
+        .await?;
+
+        Ok(self.to_response(&org_unit, vec![]))
+    }
+
+    pub async fn get(&self, org_unit_id: &str) -> Result<OrgUnitResponse, IamError> {
+        let org_unit = sqlx::query_as!(
+            OrgUnit,
+            "SELECT * FROM org_units WHERE id = ? AND deleted_at IS NULL",
+            org_unit_id
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .ok_or(IamError::OrgUnitNotFound)?;
+
+        let children = self.get_children(&org_unit_id).await?;
+
+        Ok(self.to_response(&org_unit, children))
+    }
+
+    pub async fn list(&self) -> Result<Vec<OrgUnitResponse>, IamError> {
+        let org_units = sqlx::query_as!(
+            OrgUnit,
+            "SELECT * FROM org_units WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY sort_order"
+        )
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let mut result = Vec::new();
+        for org_unit in org_units {
+            let children = self.get_children(&org_unit.id).await?;
+            result.push(self.to_response(&org_unit, children));
+        }
+
+        Ok(result)
+    }
+
+    async fn get_children(&self, parent_id: &str) -> Result<Vec<OrgUnitResponse>, IamError> {
+        let children = sqlx::query_as!(
+            OrgUnit,
+            "SELECT * FROM org_units WHERE parent_id = ? AND deleted_at IS NULL ORDER BY sort_order",
+            parent_id
+        )
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let mut result = Vec::new();
+        for child in children {
+            let grandchildren = self.get_children(&child.id).await?;
+            result.push(self.to_response(&child, grandchildren));
+        }
+
+        Ok(result)
+    }
+
+    pub async fn update(&self, org_unit_id: &str, req: UpdateOrgUnitRequest) -> Result<OrgUnitResponse, IamError> {
+        let mut update_fields = vec![];
+        let mut params: Vec<sqlx::types::JsonValue> = vec![];
+
+        if let Some(parent_id) = &req.parent_id {
+            update_fields.push("parent_id = ?");
+            params.push(parent_id.into());
+        }
+        if let Some(name) = &req.name {
+            update_fields.push("name = ?");
+            params.push(name.into());
+        }
+        if let Some(code) = &req.code {
+            update_fields.push("code = ?");
+            params.push(code.into());
+        }
+        if let Some(sort_order) = &req.sort_order {
+            update_fields.push("sort_order = ?");
+            params.push(sort_order.into());
+        }
+        if let Some(status) = &req.status {
+            update_fields.push("status = ?");
+            params.push(status.into());
+        }
+
+        if update_fields.is_empty() {
+            return self.get(org_unit_id);
+        }
+
+        update_fields.push("updated_at = ?");
+        params.push(Utc::now().into());
+        params.push(org_unit_id.into());
+
+        let query_str = format!("UPDATE org_units SET {} WHERE id = ? AND deleted_at IS NULL RETURNING *", update_fields.join(", "));
+
+        let org_unit = sqlx::query_as!(OrgUnit, &query_str, params[..])
+            .fetch_optional(&self.state.db)
+            .await?
+            .ok_or(IamError::OrgUnitNotFound)?;
+
+        Ok(self.to_response(&org_unit, vec![]))
+    }
+
+    pub async fn delete(&self, org_unit_id: &str) -> Result<(), IamError> {
+        let has_children = sqlx::query!(
+            "SELECT id FROM org_units WHERE parent_id = ? AND deleted_at IS NULL",
+            org_unit_id
+        )
+        .fetch_optional(&self.state.db)
+        .await?
+        .is_some();
+
+        if has_children {
+            return Err(IamError::Conflict("Cannot delete org unit with children".to_string()));
+        }
+
+        let result = sqlx::query!(
+            "UPDATE org_units SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+            Utc::now(),
+            Utc::now(),
+            org_unit_id
+        )
+        .execute(&self.state.db)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(IamError::OrgUnitNotFound);
+        }
+
+        sqlx::query!(
+            "DELETE FROM user_org_units WHERE org_unit_id = ?",
+            org_unit_id
+        )
+        .execute(&self.state.db)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn assign_users(&self, org_unit_id: &str, req: AssignUsersRequest) -> Result<(), IamError> {
+        sqlx::query!(
+            "DELETE FROM user_org_units WHERE org_unit_id = ?",
+            org_unit_id
+        )
+        .execute(&self.state.db)
+        .await?;
+
+        for user_id in req.user_ids {
+            sqlx::query!(
+                "INSERT INTO user_org_units (user_id, org_unit_id, is_primary, created_at) VALUES (?, ?, ?, ?)",
+                user_id,
+                org_unit_id,
+                false,
+                Utc::now()
+            )
+            .execute(&self.state.db)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    fn to_response(&self, org_unit: &OrgUnit, children: Vec<OrgUnitResponse>) -> OrgUnitResponse {
+        OrgUnitResponse {
+            id: org_unit.id.clone(),
+            parent_id: org_unit.parent_id.clone(),
+            name: org_unit.name.clone(),
+            code: org_unit.code.clone(),
+            level: org_unit.level,
+            sort_order: org_unit.sort_order,
+            status: format!("{}", org_unit.status),
+            created_at: org_unit.created_at,
+            updated_at: org_unit.updated_at,
+            children,
+        }
+    }
+}
+```
+
+- [ ] **Step 5: 创建 service/token_svc.rs**
+
+```rust
+use crate::{
+    config::Config,
+    error::IamError,
+    state::AppState,
+};
+use jwt_simple::{algorithms::RS256KeyPair, claims::Claims, Authorization, JWTClaims};
+use chrono::{DateTime, Utc};
+
+pub struct TokenService {
+    state: AppState,
+    key_pair: RS256KeyPair,
+}
+
+impl TokenService {
+    pub fn new(state: AppState) -> Result<Self, IamError> {
+        let key_pair = Self::load_key_pair(&state.config.jwt)?;
+        Ok(Self { state, key_pair })
+    }
+
+    fn load_key_pair(config: &crate::config::JwtConfig) -> Result<RS256KeyPair, IamError> {
+        let private_key_pem = std::fs::read_to_string(&config.private_key_path)
+            .map_err(|e| IamError::Jwt(jwt_simple::Error::Other(e.to_string())))?;
+        
+        let key_pair = RS256KeyPair::from_pem(&private_key_pem)
+            .map_err(|e| IamError::Jwt(e))?;
+        
+        Ok(key_pair)
+    }
+
+    pub fn issue_access_token(&self, user_id: &str, username: &str, roles: Vec<String>, permissions: Vec<String>) -> Result<String, IamError> {
+        let expires_at = Utc::now() + chrono::Duration::minutes(self.state.config.jwt.access_token_ttl_minutes as i64);
+        
+        let claims = Claims {
+            subject: Some(user_id.to_string()),
+            issuer: Some("iam-service".to_string()),
+            expires_at: Some(Authorization::DateTime(expires_at.into())),
+            custom: serde_json::json!({
+                "username": username,
+                "roles": roles,
+                "permissions": permissions,
+            }),
+            ..Claims::default()
+        };
+
+        let token = self.key_pair.sign(claims)
+            .map_err(|e| IamError::Jwt(e))?;
+        
+        Ok(token)
+    }
+
+    pub fn verify_token(&self, token: &str) -> Result<Claims, IamError> {
+        let claims = self.key_pair.verify_token::<Claims>(token, None)
+            .map_err(|e| IamError::Jwt(e))?;
+        
+        Ok(claims)
+    }
+}
+```
+
+- [ ] **Step 6: 构建验证**
+
+Run: `cargo build --manifest-path services/iam-service/Cargo.toml`
+Expected: 编译成功
+
+---
+
+## Task 9: 创建路由模块
+
+**Files:**
+- Create: `services/iam-service/src/routes/mod.rs`
+- Create: `services/iam-service/src/routes/auth.rs`
+- Create: `services/iam-service/src/routes/users.rs`
+- Create: `services/iam-service/src/routes/roles.rs`
+- Create: `services/iam-service/src/routes/permissions.rs`
+- Create: `services/iam-service/src/routes/menus.rs`
+- Create: `services/iam-service/src/routes/org_units.rs`
+- Create: `services/iam-service/src/routes/sessions.rs`
+
+- [ ] **Step 1: 创建 routes/mod.rs**
+
+```rust
+pub mod auth;
+pub mod menus;
+pub mod org_units;
+pub mod permissions;
+pub mod roles;
+pub mod sessions;
+pub mod users;
+
+use axum::{Router, routing::get};
+use crate::state::AppState;
+
+pub fn build_router(state: AppState) -> Router {
+    Router::new()
+        .merge(auth::routes(state.clone()))
+        .merge(users::routes(state.clone()))
+        .merge(roles::routes(state.clone()))
+        .merge(permissions::routes(state.clone()))
+        .merge(menus::routes(state.clone()))
+        .merge(org_units::routes(state.clone()))
+        .merge(sessions::routes(state))
+        .route("/health", get(health))
+}
+
+async fn health() -> &'static str {
+    "OK"
+}
+```
+
+- [ ] **Step 2: 创建 routes/auth.rs**
+
+```rust
+use axum::{Router, routing::{post, delete}, extract::{Json, Path, State}};
+use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse, RefreshResponse}, service::AuthService};
+use jwt_ctx::Principal;
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/iam/auth/login", post(login))
+        .route("/iam/auth/refresh", post(refresh))
+        .route("/iam/auth/logout", delete(logout))
+        .route("/iam/auth/password", post(change_password))
+        .with_state(state)
+}
+
+async fn login(
+    State(state): State<AppState>,
+    Json(req): Json<LoginRequest>,
+) -> Result<Json<LoginResponse>, axum::http::StatusCode> {
+    let service = AuthService::new(state);
+    let response = service.login(req).await.map_err(|_| axum::http::StatusCode::UNAUTHORIZED)?;
+    Ok(Json(response))
+}
+
+async fn refresh(
+    State(state): State<AppState>,
+    Json(req): Json<RefreshRequest>,
+) -> Result<Json<RefreshResponse>, axum::http::StatusCode> {
+    let service = AuthService::new(state);
+    let response = service.refresh(&req.refresh_token).await.map_err(|_| axum::http::StatusCode::UNAUTHORIZED)?;
+    Ok(Json(response))
+}
+
+async fn logout(
+    State(state): State<AppState>,
+    principal: Principal,
+) -> Result<(), axum::http::StatusCode> {
+    let service = AuthService::new(state);
+    service.logout(&principal.user_id, None).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(())
+}
+
+async fn change_password(
+    State(state): State<AppState>,
+    principal: Principal,
+    Json(req): Json<ChangePasswordRequest>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = AuthService::new(state);
+    service.change_password(&principal.user_id, req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::InvalidCredentials => axum::http::StatusCode::UNAUTHORIZED,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(())
+}
+```
+
+- [ ] **Step 3: 创建 routes/users.rs**
+
+```rust
+use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, Query, State}};
+use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse}, service::UserService};
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/iam/users", get(list_users).post(create_user))
+        .route("/iam/users/:user_id", get(get_user).put(update_user).delete(delete_user))
+        .with_state(state)
+}
+
+async fn list_users(
+    State(state): State<AppState>,
+    Query(query): Query<UserQuery>,
+) -> Result<Json<UserListResponse>, axum::http::StatusCode> {
+    let service = UserService::new(state);
+    let response = service.list(query).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(response))
+}
+
+async fn create_user(
+    State(state): State<AppState>,
+    Json(req): Json<CreateUserRequest>,
+) -> Result<Json<UserResponse>, axum::http::StatusCode> {
+    let service = UserService::new(state);
+    let response = service.create(req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::DuplicateUser => axum::http::StatusCode::CONFLICT,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn get_user(
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+) -> Result<Json<UserResponse>, axum::http::StatusCode> {
+    let service = UserService::new(state);
+    let response = service.get(&user_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::UserNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn update_user(
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+    Json(req): Json<UpdateUserRequest>,
+) -> Result<Json<UserResponse>, axum::http::StatusCode> {
+    let service = UserService::new(state);
+    let response = service.update(&user_id, req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::UserNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn delete_user(
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = UserService::new(state);
+    service.delete(&user_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::UserNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(())
+}
+```
+
+- [ ] **Step 4: 创建 routes/roles.rs**
+
+```rust
+use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, Query, State}};
+use crate::{state::AppState, dto::{CreateRoleRequest, UpdateRoleRequest, RoleQuery, RoleResponse, RoleListResponse, AssignPermissionsRequest}, service::RoleService};
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/iam/roles", get(list_roles).post(create_role))
+        .route("/iam/roles/:role_id", get(get_role).put(update_role).delete(delete_role))
+        .route("/iam/roles/:role_id/permissions", put(assign_permissions))
+        .with_state(state)
+}
+
+async fn list_roles(
+    State(state): State<AppState>,
+    Query(query): Query<RoleQuery>,
+) -> Result<Json<RoleListResponse>, axum::http::StatusCode> {
+    let service = RoleService::new(state);
+    let response = service.list(query).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(response))
+}
+
+async fn create_role(
+    State(state): State<AppState>,
+    Json(req): Json<CreateRoleRequest>,
+) -> Result<Json<RoleResponse>, axum::http::StatusCode> {
+    let service = RoleService::new(state);
+    let response = service.create(req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::DuplicateRole => axum::http::StatusCode::CONFLICT,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn get_role(
+    State(state): State<AppState>,
+    Path(role_id): Path<String>,
+) -> Result<Json<RoleResponse>, axum::http::StatusCode> {
+    let service = RoleService::new(state);
+    let response = service.get(&role_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::RoleNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn update_role(
+    State(state): State<AppState>,
+    Path(role_id): Path<String>,
+    Json(req): Json<UpdateRoleRequest>,
+) -> Result<Json<RoleResponse>, axum::http::StatusCode> {
+    let service = RoleService::new(state);
+    let response = service.update(&role_id, req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::RoleNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn delete_role(
+    State(state): State<AppState>,
+    Path(role_id): Path<String>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = RoleService::new(state);
+    service.delete(&role_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::RoleNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(())
+}
+
+async fn assign_permissions(
+    State(state): State<AppState>,
+    Path(role_id): Path<String>,
+    Json(req): Json<AssignPermissionsRequest>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = RoleService::new(state);
+    service.assign_permissions(&role_id, req.permission_ids).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(())
+}
+```
+
+- [ ] **Step 5: 创建 routes/permissions.rs**
+
+```rust
+use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, Query, State}};
+use crate::{state::AppState, dto::{CreatePermissionRequest, UpdatePermissionRequest, PermissionQuery, PermissionResponse, PermissionListResponse}, service::PermissionService};
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/iam/permissions", get(list_permissions).post(create_permission))
+        .route("/iam/permissions/:permission_id", get(get_permission).put(update_permission).delete(delete_permission))
+        .with_state(state)
+}
+
+async fn list_permissions(
+    State(state): State<AppState>,
+    Query(query): Query<PermissionQuery>,
+) -> Result<Json<PermissionListResponse>, axum::http::StatusCode> {
+    let service = PermissionService::new(state);
+    let response = service.list(query).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(response))
+}
+
+async fn create_permission(
+    State(state): State<AppState>,
+    Json(req): Json<CreatePermissionRequest>,
+) -> Result<Json<PermissionResponse>, axum::http::StatusCode> {
+    let service = PermissionService::new(state);
+    let response = service.create(req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::DuplicatePermission => axum::http::StatusCode::CONFLICT,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn get_permission(
+    State(state): State<AppState>,
+    Path(permission_id): Path<String>,
+) -> Result<Json<PermissionResponse>, axum::http::StatusCode> {
+    let service = PermissionService::new(state);
+    let response = service.get(&permission_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::PermissionNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn update_permission(
+    State(state): State<AppState>,
+    Path(permission_id): Path<String>,
+    Json(req): Json<UpdatePermissionRequest>,
+) -> Result<Json<PermissionResponse>, axum::http::StatusCode> {
+    let service = PermissionService::new(state);
+    let response = service.update(&permission_id, req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::PermissionNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn delete_permission(
+    State(state): State<AppState>,
+    Path(permission_id): Path<String>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = PermissionService::new(state);
+    service.delete(&permission_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::PermissionNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(())
+}
+```
+
+- [ ] **Step 6: 创建 routes/menus.rs**
+
+```rust
+use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, State}};
+use crate::{state::AppState, dto::{CreateMenuRequest, UpdateMenuRequest, MenuResponse, MenuListResponse}, service::MenuService};
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/iam/menus", get(list_menus).post(create_menu))
+        .route("/iam/menus/:menu_id", get(get_menu).put(update_menu).delete(delete_menu))
+        .with_state(state)
+}
+
+async fn list_menus(
+    State(state): State<AppState>,
+) -> Result<Json<MenuListResponse>, axum::http::StatusCode> {
+    let service = MenuService::new(state);
+    let response = service.list().await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(response))
+}
+
+async fn create_menu(
+    State(state): State<AppState>,
+    Json(req): Json<CreateMenuRequest>,
+) -> Result<Json<MenuResponse>, axum::http::StatusCode> {
+    let service = MenuService::new(state);
+    let response = service.create(req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::DuplicateMenu => axum::http::StatusCode::CONFLICT,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn get_menu(
+    State(state): State<AppState>,
+    Path(menu_id): Path<String>,
+) -> Result<Json<MenuResponse>, axum::http::StatusCode> {
+    let service = MenuService::new(state);
+    let response = service.get(&menu_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::MenuNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn update_menu(
+    State(state): State<AppState>,
+    Path(menu_id): Path<String>,
+    Json(req): Json<UpdateMenuRequest>,
+) -> Result<Json<MenuResponse>, axum::http::StatusCode> {
+    let service = MenuService::new(state);
+    let response = service.update(&menu_id, req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::MenuNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn delete_menu(
+    State(state): State<AppState>,
+    Path(menu_id): Path<String>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = MenuService::new(state);
+    service.delete(&menu_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::MenuNotFound => axum::http::StatusCode::NOT_FOUND,
+            crate::error::IamError::Conflict(_) => axum::http::StatusCode::CONFLICT,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(())
+}
+```
+
+- [ ] **Step 7: 创建 routes/org_units.rs**
+
+```rust
+use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, State}};
+use crate::{state::AppState, dto::{CreateOrgUnitRequest, UpdateOrgUnitRequest, OrgUnitResponse, AssignUsersRequest}, service::OrgService};
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/iam/org-units", get(list_org_units).post(create_org_unit))
+        .route("/iam/org-units/:org_unit_id", get(get_org_unit).put(update_org_unit).delete(delete_org_unit))
+        .route("/iam/org-units/:org_unit_id/users", put(assign_users))
+        .with_state(state)
+}
+
+async fn list_org_units(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<OrgUnitResponse>>, axum::http::StatusCode> {
+    let service = OrgService::new(state);
+    let response = service.list().await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(response))
+}
+
+async fn create_org_unit(
+    State(state): State<AppState>,
+    Json(req): Json<CreateOrgUnitRequest>,
+) -> Result<Json<OrgUnitResponse>, axum::http::StatusCode> {
+    let service = OrgService::new(state);
+    let response = service.create(req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::DuplicateOrgUnit => axum::http::StatusCode::CONFLICT,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn get_org_unit(
+    State(state): State<AppState>,
+    Path(org_unit_id): Path<String>,
+) -> Result<Json<OrgUnitResponse>, axum::http::StatusCode> {
+    let service = OrgService::new(state);
+    let response = service.get(&org_unit_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::OrgUnitNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn update_org_unit(
+    State(state): State<AppState>,
+    Path(org_unit_id): Path<String>,
+    Json(req): Json<UpdateOrgUnitRequest>,
+) -> Result<Json<OrgUnitResponse>, axum::http::StatusCode> {
+    let service = OrgService::new(state);
+    let response = service.update(&org_unit_id, req).await.map_err(|e| {
+        match e {
+            crate::error::IamError::OrgUnitNotFound => axum::http::StatusCode::NOT_FOUND,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(Json(response))
+}
+
+async fn delete_org_unit(
+    State(state): State<AppState>,
+    Path(org_unit_id): Path<String>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = OrgService::new(state);
+    service.delete(&org_unit_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::OrgUnitNotFound => axum::http::StatusCode::NOT_FOUND,
+            crate::error::IamError::Conflict(_) => axum::http::StatusCode::CONFLICT,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    })?;
+    Ok(())
+}
+
+async fn assign_users(
+    State(state): State<AppState>,
+    Path(org_unit_id): Path<String>,
+    Json(req): Json<AssignUsersRequest>,
+) -> Result<(), axum::http::StatusCode> {
+    let service = OrgService::new(state);
+    service.assign_users(&org_unit_id, req).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(())
+}
+```
+
+- [ ] **Step 8: 创建 routes/sessions.rs**
+
+```rust
+use axum::{Router, routing::{get, delete}, extract::{Path, State}};
+use crate::{state::AppState, dto::SessionInfo, service::AuthService};
+use jwt_ctx::Principal;
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/iam/sessions", get(list_sessions))
+        .route("/iam/sessions/:session_id", delete(force_logout))
+        .with_state(state)
+}
+
+async fn list_sessions(
+    State(state): State<AppState>,
+    _principal: Principal,
+) -> Result<Json<Vec<SessionInfo>>, axum::http::StatusCode> {
+    Ok(Json(vec![]))
+}
+
+async fn force_logout(
+    State(state): State<AppState>,
+    _principal: Principal,
+    Path(session_id): Path<String>,
+) -> Result<(), axum::http::StatusCode> {
+    Ok(())
+}
+```
+
+- [ ] **Step 9: 构建验证**
+
+Run: `cargo build --manifest-path services/iam-service/Cargo.toml`
+Expected: 编译成功
+
+---
+
+## Task 10: 创建数据库迁移和测试
+
+**Files:**
+- Create: `services/iam-service/migrations/mysql/V001__init.sql`
+- Create: `services/iam-service/migrations/sqlite/V001__init.sql`
+- Create: `services/iam-service/tests/integration_test.rs`
+- Create: `services/iam-service/Dockerfile`
+
+- [ ] **Step 1: 创建 MySQL 迁移文件**
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(36) PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    password_hash VARCHAR(255) NOT NULL,
+    salt VARCHAR(64) NOT NULL,
+    nickname VARCHAR(100) NOT NULL,
+    avatar VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    last_login_at DATETIME,
+    last_login_ip VARCHAR(50),
+    password_expired_at DATETIME,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    data_scope VARCHAR(20) NOT NULL DEFAULT 'self',
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+    id VARCHAR(36) PRIMARY KEY,
+    code VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    category VARCHAR(20) NOT NULL,
+    resource VARCHAR(255),
+    action VARCHAR(50),
+    sort_order INT NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'enabled',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS menus (
+    id VARCHAR(36) PRIMARY KEY,
+    parent_id VARCHAR(36),
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(100) NOT NULL UNIQUE,
+    path VARCHAR(255) NOT NULL,
+    component VARCHAR(255),
+    icon VARCHAR(100),
+    sort_order INT NOT NULL DEFAULT 0,
+    visible BOOLEAN NOT NULL DEFAULT TRUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'enabled',
+    permission_id VARCHAR(36),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    deleted_at DATETIME,
+    FOREIGN KEY (parent_id) REFERENCES menus(id),
+    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+);
+
+CREATE TABLE IF NOT EXISTS org_units (
+    id VARCHAR(36) PRIMARY KEY,
+    parent_id VARCHAR(36),
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    level INT NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    deleted_at DATETIME,
+    FOREIGN KEY (parent_id) REFERENCES org_units(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id VARCHAR(36) NOT NULL,
+    role_id VARCHAR(36) NOT NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id VARCHAR(36) NOT NULL,
+    permission_id VARCHAR(36) NOT NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id),
+    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_org_units (
+    user_id VARCHAR(36) NOT NULL,
+    org_unit_id VARCHAR(36) NOT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, org_unit_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (org_unit_id) REFERENCES org_units(id)
+);
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    client_ip VARCHAR(50) NOT NULL,
+    user_agent TEXT,
+    revoked BOOLEAN NOT NULL DEFAULT FALSE,
+    revoked_at DATETIME,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS login_logs (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36),
+    username VARCHAR(50) NOT NULL,
+    ip_address VARCHAR(50) NOT NULL,
+    user_agent TEXT,
+    location VARCHAR(100),
+    login_type VARCHAR(20) NOT NULL,
+    success BOOLEAN NOT NULL,
+    error_message TEXT,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_roles_code ON roles(code);
+CREATE INDEX idx_permissions_code ON permissions(code);
+CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+CREATE INDEX idx_login_logs_username ON login_logs(username);
+CREATE INDEX idx_login_logs_created_at ON login_logs(created_at);
+```
+
+- [ ] **Step 2: 创建 SQLite 迁移文件**
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT,
+    phone TEXT,
+    password_hash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    nickname TEXT NOT NULL,
+    avatar TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    email_verified INTEGER NOT NULL DEFAULT 0,
+    phone_verified INTEGER NOT NULL DEFAULT 0,
+    last_login_at TEXT,
+    last_login_ip TEXT,
+    password_expired_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    description TEXT,
+    data_scope TEXT NOT NULL DEFAULT 'self',
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL,
+    resource TEXT,
+    action TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'enabled',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS menus (
+    id TEXT PRIMARY KEY,
+    parent_id TEXT,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    path TEXT NOT NULL,
+    component TEXT,
+    icon TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    visible INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'enabled',
+    permission_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS org_units (
+    id TEXT PRIMARY KEY,
+    parent_id TEXT,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    level INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id TEXT NOT NULL,
+    role_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id TEXT NOT NULL,
+    permission_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (role_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_org_units (
+    user_id TEXT NOT NULL,
+    org_unit_id TEXT NOT NULL,
+    is_primary INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, org_unit_id)
+);
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    client_ip TEXT NOT NULL,
+    user_agent TEXT,
+    revoked INTEGER NOT NULL DEFAULT 0,
+    revoked_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS login_logs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    username TEXT NOT NULL,
+    ip_address TEXT NOT NULL,
+    user_agent TEXT,
+    location TEXT,
+    login_type TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    error_message TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_roles_code ON roles(code);
+CREATE INDEX idx_permissions_code ON permissions(code);
+CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+CREATE INDEX idx_login_logs_username ON login_logs(username);
+CREATE INDEX idx_login_logs_created_at ON login_logs(created_at);
+```
+
+- [ ] **Step 3: 创建集成测试**
+
+```rust
+use common_db::test_kit::sqlite_fixture::SqliteFixture;
+use iam_service::{config::load_config, state::AppState};
+use reqwest::Client;
+
+#[tokio::test]
+async fn test_user_create_and_login() {
+    let fixture = SqliteFixture::new().await;
+    let pool = fixture.pool();
+
+    let config = load_config().unwrap();
+    let state = AppState::new(pool, config.clone());
+
+    let client = Client::new();
+    let response = client
+        .post("http://localhost:3002/iam/users")
+        .json(&serde_json::json!({
+            "username": "testuser",
+            "password": "password123",
+            "nickname": "Test User",
+            "email": "test@example.com"
+        }))
+        .send()
+        .await;
+
+    assert!(response.is_ok());
+}
+```
+
+- [ ] **Step 4: 创建 Dockerfile**
+
+```dockerfile
+FROM rust:1.74 as builder
+
+WORKDIR /app
+
+COPY . .
+
+RUN cargo build --release --manifest-path services/iam-service/Cargo.toml
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/iam-service .
+COPY --from=builder /app/services/iam-service/config ./config
+COPY --from=builder /app/services/iam-service/keys ./keys
+
+EXPOSE 3002
+
+CMD ["./iam-service"]
+```
+
+---
+
+## Task 11: 更新路由配置
+
+**Files:**
+- Modify: `docker/config/api-gateway/routes/iam.router.toml`
+
+- [ ] **Step 1: 创建 iam.router.toml**
+
+```toml
+[[routes]]
+name = "iam-auth"
+match = "/iam/auth/*"
+rewrite = [
+  { type = "strip_prefix", prefix = "/iam" }
+]
+backend = "iam-service"
+
+[[routes]]
+name = "iam-users"
+match = "/iam/users/*"
+rewrite = [
+  { type = "strip_prefix", prefix = "/iam" }
+]
+backend = "iam-service"
+
+[[routes]]
+name = "iam-roles"
+match = "/iam/roles/*"
+rewrite = [
+  { type = "strip_prefix", prefix = "/iam" }
+]
+backend = "iam-service"
+
+[[routes]]
+name = "iam-permissions"
+match = "/iam/permissions/*"
+rewrite = [
+  { type = "strip_prefix", prefix = "/iam" }
+]
+backend = "iam-service"
+
+[[routes]]
+name = "iam-menus"
+match = "/iam/menus/*"
+rewrite = [
+  { type = "strip_prefix", prefix = "/iam" }
+]
+backend = "iam-service"
+
+[[routes]]
+name = "iam-org-units"
+match = "/iam/org-units/*"
+rewrite = [
+  { type = "strip_prefix", prefix = "/iam" }
+]
+backend = "iam-service"
+
+[[routes]]
+name = "iam-sessions"
+match = "/iam/sessions/*"
+rewrite = [
+  { type = "strip_prefix", prefix = "/iam" }
+]
+backend = "iam-service"
+```
+
+---
+
+## Task 12: 清理旧服务
+
+**Files:**
+- Delete: `services/token-service/` (保留内核能力到 iam-service)
+- Delete: `services/credential-login-service/`
+- Update: `services/user-service/` (标记为 deprecated)
+
+- [ ] **Step 1: 标记 user-service 为 deprecated**
+
+创建 `services/user-service/DEPRECATED.md`:
+
+```markdown
+# User Service - Deprecated
+
+This service has been merged into iam-service.
+
+**Migration Guide:**
+
+| Endpoint | New Endpoint in iam-service |
+|----------|-----------------------------|
+| /users/* | /iam/users/* |
+| /roles/* | /iam/roles/* |
+| /permissions/* | /iam/permissions/* |
+| /org-units/* | /iam/org-units/* |
+
+**Deprecation Date:** 2026-06-13
+
+**Removal Date:** 2026-09-01
+```
+
+- [ ] **Step 2: 更新 Cargo.toml**
+
+Run: `cargo update`
+Expected: 更新依赖
+
+---
+
+## Task 13: 验证和测试
+
+**Files:**
+- Run: `cargo build --manifest-path services/iam-service/Cargo.toml`
+- Run: `cargo test --manifest-path services/iam-service/Cargo.toml`
+
+- [ ] **Step 1: 构建验证**
+
+Run: `cargo build --manifest-path services/iam-service/Cargo.toml`
+Expected: 编译成功
+
+- [ ] **Step 2: 运行测试**
+
+Run: `cargo test --manifest-path services/iam-service/Cargo.toml`
+Expected: 测试通过
+
+- [ ] **Step 3: 验证路由配置**
+
+Run: `cargo run -p api-gateway -- validate --routes docker/config/api-gateway/routes`
+Expected: 路由配置验证通过
+
+---
+
+## 执行选项
+
+Plan complete and saved to `docs/superpowers/plans/2026-06-13-iam-service-merge-plan.md`.
+
+**1. Subagent-Driven (recommended)** - 每个任务派发独立子代理，任务间审核，快速迭代
+
+**2. Inline Execution** - 使用 executing-plans 在当前会话执行，批量执行带检查点
+
+**选择哪种方式？**

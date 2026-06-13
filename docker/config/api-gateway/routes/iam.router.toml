@@ -1,0 +1,70 @@
+[[route]]
+match = "/iam/auth/login"
+service = "iam-service"
+public = true
+
+[[route]]
+match = "/iam/auth/refresh"
+service = "iam-service"
+public = true
+
+[[route]]
+match = "/iam/auth/logout"
+service = "iam-service"
+
+[[route]]
+match = "/iam/auth/password"
+service = "iam-service"
+
+[[route]]
+match = "/iam/users"
+service = "iam-service"
+
+[[route]]
+match = "/iam/users/**"
+service = "iam-service"
+
+[[route]]
+match = "/iam/roles"
+service = "iam-service"
+
+[[route]]
+match = "/iam/roles/**"
+service = "iam-service"
+
+[[route]]
+match = "/iam/permissions"
+service = "iam-service"
+
+[[route]]
+match = "/iam/permissions/**"
+service = "iam-service"
+
+[[route]]
+match = "/iam/menus"
+service = "iam-service"
+
+[[route]]
+match = "/iam/menus/**"
+service = "iam-service"
+
+[[route]]
+match = "/iam/org-units"
+service = "iam-service"
+
+[[route]]
+match = "/iam/org-units/**"
+service = "iam-service"
+
+[[route]]
+match = "/iam/sessions"
+service = "iam-service"
+
+[[route]]
+match = "/iam/sessions/**"
+service = "iam-service"
+
+[[route]]
+match = "/iam/health"
+service = "iam-service"
+public = true

@@ -14,8 +14,8 @@ members = [
     "libs/consul-registrar",
     "services/token-service",
     "services/api-gateway",
-    "services/user-service",
     "services/notification-service",
+    "services/iam-service",
     "sdk/rust/kudi-http-client",
 ]
 resolver = "2"
