@@ -16,6 +16,7 @@ AI 协作技能包，位于 `.trae/skills/`，按意图自动匹配：
 | `coder-sdk-publish` | 发 SDK、sdk:publish | mvn verify + dotnet test + push |
 | `coder-spec-to-code` | 生成测试、spec-to-code | YAML 规格 → 测试代码 |
 | `coder-microservice-dev` | 起服务、本地开发 | 基础设施 + 4 服务热重载 |
+| `coder-service-standard-check` | 检查服务规范、standard | node scripts/check-service-standard.js |
 
 ## 服务架构
 
@@ -106,3 +107,28 @@ AI 协作技能包，位于 `.trae/skills/`，按意图自动匹配：
 加密密钥存放于 `secrets/`：
 - `private.pem` - JWT 签名用 RSA 私钥
 - `public.pem` - JWT 验签用 RSA 公钥
+
+## 服务规范规则系统
+
+### 概述
+
+每个服务目录下 `AGENTS.md` 定义服务开发规范。
+
+### 规范内容
+
+- Dockerfile
+- Swagger 配置（环境变量控制）
+- 健康检查端点
+- 数据库迁移文件
+- README.md
+- tests/ 目录
+
+### AI 检查时机
+
+修改 `services/<name>/` 下文件时自动检查规范。
+
+### 环境变量配置
+
+- `SWAGGER_ENABLED`: 是否启用 Swagger
+- `HEALTH_CHECK_REQUIRED`: 是否要求健康检查
+- `MIGRATIONS_REQUIRED`: 是否要求迁移文件
