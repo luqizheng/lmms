@@ -54,4 +54,4 @@ validator = { version = "0.18", features = ["derive"] }
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 aes-gcm = "0.10"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls"] }
