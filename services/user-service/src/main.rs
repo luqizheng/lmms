@@ -2,7 +2,7 @@ use anyhow::Result;
 use consul_registrar::ConsulRegistrar;
 use tower_http::cors::CorsLayer;
 use user_service::config::load_config;
-use user_service::db::init_pool;
+use user_service::db::{ensure_schema, init_pool};
 use user_service::routes::auth::{router as auth_router, AuthState};
 
 #[tokio::main]

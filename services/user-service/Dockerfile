@@ -31,5 +31,6 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/user-service /usr/local/bin/user-service
 COPY services/user-service/config /app/config
+COPY services/user-service/migrations /app/migrations
 EXPOSE 8080
 CMD ["user-service"]
