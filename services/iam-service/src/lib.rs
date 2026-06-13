@@ -9,4 +9,3 @@ pub mod service;
 pub mod state;
 
 pub use config::{load_config, Config};
-pub use consul_registrar::ConsulRegistrar;

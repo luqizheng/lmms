@@ -1,4 +1,4 @@
-use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, Query, State}};
+use axum::{Router, routing::get, extract::{Json, Path, Query, State}};
 use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse}, service::UserService};
 
 pub fn routes(state: AppState) -> Router {
@@ -11,21 +11,21 @@ pub fn routes(state: AppState) -> Router {
 async fn list_users(
     State(state): State<AppState>,
     Query(query): Query<UserQuery>,
-) -> Result<Json<UserListResponse>, axum::http::StatusCode> {
+) -> Result<Json<UserListResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.list(query).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let response = service.list(query).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(Json(response))
 }
 
 async fn create_user(
     State(state): State<AppState>,
     Json(req): Json<CreateUserRequest>,
-) -> Result<Json<UserResponse>, axum::http::StatusCode> {
+) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
     let response = service.create(req).await.map_err(|e| {
         match e {
-            crate::error::IamError::DuplicateUser => axum::http::StatusCode::CONFLICT,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::DuplicateUser => (axum::http::StatusCode::CONFLICT, "duplicate user"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -34,12 +34,12 @@ async fn create_user(
 async fn get_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
-) -> Result<Json<UserResponse>, axum::http::StatusCode> {
+) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
     let response = service.get(&user_id).await.map_err(|e| {
         match e {
-            crate::error::IamError::UserNotFound => axum::http::StatusCode::NOT_FOUND,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -49,12 +49,12 @@ async fn update_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
     Json(req): Json<UpdateUserRequest>,
-) -> Result<Json<UserResponse>, axum::http::StatusCode> {
+) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
     let response = service.update(&user_id, req).await.map_err(|e| {
         match e {
-            crate::error::IamError::UserNotFound => axum::http::StatusCode::NOT_FOUND,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -63,13 +63,13 @@ async fn update_user(
 async fn delete_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
-) -> Result<(), axum::http::StatusCode> {
+) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
     service.delete(&user_id).await.map_err(|e| {
         match e {
-            crate::error::IamError::UserNotFound => axum::http::StatusCode::NOT_FOUND,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

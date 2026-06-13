@@ -11,21 +11,22 @@ pub fn routes(state: AppState) -> Router {
 
 async fn list_org_units(
     State(state): State<AppState>,
-) -> Result<Json<Vec<OrgUnitResponse>>, axum::http::StatusCode> {
+) -> Result<Json<Vec<OrgUnitResponse>>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    let response = service.list().await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let response = service.list().await
+        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(Json(response))
 }
 
 async fn create_org_unit(
     State(state): State<AppState>,
     Json(req): Json<CreateOrgUnitRequest>,
-) -> Result<Json<OrgUnitResponse>, axum::http::StatusCode> {
+) -> Result<Json<OrgUnitResponse>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
     let response = service.create(req).await.map_err(|e| {
         match e {
-            crate::error::IamError::DuplicateOrgUnit => axum::http::StatusCode::CONFLICT,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::DuplicateOrgUnit => (axum::http::StatusCode::CONFLICT, "duplicate org unit"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -34,12 +35,12 @@ async fn create_org_unit(
 async fn get_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
-) -> Result<Json<OrgUnitResponse>, axum::http::StatusCode> {
+) -> Result<Json<OrgUnitResponse>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
     let response = service.get(&org_unit_id).await.map_err(|e| {
         match e {
-            crate::error::IamError::OrgUnitNotFound => axum::http::StatusCode::NOT_FOUND,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::OrgUnitNotFound => (axum::http::StatusCode::NOT_FOUND, "org unit not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -49,12 +50,12 @@ async fn update_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
     Json(req): Json<UpdateOrgUnitRequest>,
-) -> Result<Json<OrgUnitResponse>, axum::http::StatusCode> {
+) -> Result<Json<OrgUnitResponse>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
     let response = service.update(&org_unit_id, req).await.map_err(|e| {
         match e {
-            crate::error::IamError::OrgUnitNotFound => axum::http::StatusCode::NOT_FOUND,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::OrgUnitNotFound => (axum::http::StatusCode::NOT_FOUND, "org unit not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -63,24 +64,25 @@ async fn update_org_unit(
 async fn delete_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
-) -> Result<(), axum::http::StatusCode> {
+) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
     service.delete(&org_unit_id).await.map_err(|e| {
         match e {
-            crate::error::IamError::OrgUnitNotFound => axum::http::StatusCode::NOT_FOUND,
-            crate::error::IamError::Conflict(_) => axum::http::StatusCode::CONFLICT,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::OrgUnitNotFound => (axum::http::StatusCode::NOT_FOUND, "org unit not found"),
+            crate::error::IamError::Conflict(_) => (axum::http::StatusCode::CONFLICT, "conflict"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
 async fn assign_users(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
     Json(req): Json<AssignUsersRequest>,
-) -> Result<(), axum::http::StatusCode> {
+) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    service.assign_users(&org_unit_id, req).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(())
+    service.assign_users(&org_unit_id, req).await
+        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

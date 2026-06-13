@@ -10,21 +10,22 @@ pub fn routes(state: AppState) -> Router {
 
 async fn list_menus(
     State(state): State<AppState>,
-) -> Result<Json<MenuListResponse>, axum::http::StatusCode> {
+) -> Result<Json<MenuListResponse>, (axum::http::StatusCode, &'static str)> {
     let service = MenuService::new(state);
-    let response = service.list().await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let response = service.list().await
+        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(Json(response))
 }
 
 async fn create_menu(
     State(state): State<AppState>,
     Json(req): Json<CreateMenuRequest>,
-) -> Result<Json<MenuResponse>, axum::http::StatusCode> {
+) -> Result<Json<MenuResponse>, (axum::http::StatusCode, &'static str)> {
     let service = MenuService::new(state);
     let response = service.create(req).await.map_err(|e| {
         match e {
-            crate::error::IamError::DuplicateMenu => axum::http::StatusCode::CONFLICT,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::DuplicateMenu => (axum::http::StatusCode::CONFLICT, "duplicate menu"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -33,12 +34,12 @@ async fn create_menu(
 async fn get_menu(
     State(state): State<AppState>,
     Path(menu_id): Path<String>,
-) -> Result<Json<MenuResponse>, axum::http::StatusCode> {
+) -> Result<Json<MenuResponse>, (axum::http::StatusCode, &'static str)> {
     let service = MenuService::new(state);
     let response = service.get(&menu_id).await.map_err(|e| {
         match e {
-            crate::error::IamError::MenuNotFound => axum::http::StatusCode::NOT_FOUND,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::MenuNotFound => (axum::http::StatusCode::NOT_FOUND, "menu not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -48,12 +49,12 @@ async fn update_menu(
     State(state): State<AppState>,
     Path(menu_id): Path<String>,
     Json(req): Json<UpdateMenuRequest>,
-) -> Result<Json<MenuResponse>, axum::http::StatusCode> {
+) -> Result<Json<MenuResponse>, (axum::http::StatusCode, &'static str)> {
     let service = MenuService::new(state);
     let response = service.update(&menu_id, req).await.map_err(|e| {
         match e {
-            crate::error::IamError::MenuNotFound => axum::http::StatusCode::NOT_FOUND,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::MenuNotFound => (axum::http::StatusCode::NOT_FOUND, "menu not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
     Ok(Json(response))
@@ -62,14 +63,14 @@ async fn update_menu(
 async fn delete_menu(
     State(state): State<AppState>,
     Path(menu_id): Path<String>,
-) -> Result<(), axum::http::StatusCode> {
+) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = MenuService::new(state);
     service.delete(&menu_id).await.map_err(|e| {
         match e {
-            crate::error::IamError::MenuNotFound => axum::http::StatusCode::NOT_FOUND,
-            crate::error::IamError::Conflict(_) => axum::http::StatusCode::CONFLICT,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::MenuNotFound => (axum::http::StatusCode::NOT_FOUND, "menu not found"),
+            crate::error::IamError::Conflict(_) => (axum::http::StatusCode::CONFLICT, "conflict"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

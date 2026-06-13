@@ -5,11 +5,12 @@ edition = "2021"
 default-run = "iam-service"
 
 [dependencies]
+common = { path = "../../libs/common" }
 common-error = { path = "../../libs/common-error" }
 common-log = { path = "../../libs/common-log" }
 common-config = { path = "../../libs/common-config" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
-common-cache = { path = "../../libs/common-cache", features = ["redis"] }
+common-cache = { path = "../../libs/common-cache" }
 common-crypto = { path = "../../libs/common-crypto" }
 common-validator = { path = "../../libs/common-validator" }
 jwt-ctx = { path = "../../libs/jwt-ctx" }
@@ -37,7 +38,7 @@ hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
 bytes = "1"
 
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "sqlite", "macros", "chrono", "json"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "chrono", "json"] }
 serde_yaml = "0.9"
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }

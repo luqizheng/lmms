@@ -1,19 +1,20 @@
-use common_db::DbPool;
-use common_cache::RedisClient;
+use sqlx::mysql::MySqlPool;
+use common_cache::MemoryCache;
 use std::sync::Arc;
+use crate::config::Config;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: DbPool,
-    pub redis: RedisClient,
+    pub db: MySqlPool,
+    pub cache: Arc<MemoryCache>,
     pub config: Arc<Config>,
 }
 
 impl AppState {
-    pub fn new(db: DbPool, redis: RedisClient, config: Config) -> Self {
+    pub fn new(db: MySqlPool, cache: MemoryCache, config: Config) -> Self {
         Self {
             db,
-            redis,
+            cache: Arc::new(cache),
             config: Arc::new(config),
         }
     }

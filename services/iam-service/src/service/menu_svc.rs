@@ -1,12 +1,29 @@
 use crate::{
     error::IamError,
-    models::{Menu},
     state::AppState,
     dto::{CreateMenuRequest, UpdateMenuRequest, MenuResponse, MenuListResponse},
 };
-use chrono::Utc;
 use nanoid::nanoid;
 use sqlx::mysql::MySqlQueryResult;
+use sqlx::FromRow;
+
+#[derive(FromRow)]
+struct MenuRow {
+    id: String,
+    parent_id: Option<String>,
+    name: String,
+    code: String,
+    path: String,
+    component: Option<String>,
+    icon: Option<String>,
+    sort_order: i32,
+    visible: bool,
+    status: String,
+    permission_id: Option<String>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    deleted_at: Option<chrono::DateTime<chrono::Utc>>,
+}
 
 pub struct MenuService {
     state: AppState,
@@ -18,36 +35,32 @@ impl MenuService {
     }
 
     pub async fn create(&self, req: CreateMenuRequest) -> Result<MenuResponse, IamError> {
-        let exists = sqlx::query!(
-            "SELECT id FROM menus WHERE code = ? AND deleted_at IS NULL",
-            req.code
+        let exists: Option<(String,)> = sqlx::query_as(
+            "SELECT id FROM menus WHERE code = ? AND deleted_at IS NULL"
         )
+        .bind(&req.code)
         .fetch_optional(&self.state.db)
-        .await?
-        .is_some();
+        .await?;
 
-        if exists {
+        if exists.is_some() {
             return Err(IamError::DuplicateMenu);
         }
 
         let menu_id = nanoid!();
 
-        let menu = sqlx::query_as!(
-            Menu,
-            "INSERT INTO menus (id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?, ?) RETURNING *",
-            menu_id,
-            req.parent_id,
-            req.name,
-            req.code,
-            req.path,
-            req.component,
-            req.icon,
-            req.sort_order.unwrap_or(0),
-            req.visible.unwrap_or(true),
-            req.permission_id,
-            Utc::now(),
-            Utc::now()
+        let menu: MenuRow = sqlx::query_as(
+            "INSERT INTO menus (id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, NOW(), NOW()) RETURNING id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at, deleted_at"
         )
+        .bind(&menu_id)
+        .bind(&req.parent_id)
+        .bind(&req.name)
+        .bind(&req.code)
+        .bind(&req.path)
+        .bind(&req.component)
+        .bind(&req.icon)
+        .bind(req.sort_order.unwrap_or(0))
+        .bind(req.visible.unwrap_or(true))
+        .bind(&req.permission_id)
         .fetch_one(&self.state.db)
         .await?;
 
@@ -55,14 +68,14 @@ impl MenuService {
     }
 
     pub async fn get(&self, menu_id: &str) -> Result<MenuResponse, IamError> {
-        let menu = sqlx::query_as!(
-            Menu,
-            "SELECT * FROM menus WHERE id = ? AND deleted_at IS NULL",
-            menu_id
+        let menu: Option<MenuRow> = sqlx::query_as(
+            "SELECT id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at, deleted_at FROM menus WHERE id = ? AND deleted_at IS NULL"
         )
+        .bind(menu_id)
         .fetch_optional(&self.state.db)
-        .await?
-        .ok_or(IamError::MenuNotFound)?;
+        .await?;
+
+        let menu = menu.ok_or(IamError::MenuNotFound)?;
 
         let children = self.get_children(&menu_id).await?;
 
@@ -70,9 +83,8 @@ impl MenuService {
     }
 
     pub async fn list(&self) -> Result<MenuListResponse, IamError> {
-        let menus = sqlx::query_as!(
-            Menu,
-            "SELECT * FROM menus WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY sort_order"
+        let menus: Vec<MenuRow> = sqlx::query_as(
+            "SELECT id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at, deleted_at FROM menus WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY sort_order"
         )
         .fetch_all(&self.state.db)
         .await?;
@@ -83,40 +95,41 @@ impl MenuService {
             result.push(self.to_response(&menu, children));
         }
 
+        let total = result.len() as u64;
         Ok(MenuListResponse {
             items: result,
-            total: result.len() as u64,
+            total,
         })
     }
 
-    async fn get_children(&self, parent_id: &str) -> Result<Vec<MenuResponse>, IamError> {
-        let children = sqlx::query_as!(
-            Menu,
-            "SELECT * FROM menus WHERE parent_id = ? AND deleted_at IS NULL ORDER BY sort_order",
-            parent_id
-        )
-        .fetch_all(&self.state.db)
-        .await?;
+    fn get_children<'a>(&'a self, parent_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<MenuResponse>, IamError>> + Send + 'a>> {
+        Box::pin(async move {
+            let children: Vec<MenuRow> = sqlx::query_as(
+                "SELECT id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at, deleted_at FROM menus WHERE parent_id = ? AND deleted_at IS NULL ORDER BY sort_order"
+            )
+            .bind(parent_id)
+            .fetch_all(&self.state.db)
+            .await?;
 
-        let mut result = Vec::new();
-        for child in children {
-            let grandchildren = self.get_children(&child.id).await?;
-            result.push(self.to_response(&child, grandchildren));
-        }
+            let mut result = Vec::new();
+            for child in children {
+                let grandchildren = self.get_children(&child.id).await?;
+                result.push(self.to_response(&child, grandchildren));
+            }
 
-        Ok(result)
+            Ok(result)
+        })
     }
 
     pub async fn update(&self, menu_id: &str, req: UpdateMenuRequest) -> Result<MenuResponse, IamError> {
-        // Check if menu exists
-        let existing = sqlx::query_as!(
-            Menu,
-            "SELECT * FROM menus WHERE id = ? AND deleted_at IS NULL",
-            menu_id
+        let existing: Option<MenuRow> = sqlx::query_as(
+            "SELECT id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at, deleted_at FROM menus WHERE id = ? AND deleted_at IS NULL"
         )
+        .bind(menu_id)
         .fetch_optional(&self.state.db)
-        .await?
-        .ok_or(IamError::MenuNotFound)?;
+        .await?;
+
+        let existing = existing.ok_or(IamError::MenuNotFound)?;
 
         let parent_id = req.parent_id.or(existing.parent_id);
         let name = req.name.unwrap_or(existing.name);
@@ -127,10 +140,10 @@ impl MenuService {
         let sort_order = req.sort_order.unwrap_or(existing.sort_order);
         let visible = req.visible.unwrap_or(existing.visible);
         let permission_id = req.permission_id.or(existing.permission_id);
-        let status = req.status.unwrap_or_else(|| format!("{}", existing.status));
+        let status = req.status.unwrap_or(existing.status);
 
-        let menu: Menu = sqlx::query_as(
-            "UPDATE menus SET parent_id = ?, name = ?, code = ?, path = ?, component = ?, icon = ?, sort_order = ?, visible = ?, permission_id = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING *",
+        let menu: MenuRow = sqlx::query_as(
+            "UPDATE menus SET parent_id = ?, name = ?, code = ?, path = ?, component = ?, icon = ?, sort_order = ?, visible = ?, permission_id = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING id, parent_id, name, code, path, component, icon, sort_order, visible, status, permission_id, created_at, updated_at, deleted_at"
         )
         .bind(&parent_id)
         .bind(&name)
@@ -151,7 +164,7 @@ impl MenuService {
 
     pub async fn delete(&self, menu_id: &str) -> Result<(), IamError> {
         let has_children: (i32,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM menus WHERE parent_id = ? AND deleted_at IS NULL",
+            "SELECT COUNT(*) FROM menus WHERE parent_id = ? AND deleted_at IS NULL"
         )
         .bind(menu_id)
         .fetch_one(&self.state.db)
@@ -162,7 +175,7 @@ impl MenuService {
         }
 
         let result: MySqlQueryResult = sqlx::query(
-            "UPDATE menus SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
+            "UPDATE menus SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(menu_id)
         .execute(&self.state.db)
@@ -175,7 +188,7 @@ impl MenuService {
         Ok(())
     }
 
-    fn to_response(&self, menu: &Menu, children: Vec<MenuResponse>) -> MenuResponse {
+    fn to_response(&self, menu: &MenuRow, children: Vec<MenuResponse>) -> MenuResponse {
         MenuResponse {
             id: menu.id.clone(),
             parent_id: menu.parent_id.clone(),
@@ -186,7 +199,7 @@ impl MenuService {
             icon: menu.icon.clone(),
             sort_order: menu.sort_order,
             visible: menu.visible,
-            status: format!("{}", menu.status),
+            status: menu.status.clone(),
             permission_id: menu.permission_id.clone(),
             created_at: menu.created_at,
             updated_at: menu.updated_at,

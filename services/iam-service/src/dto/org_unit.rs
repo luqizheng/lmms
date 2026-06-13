@@ -23,7 +23,7 @@ pub struct UpdateOrgUnitRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct OrgUnitResponse {
     pub id: String,
     pub parent_id: Option<String>,

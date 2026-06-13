@@ -35,7 +35,7 @@ pub struct UpdateMenuRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct MenuResponse {
     pub id: String,
     pub parent_id: Option<String>,

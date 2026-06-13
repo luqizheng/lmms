@@ -1,5 +1,5 @@
 use axum::{Router, routing::{post, delete}, extract::{Json, State}};
-use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse, RefreshResponse}, service::AuthService};
+use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse}, service::AuthService};
 use jwt_ctx::Principal;
 
 pub fn routes(state: AppState) -> Router {
@@ -14,41 +14,41 @@ pub fn routes(state: AppState) -> Router {
 async fn login(
     State(state): State<AppState>,
     Json(req): Json<LoginRequest>,
-) -> Result<Json<LoginResponse>, axum::http::StatusCode> {
+) -> Result<Json<LoginResponse>, (axum::http::StatusCode, &'static str)> {
     let service = AuthService::new(state);
-    let response = service.login(req).await.map_err(|_| axum::http::StatusCode::UNAUTHORIZED)?;
+    let response = service.login(req).await.map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "invalid credentials"))?;
     Ok(Json(response))
 }
 
 async fn refresh(
     State(state): State<AppState>,
     Json(req): Json<RefreshRequest>,
-) -> Result<Json<RefreshResponse>, axum::http::StatusCode> {
+) -> Result<Json<LoginResponse>, (axum::http::StatusCode, &'static str)> {
     let service = AuthService::new(state);
-    let response = service.refresh(&req.refresh_token).await.map_err(|_| axum::http::StatusCode::UNAUTHORIZED)?;
+    let response = service.refresh(&req.refresh_token).await.map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "token expired"))?;
     Ok(Json(response))
 }
 
 async fn logout(
     State(state): State<AppState>,
     principal: Principal,
-) -> Result<(), axum::http::StatusCode> {
+) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = AuthService::new(state);
-    service.logout(&principal.user_id, None).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(())
+    service.logout(&principal.user_id).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
 async fn change_password(
     State(state): State<AppState>,
     principal: Principal,
     Json(req): Json<ChangePasswordRequest>,
-) -> Result<(), axum::http::StatusCode> {
+) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = AuthService::new(state);
     service.change_password(&principal.user_id, req).await.map_err(|e| {
         match e {
-            crate::error::IamError::InvalidCredentials => axum::http::StatusCode::UNAUTHORIZED,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            crate::error::IamError::InvalidCredentials => (axum::http::StatusCode::UNAUTHORIZED, "invalid credentials"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         }
     })?;
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

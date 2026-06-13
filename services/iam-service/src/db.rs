@@ -1,7 +1,6 @@
-use common_db::{init_pool, DbPool};
+use sqlx::mysql::MySqlPool;
 use crate::config::DatabaseConfig;
 
-pub async fn init_pool(config: &DatabaseConfig) -> anyhow::Result<DbPool> {
-    let pool = init_pool(&config.url, config.max_connections, config.min_connections).await?;
-    Ok(pool)
+pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
+    common::db::connect(&config.url, config.max_connections).await
 }
