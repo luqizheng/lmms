@@ -58,7 +58,8 @@ impl ConsulRegistrar {
     /// Pass a path on a persistent volume (not `/tmp` on a recreated container) if you
     /// need the id to survive `docker compose down && up`.
     pub fn new(addr: &str, service_name: &str, service_id_file: &str) -> Self {
-        let http_client: HttpClient = Client::builder(TokioExecutor::new()).build(HttpConnector::new());
+        let http_client: HttpClient =
+            Client::builder(TokioExecutor::new()).build(HttpConnector::new());
         let (service_id, persisted) = Self::load_service_id(service_name, service_id_file);
 
         Self {
@@ -95,7 +96,11 @@ impl ConsulRegistrar {
         }
         match fs::write(&self.service_id_file, &self.service_id) {
             Ok(_) => {
-                tracing::info!("persisted service_id {} to {}", self.service_id, self.service_id_file);
+                tracing::info!(
+                    "persisted service_id {} to {}",
+                    self.service_id,
+                    self.service_id_file
+                );
                 self.persisted = true;
             }
             Err(e) => {
@@ -108,7 +113,11 @@ impl ConsulRegistrar {
         }
     }
 
-    fn build_request(&self, url: String, body: Option<Bytes>) -> Result<Request<Full<Bytes>>, String> {
+    fn build_request(
+        &self,
+        url: String,
+        body: Option<Bytes>,
+    ) -> Result<Request<Full<Bytes>>, String> {
         let mut builder = Request::builder().method("PUT").uri(url);
         if body.is_some() {
             builder = builder.header("content-type", "application/json");
@@ -185,7 +194,10 @@ impl ConsulRegistrar {
 
     /// Deregister by id. Best-effort: errors are surfaced for logging.
     pub async fn deregister(&self) -> Result<(), String> {
-        let url = format!("{}/v1/agent/service/deregister/{}", self.addr, self.service_id);
+        let url = format!(
+            "{}/v1/agent/service/deregister/{}",
+            self.addr, self.service_id
+        );
         let req = self.build_request(url, None)?;
 
         match self.http_client.request(req).await {
@@ -219,7 +231,10 @@ mod tests {
 
     #[test]
     fn host_to_address_rewrites_unspecified() {
-        assert_eq!(ConsulRegistrar::host_to_address("0.0.0.0", 8082), "127.0.0.1:8082");
+        assert_eq!(
+            ConsulRegistrar::host_to_address("0.0.0.0", 8082),
+            "127.0.0.1:8082"
+        );
     }
 
     #[test]

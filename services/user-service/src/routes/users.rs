@@ -1,7 +1,7 @@
 use crate::db::DbPool;
 use crate::dto::{
-    AdminResetPasswordReq, ChangePasswordReq, CreateUserReq, ListResponse, PageQuery,
-    UpdateUserReq, UpdateMeReq,
+    AdminResetPasswordReq, ChangePasswordReq, CreateUserReq, ListResponse, PageQuery, UpdateMeReq,
+    UpdateUserReq,
 };
 use crate::error::AppError;
 use crate::service::user_svc;
@@ -192,9 +192,15 @@ pub async fn list_user_login_logs(
 pub fn router() -> Router<DbPool> {
     Router::new()
         .route("/users", post(create_user).get(list_users))
-        .route("/users/me", get(get_current_user).patch(update_current_user))
+        .route(
+            "/users/me",
+            get(get_current_user).patch(update_current_user),
+        )
         .route("/users/me/password", post(change_my_password))
-        .route("/users/{id}", get(get_user).patch(update_user).delete(delete_user))
+        .route(
+            "/users/{id}",
+            get(get_user).patch(update_user).delete(delete_user),
+        )
         .route("/users/{id}/enable", post(enable_user))
         .route("/users/{id}/disable", post(disable_user))
         .route("/users/{id}/reset-password", post(admin_reset_password))

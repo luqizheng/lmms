@@ -3,13 +3,28 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum KudiHttpError {
     #[error("auth failed (HTTP {status}): {message}")]
-    Auth { status: u16, message: String, details: Option<String> },
+    Auth {
+        status: u16,
+        message: String,
+        details: Option<String>,
+    },
     #[error("validation failed (HTTP {status}): {message}")]
-    Validation { status: u16, message: String, details: Option<String> },
+    Validation {
+        status: u16,
+        message: String,
+        details: Option<String>,
+    },
     #[error("rate limited (HTTP 429): {message}")]
-    RateLimit { message: String, details: Option<String> },
+    RateLimit {
+        message: String,
+        details: Option<String>,
+    },
     #[error("server error (HTTP {status}): {message}")]
-    Server { status: u16, message: String, details: Option<String> },
+    Server {
+        status: u16,
+        message: String,
+        details: Option<String>,
+    },
     #[error("network error: {0}")]
     Network(String),
 }

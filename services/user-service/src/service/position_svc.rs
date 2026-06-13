@@ -43,15 +43,14 @@ pub async fn create_position(
     level: i8,
 ) -> Result<PositionDTO, AppError> {
     let DbPool::Mysql(p) = pool;
-    let res = sqlx::query(
-        "INSERT INTO positions (code, name, org_unit_id, level) VALUES (?, ?, ?, ?)",
-    )
-    .bind(code)
-    .bind(name)
-    .bind(org_unit_id)
-    .bind(level)
-    .execute(p)
-    .await?;
+    let res =
+        sqlx::query("INSERT INTO positions (code, name, org_unit_id, level) VALUES (?, ?, ?, ?)")
+            .bind(code)
+            .bind(name)
+            .bind(org_unit_id)
+            .bind(level)
+            .execute(p)
+            .await?;
     get_position(pool, res.last_insert_id()).await
 }
 
@@ -98,12 +97,11 @@ pub async fn update_position(
 
 pub async fn delete_position(pool: &DbPool, id: u64) -> Result<(), AppError> {
     let DbPool::Mysql(p) = pool;
-    let used: Option<(u64,)> = sqlx::query_as(
-        "SELECT user_id FROM user_positions WHERE position_id = ? LIMIT 1",
-    )
-    .bind(id)
-    .fetch_optional(p)
-    .await?;
+    let used: Option<(u64,)> =
+        sqlx::query_as("SELECT user_id FROM user_positions WHERE position_id = ? LIMIT 1")
+            .bind(id)
+            .fetch_optional(p)
+            .await?;
     if used.is_some() {
         return Err(AppError::Validation("position is assigned to users".into()));
     }

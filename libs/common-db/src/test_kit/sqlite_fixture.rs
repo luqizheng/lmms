@@ -11,17 +11,23 @@ pub struct SqliteFixture {
 
 impl SqliteFixture {
     pub async fn new(migration_dir: &str) -> AppResult<Self> {
-        let file = NamedTempFile::new()
-            .map_err(|e| AppError::internal("FX_TMP", e.to_string()))?;
+        let file = NamedTempFile::new().map_err(|e| AppError::internal("FX_TMP", e.to_string()))?;
         let path = file.path().to_string_lossy().to_string();
         let url = format!("sqlite://{}?mode=rwc", path);
-        let pool = SqlitePool::connect(&url).await
+        let pool = SqlitePool::connect(&url)
+            .await
             .map_err(|e| AppError::internal("FX_CONN", e.to_string()))?;
         Self::run_migrations(&pool, migration_dir).await?;
-        Ok(Self { _file: file, pool, path })
+        Ok(Self {
+            _file: file,
+            pool,
+            path,
+        })
     }
 
-    pub fn pool(&self) -> &SqlitePool { &self.pool }
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
+    }
 
     async fn run_migrations(pool: &SqlitePool, dir: &str) -> AppResult<()> {
         let p = Path::new(dir);
@@ -34,7 +40,9 @@ impl SqliteFixture {
             if e.path().extension().and_then(|s| s.to_str()) == Some("sql") {
                 let sql = std::fs::read_to_string(e.path())
                     .map_err(|err| AppError::internal("FX_READ", err.to_string()))?;
-                sqlx::raw_sql(&sql).execute(pool).await
+                sqlx::raw_sql(&sql)
+                    .execute(pool)
+                    .await
                     .map_err(|err| AppError::internal("FX_EXEC", err.to_string()))?;
             }
         }

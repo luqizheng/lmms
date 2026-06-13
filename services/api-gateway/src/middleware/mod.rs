@@ -2,17 +2,17 @@ use crate::AppState;
 use crate::RouteConfig;
 use axum::body::Body;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Request};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use axum::http::StatusCode;
 use redis::aio::MultiplexedConnection;
 use std::sync::Arc;
 
 pub fn is_public_route(routes: &[RouteConfig], path: &str) -> bool {
-    routes.iter().any(|r| {
-        r.public && match_route_pattern(path, &r.match_pattern)
-    })
+    routes
+        .iter()
+        .any(|r| r.public && match_route_pattern(path, &r.match_pattern))
 }
 
 fn match_route_pattern(path: &str, pattern: &str) -> bool {
@@ -85,20 +85,30 @@ pub fn inject_user_headers(headers: &mut HeaderMap, claims: &crate::jwt::JwtClai
             headers.insert(HeaderName::from_static("x-user-dept"), hv);
         }
     }
-    if let Some(b) = claims.custom.get("is_dept_leader").and_then(|v| v.as_bool()) {
+    if let Some(b) = claims
+        .custom
+        .get("is_dept_leader")
+        .and_then(|v| v.as_bool())
+    {
         headers.insert(
             HeaderName::from_static("x-user-dept-leader"),
             HeaderValue::from_static(if b { "true" } else { "false" }),
         );
     }
     if let Some(arr) = claims.custom.get("roles").and_then(|v| v.as_array()) {
-        let joined: Vec<String> = arr.iter().filter_map(|x| x.as_str().map(String::from)).collect();
+        let joined: Vec<String> = arr
+            .iter()
+            .filter_map(|x| x.as_str().map(String::from))
+            .collect();
         if let Ok(hv) = HeaderValue::from_str(&joined.join(",")) {
             headers.insert(HeaderName::from_static("x-user-roles"), hv);
         }
     }
     if let Some(arr) = claims.custom.get("permissions").and_then(|v| v.as_array()) {
-        let joined: Vec<String> = arr.iter().filter_map(|x| x.as_str().map(String::from)).collect();
+        let joined: Vec<String> = arr
+            .iter()
+            .filter_map(|x| x.as_str().map(String::from))
+            .collect();
         if let Ok(hv) = HeaderValue::from_str(&joined.join(",")) {
             headers.insert(HeaderName::from_static("x-user-perms"), hv);
         }

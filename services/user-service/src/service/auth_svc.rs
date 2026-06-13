@@ -102,12 +102,11 @@ async fn fetch_user_for_login(
     username: &str,
 ) -> Result<Option<(u64, String)>, AppError> {
     if let DbPool::Mysql(p) = pool {
-        let row: Option<(u64, Option<String>)> = sqlx::query_as(
-            "SELECT id, password_hash FROM users WHERE username = ? AND status = 1",
-        )
-        .bind(username)
-        .fetch_optional(p)
-        .await?;
+        let row: Option<(u64, Option<String>)> =
+            sqlx::query_as("SELECT id, password_hash FROM users WHERE username = ? AND status = 1")
+                .bind(username)
+                .fetch_optional(p)
+                .await?;
         Ok(row.and_then(|(id, h)| h.map(|h| (id, h))))
     } else {
         unreachable!("only Mysql variant supported")
@@ -333,11 +332,10 @@ pub async fn register_admin(
         .map_err(|e| RegisterError::Internal(e.to_string()))?;
         let uid = res.last_insert_id();
 
-        let role_row: Option<(u64,)> =
-            sqlx::query_as("SELECT id FROM roles WHERE code = 'admin'")
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(|e| RegisterError::Internal(e.to_string()))?;
+        let role_row: Option<(u64,)> = sqlx::query_as("SELECT id FROM roles WHERE code = 'admin'")
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| RegisterError::Internal(e.to_string()))?;
         let role_id = role_row
             .ok_or_else(|| RegisterError::Internal("admin role not seeded".into()))?
             .0;

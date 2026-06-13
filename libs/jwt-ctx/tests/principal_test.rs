@@ -93,6 +93,9 @@ fn invalid_dept_id_becomes_none() {
 #[test]
 fn invalid_user_id_header_value_is_error() {
     let mut h = HeaderMap::new();
-    h.insert("x-user-id", HeaderValue::from_bytes(&[0xff, 0xfe, 0xfd]).unwrap());
+    h.insert(
+        "x-user-id",
+        HeaderValue::from_bytes(&[0xff, 0xfe, 0xfd]).unwrap(),
+    );
     assert!(Principal::from_headers(&h).is_err());
 }

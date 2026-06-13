@@ -52,7 +52,9 @@ pub async fn replace_user_positions(
         .await?;
     let primary_count = items.iter().filter(|i| i.is_primary).count();
     if primary_count > 1 {
-        return Err(AppError::Validation("only one primary position allowed".into()));
+        return Err(AppError::Validation(
+            "only one primary position allowed".into(),
+        ));
     }
     for it in items {
         sqlx::query(

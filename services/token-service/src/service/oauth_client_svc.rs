@@ -2,10 +2,7 @@ use crate::db::DbPool;
 use crate::models::oauth_client::{Client, ClientRow};
 use crate::secret::{hash_client_secret, DEFAULT_DEV_CLIENT_SECRET};
 
-pub async fn find_by_id(
-    pool: &DbPool,
-    client_id: &str,
-) -> Result<Option<Client>, sqlx::Error> {
+pub async fn find_by_id(pool: &DbPool, client_id: &str) -> Result<Option<Client>, sqlx::Error> {
     match pool {
         DbPool::Mysql(p) => {
             let row: Option<ClientRow> = sqlx::query_as(

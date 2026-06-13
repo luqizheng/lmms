@@ -76,10 +76,7 @@ use axum::http::request::Parts;
 
 impl<S: Send + Sync> FromRequestParts<S> for Principal {
     type Rejection = axum::http::StatusCode;
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
         Self::from_headers(&parts.headers).map_err(|_| axum::http::StatusCode::UNAUTHORIZED)
     }
 }

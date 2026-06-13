@@ -9,7 +9,10 @@ async fn pool() -> MySqlPool {
 #[tokio::test]
 async fn org_crud_and_tree() {
     let p = pool().await;
-    sqlx::query("DELETE FROM org_units").execute(&p).await.unwrap();
+    sqlx::query("DELETE FROM org_units")
+        .execute(&p)
+        .await
+        .unwrap();
 
     let root = user_service::service::org_svc::create_org_unit(
         &user_service::db::DbPool::Mysql(p.clone()),
@@ -78,9 +81,18 @@ async fn org_crud_and_tree() {
 #[tokio::test]
 async fn position_role_binding() {
     let p = pool().await;
-    sqlx::query("DELETE FROM position_roles").execute(&p).await.unwrap();
-    sqlx::query("DELETE FROM positions").execute(&p).await.unwrap();
-    sqlx::query("DELETE FROM org_units").execute(&p).await.unwrap();
+    sqlx::query("DELETE FROM position_roles")
+        .execute(&p)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM positions")
+        .execute(&p)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM org_units")
+        .execute(&p)
+        .await
+        .unwrap();
     sqlx::query("DELETE FROM roles").execute(&p).await.unwrap();
 
     let ou = user_service::service::org_svc::create_org_unit(
@@ -134,9 +146,18 @@ async fn position_role_binding() {
 #[tokio::test]
 async fn user_position_primary_uniqueness() {
     let p = pool().await;
-    sqlx::query("DELETE FROM user_positions").execute(&p).await.unwrap();
-    sqlx::query("DELETE FROM positions").execute(&p).await.unwrap();
-    sqlx::query("DELETE FROM org_units").execute(&p).await.unwrap();
+    sqlx::query("DELETE FROM user_positions")
+        .execute(&p)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM positions")
+        .execute(&p)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM org_units")
+        .execute(&p)
+        .await
+        .unwrap();
     sqlx::query("DELETE FROM users WHERE id = 9999")
         .execute(&p)
         .await

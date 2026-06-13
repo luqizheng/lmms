@@ -34,15 +34,14 @@ pub async fn create_org_unit(
     sort: i32,
 ) -> Result<OrgUnitDTO, AppError> {
     let DbPool::Mysql(p) = pool;
-    let res = sqlx::query(
-        "INSERT INTO org_units (code, name, parent_id, sort) VALUES (?, ?, ?, ?)",
-    )
-    .bind(code)
-    .bind(name)
-    .bind(parent_id)
-    .bind(sort)
-    .execute(p)
-    .await?;
+    let res =
+        sqlx::query("INSERT INTO org_units (code, name, parent_id, sort) VALUES (?, ?, ?, ?)")
+            .bind(code)
+            .bind(name)
+            .bind(parent_id)
+            .bind(sort)
+            .execute(p)
+            .await?;
     let id = res.last_insert_id();
     get_org_unit(pool, id).await
 }

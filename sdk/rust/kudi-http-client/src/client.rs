@@ -23,7 +23,11 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn credential(mut self, client_id: impl Into<String>, secret_key: impl Into<String>) -> Self {
+    pub fn credential(
+        mut self,
+        client_id: impl Into<String>,
+        secret_key: impl Into<String>,
+    ) -> Self {
         self.client_id = Some(client_id.into());
         self.secret_key = Some(secret_key.into());
         self
@@ -81,7 +85,11 @@ impl KudiWebClient {
         }
     }
 
-    pub fn with_credential(mut self, client_id: impl Into<String>, secret_key: impl Into<String>) -> Self {
+    pub fn with_credential(
+        mut self,
+        client_id: impl Into<String>,
+        secret_key: impl Into<String>,
+    ) -> Self {
         self.credential = Some((client_id.into(), secret_key.into()));
         self
     }
@@ -94,7 +102,10 @@ impl KudiWebClient {
         self.cache.snapshot().await
     }
 
-    async fn resolve_bearer(&self, explicit: Option<&str>) -> Result<Option<String>, KudiHttpError> {
+    async fn resolve_bearer(
+        &self,
+        explicit: Option<&str>,
+    ) -> Result<Option<String>, KudiHttpError> {
         if let Some(b) = explicit {
             return Ok(Some(b.to_string()));
         }
@@ -122,10 +133,16 @@ impl KudiWebClient {
         bearer: Option<&str>,
     ) -> Result<HttpResponse, KudiHttpError> {
         let bearer = self.resolve_bearer(bearer).await?;
-        self.transport.post_json(url, bearer.as_deref(), json_body).await
+        self.transport
+            .post_json(url, bearer.as_deref(), json_body)
+            .await
     }
 
-    pub async fn get(&self, url: &str, bearer: Option<&str>) -> Result<HttpResponse, KudiHttpError> {
+    pub async fn get(
+        &self,
+        url: &str,
+        bearer: Option<&str>,
+    ) -> Result<HttpResponse, KudiHttpError> {
         let bearer = self.resolve_bearer(bearer).await?;
         self.transport.get(url, bearer.as_deref()).await
     }

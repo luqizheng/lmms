@@ -64,8 +64,14 @@ fn test_issue_refresh_token_success() {
     claims.expires_at = Some(now_duration + Duration::from_secs(ttl_sec as u64));
 
     let mut custom = HashMap::new();
-    custom.insert("scope".to_string(), serde_json::Value::String("refresh".to_string()));
-    custom.insert("family".to_string(), serde_json::Value::String(family.clone()));
+    custom.insert(
+        "scope".to_string(),
+        serde_json::Value::String("refresh".to_string()),
+    );
+    custom.insert(
+        "family".to_string(),
+        serde_json::Value::String(family.clone()),
+    );
     claims.custom = custom;
 
     let token = key_pair.sign(claims).unwrap();
@@ -74,11 +80,16 @@ fn test_issue_refresh_token_success() {
     let mut options = VerificationOptions::default();
     options.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
 
-    let verified = key_pair.public_key()
+    let verified = key_pair
+        .public_key()
         .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options))
         .unwrap();
 
-    let verified_family = verified.custom.get("family").and_then(|v| v.as_str()).unwrap();
+    let verified_family = verified
+        .custom
+        .get("family")
+        .and_then(|v| v.as_str())
+        .unwrap();
     assert_eq!(verified_family, family);
 }
 
@@ -106,10 +117,22 @@ fn test_issue_resource_token_success() {
     claims.expires_at = Some(now_duration + Duration::from_secs(ttl_sec as u64));
 
     let mut custom = HashMap::new();
-    custom.insert("scope".to_string(), serde_json::Value::String("resource".to_string()));
-    custom.insert("resource_type".to_string(), serde_json::Value::String(resource_type.to_string()));
-    custom.insert("resource_id".to_string(), serde_json::Value::String(resource_id.to_string()));
-    custom.insert("permission".to_string(), serde_json::Value::String(permission.to_string()));
+    custom.insert(
+        "scope".to_string(),
+        serde_json::Value::String("resource".to_string()),
+    );
+    custom.insert(
+        "resource_type".to_string(),
+        serde_json::Value::String(resource_type.to_string()),
+    );
+    custom.insert(
+        "resource_id".to_string(),
+        serde_json::Value::String(resource_id.to_string()),
+    );
+    custom.insert(
+        "permission".to_string(),
+        serde_json::Value::String(permission.to_string()),
+    );
     claims.custom = custom;
 
     let token = key_pair.sign(claims).unwrap();
@@ -118,13 +141,26 @@ fn test_issue_resource_token_success() {
     let mut options = VerificationOptions::default();
     options.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
 
-    let verified = key_pair.public_key()
+    let verified = key_pair
+        .public_key()
         .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options))
         .unwrap();
 
-    assert_eq!(verified.custom.get("resource_type").and_then(|v| v.as_str()), Some(resource_type));
-    assert_eq!(verified.custom.get("resource_id").and_then(|v| v.as_str()), Some(resource_id));
-    assert_eq!(verified.custom.get("permission").and_then(|v| v.as_str()), Some(permission));
+    assert_eq!(
+        verified
+            .custom
+            .get("resource_type")
+            .and_then(|v| v.as_str()),
+        Some(resource_type)
+    );
+    assert_eq!(
+        verified.custom.get("resource_id").and_then(|v| v.as_str()),
+        Some(resource_id)
+    );
+    assert_eq!(
+        verified.custom.get("permission").and_then(|v| v.as_str()),
+        Some(permission)
+    );
 }
 
 #[test]
@@ -149,11 +185,23 @@ fn test_access_token_verify_and_extract_claims() {
     claims.expires_at = Some(now_duration + Duration::from_secs(3600));
 
     let mut custom = HashMap::new();
-    custom.insert("scope".to_string(), serde_json::Value::String("access".to_string()));
-    custom.insert("client_id".to_string(), serde_json::Value::String(client_id.to_string()));
-    custom.insert("permissions".to_string(), serde_json::Value::Array(
-        permissions.iter().map(|p| serde_json::Value::String(p.clone())).collect(),
-    ));
+    custom.insert(
+        "scope".to_string(),
+        serde_json::Value::String("access".to_string()),
+    );
+    custom.insert(
+        "client_id".to_string(),
+        serde_json::Value::String(client_id.to_string()),
+    );
+    custom.insert(
+        "permissions".to_string(),
+        serde_json::Value::Array(
+            permissions
+                .iter()
+                .map(|p| serde_json::Value::String(p.clone()))
+                .collect(),
+        ),
+    );
     claims.custom = custom;
 
     let token = key_pair.sign(claims).unwrap();
@@ -162,12 +210,17 @@ fn test_access_token_verify_and_extract_claims() {
     let mut options = VerificationOptions::default();
     options.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
 
-    let verified = public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options)).unwrap();
+    let verified = public_key
+        .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options))
+        .unwrap();
 
     assert_eq!(verified.subject, Some(sub.to_string()));
     assert!(!verified.jwt_id.unwrap().is_empty());
     assert_eq!(verified.issuer, Some(issuer.to_string()));
-    assert_eq!(verified.custom.get("client_id").and_then(|v| v.as_str()), Some(client_id));
+    assert_eq!(
+        verified.custom.get("client_id").and_then(|v| v.as_str()),
+        Some(client_id)
+    );
 }
 
 #[test]
@@ -197,8 +250,12 @@ fn test_token_expiration() {
     options.accept_future = false;
     options.time_tolerance = Some(Duration::from_secs(0));
 
-    let result = public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
-    assert!(result.is_err(), "Expected token verification to fail for expired token");
+    let result =
+        public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
+    assert!(
+        result.is_err(),
+        "Expected token verification to fail for expired token"
+    );
 }
 
 #[test]
@@ -221,15 +278,27 @@ fn test_refresh_token_family_tracking() {
     claims1.issuer = Some(issuer.to_string());
     claims1.expires_at = Some(now_duration + Duration::from_secs(86400));
     let mut custom1 = HashMap::new();
-    custom1.insert("scope".to_string(), serde_json::Value::String("refresh".to_string()));
-    custom1.insert("family".to_string(), serde_json::Value::String(family1.clone()));
+    custom1.insert(
+        "scope".to_string(),
+        serde_json::Value::String("refresh".to_string()),
+    );
+    custom1.insert(
+        "family".to_string(),
+        serde_json::Value::String(family1.clone()),
+    );
     claims1.custom = custom1;
 
     let mut claims2 = claims1.clone();
     claims2.jwt_id = Some(Uuid::new_v4().to_string());
     let mut custom2 = HashMap::new();
-    custom2.insert("scope".to_string(), serde_json::Value::String("refresh".to_string()));
-    custom2.insert("family".to_string(), serde_json::Value::String(family2.clone()));
+    custom2.insert(
+        "scope".to_string(),
+        serde_json::Value::String("refresh".to_string()),
+    );
+    custom2.insert(
+        "family".to_string(),
+        serde_json::Value::String(family2.clone()),
+    );
     claims2.custom = custom2;
 
     let token1 = key_pair.sign(claims1).unwrap();
@@ -239,11 +308,23 @@ fn test_refresh_token_family_tracking() {
     let mut options = VerificationOptions::default();
     options.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
 
-    let verified1 = public_key.verify_token::<HashMap<String, serde_json::Value>>(&token1, Some(options.clone())).unwrap();
-    let verified2 = public_key.verify_token::<HashMap<String, serde_json::Value>>(&token2, Some(options)).unwrap();
+    let verified1 = public_key
+        .verify_token::<HashMap<String, serde_json::Value>>(&token1, Some(options.clone()))
+        .unwrap();
+    let verified2 = public_key
+        .verify_token::<HashMap<String, serde_json::Value>>(&token2, Some(options))
+        .unwrap();
 
-    let fam1 = verified1.custom.get("family").and_then(|v| v.as_str()).unwrap();
-    let fam2 = verified2.custom.get("family").and_then(|v| v.as_str()).unwrap();
+    let fam1 = verified1
+        .custom
+        .get("family")
+        .and_then(|v| v.as_str())
+        .unwrap();
+    let fam2 = verified2
+        .custom
+        .get("family")
+        .and_then(|v| v.as_str())
+        .unwrap();
 
     assert_eq!(fam1, family1);
     assert_eq!(fam2, family2);

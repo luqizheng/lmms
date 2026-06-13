@@ -39,8 +39,14 @@ impl TokenIssuer {
         claims.expires_at = Some(Self::now() + Duration::from_secs(ttl_sec as u64));
 
         let mut custom = HashMap::new();
-        custom.insert("scope".to_string(), serde_json::Value::String("access".to_string()));
-        custom.insert("client_id".to_string(), serde_json::Value::String(client_id.to_string()));
+        custom.insert(
+            "scope".to_string(),
+            serde_json::Value::String("access".to_string()),
+        );
+        custom.insert(
+            "client_id".to_string(),
+            serde_json::Value::String(client_id.to_string()),
+        );
         // 合并 user-service 提供的业务 claims，user-service 决定 schema
         if let Some(obj) = extra_claims.as_object() {
             for (k, v) in obj {
@@ -66,8 +72,14 @@ impl TokenIssuer {
         claims.expires_at = Some(Self::now() + Duration::from_secs(ttl_sec as u64));
 
         let mut custom = HashMap::new();
-        custom.insert("scope".to_string(), serde_json::Value::String("refresh".to_string()));
-        custom.insert("family".to_string(), serde_json::Value::String(family.clone()));
+        custom.insert(
+            "scope".to_string(),
+            serde_json::Value::String("refresh".to_string()),
+        );
+        custom.insert(
+            "family".to_string(),
+            serde_json::Value::String(family.clone()),
+        );
         claims.custom = custom;
 
         let token = self.key_pair.sign(claims)?;
@@ -89,9 +101,18 @@ impl TokenIssuer {
         claims.expires_at = Some(Self::now() + Duration::from_secs(ttl_secs));
 
         let mut custom = HashMap::new();
-        custom.insert("scope".to_string(), serde_json::Value::String("access".to_string()));
-        custom.insert("client_id".to_string(), serde_json::Value::String("credential-login-service".to_string()));
-        custom.insert("user_code".to_string(), serde_json::Value::String(user_code.to_string()));
+        custom.insert(
+            "scope".to_string(),
+            serde_json::Value::String("access".to_string()),
+        );
+        custom.insert(
+            "client_id".to_string(),
+            serde_json::Value::String("credential-login-service".to_string()),
+        );
+        custom.insert(
+            "user_code".to_string(),
+            serde_json::Value::String(user_code.to_string()),
+        );
 
         let reserved = ["iss", "aud", "exp", "iat", "nbf", "sub", "jti"];
         if let Some(obj) = extra_claims.as_object() {
@@ -122,10 +143,22 @@ impl TokenIssuer {
         claims.expires_at = Some(Self::now() + Duration::from_secs(ttl_sec as u64));
 
         let mut custom = HashMap::new();
-        custom.insert("scope".to_string(), serde_json::Value::String("resource".to_string()));
-        custom.insert("resource_type".to_string(), serde_json::Value::String(resource_type.to_string()));
-        custom.insert("resource_id".to_string(), serde_json::Value::String(resource_id.to_string()));
-        custom.insert("permission".to_string(), serde_json::Value::String(permission.to_string()));
+        custom.insert(
+            "scope".to_string(),
+            serde_json::Value::String("resource".to_string()),
+        );
+        custom.insert(
+            "resource_type".to_string(),
+            serde_json::Value::String(resource_type.to_string()),
+        );
+        custom.insert(
+            "resource_id".to_string(),
+            serde_json::Value::String(resource_id.to_string()),
+        );
+        custom.insert(
+            "permission".to_string(),
+            serde_json::Value::String(permission.to_string()),
+        );
         claims.custom = custom;
 
         let token = self.key_pair.sign(claims)?;

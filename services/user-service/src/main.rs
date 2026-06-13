@@ -93,7 +93,10 @@ fn log_config(cfg: &user_service::config::Config) {
     println!("server.port           : {}", cfg.server.port);
     println!("database.db_type      : {:?}", cfg.database.db_type);
     println!("database.url          : {}", db_url);
-    println!("database.max_connections : {}", cfg.database.max_connections);
+    println!(
+        "database.max_connections : {}",
+        cfg.database.max_connections
+    );
     println!("redis.url             : {}", redis_url);
     println!(
         "auth.service_token_issuer   : {}",

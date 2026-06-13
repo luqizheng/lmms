@@ -5,9 +5,7 @@
 use sqlx::mysql::MySqlPool;
 use testcontainers::ContainerAsync;
 use testcontainers_modules::mysql::Mysql;
-use user_service::dto::{
-    AdminResetPasswordReq, ChangePasswordReq, CreateUserReq, UpdateUserReq,
-};
+use user_service::dto::{AdminResetPasswordReq, ChangePasswordReq, CreateUserReq, UpdateUserReq};
 
 async fn setup_pool() -> (ContainerAsync<Mysql>, MySqlPool) {
     let container = Mysql::default().start().await.expect("start mysql");
@@ -288,7 +286,9 @@ mod user_mgmt_e2e {
         };
         let uid = user_svc::create_user(&pool, &req).await.expect("create");
 
-        user_svc::soft_delete_user(&pool, uid).await.expect("delete");
+        user_svc::soft_delete_user(&pool, uid)
+            .await
+            .expect("delete");
         let status: (i8,) = sqlx::query_as("SELECT status FROM users WHERE id = ?")
             .bind(uid)
             .fetch_one(if let DbPool::Mysql(p) = &pool {
@@ -300,7 +300,9 @@ mod user_mgmt_e2e {
             .expect("select");
         assert_eq!(status.0, 0);
 
-        user_svc::set_user_status(&pool, uid, 1).await.expect("enable");
+        user_svc::set_user_status(&pool, uid, 1)
+            .await
+            .expect("enable");
         let status: (i8,) = sqlx::query_as("SELECT status FROM users WHERE id = ?")
             .bind(uid)
             .fetch_one(if let DbPool::Mysql(p) = &pool {
@@ -407,12 +409,11 @@ mod user_mgmt_e2e {
         } else {
             unreachable!()
         };
-        let (before,): (String,) =
-            sqlx::query_as("SELECT password_hash FROM users WHERE id = ?")
-                .bind(uid)
-                .fetch_one(mysql)
-                .await
-                .expect("select before");
+        let (before,): (String,) = sqlx::query_as("SELECT password_hash FROM users WHERE id = ?")
+            .bind(uid)
+            .fetch_one(mysql)
+            .await
+            .expect("select before");
         user_svc::reset_password(&pool, uid, "newpass99")
             .await
             .expect("reset");
@@ -442,12 +443,11 @@ mod user_mgmt_e2e {
         } else {
             unreachable!()
         };
-        let (before,): (String,) =
-            sqlx::query_as("SELECT password_hash FROM users WHERE id = ?")
-                .bind(uid)
-                .fetch_one(mysql)
-                .await
-                .expect("select before");
+        let (before,): (String,) = sqlx::query_as("SELECT password_hash FROM users WHERE id = ?")
+            .bind(uid)
+            .fetch_one(mysql)
+            .await
+            .expect("select before");
         let change = ChangePasswordReq {
             old_password: "secret123".into(),
             new_password: "rotated456".into(),

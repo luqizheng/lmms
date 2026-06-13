@@ -22,8 +22,14 @@ fn extract_claims(jwt_claims: &JWTClaims<HashMap<String, serde_json::Value>>) ->
     let sub = jwt_claims.subject.clone().unwrap_or_default();
     let jti = jwt_claims.jwt_id.clone().unwrap_or_default();
     let iss = jwt_claims.issuer.clone().unwrap_or_default();
-    let iat = jwt_claims.issued_at.map(|d| d.as_secs() as i64).unwrap_or(0);
-    let exp = jwt_claims.expires_at.map(|d| d.as_secs() as i64).unwrap_or(0);
+    let iat = jwt_claims
+        .issued_at
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let exp = jwt_claims
+        .expires_at
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
 
     let scope = jwt_claims
         .custom
@@ -68,8 +74,8 @@ pub struct JwtValidator {
 
 impl JwtValidator {
     pub fn new(public_key_pem: &str, issuer: &str) -> Result<Self, StatusCode> {
-        let public_key =
-            RS256PublicKey::from_pem(public_key_pem).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let public_key = RS256PublicKey::from_pem(public_key_pem)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok(Self {
             public_key: RwLock::new(public_key),
             issuer: issuer.to_string(),

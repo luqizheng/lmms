@@ -66,7 +66,13 @@ async fn main() -> anyhow::Result<()> {
         scheduler::run(db_for_sched, redis_for_sched, hub_for_sched, tick).await;
     });
 
-    let host = cfg.server.http_addr.split(':').next().unwrap_or("0.0.0.0").to_string();
+    let host = cfg
+        .server
+        .http_addr
+        .split(':')
+        .next()
+        .unwrap_or("0.0.0.0")
+        .to_string();
     let port: u16 = cfg
         .server
         .http_addr

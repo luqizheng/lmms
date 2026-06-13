@@ -7,20 +7,38 @@ fn sqlite_pagination_uses_limit_offset() {
 
 #[test]
 fn detect_from_url_picks_sqlite() {
-    assert_eq!(DialectKind::from_url("sqlite::memory:"), DialectKind::Sqlite);
+    assert_eq!(
+        DialectKind::from_url("sqlite::memory:"),
+        DialectKind::Sqlite
+    );
 }
 
 #[test]
 fn detect_from_url_picks_dameng() {
-    assert_eq!(DialectKind::from_url("dameng://user:pwd@host:5236/db"), DialectKind::Dameng);
+    assert_eq!(
+        DialectKind::from_url("dameng://user:pwd@host:5236/db"),
+        DialectKind::Dameng
+    );
 }
 
 #[test]
 fn detect_from_url_defaults_to_mysql() {
-    assert_eq!(DialectKind::from_url("mysql://localhost/db"), DialectKind::Mysql);
-    assert_eq!(DialectKind::from_url("postgres://localhost/db"), DialectKind::Mysql);
-    assert_eq!(DialectKind::from_url("unknown://localhost/db"), DialectKind::Mysql);
-    assert_eq!(DialectKind::from_url("mssql://localhost/db"), DialectKind::Mysql);
+    assert_eq!(
+        DialectKind::from_url("mysql://localhost/db"),
+        DialectKind::Mysql
+    );
+    assert_eq!(
+        DialectKind::from_url("postgres://localhost/db"),
+        DialectKind::Mysql
+    );
+    assert_eq!(
+        DialectKind::from_url("unknown://localhost/db"),
+        DialectKind::Mysql
+    );
+    assert_eq!(
+        DialectKind::from_url("mssql://localhost/db"),
+        DialectKind::Mysql
+    );
 }
 
 #[test]

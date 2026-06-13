@@ -1,10 +1,10 @@
+use crate::db::DbPool;
 use crate::service::claim_svc;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
     Json,
 };
-use crate::db::DbPool;
 
 pub async fn get_user_claims(
     State(pool): State<DbPool>,

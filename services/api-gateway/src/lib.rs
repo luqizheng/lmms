@@ -1,12 +1,12 @@
 pub mod blacklist;
 pub mod config;
 pub mod discovery;
-pub mod jwt;
 pub mod jwks;
+pub mod jwt;
 pub mod middleware;
 pub mod rewrite;
-pub mod routes_loader;
 pub mod router;
+pub mod routes_loader;
 
 pub use config::{GatewayConfig, RewriteSpec, RouteConfig, RouteFile, RouteTable};
 pub use discovery::{ServiceDiscovery, ServiceInstance};
@@ -30,7 +30,9 @@ pub async fn create_app(state: AppState) -> Router {
         "/health",
         get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
     );
-    Router::new().merge(health_route).with_state(Arc::new(state))
+    Router::new()
+        .merge(health_route)
+        .with_state(Arc::new(state))
 }
 
 pub async fn create_test_app() -> Router {

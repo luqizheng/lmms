@@ -27,7 +27,11 @@ pub async fn forward_to_service(
         "http://{}:{}{}",
         instance.address,
         instance.port,
-        request.uri().path_and_query().map(|pq| -> &str { pq.as_str() }).unwrap_or("")
+        request
+            .uri()
+            .path_and_query()
+            .map(|pq| -> &str { pq.as_str() })
+            .unwrap_or("")
     );
 
     let (parts, body) = request.into_parts();
@@ -38,7 +42,12 @@ pub async fn forward_to_service(
 
     let req_builder = cfg.http_client.request(parts.method.clone(), &target_url);
 
-    let resp = match req_builder.headers(parts.headers.clone()).body(bytes).send().await {
+    let resp = match req_builder
+        .headers(parts.headers.clone())
+        .body(bytes)
+        .send()
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             tracing::warn!("forward to {} failed: {:?}", service_name, e);
@@ -58,7 +67,7 @@ pub async fn forward_to_service(
         }
     }
 
-    builder.body(Body::from(body_bytes)).unwrap_or_else(|_| {
-        StatusCode::INTERNAL_SERVER_ERROR.into_response()
-    })
+    builder
+        .body(Body::from(body_bytes))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }

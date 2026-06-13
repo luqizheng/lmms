@@ -1,14 +1,14 @@
 use crate::config::Config;
 use crate::dto::{
-    ErrorResp, InvalidCredsResp, LockedResp, LoginReq, LoginSuccessResp, RegisterReq,
-    RegisterResp, SetupStatusResp,
+    ErrorResp, InvalidCredsResp, LockedResp, LoginReq, LoginSuccessResp, RegisterReq, RegisterResp,
+    SetupStatusResp,
 };
 use crate::error::AppError;
 use crate::service::auth_svc::{self, LoginCtx, LoginOutcome, RegisterError};
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::{Json, Router, routing};
+use axum::{routing, Json, Router};
 use std::net::SocketAddr;
 
 pub async fn login(
@@ -107,11 +107,9 @@ pub async fn register(
             }),
         )
             .into_response(),
-        Err(RegisterError::InvalidInput(msg)) => (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResp { error: msg }),
-        )
-            .into_response(),
+        Err(RegisterError::InvalidInput(msg)) => {
+            (StatusCode::BAD_REQUEST, Json(ErrorResp { error: msg })).into_response()
+        }
         Err(RegisterError::Internal(msg)) => {
             tracing::error!(error = %msg, "register_admin failed");
             (

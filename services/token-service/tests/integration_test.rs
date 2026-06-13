@@ -18,14 +18,22 @@ async fn e2e_access_refresh_revoke() {
     assert_eq!(u, Some("user-42".into()));
 
     // 3. issue a refresh marker
-    refresh_svc::mark(&pool, "refresh-jti-1", 3600).await.unwrap();
-    assert!(refresh_svc::is_marked(&pool, "refresh-jti-1").await.unwrap());
+    refresh_svc::mark(&pool, "refresh-jti-1", 3600)
+        .await
+        .unwrap();
+    assert!(refresh_svc::is_marked(&pool, "refresh-jti-1")
+        .await
+        .unwrap());
 
     // 4. revoke a jti
-    revoke_svc::revoke(&pool, "access-jti-1", 3600).await.unwrap();
+    revoke_svc::revoke(&pool, "access-jti-1", 3600)
+        .await
+        .unwrap();
     assert!(revoke_svc::is_revoked(&pool, "access-jti-1").await.unwrap());
 
     // 5. find api-gateway client
-    let c = oauth_client_svc::find_by_id(&pool, "api-gateway").await.unwrap();
+    let c = oauth_client_svc::find_by_id(&pool, "api-gateway")
+        .await
+        .unwrap();
     assert!(c.is_some());
 }

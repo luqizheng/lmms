@@ -51,11 +51,17 @@ pub async fn ensure_schema(pool: &DbPool) -> Result<()> {
             .with_context(|| format!("probe table {SCHEMA_MARKER_TABLE}"))?;
             let exists: i64 = row.try_get("c").unwrap_or(0);
             if exists > 0 {
-                info!(marker = SCHEMA_MARKER_TABLE, "schema already present, skip migration");
+                info!(
+                    marker = SCHEMA_MARKER_TABLE,
+                    "schema already present, skip migration"
+                );
                 return Ok(());
             }
 
-            info!(marker = SCHEMA_MARKER_TABLE, "schema missing, applying initial migration");
+            info!(
+                marker = SCHEMA_MARKER_TABLE,
+                "schema missing, applying initial migration"
+            );
             for stmt in split_sql(INIT_SQL) {
                 let s = stmt.trim();
                 if s.is_empty() || s.starts_with("--") {
@@ -107,7 +113,10 @@ mod tests {
 
     #[test]
     fn first_line_skips_comments_and_blanks() {
-        assert_eq!(first_line("\n  -- hi\n  CREATE TABLE x (id INT);"), "CREATE TABLE x (id INT);");
+        assert_eq!(
+            first_line("\n  -- hi\n  CREATE TABLE x (id INT);"),
+            "CREATE TABLE x (id INT);"
+        );
         assert_eq!(first_line("-- only comment"), "<empty>");
     }
 

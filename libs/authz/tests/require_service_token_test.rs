@@ -1,9 +1,9 @@
+use authz::require_service_token;
 use axum::body::Body;
-use axum::http::{Request, StatusCode, header};
+use axum::http::{header, Request, StatusCode};
 use axum::middleware as axum_mw;
 use axum::routing::get;
 use axum::Router;
-use authz::require_service_token;
 use jwt_simple::algorithms::RS256KeyPair;
 use jwt_simple::prelude::*;
 use tower::ServiceExt;
@@ -15,7 +15,8 @@ async fn echo() -> &'static str {
 fn make_key_and_token(aud: &str, sub: &str) -> (String, String) {
     let kp = RS256KeyPair::generate(2048).unwrap();
     let pk_pem = kp.public_key().to_pem().unwrap();
-    let mut claims: JWTClaims<std::collections::HashMap<String, serde_json::Value>> = JWTClaims::new();
+    let mut claims: JWTClaims<std::collections::HashMap<String, serde_json::Value>> =
+        JWTClaims::new();
     claims.subject = Some(sub.to_string());
     claims.issuer = Some("token-service".to_string());
     claims.audiences = Some(Audiences::AsString(aud.to_string()));
@@ -24,7 +25,10 @@ fn make_key_and_token(aud: &str, sub: &str) -> (String, String) {
         .unwrap()
         .as_secs();
     claims.expires_at = Some(Duration::from_secs(now + 60));
-    claims.custom.insert("token_type".to_string(), serde_json::Value::String("service".to_string()));
+    claims.custom.insert(
+        "token_type".to_string(),
+        serde_json::Value::String("service".to_string()),
+    );
     let token = kp.sign(claims).unwrap();
     (pk_pem, token)
 }

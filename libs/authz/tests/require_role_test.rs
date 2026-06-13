@@ -1,9 +1,9 @@
+use authz::require_role;
 use axum::body::Body;
-use axum::http::{Request, StatusCode, header};
+use axum::http::{header, Request, StatusCode};
 use axum::middleware as axum_mw;
 use axum::routing::get;
 use axum::Router;
-use authz::require_role;
 use tower::ServiceExt;
 
 async fn secret(_: jwt_ctx::Principal) -> &'static str {
@@ -18,7 +18,10 @@ async fn with_role_passes() {
     let req = Request::builder()
         .uri("/")
         .header(header::HeaderName::from_static("x-user-id"), "u")
-        .header(header::HeaderName::from_static("x-user-roles"), "user,admin")
+        .header(
+            header::HeaderName::from_static("x-user-roles"),
+            "user,admin",
+        )
         .body(Body::empty())
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();

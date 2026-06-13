@@ -1,7 +1,7 @@
-pub mod error;
-pub mod token;
 pub mod config;
-pub mod password;
 pub mod db;
-pub mod redisx;
+pub mod error;
 pub mod http;
+pub mod password;
+pub mod redisx;
+pub mod token;

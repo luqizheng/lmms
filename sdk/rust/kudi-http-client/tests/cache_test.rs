@@ -45,7 +45,11 @@ async fn caches_token_per_credential_pair() {
 
     assert_eq!(t1, "tok");
     assert_eq!(t2, "tok");
-    assert_eq!(counter.load(Ordering::SeqCst), 1, "fetcher must run only once");
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "fetcher must run only once"
+    );
 }
 
 #[tokio::test]

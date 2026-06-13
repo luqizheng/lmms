@@ -1,5 +1,5 @@
+use common_crypto::aead::{gen_key, Aead};
 use common_crypto::password::{hash, verify};
-use common_crypto::aead::{Aead, gen_key};
 
 #[test]
 fn password_roundtrip() {

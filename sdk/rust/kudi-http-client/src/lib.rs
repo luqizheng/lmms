@@ -9,10 +9,10 @@ fn ensure_crypto_provider() {
     });
 }
 
-pub mod options;
 pub mod cache;
-pub mod fetcher;
-pub mod transport;
-pub mod error;
-pub mod models;
 pub mod client;
+pub mod error;
+pub mod fetcher;
+pub mod models;
+pub mod options;
+pub mod transport;

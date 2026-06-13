@@ -2,15 +2,12 @@ use crate::db::DbPool;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::Request;
-use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
 
 pub type TokenHttpClient = Client<HttpConnector, Full<Bytes>>;
 
-pub async fn fetch_json(
-    client: &TokenHttpClient,
-    url: &str,
-) -> Result<serde_json::Value, String> {
+pub async fn fetch_json(client: &TokenHttpClient, url: &str) -> Result<serde_json::Value, String> {
     let req = Request::builder()
         .method("GET")
         .uri(url)

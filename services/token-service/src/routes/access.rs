@@ -56,7 +56,10 @@ pub async fn handle_access(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?
         .ok_or((StatusCode::BAD_REQUEST, "invalid or expired code"))?;
 
-    let claims_url = format!("{}/internal/users/{}/claims", state.user_service_url, user_id);
+    let claims_url = format!(
+        "{}/internal/users/{}/claims",
+        state.user_service_url, user_id
+    );
     let extra_claims: serde_json::Value = crate::fetch_json(&state.http_client, &claims_url)
         .await
         .map_err(|e| {

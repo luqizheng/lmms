@@ -95,7 +95,10 @@ async fn user_bearer_passthrough_skips_token_fetch() {
     )
     .with_credential("a", "s1");
 
-    client.get_with_bearer("http://u/api/me", "user.jwt").await.unwrap();
+    client
+        .get_with_bearer("http://u/api/me", "user.jwt")
+        .await
+        .unwrap();
     assert_eq!(mock.token_calls.load(Ordering::SeqCst), 0);
     assert_eq!(
         mock.last_authorization.lock().unwrap().as_deref(),

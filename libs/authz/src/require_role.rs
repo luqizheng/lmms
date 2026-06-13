@@ -8,10 +8,10 @@ use jwt_ctx::Principal;
 pub fn require_role(
     role: &'static str,
 ) -> impl Fn(Request, Next) -> BoxFuture<'static, Result<Response, StatusCode>>
-     + Clone
-     + Send
-     + Sync
-     + 'static {
+       + Clone
+       + Send
+       + Sync
+       + 'static {
     move |req: Request, next: Next| {
         let role = role;
         Box::pin(async move {

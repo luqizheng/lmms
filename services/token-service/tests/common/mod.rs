@@ -35,10 +35,7 @@ pub async fn spawn_mysql() -> MySqlPool {
         if s.is_empty() || s.starts_with("--") {
             continue;
         }
-        sqlx::query(s)
-            .execute(&pool)
-            .await
-            .expect("run migration");
+        sqlx::query(s).execute(&pool).await.expect("run migration");
     }
     pool
 }

@@ -35,8 +35,8 @@ fn decode_refresh_token(
     public_key_pem: &str,
     issuer: &str,
 ) -> Result<RefreshTokenInfo, StatusCode> {
-    let public_key = RS256PublicKey::from_pem(public_key_pem)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let public_key =
+        RS256PublicKey::from_pem(public_key_pem).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let options = VerificationOptions {
         allowed_issuers: Some(std::collections::HashSet::from([issuer.to_string()])),
@@ -90,7 +90,10 @@ pub async fn handle_refresh(
     let ttl = info.exp - info.iat;
     let _ = refresh_svc::mark(&state.db, &info.jti, ttl.max(0)).await;
 
-    let claims_url = format!("{}/internal/users/{}/claims", state.user_service_url, info.sub);
+    let claims_url = format!(
+        "{}/internal/users/{}/claims",
+        state.user_service_url, info.sub
+    );
     let extra_claims: serde_json::Value =
         match crate::fetch_json(&state.http_client, &claims_url).await {
             Ok(v) => v,

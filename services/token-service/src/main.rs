@@ -47,14 +47,13 @@ async fn main() {
         tracing::info!("seeded {} default oauth clients", seeded);
     }
 
-    let private_key_pem = std::fs::read_to_string(&cfg.jwt_private_key_path)
-        .expect("failed to read private key");
-    let public_key_pem = std::fs::read_to_string(&cfg.jwt_public_key_path)
-        .expect("failed to read public key");
+    let private_key_pem =
+        std::fs::read_to_string(&cfg.jwt_private_key_path).expect("failed to read private key");
+    let public_key_pem =
+        std::fs::read_to_string(&cfg.jwt_public_key_path).expect("failed to read public key");
 
     let issuer = Arc::new(
-        TokenIssuer::new(&private_key_pem, &cfg.issuer)
-            .expect("failed to create token issuer"),
+        TokenIssuer::new(&private_key_pem, &cfg.issuer).expect("failed to create token issuer"),
     );
 
     let state = TokenServerState {
@@ -111,8 +110,11 @@ async fn main() {
         )
         .with_state(state);
 
-    let mut consul_registrar =
-        ConsulRegistrar::new(&cfg.consul.addr, &cfg.consul.service_name, &cfg.consul.service_id_file);
+    let mut consul_registrar = ConsulRegistrar::new(
+        &cfg.consul.addr,
+        &cfg.consul.service_name,
+        &cfg.consul.service_id_file,
+    );
     let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 

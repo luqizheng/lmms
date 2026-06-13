@@ -2,7 +2,11 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "api-gateway", version, about = "API gateway with multi-file routing")]
+#[command(
+    name = "api-gateway",
+    version,
+    about = "API gateway with multi-file routing"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub cmd: Cmd,

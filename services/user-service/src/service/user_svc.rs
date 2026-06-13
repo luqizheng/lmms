@@ -218,9 +218,9 @@ pub async fn create_user(pool: &DbPool, req: &CreateUserReq) -> Result<u64, AppE
         .await;
         match res {
             Ok(r) => Ok(r.last_insert_id()),
-            Err(sqlx::Error::Database(db_err)) if is_dup(&*db_err) => {
-                Err(AppError::Conflict("username or contact already exists".into()))
-            }
+            Err(sqlx::Error::Database(db_err)) if is_dup(&*db_err) => Err(AppError::Conflict(
+                "username or contact already exists".into(),
+            )),
             Err(e) => Err(AppError::Db(e)),
         }
     } else {
@@ -303,13 +303,11 @@ pub async fn update_user_basic(
         }
         let res = q.bind(id).execute(p).await;
         match res {
-            Ok(r) if r.rows_affected() == 0 => {
-                Err(AppError::NotFound(format!("user id={id}")))
-            }
+            Ok(r) if r.rows_affected() == 0 => Err(AppError::NotFound(format!("user id={id}"))),
             Ok(_) => Ok(()),
-            Err(sqlx::Error::Database(db_err)) if is_dup(&*db_err) => {
-                Err(AppError::Conflict("username or contact already exists".into()))
-            }
+            Err(sqlx::Error::Database(db_err)) if is_dup(&*db_err) => Err(AppError::Conflict(
+                "username or contact already exists".into(),
+            )),
             Err(e) => Err(AppError::Db(e)),
         }
     } else {
@@ -325,11 +323,12 @@ pub async fn reset_password(pool: &DbPool, id: u64, new_password: &str) -> Resul
     }
     let hash = auth_svc::hash_password(new_password)?;
     if let DbPool::Mysql(p) = pool {
-        let res = sqlx::query("UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?")
-            .bind(&hash)
-            .bind(id)
-            .execute(p)
-            .await?;
+        let res =
+            sqlx::query("UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?")
+                .bind(&hash)
+                .bind(id)
+                .execute(p)
+                .await?;
         if res.rows_affected() == 0 {
             return Err(AppError::NotFound(format!("user id={id}")));
         }
@@ -355,11 +354,10 @@ pub async fn change_password(
         ));
     }
     if let DbPool::Mysql(p) = pool {
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT password_hash FROM users WHERE id = ?")
-                .bind(id)
-                .fetch_optional(p)
-                .await?;
+        let row: Option<(String,)> = sqlx::query_as("SELECT password_hash FROM users WHERE id = ?")
+            .bind(id)
+            .fetch_optional(p)
+            .await?;
         let hash = row
             .ok_or_else(|| AppError::NotFound(format!("user id={id}")))?
             .0;

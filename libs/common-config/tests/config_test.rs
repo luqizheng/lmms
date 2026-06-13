@@ -2,14 +2,23 @@ use common_config::Loader;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq, Default)]
-struct Demo { name: String, port: u16 }
+struct Demo {
+    name: String,
+    port: u16,
+}
 
 #[test]
 fn loader_reads_env() {
     std::env::set_var("TEST_NAME", "envname");
     std::env::set_var("TEST_PORT", "9999");
     let cfg: Demo = Loader::new("TEST").load().unwrap();
-    assert_eq!(cfg, Demo { name: "envname".into(), port: 9999 });
+    assert_eq!(
+        cfg,
+        Demo {
+            name: "envname".into(),
+            port: 9999
+        }
+    );
 }
 
 #[test]
@@ -17,7 +26,10 @@ fn loader_with_nonexistent_file() {
     let cfg: Demo = Loader::new("NOPE")
         .with_file("non-existent-file.toml")
         .load()
-        .unwrap_or_else(|_| Demo { name: "default".into(), port: 8080 });
+        .unwrap_or_else(|_| Demo {
+            name: "default".into(),
+            port: 8080,
+        });
     assert_eq!(cfg.name, "default");
 }
 
@@ -29,7 +41,9 @@ struct OptionalConfig {
     port: u16,
 }
 
-fn default_port() -> u16 { 8080 }
+fn default_port() -> u16 {
+    8080
+}
 
 #[test]
 fn loader_with_default_values() {

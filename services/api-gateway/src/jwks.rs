@@ -40,7 +40,9 @@ impl std::fmt::Display for JwksError {
         match self {
             JwksError::Http(e) => write!(f, "jwks http error: {e}"),
             JwksError::Empty => write!(f, "jwks response missing `keys` array"),
-            JwksError::Unsupported { kty, alg } => write!(f, "unsupported jwk: kty={kty}, alg={alg}"),
+            JwksError::Unsupported { kty, alg } => {
+                write!(f, "unsupported jwk: kty={kty}, alg={alg}")
+            }
             JwksError::Base64(e) => write!(f, "base64 decode error: {e}"),
             JwksError::Rsa(e) => write!(f, "rsa key error: {e}"),
             JwksError::Pem(e) => write!(f, "pem encode error: {e}"),

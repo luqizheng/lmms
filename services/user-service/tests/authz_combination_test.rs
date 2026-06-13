@@ -124,10 +124,12 @@ async fn user_gets_union_of_direct_and_position_roles() {
     user_service::service::user_position_svc::replace_user_positions(
         &user_service::db::DbPool::Mysql(p.clone()),
         8888,
-        &[user_service::service::user_position_svc::PositionAssignItem {
-            position_id: pos.id,
-            is_primary: true,
-        }],
+        &[
+            user_service::service::user_position_svc::PositionAssignItem {
+                position_id: pos.id,
+                is_primary: true,
+            },
+        ],
     )
     .await
     .unwrap();

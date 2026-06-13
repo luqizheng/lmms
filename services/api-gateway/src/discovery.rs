@@ -58,11 +58,14 @@ impl ServiceDiscovery {
             .await
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
 
-        let instance = services.first().ok_or(StatusCode::SERVICE_UNAVAILABLE).map(|s| ServiceInstance {
-            address: s.service.address.clone(),
-            port: s.service.port,
-            service_name: service_name.to_string(),
-        })?;
+        let instance = services
+            .first()
+            .ok_or(StatusCode::SERVICE_UNAVAILABLE)
+            .map(|s| ServiceInstance {
+                address: s.service.address.clone(),
+                port: s.service.port,
+                service_name: service_name.to_string(),
+            })?;
 
         // 写入缓存
         {

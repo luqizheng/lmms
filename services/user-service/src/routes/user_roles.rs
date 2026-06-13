@@ -1,3 +1,4 @@
+use crate::db::DbPool;
 use crate::dto::AssignUserRolesReq;
 use crate::error::AppError;
 use crate::service::user_svc;
@@ -6,7 +7,6 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use crate::db::DbPool;
 
 pub async fn assign_user_roles(
     State(pool): State<DbPool>,

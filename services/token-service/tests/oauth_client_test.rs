@@ -23,7 +23,9 @@ async fn seed_then_find_by_id() {
     let n = oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     assert_eq!(n, 4); // api-gateway / token-service / user-service / notification-service
 
-    let c = oauth_client_svc::find_by_id(&pool, "api-gateway").await.unwrap();
+    let c = oauth_client_svc::find_by_id(&pool, "api-gateway")
+        .await
+        .unwrap();
     assert!(c.is_some());
     let c = c.unwrap();
     assert_eq!(c.client_id, "api-gateway");
@@ -52,6 +54,8 @@ async fn insert_new_client() {
     let pool = common::spawn_mysql().await;
     let c = sample_client("svc-new");
     oauth_client_svc::insert(&pool, &c).await.unwrap();
-    let got = oauth_client_svc::find_by_id(&pool, "svc-new").await.unwrap();
+    let got = oauth_client_svc::find_by_id(&pool, "svc-new")
+        .await
+        .unwrap();
     assert!(got.is_some());
 }

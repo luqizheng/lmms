@@ -8,7 +8,10 @@ fn mk_claims() -> JwtClaims {
     custom.insert("dept_id".into(), serde_json::json!(42));
     custom.insert("is_dept_leader".into(), serde_json::json!(true));
     custom.insert("roles".into(), serde_json::json!(["sales", "dept_leader"]));
-    custom.insert("permissions".into(), serde_json::json!(["contract.read", "contract.write"]));
+    custom.insert(
+        "permissions".into(),
+        serde_json::json!(["contract.read", "contract.write"]),
+    );
     custom.insert("client_id".into(), serde_json::json!("web-spa"));
 
     JwtClaims {
@@ -34,7 +37,10 @@ fn inject_user_headers_reads_custom_claims() {
     assert_eq!(headers.get("x-user-dept").unwrap(), "42");
     assert_eq!(headers.get("x-user-dept-leader").unwrap(), "true");
     assert_eq!(headers.get("x-user-roles").unwrap(), "sales,dept_leader");
-    assert_eq!(headers.get("x-user-perms").unwrap(), "contract.read,contract.write");
+    assert_eq!(
+        headers.get("x-user-perms").unwrap(),
+        "contract.read,contract.write"
+    );
     assert_eq!(headers.get("x-user-client").unwrap(), "web-spa");
 }
 

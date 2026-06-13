@@ -28,7 +28,10 @@ impl ClientCredentialsFetcher {
         form.insert("client_id".into(), client_id.into());
         form.insert("client_secret".into(), client_secret.into());
 
-        let resp = self.transport.post_form(&self.token_endpoint, &form).await?;
+        let resp = self
+            .transport
+            .post_form(&self.token_endpoint, &form)
+            .await?;
 
         if !(200..300).contains(&resp.status) {
             return Err(KudiHttpError::Auth {

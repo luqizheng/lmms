@@ -26,7 +26,8 @@ pub async fn create(
     State(pool): State<DbPool>,
     Json(req): Json<CreateOrgUnitReq>,
 ) -> Result<impl IntoResponse, AppError> {
-    let dto = org_svc::create_org_unit(&pool, &req.code, &req.name, req.parent_id, req.sort).await?;
+    let dto =
+        org_svc::create_org_unit(&pool, &req.code, &req.name, req.parent_id, req.sort).await?;
     Ok(Json(dto))
 }
 
@@ -43,8 +44,8 @@ pub async fn update(
     Path(id): Path<u64>,
     Json(req): Json<UpdateOrgUnitReq>,
 ) -> Result<impl IntoResponse, AppError> {
-    let dto = org_svc::update_org_unit(&pool, id, &req.name, req.parent_id, req.sort, req.status)
-        .await?;
+    let dto =
+        org_svc::update_org_unit(&pool, id, &req.name, req.parent_id, req.sort, req.status).await?;
     Ok(Json(dto))
 }
 
@@ -67,6 +68,9 @@ pub async fn tree(
 pub fn router() -> axum::Router<DbPool> {
     axum::Router::new()
         .route("/org-units", axum::routing::get(list).post(create))
-        .route("/org-units/{id}", axum::routing::get(get).put(update).delete(delete))
+        .route(
+            "/org-units/{id}",
+            axum::routing::get(get).put(update).delete(delete),
+        )
         .route("/org-units/{id}/tree", axum::routing::get(tree))
 }

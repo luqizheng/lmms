@@ -9,8 +9,7 @@ fn main() {
 
     let public_key = key_pair.public_key();
     let public_pem = public_key.to_pem().expect("failed to encode public key");
-    std::fs::write("keys/public.pem", public_pem.as_bytes())
-        .expect("failed to write public key");
+    std::fs::write("keys/public.pem", public_pem.as_bytes()).expect("failed to write public key");
 
     println!("RSA key pair generated in keys/");
     println!("  private: keys/private.pem");

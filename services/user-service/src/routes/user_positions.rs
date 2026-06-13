@@ -34,5 +34,8 @@ pub async fn replace(
 }
 
 pub fn router() -> axum::Router<DbPool> {
-    axum::Router::new().route("/users/{id}/positions", axum::routing::get(list).put(replace))
+    axum::Router::new().route(
+        "/users/{id}/positions",
+        axum::routing::get(list).put(replace),
+    )
 }

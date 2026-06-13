@@ -1,4 +1,4 @@
-use redis::{Client, AsyncCommands};
+use redis::{AsyncCommands, Client};
 
 fn get_redis_url() -> String {
     std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string())
@@ -79,11 +79,7 @@ async fn test_blacklist_multiple_tokens() {
     let mut conn = client.get_multiplexed_async_connection().await.unwrap();
 
     let prefix = get_test_prefix();
-    let jtis = vec![
-        "test-jti-001",
-        "test-jti-002",
-        "test-jti-003",
-    ];
+    let jtis = vec!["test-jti-001", "test-jti-002", "test-jti-003"];
 
     for jti in &jtis {
         let key = format!("{}blacklist:{}", prefix, jti);
@@ -96,12 +92,24 @@ async fn test_blacklist_multiple_tokens() {
         assert!(exists, "Token {} should be blacklisted", jti);
     }
 
-    let _: () = conn.del(&jtis.iter().map(|jti| format!("{}blacklist:{}", prefix, jti)).collect::<Vec<_>>()).await.unwrap();
+    let _: () = conn
+        .del(
+            &jtis
+                .iter()
+                .map(|jti| format!("{}blacklist:{}", prefix, jti))
+                .collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
 
     for jti in &jtis {
         let key = format!("{}blacklist:{}", prefix, jti);
         let exists: bool = conn.exists(&key).await.unwrap();
-        assert!(!exists, "Token {} should not be blacklisted after cleanup", jti);
+        assert!(
+            !exists,
+            "Token {} should not be blacklisted after cleanup",
+            jti
+        );
     }
 }
 
@@ -117,7 +125,10 @@ async fn test_blacklist_false_positive() {
     let key_blacklisted = format!("{}blacklist:{}", prefix, jti_blacklisted);
     let _: () = conn.set_ex(&key_blacklisted, "1", 300u64).await.unwrap();
 
-    let exists_not_blacklisted: bool = conn.exists(&format!("{}blacklist:{}", prefix, jti_not_blacklisted)).await.unwrap();
+    let exists_not_blacklisted: bool = conn
+        .exists(&format!("{}blacklist:{}", prefix, jti_not_blacklisted))
+        .await
+        .unwrap();
     let exists_blacklisted: bool = conn.exists(&key_blacklisted).await.unwrap();
 
     assert!(!exists_not_blacklisted);

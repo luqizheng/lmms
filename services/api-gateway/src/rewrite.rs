@@ -25,7 +25,11 @@ pub fn apply(rules: &[RewriteSpec], req: &mut Request<Body>) -> Result<(), Respo
                 let stripped = p.strip_prefix(prefix.as_str()).map(str::to_string);
                 match stripped {
                     Some(rest) => {
-                        let new_path = if rest.is_empty() { "/".to_string() } else { rest };
+                        let new_path = if rest.is_empty() {
+                            "/".to_string()
+                        } else {
+                            rest
+                        };
                         *req.uri_mut() = build_uri(req.uri(), &new_path);
                     }
                     None => {
@@ -70,14 +74,12 @@ pub fn apply(rules: &[RewriteSpec], req: &mut Request<Body>) -> Result<(), Respo
                 let mut parts = req.uri().clone().into_parts();
                 if let Some(pq) = parts.path_and_query.as_mut() {
                     let new_path = pq.path().replace(from.as_str(), to.as_str());
-                    let new_pq: axum::http::uri::PathAndQuery = new_path
-                        .parse()
-                        .map_err(|_| {
-                            err_response(
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                &RewriteError::InvalidUri(new_path.clone()).to_string(),
-                            )
-                        })?;
+                    let new_pq: axum::http::uri::PathAndQuery = new_path.parse().map_err(|_| {
+                        err_response(
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            &RewriteError::InvalidUri(new_path.clone()).to_string(),
+                        )
+                    })?;
                     *pq = new_pq;
                 }
                 *req.uri_mut() = Uri::from_parts(parts).map_err(|_| {

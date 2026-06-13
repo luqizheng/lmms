@@ -7,7 +7,9 @@ use notification_service::redis_cli::RedisCli;
 #[ignore = "requires MySQL/Redis containers; run with --include-ignored"]
 async fn create_then_publish_then_read_flow() {
     let cfg = AppConfig::load(std::path::Path::new("config/config.yaml")).unwrap();
-    let db = Db::connect(&cfg.mysql.url, cfg.mysql.max_connections).await.unwrap();
+    let db = Db::connect(&cfg.mysql.url, cfg.mysql.max_connections)
+        .await
+        .unwrap();
     let r = RedisCli::connect(&cfg.redis.url).await.unwrap();
     let id = db
         .create_announcement(
@@ -18,7 +20,10 @@ async fn create_then_publish_then_read_flow() {
                 expire_at: None,
                 pinned: true,
                 popover: true,
-                recipients: vec![ScopeInput { scope_type: ScopeType::User, scope_id: 42 }],
+                recipients: vec![ScopeInput {
+                    scope_type: ScopeType::User,
+                    scope_id: 42,
+                }],
             },
             9001,
         )

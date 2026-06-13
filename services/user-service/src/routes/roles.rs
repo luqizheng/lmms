@@ -1,3 +1,4 @@
+use crate::db::DbPool;
 use crate::dto::{AssignRolePermissionsReq, CreateRoleReq, UpdateRoleReq};
 use crate::error::AppError;
 use crate::service::role_svc;
@@ -6,7 +7,6 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use crate::db::DbPool;
 
 pub async fn list_roles(State(pool): State<DbPool>) -> Result<impl IntoResponse, AppError> {
     let items = role_svc::list_roles(&pool).await?;

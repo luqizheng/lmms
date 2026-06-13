@@ -25,18 +25,17 @@ pub async fn handle_jwks(
 ) -> Result<Json<JwksResponse>, (StatusCode, &'static str)> {
     let public_key_pem = &state.jwt_public_key;
     use rsa::pkcs1::DecodeRsaPublicKey;
-use rsa::traits::PublicKeyParts;
+    use rsa::traits::PublicKeyParts;
     let key = rsa::RsaPublicKey::from_pkcs1_pem(public_key_pem)
         .inspect_err(|&e| {
             tracing::warn!("pkcs1 decode failed: {:?}, trying pkcs8...", e);
         })
         .or_else(|_| {
             use rsa::pkcs8::DecodePublicKey;
-            rsa::RsaPublicKey::from_public_key_pem(public_key_pem)
-                .map_err(|e| {
-                    tracing::error!("pkcs8 decode also failed: {:?}", e);
-                    (StatusCode::INTERNAL_SERVER_ERROR, "invalid public key")
-                })
+            rsa::RsaPublicKey::from_public_key_pem(public_key_pem).map_err(|e| {
+                tracing::error!("pkcs8 decode also failed: {:?}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "invalid public key")
+            })
         })?;
 
     let components = key.n().to_bytes_be();

@@ -1,4 +1,7 @@
-use axum::{body::{Body, to_bytes}, http::{Request, StatusCode}};
+use axum::{
+    body::{to_bytes, Body},
+    http::{Request, StatusCode},
+};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -137,20 +140,27 @@ mod api_gateway {
             .route("/users/{*path}", any(protected_handler))
             .route("/roles/{*path}", any(protected_handler))
             .route("/permissions/{*path}", any(protected_handler))
-            .route_layer(axum_mw::from_fn(|request: axum::extract::Request, next: axum::middleware::Next| async move {
-                let auth_header = request.headers().get("Authorization");
-                if auth_header.is_none() {
-                    return Err(StatusCode::UNAUTHORIZED);
-                }
-                let auth_value = auth_header.unwrap().to_str().unwrap_or("");
-                if !auth_value.starts_with("Bearer ") || auth_value == "Bearer invalid.token.here" {
-                    return Err(StatusCode::UNAUTHORIZED);
-                }
-                Ok(next.run(request).await)
-            }));
+            .route_layer(axum_mw::from_fn(
+                |request: axum::extract::Request, next: axum::middleware::Next| async move {
+                    let auth_header = request.headers().get("Authorization");
+                    if auth_header.is_none() {
+                        return Err(StatusCode::UNAUTHORIZED);
+                    }
+                    let auth_value = auth_header.unwrap().to_str().unwrap_or("");
+                    if !auth_value.starts_with("Bearer ")
+                        || auth_value == "Bearer invalid.token.here"
+                    {
+                        return Err(StatusCode::UNAUTHORIZED);
+                    }
+                    Ok(next.run(request).await)
+                },
+            ));
 
         Router::new()
-            .route("/health", any(|| async { axum::Json(serde_json::json!({"status": "ok"})) }))
+            .route(
+                "/health",
+                any(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
+            )
             .route("/api/auth/{*path}", any(public_handler))
             .route("/api/tokens/{*path}", any(public_handler))
             .nest("/api", protected_routes)

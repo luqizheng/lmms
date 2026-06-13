@@ -86,10 +86,16 @@ pub async fn ensure_schema(pool: &DbPool) -> Result<()> {
     .with_context(|| format!("probe table {SCHEMA_MARKER_TABLE}"))?;
     let exists: i64 = row.try_get("c").unwrap_or(0);
     if exists > 0 {
-        info!(marker = SCHEMA_MARKER_TABLE, "schema already present, skip migration");
+        info!(
+            marker = SCHEMA_MARKER_TABLE,
+            "schema already present, skip migration"
+        );
         return Ok(());
     }
-    info!(marker = SCHEMA_MARKER_TABLE, "schema missing, applying initial migration");
+    info!(
+        marker = SCHEMA_MARKER_TABLE,
+        "schema missing, applying initial migration"
+    );
     if let Err(e) = init_schema(pool).await {
         warn!(error = %e, "initial migration failed");
         return Err(anyhow::Error::from(e).context("apply initial migration"));

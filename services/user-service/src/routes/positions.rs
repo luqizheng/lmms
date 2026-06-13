@@ -45,15 +45,9 @@ pub async fn update(
     Path(id): Path<u64>,
     Json(req): Json<UpdatePositionReq>,
 ) -> Result<impl IntoResponse, AppError> {
-    let dto = position_svc::update_position(
-        &pool,
-        id,
-        &req.name,
-        req.org_unit_id,
-        req.level,
-        req.status,
-    )
-    .await?;
+    let dto =
+        position_svc::update_position(&pool, id, &req.name, req.org_unit_id, req.level, req.status)
+            .await?;
     Ok(Json(dto))
 }
 
