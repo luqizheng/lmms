@@ -23,6 +23,7 @@ const { runServiceTests, getServiceList } = require('./lib/Test-Runner.js');
 const { buildSummary, buildFixPrompt } = require('./lib/Report-Builder.js');
 const { renderSpecToCodePrompt } = require('./lib/Prompt-Renderer.js');
 const { invokeSpecValidation } = require('./lib/Spec-Validator.js');
+const ContractsValidator = require('./lib/Contracts-Validator.js');
 
 function parseArgs(argv) {
   const out = { command: null, service: null, timestamp: null };
@@ -109,11 +110,29 @@ async function cmdLoop(service) {
   }
 }
 
+function cmdValidateContracts() {
+  const validator = new ContractsValidator();
+  const result = validator.validate();
+  if (result.passed) {
+    log.green('[validate-contracts] all contracts validated');
+    for (const r of result.results) {
+      log.plain(`  - ${r.name}: OK`);
+    }
+  } else {
+    log.red('[validate-contracts] validation failed');
+    for (const r of result.results) {
+      if (r.passed) log.plain(`  - ${r.name}: OK`);
+      else log.red(`  - ${r.name}: ${r.error}`);
+    }
+    process.exit(1);
+  }
+}
+
 async function main() {
   const { command, service, timestamp } = parseArgs(process.argv);
   if (!command) {
     log.red('usage: node scripts/test-orchestrator.js <command> [options]');
-    log.plain('commands: start, stop, reset-db, test-unit, test-integration, test-all, report, fix-prompt, generate-prompt, validate-specs, loop');
+    log.plain('commands: start, stop, reset-db, test-unit, test-integration, test-all, report, fix-prompt, generate-prompt, validate-specs, validate-contracts, loop');
     process.exit(1);
   }
 
@@ -134,10 +153,11 @@ async function main() {
       case 'fix-prompt':       await cmdFixPrompt(timestamp); break;
       case 'generate-prompt':  renderSpecToCodePrompt(); break;
       case 'validate-specs':   invokeSpecValidation(); break;
+      case 'validate-contracts': cmdValidateContracts(); break;
       case 'loop':             await cmdLoop(service); break;
       default:
         log.red(`unknown command: ${command}`);
-        log.plain('valid: start, stop, reset-db, test-unit, test-integration, test-all, report, fix-prompt, generate-prompt, validate-specs, loop');
+        log.plain('valid: start, stop, reset-db, test-unit, test-integration, test-all, report, fix-prompt, generate-prompt, validate-specs, validate-contracts, loop');
         process.exit(1);
     }
   } catch (e) {

@@ -9,6 +9,7 @@ pub enum ErrorKind {
     Forbidden,
     NotFound,
     Conflict,
+    TooManyRequests,
     Internal,
     External,
 }
@@ -107,6 +108,7 @@ impl IntoResponse for AppError {
             ErrorKind::Forbidden => StatusCode::FORBIDDEN,
             ErrorKind::NotFound => StatusCode::NOT_FOUND,
             ErrorKind::Conflict => StatusCode::CONFLICT,
+            ErrorKind::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
             ErrorKind::Internal => StatusCode::INTERNAL_SERVER_ERROR,
             ErrorKind::External => StatusCode::BAD_GATEWAY,
         };
@@ -120,3 +122,5 @@ impl IntoResponse for AppError {
 }
 
 pub type AppResult<T> = std::result::Result<T, AppError>;
+
+pub mod codes;

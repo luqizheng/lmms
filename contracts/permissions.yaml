@@ -1,0 +1,97 @@
+# 权限码字典
+# 格式：<SERVICE>_<RESOURCE>_<ACTION>
+# 命名规则：大写，下划线分隔，动作后缀 CREATE / READ / UPDATE / DELETE / EXPORT / IMPORT
+
+version: "1.0.0"
+permissions:
+  # === 用户管理 ===
+  IAM_USER_CREATE:
+    description: "创建用户"
+  IAM_USER_READ:
+    description: "查看用户"
+  IAM_USER_UPDATE:
+    description: "编辑用户"
+  IAM_USER_DELETE:
+    description: "删除用户"
+  IAM_USER_EXPORT:
+    description: "导出用户"
+  IAM_USER_IMPORT:
+    description: "导入用户"
+
+  # === 角色管理 ===
+  IAM_ROLE_CREATE:
+    description: "创建角色"
+  IAM_ROLE_READ:
+    description: "查看角色"
+  IAM_ROLE_UPDATE:
+    description: "编辑角色"
+  IAM_ROLE_DELETE:
+    description: "删除角色"
+
+  # === 权限管理 ===
+  IAM_PERM_READ:
+    description: "查看权限"
+  IAM_PERM_ASSIGN:
+    description: "分配权限"
+
+  # === 菜单管理 ===
+  IAM_MENU_CREATE:
+    description: "创建菜单"
+  IAM_MENU_READ:
+    description: "查看菜单"
+  IAM_MENU_UPDATE:
+    description: "编辑菜单"
+  IAM_MENU_DELETE:
+    description: "删除菜单"
+
+  # === 部门管理 ===
+  IAM_ORG_CREATE:
+    description: "创建部门"
+  IAM_ORG_READ:
+    description: "查看部门"
+  IAM_ORG_UPDATE:
+    description: "编辑部门"
+  IAM_ORG_DELETE:
+    description: "删除部门"
+
+  # === 配置管理 ===
+  CFG_CONFIG_CREATE:
+    description: "创建配置项"
+  CFG_CONFIG_READ:
+    description: "查看配置项"
+  CFG_CONFIG_UPDATE:
+    description: "编辑配置项"
+  CFG_CONFIG_DELETE:
+    description: "删除配置项"
+
+  # === 审计日志 ===
+  AUD_LOG_READ:
+    description: "查看审计日志"
+  AUD_LOG_EXPORT:
+    description: "导出审计日志"
+
+  # === 通知管理 ===
+  NTF_TEMPLATE_CREATE:
+    description: "创建通知模板"
+  NTF_TEMPLATE_READ:
+    description: "查看通知模板"
+  NTF_TEMPLATE_UPDATE:
+    description: "编辑通知模板"
+  NTF_TEMPLATE_DELETE:
+    description: "删除通知模板"
+  NTF_MESSAGE_READ:
+    description: "查看站内信"
+
+  # === 文件管理 ===
+  FILE_UPLOAD:
+    description: "上传文件"
+  FILE_DOWNLOAD:
+    description: "下载文件"
+  FILE_DELETE:
+    description: "删除文件"
+
+  # === 系统管理 ===
+  SYS_SETTING_READ:
+    description: "查看系统设置"
+  SYS_SETTING_UPDATE:
+    description: "编辑系统设置"

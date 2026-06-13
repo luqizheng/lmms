@@ -1,0 +1,87 @@
+# 全局错误码字典
+# 格式：<SERVICE>_<CATEGORY>_<NUMBER>
+# 服务前缀：IAM / CFG / AUD / NTF / FILE / GW / SYS
+# 类别：AUTH / VALID / DB / EXT / INTERNAL
+
+version: "1.0.0"
+codes:
+  # === 系统级 ===
+  SYS_INTERNAL_0001:
+    message: "internal server error"
+    kind: Internal
+  SYS_DB_0001:
+    message: "database error"
+    kind: Internal
+  SYS_DB_0002:
+    message: "row not found"
+    kind: NotFound
+  SYS_HTTP_0001:
+    message: "http client error"
+    kind: External
+
+  # === 认证 ===
+  IAM_AUTH_1001:
+    message: "invalid credentials"
+    kind: Unauthorized
+  IAM_AUTH_1002:
+    message: "token expired"
+    kind: Unauthorized
+  IAM_AUTH_1003:
+    message: "token revoked"
+    kind: Unauthorized
+  IAM_AUTH_1004:
+    message: "invalid token"
+    kind: Unauthorized
+  IAM_AUTH_1005:
+    message: "missing token"
+    kind: Unauthorized
+  IAM_AUTH_1006:
+    message: "password too weak"
+    kind: BadRequest
+  IAM_AUTH_1007:
+    message: "username already exists"
+    kind: Conflict
+  IAM_AUTH_1008:
+    message: "email already exists"
+    kind: Conflict
+
+  # === 校验 ===
+  VALID_2001:
+    message: "invalid input"
+    kind: BadRequest
+  VALID_2002:
+    message: "missing required field"
+    kind: BadRequest
+  VALID_2003:
+    message: "invalid phone format"
+    kind: BadRequest
+  VALID_2004:
+    message: "invalid email format"
+    kind: BadRequest
+
+  # === 权限 ===
+  IAM_PERM_3001:
+    message: "permission denied"
+    kind: Forbidden
+  IAM_PERM_3002:
+    message: "role not found"
+    kind: NotFound
+
+  # === 配置 ===
+  CFG_VALID_4001:
+    message: "config key not found"
+    kind: NotFound
+  CFG_VALID_4002:
+    message: "config parse error"
+    kind: Internal
+
+  # === 网关 ===
+  GW_ROUTE_5001:
+    message: "route not found"
+    kind: NotFound
+  GW_ROUTE_5002:
+    message: "service unavailable"
+    kind: External
+  GW_RATE_5003:
+    message: "rate limit exceeded"
+    kind: TooManyRequests
