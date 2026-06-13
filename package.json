@@ -37,6 +37,9 @@
     "sdk:test:java:17": "cd sdk/java && mvn -B test -P java17",
     "sdk:test:java:21": "cd sdk/java && mvn -B test -P java21",
     "sdk:test:dotnet": "cd sdk/dotnet && dotnet test --nologo --verbosity minimal",
-    "sdk:test": "pnpm run sdk:test:java && pnpm run sdk:test:dotnet"
+    "sdk:test": "pnpm run sdk:test:java && pnpm run sdk:test:dotnet",
+    "build:docker": "node scripts/build-docker.js",
+    "build:cargo": "node scripts/build-cargo.js",
+    "check:service-standard": "node scripts/check-service-standard.js"
   }
 }
