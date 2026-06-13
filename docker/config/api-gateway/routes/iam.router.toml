@@ -1,68 +1,37 @@
 [[route]]
-match = "/iam/auth/login"
+match = "/iam/auth/**"
 service = "iam-service"
 public = true
-
-[[route]]
-match = "/iam/auth/refresh"
-service = "iam-service"
-public = true
-
-[[route]]
-match = "/iam/auth/logout"
-service = "iam-service"
-
-[[route]]
-match = "/iam/auth/password"
-service = "iam-service"
-
-[[route]]
-match = "/iam/users"
-service = "iam-service"
 
 [[route]]
 match = "/iam/users/**"
 service = "iam-service"
-
-[[route]]
-match = "/iam/roles"
-service = "iam-service"
+public = false
 
 [[route]]
 match = "/iam/roles/**"
 service = "iam-service"
-
-[[route]]
-match = "/iam/permissions"
-service = "iam-service"
+public = false
 
 [[route]]
 match = "/iam/permissions/**"
 service = "iam-service"
-
-[[route]]
-match = "/iam/menus"
-service = "iam-service"
+public = false
 
 [[route]]
 match = "/iam/menus/**"
 service = "iam-service"
-
-[[route]]
-match = "/iam/org-units"
-service = "iam-service"
+public = false
 
 [[route]]
 match = "/iam/org-units/**"
 service = "iam-service"
-
-[[route]]
-match = "/iam/sessions"
-service = "iam-service"
+public = false
 
 [[route]]
 match = "/iam/sessions/**"
 service = "iam-service"
+public = false
 
 [[route]]
 match = "/iam/health"
