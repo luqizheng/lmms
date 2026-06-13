@@ -1,3 +1,5 @@
+pub use common_error::{AppError, AppResult, ErrorKind};
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]

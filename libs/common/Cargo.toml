@@ -10,7 +10,11 @@ thiserror.workspace = true
 uuid.workspace = true
 argon2.workspace = true
 anyhow = "1"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql"] }
+sqlx = { workspace = true, features = ["mysql"] }
 redis.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["sync"] }
+
+common-error = { path = "../common-error" }
+common-db = { path = "../common-db", features = ["mysql"] }
+common-crypto = { path = "../common-crypto" }

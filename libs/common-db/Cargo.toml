@@ -1,0 +1,24 @@
+[package]
+name = "common-db"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["sqlite"]
+mysql = ["sqlx/mysql"]
+dameng = ["sqlx/mysql"]
+mssql = ["sqlx/mssql"]
+sqlite = ["sqlx/sqlite"]
+test-kit = ["sqlite", "dep:tempfile"]
+
+[dependencies]
+sqlx = { workspace = true, features = ["macros", "chrono"] }
+tokio = { workspace = true }
+chrono = { workspace = true }
+common-error = { path = "../common-error" }
+async-trait.workspace = true
+tempfile = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

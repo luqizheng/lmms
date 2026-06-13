@@ -1,6 +1,14 @@
 [workspace]
 members = [
     "libs/common",
+    "libs/common-error",
+    "libs/common-log",
+    "libs/common-config",
+    "libs/common-db",
+    "libs/common-cache",
+    "libs/common-http",
+    "libs/common-crypto",
+    "libs/common-validator",
     "libs/jwt-ctx",
     "libs/authz",
     "libs/consul-registrar",
@@ -40,3 +48,10 @@ hyper = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
 bytes = "1"
+moka = { version = "0.12", features = ["future"] }
+tempfile = "3"
+validator = { version = "0.18", features = ["derive"] }
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+aes-gcm = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs"] }

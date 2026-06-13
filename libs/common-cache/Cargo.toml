@@ -1,0 +1,18 @@
+[package]
+name = "common-cache"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["memory"]
+memory = []
+redis = ["dep:redis"]
+
+[dependencies]
+async-trait.workspace = true
+moka = { workspace = true }
+common-error = { path = "../common-error" }
+redis = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

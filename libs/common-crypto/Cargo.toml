@@ -1,0 +1,10 @@
+[package]
+name = "common-crypto"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+argon2.workspace = true
+rand.workspace = true
+aes-gcm = { workspace = true }
+common-error = { path = "../common-error" }

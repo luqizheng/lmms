@@ -1,0 +1,12 @@
+[package]
+name = "common-http"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest.workspace = true
+tokio = { workspace = true }
+common-error = { path = "../common-error" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
