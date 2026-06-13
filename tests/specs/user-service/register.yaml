@@ -1,0 +1,91 @@
+name: user-service.register
+base_url: http://user-service:8081
+scenarios:
+  - name: register first admin (setup_required=true)
+    preconditions:
+      - users 表无 status=1 的记录
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: e2e_admin
+        password: P@ssw0rd!
+        email: e2e_admin@test.local
+        nickname: E2E Admin
+    expect:
+      status: 201
+      json:
+        id: ">0"
+        username: e2e_admin
+
+  - name: reject register when admin already exists (403 closed)
+    preconditions:
+      - 已存在 status=1 用户
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: late_user
+        password: P@ssw0rd!
+    expect:
+      status: 403
+      json:
+        error: registration closed
+
+  - name: reject short username (400 invalid input)
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: ab
+        password: P@ssw0rd!
+    expect:
+      status: 400
+      body_contains: username
+
+  - name: reject short password (400 invalid input)
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: valid_username
+        password: "123"
+    expect:
+      status: 400
+      body_contains: password
+
+  - name: reject malformed email (400 invalid input)
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: e2e_email_user
+        password: P@ssw0rd!
+        email: not-an-email
+    expect:
+      status: 400
+      body_contains: email
+
+  - name: reject malformed phone (400 invalid input)
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: e2e_phone_user
+        password: P@ssw0rd!
+        phone: "12345"
+    expect:
+      status: 400
+      body_contains: phone
