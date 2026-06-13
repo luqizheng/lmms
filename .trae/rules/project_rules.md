@@ -15,6 +15,7 @@
 | `sdk/java/**/pom.xml`                            | `coder-sdk-publish` (test)        | 改完保存  |
 | `sdk/dotnet/**/*.csproj`                         | `coder-sdk-publish` (test)        | 改完保存  |
 | `infrastructure/docker-compose.*.yaml`           | `coder-microservice-dev`          | 改完保存  |
+| `services/*/AGENTS.md`                            | 自动检查服务规范                  | 新建/修改 |
 
 服务名清单：`token-service` / `api-gateway` / `credential-login-service` / `user-service` / `notification-service`
 
@@ -37,6 +38,12 @@
 - AI 触发 `coder-fix-tests` 时**仅改**：
   - Rust: `services/<service>/tests/*.rs`
 - **禁止改**：`services/`、`libs/`、`sdk/` 下非 tests 目录的业务源码
+
+### 服务规范检查
+
+- AI 修改 `services/<name>/` 下文件时，必须先读取 `AGENTS.md`
+- 缺失必需组件时提醒用户
+- 环境变量控制规范要求（SWAGGER_ENABLED、HEALTH_CHECK_REQUIRED、MIGRATIONS_REQUIRED）
 
 ### 路由配置
 
