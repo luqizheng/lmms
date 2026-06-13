@@ -1,10 +1,13 @@
 use anyhow::{Context, Result};
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
+use sqlx::Row;
 use std::time::Duration;
+use tracing::{info, warn};
 
 use crate::config::DatabaseCfg;
 
 pub const INIT_SQL: &str = include_str!("../migrations/20260611000001_init.sql");
+const SCHEMA_MARKER_TABLE: &str = "oauth_clients";
 
 #[derive(Clone)]
 pub enum DbPool {
@@ -67,4 +70,51 @@ pub async fn init_schema(pool: &DbPool) -> Result<(), sqlx::Error> {
         }
     }
     Ok(())
+}
+
+/// 首次启动探测：marker 表（oauth_clients）存在则跳过整个迁移；
+/// 不存在则执行 init_schema 完成建表。
+pub async fn ensure_schema(pool: &DbPool) -> Result<()> {
+    let DbPool::Mysql(p) = pool;
+    let row = sqlx::query(
+        "SELECT COUNT(*) AS c FROM information_schema.tables \
+         WHERE table_schema = DATABASE() AND table_name = ?",
+    )
+    .bind(SCHEMA_MARKER_TABLE)
+    .fetch_one(p)
+    .await
+    .with_context(|| format!("probe table {SCHEMA_MARKER_TABLE}"))?;
+    let exists: i64 = row.try_get("c").unwrap_or(0);
+    if exists > 0 {
+        info!(marker = SCHEMA_MARKER_TABLE, "schema already present, skip migration");
+        return Ok(());
+    }
+    info!(marker = SCHEMA_MARKER_TABLE, "schema missing, applying initial migration");
+    if let Err(e) = init_schema(pool).await {
+        warn!(error = %e, "initial migration failed");
+        return Err(anyhow::Error::from(e).context("apply initial migration"));
+    }
+    info!("initial migration applied");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_sql_contains_all_marker_tables() {
+        let upper = INIT_SQL.to_uppercase();
+        for tbl in [
+            "OAUTH_CLIENTS",
+            "AUTH_CODES",
+            "REVOKED_JTIS",
+            "REFRESH_MARKERS",
+        ] {
+            assert!(
+                upper.contains(&format!("CREATE TABLE {tbl}")),
+                "missing CREATE TABLE for {tbl}"
+            );
+        }
+    }
 }

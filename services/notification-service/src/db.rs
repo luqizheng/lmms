@@ -2,7 +2,12 @@ use crate::error::AppResult;
 use crate::models::*;
 use chrono::{DateTime, Utc};
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
+use sqlx::Row;
 use std::collections::HashSet;
+use tracing::{info, warn};
+
+const INIT_SQL: &str = include_str!("../migrations/2026_06_10_init.sql");
+const SCHEMA_MARKER_TABLE: &str = "announcements";
 
 #[derive(Clone)]
 pub struct Db {
@@ -19,46 +24,48 @@ impl Db {
     }
 
     pub async fn ensure_schema(&self) -> anyhow::Result<()> {
-        let stmts: &[&str] = &[
-            "CREATE TABLE IF NOT EXISTS announcements (
-                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                title VARCHAR(255) NOT NULL,
-                body TEXT NOT NULL,
-                publish_at DATETIME NOT NULL,
-                expire_at DATETIME NULL,
-                pinned TINYINT NOT NULL DEFAULT 0,
-                popover TINYINT NOT NULL DEFAULT 0,
-                status VARCHAR(16) NOT NULL,
-                created_by BIGINT UNSIGNED NOT NULL,
-                created_at DATETIME NOT NULL,
-                PRIMARY KEY (id),
-                KEY idx_status_publish (status, publish_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-            "CREATE TABLE IF NOT EXISTS announcement_recipients (
-                announcement_id BIGINT UNSIGNED NOT NULL,
-                scope_type VARCHAR(16) NOT NULL,
-                scope_id BIGINT UNSIGNED NOT NULL,
-                PRIMARY KEY (announcement_id, scope_type, scope_id),
-                KEY idx_scope (scope_type, scope_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-            "CREATE TABLE IF NOT EXISTS announcement_deliveries (
-                announcement_id BIGINT UNSIGNED NOT NULL,
-                user_id BIGINT UNSIGNED NOT NULL,
-                delivered_at DATETIME NOT NULL,
-                PRIMARY KEY (announcement_id, user_id),
-                KEY idx_user (user_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-            "CREATE TABLE IF NOT EXISTS announcement_reads (
-                announcement_id BIGINT UNSIGNED NOT NULL,
-                user_id BIGINT UNSIGNED NOT NULL,
-                read_at DATETIME NOT NULL,
-                PRIMARY KEY (announcement_id, user_id),
-                KEY idx_user (user_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-        ];
-        for s in stmts {
-            sqlx::query(s).execute(&self.pool).await?;
+        let row = sqlx::query(
+            "SELECT COUNT(*) AS c FROM information_schema.tables \
+             WHERE table_schema = DATABASE() AND table_name = ?",
+        )
+        .bind(SCHEMA_MARKER_TABLE)
+        .fetch_one(&self.pool)
+        .await?;
+        let exists: i64 = row.try_get("c").unwrap_or(0);
+        if exists > 0 {
+            info!(
+                marker = SCHEMA_MARKER_TABLE,
+                "schema already present, skip migration"
+            );
+            return Ok(());
         }
+
+        info!(
+            marker = SCHEMA_MARKER_TABLE,
+            "schema missing, applying initial migration"
+        );
+        for stmt in INIT_SQL.split(';') {
+            let cleaned: String = stmt
+                .lines()
+                .filter(|l| !l.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let s = cleaned.trim();
+            if s.is_empty() {
+                continue;
+            }
+            // sqlx 连接已由 cfg.mysql.url 指定数据库；
+            // 跳过文件中的 CREATE DATABASE / USE（连接池下不应切库）。
+            let upper = s.to_ascii_uppercase();
+            if upper.starts_with("CREATE DATABASE") || upper.starts_with("USE ") {
+                continue;
+            }
+            if let Err(e) = sqlx::query(s).execute(&self.pool).await {
+                warn!(statement = %first_line(s), error = %e, "migration statement failed");
+                return Err(anyhow::anyhow!("apply migration ({}): {e}", first_line(s)));
+            }
+        }
+        info!("initial migration applied");
         Ok(())
     }
 
@@ -178,5 +185,42 @@ impl Db {
             "INSERT IGNORE INTO announcement_reads (announcement_id, user_id, read_at) VALUES (?,?,NOW())"
         ).bind(ann_id).bind(user_id).execute(&self.pool).await?;
         Ok(res.rows_affected() == 1)
+    }
+}
+
+fn first_line(s: &str) -> String {
+    s.lines()
+        .find(|l| !l.trim().is_empty() && !l.trim().starts_with("--"))
+        .map(|l| l.trim().to_string())
+        .unwrap_or_else(|| "<empty>".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_sql_contains_all_tables() {
+        let upper = INIT_SQL.to_uppercase();
+        for tbl in [
+            "ANNOUNCEMENTS",
+            "ANNOUNCEMENT_RECIPIENTS",
+            "ANNOUNCEMENT_DELIVERIES",
+            "ANNOUNCEMENT_READS",
+        ] {
+            assert!(
+                upper.contains(&format!("CREATE TABLE IF NOT EXISTS {tbl}")),
+                "missing CREATE TABLE for {tbl}"
+            );
+        }
+    }
+
+    #[test]
+    fn first_line_skips_comments_and_blanks() {
+        assert_eq!(
+            first_line("\n  -- hi\n  CREATE TABLE x (id INT);"),
+            "CREATE TABLE x (id INT);"
+        );
+        assert_eq!(first_line("-- only comment"), "<empty>");
     }
 }
