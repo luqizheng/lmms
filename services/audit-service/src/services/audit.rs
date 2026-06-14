@@ -165,4 +165,100 @@ impl AuditService {
 
         Ok(PagedLoginLogs { items: logs, total, page, size })
     }
+
+    pub async fn query_logs(
+        &self,
+        user_id: Option<&str>,
+        action: Option<&str>,
+        resource: Option<&str>,
+        start_date: Option<chrono::DateTime<chrono::Utc>>,
+        end_date: Option<chrono::DateTime<chrono::Utc>>,
+        limit: u32,
+        offset: u32,
+    ) -> AppResult<Vec<OperationLog>> {
+        let logs: Vec<OperationLog> = match &self.pool {
+            #[cfg(feature = "mysql")]
+            common_db::DbPool::Mysql(p) => {
+                sqlx::query_as::<_, OperationLog>(
+                    "SELECT * FROM operation_logs WHERE (?1 IS NULL OR user_id = ?1) AND (?2 IS NULL OR action = ?2) AND (?3 IS NULL OR resource = ?3) ORDER BY created_at DESC LIMIT ?4 OFFSET ?5"
+                )
+                .bind(user_id)
+                .bind(action)
+                .bind(resource)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(p)
+                .await?
+            }
+            #[cfg(feature = "sqlite")]
+            common_db::DbPool::Sqlite(p) => {
+                sqlx::query_as::<_, OperationLog>(
+                    "SELECT * FROM operation_logs WHERE (?1 IS NULL OR user_id = ?1) AND (?2 IS NULL OR action = ?2) AND (?3 IS NULL OR resource = ?3) ORDER BY created_at DESC LIMIT ?4 OFFSET ?5"
+                )
+                .bind(user_id)
+                .bind(action)
+                .bind(resource)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(p)
+                .await?
+            }
+        };
+
+        Ok(logs)
+    }
+
+    pub async fn get_user_operation_logs(&self, user_id: &str, limit: u32) -> AppResult<Vec<OperationLog>> {
+        let logs: Vec<OperationLog> = match &self.pool {
+            #[cfg(feature = "mysql")]
+            common_db::DbPool::Mysql(p) => {
+                sqlx::query_as::<_, OperationLog>(
+                    "SELECT * FROM operation_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?"
+                )
+                .bind(user_id)
+                .bind(limit)
+                .fetch_all(p)
+                .await?
+            }
+            #[cfg(feature = "sqlite")]
+            common_db::DbPool::Sqlite(p) => {
+                sqlx::query_as::<_, OperationLog>(
+                    "SELECT * FROM operation_logs WHERE user_id = ?1 ORDER BY created_at DESC LIMIT ?2"
+                )
+                .bind(user_id)
+                .bind(limit)
+                .fetch_all(p)
+                .await?
+            }
+        };
+
+        Ok(logs)
+    }
+
+    pub async fn get_user_login_logs(&self, user_id: &str, limit: u32) -> AppResult<Vec<LoginLog>> {
+        let logs: Vec<LoginLog> = match &self.pool {
+            #[cfg(feature = "mysql")]
+            common_db::DbPool::Mysql(p) => {
+                sqlx::query_as::<_, LoginLog>(
+                    "SELECT * FROM login_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?"
+                )
+                .bind(user_id)
+                .bind(limit)
+                .fetch_all(p)
+                .await?
+            }
+            #[cfg(feature = "sqlite")]
+            common_db::DbPool::Sqlite(p) => {
+                sqlx::query_as::<_, LoginLog>(
+                    "SELECT * FROM login_logs WHERE user_id = ?1 ORDER BY created_at DESC LIMIT ?2"
+                )
+                .bind(user_id)
+                .bind(limit)
+                .fetch_all(p)
+                .await?
+            }
+        };
+
+        Ok(logs)
+    }
 }

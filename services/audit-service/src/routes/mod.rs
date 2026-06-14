@@ -1,20 +1,60 @@
+pub mod compliance;
 pub mod operation;
 pub mod login;
-pub mod export;
+pub mod retention;
 
-use axum::Router;
 use std::sync::Arc;
-use crate::services::AuditService;
+use crate::services::{AuditService, CleanupService};
+use crate::models::RetentionPolicy;
+use crate::error::AppResult;
+use axum::Router;
+use common_db::DbPool;
 
-pub type AppState = Arc<AuditService>;
+pub type AppState = Arc<AppServices>;
+
+pub struct AppServices {
+    pub audit: AuditService,
+    pub cleanup: CleanupService,
+    pub policy: RetentionPolicy,
+}
+
+impl AppServices {
+    pub async fn new(pool: DbPool) -> AppResult<Self> {
+        let policy = RetentionPolicy::default();
+        let audit = AuditService::new(pool.clone());
+        let cleanup = CleanupService::new(pool, policy.clone());
+
+        Ok(Self {
+            audit,
+            cleanup,
+            policy,
+        })
+    }
+
+    pub async fn get_operation_logs_by_filter(
+        &self,
+        user_id: Option<&str>,
+        action: Option<&str>,
+        resource: Option<&str>,
+        start_date: Option<chrono::DateTime<chrono::Utc>>,
+        end_date: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> AppResult<Vec<crate::models::OperationLog>> {
+        self.audit.query_logs(user_id, action, resource, start_date, end_date, 10000, 0).await
+    }
+}
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .nest("/audit", operation::routes(state.clone()))
         .nest("/audit", login::routes(state.clone()))
-        .nest("/audit", export::routes(state.clone()))
+        .nest("/audit", compliance::routes(state.clone()))
+        .nest("/audit", retention::routes(state.clone()))
 }
 
-pub fn create_state(pool: common_db::DbPool) -> AppState {
-    Arc::new(AuditService::new(pool))
+pub fn create_state(pool: DbPool) -> AppState {
+    Arc::new(AppServices {
+        audit: AuditService::new(pool.clone()),
+        cleanup: CleanupService::new(pool, RetentionPolicy::default()),
+        policy: RetentionPolicy::default(),
+    })
 }

@@ -1,0 +1,84 @@
+use axum::{
+    extract::{Path, State},
+    http::{header, HeaderMap},
+    Json, Router,
+};
+use crate::error::AppResult;
+use crate::models::ExportFormat;
+use crate::routes::AppState;
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/export/compliance/operation/csv", axum::routing::get(export_operation_csv))
+        .route("/export/compliance/operation/json", axum::routing::get(export_operation_json))
+        .route("/export/compliance/login/csv", axum::routing::get(export_login_csv))
+        .with_state(state)
+}
+
+async fn export_operation_csv(
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+) -> AppResult<impl axum::response::IntoResponse> {
+    let logs = state.audit.get_user_operation_logs(&user_id, 10000).await?;
+    
+    let mut csv = String::from("id,user_id,action,resource,resource_id,request_id,ip_address,created_at\n");
+    for log in logs {
+        csv.push_str(&format!(
+            "{},{},{},{},{},{},{},{}\n",
+            log.id,
+            log.user_id,
+            log.action,
+            log.resource,
+            log.resource_id.unwrap_or_default(),
+            log.request_id,
+            log.ip_address.unwrap_or_default(),
+            log.created_at.to_rfc3339()
+        ));
+    }
+
+    Ok((
+        [(header::CONTENT_TYPE, "text/csv; charset=utf-8")],
+        csv,
+    ))
+}
+
+async fn export_operation_json(
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+) -> AppResult<impl axum::response::IntoResponse> {
+    let logs = state.audit.get_user_operation_logs(&user_id, 10000).await?;
+    let json = serde_json::to_string_pretty(&logs)
+        .map_err(|e| crate::error::AppError::internal("EXPORT_JSON", e.to_string()))?;
+
+    Ok((
+        [(header::CONTENT_TYPE, "application/json")],
+        json,
+    ))
+}
+
+async fn export_login_csv(
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+) -> AppResult<impl axum::response::IntoResponse> {
+    let logs = state.audit.get_user_login_logs(&user_id, 10000).await?;
+    
+    let mut csv = String::from("id,user_id,login_type,status,ip_address,user_agent,geo_location,created_at\n");
+    for log in logs {
+        csv.push_str(&format!(
+            "{},{},{},{},{},{},{},{}\n",
+            log.id,
+            log.user_id,
+            log.login_type,
+            log.status,
+            log.ip_address.unwrap_or_default(),
+            log.user_agent.unwrap_or_default(),
+            log.geo_location.unwrap_or_default(),
+            log.created_at.to_rfc3339()
+        ));
+    }
+
+    Ok((
+        [(header::CONTENT_TYPE, "text/csv; charset=utf-8")],
+        csv,
+    ))
+}
