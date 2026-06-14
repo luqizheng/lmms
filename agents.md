@@ -11,6 +11,9 @@
 | `coder-microservice-dev` | 起服务、本地开发 | node scripts/dev-services.js |
 | `coder-fix-tests` | 修测试、fix-prompt | node scripts/test-orchestrator.js fix |
 | `coder-service-standard-check` | 检查服务规范、standard | node scripts/check-service-standard.js |
+| `coder-e2e-test` | E2E测试、登录验证 | node scripts/run-e2e.js |
+| `coder-lib-upgrade` | 升级通用库 | cargo upgrade -p <lib> |
+| `coder-service-audit` | 服务审计、规范检查 | node scripts/check-service-standard.js --service <name> |
 
 ## 服务规范规则系统
 

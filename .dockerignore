@@ -5,3 +5,5 @@ target
 *.swp
 *.swo
 .DS_Store
+docker/mysql/data
+*.sock

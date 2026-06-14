@@ -1,4 +1,4 @@
-FROM rust:1.74 AS builder
+FROM rust:1.96-slim AS builder
 
 WORKDIR /app
 
@@ -6,9 +6,9 @@ COPY . .
 
 RUN cargo build --release --bin iam-service
 
-FROM debian:bookworm-slim
+FROM alpine:3.21
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /app/target/release/iam-service /usr/local/bin/iam-service
 

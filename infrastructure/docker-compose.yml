@@ -46,9 +46,7 @@ services:
       - superpowers
 
   api-gateway:
-    build:
-      context: ..
-      dockerfile: services/api-gateway/Dockerfile
+    image: zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest
     ports:
       - "3000:3000"
     environment:
@@ -60,7 +58,7 @@ services:
       GW_JWKS_URL: "http://token-server:8080/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-server"
     volumes:
-      - ../docker/config/api-gateway:/app/config:ro
+      - ../docker/config:/app/config:ro
     depends_on:
       consul:
         condition: service_healthy
@@ -70,14 +68,13 @@ services:
       - superpowers
 
   token-server:
-    build:
-      context: ..
-      dockerfile: services/token-service/Dockerfile
+    image: zhcoder-docker-registry.com:8000/micro-server/token-service:latest
     ports:
       - "6001:8080"
     volumes:
       - ../docker/secrets:/app/keys
-      - ../docker/config/token-service:/app/config
+      - ../docker/config/token-service:/app/config/token-service
+      - ../services/token-service/config:/app/config
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
@@ -91,6 +88,7 @@ services:
       TS_JWT_PUBLIC_KEY_PATH: "/app/keys/public.pem"
       TS_CLIENTS_FILE_PATH: "/app/config/clients.json"
       TS_CONSUL_ADDR: "http://consul:8500"
+      CONFIG_FILE: "/config/config.yaml"
     depends_on:
       redis:
         condition: service_healthy
@@ -100,9 +98,7 @@ services:
       - superpowers
 
   iam-service:
-    build:
-      context: ..
-      dockerfile: services/iam-service/Dockerfile
+    image: zhcoder-docker-registry.com:8000/coder/user-service:latest
     ports:
       - "6002:8080"
     environment:
@@ -123,9 +119,7 @@ services:
       - superpowers
 
   notification-service:
-    build:
-      context: ..
-      dockerfile: services/notification-service/Dockerfile
+    image: zhcoder-docker-registry.com:8000/micro-server/user-service:latest
     ports:
       - "6003:8080"
     depends_on:

@@ -14,7 +14,6 @@ A microservices architecture for coder platform, built with Rust and Go.
 - Rust 工具链（`rustup` + `cargo`，1.96+）
 - Go 1.22+
 - Node.js 18+（跑 `scripts/*.js` 编排器）
-- 已下载基础镜像 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`（仅 docker build 时需要）
 
 ### 一键工作流
 
@@ -154,7 +153,7 @@ cat ~/.ssh/id_rsa
 | `DEPLOY_SERVER` | `192.168.2.128` | Yes |
 | `DEPLOY_USER` | `admin` | Yes |
 | `DEPLOY_PASSWORD` | Server admin password | Yes |
-| `DOCKER_REGISTRY` | `zhcoder-docker-registry.com:8000` | Yes |
+| `DOCKER_REGISTRY` | Docker registry URL (e.g., `registry.example.com`) | Yes |
 
 ### Deployment Pipeline
 

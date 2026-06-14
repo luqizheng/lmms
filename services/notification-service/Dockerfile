@@ -1,4 +1,4 @@
-FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
+FROM rust:1.96-slim AS builder
 RUN export RUSTUP_DIST_SERVER="https://rsproxy.cn"
 RUN export RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://rsproxy.cn/rustup-init.sh | sh
@@ -26,7 +26,7 @@ COPY services/ services/
 COPY sdk sdk
 RUN cargo build --release --target x86_64-unknown-linux-musl -p notification-service
 
-FROM zhcoder-docker-registry.com:8000/official/alpine:3.21
+FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/notification-service /usr/local/bin/notification-service

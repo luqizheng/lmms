@@ -32,7 +32,7 @@ docker/
 | Docker Engine | ≥ 24.0 |
 | Docker Compose | v2（`docker compose` 插件） |
 | 主机资源 | CPU ≥ 4 核，内存 ≥ 8 GB，磁盘 ≥ 50 GB |
-| 网络 | 可访问 `zhcoder-docker-registry.com:8000` 私有镜像仓库 |
+| 网络 | 可访问 Docker Hub 或其他镜像仓库 |
 | 端口 | 80、3000、3306、4000、5000、6000、6379、8500 |
 
 ---

@@ -35,5 +35,5 @@ toml = "0.8"
 glob = "0.3"
 prometheus = "0.13"
 prometheus_exporter = "0.1"
-utoipa = { version = "4", features = ["axum_extras", "swagger_ui"] }
+utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = "4"

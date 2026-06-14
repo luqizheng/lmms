@@ -47,7 +47,7 @@ nanoid = "0.4"
 validator = { version = "0.18", features = ["derive"] }
 prometheus = "0.13"
 prometheus_exporter = "0.1"
-utoipa = { version = "4", features = ["axum_extras", "swagger_ui"] }
+utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = "4"
 sha2 = "0.10"
 hex = "0.4"

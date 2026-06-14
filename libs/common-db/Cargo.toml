@@ -7,7 +7,6 @@ edition = "2021"
 default = ["sqlite"]
 mysql = ["sqlx/mysql"]
 dameng = ["sqlx/mysql"]
-mssql = ["sqlx/mssql"]
 sqlite = ["sqlx/sqlite"]
 test-kit = ["sqlite", "dep:tempfile"]
 

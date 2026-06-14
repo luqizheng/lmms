@@ -12,12 +12,11 @@ function composeArgs(...extra) {
 }
 
 const PRE_PULL_IMAGES = [
-  'zhcoder-docker-registry.com:8000/official/alpine:3.21',
-  'zhcoder-docker-registry.com:8000/official/rust:1.96-slim',
-  'zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl',
-  'zhcoder-docker-registry.com:8000/official/mysql:8.0',
-  'zhcoder-docker-registry.com:8000/official/redis:7-alpine',
-  'zhcoder-docker-registry.com:8000/official/consul:1.15',
+  'alpine:3.21',
+  'rust:1.96-slim',
+  'mysql:8.0',
+  'redis:7-alpine',
+  'consul:1.15',
 ];
 
 async function prePull() {

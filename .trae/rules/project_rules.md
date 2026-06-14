@@ -16,6 +16,9 @@
 | `sdk/dotnet/**/*.csproj`                         | `coder-sdk-publish` (test)        | 改完保存  |
 | `infrastructure/docker-compose.*.yaml`           | `coder-microservice-dev`          | 改完保存  |
 | `services/*/AGENTS.md`                            | 自动检查服务规范                  | 新建/修改 |
+| `.trae/skills/coder-e2e-test/**`                | `coder-e2e-test`                  | 新建/修改 |
+| `.trae/skills/coder-lib-upgrade/**`             | `coder-lib-upgrade`                | 新建/修改 |
+| `.trae/skills/coder-service-audit/**`           | `coder-service-audit`             | 新建/修改 |
 
 服务名清单：`token-service` / `api-gateway` / `notification-service` / `audit-service` / `config-service` / `file-service` / `iam-service`
 
@@ -56,6 +59,19 @@
 - 网络抖动时用 `docker compose up -d --pull never` 绕过镜像拉取
 - 本地镜像 `redis:7-alpine` / `mysql:8.0` / `consul:1.15` 已缓存
 - 不要修改 `scripts/lib/Docker-Helper.js` 的 `prePull`，那是网络正常时的优化
+
+#### 端口规范
+
+| 服务 | 外部端口 | 内部端口 |
+|------|----------|----------|
+| api-gateway | 3000 | 3000 |
+| token-service | 6001 | 8080 |
+| iam-service | 6002 | 8080 |
+| notification-service | 6003 | 8080 |
+
+- 服务内部端口统一为 8080
+- 对外端口范围 6000-6999
+- api-gateway 对外对内端口均保持 3000 不变
 
 ### Rust 工具链
 
