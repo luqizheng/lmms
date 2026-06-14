@@ -39,6 +39,12 @@ pub mod codes {
     pub const IAM_PERM_3001: &str = "IAM_PERM_3001";
     /// role not found
     pub const IAM_PERM_3002: &str = "IAM_PERM_3002";
+    /// config item not found
+    pub const CFG_ITEM_1001: &str = "CFG_ITEM_1001";
+    /// namespace not found
+    pub const CFG_NS_2001: &str = "CFG_NS_2001";
+    /// validation failed
+    pub const CFG_VALID_3001: &str = "CFG_VALID_3001";
     /// config key not found
     pub const CFG_VALID_4001: &str = "CFG_VALID_4001";
     /// config parse error
@@ -55,6 +61,18 @@ pub mod codes {
     pub const AUD_LOG_6002: &str = "AUD_LOG_6002";
     /// export generation failed
     pub const AUD_LOG_6003: &str = "AUD_LOG_6003";
+    /// file not found
+    pub const FILE_ITEM_1001: &str = "FILE_ITEM_1001";
+    /// file upload failed
+    pub const FILE_UPLOAD_2001: &str = "FILE_UPLOAD_2001";
+    /// file too large
+    pub const FILE_UPLOAD_2002: &str = "FILE_UPLOAD_2002";
+    /// presign url expired
+    pub const FILE_PRESIGN_3001: &str = "FILE_PRESIGN_3001";
+    /// file read failed
+    pub const FILE_READ_4001: &str = "FILE_READ_4001";
+    /// file delete failed
+    pub const FILE_DELETE_4002: &str = "FILE_DELETE_4002";
 }
 
 /// Get message for error code
@@ -78,6 +96,9 @@ pub fn message(code: &str) -> &str {
         "VALID_2004" => "invalid email format",
         "IAM_PERM_3001" => "permission denied",
         "IAM_PERM_3002" => "role not found",
+        "CFG_ITEM_1001" => "config item not found",
+        "CFG_NS_2001" => "namespace not found",
+        "CFG_VALID_3001" => "validation failed",
         "CFG_VALID_4001" => "config key not found",
         "CFG_VALID_4002" => "config parse error",
         "GW_ROUTE_5001" => "route not found",
@@ -86,6 +107,12 @@ pub fn message(code: &str) -> &str {
         "AUD_LOG_6001" => "audit log not found",
         "AUD_LOG_6002" => "export format not supported",
         "AUD_LOG_6003" => "export generation failed",
+        "FILE_ITEM_1001" => "file not found",
+        "FILE_UPLOAD_2001" => "file upload failed",
+        "FILE_UPLOAD_2002" => "file too large",
+        "FILE_PRESIGN_3001" => "presign url expired",
+        "FILE_READ_4001" => "file read failed",
+        "FILE_DELETE_4002" => "file delete failed",
         _ => "unknown error",
     }
 }
@@ -113,6 +140,9 @@ pub fn kind(code: &str) -> ErrorKind {
         "VALID_2004" => ErrorKind::BadRequest,
         "IAM_PERM_3001" => ErrorKind::Forbidden,
         "IAM_PERM_3002" => ErrorKind::NotFound,
+        "CFG_ITEM_1001" => ErrorKind::NotFound,
+        "CFG_NS_2001" => ErrorKind::NotFound,
+        "CFG_VALID_3001" => ErrorKind::BadRequest,
         "CFG_VALID_4001" => ErrorKind::NotFound,
         "CFG_VALID_4002" => ErrorKind::Internal,
         "GW_ROUTE_5001" => ErrorKind::NotFound,
@@ -121,6 +151,12 @@ pub fn kind(code: &str) -> ErrorKind {
         "AUD_LOG_6001" => ErrorKind::NotFound,
         "AUD_LOG_6002" => ErrorKind::BadRequest,
         "AUD_LOG_6003" => ErrorKind::Internal,
+        "FILE_ITEM_1001" => ErrorKind::NotFound,
+        "FILE_UPLOAD_2001" => ErrorKind::Internal,
+        "FILE_UPLOAD_2002" => ErrorKind::BadRequest,
+        "FILE_PRESIGN_3001" => ErrorKind::Unauthorized,
+        "FILE_READ_4001" => ErrorKind::Internal,
+        "FILE_DELETE_4002" => ErrorKind::Internal,
         _ => ErrorKind::Internal,
     }
 }

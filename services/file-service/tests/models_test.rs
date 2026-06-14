@@ -1,0 +1,88 @@
+use file_service::models::{
+    UploadFileMeta, 
+    QueryFiles,
+    CreatePresignUrl,
+};
+
+#[test]
+fn upload_file_meta_serialization() {
+    let meta = UploadFileMeta {
+        filename: "test.txt".to_string(),
+        content_type: Some("text/plain".to_string()),
+        tenant_id: Some("tenant-123".to_string()),
+        user_id: Some("user-456".to_string()),
+        is_temporary: Some(false),
+        expires_in_seconds: None,
+    };
+
+    let json = serde_json::to_string(&meta).unwrap();
+    assert!(json.contains("test.txt"));
+    assert!(json.contains("text/plain"));
+}
+
+#[test]
+fn upload_file_meta_temporary() {
+    let meta = UploadFileMeta {
+        filename: "temp.txt".to_string(),
+        content_type: None,
+        tenant_id: None,
+        user_id: None,
+        is_temporary: Some(true),
+        expires_in_seconds: Some(3600),
+    };
+
+    assert!(meta.is_temporary.unwrap());
+    assert_eq!(meta.expires_in_seconds, Some(3600));
+}
+
+#[test]
+fn query_files_defaults() {
+    let query = QueryFiles {
+        tenant_id: None,
+        user_id: None,
+        filename: None,
+        page: None,
+        size: None,
+    };
+
+    assert!(query.page.is_none());
+    assert!(query.size.is_none());
+}
+
+#[test]
+fn query_files_with_filters() {
+    let query = QueryFiles {
+        tenant_id: Some("tenant-123".to_string()),
+        user_id: Some("user-456".to_string()),
+        filename: Some("report".to_string()),
+        page: Some(1),
+        size: Some(10),
+    };
+
+    assert_eq!(query.tenant_id, Some("tenant-123".to_string()));
+    assert_eq!(query.size, Some(10));
+}
+
+#[test]
+fn create_presign_url_get() {
+    let req = CreatePresignUrl {
+        file_id: "file-123".to_string(),
+        operation: "get".to_string(),
+        expires_in_seconds: Some(3600),
+    };
+
+    assert_eq!(req.operation, "get");
+    assert_eq!(req.expires_in_seconds, Some(3600));
+}
+
+#[test]
+fn create_presign_url_put() {
+    let req = CreatePresignUrl {
+        file_id: "file-456".to_string(),
+        operation: "put".to_string(),
+        expires_in_seconds: None,
+    };
+
+    assert_eq!(req.operation, "put");
+    assert!(req.expires_in_seconds.is_none());
+}

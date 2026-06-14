@@ -10,6 +10,9 @@ const SERVICE_MAP = {
   'token-service': { lang: 'rust', path: 'services\\token-service' },
   'user-service': { lang: 'rust', path: 'services\\user-service' },
   'notification-service': { lang: 'rust', path: 'services\\notification-service' },
+  'audit-service': { lang: 'rust', path: 'services\\audit-service' },
+  'config-service': { lang: 'rust', path: 'services\\config-service' },
+  'file-service': { lang: 'rust', path: 'services\\file-service' },
 };
 
 const ALL_SERVICES = [
@@ -17,6 +20,9 @@ const ALL_SERVICES = [
   'token-service',
   'user-service',
   'notification-service',
+  'audit-service',
+  'config-service',
+  'file-service',
 ];
 
 const LIBS = [

@@ -68,6 +68,15 @@ codes:
     kind: NotFound
 
   # === 配置 ===
+  CFG_ITEM_1001:
+    message: "config item not found"
+    kind: NotFound
+  CFG_NS_2001:
+    message: "namespace not found"
+    kind: NotFound
+  CFG_VALID_3001:
+    message: "validation failed"
+    kind: BadRequest
   CFG_VALID_4001:
     message: "config key not found"
     kind: NotFound
@@ -95,4 +104,24 @@ codes:
     kind: BadRequest
   AUD_LOG_6003:
     message: "export generation failed"
+    kind: Internal
+
+  # === 文件服务 ===
+  FILE_ITEM_1001:
+    message: "file not found"
+    kind: NotFound
+  FILE_UPLOAD_2001:
+    message: "file upload failed"
+    kind: Internal
+  FILE_UPLOAD_2002:
+    message: "file too large"
+    kind: BadRequest
+  FILE_PRESIGN_3001:
+    message: "presign url expired"
+    kind: Unauthorized
+  FILE_READ_4001:
+    message: "file read failed"
+    kind: Internal
+  FILE_DELETE_4002:
+    message: "file delete failed"
     kind: Internal

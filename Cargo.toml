@@ -17,6 +17,8 @@ members = [
     "services/notification-service",
     "services/iam-service",
     "services/audit-service",
+    "services/config-service",
+    "services/file-service",
     "sdk/rust/kudi-http-client",
 ]
 resolver = "2"
