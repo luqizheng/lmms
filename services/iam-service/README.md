@@ -98,7 +98,10 @@ docker run -p 3002:3002 iam-service:latest
 
 ## 健康检查
 
-- `/iam/health` - 服务健康状态
+- `/health` - 服务健康状态
+- `/metrics` - Prometheus 指标端点
+- `/swagger-ui` - Swagger UI 文档
+- `/api-docs/openapi.json` - OpenAPI 规范
 
 ## 测试
 

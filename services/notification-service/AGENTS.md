@@ -3,8 +3,8 @@
 ## 必需组件
 
 - Dockerfile ✓
-- Swagger 配置（可配置启用/禁用）⚠️ 待补充
-- 健康检查端点（/health、/ready、/metrics）⚠️ 待补充 /metrics
+- Swagger 配置（可配置启用/禁用）✓
+- 健康检查端点（/health、/ready、/metrics）✓
 - 数据库迁移文件（migrations/）✓
 - README.md ✓
 - tests/ 目录 ✓

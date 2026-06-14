@@ -19,6 +19,9 @@ use consul_registrar::ConsulRegistrar;
 use db::Db;
 use redis_cli::RedisCli;
 use ws_hub::WsHub;
+use prometheus::{Encoder, TextEncoder};
+use utoipa::{OpenApi};
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -47,6 +50,27 @@ async fn main() -> anyhow::Result<()> {
     };
     let ws_state = ws::WsState { hub: hub.clone() };
 
+    async fn metrics() -> axum::response::Html<String> {
+        let encoder = TextEncoder::new();
+        let metric_families = prometheus::gather();
+        let mut buffer = Vec::new();
+        encoder.encode(&metric_families, &mut buffer).unwrap();
+        String::from_utf8(buffer).unwrap()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            rest::send_notification,
+            rest::get_notifications,
+            rest::get_notification,
+            rest::mark_read,
+        ),
+        components(
+        )
+    )]
+    struct ApiDoc;
+
     let app = Router::new()
         .nest("/api/notifications", rest::router(rest_state))
         .route(
@@ -56,7 +80,9 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/health",
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
-        );
+        )
+        .route("/metrics", get(metrics))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 
     let db_for_sched = db.clone();
     let redis_for_sched = redis.clone();

@@ -10,6 +10,9 @@ use clap::Parser;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use prometheus::{Encoder, TextEncoder};
+use utoipa::{OpenApi};
+use utoipa_swagger_ui::SwaggerUi;
 
 use api_gateway::{
     blacklist, middleware, rewrite, router, routes_loader, AppState, GatewayConfig, JwtValidator,
@@ -193,10 +196,35 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         route_table: route_table.clone(),
     });
 
-    let health_route = Router::new().route(
-        "/health",
-        get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
-    );
+    async fn metrics() -> axum::response::Html<String> {
+        let encoder = TextEncoder::new();
+        let metric_families = prometheus::gather();
+        let mut buffer = Vec::new();
+        encoder.encode(&metric_families, &mut buffer).unwrap();
+        String::from_utf8(buffer).unwrap()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        info(
+            title = "API Gateway",
+            version = "1.0.0",
+            description = "API Gateway for coder-micro-services"
+        ),
+        paths(
+        ),
+        components(
+        )
+    )]
+    struct ApiDoc;
+
+    let health_route = Router::new()
+        .route(
+            "/health",
+            get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
+        )
+        .route("/metrics", get(metrics))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 
     let api_routes = Router::new()
         .route(

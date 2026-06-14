@@ -5,6 +5,9 @@ use token_service::{
     load_config, ConsulRegistrar, TokenIssuer, TokenServerConfig, TokenServerState,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use prometheus::{Encoder, TextEncoder};
+use utoipa::{OpenApi, ToSchema};
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() {
@@ -71,11 +74,37 @@ async fn main() {
         user_service_url: cfg.user_service_url.clone(),
     };
 
+    async fn metrics() -> axum::response::Html<String> {
+        let encoder = TextEncoder::new();
+        let metric_families = prometheus::gather();
+        let mut buffer = Vec::new();
+        encoder.encode(&metric_families, &mut buffer).unwrap();
+        String::from_utf8(buffer).unwrap()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            routes::access::handle_access,
+            routes::refresh::handle_refresh,
+            routes::revoke::handle_revoke,
+            routes::resource::handle_resource,
+            routes::jwks::handle_jwks,
+            routes::api_key::handle_create_api_key,
+            routes::user_jwt::handle_user_jwt,
+        ),
+        components(
+        )
+    )]
+    struct ApiDoc;
+
     let app = axum::Router::new()
         .route(
             "/health",
             axum::routing::get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         )
+        .route("/metrics", axum::routing::get(metrics))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route(
             "/api/tokens/access",
             axum::routing::post(routes::access::handle_access),

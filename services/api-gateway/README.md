@@ -151,6 +151,9 @@ rewrite = [
 ## 端点
 
 - `GET /health` — 健康检查
+- `GET /metrics` — Prometheus 指标端点
+- `GET /swagger-ui` — Swagger UI 文档
+- `GET /api-docs/openapi.json` — OpenAPI 规范
 - `/*`（嵌套在 `/api`） — 反向代理入口
 - `POST /__admin/reload`（`admin-port`，仅 `serve` 子命令启用）
 
