@@ -46,7 +46,7 @@ services:
       - superpowers
 
   api-gateway:
-    image: zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest
+    image: infrastructure-api-gateway-test:latest
     ports:
       - "3000:3000"
     environment:
@@ -57,8 +57,11 @@ services:
       GW_CONSUL_ADDR: "http://consul:8500"
       GW_JWKS_URL: "http://token-server:8080/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-server"
+      GW_ROUTES_DIR: "/app/config/api-gateway/routes"
+      GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
     volumes:
       - ../docker/config:/app/config:ro
+      - ../docker/secrets:/app/keys:ro
     depends_on:
       consul:
         condition: service_healthy

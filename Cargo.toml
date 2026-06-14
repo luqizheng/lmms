@@ -46,7 +46,7 @@ rand = "0.8"
 base64 = "0.22"
 rsa = "0.9"
 rustls = { version = "0.23", default-features = false, features = ["logging", "std", "tls12", "aws_lc_rs"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
 hyper = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"

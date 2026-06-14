@@ -238,7 +238,8 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         .route_layer(axum_mw::from_fn_with_state(
             state.clone(),
             middleware::auth_middleware,
-        ));
+        ))
+        .without_v07_checks();
 
     let app = Router::new()
         .merge(health_route)

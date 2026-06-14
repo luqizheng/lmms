@@ -49,6 +49,10 @@ fn default_issuer() -> String {
     "superpowers-token-server".into()
 }
 
+fn default_routes_dir() -> String {
+    "/app/config/routes".into()
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct GatewayConfig {
     #[serde(default)]
@@ -63,6 +67,8 @@ pub struct GatewayConfig {
     pub jwks_url: String,
     #[serde(default = "default_issuer")]
     pub issuer: String,
+    #[serde(default = "default_routes_dir")]
+    pub routes_dir: String,
 
     #[serde(default)]
     pub routes: Vec<RouteConfig>,
