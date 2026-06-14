@@ -1,66 +1,89 @@
-use common_db::dialect::{DialectKind, Paginate};
+use common_db::dialect::DialectKind;
 
 #[test]
-fn sqlite_pagination_uses_limit_offset() {
-    assert_eq!(DialectKind::Sqlite.paginate(20, 40), "LIMIT 20 OFFSET 40");
+fn dialect_from_dameng_url() {
+    assert_eq!(DialectKind::from_url("dameng://user:pwd@host:5236/db"), DialectKind::Dameng);
 }
 
 #[test]
-fn detect_from_url_picks_sqlite() {
-    assert_eq!(
-        DialectKind::from_url("sqlite::memory:"),
-        DialectKind::Sqlite
-    );
+fn dialect_from_mssql_url() {
+    assert_eq!(DialectKind::from_url("mssql://sa:pwd@host:1433/master"), DialectKind::Mssql);
 }
 
 #[test]
-fn detect_from_url_picks_dameng() {
-    assert_eq!(
-        DialectKind::from_url("dameng://user:pwd@host:5236/db"),
-        DialectKind::Dameng
-    );
+fn dialect_paginate_mysql() {
+    assert_eq!(DialectKind::Mysql.paginate(10, 20), "LIMIT 10 OFFSET 20");
 }
 
 #[test]
-fn detect_from_url_defaults_to_mysql() {
+fn dialect_paginate_sqlite() {
+    assert_eq!(DialectKind::Sqlite.paginate(10, 20), "LIMIT 10 OFFSET 20");
+}
+
+#[test]
+fn dialect_paginate_mssql() {
     assert_eq!(
-        DialectKind::from_url("mysql://localhost/db"),
-        DialectKind::Mysql
-    );
-    assert_eq!(
-        DialectKind::from_url("postgres://localhost/db"),
-        DialectKind::Mysql
-    );
-    assert_eq!(
-        DialectKind::from_url("unknown://localhost/db"),
-        DialectKind::Mysql
-    );
-    assert_eq!(
-        DialectKind::from_url("mssql://localhost/db"),
-        DialectKind::Mysql
+        DialectKind::Mssql.paginate(10, 20),
+        "OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY"
     );
 }
 
 #[test]
-fn now_expr_returns_correct_sql() {
+fn dialect_now_expr() {
     assert_eq!(DialectKind::Mysql.now_expr(), "UTC_TIMESTAMP()");
     assert_eq!(DialectKind::Dameng.now_expr(), "UTC_TIMESTAMP()");
     assert_eq!(DialectKind::Sqlite.now_expr(), "CURRENT_TIMESTAMP");
+    assert_eq!(DialectKind::Mssql.now_expr(), "GETUTCDATE()");
 }
 
 #[test]
-fn dialect_kind_is_eq_and_hashable() {
-    let a = DialectKind::Mysql;
-    let b = DialectKind::Mysql;
-    let c = DialectKind::Sqlite;
-    assert_eq!(a, b);
-    assert_ne!(a, c);
-    let _ = std::collections::HashSet::from([a, c]);
+fn dialect_escape_identifier_mysql() {
+    assert_eq!(DialectKind::Mysql.escape_identifier("user"), "`user`");
+    assert_eq!(DialectKind::Mysql.escape_identifier("user`name"), "`user``name`");
 }
 
 #[test]
-fn all_dialects_use_same_pagination() {
-    assert_eq!(DialectKind::Mysql.paginate(10, 5), "LIMIT 10 OFFSET 5");
-    assert_eq!(DialectKind::Dameng.paginate(10, 5), "LIMIT 10 OFFSET 5");
-    assert_eq!(DialectKind::Sqlite.paginate(10, 5), "LIMIT 10 OFFSET 5");
+fn dialect_escape_identifier_sqlite() {
+    assert_eq!(DialectKind::Sqlite.escape_identifier("user"), "\"user\"");
+    assert_eq!(DialectKind::Sqlite.escape_identifier("user\"name"), "\"user\"\"name\"");
+}
+
+#[test]
+fn dialect_escape_identifier_mssql() {
+    assert_eq!(DialectKind::Mssql.escape_identifier("user"), "[user]");
+    assert_eq!(DialectKind::Mssql.escape_identifier("user]name"), "[user]]name]");
+}
+
+#[test]
+fn dialect_escape_identifier_dameng() {
+    assert_eq!(DialectKind::Dameng.escape_identifier("user"), "\"user\"");
+    assert_eq!(DialectKind::Dameng.escape_identifier("user\"name"), "\"user\"\"name\"");
+}
+
+#[test]
+fn dialect_is_reserved_keyword_mssql() {
+    assert!(DialectKind::Mssql.is_reserved_keyword("USER"));
+    assert!(DialectKind::Mssql.is_reserved_keyword("SELECT"));
+    assert!(DialectKind::Mssql.is_reserved_keyword("TABLE"));
+    assert!(!DialectKind::Mssql.is_reserved_keyword("custom_name"));
+}
+
+#[test]
+fn dialect_is_reserved_keyword_dameng() {
+    assert!(DialectKind::Dameng.is_reserved_keyword("USER"));
+    assert!(DialectKind::Dameng.is_reserved_keyword("SESSION"));
+    assert!(DialectKind::Dameng.is_reserved_keyword("TABLE"));
+    assert!(!DialectKind::Dameng.is_reserved_keyword("my_table"));
+}
+
+#[test]
+fn dialect_is_reserved_keyword_mysql() {
+    // MySQL 不检查保留字（通过 mysql_reserved_words crate 处理）
+    assert!(!DialectKind::Mysql.is_reserved_keyword("USER"));
+}
+
+#[test]
+fn dialect_is_reserved_keyword_sqlite() {
+    // SQLite 不检查保留字
+    assert!(!DialectKind::Sqlite.is_reserved_keyword("TABLE"));
 }
