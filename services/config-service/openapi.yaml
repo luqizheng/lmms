@@ -1,0 +1,361 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Config Service API",
+    "version": "1.0.0",
+    "description": "配置中心服务 API"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8081",
+      "description": "本地开发"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "健康检查",
+        "operationId": "health",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/namespace": {
+      "get": {
+        "summary": "查询命名空间列表",
+        "operationId": "listNamespaces",
+        "tags": ["Namespace"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Size" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PagedNamespaces" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "创建命名空间",
+        "operationId": "createNamespace",
+        "tags": ["Namespace"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateNamespace" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Namespace" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/namespace/{id}": {
+      "get": {
+        "summary": "获取命名空间详情",
+        "operationId": "getNamespace",
+        "tags": ["Namespace"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Namespace" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新命名空间",
+        "operationId": "updateNamespace",
+        "tags": ["Namespace"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateNamespace" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除命名空间",
+        "operationId": "deleteNamespace",
+        "tags": ["Namespace"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/config/item": {
+      "get": {
+        "summary": "查询配置项列表",
+        "operationId": "listConfigItems",
+        "tags": ["Config"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Size" },
+          { "name": "namespace_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "key", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PagedConfigItems" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "创建配置项",
+        "operationId": "createConfigItem",
+        "tags": ["Config"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateConfigItem" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConfigItem" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/item/{id}": {
+      "get": {
+        "summary": "获取配置项详情",
+        "operationId": "getConfigItem",
+        "tags": ["Config"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConfigItem" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新配置项",
+        "operationId": "updateConfigItem",
+        "tags": ["Config"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateConfigItem" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除配置项",
+        "operationId": "deleteConfigItem",
+        "tags": ["Config"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/config/watch": {
+      "get": {
+        "summary": "长轮询监听配置变更",
+        "operationId": "watchConfig",
+        "tags": ["Config"],
+        "parameters": [
+          { "name": "namespace_id", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "version", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "配置变更通知",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConfigWatchResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "default": 1 }
+      },
+      "Size": {
+        "name": "size",
+        "in": "query",
+        "schema": { "type": "integer", "default": 20 }
+      }
+    },
+    "schemas": {
+      "Namespace": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "app": { "type": "string" },
+          "env": { "type": "string" },
+          "profile": { "type": "string" },
+          "description": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateNamespace": {
+        "type": "object",
+        "required": ["name", "app"],
+        "properties": {
+          "name": { "type": "string" },
+          "app": { "type": "string" },
+          "env": { "type": "string", "default": "dev" },
+          "profile": { "type": "string", "default": "default" },
+          "description": { "type": "string" }
+        }
+      },
+      "UpdateNamespace": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" }
+        }
+      },
+      "PagedNamespaces": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Namespace" } },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "size": { "type": "integer" }
+        }
+      },
+      "ConfigItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "namespace_id": { "type": "string" },
+          "key": { "type": "string" },
+          "value": { "type": "string" },
+          "value_type": { "type": "string", "enum": ["string", "int", "bool", "json", "yaml"] },
+          "version": { "type": "integer" },
+          "is_secret": { "type": "boolean" },
+          "description": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateConfigItem": {
+        "type": "object",
+        "required": ["namespace_id", "key", "value"],
+        "properties": {
+          "namespace_id": { "type": "string" },
+          "key": { "type": "string" },
+          "value": { "type": "string" },
+          "value_type": { "type": "string", "enum": ["string", "int", "bool", "json", "yaml"], "default": "string" },
+          "is_secret": { "type": "boolean", "default": false },
+          "description": { "type": "string" }
+        }
+      },
+      "UpdateConfigItem": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "PagedConfigItems": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ConfigItem" } },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "size": { "type": "integer" }
+        }
+      },
+      "ConfigWatchResponse": {
+        "type": "object",
+        "properties": {
+          "changed": { "type": "boolean" },
+          "version": { "type": "integer" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ConfigItem" } }
+        }
+      }
+    }
+  }
+}

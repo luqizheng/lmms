@@ -1,0 +1,336 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Audit Service API",
+    "version": "1.0.0",
+    "description": "审计日志服务 API"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "本地开发"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "健康检查",
+        "operationId": "health",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/operation": {
+      "get": {
+        "summary": "查询操作日志",
+        "operationId": "queryOperationLogs",
+        "tags": ["Operation"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Size" },
+          { "name": "user_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "action", "in": "query", "schema": { "type": "string" } },
+          { "name": "resource", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PagedOperationLogs" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "创建操作日志",
+        "operationId": "createOperationLog",
+        "tags": ["Operation"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateOperationLog" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/login": {
+      "get": {
+        "summary": "查询登录日志",
+        "operationId": "queryLoginLogs",
+        "tags": ["Login"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Size" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PagedLoginLogs" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "创建登录日志",
+        "operationId": "createLoginLog",
+        "tags": ["Login"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateLoginLog" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/audit/export/compliance/operation/csv/{user_id}": {
+      "get": {
+        "summary": "按用户导出操作日志 CSV",
+        "operationId": "exportOperationCsv",
+        "tags": ["Export"],
+        "parameters": [
+          { "name": "user_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV 文件",
+            "content": {
+              "text/csv": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/retention/stats": {
+      "get": {
+        "summary": "获取保留统计",
+        "operationId": "getRetentionStats",
+        "tags": ["Retention"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RetentionStats" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/retention/policy": {
+      "get": {
+        "summary": "获取保留策略",
+        "operationId": "getRetentionPolicy",
+        "tags": ["Retention"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RetentionPolicy" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新保留策略",
+        "operationId": "updateRetentionPolicy",
+        "tags": ["Retention"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RetentionPolicy" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/audit/retention/cleanup": {
+      "post": {
+        "summary": "手动触发清理",
+        "operationId": "triggerCleanup",
+        "tags": ["Retention"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted_count": { "type": "integer" },
+                    "success": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "default": 1 }
+      },
+      "Size": {
+        "name": "size",
+        "in": "query",
+        "schema": { "type": "integer", "default": 20 }
+      }
+    },
+    "schemas": {
+      "OperationLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "user_id": { "type": "string" },
+          "action": { "type": "string" },
+          "resource": { "type": "string" },
+          "resource_id": { "type": "string" },
+          "before_value": { "type": "string" },
+          "after_value": { "type": "string" },
+          "request_id": { "type": "string" },
+          "ip_address": { "type": "string" },
+          "user_agent": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateOperationLog": {
+        "type": "object",
+        "required": ["user_id", "action", "resource"],
+        "properties": {
+          "user_id": { "type": "string" },
+          "action": { "type": "string" },
+          "resource": { "type": "string" },
+          "resource_id": { "type": "string" },
+          "before_value": { "type": "string" },
+          "after_value": { "type": "string" },
+          "request_id": { "type": "string" },
+          "ip_address": { "type": "string" },
+          "user_agent": { "type": "string" }
+        }
+      },
+      "PagedOperationLogs": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/OperationLog" } },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "size": { "type": "integer" }
+        }
+      },
+      "LoginLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "user_id": { "type": "string" },
+          "username": { "type": "string" },
+          "success": { "type": "boolean" },
+          "fail_reason": { "type": "string" },
+          "ip_address": { "type": "string" },
+          "location": { "type": "string" },
+          "user_agent": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateLoginLog": {
+        "type": "object",
+        "required": ["user_id", "username", "success"],
+        "properties": {
+          "user_id": { "type": "string" },
+          "username": { "type": "string" },
+          "success": { "type": "boolean" },
+          "fail_reason": { "type": "string" },
+          "ip_address": { "type": "string" },
+          "location": { "type": "string" },
+          "user_agent": { "type": "string" },
+          "request_id": { "type": "string" }
+        }
+      },
+      "PagedLoginLogs": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/LoginLog" } },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "size": { "type": "integer" }
+        }
+      },
+      "RetentionPolicy": {
+        "type": "object",
+        "properties": {
+          "hot_days": { "type": "integer", "default": 90 },
+          "warm_days": { "type": "integer", "default": 365 },
+          "cold_days": { "type": "integer", "default": 2555 },
+          "archive_enabled": { "type": "boolean", "default": true },
+          "purge_enabled": { "type": "boolean", "default": true }
+        }
+      },
+      "RetentionStats": {
+        "type": "object",
+        "properties": {
+          "hot_count": { "type": "integer" },
+          "warm_count": { "type": "integer" },
+          "cold_count": { "type": "integer" },
+          "expired_count": { "type": "integer" },
+          "total_size_bytes": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

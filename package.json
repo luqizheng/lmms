@@ -45,6 +45,11 @@
     "bench": "node scripts/bench.js",
     "bench:audit": "node scripts/bench.js audit-service",
     "bench:config": "node scripts/bench.js config-service",
-    "bench:file": "node scripts/bench.js file-service"
+    "bench:file": "node scripts/bench.js file-service",
+    "sdk:generate": "node scripts/openapi-codegen.js",
+    "sdk:generate:audit": "node scripts/openapi-codegen.js services/audit-service/openapi.yaml frontend/src/api/audit",
+    "sdk:generate:config": "node scripts/openapi-codegen.js services/config-service/openapi.yaml frontend/src/api/config",
+    "sdk:generate:file": "node scripts/openapi-codegen.js services/file-service/openapi.yaml frontend/src/api/file",
+    "sdk:generate:all": "pnpm sdk:generate:audit && pnpm sdk:generate:config && pnpm sdk:generate:file"
   }
 }

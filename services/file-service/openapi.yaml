@@ -1,0 +1,236 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "File Service API",
+    "version": "1.0.0",
+    "description": "文件服务 API"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8082",
+      "description": "本地开发"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "健康检查",
+        "operationId": "health",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/upload": {
+      "post": {
+        "summary": "上传文件",
+        "operationId": "uploadFile",
+        "tags": ["File"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UploadFileMeta" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FileInfo" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/list": {
+      "get": {
+        "summary": "查询文件列表",
+        "operationId": "listFiles",
+        "tags": ["File"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Size" },
+          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "user_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "filename", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PagedFiles" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/{id}": {
+      "get": {
+        "summary": "下载文件",
+        "operationId": "downloadFile",
+        "tags": ["File"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "文件内容",
+            "content": {
+              "application/octet-stream": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除文件",
+        "operationId": "deleteFile",
+        "tags": ["File"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/file/{id}/info": {
+      "get": {
+        "summary": "获取文件元数据",
+        "operationId": "getFileInfo",
+        "tags": ["File"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FileInfo" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/presign": {
+      "post": {
+        "summary": "创建预签名 URL",
+        "operationId": "createPresignUrl",
+        "tags": ["File"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePresignUrl" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PresignUrlResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "default": 1 }
+      },
+      "Size": {
+        "name": "size",
+        "in": "query",
+        "schema": { "type": "integer", "default": 20 }
+      }
+    },
+    "schemas": {
+      "FileInfo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "filename": { "type": "string" },
+          "content_type": { "type": "string" },
+          "size": { "type": "integer" },
+          "hash": { "type": "string" },
+          "storage_path": { "type": "string" },
+          "tenant_id": { "type": "string" },
+          "user_id": { "type": "string" },
+          "is_temporary": { "type": "boolean" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UploadFileMeta": {
+        "type": "object",
+        "required": ["filename"],
+        "properties": {
+          "filename": { "type": "string" },
+          "content_type": { "type": "string" },
+          "tenant_id": { "type": "string" },
+          "user_id": { "type": "string" },
+          "is_temporary": { "type": "boolean", "default": false },
+          "expires_in_seconds": { "type": "integer" }
+        }
+      },
+      "PagedFiles": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/FileInfo" } },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "size": { "type": "integer" }
+        }
+      },
+      "CreatePresignUrl": {
+        "type": "object",
+        "required": ["file_id", "operation"],
+        "properties": {
+          "file_id": { "type": "string" },
+          "operation": { "type": "string", "enum": ["get", "put"] },
+          "expires_in_seconds": { "type": "integer", "default": 3600 }
+        }
+      },
+      "PresignUrlResponse": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "operation": { "type": "string" }
+        }
+      }
+    }
+  }
+}
