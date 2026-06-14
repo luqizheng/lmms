@@ -164,7 +164,8 @@ mod api_gateway {
             .route("/api/auth/{*path}", any(public_handler))
             .route("/api/tokens/{*path}", any(public_handler))
             .nest("/api", protected_routes)
-            .route("/api/{*path}", any(unknown_service_handler))
+            .route("/{*path}", any(unknown_service_handler))
+            .without_v07_checks()
             .with_state(Arc::new(TestState))
     }
 }
