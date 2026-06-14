@@ -17,7 +17,7 @@
 | `infrastructure/docker-compose.*.yaml`           | `coder-microservice-dev`          | 改完保存  |
 | `services/*/AGENTS.md`                            | 自动检查服务规范                  | 新建/修改 |
 
-服务名清单：`token-service` / `api-gateway` / `credential-login-service` / `user-service` / `notification-service`
+服务名清单：`token-service` / `api-gateway` / `notification-service` / `audit-service` / `config-service` / `file-service` / `iam-service`
 
 ---
 
@@ -117,21 +117,3 @@ node scripts/test-orchestrator.js validate-specs
 - 看上次报告：`Get-Content reports\run-*\summary.md | Select-Object -Last 1`
 - 校验路由：`cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
 - 起本地服务：见 `coder-microservice-dev` skill
-
----
-
-## Go→Rust 改名映射
-
-| 旧名 | 新名 | 状态 |
-|---|---|---|
-| `auth-service` | `credential-login-service` | **stub**（`src/lib.rs` 仅 `// placeholder`）|
-| `token-server` | `token-service` | 已完成 |
-| `libs/go-jwt-ctx` | `libs/jwt-ctx` | 已完成 |
-| `libs/go-authz` | `libs/authz` | 已完成 |
-| `scripts/e2e_test.go` | （已删）| — |
-| 根 `go.mod` / `go.sum` / `go.work` | （已删）| — |
-
-**当前 stub 清单**（执行 plan 前必读）：
-- `services/credential-login-service` — 仅 `Cargo.toml` + 空 `src/lib.rs` placeholder；业务代码由独立 plan 负责
-
-**清理残留专项 plan**：[`2026-06-10-go-to-rust-migration-cleanup-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md)
