@@ -41,6 +41,10 @@
     "sdk:test": "pnpm run sdk:test:java && pnpm run sdk:test:dotnet",
     "build:docker": "node scripts/build-docker.js",
     "build:cargo": "node scripts/build-cargo.js",
-    "check:service-standard": "node scripts/check-service-standard.js"
+    "check:service-standard": "node scripts/check-service-standard.js",
+    "bench": "node scripts/bench.js",
+    "bench:audit": "node scripts/bench.js audit-service",
+    "bench:config": "node scripts/bench.js config-service",
+    "bench:file": "node scripts/bench.js file-service"
   }
 }

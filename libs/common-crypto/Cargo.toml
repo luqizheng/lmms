@@ -7,4 +7,15 @@ edition = "2021"
 argon2.workspace = true
 rand.workspace = true
 aes-gcm = { workspace = true }
+rsa = { version = "0.9", features = ["sha2"] }
+sha2.workspace = true
+hmac = "0.12"
+hmac-sha256 = "0.2"
+hmac-sha512 = "0.10"
+blake3 = "1.5"
+hex = "0.4"
 common-error = { path = "../common-error" }
+async-trait.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
