@@ -1,145 +1,153 @@
-use axum::{
-    body::Body,
-    extract::Request,
-    http::{Response, StatusCode},
-    middleware::Next,
-    response::IntoResponse,
-};
-use std::sync::Arc;
-use std::time::Duration;
+#[cfg(feature = "axum")]
+mod axum_middleware {
+    use axum::{
+        body::Body,
+        extract::Request,
+        http::{Response, StatusCode},
+        middleware::Next,
+        response::IntoResponse,
+    };
+    use std::sync::Arc;
+    use std::time::Duration;
 
-use crate::circuit_breaker::{CircuitBreaker, CircuitState};
-use crate::rate_limit::RateLimiter;
+    use crate::circuit_breaker::CircuitBreaker;
+    use crate::rate_limit::RateLimiter;
 
-/// 熔断中间件
-pub struct CircuitBreakerMiddleware {
-    breaker: Arc<CircuitBreaker>,
-}
+    /// 熔断中间件
+    pub struct CircuitBreakerMiddleware {
+        breaker: Arc<CircuitBreaker>,
+    }
 
-impl CircuitBreakerMiddleware {
-    pub fn new(threshold: u64, timeout: Duration) -> Self {
-        Self {
-            breaker: Arc::new(CircuitBreaker::new(threshold, timeout)),
+    impl CircuitBreakerMiddleware {
+        pub fn new(threshold: u64, timeout: Duration) -> Self {
+            Self {
+                breaker: Arc::new(CircuitBreaker::new(threshold, timeout)),
+            }
+        }
+
+        pub fn circuit_breaker(&self) -> Arc<CircuitBreaker> {
+            self.breaker.clone()
+        }
+
+        pub async fn handle(&self, request: Request, next: Next) -> Result<Response<Body>, StatusCode> {
+            if !self.breaker.is_available() {
+                tracing::warn!("Circuit breaker open, rejecting request");
+                return Err(StatusCode::SERVICE_UNAVAILABLE);
+            }
+
+            let response = next.run(request).await;
+            
+            if response.status().is_server_error() {
+                self.breaker.record_failure();
+            } else {
+                self.breaker.record_success();
+            }
+
+            Ok(response)
         }
     }
 
-    pub fn circuit_breaker(&self) -> Arc<CircuitBreaker> {
-        self.breaker.clone()
+    /// 限流中间件
+    pub struct RateLimitMiddleware {
+        limiter: Arc<RateLimiter>,
     }
 
-    pub async fn handle(&self, request: Request, next: Next) -> Result<Response<Body>, StatusCode> {
-        if !self.breaker.is_available() {
-            tracing::warn!("Circuit breaker open, rejecting request");
-            return Err(StatusCode::SERVICE_UNAVAILABLE);
+    impl RateLimitMiddleware {
+        pub fn new(capacity: u64, requests_per_second: u64) -> Self {
+            Self {
+                limiter: Arc::new(RateLimiter::new(capacity, requests_per_second)),
+            }
         }
 
-        let response = next.run(request).await;
-        
-        if response.status().is_server_error() {
-            self.breaker.record_failure();
-        } else {
-            self.breaker.record_success();
+        pub fn limiter(&self) -> Arc<RateLimiter> {
+            self.limiter.clone()
         }
 
-        Ok(response)
-    }
-}
+        pub async fn handle(&self, _request: Request, next: Next) -> Result<Response<Body>, StatusCode> {
+            if !self.limiter.try_acquire() {
+                tracing::warn!("Rate limit exceeded");
+                return Err(StatusCode::TOO_MANY_REQUESTS);
+            }
 
-/// 限流中间件
-pub struct RateLimitMiddleware {
-    limiter: Arc<RateLimiter>,
-}
-
-impl RateLimitMiddleware {
-    pub fn new(capacity: u64, requests_per_second: u64) -> Self {
-        Self {
-            limiter: Arc::new(RateLimiter::new(capacity, requests_per_second)),
+            Ok(next.run(_request).await)
         }
     }
 
-    pub fn limiter(&self) -> Arc<RateLimiter> {
-        self.limiter.clone()
+    /// 默认配置
+    pub struct DefaultMiddlewareConfig {
+        pub circuit_breaker_threshold: u64,
+        pub circuit_breaker_timeout: Duration,
+        pub rate_limit_capacity: u64,
+        pub rate_limit_rps: u64,
     }
 
-    pub async fn handle(&self, _request: Request, next: Next) -> Result<Response<Body>, StatusCode> {
-        if !self.limiter.try_acquire() {
-            tracing::warn!("Rate limit exceeded");
-            return Err(StatusCode::TOO_MANY_REQUESTS);
+    impl Default for DefaultMiddlewareConfig {
+        fn default() -> Self {
+            Self {
+                circuit_breaker_threshold: 5,
+                circuit_breaker_timeout: Duration::from_secs(60),
+                rate_limit_capacity: 100,
+                rate_limit_rps: 50,
+            }
+        }
+    }
+
+    impl DefaultMiddlewareConfig {
+        pub fn production() -> Self {
+            Self {
+                circuit_breaker_threshold: 10,
+                circuit_breaker_timeout: Duration::from_secs(30),
+                rate_limit_capacity: 1000,
+                rate_limit_rps: 500,
+            }
         }
 
-        Ok(next.run(_request).await)
-    }
-}
+        pub fn circuit_breaker(&self) -> CircuitBreakerMiddleware {
+            CircuitBreakerMiddleware::new(
+                self.circuit_breaker_threshold,
+                self.circuit_breaker_timeout,
+            )
+        }
 
-/// 错误响应
-#[derive(Debug)]
-pub struct MiddlewareError {
-    pub status: StatusCode,
-    pub message: String,
-}
-
-impl IntoResponse for MiddlewareError {
-    fn into_response(self) -> Response<Body> {
-        let body = serde_json::json!({
-            "code": format!("{:?}", self.status).to_uppercase(),
-            "message": self.message
-        });
-
-        Response::builder()
-            .status(self.status)
-            .header("Content-Type", "application/json")
-            .body(Body::from(body.to_string()))
-            .unwrap()
-    }
-}
-
-/// 默认配置
-pub struct DefaultMiddlewareConfig {
-    pub circuit_breaker_threshold: u64,
-    pub circuit_breaker_timeout: Duration,
-    pub rate_limit_capacity: u64,
-    pub rate_limit_rps: u64,
-}
-
-impl Default for DefaultMiddlewareConfig {
-    fn default() -> Self {
-        Self {
-            circuit_breaker_threshold: 5,
-            circuit_breaker_timeout: Duration::from_secs(60),
-            rate_limit_capacity: 100,
-            rate_limit_rps: 50,
+        pub fn rate_limiter(&self) -> RateLimitMiddleware {
+            RateLimitMiddleware::new(
+                self.rate_limit_capacity,
+                self.rate_limit_rps,
+            )
         }
     }
 }
 
-impl DefaultMiddlewareConfig {
-    pub fn production() -> Self {
-        Self {
-            circuit_breaker_threshold: 10,
-            circuit_breaker_timeout: Duration::from_secs(30),
-            rate_limit_capacity: 1000,
-            rate_limit_rps: 500,
+#[cfg(feature = "axum")]
+pub use axum_middleware::*;
+
+#[cfg(not(feature = "axum"))]
+mod no_axum {
+    use std::time::Duration;
+
+    pub struct DefaultMiddlewareConfig;
+
+    impl Default for DefaultMiddlewareConfig {
+        fn default() -> Self {
+            Self
         }
     }
 
-    pub fn circuit_breaker(&self) -> CircuitBreakerMiddleware {
-        CircuitBreakerMiddleware::new(
-            self.circuit_breaker_threshold,
-            self.circuit_breaker_timeout,
-        )
-    }
-
-    pub fn rate_limiter(&self) -> RateLimitMiddleware {
-        RateLimitMiddleware::new(
-            self.rate_limit_capacity,
-            self.rate_limit_rps,
-        )
+    impl DefaultMiddlewareConfig {
+        pub fn production() -> Self {
+            Self
+        }
     }
 }
 
+#[cfg(not(feature = "axum"))]
+pub use no_axum::*;
+
+#[cfg(feature = "axum")]
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::axum_middleware::*;
+    use axum::{body::Body, extract::Request, middleware::Next};
 
     #[test]
     fn test_default_config() {
@@ -168,6 +176,6 @@ mod tests {
         let req = Request::builder().uri("/test").body(Body::empty()).unwrap();
         let result = limiter.handle(req, next).await;
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(result.unwrap_err(), axum::http::StatusCode::TOO_MANY_REQUESTS);
     }
 }
