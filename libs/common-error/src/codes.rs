@@ -49,6 +49,12 @@ pub mod codes {
     pub const GW_ROUTE_5002: &str = "GW_ROUTE_5002";
     /// rate limit exceeded
     pub const GW_RATE_5003: &str = "GW_RATE_5003";
+    /// audit log not found
+    pub const AUD_LOG_6001: &str = "AUD_LOG_6001";
+    /// export format not supported
+    pub const AUD_LOG_6002: &str = "AUD_LOG_6002";
+    /// export generation failed
+    pub const AUD_LOG_6003: &str = "AUD_LOG_6003";
 }
 
 /// Get message for error code
@@ -77,6 +83,9 @@ pub fn message(code: &str) -> &str {
         "GW_ROUTE_5001" => "route not found",
         "GW_ROUTE_5002" => "service unavailable",
         "GW_RATE_5003" => "rate limit exceeded",
+        "AUD_LOG_6001" => "audit log not found",
+        "AUD_LOG_6002" => "export format not supported",
+        "AUD_LOG_6003" => "export generation failed",
         _ => "unknown error",
     }
 }
@@ -109,6 +118,9 @@ pub fn kind(code: &str) -> ErrorKind {
         "GW_ROUTE_5001" => ErrorKind::NotFound,
         "GW_ROUTE_5002" => ErrorKind::External,
         "GW_RATE_5003" => ErrorKind::TooManyRequests,
+        "AUD_LOG_6001" => ErrorKind::NotFound,
+        "AUD_LOG_6002" => ErrorKind::BadRequest,
+        "AUD_LOG_6003" => ErrorKind::Internal,
         _ => ErrorKind::Internal,
     }
 }

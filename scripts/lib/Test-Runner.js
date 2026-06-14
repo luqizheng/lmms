@@ -19,6 +19,19 @@ const ALL_SERVICES = [
   'notification-service',
 ];
 
+const LIBS = [
+  'common-error',
+  'common-log',
+  'common-config',
+  'common-cache',
+  'common-db',
+  'common-crypto',
+  'common-http',
+  'common-validator',
+  'authz',
+  'jwt-ctx',
+];
+
 async function runServiceTests(service, type, outputJson) {
   const cfg = SERVICE_MAP[service];
   if (!cfg) throw new Error(`unknown service: ${service}`);
@@ -45,8 +58,33 @@ async function runServiceTests(service, type, outputJson) {
   }
 }
 
+async function runLibTests(lib, outputJson) {
+  const libRoot = path.join(ROOT, 'libs', lib);
+  const prevCwd = process.cwd();
+  process.chdir(libRoot);
+  try {
+    await new Promise((resolve) => {
+      const out = fs.openSync(outputJson, 'w');
+      const err = fs.openSync(outputJson + '.err', 'w');
+      const p = spawn('cargo', ['test'], { stdio: ['ignore', out, err] });
+      p.on('close', () => {
+        try { fs.closeSync(out); } catch {}
+        try { fs.closeSync(err); } catch {}
+        try { fs.unlinkSync(outputJson + '.err'); } catch {}
+        resolve();
+      });
+    });
+  } finally {
+    process.chdir(prevCwd);
+  }
+}
+
 function getServiceList() {
   return [...ALL_SERVICES];
 }
 
-module.exports = { SERVICE_MAP, ALL_SERVICES, runServiceTests, getServiceList };
+function getLibsList() {
+  return [...LIBS];
+}
+
+module.exports = { SERVICE_MAP, ALL_SERVICES, LIBS, runServiceTests, runLibTests, getServiceList, getLibsList };

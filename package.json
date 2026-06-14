@@ -8,6 +8,7 @@
     "dev:infra": "docker compose -f infrastructure/docker-compose.yml up -d",
     "test:reset": "node scripts/test-orchestrator.js reset-db",
     "test:unit": "node scripts/test-orchestrator.js test-unit",
+    "test:libs": "node scripts/test-orchestrator.js test-libs",
     "test:integration": "node scripts/test-orchestrator.js test-integration",
     "test:all": "node scripts/test-orchestrator.js test-all",
     "test:report": "node scripts/test-orchestrator.js report",

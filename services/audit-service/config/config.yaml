@@ -1,0 +1,10 @@
+# Audit Service Configuration
+
+server:
+  addr: "0.0.0.0:8080"
+
+database:
+  url: "${DATABASE_URL}"
+
+logging:
+  level: "${RUST_LOG:-info}"

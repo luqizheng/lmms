@@ -19,7 +19,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { ROOT, log, runDir: getRunDir } = require('./lib/utils.js');
 const docker = require('./lib/Docker-Helper.js');
-const { runServiceTests, getServiceList } = require('./lib/Test-Runner.js');
+const { runServiceTests, runLibTests, getServiceList, getLibsList } = require('./lib/Test-Runner.js');
 const { buildSummary, buildFixPrompt } = require('./lib/Report-Builder.js');
 const { renderSpecToCodePrompt } = require('./lib/Prompt-Renderer.js');
 const { invokeSpecValidation } = require('./lib/Spec-Validator.js');
@@ -51,6 +51,21 @@ async function runTestPhase(type, svc) {
       await runServiceTests(s, type, json);
     } catch (e) {
       log.red(`[test] ${s} (${type}) FAILED to run: ${e.message}`);
+    }
+  }
+  return dir;
+}
+
+async function runLibTestPhase(lib) {
+  const dir = initializeRunDir(getRunDir());
+  const libs = lib ? [lib] : getLibsList();
+  for (const l of libs) {
+    const json = path.join(dir, `${l}.unit.json`);
+    log.cyan(`[test] libs/${l} -> ${json}`);
+    try {
+      await runLibTests(l, json);
+    } catch (e) {
+      log.red(`[test] libs/${l} FAILED to run: ${e.message}`);
     }
   }
   return dir;
@@ -143,6 +158,7 @@ async function main() {
       case 'reset-db':         await docker.resetDatabase(); break;
       case 'test-unit':        await runTestPhase('unit', service); break;
       case 'test-integration': await runTestPhase('integration', service); break;
+      case 'test-libs':       await runLibTestPhase(service); break;
       case 'test-all': {
         const dir = await runTestPhase('unit', service);
         await runTestPhase('integration', service);

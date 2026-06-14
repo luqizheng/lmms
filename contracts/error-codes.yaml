@@ -85,3 +85,14 @@ codes:
   GW_RATE_5003:
     message: "rate limit exceeded"
     kind: TooManyRequests
+
+  # === 审计日志 ===
+  AUD_LOG_6001:
+    message: "audit log not found"
+    kind: NotFound
+  AUD_LOG_6002:
+    message: "export format not supported"
+    kind: BadRequest
+  AUD_LOG_6003:
+    message: "export generation failed"
+    kind: Internal
