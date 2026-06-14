@@ -4,7 +4,7 @@ services:
     ports:
       - "8500:8500"
     volumes:
-      - ../config/consul/config.docker.json:/consul/config/services.json:ro
+      - ../docker/config/consul/config.docker.json:/consul/config/services.json:ro
     command: agent -dev -config-dir=/consul/config -bind=0.0.0.0 -client=0.0.0.0
     healthcheck:
       test: ["CMD", "consul", "members"]
@@ -57,10 +57,10 @@ services:
       GW_REDIS__URL: "redis://redis:6379"
       GW_REDIS__PREFIX: "superpowers:"
       GW_CONSUL_ADDR: "http://consul:8500"
-      GW_JWKS_URL: "http://token-server:4000/.well-known/jwks.json"
+      GW_JWKS_URL: "http://token-server:8080/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-server"
     volumes:
-      - ./config/api-gateway:/app/config
+      - ../docker/config/api-gateway:/app/config:ro
     depends_on:
       consul:
         condition: service_healthy
@@ -74,10 +74,10 @@ services:
       context: ..
       dockerfile: services/token-service/Dockerfile
     ports:
-      - "4000:4000"
+      - "6001:8080"
     environment:
       SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "4000"
+      SERVER_PORT: "8080"
       REDIS_URL: "redis://redis:6379"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
@@ -92,20 +92,20 @@ services:
         condition: service_healthy
       mysql:
         condition: service_healthy
-      user-service:
+      iam-service:
         condition: service_started
     networks:
       - superpowers
 
-  user-service:
+  iam-service:
     build:
       context: ..
-      dockerfile: services/user-service/Dockerfile
+      dockerfile: services/iam-service/Dockerfile
     ports:
-      - "6000:8080"
+      - "6002:8080"
     environment:
       SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "6000"
+      SERVER_PORT: "8080"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
       DATABASE_USER: root
@@ -125,7 +125,7 @@ services:
       context: ..
       dockerfile: services/notification-service/Dockerfile
     ports:
-      - "8083:8083"
+      - "6003:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -135,6 +135,7 @@ services:
         condition: service_healthy
     environment:
       CONSUL_ADDR: "http://consul:8500"
+      SERVER_PORT: "8080"
     volumes:
       - ../docker/config/notification-service:/app/config:ro
     networks:

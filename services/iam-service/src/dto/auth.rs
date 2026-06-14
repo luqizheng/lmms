@@ -66,8 +66,9 @@ pub struct UserInfo {
 pub struct SessionInfo {
     pub id: String,
     pub user_id: String,
-    pub username: String,
-    pub ip_address: String,
+    pub client_ip: String,
     pub user_agent: Option<String>,
-    pub login_at: String,
+    pub created_at: String,
+    pub expires_at: String,
+    pub is_current: bool,
 }

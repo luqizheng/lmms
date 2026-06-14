@@ -49,6 +49,8 @@ prometheus = "0.13"
 prometheus-exporter = "0.1"
 utoipa = { version = "4", features = ["axum_extras", "swagger_ui"] }
 utoipa-swagger-ui = "4"
+sha2 = "0.10"
+hex = "0.4"
 
 [dev-dependencies]
 testcontainers = "0.20"
