@@ -46,7 +46,7 @@ redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 nanoid = "0.4"
 validator = { version = "0.18", features = ["derive"] }
 prometheus = "0.13"
-prometheus-exporter = "0.1"
+prometheus_exporter = "0.1"
 utoipa = { version = "4", features = ["axum_extras", "swagger_ui"] }
 utoipa-swagger-ui = "4"
 sha2 = "0.10"

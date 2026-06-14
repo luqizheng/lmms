@@ -75,6 +75,9 @@ services:
       dockerfile: services/token-service/Dockerfile
     ports:
       - "6001:8080"
+    volumes:
+      - ../docker/secrets:/app/keys
+      - ../docker/config/token-service:/app/config
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
@@ -86,14 +89,13 @@ services:
       DATABASE_NAME: superpowers
       TS_JWT_PRIVATE_KEY_PATH: "/app/keys/private.pem"
       TS_JWT_PUBLIC_KEY_PATH: "/app/keys/public.pem"
-      TS_CLIENTS_FILE_PATH: "/app/clients.json"
+      TS_CLIENTS_FILE_PATH: "/app/config/clients.json"
+      TS_CONSUL_ADDR: "http://consul:8500"
     depends_on:
       redis:
         condition: service_healthy
       mysql:
         condition: service_healthy
-      iam-service:
-        condition: service_started
     networks:
       - superpowers
 

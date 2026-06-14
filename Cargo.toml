@@ -46,7 +46,7 @@ rand = "0.8"
 base64 = "0.22"
 rsa = "0.9"
 rustls = { version = "0.23", default-features = false, features = ["logging", "std", "tls12", "aws_lc_rs"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-no-provider"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 hyper = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
@@ -58,3 +58,6 @@ async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 aes-gcm = "0.10"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls"] }
+sha2 = "0.10"
+csv = "1.3"
+futures = "0.3"
