@@ -3,7 +3,14 @@ name = "common-config"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+consul = ["dep:reqwest", "dep:base64"]
+
 [dependencies]
 config.workspace = true
 serde.workspace = true
 common-error = { path = "../common-error" }
+reqwest = { workspace = true, optional = true, default-features = false }
+base64 = { workspace = true, optional = true }
+tokio = { workspace = true }

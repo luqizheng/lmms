@@ -81,40 +81,75 @@ pub mod perms {
 pub fn is_valid(perm: &str) -> bool {
     matches!(perm,
         "IAM_USER_CREATE"
-        | "IAM_USER_READ"
-        | "IAM_USER_UPDATE"
-        | "IAM_USER_DELETE"
-        | "IAM_USER_EXPORT"
-        | "IAM_USER_IMPORT"
-        | "IAM_ROLE_CREATE"
-        | "IAM_ROLE_READ"
-        | "IAM_ROLE_UPDATE"
-        | "IAM_ROLE_DELETE"
-        | "IAM_PERM_READ"
-        | "IAM_PERM_ASSIGN"
-        | "IAM_MENU_CREATE"
-        | "IAM_MENU_READ"
-        | "IAM_MENU_UPDATE"
-        | "IAM_MENU_DELETE"
-        | "IAM_ORG_CREATE"
-        | "IAM_ORG_READ"
-        | "IAM_ORG_UPDATE"
-        | "IAM_ORG_DELETE"
-        | "CFG_CONFIG_CREATE"
-        | "CFG_CONFIG_READ"
-        | "CFG_CONFIG_UPDATE"
-        | "CFG_CONFIG_DELETE"
-        | "AUD_LOG_READ"
-        | "AUD_LOG_EXPORT"
-        | "NTF_TEMPLATE_CREATE"
-        | "NTF_TEMPLATE_READ"
-        | "NTF_TEMPLATE_UPDATE"
-        | "NTF_TEMPLATE_DELETE"
-        | "NTF_MESSAGE_READ"
-        | "FILE_UPLOAD"
-        | "FILE_DOWNLOAD"
-        | "FILE_DELETE"
-        | "SYS_SETTING_READ"
-        | "SYS_SETTING_UPDATE"
+        |
+        "IAM_USER_READ"
+        |
+        "IAM_USER_UPDATE"
+        |
+        "IAM_USER_DELETE"
+        |
+        "IAM_USER_EXPORT"
+        |
+        "IAM_USER_IMPORT"
+        |
+        "IAM_ROLE_CREATE"
+        |
+        "IAM_ROLE_READ"
+        |
+        "IAM_ROLE_UPDATE"
+        |
+        "IAM_ROLE_DELETE"
+        |
+        "IAM_PERM_READ"
+        |
+        "IAM_PERM_ASSIGN"
+        |
+        "IAM_MENU_CREATE"
+        |
+        "IAM_MENU_READ"
+        |
+        "IAM_MENU_UPDATE"
+        |
+        "IAM_MENU_DELETE"
+        |
+        "IAM_ORG_CREATE"
+        |
+        "IAM_ORG_READ"
+        |
+        "IAM_ORG_UPDATE"
+        |
+        "IAM_ORG_DELETE"
+        |
+        "CFG_CONFIG_CREATE"
+        |
+        "CFG_CONFIG_READ"
+        |
+        "CFG_CONFIG_UPDATE"
+        |
+        "CFG_CONFIG_DELETE"
+        |
+        "AUD_LOG_READ"
+        |
+        "AUD_LOG_EXPORT"
+        |
+        "NTF_TEMPLATE_CREATE"
+        |
+        "NTF_TEMPLATE_READ"
+        |
+        "NTF_TEMPLATE_UPDATE"
+        |
+        "NTF_TEMPLATE_DELETE"
+        |
+        "NTF_MESSAGE_READ"
+        |
+        "FILE_UPLOAD"
+        |
+        "FILE_DOWNLOAD"
+        |
+        "FILE_DELETE"
+        |
+        "SYS_SETTING_READ"
+        |
+        "SYS_SETTING_UPDATE"
     )
 }
