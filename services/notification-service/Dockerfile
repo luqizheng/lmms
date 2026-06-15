@@ -1,35 +1,20 @@
-FROM rust:1.96-slim AS builder
-RUN export RUSTUP_DIST_SERVER="https://rsproxy.cn"
-RUN export RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup"
-RUN curl --proto '=https' --tlsv1.2 -sSf https://rsproxy.cn/rustup-init.sh | sh
-
-RUN mkdir -p /root/.cargo && cat > /root/.cargo/config.toml << 'EOF'
-[source.crates-io]
-replace-with = 'rsproxy-sparse'
-[source.rsproxy]
-registry = "https://rsproxy.cn/crates.io-index"
-[source.rsproxy-sparse]
-registry = "sparse+https://rsproxy.cn/index/"
-[registries.rsproxy]
-index = "https://rsproxy.cn/crates.io-index"
-[net]
-git-fetch-with-cli = true
-[target.x86_64-unknown-linux-musl]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
-EOF
-RUN apt-get update && apt-get install -y clang lld mold 2>&1 | tail -2 || true
+FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
+USER root
+WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY libs/ libs/
 COPY services/ services/
 COPY sdk sdk
-RUN cargo build --release --target x86_64-unknown-linux-musl -p notification-service
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    cargo build --release --target x86_64-unknown-linux-musl -p notification-service && \
+    cp /app/target/x86_64-unknown-linux-musl/release/notification-service /app/notification-service
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/notification-service /usr/local/bin/notification-service
+COPY --from=builder /app/notification-service /usr/local/bin/notification-service
 COPY services/notification-service/config /app/config
 EXPOSE 8083
 CMD ["notification-service", "/app/config/config.yaml"]

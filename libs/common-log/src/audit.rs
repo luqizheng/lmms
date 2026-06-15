@@ -2,6 +2,7 @@ use common_error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -100,7 +101,7 @@ impl AuditClient {
         }
 
         let file_path = Path::new(path);
-        let file = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(file_path)

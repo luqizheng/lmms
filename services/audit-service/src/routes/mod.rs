@@ -8,26 +8,24 @@ use crate::services::{AuditService, CleanupService};
 use crate::models::RetentionPolicy;
 use crate::error::AppResult;
 use axum::Router;
-use common_db::DbPool;
+use sqlx::mysql::MySqlPool;
 
 pub type AppState = Arc<AppServices>;
 
 pub struct AppServices {
     pub audit: AuditService,
     pub cleanup: CleanupService,
-    pub policy: RetentionPolicy,
 }
 
 impl AppServices {
-    pub async fn new(pool: DbPool) -> AppResult<Self> {
+    pub async fn new(pool: MySqlPool) -> AppResult<Self> {
         let policy = RetentionPolicy::default();
-        let audit = AuditService::new(pool.clone());
-        let cleanup = CleanupService::new(pool, policy.clone());
+        let audit = AuditService::new(&pool);
+        let cleanup = CleanupService::new(&pool, policy);
 
         Ok(Self {
             audit,
             cleanup,
-            policy,
         })
     }
 
@@ -51,10 +49,9 @@ pub fn routes(state: AppState) -> Router {
         .nest("/audit", retention::routes(state.clone()))
 }
 
-pub fn create_state(pool: DbPool) -> AppState {
+pub fn create_state(pool: MySqlPool) -> AppState {
     Arc::new(AppServices {
-        audit: AuditService::new(pool.clone()),
-        cleanup: CleanupService::new(pool, RetentionPolicy::default()),
-        policy: RetentionPolicy::default(),
+        audit: AuditService::new(&pool),
+        cleanup: CleanupService::new(&pool, RetentionPolicy::default()),
     })
 }

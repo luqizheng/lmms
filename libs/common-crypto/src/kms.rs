@@ -36,24 +36,22 @@ impl LocalKms {
 impl KmsClient for LocalKms {
     async fn encrypt(&self, key_id: &str, plaintext: &[u8]) -> AppResult<Vec<u8>> {
         let derived_key = self.derive_key(key_id.as_bytes());
-        
-        use common_crypto::aead::Aes256Gcm;
-        let cipher = Aes256Gcm::new(&derived_key);
-        
-        cipher
-            .encrypt(plaintext)
-            .map_err(|e| AppError::internal("KMS_ENCRYPT", e.to_string()))
+
+        let mut key = [0u8; 32];
+        let n = derived_key.len().min(32);
+        key[..n].copy_from_slice(&derived_key[..n]);
+        let aead = crate::aead::Aead::new(&key);
+        aead.seal(plaintext, key_id.as_bytes())
     }
 
     async fn decrypt(&self, key_id: &str, ciphertext: &[u8]) -> AppResult<Vec<u8>> {
         let derived_key = self.derive_key(key_id.as_bytes());
-        
-        use common_crypto::aead::Aes256Gcm;
-        let cipher = Aes256Gcm::new(&derived_key);
-        
-        cipher
-            .decrypt(ciphertext)
-            .map_err(|e| AppError::internal("KMS_DECRYPT", e.to_string()))
+
+        let mut key = [0u8; 32];
+        let n = derived_key.len().min(32);
+        key[..n].copy_from_slice(&derived_key[..n]);
+        let aead = crate::aead::Aead::new(&key);
+        aead.open(ciphertext, key_id.as_bytes())
     }
 
     async fn generate_data_key(&self, key_id: &str) -> AppResult<DataKey> {
@@ -66,8 +64,6 @@ impl KmsClient for LocalKms {
         Ok(DataKey { plaintext, encrypted })
     }
 }
-
-pub type KmsClient = dyn KmsClient;
 
 #[cfg(test)]
 mod tests {

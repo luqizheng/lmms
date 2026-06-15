@@ -8,31 +8,31 @@
 
 /// 达梦保留字
 pub const DAMENG_RESERVED_WORDS: &[&str] = &[
-    "USER",      -- 用户相关
-    "SESSION",   -- 会话相关
-    "TABLE",     -- 表
-    "VIEW",      -- 视图
-    "INDEX",     -- 索引
-    "SEQUENCE",  -- 序列
-    "SYNONYM",   -- 同义词
-    "PROCEDURE", -- 存储过程
-    "FUNCTION",  -- 函数
-    "PACKAGE",   -- 包
-    "TRIGGER",   -- 触发器
-    "DATABASE",  -- 数据库
-    "SCHEMA",    -- 模式
-    "ROLE",      -- 角色
-    "GRANT",     -- 授权
-    "REVOKE",    -- 撤销
-    "COMMIT",    -- 提交
-    "ROLLBACK",  -- 回滚
-    "SAVEPOINT", -- 保存点
-    "CONNECT",   -- 连接
-    "IDENTIFIED",-- 认证
-    "PROFILE",   -- 配置文件
-    "DEFAULT",   -- 默认
-    "TEMP",      -- 临时
-    "TEMPORARY", -- 临时
+    "USER",      /* 用户相关 */
+    "SESSION",   /* 会话相关 */
+    "TABLE",     /* 表 */
+    "VIEW",      /* 视图 */
+    "INDEX",     /* 索引 */
+    "SEQUENCE",  /* 序列 */
+    "SYNONYM",   /* 同义词 */
+    "PROCEDURE", /* 存储过程 */
+    "FUNCTION",  /* 函数 */
+    "PACKAGE",   /* 包 */
+    "TRIGGER",   /* 触发器 */
+    "DATABASE",  /* 数据库 */
+    "SCHEMA",    /* 模式 */
+    "ROLE",      /* 角色 */
+    "GRANT",     /* 授权 */
+    "REVOKE",    /* 撤销 */
+    "COMMIT",    /* 提交 */
+    "ROLLBACK",  /* 回滚 */
+    "SAVEPOINT", /* 保存点 */
+    "CONNECT",   /* 连接 */
+    "IDENTIFIED",/* 认证 */
+    "PROFILE",   /* 配置文件 */
+    "DEFAULT",   /* 默认 */
+    "TEMP",      /* 临时 */
+    "TEMPORARY", /* 临时 */
 ];
 
 /// 达梦自增语法

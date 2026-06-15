@@ -1,4 +1,4 @@
-use file_service::{config::AppConfig, routes, storage::LocalStorage, create_state};
+use file_service::{config::AppConfig, routes::{self, create_state}, storage::LocalStorage};
 use common_db::init_pool;
 use common_log::init_json;
 use std::net::SocketAddr;
@@ -28,7 +28,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");
     tracing::info!("file-service listening on {}", addr);
 
-    let app = routes(state);
+    let app = routes::routes(state);
     
     axum::serve(listener, app).await.expect("Server error");
 }

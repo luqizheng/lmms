@@ -1,4 +1,6 @@
 use common_error::AppResult;
+use hmac::{Hmac as HmacCore, Mac};
+use sha2::{Sha256, Sha512};
 
 pub trait Hmac: Clone {
     fn mac(&self, key: &[u8], message: &[u8]) -> Vec<u8>;
@@ -6,54 +8,34 @@ pub trait Hmac: Clone {
 }
 
 #[derive(Clone)]
-pub struct HmacSha256 {
-    inner: hmac_sha256::HMAC,
-}
-
-impl HmacSha256 {
-    pub fn new(key: &[u8]) -> Self {
-        Self {
-            inner: hmac_sha256::HMAC::new(key),
-        }
-    }
-}
+pub struct HmacSha256;
 
 impl Hmac for HmacSha256 {
     fn mac(&self, key: &[u8], message: &[u8]) -> Vec<u8> {
-        let mut hmac = hmac_sha256::HMAC::new(key);
-        hmac.write(message);
-        hmac.finalize().to_vec()
+        let mut mac =
+            <HmacCore<Sha256> as Mac>::new_from_slice(key).expect("HMAC-SHA256 key length");
+        mac.update(message);
+        mac.finalize().into_bytes().to_vec()
     }
 
     fn verify(&self, key: &[u8], message: &[u8], expected: &[u8]) -> bool {
-        let computed = self.mac(key, message);
-        constant_time_eq(&computed, expected)
+        constant_time_eq(&self.mac(key, message), expected)
     }
 }
 
 #[derive(Clone)]
-pub struct HmacSha512 {
-    inner: hmac_sha512::HMAC,
-}
-
-impl HmacSha512 {
-    pub fn new(key: &[u8]) -> Self {
-        Self {
-            inner: hmac_sha512::HMAC::new(key),
-        }
-    }
-}
+pub struct HmacSha512;
 
 impl Hmac for HmacSha512 {
     fn mac(&self, key: &[u8], message: &[u8]) -> Vec<u8> {
-        let mut hmac = hmac_sha512::HMAC::new(key);
-        hmac.write(message);
-        hmac.finalize().to_vec()
+        let mut mac =
+            <HmacCore<Sha512> as Mac>::new_from_slice(key).expect("HMAC-SHA512 key length");
+        mac.update(message);
+        mac.finalize().into_bytes().to_vec()
     }
 
     fn verify(&self, key: &[u8], message: &[u8], expected: &[u8]) -> bool {
-        let computed = self.mac(key, message);
-        constant_time_eq(&computed, expected)
+        constant_time_eq(&self.mac(key, message), expected)
     }
 }
 
@@ -61,7 +43,7 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    
+
     let mut result = 0u8;
     for (x, y) in a.iter().zip(b.iter()) {
         result |= x ^ y;
@@ -69,32 +51,30 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     result == 0
 }
 
-pub type Hmac = dyn Hmac;
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_hmac_sha256() {
-        let hmac = HmacSha256::new(b"secret");
+        let hmac = HmacSha256;
         let message = b"Hello, HMAC!";
-        
+
         let digest = hmac.mac(b"secret", message);
         assert_eq!(digest.len(), 32);
-        
+
         assert!(hmac.verify(b"secret", message, &digest));
         assert!(!hmac.verify(b"wrong", message, &digest));
     }
 
     #[test]
     fn test_hmac_sha512() {
-        let hmac = HmacSha512::new(b"secret");
+        let hmac = HmacSha512;
         let message = b"Hello, HMAC!";
-        
+
         let digest = hmac.mac(b"secret", message);
         assert_eq!(digest.len(), 64);
-        
+
         assert!(hmac.verify(b"secret", message, &digest));
     }
 }

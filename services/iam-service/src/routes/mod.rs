@@ -15,7 +15,7 @@ pub fn build_router(state: AppState) -> Router {
         let metric_families = prometheus::gather();
         let mut buffer = Vec::new();
         encoder.encode(&metric_families, &mut buffer).unwrap();
-        String::from_utf8(buffer).unwrap()
+        axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
     Router::new()

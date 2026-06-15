@@ -26,7 +26,7 @@ impl Hash for Blake3 {
         use blake3::Hasher;
         let mut hasher = Hasher::new();
         hasher.update(data);
-        hasher.finalize().to_vec()
+        hasher.finalize().as_bytes().to_vec()
     }
 
     fn hash_hex(data: &[u8]) -> String {
@@ -36,8 +36,6 @@ impl Hash for Blake3 {
         hasher.finalize().to_hex().to_string()
     }
 }
-
-pub type Hash = dyn Hash;
 
 #[cfg(test)]
 mod tests {

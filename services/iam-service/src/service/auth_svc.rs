@@ -267,7 +267,7 @@ impl AuthService {
 
     async fn record_login_log(
         &self,
-        user_id: &Option<String>,
+        user_id: &str,
         username: &str,
         ip_address: &str,
         user_agent: &str,

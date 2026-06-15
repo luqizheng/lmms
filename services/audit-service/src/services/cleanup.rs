@@ -1,140 +1,84 @@
 use crate::error::AppResult;
-use crate::models::{RetentionPolicy, RetentionStats, DataStage};
-use common_db::DbPool;
+use crate::models::{RetentionPolicy, RetentionStats};
+use sqlx::mysql::MySqlPool;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
-use tracing::{info, warn};
+use tracing::info;
 
 pub struct CleanupService {
-    pool: DbPool,
-    policy: RetentionPolicy,
+    pool: MySqlPool,
+    policy: Arc<RwLock<RetentionPolicy>>,
     running: Arc<RwLock<bool>>,
 }
 
 impl CleanupService {
-    pub fn new(pool: DbPool, policy: RetentionPolicy) -> Self {
+    pub fn new(pool: &MySqlPool, policy: RetentionPolicy) -> Self {
         Self {
-            pool,
-            policy,
+            pool: pool.clone(),
+            policy: Arc::new(RwLock::new(policy)),
             running: Arc::new(RwLock::new(false)),
         }
     }
 
     pub async fn get_stats(&self) -> AppResult<RetentionStats> {
-        let hot_cutoff = self.policy.hot_cutoff();
-        let warm_cutoff = self.policy.warm_cutoff();
-        let cold_cutoff = self.policy.cold_cutoff();
+        let policy = self.policy.read().await;
+        let hot_cutoff = policy.hot_cutoff();
+        let warm_cutoff = policy.warm_cutoff();
+        let cold_cutoff = policy.cold_cutoff();
 
-        let (hot_count, warm_count, cold_count, expired_count) = match &self.pool {
-            #[cfg(feature = "mysql")]
-            common_db::DbPool::Mysql(p) => {
-                let hot: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at >= ?"
-                )
-                .bind(hot_cutoff)
-                .fetch_one(p)
-                .await?;
+        let hot: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM operation_logs WHERE created_at >= ?"
+        )
+        .bind(hot_cutoff)
+        .fetch_one(&self.pool)
+        .await?;
 
-                let warm: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at < ? AND created_at >= ?"
-                )
-                .bind(hot_cutoff)
-                .bind(warm_cutoff)
-                .fetch_one(p)
-                .await?;
+        let warm: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM operation_logs WHERE created_at < ? AND created_at >= ?"
+        )
+        .bind(hot_cutoff)
+        .bind(warm_cutoff)
+        .fetch_one(&self.pool)
+        .await?;
 
-                let cold: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at < ? AND created_at >= ?"
-                )
-                .bind(warm_cutoff)
-                .bind(cold_cutoff)
-                .fetch_one(p)
-                .await?;
+        let cold: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM operation_logs WHERE created_at < ? AND created_at >= ?"
+        )
+        .bind(warm_cutoff)
+        .bind(cold_cutoff)
+        .fetch_one(&self.pool)
+        .await?;
 
-                let expired: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at < ?"
-                )
-                .bind(cold_cutoff)
-                .fetch_one(p)
-                .await?;
-
-                (hot.0, warm.0, cold.0, expired.0)
-            }
-            #[cfg(feature = "sqlite")]
-            common_db::DbPool::Sqlite(p) => {
-                let hot: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at >= ?1"
-                )
-                .bind(hot_cutoff)
-                .fetch_one(p)
-                .await?;
-
-                let warm: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at < ?1 AND created_at >= ?2"
-                )
-                .bind(hot_cutoff)
-                .bind(warm_cutoff)
-                .fetch_one(p)
-                .await?;
-
-                let cold: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at < ?1 AND created_at >= ?2"
-                )
-                .bind(warm_cutoff)
-                .bind(cold_cutoff)
-                .fetch_one(p)
-                .await?;
-
-                let expired: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM operation_logs WHERE created_at < ?1"
-                )
-                .bind(cold_cutoff)
-                .fetch_one(p)
-                .await?;
-
-                (hot.0, warm.0, cold.0, expired.0)
-            }
-        };
+        let expired: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM operation_logs WHERE created_at < ?"
+        )
+        .bind(cold_cutoff)
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(RetentionStats {
-            hot_count,
-            warm_count,
-            cold_count,
-            expired_count,
+            hot_count: hot.0,
+            warm_count: warm.0,
+            cold_count: cold.0,
+            expired_count: expired.0,
             total_size_bytes: 0,
             last_cleanup: None,
         })
     }
 
     pub async fn cleanup_expired(&self) -> AppResult<CleanupResult> {
-        let cold_cutoff = self.policy.cold_cutoff();
-        let mut deleted_count = 0i64;
+        let policy = self.policy.read().await;
+        let cold_cutoff = policy.cold_cutoff();
 
-        match &self.pool {
-            #[cfg(feature = "mysql")]
-            common_db::DbPool::Mysql(p) => {
-                let result = sqlx::query(
-                    "DELETE FROM operation_logs WHERE created_at < ?"
-                )
-                .bind(cold_cutoff)
-                .execute(p)
-                .await?;
+        let result = sqlx::query(
+            "DELETE FROM operation_logs WHERE created_at < ?"
+        )
+        .bind(cold_cutoff)
+        .execute(&self.pool)
+        .await?;
 
-                deleted_count = result.rows_affected() as i64;
-            }
-            #[cfg(feature = "sqlite")]
-            common_db::DbPool::Sqlite(p) => {
-                let result = sqlx::query(
-                    "DELETE FROM operation_logs WHERE created_at < ?1"
-                )
-                .bind(cold_cutoff)
-                .execute(p)
-                .await?;
-
-                deleted_count = result.rows_affected() as i64;
-            }
-        }
+        let deleted_count = result.rows_affected() as i64;
 
         info!(
             "Cleanup completed: {} expired records deleted",
@@ -173,40 +117,23 @@ impl CleanupService {
 
                 info!("Running scheduled cleanup task");
                 
-                let cutoff = policy.cold_cutoff();
-                let mut deleted = 0i64;
+                let cutoff = {
+                    let p = policy.read().await;
+                    p.cold_cutoff()
+                };
 
-                match &pool {
-                    #[cfg(feature = "mysql")]
-                    common_db::DbPool::Mysql(p) => {
-                        let result = sqlx::query(
-                            "DELETE FROM operation_logs WHERE created_at < ?"
-                        )
-                        .bind(cutoff)
-                        .execute(p)
-                        .await;
+                let result = sqlx::query(
+                    "DELETE FROM operation_logs WHERE created_at < ?"
+                )
+                .bind(cutoff)
+                .execute(&pool)
+                .await;
 
-                        if let Ok(r) = result {
-                            deleted = r.rows_affected() as i64;
-                        }
+                if let Ok(r) = result {
+                    let deleted = r.rows_affected() as i64;
+                    if deleted > 0 {
+                        info!("Scheduled cleanup deleted {} records", deleted);
                     }
-                    #[cfg(feature = "sqlite")]
-                    common_db::DbPool::Sqlite(p) => {
-                        let result = sqlx::query(
-                            "DELETE FROM operation_logs WHERE created_at < ?1"
-                        )
-                        .bind(cutoff)
-                        .execute(p)
-                        .await;
-
-                        if let Ok(r) = result {
-                            deleted = r.rows_affected() as i64;
-                        }
-                    }
-                }
-
-                if deleted > 0 {
-                    info!("Scheduled cleanup deleted {} records", deleted);
                 }
             }
         });
@@ -216,10 +143,19 @@ impl CleanupService {
         let mut is_running = self.running.write().await;
         *is_running = false;
     }
+
+    pub async fn update_policy(&self, policy: RetentionPolicy) {
+        let mut p = self.policy.write().await;
+        *p = policy;
+    }
+
+    pub async fn get_policy(&self) -> RetentionPolicy {
+        self.policy.read().await.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct CleanupResult {
     pub deleted_count: i64,
-    pub cutoff_date: chrono::DateTime<Utc>,
+    pub cutoff_date: chrono::DateTime<chrono::Utc>,
 }

@@ -1,9 +1,8 @@
-use crate::error::{AppError, AppResult};
+use common_error::{AppError, AppResult};
 use crate::storage::object_store::{ByteStream, ObjectStore};
 use bytes::Bytes;
-use futures::stream;
+use futures::StreamExt;
 use std::path::PathBuf;
-use std::pin::Pin;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 
@@ -31,12 +30,12 @@ impl ObjectStore for LocalStorage {
         if let Some(parent) = full_path.parent() {
             fs::create_dir_all(parent)
                 .await
-                .map_err(|e| AppError::file_upload_failed(e.to_string()))?;
+                .map_err(|e| AppError::internal("FILE_UPLOAD_2001", e.to_string()))?;
         }
         
         fs::write(&full_path, &data)
             .await
-            .map_err(|e| AppError::file_upload_failed(e.to_string()))?;
+            .map_err(|e| AppError::internal("FILE_UPLOAD_2001", e.to_string()))?;
         
         Ok(())
     }
@@ -46,7 +45,7 @@ impl ObjectStore for LocalStorage {
         
         let mut file = fs::File::open(&full_path)
             .await
-            .map_err(|e| AppError::file_not_found(e.to_string()))?;
+            .map_err(|e| AppError::not_found("FILE_ITEM_1001", e.to_string()))?;
         
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)
@@ -61,7 +60,7 @@ impl ObjectStore for LocalStorage {
         
         let file = fs::File::open(&full_path)
             .await
-            .map_err(|e| AppError::file_not_found(e.to_string()))?;
+            .map_err(|e| AppError::not_found("FILE_ITEM_1001", e.to_string()))?;
         
         let stream = tokio_util::io::ReaderStream::new(file);
         Ok(Box::pin(stream.map(|r| r.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)))))
@@ -89,7 +88,7 @@ impl ObjectStore for LocalStorage {
         
         let metadata = fs::metadata(&full_path)
             .await
-            .map_err(|e| AppError::file_not_found(e.to_string()))?;
+            .map_err(|e| AppError::not_found("FILE_ITEM_1001", e.to_string()))?;
         
         Ok(metadata.len() as i64)
     }

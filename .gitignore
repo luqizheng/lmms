@@ -1,6 +1,7 @@
 /target
 /reasonix
 /.reasonix
+/.temp/
 *.swp
 *.swo
 .DS_Store

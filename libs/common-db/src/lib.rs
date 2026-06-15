@@ -4,28 +4,30 @@ pub mod test_kit;
 
 use common_error::{AppError, AppResult};
 use dialect::DialectKind;
-use sqlx::{mysql::MySql, sqlite::Sqlite, mssql::Mssql, Pool};
+use sqlx::{mysql::MySql, sqlite::Sqlite, Pool};
 
 #[derive(Debug)]
 pub enum DbPool {
+    #[cfg(feature = "mysql")]
     Mysql(Pool<MySql>),
+    #[cfg(feature = "sqlite")]
     Sqlite(Pool<Sqlite>),
-    Mssql(Pool<Mssql>),
 }
 
 impl DbPool {
     pub fn dialect(&self) -> DialectKind {
         match self {
+            #[cfg(feature = "mysql")]
             Self::Mysql(_) => DialectKind::Mysql,
+            #[cfg(feature = "sqlite")]
             Self::Sqlite(_) => DialectKind::Sqlite,
-            Self::Mssql(_) => DialectKind::Mssql,
         }
     }
 }
 
 pub async fn init_pool(database_url: &str) -> AppResult<DbPool> {
     let dialect = DialectKind::from_url(database_url);
-    
+
     match dialect {
         #[cfg(feature = "mysql")]
         DialectKind::Mysql | DialectKind::Dameng => {
@@ -45,17 +47,10 @@ pub async fn init_pool(database_url: &str) -> AppResult<DbPool> {
                 .map_err(|e| AppError::internal("DB_CONNECT", e.to_string()))?;
             Ok(DbPool::Sqlite(pool))
         }
-        #[cfg(feature = "mssql")]
-        DialectKind::Mssql => {
-            let pool = sqlx::mssql::MssqlPoolOptions::new()
-                .max_connections(10)
-                .connect(database_url)
-                .await
-                .map_err(|e| AppError::internal("DB_CONNECT", e.to_string()))?;
-            Ok(DbPool::Mssql(pool))
-        }
-        #[cfg(not(any(feature = "mysql", feature = "sqlite", feature = "mssql")))]
-        _ => Err(AppError::internal("DB_FEATURE", "no database feature enabled")),
+        _ => Err(AppError::internal(
+            "DB_FEATURE",
+            "no database feature enabled for the requested dialect",
+        )),
     }
 }
 
@@ -67,106 +62,63 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
         DialectKind::Sqlite => "sqlite",
         DialectKind::Mssql => "mssql",
     };
-    
-    let path = format!("{}/{}", migrations_path, dialect_str);
-    
+
+    let _ = format!("{}/{}", migrations_path, dialect_str);
+
     match pool {
         #[cfg(feature = "mysql")]
-        DbPool::Mysql(p) => {
-            sqlx::migrate!(&path)
-                .run(p)
-                .await
-                .map_err(|e| AppError::internal("DB_MIGRATE", e.to_string()))?;
+        DbPool::Mysql(_p) => {
+            // 迁移路径需在编译期已知，运行期路径迁移请使用 sqlx::migrate::Migrator
+            return Err(AppError::internal(
+                "DB_MIGRATE",
+                "runtime migration path not supported; use embedded Migrator",
+            ));
         }
         #[cfg(feature = "sqlite")]
-        DbPool::Sqlite(p) => {
-            sqlx::migrate!(&path)
-                .run(p)
-                .await
-                .map_err(|e| AppError::internal("DB_MIGRATE", e.to_string()))?;
-        }
-        #[cfg(feature = "mssql")]
-        DbPool::Mssql(p) => {
-            sqlx::migrate!(&path)
-                .run(p)
-                .await
-                .map_err(|e| AppError::internal("DB_MIGRATE", e.to_string()))?;
+        DbPool::Sqlite(_p) => {
+            return Err(AppError::internal(
+                "DB_MIGRATE",
+                "runtime migration path not supported; use embedded Migrator",
+            ));
         }
     }
-    
-    Ok(())
 }
-
-#[cfg(feature = "mysql")]
-use sqlx::mysql::MySqlPool;
-#[cfg(feature = "sqlite")]
-use sqlx::sqlite::SqlitePool;
-#[cfg(feature = "mssql")]
-use sqlx::mssql::MssqlPool;
 
 pub struct Transaction<'a> {
     #[cfg(feature = "mysql")]
     mysql: Option<sqlx::Transaction<'a, MySql>>,
     #[cfg(feature = "sqlite")]
     sqlite: Option<sqlx::Transaction<'a, Sqlite>>,
-    #[cfg(feature = "mssql")]
-    mssql: Option<sqlx::Transaction<'a, Mssql>>,
+    #[cfg(not(any(feature = "mysql", feature = "sqlite")))]
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> Transaction<'a> {
-    #[cfg(feature = "mysql")]
     pub async fn commit(mut self) -> AppResult<()> {
-        if let Some(mut tx) = self.mysql.take() {
+        #[cfg(feature = "mysql")]
+        if let Some(tx) = self.mysql.take() {
+            tx.commit()
+                .await
+                .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
+        }
+        #[cfg(feature = "sqlite")]
+        if let Some(tx) = self.sqlite.take() {
             tx.commit()
                 .await
                 .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
         }
         Ok(())
     }
-    
-    #[cfg(feature = "sqlite")]
-    pub async fn commit(mut self) -> AppResult<()> {
-        if let Some(mut tx) = self.sqlite.take() {
-            tx.commit()
-                .await
-                .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
-        }
-        Ok(())
-    }
-    
-    #[cfg(feature = "mssql")]
-    pub async fn commit(mut self) -> AppResult<()> {
-        if let Some(mut tx) = self.mssql.take() {
-            tx.commit()
-                .await
-                .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
-        }
-        Ok(())
-    }
-    
-    #[cfg(feature = "mysql")]
+
     pub async fn rollback(mut self) -> AppResult<()> {
-        if let Some(mut tx) = self.mysql.take() {
+        #[cfg(feature = "mysql")]
+        if let Some(tx) = self.mysql.take() {
             tx.rollback()
                 .await
                 .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;
         }
-        Ok(())
-    }
-    
-    #[cfg(feature = "sqlite")]
-    pub async fn rollback(mut self) -> AppResult<()> {
-        if let Some(mut tx) = self.sqlite.take() {
-            tx.rollback()
-                .await
-                .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;
-        }
-        Ok(())
-    }
-    
-    #[cfg(feature = "mssql")]
-    pub async fn rollback(mut self) -> AppResult<()> {
-        if let Some(mut tx) = self.mssql.take() {
+        #[cfg(feature = "sqlite")]
+        if let Some(tx) = self.sqlite.take() {
             tx.rollback()
                 .await
                 .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;

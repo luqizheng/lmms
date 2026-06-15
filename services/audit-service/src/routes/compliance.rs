@@ -3,7 +3,7 @@ use axum::{
     http::{header, HeaderMap},
     Json, Router,
 };
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::models::ExportFormat;
 use crate::routes::AppState;
 
@@ -48,7 +48,7 @@ async fn export_operation_json(
 ) -> AppResult<impl axum::response::IntoResponse> {
     let logs = state.audit.get_user_operation_logs(&user_id, 10000).await?;
     let json = serde_json::to_string_pretty(&logs)
-        .map_err(|e| crate::error::AppError::internal("EXPORT_JSON", e.to_string()))?;
+        .map_err(|e| AppError::internal("EXPORT_JSON", e.to_string()))?;
 
     Ok((
         [(header::CONTENT_TYPE, "application/json")],
@@ -62,17 +62,19 @@ async fn export_login_csv(
 ) -> AppResult<impl axum::response::IntoResponse> {
     let logs = state.audit.get_user_login_logs(&user_id, 10000).await?;
     
-    let mut csv = String::from("id,user_id,login_type,status,ip_address,user_agent,geo_location,created_at\n");
+    let mut csv = String::from("id,user_id,username,success,fail_reason,ip_address,location,user_agent,request_id,created_at\n");
     for log in logs {
         csv.push_str(&format!(
-            "{},{},{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{},{},{}\n",
             log.id,
-            log.user_id,
-            log.login_type,
-            log.status,
-            log.ip_address.unwrap_or_default(),
+            log.user_id.unwrap_or_default(),
+            log.username,
+            log.success,
+            log.fail_reason.unwrap_or_default(),
+            log.ip_address,
+            log.location.unwrap_or_default(),
             log.user_agent.unwrap_or_default(),
-            log.geo_location.unwrap_or_default(),
+            log.request_id,
             log.created_at.to_rfc3339()
         ));
     }

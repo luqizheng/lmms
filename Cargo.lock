@@ -189,7 +189,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "utoipa",
- "utoipa-swagger-ui",
 ]
 
 [[package]]
@@ -284,6 +283,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "chrono",
+ "common",
  "common-cache",
  "common-db",
  "common-error",
@@ -813,8 +813,6 @@ dependencies = [
  "common-error",
  "hex",
  "hmac",
- "hmac-sha256",
- "hmac-sha512",
  "rand 0.8.6",
  "rsa",
  "sha2",
@@ -926,6 +924,7 @@ dependencies = [
  "tokio 1.52.3",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -1622,6 +1621,7 @@ dependencies = [
 name = "file-service"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum",
  "bytes 1.11.1",
  "chrono",
@@ -1630,10 +1630,12 @@ dependencies = [
  "common-error",
  "common-log",
  "futures 0.3.32",
+ "prometheus 0.13.4",
  "serde",
  "serde_json",
  "sqlx",
  "tokio 1.52.3",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -3221,7 +3223,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "utoipa",
- "utoipa-swagger-ui",
 ]
 
 [[package]]

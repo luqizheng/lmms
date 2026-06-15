@@ -1,7 +1,8 @@
 use aes_gcm::{
     aead::{Aead as _, AeadCore, KeyInit, OsRng},
-    Aes256Gcm, Key, Nonce,
+    Key, Nonce,
 };
+pub use aes_gcm::Aes256Gcm;
 use common_error::{AppError, AppResult};
 
 pub fn gen_key() -> [u8; 32] {

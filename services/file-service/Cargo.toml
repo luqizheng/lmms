@@ -15,6 +15,9 @@ chrono.workspace = true
 uuid.workspace = true
 bytes.workspace = true
 futures.workspace = true
+prometheus = "0.13"
+tokio-util = { version = "0.7", features = ["io"] }
+async-trait = "0.1"
 common-error = { path = "../../libs/common-error" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }

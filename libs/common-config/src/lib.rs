@@ -96,7 +96,6 @@ fn load_from_consul(url: &str, key: &str) -> AppResult<String> {
     Err(AppError::external("CFG_CONSUL_EMPTY", "consul value empty"))
 }
 
-#[derive(Debug, Clone)]
 pub struct HotConfig<T> {
     inner: Arc<RwLock<T>>,
     callbacks: Arc<RwLock<Vec<Box<dyn Fn(&T) + Send + Sync>>>>,
@@ -120,8 +119,8 @@ impl<T: DeserializeOwned + Clone + Send + Sync + 'static> HotConfig<T> {
             *inner = new_value.clone();
         }
 
-        let callbacks = self.callbacks.read().await.clone();
-        for cb in callbacks {
+        let callbacks = self.callbacks.read().await;
+        for cb in callbacks.iter() {
             cb(&new_value);
         }
     }

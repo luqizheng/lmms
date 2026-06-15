@@ -1,5 +1,5 @@
 use audit_service::{config::AppConfig, routes, create_state};
-use common_db::init_pool;
+use common::db::connect;
 use common_log::init_json;
 use std::net::SocketAddr;
 
@@ -10,7 +10,7 @@ async fn main() {
     let config = AppConfig::from_env();
     tracing::info!("Starting audit-service on {}", config.server_addr);
 
-    let pool = init_pool(&config.database_url)
+    let pool = connect(&config.database_url, 10)
         .await
         .expect("Failed to initialize database pool");
 
@@ -21,7 +21,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");
     tracing::info!("audit-service listening on {}", addr);
 
-    let app = routes(state);
+    let app = routes::routes(state);
     
     axum::serve(listener, app).await.expect("Server error");
 }

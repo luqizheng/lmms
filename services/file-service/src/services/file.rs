@@ -1,7 +1,8 @@
-use crate::error::{AppError, AppResult};
+use crate::error::{AppError, AppErrorExt, AppResult};
 use crate::models::file_info::{FileInfo, PagedFiles, QueryFiles, UploadFileMeta};
 use crate::models::presign_url::{CreatePresignUrl, PresignUrl, PresignUrlResponse};
-use crate::storage::ObjectStore;
+use crate::storage::local::LocalStorage;
+use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
 use common_db::DbPool;
 use std::sync::Arc;
@@ -9,12 +10,12 @@ use uuid::Uuid;
 
 pub struct FileService {
     pool: DbPool,
-    storage: Arc<dyn ObjectStore>,
+    storage: Arc<LocalStorage>,
     base_url: String,
 }
 
 impl FileService {
-    pub fn new(pool: DbPool, storage: Arc<dyn ObjectStore>, base_url: String) -> Self {
+    pub fn new(pool: DbPool, storage: Arc<LocalStorage>, base_url: String) -> Self {
         Self { pool, storage, base_url }
     }
 
@@ -22,8 +23,7 @@ impl FileService {
         let id = Uuid::new_v4().to_string();
         let storage_path = format!("{}-{}", id, meta.filename);
         let now = chrono::Utc::now();
-        
-        self.storage.put(&storage_path, data).await?;
+        let data_len = data.len();
         
         let expires_at = meta.expires_in_seconds.map(|secs| now + chrono::Duration::seconds(secs));
         
@@ -31,7 +31,7 @@ impl FileService {
             id: id.clone(),
             filename: meta.filename,
             content_type: meta.content_type,
-            size: data.len() as i64,
+            size: data_len as i64,
             hash: None,
             storage_path: storage_path.clone(),
             tenant_id: meta.tenant_id,
@@ -42,6 +42,7 @@ impl FileService {
             updated_at: now,
         };
         
+        ObjectStore::put(&*self.storage, &storage_path, data).await?;
         self.save_file_info(&info).await?;
         
         Ok(info)
@@ -56,20 +57,20 @@ impl FileService {
             }
         }
         
-        self.storage.get(&info.storage_path).await
+        ObjectStore::get(&*self.storage, &info.storage_path).await
     }
 
     pub async fn delete(&self, id: &str) -> AppResult<()> {
         let info = self.get_file_info(id).await?;
         
-        self.storage.delete(&info.storage_path).await?;
+        ObjectStore::delete(&*self.storage, &info.storage_path).await?;
         self.delete_file_info(id).await?;
         
         Ok(())
     }
 
     pub async fn create_presign_url(&self, req: CreatePresignUrl) -> AppResult<PresignUrlResponse> {
-        let info = self.get_file_info(&req.file_id).await?;
+        let _info = self.get_file_info(&req.file_id).await?;
         
         let expires_in = req.expires_in_seconds.unwrap_or(3600);
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
@@ -107,7 +108,6 @@ impl FileService {
         let offset = (page - 1) * size;
 
         let files: Vec<FileInfo> = match &self.pool {
-            #[cfg(feature = "mysql")]
             common_db::DbPool::Mysql(p) => {
                 sqlx::query_as::<_, FileInfo>(
                     "SELECT * FROM files ORDER BY created_at DESC LIMIT ? OFFSET ?"
@@ -117,7 +117,6 @@ impl FileService {
                 .fetch_all(p)
                 .await?
             }
-            #[cfg(feature = "sqlite")]
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query_as::<_, FileInfo>(
                     "SELECT * FROM files ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
@@ -136,14 +135,12 @@ impl FileService {
 
     pub async fn get_file_info(&self, id: &str) -> AppResult<FileInfo> {
         let info: Option<FileInfo> = match &self.pool {
-            #[cfg(feature = "mysql")]
             common_db::DbPool::Mysql(p) => {
                 sqlx::query_as::<_, FileInfo>("SELECT * FROM files WHERE id = ?")
                     .bind(id)
                     .fetch_optional(p)
                     .await?
             }
-            #[cfg(feature = "sqlite")]
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query_as::<_, FileInfo>("SELECT * FROM files WHERE id = ?1")
                     .bind(id)
@@ -157,7 +154,6 @@ impl FileService {
 
     async fn save_file_info(&self, info: &FileInfo) -> AppResult<()> {
         match &self.pool {
-            #[cfg(feature = "mysql")]
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
                     r#"INSERT INTO files 
@@ -179,7 +175,6 @@ impl FileService {
                 .execute(p)
                 .await?;
             }
-            #[cfg(feature = "sqlite")]
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
                     r#"INSERT INTO files 
@@ -207,14 +202,12 @@ impl FileService {
 
     async fn delete_file_info(&self, id: &str) -> AppResult<()> {
         match &self.pool {
-            #[cfg(feature = "mysql")]
             common_db::DbPool::Mysql(p) => {
                 sqlx::query("DELETE FROM files WHERE id = ?")
                     .bind(id)
                     .execute(p)
                     .await?;
             }
-            #[cfg(feature = "sqlite")]
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query("DELETE FROM files WHERE id = ?1")
                     .bind(id)
@@ -227,7 +220,6 @@ impl FileService {
 
     async fn save_presign_url(&self, presign: &PresignUrl) -> AppResult<()> {
         match &self.pool {
-            #[cfg(feature = "mysql")]
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
                     r#"INSERT INTO presign_urls 
@@ -244,7 +236,6 @@ impl FileService {
                 .execute(p)
                 .await?;
             }
-            #[cfg(feature = "sqlite")]
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
                     r#"INSERT INTO presign_urls 

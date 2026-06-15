@@ -1,8 +1,8 @@
 use axum::{
     Router,
-    routing::{post, delete},
-    extract::{Json, State, ConnectInfo, Request},
-    http::StatusCode,
+    routing::{get, post, delete},
+    extract::{ConnectInfo, Json, Path, State},
+    http::{HeaderMap, StatusCode},
 };
 use std::net::SocketAddr;
 use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse}, service::AuthService};
@@ -19,30 +19,30 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-fn get_client_info(req: &Request) -> (String, String) {
-    let ip_address = req
-        .headers()
+fn get_client_info(headers: &HeaderMap) -> (String, String) {
+    let ip_address = headers
         .get("X-Forwarded-For")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
         .unwrap_or_else(|| "unknown".to_string());
-    
-    let user_agent = req
-        .headers()
+
+    let user_agent = headers
         .get("User-Agent")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown")
         .to_string();
-    
+
     (ip_address, user_agent)
 }
 
 async fn login(
     State(state): State<AppState>,
-    req: Request,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(login_req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, &'static str)> {
-    let (ip_address, user_agent) = get_client_info(&req);
+    let (ip_address, user_agent) = get_client_info(&headers);
+    let _ = addr;
     let service = AuthService::new(state);
     let response = service
         .login(login_req, &ip_address, &user_agent)
@@ -102,7 +102,7 @@ async fn list_sessions(
         .get_user_sessions(&principal.user_id)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
-    
+
     let session_infos: Vec<crate::dto::SessionInfo> = sessions
         .into_iter()
         .map(|t| crate::dto::SessionInfo {
@@ -115,15 +115,16 @@ async fn list_sessions(
             is_current: false,
         })
         .collect();
-    
+
     Ok(axum::Json(session_infos))
 }
 
 async fn revoke_session(
     State(state): State<AppState>,
     principal: Principal,
-    axum::extract::Path(session_id): axum::extract::Path<String>,
+    Path(session_id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, &'static str)> {
+    let _ = principal;
     let service = AuthService::new(state);
     service
         .revoke_session(&session_id)

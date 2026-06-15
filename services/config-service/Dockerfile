@@ -1,15 +1,20 @@
-FROM rust:1.75-slim AS builder
+FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
+USER root
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY libs ./libs
-COPY services/config-service ./services/config-service
+COPY services ./services
+COPY sdk ./sdk
 
-RUN cargo build --release -p config-service
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    cargo build --release -p config-service && \
+    cp /app/target/release/config-service /app/config-service
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/config-service /usr/local/bin/
+COPY --from=builder /app/config-service /usr/local/bin/
 EXPOSE 8081
 ENV RUST_LOG=info
 CMD ["config-service"]

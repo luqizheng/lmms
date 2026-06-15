@@ -11,8 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use prometheus::{Encoder, TextEncoder};
-use utoipa::{OpenApi};
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa::OpenApi;
 
 use api_gateway::{
     blacklist, middleware, rewrite, router, routes_loader, AppState, GatewayConfig, JwtValidator,
@@ -201,7 +200,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         let metric_families = prometheus::gather();
         let mut buffer = Vec::new();
         encoder.encode(&metric_families, &mut buffer).unwrap();
-        String::from_utf8(buffer).unwrap()
+        axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
     #[derive(OpenApi)]
@@ -224,7 +223,10 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         )
         .route("/metrics", get(metrics))
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
+        .route(
+            "/api-docs/openapi.json",
+            get(|| async { axum::Json(ApiDoc::openapi()) }),
+        );
 
     let api_routes = Router::new()
         .route(

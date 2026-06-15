@@ -73,12 +73,20 @@
 - 对外端口范围 6000-6999
 - api-gateway 对外对内端口均保持 3000 不变
 
+### Docker Rust 编译镜像
+
+- 凡 Docker Rust 编译统一使用：`zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`
+- 镜像支持 arm/amd 架构，已配置国内源
+- 已预装 `rustup target add x86_64-unknown-linux-musl`
+
 ### Rust 工具链
 
 - 仓库已切到 `aws_lc_rs` crypto provider
 - 不要回退到 `ring`，会触发 MSVC LNK2019 (fiat_25519 链接错误)
 - **沙箱限制**：Trae IDE 沙箱不加载 vcvarsall，`cargo build` / `cargo test` 会 LNK2019。**所有 cargo 命令必须在真实 PowerShell（vcvarsall x64）跑**，不要在 IDE 终端内直接 `cargo`
 - 沙箱内允许：`Get-Content`、`Select-String`、`git status`/`log`/`diff` 等只读命令
+- **平台目标**：Rust 项目仅面向 Linux/musl 容器运行，**不考虑 Windows 可执行兼容性**（如 musl + aws_lc_rs 组合）。禁止为兼容 Windows 引入代码分支或回退
+- **语法陷阱**：`&[...]` 数组元素分隔只能用逗号；不要用 `-- xxx` 当行注释，Rust 会把它解析为 `--` 一元减号 + 标识符，导致 E0425。用 `//` 或 `/* */`
 
 ### Node.js 编排脚本
 

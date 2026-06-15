@@ -1,8 +1,10 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordVerifier, SaltString},
     Argon2,
 };
 use common_error::{AppError, AppResult};
+
+pub use argon2::password_hash::PasswordHasher;
 
 pub fn hash(plain: &str) -> AppResult<String> {
     let salt = SaltString::generate(&mut OsRng);

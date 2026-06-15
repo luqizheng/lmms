@@ -85,6 +85,7 @@ impl Default for GatewayConfig {
             consul_addr: "http://127.0.0.1:8500".into(),
             jwks_url: "http://127.0.0.1:4000/.well-known/jwks.json".into(),
             issuer: "superpowers-token-server".into(),
+            routes_dir: default_routes_dir(),
             routes: Vec::new(),
         }
     }

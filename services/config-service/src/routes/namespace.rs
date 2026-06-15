@@ -1,5 +1,4 @@
-use axum::{extract::State, Json, extract::Path, extract::Query};
-use crate::error::AppResult;
+use axum::{extract::State, Json, extract::Path, extract::Query, http::StatusCode};
 use crate::models::namespace::{CreateNamespace, Namespace, PagedNamespaces, QueryNamespaces, UpdateNamespace};
 use crate::routes::AppState;
 
@@ -16,24 +15,26 @@ pub fn routes(state: AppState) -> axum::Router {
 async fn create_namespace(
     State(state): State<AppState>,
     Json(ns): Json<CreateNamespace>,
-) -> AppResult<Json<Namespace>> {
-    let result = state.create_namespace(ns).await?;
+) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
+    let result = state.create_namespace(ns).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
     Ok(Json(result))
 }
 
 async fn query_namespaces(
     State(state): State<AppState>,
     Query(query): Query<QueryNamespaces>,
-) -> AppResult<Json<PagedNamespaces>> {
-    let result = state.query_namespaces(query).await?;
+) -> Result<Json<PagedNamespaces>, (StatusCode, &'static str)> {
+    let result = state.query_namespaces(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
     Ok(Json(result))
 }
 
 async fn get_namespace(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> AppResult<Json<Namespace>> {
-    let result = state.get_namespace(&id).await?;
+) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
+    let result = state.get_namespace(&id).await.map_err(|e| {
+        if e.code() == "CFG_NS_2001" { (StatusCode::NOT_FOUND, "namespace not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get failed") }
+    })?;
     Ok(Json(result))
 }
 
@@ -41,15 +42,19 @@ async fn update_namespace(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(update): Json<UpdateNamespace>,
-) -> AppResult<Json<Namespace>> {
-    let result = state.update_namespace(&id, update).await?;
+) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
+    let result = state.update_namespace(&id, update).await.map_err(|e| {
+        if e.code() == "CFG_NS_2001" { (StatusCode::NOT_FOUND, "namespace not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "update failed") }
+    })?;
     Ok(Json(result))
 }
 
 async fn delete_namespace(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> AppResult<Json<serde_json::Value>> {
-    state.delete_namespace(&id).await?;
+) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
+    state.delete_namespace(&id).await.map_err(|e| {
+        if e.code() == "CFG_NS_2001" { (StatusCode::NOT_FOUND, "namespace not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "delete failed") }
+    })?;
     Ok(Json(serde_json::json!({ "success": true })))
 }

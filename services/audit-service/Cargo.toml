@@ -17,6 +17,7 @@ common-error = { path = "../../libs/common-error" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
+common = { path = "../../libs/common" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
