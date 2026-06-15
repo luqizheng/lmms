@@ -26,3 +26,23 @@ test('parseDockerfile deduplicates identical refs', () => {
   const refs = parseDockerfile(content);
   assert.deepEqual(refs, ['alpine:3.21']);
 });
+
+const { parseCompose } = require('../Base-Images-Scanner.js');
+
+test('parseCompose extracts image fields', () => {
+  const content = [
+    'services:',
+    '  mysql:',
+    '    image: mysql:8.0',
+    '  redis:',
+    '    image: redis:7-alpine',
+  ].join('\n');
+  const refs = parseCompose(content);
+  assert.deepEqual(refs, ['mysql:8.0', 'redis:7-alpine']);
+});
+
+test('parseCompose deduplicates', () => {
+  const content = 'services:\n  a:\n    image: alpine:3.21\n  b:\n    image: alpine:3.21\n';
+  const refs = parseCompose(content);
+  assert.deepEqual(refs, ['alpine:3.21']);
+});
