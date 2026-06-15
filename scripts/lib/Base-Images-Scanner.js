@@ -39,9 +39,12 @@ function collectFiles(root, rel) {
   const stat = fs.statSync(abs);
   if (stat.isFile()) return [abs];
   const out = [];
-  for (const e of fs.readdirSync(abs)) {
-    if (e === 'Dockerfile' || e === 'Dockerfile.local' || e.startsWith('docker-compose')) {
-      out.push(path.join(abs, e));
+  for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
+    const full = path.join(abs, e.name);
+    if (e.isDirectory()) {
+      out.push(...collectFiles(root, path.relative(root, full)));
+    } else if (e.name === 'Dockerfile' || e.name === 'Dockerfile.local' || e.name.startsWith('docker-compose')) {
+      out.push(full);
     }
   }
   return out;
