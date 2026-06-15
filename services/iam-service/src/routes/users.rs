@@ -4,7 +4,7 @@ use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQue
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/users", get(list_users).post(create_user))
-        .route("/iam/users/:user_id", get(get_user).put(update_user).delete(delete_user))
+        .route("/iam/users/{user_id}", get(get_user).put(update_user).delete(delete_user))
         .with_state(state)
 }
 

@@ -4,7 +4,7 @@ use crate::{state::AppState, dto::{CreatePermissionRequest, UpdatePermissionRequ
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/permissions", get(list_permissions).post(create_permission))
-        .route("/iam/permissions/:permission_id", get(get_permission).put(update_permission).delete(delete_permission))
+        .route("/iam/permissions/{permission_id}", get(get_permission).put(update_permission).delete(delete_permission))
         .with_state(state)
 }
 

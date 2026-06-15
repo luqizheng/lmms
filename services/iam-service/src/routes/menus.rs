@@ -4,7 +4,7 @@ use crate::{state::AppState, dto::{CreateMenuRequest, UpdateMenuRequest, MenuRes
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/menus", get(list_menus).post(create_menu))
-        .route("/iam/menus/:menu_id", get(get_menu).put(update_menu).delete(delete_menu))
+        .route("/iam/menus/{menu_id}", get(get_menu).put(update_menu).delete(delete_menu))
         .with_state(state)
 }
 

@@ -4,8 +4,8 @@ use crate::{state::AppState, dto::{CreateOrgUnitRequest, UpdateOrgUnitRequest, O
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/org-units", get(list_org_units).post(create_org_unit))
-        .route("/iam/org-units/:org_unit_id", get(get_org_unit).put(update_org_unit).delete(delete_org_unit))
-        .route("/iam/org-units/:org_unit_id/users", put(assign_users))
+        .route("/iam/org-units/{org_unit_id}", get(get_org_unit).put(update_org_unit).delete(delete_org_unit))
+        .route("/iam/org-units/{org_unit_id}/users", put(assign_users))
         .with_state(state)
 }
 

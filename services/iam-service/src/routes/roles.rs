@@ -4,8 +4,8 @@ use crate::{state::AppState, dto::{CreateRoleRequest, UpdateRoleRequest, RoleQue
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/roles", get(list_roles).post(create_role))
-        .route("/iam/roles/:role_id", get(get_role).put(update_role).delete(delete_role))
-        .route("/iam/roles/:role_id/permissions", put(assign_permissions))
+        .route("/iam/roles/{role_id}", get(get_role).put(update_role).delete(delete_role))
+        .route("/iam/roles/{role_id}/permissions", put(assign_permissions))
         .with_state(state)
 }
 

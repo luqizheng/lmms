@@ -15,7 +15,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/iam/auth/logout", post(logout))
         .route("/iam/auth/password", post(change_password))
         .route("/iam/auth/sessions", get(list_sessions))
-        .route("/iam/auth/sessions/:session_id", delete(revoke_session))
+        .route("/iam/auth/sessions/{session_id}", delete(revoke_session))
         .with_state(state)
 }
 
