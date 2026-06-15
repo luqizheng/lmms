@@ -5,6 +5,7 @@
 | Skill | 触发关键词 | 命令 |
 |---|---|---|
 | `coder-run-tests` | 测试、test | node scripts/test-orchestrator.js loop |
+| `coder-base-images-sync` | base images、镜像清单 | node scripts/base-images-sync.js |
 | `coder-route-validate` | 校验路由、reload | cargo run -p api-gateway -- validate |
 | `coder-spec-to-code` | spec-to-code、写测试用例 | node scripts/spec-to-code.js |
 | `coder-sdk-publish` | 发 SDK、sdk:publish | node scripts/sdk-publish.js |
