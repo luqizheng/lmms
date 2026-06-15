@@ -6,6 +6,8 @@
     "build": "cargo build --release --manifest-path services/api-gateway/Cargo.toml && cargo build --release --manifest-path services/token-service/Cargo.toml",
     "dev": "docker compose -f infrastructure/docker-compose.yml up -d && pnpm -r --parallel run dev",
     "dev:infra": "docker compose -f infrastructure/docker-compose.yml up -d",
+    "images:sync": "node scripts/base-images-sync.js",
+    "images:check": "node scripts/base-images-sync.js --check",
     "test:reset": "node scripts/test-orchestrator.js reset-db",
     "test:unit": "node scripts/test-orchestrator.js test-unit",
     "test:libs": "node scripts/test-orchestrator.js test-libs",
