@@ -15,6 +15,8 @@
 | `sdk/java/**/pom.xml`                            | `coder-sdk-publish` (test)        | 改完保存  |
 | `sdk/dotnet/**/*.csproj`                         | `coder-sdk-publish` (test)        | 改完保存  |
 | `infrastructure/docker-compose.*.yaml`           | `coder-microservice-dev`          | 改完保存  |
+| `services/*/Dockerfile*`                         | `coder-base-images-sync`          | 改完保存  |
+| `infrastructure/docker-compose*.yml`             | `coder-base-images-sync`          | 改完保存  |
 | `services/*/AGENTS.md`                            | 自动检查服务规范                  | 新建/修改 |
 | `.trae/skills/coder-e2e-test/**`                | `coder-e2e-test`                  | 新建/修改 |
 | `.trae/skills/coder-lib-upgrade/**`             | `coder-lib-upgrade`                | 新建/修改 |
