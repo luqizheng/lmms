@@ -19,13 +19,53 @@ const PRE_PULL_IMAGES = [
   'consul:1.15',
 ];
 
-async function prePull() {
-  for (const img of PRE_PULL_IMAGES) {
-    log.cyan(`[pull] ${img}`);
-    const res = spawnSync('docker', ['pull', img], { stdio: 'inherit' });
-    if (res.status !== 0) {
-      log.yellow(`[pull] WARNING: failed to pull ${img} (will retry during build)`);
+const MANIFEST_PATH = path.join(ROOT, 'infrastructure', 'base-images.json');
+
+function loadImageManifest() {
+  if (!fs.existsSync(MANIFEST_PATH)) {
+    log.yellow(`[pull] manifest not found: ${MANIFEST_PATH}, run: node scripts/base-images-sync.js`);
+    return [];
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+    return Array.isArray(data.images) ? data.images : [];
+  } catch (e) {
+    log.yellow(`[pull] manifest parse failed: ${e.message}`);
+    return [];
+  }
+}
+
+async function pullOne(ref, mirror) {
+  if (mirror) {
+    const mirrorRef = `${mirror.replace(/\/+$/, '')}/${ref}`;
+    log.cyan(`[pull] ${mirrorRef} (mirror of ${ref})`);
+    const mr = spawnSync('docker', ['pull', mirrorRef], { stdio: 'inherit' });
+    if (mr.status === 0) {
+      const tr = spawnSync('docker', ['tag', mirrorRef, ref], { stdio: 'inherit' });
+      if (tr.status === 0) {
+        log.green(`[pull] tagged ${mirrorRef} -> ${ref}`);
+        return true;
+      }
+      log.yellow(`[pull] tag failed, image usable as ${mirrorRef}`);
+      return true;
     }
+    log.yellow(`[pull] mirror failed, fallback to ${ref}`);
+  }
+  log.cyan(`[pull] ${ref}`);
+  const res = spawnSync('docker', ['pull', ref], { stdio: 'inherit' });
+  if (res.status !== 0) {
+    log.yellow(`[pull] WARNING: failed to pull ${ref} (will retry during build)`);
+    return false;
+  }
+  return true;
+}
+
+async function prePull() {
+  const images = loadImageManifest();
+  if (images.length === 0) return;
+  for (const img of images) {
+    try { await pullOne(img.ref, img.mirror); }
+    catch (e) { log.yellow(`[pull] ${img.ref} error: ${e.message}`); }
   }
 }
 
