@@ -46,3 +46,23 @@ test('parseCompose deduplicates', () => {
   const refs = parseCompose(content);
   assert.deepEqual(refs, ['alpine:3.21']);
 });
+
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { scanProject } = require('../Base-Images-Scanner.js');
+
+test('scanProject walks dockerfiles and compose files', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'imgscan-'));
+  fs.mkdirSync(path.join(tmp, 'services', 'a'), { recursive: true });
+  fs.writeFileSync(path.join(tmp, 'services', 'a', 'Dockerfile'), 'FROM alpine:3.21\n');
+  fs.mkdirSync(path.join(tmp, 'infrastructure'), { recursive: true });
+  fs.writeFileSync(path.join(tmp, 'infrastructure', 'docker-compose.yml'),
+    'services:\n  mysql:\n    image: mysql:8.0\n');
+
+  const result = scanProject(tmp);
+  const refs = result.map((r) => r.ref).sort();
+  assert.deepEqual(refs, ['alpine:3.21', 'mysql:8.0']);
+
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
