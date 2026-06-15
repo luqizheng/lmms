@@ -59,6 +59,7 @@ services:
       GW_ISSUER: "superpowers-token-server"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
+    command: ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]
     volumes:
       - ../docker/config:/app/config:ro
       - ../docker/secrets:/app/keys:ro
@@ -101,7 +102,9 @@ services:
       - superpowers
 
   iam-service:
-    image: zhcoder-docker-registry.com:8000/micro-server/iam-service:latest
+    build:
+      context: ..
+      dockerfile: services/iam-service/Dockerfile
     ports:
       - "6002:8080"
     environment:
@@ -113,6 +116,7 @@ services:
       DATABASE_PASSWORD: rootpass
       DATABASE_NAME: superpowers
       CONSUL_ADDR: "http://consul:8500"
+      CONFIG_PATH: "/etc/iam-service/config.yaml"
     depends_on:
       mysql:
         condition: service_healthy
