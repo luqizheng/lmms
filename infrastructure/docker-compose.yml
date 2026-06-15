@@ -61,7 +61,7 @@ services:
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
     command: ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]
     volumes:
-      - ../docker/config:/app/config:ro
+      - ../docker/config/api-gateway/routes:/app/config/api-gateway/routes
       - ../docker/secrets:/app/keys:ro
     depends_on:
       consul:
