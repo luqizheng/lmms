@@ -10,6 +10,10 @@ const { ROOT, log, COLORS } = require('./lib/utils.js');
 
 const REGISTRY_HOST = 'zhcoder-docker-registry.com:8000';
 const PROJECT_SERVICES = ['api-gateway', 'token-service'];
+const ENTRYPOINT_MAP = {
+  'api-gateway': '/app/api-gateway',
+  'token-service': '/app/token-service',
+};
 
 function checkImageExists(imageName) {
   const res = spawnSync('docker', ['image', 'inspect', imageName], { encoding: 'utf8' });
@@ -35,7 +39,7 @@ function checkAndBuildImages() {
       continue;
     }
     // 验证可执行文件是否存在
-    const entrypoint = `/app/${svc.replace('-service', '')}`;
+    const entrypoint = ENTRYPOINT_MAP[svc];
     if (!checkImageValid(image, entrypoint)) {
       log.yellow(`  [check] ${image} 缺少 ${entrypoint}`);
       missingOrInvalid.push(svc);
@@ -45,13 +49,16 @@ function checkAndBuildImages() {
   }
   if (missingOrInvalid.length > 0) {
     log.yellow(`[check] 发现 ${missingOrInvalid.length} 个镜像缺失/无效，自动构建...`);
-    const res = spawnSync('pnpm', ['docker:build', ...missingOrInvalid], {
+    const buildCmd = missingOrInvalid.length === PROJECT_SERVICES.length
+      ? ['node', 'scripts/build-docker.js']
+      : ['node', 'scripts/build-docker.js', ...missingOrInvalid];
+    const res = spawnSync('node', buildCmd, {
       cwd: ROOT,
       stdio: 'inherit',
       shell: false,
     });
     if (res.status !== 0) {
-      throw new Error(`pnpm docker:build failed with code ${res.status}`);
+      throw new Error(`docker build failed with code ${res.status}`);
     }
   }
 }
