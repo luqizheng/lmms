@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import { queryUserByUsername } from './helpers/db';
 
 const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 
@@ -21,6 +22,12 @@ describe('User Registration, Login and Password Change', () => {
     expect(res.body).toHaveProperty('id');
     expect(res.body).toHaveProperty('username', 'testadmin');
     userId = res.body.id;
+
+    const dbUser = await queryUserByUsername('testadmin');
+    expect(dbUser).not.toBeNull();
+    expect(dbUser?.username).toBe('testadmin');
+    expect(dbUser?.email).toBe('testadmin@example.com');
+    expect(dbUser?.nickname).toBe('Test Admin');
   });
 
   it('should login with registered user', async () => {

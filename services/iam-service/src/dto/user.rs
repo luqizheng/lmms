@@ -15,7 +15,7 @@ pub struct CreateUserRequest {
     #[validate(length(min = 1, max = 100))]
     pub nickname: String,
     pub avatar: Option<String>,
-    pub role_ids: Vec<String>,
+    pub role_ids: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Validate)]

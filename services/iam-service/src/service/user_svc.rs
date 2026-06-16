@@ -76,7 +76,7 @@ impl UserService {
         .fetch_one(&self.state.db)
         .await?;
 
-        let mut role_ids = req.role_ids.clone();
+        let mut role_ids = req.role_ids.clone().unwrap_or_default();
         
         if user_count.0 == 1 {
             let admin_role_id = self.ensure_admin_role().await?;
