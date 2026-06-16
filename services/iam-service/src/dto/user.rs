@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
-use validator::Validate;
 use chrono::DateTime;
+use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
+use validator::Validate;
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateUserRequest {
     #[validate(length(min = 1, max = 50))]
     pub username: String,
@@ -18,7 +19,7 @@ pub struct CreateUserRequest {
     pub role_ids: Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateUserRequest {
     #[validate(length(min = 1, max = 100))]
     pub nickname: Option<String>,
@@ -30,7 +31,7 @@ pub struct UpdateUserRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct UserQuery {
     pub keyword: Option<String>,
     pub status: Option<String>,
@@ -39,7 +40,7 @@ pub struct UserQuery {
     pub size: u32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct UserResponse {
     pub id: String,
     pub username: String,
@@ -56,7 +57,7 @@ pub struct UserResponse {
     pub updated_at: DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct UserListResponse {
     pub items: Vec<UserResponse>,
     pub total: u64,
@@ -64,7 +65,7 @@ pub struct UserListResponse {
     pub size: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct BatchImportUsersRequest {
     pub users: Vec<CreateUserRequest>,
 }

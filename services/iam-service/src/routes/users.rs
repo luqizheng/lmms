@@ -8,7 +8,15 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn list_users(
+#[utoipa::path(
+    get,
+    path = "/iam/users",
+    params(UserQuery),
+    responses((status = 200, body = UserListResponse)),
+    security(("bearer_auth" = [])),
+    tag = "users"
+)]
+pub async fn list_users(
     State(state): State<AppState>,
     Query(query): Query<UserQuery>,
 ) -> Result<Json<UserListResponse>, (axum::http::StatusCode, &'static str)> {
@@ -17,7 +25,18 @@ async fn list_users(
     Ok(Json(response))
 }
 
-async fn create_user(
+#[utoipa::path(
+    post,
+    path = "/iam/users",
+    request_body = CreateUserRequest,
+    responses(
+        (status = 200, body = UserResponse),
+        (status = 409, description = "duplicate user"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "users"
+)]
+pub async fn create_user(
     State(state): State<AppState>,
     Json(req): Json<CreateUserRequest>,
 ) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
@@ -31,7 +50,18 @@ async fn create_user(
     Ok(Json(response))
 }
 
-async fn get_user(
+#[utoipa::path(
+    get,
+    path = "/iam/users/{user_id}",
+    params(("user_id" = String, Path,)),
+    responses(
+        (status = 200, body = UserResponse),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "users"
+)]
+pub async fn get_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
@@ -45,7 +75,19 @@ async fn get_user(
     Ok(Json(response))
 }
 
-async fn update_user(
+#[utoipa::path(
+    put,
+    path = "/iam/users/{user_id}",
+    params(("user_id" = String, Path,)),
+    request_body = UpdateUserRequest,
+    responses(
+        (status = 200, body = UserResponse),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "users"
+)]
+pub async fn update_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
     Json(req): Json<UpdateUserRequest>,
@@ -60,7 +102,18 @@ async fn update_user(
     Ok(Json(response))
 }
 
-async fn delete_user(
+#[utoipa::path(
+    delete,
+    path = "/iam/users/{user_id}",
+    params(("user_id" = String, Path,)),
+    responses(
+        (status = 204, description = "deleted"),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "users"
+)]
+pub async fn delete_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {

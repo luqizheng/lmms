@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
-use validator::Validate;
 use chrono::DateTime;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use validator::Validate;
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateMenuRequest {
     pub parent_id: Option<String>,
     #[validate(length(min = 1, max = 100))]
@@ -18,7 +19,7 @@ pub struct CreateMenuRequest {
     pub permission_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateMenuRequest {
     pub parent_id: Option<String>,
     #[validate(length(min = 1, max = 100))]
@@ -35,7 +36,7 @@ pub struct UpdateMenuRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub struct MenuResponse {
     pub id: String,
     pub parent_id: Option<String>,
@@ -53,7 +54,7 @@ pub struct MenuResponse {
     pub children: Vec<MenuResponse>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct MenuListResponse {
     pub items: Vec<MenuResponse>,
     pub total: u64,

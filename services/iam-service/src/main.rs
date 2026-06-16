@@ -1,9 +1,11 @@
-use iam_service::{config::load_config, db, routes, state::AppState};
+use iam_service::{config::load_config, db, openapi::ApiDoc, routes, state::AppState};
 use common_log::init_json;
 use common_cache::MemoryCache;
 use consul_registrar::ConsulRegistrar;
 use tracing::{info, warn};
 use std::net::SocketAddr;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -17,7 +19,18 @@ async fn main() -> anyhow::Result<()> {
     
     let state = AppState::new(db_pool, cache, config.clone());
     
-    let app = routes::build_router(state);
+    let swagger_enabled = std::env::var("SWAGGER_ENABLED")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(true);
+
+    let mut app = routes::build_router(state);
+    if swagger_enabled {
+        app = app.merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", ApiDoc::openapi()),
+        );
+        info!("swagger ui enabled at /swagger-ui");
+    }
     
     let addr: SocketAddr = format!("{}:{}", config.app.host, config.app.port).parse()?;
     info!("Starting iam-service on {}", addr);
