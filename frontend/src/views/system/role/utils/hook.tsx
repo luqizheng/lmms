@@ -1,59 +1,112 @@
 import dayjs from "dayjs";
 import editForm from "../form.vue";
-import { handleTree } from "@/utils/tree";
 import { message } from "@/utils/message";
-import { ElMessageBox } from "element-plus";
 import { usePublicHooks } from "../../hooks";
-import { transformI18n } from "@/plugins/i18n";
 import { addDialog } from "@/components/ReDialog";
 import type { FormItemProps } from "../utils/types";
 import type { PaginationProps } from "@pureadmin/table";
-import { getKeyList, deviceDetection } from "@pureadmin/utils";
-import { getRoleList, getRoleMenu, getRoleMenuIds } from "@/api/system";
-import { type Ref, reactive, ref, onMounted, h, toRaw, watch } from "vue";
+import { deviceDetection } from "@pureadmin/utils";
+import {
+  listIamRoles,
+  createIamRole,
+  updateIamRole,
+  deleteIamRole,
+  listIamPermissions,
+  assignRolePermissions,
+  type IamRole,
+  type IamPermission
+} from "@/api/iam";
+import { type Ref, reactive, ref, onMounted, h, computed } from "vue";
 
-export function useRole(treeRef: Ref) {
+const DATA_SCOPE_LABEL: Record<string, string> = {
+  "0": "仅本人",
+  "1": "本部门",
+  "2": "本部门及以下",
+  "3": "全部",
+  self: "仅本人",
+  dept: "本部门",
+  dept_and_below: "本部门及以下",
+  all: "全部"
+};
+
+function dataScopeText(v: string | number | undefined) {
+  if (v === undefined || v === null) return "-";
+  return DATA_SCOPE_LABEL[String(v)] ?? String(v);
+}
+
+function dataScopeToNumber(v: string | number | undefined): number {
+  if (typeof v === "number") return v;
+  if (v === undefined || v === null || v === "") return 0;
+  const n = Number(v);
+  if (!Number.isNaN(n)) return n;
+  switch (v) {
+    case "self":
+      return 0;
+    case "dept":
+      return 1;
+    case "dept_and_below":
+      return 2;
+    case "all":
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+export function useRole(_treeRef: Ref) {
   const form = reactive({
     name: "",
     code: "",
     status: ""
   });
-  const curRow = ref();
+  const curRow = ref<IamRole | null>(null);
   const formRef = ref();
-  const dataList = ref([]);
-  const treeIds = ref([]);
-  const treeData = ref([]);
-  const isShow = ref(false);
+  const dataList = ref<IamRole[]>([]);
   const loading = ref(true);
-  const isLinkage = ref(false);
-  const treeSearchValue = ref();
   const switchLoadMap = ref({});
-  const isExpandAll = ref(false);
-  const isSelectAll = ref(false);
   const { switchStyle } = usePublicHooks();
-  const treeProps = {
-    value: "id",
-    label: "title",
-    children: "children"
-  };
   const pagination = reactive<PaginationProps>({
     total: 0,
     pageSize: 10,
     currentPage: 1,
     background: true
   });
+
+  // 权限分配弹窗状态
+  const permissionDialogVisible = ref(false);
+  const allPermissions = ref<IamPermission[]>([]);
+  const checkedPermissionIds = ref<string[]>([]);
+  const groupedPermissions = computed<Record<string, IamPermission[]>>(() => {
+    const groups: Record<string, IamPermission[]> = {};
+    for (const p of allPermissions.value) {
+      const key = p.category || "其它";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    }
+    return groups;
+  });
+
   const columns: TableColumnList = [
     {
       label: "角色编号",
-      prop: "id"
+      prop: "id",
+      minWidth: 90
     },
     {
       label: "角色名称",
-      prop: "name"
+      prop: "name",
+      minWidth: 130
     },
     {
       label: "角色标识",
-      prop: "code"
+      prop: "code",
+      minWidth: 130
+    },
+    {
+      label: "数据范围",
+      prop: "data_scope",
+      minWidth: 130,
+      formatter: ({ data_scope }) => dataScopeText(data_scope)
     },
     {
       label: "状态",
@@ -61,29 +114,27 @@ export function useRole(treeRef: Ref) {
         <el-switch
           size={scope.props.size === "small" ? "small" : "default"}
           loading={switchLoadMap.value[scope.index]?.loading}
-          v-model={scope.row.status}
-          active-value={1}
-          inactive-value={0}
+          model-value={scope.row.status === "active"}
           active-text="已启用"
           inactive-text="已停用"
           inline-prompt
           style={switchStyle.value}
-          onChange={() => onChange(scope as any)}
+          onChange={(val: boolean) => onStatusChange(scope as any, val)}
         />
       ),
-      minWidth: 90
+      minWidth: 100
     },
     {
-      label: "备注",
-      prop: "remark",
+      label: "描述",
+      prop: "description",
       minWidth: 160
     },
     {
       label: "创建时间",
-      prop: "createTime",
+      prop: "created_at",
       minWidth: 160,
-      formatter: ({ createTime }) =>
-        dayjs(createTime).format("YYYY-MM-DD HH:mm:ss")
+      formatter: ({ created_at }) =>
+        created_at ? dayjs(created_at).format("YYYY-MM-DD HH:mm:ss") : "-"
     },
     {
       label: "操作",
@@ -92,88 +143,72 @@ export function useRole(treeRef: Ref) {
       slot: "operation"
     }
   ];
-  // const buttonClass = computed(() => {
-  //   return [
-  //     "h-5!",
-  //     "reset-margin",
-  //     "text-gray-500!",
-  //     "dark:text-white!",
-  //     "dark:hover:text-primary!"
-  //   ];
-  // });
 
-  function onChange({ row, index }) {
-    ElMessageBox.confirm(
-      `确认要<strong>${
-        row.status === 0 ? "停用" : "启用"
-      }</strong><strong style='color:var(--el-color-primary)'>${
-        row.name
-      }</strong>吗?`,
-      "系统提示",
-      {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
-        dangerouslyUseHTMLString: true,
-        draggable: true
-      }
-    )
-      .then(() => {
-        switchLoadMap.value[index] = Object.assign(
-          {},
-          switchLoadMap.value[index],
-          {
-            loading: true
-          }
-        );
-        setTimeout(() => {
-          switchLoadMap.value[index] = Object.assign(
-            {},
-            switchLoadMap.value[index],
-            {
-              loading: false
-            }
-          );
-          message(`已${row.status === 0 ? "停用" : "启用"}${row.name}`, {
-            type: "success"
-          });
-        }, 300);
-      })
-      .catch(() => {
-        row.status === 0 ? (row.status = 1) : (row.status = 0);
+  async function onStatusChange(
+    scope: { row: IamRole; index: number },
+    val: boolean
+  ) {
+    const { row, index } = scope;
+    const original = row.status;
+    const next = val ? "active" : "disabled";
+    switchLoadMap.value[index] = { loading: true };
+    try {
+      await updateIamRole(row.id, { status: next });
+      row.status = next;
+      message(`已${next === "active" ? "启用" : "停用"}${row.name}`, {
+        type: "success"
       });
+    } catch (e: any) {
+      row.status = original;
+      message(`修改角色状态失败：${e?.message || e}`, { type: "error" });
+    } finally {
+      switchLoadMap.value[index] = { loading: false };
+    }
   }
 
-  function handleDelete(row) {
-    message(`您删除了角色名称为${row.name}的这条数据`, { type: "success" });
-    onSearch();
+  async function handleDelete(row: IamRole) {
+    try {
+      await deleteIamRole(row.id);
+      message(`已删除角色 ${row.name}`, { type: "success" });
+      onSearch();
+    } catch (e: any) {
+      message(`删除角色失败：${e?.message || e}`, { type: "error" });
+    }
   }
 
   function handleSizeChange(val: number) {
-    console.log(`${val} items per page`);
+    pagination.pageSize = val;
+    pagination.currentPage = 1;
+    onSearch();
   }
 
   function handleCurrentChange(val: number) {
-    console.log(`current page: ${val}`);
+    pagination.currentPage = val;
+    onSearch();
   }
 
-  function handleSelectionChange(val) {
-    console.log("handleSelectionChange", val);
+  function handleSelectionChange(_val) {
+    // 角色列表暂不需要批量操作
   }
 
   async function onSearch() {
     loading.value = true;
-    const { code, data } = await getRoleList(toRaw(form));
-    if (code === 0) {
-      dataList.value = data.list;
-      pagination.total = data.total;
-      pagination.pageSize = data.pageSize;
-      pagination.currentPage = data.currentPage;
-    }
-
-    setTimeout(() => {
+    try {
+      const data = await listIamRoles({
+        keyword: form.name || form.code || undefined,
+        status: form.status || undefined,
+        page: pagination.currentPage,
+        size: pagination.pageSize
+      });
+      dataList.value = data?.items ?? [];
+      pagination.total = data?.total ?? 0;
+      pagination.pageSize = data?.size ?? pagination.pageSize;
+      pagination.currentPage = data?.page ?? pagination.currentPage;
+    } catch (e: any) {
+      message(`加载角色列表失败：${e?.message || e}`, { type: "error" });
+    } finally {
       loading.value = false;
-    }, 500);
+    }
   }
 
   const resetForm = formEl => {
@@ -182,14 +217,18 @@ export function useRole(treeRef: Ref) {
     onSearch();
   };
 
-  function openDialog(title = "新增", row?: FormItemProps) {
+  function openDialog(title = "新增", row?: IamRole) {
+    const isCreate = title === "新增";
     addDialog({
       title: `${title}角色`,
       props: {
         formInline: {
+          isCreate,
           name: row?.name ?? "",
           code: row?.code ?? "",
-          remark: row?.remark ?? ""
+          description: row?.description ?? "",
+          data_scope: dataScopeToNumber(row?.data_scope),
+          status: row?.status ?? "active"
         }
       },
       width: "40%",
@@ -201,122 +240,89 @@ export function useRole(treeRef: Ref) {
       beforeSure: (done, { options }) => {
         const FormRef = formRef.value.getRef();
         const curData = options.props.formInline as FormItemProps;
-        function chores() {
-          message(`您${title}了角色名称为${curData.name}的这条数据`, {
-            type: "success"
-          });
-          done(); // 关闭弹框
-          onSearch(); // 刷新表格数据
-        }
-        FormRef.validate(valid => {
-          if (valid) {
-            console.log("curData", curData);
-            // 表单规则校验通过
-            if (title === "新增") {
-              // 实际开发先调用新增接口，再进行下面操作
-              chores();
-            } else {
-              // 实际开发先调用修改接口，再进行下面操作
-              chores();
+        FormRef.validate(async valid => {
+          if (!valid) return;
+          try {
+            if (isCreate) {
+              await createIamRole({
+                name: curData.name,
+                code: curData.code,
+                description: curData.description || undefined,
+                data_scope: dataScopeToNumber(curData.data_scope)
+              });
+              message(`已新增角色 ${curData.name}`, { type: "success" });
+            } else if (row?.id) {
+              await updateIamRole(row.id, {
+                name: curData.name,
+                description: curData.description || undefined,
+                data_scope: dataScopeToNumber(curData.data_scope),
+                status: curData.status
+              });
+              message(`已修改角色 ${curData.name}`, { type: "success" });
             }
+            done();
+            onSearch();
+          } catch (e: any) {
+            message(`${title}角色失败：${e?.message || e}`, { type: "error" });
           }
         });
       }
     });
   }
 
-  /** 菜单权限 */
-  async function handleMenu(row?: any) {
-    const { id } = row;
-    if (id) {
-      curRow.value = row;
-      isShow.value = true;
-      const { code, data } = await getRoleMenuIds({ id });
-      if (code === 0) {
-        treeRef.value.setCheckedKeys(data);
-      }
-    } else {
-      curRow.value = null;
-      isShow.value = false;
+  /** 权限分配 */
+  async function handleMenu(row: IamRole) {
+    curRow.value = row;
+    try {
+      const res = await listIamPermissions({ page: 1, size: 1000 });
+      allPermissions.value = res?.items ?? [];
+      // 接口暂未提供回显当前角色已有权限，这里默认空
+      checkedPermissionIds.value = [];
+      permissionDialogVisible.value = true;
+    } catch (e: any) {
+      message(`加载权限列表失败：${e?.message || e}`, { type: "error" });
     }
   }
 
-  /** 高亮当前权限选中行 */
-  function rowStyle({ row: { id } }) {
-    return {
-      cursor: "pointer",
-      background: id === curRow.value?.id ? "var(--el-fill-color-light)" : ""
-    };
+  function closePermissionDialog() {
+    permissionDialogVisible.value = false;
+    curRow.value = null;
+    checkedPermissionIds.value = [];
   }
 
-  /** 菜单权限-保存 */
-  function handleSave() {
-    const { id, name } = curRow.value;
-    // 根据用户 id 调用实际项目中菜单权限修改接口
-    console.log(id, treeRef.value.getCheckedKeys());
-    message(`角色名称为${name}的菜单权限修改成功`, {
-      type: "success"
-    });
+  /** 权限分配-保存 */
+  async function handleSave() {
+    if (!curRow.value) return;
+    try {
+      await assignRolePermissions(curRow.value.id, checkedPermissionIds.value);
+      message(`角色 ${curRow.value.name} 的权限已更新`, { type: "success" });
+      closePermissionDialog();
+    } catch (e: any) {
+      message(`保存权限失败：${e?.message || e}`, { type: "error" });
+    }
   }
 
-  /** 数据权限 可自行开发 */
-  // function handleDatabase() {}
-
-  const onQueryChanged = (query: string) => {
-    treeRef.value!.filter(query);
-  };
-
-  const filterMethod = (query: string, node) => {
-    return transformI18n(node.title)!.includes(query);
-  };
-
-  onMounted(async () => {
+  onMounted(() => {
     onSearch();
-    const { code, data } = await getRoleMenu();
-    if (code === 0) {
-      treeIds.value = getKeyList(data, "id");
-      treeData.value = handleTree(data);
-    }
-  });
-
-  watch(isExpandAll, val => {
-    val
-      ? treeRef.value.setExpandedKeys(treeIds.value)
-      : treeRef.value.setExpandedKeys([]);
-  });
-
-  watch(isSelectAll, val => {
-    val
-      ? treeRef.value.setCheckedKeys(treeIds.value)
-      : treeRef.value.setCheckedKeys([]);
   });
 
   return {
     form,
-    isShow,
     curRow,
     loading,
     columns,
-    rowStyle,
     dataList,
-    treeData,
-    treeProps,
-    isLinkage,
     pagination,
-    isExpandAll,
-    isSelectAll,
-    treeSearchValue,
-    // buttonClass,
+    permissionDialogVisible,
+    groupedPermissions,
+    checkedPermissionIds,
     onSearch,
     resetForm,
     openDialog,
     handleMenu,
     handleSave,
     handleDelete,
-    filterMethod,
-    transformI18n,
-    onQueryChanged,
-    // handleDatabase,
+    closePermissionDialog,
     handleSizeChange,
     handleCurrentChange,
     handleSelectionChange

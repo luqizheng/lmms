@@ -87,7 +87,9 @@ const onLogin = async (formEl: FormInstance | undefined) => {
             err?.response?.data?.message ??
             err?.message;
           message(
-            detail ? `${t("login.pureLoginFail")}: ${detail}` : t("login.pureLoginFail"),
+            detail
+              ? `${t("login.pureLoginFail")}: ${detail}`
+              : t("login.pureLoginFail"),
             { type: "error" }
           );
         })

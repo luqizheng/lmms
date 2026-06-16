@@ -7,10 +7,7 @@ import {
   routerArrays,
   storageLocal
 } from "../utils";
-import {
-  type RefreshTokenResult,
-  refreshTokenApi
-} from "@/api/user";
+import { type RefreshTokenResult, refreshTokenApi } from "@/api/user";
 import { login as loginApi, type LoginResult } from "@/api/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
 import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";

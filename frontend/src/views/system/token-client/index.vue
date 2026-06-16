@@ -76,11 +76,7 @@ const {
       </el-form-item>
     </el-form>
 
-    <PureTableBar
-      title="令牌客户端管理"
-      :columns="columns"
-      @refresh="onSearch"
-    >
+    <PureTableBar title="令牌客户端管理" :columns="columns" @refresh="onSearch">
       <template #buttons>
         <el-button
           type="primary"

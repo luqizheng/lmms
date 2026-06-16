@@ -34,6 +34,16 @@ export default {
       }
     },
     {
+      path: "/system/permission",
+      name: "SystemPermission",
+      component: () => import("@/views/system/permission/index.vue"),
+      meta: {
+        title: $t("menus.systemPermission"),
+        icon: "ep/lock",
+        keepAlive: true
+      }
+    },
+    {
       path: "/system/token-client",
       name: "SystemTokenClient",
       component: () => import("@/views/system/token-client/index.vue"),

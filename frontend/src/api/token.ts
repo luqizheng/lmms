@@ -15,7 +15,9 @@ export interface AccessTokenResult {
 }
 
 export function createAccessToken(data: AccessTokenRequest) {
-  return http.request<AccessTokenResult>("post", "/api/v1/tokens/access", { data });
+  return http.request<AccessTokenResult>("post", "/api/v1/tokens/access", {
+    data
+  });
 }
 
 export interface RefreshTokenRequest {
@@ -25,11 +27,15 @@ export interface RefreshTokenRequest {
 }
 
 export function refreshToken(data: RefreshTokenRequest) {
-  return http.request<AccessTokenResult>("post", "/api/v1/tokens/refresh", { data });
+  return http.request<AccessTokenResult>("post", "/api/v1/tokens/refresh", {
+    data
+  });
 }
 
 export function revokeToken(token: string) {
-  return http.request<void>("post", "/api/v1/tokens/revoke", { data: { token } });
+  return http.request<void>("post", "/api/v1/tokens/revoke", {
+    data: { token }
+  });
 }
 
 export function listResources() {

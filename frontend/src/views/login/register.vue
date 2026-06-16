@@ -76,7 +76,11 @@ const onRegister = async () => {
         <h2 class="outline-hidden">注册管理员</h2>
         <el-form :model="form" size="large" @submit.prevent>
           <el-form-item>
-            <el-input v-model="form.username" clearable placeholder="用户名（3-32 字符）">
+            <el-input
+              v-model="form.username"
+              clearable
+              placeholder="用户名（3-32 字符）"
+            >
               <template #prefix><User /></template>
             </el-input>
           </el-form-item>
@@ -101,7 +105,11 @@ const onRegister = async () => {
             </el-input>
           </el-form-item>
           <el-form-item>
-            <el-input v-model="form.email" clearable placeholder="邮箱（可选）" />
+            <el-input
+              v-model="form.email"
+              clearable
+              placeholder="邮箱（可选）"
+            />
           </el-form-item>
           <el-form-item>
             <el-button

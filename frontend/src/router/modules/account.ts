@@ -18,7 +18,8 @@ export default {
     {
       path: "/account-settings/profile",
       name: "AccountProfile",
-      component: () => import("@/views/account-settings/components/Profile.vue"),
+      component: () =>
+        import("@/views/account-settings/components/Profile.vue"),
       meta: {
         title: $t("menus.accountProfile"),
         showLink: false,

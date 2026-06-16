@@ -76,6 +76,7 @@ menus:
   pureUser: 用户管理
   pureRole: 角色管理
   systemTokenClient: 令牌客户端
+  systemPermission: 权限管理
   pureSystemMenu: 菜单管理
   pureDept: 部门管理
   pureSysMonitor: 系统监控
@@ -83,6 +84,9 @@ menus:
   pureLoginLog: 登录日志
   pureOperationLog: 操作日志
   pureSystemLog: 系统日志
+  monitorOperationLog: 操作日志
+  monitorLoginLog: 登录日志
+  monitorRetention: 数据保留
   pureCodeMirror: 代码编辑器
   pureMarkdown: Markdown
   pureEditor: 编辑器

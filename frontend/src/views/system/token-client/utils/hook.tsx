@@ -120,33 +120,31 @@ export function useTokenClient() {
       hideFooter: false,
       closeOnClickModal: false,
       contentRenderer: () =>
-        h(
-          "div",
-          { style: "line-height:1.8" },
-          [
-            h("div", { style: "color:#f56c6c; margin-bottom:8px" },
-              "请立即复制保存 client_secret，关闭后将无法再次查看！"),
-            h("div", null, [h("b", null, "Client ID："), clientId]),
-            h(
-              "div",
-              { style: "word-break:break-all; margin-top:8px" },
-              [h("b", null, "Client Secret："), secret]
-            ),
-            h(
-              "el-button",
-              {
-                type: "primary",
-                size: "small",
-                style: "margin-top:12px",
-                onClick: async () => {
-                  await copy();
-                  message("已复制到剪贴板", { type: "success" });
-                }
-              },
-              { default: () => "复制 Secret" }
-            )
-          ]
-        )
+        h("div", { style: "line-height:1.8" }, [
+          h(
+            "div",
+            { style: "color:#f56c6c; margin-bottom:8px" },
+            "请立即复制保存 client_secret，关闭后将无法再次查看！"
+          ),
+          h("div", null, [h("b", null, "Client ID："), clientId]),
+          h("div", { style: "word-break:break-all; margin-top:8px" }, [
+            h("b", null, "Client Secret："),
+            secret
+          ]),
+          h(
+            "el-button",
+            {
+              type: "primary",
+              size: "small",
+              style: "margin-top:12px",
+              onClick: async () => {
+                await copy();
+                message("已复制到剪贴板", { type: "success" });
+              }
+            },
+            { default: () => "复制 Secret" }
+          )
+        ])
     });
   }
 

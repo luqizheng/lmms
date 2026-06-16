@@ -53,5 +53,7 @@ export interface RegisterResult {
 }
 
 export function register(data: RegisterRequest) {
-  return http.request<RegisterResult>("post", "/api/v1/auth/register", { data });
+  return http.request<RegisterResult>("post", "/api/v1/auth/register", {
+    data
+  });
 }

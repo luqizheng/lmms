@@ -3,24 +3,20 @@ import { ref } from "vue";
 import ReCol from "@/components/ReCol";
 import { formRules } from "./utils/rule";
 import { FormProps } from "./utils/types";
-import { usePublicHooks } from "../hooks";
 
 const props = withDefaults(defineProps<FormProps>(), {
   formInline: () => ({
     higherDeptOptions: [],
-    parentId: 0,
+    id: undefined,
+    parentId: "",
     name: "",
-    principal: "",
-    phone: "",
-    email: "",
-    sort: 0,
-    status: 1,
-    remark: ""
+    code: "",
+    sortOrder: 0,
+    status: "active"
   })
 });
 
 const ruleFormRef = ref();
-const { switchStyle } = usePublicHooks();
 const newFormInline = ref(props.formInline);
 
 function getRef() {
@@ -35,7 +31,7 @@ defineExpose({ getRef });
     ref="ruleFormRef"
     :model="newFormInline"
     :rules="formRules"
-    label-width="82px"
+    label-width="92px"
   >
     <el-row :gutter="30">
       <re-col>
@@ -56,7 +52,9 @@ defineExpose({ getRef });
           >
             <template #default="{ node, data }">
               <span>{{ data.name }}</span>
-              <span v-if="!node.isLeaf"> ({{ data.children.length }}) </span>
+              <span v-if="!node.isLeaf">
+                ({{ data.children?.length || 0 }})
+              </span>
             </template>
           </el-cascader>
         </el-form-item>
@@ -72,30 +70,11 @@ defineExpose({ getRef });
         </el-form-item>
       </re-col>
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="部门负责人">
+        <el-form-item label="部门编码" prop="code">
           <el-input
-            v-model="newFormInline.principal"
+            v-model="newFormInline.code"
             clearable
-            placeholder="请输入部门负责人"
-          />
-        </el-form-item>
-      </re-col>
-
-      <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="手机号" prop="phone">
-          <el-input
-            v-model="newFormInline.phone"
-            clearable
-            placeholder="请输入手机号"
-          />
-        </el-form-item>
-      </re-col>
-      <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="邮箱" prop="email">
-          <el-input
-            v-model="newFormInline.email"
-            clearable
-            placeholder="请输入邮箱"
+            placeholder="请输入部门编码"
           />
         </el-form-item>
       </re-col>
@@ -103,7 +82,7 @@ defineExpose({ getRef });
       <re-col :value="12" :xs="24" :sm="24">
         <el-form-item label="排序">
           <el-input-number
-            v-model="newFormInline.sort"
+            v-model="newFormInline.sortOrder"
             class="w-full!"
             :min="0"
             :max="9999"
@@ -111,27 +90,12 @@ defineExpose({ getRef });
           />
         </el-form-item>
       </re-col>
-      <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="部门状态">
-          <el-switch
-            v-model="newFormInline.status"
-            inline-prompt
-            :active-value="1"
-            :inactive-value="0"
-            active-text="启用"
-            inactive-text="停用"
-            :style="switchStyle"
-          />
-        </el-form-item>
-      </re-col>
-
-      <re-col>
-        <el-form-item label="备注">
-          <el-input
-            v-model="newFormInline.remark"
-            placeholder="请输入备注信息"
-            type="textarea"
-          />
+      <re-col v-if="newFormInline.id" :value="12" :xs="24" :sm="24">
+        <el-form-item label="状态">
+          <el-select v-model="newFormInline.status" class="w-full">
+            <el-option label="启用" value="active" />
+            <el-option label="停用" value="inactive" />
+          </el-select>
         </el-form-item>
       </re-col>
     </el-row>

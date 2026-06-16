@@ -56,8 +56,8 @@ function onFullscreen() {
           clearable
           class="w-45!"
         >
-          <el-option label="启用" :value="1" />
-          <el-option label="停用" :value="0" />
+          <el-option label="启用" value="active" />
+          <el-option label="停用" value="inactive" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -76,7 +76,7 @@ function onFullscreen() {
     </el-form>
 
     <PureTableBar
-      title="部门管理（仅演示，操作后不生效）"
+      title="部门管理"
       :columns="columns"
       :tableRef="tableRef?.getTableRef()"
       @refresh="onSearch"

@@ -76,6 +76,7 @@ menus:
   pureUser: User Manage
   pureRole: Role Manage
   systemTokenClient: Token Client
+  systemPermission: Permission Manage
   pureSystemMenu: Menu Manage
   pureDept: Dept Manage
   pureSysMonitor: System Monitor
@@ -83,6 +84,9 @@ menus:
   pureLoginLog: Login Log
   pureOperationLog: Operation Log
   pureSystemLog: System Log
+  monitorOperationLog: Operation Log
+  monitorLoginLog: Login Log
+  monitorRetention: Data Retention
   pureCodeMirror: CodeMirror
   pureMarkdown: Markdown
   pureEditor: Editor

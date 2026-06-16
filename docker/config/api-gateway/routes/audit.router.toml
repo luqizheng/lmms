@@ -1,0 +1,34 @@
+[[route]]
+match = "/audit/operation/**"
+service = "audit-service"
+public = false
+
+[[route]]
+match = "/audit/operation"
+service = "audit-service"
+public = false
+
+[[route]]
+match = "/audit/login/**"
+service = "audit-service"
+public = false
+
+[[route]]
+match = "/audit/login"
+service = "audit-service"
+public = false
+
+[[route]]
+match = "/audit/export/**"
+service = "audit-service"
+public = false
+
+[[route]]
+match = "/audit/retention/**"
+service = "audit-service"
+public = false
+
+[[route]]
+match = "/audit/health"
+service = "audit-service"
+public = true

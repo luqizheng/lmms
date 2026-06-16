@@ -11,7 +11,11 @@ export interface Role {
   updated_at: string;
 }
 
-export function listRoles(params: { page?: number; size?: number; keyword?: string }) {
+export function listRoles(params: {
+  page?: number;
+  size?: number;
+  keyword?: string;
+}) {
   return http.request<PageResult<Role>>("get", "/roles", { params });
 }
 
