@@ -54,13 +54,15 @@ impl UserService {
             .map_err(|e| IamError::Jwt(e.to_string()))?;
         
         let user_id = nanoid!();
+        let salt = nanoid!(32);
 
         let user: UserRow = sqlx::query_as(
-            "INSERT INTO users (id, username, password_hash, nickname, email, phone, avatar, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW()) RETURNING id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at"
+            "INSERT INTO users (id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW()) RETURNING id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at"
         )
         .bind(&user_id)
         .bind(&req.username)
         .bind(&password_hash)
+        .bind(&salt)
         .bind(&req.nickname)
         .bind(&req.email)
         .bind(&req.phone)
@@ -68,7 +70,20 @@ impl UserService {
         .fetch_one(&self.state.db)
         .await?;
 
-        for role_id in &req.role_ids {
+        let user_count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL"
+        )
+        .fetch_one(&self.state.db)
+        .await?;
+
+        let mut role_ids = req.role_ids.clone();
+        
+        if user_count.0 == 1 {
+            let admin_role_id = self.ensure_admin_role().await?;
+            role_ids.push(admin_role_id);
+        }
+
+        for role_id in &role_ids {
             sqlx::query(
                 "INSERT INTO user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())"
             )
@@ -79,6 +94,30 @@ impl UserService {
         }
 
         Ok(self.to_response(&user))
+    }
+
+    async fn ensure_admin_role(&self) -> Result<String, IamError> {
+        let existing_role: Option<(String,)> = sqlx::query_as(
+            "SELECT id FROM roles WHERE name = 'admin' AND deleted_at IS NULL"
+        )
+        .fetch_optional(&self.state.db)
+        .await?;
+
+        if let Some((role_id,)) = existing_role {
+            return Ok(role_id);
+        }
+
+        let role_id = nanoid!();
+        sqlx::query(
+            "INSERT INTO roles (id, name, code, description, data_scope, status, created_at, updated_at) VALUES (?, ?, ?, '系统管理员角色', 'all', 'active', NOW(), NOW())"
+        )
+        .bind(&role_id)
+        .bind("admin")
+        .bind("admin")
+        .execute(&self.state.db)
+        .await?;
+
+        Ok(role_id)
     }
 
     pub async fn get(&self, user_id: &str) -> Result<UserResponse, IamError> {

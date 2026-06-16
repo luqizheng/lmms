@@ -96,7 +96,20 @@ rewrite = [
 ]
 ```
 
-### 4.2 redirect — 重定向（终结）
+### 4.2 add_prefix — 添加路径前缀
+
+请求 `/auth/login` → 后端收到 `/iam/auth/login`：
+
+```toml
+[[route]]
+match = "/auth/**"
+service = "iam-service"
+rewrite = [
+  { type = "add_prefix", prefix = "/iam" }
+]
+```
+
+### 4.3 redirect — 重定向（终结）
 
 ```toml
 [[route]]
@@ -109,7 +122,7 @@ rewrite = [
 
 支持 `301` / `302` / `307` / `308`。
 
-### 4.3 header_set — 覆盖请求头
+### 4.4 header_set — 覆盖请求头
 
 ```toml
 [[route]]
@@ -120,7 +133,7 @@ rewrite = [
 ]
 ```
 
-### 4.4 header_add — 追加请求头
+### 4.5 header_add — 追加请求头
 
 ```toml
 [[route]]
@@ -131,7 +144,7 @@ rewrite = [
 ]
 ```
 
-### 4.5 path_param — 路径片段重写
+### 4.6 path_param — 路径片段重写
 
 把 `/users/{id}/profile` 重写为 `/users/profile?id={id}`：
 
@@ -144,7 +157,7 @@ rewrite = [
 ]
 ```
 
-### 4.6 组合示例
+### 4.7 组合示例
 
 带审计 header、剥前缀、最后重定向未授权：
 
@@ -235,7 +248,7 @@ curl -X POST http://localhost:9090/__admin/reload
 |------|------|------|
 | 启动 panic：`failed to load routes from ...` | routes/ 为空或权限不足 | 至少放一个 `*.router.toml`，确认读权限 |
 | `duplicate match pattern: /users/**` | 两个文件用了相同 `match` | 合并到一个文件或换前缀 |
-| `parse auth.router.toml: unknown variant unknown_op` | rewrite 类型拼错 | 限定为 `strip_prefix` / `redirect` / `header_set` / `header_add` / `path_param` |
+| `parse auth.router.toml: unknown variant unknown_op` | rewrite 类型拼错 | 限定为 `strip_prefix` / `add_prefix` / `redirect` / `header_set` / `header_add` / `path_param` |
 | reload HTTP 500 | 新配置不合法 | gateway 保留旧表；fix 配置后再次 reload |
 | Windows 上 reload 没反应 | 不支持 SIGHUP | 用 `POST /__admin/reload` |
 | `prefix not in path` 出现在请求日志 | strip_prefix 配置的 prefix 不在路径里 | 改为精确匹配或调前缀 |

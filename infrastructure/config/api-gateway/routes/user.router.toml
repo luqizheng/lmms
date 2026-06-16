@@ -17,3 +17,8 @@ public = false
 match = "/api/v1/posts/**"
 service = "iam-service"
 public = false
+
+[[route]]
+match = "/iam/users"
+service = "iam-service"
+public = true

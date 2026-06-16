@@ -1,10 +1,9 @@
 use axum::{
     Router,
     routing::{get, post, delete},
-    extract::{ConnectInfo, Json, Path, State},
+    extract::{Json, Path, State},
     http::{HeaderMap, StatusCode},
 };
-use std::net::SocketAddr;
 use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse}, service::AuthService};
 use jwt_ctx::Principal;
 
@@ -37,12 +36,10 @@ fn get_client_info(headers: &HeaderMap) -> (String, String) {
 
 async fn login(
     State(state): State<AppState>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(login_req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, &'static str)> {
     let (ip_address, user_agent) = get_client_info(&headers);
-    let _ = addr;
     let service = AuthService::new(state);
     let response = service
         .login(login_req, &ip_address, &user_agent)

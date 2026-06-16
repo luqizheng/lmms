@@ -54,5 +54,8 @@
     "sdk:generate:config": "node scripts/openapi-codegen.js services/config-service/openapi.yaml frontend/src/api/config",
     "sdk:generate:file": "node scripts/openapi-codegen.js services/file-service/openapi.yaml frontend/src/api/file",
     "sdk:generate:all": "pnpm sdk:generate:audit && pnpm sdk:generate:config && pnpm sdk:generate:file"
+  },
+  "dependencies": {
+    "argon2": "^0.44.0"
   }
 }

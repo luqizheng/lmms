@@ -4,7 +4,7 @@ app:
   port: 8080
 
 database:
-  url: mysql://root:rootpass@mysql:3306/superpowers
+  url: mysql://root:rootpass@mysql:3306/superpowers?ssl-mode=DISABLED
   max_connections: 20
   min_connections: 5
 
