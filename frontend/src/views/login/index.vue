@@ -58,8 +58,8 @@ const { title, getDropdownItemStyle, getDropdownItemClass } = useNav();
 const { locale, translationCh, translationEn } = useTranslationLang();
 
 const ruleForm = reactive({
-  username: "admin",
-  password: "admin123",
+  username: "",
+  password: "",
   verifyCode: ""
 });
 
@@ -81,8 +81,15 @@ const onLogin = async (formEl: FormInstance | undefined) => {
             message(t("login.pureLoginSuccess"), { type: "success" });
           });
         })
-        .catch(_err => {
-          message(t("login.pureLoginFail"), { type: "error" });
+        .catch(err => {
+          const detail =
+            err?.response?.data?.error ??
+            err?.response?.data?.message ??
+            err?.message;
+          message(
+            detail ? `${t("login.pureLoginFail")}: ${detail}` : t("login.pureLoginFail"),
+            { type: "error" }
+          );
         })
         .finally(() => {
           disabled.value = false;

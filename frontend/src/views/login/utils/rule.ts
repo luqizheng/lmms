@@ -123,4 +123,29 @@ const updateRules = reactive<FormRules>({
   ]
 });
 
-export { loginRules, phoneRules, updateRules };
+/** 注册校验（对接真实后端：username/nickname 必填，密码 ≥ 8 位） */
+const registerRules = reactive<FormRules>({
+  username: [
+    {
+      required: true,
+      message: transformI18n($t("login.pureUsernameReg")),
+      trigger: "blur"
+    }
+  ],
+  password: [
+    {
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback(new Error(transformI18n($t("login.purePassWordReg"))));
+        } else if (value.length < 8) {
+          callback(new Error(transformI18n($t("login.purePassWordRuleReg"))));
+        } else {
+          callback();
+        }
+      },
+      trigger: "blur"
+    }
+  ]
+});
+
+export { loginRules, phoneRules, updateRules, registerRules };

@@ -32,16 +32,6 @@ export default {
         icon: "ep/user-filled",
         keepAlive: true
       }
-    },
-    {
-      path: "/system/permission",
-      name: "SystemPermission",
-      component: () => import("@/views/system/permission/index.vue"),
-      meta: {
-        title: $t("menus.systemPermission"),
-        icon: "ep/key",
-        keepAlive: true
-      }
     }
   ]
 } satisfies RouteConfigsTable;

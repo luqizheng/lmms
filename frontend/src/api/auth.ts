@@ -5,9 +5,23 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface LoginUser {
+  id: string;
+  username: string;
+  nickname: string;
+  email?: string | null;
+  phone?: string | null;
+  avatar?: string | null;
+  roles: string[];
+  permissions: string[];
+}
+
 export interface LoginResult {
-  code: string;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
   expires_in: number;
+  user: LoginUser;
 }
 
 export function login(data: LoginRequest) {
@@ -28,9 +42,9 @@ export function getSetupStatus() {
 export interface RegisterRequest {
   username: string;
   password: string;
+  nickname: string;
   email?: string;
   phone?: string;
-  nickname?: string;
 }
 
 export interface RegisterResult {

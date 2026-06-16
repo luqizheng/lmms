@@ -8,11 +8,10 @@ import {
   storageLocal
 } from "../utils";
 import {
-  type UserResult,
   type RefreshTokenResult,
-  getLogin,
   refreshTokenApi
 } from "@/api/user";
+import { login as loginApi, type LoginResult } from "@/api/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
 import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
 
@@ -77,15 +76,28 @@ export const useUserStore = defineStore("pure-user", {
     },
     /** 登入 */
     async loginByUsername(data) {
-      return new Promise<UserResult>((resolve, reject) => {
-        getLogin(data)
-          .then(data => {
-            if (data.code === 0) {
-              setToken(data.data);
-              resolve(data);
-            } else {
-              reject(data.message);
-            }
+      return new Promise<LoginResult>((resolve, reject) => {
+        loginApi({ username: data.username, password: data.password })
+          .then(res => {
+            // 适配后端 snake_case 返回结构
+            const expires = new Date(Date.now() + (res.expires_in ?? 0) * 1000);
+            setToken({
+              accessToken: res.access_token,
+              refreshToken: res.refresh_token,
+              expires,
+              avatar: res.user?.avatar ?? "",
+              username: res.user?.username,
+              nickname: res.user?.nickname,
+              roles:
+                res.user?.roles && res.user.roles.length > 0
+                  ? res.user.roles
+                  : ["common"],
+              permissions:
+                res.user?.permissions && res.user.permissions.length > 0
+                  ? res.user.permissions
+                  : ["*:*:*"]
+            } as any);
+            resolve(res);
           })
           .catch(error => {
             reject(error);
