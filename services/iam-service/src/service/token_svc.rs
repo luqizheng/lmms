@@ -40,10 +40,13 @@ impl TokenService {
     pub fn issue_access_token(&self, user_id: &str, username: &str, roles: Vec<String>, permissions: Vec<String>) -> Result<String, IamError> {
         let ttl_sec = self.state.config.jwt.access_token_ttl_minutes * 60;
         
+        let now = Self::now();
         let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
         claims.subject = Some(user_id.to_string());
-        claims.issuer = Some("iam-service".to_string());
-        claims.expires_at = Some(Self::now() + Duration::from_secs(ttl_sec as u64));
+        claims.issuer = Some("superpowers-token-server".to_string());
+        claims.issued_at = Some(now);
+        claims.jwt_id = Some(uuid::Uuid::new_v4().to_string());
+        claims.expires_at = Some(now + Duration::from_secs(ttl_sec as u64));
 
         let mut custom = HashMap::new();
         custom.insert("username".to_string(), serde_json::Value::String(username.to_string()));

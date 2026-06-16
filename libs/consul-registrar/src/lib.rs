@@ -153,10 +153,10 @@ impl ConsulRegistrar {
         let registration = AgentServiceRegistration {
             id: self.service_id.clone(),
             name: self.service_name.clone(),
-            address,
+            address: address.clone(),
             port,
             check: AgentServiceCheck {
-                http: format!("http://localhost:{}/health", port),
+                http: format!("http://{}:{}/health", address, port),
                 interval: "10s".to_string(),
                 timeout: "5s".to_string(),
                 deregister_critical_service_after: "1m".to_string(),

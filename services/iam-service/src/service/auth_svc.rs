@@ -31,7 +31,7 @@ impl AuthService {
 
         let user = user.ok_or(IamError::InvalidCredentials)?;
 
-        if user.status != UserStatus::Active {
+        if !user.status.is_active() {
             return Err(IamError::UserDisabled);
         }
 
@@ -142,7 +142,7 @@ impl AuthService {
 
         let user = user.ok_or(IamError::UserNotFound)?;
 
-        if user.status != UserStatus::Active {
+        if !user.status.is_active() {
             return Err(IamError::UserDisabled);
         }
 

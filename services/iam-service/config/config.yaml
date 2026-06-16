@@ -13,8 +13,8 @@ redis:
   ttl_sec: 86400
 
 jwt:
-  private_key_path: keys/private.pem
-  public_key_path: keys/public.pem
+  private_key_path: /app/keys/private.pem
+  public_key_path: /app/keys/public.pem
   access_token_ttl_minutes: 15
   refresh_token_ttl_days: 7
 

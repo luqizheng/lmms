@@ -8,6 +8,20 @@ const DB_CONFIG = {
   database: process.env.E2E_DB_NAME ?? 'superpowers',
 };
 
+export async function clearUsers(): Promise<void> {
+  const connection = await createConnection(DB_CONFIG);
+  try {
+    await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.execute('DELETE FROM login_logs');
+    await connection.execute('DELETE FROM refresh_tokens');
+    await connection.execute('DELETE FROM user_roles');
+    await connection.execute('DELETE FROM users');
+    await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+  } finally {
+    await connection.end();
+  }
+}
+
 export async function queryUserByUsername(username: string): Promise<{ id: string; username: string; email: string; nickname: string } | null> {
   const connection = await createConnection(DB_CONFIG);
   try {

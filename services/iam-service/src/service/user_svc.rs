@@ -56,8 +56,8 @@ impl UserService {
         let user_id = nanoid!();
         let salt = nanoid!(32);
 
-        let user: UserRow = sqlx::query_as(
-            "INSERT INTO users (id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW()) RETURNING id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at"
+        let _: () = sqlx::query(
+            "INSERT INTO users (id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
         )
         .bind(&user_id)
         .bind(&req.username)
@@ -67,6 +67,14 @@ impl UserService {
         .bind(&req.email)
         .bind(&req.phone)
         .bind(&req.avatar)
+        .execute(&self.state.db)
+        .await
+        .map(|_| ())?;
+
+        let user: UserRow = sqlx::query_as(
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ?"
+        )
+        .bind(&user_id)
         .fetch_one(&self.state.db)
         .await?;
 
@@ -191,14 +199,22 @@ impl UserService {
         let avatar = req.avatar.or(existing.avatar);
         let status = req.status.unwrap_or(existing.status);
 
-        let user: UserRow = sqlx::query_as(
-            "UPDATE users SET nickname = ?, email = ?, phone = ?, avatar = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at"
+        let _: () = sqlx::query(
+            "UPDATE users SET nickname = ?, email = ?, phone = ?, avatar = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(&nickname)
         .bind(&email)
         .bind(&phone)
         .bind(&avatar)
         .bind(&status)
+        .bind(user_id)
+        .execute(&self.state.db)
+        .await
+        .map(|_| ())?;
+
+        let user: UserRow = sqlx::query_as(
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL"
+        )
         .bind(user_id)
         .fetch_one(&self.state.db)
         .await?;

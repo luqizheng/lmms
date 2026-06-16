@@ -1,6 +1,6 @@
 use axum::{
     Router,
-    routing::{get, post, delete},
+    routing::{get, post, put, delete},
     extract::{Json, Path, State},
     http::{HeaderMap, StatusCode},
     Json as AxumJson,
@@ -16,6 +16,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/iam/auth/refresh", post(refresh))
         .route("/iam/auth/logout", post(logout))
         .route("/iam/auth/password", post(change_password))
+        .route("/iam/auth/password", put(change_password))
         .route("/iam/auth/sessions", get(list_sessions))
         .route("/iam/auth/sessions/{session_id}", delete(revoke_session))
         .route("/iam/auth/register", post(register))
@@ -49,7 +50,10 @@ async fn login(
     let response = service
         .login(login_req, &ip_address, &user_agent)
         .await
-        .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid credentials"))?;
+        .map_err(|e| {
+            tracing::error!("login failed: {:?}", e);
+            (StatusCode::UNAUTHORIZED, "invalid credentials")
+        })?;
     Ok(AxumJson(response))
 }
 
@@ -92,7 +96,7 @@ async fn change_password(
                 _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
             }
         })?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(StatusCode::OK)
 }
 
 async fn list_sessions(
@@ -138,13 +142,16 @@ async fn revoke_session(
 async fn register(
     State(state): State<AppState>,
     Json(req): Json<CreateUserRequest>,
-) -> Result<AxumJson<UserResponse>, (StatusCode, &'static str)> {
+) -> Result<(StatusCode, AxumJson<UserResponse>), (StatusCode, &'static str)> {
     let user_count: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL"
     )
     .fetch_one(&state.db)
     .await
-    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    .map_err(|e| {
+        tracing::error!("count users failed: {:?}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
+    })?;
 
     if user_count.0 > 0 {
         return Err((StatusCode::FORBIDDEN, "registration closed"));
@@ -155,12 +162,13 @@ async fn register(
         .create(req)
         .await
         .map_err(|e| {
+            tracing::error!("create user failed: {:?}", e);
             match e {
                 IamError::DuplicateUser => (StatusCode::CONFLICT, "username already exists"),
                 _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
             }
         })?;
-    Ok(AxumJson(response))
+    Ok((StatusCode::CREATED, AxumJson(response)))
 }
 
 async fn setup_status(

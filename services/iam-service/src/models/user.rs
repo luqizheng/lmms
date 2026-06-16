@@ -25,23 +25,21 @@ pub struct User {
 }
 
 #[derive(Debug, Type, Serialize, Deserialize, PartialEq, Eq)]
-#[sqlx(type_name = "varchar")]
-pub enum UserStatus {
-    #[sqlx(rename = "active")]
-    Active,
-    #[sqlx(rename = "disabled")]
-    Disabled,
-    #[sqlx(rename = "locked")]
-    Locked,
+#[sqlx(transparent)]
+pub struct UserStatus(pub String);
+
+impl UserStatus {
+    pub fn active() -> Self { Self("active".to_string()) }
+    pub fn disabled() -> Self { Self("disabled".to_string()) }
+    pub fn locked() -> Self { Self("locked".to_string()) }
+    pub fn is_active(&self) -> bool { self.0 == "active" }
+    pub fn is_disabled(&self) -> bool { self.0 == "disabled" }
+    pub fn is_locked(&self) -> bool { self.0 == "locked" }
 }
 
 impl fmt::Display for UserStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            UserStatus::Active => write!(f, "active"),
-            UserStatus::Disabled => write!(f, "disabled"),
-            UserStatus::Locked => write!(f, "locked"),
-        }
+        write!(f, "{}", self.0)
     }
 }
 

@@ -20,11 +20,6 @@ COPY --from=builder /app/iam-service /usr/local/bin/iam-service
 
 COPY services/iam-service/config/config.yaml /etc/iam-service/config.yaml
 
-RUN mkdir -p /etc/iam-service/keys
-
-COPY docker/secrets/private.pem /etc/iam-service/keys/private.pem
-COPY docker/secrets/public.pem /etc/iam-service/keys/public.pem
-
 EXPOSE 8080
 
 CMD ["iam-service"]
