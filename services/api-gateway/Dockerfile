@@ -11,13 +11,14 @@ COPY sdk ./sdk
 # 预编译依赖（仅当 Cargo.toml/Cargo.lock 变化时重新执行）
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
-    cargo build --release -p api-gateway --jobs 8 && \
-    cp /app/target/release/api-gateway /app/api-gateway
+    cargo build --release --target x86_64-unknown-linux-musl -p api-gateway --jobs 8 && \
+    cp /app/target/x86_64-unknown-linux-musl/release/api-gateway /app/api-gateway
 
 # 阶段2: 复制源代码并编译
 COPY services/api-gateway/src ./services/api-gateway/src
 
 FROM alpine:3.21
+RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /app/api-gateway /app/api-gateway
 COPY docker/config/api-gateway/routes /app/config/routes
