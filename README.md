@@ -109,7 +109,7 @@ cargo run                        # 启动
 | Config Service | Rust | Axum |
 | File Service | Rust | Axum |
 
-> 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`，迁移指引见 [DEPRECATED.md](file:///d:/projects/coder-micro-services/services/user-service/DEPRECATED.md)。
+> 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`。
 
 ## CI/CD Deployment
 
