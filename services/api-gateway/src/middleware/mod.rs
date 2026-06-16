@@ -17,10 +17,9 @@ pub fn is_public_route(routes: &[RouteConfig], path: &str) -> bool {
 
 fn match_route_pattern(path: &str, pattern: &str) -> bool {
     if let Some(prefix) = pattern.strip_suffix("/**") {
-        let api_prefix = format!("/api{}", prefix);
-        path == api_prefix || path.starts_with(&format!("{}/", api_prefix))
+        path == prefix || path.starts_with(&format!("{}/", prefix))
     } else {
-        path == format!("/api{}", pattern)
+        path == pattern
     }
 }
 

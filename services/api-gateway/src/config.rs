@@ -17,6 +17,8 @@ pub struct RouteConfig {
 pub enum RewriteSpec {
     #[serde(rename = "strip_prefix")]
     StripPrefix { prefix: String },
+    #[serde(rename = "add_prefix")]
+    AddPrefix { prefix: String },
     #[serde(rename = "redirect")]
     Redirect { status: u16, to: String },
     #[serde(rename = "header_set")]

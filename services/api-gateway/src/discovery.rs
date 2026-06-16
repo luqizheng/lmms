@@ -45,11 +45,14 @@ impl ServiceDiscovery {
 
         #[derive(Deserialize)]
         struct ConsulService {
+            #[serde(rename = "Service")]
             service: ConsulServiceInfo,
         }
         #[derive(Deserialize)]
         struct ConsulServiceInfo {
+            #[serde(rename = "Address")]
             address: String,
+            #[serde(rename = "Port")]
             port: u16,
         }
 

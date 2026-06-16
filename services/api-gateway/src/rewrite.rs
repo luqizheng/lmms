@@ -40,6 +40,11 @@ pub fn apply(rules: &[RewriteSpec], req: &mut Request<Body>) -> Result<(), Respo
                     }
                 }
             }
+            RewriteSpec::AddPrefix { prefix } => {
+                let p = req.uri().path();
+                let new_path = format!("{}{}", prefix, p);
+                *req.uri_mut() = build_uri(req.uri(), &new_path);
+            }
             RewriteSpec::HeaderSet { name, value } => {
                 let n: HeaderName = name.parse().map_err(|_| {
                     err_response(

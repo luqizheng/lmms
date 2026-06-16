@@ -21,10 +21,9 @@ use cli::{Cli, Cmd};
 
 fn match_pattern(path: &str, pattern: &str) -> bool {
     if let Some(prefix) = pattern.strip_suffix("/**") {
-        let api_prefix = format!("/api{}", prefix);
-        path == api_prefix || path.starts_with(&format!("{}/", api_prefix))
+        path == prefix || path.starts_with(&format!("{}/", prefix))
     } else {
-        path == format!("/api{}", pattern)
+        path == pattern
     }
 }
 
@@ -245,7 +244,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
 
     let app = Router::new()
         .merge(health_route)
-        .nest("/api", api_routes)
+        .merge(api_routes)
         .with_state(state);
 
     let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
