@@ -75,6 +75,7 @@ menus:
   pureSysManagement: 系统管理
   pureUser: 用户管理
   pureRole: 角色管理
+  systemTokenClient: 令牌客户端
   pureSystemMenu: 菜单管理
   pureDept: 部门管理
   pureSysMonitor: 系统监控

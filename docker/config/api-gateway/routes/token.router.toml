@@ -4,6 +4,16 @@ service = "token-service"
 public = true
 
 [[route]]
+match = "/api/v1/admin/oauth-clients/**"
+service = "token-service"
+public = true
+
+[[route]]
+match = "/api/v1/admin/oauth-clients"
+service = "token-service"
+public = true
+
+[[route]]
 match = "/.well-known/**"
 service = "token-service"
 public = true

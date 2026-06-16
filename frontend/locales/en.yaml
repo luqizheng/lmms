@@ -75,6 +75,7 @@ menus:
   pureSysManagement: System Manage
   pureUser: User Manage
   pureRole: Role Manage
+  systemTokenClient: Token Client
   pureSystemMenu: Menu Manage
   pureDept: Dept Manage
   pureSysMonitor: System Monitor

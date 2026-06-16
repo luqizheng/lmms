@@ -123,6 +123,20 @@ async fn main() {
             "/api/v1/tokens/user-jwt",
             axum::routing::post(routes::user_jwt::handle_user_jwt),
         )
+        .route(
+            "/api/v1/admin/oauth-clients",
+            axum::routing::get(routes::admin::handle_list)
+                .post(routes::admin::handle_create),
+        )
+        .route(
+            "/api/v1/admin/oauth-clients/{client_id}",
+            axum::routing::put(routes::admin::handle_update)
+                .delete(routes::admin::handle_delete),
+        )
+        .route(
+            "/api/v1/admin/oauth-clients/{client_id}/reset-secret",
+            axum::routing::post(routes::admin::handle_reset_secret),
+        )
         .with_state(state);
 
     let mut consul_registrar = ConsulRegistrar::new(

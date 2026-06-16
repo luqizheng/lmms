@@ -32,6 +32,16 @@ export default {
         icon: "ep/user-filled",
         keepAlive: true
       }
+    },
+    {
+      path: "/system/token-client",
+      name: "SystemTokenClient",
+      component: () => import("@/views/system/token-client/index.vue"),
+      meta: {
+        title: $t("menus.systemTokenClient"),
+        icon: "ep/key",
+        keepAlive: true
+      }
     }
   ]
 } satisfies RouteConfigsTable;
