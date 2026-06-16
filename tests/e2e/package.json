@@ -5,7 +5,20 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:auth": "vitest run auth",
+    "test:users": "vitest run users",
+    "test:roles": "vitest run roles",
+    "test:permissions": "vitest run permissions",
+    "test:tokens": "vitest run tokens",
+    "test:audit": "vitest run audit",
+    "test:config": "vitest run config",
+    "test:file": "vitest run file",
+    "test:notification": "vitest run notification",
+    "test:token-admin": "vitest run token-admin",
+    "test:iam-menus": "vitest run iam-menus",
+    "test:iam-orgs": "vitest run iam-org-units",
+    "test:gateway": "vitest run gateway"
   },
   "devDependencies": {
     "@types/node": "^20",

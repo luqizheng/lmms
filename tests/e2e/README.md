@@ -58,11 +58,37 @@ tests/e2e/
   fixtures/
     seed.ts                  # admin 账号 + 随机新用户/角色
     payload.ts               # 测试请求体常量
-  auth.e2e.test.ts           # 4 case
-  users.e2e.test.ts          # 5 case
-  tokens.e2e.test.ts         # 5 case
-  roles.e2e.test.ts          # 6 case
-  permissions.e2e.test.ts    # 1 case
+  auth.e2e.test.ts           # iam-service 认证
+  users.e2e.test.ts          # iam-service 用户
+  tokens.e2e.test.ts         # token-service 基础 token
+  roles.e2e.test.ts          # iam-service 角色
+  permissions.e2e.test.ts    # iam-service 权限
+  audit.e2e.test.ts          # audit-service 操作/登录/保留策略
+  config.e2e.test.ts         # config-service namespace + item CRUD
+  file.e2e.test.ts           # file-service 上传/列表/预签名
+  notification.e2e.test.ts   # notification-service 公告全生命周期
+  token-admin.e2e.test.ts    # token-service oauth-client + JWKS + user-jwt
+  iam-menus.e2e.test.ts      # iam-service 菜单 CRUD
+  iam-org-units.e2e.test.ts  # iam-service 组织 CRUD
+  gateway.e2e.test.ts        # api-gateway 健康路由 + 401 拦截
+```
+
+## 分组运行
+
+```powershell
+pnpm -C tests/e2e test:auth
+pnpm -C tests/e2e test:users
+pnpm -C tests/e2e test:roles
+pnpm -C tests/e2e test:permissions
+pnpm -C tests/e2e test:tokens
+pnpm -C tests/e2e test:audit
+pnpm -C tests/e2e test:config
+pnpm -C tests/e2e test:file
+pnpm -C tests/e2e test:notification
+pnpm -C tests/e2e test:token-admin
+pnpm -C tests/e2e test:iam-menus
+pnpm -C tests/e2e test:iam-orgs
+pnpm -C tests/e2e test:gateway
 ```
 
 ## 调试模式示例

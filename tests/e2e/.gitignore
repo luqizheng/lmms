@@ -1,3 +1,5 @@
 node_modules/
 dist/
 *.tsbuildinfo
+.e2e-admin.json
+e2e.log

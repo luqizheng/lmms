@@ -15,7 +15,7 @@
     "test:all": "node scripts/test-orchestrator.js test-all",
     "test:report": "node scripts/test-orchestrator.js report",
     "test:loop": "node scripts/test-orchestrator.js loop",
-    "test:e2e": "pnpm -C tests/e2e test",
+    "test:e2e": "node scripts/run-e2e-local.js",
     "test:e2e:auth": "pnpm -C tests/e2e test auth",
     "test:e2e:users": "pnpm -C tests/e2e test users",
     "test:e2e:tokens": "pnpm -C tests/e2e test tokens",
