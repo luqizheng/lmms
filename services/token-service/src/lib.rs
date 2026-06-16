@@ -41,6 +41,7 @@ pub mod config;
 pub mod db;
 pub mod issuer;
 pub mod models;
+pub mod openapi;
 pub mod routes;
 pub mod secret;
 pub mod service;

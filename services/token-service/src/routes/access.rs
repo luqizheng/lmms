@@ -5,8 +5,9 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct AccessRequest {
     pub grant_type: String,
     pub code: String,
@@ -14,7 +15,7 @@ pub struct AccessRequest {
     pub client_secret: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AccessResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -22,6 +23,17 @@ pub struct AccessResponse {
     pub expires_in: i64,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/tokens/access",
+    request_body = AccessRequest,
+    responses(
+        (status = 200, description = "issued tokens", body = AccessResponse),
+        (status = 400, description = "bad request"),
+        (status = 401, description = "invalid client"),
+    ),
+    tag = "tokens"
+)]
 pub async fn handle_access(
     State(state): State<TokenServerState>,
     Json(req): Json<AccessRequest>,

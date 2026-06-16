@@ -7,8 +7,9 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct ListQuery {
     pub keyword: Option<String>,
     pub status: Option<String>,
@@ -25,7 +26,7 @@ fn default_size() -> u32 {
     10
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ClientDto {
     pub client_id: String,
     pub name: String,
@@ -54,7 +55,7 @@ impl From<ClientView> for ClientDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ListResponse {
     pub list: Vec<ClientDto>,
     pub total: i64,
@@ -62,7 +63,7 @@ pub struct ListResponse {
     pub size: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateRequest {
     pub name: String,
     #[serde(default)]
@@ -87,14 +88,14 @@ fn default_status() -> String {
     "active".to_string()
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct CreateResponse {
     pub client_id: String,
     pub client_secret: String,
     pub client: ClientDto,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateRequest {
     pub name: Option<String>,
     pub permissions: Option<Vec<String>>,
@@ -104,7 +105,7 @@ pub struct UpdateRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ResetSecretResponse {
     pub client_id: String,
     pub client_secret: String,
@@ -114,6 +115,14 @@ fn internal(_e: sqlx::Error) -> (StatusCode, &'static str) {
     (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/admin/oauth-clients",
+    params(ListQuery),
+    responses((status = 200, body = ListResponse)),
+    security(("bearer_auth" = [])),
+    tag = "admin"
+)]
 pub async fn handle_list(
     State(state): State<TokenServerState>,
     Query(q): Query<ListQuery>,
@@ -135,6 +144,17 @@ pub async fn handle_list(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/oauth-clients",
+    request_body = CreateRequest,
+    responses(
+        (status = 200, body = CreateResponse),
+        (status = 400, description = "bad request"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "admin"
+)]
 pub async fn handle_create(
     State(state): State<TokenServerState>,
     Json(req): Json<CreateRequest>,
@@ -174,6 +194,18 @@ pub async fn handle_create(
     }))
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/v1/admin/oauth-clients/{client_id}",
+    params(("client_id" = String, Path,)),
+    request_body = UpdateRequest,
+    responses(
+        (status = 200, body = ClientDto),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "admin"
+)]
 pub async fn handle_update(
     State(state): State<TokenServerState>,
     Path(client_id): Path<String>,
@@ -203,6 +235,17 @@ pub async fn handle_update(
     Ok(Json(ClientDto::from(view)))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/v1/admin/oauth-clients/{client_id}",
+    params(("client_id" = String, Path,)),
+    responses(
+        (status = 204, description = "deleted"),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "admin"
+)]
 pub async fn handle_delete(
     State(state): State<TokenServerState>,
     Path(client_id): Path<String>,
@@ -216,6 +259,17 @@ pub async fn handle_delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/oauth-clients/{client_id}/reset-secret",
+    params(("client_id" = String, Path,)),
+    responses(
+        (status = 200, body = ResetSecretResponse),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "admin"
+)]
 pub async fn handle_reset_secret(
     State(state): State<TokenServerState>,
     Path(client_id): Path<String>,

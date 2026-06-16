@@ -4,8 +4,9 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UserJwtRequest {
     pub user_id: String,
     pub user_code: String,
@@ -15,12 +16,21 @@ pub struct UserJwtRequest {
     pub ttl_secs: Option<u64>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct UserJwtResponse {
     pub access_token: String,
     pub expires_in: u64,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/tokens/user-jwt",
+    request_body = UserJwtRequest,
+    responses(
+        (status = 200, description = "user jwt issued", body = UserJwtResponse),
+    ),
+    tag = "tokens"
+)]
 pub async fn handle_user_jwt(
     State(state): State<TokenServerState>,
     Json(req): Json<UserJwtRequest>,

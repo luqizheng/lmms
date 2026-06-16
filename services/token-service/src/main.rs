@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use token_service::openapi::ApiDoc;
 use token_service::routes;
 use token_service::service::oauth_client_svc;
 use token_service::{
@@ -6,7 +7,8 @@ use token_service::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use prometheus::{Encoder, TextEncoder};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() {
@@ -81,11 +83,11 @@ async fn main() {
         axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
-    #[derive(OpenApi)]
-    #[openapi()]
-    struct ApiDoc;
+    let swagger_enabled = std::env::var("SWAGGER_ENABLED")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(true);
 
-    let app = axum::Router::new()
+    let mut app = axum::Router::new()
         .route(
             "/health",
             axum::routing::get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
@@ -138,6 +140,14 @@ async fn main() {
             axum::routing::post(routes::admin::handle_reset_secret),
         )
         .with_state(state);
+
+    if swagger_enabled {
+        app = app.merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", ApiDoc::openapi()),
+        );
+        tracing::info!("swagger ui enabled at /swagger-ui");
+    }
 
     let mut consul_registrar = ConsulRegistrar::new(
         &cfg.consul.addr,
