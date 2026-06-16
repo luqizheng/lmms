@@ -5,3 +5,10 @@ packages:
   - "auth-service"
   - "user-service"
   - "frontend"
+allowBuilds:
+  '@parcel/watcher': true
+  core-js: true
+  es5-ext: true
+  esbuild: true
+  typeit: true
+  vue-demi: true
