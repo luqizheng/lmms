@@ -4,7 +4,7 @@ use utoipa::{
 };
 
 use crate::dto;
-use crate::routes::{auth, menus, users};
+use crate::routes::{auth, users};
 
 pub struct SecurityAddon;
 
@@ -27,18 +27,13 @@ impl Modify for SecurityAddon {
 
 #[derive(OpenApi)]
 #[openapi(
-    info(title = "iam-service", description = "Identity, role, menu and user management"),
+    info(title = "iam-service", description = "Identity, role and user management"),
     paths(
         auth::login,
         auth::refresh,
         auth::logout,
         auth::change_password,
         auth::list_sessions,
-        menus::list_menus,
-        menus::create_menu,
-        menus::get_menu,
-        menus::update_menu,
-        menus::delete_menu,
         users::list_users,
         users::create_user,
         users::get_user,
@@ -53,10 +48,6 @@ impl Modify for SecurityAddon {
         dto::ChangePasswordRequest,
         dto::UserInfo,
         dto::SessionInfo,
-        dto::CreateMenuRequest,
-        dto::UpdateMenuRequest,
-        dto::MenuResponse,
-        dto::MenuListResponse,
         dto::CreateUserRequest,
         dto::UpdateUserRequest,
         dto::UserResponse,
@@ -65,7 +56,6 @@ impl Modify for SecurityAddon {
     modifiers(&SecurityAddon),
     tags(
         (name = "auth", description = "Authentication"),
-        (name = "menus", description = "Menu management"),
         (name = "users", description = "User management"),
     )
 )]

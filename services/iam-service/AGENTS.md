@@ -55,15 +55,6 @@
 | /iam/permissions/:id | PUT | 更新权限 |
 | /iam/permissions/:id | DELETE | 删除权限 |
 
-### 菜单 /iam/menus/*
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| /iam/menus | GET | 查询菜单列表（树形） |
-| /iam/menus | POST | 创建菜单 |
-| /iam/menus/:id | GET | 获取菜单详情 |
-| /iam/menus/:id | PUT | 更新菜单 |
-| /iam/menus/:id | DELETE | 删除菜单 |
-
 ### 组织单元 /iam/org-units/*
 | 端点 | 方法 | 说明 |
 |------|------|------|

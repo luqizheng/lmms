@@ -1,0 +1,20 @@
+[[route]]
+match = "/get-async-routes"
+service = "prue_backend"
+public = false
+
+[[route]]
+match = "/pure/menu-configs"
+service = "prue_backend"
+public = false
+
+[[route]]
+match = "/pure/menu-configs/**"
+service = "prue_backend"
+public = false
+
+[[route]]
+match = "/prue/health"
+service = "prue_backend"
+public = true
+strip_prefix = "/prue"

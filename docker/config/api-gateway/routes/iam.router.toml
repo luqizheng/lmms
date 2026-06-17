@@ -19,11 +19,6 @@ service = "iam-service"
 public = false
 
 [[route]]
-match = "/iam/menus/**"
-service = "iam-service"
-public = false
-
-[[route]]
 match = "/iam/org-units/**"
 service = "iam-service"
 public = false

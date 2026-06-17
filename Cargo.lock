@@ -3769,6 +3769,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
+name = "prue_backend"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "common-db",
+ "common-log",
+ "nanoid",
+ "prometheus 0.13.4",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

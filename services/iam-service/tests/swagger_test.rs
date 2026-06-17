@@ -12,8 +12,7 @@ fn openapi_contains_core_paths() {
 
     assert!(paths.contains_key("/iam/auth/login"));
     assert!(paths.contains_key("/iam/auth/refresh"));
-    assert!(paths.contains_key("/iam/menus"));
-    assert!(paths.contains_key("/iam/menus/{menu_id}"));
+    assert!(!paths.contains_key("/iam/menus"));
     assert!(paths.contains_key("/iam/users"));
     assert!(paths.contains_key("/iam/users/{user_id}"));
 }
