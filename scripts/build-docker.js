@@ -14,6 +14,7 @@ const SERVICES = [
   'file-service',
   'config-service',
   'audit-service',
+  'prue_backend',
 ];
 
 function listTargets(args) {

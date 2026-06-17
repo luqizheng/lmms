@@ -34,6 +34,7 @@
     "docker:build:file-service": "node scripts/build-docker.js file-service",
     "docker:build:config-service": "node scripts/build-docker.js config-service",
     "docker:build:audit-service": "node scripts/build-docker.js audit-service",
+    "docker:build:prue-backend": "node scripts/build-docker.js prue_backend",
     "docker:build": "node scripts/build-docker.js",
     "docker:build:clean": "node scripts/build-docker.js prune",
     "sdk:test:java": "cd sdk/java && mvn -B test",
