@@ -40,7 +40,17 @@ fn get_client_info(headers: &HeaderMap) -> (String, String) {
     (ip_address, user_agent)
 }
 
-async fn login(
+#[utoipa::path(
+    post,
+    path = "/iam/auth/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 401, description = "invalid credentials"),
+    ),
+    tag = "auth"
+)]
+pub async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(login_req): Json<LoginRequest>,
@@ -57,7 +67,17 @@ async fn login(
     Ok(AxumJson(response))
 }
 
-async fn refresh(
+#[utoipa::path(
+    post,
+    path = "/iam/auth/refresh",
+    request_body = RefreshRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 401, description = "token expired"),
+    ),
+    tag = "auth"
+)]
+pub async fn refresh(
     State(state): State<AppState>,
     Json(req): Json<RefreshRequest>,
 ) -> Result<AxumJson<LoginResponse>, (StatusCode, &'static str)> {
@@ -69,7 +89,14 @@ async fn refresh(
     Ok(AxumJson(response))
 }
 
-async fn logout(
+#[utoipa::path(
+    post,
+    path = "/iam/auth/logout",
+    responses((status = 204, description = "logged out")),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
+pub async fn logout(
     State(state): State<AppState>,
     principal: Principal,
 ) -> Result<StatusCode, (StatusCode, &'static str)> {
@@ -81,7 +108,18 @@ async fn logout(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn change_password(
+#[utoipa::path(
+    post,
+    path = "/iam/auth/password",
+    request_body = ChangePasswordRequest,
+    responses(
+        (status = 200, description = "password changed"),
+        (status = 401, description = "invalid credentials"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
+pub async fn change_password(
     State(state): State<AppState>,
     principal: Principal,
     Json(req): Json<ChangePasswordRequest>,
@@ -99,7 +137,14 @@ async fn change_password(
     Ok(StatusCode::OK)
 }
 
-async fn list_sessions(
+#[utoipa::path(
+    get,
+    path = "/iam/auth/sessions",
+    responses((status = 200, body = [crate::dto::SessionInfo])),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
+pub async fn list_sessions(
     State(state): State<AppState>,
     principal: Principal,
 ) -> Result<AxumJson<Vec<crate::dto::SessionInfo>>, (StatusCode, &'static str)> {

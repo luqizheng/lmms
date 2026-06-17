@@ -35,17 +35,17 @@ node scripts/test-orchestrator.js stop
 
 ### 常用子命令
 
-| 命令 | 说明 |
-|------|------|
-| `start` | 通过 `infrastructure/docker-compose.yml` 拉起 MySQL / Redis / Consul（3 个容器） |
-| `stop` | 停止并移除上述容器 |
-| `reset-db` | `DROP + CREATE` superpowers，并 `FLUSHALL` Redis |
-| `test-unit [--service <name>]` | 只跑 unit 测试（默认所有服务） |
-| `test-integration [--service <name>]` | 只跑 integration 测试 |
-| `test-all [--service <name>]` | 跑 unit + integration |
-| `report [--timestamp <ts>]` | 生成 `summary.md`（默认读最新一次 run 目录） |
-| `fix-prompt` | 当存在失败用例时，把失败信息渲染成 AI 修复 prompt |
-| `loop` | `start + reset-db + test-all + report` 一条龙 |
+| 命令                                  | 说明                                                                             |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| `start`                               | 通过 `infrastructure/docker-compose.yml` 拉起 MySQL / Redis / Consul（3 个容器） |
+| `stop`                                | 停止并移除上述容器                                                               |
+| `reset-db`                            | `DROP + CREATE` superpowers，并 `FLUSHALL` Redis                                 |
+| `test-unit [--service <name>]`        | 只跑 unit 测试（默认所有服务）                                                   |
+| `test-integration [--service <name>]` | 只跑 integration 测试                                                            |
+| `test-all [--service <name>]`         | 跑 unit + integration                                                            |
+| `report [--timestamp <ts>]`           | 生成 `summary.md`（默认读最新一次 run 目录）                                     |
+| `fix-prompt`                          | 当存在失败用例时，把失败信息渲染成 AI 修复 prompt                                |
+| `loop`                                | `start + reset-db + test-all + report` 一条龙                                    |
 
 ### 单独跑某个服务
 
@@ -64,20 +64,29 @@ cargo run                        # 启动
 
 ### 服务端口与依赖
 
-| 服务 | 外部端口 | 依赖 |
-|------|----------|------|
-| api-gateway | 3000 | token-service, iam-service（consul 发现） |
-| token-service | 6001 | MySQL / Redis / Consul |
-| iam-service | 6002 | MySQL / Consul |
-| notification-service | 6003 | MySQL / Redis / Consul |
-| audit-service | — | MySQL / Consul |
-| config-service | — | MySQL / Consul |
-| file-service | — | MySQL / Consul |
-| consul | 8500 | — |
-| redis | 6379 | — |
-| mysql | 3306 | root / rootpass |
+| 服务                 | 外部端口 | 依赖                                      |
+| -------------------- | -------- | ----------------------------------------- |
+| api-gateway          | 3000     | token-service, iam-service（consul 发现） |
+| token-service        | 6001     | MySQL / Redis / Consul                    |
+| iam-service          | 6002     | MySQL / Consul                            |
+| notification-service | 6003     | MySQL / Redis / Consul                    |
+| audit-service        | —        | MySQL / Consul                            |
+| config-service       | —        | MySQL / Consul                            |
+| file-service         | —        | MySQL / Consul                            |
+| consul               | 8500     | —                                         |
+| redis                | 6379     | —                                         |
+| mysql                | 3306     | root / rootpass                           |
 
 > 服务内部端口统一为 8080，对外端口范围 6000-6999；api-gateway 对外/对内均为 3000。
+
+### Swagger UI
+
+设置环境变量 `SWAGGER_ENABLED=true` 启动服务后，可访问以下地址查看 API 文档：
+
+| 服务          | Swagger UI                       | OpenAPI JSON                                |
+| ------------- | -------------------------------- | ------------------------------------------- |
+| token-service | http://localhost:6001/swagger-ui | http://localhost:6001/api-docs/openapi.json |
+| iam-service   | http://localhost:6002/swagger-ui | http://localhost:6002/api-docs/openapi.json |
 
 ### 配置文件位置
 
@@ -99,15 +108,15 @@ cargo run                        # 启动
 
 ## Services
 
-| Service | Language | Framework |
-|---------|----------|-----------|
-| API Gateway | Rust | Axum |
-| Token Service | Rust | Axum |
-| IAM Service | Rust | Axum |
-| Notification Service | Rust | Axum |
-| Audit Service | Rust | Axum |
-| Config Service | Rust | Axum |
-| File Service | Rust | Axum |
+| Service              | Language | Framework |
+| -------------------- | -------- | --------- |
+| API Gateway          | Rust     | Axum      |
+| Token Service        | Rust     | Axum      |
+| IAM Service          | Rust     | Axum      |
+| Notification Service | Rust     | Axum      |
+| Audit Service        | Rust     | Axum      |
+| Config Service       | Rust     | Axum      |
+| File Service         | Rust     | Axum      |
 
 > 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`。
 
@@ -155,13 +164,13 @@ cat ~/.ssh/id_rsa
 2. Navigate to **Settings** > **CI/CD** > **Variables**
 3. Add the following variables:
 
-| Variable | Value | Protected |
-|----------|-------|-----------|
-| `SSH_PRIVATE_KEY` | Content of id_rsa file | Yes |
-| `DEPLOY_SERVER` | `192.168.2.128` | Yes |
-| `DEPLOY_USER` | `admin` | Yes |
-| `DEPLOY_PASSWORD` | Server admin password | Yes |
-| `DOCKER_REGISTRY` | Docker registry URL (e.g., `registry.example.com`) | Yes |
+| Variable          | Value                                              | Protected |
+| ----------------- | -------------------------------------------------- | --------- |
+| `SSH_PRIVATE_KEY` | Content of id_rsa file                             | Yes       |
+| `DEPLOY_SERVER`   | `192.168.2.128`                                    | Yes       |
+| `DEPLOY_USER`     | `admin`                                            | Yes       |
+| `DEPLOY_PASSWORD` | Server admin password                              | Yes       |
+| `DOCKER_REGISTRY` | Docker registry URL (e.g., `registry.example.com`) | Yes       |
 
 ### Deployment Pipeline
 
@@ -204,6 +213,7 @@ docker-compose -f infrastructure/docker-compose.yml up -d
 ## Configuration
 
 Configuration files are located in `config/` directory:
+
 - `api-gateway/api-gateway.toml` - API Gateway global settings (server / redis / jwks / consul)
 - `api-gateway/routes/*.router.toml` - API Gateway routing rules, one file per URL prefix
 - `token-service.toml` - Token Service settings
@@ -229,22 +239,22 @@ pnpm run setup
 
 ### 根目录脚本
 
-| 脚本 | 作用 |
-|------|------|
-| `pnpm run build` | 编译 api-gateway 与 token-service（Rust release） |
-| `pnpm run dev` | 启动基础设施并并行运行各服务 dev 任务 |
-| `pnpm run dev:infra` | 仅启动 Docker 基础设施（Consul / Redis / MySQL） |
-| `pnpm run check` | 在所有 workspace 包中执行 `check` |
-| `pnpm run test` | 在所有 workspace 包中执行 `test` |
-| `pnpm run clean` | 在所有 workspace 包中执行 `clean` |
-| `pnpm run docker:build` | 构建所有服务 Docker 镜像 |
-| `pnpm run docker:build:api-gateway` | 仅构建 api-gateway 镜像 |
-| `pnpm run docker:build:token-service` | 仅构建 token-service 镜像 |
-| `pnpm run docker:build:iam-service` | 仅构建 iam-service 镜像 |
-| `pnpm run docker:build:notification-service` | 仅构建 notification-service 镜像 |
-| `pnpm run docker:build:audit-service` | 仅构建 audit-service 镜像 |
-| `pnpm run docker:build:config-service` | 仅构建 config-service 镜像 |
-| `pnpm run docker:build:file-service` | 仅构建 file-service 镜像 |
+| 脚本                                         | 作用                                              |
+| -------------------------------------------- | ------------------------------------------------- |
+| `pnpm run build`                             | 编译 api-gateway 与 token-service（Rust release） |
+| `pnpm run dev`                               | 启动基础设施并并行运行各服务 dev 任务             |
+| `pnpm run dev:infra`                         | 仅启动 Docker 基础设施（Consul / Redis / MySQL）  |
+| `pnpm run check`                             | 在所有 workspace 包中执行 `check`                 |
+| `pnpm run test`                              | 在所有 workspace 包中执行 `test`                  |
+| `pnpm run clean`                             | 在所有 workspace 包中执行 `clean`                 |
+| `pnpm run docker:build`                      | 构建所有服务 Docker 镜像                          |
+| `pnpm run docker:build:api-gateway`          | 仅构建 api-gateway 镜像                           |
+| `pnpm run docker:build:token-service`        | 仅构建 token-service 镜像                         |
+| `pnpm run docker:build:iam-service`          | 仅构建 iam-service 镜像                           |
+| `pnpm run docker:build:notification-service` | 仅构建 notification-service 镜像                  |
+| `pnpm run docker:build:audit-service`        | 仅构建 audit-service 镜像                         |
+| `pnpm run docker:build:config-service`       | 仅构建 config-service 镜像                        |
+| `pnpm run docker:build:file-service`         | 仅构建 file-service 镜像                          |
 
 ### 子包脚本
 

@@ -7,15 +7,16 @@ use axum::Json;
 use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RefreshRequest {
     pub refresh_token: String,
     pub client_id: String,
     pub client_secret: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RefreshResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -56,6 +57,16 @@ fn decode_refresh_token(
     Ok(RefreshTokenInfo { sub, jti, exp, iat })
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/tokens/refresh",
+    request_body = RefreshRequest,
+    responses(
+        (status = 200, description = "refreshed tokens", body = RefreshResponse),
+        (status = 401, description = "invalid or expired"),
+    ),
+    tag = "tokens"
+)]
 pub async fn handle_refresh(
     State(state): State<TokenServerState>,
     Json(req): Json<RefreshRequest>,

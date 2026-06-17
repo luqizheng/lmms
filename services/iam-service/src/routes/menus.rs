@@ -8,7 +8,14 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn list_menus(
+#[utoipa::path(
+    get,
+    path = "/iam/menus",
+    responses((status = 200, body = MenuListResponse)),
+    security(("bearer_auth" = [])),
+    tag = "menus"
+)]
+pub async fn list_menus(
     State(state): State<AppState>,
 ) -> Result<Json<MenuListResponse>, (axum::http::StatusCode, &'static str)> {
     let service = MenuService::new(state);
@@ -17,7 +24,18 @@ async fn list_menus(
     Ok(Json(response))
 }
 
-async fn create_menu(
+#[utoipa::path(
+    post,
+    path = "/iam/menus",
+    request_body = CreateMenuRequest,
+    responses(
+        (status = 200, body = MenuResponse),
+        (status = 409, description = "duplicate menu"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "menus"
+)]
+pub async fn create_menu(
     State(state): State<AppState>,
     Json(req): Json<CreateMenuRequest>,
 ) -> Result<Json<MenuResponse>, (axum::http::StatusCode, &'static str)> {
@@ -31,7 +49,18 @@ async fn create_menu(
     Ok(Json(response))
 }
 
-async fn get_menu(
+#[utoipa::path(
+    get,
+    path = "/iam/menus/{menu_id}",
+    params(("menu_id" = String, Path,)),
+    responses(
+        (status = 200, body = MenuResponse),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "menus"
+)]
+pub async fn get_menu(
     State(state): State<AppState>,
     Path(menu_id): Path<String>,
 ) -> Result<Json<MenuResponse>, (axum::http::StatusCode, &'static str)> {
@@ -45,7 +74,19 @@ async fn get_menu(
     Ok(Json(response))
 }
 
-async fn update_menu(
+#[utoipa::path(
+    put,
+    path = "/iam/menus/{menu_id}",
+    params(("menu_id" = String, Path,)),
+    request_body = UpdateMenuRequest,
+    responses(
+        (status = 200, body = MenuResponse),
+        (status = 404, description = "not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "menus"
+)]
+pub async fn update_menu(
     State(state): State<AppState>,
     Path(menu_id): Path<String>,
     Json(req): Json<UpdateMenuRequest>,
@@ -60,7 +101,19 @@ async fn update_menu(
     Ok(Json(response))
 }
 
-async fn delete_menu(
+#[utoipa::path(
+    delete,
+    path = "/iam/menus/{menu_id}",
+    params(("menu_id" = String, Path,)),
+    responses(
+        (status = 204, description = "deleted"),
+        (status = 404, description = "not found"),
+        (status = 409, description = "conflict"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "menus"
+)]
+pub async fn delete_menu(
     State(state): State<AppState>,
     Path(menu_id): Path<String>,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {

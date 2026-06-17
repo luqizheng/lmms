@@ -42,8 +42,8 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 prometheus = "0.13"
 prometheus_exporter = "0.1"
-utoipa = { version = "4", features = ["axum_extras"] }
-utoipa-swagger-ui = "4"
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
 
 
