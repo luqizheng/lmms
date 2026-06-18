@@ -4,6 +4,7 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const SERVICES_DIR = path.join(ROOT_DIR, 'services');
+const FRONTEND_DIR = path.join(ROOT_DIR, 'frontend');
 const REGISTRY_HOST = 'zhcoder-docker-registry.com:8000';
 
 const SERVICES = [
@@ -15,6 +16,7 @@ const SERVICES = [
   'config-service',
   'audit-service',
   'prue_backend',
+  'frontend',
 ];
 
 function listTargets(args) {
@@ -23,6 +25,9 @@ function listTargets(args) {
 }
 
 function buildService(name) {
+  if (name === 'frontend') {
+    return buildFrontend();
+  }
   const dockerfile = path.join(SERVICES_DIR, name, 'Dockerfile');
   if (!fs.existsSync(dockerfile)) {
     console.log(`[skip] ${name} 无 Dockerfile`);
@@ -46,6 +51,33 @@ function buildService(name) {
     return false;
   }
   console.log(`[ok]   ${name}`);
+  return true;
+}
+
+function buildFrontend() {
+  const dockerfile = path.join(FRONTEND_DIR, 'Dockerfile');
+  if (!fs.existsSync(dockerfile)) {
+    console.log('[skip] frontend 无 Dockerfile');
+    return false;
+  }
+  const image = `${REGISTRY_HOST}/micro-server/frontend`;
+  const cmd = [
+    'docker', 'buildx', 'build', '--load',
+    '-f', 'Dockerfile',
+    '-t', image,
+    '.',
+  ];
+  console.log(`\n[build] frontend -> ${image}`);
+  const res = spawnSync(cmd[0], cmd.slice(1), {
+    cwd: FRONTEND_DIR,
+    stdio: 'inherit',
+    shell: false,
+  });
+  if (res.status !== 0) {
+    console.log('[fail] frontend');
+    return false;
+  }
+  console.log('[ok]   frontend');
   return true;
 }
 
