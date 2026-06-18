@@ -31,21 +31,21 @@ impl RoleService {
 
     pub async fn create(&self, req: CreateRoleRequest) -> Result<RoleResponse, IamError> {
         let role_id = nanoid!();
+        let data_scope_str = data_scope_to_str(req.data_scope);
 
-        let role: RoleRow = sqlx::query_as(
+        sqlx::query(
             r#"INSERT INTO roles (id, name, code, description, data_scope, status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())
-               RETURNING id, name, code, description, data_scope, status, created_at, updated_at, deleted_at"#,
+               VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())"#,
         )
         .bind(&role_id)
         .bind(&req.name)
         .bind(&req.code)
         .bind(&req.description)
-        .bind(&req.data_scope)
-        .fetch_one(&self.state.db)
+        .bind(data_scope_str)
+        .execute(&self.state.db)
         .await?;
 
-        Ok(self.to_response(&role))
+        self.get(&role_id).await
     }
 
     pub async fn get(&self, role_id: &str) -> Result<RoleResponse, IamError> {
@@ -114,37 +114,24 @@ impl RoleService {
 
         let name = req.name.unwrap_or(role.name);
         let description = req.description.or(role.description);
-        let data_scope = req.data_scope.unwrap_or_else(|| {
-            match role.data_scope.as_str() {
-                "all" => 0,
-                "org" => 1,
-                "dept" => 2,
-                "self" => 3,
-                _ => 0,
-            }
-        });
+        let data_scope_str = match req.data_scope {
+            Some(n) => data_scope_to_str(n).to_string(),
+            None => role.data_scope.clone(),
+        };
         let status = req.status.unwrap_or(role.status);
 
-        let data_scope_str = match data_scope {
-            0 => "all",
-            1 => "org",
-            2 => "dept",
-            3 => "self",
-            _ => "all",
-        };
-
-        let result: RoleRow = sqlx::query_as(
-            "UPDATE roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ? RETURNING id, name, code, description, data_scope, status, created_at, updated_at, deleted_at",
+        sqlx::query(
+            "UPDATE roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ?",
         )
         .bind(&name)
         .bind(&description)
-        .bind(data_scope_str)
+        .bind(&data_scope_str)
         .bind(&status)
         .bind(role_id)
-        .fetch_one(&self.state.db)
+        .execute(&self.state.db)
         .await?;
 
-        Ok(self.to_response(&result))
+        self.get(role_id).await
     }
 
     pub async fn delete(&self, role_id: &str) -> Result<(), IamError> {
@@ -192,5 +179,18 @@ impl RoleService {
             created_at: role.created_at,
             updated_at: role.updated_at,
         }
+    }
+}
+
+/// 数据范围数字 -> 字符串。
+/// 与前端 form.vue 的 dataScopeOptions 保持一致：
+///   0=self、1=dept、2=dept_and_below、3=all
+fn data_scope_to_str(n: i32) -> &'static str {
+    match n {
+        0 => "self",
+        1 => "dept",
+        2 => "dept_and_below",
+        3 => "all",
+        _ => "self",
     }
 }
