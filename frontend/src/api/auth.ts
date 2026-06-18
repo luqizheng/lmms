@@ -57,3 +57,11 @@ export function register(data: RegisterRequest) {
     data
   });
 }
+
+export interface RefreshRequest {
+  refresh_token: string;
+}
+
+export function refreshToken(data: RefreshRequest) {
+  return http.request<LoginResult>("post", "/api/v1/auth/refresh", { data });
+}

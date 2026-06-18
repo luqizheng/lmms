@@ -7,8 +7,11 @@ import {
   routerArrays,
   storageLocal
 } from "../utils";
-import { type RefreshTokenResult, refreshTokenApi } from "@/api/user";
-import { login as loginApi, type LoginResult } from "@/api/auth";
+import {
+  login as loginApi,
+  refreshToken as refreshTokenApi,
+  type LoginResult
+} from "@/api/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
 import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
 
@@ -112,16 +115,17 @@ export const useUserStore = defineStore("pure-user", {
       router.push("/login");
     },
     /** 刷新`token` */
-    async handRefreshToken(data) {
-      return new Promise<RefreshTokenResult>((resolve, reject) => {
-        refreshTokenApi(data)
-          .then(data => {
-            if (data.code === 0) {
-              setToken(data.data);
-              resolve(data);
-            } else {
-              reject(data.message);
-            }
+    async handRefreshToken(data: { refreshToken: string }) {
+      return new Promise<LoginResult>((resolve, reject) => {
+        refreshTokenApi({ refresh_token: data.refreshToken })
+          .then(res => {
+            const expires = new Date(Date.now() + (res.expires_in ?? 0) * 1000);
+            setToken({
+              accessToken: res.access_token,
+              refreshToken: res.refresh_token,
+              expires
+            } as any);
+            resolve(res);
           })
           .catch(error => {
             reject(error);

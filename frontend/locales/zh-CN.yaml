@@ -87,9 +87,6 @@ menus:
   monitorOperationLog: 操作日志
   monitorLoginLog: 登录日志
   monitorRetention: 数据保留
-  pureCodeMirror: 代码编辑器
-  pureMarkdown: Markdown
-  pureEditor: 编辑器
   pureAbnormal: 异常页面
   purePageNotFound: "404"
   pureAccessDenied: "403"
@@ -113,7 +110,6 @@ menus:
   pureAnimatecss: animate.css选择器
   pureCountTo: 数字动画
   pureSelector: 范围选择器
-  pureFlowChart: 流程图
   pureSeamless: 无缝滚动
   pureContextmenu: 右键菜单
   pureTypeit: 打字机
@@ -126,7 +122,6 @@ menus:
   pureTag: 标签
   pureStatistic: 统计组件
   pureCollapse: 折叠面板
-  pureGanttastic: 甘特图
   pureProgress: 进度条
   pureUpload: 文件上传
   pureCheckCard: 多选卡片
@@ -179,7 +174,6 @@ menus:
   pureList: 列表页面
   pureCardList: 卡片列表页
   pureDebounce: 防抖节流
-  pureFormDesign: 表单设计器
   pureBarcode: 条形码
   pureQrcode: 二维码
   pureCascader: 区域级联选择器
@@ -191,13 +185,10 @@ menus:
   pureSensitive: 敏感词过滤
   purePinyin: 汉语拼音
   pureDanmaku: 弹幕
-  pureSchemaForm: 表单
   pureTableBase: 基础用法
   pureTableHigh: 高级用法
   pureTableEdit: 可编辑用法
   pureVxeTable: 虚拟滚动
-  pureBoard: 艺术画板
-  pureMindMap: 思维导图
   pureMenuOverflow: 目录超出显示 Tooltip 文字提示
   pureChildMenuOverflow: 菜单超出显示 Tooltip 文字提示
 status:

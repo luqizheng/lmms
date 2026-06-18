@@ -87,9 +87,6 @@ menus:
   monitorOperationLog: Operation Log
   monitorLoginLog: Login Log
   monitorRetention: Data Retention
-  pureCodeMirror: CodeMirror
-  pureMarkdown: Markdown
-  pureEditor: Editor
   pureAbnormal: Abnormal Page
   purePageNotFound: "404"
   pureAccessDenied: "403"
@@ -113,7 +110,6 @@ menus:
   pureAnimatecss: AnimateCss Selector
   pureCountTo: Digital Animation
   pureSelector: Scope Selector
-  pureFlowChart: Flow Chart
   pureSeamless: Seamless Scroll
   pureContextmenu: Context Menu
   pureTypeit: Typeit
@@ -126,7 +122,6 @@ menus:
   pureTag: Tag
   pureStatistic: Statistic
   pureCollapse: Collapse
-  pureGanttastic: Gantt Chart
   pureProgress: Progress
   pureUpload: File Upload
   pureCheckCard: CheckCard
@@ -179,7 +174,6 @@ menus:
   pureList: List Page
   pureCardList: Card List Page
   pureDebounce: Debounce & Throttle
-  pureFormDesign: Form Design
   pureBarcode: Barcode
   pureQrcode: Qrcode
   pureCascader: Area Cascader
@@ -191,13 +185,10 @@ menus:
   pureSensitive: Sensitive Filter
   purePinyin: PinYin
   pureDanmaku: Danmaku
-  pureSchemaForm: Form
   pureTableBase: Base Usage
   pureTableHigh: High Usage
   pureTableEdit: Edit Usage
   pureVxeTable: Virtual Usage
-  pureBoard: Paint Board
-  pureMindMap: Mind Map
   pureMenuOverflow: Menu Overflow Show Tooltip Text
   pureChildMenuOverflow: Child Menu Overflow Show Tooltip Text
 status:
