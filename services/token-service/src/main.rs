@@ -158,7 +158,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
     match consul_registrar
-        .register(&cfg.server.host, cfg.server.port)
+        .register_discovered(cfg.server.port, &cfg.consul.service_name)
         .await
     {
         Ok(_) => tracing::info!("token-service registered with consul"),
