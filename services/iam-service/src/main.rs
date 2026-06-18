@@ -41,13 +41,17 @@ async fn main() -> anyhow::Result<()> {
         &config.consul.service_name,
         "/tmp/iam-service-id",
     );
-    
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    
-    let advertise_host = std::env::var("CONSUL_ADVERTISE_HOST")
-        .unwrap_or_else(|_| config.consul.service_name.clone());
-    match consul_registrar.register(&advertise_host, config.app.port).await {
-        Ok(_) => info!("iam-service registered with consul as {}", advertise_host),
+
+    match consul_registrar
+        .register_discovered(config.app.port, &config.consul.service_name)
+        .await
+    {
+        Ok(_) => info!(
+            "iam-service registered with consul (fallback {})",
+            config.consul.service_name
+        ),
         Err(e) => warn!("failed to register with consul: {}", e),
     }
     
