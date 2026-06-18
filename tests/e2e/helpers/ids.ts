@@ -6,7 +6,7 @@ const fileIds: string[] = [];
 const announcementIds: number[] = [];
 const oauthClientIds: string[] = [];
 const menuIds: number[] = [];
-const orgUnitIds: number[] = [];
+const orgUnitIds: Array<number | string> = [];
 
 export function trackUser(id: number) { userIds.push(id); }
 export function trackRole(id: number) { roleIds.push(id); }
@@ -16,7 +16,7 @@ export function trackFile(id: string) { fileIds.push(id); }
 export function trackAnnouncement(id: number) { announcementIds.push(id); }
 export function trackOAuthClient(id: string) { oauthClientIds.push(id); }
 export function trackMenu(id: number) { menuIds.push(id); }
-export function trackOrgUnit(id: number) { orgUnitIds.push(id); }
+export function trackOrgUnit(id: number | string) { orgUnitIds.push(id); }
 
 export function trackedUsers() { return [...userIds]; }
 export function trackedRoles() { return [...roleIds]; }
