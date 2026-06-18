@@ -110,11 +110,14 @@ services:
       - superpowers
 
   iam-service:
-    image: zhcoder-docker-registry.com:8000/micro-server/iam-service:latest
+    build:
+      context: ..
+      dockerfile: services/iam-service/Dockerfile
     ports:
       - "6002:8080"
     volumes:
       - ../docker/secrets:/app/keys:ro
+      - ../services/iam-service/config:/etc/iam-service:ro
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
@@ -127,6 +130,8 @@ services:
       CONFIG_PATH: "/etc/iam-service/config.yaml"
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       consul:
         condition: service_healthy

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-15T15:40:00.717Z",
+  "generatedAt": "2026-06-18T02:01:31.076Z",
   "images": [
     {
       "ref": "alpine:3.21",
@@ -34,11 +34,6 @@
     },
     {
       "ref": "zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest",
-      "source": "infrastructure\\docker-compose.yml",
-      "mirror": null
-    },
-    {
-      "ref": "zhcoder-docker-registry.com:8000/micro-server/notification-service:latest",
       "source": "infrastructure\\docker-compose.yml",
       "mirror": null
     },

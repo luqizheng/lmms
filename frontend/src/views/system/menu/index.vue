@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useMenu } from "./utils/hook";
+import { transformI18n } from "@/plugins/i18n";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 
@@ -20,11 +21,18 @@ const {
   loading,
   columns,
   dataList,
+  menuConfigs,
+  selectedConfigId,
+  currentConfig,
+  isEditable,
   onSearch,
   resetForm,
   openDialog,
   handleDelete,
-  handleSelectionChange
+  handleSelectionChange,
+  loadSelectedConfig,
+  createDraftFromCurrent,
+  publishCurrentConfig
 } = useMenu();
 
 function onFullscreen() {
@@ -41,13 +49,28 @@ function onFullscreen() {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="菜单名称：" prop="name">
+      <el-form-item label="菜单名称：" prop="title">
         <el-input
-          v-model="form.name"
+          v-model="form.title"
           placeholder="请输入菜单名称"
           clearable
           class="w-45!"
         />
+      </el-form-item>
+      <el-form-item label="菜单版本：">
+        <el-select
+          v-model="selectedConfigId"
+          class="w-70!"
+          placeholder="请选择菜单版本"
+          @change="loadSelectedConfig"
+        >
+          <el-option
+            v-for="item in menuConfigs"
+            :key="item.id"
+            :label="`v${item.version} - ${item.name} - ${item.status}${item.is_active ? ' - active' : ''}`"
+            :value="item.id"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item>
         <el-button
@@ -65,7 +88,7 @@ function onFullscreen() {
     </el-form>
 
     <PureTableBar
-      title="菜单管理"
+      :title="`菜单管理${currentConfig ? `（v${currentConfig.version} ${currentConfig.status}）` : ''}`"
       :columns="columns"
       :isExpandAll="false"
       :tableRef="tableRef?.getTableRef()"
@@ -73,9 +96,21 @@ function onFullscreen() {
       @fullscreen="onFullscreen"
     >
       <template #buttons>
+        <el-button :loading="loading" @click="createDraftFromCurrent">
+          新建草稿
+        </el-button>
+        <el-button
+          v-if="isEditable"
+          type="success"
+          :loading="loading"
+          @click="publishCurrentConfig"
+        >
+          发布当前版本
+        </el-button>
         <el-button
           type="primary"
           :icon="useRenderIcon(AddFill)"
+          :disabled="!isEditable"
           @click="openDialog()"
         >
           新增菜单
@@ -107,22 +142,25 @@ function onFullscreen() {
               type="primary"
               :size="size"
               :icon="useRenderIcon(EditPen)"
+              :disabled="!isEditable"
               @click="openDialog('修改', row)"
             >
               修改
             </el-button>
             <el-button
+              v-show="row.menuType !== 3"
               class="reset-margin"
               link
               type="primary"
               :size="size"
               :icon="useRenderIcon(AddFill)"
+              :disabled="!isEditable"
               @click="openDialog('新增', { parentId: row.id } as any)"
             >
               新增
             </el-button>
             <el-popconfirm
-              :title="`是否确认删除菜单名称为${row.name}的这条数据${row?.children?.length > 0 ? '。注意下级菜单也会一并删除，请谨慎操作' : ''}`"
+              :title="`是否确认删除菜单名称为${transformI18n(row.title)}的这条数据${row?.children?.length > 0 ? '。注意下级菜单也会一并删除，请谨慎操作' : ''}`"
               @confirm="handleDelete(row)"
             >
               <template #reference>
@@ -132,6 +170,7 @@ function onFullscreen() {
                   type="primary"
                   :size="size"
                   :icon="useRenderIcon(Delete)"
+                  :disabled="!isEditable"
                 >
                   删除
                 </el-button>

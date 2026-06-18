@@ -2,267 +2,375 @@
 
 ## 目标
 
-将 `frontend/src/views/system/menu/` 改造为对接 `prue_backend` 的版本化菜单编辑器，
-替代当前无效的 `/iam/menus/*` 调用，使管理员可通过 UI 创建草稿、编辑路由树、发布菜单版本，
-发布后 `/get-async-routes` 自动返回新 active 路由。
+保留 `frontend/src/views/system/menu/` 现有菜单管理体验，只把后端访问改为 `prue_backend` 的菜单配置接口。
+
+前端仍然使用当前表格树、弹窗表单、新增、修改、删除交互；后端仍以 `MenuConfigRow.routes_json` JSON 格式保存菜单。
+
+## 核心约束
+
+- 不新建独立编辑器页面。
+- 不拆分现有 `form.vue`。
+- 不改变现有 input 表单编辑方式。
+- 不改变现有表格树展示方式。
+- 允许在现有页面顶部增加版本下拉框。
+- 后端接口使用 `prue_backend`：`/pure/menu-configs/*`。
+- 保存时整体更新当前版本的 `routes_json`。
 
 ## 背景
 
-- 前端菜单管理页（`views/system/menu/`）已存在，但 API 客户端调用的是
-  `iam-service` 的 `/iam/menus/*`，而 `iam-service` 当前**未实现**该端点
-  （无 `menus` 路由、无 `Menu` 模型、无 `Menu` DTO，AGENTS.md 端点域也未列出）。
-- `services/prue_backend/` 已实现 `MenuConfigRow`（`routes_json` 字段），
-  提供 `/pure/menu-configs/*` 端点 + `/get-async-routes` 输出 active 路由。
-- 两者数据模型不同：
-  - `MenuConfigRow`：版本化 JSON 整体（draft / published / archived / is_active）
-  - `IamMenu`（前端旧类型）：行级树（id / parent_id / 单条 CRUD）
+现有菜单 UI 位于：
 
-## 范围
+- `frontend/src/views/system/menu/index.vue`
+- `frontend/src/views/system/menu/form.vue`
+- `frontend/src/views/system/menu/utils/hook.tsx`
+- `frontend/src/views/system/menu/utils/types.ts`
 
-在范围内：
+当前页面逻辑是纯演示：
 
-- 新建 `frontend/src/api/menu-config.ts` API 客户端
-- 重写 `frontend/src/views/system/menu/index.vue` 为版本列表
-- 新建 `frontend/src/views/system/menu/editor.vue` 为树节点 + 节点表单编辑器
-- 调整 `frontend/src/router/modules/system.ts` 注册两个路由
-- 删除或迁移 `tests/e2e/iam-menus.e2e.test.ts`（指向不存在端点）
+- `index.vue` 展示树表格。
+- `form.vue` 负责菜单属性编辑。
+- `hook.tsx` 调用 `getMenuList()` 加载 mock 菜单。
+- 新增、修改、删除只弹成功提示，没有真实保存。
 
-不在范围内：
+后端 `prue_backend` 已有：
 
-- 新建 iam-service `/iam/menus/*` 端点
-- iam-service 内的 `Menu` 模型
-- 角色/权限与菜单的绑定
-- `getAsyncRoutes` 由 mock 切到 prue_backend（独立任务）
-- IAM 用户的菜单权限过滤
-- prue_backend 后端代码改动（接口已就绪）
+- `GET /pure/menu-configs`
+- `POST /pure/menu-configs`
+- `GET /pure/menu-configs/{id}`
+- `PUT /pure/menu-configs/{id}`
+- `POST /pure/menu-configs/{id}/publish`
+- `POST /pure/menu-configs/{id}/clone`
+- `DELETE /pure/menu-configs/{id}`
+- `GET /get-async-routes`
 
-## 架构
+后端保存结构是版本化 `routes_json`，不是行级菜单表。
+
+## 设计总览
 
 ```
-frontend/src/
-  api/menu-config.ts                  # 新建：封装 prue_backend /pure/menu-configs/*
-  views/system/menu/
-    index.vue                         # 重写：版本列表 + 顶部"新建草稿"
-    editor.vue                        # 新增：节点树 + 节点表单
-    utils/types.ts                    # 重写：MenuConfig / MenuConfigSummary / RouteNode
-    utils/hook.tsx                    # 重写：useMenuConfigList
-    utils/editor-hook.tsx             # 新增：useMenuConfigEditor（含未保存守卫）
-  router/modules/system.ts            # 调整：注册 /system/menu 列表与 editor
+现有菜单页面
+  index.vue
+    ├─ 版本下拉框
+    ├─ 树表格
+    └─ 新增/修改/删除按钮
+
+  form.vue
+    └─ 原 input 表单不变
+
+  hook.tsx
+    ├─ 加载版本列表
+    ├─ 加载当前版本 routes_json
+    ├─ routes_json -> FormItemProps[]
+    ├─ FormItemProps[] -> routes_json
+    ├─ 新增/修改/删除本地菜单数组
+    └─ PUT 保存到当前版本
+
+prue_backend
+  MenuConfigRow.routes_json
 ```
 
-后端服务 `prue_backend` 不动。
+## 文件改动
 
-## 数据契约
+| 文件 | 动作 |
+|---|---|
+| `frontend/src/api/menu-config.ts` | 新建，封装 `/pure/menu-configs/*` |
+| `frontend/src/views/system/menu/index.vue` | 小改，增加版本下拉框与可选发布按钮 |
+| `frontend/src/views/system/menu/utils/hook.tsx` | 重写数据加载、版本切换、保存逻辑 |
+| `frontend/src/views/system/menu/utils/types.ts` | 扩展版本与 routes_json 类型 |
+| `frontend/src/views/system/menu/utils/menu-adapter.ts` | 新建，负责双向转换 |
+| `frontend/src/views/system/menu/form.vue` | 不改或仅做兼容性小修 |
+| `frontend/src/api/system.ts` | 不再新增菜单真实接口，旧 `getMenuList` 可保留给其他 mock 页面 |
+| `tests/e2e/iam-menus.e2e.test.ts` | 迁移为 menu-configs 端点测试 |
 
-### 端点映射
+## 页面交互
 
-| 前端 API | HTTP | 后端路径 | 备注 |
-|----------|------|----------|------|
-| `listMenuConfigs()` | GET | `/pure/menu-configs` | 返回 `MenuConfigListResponse` |
-| `getMenuConfig(id)` | GET | `/pure/menu-configs/{id}` | 返回 `MenuConfigDetail` |
-| `createMenuConfig(req)` | POST | `/pure/menu-configs` | `req.routes_json: RouteNode[]` |
-| `updateMenuConfig(id, req)` | PUT | `/pure/menu-configs/{id}` | 仅 draft 可改 |
-| `publishMenuConfig(id)` | POST | `/pure/menu-configs/{id}/publish` | 原子激活 |
-| `cloneMenuConfig(id)` | POST | `/pure/menu-configs/{id}/clone` | 复制为新 draft |
-| `deleteMenuConfig(id)` | DELETE | `/pure/menu-configs/{id}` | 仅 draft / archived 可删 |
+### 版本下拉框
 
-`createMenuConfig` 的 `routes_json` 初始化策略：
+在现有搜索区域增加：
 
-- 用户勾选"基于当前 active 创建" → 前端先 `GET /get-async-routes` 拿当前 active 路由
-  数组作为 `routes_json` 提交
-- 否则传 `[]`
+- `菜单版本` 下拉框
+- 显示格式：`v{version} - {name} - {status}`
+- active 版本加标签
+- draft 版本可编辑
+- published / archived 版本只读
 
-### TypeScript 类型
+切换版本流程：
 
-```typescript
-// 与 prue_backend/src/dto/menu_config.rs 对齐
-export interface MenuConfigSummary {
-  id: string;
-  version: number;
-  name: string;
-  description?: string;
-  status: "draft" | "published" | "archived";
-  is_active: boolean;
-  created_by?: string;
-  created_at: string;
-  updated_at: string;
-  published_at?: string;
-}
-
-export interface MenuConfigDetail extends MenuConfigSummary {
-  routes_json: RouteNode[];
-}
-
-export interface RouteNode {
-  path: string;
-  name?: string;
-  redirect?: string;
-  component?: string;
-  meta?: {
-    title?: string;
-    icon?: string;
-    rank?: number;
-    roles?: string[];
-    auths?: string[];
-    keepAlive?: boolean;
-    hiddenTag?: boolean;
-    fixedTag?: boolean;
-    showLink?: boolean;
-    showParent?: boolean;
-    activePath?: string;
-    frameSrc?: string;
-    frameLoading?: boolean;
-    enterTransition?: string;
-    leaveTransition?: string;
-    extraIcon?: string;
-  };
-  children?: RouteNode[];
-}
-
-export interface CreateMenuConfigRequest {
-  name: string;
-  description?: string;
-  routes_json: RouteNode[];
-  created_by?: string;
-}
-
-export interface UpdateMenuConfigRequest {
-  name?: string;
-  description?: string;
-  routes_json?: RouteNode[];
-}
+```
+选择版本
+  |
+  v
+GET /pure/menu-configs/{id}
+  |
+  v
+routes_json -> flat menu list
+  |
+  v
+handleTree(flat list)
+  |
+  v
+刷新现有表格树
 ```
 
-## 组件设计
+### 新建草稿
 
-### 列表页 `index.vue`
+保留现有按钮区域，增加 `新建草稿`：
 
-- 顶部搜索：`name` 模糊匹配
-- 顶部按钮：`新建草稿`（弹框：name 必填、description 可选、`基于 active` 复选框）
-- 表格列：version、name、description、status、is_active、updated_at、created_by
-- 行操作：
-  - `编辑`：跳转 `/system/menu/editor?id={id}`，仅 draft 可用
-  - `克隆`：弹框确认后调 `cloneMenuConfig(id)`，刷新列表
-  - `发布`：弹框确认（"将立即影响线上菜单"）后调 `publishMenuConfig(id)`，刷新列表
-  - `删除`：弹框确认，仅 draft/archived 可用
+- 默认基于当前选中版本 clone。
+- 调 `POST /pure/menu-configs/{id}/clone`。
+- clone 成功后自动选中新草稿。
 
-### 编辑器 `editor.vue`
+如果当前没有任何版本：
 
-布局：左 40% 树 + 右 60% 表单 + 顶部条 + 底部状态条。
+- 调 `POST /pure/menu-configs`。
+- `routes_json = []`。
 
-- 顶部条：版本名、version、status、is_active 徽标；
-  按钮 `保存草稿` / `发布` / `返回`
-- 左侧 `el-tree`：
-  - `node-key="path"`（后端 validate 强制 path 唯一）
-  - 节点内容：`path`（粗体） + `meta.title`（灰色）
-  - 工具按钮：新增子节点 / 新增同级 / 删除当前节点
-  - 拖拽排序（draggable），仅在 `status === "draft"` 启用
-- 右侧表单（节点未选中时显示提示）：
-  - `path`（必填，唯一）
-  - `name`（可选，唯一）
-  - `redirect`
-  - `component`
-  - `meta.title`（必填）
-  - `meta.icon`（复用 `IconSelect`）
-  - `meta.rank`
-  - `meta.roles`（多字符串输入）
-  - `meta.auths`（多字符串输入）
-  - `meta.keepAlive`、`hiddenTag`、`fixedTag`、`showLink`、`showParent`（开关）
-  - `meta.frameSrc`、`frameLoading`
-  - `meta.enterTransition`、`leaveTransition`、`extraIcon`
-  - `meta.activePath`
-- 底部状态条：未保存修改计数 / 错误数 / 上次保存时间
-- 表单变更时直接修改 `localRoutes` 树中对应节点，**不立即 PUT**
-- `保存草稿` 按钮：disabled 当无修改或非 draft 时；点击后 PUT 整个 `routes_json`
-- `发布` 按钮：draft 状态才显示；点击后 `publishMenuConfig(id)`，成功后状态变 published
+### 新增 / 修改 / 删除菜单
 
-### 未保存守卫
+保留现有弹窗逻辑。
 
-- `useMenuConfigEditor` 维护 `isDirty: ComputedRef<boolean>`（深比较 `localRoutes` 与初始 `routes_json`）
-- `onBeforeRouteLeave((to) => { return isDirty.value ? confirmLeaveDialog() : true })`
-- `onBeforeUnmount` + `beforeunload` 事件监听，仅在 isDirty 时弹原生确认
+保存流程改为：
 
-### 验证
+```
+弹窗确认
+  |
+  v
+更新本地 flat menu list
+  |
+  v
+flat menu list -> routes_json
+  |
+  v
+PUT /pure/menu-configs/{selectedVersionId}
+  |
+  v
+重新加载当前版本
+```
 
-- 前端在保存前调用与后端一致的本地校验（抽到 `utils/validate-routes.ts`）：
-  必填字段、path 唯一、name 唯一、roles/auths 必须为字符串数组
-- 提交后端失败时显示后端返回的具体错误（如 `duplicate route.path: /x`）
+删除流程：
 
-## 路由调整
+```
+确认删除
+  |
+  v
+删除当前节点及子节点
+  |
+  v
+flat menu list -> routes_json
+  |
+  v
+PUT /pure/menu-configs/{selectedVersionId}
+```
 
-在 `router/modules/system.ts` 中 `system` 子路由下新增：
+### 发布
 
-```typescript
+可在版本下拉旁增加 `发布当前版本` 按钮。
+
+规则：
+
+- 仅 draft 状态显示。
+- 点击后 `POST /pure/menu-configs/{id}/publish`。
+- 成功后刷新版本列表与当前数据。
+
+## 数据转换
+
+### FormItemProps -> RouteNode
+
+| 前端字段 | routes_json 字段 |
+|---|---|
+| `title` | `meta.title` |
+| `name` | `name` |
+| `path` | `path` |
+| `component` | `component` |
+| `rank` | `meta.rank` |
+| `redirect` | `redirect` |
+| `icon` | `meta.icon` |
+| `extraIcon` | `meta.extraIcon` |
+| `enterTransition` | `meta.enterTransition` |
+| `leaveTransition` | `meta.leaveTransition` |
+| `activePath` | `meta.activePath` |
+| `frameSrc` | `meta.frameSrc` |
+| `frameLoading` | `meta.frameLoading` |
+| `keepAlive` | `meta.keepAlive` |
+| `hiddenTag` | `meta.hiddenTag` |
+| `fixedTag` | `meta.fixedTag` |
+| `showLink` | `meta.showLink` |
+| `showParent` | `meta.showParent` |
+| `auths` | `meta.auths` |
+| `children` | `children` |
+
+### 兼容字段 `_menu`
+
+为保持现有 UI 的 `id`、`parentId`、`menuType` 可无损往返，在 `routes_json` 中保存前端兼容字段：
+
+```json
 {
-  path: "/system/menu",
-  name: "SystemMenu",
-  component: () => import("@/views/system/menu/index.vue"),
-  meta: { title: $t("menus.pureSystemMenu"), icon: "ep/menu", keepAlive: true }
-},
-{
-  path: "/system/menu/editor",
-  name: "SystemMenuEditor",
-  component: () => import("@/views/system/menu/editor.vue"),
-  meta: {
-    title: "编辑菜单版本",
-    keepAlive: false,
-    showLink: false,    // 不在侧边栏显示，通过列表页跳转
-    activePath: "/system/menu"
+  "path": "/system/menu",
+  "name": "SystemMenu",
+  "component": "system/menu/index",
+  "meta": {
+    "title": "菜单管理",
+    "icon": "ep/menu",
+    "rank": 10
+  },
+  "_menu": {
+    "id": 100,
+    "parentId": 0,
+    "menuType": 0,
+    "auths": "system:menu:list"
   }
 }
 ```
 
-`i18n` 文案 `menus.pureSystemMenu` 已存在；编辑器标题用普通字符串（无侧边栏展示，
-无需 i18n）。
+说明：
+
+- `_menu` 仅给前端菜单管理页使用。
+- 后端 `validate_routes_json` 不禁止额外字段。
+- 动态路由消费方会忽略未知字段。
+- 如果后续要清理，可在 `/get-async-routes` 输出前做 sanitize，当前不做。
+
+### RouteNode -> FormItemProps
+
+转换时优先读取 `_menu`：
+
+- `id = route._menu.id || generatedId(route.path, route.name)`
+- `parentId = route._menu.parentId || parent id from traversal`
+- `menuType = route._menu.menuType || inferMenuType(route)`
+- `auths = route._menu.auths || route.meta.auths?.join(',') || ''`
+
+缺失 `_menu` 时，通过层级遍历生成 `parentId`。
+
+## 版本策略
+
+### 页面初始化
+
+```
+GET /pure/menu-configs
+  |
+  v
+优先选择 draft
+  |
+  +-- 没有 draft，选择 active published
+  |
+  +-- 都没有，创建空 draft
+  |
+  v
+加载选中版本详情
+```
+
+### 编辑权限
+
+| 版本状态 | 菜单新增 | 菜单修改 | 菜单删除 | 发布 |
+|---|---:|---:|---:|---:|
+| draft | 可用 | 可用 | 可用 | 可用 |
+| published | 禁用 | 禁用 | 禁用 | 禁用 |
+| archived | 禁用 | 禁用 | 禁用 | 禁用 |
+
+只读状态下：
+
+- 新增按钮 disabled。
+- 修改按钮 disabled。
+- 删除按钮 disabled。
+- 表格仍可查看。
+
+## API 客户端
+
+新增 `frontend/src/api/menu-config.ts`：
+
+```typescript
+export function listMenuConfigs()
+export function createMenuConfig(data)
+export function getMenuConfig(id: string)
+export function updateMenuConfig(id: string, data)
+export function publishMenuConfig(id: string)
+export function cloneMenuConfig(id: string)
+export function deleteMenuConfig(id: string)
+```
+
+响应结构使用后端统一格式：
+
+```typescript
+interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+```
 
 ## 错误处理
 
 | 场景 | 行为 |
-|------|------|
-| 非 draft 状态下点保存 | 按钮 disabled + tooltip "只有草稿可保存" |
-| 重复 path / name | 前端实时高亮冲突节点；保存时弹错误 |
-| 后端返回 4xx | el-message 展示后端 `message` |
-| 后端返回 5xx | el-message "服务异常，请稍后重试" |
-| 发布后端失败 | 弹框保留，状态不变 |
-| 路由离开时 | 弹 el-popconfirm；选"留在当前页"则中止跳转 |
+|---|---|
+| 版本列表加载失败 | 提示错误，表格为空 |
+| 当前版本加载失败 | 提示错误，保留旧数据 |
+| 非 draft 编辑 | 禁用按钮，提示只允许编辑草稿 |
+| 保存失败 | 保持弹窗不关闭，显示后端错误 |
+| 发布失败 | 显示后端错误，保留当前 draft |
+| path/name 重复 | 后端拒绝，前端展示错误 |
 
 ## 测试
 
-### 单元（可选）
+### 单元测试
 
-- `utils/validate-routes.ts` 导出 `validateRouteTree(nodes): string[]` 返回首个错误信息
-- 覆盖用例：path 缺失、path 重复、name 重复、roles 不是字符串数组、children 非数组
+新增：
+
+- `menu-adapter.test.ts`
+
+覆盖：
+
+- `routes_json -> FormItemProps[]`
+- `FormItemProps[] -> routes_json`
+- `_menu` 字段往返
+- 无 `_menu` 时自动生成 `id` / `parentId`
+- `auths` 字符串与数组转换
+- children 层级转换
 
 ### E2E
 
-- 删除/迁移 `tests/e2e/iam-menus.e2e.test.ts`：该文件指向不存在的 `/iam/menus`，
-  改为 `tests/e2e/menu-configs.e2e.test.ts`：
-  - `GET /pure/menu-configs` → 期望 200
-  - `POST /pure/menu-configs` 创建一个 draft
-  - `GET /pure/menu-configs/{id}` → routes_json 与提交一致
-  - `PUT /pure/menu-configs/{id}` 修改 routes_json
-  - `POST /pure/menu-configs/{id}/publish` → 状态变 published、is_active=true
-  - `GET /get-async-routes` → 内容与最新 published 一致
-  - `POST /pure/menu-configs/{id}/clone` 复制为新 draft
-  - `DELETE /pure/menu-configs/{id}` 软删除未发布版本
+迁移 `tests/e2e/iam-menus.e2e.test.ts` 为 `tests/e2e/menu-configs.e2e.test.ts`：
+
+- `GET /pure/menu-configs`
+- `POST /pure/menu-configs` 或 clone draft
+- `GET /pure/menu-configs/{id}`
+- `PUT /pure/menu-configs/{id}` 保存 routes_json
+- `POST /pure/menu-configs/{id}/publish`
+- `GET /get-async-routes` 校验发布后的 routes_json
+
+### 手工验收
+
+- 页面能选择版本。
+- draft 版本可新增菜单。
+- draft 版本可修改菜单。
+- draft 版本可删除菜单。
+- published 版本按钮禁用。
+- 保存后刷新页面数据仍存在。
+- 发布后 `/get-async-routes` 返回更新后的菜单。
+
+## NOT in scope
+
+- 不重写菜单 UI。
+- 不新增 `editor.vue`。
+- 不拆 `RouteTreePanel` / `RouteNodeForm`。
+- 不做节点级 PATCH。
+- 不改 `prue_backend` 后端结构。
+- 不做多人编辑冲突控制。
+- 不做权限过滤。
 
 ## 风险与权衡
 
-- **整体重写 UI**：用户从"行级表格"切换到"树节点编辑器"，交互有变化
-  → 通过 A1 形态（树 + 表单）尽量降低学习成本
-- **保存粒度粗**：整个 `routes_json` 一次性提交，节点级 patch 不支持
-  → 暂不实现 YAGNI；后端 validate 已经覆盖整体一致性
-- **草稿并发**：两个管理员同时编辑同一 draft，后保存者覆盖前者
-  → 暂不实现；后续如出现冲突可加 `updated_at` 比对
-- **路由树体积**：当菜单量大时单次 PUT 较大
-  → 当前菜单规模小，不分片
+- **`_menu` 扩展字段污染 routes_json**：当前后端允许额外字段，动态路由通常忽略未知字段。后续可在输出 active routes 时 sanitize。
+- **保存粒度粗**：每次新增/修改/删除都整体 PUT `routes_json`，当前菜单规模可接受。
+- **版本语义弱化**：现有 UI 是直接编辑体验，通过版本下拉补足版本选择，不引入完整版本管理页。
+- **并发覆盖**：两个管理员编辑同一个 draft 时仍可能覆盖，后续再加冲突检测。
 
 ## 验收标准
 
-1. 在 `views/system/menu/index.vue` 可看到 prue_backend 中所有菜单配置版本
-2. 可创建新草稿（可勾选"基于 active"）
-3. 编辑器可新增 / 编辑 / 删除 / 拖拽排序节点，并保存为草稿
-4. 发布后再次进入编辑器显示 published 状态，`保存草稿` 按钮 disabled
-5. 关闭浏览器或离开页面在有未保存修改时弹确认
-6. E2E `menu-configs.e2e.test.ts` 全部通过
-7. 旧的 `iam-menus.e2e.test.ts` 已删除或迁移
+1. 现有菜单页面结构基本不变。
+2. 页面顶部可选择菜单配置版本。
+3. 选中版本后表格展示该版本 `routes_json` 转换出的菜单树。
+4. draft 版本可新增 / 修改 / 删除菜单并保存到后端。
+5. published / archived 版本禁止编辑。
+6. 保存后的 `routes_json` 包含可还原 UI 的 `_menu` 兼容字段。
+7. 发布后 `/get-async-routes` 返回新菜单。
+8. `menu-adapter.test.ts` 通过。
+9. `menu-configs.e2e.test.ts` 通过。

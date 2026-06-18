@@ -16,7 +16,7 @@
     "test:file": "vitest run file",
     "test:notification": "vitest run notification",
     "test:token-admin": "vitest run token-admin",
-    "test:iam-menus": "vitest run iam-menus",
+    "test:menu-configs": "vitest run menu-configs",
     "test:iam-orgs": "vitest run iam-org-units",
     "test:gateway": "vitest run gateway"
   },

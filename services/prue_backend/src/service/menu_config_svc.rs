@@ -37,10 +37,11 @@ impl MenuConfigService {
     }
 
     pub async fn list(&self) -> AppResult<MenuConfigListResponse> {
-        let sql = "SELECT id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at FROM menu_configs WHERE deleted_at IS NULL ORDER BY version DESC";
+        let mysql_sql = "SELECT id, version, name, description, CAST(routes_json AS CHAR) AS routes_json, status, is_active, created_by, created_at, updated_at, published_at FROM menu_configs WHERE deleted_at IS NULL ORDER BY version DESC";
+        let sqlite_sql = "SELECT id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at FROM menu_configs WHERE deleted_at IS NULL ORDER BY version DESC";
         let rows: Vec<MenuConfigRow> = match self.state.db.as_ref() {
-            DbPool::Mysql(pool) => sqlx::query_as(sql).fetch_all(pool).await?,
-            DbPool::Sqlite(pool) => sqlx::query_as(sql).fetch_all(pool).await?,
+            DbPool::Mysql(pool) => sqlx::query_as(mysql_sql).fetch_all(pool).await?,
+            DbPool::Sqlite(pool) => sqlx::query_as(sqlite_sql).fetch_all(pool).await?,
         };
 
         let total = rows.len() as u64;
@@ -57,32 +58,32 @@ impl MenuConfigService {
         let routes_json = serde_json::to_string(&req.routes_json)
             .map_err(|e| AppError::Validation(e.to_string()))?;
 
-        let row = match self.state.db.as_ref() {
+        match self.state.db.as_ref() {
             DbPool::Mysql(pool) => {
-                sqlx::query_as("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', false, ?, NOW(), NOW()) RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', false, ?, NOW(), NOW())")
                     .bind(&id)
                     .bind(next_version)
                     .bind(&req.name)
                     .bind(&req.description)
                     .bind(&routes_json)
                     .bind(&req.created_by)
-                    .fetch_one(pool)
-                    .await?
+                    .execute(pool)
+                    .await?;
             }
             DbPool::Sqlite(pool) => {
-                sqlx::query_as("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
                     .bind(&id)
                     .bind(next_version)
                     .bind(&req.name)
                     .bind(&req.description)
                     .bind(&routes_json)
                     .bind(&req.created_by)
-                    .fetch_one(pool)
-                    .await?
+                    .execute(pool)
+                    .await?;
             }
-        };
+        }
 
-        Self::to_detail(row)
+        self.get(&id).await
     }
 
     pub async fn get(&self, id: &str) -> AppResult<MenuConfigDetail> {
@@ -116,28 +117,28 @@ impl MenuConfigService {
         let routes_json = serde_json::to_string(&routes_value)
             .map_err(|e| AppError::Validation(e.to_string()))?;
 
-        let row = match self.state.db.as_ref() {
+        match self.state.db.as_ref() {
             DbPool::Mysql(pool) => {
-                sqlx::query_as("UPDATE menu_configs SET name = ?, description = ?, routes_json = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("UPDATE menu_configs SET name = ?, description = ?, routes_json = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL")
                     .bind(&name)
                     .bind(&description)
                     .bind(&routes_json)
                     .bind(id)
-                    .fetch_one(pool)
-                    .await?
+                    .execute(pool)
+                    .await?;
             }
             DbPool::Sqlite(pool) => {
-                sqlx::query_as("UPDATE menu_configs SET name = ?, description = ?, routes_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("UPDATE menu_configs SET name = ?, description = ?, routes_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL")
                     .bind(&name)
                     .bind(&description)
                     .bind(&routes_json)
                     .bind(id)
-                    .fetch_one(pool)
-                    .await?
+                    .execute(pool)
+                    .await?;
             }
-        };
+        }
 
-        Self::to_detail(row)
+        self.get(id).await
     }
 
     pub async fn publish(&self, id: &str) -> AppResult<MenuConfigDetail> {
@@ -146,34 +147,32 @@ impl MenuConfigService {
             .map_err(|e| AppError::Validation(e.to_string()))?;
         validate_routes_json(&routes_value).map_err(AppError::Validation)?;
 
-        let row = match self.state.db.as_ref() {
+        match self.state.db.as_ref() {
             DbPool::Mysql(pool) => {
                 let mut tx = pool.begin().await?;
                 sqlx::query("UPDATE menu_configs SET is_active = false WHERE deleted_at IS NULL")
                     .execute(&mut *tx)
                     .await?;
-                let row = sqlx::query_as("UPDATE menu_configs SET status = 'published', is_active = true, published_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("UPDATE menu_configs SET status = 'published', is_active = true, published_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL")
                     .bind(id)
-                    .fetch_one(&mut *tx)
+                    .execute(&mut *tx)
                     .await?;
                 tx.commit().await?;
-                row
             }
             DbPool::Sqlite(pool) => {
                 let mut tx = pool.begin().await?;
                 sqlx::query("UPDATE menu_configs SET is_active = 0 WHERE deleted_at IS NULL")
                     .execute(&mut *tx)
                     .await?;
-                let row = sqlx::query_as("UPDATE menu_configs SET status = 'published', is_active = 1, published_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("UPDATE menu_configs SET status = 'published', is_active = 1, published_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL")
                     .bind(id)
-                    .fetch_one(&mut *tx)
+                    .execute(&mut *tx)
                     .await?;
                 tx.commit().await?;
-                row
             }
-        };
+        }
 
-        Self::to_detail(row)
+        self.get(id).await
     }
 
     pub async fn clone_config(&self, id: &str) -> AppResult<MenuConfigDetail> {
@@ -182,32 +181,32 @@ impl MenuConfigService {
         let next_version = self.next_version().await?;
         let cloned_name = format!("{} copy", existing.name);
 
-        let row = match self.state.db.as_ref() {
+        match self.state.db.as_ref() {
             DbPool::Mysql(pool) => {
-                sqlx::query_as("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', false, ?, NOW(), NOW()) RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', false, ?, NOW(), NOW())")
                     .bind(&new_id)
                     .bind(next_version)
                     .bind(&cloned_name)
                     .bind(&existing.description)
                     .bind(&existing.routes_json)
                     .bind(&existing.created_by)
-                    .fetch_one(pool)
-                    .await?
+                    .execute(pool)
+                    .await?;
             }
             DbPool::Sqlite(pool) => {
-                sqlx::query_as("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at")
+                sqlx::query("INSERT INTO menu_configs (id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'draft', 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
                     .bind(&new_id)
                     .bind(next_version)
                     .bind(&cloned_name)
                     .bind(&existing.description)
                     .bind(&existing.routes_json)
                     .bind(&existing.created_by)
-                    .fetch_one(pool)
-                    .await?
+                    .execute(pool)
+                    .await?;
             }
-        };
+        }
 
-        Self::to_detail(row)
+        self.get(&new_id).await
     }
 
     pub async fn delete(&self, id: &str) -> AppResult<()> {
@@ -243,10 +242,11 @@ impl MenuConfigService {
     }
 
     pub async fn active_routes(&self) -> AppResult<Value> {
-        let sql = "SELECT routes_json FROM menu_configs WHERE is_active = true AND deleted_at IS NULL ORDER BY version DESC LIMIT 1";
+        let mysql_sql = "SELECT CAST(routes_json AS CHAR) AS routes_json FROM menu_configs WHERE is_active = true AND deleted_at IS NULL ORDER BY version DESC LIMIT 1";
+        let sqlite_sql = "SELECT routes_json FROM menu_configs WHERE is_active = true AND deleted_at IS NULL ORDER BY version DESC LIMIT 1";
         let row: Option<(String,)> = match self.state.db.as_ref() {
-            DbPool::Mysql(pool) => sqlx::query_as(sql).fetch_optional(pool).await?,
-            DbPool::Sqlite(pool) => sqlx::query_as(sql).fetch_optional(pool).await?,
+            DbPool::Mysql(pool) => sqlx::query_as(mysql_sql).fetch_optional(pool).await?,
+            DbPool::Sqlite(pool) => sqlx::query_as(sqlite_sql).fetch_optional(pool).await?,
         };
 
         match row {
@@ -268,10 +268,11 @@ impl MenuConfigService {
     }
 
     async fn get_row(&self, id: &str) -> AppResult<MenuConfigRow> {
-        let sql = "SELECT id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at FROM menu_configs WHERE id = ? AND deleted_at IS NULL";
+        let mysql_sql = "SELECT id, version, name, description, CAST(routes_json AS CHAR) AS routes_json, status, is_active, created_by, created_at, updated_at, published_at FROM menu_configs WHERE id = ? AND deleted_at IS NULL";
+        let sqlite_sql = "SELECT id, version, name, description, routes_json, status, is_active, created_by, created_at, updated_at, published_at FROM menu_configs WHERE id = ? AND deleted_at IS NULL";
         let row: Option<MenuConfigRow> = match self.state.db.as_ref() {
-            DbPool::Mysql(pool) => sqlx::query_as(sql).bind(id).fetch_optional(pool).await?,
-            DbPool::Sqlite(pool) => sqlx::query_as(sql).bind(id).fetch_optional(pool).await?,
+            DbPool::Mysql(pool) => sqlx::query_as(mysql_sql).bind(id).fetch_optional(pool).await?,
+            DbPool::Sqlite(pool) => sqlx::query_as(sqlite_sql).bind(id).fetch_optional(pool).await?,
         };
 
         row.ok_or(AppError::NotFound)
