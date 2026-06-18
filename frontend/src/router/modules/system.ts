@@ -52,6 +52,16 @@ export default {
         icon: "ep/key",
         keepAlive: true
       }
+    },
+    {
+      path: "/system/dept",
+      name: "SystemDept",
+      component: () => import("@/views/system/dept/index.vue"),
+      meta: {
+        title: $t("menus.pureDept"),
+        icon: "ep/office-building",
+        keepAlive: true
+      }
     }
   ]
 } satisfies RouteConfigsTable;
