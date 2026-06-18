@@ -53,6 +53,82 @@ pub struct ConsulRegistrar {
 }
 
 impl ConsulRegistrar {
+    /// Parse `http://host:port` / `https://host[:port]` into `(host, port)`.
+    /// Returns `None` on scheme mismatch, missing host, or unparsable port.
+    pub fn parse_consul_endpoint(url: &str) -> Option<(String, u16)> {
+        let rest = url
+            .strip_prefix("http://")
+            .map(|s| (s, 850u16))
+            .or_else(|| url.strip_prefix("https://").map(|s| (s, 443u16)))?;
+        let (host, port) = match rest.0.split_once(':') {
+            Some((h, p)) => (h, p),
+            None => (rest.0, ""),
+        };
+        if host.is_empty() {
+            return None;
+        }
+        let parsed_port: u16 = if port.is_empty() {
+            rest.1
+        } else {
+            port.parse().ok()?
+        };
+        Some((host.to_string(), parsed_port))
+    }
+
+    /// Probe the local outbound IP by UDP-binding to `0.0.0.0:0` and connecting
+    /// (without sending) to `target`. UDP `connect` only sets the peer address,
+    /// so no packet leaves the host. Returns `None` on any failure.
+    pub fn probe_local_ip(target: std::net::SocketAddr) -> Option<std::net::IpAddr> {
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+        socket.connect(target).ok()?;
+        let ip = socket.local_addr().ok()?.ip();
+        if ip.is_unspecified() {
+            return None;
+        }
+        if let std::net::IpAddr::V6(v6) = ip {
+            if v6.is_unicast_link_local() {
+                return None;
+            }
+        }
+        Some(ip)
+    }
+
+    /// Resolve the best advertise host for Consul registration.
+    /// Order: parse `consul_url` → UDP-probe local IP → fallback.
+    /// Logs a warning and falls back on any failure.
+    pub fn discover_advertise_host(consul_url: &str, fallback: &str) -> String {
+        let Some((host, port)) = Self::parse_consul_endpoint(consul_url) else {
+            tracing::warn!(
+                "failed to parse consul url '{}', using fallback '{}'",
+                consul_url,
+                fallback
+            );
+            return fallback.to_string();
+        };
+        let Ok(target) = format!("{}:{}", host, port).parse::<std::net::SocketAddr>() else {
+            tracing::warn!(
+                "invalid consul socket '{}:{}', using fallback '{}'",
+                host,
+                port,
+                fallback
+            );
+            return fallback.to_string();
+        };
+        match Self::probe_local_ip(target) {
+            Some(ip) => {
+                tracing::info!("discovered advertise host: {}", ip);
+                ip.to_string()
+            }
+            None => {
+                tracing::warn!(
+                    "failed to probe local ip, using fallback '{}'",
+                    fallback
+                );
+                fallback.to_string()
+            }
+        }
+    }
+
     /// Build a registrar. `addr` is the consul agent base URL (e.g. `http://consul:8500`).
     /// `service_id_file` is the on-disk path that holds the service id across restarts.
     /// Pass a path on a persistent volume (not `/tmp` on a recreated container) if you
@@ -129,15 +205,23 @@ impl ConsulRegistrar {
     }
 
     fn host_to_address(host: &str, port: u16) -> String {
-        if host == "0.0.0.0" {
-            format!("127.0.0.1:{}", port)
-        } else {
-            format!("{}:{}", host, port)
-        }
+        format!("{}:{}", host, port)
     }
 
-    /// Register against `host:port`. `host = "0.0.0.0"` is rewritten to `127.0.0.1`
-    /// for the consul-facing `address` field. The first call also persists the
+    /// Like `register`, but resolves the advertise host via `discover_advertise_host`
+    /// using the registrar's `addr` (consul url) and the provided `fallback`.
+    /// `fallback` is typically the service name (e.g. `"token-service"`) so consul
+    /// can still resolve it via Docker DNS when probe fails.
+    pub async fn register_discovered(
+        &mut self,
+        port: u16,
+        fallback: &str,
+    ) -> Result<(), String> {
+        let host = Self::discover_advertise_host(&self.addr, fallback);
+        self.register(&host, port).await
+    }
+
+    /// Register against `host:port`. The first call also persists the
     /// service id to `service_id_file` so a container restart reuses the same id.
     pub async fn register(&mut self, host: &str, port: u16) -> Result<(), String> {
         // Persist eagerly: even if consul is unreachable, the id is locked in for the
@@ -230,10 +314,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn host_to_address_rewrites_unspecified() {
+    fn host_to_address_keeps_unspecified() {
         assert_eq!(
             ConsulRegistrar::host_to_address("0.0.0.0", 8082),
-            "127.0.0.1:8082"
+            "0.0.0.0:8082"
         );
     }
 
@@ -309,5 +393,88 @@ mod tests {
         // Simulate process restart: brand-new instance reading the same file.
         let second = ConsulRegistrar::new("http://127.0.0.1:1", "x", path_str);
         assert_eq!(second.service_id(), id_after_first_register);
+    }
+
+    #[test]
+    fn parse_consul_endpoint_strips_http_scheme() {
+        let r = ConsulRegistrar::parse_consul_endpoint("http://consul:8500");
+        assert_eq!(r, Some(("consul".to_string(), 8500)));
+    }
+
+    #[test]
+    fn parse_consul_endpoint_strips_https_scheme() {
+        let r = ConsulRegistrar::parse_consul_endpoint("https://consul");
+        assert_eq!(r, Some(("consul".to_string(), 443)));
+    }
+
+    #[test]
+    fn parse_consul_endpoint_returns_none_on_garbage() {
+        let r = ConsulRegistrar::parse_consul_endpoint("not a url");
+        assert_eq!(r, None);
+    }
+
+    #[test]
+    fn parse_consul_endpoint_returns_none_on_missing_host() {
+        let r = ConsulRegistrar::parse_consul_endpoint("http://");
+        assert_eq!(r, None);
+    }
+
+    #[test]
+    fn probe_local_ip_returns_local_ip_when_target_reachable() {
+        let probe_target: std::net::SocketAddr = {
+            let s = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+            let addr = s.local_addr().unwrap();
+            std::mem::forget(s);
+            addr
+        };
+        let ip = ConsulRegistrar::probe_local_ip(probe_target);
+        assert!(ip.is_some(), "expected Some, got {:?}", ip);
+    }
+
+    #[test]
+    fn probe_local_ip_returns_none_or_some_without_panic() {
+        // port 1 is reserved and likely refuses connection; either Some or None is acceptable.
+        let ip = ConsulRegistrar::probe_local_ip("127.0.0.1:1".parse().unwrap());
+        let _ = ip;
+    }
+
+    #[test]
+    fn discover_advertise_host_returns_fallback_on_invalid_url() {
+        let r = ConsulRegistrar::discover_advertise_host("not a url", "fallback-host");
+        assert_eq!(r, "fallback-host");
+    }
+
+    #[test]
+    fn discover_advertise_host_returns_loopback_ip_for_local_target() {
+        let target_port: u16 = {
+            let s = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+            let p = s.local_addr().unwrap().port();
+            std::mem::forget(s);
+            p
+        };
+        let url = format!("http://127.0.0.1:{}", target_port);
+        let ip = ConsulRegistrar::discover_advertise_host(&url, "fallback");
+        assert_eq!(ip, "127.0.0.1");
+    }
+
+    #[test]
+    fn discover_advertise_host_returns_fallback_on_missing_host() {
+        let r = ConsulRegistrar::discover_advertise_host("http://", "fb");
+        assert_eq!(r, "fb");
+    }
+
+    #[tokio::test]
+    async fn register_discovered_persists_id_when_consul_unreachable() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("svc-id");
+        let path_str = path.to_str().unwrap();
+
+        let mut r = ConsulRegistrar::new("http://127.0.0.1:1", "x", path_str);
+        assert!(!path.exists());
+
+        let _ = r.register_discovered(9999, "x").await;
+        assert!(path.exists());
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(content, r.service_id());
     }
 }
