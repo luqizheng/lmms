@@ -58,6 +58,7 @@
 
 ### Docker 基础设施
 
+- **目录约定**：所有 Docker / 基础设施配置统一使用 `infrastructure/` 目录（包含 `docker-compose.yml`、`nginx/`、`config/`、`base-images.json`）。**不使用** `docker/` 目录配置。
 - 网络抖动时用 `docker compose up -d --pull never` 绕过镜像拉取
 - 本地镜像 `redis:7-alpine` / `mysql:8.0` / `consul:1.15` 已缓存
 - 不要修改 `scripts/lib/Docker-Helper.js` 的 `prePull`，那是网络正常时的优化
