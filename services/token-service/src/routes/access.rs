@@ -25,7 +25,7 @@ pub struct AccessResponse {
 
 #[utoipa::path(
     post,
-    path = "/api/tokens/access",
+    path = "/tokens/access",
     request_body = AccessRequest,
     responses(
         (status = 200, description = "issued tokens", body = AccessResponse),

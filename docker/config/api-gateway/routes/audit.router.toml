@@ -1,34 +1,55 @@
 [[route]]
-match = "/audit/operation/**"
+match = "/v1/audit/operation/**"
 service = "audit-service"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/audit/operation"
+match = "/v1/audit/operation"
 service = "audit-service"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/audit/login/**"
+match = "/v1/audit/login/**"
 service = "audit-service"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/audit/login"
+match = "/v1/audit/login"
 service = "audit-service"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/audit/export/**"
+match = "/v1/audit/export/**"
 service = "audit-service"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/audit/retention/**"
+match = "/v1/audit/retention/**"
 service = "audit-service"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/audit/health"
+match = "/v1/audit/health"
 service = "audit-service"
 public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]

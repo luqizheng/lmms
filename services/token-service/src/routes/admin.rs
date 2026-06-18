@@ -146,7 +146,7 @@ pub async fn handle_list(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/admin/oauth-clients",
+    path = "/admin/oauth-clients",
     request_body = CreateRequest,
     responses(
         (status = 200, body = CreateResponse),
@@ -196,7 +196,7 @@ pub async fn handle_create(
 
 #[utoipa::path(
     put,
-    path = "/api/v1/admin/oauth-clients/{client_id}",
+    path = "/admin/oauth-clients/{client_id}",
     params(("client_id" = String, Path,)),
     request_body = UpdateRequest,
     responses(
@@ -261,7 +261,7 @@ pub async fn handle_delete(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/admin/oauth-clients/{client_id}/reset-secret",
+    path = "/admin/oauth-clients/{client_id}/reset-secret",
     params(("client_id" = String, Path,)),
     responses(
         (status = 200, body = ResetSecretResponse),

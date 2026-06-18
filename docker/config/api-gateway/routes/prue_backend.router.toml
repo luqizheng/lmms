@@ -1,20 +1,31 @@
 [[route]]
-match = "/get-async-routes"
+match = "/v1/prue/async-routes"
 service = "prue_backend"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/pure/menu-configs"
+match = "/v1/prue/menu-configs/**"
 service = "prue_backend"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/pure/menu-configs/**"
+match = "/v1/prue/menu-configs"
 service = "prue_backend"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/prue/health"
+match = "/v1/prue/health"
 service = "prue_backend"
 public = true
-strip_prefix = "/prue"
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]

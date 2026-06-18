@@ -94,23 +94,23 @@ async fn main() {
         )
         .route("/metrics", axum::routing::get(metrics))
         .route(
-            "/api/tokens/access",
+            "/tokens/access",
             axum::routing::post(routes::access::handle_access),
         )
         .route(
-            "/api/tokens/refresh",
+            "/tokens/refresh",
             axum::routing::post(routes::refresh::handle_refresh),
         )
         .route(
-            "/api/tokens/revoke",
+            "/tokens/revoke",
             axum::routing::post(routes::revoke::handle_revoke),
         )
         .route(
-            "/api/tokens/resource",
+            "/tokens/resource",
             axum::routing::post(routes::resource::handle_resource),
         )
         .route(
-            "/api/tokens/.well-known/jwks.json",
+            "/tokens/.well-known/jwks.json",
             axum::routing::get(routes::jwks::handle_jwks),
         )
         .route(
@@ -118,25 +118,25 @@ async fn main() {
             axum::routing::get(routes::jwks::handle_jwks),
         )
         .route(
-            "/api/api-keys",
+            "/api-keys",
             axum::routing::post(routes::api_key::handle_create_api_key),
         )
         .route(
-            "/api/v1/tokens/user-jwt",
+            "/tokens/user-jwt",
             axum::routing::post(routes::user_jwt::handle_user_jwt),
         )
         .route(
-            "/api/v1/admin/oauth-clients",
+            "/admin/oauth-clients",
             axum::routing::get(routes::admin::handle_list)
                 .post(routes::admin::handle_create),
         )
         .route(
-            "/api/v1/admin/oauth-clients/{client_id}",
+            "/admin/oauth-clients/{client_id}",
             axum::routing::put(routes::admin::handle_update)
                 .delete(routes::admin::handle_delete),
         )
         .route(
-            "/api/v1/admin/oauth-clients/{client_id}/reset-secret",
+            "/admin/oauth-clients/{client_id}/reset-secret",
             axum::routing::post(routes::admin::handle_reset_secret),
         )
         .with_state(state);

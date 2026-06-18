@@ -1,34 +1,127 @@
 [[route]]
-match = "/iam/auth/**"
+match = "/v1/iam/auth/login"
 service = "iam-service"
 public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/iam/users/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/iam/roles/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/iam/permissions/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/iam/org-units/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/iam/sessions/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/iam/health"
+match = "/v1/iam/auth/register"
 service = "iam-service"
 public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/auth/refresh"
+service = "iam-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/auth/setup-status"
+service = "iam-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/auth/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/users/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/users"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/roles/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/roles"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/permissions/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/permissions"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/org-units/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/org-units"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/sessions/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/sessions"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/health"
+service = "iam-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
