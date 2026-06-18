@@ -307,8 +307,9 @@ export interface UpdateIamOrgUnitRequest {
   status?: string;
 }
 
-export function listIamOrgUnits() {
-  return http.request<{ items: IamOrgUnit[] }>("get", "/iam/org-units");
+export async function listIamOrgUnits() {
+  const data = await http.request<IamOrgUnit[]>("get", "/iam/org-units");
+  return { items: data ?? [] };
 }
 
 export function createIamOrgUnit(data: CreateIamOrgUnitRequest) {
