@@ -75,6 +75,9 @@ menus:
   pureSysManagement: System Manage
   pureUser: User Manage
   pureRole: Role Manage
+  system: System Manage
+  systemUser: User Manage
+  systemRole: Role Manage
   systemTokenClient: Token Client
   systemPermission: Permission Manage
   pureSystemMenu: Menu Manage
