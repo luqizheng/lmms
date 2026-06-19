@@ -308,20 +308,32 @@ async fn spawn_admin_server(
 }
 
 async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request) -> Response {
-    let pq = request
-        .uri()
-        .path_and_query()
-        .map(|pq| pq.as_str().to_string())
-        .unwrap_or_else(|| request.uri().path().to_string());
+    let path = request.uri().path().to_string();
+    let query = request.uri().query().map(|q| q.to_string());
     let table = state.route_table.load();
 
-    let (route, target) = match find_and_render(&table.routes, &pq) {
+    let (route, mut target) = match find_and_render(&table.routes, &path) {
         Some(x) => x,
         None => {
+            let pq = request
+                .uri()
+                .path_and_query()
+                .map(|pq| pq.as_str().to_string())
+                .unwrap_or_else(|| path.clone());
             tracing::warn!("no route matched for path: {}", pq);
             return (StatusCode::NOT_FOUND, "unknown service").into_response();
         }
     };
+
+    if let Some(q) = query {
+        if !target.contains('?') {
+            target.push('?');
+            target.push_str(&q);
+        } else {
+            target.push('&');
+            target.push_str(&q);
+        }
+    }
 
     // 注入 headers（启动期已校验合法，运行期同样 graceful）
     for (k, v) in &route.headers {
