@@ -1,76 +1,55 @@
 [[route]]
-match = "/v1/tokens/access"
-service = "token-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/tokens/access"
+downstream = "/tokens/access"
+service    = "token-service"
+public     = true
 
 [[route]]
-match = "/v1/tokens/refresh"
-service = "token-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/tokens/refresh"
+downstream = "/tokens/refresh"
+service    = "token-service"
+public     = true
 
 [[route]]
-match = "/v1/tokens/revoke"
-service = "token-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/tokens/revoke"
+downstream = "/tokens/revoke"
+service    = "token-service"
+public     = true
 
 [[route]]
-match = "/v1/tokens/resource"
-service = "token-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/tokens/resource"
+downstream = "/tokens/resource"
+service    = "token-service"
+public     = true
 
 [[route]]
-match = "/v1/tokens/user-jwt"
-service = "token-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/tokens/user-jwt"
+downstream = "/tokens/user-jwt"
+service    = "token-service"
 
 [[route]]
-match = "/v1/tokens/.well-known/jwks.json"
-service = "token-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/tokens/.well-known/jwks.json"
+downstream = "/tokens/.well-known/jwks.json"
+service    = "token-service"
+public     = true
 
 [[route]]
-match = "/v1/admin/oauth-clients/**"
-service = "token-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/admin/oauth-clients/{rest}"
+downstream = "/admin/oauth-clients/{rest}"
+service    = "token-service"
 
 [[route]]
-match = "/v1/admin/oauth-clients"
-service = "token-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/admin/oauth-clients"
+downstream = "/admin/oauth-clients"
+service    = "token-service"
 
 [[route]]
-match = "/v1/api-keys"
-service = "token-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/api-keys"
+downstream = "/api-keys"
+service    = "token-service"
 
 [[route]]
-match = "/.well-known/**"
-service = "token-service"
-public = true
+upstream   = "/.well-known/{rest}"
+downstream = "/.well-known/{rest}"
+service    = "token-service"
+public     = true

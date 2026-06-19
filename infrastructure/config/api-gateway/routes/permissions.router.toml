@@ -1,15 +1,9 @@
 [[route]]
-match = "/v1/iam/permissions/**"
-service = "iam-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/permissions/{rest}"
+downstream = "/iam/permissions/{rest}"
+service    = "iam-service"
 
 [[route]]
-match = "/v1/iam/permissions"
-service = "iam-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/permissions"
+downstream = "/iam/permissions"
+service    = "iam-service"

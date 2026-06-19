@@ -1,7 +1,7 @@
 mod cli;
 
 use axum::extract::{Request, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderName, HeaderValue, StatusCode};
 use axum::middleware as axum_mw;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -13,25 +13,37 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use prometheus::{Encoder, TextEncoder};
 use utoipa::OpenApi;
 
+use api_gateway::template::Template;
 use api_gateway::{
-    blacklist, middleware, rewrite, router, routes_loader, AppState, GatewayConfig, JwtValidator,
+    blacklist, middleware, router, routes_loader, AppState, GatewayConfig, JwtValidator,
     RouteConfig, RouteTable, RouterConfig, ServiceDiscovery,
 };
 use cli::{Cli, Cmd};
 
-fn match_pattern(path: &str, pattern: &str) -> bool {
-    if let Some(prefix) = pattern.strip_suffix("/**") {
-        path == prefix || path.starts_with(&format!("{}/", prefix))
-    } else {
-        path == pattern
+fn find_and_render(
+    routes: &[RouteConfig],
+    path_and_query: &str,
+) -> Option<(RouteConfig, String)> {
+    for r in routes {
+        let up = match Template::parse(&r.upstream) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let dict = match up.extract(path_and_query) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        let down = match Template::parse(&r.downstream) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let target = match down.render(&dict) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        return Some((r.clone(), target));
     }
-}
-
-fn find_route(routes: &[RouteConfig], path: &str) -> Option<RouteConfig> {
-    routes
-        .iter()
-        .find(|r| match_pattern(path, &r.match_pattern))
-        .cloned()
+    None
 }
 
 fn load_global_config() -> GatewayConfig {
@@ -52,15 +64,11 @@ fn print_routes(table: &RouteTable) {
     println!("routes:");
     for r in &table.routes {
         println!(
-            "  - {}  ->  {} ({}{})",
-            r.match_pattern,
+            "  - {}  ->  {} ({})  =>  {}",
+            r.upstream,
             r.service,
             if r.public { "public" } else { "protected" },
-            if r.rewrite.is_empty() {
-                String::new()
-            } else {
-                format!(", {} rewrites", r.rewrite.len())
-            }
+            r.downstream,
         );
     }
 }
@@ -300,20 +308,27 @@ async fn spawn_admin_server(
 }
 
 async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request) -> Response {
-    let path = request.uri().path().to_string();
+    let pq = request
+        .uri()
+        .path_and_query()
+        .map(|pq| pq.as_str().to_string())
+        .unwrap_or_else(|| request.uri().path().to_string());
     let table = state.route_table.load();
 
-    let route = match find_route(&table.routes, &path) {
-        Some(r) => r,
+    let (route, target) = match find_and_render(&table.routes, &pq) {
+        Some(x) => x,
         None => {
-            tracing::warn!("no route matched for path: {}", path);
+            tracing::warn!("no route matched for path: {}", pq);
             return (StatusCode::NOT_FOUND, "unknown service").into_response();
         }
     };
 
-    if let Err(resp) = rewrite::apply(&route.rewrite, &mut request) {
-        return resp;
+    // 注入 headers（启动期已校验合法，运行期同样 graceful）
+    for (k, v) in &route.headers {
+        if let (Ok(name), Ok(val)) = (k.parse::<HeaderName>(), v.parse::<HeaderValue>()) {
+            request.headers_mut().insert(name, val);
+        }
     }
 
-    router::forward_to_service(state.router_cfg.clone(), request, &route.service).await
+    router::forward_to_service(state.router_cfg.clone(), request, &route.service, &target).await
 }

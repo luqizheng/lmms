@@ -1,3 +1,4 @@
+use crate::template::Template;
 use crate::AppState;
 use crate::RouteConfig;
 use axum::body::Body;
@@ -12,15 +13,15 @@ use std::sync::Arc;
 pub fn is_public_route(routes: &[RouteConfig], path: &str) -> bool {
     routes
         .iter()
-        .any(|r| r.public && match_route_pattern(path, &r.match_pattern))
+        .any(|r| r.public && upstream_matches(&r.upstream, path))
 }
 
-fn match_route_pattern(path: &str, pattern: &str) -> bool {
-    if let Some(prefix) = pattern.strip_suffix("/**") {
-        path == prefix || path.starts_with(&format!("{}/", prefix))
-    } else {
-        path == pattern
-    }
+fn upstream_matches(upstream: &str, path: &str) -> bool {
+    let tpl = match Template::parse(upstream) {
+        Ok(t) => t,
+        Err(_) => return false,
+    };
+    tpl.extract(path).is_ok()
 }
 
 pub async fn auth_middleware(

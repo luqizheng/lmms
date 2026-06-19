@@ -1,31 +1,20 @@
 [[route]]
-match = "/v1/prue/async-routes"
-service = "prue_backend"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/prue/async-routes"
+downstream = "/prue/async-routes"
+service    = "prue_backend"
 
 [[route]]
-match = "/v1/prue/menu-configs/**"
-service = "prue_backend"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/prue/menu-configs/{rest}"
+downstream = "/prue/menu-configs/{rest}"
+service    = "prue_backend"
 
 [[route]]
-match = "/v1/prue/menu-configs"
-service = "prue_backend"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/prue/menu-configs"
+downstream = "/prue/menu-configs"
+service    = "prue_backend"
 
 [[route]]
-match = "/v1/prue/health"
-service = "prue_backend"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/prue/health"
+downstream = "/prue/health"
+service    = "prue_backend"
+public     = true

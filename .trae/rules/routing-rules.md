@@ -102,56 +102,50 @@ location / { try_files $uri $uri/ /index.html; }
 
 ```toml
 [[route]]
-match = "/v1/<service>/<resource>/**"
-service = "<service>-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/<service>/<resource>/{rest}"
+downstream = "/<service>/<resource>/{rest}"
+service    = "<service>-service"
+public     = false
 ```
 
 字段说明：
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
-| `match` | 是 | 网关匹配模式，必须以 `/v1/<service>` 开头（`/api` 已由 nginx/vite 剥除） |
+| `upstream` | 是 | 网关入口模板（已剥除 `/api`），必须以 `/v1/<service>` 开头 |
+| `downstream` | 是 | 转发到微服务的路径模板，可含 query |
 | `service` | 是 | Consul 注册名，`<service>-service` |
-| `public` | 是 | `true` 跳过 JWT 校验，仅限 `login` / `refresh` / `health` / `/.well-known/**` |
-| `rewrite` | 否 | 不写则原样转发；写则按列表顺序执行 |
+| `public` | 否 | `true` 跳过 JWT 校验，仅限 `login` / `refresh` / `health` / `/.well-known/**` |
 | `ws` | 否 | `true` 升级 WebSocket，仅通知中心使用 |
-| `strip_prefix` | 否 | 兼容旧写法，新规则一律用 `rewrite` |
+| `headers` | 否 | 转发时附加请求头，如 `{ "X-Source" = "gateway" }` |
 
-### 2.3 rewrite 类型白名单
+### 2.3 占位符语法
 
-仅允许：
-
-- `strip_prefix`：去掉前缀
-- `add_prefix`：增加前缀
-- `redirect`：重定向
-- `header_set` / `header_add`：改写头
-- `path_param`：路径参数提取
-
-禁止其他类型。
+- 占位符以 `{` 与 `}` 包裹变量名，无段限定
+- 提取原理：用相邻字面量在请求 url 上锚定切割，把每个 `{var}` 之间的字符串塞进 dict
+- 渲染原理：对 downstream 模板做 `{name}` → `dict[name]` 字符串替换
+- 变量值可包含 `/`（即可跨段）
+- upstream 与 downstream 中的变量名集合必须完全一致
+- 同名变量在 upstream 内只允许出现一次
+- 两个 `{var}` 之间必须有非空字面量分隔
 
 ### 2.4 匹配顺序与唯一性
 
-- 同 `match` 不允许重复，启动报 `duplicate match pattern`。
-- 具体路径（`/v1/iam/users`）必须排在通配（`/v1/iam/users/**`）之前。
-- 通配路由写 `/**`，且尾段必须为 `**`。
-- 公共路由（`public = true`）精确条目排在受保护通配之前。
+- 同 `upstream` 不允许重复，启动报 `duplicate upstream`
+- 加载期按 upstream 字面量长度降序排序，更具体的路径优先匹配
+- 通配路由用 `{rest}` 表达，例如 `/v1/iam/users/{rest}`
+- 公共路由（`public = true`）通常以精确条目形式存在
 
 ### 2.5 健康检查
 
-每个服务必须暴露 `/<service>/health`，路由条目：
+每个服务必须暴露 `/<service>/health`：
 
 ```toml
 [[route]]
-match = "/v1/<service>/health"
-service = "<service>-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/<service>/health"
+downstream = "/<service>/health"
+service    = "<service>-service"
+public     = true
 ```
 
 ### 2.6 WebSocket
@@ -160,13 +154,10 @@ rewrite = [
 
 ```toml
 [[route]]
-match = "/v1/notification/ws"
-service = "notification-service"
-public = false
-ws = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/notification/ws"
+downstream = "/notification/ws"
+service    = "notification-service"
+ws         = true
 ```
 
 ### 2.7 校验命令
@@ -212,7 +203,7 @@ pub fn routes(state: AppState) -> Router {
 }
 ```
 
-无论哪种写法，service 暴露的最终路径都必须形如 `/<service>/<resource>`，与网关 `match` 在去除 `/v1` 后完全一致。
+无论哪种写法，service 暴露的最终路径都必须形如 `/<service>/<resource>`，与网关 `downstream` 完全一致。
 
 服务清单与端口：
 
@@ -279,7 +270,7 @@ pub fn routes(state: AppState) -> Router {
 |---|---|---|
 | 浏览器 | `https://host/api/v1/iam/users` | 前端 axios 发起 |
 | nginx / vite | `/api/v1/iam/users` → `api-gateway:3000/v1/iam/users` | 去掉 `/api` |
-| api-gateway | `/v1/iam/users/**` → `iam-service:8080/iam/users/**` | strip `/v1`（service 已自带 `/iam`） |
+| api-gateway | `upstream="/v1/iam/users/{rest}"` → `downstream="/iam/users/{rest}"` → `iam-service:8080/iam/users/{rest}` | 占位符提取 + 渲染 |
 | 后端 | `iam-service:8080/iam/users` | 路由自带 `/iam` 前缀 |
 
 任何一层偏离该链路即为违规，需同步修复三层。

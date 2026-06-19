@@ -1,24 +1,16 @@
 [[route]]
-match = "/v1/notification/ws"
-service = "notification-service"
-public = false
-ws = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/notification/ws"
+downstream = "/notification/ws"
+service    = "notification-service"
+ws         = true
 
 [[route]]
-match = "/v1/notification/**"
-service = "notification-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/notification/health"
+downstream = "/notification/health"
+service    = "notification-service"
+public     = true
 
 [[route]]
-match = "/v1/notification/health"
-service = "notification-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/notification/{rest}"
+downstream = "/notification/{rest}"
+service    = "notification-service"

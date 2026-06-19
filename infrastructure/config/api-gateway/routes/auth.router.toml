@@ -1,39 +1,28 @@
 [[route]]
-match = "/v1/iam/auth/login"
-service = "iam-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/auth/login"
+downstream = "/iam/auth/login"
+service    = "iam-service"
+public     = true
 
 [[route]]
-match = "/v1/iam/auth/register"
-service = "iam-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/auth/register"
+downstream = "/iam/auth/register"
+service    = "iam-service"
+public     = true
 
 [[route]]
-match = "/v1/iam/auth/refresh"
-service = "iam-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/auth/refresh"
+downstream = "/iam/auth/refresh"
+service    = "iam-service"
+public     = true
 
 [[route]]
-match = "/v1/iam/auth/setup-status"
-service = "iam-service"
-public = true
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/auth/setup-status"
+downstream = "/iam/auth/setup-status"
+service    = "iam-service"
+public     = true
 
 [[route]]
-match = "/v1/iam/auth/**"
-service = "iam-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/auth/{rest}"
+downstream = "/iam/auth/{rest}"
+service    = "iam-service"

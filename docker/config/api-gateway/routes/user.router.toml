@@ -1,31 +1,19 @@
 [[route]]
-match = "/v1/iam/users/**"
-service = "iam-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/users/{rest}"
+downstream = "/iam/users/{rest}"
+service    = "iam-service"
 
 [[route]]
-match = "/v1/iam/roles/**"
-service = "iam-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/roles/{rest}"
+downstream = "/iam/roles/{rest}"
+service    = "iam-service"
 
 [[route]]
-match = "/v1/iam/orgs/**"
-service = "iam-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/orgs/{rest}"
+downstream = "/iam/orgs/{rest}"
+service    = "iam-service"
 
 [[route]]
-match = "/v1/iam/posts/**"
-service = "iam-service"
-public = false
-rewrite = [
-  { type = "strip_prefix", prefix = "/v1" }
-]
+upstream   = "/v1/iam/posts/{rest}"
+downstream = "/iam/posts/{rest}"
+service    = "iam-service"

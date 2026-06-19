@@ -53,8 +53,8 @@
 ### 路由配置
 
 - 改 `routes/*.router.toml` 后**必须**先 `validate` 再 commit
-- 新增路由必须确认 `match` 唯一（启动会报 `duplicate match pattern`）
-- `rewrite` 类型只能是 `strip_prefix` / `redirect` / `header_set` / `header_add` / `path_param`
+- 新增路由必须确认 `upstream` 唯一（启动会报 `duplicate upstream`）
+- 路由条目使用 `upstream` / `downstream` 占位符语法，不再支持 `match` / `rewrite`
 
 ### Docker 基础设施
 

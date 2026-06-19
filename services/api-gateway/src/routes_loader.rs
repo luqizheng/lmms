@@ -1,4 +1,6 @@
 use crate::config::{RouteFile, RouteTable};
+use crate::template::{Template, TemplateError};
+use std::collections::HashSet;
 use std::path::Path;
 use thiserror::Error;
 
@@ -16,8 +18,23 @@ pub enum LoadError {
     Io(#[from] std::io::Error),
     #[error("glob error: {0}")]
     Glob(#[from] glob::PatternError),
-    #[error("duplicate match pattern: {0}")]
-    Duplicate(String),
+    #[error("duplicate upstream: {0}")]
+    DuplicateUpstream(String),
+    #[error("template error in {field} '{template}': {source}")]
+    Template {
+        field: &'static str,
+        template: String,
+        #[source]
+        source: TemplateError,
+    },
+    #[error(
+        "variable name set mismatch in route '{upstream}': upstream={up:?} downstream={down:?}"
+    )]
+    VarMismatch {
+        upstream: String,
+        up: Vec<String>,
+        down: Vec<String>,
+    },
 }
 
 pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
@@ -35,7 +52,7 @@ pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
     }
 
     let mut routes = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+    let mut seen: HashSet<String> = HashSet::new();
 
     for entry in entries {
         let content = std::fs::read_to_string(&entry)?;
@@ -44,11 +61,51 @@ pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
             source: e,
         })?;
         for r in file.route {
-            if !seen.insert(r.match_pattern.clone()) {
-                return Err(LoadError::Duplicate(r.match_pattern));
+            // 编译期校验 upstream/downstream
+            let up = Template::parse(&r.upstream).map_err(|e| LoadError::Template {
+                field: "upstream",
+                template: r.upstream.clone(),
+                source: e,
+            })?;
+            let down = Template::parse(&r.downstream).map_err(|e| LoadError::Template {
+                field: "downstream",
+                template: r.downstream.clone(),
+                source: e,
+            })?;
+            let mut up_vars = up.var_names();
+            let mut down_vars = down.var_names();
+            up_vars.sort();
+            down_vars.sort();
+            if up_vars != down_vars {
+                return Err(LoadError::VarMismatch {
+                    upstream: r.upstream.clone(),
+                    up: up_vars,
+                    down: down_vars,
+                });
+            }
+            if !seen.insert(r.upstream.clone()) {
+                return Err(LoadError::DuplicateUpstream(r.upstream));
             }
             routes.push(r);
         }
     }
+
+    // 字面量长度降序：更具体的优先匹配
+    routes.sort_by(|a, b| literal_len(&b.upstream).cmp(&literal_len(&a.upstream)));
+
     Ok(RouteTable { routes })
+}
+
+fn literal_len(template: &str) -> usize {
+    let mut depth: i32 = 0;
+    let mut n = 0usize;
+    for c in template.chars() {
+        match c {
+            '{' => depth += 1,
+            '}' => depth -= 1,
+            _ if depth == 0 => n += 1,
+            _ => {}
+        }
+    }
+    n
 }
