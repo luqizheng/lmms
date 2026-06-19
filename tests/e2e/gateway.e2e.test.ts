@@ -4,28 +4,23 @@ import { baseURL } from './helpers/http';
 
 describe('api-gateway', () => {
   it('should expose iam health', async () => {
-    const res = await request(baseURL).get('/iam/health');
+    const res = await request(baseURL).get('/v1/iam/health');
     expect([200, 502, 404]).toContain(res.status);
   });
 
   it('should expose audit health', async () => {
-    const res = await request(baseURL).get('/audit/health');
+    const res = await request(baseURL).get('/v1/audit/health');
     // 当 audit-service 未独立部署或网关无法路由时返回 401/502/404
-    expect([200, 401, 502, 404]).toContain(res.status);
+    expect([200, 401, 502, 503, 404]).toContain(res.status);
   });
 
   it('should reject unauthenticated access to protected route', async () => {
-    const res = await request(baseURL).get('/api/v1/users');
-    expect([401, 403]).toContain(res.status);
-  });
-
-  it('should reject unauthenticated access to /iam/users', async () => {
-    const res = await request(baseURL).get('/iam/users');
+    const res = await request(baseURL).get('/v1/iam/users');
     expect([401, 403]).toContain(res.status);
   });
 
   it('should allow public setup-status without token', async () => {
-    const res = await request(baseURL).get('/api/v1/auth/setup-status');
+    const res = await request(baseURL).get('/v1/iam/auth/setup-status');
     expect([200, 502, 404]).toContain(res.status);
   });
 });

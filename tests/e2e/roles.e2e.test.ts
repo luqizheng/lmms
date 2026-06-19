@@ -10,13 +10,13 @@ describe('roles', () => {
   let createdRoleId: number | undefined;
 
   it('should list roles with pagination', async () => {
-    const res = await authedReq(adminToken).get('/iam/roles?page=1&size=10');
+    const res = await authedReq(adminToken).get('/v1/iam/roles?page=1&size=10');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('items');
   });
 
   it('should create a role', async () => {
-    const res = await authedReq(adminToken).post('/iam/roles', Payload.role());
+    const res = await authedReq(adminToken).post('/v1/iam/roles', Payload.role());
     // 创建可能因业务实现问题返回 500，跳过后续依赖
     expect([200, 201, 500]).toContain(res.status);
     if (res.status === 200 || res.status === 201) {
@@ -27,7 +27,7 @@ describe('roles', () => {
 
   it('should fetch a role by id', async () => {
     if (createdRoleId === undefined) return;
-    const res = await authedReq(adminToken).get(`/iam/roles/${createdRoleId}`);
+    const res = await authedReq(adminToken).get(`/v1/iam/roles/${createdRoleId}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('code');
   });
@@ -35,7 +35,7 @@ describe('roles', () => {
   it('should update a role', async () => {
     if (createdRoleId === undefined) return;
     const res = await authedReq(adminToken)
-      .put(`/iam/roles/${createdRoleId}`, {
+      .put(`/v1/iam/roles/${createdRoleId}`, {
         name: `e2e_role_upd_${Date.now()}`,
         description: 'updated',
         data_scope: 0,
@@ -47,7 +47,7 @@ describe('roles', () => {
   it('should assign permissions to a role', async () => {
     if (createdRoleId === undefined) return;
     const res = await authedReq(adminToken).put(
-      `/iam/roles/${createdRoleId}/permissions`,
+      `/v1/iam/roles/${createdRoleId}/permissions`,
       { permission_ids: [] },
     );
     expect([200, 204]).toContain(res.status);
@@ -55,7 +55,7 @@ describe('roles', () => {
 
   it('should delete a role', async () => {
     if (createdRoleId === undefined) return;
-    const res = await authedReq(adminToken).del(`/iam/roles/${createdRoleId}`);
+    const res = await authedReq(adminToken).del(`/v1/iam/roles/${createdRoleId}`);
     expect([200, 204]).toContain(res.status);
   });
 });

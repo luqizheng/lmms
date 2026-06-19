@@ -30,7 +30,11 @@ pub fn apply(rules: &[RewriteSpec], req: &mut Request<Body>) -> Result<(), Respo
                         } else {
                             rest
                         };
-                        *req.uri_mut() = build_uri(req.uri(), &new_path);
+                        let new_pq = match req.uri().query() {
+                            Some(q) => format!("{}?{}", new_path, q),
+                            None => new_path,
+                        };
+                        *req.uri_mut() = build_uri(req.uri(), &new_pq);
                     }
                     None => {
                         return Err(err_response(
@@ -43,7 +47,11 @@ pub fn apply(rules: &[RewriteSpec], req: &mut Request<Body>) -> Result<(), Respo
             RewriteSpec::AddPrefix { prefix } => {
                 let p = req.uri().path();
                 let new_path = format!("{}{}", prefix, p);
-                *req.uri_mut() = build_uri(req.uri(), &new_path);
+                let new_pq = match req.uri().query() {
+                    Some(q) => format!("{}?{}", new_path, q),
+                    None => new_path,
+                };
+                *req.uri_mut() = build_uri(req.uri(), &new_pq);
             }
             RewriteSpec::HeaderSet { name, value } => {
                 let n: HeaderName = name.parse().map_err(|_| {

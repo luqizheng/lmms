@@ -14,7 +14,7 @@ describe('file-service', () => {
 
   it('should upload file metadata', async () => {
     const res = await authedReq(adminToken).post(
-      '/file/upload',
+      '/v1/file/upload',
       Payload.file.upload(),
     );
     expect(TOL).toContain(res.status);
@@ -25,20 +25,20 @@ describe('file-service', () => {
   });
 
   it('should list files', async () => {
-    const res = await authedReq(adminToken).get('/file/list?page=1&size=10');
+    const res = await authedReq(adminToken).get('/v1/file/list?page=1&size=10');
     expect([200, 502, 404]).toContain(res.status);
   });
 
   it('should get file info', async () => {
     if (!fileId) return;
-    const res = await authedReq(adminToken).get(`/file/${fileId}/info`);
+    const res = await authedReq(adminToken).get(`/v1/file/${fileId}/info`);
     expect(TOL).toContain(res.status);
   });
 
   it('should create presign url (get)', async () => {
     if (!fileId) return;
     const res = await authedReq(adminToken).post(
-      '/file/presign',
+      '/v1/file/presign',
       Payload.file.presign(fileId),
     );
     expect(TOL).toContain(res.status);
@@ -49,7 +49,7 @@ describe('file-service', () => {
 
   it('should delete file', async () => {
     if (!fileId) return;
-    const res = await authedReq(adminToken).del(`/file/${fileId}`);
+    const res = await authedReq(adminToken).del(`/v1/file/${fileId}`);
     expect(TOL).toContain(res.status);
   });
 });

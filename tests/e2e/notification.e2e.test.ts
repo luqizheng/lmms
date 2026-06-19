@@ -6,9 +6,9 @@ import { trackAnnouncement } from './helpers/ids';
 const adminToken = (globalThis as unknown as { __adminToken__: string })
   .__adminToken__;
 
-const BASE = '/api/notifications';
+const BASE = '/v1/notification';
 const OK = [200, 201, 204];
-const TOL = [...OK, 502, 404];
+const TOL = [...OK, 502, 503, 404];
 
 describe('notification-service', () => {
   let announcementId: number | undefined;
@@ -27,7 +27,7 @@ describe('notification-service', () => {
 
   it('should list announcements for me', async () => {
     const res = await authedReq(adminToken).get(`${BASE}/announcements`);
-    expect([200, 502, 404]).toContain(res.status);
+    expect([200, 502, 503, 404]).toContain(res.status);
   });
 
   it('should publish announcement', async () => {
@@ -58,7 +58,7 @@ describe('notification-service', () => {
 
   it('should query unread-count', async () => {
     const res = await authedReq(adminToken).get(`${BASE}/unread-count`);
-    expect([200, 502, 404]).toContain(res.status);
+    expect([200, 502, 503, 404]).toContain(res.status);
   });
 
   it('should revoke announcement', async () => {

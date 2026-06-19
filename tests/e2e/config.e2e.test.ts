@@ -15,14 +15,14 @@ describe('config-service', () => {
 
   it('should list namespaces', async () => {
     const res = await authedReq(adminToken).get(
-      '/config/namespace?page=1&size=10',
+      '/v1/config/namespace?page=1&size=10',
     );
     expect([200, 502, 404]).toContain(res.status);
   });
 
   it('should create a namespace', async () => {
     const res = await authedReq(adminToken).post(
-      '/config/namespace',
+      '/v1/config/namespace',
       Payload.config.namespace(),
     );
     expect(TOL).toContain(res.status);
@@ -35,7 +35,7 @@ describe('config-service', () => {
   it('should get namespace detail', async () => {
     if (!namespaceId) return;
     const res = await authedReq(adminToken).get(
-      `/config/namespace/${namespaceId}`,
+      `/v1/config/namespace/${namespaceId}`,
     );
     expect(TOL).toContain(res.status);
   });
@@ -43,7 +43,7 @@ describe('config-service', () => {
   it('should create a config item', async () => {
     if (!namespaceId) return;
     const res = await authedReq(adminToken).post(
-      '/config/item',
+      '/v1/config/item',
       Payload.config.item(namespaceId),
     );
     expect(TOL).toContain(res.status);
@@ -55,7 +55,7 @@ describe('config-service', () => {
 
   it('should list config items', async () => {
     const res = await authedReq(adminToken).get(
-      `/config/item?page=1&size=10${namespaceId ? `&namespace_id=${namespaceId}` : ''}`,
+      `/v1/config/item?page=1&size=10${namespaceId ? `&namespace_id=${namespaceId}` : ''}`,
     );
     expect([200, 502, 404]).toContain(res.status);
   });
@@ -63,7 +63,7 @@ describe('config-service', () => {
   it('should update config item', async () => {
     if (!configItemId) return;
     const res = await authedReq(adminToken).put(
-      `/config/item/${configItemId}`,
+      `/v1/config/item/${configItemId}`,
       { value: 'updated', description: 'updated by e2e' },
     );
     expect(TOL).toContain(res.status);
@@ -72,7 +72,7 @@ describe('config-service', () => {
   it('should watch config (long polling, accept timeout)', async () => {
     if (!namespaceId) return;
     const res = await authedReq(adminToken).get(
-      `/config/watch?namespace_id=${namespaceId}&version=0`,
+      `/v1/config/watch?namespace_id=${namespaceId}&version=0`,
     );
     expect([200, 204, 502, 404, 408]).toContain(res.status);
   });
@@ -80,7 +80,7 @@ describe('config-service', () => {
   it('should delete config item', async () => {
     if (!configItemId) return;
     const res = await authedReq(adminToken).del(
-      `/config/item/${configItemId}`,
+      `/v1/config/item/${configItemId}`,
     );
     expect(TOL).toContain(res.status);
   });
@@ -88,7 +88,7 @@ describe('config-service', () => {
   it('should delete namespace', async () => {
     if (!namespaceId) return;
     const res = await authedReq(adminToken).del(
-      `/config/namespace/${namespaceId}`,
+      `/v1/config/namespace/${namespaceId}`,
     );
     expect(TOL).toContain(res.status);
   });

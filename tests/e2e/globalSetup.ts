@@ -18,7 +18,7 @@ export default async function () {
 
   // 2. 注册测试 admin（首个用户即 admin）
   const reg = await request(baseURL)
-    .post('/api/v1/auth/register')
+    .post('/v1/iam/auth/register')
     .send({
       username: ADMIN_USER,
       password: ADMIN_PASS,
@@ -33,7 +33,7 @@ export default async function () {
 
   // 3. 登录拿 access_token
   const login = await request(baseURL)
-    .post('/api/v1/auth/login')
+    .post('/v1/iam/auth/login')
     .send({ username: ADMIN_USER, password: ADMIN_PASS });
   if (login.status !== 200 || !login.body?.access_token) {
     throw new Error(

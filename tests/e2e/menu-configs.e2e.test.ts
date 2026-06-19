@@ -30,14 +30,14 @@ describe('menu configs', () => {
   let configId: string | undefined;
 
   it('should list menu configs', async () => {
-    const res = await authedReq(adminToken).get('/pure/menu-configs');
+    const res = await authedReq(adminToken).get('/v1/pure/menu-configs');
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(0);
     expect(res.body.data).toHaveProperty('items');
   });
 
   it('should create a draft menu config', async () => {
-    const res = await authedReq(adminToken).post('/pure/menu-configs', {
+    const res = await authedReq(adminToken).post('/v1/pure/menu-configs', {
       name: `e2e menu config ${stamp}`,
       description: 'created by e2e',
       routes_json: routesJson,
@@ -53,7 +53,7 @@ describe('menu configs', () => {
 
   it('should get menu config detail', async () => {
     if (!configId) return;
-    const res = await authedReq(adminToken).get(`/pure/menu-configs/${configId}`);
+    const res = await authedReq(adminToken).get(`/v1/pure/menu-configs/${configId}`);
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(0);
     expect(res.body.data.id).toBe(configId);
@@ -71,7 +71,7 @@ describe('menu configs', () => {
       },
     ];
 
-    const res = await authedReq(adminToken).put(`/pure/menu-configs/${configId}`, {
+    const res = await authedReq(adminToken).put(`/v1/pure/menu-configs/${configId}`, {
       routes_json: updatedRoutes,
     });
 
@@ -82,7 +82,7 @@ describe('menu configs', () => {
 
   it('should publish menu config', async () => {
     if (!configId) return;
-    const res = await authedReq(adminToken).post(`/pure/menu-configs/${configId}/publish`);
+    const res = await authedReq(adminToken).post(`/v1/pure/menu-configs/${configId}/publish`);
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(0);
     expect(res.body.data.status).toBe('published');
@@ -90,7 +90,7 @@ describe('menu configs', () => {
   });
 
   it('should expose published routes from get-async-routes', async () => {
-    const res = await authedReq(adminToken).get('/get-async-routes');
+    const res = await authedReq(adminToken).get('/v1/pure/get-async-routes');
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(0);
     expect(Array.isArray(res.body.data)).toBe(true);

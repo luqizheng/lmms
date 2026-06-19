@@ -10,7 +10,7 @@ export interface LoginRes {
 }
 
 export async function login(username: string, password: string): Promise<string> {
-  const path = '/api/v1/auth/login';
+  const path = '/v1/iam/auth/login';
   logReq('POST', path, { username });
   const res = await request(baseURL).post(path).send({ username, password });
   logRes(res.status, res.body);
@@ -25,7 +25,7 @@ export async function login(username: string, password: string): Promise<string>
 }
 
 export async function logout(token: string): Promise<void> {
-  const path = '/api/v1/auth/logout';
+  const path = '/v1/iam/auth/logout';
   logReq('POST', path);
   const res = await request(baseURL)
     .post(path)

@@ -16,7 +16,7 @@ describe('iam org-units', () => {
   const updatedName = `e2e_org_upd_${Date.now()}`;
 
   it('should list org-units', async () => {
-    const res = await authedReq(adminToken).get('/iam/org-units');
+    const res = await authedReq(adminToken).get('/v1/iam/org-units');
     expect([200, 502, 404]).toContain(res.status);
     if (res.status === 200) {
       expect(Array.isArray(res.body)).toBe(true);
@@ -24,7 +24,7 @@ describe('iam org-units', () => {
   });
 
   it('should create an org-unit', async () => {
-    const res = await authedReq(adminToken).post('/iam/org-units', created);
+    const res = await authedReq(adminToken).post('/v1/iam/org-units', created);
     expect(TOL).toContain(res.status);
     if (OK.includes(res.status) && typeof res.body?.id === 'string') {
       orgId = res.body.id;
@@ -38,13 +38,13 @@ describe('iam org-units', () => {
 
   it('should reject duplicate code', async () => {
     if (!orgId) return;
-    const res = await authedReq(adminToken).post('/iam/org-units', created);
+    const res = await authedReq(adminToken).post('/v1/iam/org-units', created);
     expect([409, 500, 502]).toContain(res.status);
   });
 
   it('should get org-unit detail', async () => {
     if (!orgId) return;
-    const res = await authedReq(adminToken).get(`/iam/org-units/${orgId}`);
+    const res = await authedReq(adminToken).get(`/v1/iam/org-units/${orgId}`);
     expect(TOL).toContain(res.status);
     if (res.status === 200) {
       expect(res.body.id).toBe(orgId);
@@ -55,7 +55,7 @@ describe('iam org-units', () => {
 
   it('should create a child org-unit', async () => {
     if (!orgId) return;
-    const res = await authedReq(adminToken).post('/iam/org-units', {
+    const res = await authedReq(adminToken).post('/v1/iam/org-units', {
       ...Payload.orgUnit(),
       parent_id: orgId,
     });
@@ -70,7 +70,7 @@ describe('iam org-units', () => {
 
   it('should update org-unit', async () => {
     if (!orgId) return;
-    const res = await authedReq(adminToken).put(`/iam/org-units/${orgId}`, {
+    const res = await authedReq(adminToken).put(`/v1/iam/org-units/${orgId}`, {
       name: updatedName,
       sort_order: 5,
       status: 'active',
@@ -84,7 +84,7 @@ describe('iam org-units', () => {
 
   it('should reflect update on detail', async () => {
     if (!orgId) return;
-    const res = await authedReq(adminToken).get(`/iam/org-units/${orgId}`);
+    const res = await authedReq(adminToken).get(`/v1/iam/org-units/${orgId}`);
     expect(TOL).toContain(res.status);
     if (res.status === 200) {
       expect(res.body.name).toBe(updatedName);
@@ -94,25 +94,25 @@ describe('iam org-units', () => {
 
   it('should reject delete when has children', async () => {
     if (!orgId || !childId) return;
-    const res = await authedReq(adminToken).del(`/iam/org-units/${orgId}`);
+    const res = await authedReq(adminToken).del(`/v1/iam/org-units/${orgId}`);
     expect([409, 500, 502]).toContain(res.status);
   });
 
   it('should delete child org-unit', async () => {
     if (!childId) return;
-    const res = await authedReq(adminToken).del(`/iam/org-units/${childId}`);
+    const res = await authedReq(adminToken).del(`/v1/iam/org-units/${childId}`);
     expect(TOL).toContain(res.status);
   });
 
   it('should delete org-unit', async () => {
     if (!orgId) return;
-    const res = await authedReq(adminToken).del(`/iam/org-units/${orgId}`);
+    const res = await authedReq(adminToken).del(`/v1/iam/org-units/${orgId}`);
     expect(TOL).toContain(res.status);
   });
 
   it('should return 404 after deletion', async () => {
     if (!orgId) return;
-    const res = await authedReq(adminToken).get(`/iam/org-units/${orgId}`);
+    const res = await authedReq(adminToken).get(`/v1/iam/org-units/${orgId}`);
     expect([404, 500, 502]).toContain(res.status);
   });
 });

@@ -10,7 +10,7 @@ describe('users', () => {
   let createdUserId: number | undefined;
 
   it('should list users with pagination', async () => {
-    const res = await authedReq(adminToken).get('/iam/users?page=1&size=10');
+    const res = await authedReq(adminToken).get('/v1/iam/users?page=1&size=10');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('items');
     expect(Array.isArray(res.body.items)).toBe(true);
@@ -18,7 +18,7 @@ describe('users', () => {
 
   it('should create a new user via admin endpoint', async () => {
     const u = SEED.newUser();
-    const res = await authedReq(adminToken).post('/iam/users', u);
+    const res = await authedReq(adminToken).post('/v1/iam/users', u);
     expect([200, 201]).toContain(res.status);
     createdUserId = res.body.id;
     trackUser(createdUserId!);
@@ -27,7 +27,7 @@ describe('users', () => {
 
   it('should fetch user detail by id', async () => {
     expect(createdUserId).toBeDefined();
-    const res = await authedReq(adminToken).get(`/iam/users/${createdUserId}`);
+    const res = await authedReq(adminToken).get(`/v1/iam/users/${createdUserId}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('username');
   });
@@ -35,7 +35,7 @@ describe('users', () => {
   it('should update user nickname', async () => {
     expect(createdUserId).toBeDefined();
     const res = await authedReq(adminToken).put(
-      `/iam/users/${createdUserId}`,
+      `/v1/iam/users/${createdUserId}`,
       { nickname: 'updated' },
     );
     expect([200, 204]).toContain(res.status);
@@ -43,7 +43,7 @@ describe('users', () => {
 
   it('should delete the user', async () => {
     expect(createdUserId).toBeDefined();
-    const res = await authedReq(adminToken).del(`/iam/users/${createdUserId}`);
+    const res = await authedReq(adminToken).del(`/v1/iam/users/${createdUserId}`);
     expect([200, 204]).toContain(res.status);
   });
 });

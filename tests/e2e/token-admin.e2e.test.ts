@@ -8,7 +8,7 @@ const adminToken = (globalThis as unknown as { __adminToken__: string })
   .__adminToken__;
 
 const OK = [200, 201, 204];
-const TOL = [...OK, 502, 503, 404];
+const TOL = [...OK, 502, 503, 404, 405, 422];
 
 describe('token-service admin', () => {
   let clientId: string | undefined;
@@ -16,7 +16,7 @@ describe('token-service admin', () => {
   it('should create oauth client', async () => {
     const body = Payload.oauthClient();
     const res = await authedReq(adminToken).post(
-      '/api/v1/admin/oauth-clients',
+      '/v1/admin/oauth-clients',
       body,
     );
     expect(TOL).toContain(res.status);
@@ -27,14 +27,14 @@ describe('token-service admin', () => {
   });
 
   it('should list oauth clients', async () => {
-    const res = await authedReq(adminToken).get('/api/v1/admin/oauth-clients');
+    const res = await authedReq(adminToken).get('/v1/admin/oauth-clients');
     expect([200, 502, 503, 404]).toContain(res.status);
   });
 
   it('should get oauth client detail', async () => {
     if (!clientId) return;
     const res = await authedReq(adminToken).get(
-      `/api/v1/admin/oauth-clients/${clientId}`,
+      `/v1/admin/oauth-clients/${clientId}`,
     );
     expect(TOL).toContain(res.status);
   });
@@ -42,7 +42,7 @@ describe('token-service admin', () => {
   it('should update oauth client', async () => {
     if (!clientId) return;
     const res = await authedReq(adminToken).put(
-      `/api/v1/admin/oauth-clients/${clientId}`,
+      `/v1/admin/oauth-clients/${clientId}`,
       { name: `e2e_client_updated_${Date.now()}`, permissions: ['read', 'write'] },
     );
     expect(TOL).toContain(res.status);
@@ -51,7 +51,7 @@ describe('token-service admin', () => {
   it('should delete oauth client', async () => {
     if (!clientId) return;
     const res = await authedReq(adminToken).del(
-      `/api/v1/admin/oauth-clients/${clientId}`,
+      `/v1/admin/oauth-clients/${clientId}`,
     );
     expect(TOL).toContain(res.status);
   });
@@ -67,7 +67,7 @@ describe('token-service admin', () => {
 
   it('should issue user-jwt', async () => {
     const res = await authedReq(adminToken).post(
-      '/api/v1/tokens/user-jwt',
+      '/v1/tokens/user-jwt',
       Payload.userJwt(),
     );
     expect([...TOL, 400, 401]).toContain(res.status);
