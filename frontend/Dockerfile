@@ -1,14 +1,17 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
+
+ENV HUSKY=0
+ENV CI=true
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY package.json pnpm-lock.yaml* .npmrc* ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile || pnpm install
+    pnpm install --frozen-lockfile --ignore-scripts || pnpm install --ignore-scripts
 
 COPY . .
 

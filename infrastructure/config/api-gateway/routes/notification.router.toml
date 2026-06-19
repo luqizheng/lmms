@@ -1,10 +1,24 @@
 [[route]]
-match = "/api/notifications/ws"
+match = "/v1/notification/ws"
 service = "notification-service"
-strip_prefix = "/api/notifications"
+public = false
 ws = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/api/notifications"
+match = "/v1/notification/**"
 service = "notification-service"
-strip_prefix = "/api/notifications"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/notification/health"
+service = "notification-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]

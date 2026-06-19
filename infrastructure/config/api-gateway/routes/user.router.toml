@@ -1,24 +1,15 @@
 [[route]]
-match = "/api/v1/users/**"
+match = "/v1/iam/users/**"
 service = "iam-service"
 public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
-match = "/api/v1/roles/**"
+match = "/v1/iam/users"
 service = "iam-service"
 public = false
-
-[[route]]
-match = "/api/v1/orgs/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/api/v1/posts/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/iam/users"
-service = "iam-service"
-public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]

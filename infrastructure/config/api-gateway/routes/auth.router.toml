@@ -1,4 +1,39 @@
 [[route]]
-match = "/api/v1/auth/**"
+match = "/v1/iam/auth/login"
 service = "iam-service"
 public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/auth/register"
+service = "iam-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/auth/refresh"
+service = "iam-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/auth/setup-status"
+service = "iam-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/auth/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]

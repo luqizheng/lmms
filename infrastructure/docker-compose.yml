@@ -50,7 +50,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      RUST_LOG: "api_gateway=debug,info"
+      RUST_LOG: "api_gateway=trace,info"
       GW_SERVER__HOST: "0.0.0.0"
       GW_SERVER__PORT: "3000"
       GW_REDIS__URL: "redis://redis:6379"
@@ -60,9 +60,19 @@ services:
       GW_ISSUER: "superpowers-token-service"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
-    command: ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        i=0
+        until getent hosts token-service >/dev/null 2>&1 && wget -q --spider http://token-service:8080/.well-known/jwks.json; do
+          i=$$((i+1))
+          if [ $$i -ge 60 ]; then echo "token-service jwks not ready, giving up"; exit 1; fi
+          echo "waiting token-service jwks... ($$i)"
+          sleep 1
+        done
+        exec /app/api-gateway serve --routes /app/config/api-gateway/routes
     volumes:
-      - ../docker/config/api-gateway/routes:/app/config/api-gateway/routes
+      - ./config/api-gateway/routes:/app/config/api-gateway/routes
       - ../docker/secrets:/app/keys:ro
     depends_on:
       consul:
@@ -183,6 +193,17 @@ services:
       REDIS_URL: "redis://redis:6379"
     volumes:
       - ../docker/config/notification-service:/app/config:ro
+    networks:
+      - superpowers
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-gateway
     networks:
       - superpowers
 

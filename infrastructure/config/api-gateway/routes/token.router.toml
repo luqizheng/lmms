@@ -1,7 +1,74 @@
 [[route]]
-match = "/api/v1/tokens/**"
+match = "/v1/tokens/access"
 service = "token-service"
 public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/tokens/refresh"
+service = "token-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/tokens/revoke"
+service = "token-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/tokens/resource"
+service = "token-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/tokens/user-jwt"
+service = "token-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/tokens/.well-known/jwks.json"
+service = "token-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/admin/oauth-clients/**"
+service = "token-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/admin/oauth-clients"
+service = "token-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/api-keys"
+service = "token-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
 
 [[route]]
 match = "/.well-known/**"

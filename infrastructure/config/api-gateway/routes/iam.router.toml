@@ -1,0 +1,39 @@
+[[route]]
+match = "/v1/iam/org-units/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/org-units"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/sessions/**"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/sessions"
+service = "iam-service"
+public = false
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
+
+[[route]]
+match = "/v1/iam/health"
+service = "iam-service"
+public = true
+rewrite = [
+  { type = "strip_prefix", prefix = "/v1" }
+]
