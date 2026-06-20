@@ -17,9 +17,9 @@ function write(file, sheets) {
 
 write(join(root, 'api/cases/iam-users.xlsx'), {
   users: [
-    { caseId: 'IAM-USER-001', desc: '创建用户', method: 'POST', path: '/v1/iam/users', headers: '', body: '{"username":"u${rand}","password":"P@ssw0rd!","email":"u${rand}@t.local","nickname":"N"}', expectStatus: '201', expectBody: '$.id exists', skip: '' },
+    { caseId: 'IAM-USER-001', desc: '创建用户', method: 'POST', path: '/v1/iam/users', headers: '', body: '{"username":"u${rand}","password":"P@ssw0rd!","email":"u${rand}@t.local","nickname":"N"}', expectStatus: '200', expectBody: '$.id exists', skip: '' },
     { caseId: 'IAM-USER-002', desc: '查详情', method: 'GET', path: '/v1/iam/users/${IAM-USER-001.id}', headers: '', body: '', expectStatus: '200', expectBody: '$.username exists', skip: '' },
-    { caseId: 'IAM-USER-003', desc: '删除', method: 'DELETE', path: '/v1/iam/users/${IAM-USER-001.id}', headers: '', body: '', expectStatus: '200', expectBody: '', skip: '' },
+    { caseId: 'IAM-USER-003', desc: '删除', method: 'DELETE', path: '/v1/iam/users/${IAM-USER-001.id}', headers: '', body: '', expectStatus: '204', expectBody: '', skip: '' },
   ],
 });
 
