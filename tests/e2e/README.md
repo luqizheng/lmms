@@ -1,13 +1,11 @@
 # E2E 测试使用文档
 
-跨 API Gateway 对真实微服务做端到端测试。包含两套体系：
+跨 API Gateway 对真实微服务做端到端测试。全部用例数据驱动，写在 YAML，执行器遍历执行，产出 Excel 报告：
 
-1. **传统断言用例**（`*.e2e.test.ts`）：Vitest + supertest，按服务分文件，代码内手写断言。
-2. **数据驱动用例**（`api/` + `ui/`）：用例写在 Excel，执行器遍历执行，产出 Excel 报告。
-   - `api/`：直连 api-gateway，纯接口验证。
-   - `ui/`：通过前端页面走业务流（Playwright）。
+- `api/`：直连 api-gateway，纯接口验证（Vitest + supertest）。
+- `ui/`：通过前端页面走业务流（Playwright）。
 
-两套共享底层设施 `shared/`（环境配置、数据库重置、Excel 读写、报告）。
+两套共享底层设施 `shared/`（环境配置、数据库重置、YAML 读取、报告）。
 
 ---
 
@@ -78,37 +76,12 @@ pnpm -C tests/e2e install
 
 所有命令在 `tests/e2e` 内执行，或加 `-C tests/e2e`。
 
-### 3.1 传统断言用例（Vitest）
+### 3.1 数据驱动用例
 
 ```powershell
-# 全量
+# 全量（API + UI）
 pnpm -C tests/e2e test
 
-# watch 模式
-pnpm -C tests/e2e test:watch
-
-# 分组（按服务）
-pnpm -C tests/e2e test:auth
-pnpm -C tests/e2e test:users
-pnpm -C tests/e2e test:roles
-pnpm -C tests/e2e test:permissions
-pnpm -C tests/e2e test:tokens
-pnpm -C tests/e2e test:audit
-pnpm -C tests/e2e test:config
-pnpm -C tests/e2e test:file
-pnpm -C tests/e2e test:notification
-pnpm -C tests/e2e test:token-admin
-pnpm -C tests/e2e test:menu-configs
-pnpm -C tests/e2e test:iam-orgs
-pnpm -C tests/e2e test:gateway
-
-# 单 case（-t 过滤用例名）
-pnpm -C tests/e2e test users -t "update extends"
-```
-
-### 3.2 数据驱动用例
-
-```powershell
 # API 数据驱动（遍历 api/cases/*.yaml）
 pnpm -C tests/e2e test:api
 
@@ -116,18 +89,11 @@ pnpm -C tests/e2e test:api
 pnpm -C tests/e2e test:ui
 ```
 
-### 3.3 调试模式
+### 3.2 调试模式
 
 ```powershell
 $env:E2E_DEBUG=1
-pnpm -C tests/e2e test users -t "list users" --reporter=verbose
-```
-
-输出形如：
-
-```
->> GET /api/v1/users?page=1&size=10
-<< 200 { list: [...], total: 5, page: 1, size: 10 }
+pnpm -C tests/e2e test:api
 ```
 
 ---
@@ -136,25 +102,7 @@ pnpm -C tests/e2e test users -t "list users" --reporter=verbose
 
 ```
 tests/e2e/
-  globalSetup.ts             # 传统用例：清用户表 + 注册并登录 admin，token 写入 .e2e-admin.json
-  setupFile.ts               # 每个测试文件加载，读 .e2e-admin.json 注入 globalThis.__adminToken__
-  vitest.config.ts           # 传统用例配置（globalSetup + setupFiles + reporter）
-
-  helpers/                   # 传统用例公共方法
-    http.ts                  # authedReq(token).get/post/put/patch/del（supertest 封装）
-    auth.ts                  # login() / logout()
-    db.ts                    # clearUsers() / queryUserByUsername() / queryUserById()
-    ids.ts                   # 跨 case 共享 id 记录（trackUser/trackedUsers 等）
-    debug.ts                 # E2E_DEBUG 日志
-  fixtures/
-    seed.ts                  # admin 账号 + 随机新用户/角色
-    payload.ts               # 测试请求体常量
-
-  *.e2e.test.ts              # 按服务分文件（auth/users/tokens/roles/permissions/audit/
-                             #   config/file/notification/token-admin/menu-configs/
-                             #   iam-org-units/gateway/user-flow）
-
-  shared/                    # 数据驱动共享设施
+  shared/                    # 共享设施
     config.ts                # 集中环境变量
     db/
       reset.ts               # resetBase()（清全部+重导 seed）/ resetBusiness()（清业务保留 admin）
@@ -193,34 +141,9 @@ tests/e2e/
 
 ---
 
-## 6. 编写传统断言用例
+## 6. 编写数据驱动用例
 
-新建 `<service>.e2e.test.ts`，用 `authedReq` 发请求，Vitest 断言。
-
-```ts
-import { describe, it, expect } from 'vitest';
-import { authedReq } from './helpers/http';
-
-const token = (globalThis as any).__adminToken__ as string;
-
-describe('iam users', () => {
-  it('list users', async () => {
-    const res = await authedReq(token).get('/v1/iam/users?page=1&size=10');
-    expect(res.status).toBe(200);
-    expect(res.body.list).toBeInstanceOf(Array);
-  });
-});
-```
-
-- token 由 `setupFile.ts` 注入到 `globalThis.__adminToken__`。
-- 跨用例传递 id 用 `helpers/ids.ts` 的 `trackUser()` / `trackedUsers()` 等。
-- 路径以 `/v1/<service>/<resource>` 开头（网关已剥除 `/api`）。
-
----
-
-## 7. 编写数据驱动用例
-
-### 7.1 API 用例（YAML）
+### 6.1 API 用例（YAML）
 
 文件 `api/cases/*.yaml`，顶层 `group` + `cases` 数组，字段见 [cases.ts `ApiCase`](file:///d:/projects/coder-micro-services/tests/e2e/shared/data/cases.ts#L5-L15)：
 
@@ -231,30 +154,33 @@ cases:
     desc: 创建用户           # 用例描述
     method: POST            # GET/POST/PUT/PATCH/DELETE
     path: /v1/iam/users     # 请求路径，支持占位符
+    auth: true              # 可选，false 则不带 Authorization
     headers:                # 可选，附加请求头
       X-Foo: bar
     body:                   # 可选，结构化对象，支持占位符
       username: u${rand}
-    expectStatus: 200       # 期望 HTTP 状态码
+    expectStatus: 200       # 期望状态码，可为单值或数组 [200,502,404]
     expect:                 # 可选，断言数组
       - $.id exists
     skip: false             # 可选，true 跳过
 ```
 
-### 7.2 占位符
+### 6.2 占位符
 
 - `${rand}`：每次替换为唯一值（时间戳+随机）。
 - `${CASE-ID.field}`：引用前序用例响应体字段，支持 `a.b.c` 路径。例 `${IAM-USER-001.id}`。
-- 占位符递归作用于 `path` / `body` / `params` 的任意层级。
+- 占位符递归作用于 `path` / `body` / `params` / `expect` 的任意层级。
 
-### 7.3 断言（expect）
+### 6.3 断言（expect）
 
 字符串数组，每条独立判定：
 
-- `$.field exists`：字段存在且非 null。
+- `$.field exists` / `$.field not exists`：字段存在性。
 - `$.field==value`：字段字符串相等。
+- `$.field is array`：字段为数组（`$` 指根）。
+- `$.field contains 子串`：序列化后包含子串（`$` 指根）。
 
-### 7.4 UI 用例（YAML）
+### 6.4 UI 用例（YAML）
 
 文件 `ui/cases/*.yaml`，每个用例含 `caseId` / `desc` / `flow` / `params` / `expect` / `skip`。
 
@@ -272,7 +198,7 @@ cases:
 
 新增 flow：在 `flows` 注册表加函数，复用 `pages/` 下 Page Object。
 
-### 7.5 样例
+### 6.5 样例
 
 - [api/cases/iam-users.yaml](file:///d:/projects/coder-micro-services/tests/e2e/api/cases/iam-users.yaml)：创建→查详情→删除。
 - [ui/cases/user-flow.yaml](file:///d:/projects/coder-micro-services/tests/e2e/ui/cases/user-flow.yaml)：登录后建用户，校验 `toast=已新增用户`。
@@ -281,7 +207,7 @@ cases:
 
 ---
 
-## 8. 测试报告
+## 7. 测试报告
 
 数据驱动测试结束后（`afterAll`）自动写报告：
 
@@ -293,7 +219,7 @@ cases:
 
 ---
 
-## 9. AI / 协作边界
+## 8. AI / 协作边界
 
 - 改 `tests/e2e/**` 即可修测试。
 - **禁止**改 `services/<svc>/src/`、`libs/`、`sdk/` 业务源码。

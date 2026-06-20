@@ -30,7 +30,9 @@ docker compose up -d
 
 # 3. 跑 e2e（独立 workspace，绕过 frontend engines.pnpm）
 pnpm -C tests/e2e install
-node scripts/run-e2e-local.js
+pnpm -C tests/e2e test          # 全量：API + UI
+pnpm -C tests/e2e test:api      # 仅 API 数据驱动
+pnpm -C tests/e2e test:ui       # 仅 UI（需前端容器）
 ```
 
 ## 环境变量（指向 infrastructure）
@@ -38,21 +40,25 @@ node scripts/run-e2e-local.js
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `E2E_BASE_URL` | `http://localhost:3000` | infrastructure-api-gateway |
+| `E2E_FRONTEND_URL` | `http://localhost:8080` | 前端容器（UI 测试） |
 | `E2E_ADMIN_USER` | `e2eadmin` | globalSetup 自注册 |
 | `E2E_ADMIN_PASS` | `P@ssw0rd!` | globalSetup 自注册 |
 | `E2E_DEBUG` | `0` | 1=请求/响应日志 |
 
 ## 测试结构
 
-- `globalSetup.ts` 通过 `infrastructure-api-gateway` 注册并登录 e2e admin
-- `helpers/` 公共：auth / http / db / ids / debug
-- `*.e2e.test.ts` 按服务分文件（auth / users / tokens / roles / ...）
+全部数据驱动，用例写在 YAML，无手写 `*.e2e.test.ts` 套件。
+
+- `shared/` 共享设施：`config.ts` / `db/reset.ts`（resetBase/resetBusiness）/ `data/cases.ts`（读 yaml+占位符+断言）/ `report/writer.ts`（xlsx 报告）
+- `api/`：直连网关。`globalSetup.ts` 注册并登录 admin，`runner/run.e2e.test.ts` 遍历 `cases/*.yaml`
+- `ui/`：经前端。`runner/run.spec.ts` 遍历 `cases/*.yaml` 执行 `flows/` 编排
+- 新增用例 = 编辑 `api/cases/*.yaml` 或 `ui/cases/*.yaml`，无需改执行器
 
 ## 调试
 
 ```powershell
 $env:E2E_DEBUG=1
-node scripts/run-e2e-local.js users -t "list users"
+pnpm -C tests/e2e test:api
 ```
 
 ## AI 操作边界

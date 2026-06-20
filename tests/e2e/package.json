@@ -4,12 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:users": "vitest run users",
-    "test:roles": "vitest run roles",
-    "test:tokens": "vitest run tokens",
-    "test:token-admin": "vitest run token-admin",
+    "test": "pnpm run test:api && pnpm run test:ui",
     "test:api": "vitest run --config api/vitest.config.ts",
     "test:ui": "playwright test --config ui/playwright.config.ts"
   },
