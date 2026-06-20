@@ -110,7 +110,7 @@ export interface ResetSecretResult {
 export function listOAuthClients(params?: OAuthClientListQuery) {
   return http.request<OAuthClientListResult>(
     "get",
-    "/api/v1/admin/oauth-clients",
+    "/v1/admin/oauth-clients",
     { params }
   );
 }
@@ -118,7 +118,7 @@ export function listOAuthClients(params?: OAuthClientListQuery) {
 export function createOAuthClient(data: CreateOAuthClientRequest) {
   return http.request<CreateOAuthClientResult>(
     "post",
-    "/api/v1/admin/oauth-clients",
+    "/v1/admin/oauth-clients",
     { data }
   );
 }
@@ -129,7 +129,7 @@ export function updateOAuthClient(
 ) {
   return http.request<OAuthClient>(
     "put",
-    `/api/v1/admin/oauth-clients/${encodeURIComponent(client_id)}`,
+    `/v1/admin/oauth-clients/${encodeURIComponent(client_id)}`,
     { data }
   );
 }
@@ -137,13 +137,13 @@ export function updateOAuthClient(
 export function deleteOAuthClient(client_id: string) {
   return http.request<void>(
     "delete",
-    `/api/v1/admin/oauth-clients/${encodeURIComponent(client_id)}`
+    `/v1/admin/oauth-clients/${encodeURIComponent(client_id)}`
   );
 }
 
 export function resetOAuthClientSecret(client_id: string) {
   return http.request<ResetSecretResult>(
     "post",
-    `/api/v1/admin/oauth-clients/${encodeURIComponent(client_id)}/reset-secret`
+    `/v1/admin/oauth-clients/${encodeURIComponent(client_id)}/reset-secret`
   );
 }

@@ -51,25 +51,25 @@ export interface UpdateIamUserRequest {
 }
 
 export function listIamUsers(params: IamUserQuery) {
-  return http.request<IamUserListResponse>("get", "/iam/users", { params });
+  return http.request<IamUserListResponse>("get", "/v1/iam/users", { params });
 }
 
 export function createIamUser(data: CreateIamUserRequest) {
-  return http.request<IamUser>("post", "/iam/users", { data });
+  return http.request<IamUser>("post", "/v1/iam/users", { data });
 }
 
 export function getIamUser(id: string) {
-  return http.request<IamUser>("get", `/iam/users/${encodeURIComponent(id)}`);
+  return http.request<IamUser>("get", `/v1/iam/users/${encodeURIComponent(id)}`);
 }
 
 export function updateIamUser(id: string, data: UpdateIamUserRequest) {
-  return http.request<IamUser>("put", `/iam/users/${encodeURIComponent(id)}`, {
+  return http.request<IamUser>("put", `/v1/iam/users/${encodeURIComponent(id)}`, {
     data
   });
 }
 
 export function deleteIamUser(id: string) {
-  return http.request<void>("delete", `/iam/users/${encodeURIComponent(id)}`);
+  return http.request<void>("delete", `/v1/iam/users/${encodeURIComponent(id)}`);
 }
 
 // ============== 角色 ==============
@@ -113,27 +113,27 @@ export interface UpdateIamRoleRequest {
 }
 
 export function listIamRoles(params: IamRoleQuery) {
-  return http.request<IamRoleListResponse>("get", "/iam/roles", { params });
+  return http.request<IamRoleListResponse>("get", "/v1/iam/roles", { params });
 }
 
 export function createIamRole(data: CreateIamRoleRequest) {
-  return http.request<IamRole>("post", "/iam/roles", { data });
+  return http.request<IamRole>("post", "/v1/iam/roles", { data });
 }
 
 export function updateIamRole(id: string, data: UpdateIamRoleRequest) {
-  return http.request<IamRole>("put", `/iam/roles/${encodeURIComponent(id)}`, {
+  return http.request<IamRole>("put", `/v1/iam/roles/${encodeURIComponent(id)}`, {
     data
   });
 }
 
 export function deleteIamRole(id: string) {
-  return http.request<void>("delete", `/iam/roles/${encodeURIComponent(id)}`);
+  return http.request<void>("delete", `/v1/iam/roles/${encodeURIComponent(id)}`);
 }
 
 export function assignRolePermissions(id: string, permission_ids: string[]) {
   return http.request<void>(
     "put",
-    `/iam/roles/${encodeURIComponent(id)}/permissions`,
+    `/v1/iam/roles/${encodeURIComponent(id)}/permissions`,
     { data: { permission_ids } }
   );
 }
@@ -185,13 +185,13 @@ export interface UpdateIamPermissionRequest {
 }
 
 export function listIamPermissions(params: IamPermissionQuery) {
-  return http.request<IamPermissionListResponse>("get", "/iam/permissions", {
+  return http.request<IamPermissionListResponse>("get", "/v1/iam/permissions", {
     params
   });
 }
 
 export function createIamPermission(data: CreateIamPermissionRequest) {
-  return http.request<IamPermission>("post", "/iam/permissions", { data });
+  return http.request<IamPermission>("post", "/v1/iam/permissions", { data });
 }
 
 export function updateIamPermission(
@@ -200,7 +200,7 @@ export function updateIamPermission(
 ) {
   return http.request<IamPermission>(
     "put",
-    `/iam/permissions/${encodeURIComponent(id)}`,
+    `/v1/iam/permissions/${encodeURIComponent(id)}`,
     { data }
   );
 }
@@ -208,7 +208,7 @@ export function updateIamPermission(
 export function deleteIamPermission(id: string) {
   return http.request<void>(
     "delete",
-    `/iam/permissions/${encodeURIComponent(id)}`
+    `/v1/iam/permissions/${encodeURIComponent(id)}`
   );
 }
 
@@ -261,21 +261,21 @@ export interface UpdateIamMenuRequest {
 }
 
 export function listIamMenus() {
-  return http.request<IamMenuListResponse>("get", "/iam/menus");
+  return http.request<IamMenuListResponse>("get", "/v1/iam/menus");
 }
 
 export function createIamMenu(data: CreateIamMenuRequest) {
-  return http.request<IamMenu>("post", "/iam/menus", { data });
+  return http.request<IamMenu>("post", "/v1/iam/menus", { data });
 }
 
 export function updateIamMenu(id: string, data: UpdateIamMenuRequest) {
-  return http.request<IamMenu>("put", `/iam/menus/${encodeURIComponent(id)}`, {
+  return http.request<IamMenu>("put", `/v1/iam/menus/${encodeURIComponent(id)}`, {
     data
   });
 }
 
 export function deleteIamMenu(id: string) {
-  return http.request<void>("delete", `/iam/menus/${encodeURIComponent(id)}`);
+  return http.request<void>("delete", `/v1/iam/menus/${encodeURIComponent(id)}`);
 }
 
 // ============== 组织（部门） ==============
@@ -308,18 +308,18 @@ export interface UpdateIamOrgUnitRequest {
 }
 
 export async function listIamOrgUnits() {
-  const data = await http.request<IamOrgUnit[]>("get", "/iam/org-units");
+  const data = await http.request<IamOrgUnit[]>("get", "/v1/iam/org-units");
   return { items: data ?? [] };
 }
 
 export function createIamOrgUnit(data: CreateIamOrgUnitRequest) {
-  return http.request<IamOrgUnit>("post", "/iam/org-units", { data });
+  return http.request<IamOrgUnit>("post", "/v1/iam/org-units", { data });
 }
 
 export function updateIamOrgUnit(id: string, data: UpdateIamOrgUnitRequest) {
   return http.request<IamOrgUnit>(
     "put",
-    `/iam/org-units/${encodeURIComponent(id)}`,
+    `/v1/iam/org-units/${encodeURIComponent(id)}`,
     { data }
   );
 }
@@ -327,6 +327,6 @@ export function updateIamOrgUnit(id: string, data: UpdateIamOrgUnitRequest) {
 export function deleteIamOrgUnit(id: string) {
   return http.request<void>(
     "delete",
-    `/iam/org-units/${encodeURIComponent(id)}`
+    `/v1/iam/org-units/${encodeURIComponent(id)}`
   );
 }
