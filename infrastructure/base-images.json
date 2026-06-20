@@ -31,11 +31,6 @@
       "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl",
       "source": "services\\api-gateway\\Dockerfile",
       "mirror": null
-    },
-    {
-      "ref": "zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest",
-      "source": "infrastructure\\docker-compose.yml",
-      "mirror": null
     }
   ]
 }
