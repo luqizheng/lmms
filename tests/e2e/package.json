@@ -18,14 +18,19 @@
     "test:token-admin": "vitest run token-admin",
     "test:menu-configs": "vitest run menu-configs",
     "test:iam-orgs": "vitest run iam-org-units",
-    "test:gateway": "vitest run gateway"
+    "test:gateway": "vitest run gateway",
+    "test:api": "vitest run --config api/vitest.config.ts",
+    "test:ui": "playwright test --config ui/playwright.config.ts",
+    "gen:samples": "node scripts/gen-sample-cases.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48",
     "@types/node": "^20",
     "@types/supertest": "^6",
     "mysql2": "^3.22.5",
     "supertest": "^7",
     "typescript": "^5",
-    "vitest": "^2"
+    "vitest": "^2",
+    "xlsx": "^0.18.5"
   }
 }

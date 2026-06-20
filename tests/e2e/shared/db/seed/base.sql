@@ -1,0 +1,5 @@
+-- 基础数据：整轮测试前导入一次，幂等。
+-- 说明：admin 账号由 api/globalSetup.ts 通过 /v1/iam/auth/register 创建，
+--       以保证 password_hash + salt 与服务一致，此处不直接 INSERT users。
+-- 如需预置角色/权限/菜单等非用户基础数据，按各表真实结构在此追加
+-- INSERT ... ON DUPLICATE KEY UPDATE 语句（幂等）。
