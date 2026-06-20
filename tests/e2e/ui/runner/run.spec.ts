@@ -44,6 +44,11 @@ for (const file of files) {
               if (!(r.toast ?? '').includes(want)) {
                 throw new Error(`toast 不含 "${want}"，实际="${r.toast}"`);
               }
+            } else if (exp.startsWith('dialog=')) {
+              const want = exp.slice('dialog='.length);
+              if (!(r.dialog ?? '').includes(want)) {
+                throw new Error(`dialog 不含 "${want}"，实际="${r.dialog}"`);
+              }
             }
           }
           results.push({
