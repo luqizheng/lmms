@@ -12,7 +12,10 @@ export const flows: Record<string, Flow> = {
   createUser: async (page, params) => {
     await new LoginPage(page).login();
     const up = new UserPage(page);
-    await up.createUser({ username: String(params.username) });
+    await up.createUser({
+      username: String(params.username),
+      password: params.password ? String(params.password) : undefined,
+    });
     return { toast: await up.lastToastText() };
   },
 };

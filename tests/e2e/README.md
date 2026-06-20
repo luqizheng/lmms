@@ -103,3 +103,68 @@ pnpm -C tests/e2e test users -t "list users" --reporter=verbose
 >> GET /api/v1/users?page=1&size=10
 << 200 { list: [...], total: 5, page: 1, size: 10 }
 ```
+
+---
+
+## 数据驱动重构（两部分）
+
+测试拆为两部分，共享底层设施（`shared/`）。
+
+### 目录
+
+```
+tests/e2e/
+  shared/
+    config.ts               # 集中环境变量（baseURL/frontendURL/admin/db）
+    db/
+      reset.ts              # resetBase()/resetBusiness()
+      seed/base.sql         # 基础数据（admin 由 API 注册）
+    data/excel.ts           # 读用例 xlsx + 占位符 + 断言
+    report/
+      writer.ts             # 写 report-<时间戳>.xlsx + 失败 <caseId>.json
+      errors/               # 失败明细（json + UI 截图）
+  api/                      # 第一部分：直连 api-gateway
+    cases/*.xlsx            # 数据驱动用例
+    globalSetup.ts          # resetBase + 注册并登录 admin
+    runner/run.e2e.test.ts  # 遍历 xlsx 执行
+    vitest.config.ts
+  ui/                       # 第二部分：通过前端做业务测试
+    cases/*.xlsx
+    pages/                  # Page Object（login/user）
+    flows/                  # 业务流编排
+    globalSetup.ts          # resetBase + 注册 admin + 前端健康探测
+    runner/run.spec.ts
+    playwright.config.ts
+  scripts/gen-sample-cases.mjs  # 生成样例 xlsx
+```
+
+### 数据分层
+
+- 基础数据：`resetBase()` 整轮前清全部 + 注册 admin（幂等）。
+- 业务数据：`resetBusiness()` 每套件前清业务表，保留 admin。
+
+### 用例与报告（Excel）
+
+- 用例：`api/cases/*.xlsx`、`ui/cases/*.xlsx`，每 sheet 一组，每行一用例。
+- 占位符：`${rand}` 唯一值；`${CASE-ID.field}` 引用前序响应。
+- 断言：`$.x exists` / `$.x==v`，多条用 `&&`。
+- 报告：`shared/report/report-<时间戳>.xlsx`（detail + summary）。
+- 失败：`shared/report/errors/<caseId>.json`（UI 附 `.png`）。
+
+### 运行
+
+```powershell
+pnpm -C tests/e2e test:api      # 第一部分：API 数据驱动
+pnpm -C tests/e2e test:ui       # 第二部分：前端业务（需前端容器）
+pnpm -C tests/e2e gen:samples   # 重新生成样例用例
+```
+
+> UI 测试要求前端容器禁用登录验证码：`infrastructure/docker-compose.yml`
+> 已为 frontend 构建传入 `VITE_DISABLE_CAPTCHA=true`，改后需 `docker compose build frontend`。
+
+### 新增用例
+
+1. 编辑或新增 `api/cases/*.xlsx` / `ui/cases/*.xlsx`（列见上文）。
+2. UI 用例的 `flow` 字段需在 `ui/flows/index.ts` 注册对应编排。
+3. 直接重跑 `test:api` / `test:ui`，无需改执行器代码。
+
