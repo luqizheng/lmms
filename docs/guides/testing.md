@@ -8,12 +8,17 @@
 
 | 层 | 跑在哪 | 入口 | 落点 |
 |---|---|---|---|
-| E2E | Docker 全栈（4 服务 + 网关） | `tests/e2e/*.e2e.test.ts` | vitest + supertest |
+| E2E-API | Docker 全栈（服务 + 网关） | `tests/e2e/api/cases/*.xlsx` | vitest + supertest（数据驱动） |
+| E2E-UI | Docker 全栈 + 前端容器 | `tests/e2e/ui/cases/*.xlsx` | Playwright（数据驱动） |
+| E2E（旧） | Docker 全栈（4 服务 + 网关） | `tests/e2e/*.e2e.test.ts` | vitest + supertest（手写） |
 | 集成 | 单服务 + 真实 DB | `services/<svc>/tests/*_test.rs` | Rust integration test |
 | 单元 | 进程内 | `services/<svc>/src/**` + `#[cfg(test)]`<br>`libs/*/src/**` + `#[cfg(test)]` | Rust unit test |
 | Spec | 文档 / AI 提示词来源 | `tests/specs/**/*.yaml` | YAML |
 
-e2e 走 API Gateway（端口 3000）。集成/单元走服务进程内或独立 DB。
+e2e 走 API Gateway（端口 3000）。E2E-UI 经前端容器（8080）→ 网关。集成/单元走服务进程内或独立 DB。
+
+> E2E 已重构为两部分（见 [§8 数据驱动 E2E](#8-数据驱动-e2e两部分)）：
+> 第一部分直连网关验证 API；第二部分经前端做业务测试。旧 `*.e2e.test.ts` 仍保留并行。
 
 ---
 
@@ -311,3 +316,122 @@ CI tag 触发 SDK 发版（`sdk:publish`），本地**不要**手动 push。
 - ❌ 跨 case 共享可变状态（每个 `it` 独立 setup/teardown）
 - ❌ 测试依赖外部网络（必须用本地 docker 栈）
 - ❌ 沙箱 IDE 终端跑 `cargo`（必 LNK2019，去真实 PowerShell）
+
+---
+
+## 8. 数据驱动 E2E（两部分）
+
+E2E 重构为两部分，共享底层设施（`tests/e2e/shared/`）。用例与报告均用 Excel 管理，失败输出 JSON 便于排查。
+
+### 8.1 目录结构
+
+```
+tests/e2e/
+  shared/
+    config.ts               # 集中环境变量（baseURL/frontendURL/admin/db）
+    db/
+      reset.ts              # resetBase() / resetBusiness()
+      seed/base.sql         # 基础数据（admin 由 API 注册，预留非用户基础数据扩展）
+    data/excel.ts           # 读用例 xlsx + 占位符解析 + 断言
+    report/
+      writer.ts             # 写 report-<时间戳>.xlsx + 失败 <caseId>.json
+      errors/               # 失败明细（json；UI 附 .png 截图）
+  api/                      # 第一部分：直连 api-gateway
+    cases/*.xlsx            # 数据驱动用例
+    globalSetup.ts          # resetBase + 注册并登录 admin
+    runner/run.e2e.test.ts  # 遍历 xlsx 执行
+    vitest.config.ts
+  ui/                       # 第二部分：经前端做业务测试
+    cases/*.xlsx
+    pages/                  # Page Object（login / user）
+    flows/index.ts          # 业务流编排（flow 名 → 函数）
+    globalSetup.ts          # resetBase + 注册 admin + 前端健康探测
+    runner/run.spec.ts
+    playwright.config.ts
+  scripts/gen-sample-cases.mjs   # 生成样例 xlsx
+```
+
+### 8.2 数据分层
+
+| 层 | 函数 | 时机 | 行为 |
+|---|---|---|---|
+| 基础数据 | `resetBase()` | 整轮开始（globalSetup） | 清全部表 + 注册 admin（幂等） |
+| 业务数据 | `resetBusiness()` | 每套件前（beforeAll） | 只清业务表，保留 admin |
+
+- 基础数据：admin 由 API `register` 创建（保证密码哈希与服务一致），非用户基础数据写 `seed/base.sql`（`INSERT ... ON DUPLICATE KEY UPDATE` 幂等）。
+- 业务数据：业务表整表 `DELETE`；`users` 表按 `config.seedUsernames` 保留（`users.id` 为 UUID，不能按数值上限区分）。
+
+### 8.3 Excel 用例格式
+
+每个服务/业务流一个 `.xlsx`，每 sheet 一组，每行一个用例。
+
+API 用例列（`api/cases/*.xlsx`）：
+
+| 列 | 说明 |
+|---|---|
+| `caseId` | 用例唯一 ID，失败 json 以此命名 |
+| `desc` | 描述 |
+| `method` | GET/POST/PUT/PATCH/DELETE |
+| `path` | 网关入口路径，如 `/v1/iam/users` |
+| `headers` | 预留附加头（可空） |
+| `body` | JSON 字符串，支持占位符 |
+| `expectStatus` | 期望状态码 |
+| `expectBody` | 断言表达式（见 8.4） |
+| `skip` | `Y` 跳过 |
+
+UI 用例列（`ui/cases/*.xlsx`）：
+
+| 列 | 说明 |
+|---|---|
+| `caseId` / `desc` / `skip` | 同上 |
+| `flow` | 在 `ui/flows/index.ts` 注册的编排名 |
+| `params` | JSON 字符串，支持占位符 |
+| `expect` | 当前支持 `toast=<文案>` 校验 |
+
+### 8.4 占位符与断言
+
+- 占位符：
+  - `${rand}` → 唯一值
+  - `${CASE-ID.field}` → 引用前序用例响应字段（同一执行上下文共享）
+- 断言（`expectBody`）：
+  - `$.x exists` → 字段存在
+  - `$.x==v` → 字段等值
+  - 多条用 `&&` 连接
+
+### 8.5 报告与失败明细
+
+- 报告：`shared/report/report-<时间戳>.xlsx`，含 `detail`（每用例 PASS/FAIL/SKIP、状态码、耗时）+ `summary`（total/pass/fail/skip）。
+- 失败明细：`shared/report/errors/<caseId>.json`，含 request/response/expect/timestamp；UI 失败额外附 `<caseId>.png` 截图。
+- 报告与 errors 已在 `.gitignore` 忽略，不入库。
+
+### 8.6 运行
+
+```powershell
+pnpm -C tests/e2e test:api      # 第一部分：API 数据驱动
+pnpm -C tests/e2e test:ui       # 第二部分：前端业务（需前端容器）
+pnpm -C tests/e2e gen:samples   # 重新生成样例用例
+```
+
+前置：
+
+- 基础设施 + 服务：`docker compose -f infrastructure/docker-compose.yml up -d`
+- UI 测试要求前端容器**禁用登录验证码**：`infrastructure/docker-compose.yml` 已为 frontend 构建传入 `VITE_DISABLE_CAPTCHA=true`，改前端后需 `docker compose build frontend`。
+- 首次跑 UI 需安装浏览器：`pnpm -C tests/e2e exec playwright install chromium`（配置使用 `channel: "chromium"` 完整构建）。
+
+### 8.7 新增用例
+
+1. 编辑或新增 `api/cases/*.xlsx` / `ui/cases/*.xlsx`（列见 8.3）。
+2. UI 用例的 `flow` 字段需在 `ui/flows/index.ts` 注册对应编排（用 `pages/` 下 Page Object 操作前端）。
+3. 直接重跑 `test:api` / `test:ui`，无需改执行器代码。
+
+### 8.8 环境变量
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `E2E_BASE_URL` | `http://localhost:3000` | API Gateway |
+| `E2E_FRONTEND_URL` | `http://localhost:8080` | 前端容器 |
+| `E2E_ADMIN_USER` | `e2eadmin` | admin 用户名 |
+| `E2E_ADMIN_PASS` | `P@ssw0rd!` | admin 密码 |
+| `E2E_DB_*` | 见 `shared/config.ts` | host/port/user/password/database |
+| `E2E_SEED_USERNAMES` | `e2eadmin` | 业务数据清理时保留的用户名（逗号分隔） |
+| `E2E_DEBUG` | `0` | `1` 输出调试信息 |
