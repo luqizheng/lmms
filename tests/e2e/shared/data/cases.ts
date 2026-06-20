@@ -7,9 +7,10 @@ export interface ApiCase {
   desc: string;
   method: string;
   path: string;
+  auth?: boolean; // 默认 true，false 则不带 Authorization
   headers?: Record<string, string>;
   body?: unknown;
-  expectStatus: number | string;
+  expectStatus: number | string | Array<number | string>; // 单值或容忍数组
   expect?: string[]; // 断言表达式数组
   skip?: boolean;
 }
@@ -67,7 +68,20 @@ function resolveString(input: string, ctx: Record<string, unknown>): string {
     });
 }
 
-// 断言：每条形如 "$.id exists" / "$.username==alice"
+// 状态码匹配：期望可为单值或数组（容忍多状态）
+export function statusMatches(
+  actual: number,
+  expect: number | string | Array<number | string>,
+): boolean {
+  const list = Array.isArray(expect) ? expect : [expect];
+  return list.some((e) => String(e) === String(actual));
+}
+
+// 断言：每条形如
+//   "$.id exists" / "$.id not exists"
+//   "$.username==alice"
+//   "$.items is array"
+//   "$.data contains E2E 菜单"
 export function assertBody(
   exprs: string[] | undefined,
   body: unknown,
@@ -76,11 +90,25 @@ export function assertBody(
   for (const raw of exprs) {
     const clause = raw.trim();
     if (!clause) continue;
+    const notExistsM = clause.match(/^\$\.([\w.]+)\s+not\s+exists$/);
     const existsM = clause.match(/^\$\.([\w.]+)\s+exists$/);
+    const isArrayM = clause.match(/^\$\.?([\w.]*)\s+is\s+array$/);
+    const containsM = clause.match(/^\$\.?([\w.]*)\s+contains\s+(.+)$/);
     const eqM = clause.match(/^\$\.([\w.]+)==(.+)$/);
-    if (existsM) {
+    if (notExistsM) {
+      const v = getPath(body, notExistsM[1]);
+      if (v !== undefined && v !== null) return { ok: false, reason: `${clause} 实际存在` };
+    } else if (existsM) {
       const v = getPath(body, existsM[1]);
       if (v === undefined || v === null) return { ok: false, reason: `${clause} 不存在` };
+    } else if (isArrayM) {
+      const v = isArrayM[1] ? getPath(body, isArrayM[1]) : body;
+      if (!Array.isArray(v)) return { ok: false, reason: `${clause} 非数组` };
+    } else if (containsM) {
+      const v = containsM[1] ? getPath(body, containsM[1]) : body;
+      if (!JSON.stringify(v ?? '').includes(containsM[2].trim())) {
+        return { ok: false, reason: `${clause} 不包含` };
+      }
     } else if (eqM) {
       const v = getPath(body, eqM[1]);
       if (String(v) !== eqM[2]) return { ok: false, reason: `${clause} 实际=${String(v)}` };

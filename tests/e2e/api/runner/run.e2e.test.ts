@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, it } from 'vitest';
 import request from 'supertest';
 import { config } from '../../shared/config';
 import { resetBusiness } from '../../shared/db/reset';
-import { readCases, resolve, assertBody, type ApiCase } from '../../shared/data/cases';
+import { readCases, resolve, assertBody, statusMatches, type ApiCase } from '../../shared/data/cases';
 import {
   writeReport,
   writeErrorJson,
@@ -48,9 +48,10 @@ for (const file of files) {
           | 'put'
           | 'patch'
           | 'delete';
-        let agent = request(config.baseURL)
-          [method](path)
-          .set('Authorization', `Bearer ${token}`);
+        let agent = request(config.baseURL)[method](path);
+        if (c.auth !== false) {
+          agent = agent.set('Authorization', `Bearer ${token}`);
+        }
         if (headers) {
           for (const [k, v] of Object.entries(headers)) agent = agent.set(k, v);
         }
@@ -58,8 +59,9 @@ for (const file of files) {
         const res = await agent;
         ctx[c.caseId] = res.body;
 
-        const statusOk = String(res.status) === String(c.expectStatus);
-        const bodyCheck = assertBody(c.expect, res.body);
+        const statusOk = statusMatches(res.status, c.expectStatus);
+        const expectExprs = c.expect ? resolve(c.expect, ctx) : undefined;
+        const bodyCheck = assertBody(expectExprs, res.body);
         const ok = statusOk && bodyCheck.ok;
         results.push({
           caseId: c.caseId,
