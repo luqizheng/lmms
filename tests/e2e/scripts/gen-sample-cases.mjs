@@ -25,6 +25,6 @@ write(join(root, 'api/cases/iam-users.xlsx'), {
 
 write(join(root, 'ui/cases/user-flow.xlsx'), {
   user: [
-    { caseId: 'UI-USER-001', desc: '登录后建用户', flow: 'createUser', params: '{"username":"u${rand}"}', expect: 'toast=创建成功', skip: '' },
+    { caseId: 'UI-USER-001', desc: '登录后建用户', flow: 'createUser', params: '{"username":"u${rand}"}', expect: 'toast=已新增用户', skip: '' },
   ],
 });

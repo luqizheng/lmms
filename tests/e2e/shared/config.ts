@@ -1,7 +1,7 @@
 // 集中读取 e2e 环境变量，供 api / ui / shared 复用
 export const config = {
   baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
-  frontendURL: process.env.E2E_FRONTEND_URL ?? 'http://localhost:8848',
+  frontendURL: process.env.E2E_FRONTEND_URL ?? 'http://localhost:8080',
   admin: {
     user: process.env.E2E_ADMIN_USER ?? 'e2eadmin',
     pass: process.env.E2E_ADMIN_PASS ?? 'P@ssw0rd!',
