@@ -1,5 +1,5 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordVerifier, SaltString},
+    password_hash::{rand_core::OsRng, PasswordHash, SaltString},
     Argon2, Algorithm, Version,
 };
 use common_error::{AppError, AppResult};

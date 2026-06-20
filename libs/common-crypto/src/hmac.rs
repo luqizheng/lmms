@@ -1,4 +1,3 @@
-use common_error::AppResult;
 use hmac::{Hmac as HmacCore, Mac};
 use sha2::{Sha256, Sha512};
 

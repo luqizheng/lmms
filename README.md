@@ -99,6 +99,44 @@ cargo run                        # 启动
 
 - `docker-compose.yml` — 仅基础设施（3 容器：consul / redis / mysql，配合本地服务进程）
 
+### 在 Docker 中跑 Rust 单元测试
+
+采用 **volume mapping 模型**：不构建镜像，直接把源码与 cargo 缓存挂载进基础镜像内执行 `cargo test`，与生产构建一致使用 `x86_64-unknown-linux-musl` 目标。
+
+```powershell
+# 全部服务
+node scripts/run-tests-docker.js
+
+# 指定一个或多个服务
+node scripts/run-tests-docker.js iam-service token-service
+```
+
+等价的底层 docker 命令：
+
+```powershell
+docker run --rm `
+  --network host `
+  -v ${PWD}:/app `
+  -v coder-cargo-registry:/usr/local/cargo/registry `
+  -v coder-cargo-git:/usr/local/cargo/git `
+  -v coder-cargo-target:/app/target `
+  -v /var/run/docker.sock:/var/run/docker.sock `
+  -w /app `
+  zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl `
+  cargo test --target x86_64-unknown-linux-musl -p iam-service -- --nocapture
+```
+
+要点：
+
+- 基础镜像复用 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`，无需 `Dockerfile.test`
+- 源码用 bind mount 挂载，改代码**零 rebuild**
+- `registry` / `git` / `target` 用命名 volume 持久化，跨 service、跨次复用增量编译
+- `--network host`：部分 build.rs（如 `utoipa-swagger-ui`）需联网下载资源
+- 使用 testcontainers 的服务（token-service / iam-service 等）必须挂载 `/var/run/docker.sock`
+- 范围限定 `-p ${SERVICE}`，仅跑服务自身测试，不含 libs / sdk
+- 多服务共享同一 `target` volume，脚本按串行执行避免 target 锁争用
+- 依赖 TLS 时统一用 workspace 的 `reqwest 0.12 + rustls`，禁用 native-tls（musl 镜像无 openssl headers）
+
 ### 故障排查
 
 - **MySQL 容器找不到**：`docker ps -a` 看容器名；`start` 启动的容器会自动加 `coder-micro-services` 前缀

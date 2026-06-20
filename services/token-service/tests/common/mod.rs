@@ -3,10 +3,11 @@ use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::mysql::Mysql;
+use token_service::db::DbPool;
 
 pub const MIGRATION_SQL: &str = include_str!("../../migrations/20260611000001_init.sql");
 
-pub async fn spawn_mysql() -> MySqlPool {
+pub async fn spawn_mysql() -> DbPool {
     let container = Mysql::default().start().await.expect("start mysql");
     let host = container.get_host().await.expect("mysql host");
     let port = container
@@ -15,7 +16,7 @@ pub async fn spawn_mysql() -> MySqlPool {
         .expect("mysql port");
     let url = format!("mysql://root:root@{}:{}/test", host, port);
 
-    let pool = MySqlPoolOptions::new()
+    let pool: MySqlPool = MySqlPoolOptions::new()
         .max_connections(4)
         .acquire_timeout(Duration::from_secs(5))
         .after_connect(|conn, _meta| {
@@ -37,5 +38,5 @@ pub async fn spawn_mysql() -> MySqlPool {
         }
         sqlx::query(s).execute(&pool).await.expect("run migration");
     }
-    pool
+    DbPool::Mysql(pool)
 }

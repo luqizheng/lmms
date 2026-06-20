@@ -41,6 +41,44 @@
 - `HEALTH_CHECK_REQUIRED`: 是否要求健康检查
 - `MIGRATIONS_REQUIRED`: 是否要求迁移文件
 
+## 单元测试
+
+### 执行方式（volume mapping 模型）
+
+在 Docker 容器内跑 Rust 单元测试，不构建镜像，直接挂载源码与 cargo 缓存。
+
+```bash
+# 全部服务
+node scripts/run-tests-docker.js
+
+# 指定一个或多个服务
+node scripts/run-tests-docker.js iam-service token-service
+```
+
+脚本 `scripts/run-tests-docker.js` 对每个服务执行：
+
+```bash
+docker run --rm --network host \
+  -v ${ROOT}:/app \
+  -v coder-cargo-registry:/usr/local/cargo/registry \
+  -v coder-cargo-git:/usr/local/cargo/git \
+  -v coder-cargo-target:/app/target \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -w /app \
+  zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl \
+  cargo test --target x86_64-unknown-linux-musl -p <service> -- --nocapture
+```
+
+### 规则
+
+- 统一基础镜像 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`，target `x86_64-unknown-linux-musl`
+- 源码 bind mount，改代码零 rebuild；`registry`/`git`/`target` 用命名 volume 跨 service 复用增量编译
+- `--network host` 供 build.rs 联网（如 `utoipa-swagger-ui` 下载 swagger-ui）
+- testcontainers 服务必须挂 `/var/run/docker.sock`
+- `-p <service>` 限定范围，不跑 libs/sdk；多服务共享 target volume，串行执行避免锁争用
+- TLS 依赖统一 workspace `reqwest 0.12 + rustls`，禁用 native-tls（musl 镜像无 openssl headers）
+- 已废弃 `Dockerfile.test`，不再用 `docker build` 构建测试镜像
+
 ## 契约层
 
 ### 概述
