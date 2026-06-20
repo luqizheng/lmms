@@ -13,4 +13,14 @@ export class LoginPage {
     // 登录成功跳转首页 welcome
     await this.page.waitForURL(/welcome/, { timeout: 15000 });
   }
+
+  /**
+   * 退出当前登录态：点用户头像下拉 → 退出系统。
+   * 等待跳回 /#/login。
+   */
+  async logout(): Promise<void> {
+    await this.page.locator('.el-dropdown-link').click();
+    await this.page.getByText('退出系统').click();
+    await this.page.waitForURL(/\/login/, { timeout: 15000 });
+  }
 }
