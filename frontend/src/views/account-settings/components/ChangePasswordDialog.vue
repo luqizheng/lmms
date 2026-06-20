@@ -109,10 +109,7 @@ defineExpose({ open, close });
       label-position="right"
       @submit.prevent
     >
-      <el-form-item
-        :label="t('changePassword.oldPassword')"
-        prop="oldPassword"
-      >
+      <el-form-item :label="t('changePassword.oldPassword')" prop="oldPassword">
         <el-input
           v-model="form.oldPassword"
           type="password"
@@ -121,10 +118,7 @@ defineExpose({ open, close });
           autocomplete="current-password"
         />
       </el-form-item>
-      <el-form-item
-        :label="t('changePassword.newPassword')"
-        prop="newPassword"
-      >
+      <el-form-item :label="t('changePassword.newPassword')" prop="newPassword">
         <el-input
           v-model="form.newPassword"
           type="password"

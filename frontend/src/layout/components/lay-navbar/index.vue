@@ -112,10 +112,7 @@ const { t, locale, translationCh, translationEn } = useTranslationLang();
               {{ t("buttons.pureAccountSettings") }}
             </el-dropdown-item>
             <el-dropdown-item @click="openChangePassword">
-              <IconifyIconOffline
-                :icon="Lock"
-                style="margin: 5px"
-              />
+              <IconifyIconOffline :icon="Lock" style="margin: 5px" />
               {{ t("buttons.pureChangePassword") }}
             </el-dropdown-item>
             <el-dropdown-item @click="logout">

@@ -14,7 +14,7 @@ import { useUserStoreHook } from "@/store/modules/user";
 import { useGlobal, isAllEmpty } from "@pureadmin/utils";
 import { useEpThemeStoreHook } from "@/store/modules/epTheme";
 import { usePermissionStoreHook } from "@/store/modules/permission";
-import ChangePasswordDialog from "@/views/account-settings/components/ChangePasswordDialog.vue";
+import type ChangePasswordDialog from "@/views/account-settings/components/ChangePasswordDialog.vue";
 import ExitFullscreen from "~icons/ri/fullscreen-exit-fill";
 import Fullscreen from "~icons/ri/fullscreen-fill";
 
@@ -149,8 +149,9 @@ export function useNav() {
   }
 
   /** 修改密码弹窗 ref */
-  const changePasswordRef =
-    ref<InstanceType<typeof ChangePasswordDialog> | null>(null);
+  const changePasswordRef = ref<InstanceType<
+    typeof ChangePasswordDialog
+  > | null>(null);
   function openChangePassword() {
     changePasswordRef.value?.open();
   }
