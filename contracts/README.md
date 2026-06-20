@@ -40,10 +40,10 @@ node scripts/contracts-gen.js
 ## CI 校验
 
 ```bash
-node scripts/test-orchestrator.js validate-contracts
+node scripts/contracts-gen.js   # 重新生成后用 git diff 检查是否有未提交改动
 ```
 
-检查生成的代码是否与 YAML 源文件一致，防止漂移。
+若生成结果与已提交代码不一致（git diff 非空），说明契约漂移，需重新提交生成产物。
 
 ## 编辑流程
 

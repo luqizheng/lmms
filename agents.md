@@ -4,15 +4,14 @@
 
 | Skill | 触发关键词 | 命令 |
 |---|---|---|
-| `coder-run-tests` | 测试、test | node scripts/test-orchestrator.js loop |
+| `coder-run-tests` | 测试、test | node scripts/run-e2e-local.js |
 | `coder-base-images-sync` | base images、镜像清单 | node scripts/base-images-sync.js |
 | `coder-route-validate` | 校验路由、reload | cargo run -p api-gateway -- validate |
 | `coder-spec-to-code` | spec-to-code、写测试用例 | node scripts/spec-to-code.js |
 | `coder-sdk-publish` | 发 SDK、sdk:publish | node scripts/sdk-publish.js |
 | `coder-microservice-dev` | 起服务、本地开发 | node scripts/dev-services.js |
-| `coder-fix-tests` | 修测试、fix-prompt | node scripts/test-orchestrator.js fix |
 | `coder-service-standard-check` | 检查服务规范、standard | node scripts/check-service-standard.js |
-| `coder-e2e-test` | E2E测试、登录验证 | node scripts/run-e2e.js |
+| `coder-e2e-test` | E2E测试、登录验证 | node scripts/run-e2e-local.js |
 | `coder-lib-upgrade` | 升级通用库 | cargo upgrade -p <lib> |
 | `coder-service-audit` | 服务审计、规范检查 | node scripts/check-service-standard.js --service <name> |
 
@@ -110,7 +109,7 @@ node scripts/contracts-gen.js
 ### CI 校验
 
 ```bash
-node scripts/test-orchestrator.js validate-contracts
+node scripts/contracts-gen.js   # 重新生成后用 git diff 检查是否有未提交改动
 ```
 
-检查生成的代码是否与 YAML 源文件一致，防止漂移。
+若生成结果与已提交代码不一致（git diff 非空），说明契约漂移，需重新提交生成产物。

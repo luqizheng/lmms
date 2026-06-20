@@ -17,35 +17,28 @@ A microservices architecture for coder platform, built with Rust and Go.
 ### 一键工作流
 
 ```bash
-# 1. 启动基础设施（MySQL / Redis / Consul）
-node scripts/test-orchestrator.js start
+# 1. 启动基础设施 + 服务（infrastructure/docker-compose.yml）
+docker compose -f infrastructure/docker-compose.yml up -d
 
-# 2. 重置测试数据库（superpowers）
-node scripts/test-orchestrator.js reset-db
+# 2. 安装 e2e 依赖（独立 workspace）
+pnpm -C tests/e2e install
 
-# 3. 跑全部服务的 unit + integration 测试
-node scripts/test-orchestrator.js test-all
+# 3. 跑端到端测试（详见 tests/e2e/README.md）
+pnpm run test:e2e
 
-# 4. 查看测试报告（最新一次 run 的 summary.md）
-node scripts/test-orchestrator.js report
-
-# 5. 停止基础设施
-node scripts/test-orchestrator.js stop
+# 4. 停止基础设施
+docker compose -f infrastructure/docker-compose.yml down
 ```
 
-### 常用子命令
+### 常用测试命令
 
-| 命令                                  | 说明                                                                             |
-| ------------------------------------- | -------------------------------------------------------------------------------- |
-| `start`                               | 通过 `infrastructure/docker-compose.yml` 拉起 MySQL / Redis / Consul（3 个容器） |
-| `stop`                                | 停止并移除上述容器                                                               |
-| `reset-db`                            | `DROP + CREATE` superpowers，并 `FLUSHALL` Redis                                 |
-| `test-unit [--service <name>]`        | 只跑 unit 测试（默认所有服务）                                                   |
-| `test-integration [--service <name>]` | 只跑 integration 测试                                                            |
-| `test-all [--service <name>]`         | 跑 unit + integration                                                            |
-| `report [--timestamp <ts>]`           | 生成 `summary.md`（默认读最新一次 run 目录）                                     |
-| `fix-prompt`                          | 当存在失败用例时，把失败信息渲染成 AI 修复 prompt                                |
-| `loop`                                | `start + reset-db + test-all + report` 一条龙                                    |
+| 命令                              | 说明                                              |
+| --------------------------------- | ------------------------------------------------- |
+| `pnpm run test:e2e`               | 全量 e2e（Vitest + supertest，跨网关测真服务）    |
+| `pnpm run test:e2e:users` 等      | 按服务分组跑（auth/users/tokens/roles/... 见 package.json） |
+| `pnpm run test:e2e:api`           | 数据驱动 API 用例（Excel）                        |
+| `pnpm run test:e2e:ui`            | 数据驱动 UI 业务流（Playwright，需前端容器）      |
+| `node scripts/run-tests-docker.js [service]` | 容器内跑 Rust 单元测试（见 AGENTS.md） |
 
 ### 单独跑某个服务
 
@@ -142,7 +135,7 @@ docker run --rm `
 - **MySQL 容器找不到**：`docker ps -a` 看容器名；`start` 启动的容器会自动加 `coder-micro-services` 前缀
 - **cargo 链接错误（fiat_25519）**：本仓库已切到 `aws_lc_rs` crypto provider；如回退到 `ring` 会触发 MSVC LNK2019
 - **服务起不来**：`docker logs <container>` 看基础设施；服务进程日志直接输出到终端
-- **测试数据脏**：执行 `node scripts/test-orchestrator.js reset-db`
+- **测试数据脏**：e2e 的 `globalSetup` 会在每轮开始清库重置；也可重启 mysql 容器
 
 ## Services
 

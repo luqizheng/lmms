@@ -93,9 +93,9 @@
 
 ### Node.js 编排脚本
 
-- 所有基础脚本统一为 Node.js：入口 `scripts/test-orchestrator.js`，lib 在 `scripts/lib/*.js`
+- 测试统一走 e2e：入口 `scripts/run-e2e-local.js`，用例在 `tests/e2e/`
 - 仅依赖 Node.js 内置模块（`node:fs` / `node:path` / `node:child_process`），不引入第三方包
-- 旧 `.ps1` 已删除；新加脚本请用 `node scripts/xxx.js` 入口形式
+- 旧 `.ps1`、`test-orchestrator.js` 已删除；新加脚本请用 `node scripts/xxx.js` 入口形式
 
 ---
 
@@ -120,9 +120,6 @@ cargo clippy --all-targets -- -D warnings
 
 # 路由改动
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
-
-# YAML 规格改动
-node scripts/test-orchestrator.js validate-specs
 ```
 
 ---
@@ -140,7 +137,6 @@ node scripts/test-orchestrator.js validate-specs
 
 ## 速查
 
-- 跑测试：`node scripts/test-orchestrator.js loop`
-- 看上次报告：`Get-Content reports\run-*\summary.md | Select-Object -Last 1`
+- 跑测试：`pnpm run test:e2e`（或 `node scripts/run-e2e-local.js`）
 - 校验路由：`cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
 - 起本地服务：见 `coder-microservice-dev` skill

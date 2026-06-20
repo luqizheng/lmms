@@ -130,7 +130,6 @@ data_cleanup:
 | 路由前缀改了 | 更新 e2e 路径 + 检查 `docker/config/api-gateway/routes/*.router.toml` |
 | 新增角色 / 权限 | 在 `users.e2e.test.ts` 的「assign and remove」链追加 |
 | payload 改了 | 更新 `tests/e2e/fixtures/payload.ts` 和 `tests/e2e/fixtures/seed.ts` |
-| YAML spec 改字段 | 重跑 `validate-specs` 确认通过 |
 
 修改守则：
 
@@ -145,23 +144,21 @@ data_cleanup:
 ### 3.1 E2E（推荐方式：脚本一键）
 
 ```powershell
-# 一键：起栈 + 装依赖 + 跑测
-node scripts/run-e2e.js
+# 起栈（infrastructure/docker-compose.yml）
+docker compose -f infrastructure/docker-compose.yml up -d
+
+# 装依赖 + 跑全量 e2e
+pnpm -C tests/e2e install
+node scripts/run-e2e-local.js
 
 # 只跑指定文件
-node scripts/run-e2e.js --filter users.e2e.test.ts
+node scripts/run-e2e-local.js users
 
-# 只跑指定 case
-node scripts/run-e2e.js --filter auth.e2e.test.ts --test-name "register"
-
-# 跳过 docker up（栈已起）
-node scripts/run-e2e.js --no-up
-
-# 强制重建镜像
-node scripts/run-e2e.js --rebuild
+# 只跑指定 case（透传 vitest 参数）
+node scripts/run-e2e-local.js auth -t "register"
 ```
 
-等价于：`docker compose -f infrastructure/docker-compose.yml up -d` → 等网关 200 → `pnpm -C tests/e2e test`。
+`run-e2e-local.js` 在 `tests/e2e` 目录下用 `vitest run` 执行，参数原样透传。
 
 ### 3.2 E2E（手动：栈已起）
 
@@ -196,24 +193,17 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 ```
 
-### 3.4 Orchestrator 闭环（test-orchestrator）
+### 3.4 Rust 单元测试（Docker）
 
 ```powershell
-node scripts/test-orchestrator.js start      # 起基础设施
-node scripts/test-orchestrator.js reset-db    # 重建测试库
-node scripts/test-orchestrator.js test-all    # 全量 Rust 测试
-node scripts/test-orchestrator.js test-integration --service user-service
-node scripts/test-orchestrator.js report      # 生成 reports\run-*\summary.md
-node scripts/test-orchestrator.js loop        # start + reset-db + test-all + report
-node scripts/test-orchestrator.js stop        # 关栈
+# 全部服务
+node scripts/run-tests-docker.js
+
+# 指定服务
+node scripts/run-tests-docker.js iam-service token-service
 ```
 
-### 3.5 Spec 校验
-
-```powershell
-node scripts/test-orchestrator.js validate-specs
-node scripts/test-orchestrator.js generate-prompt   # 输出 reports\spec-to-code-prompt.md
-```
+容器内挂载源码跑 `cargo test`，详见根 `AGENTS.md`。
 
 ---
 
@@ -221,22 +211,20 @@ node scripts/test-orchestrator.js generate-prompt   # 输出 reports\spec-to-cod
 
 ### 4.1 触发条件
 
-- `reports/run-*/summary.md` 出现 `fail > 0`
-- 或 `reports/latest-fix-prompt.md` 存在且 mtime < 1h
-- 或用户说「修测试 / fix-prompt」
+- e2e 跑出 FAIL（`tests/e2e/shared/report/report-<时间戳>.xlsx` summary fail > 0）
+- 或 `tests/e2e/shared/report/errors/<caseId>.json` 存在失败明细
+- 或用户说「修测试」
 
 ### 4.2 流程
 
 ```powershell
-# 1. 看失败摘要
-Get-Content reports\latest-fix-prompt.md
+# 1. 看失败明细
+Get-Content tests\e2e\shared\report\errors\<caseId>.json
 
-# 2. 把 fix-prompt 内容贴给 AI
-#    含三段：## 失败用例 / ## 错误详情 / ## 相关文件
+# 2. 把失败 request/response/expect 贴给 AI 分析
 
-# 3. AI 改完后，验证
-node scripts/test-orchestrator.js reset-db
-node scripts/test-orchestrator.js test-integration
+# 3. AI 改完后重跑验证
+node scripts/run-e2e-local.js <area>
 ```
 
 ### 4.3 强约束（AI 必须遵守）
@@ -249,10 +237,10 @@ node scripts/test-orchestrator.js test-integration
 | `tests/e2e/*.e2e.test.ts` | `libs/*/src/**`（业务源码） |
 | `tests/e2e/fixtures/**` | `sdk/**` 业务代码 |
 | `tests/e2e/helpers/**` | `scripts/lib/*`（基础设施） |
-| `tests/specs/**/*.yaml` | `docker/config/api-gateway/routes/*.router.toml`（路由配置） |
+| `tests/e2e/api/cases/**` / `ui/cases/**` | `infrastructure/config/api-gateway/routes/*.router.toml`（路由配置） |
 | 报告 / 临时调试代码 | `Cargo.toml` 依赖（除非用户授权） |
 
-> 触发 `coder-fix-tests` 时，AI 默认**只改 tests/** 下代码。如果失败源于业务代码，先停下来跟用户确认。
+> 触发修测试时，AI 默认**只改 tests/** 下代码。如果失败源于业务代码，先停下来跟用户确认。
 
 **修复策略优先级**
 
@@ -261,13 +249,6 @@ node scripts/test-orchestrator.js test-integration
 3. **环境问题**：DB 状态污染 / 端口冲突 / token 过期 → 重置或调整 setup
 4. **真实业务 bug**：测试正确，代码错了 → **停下来**，报告用户，不要改业务代码
 5. **真要改业务代码**：必须用户明确授权，并补集成测试覆盖
-
-**重生成 fix-prompt**
-
-```powershell
-node scripts/test-orchestrator.js fix-prompt
-# 模板在 scripts\prompts\fix-tests.template.md
-```
 
 ---
 
@@ -280,7 +261,7 @@ node scripts/test-orchestrator.js fix-prompt
 | `services/*/src/**.rs` | `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `cargo test -p <svc>` |
 | `services/*/tests/**.rs` | `cargo test -p <svc>` |
 | `docker/config/api-gateway/routes/*.router.toml` | `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` |
-| `tests/specs/**.yaml` | `node scripts/test-orchestrator.js validate-specs` |
+| `tests/e2e/**` | `node scripts/run-e2e-local.js`（栈已起时） |
 | `sdk/java/**/pom.xml` | `mvn verify`（仅 SDK 仓库） |
 | `sdk/dotnet/**/*.csproj` | `dotnet test`（仅 SDK 仓库） |
 | `infrastructure/docker-compose.*.yaml` | 走 `coder-microservice-dev` skill 验证启动 |
@@ -293,17 +274,15 @@ CI tag 触发 SDK 发版（`sdk:publish`），本地**不要**手动 push。
 
 | 想做 | 命令 |
 |---|---|
-| 起全栈 + 跑 e2e | `node scripts/run-e2e.js` |
-| 跑 e2e 单 case | `node scripts/run-e2e.js --filter <file> --test-name "<pattern>"` |
+| 起全栈 | `docker compose -f infrastructure/docker-compose.yml up -d` |
+| 跑 e2e 全量 | `node scripts/run-e2e-local.js` |
+| 跑 e2e 单 case | `node scripts/run-e2e-local.js <area> -t "<pattern>"` |
 | 跑 rust 全量 | `cargo test --workspace` |
 | 跑 rust 单服务 | `cargo test -p <svc>` |
 | 跑 rust 守门 | `cargo fmt --check && cargo clippy --all-targets -- -D warnings` |
-| 重置测试库 | `node scripts/test-orchestrator.js reset-db` |
-| 看最近报告 | `Get-Content reports\run-*\summary.md \| Select-Object -Last 1` |
+| 看失败明细 | `Get-Content tests\e2e\shared\report\errors\<caseId>.json` |
 | 校验路由 | `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` |
-| 校验 spec | `node scripts/test-orchestrator.js validate-specs` |
-| 生成 fix-prompt | `node scripts/test-orchestrator.js fix-prompt` |
-| 关栈 | `node scripts/test-orchestrator.js stop` |
+| 关栈 | `docker compose -f infrastructure/docker-compose.yml down` |
 
 ---
 
