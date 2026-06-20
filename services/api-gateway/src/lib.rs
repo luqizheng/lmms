@@ -4,11 +4,11 @@ pub mod discovery;
 pub mod jwks;
 pub mod jwt;
 pub mod middleware;
-pub mod rewrite;
 pub mod router;
 pub mod routes_loader;
+pub mod template;
 
-pub use config::{GatewayConfig, RewriteSpec, RouteConfig, RouteFile, RouteTable};
+pub use config::{GatewayConfig, RouteConfig, RouteFile, RouteTable};
 pub use discovery::{ServiceDiscovery, ServiceInstance};
 pub use jwt::{JwtClaims, JwtValidator};
 pub use router::RouterConfig;
@@ -52,10 +52,12 @@ mod tests {
         let swap = arc_swap::ArcSwap::from_pointee(RouteTable::default());
         swap.store(Arc::new(RouteTable {
             routes: vec![RouteConfig {
-                match_pattern: "/a".into(),
+                upstream: "/v1/a".into(),
+                downstream: "/a".into(),
                 service: "s".into(),
                 public: false,
-                rewrite: vec![],
+                ws: false,
+                headers: Default::default(),
             }],
         }));
         let cur = swap.load();

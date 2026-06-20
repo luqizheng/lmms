@@ -10,6 +10,28 @@
         "interval": "10s",
         "timeout": "5s"
       }
+    },
+    {
+      "name": "iam-service",
+      "address": "iam-service",
+      "port": 8080,
+      "check": {
+        "name": "http",
+        "http": "http://iam-service:8080/health",
+        "interval": "10s",
+        "timeout": "5s"
+      }
+    },
+    {
+      "name": "prue_backend",
+      "address": "prue_backend",
+      "port": 8080,
+      "check": {
+        "name": "http",
+        "http": "http://prue_backend:8080/health",
+        "interval": "10s",
+        "timeout": "5s"
+      }
     }
   ]
 }

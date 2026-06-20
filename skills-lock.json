@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "plan-eng-review": {
+      "source": "topshark-jim/gstack",
+      "sourceType": "github",
+      "skillPath": "skills/plan-eng-review/SKILL.md",
+      "computedHash": "54b6349e0fcc69b7205d9ab2456c883786606fababfb72fe13fd127d569f1601"
+    }
+  }
+}

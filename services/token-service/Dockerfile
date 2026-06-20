@@ -15,7 +15,7 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     cp /app/target/x86_64-unknown-linux-musl/release/token-service /app/token-service
 
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/token-service /app/token-service
 COPY --from=builder /app/docker/config/token-service/clients.json /app/clients.json

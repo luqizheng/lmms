@@ -24,7 +24,7 @@ pub struct UserJwtResponse {
 
 #[utoipa::path(
     post,
-    path = "/api/v1/tokens/user-jwt",
+    path = "/tokens/user-jwt",
     request_body = UserJwtRequest,
     responses(
         (status = 200, description = "user jwt issued", body = UserJwtResponse),

@@ -59,7 +59,7 @@ fn decode_refresh_token(
 
 #[utoipa::path(
     post,
-    path = "/api/tokens/refresh",
+    path = "/tokens/refresh",
     request_body = RefreshRequest,
     responses(
         (status = 200, description = "refreshed tokens", body = RefreshResponse),

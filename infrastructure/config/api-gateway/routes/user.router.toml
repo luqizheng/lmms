@@ -1,24 +1,9 @@
 [[route]]
-match = "/api/v1/users/**"
-service = "iam-service"
-public = false
+upstream   = "/v1/iam/users/{rest}"
+downstream = "/iam/users/{rest}"
+service    = "iam-service"
 
 [[route]]
-match = "/api/v1/roles/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/api/v1/orgs/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/api/v1/posts/**"
-service = "iam-service"
-public = false
-
-[[route]]
-match = "/iam/users"
-service = "iam-service"
-public = true
+upstream   = "/v1/iam/users"
+downstream = "/iam/users"
+service    = "iam-service"

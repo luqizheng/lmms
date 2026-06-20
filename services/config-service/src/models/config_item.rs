@@ -15,7 +15,7 @@ pub struct ConfigItem {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateConfigItem {
     pub namespace_id: String,
     pub key: String,

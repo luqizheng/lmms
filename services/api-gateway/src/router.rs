@@ -12,11 +12,12 @@ pub struct RouterConfig {
     pub http_client: Client,
 }
 
-/// 转发请求到 Consul 发现的后端服务
+/// 转发请求到 Consul 发现的后端服务（target_path_query 已由模板渲染好）
 pub async fn forward_to_service(
     cfg: Arc<RouterConfig>,
     request: Request<Body>,
     service_name: &str,
+    target_path_query: &str,
 ) -> Response {
     let instance = match cfg.discovery.discover(service_name).await {
         Ok(i) => i,
@@ -25,13 +26,7 @@ pub async fn forward_to_service(
 
     let target_url = format!(
         "http://{}:{}{}",
-        instance.address,
-        instance.port,
-        request
-            .uri()
-            .path_and_query()
-            .map(|pq| -> &str { pq.as_str() })
-            .unwrap_or("")
+        instance.address, instance.port, target_path_query
     );
 
     let (parts, body) = request.into_parts();

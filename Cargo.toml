@@ -19,6 +19,7 @@ members = [
     "services/audit-service",
     "services/config-service",
     "services/file-service",
+    "services/prue_backend",
     "sdk/rust/kudi-http-client",
 ]
 resolver = "2"

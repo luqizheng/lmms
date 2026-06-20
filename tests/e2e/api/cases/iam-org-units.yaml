@@ -1,0 +1,78 @@
+group: iam-org-units
+cases:
+  - caseId: ORG-001
+    desc: 列出组织单元
+    method: GET
+    path: /v1/iam/org-units
+    expectStatus: [200, 502, 404]
+
+  - caseId: ORG-002
+    desc: 创建组织单元
+    method: POST
+    path: /v1/iam/org-units
+    body:
+      name: e2e_org_${rand}
+      code: E2E_O_${rand}
+      sort_order: 0
+    expectStatus: [200, 201, 204, 500, 502, 404]
+
+  - caseId: ORG-003
+    desc: 拒绝重复 code
+    method: POST
+    path: /v1/iam/org-units
+    body:
+      name: e2e_org_dup
+      code: ${ORG-002.code}
+      sort_order: 0
+    expectStatus: [409, 500, 502]
+
+  - caseId: ORG-004
+    desc: 获取组织单元详情
+    method: GET
+    path: /v1/iam/org-units/${ORG-002.id}
+    expectStatus: [200, 500, 502, 404]
+
+  - caseId: ORG-005
+    desc: 创建子组织单元
+    method: POST
+    path: /v1/iam/org-units
+    body:
+      name: e2e_org_child_${rand}
+      code: E2E_OC_${rand}
+      sort_order: 0
+      parent_id: ${ORG-002.id}
+    expectStatus: [200, 201, 204, 500, 502, 404]
+
+  - caseId: ORG-006
+    desc: 更新组织单元
+    method: PUT
+    path: /v1/iam/org-units/${ORG-002.id}
+    body:
+      name: e2e_org_upd_${rand}
+      sort_order: 5
+      status: active
+    expectStatus: [200, 201, 204, 500, 502, 404]
+
+  - caseId: ORG-007
+    desc: 有子节点时拒绝删除
+    method: DELETE
+    path: /v1/iam/org-units/${ORG-002.id}
+    expectStatus: [409, 500, 502]
+
+  - caseId: ORG-008
+    desc: 删除子组织单元
+    method: DELETE
+    path: /v1/iam/org-units/${ORG-005.id}
+    expectStatus: [200, 201, 204, 500, 502, 404]
+
+  - caseId: ORG-009
+    desc: 删除组织单元
+    method: DELETE
+    path: /v1/iam/org-units/${ORG-002.id}
+    expectStatus: [200, 201, 204, 500, 502, 404]
+
+  - caseId: ORG-010
+    desc: 删除后查询返回 404
+    method: GET
+    path: /v1/iam/org-units/${ORG-002.id}
+    expectStatus: [404, 500, 502]

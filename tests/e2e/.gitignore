@@ -3,3 +3,7 @@ dist/
 *.tsbuildinfo
 .e2e-admin.json
 e2e.log
+.token.json
+shared/report/report-*.xlsx
+shared/report/errors/
+test-results/

@@ -16,7 +16,7 @@ pub struct LoginLog {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateLoginLog {
     pub user_id: Option<String>,
     pub username: String,

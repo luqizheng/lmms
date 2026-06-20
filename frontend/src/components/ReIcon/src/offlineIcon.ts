@@ -13,7 +13,6 @@ import EpHistogram from "~icons/ep/histogram?raw";
 import EpHomeFilled from "~icons/ep/home-filled?raw";
 
 // https://icon-sets.iconify.design/ri/?keyword=ri
-import RiMindMap from "~icons/ri/mind-map?raw";
 import RiAdminFill from "~icons/ri/admin-fill?raw";
 import RiTableLine from "~icons/ri/table-line?raw";
 import RiLinksFill from "~icons/ri/links-fill?raw";
@@ -24,12 +23,8 @@ import RiWindowLine from "~icons/ri/window-line?raw";
 import RiUbuntuFill from "~icons/ri/ubuntu-fill?raw";
 import RiHistoryFill from "~icons/ri/history-fill?raw";
 import RiEditBoxLine from "~icons/ri/edit-box-line?raw";
-import RiCodeBoxLine from "~icons/ri/code-box-line?raw";
-import RiArtboardLine from "~icons/ri/artboard-line?raw";
-import RiMarkdownLine from "~icons/ri/markdown-line?raw";
 import RiFileInfoLine from "~icons/ri/file-info-line?raw";
 import RiBankCardLine from "~icons/ri/bank-card-line?raw";
-import RiFilePpt2Line from "~icons/ri/file-ppt-2-line?raw";
 import RiGitBranchLine from "~icons/ri/git-branch-line?raw";
 import RiSettings3Line from "~icons/ri/settings-3-line?raw";
 import RiUserVoiceLine from "~icons/ri/user-voice-line?raw";
@@ -39,7 +34,6 @@ import RiChatSearchLine from "~icons/ri/chat-search-line?raw";
 import RiInformationLine from "~icons/ri/information-line?raw";
 import RiTerminalWindowLine from "~icons/ri/terminal-window-line?raw";
 import RiCheckboxCircleLine from "~icons/ri/checkbox-circle-line?raw";
-import RiBarChartHorizontalLine from "~icons/ri/bar-chart-horizontal-line?raw";
 
 const icons = [
   // Element Plus Icon: https://github.com/element-plus/element-plus-icons
@@ -52,7 +46,6 @@ const icons = [
   ["ep/histogram", EpHistogram],
   ["ep/home-filled", EpHomeFilled],
   // Remix Icon: https://github.com/Remix-Design/RemixIcon
-  ["ri/mind-map", RiMindMap],
   ["ri/admin-fill", RiAdminFill],
   ["ri/table-line", RiTableLine],
   ["ri/links-fill", RiLinksFill],
@@ -63,12 +56,8 @@ const icons = [
   ["ri/ubuntu-fill", RiUbuntuFill],
   ["ri/history-fill", RiHistoryFill],
   ["ri/edit-box-line", RiEditBoxLine],
-  ["ri/code-box-line", RiCodeBoxLine],
-  ["ri/artboard-line", RiArtboardLine],
-  ["ri/markdown-line", RiMarkdownLine],
   ["ri/file-info-line", RiFileInfoLine],
   ["ri/bank-card-line", RiBankCardLine],
-  ["ri/file-ppt-2-line", RiFilePpt2Line],
   ["ri/git-branch-line", RiGitBranchLine],
   ["ri/settings-3-line", RiSettings3Line],
   ["ri/user-voice-line", RiUserVoiceLine],
@@ -77,8 +66,7 @@ const icons = [
   ["ri/chat-search-line", RiChatSearchLine],
   ["ri/information-line", RiInformationLine],
   ["ri/terminal-window-line", RiTerminalWindowLine],
-  ["ri/checkbox-circle-line", RiCheckboxCircleLine],
-  ["ri/bar-chart-horizontal-line", RiBarChartHorizontalLine]
+  ["ri/checkbox-circle-line", RiCheckboxCircleLine]
 ];
 
 // 本地菜单图标，后端在路由的 icon 中返回对应的图标字符串并且前端在此处使用 addIcon 添加即可渲染菜单图标

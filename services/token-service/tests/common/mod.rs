@@ -2,20 +2,27 @@
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
 use testcontainers::runners::AsyncRunner;
+use testcontainers::ImageExt;
 use testcontainers_modules::mysql::Mysql;
+use token_service::db::DbPool;
 
 pub const MIGRATION_SQL: &str = include_str!("../../migrations/20260611000001_init.sql");
 
-pub async fn spawn_mysql() -> MySqlPool {
-    let container = Mysql::default().start().await.expect("start mysql");
+pub async fn spawn_mysql() -> DbPool {
+    // 关闭 InnoDB native AIO，规避宿主 aio-max-nr 不足导致的 io_setup() EAGAIN
+    let container = Mysql::default()
+        .with_cmd(["--innodb-use-native-aio=0"])
+        .start()
+        .await
+        .expect("start mysql");
     let host = container.get_host().await.expect("mysql host");
     let port = container
         .get_host_port_ipv4(3306)
         .await
         .expect("mysql port");
-    let url = format!("mysql://root:root@{}:{}/test", host, port);
+    let url = format!("mysql://root@{}:{}/test", host, port);
 
-    let pool = MySqlPoolOptions::new()
+    let pool: MySqlPool = MySqlPoolOptions::new()
         .max_connections(4)
         .acquire_timeout(Duration::from_secs(5))
         .after_connect(|conn, _meta| {
@@ -30,12 +37,20 @@ pub async fn spawn_mysql() -> MySqlPool {
         .await
         .expect("connect mysql");
 
-    for stmt in MIGRATION_SQL.split(';') {
+    // 先剥离整行注释，避免以 `--` 开头的语句被整条跳过导致建表缺失
+    let cleaned = MIGRATION_SQL
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("--"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for stmt in cleaned.split(';') {
         let s = stmt.trim();
-        if s.is_empty() || s.starts_with("--") {
+        if s.is_empty() {
             continue;
         }
         sqlx::query(s).execute(&pool).await.expect("run migration");
     }
-    pool
+    // 防止容器在函数返回后被 drop 回收，导致后续查询 PoolTimedOut
+    std::mem::forget(container);
+    DbPool::Mysql(pool)
 }

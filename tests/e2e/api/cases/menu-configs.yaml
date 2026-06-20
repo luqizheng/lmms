@@ -1,0 +1,84 @@
+group: menu-configs
+cases:
+  - caseId: MENU-001
+    desc: 列出菜单配置
+    method: GET
+    path: /v1/pure/menu-configs
+    expectStatus: 200
+    expect:
+      - $.code==0
+      - $.data.items exists
+
+  - caseId: MENU-002
+    desc: 创建草稿菜单配置
+    method: POST
+    path: /v1/pure/menu-configs
+    body:
+      name: e2e menu config ${rand}
+      description: created by e2e
+      created_by: e2e
+      routes_json:
+        - path: /e2e-menu-${rand}
+          name: E2eMenu${rand}
+          component: system/menu/index
+          meta:
+            title: E2E 菜单
+            auths: [e2e:menu:list]
+            rank: 99
+          _menu:
+            id: 900001
+            parentId: 0
+            menuType: 0
+            auths: e2e:menu:list
+    expectStatus: [200, 201]
+    expect:
+      - $.code==0
+      - $.data.status==draft
+      - $.data.id exists
+
+  - caseId: MENU-003
+    desc: 获取菜单配置详情
+    method: GET
+    path: /v1/pure/menu-configs/${MENU-002.data.id}
+    expectStatus: 200
+    expect:
+      - $.code==0
+      - $.data.id==${MENU-002.data.id}
+
+  - caseId: MENU-004
+    desc: 更新 routes_json
+    method: PUT
+    path: /v1/pure/menu-configs/${MENU-002.data.id}
+    body:
+      routes_json:
+        - path: /e2e-menu-${rand}
+          name: E2eMenuUpd${rand}
+          component: system/menu/index
+          meta:
+            title: E2E 菜单已更新
+            auths: [e2e:menu:list]
+            rank: 99
+    expectStatus: 200
+    expect:
+      - $.code==0
+      - $.data.routes_json contains E2E 菜单已更新
+
+  - caseId: MENU-005
+    desc: 发布菜单配置
+    method: POST
+    path: /v1/pure/menu-configs/${MENU-002.data.id}/publish
+    expectStatus: 200
+    expect:
+      - $.code==0
+      - $.data.status==published
+      - $.data.is_active==true
+
+  - caseId: MENU-006
+    desc: get-async-routes 暴露已发布路由
+    method: GET
+    path: /v1/pure/get-async-routes
+    expectStatus: 200
+    expect:
+      - $.code==0
+      - $.data is array
+      - $.data contains E2E 菜单已更新

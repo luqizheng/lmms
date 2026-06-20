@@ -17,7 +17,7 @@ pub struct OperationLog {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateOperationLog {
     pub user_id: String,
     pub action: String,

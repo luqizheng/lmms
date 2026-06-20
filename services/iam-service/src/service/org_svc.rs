@@ -58,8 +58,8 @@ impl OrgService {
 
         let org_unit_id = nanoid!();
 
-        let org_unit: OrgUnitRow = sqlx::query_as(
-            "INSERT INTO org_units (id, parent_id, name, code, level, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW()) RETURNING id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at"
+        sqlx::query(
+            "INSERT INTO org_units (id, parent_id, name, code, level, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())"
         )
         .bind(&org_unit_id)
         .bind(&req.parent_id)
@@ -67,6 +67,13 @@ impl OrgService {
         .bind(&req.code)
         .bind(level)
         .bind(req.sort_order.unwrap_or(0))
+        .execute(&self.state.db)
+        .await?;
+
+        let org_unit: OrgUnitRow = sqlx::query_as(
+            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM org_units WHERE id = ?"
+        )
+        .bind(&org_unit_id)
         .fetch_one(&self.state.db)
         .await?;
 
@@ -139,14 +146,21 @@ impl OrgService {
         let sort_order = req.sort_order.unwrap_or(existing.sort_order);
         let status = req.status.unwrap_or(existing.status);
 
-        let org_unit: OrgUnitRow = sqlx::query_as(
-            "UPDATE org_units SET parent_id = ?, name = ?, code = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL RETURNING id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at"
+        sqlx::query(
+            "UPDATE org_units SET parent_id = ?, name = ?, code = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(&parent_id)
         .bind(&name)
         .bind(&code)
         .bind(sort_order)
         .bind(&status)
+        .bind(org_unit_id)
+        .execute(&self.state.db)
+        .await?;
+
+        let org_unit: OrgUnitRow = sqlx::query_as(
+            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM org_units WHERE id = ? AND deleted_at IS NULL"
+        )
         .bind(org_unit_id)
         .fetch_one(&self.state.db)
         .await?;

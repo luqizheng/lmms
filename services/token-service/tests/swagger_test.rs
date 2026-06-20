@@ -10,11 +10,11 @@ fn openapi_contains_core_paths() {
         .and_then(|v| v.as_object())
         .expect("paths object");
 
-    assert!(paths.contains_key("/api/tokens/access"));
-    assert!(paths.contains_key("/api/tokens/refresh"));
-    assert!(paths.contains_key("/api/tokens/revoke"));
-    assert!(paths.contains_key("/api/v1/tokens/user-jwt"));
-    assert!(paths.contains_key("/api/v1/admin/oauth-clients"));
+    assert!(paths.contains_key("/tokens/access"));
+    assert!(paths.contains_key("/tokens/refresh"));
+    assert!(paths.contains_key("/tokens/revoke"));
+    assert!(paths.contains_key("/tokens/user-jwt"));
+    assert!(paths.contains_key("/admin/oauth-clients"));
 }
 
 #[test]

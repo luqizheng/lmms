@@ -1,0 +1,53 @@
+group: notification-service
+cases:
+  - caseId: NOTIF-001
+    desc: 创建公告
+    method: POST
+    path: /v1/notification/announcements
+    body:
+      title: e2e ann ${rand}
+      content: e2e content
+      level: info
+      pinned: false
+      recipients:
+        - type: all
+    expectStatus: [200, 201, 204, 502, 503, 404]
+
+  - caseId: NOTIF-002
+    desc: 列出我的公告
+    method: GET
+    path: /v1/notification/announcements
+    expectStatus: [200, 502, 503, 404]
+
+  - caseId: NOTIF-003
+    desc: 发布公告
+    method: POST
+    path: /v1/notification/announcements/${NOTIF-001.id}/publish
+    body: {}
+    expectStatus: [200, 201, 204, 502, 503, 404]
+
+  - caseId: NOTIF-004
+    desc: 获取公告详情
+    method: GET
+    path: /v1/notification/announcements/${NOTIF-001.id}
+    expectStatus: [200, 201, 204, 502, 503, 404]
+
+  - caseId: NOTIF-005
+    desc: 标记公告已读
+    method: POST
+    path: /v1/notification/announcements/${NOTIF-001.id}/read
+    body: {}
+    expectStatus: [200, 201, 204, 502, 503, 404]
+
+  - caseId: NOTIF-006
+    desc: 查询未读数
+    method: GET
+    path: /v1/notification/unread-count
+    expectStatus: [200, 502, 503, 404]
+
+  - caseId: NOTIF-007
+    desc: 撤回公告
+    method: POST
+    path: /v1/notification/announcements/${NOTIF-001.id}/revoke
+    body: {}
+    expectStatus: [200, 201, 204, 502, 503, 404]

@@ -23,7 +23,7 @@ const form = reactive({
 onMounted(async () => {
   try {
     const r = await getSetupStatus();
-    if (!r.data.setup_required) {
+    if (!r.setup_required) {
       message("系统已就绪，请直接登录", { type: "info" });
       router.push("/login");
     }
@@ -46,13 +46,13 @@ const onRegister = async () => {
     await register({
       username: form.username,
       password: form.password,
+      nickname: form.username,
       email: form.email || undefined
     });
     await useUserStoreHook().loginByUsername({
       username: form.username,
       password: form.password
     });
-    await useUserStoreHook().setUserInfo();
     message("注册成功", { type: "success" });
     router.push("/welcome");
   } catch (e: any) {

@@ -5,6 +5,9 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y libssl-dev pkg-config && rm -rf /var/lib/apt/lists/*
 
+# # 通过 ghproxy 镜像下载 swagger-ui，绕过 GitHub SSL 不稳定
+# ENV SWAGGER_UI_DOWNLOAD_URL=https://ghproxy.com/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip
+
 COPY . .
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
@@ -14,7 +17,7 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
 
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates curl
 
 COPY --from=builder /app/iam-service /usr/local/bin/iam-service
 

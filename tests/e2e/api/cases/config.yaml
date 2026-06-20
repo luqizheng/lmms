@@ -1,0 +1,71 @@
+group: config-service
+cases:
+  - caseId: CONFIG-001
+    desc: 列出命名空间
+    method: GET
+    path: /v1/config/namespace?page=1&size=10
+    expectStatus: [200, 502, 404]
+
+  - caseId: CONFIG-002
+    desc: 创建命名空间
+    method: POST
+    path: /v1/config/namespace
+    body:
+      name: e2e_ns_${rand}
+      app: e2e
+      env: dev
+      profile: default
+      description: e2e namespace
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: CONFIG-003
+    desc: 获取命名空间详情
+    method: GET
+    path: /v1/config/namespace/${CONFIG-002.id}
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: CONFIG-004
+    desc: 创建配置项
+    method: POST
+    path: /v1/config/item
+    body:
+      namespace_id: ${CONFIG-002.id}
+      key: e2e_key_${rand}
+      value: hello
+      value_type: string
+      is_secret: false
+      description: e2e config
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: CONFIG-005
+    desc: 列出配置项
+    method: GET
+    path: /v1/config/item?page=1&size=10&namespace_id=${CONFIG-002.id}
+    expectStatus: [200, 502, 404]
+
+  - caseId: CONFIG-006
+    desc: 更新配置项
+    method: PUT
+    path: /v1/config/item/${CONFIG-004.id}
+    body:
+      value: updated
+      description: updated by e2e
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: CONFIG-007
+    desc: 监听配置（长轮询，容忍超时）
+    method: GET
+    path: /v1/config/watch?namespace_id=${CONFIG-002.id}&version=0
+    expectStatus: [200, 204, 502, 404, 408]
+
+  - caseId: CONFIG-008
+    desc: 删除配置项
+    method: DELETE
+    path: /v1/config/item/${CONFIG-004.id}
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: CONFIG-009
+    desc: 删除命名空间
+    method: DELETE
+    path: /v1/config/namespace/${CONFIG-002.id}
+    expectStatus: [200, 201, 204, 502, 404]

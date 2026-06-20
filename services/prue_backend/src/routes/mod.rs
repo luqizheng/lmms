@@ -1,0 +1,24 @@
+pub mod menu_configs;
+
+use crate::state::AppState;
+use axum::{routing::get, Router};
+use prometheus::{Encoder, TextEncoder};
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/health", get(health))
+        .route("/metrics", get(metrics))
+        .merge(menu_configs::routes(state))
+}
+
+async fn health() -> &'static str {
+    "OK"
+}
+
+async fn metrics() -> axum::response::Html<String> {
+    let encoder = TextEncoder::new();
+    let metric_families = prometheus::gather();
+    let mut buffer = Vec::new();
+    encoder.encode(&metric_families, &mut buffer).unwrap();
+    axum::response::Html(String::from_utf8(buffer).unwrap())
+}

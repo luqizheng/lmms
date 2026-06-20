@@ -1,10 +1,16 @@
 [[route]]
-match = "/api/notifications/ws"
-service = "notification-service"
-strip_prefix = "/api/notifications"
-ws = true
+upstream   = "/v1/notification/ws"
+downstream = "/notification/ws"
+service    = "notification-service"
+ws         = true
 
 [[route]]
-match = "/api/notifications"
-service = "notification-service"
-strip_prefix = "/api/notifications"
+upstream   = "/v1/notification/health"
+downstream = "/notification/health"
+service    = "notification-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/notification/{rest}"
+downstream = "/notification/{rest}"
+service    = "notification-service"

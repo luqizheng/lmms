@@ -1,4 +1,4 @@
-use common_error::{AppError, AppResult};
+use common_error::AppResult;
 use async_trait::async_trait;
 
 #[async_trait]

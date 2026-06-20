@@ -1,0 +1,28 @@
+[package]
+name = "prue_backend"
+version = "0.1.0"
+edition = "2021"
+default-run = "prue_backend"
+
+[dependencies]
+common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
+common-log = { path = "../../libs/common-log" }
+
+axum.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "sqlite", "chrono", "json"] }
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+nanoid = "0.4"
+prometheus = "0.13"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[bin]]
+name = "prue_backend"
+path = "src/main.rs"

@@ -8,12 +8,17 @@
 
 | 层 | 跑在哪 | 入口 | 落点 |
 |---|---|---|---|
-| E2E | Docker 全栈（4 服务 + 网关） | `tests/e2e/*.e2e.test.ts` | vitest + supertest |
+| E2E-API | Docker 全栈（服务 + 网关） | `tests/e2e/api/cases/*.yaml` | vitest + supertest（数据驱动） |
+| E2E-UI | Docker 全栈 + 前端容器 | `tests/e2e/ui/cases/*.yaml` | Playwright（数据驱动） |
+| E2E（旧） | Docker 全栈（4 服务 + 网关） | `tests/e2e/*.e2e.test.ts` | vitest + supertest（手写） |
 | 集成 | 单服务 + 真实 DB | `services/<svc>/tests/*_test.rs` | Rust integration test |
 | 单元 | 进程内 | `services/<svc>/src/**` + `#[cfg(test)]`<br>`libs/*/src/**` + `#[cfg(test)]` | Rust unit test |
 | Spec | 文档 / AI 提示词来源 | `tests/specs/**/*.yaml` | YAML |
 
-e2e 走 API Gateway（端口 3000）。集成/单元走服务进程内或独立 DB。
+e2e 走 API Gateway（端口 3000）。E2E-UI 经前端容器（8080）→ 网关。集成/单元走服务进程内或独立 DB。
+
+> E2E 已重构为两部分（见 [§8 数据驱动 E2E](#8-数据驱动-e2e两部分)）：
+> 第一部分直连网关验证 API；第二部分经前端做业务测试。旧 `*.e2e.test.ts` 仍保留并行。
 
 ---
 
@@ -125,7 +130,6 @@ data_cleanup:
 | 路由前缀改了 | 更新 e2e 路径 + 检查 `docker/config/api-gateway/routes/*.router.toml` |
 | 新增角色 / 权限 | 在 `users.e2e.test.ts` 的「assign and remove」链追加 |
 | payload 改了 | 更新 `tests/e2e/fixtures/payload.ts` 和 `tests/e2e/fixtures/seed.ts` |
-| YAML spec 改字段 | 重跑 `validate-specs` 确认通过 |
 
 修改守则：
 
@@ -140,23 +144,21 @@ data_cleanup:
 ### 3.1 E2E（推荐方式：脚本一键）
 
 ```powershell
-# 一键：起栈 + 装依赖 + 跑测
-node scripts/run-e2e.js
+# 起栈（infrastructure/docker-compose.yml）
+docker compose -f infrastructure/docker-compose.yml up -d
+
+# 装依赖 + 跑全量 e2e
+pnpm -C tests/e2e install
+node scripts/run-e2e-local.js
 
 # 只跑指定文件
-node scripts/run-e2e.js --filter users.e2e.test.ts
+node scripts/run-e2e-local.js users
 
-# 只跑指定 case
-node scripts/run-e2e.js --filter auth.e2e.test.ts --test-name "register"
-
-# 跳过 docker up（栈已起）
-node scripts/run-e2e.js --no-up
-
-# 强制重建镜像
-node scripts/run-e2e.js --rebuild
+# 只跑指定 case（透传 vitest 参数）
+node scripts/run-e2e-local.js auth -t "register"
 ```
 
-等价于：`docker compose -f infrastructure/docker-compose.yml up -d` → 等网关 200 → `pnpm -C tests/e2e test`。
+`run-e2e-local.js` 在 `tests/e2e` 目录下用 `vitest run` 执行，参数原样透传。
 
 ### 3.2 E2E（手动：栈已起）
 
@@ -191,24 +193,17 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 ```
 
-### 3.4 Orchestrator 闭环（test-orchestrator）
+### 3.4 Rust 单元测试（Docker）
 
 ```powershell
-node scripts/test-orchestrator.js start      # 起基础设施
-node scripts/test-orchestrator.js reset-db    # 重建测试库
-node scripts/test-orchestrator.js test-all    # 全量 Rust 测试
-node scripts/test-orchestrator.js test-integration --service user-service
-node scripts/test-orchestrator.js report      # 生成 reports\run-*\summary.md
-node scripts/test-orchestrator.js loop        # start + reset-db + test-all + report
-node scripts/test-orchestrator.js stop        # 关栈
+# 全部服务
+node scripts/run-tests-docker.js
+
+# 指定服务
+node scripts/run-tests-docker.js iam-service token-service
 ```
 
-### 3.5 Spec 校验
-
-```powershell
-node scripts/test-orchestrator.js validate-specs
-node scripts/test-orchestrator.js generate-prompt   # 输出 reports\spec-to-code-prompt.md
-```
+容器内挂载源码跑 `cargo test`，详见根 `AGENTS.md`。
 
 ---
 
@@ -216,22 +211,20 @@ node scripts/test-orchestrator.js generate-prompt   # 输出 reports\spec-to-cod
 
 ### 4.1 触发条件
 
-- `reports/run-*/summary.md` 出现 `fail > 0`
-- 或 `reports/latest-fix-prompt.md` 存在且 mtime < 1h
-- 或用户说「修测试 / fix-prompt」
+- e2e 跑出 FAIL（`tests/e2e/shared/report/report-<时间戳>.xlsx` summary fail > 0）
+- 或 `tests/e2e/shared/report/errors/<caseId>.json` 存在失败明细
+- 或用户说「修测试」
 
 ### 4.2 流程
 
 ```powershell
-# 1. 看失败摘要
-Get-Content reports\latest-fix-prompt.md
+# 1. 看失败明细
+Get-Content tests\e2e\shared\report\errors\<caseId>.json
 
-# 2. 把 fix-prompt 内容贴给 AI
-#    含三段：## 失败用例 / ## 错误详情 / ## 相关文件
+# 2. 把失败 request/response/expect 贴给 AI 分析
 
-# 3. AI 改完后，验证
-node scripts/test-orchestrator.js reset-db
-node scripts/test-orchestrator.js test-integration
+# 3. AI 改完后重跑验证
+node scripts/run-e2e-local.js <area>
 ```
 
 ### 4.3 强约束（AI 必须遵守）
@@ -244,10 +237,10 @@ node scripts/test-orchestrator.js test-integration
 | `tests/e2e/*.e2e.test.ts` | `libs/*/src/**`（业务源码） |
 | `tests/e2e/fixtures/**` | `sdk/**` 业务代码 |
 | `tests/e2e/helpers/**` | `scripts/lib/*`（基础设施） |
-| `tests/specs/**/*.yaml` | `docker/config/api-gateway/routes/*.router.toml`（路由配置） |
+| `tests/e2e/api/cases/**` / `ui/cases/**` | `infrastructure/config/api-gateway/routes/*.router.toml`（路由配置） |
 | 报告 / 临时调试代码 | `Cargo.toml` 依赖（除非用户授权） |
 
-> 触发 `coder-fix-tests` 时，AI 默认**只改 tests/** 下代码。如果失败源于业务代码，先停下来跟用户确认。
+> 触发修测试时，AI 默认**只改 tests/** 下代码。如果失败源于业务代码，先停下来跟用户确认。
 
 **修复策略优先级**
 
@@ -256,13 +249,6 @@ node scripts/test-orchestrator.js test-integration
 3. **环境问题**：DB 状态污染 / 端口冲突 / token 过期 → 重置或调整 setup
 4. **真实业务 bug**：测试正确，代码错了 → **停下来**，报告用户，不要改业务代码
 5. **真要改业务代码**：必须用户明确授权，并补集成测试覆盖
-
-**重生成 fix-prompt**
-
-```powershell
-node scripts/test-orchestrator.js fix-prompt
-# 模板在 scripts\prompts\fix-tests.template.md
-```
 
 ---
 
@@ -275,7 +261,7 @@ node scripts/test-orchestrator.js fix-prompt
 | `services/*/src/**.rs` | `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `cargo test -p <svc>` |
 | `services/*/tests/**.rs` | `cargo test -p <svc>` |
 | `docker/config/api-gateway/routes/*.router.toml` | `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` |
-| `tests/specs/**.yaml` | `node scripts/test-orchestrator.js validate-specs` |
+| `tests/e2e/**` | `node scripts/run-e2e-local.js`（栈已起时） |
 | `sdk/java/**/pom.xml` | `mvn verify`（仅 SDK 仓库） |
 | `sdk/dotnet/**/*.csproj` | `dotnet test`（仅 SDK 仓库） |
 | `infrastructure/docker-compose.*.yaml` | 走 `coder-microservice-dev` skill 验证启动 |
@@ -288,17 +274,15 @@ CI tag 触发 SDK 发版（`sdk:publish`），本地**不要**手动 push。
 
 | 想做 | 命令 |
 |---|---|
-| 起全栈 + 跑 e2e | `node scripts/run-e2e.js` |
-| 跑 e2e 单 case | `node scripts/run-e2e.js --filter <file> --test-name "<pattern>"` |
+| 起全栈 | `docker compose -f infrastructure/docker-compose.yml up -d` |
+| 跑 e2e 全量 | `node scripts/run-e2e-local.js` |
+| 跑 e2e 单 case | `node scripts/run-e2e-local.js <area> -t "<pattern>"` |
 | 跑 rust 全量 | `cargo test --workspace` |
 | 跑 rust 单服务 | `cargo test -p <svc>` |
 | 跑 rust 守门 | `cargo fmt --check && cargo clippy --all-targets -- -D warnings` |
-| 重置测试库 | `node scripts/test-orchestrator.js reset-db` |
-| 看最近报告 | `Get-Content reports\run-*\summary.md \| Select-Object -Last 1` |
+| 看失败明细 | `Get-Content tests\e2e\shared\report\errors\<caseId>.json` |
 | 校验路由 | `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` |
-| 校验 spec | `node scripts/test-orchestrator.js validate-specs` |
-| 生成 fix-prompt | `node scripts/test-orchestrator.js fix-prompt` |
-| 关栈 | `node scripts/test-orchestrator.js stop` |
+| 关栈 | `docker compose -f infrastructure/docker-compose.yml down` |
 
 ---
 
@@ -311,3 +295,135 @@ CI tag 触发 SDK 发版（`sdk:publish`），本地**不要**手动 push。
 - ❌ 跨 case 共享可变状态（每个 `it` 独立 setup/teardown）
 - ❌ 测试依赖外部网络（必须用本地 docker 栈）
 - ❌ 沙箱 IDE 终端跑 `cargo`（必 LNK2019，去真实 PowerShell）
+
+---
+
+## 8. 数据驱动 E2E（两部分）
+
+E2E 重构为两部分，共享底层设施（`tests/e2e/shared/`）。用例用 YAML 管理（可 git diff / review），报告用 Excel 输出，失败输出 JSON 便于排查。
+
+### 8.1 目录结构
+
+```
+tests/e2e/
+  shared/
+    config.ts               # 集中环境变量（baseURL/frontendURL/admin/db）
+    db/
+      reset.ts              # resetBase() / resetBusiness()
+      seed/base.sql         # 基础数据（admin 由 API 注册，预留非用户基础数据扩展）
+    data/cases.ts           # 读用例 yaml + 占位符解析（深层）+ 断言
+    report/
+      writer.ts             # 写 report-<时间戳>.xlsx + 失败 <caseId>.json
+      errors/               # 失败明细（json；UI 附 .png 截图）
+  api/                      # 第一部分：直连 api-gateway
+    cases/*.yaml            # 数据驱动用例
+    globalSetup.ts          # resetBase + 注册并登录 admin
+    runner/run.e2e.test.ts  # 遍历 yaml 执行
+    vitest.config.ts
+  ui/                       # 第二部分：经前端做业务测试
+    cases/*.yaml
+    pages/                  # Page Object（login / user）
+    flows/index.ts          # 业务流编排（flow 名 → 函数）
+    globalSetup.ts          # resetBase + 注册 admin + 前端健康探测
+    runner/run.spec.ts
+    playwright.config.ts
+```
+
+### 8.2 数据分层
+
+| 层 | 函数 | 时机 | 行为 |
+|---|---|---|---|
+| 基础数据 | `resetBase()` | 整轮开始（globalSetup） | 清全部表 + 注册 admin（幂等） |
+| 业务数据 | `resetBusiness()` | 每套件前（beforeAll） | 只清业务表，保留 admin |
+
+- 基础数据：admin 由 API `register` 创建（保证密码哈希与服务一致），非用户基础数据写 `seed/base.sql`（`INSERT ... ON DUPLICATE KEY UPDATE` 幂等）。
+- 业务数据：业务表整表 `DELETE`；`users` 表按 `config.seedUsernames` 保留（`users.id` 为 UUID，不能按数值上限区分）。
+
+### 8.3 YAML 用例格式
+
+每个服务/业务流一个 `.yaml`：顶层 `group`（分组名）+ `cases`（用例数组）。
+
+API 用例（`api/cases/*.yaml`）：
+
+```yaml
+group: iam-users
+cases:
+  - caseId: IAM-USER-001        # 用例唯一 ID，失败 json 以此命名
+    desc: 创建用户
+    method: POST                # GET/POST/PUT/PATCH/DELETE
+    path: /v1/iam/users         # 网关入口路径，支持占位符
+    headers:                    # 可选，附加请求头
+      X-Foo: bar
+    body:                       # 可选，结构化对象，支持占位符
+      username: u${rand}
+      password: P@ssw0rd!
+    expectStatus: 200
+    expect:                     # 可选，断言数组（见 8.4）
+      - $.id exists
+  - caseId: IAM-USER-002
+    desc: 查详情
+    method: GET
+    path: /v1/iam/users/${IAM-USER-001.id}
+    expectStatus: 200
+    skip: false                 # 可选，true 跳过
+```
+
+UI 用例（`ui/cases/*.yaml`）：
+
+```yaml
+group: user
+cases:
+  - caseId: UI-USER-001
+    desc: 登录后建用户
+    flow: createUser            # 在 ui/flows/index.ts 注册的编排名
+    params:                     # 结构化对象，支持占位符
+      username: u${rand}
+    expect:
+      - toast=已新增用户         # 当前支持 toast=<文案>
+```
+
+### 8.4 占位符与断言
+
+- 占位符（递归作用于 path / body / params 的任意层级）：
+  - `${rand}` → 唯一值
+  - `${CASE-ID.field}` → 引用前序用例响应字段（同一执行上下文共享）
+- 断言（`expect`，字符串数组，每条独立判定）：
+  - `$.x exists` → 字段存在
+  - `$.x==v` → 字段等值
+
+### 8.5 报告与失败明细
+
+- 报告：`shared/report/report-<时间戳>.xlsx`，含 `detail`（每用例 PASS/FAIL/SKIP、状态码、耗时）+ `summary`（total/pass/fail/skip）。
+- 失败明细：`shared/report/errors/<caseId>.json`，含 request/response/expect/timestamp；UI 失败额外附 `<caseId>.png` 截图。
+- 报告与 errors 已在 `.gitignore` 忽略，不入库。
+
+### 8.6 运行
+
+```powershell
+pnpm -C tests/e2e test:api      # 第一部分：API 数据驱动
+pnpm -C tests/e2e test:ui       # 第二部分：前端业务（需前端容器）
+```
+
+前置：
+
+- 基础设施 + 服务：`docker compose -f infrastructure/docker-compose.yml up -d`
+- UI 测试要求前端容器**禁用登录验证码**：`infrastructure/docker-compose.yml` 已为 frontend 构建传入 `VITE_DISABLE_CAPTCHA=true`，改前端后需 `docker compose build frontend`。
+- 首次跑 UI 需安装浏览器：`pnpm -C tests/e2e exec playwright install chromium`（配置使用 `channel: "chromium"` 完整构建）。
+
+### 8.7 新增用例
+
+1. 编辑或新增 `api/cases/*.yaml` / `ui/cases/*.yaml`（格式见 8.3）。
+2. UI 用例的 `flow` 字段需在 `ui/flows/index.ts` 注册对应编排（用 `pages/` 下 Page Object 操作前端）。
+3. 直接重跑 `test:api` / `test:ui`，无需改执行器代码。
+
+### 8.8 环境变量
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `E2E_BASE_URL` | `http://localhost:3000` | API Gateway |
+| `E2E_FRONTEND_URL` | `http://localhost:8080` | 前端容器 |
+| `E2E_ADMIN_USER` | `e2eadmin` | admin 用户名 |
+| `E2E_ADMIN_PASS` | `P@ssw0rd!` | admin 密码 |
+| `E2E_DB_*` | 见 `shared/config.ts` | host/port/user/password/database |
+| `E2E_SEED_USERNAMES` | `e2eadmin` | 业务数据清理时保留的用户名（逗号分隔） |
+| `E2E_DEBUG` | `0` | `1` 输出调试信息 |

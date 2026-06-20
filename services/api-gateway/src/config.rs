@@ -1,32 +1,18 @@
 use common::config::{RedisConfig, ServerConfig};
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct RouteConfig {
-    #[serde(rename = "match")]
-    pub match_pattern: String,
+    pub upstream: String,
+    pub downstream: String,
     pub service: String,
     #[serde(default)]
     pub public: bool,
     #[serde(default)]
-    pub rewrite: Vec<RewriteSpec>,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(tag = "type")]
-pub enum RewriteSpec {
-    #[serde(rename = "strip_prefix")]
-    StripPrefix { prefix: String },
-    #[serde(rename = "add_prefix")]
-    AddPrefix { prefix: String },
-    #[serde(rename = "redirect")]
-    Redirect { status: u16, to: String },
-    #[serde(rename = "header_set")]
-    HeaderSet { name: String, value: String },
-    #[serde(rename = "header_add")]
-    HeaderAdd { name: String, value: String },
-    #[serde(rename = "path_param")]
-    PathParam { from: String, to: String },
+    pub ws: bool,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -98,52 +84,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn route_config_parses_match_and_service() {
+    fn route_config_parses_upstream_downstream() {
         let toml = r#"
             [[route]]
-            match = "/users/**"
-            service = "user-service"
-            public = false
+            upstream   = "/v1/users/{rest}"
+            downstream = "/users/{rest}"
+            service    = "user-service"
+            public     = false
         "#;
         let cfg: RouteFile = toml::from_str(toml).unwrap();
         assert_eq!(cfg.route.len(), 1);
-        assert_eq!(cfg.route[0].match_pattern, "/users/**");
+        assert_eq!(cfg.route[0].upstream, "/v1/users/{rest}");
+        assert_eq!(cfg.route[0].downstream, "/users/{rest}");
         assert_eq!(cfg.route[0].service, "user-service");
         assert!(!cfg.route[0].public);
-        assert!(cfg.route[0].rewrite.is_empty());
+        assert!(!cfg.route[0].ws);
+        assert!(cfg.route[0].headers.is_empty());
     }
 
     #[test]
-    fn route_config_parses_rewrite_chain() {
+    fn route_config_parses_ws_and_headers() {
         let toml = r#"
             [[route]]
-            match = "/auth/logout"
-            service = "auth-service"
-            public = true
-            rewrite = [
-              { type = "header_set", name = "X-Auth-Audit", value = "logout" },
-              { type = "strip_prefix", prefix = "/api" }
-            ]
+            upstream   = "/v1/notification/ws"
+            downstream = "/notification/ws"
+            service    = "notification-service"
+            ws         = true
+            headers    = { "X-Source" = "gateway" }
         "#;
         let cfg: RouteFile = toml::from_str(toml).unwrap();
         let r = &cfg.route[0];
-        assert_eq!(r.rewrite.len(), 2);
-        assert!(matches!(r.rewrite[0], RewriteSpec::HeaderSet { .. }));
-        assert!(matches!(r.rewrite[1], RewriteSpec::StripPrefix { .. }));
-    }
-
-    #[test]
-    fn rewrite_redirect_has_status_and_to() {
-        let spec = RewriteSpec::Redirect {
-            status: 301,
-            to: "/new".into(),
-        };
-        match spec {
-            RewriteSpec::Redirect { status, to } => {
-                assert_eq!(status, 301);
-                assert_eq!(to, "/new");
-            }
-            _ => panic!("expected redirect"),
-        }
+        assert!(r.ws);
+        assert_eq!(r.headers.get("X-Source").map(String::as_str), Some("gateway"));
     }
 }

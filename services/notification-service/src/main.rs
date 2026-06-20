@@ -70,9 +70,9 @@ async fn main() -> anyhow::Result<()> {
     struct ApiDoc;
 
     let app = Router::new()
-        .nest("/api/notifications", rest::router(rest_state))
+        .nest("/notification", rest::router(rest_state))
         .route(
-            "/api/notifications/ws",
+            "/notification/ws",
             get(ws::upgrade).with_state(ws_state),
         )
         .route(

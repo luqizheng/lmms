@@ -1,51 +1,79 @@
-import dayjs from "dayjs";
 import editForm from "../form.vue";
+import { handleTree } from "@/utils/tree";
 import { message } from "@/utils/message";
+import { transformI18n } from "@/plugins/i18n";
 import { addDialog } from "@/components/ReDialog";
-import { reactive, ref, onMounted, h } from "vue";
-import type { FormItemProps } from "../utils/types";
+import { reactive, ref, onMounted, h, computed } from "vue";
+import type { FormItemProps, MenuConfigSummary } from "../utils/types";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { cloneDeep, isAllEmpty, deviceDetection } from "@pureadmin/utils";
 import {
-  listIamMenus,
-  createIamMenu,
-  updateIamMenu,
-  deleteIamMenu,
-  type IamMenu,
-  type CreateIamMenuRequest,
-  type UpdateIamMenuRequest
-} from "@/api/iam";
+  listMenuConfigs,
+  createMenuConfig,
+  getMenuConfig,
+  updateMenuConfig,
+  publishMenuConfig,
+  cloneMenuConfig
+} from "@/api/menu-config";
+import { formItemsToRoutes, routesToFormItems } from "./menu-adapter";
 
 export function useMenu() {
   const form = reactive({
-    name: ""
+    title: ""
   });
 
   const formRef = ref();
-  const dataList = ref<IamMenu[]>([]);
+  const dataList = ref([]);
   const loading = ref(true);
+  const menuConfigs = ref<MenuConfigSummary[]>([]);
+  const selectedConfigId = ref("");
+  const currentConfig = ref<MenuConfigSummary | null>(null);
+  const flatMenuList = ref<FormItemProps[]>([]);
+
+  const isEditable = computed(() => currentConfig.value?.status === "draft");
+
+  const getMenuType = (type, text = false) => {
+    switch (type) {
+      case 0:
+        return text ? "菜单" : "primary";
+      case 1:
+        return text ? "iframe" : "warning";
+      case 2:
+        return text ? "外链" : "danger";
+      case 3:
+        return text ? "按钮" : "info";
+    }
+  };
 
   const columns: TableColumnList = [
     {
       label: "菜单名称",
-      prop: "name",
+      prop: "title",
       align: "left",
       cellRenderer: ({ row }) => (
         <>
-          {row.icon ? (
-            <span class="inline-block mr-1">
-              {h(useRenderIcon(row.icon), {
-                style: { paddingTop: "1px" }
-              })}
-            </span>
-          ) : null}
-          <span>{row.name}</span>
+          <span class="inline-block mr-1">
+            {h(useRenderIcon(row.icon), {
+              style: { paddingTop: "1px" }
+            })}
+          </span>
+          <span>{transformI18n(row.title)}</span>
         </>
       )
     },
     {
-      label: "菜单编码",
-      prop: "code"
+      label: "菜单类型",
+      prop: "menuType",
+      width: 100,
+      cellRenderer: ({ row, props }) => (
+        <el-tag
+          size={props.size}
+          type={getMenuType(row.menuType) as any}
+          effect="plain"
+        >
+          {getMenuType(row.menuType, true)}
+        </el-tag>
+      )
     },
     {
       label: "路由路径",
@@ -58,27 +86,19 @@ export function useMenu() {
         isAllEmpty(component) ? path : component
     },
     {
+      label: "权限标识",
+      prop: "auths"
+    },
+    {
       label: "排序",
-      prop: "sort_order",
+      prop: "rank",
       width: 100
     },
     {
-      label: "可见",
-      prop: "visible",
-      width: 90,
-      formatter: ({ visible }) => (visible ? "是" : "否")
-    },
-    {
-      label: "状态",
-      prop: "status",
+      label: "隐藏",
+      prop: "showLink",
+      formatter: ({ showLink }) => (showLink ? "否" : "是"),
       width: 100
-    },
-    {
-      label: "更新时间",
-      prop: "updated_at",
-      minWidth: 180,
-      formatter: ({ updated_at }) =>
-        updated_at ? dayjs(updated_at).format("YYYY-MM-DD HH:mm:ss") : ""
     },
     {
       label: "操作",
@@ -98,66 +118,152 @@ export function useMenu() {
     onSearch();
   }
 
-  /** 在树上按 name 模糊过滤，保留命中节点的祖先链 */
-  function filterTree(list: IamMenu[], keyword: string): IamMenu[] {
-    const result: IamMenu[] = [];
-    for (const node of list) {
-      const children = node.children ? filterTree(node.children, keyword) : [];
-      if (node.name.includes(keyword) || children.length > 0) {
-        result.push({ ...node, children });
-      }
+  async function loadConfigList() {
+    const { code, data } = await listMenuConfigs();
+    if (code !== 0) {
+      menuConfigs.value = [];
+      return;
     }
-    return result;
+
+    menuConfigs.value = data.items;
+    const preferred =
+      data.items.find(item => item.status === "draft") ??
+      data.items.find(item => item.is_active) ??
+      data.items[0];
+
+    if (preferred) {
+      selectedConfigId.value = preferred.id;
+      await loadSelectedConfig(preferred.id);
+      return;
+    }
+
+    const created = await createMenuConfig({
+      name: `菜单草稿 ${new Date().toLocaleString()}`,
+      description: "前端菜单管理自动创建",
+      routes_json: []
+    });
+    selectedConfigId.value = created.data.id;
+    await loadConfigList();
+  }
+
+  async function loadSelectedConfig(id = selectedConfigId.value) {
+    if (!id) return;
+    loading.value = true;
+    try {
+      const { code, data } = await getMenuConfig(id);
+      if (code !== 0) return;
+      currentConfig.value = data;
+      selectedConfigId.value = data.id;
+      flatMenuList.value = routesToFormItems(data.routes_json as any[]);
+      onSearch();
+    } finally {
+      loading.value = false;
+    }
   }
 
   async function onSearch() {
     loading.value = true;
-    try {
-      const { items } = await listIamMenus();
-      const tree = items ?? [];
-      dataList.value = isAllEmpty(form.name)
-        ? tree
-        : filterTree(tree, form.name);
-    } finally {
-      setTimeout(() => {
-        loading.value = false;
-      }, 300);
+    let newData = [...flatMenuList.value];
+    if (!isAllEmpty(form.title)) {
+      newData = newData.filter(item =>
+        transformI18n(item.title).includes(form.title)
+      );
     }
+    dataList.value = handleTree(newData);
+    setTimeout(() => {
+      loading.value = false;
+    }, 200);
   }
 
-  /** 将树数据转为级联选择器选项（仅保留 id/name/children 等字段） */
-  function formatHigherMenuOptions(treeList: IamMenu[]) {
-    if (!treeList || !treeList.length) return [];
+  function nextMenuId() {
+    const maxId = flatMenuList.value.reduce(
+      (max, item) => Math.max(max, Number(item.id ?? 0)),
+      0
+    );
+    return maxId + 1;
+  }
+
+  async function saveCurrentMenus() {
+    if (!selectedConfigId.value || !isEditable.value) {
+      message("只允许编辑草稿版本", { type: "warning" });
+      return false;
+    }
+
+    const routes_json = formItemsToRoutes(flatMenuList.value);
+    const {
+      code,
+      data,
+      message: msg
+    } = await updateMenuConfig(selectedConfigId.value, { routes_json });
+
+    if (code !== 0) {
+      message(msg || "保存菜单失败", { type: "error" });
+      return false;
+    }
+
+    currentConfig.value = data;
+    flatMenuList.value = routesToFormItems(data.routes_json as any[]);
+    await onSearch();
+    return true;
+  }
+
+  function removeMenuAndChildren(id: number) {
+    const removing = new Set<number>([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const item of flatMenuList.value) {
+        const itemId = Number(item.id ?? 0);
+        if (!removing.has(itemId) && removing.has(Number(item.parentId ?? 0))) {
+          removing.add(itemId);
+          changed = true;
+        }
+      }
+    }
+    flatMenuList.value = flatMenuList.value.filter(
+      item => !removing.has(Number(item.id ?? 0))
+    );
+  }
+
+  function formatHigherMenuOptions(treeList) {
+    if (!treeList || !treeList.length) return;
     const newTreeList = [];
     for (let i = 0; i < treeList.length; i++) {
-      newTreeList.push({
-        ...treeList[i],
-        children: formatHigherMenuOptions(treeList[i].children || [])
-      });
+      treeList[i].title = transformI18n(treeList[i].title);
+      formatHigherMenuOptions(treeList[i].children);
+      newTreeList.push(treeList[i]);
     }
     return newTreeList;
   }
 
-  function openDialog(title = "新增", row?: Partial<FormItemProps> & IamMenu) {
+  function openDialog(title = "新增", row?: FormItemProps) {
     addDialog({
       title: `${title}菜单`,
       props: {
         formInline: {
-          // menuType 仅用于 UI 控制显示，不发送后端
-          menuType: 0,
+          menuType: row?.menuType ?? 0,
           higherMenuOptions: formatHigherMenuOptions(cloneDeep(dataList.value)),
-          id: row?.id,
-          parentId: (row as any)?.parent_id ?? row?.parentId ?? "",
+          parentId: row?.parentId ?? 0,
+          title: row?.title ?? "",
           name: row?.name ?? "",
-          code: (row as any)?.code ?? "",
           path: row?.path ?? "",
           component: row?.component ?? "",
-          sortOrder: (row as any)?.sort_order ?? row?.sortOrder ?? 0,
+          rank: row?.rank ?? 99,
+          redirect: row?.redirect ?? "",
           icon: row?.icon ?? "",
-          visible: (row as any)?.visible ?? true,
-          permissionId: (row as any)?.permission_id ?? row?.permissionId ?? "",
-          status: (row as any)?.status ?? "active"
-        } as FormItemProps
+          extraIcon: row?.extraIcon ?? "",
+          enterTransition: row?.enterTransition ?? "",
+          leaveTransition: row?.leaveTransition ?? "",
+          activePath: row?.activePath ?? "",
+          auths: row?.auths ?? "",
+          frameSrc: row?.frameSrc ?? "",
+          frameLoading: row?.frameLoading ?? true,
+          keepAlive: row?.keepAlive ?? false,
+          hiddenTag: row?.hiddenTag ?? false,
+          fixedTag: row?.fixedTag ?? false,
+          showLink: row?.showLink ?? true,
+          showParent: row?.showParent ?? false
+        }
       },
       width: "45%",
       draggable: true,
@@ -168,62 +274,109 @@ export function useMenu() {
       beforeSure: (done, { options }) => {
         const FormRef = formRef.value.getRef();
         const curData = options.props.formInline as FormItemProps;
-        FormRef.validate(async valid => {
-          if (!valid) return;
-          try {
-            if (title === "新增") {
-              const payload: CreateIamMenuRequest = {
-                parent_id: curData.parentId || undefined,
-                name: curData.name,
-                code: curData.code,
-                path: curData.path,
-                component: curData.component || undefined,
-                icon: curData.icon || undefined,
-                sort_order: curData.sortOrder,
-                visible: curData.visible,
-                permission_id: curData.permissionId || undefined
-              };
-              await createIamMenu(payload);
-            } else {
-              const payload: UpdateIamMenuRequest = {
-                parent_id: curData.parentId || undefined,
-                name: curData.name,
-                code: curData.code,
-                path: curData.path,
-                component: curData.component || undefined,
-                icon: curData.icon || undefined,
-                sort_order: curData.sortOrder,
-                visible: curData.visible,
-                permission_id: curData.permissionId || undefined,
-                status: curData.status
-              };
-              await updateIamMenu(curData.id!, payload);
-            }
-            message(`您${title}了菜单名称为${curData.name}的这条数据`, {
-              type: "success"
+        async function chores() {
+          if (!isEditable.value) {
+            message("只允许编辑草稿版本", { type: "warning" });
+            return;
+          }
+
+          if (title === "新增") {
+            flatMenuList.value.push({
+              ...curData,
+              id: nextMenuId(),
+              higherMenuOptions: []
             });
-            done();
-            onSearch();
-          } catch (e: any) {
-            message(e?.message ?? `${title}失败`, { type: "error" });
+          } else {
+            const index = flatMenuList.value.findIndex(
+              item => item.id === row?.id
+            );
+            if (index >= 0) {
+              flatMenuList.value[index] = {
+                ...flatMenuList.value[index],
+                ...curData,
+                id: row?.id,
+                higherMenuOptions: []
+              };
+            }
+          }
+
+          const saved = await saveCurrentMenus();
+          if (!saved) return;
+
+          message(
+            `您${title}了菜单名称为${transformI18n(curData.title)}的这条数据`,
+            { type: "success" }
+          );
+          done();
+        }
+        FormRef.validate(valid => {
+          if (valid) {
+            chores();
           }
         });
       }
     });
   }
 
-  async function handleDelete(row: IamMenu) {
-    try {
-      await deleteIamMenu(row.id);
-      message(`您删除了菜单名称为${row.name}的这条数据`, { type: "success" });
-      onSearch();
-    } catch (e: any) {
-      message(e?.message ?? "删除失败", { type: "error" });
+  async function handleDelete(row) {
+    if (!isEditable.value) {
+      message("只允许编辑草稿版本", { type: "warning" });
+      return;
     }
+    removeMenuAndChildren(Number(row.id));
+    const saved = await saveCurrentMenus();
+    if (!saved) return;
+    message(`您删除了菜单名称为${transformI18n(row.title)}的这条数据`, {
+      type: "success"
+    });
+  }
+
+  async function createDraftFromCurrent() {
+    if (selectedConfigId.value) {
+      const {
+        code,
+        data,
+        message: msg
+      } = await cloneMenuConfig(selectedConfigId.value);
+      if (code !== 0) {
+        message(msg || "新建草稿失败", { type: "error" });
+        return;
+      }
+      selectedConfigId.value = data.id;
+      await loadConfigList();
+      await loadSelectedConfig(data.id);
+      return;
+    }
+
+    const created = await createMenuConfig({
+      name: `菜单草稿 ${new Date().toLocaleString()}`,
+      description: "前端菜单管理创建",
+      routes_json: []
+    });
+    selectedConfigId.value = created.data.id;
+    await loadConfigList();
+    await loadSelectedConfig(created.data.id);
+  }
+
+  async function publishCurrentConfig() {
+    if (!selectedConfigId.value || !isEditable.value) return;
+    const {
+      code,
+      data,
+      message: msg
+    } = await publishMenuConfig(selectedConfigId.value);
+    if (code !== 0) {
+      message(msg || "发布菜单版本失败", { type: "error" });
+      return;
+    }
+    message("发布成功", { type: "success" });
+    currentConfig.value = data;
+    await loadConfigList();
+    await loadSelectedConfig(data.id);
   }
 
   onMounted(() => {
-    onSearch();
+    loadConfigList();
   });
 
   return {
@@ -231,14 +384,17 @@ export function useMenu() {
     loading,
     columns,
     dataList,
-    /** 搜索 */
+    menuConfigs,
+    selectedConfigId,
+    currentConfig,
+    isEditable,
     onSearch,
-    /** 重置 */
     resetForm,
-    /** 新增、修改菜单 */
     openDialog,
-    /** 删除菜单 */
     handleDelete,
-    handleSelectionChange
+    handleSelectionChange,
+    loadSelectedConfig,
+    createDraftFromCurrent,
+    publishCurrentConfig
   };
 }

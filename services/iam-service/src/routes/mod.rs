@@ -1,5 +1,4 @@
 pub mod auth;
-pub mod menus;
 pub mod org_units;
 pub mod permissions;
 pub mod roles;
@@ -23,7 +22,6 @@ pub fn build_router(state: AppState) -> Router {
         .merge(users::routes(state.clone()))
         .merge(roles::routes(state.clone()))
         .merge(permissions::routes(state.clone()))
-        .merge(menus::routes(state.clone()))
         .merge(org_units::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))

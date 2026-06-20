@@ -1,4 +1,5 @@
 // requires: cargo test --test-threads=1
+// svc 层端到端：auth_code → refresh marker → revoke → oauth_client（不经 HTTP）
 mod common;
 
 use token_service::service::{auth_code_svc, oauth_client_svc, refresh_svc, revoke_svc};

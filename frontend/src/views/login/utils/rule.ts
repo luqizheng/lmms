@@ -11,6 +11,9 @@ export const REGEXP_SIX = /^\d{6}$/;
 export const REGEXP_PWD =
   /^(?![0-9]+$)(?![a-z]+$)(?![A-Z]+$)(?!([^(0-9a-zA-Z)]|[()])+$)(?!^.*[\u4E00-\u9FA5].*$)([^(0-9a-zA-Z)]|[()]|[a-z]|[A-Z]|[0-9]){8,18}$/;
 
+/** 是否禁用验证码（测试模式，由 VITE_DISABLE_CAPTCHA 控制） */
+export const captchaDisabled = import.meta.env.VITE_DISABLE_CAPTCHA === "true";
+
 /** 登录校验 */
 const loginRules = reactive<FormRules>({
   password: [
@@ -27,22 +30,24 @@ const loginRules = reactive<FormRules>({
       trigger: "blur"
     }
   ],
-  verifyCode: [
-    {
-      validator: (rule, value, callback) => {
-        if (value === "") {
-          callback(new Error(transformI18n($t("login.pureVerifyCodeReg"))));
-        } else if (useUserStoreHook().verifyCode !== value) {
-          callback(
-            new Error(transformI18n($t("login.pureVerifyCodeCorrectReg")))
-          );
-        } else {
-          callback();
+  verifyCode: captchaDisabled
+    ? []
+    : [
+        {
+          validator: (rule, value, callback) => {
+            if (value === "") {
+              callback(new Error(transformI18n($t("login.pureVerifyCodeReg"))));
+            } else if (useUserStoreHook().verifyCode !== value) {
+              callback(
+                new Error(transformI18n($t("login.pureVerifyCodeCorrectReg")))
+              );
+            } else {
+              callback();
+            }
+          },
+          trigger: "blur"
         }
-      },
-      trigger: "blur"
-    }
-  ]
+      ]
 });
 
 /** 手机登录校验 */

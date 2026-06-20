@@ -53,11 +53,12 @@
 ### 路由配置
 
 - 改 `routes/*.router.toml` 后**必须**先 `validate` 再 commit
-- 新增路由必须确认 `match` 唯一（启动会报 `duplicate match pattern`）
-- `rewrite` 类型只能是 `strip_prefix` / `redirect` / `header_set` / `header_add` / `path_param`
+- 新增路由必须确认 `upstream` 唯一（启动会报 `duplicate upstream`）
+- 路由条目使用 `upstream` / `downstream` 占位符语法，不再支持 `match` / `rewrite`
 
 ### Docker 基础设施
 
+- **目录约定**：所有 Docker / 基础设施配置统一使用 `infrastructure/` 目录（包含 `docker-compose.yml`、`nginx/`、`config/`、`base-images.json`）。**不使用** `docker/` 目录配置。
 - 网络抖动时用 `docker compose up -d --pull never` 绕过镜像拉取
 - 本地镜像 `redis:7-alpine` / `mysql:8.0` / `consul:1.15` 已缓存
 - 不要修改 `scripts/lib/Docker-Helper.js` 的 `prePull`，那是网络正常时的优化
@@ -92,9 +93,9 @@
 
 ### Node.js 编排脚本
 
-- 所有基础脚本统一为 Node.js：入口 `scripts/test-orchestrator.js`，lib 在 `scripts/lib/*.js`
+- 测试统一走 e2e：入口 `scripts/run-e2e-local.js`，用例在 `tests/e2e/`
 - 仅依赖 Node.js 内置模块（`node:fs` / `node:path` / `node:child_process`），不引入第三方包
-- 旧 `.ps1` 已删除；新加脚本请用 `node scripts/xxx.js` 入口形式
+- 旧 `.ps1`、`test-orchestrator.js` 已删除；新加脚本请用 `node scripts/xxx.js` 入口形式
 
 ---
 
@@ -119,9 +120,6 @@ cargo clippy --all-targets -- -D warnings
 
 # 路由改动
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
-
-# YAML 规格改动
-node scripts/test-orchestrator.js validate-specs
 ```
 
 ---
@@ -139,7 +137,6 @@ node scripts/test-orchestrator.js validate-specs
 
 ## 速查
 
-- 跑测试：`node scripts/test-orchestrator.js loop`
-- 看上次报告：`Get-Content reports\run-*\summary.md | Select-Object -Last 1`
+- 跑测试：`pnpm run test:e2e`（或 `node scripts/run-e2e-local.js`）
 - 校验路由：`cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
 - 起本地服务：见 `coder-microservice-dev` skill

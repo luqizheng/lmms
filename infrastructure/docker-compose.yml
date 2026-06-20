@@ -50,32 +50,44 @@ services:
     ports:
       - "3000:3000"
     environment:
-      RUST_LOG: "api_gateway=debug,info"
+      RUST_LOG: "api_gateway=trace,info"
       GW_SERVER__HOST: "0.0.0.0"
       GW_SERVER__PORT: "3000"
       GW_REDIS__URL: "redis://redis:6379"
       GW_REDIS__PREFIX: "superpowers:"
       GW_CONSUL_ADDR: "http://consul:8500"
-      GW_JWKS_URL: "http://token-server:8080/.well-known/jwks.json"
-      GW_ISSUER: "superpowers-token-server"
+      GW_JWKS_URL: "http://token-service:8080/.well-known/jwks.json"
+      GW_ISSUER: "superpowers-token-service"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
-    command: ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        i=0
+        until getent hosts token-service >/dev/null 2>&1 && wget -q --spider http://token-service:8080/.well-known/jwks.json; do
+          i=$$((i+1))
+          if [ $$i -ge 60 ]; then echo "token-service jwks not ready, giving up"; exit 1; fi
+          echo "waiting token-service jwks... ($$i)"
+          sleep 1
+        done
+        exec /app/api-gateway serve --routes /app/config/api-gateway/routes
     volumes:
-      - ../docker/config/api-gateway/routes:/app/config/api-gateway/routes
+      - ./config/api-gateway/routes:/app/config/api-gateway/routes
       - ../docker/secrets:/app/keys:ro
     depends_on:
       consul:
         condition: service_healthy
       redis:
         condition: service_healthy
-      token-server:
+      token-service:
         condition: service_healthy
     networks:
       - superpowers
 
-  token-server:
-    image: zhcoder-docker-registry.com:8000/micro-server/token-service:latest
+  token-service:
+    build:
+      context: ..
+      dockerfile: services/token-service/Dockerfile
     ports:
       - "6001:8080"
     volumes:
@@ -110,11 +122,14 @@ services:
       - superpowers
 
   iam-service:
-    image: zhcoder-docker-registry.com:8000/micro-server/iam-service:latest
+    build:
+      context: ..
+      dockerfile: services/iam-service/Dockerfile
     ports:
       - "6002:8080"
     volumes:
       - ../docker/secrets:/app/keys:ro
+      - ../services/iam-service/config:/etc/iam-service:ro
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
@@ -125,6 +140,27 @@ services:
       DATABASE_NAME: superpowers
       CONSUL_ADDR: "http://consul:8500"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+  prue_backend:
+    build:
+      context: ..
+      dockerfile: services/prue_backend/Dockerfile
+    ports:
+      - "6004:8080"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      RUST_LOG: "info"
     depends_on:
       mysql:
         condition: service_healthy
@@ -157,6 +193,20 @@ services:
       REDIS_URL: "redis://redis:6379"
     volumes:
       - ../docker/config/notification-service:/app/config:ro
+    networks:
+      - superpowers
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        # e2e 测试环境禁用登录图形验证码，便于 Playwright 自动化
+        VITE_DISABLE_CAPTCHA: "true"
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-gateway
     networks:
       - superpowers
 

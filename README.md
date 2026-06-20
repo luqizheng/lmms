@@ -17,35 +17,28 @@ A microservices architecture for coder platform, built with Rust and Go.
 ### 一键工作流
 
 ```bash
-# 1. 启动基础设施（MySQL / Redis / Consul）
-node scripts/test-orchestrator.js start
+# 1. 启动基础设施 + 服务（infrastructure/docker-compose.yml）
+docker compose -f infrastructure/docker-compose.yml up -d
 
-# 2. 重置测试数据库（superpowers）
-node scripts/test-orchestrator.js reset-db
+# 2. 安装 e2e 依赖（独立 workspace）
+pnpm -C tests/e2e install
 
-# 3. 跑全部服务的 unit + integration 测试
-node scripts/test-orchestrator.js test-all
+# 3. 跑端到端测试（详见 tests/e2e/README.md）
+pnpm run test:e2e
 
-# 4. 查看测试报告（最新一次 run 的 summary.md）
-node scripts/test-orchestrator.js report
-
-# 5. 停止基础设施
-node scripts/test-orchestrator.js stop
+# 4. 停止基础设施
+docker compose -f infrastructure/docker-compose.yml down
 ```
 
-### 常用子命令
+### 常用测试命令
 
-| 命令                                  | 说明                                                                             |
-| ------------------------------------- | -------------------------------------------------------------------------------- |
-| `start`                               | 通过 `infrastructure/docker-compose.yml` 拉起 MySQL / Redis / Consul（3 个容器） |
-| `stop`                                | 停止并移除上述容器                                                               |
-| `reset-db`                            | `DROP + CREATE` superpowers，并 `FLUSHALL` Redis                                 |
-| `test-unit [--service <name>]`        | 只跑 unit 测试（默认所有服务）                                                   |
-| `test-integration [--service <name>]` | 只跑 integration 测试                                                            |
-| `test-all [--service <name>]`         | 跑 unit + integration                                                            |
-| `report [--timestamp <ts>]`           | 生成 `summary.md`（默认读最新一次 run 目录）                                     |
-| `fix-prompt`                          | 当存在失败用例时，把失败信息渲染成 AI 修复 prompt                                |
-| `loop`                                | `start + reset-db + test-all + report` 一条龙                                    |
+| 命令                              | 说明                                              |
+| --------------------------------- | ------------------------------------------------- |
+| `pnpm run test:e2e`               | 全量 e2e（Vitest + supertest，跨网关测真服务）    |
+| `pnpm run test:e2e:users` 等      | 按服务分组跑（auth/users/tokens/roles/... 见 package.json） |
+| `pnpm run test:e2e:api`           | 数据驱动 API 用例（Excel）                        |
+| `pnpm run test:e2e:ui`            | 数据驱动 UI 业务流（Playwright，需前端容器）      |
+| `node scripts/run-tests-docker.js [service]` | 容器内跑 Rust 单元测试（见 AGENTS.md） |
 
 ### 单独跑某个服务
 
@@ -99,12 +92,50 @@ cargo run                        # 启动
 
 - `docker-compose.yml` — 仅基础设施（3 容器：consul / redis / mysql，配合本地服务进程）
 
+### 在 Docker 中跑 Rust 单元测试
+
+采用 **volume mapping 模型**：不构建镜像，直接把源码与 cargo 缓存挂载进基础镜像内执行 `cargo test`，与生产构建一致使用 `x86_64-unknown-linux-musl` 目标。
+
+```powershell
+# 全部服务
+node scripts/run-tests-docker.js
+
+# 指定一个或多个服务
+node scripts/run-tests-docker.js iam-service token-service
+```
+
+等价的底层 docker 命令：
+
+```powershell
+docker run --rm `
+  --network host `
+  -v ${PWD}:/app `
+  -v coder-cargo-registry:/usr/local/cargo/registry `
+  -v coder-cargo-git:/usr/local/cargo/git `
+  -v coder-cargo-target:/app/target `
+  -v /var/run/docker.sock:/var/run/docker.sock `
+  -w /app `
+  zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl `
+  cargo test --target x86_64-unknown-linux-musl -p iam-service -- --nocapture
+```
+
+要点：
+
+- 基础镜像复用 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`，无需 `Dockerfile.test`
+- 源码用 bind mount 挂载，改代码**零 rebuild**
+- `registry` / `git` / `target` 用命名 volume 持久化，跨 service、跨次复用增量编译
+- `--network host`：部分 build.rs（如 `utoipa-swagger-ui`）需联网下载资源
+- 使用 testcontainers 的服务（token-service / iam-service 等）必须挂载 `/var/run/docker.sock`
+- 范围限定 `-p ${SERVICE}`，仅跑服务自身测试，不含 libs / sdk
+- 多服务共享同一 `target` volume，脚本按串行执行避免 target 锁争用
+- 依赖 TLS 时统一用 workspace 的 `reqwest 0.12 + rustls`，禁用 native-tls（musl 镜像无 openssl headers）
+
 ### 故障排查
 
 - **MySQL 容器找不到**：`docker ps -a` 看容器名；`start` 启动的容器会自动加 `coder-micro-services` 前缀
 - **cargo 链接错误（fiat_25519）**：本仓库已切到 `aws_lc_rs` crypto provider；如回退到 `ring` 会触发 MSVC LNK2019
 - **服务起不来**：`docker logs <container>` 看基础设施；服务进程日志直接输出到终端
-- **测试数据脏**：执行 `node scripts/test-orchestrator.js reset-db`
+- **测试数据脏**：e2e 的 `globalSetup` 会在每轮开始清库重置；也可重启 mysql 容器
 
 ## Services
 
