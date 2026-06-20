@@ -109,14 +109,11 @@ pnpm -C tests/e2e test users -t "update extends"
 ### 3.2 数据驱动用例
 
 ```powershell
-# API 数据驱动（遍历 api/cases/*.xlsx）
+# API 数据驱动（遍历 api/cases/*.yaml）
 pnpm -C tests/e2e test:api
 
-# UI 业务流（遍历 ui/cases/*.xlsx，需前端容器）
+# UI 业务流（遍历 ui/cases/*.yaml，需前端容器）
 pnpm -C tests/e2e test:ui
-
-# 重新生成样例用例 xlsx
-pnpm -C tests/e2e gen:samples
 ```
 
 ### 3.3 调试模式
@@ -162,26 +159,24 @@ tests/e2e/
     db/
       reset.ts               # resetBase()（清全部+重导 seed）/ resetBusiness()（清业务保留 admin）
       seed/base.sql          # 基础数据（admin 由 API 注册，此处可追加角色/菜单等）
-    data/excel.ts            # readCases() 读 xlsx + resolvePlaceholders() + assertBody()
+    data/cases.ts            # readCases() 读 yaml + resolve() 深层占位符 + assertBody()
     report/
       writer.ts              # writeReport() 写 report-<时间戳>.xlsx；writeErrorJson() 写失败明细
       errors/                # 失败明细（<caseId>.json，UI 附 <caseId>.png）
 
   api/                       # 数据驱动 - API
-    cases/*.xlsx             # 用例（每 sheet 一组，每行一用例）
+    cases/*.yaml             # 用例（group + cases 数组）
     globalSetup.ts           # resetBase + 注册并登录 admin，token 写 .token.json
-    runner/run.e2e.test.ts   # 遍历 xlsx 执行 + 断言 + 收集结果
+    runner/run.e2e.test.ts   # 遍历 yaml 执行 + 断言 + 收集结果
     vitest.config.ts
 
   ui/                        # 数据驱动 - UI
-    cases/*.xlsx             # 用例（flow + params + expect）
+    cases/*.yaml             # 用例（flow + params + expect）
     pages/                   # Page Object（login.page.ts / user.page.ts）
     flows/index.ts           # 业务流编排注册表（flow 名 → 函数）
     globalSetup.ts           # resetBase + 注册 admin + 前端健康探测
-    runner/run.spec.ts       # 遍历 xlsx 执行 flow + 校验 toast
+    runner/run.spec.ts       # 遍历 yaml 执行 flow + 校验 toast
     playwright.config.ts
-
-  scripts/gen-sample-cases.mjs  # 生成样例 xlsx
 ```
 
 ---
@@ -225,49 +220,62 @@ describe('iam users', () => {
 
 ## 7. 编写数据驱动用例
 
-### 7.1 API 用例（Excel）
+### 7.1 API 用例（YAML）
 
-文件 `api/cases/*.xlsx`，每 sheet 一组，列定义见 [excel.ts `ApiCase`](file:///d:/projects/coder-micro-services/tests/e2e/shared/data/excel.ts#L4-L14)：
+文件 `api/cases/*.yaml`，顶层 `group` + `cases` 数组，字段见 [cases.ts `ApiCase`](file:///d:/projects/coder-micro-services/tests/e2e/shared/data/cases.ts#L5-L15)：
 
-| 列 | 必填 | 说明 |
-|---|---|---|
-| `caseId` | 是 | 唯一 ID，用于占位引用与失败明细命名 |
-| `desc` | 是 | 用例描述 |
-| `method` | 是 | GET/POST/PUT/PATCH/DELETE |
-| `path` | 是 | 请求路径，支持占位符 |
-| `headers` | 否 | （预留） |
-| `body` | 否 | JSON 字符串，支持占位符 |
-| `expectStatus` | 是 | 期望 HTTP 状态码 |
-| `expectBody` | 否 | 断言表达式 |
-| `skip` | 否 | `Y` 跳过该用例 |
+```yaml
+group: iam-users
+cases:
+  - caseId: IAM-USER-001    # 唯一 ID，用于占位引用与失败明细命名
+    desc: 创建用户           # 用例描述
+    method: POST            # GET/POST/PUT/PATCH/DELETE
+    path: /v1/iam/users     # 请求路径，支持占位符
+    headers:                # 可选，附加请求头
+      X-Foo: bar
+    body:                   # 可选，结构化对象，支持占位符
+      username: u${rand}
+    expectStatus: 200       # 期望 HTTP 状态码
+    expect:                 # 可选，断言数组
+      - $.id exists
+    skip: false             # 可选，true 跳过
+```
 
 ### 7.2 占位符
 
 - `${rand}`：每次替换为唯一值（时间戳+随机）。
 - `${CASE-ID.field}`：引用前序用例响应体字段，支持 `a.b.c` 路径。例 `${IAM-USER-001.id}`。
+- 占位符递归作用于 `path` / `body` / `params` 的任意层级。
 
-### 7.3 断言表达式（expectBody）
+### 7.3 断言（expect）
+
+字符串数组，每条独立判定：
 
 - `$.field exists`：字段存在且非 null。
 - `$.field==value`：字段字符串相等。
-- 多条用 `&&` 连接，例：`$.id exists && $.username==alice`。
 
-### 7.4 UI 用例（Excel）
+### 7.4 UI 用例（YAML）
 
-文件 `ui/cases/*.xlsx`，列：`caseId` / `desc` / `flow` / `params` / `expect` / `skip`。
+文件 `ui/cases/*.yaml`，每个用例含 `caseId` / `desc` / `flow` / `params` / `expect` / `skip`。
 
-- `flow`：必须在 [ui/flows/index.ts](file:///d:/projects/coder-micro-services/tests/e2e/ui/flows/index.ts) 注册。
-- `params`：JSON 字符串，支持占位符。
-- `expect`：当前支持 `toast=<子串>`，校验页面提示包含该子串。
+```yaml
+group: user
+cases:
+  - caseId: UI-USER-001
+    desc: 登录后建用户
+    flow: createUser        # 必须在 ui/flows/index.ts 注册
+    params:                 # 结构化对象，支持占位符
+      username: u${rand}
+    expect:
+      - toast=已新增用户      # 校验页面提示包含该子串
+```
 
 新增 flow：在 `flows` 注册表加函数，复用 `pages/` 下 Page Object。
 
 ### 7.5 样例
 
-参考 [gen-sample-cases.mjs](file:///d:/projects/coder-micro-services/tests/e2e/scripts/gen-sample-cases.mjs) 生成的：
-
-- `api/cases/iam-users.xlsx`：创建→查详情→删除。
-- `ui/cases/user-flow.xlsx`：登录后建用户，校验 `toast=已新增用户`。
+- [api/cases/iam-users.yaml](file:///d:/projects/coder-micro-services/tests/e2e/api/cases/iam-users.yaml)：创建→查详情→删除。
+- [ui/cases/user-flow.yaml](file:///d:/projects/coder-micro-services/tests/e2e/ui/cases/user-flow.yaml)：登录后建用户，校验 `toast=已新增用户`。
 
 修改后直接重跑 `test:api` / `test:ui`，无需改执行器代码。
 

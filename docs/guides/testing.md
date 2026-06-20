@@ -8,8 +8,8 @@
 
 | 层 | 跑在哪 | 入口 | 落点 |
 |---|---|---|---|
-| E2E-API | Docker 全栈（服务 + 网关） | `tests/e2e/api/cases/*.xlsx` | vitest + supertest（数据驱动） |
-| E2E-UI | Docker 全栈 + 前端容器 | `tests/e2e/ui/cases/*.xlsx` | Playwright（数据驱动） |
+| E2E-API | Docker 全栈（服务 + 网关） | `tests/e2e/api/cases/*.yaml` | vitest + supertest（数据驱动） |
+| E2E-UI | Docker 全栈 + 前端容器 | `tests/e2e/ui/cases/*.yaml` | Playwright（数据驱动） |
 | E2E（旧） | Docker 全栈（4 服务 + 网关） | `tests/e2e/*.e2e.test.ts` | vitest + supertest（手写） |
 | 集成 | 单服务 + 真实 DB | `services/<svc>/tests/*_test.rs` | Rust integration test |
 | 单元 | 进程内 | `services/<svc>/src/**` + `#[cfg(test)]`<br>`libs/*/src/**` + `#[cfg(test)]` | Rust unit test |
@@ -300,7 +300,7 @@ CI tag 触发 SDK 发版（`sdk:publish`），本地**不要**手动 push。
 
 ## 8. 数据驱动 E2E（两部分）
 
-E2E 重构为两部分，共享底层设施（`tests/e2e/shared/`）。用例与报告均用 Excel 管理，失败输出 JSON 便于排查。
+E2E 重构为两部分，共享底层设施（`tests/e2e/shared/`）。用例用 YAML 管理（可 git diff / review），报告用 Excel 输出，失败输出 JSON 便于排查。
 
 ### 8.1 目录结构
 
@@ -311,23 +311,22 @@ tests/e2e/
     db/
       reset.ts              # resetBase() / resetBusiness()
       seed/base.sql         # 基础数据（admin 由 API 注册，预留非用户基础数据扩展）
-    data/excel.ts           # 读用例 xlsx + 占位符解析 + 断言
+    data/cases.ts           # 读用例 yaml + 占位符解析（深层）+ 断言
     report/
       writer.ts             # 写 report-<时间戳>.xlsx + 失败 <caseId>.json
       errors/               # 失败明细（json；UI 附 .png 截图）
   api/                      # 第一部分：直连 api-gateway
-    cases/*.xlsx            # 数据驱动用例
+    cases/*.yaml            # 数据驱动用例
     globalSetup.ts          # resetBase + 注册并登录 admin
-    runner/run.e2e.test.ts  # 遍历 xlsx 执行
+    runner/run.e2e.test.ts  # 遍历 yaml 执行
     vitest.config.ts
   ui/                       # 第二部分：经前端做业务测试
-    cases/*.xlsx
+    cases/*.yaml
     pages/                  # Page Object（login / user）
     flows/index.ts          # 业务流编排（flow 名 → 函数）
     globalSetup.ts          # resetBase + 注册 admin + 前端健康探测
     runner/run.spec.ts
     playwright.config.ts
-  scripts/gen-sample-cases.mjs   # 生成样例 xlsx
 ```
 
 ### 8.2 数据分层
@@ -340,42 +339,57 @@ tests/e2e/
 - 基础数据：admin 由 API `register` 创建（保证密码哈希与服务一致），非用户基础数据写 `seed/base.sql`（`INSERT ... ON DUPLICATE KEY UPDATE` 幂等）。
 - 业务数据：业务表整表 `DELETE`；`users` 表按 `config.seedUsernames` 保留（`users.id` 为 UUID，不能按数值上限区分）。
 
-### 8.3 Excel 用例格式
+### 8.3 YAML 用例格式
 
-每个服务/业务流一个 `.xlsx`，每 sheet 一组，每行一个用例。
+每个服务/业务流一个 `.yaml`：顶层 `group`（分组名）+ `cases`（用例数组）。
 
-API 用例列（`api/cases/*.xlsx`）：
+API 用例（`api/cases/*.yaml`）：
 
-| 列 | 说明 |
-|---|---|
-| `caseId` | 用例唯一 ID，失败 json 以此命名 |
-| `desc` | 描述 |
-| `method` | GET/POST/PUT/PATCH/DELETE |
-| `path` | 网关入口路径，如 `/v1/iam/users` |
-| `headers` | 预留附加头（可空） |
-| `body` | JSON 字符串，支持占位符 |
-| `expectStatus` | 期望状态码 |
-| `expectBody` | 断言表达式（见 8.4） |
-| `skip` | `Y` 跳过 |
+```yaml
+group: iam-users
+cases:
+  - caseId: IAM-USER-001        # 用例唯一 ID，失败 json 以此命名
+    desc: 创建用户
+    method: POST                # GET/POST/PUT/PATCH/DELETE
+    path: /v1/iam/users         # 网关入口路径，支持占位符
+    headers:                    # 可选，附加请求头
+      X-Foo: bar
+    body:                       # 可选，结构化对象，支持占位符
+      username: u${rand}
+      password: P@ssw0rd!
+    expectStatus: 200
+    expect:                     # 可选，断言数组（见 8.4）
+      - $.id exists
+  - caseId: IAM-USER-002
+    desc: 查详情
+    method: GET
+    path: /v1/iam/users/${IAM-USER-001.id}
+    expectStatus: 200
+    skip: false                 # 可选，true 跳过
+```
 
-UI 用例列（`ui/cases/*.xlsx`）：
+UI 用例（`ui/cases/*.yaml`）：
 
-| 列 | 说明 |
-|---|---|
-| `caseId` / `desc` / `skip` | 同上 |
-| `flow` | 在 `ui/flows/index.ts` 注册的编排名 |
-| `params` | JSON 字符串，支持占位符 |
-| `expect` | 当前支持 `toast=<文案>` 校验 |
+```yaml
+group: user
+cases:
+  - caseId: UI-USER-001
+    desc: 登录后建用户
+    flow: createUser            # 在 ui/flows/index.ts 注册的编排名
+    params:                     # 结构化对象，支持占位符
+      username: u${rand}
+    expect:
+      - toast=已新增用户         # 当前支持 toast=<文案>
+```
 
 ### 8.4 占位符与断言
 
-- 占位符：
+- 占位符（递归作用于 path / body / params 的任意层级）：
   - `${rand}` → 唯一值
   - `${CASE-ID.field}` → 引用前序用例响应字段（同一执行上下文共享）
-- 断言（`expectBody`）：
+- 断言（`expect`，字符串数组，每条独立判定）：
   - `$.x exists` → 字段存在
   - `$.x==v` → 字段等值
-  - 多条用 `&&` 连接
 
 ### 8.5 报告与失败明细
 
@@ -388,7 +402,6 @@ UI 用例列（`ui/cases/*.xlsx`）：
 ```powershell
 pnpm -C tests/e2e test:api      # 第一部分：API 数据驱动
 pnpm -C tests/e2e test:ui       # 第二部分：前端业务（需前端容器）
-pnpm -C tests/e2e gen:samples   # 重新生成样例用例
 ```
 
 前置：
@@ -399,7 +412,7 @@ pnpm -C tests/e2e gen:samples   # 重新生成样例用例
 
 ### 8.7 新增用例
 
-1. 编辑或新增 `api/cases/*.xlsx` / `ui/cases/*.xlsx`（列见 8.3）。
+1. 编辑或新增 `api/cases/*.yaml` / `ui/cases/*.yaml`（格式见 8.3）。
 2. UI 用例的 `flow` 字段需在 `ui/flows/index.ts` 注册对应编排（用 `pages/` 下 Page Object 操作前端）。
 3. 直接重跑 `test:api` / `test:ui`，无需改执行器代码。
 

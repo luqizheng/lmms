@@ -1,0 +1,28 @@
+group: iam-users
+cases:
+  - caseId: IAM-USER-001
+    desc: 创建用户
+    method: POST
+    path: /v1/iam/users
+    body:
+      username: u${rand}
+      password: P@ssw0rd!
+      email: u${rand}@t.local
+      nickname: N
+    expectStatus: 200
+    expect:
+      - $.id exists
+
+  - caseId: IAM-USER-002
+    desc: 查详情
+    method: GET
+    path: /v1/iam/users/${IAM-USER-001.id}
+    expectStatus: 200
+    expect:
+      - $.username exists
+
+  - caseId: IAM-USER-003
+    desc: 删除
+    method: DELETE
+    path: /v1/iam/users/${IAM-USER-001.id}
+    expectStatus: 204

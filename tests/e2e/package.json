@@ -20,8 +20,7 @@
     "test:iam-orgs": "vitest run iam-org-units",
     "test:gateway": "vitest run gateway",
     "test:api": "vitest run --config api/vitest.config.ts",
-    "test:ui": "playwright test --config ui/playwright.config.ts",
-    "gen:samples": "node scripts/gen-sample-cases.mjs"
+    "test:ui": "playwright test --config ui/playwright.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.48",
@@ -31,6 +30,7 @@
     "supertest": "^7",
     "typescript": "^5",
     "vitest": "^2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "yaml": "^2.5.1"
   }
 }

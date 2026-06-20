@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from '@playwright/test';
 import { resetBusiness } from '../../shared/db/reset';
-import { readCases, resolvePlaceholders } from '../../shared/data/excel';
+import { readCases, resolve, type UiCase } from '../../shared/data/cases';
 import {
   writeReport,
   writeErrorJson,
@@ -11,18 +11,9 @@ import {
 } from '../../shared/report/writer';
 import { flows } from '../flows';
 
-interface UiCase {
-  caseId: string;
-  desc: string;
-  flow: string;
-  params?: string;
-  expect?: string;
-  skip?: string;
-}
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const casesDir = join(__dirname, '..', 'cases');
-const files = readdirSync(casesDir).filter((f) => f.endsWith('.xlsx'));
+const files = readdirSync(casesDir).filter((f) => /\.ya?ml$/.test(f));
 const results: CaseResult[] = [];
 const ctx: Record<string, unknown> = {};
 
@@ -35,66 +26,64 @@ test.afterAll(async () => {
 });
 
 for (const file of files) {
-  const sheets = readCases<UiCase>(join(casesDir, file));
-  for (const [sheet, rows] of Object.entries(sheets)) {
-    test.describe(`${file} > ${sheet}`, () => {
-      for (const c of rows) {
-        const runner = c.skip === 'Y' ? test.skip : test;
-        runner(`${c.caseId} ${c.desc}`, async ({ page }) => {
-          const start = Date.now();
-          const flow = flows[c.flow];
-          if (!flow) throw new Error(`未注册 flow: ${c.flow}`);
-          const params = c.params
-            ? JSON.parse(resolvePlaceholders(c.params, ctx))
-            : {};
-          try {
-            const r = await flow(page, params);
-            const exp = (c.expect ?? '').trim();
+  const { group, cases } = readCases<UiCase>(join(casesDir, file));
+  test.describe(`${file} > ${group}`, () => {
+    for (const c of cases) {
+      const runner = c.skip ? test.skip : test;
+      runner(`${c.caseId} ${c.desc}`, async ({ page }) => {
+        const start = Date.now();
+        const flow = flows[c.flow];
+        if (!flow) throw new Error(`未注册 flow: ${c.flow}`);
+        const params = c.params ? resolve(c.params, ctx) : {};
+        try {
+          const r = await flow(page, params);
+          for (const raw of c.expect ?? []) {
+            const exp = raw.trim();
             if (exp.startsWith('toast=')) {
               const want = exp.slice('toast='.length);
               if (!(r.toast ?? '').includes(want)) {
                 throw new Error(`toast 不含 "${want}"，实际="${r.toast}"`);
               }
             }
-            results.push({
-              caseId: c.caseId,
-              desc: c.desc,
-              result: 'PASS',
-              status: 'ok',
-              durationMs: Date.now() - start,
-              error: '',
-            });
-          } catch (e) {
-            const shot = join(
-              __dirname,
-              '..',
-              '..',
-              'shared',
-              'report',
-              'errors',
-              `${c.caseId}.png`,
-            );
-            await page.screenshot({ path: shot }).catch(() => undefined);
-            writeErrorJson({
-              caseId: c.caseId,
-              request: { flow: c.flow, params },
-              response: { error: String(e) },
-              expect: c.expect,
-              timestamp: new Date().toISOString(),
-              screenshot: shot,
-            });
-            results.push({
-              caseId: c.caseId,
-              desc: c.desc,
-              result: 'FAIL',
-              status: 'err',
-              durationMs: Date.now() - start,
-              error: `见 errors/${c.caseId}.json`,
-            });
-            throw e;
           }
-        });
-      }
-    });
-  }
+          results.push({
+            caseId: c.caseId,
+            desc: c.desc,
+            result: 'PASS',
+            status: 'ok',
+            durationMs: Date.now() - start,
+            error: '',
+          });
+        } catch (e) {
+          const shot = join(
+            __dirname,
+            '..',
+            '..',
+            'shared',
+            'report',
+            'errors',
+            `${c.caseId}.png`,
+          );
+          await page.screenshot({ path: shot }).catch(() => undefined);
+          writeErrorJson({
+            caseId: c.caseId,
+            request: { flow: c.flow, params },
+            response: { error: String(e) },
+            expect: c.expect,
+            timestamp: new Date().toISOString(),
+            screenshot: shot,
+          });
+          results.push({
+            caseId: c.caseId,
+            desc: c.desc,
+            result: 'FAIL',
+            status: 'err',
+            durationMs: Date.now() - start,
+            error: `见 errors/${c.caseId}.json`,
+          });
+          throw e;
+        }
+      });
+    }
+  });
 }
