@@ -59,17 +59,27 @@ export function createIamUser(data: CreateIamUserRequest) {
 }
 
 export function getIamUser(id: string) {
-  return http.request<IamUser>("get", `/v1/iam/users/${encodeURIComponent(id)}`);
+  return http.request<IamUser>(
+    "get",
+    `/v1/iam/users/${encodeURIComponent(id)}`
+  );
 }
 
 export function updateIamUser(id: string, data: UpdateIamUserRequest) {
-  return http.request<IamUser>("put", `/v1/iam/users/${encodeURIComponent(id)}`, {
-    data
-  });
+  return http.request<IamUser>(
+    "put",
+    `/v1/iam/users/${encodeURIComponent(id)}`,
+    {
+      data
+    }
+  );
 }
 
 export function deleteIamUser(id: string) {
-  return http.request<void>("delete", `/v1/iam/users/${encodeURIComponent(id)}`);
+  return http.request<void>(
+    "delete",
+    `/v1/iam/users/${encodeURIComponent(id)}`
+  );
 }
 
 // ============== 角色 ==============
@@ -121,13 +131,20 @@ export function createIamRole(data: CreateIamRoleRequest) {
 }
 
 export function updateIamRole(id: string, data: UpdateIamRoleRequest) {
-  return http.request<IamRole>("put", `/v1/iam/roles/${encodeURIComponent(id)}`, {
-    data
-  });
+  return http.request<IamRole>(
+    "put",
+    `/v1/iam/roles/${encodeURIComponent(id)}`,
+    {
+      data
+    }
+  );
 }
 
 export function deleteIamRole(id: string) {
-  return http.request<void>("delete", `/v1/iam/roles/${encodeURIComponent(id)}`);
+  return http.request<void>(
+    "delete",
+    `/v1/iam/roles/${encodeURIComponent(id)}`
+  );
 }
 
 export function assignRolePermissions(id: string, permission_ids: string[]) {
@@ -269,13 +286,28 @@ export function createIamMenu(data: CreateIamMenuRequest) {
 }
 
 export function updateIamMenu(id: string, data: UpdateIamMenuRequest) {
-  return http.request<IamMenu>("put", `/v1/iam/menus/${encodeURIComponent(id)}`, {
-    data
-  });
+  return http.request<IamMenu>(
+    "put",
+    `/v1/iam/menus/${encodeURIComponent(id)}`,
+    {
+      data
+    }
+  );
 }
 
 export function deleteIamMenu(id: string) {
-  return http.request<void>("delete", `/v1/iam/menus/${encodeURIComponent(id)}`);
+  return http.request<void>(
+    "delete",
+    `/v1/iam/menus/${encodeURIComponent(id)}`
+  );
+}
+
+// ============== 认证 ==============
+export function changeIamPassword(data: {
+  old_password: string;
+  new_password: string;
+}) {
+  return http.request<void>("post", "/v1/iam/auth/password", { data });
 }
 
 // ============== 组织（部门） ==============

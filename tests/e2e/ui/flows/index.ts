@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { LoginPage } from '../pages/login.page';
 import { UserPage } from '../pages/user.page';
 import { TokenClientPage } from '../pages/token.page';
+import { ChangePasswordPage } from '../pages/change-password.page';
 
 export interface FlowResult {
   toast?: string;
@@ -55,5 +56,29 @@ export const flows: Record<string, Flow> = {
     const name = String(params.name);
     await tp.createClient(name);
     return await tp.deleteClient(name);
+  },
+
+  changeOwnPassword: async (page, params) => {
+    const username = String(params.username);
+    const oldPassword = String(params.oldPassword);
+    const newPassword = String(params.newPassword);
+
+    // 1. 以 admin 登录建新用户
+    const login = new LoginPage(page);
+    await login.login();
+    await new UserPage(page).createUser({ username, password: oldPassword });
+
+    // 2. 退出 admin
+    await login.logout();
+
+    // 3. 以新用户登录
+    await login.login(username, oldPassword);
+
+    // 4. 打开修改密码弹窗并提交
+    const cpp = new ChangePasswordPage(page);
+    await cpp.openDialog();
+    await cpp.submit(oldPassword, newPassword);
+
+    return { toast: await cpp.lastToastText() };
   },
 };

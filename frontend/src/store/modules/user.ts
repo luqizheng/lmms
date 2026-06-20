@@ -13,6 +13,7 @@ import {
   refreshToken as refreshTokenApi,
   type LoginResult
 } from "@/api/auth";
+import { changeIamPassword } from "@/api/iam";
 import { useMultiTagsStoreHook } from "./multiTags";
 import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
 
@@ -119,6 +120,13 @@ export const useUserStore = defineStore("pure-user", {
       useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
       resetRouter();
       router.push("/login");
+    },
+    /** 修改当前用户密码 */
+    async changePassword(oldPassword: string, newPassword: string) {
+      await changeIamPassword({
+        old_password: oldPassword,
+        new_password: newPassword
+      });
     },
     /** 刷新`token` */
     async handRefreshToken(data: { refreshToken: string }) {

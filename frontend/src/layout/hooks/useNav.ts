@@ -8,12 +8,13 @@ import { useFullscreen } from "@vueuse/core";
 import type { routeMetaType } from "../types";
 import { transformI18n } from "@/plugins/i18n";
 import { router, remainingPaths } from "@/router";
-import { computed, type CSSProperties } from "vue";
+import { computed, ref, type CSSProperties } from "vue";
 import { useAppStoreHook } from "@/store/modules/app";
 import { useUserStoreHook } from "@/store/modules/user";
 import { useGlobal, isAllEmpty } from "@pureadmin/utils";
 import { useEpThemeStoreHook } from "@/store/modules/epTheme";
 import { usePermissionStoreHook } from "@/store/modules/permission";
+import type ChangePasswordDialog from "@/views/account-settings/components/ChangePasswordDialog.vue";
 import ExitFullscreen from "~icons/ri/fullscreen-exit-fill";
 import Fullscreen from "~icons/ri/fullscreen-fill";
 
@@ -147,6 +148,14 @@ export function useNav() {
     return new URL("/logo.svg", import.meta.url).href;
   }
 
+  /** 修改密码弹窗 ref */
+  const changePasswordRef = ref<InstanceType<
+    typeof ChangePasswordDialog
+  > | null>(null);
+  function openChangePassword() {
+    changePasswordRef.value?.open();
+  }
+
   return {
     title,
     device,
@@ -175,6 +184,8 @@ export function useNav() {
     tooltipEffect,
     toAccountSettings,
     getDropdownItemStyle,
-    getDropdownItemClass
+    getDropdownItemClass,
+    changePasswordRef,
+    openChangePassword
   };
 }
