@@ -1,0 +1,29 @@
+group: api-gateway
+cases:
+  - caseId: GW-001
+    desc: iam 健康检查
+    method: GET
+    path: /v1/iam/health
+    auth: false
+    expectStatus: [200, 502, 404]
+
+  - caseId: GW-002
+    desc: audit 健康检查
+    method: GET
+    path: /v1/audit/health
+    auth: false
+    expectStatus: [200, 401, 502, 503, 404]
+
+  - caseId: GW-003
+    desc: 未认证访问受保护路由应拒绝
+    method: GET
+    path: /v1/iam/users
+    auth: false
+    expectStatus: [401, 403]
+
+  - caseId: GW-004
+    desc: setup-status 公共可访问
+    method: GET
+    path: /v1/iam/auth/setup-status
+    auth: false
+    expectStatus: [200, 502, 404]

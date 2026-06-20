@@ -1,0 +1,10 @@
+group: permissions
+cases:
+  - caseId: PERM-001
+    desc: 列出所有权限
+    method: GET
+    path: /v1/iam/permissions?page=1&size=50
+    expectStatus: 200
+    expect:
+      - $.items exists
+      - $.items is array

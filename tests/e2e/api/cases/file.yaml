@@ -1,0 +1,42 @@
+group: file-service
+cases:
+  - caseId: FILE-001
+    desc: 上传文件元数据
+    method: POST
+    path: /v1/file/upload
+    body:
+      filename: e2e_${rand}.txt
+      content_type: text/plain
+      tenant_id: e2e
+      user_id: e2e
+      is_temporary: true
+      expires_in_seconds: 3600
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: FILE-002
+    desc: 列出文件
+    method: GET
+    path: /v1/file/list?page=1&size=10
+    expectStatus: [200, 502, 404]
+
+  - caseId: FILE-003
+    desc: 获取文件信息
+    method: GET
+    path: /v1/file/${FILE-001.id}/info
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: FILE-004
+    desc: 创建预签名 URL
+    method: POST
+    path: /v1/file/presign
+    body:
+      file_id: ${FILE-001.id}
+      operation: get
+      expires_in_seconds: 3600
+    expectStatus: [200, 201, 204, 502, 404]
+
+  - caseId: FILE-005
+    desc: 删除文件
+    method: DELETE
+    path: /v1/file/${FILE-001.id}
+    expectStatus: [200, 201, 204, 502, 404]

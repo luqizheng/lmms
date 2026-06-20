@@ -1,0 +1,89 @@
+group: auth
+cases:
+  - caseId: AUTH-001
+    desc: admin 登录返回 access_token
+    method: POST
+    path: /v1/iam/auth/login
+    auth: false
+    body:
+      username: e2eadmin
+      password: P@ssw0rd!
+    expectStatus: 200
+    expect:
+      - $.access_token exists
+
+  - caseId: AUTH-002
+    desc: 错误密码应拒绝
+    method: POST
+    path: /v1/iam/auth/login
+    auth: false
+    body:
+      username: e2eadmin
+      password: wrong
+    expectStatus: [400, 401]
+
+  - caseId: AUTH-003
+    desc: setup-status 返回 setup_required
+    method: GET
+    path: /v1/iam/auth/setup-status
+    auth: false
+    expectStatus: 200
+    expect:
+      - $.setup_required exists
+
+  - caseId: AUTH-004
+    desc: 拒绝过短用户名
+    method: POST
+    path: /v1/iam/auth/register
+    auth: false
+    body:
+      username: ab
+      password: P@ssw0rd!
+      nickname: x
+    expectStatus: [400, 403, 422]
+
+  - caseId: AUTH-005
+    desc: 拒绝非法字符用户名
+    method: POST
+    path: /v1/iam/auth/register
+    auth: false
+    body:
+      username: bad user!
+      password: P@ssw0rd!
+      nickname: x
+    expectStatus: [400, 403, 422]
+
+  - caseId: AUTH-006
+    desc: 拒绝过短密码
+    method: POST
+    path: /v1/iam/auth/register
+    auth: false
+    body:
+      username: e2e_short_pw
+      password: '123'
+      nickname: x
+    expectStatus: [400, 403, 422]
+
+  - caseId: AUTH-007
+    desc: 拒绝非法邮箱
+    method: POST
+    path: /v1/iam/auth/register
+    auth: false
+    body:
+      username: e2e_bad_email_${rand}
+      password: P@ssw0rd!
+      nickname: x
+      email: not-an-email
+    expectStatus: [400, 403, 422]
+
+  - caseId: AUTH-008
+    desc: 拒绝非法手机号
+    method: POST
+    path: /v1/iam/auth/register
+    auth: false
+    body:
+      username: e2e_bad_phone_${rand}
+      password: P@ssw0rd!
+      nickname: x
+      phone: '12345'
+    expectStatus: [400, 403, 422]
