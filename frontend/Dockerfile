@@ -15,6 +15,10 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 
 COPY . .
 
+# 测试环境可通过 build arg 禁用登录图形验证码（默认空=启用，生产构建不传则不受影响）
+ARG VITE_DISABLE_CAPTCHA
+ENV VITE_DISABLE_CAPTCHA=$VITE_DISABLE_CAPTCHA
+
 RUN pnpm build
 
 FROM nginx:1.27-alpine

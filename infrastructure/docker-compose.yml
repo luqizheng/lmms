@@ -200,6 +200,9 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      args:
+        # e2e 测试环境禁用登录图形验证码，便于 Playwright 自动化
+        VITE_DISABLE_CAPTCHA: "true"
     ports:
       - "8080:80"
     depends_on:
