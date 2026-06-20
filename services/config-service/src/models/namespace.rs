@@ -13,7 +13,7 @@ pub struct Namespace {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateNamespace {
     pub app: String,
     pub env: String,

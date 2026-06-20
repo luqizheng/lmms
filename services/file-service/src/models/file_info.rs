@@ -18,7 +18,7 @@ pub struct FileInfo {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UploadFileMeta {
     pub filename: String,
     pub content_type: Option<String>,
