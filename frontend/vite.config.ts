@@ -27,7 +27,8 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
       proxy: {
         "/api": {
           target: "http://127.0.0.1:3000",
-          changeOrigin: true
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/api/, "")
         }
       },
       // 预热文件以提前转换和缓存结果，降低启动期间的初始页面加载时长并防止转换瀑布

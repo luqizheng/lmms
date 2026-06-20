@@ -3,7 +3,7 @@ import { useI18n } from "vue-i18n";
 import Motion from "./utils/motion";
 import { useRouter } from "vue-router";
 import { message } from "@/utils/message";
-import { loginRules } from "./utils/rule";
+import { loginRules, captchaDisabled } from "./utils/rule";
 import TypeIt from "@/components/ReTypeit";
 import { debounce } from "@pureadmin/utils";
 import { useNav } from "@/layout/hooks/useNav";
@@ -227,7 +227,7 @@ watch(loginDay, value => {
             </Motion>
 
             <Motion :delay="200">
-              <el-form-item prop="verifyCode">
+              <el-form-item v-if="!captchaDisabled" prop="verifyCode">
                 <el-input
                   v-model="ruleForm.verifyCode"
                   clearable

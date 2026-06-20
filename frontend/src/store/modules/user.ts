@@ -9,6 +9,7 @@ import {
 } from "../utils";
 import {
   login as loginApi,
+  logout as logoutApi,
   refreshToken as refreshTokenApi,
   type LoginResult
 } from "@/api/auth";
@@ -104,8 +105,13 @@ export const useUserStore = defineStore("pure-user", {
           });
       });
     },
-    /** 前端登出（不调用接口） */
-    logOut() {
+    /** 登出（先调后端使 refresh token 失效，再清本地） */
+    async logOut() {
+      try {
+        await logoutApi();
+      } catch {
+        // 忽略后端登出失败，仍清理本地状态
+      }
       this.username = "";
       this.roles = [];
       this.permissions = [];

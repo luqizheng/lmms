@@ -11,8 +11,7 @@ export default {
     title: $t("menus.accountSettings"),
     icon: "ep/user",
     rank: account,
-    showLink: false,
-    hidden: true
+    showLink: false
   },
   children: [
     {
@@ -22,8 +21,7 @@ export default {
         import("@/views/account-settings/components/Profile.vue"),
       meta: {
         title: $t("menus.accountProfile"),
-        showLink: false,
-        hidden: true
+        showLink: false
       }
     },
     {
@@ -33,8 +31,7 @@ export default {
         import("@/views/account-settings/components/SecurityLog.vue"),
       meta: {
         title: $t("menus.accountSecurity"),
-        showLink: false,
-        hidden: true
+        showLink: false
       }
     },
     {
@@ -43,8 +40,7 @@ export default {
       component: () => import("@/views/login/register.vue"),
       meta: {
         title: "注册管理员",
-        showLink: false,
-        hidden: true
+        showLink: false
       }
     }
   ]
