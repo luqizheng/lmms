@@ -80,6 +80,10 @@ menus:
   systemRole: 角色管理
   systemTokenClient: 令牌客户端
   systemPermission: 权限管理
+  notification: 通知中心
+  notificationInbox: 收件箱
+  notificationAdmin: 公告管理
+  notificationDetail: 公告详情
   pureSystemMenu: 菜单管理
   pureDept: 部门管理
   pureSysMonitor: 系统监控
