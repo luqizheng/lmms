@@ -43,6 +43,8 @@
 
 ## 单元测试
 
+> 完整测试指南（分层、增删改、执行、AI 修测试、数据驱动 E2E）见 [docs/guides/testing.md](docs/guides/testing.md)。
+
 ### 执行方式（volume mapping 模型）
 
 在 Docker 容器内跑 Rust 单元测试，不构建镜像，直接挂载源码与 cargo 缓存。
