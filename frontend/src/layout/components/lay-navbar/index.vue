@@ -14,6 +14,8 @@ import AccountSettingsIcon from "~icons/ri/user-settings-line";
 import LogoutCircleRLine from "~icons/ri/logout-circle-r-line";
 import Setting from "~icons/ri/settings-3-line";
 import Check from "~icons/ep/check";
+import Lock from "~icons/ri/lock-password-line";
+import ChangePasswordDialog from "@/views/account-settings/components/ChangePasswordDialog.vue";
 
 const {
   layout,
@@ -26,6 +28,8 @@ const {
   avatarsStyle,
   toggleSideBar,
   toAccountSettings,
+  openChangePassword,
+  changePasswordRef,
   getDropdownItemStyle,
   getDropdownItemClass
 } = useNav();
@@ -107,6 +111,13 @@ const { t, locale, translationCh, translationEn } = useTranslationLang();
               />
               {{ t("buttons.pureAccountSettings") }}
             </el-dropdown-item>
+            <el-dropdown-item @click="openChangePassword">
+              <IconifyIconOffline
+                :icon="Lock"
+                style="margin: 5px"
+              />
+              {{ t("buttons.pureChangePassword") }}
+            </el-dropdown-item>
             <el-dropdown-item @click="logout">
               <IconifyIconOffline
                 :icon="LogoutCircleRLine"
@@ -124,6 +135,7 @@ const { t, locale, translationCh, translationEn } = useTranslationLang();
       >
         <IconifyIconOffline :icon="Setting" />
       </span>
+      <ChangePasswordDialog ref="changePasswordRef" />
     </div>
   </div>
 </template>
