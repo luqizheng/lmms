@@ -26,14 +26,14 @@ interface UpdateMenuConfigRequest {
 export const listMenuConfigs = () => {
   return http.request<ApiResponse<MenuConfigListResponse>>(
     "get",
-    "/pure/menu-configs"
+    "/v1/pure/menu-configs"
   );
 };
 
 export const createMenuConfig = (data: CreateMenuConfigRequest) => {
   return http.request<ApiResponse<MenuConfigDetail>>(
     "post",
-    "/pure/menu-configs",
+    "/v1/pure/menu-configs",
     {
       data
     }
@@ -43,14 +43,14 @@ export const createMenuConfig = (data: CreateMenuConfigRequest) => {
 export const getMenuConfig = (id: string) => {
   return http.request<ApiResponse<MenuConfigDetail>>(
     "get",
-    `/pure/menu-configs/${id}`
+    `/v1/pure/menu-configs/${id}`
   );
 };
 
 export const updateMenuConfig = (id: string, data: UpdateMenuConfigRequest) => {
   return http.request<ApiResponse<MenuConfigDetail>>(
     "put",
-    `/pure/menu-configs/${id}`,
+    `/v1/pure/menu-configs/${id}`,
     { data }
   );
 };
@@ -58,17 +58,17 @@ export const updateMenuConfig = (id: string, data: UpdateMenuConfigRequest) => {
 export const publishMenuConfig = (id: string) => {
   return http.request<ApiResponse<MenuConfigDetail>>(
     "post",
-    `/pure/menu-configs/${id}/publish`
+    `/v1/pure/menu-configs/${id}/publish`
   );
 };
 
 export const cloneMenuConfig = (id: string) => {
   return http.request<ApiResponse<MenuConfigDetail>>(
     "post",
-    `/pure/menu-configs/${id}/clone`
+    `/v1/pure/menu-configs/${id}/clone`
   );
 };
 
 export const deleteMenuConfig = (id: string) => {
-  return http.request<void>("delete", `/pure/menu-configs/${id}`);
+  return http.request<void>("delete", `/v1/pure/menu-configs/${id}`);
 };

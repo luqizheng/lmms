@@ -31,7 +31,7 @@ export interface PagedOperationLogs {
 }
 
 export function listOperationLogs(params?: OperationLogQuery) {
-  return http.request<PagedOperationLogs>("get", "/audit/operation", {
+  return http.request<PagedOperationLogs>("get", "/v1/audit/operation", {
     params
   });
 }
@@ -62,7 +62,7 @@ export interface PagedLoginLogs {
 }
 
 export function listLoginLogs(params?: LoginLogQuery) {
-  return http.request<PagedLoginLogs>("get", "/audit/login", { params });
+  return http.request<PagedLoginLogs>("get", "/v1/audit/login", { params });
 }
 
 // ============== 数据保留 ==============
@@ -88,17 +88,17 @@ export interface CleanupResult {
 }
 
 export function getRetentionStats() {
-  return http.request<RetentionStats>("get", "/audit/retention/stats");
+  return http.request<RetentionStats>("get", "/v1/audit/retention/stats");
 }
 
 export function getRetentionPolicy() {
-  return http.request<RetentionPolicy>("get", "/audit/retention/policy");
+  return http.request<RetentionPolicy>("get", "/v1/audit/retention/policy");
 }
 
 export function updateRetentionPolicy(data: RetentionPolicy) {
-  return http.request<void>("put", "/audit/retention/policy", { data });
+  return http.request<void>("put", "/v1/audit/retention/policy", { data });
 }
 
 export function triggerRetentionCleanup() {
-  return http.request<CleanupResult>("post", "/audit/retention/cleanup");
+  return http.request<CleanupResult>("post", "/v1/audit/retention/cleanup");
 }
