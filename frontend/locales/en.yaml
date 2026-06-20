@@ -1,5 +1,6 @@
 buttons:
   pureAccountSettings: Account
+  pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login
   pureOpenSystemSet: Open System Configs
@@ -262,3 +263,17 @@ tableBar:
   purePinLeft: Pin Left
   purePinRight: Pin Right
   pureUnpin: Unpin
+changePassword:
+  title: "Change Password"
+  oldPassword: "Current Password"
+  oldPasswordPlaceholder: "Enter current password"
+  newPassword: "New Password"
+  newPasswordPlaceholder: "Enter new password (8-128 chars)"
+  confirmPassword: "Confirm Password"
+  confirmPasswordPlaceholder: "Re-enter new password"
+  submit: "Submit"
+  cancel: "Cancel"
+  passwordMismatch: "Passwords do not match"
+  passwordSameAsOld: "New password must differ from current"
+  success: "Password changed, please log in again"
+  failure: "Password change failed"

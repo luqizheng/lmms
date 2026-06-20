@@ -1,5 +1,6 @@
 buttons:
   pureAccountSettings: 账户设置
+  pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录
   pureOpenSystemSet: 打开系统配置
@@ -266,3 +267,17 @@ tableBar:
   purePinLeft: 固定在左边
   purePinRight: 固定在右边
   pureUnpin: 取消固定
+changePassword:
+  title: "修改密码"
+  oldPassword: "旧密码"
+  oldPasswordPlaceholder: "请输入旧密码"
+  newPassword: "新密码"
+  newPasswordPlaceholder: "请输入新密码（8-128 位）"
+  confirmPassword: "确认密码"
+  confirmPasswordPlaceholder: "请再次输入新密码"
+  submit: "确定"
+  cancel: "取消"
+  passwordMismatch: "两次输入密码不一致"
+  passwordSameAsOld: "新密码不能与旧密码相同"
+  success: "修改成功，请重新登录"
+  failure: "修改失败"
