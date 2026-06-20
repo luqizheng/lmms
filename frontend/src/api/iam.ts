@@ -278,6 +278,14 @@ export function deleteIamMenu(id: string) {
   return http.request<void>("delete", `/v1/iam/menus/${encodeURIComponent(id)}`);
 }
 
+// ============== 认证 ==============
+export function changeIamPassword(data: {
+  old_password: string;
+  new_password: string;
+}) {
+  return http.request<void>("post", "/v1/iam/auth/password", { data });
+}
+
 // ============== 组织（部门） ==============
 export interface IamOrgUnit {
   id: string;
