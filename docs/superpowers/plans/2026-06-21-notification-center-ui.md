@@ -12,14 +12,14 @@
 
 ## File Structure
 
-**后端新增 / 修改：**
-- 修改 `services/notification-service/src/rest.rs` — 加 `/scopes` 端点
-- 修改 `services/notification-service/Cargo.toml` — 如需 reqwest 调 iam
+**后端：不改**（项目硬规则）
 
 **前端新增：**
 - `frontend/src/api/notification.ts` — axios 封装
+- `frontend/src/api/iam-scopes.ts` — 拉 dept/role/user 三个端点封装
 - `frontend/src/store/modules/notification.ts` — Pinia store
 - `frontend/src/utils/notification-socket.ts` — WS 单例
+- `frontend/src/utils/iam-scopes-cache.ts` — 5 分钟本地缓存
 - `frontend/src/router/modules/notification.ts` — 三条路由
 - `frontend/src/layout/components/NotificationBell.vue` — 头部徽标
 - `frontend/src/views/notification/inbox/{index.vue, utils/{hook,rule,types}.ts}`
@@ -40,153 +40,111 @@
 
 ---
 
-## Task 1: 后端 `/scopes` 端点
+## Task 1: 前端 iam 拉取封装
 
 **Files:**
-- Create: `services/notification-service/src/scopes.rs`
-- Modify: `services/notification-service/src/lib.rs`
-- Modify: `services/notification-service/src/rest.rs`
-- Test: `tests/e2e/api/cases/notification.yaml`
+- Create: `frontend/src/api/iam-scopes.ts`
+- Create: `frontend/src/utils/iam-scopes-cache.ts`
 
-- [ ] **Step 1: 写 API e2e 用例**
+- [ ] **Step 1: 写 API 封装**
 
-新增 `tests/e2e/api/cases/notification.yaml`：
+`frontend/src/api/iam-scopes.ts`：
 
-```yaml
-group: notification
-cases:
-  - caseId: NOTI-SCOPES-001
-    desc: 拉取 scopes 聚合端点
-    method: GET
-    path: /v1/notification/scopes
-    auth: true
-    expectStatus: 200
-    expect:
-      - $.depts is array
-      - $.roles is array
-      - $.users is array
+```ts
+import { http } from "@/utils/http";
+
+export interface ScopeItem { id: number; name: string; }
+
+export function listDepts() {
+  return http.request<any>("get", "/v1/iam/dept/list");
+}
+export function listRoles() {
+  return http.request<any[]>("get", "/v1/iam/roles");
+}
+export function listUsers() {
+  return http.request<any>("get", "/v1/iam/users");
+}
 ```
 
-- [ ] **Step 2: 跑用例确认失败**
+- [ ] **Step 2: 写 5 分钟缓存**
+
+`frontend/src/utils/iam-scopes-cache.ts`：
+
+```ts
+import { listDepts, listRoles, listUsers, type ScopeItem } from "@/api/iam-scopes";
+
+interface CacheEntry<T> { at: number; data: T; }
+const TTL = 5 * 60 * 1000;
+
+const cache: Record<string, CacheEntry<any>> = {};
+
+function get<T>(key: string): T | null {
+  const e = cache[key];
+  if (!e) return null;
+  if (Date.now() - e.at > TTL) {
+    delete cache[key];
+    return null;
+  }
+  return e.data as T;
+}
+function set<T>(key: string, data: T) {
+  cache[key] = { at: Date.now(), data };
+}
+
+function normalizeDept(d: any): ScopeItem {
+  return { id: Number(d.id), name: d.name ?? d.dept_name ?? `dept-${d.id}` };
+}
+function normalizeUser(u: any): ScopeItem {
+  return { id: Number(u.id), name: u.nickname || u.username || `user-${u.id}` };
+}
+function normalizeRole(r: any): ScopeItem {
+  return { id: Number(r.id), name: r.name || r.code || `role-${r.id}` };
+}
+
+export interface ScopesResult {
+  depts: ScopeItem[];
+  roles: ScopeItem[];
+  users: ScopeItem[];
+}
+
+export async function loadScopes(): Promise<ScopesResult> {
+  const cached = get<ScopesResult>("scopes");
+  if (cached) return cached;
+
+  const [deptsRaw, rolesRaw, usersRaw] = await Promise.all([
+    listDepts().catch(() => []),
+    listRoles().catch(() => []),
+    listUsers().catch(() => ({ list: [] }))
+  ]);
+
+  const depts = (Array.isArray(deptsRaw) ? deptsRaw : deptsRaw?.list ?? []).map(normalizeDept);
+  const roles = (Array.isArray(rolesRaw) ? rolesRaw : []).map(normalizeRole);
+  const users = ((Array.isArray(usersRaw) ? usersRaw : usersRaw?.list ?? [])).map(normalizeUser);
+
+  const data: ScopesResult = { depts, roles, users };
+  set("scopes", data);
+  return data;
+}
+
+export function invalidateScopes() {
+  delete cache["scopes"];
+}
+```
+
+- [ ] **Step 3: 校验**
 
 ```powershell
-cd d:\projects\coder-micro-services\tests\e2e
-pnpm exec vitest run --config api/vitest.config.ts -t "NOTI-SCOPES"
+cd d:\projects\coder-micro-services\frontend
+pnpm exec vue-tsc --noEmit
 ```
 
-预期：FAIL with `404`。
+预期：无错。
 
-- [ ] **Step 3: 实现 scopes 端点**
-
-新增 `services/notification-service/src/scopes.rs`：
-
-```rust
-use crate::auth::Identity;
-use crate::error::AppResult;
-use axum::{extract::State, Json};
-use serde::Serialize;
-use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
-
-#[derive(Clone, Default)]
-pub struct ScopesCache {
-    inner: std::sync::Arc<RwLock<Option<(Instant, ScopesResponse)>>>,
-    iam_base: String,
-}
-
-#[derive(Clone, Serialize)]
-pub struct ScopesResponse {
-    pub depts: Vec<ScopeItem>,
-    pub roles: Vec<ScopeItem>,
-    pub users: Vec<ScopeItem>,
-}
-
-#[derive(Clone, Serialize)]
-pub struct ScopeItem {
-    pub id: u64,
-    pub name: String,
-}
-
-impl ScopesCache {
-    pub fn new(iam_base: impl Into<String>) -> Self {
-        Self { iam_base: iam_base.into(), ..Default::default() }
-    }
-    pub async fn get(&self, token: &str) -> AppResult<ScopesResponse> {
-        if let Some((t, ref v)) = *self.inner.read().await {
-            if t.elapsed() < Duration::from_secs(300) {
-                return Ok(v.clone());
-            }
-        }
-        let mut w = self.inner.write().await;
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .unwrap();
-        let depts: Vec<ScopeItem> = client
-            .get(format!("{}/v1/iam/dept/list", self.iam_base))
-            .bearer_auth(token)
-            .send().await?.json().await.unwrap_or_default();
-        let roles: Vec<ScopeItem> = client
-            .get(format!("{}/v1/iam/roles", self.iam_base))
-            .bearer_auth(token)
-            .send().await?.json().await.unwrap_or_default();
-        let users: Vec<ScopeItem> = client
-            .get(format!("{}/v1/iam/users", self.iam_base))
-            .bearer_auth(token)
-            .send().await?.json().await.unwrap_or_default();
-        let resp = ScopesResponse { depts, roles, users };
-        *w = Some((Instant::now(), resp.clone()));
-        Ok(resp)
-    }
-}
-
-pub async fn list_scopes(
-    State(cache): State<ScopesCache>,
-    me: Identity,
-) -> AppResult<Json<ScopesResponse>> {
-    if !me.is_admin() {
-        return Err(crate::error::AppError::Forbidden);
-    }
-    let token = std::env::var("IAM_SERVICE_TOKEN").unwrap_or_default();
-    Ok(Json(cache.get(&token).await?))
-}
-```
-
-修改 `services/notification-service/src/lib.rs` 添加 `pub mod scopes;`。
-
-修改 `services/notification-service/src/rest.rs`：
-
-```rust
-use crate::scopes::{list_scopes, ScopesCache};
-
-pub fn router(state: RestState) -> Router {
-    Router::new()
-        .route("/announcements", post(create).get(list_mine))
-        .route("/announcements/{id}", get(detail))
-        .route("/announcements/{id}/publish", post(publish))
-        .route("/announcements/{id}/revoke", post(revoke))
-        .route("/announcements/{id}/read", post(read_one))
-        .route("/unread-count", get(unread_count))
-        .route("/scopes", get(list_scopes))
-        .with_state(state)
-}
-```
-
-在 `lib.rs` 启动时初始化 `ScopesCache::new(env::var("IAM_BASE").unwrap_or_default())` 并传入 router state。
-
-- [ ] **Step 4: 跑用例确认通过**
-
-```powershell
-pnpm exec vitest run --config api/vitest.config.ts -t "NOTI-SCOPES"
-```
-
-预期：PASS。
-
-- [ ] **Step 5: 提交**
+- [ ] **Step 4: 提交**
 
 ```bash
-git add services/notification-service tests/e2e/api/cases/notification.yaml
-git commit -m "feat(notification): add /scopes aggregation endpoint"
+git add frontend/src/api/iam-scopes.ts frontend/src/utils/iam-scopes-cache.ts
+git commit -m "feat(notification): add iam scopes fetch with 5min cache"
 ```
 
 ---
@@ -219,13 +177,6 @@ export interface Announcement {
   created_at: string;
 }
 
-export interface ScopeItem { id: number; name: string; }
-export interface ScopesResponse {
-  depts: ScopeItem[];
-  roles: ScopeItem[];
-  users: ScopeItem[];
-}
-
 export interface CreateAnnouncementDto {
   title: string;
   body: string;
@@ -236,9 +187,6 @@ export interface CreateAnnouncementDto {
   recipients: { scope_type: ScopeType; scope_id: number }[];
 }
 
-export function listScopes() {
-  return http.request<ScopesResponse>("get", "/v1/notification/scopes");
-}
 export function listAnnouncements() {
   return http.request<Announcement[]>("get", "/v1/notification/announcements");
 }
@@ -832,19 +780,18 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { addDialog } from "@/components/ReDialog";
 import {
   listAnnouncements,
-  listScopes,
   createAnnouncement,
   publishAnnouncement,
-  revokeAnnouncement,
-  type ScopesResponse
+  revokeAnnouncement
 } from "@/api/notification";
+import { loadScopes, type ScopesResult } from "@/utils/iam-scopes-cache";
 import editForm from "../form.vue";
 import type { FormItemProps } from "../utils/types";
 
 export function useAdmin() {
   const loading = ref(true);
   const dataList = ref<any[]>([]);
-  const scopes = ref<ScopesResponse>({ depts: [], roles: [], users: [] });
+  const scopes = ref<ScopesResult>({ depts: [], roles: [], users: [] });
   const pagination = reactive({ total: 0, pageSize: 10, currentPage: 1, background: true });
   const form = reactive({ keyword: "", status: "" });
 
@@ -879,8 +826,10 @@ export function useAdmin() {
     }
   }
 
-  async function loadScopes() {
-    try { scopes.value = await listScopes(); } catch {}
+  async function refreshScopes() {
+    try { scopes.value = await loadScopes(); } catch (e: any) {
+      ElMessage.warning("接收人数据加载失败");
+    }
   }
 
   function openDialog(row?: any) {
@@ -948,7 +897,7 @@ export function useAdmin() {
     onSearch();
   }
 
-  onMounted(() => { onSearch(); loadScopes(); });
+  onMounted(() => { onSearch(); refreshScopes(); });
 
   return {
     form, loading, columns, dataList, pagination, scopes,
@@ -1240,17 +1189,6 @@ git commit -m "feat(notification): add detail page"
 ```yaml
 group: notification
 cases:
-  - caseId: NOTI-SCOPES-001
-    desc: 拉取 scopes 聚合端点
-    method: GET
-    path: /v1/notification/scopes
-    auth: true
-    expectStatus: 200
-    expect:
-      - $.depts is array
-      - $.roles is array
-      - $.users is array
-
   - caseId: NOTI-CREATE-001
     desc: admin 创建公告
     method: POST

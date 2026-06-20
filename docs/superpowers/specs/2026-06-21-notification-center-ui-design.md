@@ -93,23 +93,16 @@ export function disconnect() { /* close + clear retry */ }
 
 ### 3.3 收件人三栏（管理端）
 
-新增后端端点（`notification-service/src/rest.rs`）：
+**约束：不得修改 notification-service 后端源码**（项目硬规则）。
 
-```rust
-.route("/scopes", get(list_scopes))
-```
+收件人数据来源由前端直接调 iam-service 网关端点：
 
-返回：
+- `GET /v1/iam/dept/list` → `ScopeItem[]`
+- `GET /v1/iam/roles` → `ScopeItem[]`
+- `GET /v1/iam/users` → `ScopeItem[]`
 
-```json
-{
-  "depts":  [{ "id": 1, "name": "研发部" }, ...],
-  "roles":  [{ "id": 1, "name": "admin" }, ...],
-  "users":  [{ "id": 7, "username": "alice", "nickname": "..." }, ...]
-}
-```
+封装：`utils/iam-scopes.ts` 提供 `loadScopes(): Promise<ScopesResponse>`，内部并发 `Promise.all` 拉三个端点，结果本地缓存 5 分钟（in-memory + sessionStorage）。失败时降级为空数组（提示「数据加载失败」）。
 
-- **后端**负责聚合三个来源：调 `iam-service` 的 `/v1/iam/dept/list`、`/v1/iam/roles`、`/v1/iam/users`（已在 gateway 暴露），由 notification-service 缓存 5 分钟
 - 前端三栏 el-tabs，每栏 search + el-select multiple
 - 提交时拼装 `recipients: [{scope_type, scope_id}, ...]`
 
@@ -184,7 +177,7 @@ WS 连接在浏览器侧发起 WebSocket 升级时，浏览器会携带 `Authori
 - `NOTI-002` 缺少 title 报错
 - `NOTI-003` 发布 / 撤销
 - `NOTI-004` 普通用户 list / unread-count / read
-- `NOTI-005` scopes 端点返回 dept/role/user
+- 不写 scopes 端点测试（前端直接调 iam，无新增后端）
 
 ### 7.2 UI e2e
 
@@ -221,13 +214,14 @@ WS 连接在浏览器侧发起 WebSocket 升级时，浏览器会携带 `Authori
 | `frontend/src/api/notification.ts` | 新增 |
 | `frontend/src/store/modules/notification.ts` | 新增 |
 | `frontend/src/utils/notification-socket.ts` | 新增 |
+| `frontend/src/utils/iam-scopes.ts` | 新增（前端拉取 dept/role/user） |
 | `frontend/src/router/modules/notification.ts` | 新增 |
 | `frontend/src/views/notification/{inbox,admin,detail}/index.vue` | 新增 |
 | `frontend/src/views/notification/{admin,inbox}/utils/{hook,rule,types}.ts` | 新增 |
 | `frontend/src/layout/components/NotificationBell.vue` | 新增（头部徽标） |
 | `frontend/src/layout/index.vue` | 引入 Bell |
-| `services/notification-service/src/rest.rs` | 增加 `/scopes` 端点 |
-| `infrastructure/config/api-gateway/routes/notification.router.toml` | 现有 `/v1/notification/{rest}` 已覆盖 `/scopes`，无需改 |
+| `services/notification-service/src/rest.rs` | 不动 |
+| `infrastructure/config/api-gateway/routes/notification.router.toml` | 不动（iam 路由已存在） |
 | `tests/e2e/api/cases/notification.yaml` | 新增 |
 | `tests/e2e/ui/cases/notification-flow.yaml` | 新增 |
 | `tests/e2e/ui/pages/notification.page.ts` | 新增 |
