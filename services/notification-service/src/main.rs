@@ -93,27 +93,23 @@ async fn main() -> anyhow::Result<()> {
         scheduler::run(db_for_sched, redis_for_sched, hub_for_sched, tick).await;
     });
 
-    let host = cfg
-        .server
-        .http_addr
-        .split(':')
-        .next()
-        .unwrap_or("0.0.0.0")
-        .to_string();
     let port: u16 = cfg
         .server
         .http_addr
         .rsplit(':')
         .next()
         .and_then(|p| p.parse().ok())
-        .unwrap_or(8083);
+        .unwrap_or(8080);
 
     let mut consul_registrar = ConsulRegistrar::new(
         &cfg.consul.addr,
         &cfg.consul.service_name,
         &cfg.consul.service_id_file,
     );
-    match consul_registrar.register(&host, port).await {
+    match consul_registrar
+        .register_discovered(port, &cfg.consul.service_name)
+        .await
+    {
         Ok(_) => tracing::info!("notification-service registered with consul"),
         Err(e) => tracing::warn!("failed to register with consul: {}", e),
     }

@@ -125,7 +125,53 @@ impl UserService {
         .execute(&self.state.db)
         .await?;
 
+        self.ensure_admin_default_permissions(&role_id).await?;
+
         Ok(role_id)
+    }
+
+    async fn ensure_admin_default_permissions(&self, role_id: &str) -> Result<(), IamError> {
+        let defaults: &[(&str, &str, &str, &str, &str)] = &[
+            ("notification.admin", "通知公告管理", "announcement", "admin", "notification"),
+        ];
+
+        for (code, name, resource, action, category) in defaults {
+            let existing: Option<(String,)> = sqlx::query_as(
+                "SELECT id FROM permissions WHERE code = ? AND deleted_at IS NULL"
+            )
+            .bind(code)
+            .fetch_optional(&self.state.db)
+            .await?;
+
+            let perm_id = if let Some((id,)) = existing {
+                id
+            } else {
+                let id = nanoid!();
+                sqlx::query(
+                    "INSERT INTO permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'enabled', NOW(), NOW())"
+                )
+                .bind(&id)
+                .bind(code)
+                .bind(name)
+                .bind(name)
+                .bind(category)
+                .bind(resource)
+                .bind(action)
+                .execute(&self.state.db)
+                .await?;
+                id
+            };
+
+            sqlx::query(
+                "INSERT IGNORE INTO role_permissions (role_id, permission_id, created_at) VALUES (?, ?, NOW())"
+            )
+            .bind(role_id)
+            .bind(&perm_id)
+            .execute(&self.state.db)
+            .await?;
+        }
+
+        Ok(())
     }
 
     pub async fn get(&self, user_id: &str) -> Result<UserResponse, IamError> {
