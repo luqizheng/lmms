@@ -4,8 +4,8 @@ use axum::http::request::Parts;
 
 #[derive(Debug, Clone)]
 pub struct Identity {
-    pub user_id: u64,
-    pub dept_id: Option<u64>,
+    pub user_id: String,
+    pub dept_id: Option<String>,
     pub roles: Vec<String>,
 }
 
@@ -15,13 +15,13 @@ impl Identity {
             .headers
             .get("x-user-id")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.parse::<u64>().ok())
+            .map(String::from)
             .ok_or(AppError::Forbidden)?;
         let dept_id = parts
             .headers
             .get("x-user-dept")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.parse::<u64>().ok());
+            .map(String::from);
         let roles = parts
             .headers
             .get("x-user-roles")
@@ -41,7 +41,7 @@ impl Identity {
     }
 
     pub fn is_admin(&self) -> bool {
-        self.roles.iter().any(|r| r == "notification.admin")
+        self.roles.iter().any(|r| r == "notification.admin" || r == "admin")
     }
 }
 

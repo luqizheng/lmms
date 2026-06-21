@@ -33,7 +33,7 @@ pub struct Announcement {
     pub pinned: i8,
     pub popover: i8,
     pub status: Status,
-    pub created_by: u64,
+    pub created_by: String,
     pub created_at: DateTime<Utc>,
 }
 

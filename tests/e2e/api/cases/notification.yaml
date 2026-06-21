@@ -6,11 +6,14 @@ cases:
     path: /v1/notification/announcements
     body:
       title: e2e ann ${rand}
-      content: e2e content
-      level: info
+      body: e2e content
+      publish_at: 2026-06-25T10:00:00Z
+      expire_at: 2026-12-31T23:59:59Z
       pinned: false
+      popover: false
       recipients:
-        - type: all
+        - scope_type: role
+          scope_id: 1
     expectStatus: [200, 201, 204, 502, 503, 404]
 
   - caseId: NOTIF-002
@@ -51,3 +54,33 @@ cases:
     path: /v1/notification/announcements/${NOTIF-001.id}/revoke
     body: {}
     expectStatus: [200, 201, 204, 502, 503, 404]
+
+  - caseId: NOTIF-100
+    desc: 公告列表-带 admin token 必须 200（防 503 回归）
+    method: GET
+    path: /v1/notification/announcements
+    expectStatus: 200
+    expect:
+      - $. is array
+
+  - caseId: NOTIF-101
+    desc: 公告列表-未带 token 必须 401
+    method: GET
+    path: /v1/notification/announcements
+    auth: false
+    expectStatus: 401
+
+  - caseId: NOTIF-102
+    desc: 未读数-带 admin token 必须 200（防 503 回归）
+    method: GET
+    path: /v1/notification/unread-count
+    expectStatus: 200
+    expect:
+      - $.count exists
+
+  - caseId: NOTIF-103
+    desc: 未读数-未带 token 必须 401
+    method: GET
+    path: /v1/notification/unread-count
+    auth: false
+    expectStatus: 401

@@ -18,11 +18,11 @@ pub async fn upgrade(
     let user_id = headers
         .get("x-user-id")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.parse::<u64>().ok());
+        .map(String::from);
     ws.on_upgrade(move |socket| handle(socket, user_id, s.hub))
 }
 
-async fn handle(mut socket: WebSocket, user_id: Option<u64>, hub: WsHub) {
+async fn handle(mut socket: WebSocket, user_id: Option<String>, hub: WsHub) {
     let user_id = match user_id {
         Some(v) => v,
         None => {

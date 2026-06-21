@@ -14,6 +14,7 @@ pub struct JwtClaims {
     pub scope: String,
     pub client_id: String,
     pub permissions: Vec<String>,
+    pub roles: Vec<String>,
     /// 透传 user-service 提供的业务 claims。键名由 user-service 决定。
     pub custom: HashMap<String, serde_json::Value>,
 }
@@ -54,6 +55,17 @@ fn extract_claims(jwt_claims: &JWTClaims<HashMap<String, serde_json::Value>>) ->
         })
         .unwrap_or_default();
 
+    let roles: Vec<String> = jwt_claims
+        .custom
+        .get("roles")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
     JwtClaims {
         sub,
         jti,
@@ -63,6 +75,7 @@ fn extract_claims(jwt_claims: &JWTClaims<HashMap<String, serde_json::Value>>) ->
         scope,
         client_id,
         permissions,
+        roles,
         custom: jwt_claims.custom.clone(),
     }
 }

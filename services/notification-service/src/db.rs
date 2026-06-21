@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/2026_06_10_init.sql");
+const USER_ID_STRING_SQL: &str = include_str!("../migrations/2026_06_21_user_id_string.sql");
 const SCHEMA_MARKER_TABLE: &str = "announcements";
 
 #[derive(Clone)]
@@ -66,13 +67,31 @@ impl Db {
             }
         }
         info!("initial migration applied");
+        
+        // Apply user_id string migration
+        for stmt in USER_ID_STRING_SQL.split(';') {
+            let cleaned: String = stmt
+                .lines()
+                .filter(|l| !l.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let s = cleaned.trim();
+            if s.is_empty() {
+                continue;
+            }
+            if let Err(e) = sqlx::query(s).execute(&self.pool).await {
+                warn!(statement = %first_line(s), error = %e, "user_id string migration statement failed (may already be applied)");
+            }
+        }
+        info!("user_id string migration applied");
+        
         Ok(())
     }
 
     pub async fn create_announcement(
         &self,
         a: &CreateAnnouncement,
-        created_by: u64,
+        created_by: String,
     ) -> AppResult<u64> {
         let mut tx = self.pool.begin().await?;
         let status = if a.publish_at <= Utc::now() {
@@ -151,7 +170,7 @@ impl Db {
         Ok(rows.into_iter().map(|(id,)| id).collect())
     }
 
-    pub async fn list_for_user(&self, user_id: u64) -> AppResult<Vec<Announcement>> {
+    pub async fn list_for_user(&self, user_id: String) -> AppResult<Vec<Announcement>> {
         Ok(sqlx::query_as::<_, Announcement>(
             "SELECT a.id, a.title, a.body, a.publish_at, a.expire_at, a.pinned, a.popover, \
                     a.status, a.created_by, a.created_at \
@@ -166,7 +185,7 @@ impl Db {
         .await?)
     }
 
-    pub async fn insert_deliveries(&self, ann_id: u64, users: &HashSet<u64>) -> AppResult<()> {
+    pub async fn insert_deliveries(&self, ann_id: u64, users: &HashSet<String>) -> AppResult<()> {
         if users.is_empty() {
             return Ok(());
         }
@@ -174,13 +193,13 @@ impl Db {
         for uid in users {
             sqlx::query(
                 "INSERT IGNORE INTO announcement_deliveries (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())"
-            ).bind(ann_id).bind(*uid).execute(&mut *tx).await?;
+            ).bind(ann_id).bind(uid).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         Ok(())
     }
 
-    pub async fn mark_read(&self, ann_id: u64, user_id: u64) -> AppResult<bool> {
+    pub async fn mark_read(&self, ann_id: u64, user_id: String) -> AppResult<bool> {
         let res = sqlx::query(
             "INSERT IGNORE INTO announcement_reads (announcement_id, user_id, read_at) VALUES (?,?,NOW())"
         ).bind(ann_id).bind(user_id).execute(&self.pool).await?;

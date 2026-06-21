@@ -84,20 +84,24 @@ export function useAdmin() {
       popover: row?.popover ?? false,
       recipients: []
     };
+    let formRef: any = null;
     addDialog({
       title: isEdit ? "修改公告" : "新建公告",
       width: "640px",
       draggable: true,
       closeOnClickModal: false,
       props: { formInline, isEdit, scopes: scopes.value },
-      contentRenderer: () =>
+      contentRenderer: ({ options }) =>
         h(editForm, {
-          formInline: null,
+          ref: (el: any) => { formRef = el; },
+          formInline: options.props.formInline,
           isEdit,
-          scopes: scopes.value
+          scopes: options.props.scopes
         }),
-      beforeSure: async (done, { options }) => {
-        const cur = options.props.formInline as FormItemProps;
+      beforeSure: async done => {
+        if (!formRef) return;
+        const cur = formRef.getRef()?.newFormInline;
+        if (!cur) return;
         try {
           if (!isEdit) {
             await createAnnouncement({
@@ -107,7 +111,7 @@ export function useAdmin() {
               expire_at: cur.expire_at,
               pinned: cur.pinned,
               popover: cur.popover,
-              recipients: cur.recipients.map(r => ({
+              recipients: cur.recipients.map((r: any) => ({
                 scope_type: r.scope_type,
                 scope_id: r.scope_id
               }))
