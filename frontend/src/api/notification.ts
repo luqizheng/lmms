@@ -1,7 +1,11 @@
 import { http } from "@/utils/http";
 
 export type ScopeType = "user" | "role" | "dept";
-export type AnnouncementStatus = "draft" | "scheduled" | "published" | "revoked";
+export type AnnouncementStatus =
+  | "draft"
+  | "scheduled"
+  | "published"
+  | "revoked";
 
 export interface Announcement {
   id: number;

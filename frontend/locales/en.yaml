@@ -81,6 +81,10 @@ menus:
   systemRole: Role Manage
   systemTokenClient: Token Client
   systemPermission: Permission Manage
+  notification: Notification
+  notificationInbox: Inbox
+  notificationAdmin: Announcement Manage
+  notificationDetail: Announcement Detail
   pureSystemMenu: Menu Manage
   pureDept: Dept Manage
   pureSysMonitor: System Monitor

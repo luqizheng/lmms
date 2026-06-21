@@ -108,11 +108,9 @@ export interface ResetSecretResult {
 }
 
 export function listOAuthClients(params?: OAuthClientListQuery) {
-  return http.request<OAuthClientListResult>(
-    "get",
-    "/v1/admin/oauth-clients",
-    { params }
-  );
+  return http.request<OAuthClientListResult>("get", "/v1/admin/oauth-clients", {
+    params
+  });
 }
 
 export function createOAuthClient(data: CreateOAuthClientRequest) {

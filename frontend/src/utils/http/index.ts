@@ -52,10 +52,15 @@ class PureHttp {
 
   /** 重连原始请求 */
   private static retryOriginalRequest(config: PureHttpRequestConfig) {
-    return new Promise(resolve => {
-      PureHttp.requests.push((token: string) => {
-        config.headers["Authorization"] = formatToken(token);
-        resolve(config);
+    return new Promise((resolve, reject) => {
+      PureHttp.requests.push({
+        success: (token: string) => {
+          config.headers["Authorization"] = formatToken(token);
+          resolve(config);
+        },
+        fail: () => {
+          reject(new Error("refresh token failed"));
+        }
       });
     });
   }
@@ -91,10 +96,11 @@ class PureHttp {
                       .then(res => {
                         const token = res.access_token;
                         config.headers["Authorization"] = formatToken(token);
-                        PureHttp.requests.forEach(cb => cb(token));
+                        PureHttp.requests.forEach(cb => cb.success(token));
                         PureHttp.requests = [];
                       })
                       .catch(_err => {
+                        PureHttp.requests.forEach(cb => cb.fail());
                         PureHttp.requests = [];
                         useUserStoreHook().logOut();
                         message(transformI18n($t("login.pureLoginExpired")), {

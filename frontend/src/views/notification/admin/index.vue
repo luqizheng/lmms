@@ -9,8 +9,16 @@ import VideoPlay from "~icons/ep/video-play";
 import Refresh from "~icons/ep/refresh";
 
 defineOptions({ name: "NotificationAdmin" });
-const { form, loading, columns, dataList, onSearch, openDialog, handlePublish, handleRevoke } =
-  useAdmin();
+const {
+  form,
+  loading,
+  columns,
+  dataList,
+  onSearch,
+  openDialog,
+  handlePublish,
+  handleRevoke
+} = useAdmin();
 const formRef = ref();
 
 function reset() {
@@ -56,7 +64,9 @@ function reset() {
         >
           搜索
         </el-button>
-        <el-button :icon="useRenderIcon(Refresh)" @click="reset">重置</el-button>
+        <el-button :icon="useRenderIcon(Refresh)" @click="reset"
+          >重置</el-button
+        >
       </el-form-item>
     </el-form>
 

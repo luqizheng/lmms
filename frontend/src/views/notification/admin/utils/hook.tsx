@@ -8,14 +8,12 @@ import {
   publishAnnouncement,
   revokeAnnouncement
 } from "@/api/notification";
-import { loadScopes, type ScopesResult } from "@/utils/iam-scopes-cache";
 import editForm from "../form.vue";
 import type { FormItemProps } from "../utils/types";
 
 export function useAdmin() {
   const loading = ref(true);
   const dataList = ref<any[]>([]);
-  const scopes = ref<ScopesResult>({ depts: [], roles: [], users: [] });
   const pagination = reactive({
     total: 0,
     pageSize: 10,
@@ -63,41 +61,37 @@ export function useAdmin() {
     }
   }
 
-  async function refreshScopes() {
-    try {
-      scopes.value = await loadScopes();
-    } catch (e: any) {
-      ElMessage.warning("接收人数据加载失败");
-    }
-  }
-
-  function openDialog(row?: any) {
+  async function openDialog(row?: any) {
     const isEdit = !!row;
     const formInline: FormItemProps = {
       id: row?.id,
       title: row?.title ?? "",
       body: row?.body ?? "",
-      publish_at:
-        row?.publish_at ?? dayjs().format("YYYY-MM-DDTHH:mm:ss[Z]"),
+      publish_at: row?.publish_at ?? dayjs().format("YYYY-MM-DDTHH:mm:ss[Z]"),
       expire_at: row?.expire_at ?? null,
       pinned: row?.pinned ?? false,
       popover: row?.popover ?? false,
       recipients: []
     };
+    let formRef: any = null;
     addDialog({
       title: isEdit ? "修改公告" : "新建公告",
       width: "640px",
       draggable: true,
       closeOnClickModal: false,
-      props: { formInline, isEdit, scopes: scopes.value },
-      contentRenderer: () =>
+      props: { formInline, isEdit },
+      contentRenderer: ({ options }) =>
         h(editForm, {
-          formInline: null,
-          isEdit,
-          scopes: scopes.value
+          ref: (el: any) => {
+            formRef = el;
+          },
+          formInline: options.props.formInline,
+          isEdit
         }),
-      beforeSure: async (done, { options }) => {
-        const cur = options.props.formInline as FormItemProps;
+      beforeSure: async done => {
+        if (!formRef) return;
+        const cur = formRef.getRef()?.newFormInline;
+        if (!cur) return;
         try {
           if (!isEdit) {
             await createAnnouncement({
@@ -107,7 +101,7 @@ export function useAdmin() {
               expire_at: cur.expire_at,
               pinned: cur.pinned,
               popover: cur.popover,
-              recipients: cur.recipients.map(r => ({
+              recipients: cur.recipients.map((r: any) => ({
                 scope_type: r.scope_type,
                 scope_id: r.scope_id
               }))
@@ -151,7 +145,6 @@ export function useAdmin() {
 
   onMounted(() => {
     onSearch();
-    refreshScopes();
   });
 
   return {
@@ -160,7 +153,6 @@ export function useAdmin() {
     columns,
     dataList,
     pagination,
-    scopes,
     onSearch,
     openDialog,
     handlePublish,

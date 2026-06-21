@@ -34,13 +34,13 @@ pub async fn publish_one(
     ann_id: u64,
 ) -> anyhow::Result<()> {
     let _scopes = db.list_recipient_scopes(ann_id).await?;
-    let users: HashSet<u64> = HashSet::new();
+    let users: HashSet<String> = HashSet::new();
     db.set_status(ann_id, Status::Published).await.ok();
     db.insert_deliveries(ann_id, &users).await.ok();
     for u in &users {
-        redis.incr_unread(*u, 1).await.ok();
+        redis.incr_unread(u.clone(), 1).await.ok();
         if let Some(a) = db.get(ann_id).await? {
-            hub.publish(*u, WsOut::New(serde_json::json!({
+            hub.publish(u.clone(), WsOut::New(serde_json::json!({
                 "id": a.id, "title": a.title, "pinned": a.pinned != 0, "popover": a.popover != 0,
             }))).await;
         }

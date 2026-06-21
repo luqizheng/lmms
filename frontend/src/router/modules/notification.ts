@@ -30,7 +30,7 @@ export default {
       meta: {
         title: $t("menus.notificationAdmin"),
         icon: "ep/notification",
-        roles: ["notification.admin"],
+        auths: ["notification.admin"],
         keepAlive: true
       }
     },

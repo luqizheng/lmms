@@ -95,12 +95,8 @@ pub fn inject_user_headers(headers: &mut HeaderMap, claims: &crate::jwt::JwtClai
             HeaderValue::from_static(if b { "true" } else { "false" }),
         );
     }
-    if let Some(arr) = claims.custom.get("roles").and_then(|v| v.as_array()) {
-        let joined: Vec<String> = arr
-            .iter()
-            .filter_map(|x| x.as_str().map(String::from))
-            .collect();
-        if let Ok(hv) = HeaderValue::from_str(&joined.join(",")) {
+    if !claims.roles.is_empty() {
+        if let Ok(hv) = HeaderValue::from_str(&claims.roles.join(",")) {
             headers.insert(HeaderName::from_static("x-user-roles"), hv);
         }
     }

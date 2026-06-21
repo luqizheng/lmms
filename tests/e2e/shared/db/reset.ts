@@ -21,6 +21,13 @@ const BUSINESS_TABLES = [
   'announcements',
 ];
 
+// 权限相关表：整轮测试前清空
+const PERMISSION_TABLES = [
+  'role_permissions',
+  'permissions',
+  'roles',
+];
+
 async function withConn<T>(
   fn: (c: Awaited<ReturnType<typeof createConnection>>) => Promise<T>,
 ): Promise<T> {
@@ -36,7 +43,7 @@ async function withConn<T>(
 export async function resetBase(): Promise<void> {
   await withConn(async (c) => {
     await c.query('SET FOREIGN_KEY_CHECKS = 0');
-    for (const t of [...BUSINESS_TABLES, 'users']) {
+    for (const t of [...BUSINESS_TABLES, ...PERMISSION_TABLES, 'users']) {
       await c.query(`DELETE FROM ${t}`).catch(() => undefined);
     }
     const sql = readFileSync(join(__dirname, 'seed', 'base.sql'), 'utf8');

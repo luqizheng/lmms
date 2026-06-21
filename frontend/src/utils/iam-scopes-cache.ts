@@ -61,13 +61,13 @@ export async function loadScopes(): Promise<ScopesResult> {
     listUsers().catch(() => ({ list: [] }))
   ]);
 
-  const depts = (Array.isArray(deptsRaw) ? deptsRaw : (deptsRaw as any)?.list ?? []).map(
-    normalizeDept
-  );
+  const depts = (
+    Array.isArray(deptsRaw) ? deptsRaw : ((deptsRaw as any)?.list ?? [])
+  ).map(normalizeDept);
   const roles = (Array.isArray(rolesRaw) ? rolesRaw : []).map(normalizeRole);
-  const users = (Array.isArray(usersRaw) ? usersRaw : (usersRaw as any)?.list ?? []).map(
-    normalizeUser
-  );
+  const users = (
+    Array.isArray(usersRaw) ? usersRaw : ((usersRaw as any)?.list ?? [])
+  ).map(normalizeUser);
 
   const data: ScopesResult = { depts, roles, users };
   set("scopes", data);

@@ -92,7 +92,7 @@ async fn read_one(
     me: Identity,
     Path(id): Path<u64>,
 ) -> AppResult<Json<serde_json::Value>> {
-    let affected = s.db.mark_read(id, me.user_id).await?;
+    let affected = s.db.mark_read(id, me.user_id.clone()).await?;
     if affected {
         s.redis.decr_unread_floor0(me.user_id).await.ok();
     }

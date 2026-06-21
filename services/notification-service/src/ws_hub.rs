@@ -23,7 +23,7 @@ pub struct WsHub {
 
 #[derive(Default)]
 struct HubInner {
-    channels: HashMap<u64, broadcast::Sender<String>>,
+    channels: HashMap<String, broadcast::Sender<String>>,
 }
 
 impl WsHub {
@@ -35,7 +35,7 @@ impl WsHub {
         }
     }
 
-    async fn channel(&self, user_id: u64) -> broadcast::Sender<String> {
+    async fn channel(&self, user_id: String) -> broadcast::Sender<String> {
         if let Some(t) = self.inner.read().await.channels.get(&user_id).cloned() {
             return t;
         }
@@ -49,11 +49,11 @@ impl WsHub {
             .clone()
     }
 
-    pub async fn subscribe(&self, user_id: u64) -> broadcast::Receiver<String> {
+    pub async fn subscribe(&self, user_id: String) -> broadcast::Receiver<String> {
         self.channel(user_id).await.subscribe()
     }
 
-    pub async fn publish(&self, user_id: u64, out: WsOut) {
+    pub async fn publish(&self, user_id: String, out: WsOut) {
         let payload = serde_json::to_string(&out).unwrap_or_default();
         let tx = self.channel(user_id).await;
         let _ = tx.send(payload);

@@ -106,13 +106,8 @@ export const useUserStore = defineStore("pure-user", {
           });
       });
     },
-    /** 登出（先调后端使 refresh token 失效，再清本地） */
+    /** 登出（先清本地再调后端，避免被 http 拦截器阻塞） */
     async logOut() {
-      try {
-        await logoutApi();
-      } catch {
-        // 忽略后端登出失败，仍清理本地状态
-      }
       this.username = "";
       this.roles = [];
       this.permissions = [];
@@ -120,6 +115,8 @@ export const useUserStore = defineStore("pure-user", {
       useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
       resetRouter();
       router.push("/login");
+      // 后端 logout 失败不影响前端清理
+      logoutApi().catch(() => {});
     },
     /** 修改当前用户密码 */
     async changePassword(oldPassword: string, newPassword: string) {
