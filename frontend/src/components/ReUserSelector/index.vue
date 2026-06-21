@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from "vue";
 import { ElSelect, ElOption } from "element-plus";
-import { listIamUsers, type IamUser } from "@/api/iam";
+import { listIamUsersSimple, type IamUserSimple } from "@/api/iam";
 
 export interface UserValue {
   id: string;
@@ -14,7 +14,7 @@ const props = withDefaults(
     multiple?: boolean;
     placeholder?: string;
     disabled?: boolean;
-    remoteMethod?: (keyword: string) => Promise<IamUser[]>;
+    remoteMethod?: (keyword: string) => Promise<IamUserSimple[]>;
   }>(),
   {
     multiple: false,
@@ -30,7 +30,7 @@ const emit = defineEmits<{
 
 const searchKeyword = ref("");
 const loading = ref(false);
-const userList = ref<IamUser[]>([]);
+const userList = ref<IamUserSimple[]>([]);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const selectedId = computed({
@@ -57,7 +57,7 @@ async function fetchUsers(keyword: string) {
     if (props.remoteMethod) {
       userList.value = await props.remoteMethod(keyword);
     } else {
-      const response = await listIamUsers({
+      const response = await listIamUsersSimple({
         keyword,
         page: 1,
         size: 20
@@ -90,7 +90,7 @@ function handleChange(val: string | string[]) {
   const newValue = idArray.map(id => {
     const user = userList.value.find(u => u.id === id);
     if (user) {
-      return { id: user.id, name: user.nickname || user.username };
+      return { id: user.id, name: user.nickname };
     }
     if (Array.isArray(props.modelValue)) {
       const existing = props.modelValue.find(v => v.id === id);
@@ -135,11 +135,10 @@ onUnmounted(() => {
     <ElOption
       v-for="user in userList"
       :key="user.id"
-      :label="user.nickname || user.username"
+      :label="user.nickname"
       :value="user.id"
     >
-      <span class="option-name">{{ user.nickname || user.username }}</span>
-      <span class="option-extra">{{ user.email || user.phone }}</span>
+      <span class="option-name">{{ user.nickname }}</span>
     </ElOption>
     <template #empty>
       {{ searchKeyword ? "未找到匹配用户" : "请输入关键词搜索" }}

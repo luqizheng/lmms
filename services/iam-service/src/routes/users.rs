@@ -1,10 +1,11 @@
 use axum::{Router, routing::get, extract::{Json, Path, Query, State}};
-use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse}, service::UserService};
+use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleListResponse}, service::UserService};
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/users", get(list_users).post(create_user))
         .route("/iam/users/{user_id}", get(get_user).put(update_user).delete(delete_user))
+        .route("/iam/users/simple", get(list_users_simple))
         .with_state(state)
 }
 
@@ -125,4 +126,21 @@ pub async fn delete_user(
         }
     })?;
     Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    get,
+    path = "/iam/users/simple",
+    params(UserSimpleQuery),
+    responses((status = 200, body = UserSimpleListResponse)),
+    security(("bearer_auth" = [])),
+    tag = "users"
+)]
+pub async fn list_users_simple(
+    State(state): State<AppState>,
+    Query(query): Query<UserSimpleQuery>,
+) -> Result<Json<UserSimpleListResponse>, (axum::http::StatusCode, &'static str)> {
+    let service = UserService::new(state);
+    let response = service.list_simple(query).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    Ok(Json(response))
 }

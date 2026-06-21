@@ -69,3 +69,29 @@ pub struct UserListResponse {
 pub struct BatchImportUsersRequest {
     pub users: Vec<CreateUserRequest>,
 }
+
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct UserSimpleQuery {
+    pub keyword: Option<String>,
+    #[serde(default = "default_page")]
+    pub page: u32,
+    #[serde(default = "default_size")]
+    pub size: u32,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UserSimpleResponse {
+    pub id: String,
+    pub nickname: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UserSimpleListResponse {
+    pub items: Vec<UserSimpleResponse>,
+    pub total: u64,
+    pub page: u32,
+    pub size: u32,
+}
+
+fn default_page() -> u32 { 1 }
+fn default_size() -> u32 { 20 }

@@ -1,7 +1,7 @@
 use crate::{
     error::IamError,
     state::AppState,
-    dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse},
+    dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleResponse, UserSimpleListResponse},
 };
 use common_crypto::password::hash;
 use chrono::Utc;
@@ -281,6 +281,45 @@ impl UserService {
         }
 
         Ok(())
+    }
+
+    pub async fn list_simple(&self, query: UserSimpleQuery) -> Result<UserSimpleListResponse, IamError> {
+        let offset = ((query.page - 1) * query.size) as i64;
+        let limit = query.size as i64;
+
+        let users: Vec<UserSimpleResponse> = if let Some(keyword) = &query.keyword {
+            let pattern = format!("%{}%", keyword);
+            sqlx::query_as(
+                "SELECT id, nickname FROM users WHERE deleted_at IS NULL AND status = 'active' AND (username LIKE ? OR nickname LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            )
+            .bind(&pattern)
+            .bind(&pattern)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.state.db)
+            .await?
+        } else {
+            sqlx::query_as(
+                "SELECT id, nickname FROM users WHERE deleted_at IS NULL AND status = 'active' ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            )
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.state.db)
+            .await?
+        };
+
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND status = 'active'"
+        )
+        .fetch_one(&self.state.db)
+        .await?;
+
+        Ok(UserSimpleListResponse {
+            items: users,
+            total: total.0 as u64,
+            page: query.page,
+            size: query.size,
+        })
     }
 
     fn to_response(&self, user: &UserRow) -> UserResponse {

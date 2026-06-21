@@ -54,6 +54,28 @@ export function listIamUsers(params: IamUserQuery) {
   return http.request<IamUserListResponse>("get", "/v1/iam/users", { params });
 }
 
+export interface IamUserSimpleQuery {
+  keyword?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface IamUserSimple {
+  id: string;
+  nickname: string;
+}
+
+export interface IamUserSimpleListResponse {
+  items: IamUserSimple[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export function listIamUsersSimple(params: IamUserSimpleQuery) {
+  return http.request<IamUserSimpleListResponse>("get", "/v1/iam/users/simple", { params });
+}
+
 export function createIamUser(data: CreateIamUserRequest) {
   return http.request<IamUser>("post", "/v1/iam/users", { data });
 }
