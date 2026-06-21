@@ -67,8 +67,7 @@ export function useAdmin() {
       id: row?.id,
       title: row?.title ?? "",
       body: row?.body ?? "",
-      publish_at:
-        row?.publish_at ?? dayjs().format("YYYY-MM-DDTHH:mm:ss[Z]"),
+      publish_at: row?.publish_at ?? dayjs().format("YYYY-MM-DDTHH:mm:ss[Z]"),
       expire_at: row?.expire_at ?? null,
       pinned: row?.pinned ?? false,
       popover: row?.popover ?? false,
@@ -83,7 +82,9 @@ export function useAdmin() {
       props: { formInline, isEdit },
       contentRenderer: ({ options }) =>
         h(editForm, {
-          ref: (el: any) => { formRef = el; },
+          ref: (el: any) => {
+            formRef = el;
+          },
           formInline: options.props.formInline,
           isEdit
         }),

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from "vue";
 import { ElSelect, ElOption } from "element-plus";
-import { listIamRoles, type IamRole } from "@/api/iam";
+import { listRoles, type Role } from "@/api/role";
 
 export interface RoleValue {
   id: string;
@@ -14,7 +14,6 @@ const props = withDefaults(
     multiple?: boolean;
     placeholder?: string;
     disabled?: boolean;
-    remoteMethod?: (keyword: string) => Promise<IamRole[]>;
   }>(),
   {
     multiple: false,
@@ -30,7 +29,7 @@ const emit = defineEmits<{
 
 const searchKeyword = ref("");
 const loading = ref(false);
-const roleList = ref<IamRole[]>([]);
+const roleList = ref<Role[]>([]);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const selectedId = computed({
@@ -54,16 +53,12 @@ async function fetchRoles(keyword: string) {
 
   loading.value = true;
   try {
-    if (props.remoteMethod) {
-      roleList.value = await props.remoteMethod(keyword);
-    } else {
-      const response = await listIamRoles({
-        keyword,
-        page: 1,
-        size: 20
-      });
-      roleList.value = response.data?.items ?? [];
-    }
+    const response = await listRoles({
+      keyword,
+      page: 1,
+      size: 20
+    });
+    roleList.value = response?.items ?? [];
   } catch {
     roleList.value = [];
   } finally {
@@ -88,9 +83,9 @@ function handleChange(val: string | string[]) {
 
   const idArray = Array.isArray(val) ? val : [val];
   const newValue = idArray.map(id => {
-    const role = roleList.value.find(r => r.id === id);
+    const role = roleList.value.find(r => r.id === Number(id));
     if (role) {
-      return { id: role.id, name: role.name };
+      return { id: String(role.id), name: role.name };
     }
     if (Array.isArray(props.modelValue)) {
       const existing = props.modelValue.find(v => v.id === id);
@@ -113,13 +108,6 @@ function handleClear() {
   emit("change", null);
 }
 
-watch(
-  () => props.modelValue,
-  () => {
-  roleList.value = [];
-  searchKeyword.value = "";
-});
-
 onUnmounted(() => {
   if (debounceTimer) clearTimeout(debounceTimer);
 });
@@ -136,14 +124,14 @@ onUnmounted(() => {
     :remote="true"
     :remote-method="handleRemoteSearch"
     :clearable="!disabled"
-    @clear="handleClear"
     class="re-role-selector"
+    @clear="handleClear"
   >
     <ElOption
       v-for="role in roleList"
       :key="role.id"
       :label="role.name"
-      :value="role.id"
+      :value="String(role.id)"
     >
       <span class="option-name">{{ role.name }}</span>
       <span class="option-code">{{ role.code }}</span>
@@ -167,8 +155,8 @@ onUnmounted(() => {
 }
 
 .option-code {
+  margin-left: 8px;
   font-size: 12px;
   color: #909399;
-  margin-left: 8px;
 }
 </style>

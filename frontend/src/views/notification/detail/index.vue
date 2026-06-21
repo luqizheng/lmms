@@ -31,7 +31,9 @@ onMounted(async () => {
   <div class="main p-6">
     <el-page-header @back="router.back()">
       <template #content>
-        <span class="text-lg font-medium">{{ data?.title ?? "加载中..." }}</span>
+        <span class="text-lg font-medium">{{
+          data?.title ?? "加载中..."
+        }}</span>
       </template>
     </el-page-header>
     <div v-if="data" class="mt-6 bg-bg_color p-6 rounded">

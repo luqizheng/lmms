@@ -22,30 +22,30 @@ export function listRoles(params: {
   size?: number;
   keyword?: string;
 }) {
-  return http.request<PageResult<Role>>("get", "/roles", { params });
+  return http.request<PageResult<Role>>("get", "/v1/iam/roles", { params });
 }
 
 export function createRole(data: Pick<Role, "name" | "code" | "description">) {
-  return http.request<Role>("post", "/roles", { data });
+  return http.request<Role>("post", "/v1/iam/roles", { data });
 }
 
 export function getRole(id: number) {
-  return http.request<Role>("get", `/roles/${id}`);
+  return http.request<Role>("get", `/v1/iam/roles/${id}`);
 }
 
 export function updateRole(
   id: number,
   data: Pick<Role, "name" | "code" | "description" | "status">
 ) {
-  return http.request<Role>("put", `/roles/${id}`, { data });
+  return http.request<Role>("put", `/v1/iam/roles/${id}`, { data });
 }
 
 export function deleteRole(id: number) {
-  return http.request<void>("delete", `/roles/${id}`);
+  return http.request<void>("delete", `/v1/iam/roles/${id}`);
 }
 
 export function assignRolePermissions(id: number, permissionIds: number[]) {
-  return http.request<void>("post", `/roles/${id}/permissions`, {
+  return http.request<void>("post", `/v1/iam/roles/${id}/permissions`, {
     data: { permission_ids: permissionIds }
   });
 }

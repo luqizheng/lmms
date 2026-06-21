@@ -39,9 +39,7 @@ export function useInbox() {
     try {
       const list = await listAnnouncements();
       dataList.value = (list || [])
-        .filter(
-          (a: any) => !form.keyword || a.title.includes(form.keyword)
-        )
+        .filter((a: any) => !form.keyword || a.title.includes(form.keyword))
         .map((a: any) => ({
           id: a.id,
           title: a.title,

@@ -43,7 +43,10 @@ const selectedIds = computed(() => {
 });
 
 const treeData = computed(() => {
-  function convertTree(items: IamOrgUnit[], parentNames: string[] = []): IamOrgUnit[] {
+  function convertTree(
+    items: IamOrgUnit[],
+    parentNames: string[] = []
+  ): IamOrgUnit[] {
     return items.map(item => {
       const newNames = [item.name, ...parentNames];
       const node: IamOrgUnit = {
@@ -110,7 +113,10 @@ function getFullPath(item: IamOrgUnit, parentNames: string[] = []): string[] {
   return names;
 }
 
-function findParent(item: IamOrgUnit, tree: IamOrgUnit[]): IamOrgUnit | undefined {
+function findParent(
+  item: IamOrgUnit,
+  tree: IamOrgUnit[]
+): IamOrgUnit | undefined {
   for (const node of tree) {
     if (node.id === item.parent_id) {
       return node;
@@ -156,8 +162,8 @@ onMounted(() => {
     :data="treeData"
     :collapse-tags="true"
     :max-collapse-tags="3"
-    @change="handleChange"
     class="re-org-selector"
+    @change="handleChange"
   >
     <template #default>
       <div class="selector-input">
@@ -178,11 +184,16 @@ onMounted(() => {
         <button
           v-if="modelValue.length > 0"
           class="clear-btn"
-          @click.stop="clearAll"
           title="清空"
+          @click.stop="clearAll"
         >
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path
+              d="M18 6L6 18M6 6l12 12"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
           </svg>
         </button>
       </div>
@@ -199,11 +210,11 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
+  font-size: 12px;
+  color: #909399;
   background: #f5f7fa;
   border: 1px solid #e4e7ed;
   border-radius: 4px;
-  font-size: 12px;
-  color: #909399;
 }
 
 .clear-btn {
@@ -212,17 +223,17 @@ onMounted(() => {
   justify-content: center;
   width: 24px;
   height: 24px;
-  border: none;
-  background: transparent;
+  margin-left: 4px;
   color: #909399;
   cursor: pointer;
+  background: transparent;
+  border: none;
   border-radius: 4px;
   transition: all 0.2s;
-  margin-left: 4px;
 }
 
 .clear-btn:hover {
-  background: #f5f7fa;
   color: #606266;
+  background: #f5f7fa;
 }
 </style>

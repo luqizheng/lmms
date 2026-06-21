@@ -62,7 +62,7 @@ async function fetchUsers(keyword: string) {
         page: 1,
         size: 20
       });
-      userList.value = response.data?.items ?? [];
+      userList.value = response?.items ?? [];
     }
   } catch {
     userList.value = [];
@@ -113,11 +113,6 @@ function handleClear() {
   emit("change", null);
 }
 
-watch(() => props.modelValue, () => {
-  userList.value = [];
-  searchKeyword.value = "";
-});
-
 onUnmounted(() => {
   if (debounceTimer) clearTimeout(debounceTimer);
 });
@@ -134,8 +129,8 @@ onUnmounted(() => {
     :remote="true"
     :remote-method="handleRemoteSearch"
     :clearable="!disabled"
-    @clear="handleClear"
     class="re-user-selector"
+    @clear="handleClear"
   >
     <ElOption
       v-for="user in userList"
@@ -165,8 +160,8 @@ onUnmounted(() => {
 }
 
 .option-extra {
+  margin-left: 8px;
   font-size: 12px;
   color: #909399;
-  margin-left: 8px;
 }
 </style>
