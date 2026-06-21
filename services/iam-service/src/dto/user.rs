@@ -1,5 +1,6 @@
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
@@ -79,7 +80,7 @@ pub struct UserSimpleQuery {
     pub size: u32,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema, FromRow)]
 pub struct UserSimpleResponse {
     pub id: String,
     pub nickname: String,
