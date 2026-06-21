@@ -8,14 +8,12 @@ import {
   publishAnnouncement,
   revokeAnnouncement
 } from "@/api/notification";
-import { loadScopes, type ScopesResult } from "@/utils/iam-scopes-cache";
 import editForm from "../form.vue";
 import type { FormItemProps } from "../utils/types";
 
 export function useAdmin() {
   const loading = ref(true);
   const dataList = ref<any[]>([]);
-  const scopes = ref<ScopesResult>({ depts: [], roles: [], users: [] });
   const pagination = reactive({
     total: 0,
     pageSize: 10,
@@ -63,15 +61,7 @@ export function useAdmin() {
     }
   }
 
-  async function refreshScopes() {
-    try {
-      scopes.value = await loadScopes();
-    } catch (e: any) {
-      ElMessage.warning("接收人数据加载失败");
-    }
-  }
-
-  function openDialog(row?: any) {
+  async function openDialog(row?: any) {
     const isEdit = !!row;
     const formInline: FormItemProps = {
       id: row?.id,
@@ -90,13 +80,12 @@ export function useAdmin() {
       width: "640px",
       draggable: true,
       closeOnClickModal: false,
-      props: { formInline, isEdit, scopes: scopes.value },
+      props: { formInline, isEdit },
       contentRenderer: ({ options }) =>
         h(editForm, {
           ref: (el: any) => { formRef = el; },
           formInline: options.props.formInline,
-          isEdit,
-          scopes: options.props.scopes
+          isEdit
         }),
       beforeSure: async done => {
         if (!formRef) return;
@@ -155,7 +144,6 @@ export function useAdmin() {
 
   onMounted(() => {
     onSearch();
-    refreshScopes();
   });
 
   return {
@@ -164,7 +152,6 @@ export function useAdmin() {
     columns,
     dataList,
     pagination,
-    scopes,
     onSearch,
     openDialog,
     handlePublish,

@@ -3,6 +3,7 @@ import { LoginPage } from '../pages/login.page';
 import { UserPage } from '../pages/user.page';
 import { TokenClientPage } from '../pages/token.page';
 import { ChangePasswordPage } from '../pages/change-password.page';
+import { NotificationAdminPage } from '../pages/notification.page';
 
 export interface FlowResult {
   toast?: string;
@@ -80,5 +81,33 @@ export const flows: Record<string, Flow> = {
     await cpp.submit(oldPassword, newPassword);
 
     return { toast: await cpp.lastToastText() };
+  },
+
+  createAnnouncement: async (page, params) => {
+    await loginFirst(page);
+    const np = new NotificationAdminPage(page);
+    await np.createAnnouncement({
+      title: String(params.title),
+      body: params.body ? String(params.body) : undefined,
+      recipients: params.recipients as any,
+    });
+    return { toast: await np.lastToastText() };
+  },
+
+  publishAnnouncement: async (page, params) => {
+    await loginFirst(page);
+    const np = new NotificationAdminPage(page);
+    await np.createAnnouncement({ title: String(params.title) });
+    await np.publishFirstAnnouncement();
+    return { toast: await np.lastToastText() };
+  },
+
+  revokeAnnouncement: async (page, params) => {
+    await loginFirst(page);
+    const np = new NotificationAdminPage(page);
+    await np.createAnnouncement({ title: String(params.title) });
+    await np.publishFirstAnnouncement();
+    await np.revokeFirstAnnouncement();
+    return { toast: await np.lastToastText() };
   },
 };
