@@ -58,7 +58,9 @@
     "sdk:generate:all": "pnpm sdk:generate:audit && pnpm sdk:generate:config && pnpm sdk:generate:file",
     "contracts:gen": "node scripts/contracts-gen.js",
     "contracts:check": "node scripts/contracts-gen.js --check",
-    "check:env": "node scripts/check-dev-env.js"
+    "check:env": "node scripts/check-dev-env.js",
+    "ai:review": "node scripts/ai-code-review.js",
+    "ai:gen-e2e": "node scripts/gen-e2e-from-openapi.js"
   },
   "dependencies": {
     "argon2": "^0.44.0"

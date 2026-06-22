@@ -1,0 +1,61 @@
+group: audit-service
+cases:
+  - caseId: HEALTH
+    desc: health
+    method: GET
+    path: /v1/health
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: QUERYOPERATIONLOGS
+    desc: queryOperationLogs
+    method: GET
+    path: /v1/audit/operation
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: CREATEOPERATIONLOG
+    desc: createOperationLog
+    method: POST
+    path: /v1/audit/operation
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: QUERYLOGINLOGS
+    desc: queryLoginLogs
+    method: GET
+    path: /v1/audit/login
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: CREATELOGINLOG
+    desc: createLoginLog
+    method: POST
+    path: /v1/audit/login
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: EXPORTOPERATIONCSV
+    desc: exportOperationCsv
+    method: GET
+    path: /v1/audit/export/compliance/operation/csv/{user_id}
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: GETRETENTIONSTATS
+    desc: getRetentionStats
+    method: GET
+    path: /v1/audit/retention/stats
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: GETRETENTIONPOLICY
+    desc: getRetentionPolicy
+    method: GET
+    path: /v1/audit/retention/policy
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: UPDATERETENTIONPOLICY
+    desc: updateRetentionPolicy
+    method: PUT
+    path: /v1/audit/retention/policy
+    expectStatus: [200,201,204,502,503,404]
+
+  - caseId: TRIGGERCLEANUP
+    desc: triggerCleanup
+    method: POST
+    path: /v1/audit/retention/cleanup
+    expectStatus: [200,201,204,502,503,404]
