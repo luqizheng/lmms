@@ -26,7 +26,17 @@ pub fn router(state: RestState) -> Router {
         .with_state(state)
 }
 
-async fn create(
+#[utoipa::path(
+    post,
+    path = "/notification/announcements",
+    request_body = CreateAnnouncement,
+    responses(
+        (status = 201, description = "创建成功", body = serde_json::Value),
+        (status = 403, description = "无权限"),
+    ),
+    tag = "announcements"
+)]
+pub async fn create(
     State(s): State<RestState>,
     me: Identity,
     Json(body): Json<CreateAnnouncement>,
@@ -41,7 +51,17 @@ async fn create(
     Ok((StatusCode::CREATED, Json(serde_json::json!({ "id": id }))))
 }
 
-async fn publish(
+#[utoipa::path(
+    post,
+    path = "/notification/announcements/{id}/publish",
+    params(("id" = u64, Path, description = "公告ID")),
+    responses(
+        (status = 200, description = "发布成功", body = serde_json::Value),
+        (status = 403, description = "无权限"),
+    ),
+    tag = "announcements"
+)]
+pub async fn publish(
     State(s): State<RestState>,
     me: Identity,
     Path(id): Path<u64>,
@@ -53,7 +73,17 @@ async fn publish(
     Ok(Json(serde_json::json!({ "id": id, "status": "published" })))
 }
 
-async fn revoke(
+#[utoipa::path(
+    post,
+    path = "/notification/announcements/{id}/revoke",
+    params(("id" = u64, Path, description = "公告ID")),
+    responses(
+        (status = 200, description = "撤销成功", body = serde_json::Value),
+        (status = 403, description = "无权限"),
+    ),
+    tag = "announcements"
+)]
+pub async fn revoke(
     State(s): State<RestState>,
     me: Identity,
     Path(id): Path<u64>,
@@ -65,7 +95,17 @@ async fn revoke(
     Ok(Json(serde_json::json!({ "id": id, "status": "revoked" })))
 }
 
-async fn detail(
+#[utoipa::path(
+    get,
+    path = "/notification/announcements/{id}",
+    params(("id" = u64, Path, description = "公告ID")),
+    responses(
+        (status = 200, description = "获取成功", body = Announcement),
+        (status = 404, description = "公告不存在"),
+    ),
+    tag = "announcements"
+)]
+pub async fn detail(
     State(s): State<RestState>,
     _me: Identity,
     Path(id): Path<u64>,
@@ -73,13 +113,24 @@ async fn detail(
     s.db.get(id).await?.map(Json).ok_or(AppError::NotFound)
 }
 
-#[derive(Deserialize)]
-struct ListQuery {
+#[derive(Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
+pub struct ListQuery {
+    #[param(default)]
     pinned: Option<bool>,
+    #[param(default)]
     active: Option<bool>,
 }
 
-async fn list_mine(
+#[utoipa::path(
+    get,
+    path = "/notification/announcements",
+    params(ListQuery),
+    responses(
+        (status = 200, description = "获取成功", body = Vec<Announcement>),
+    ),
+    tag = "announcements"
+)]
+pub async fn list_mine(
     State(s): State<RestState>,
     me: Identity,
     _q: Query<ListQuery>,
@@ -87,7 +138,16 @@ async fn list_mine(
     Ok(Json(s.db.list_for_user(me.user_id).await?))
 }
 
-async fn read_one(
+#[utoipa::path(
+    post,
+    path = "/notification/announcements/{id}/read",
+    params(("id" = u64, Path, description = "公告ID")),
+    responses(
+        (status = 200, description = "标记已读", body = serde_json::Value),
+    ),
+    tag = "notifications"
+)]
+pub async fn read_one(
     State(s): State<RestState>,
     me: Identity,
     Path(id): Path<u64>,
@@ -99,7 +159,15 @@ async fn read_one(
     Ok(Json(serde_json::json!({ "ok": true, "changed": affected })))
 }
 
-async fn unread_count(
+#[utoipa::path(
+    get,
+    path = "/notification/unread-count",
+    responses(
+        (status = 200, description = "获取未读数", body = serde_json::Value),
+    ),
+    tag = "notifications"
+)]
+pub async fn unread_count(
     State(s): State<RestState>,
     me: Identity,
 ) -> AppResult<Json<serde_json::Value>> {

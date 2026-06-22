@@ -80,6 +80,18 @@ docker run --rm --network host \
 - TLS 依赖统一 workspace `reqwest 0.12 + rustls`，禁用 native-tls（musl 镜像无 openssl headers）
 - 已废弃 `Dockerfile.test`，不再用 `docker build` 构建测试镜像
 
+## 网络访问规则
+
+### GitHub 代理
+
+凡是从 GitHub 获取文件（ releases、archives、raw 等），必须使用 `gh-proxy.org` 代理。
+
+**格式**: `https://gh-proxy.org/<原始链接>`
+
+**示例**:
+- 原始: `https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip`
+- 代理: `https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip`
+
 ## 契约层
 
 ### 概述

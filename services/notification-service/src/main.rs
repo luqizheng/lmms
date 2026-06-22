@@ -21,6 +21,7 @@ use redis_cli::RedisCli;
 use ws_hub::WsHub;
 use prometheus::{Encoder, TextEncoder};
 use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -64,12 +65,37 @@ async fn main() -> anyhow::Result<()> {
             version = "1.0.0",
             description = "Notification Service for coder-micro-services"
         ),
-        paths(),
-        components()
+        paths(
+            rest::create,
+            rest::publish,
+            rest::revoke,
+            rest::detail,
+            rest::list_mine,
+            rest::read_one,
+            rest::unread_count,
+        ),
+        components(
+            schemas(
+                models::Announcement,
+                models::CreateAnnouncement,
+                models::ScopeInput,
+                models::Status,
+                models::ScopeType,
+                rest::ListQuery,
+            )
+        ),
+        tags(
+            (name = "announcements", description = "公告管理"),
+            (name = "notifications", description = "通知管理"),
+        )
     )]
     struct ApiDoc;
 
-    let app = Router::new()
+    let swagger_enabled = std::env::var("SWAGGER_ENABLED")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(true);
+
+    let mut app = Router::new()
         .nest("/notification", rest::router(rest_state))
         .route(
             "/notification/ws",
@@ -79,11 +105,15 @@ async fn main() -> anyhow::Result<()> {
             "/health",
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         )
-        .route("/metrics", get(metrics))
-        .route(
-            "/api-docs/openapi.json",
-            get(|| async { axum::Json(ApiDoc::openapi()) }),
+        .route("/metrics", get(metrics));
+
+    if swagger_enabled {
+        app = app.merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", ApiDoc::openapi()),
         );
+        tracing::info!("swagger ui enabled at /swagger-ui");
+    }
 
     let db_for_sched = db.clone();
     let redis_for_sched = redis.clone();
