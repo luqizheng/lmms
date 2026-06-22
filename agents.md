@@ -14,6 +14,7 @@
 | `coder-e2e-test` | E2E测试、登录验证 | node scripts/run-e2e-local.js |
 | `coder-lib-upgrade` | 升级通用库 | cargo upgrade -p <lib> |
 | `coder-service-audit` | 服务审计、规范检查 | node scripts/check-service-standard.js --service <name> |
+| `coder-check-env` | 检查环境、环境检查 | pnpm run check:env |
 
 ## 服务规范规则系统
 

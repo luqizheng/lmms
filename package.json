@@ -57,7 +57,8 @@
     "sdk:generate:file": "node scripts/openapi-codegen.js services/file-service/openapi.yaml frontend/src/api/file",
     "sdk:generate:all": "pnpm sdk:generate:audit && pnpm sdk:generate:config && pnpm sdk:generate:file",
     "contracts:gen": "node scripts/contracts-gen.js",
-    "contracts:check": "node scripts/contracts-gen.js --check"
+    "contracts:check": "node scripts/contracts-gen.js --check",
+    "check:env": "node scripts/check-dev-env.js"
   },
   "dependencies": {
     "argon2": "^0.44.0"

@@ -39,6 +39,7 @@ docker compose -f infrastructure/docker-compose.yml down
 | `pnpm run test:e2e:api`           | 数据驱动 API 用例（Excel）                        |
 | `pnpm run test:e2e:ui`            | 数据驱动 UI 业务流（Playwright，需前端容器）      |
 | `node scripts/run-tests-docker.js [service]` | 容器内跑 Rust 单元测试（见 AGENTS.md） |
+| `pnpm run check:env` | 检查开发环境服务状态 |
 
 ### 单独跑某个服务
 
@@ -286,6 +287,7 @@ pnpm run setup
 | `pnpm run docker:build:audit-service`        | 仅构建 audit-service 镜像                         |
 | `pnpm run docker:build:config-service`       | 仅构建 config-service 镜像                        |
 | `pnpm run docker:build:file-service`         | 仅构建 file-service 镜像                          |
+| `pnpm run check:env`                          | 检查开发环境服务状态                              |
 
 ### 子包脚本
 
