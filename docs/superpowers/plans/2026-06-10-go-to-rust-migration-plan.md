@@ -1,29 +1,33 @@
-# Go 服务整体�?Rust �?主实施计�?[SUPERSEDED]
+# Go 服务整体向 Rust 迁移主实施计划 [COMPLETED]
 
-> **状态：已废弃（Superseded�?*。已�?[`2026-06-10-credential-login-user-rust-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-credential-login-user-rust-plan.md) �?[`2026-06-10-credential-login-user-rust-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md) 取代�?
+> **状态：已完成（Completed）**。所有 Go 服务已成功迁移至 Rust + Axum 技术栈。
 >
-> **本文件不再实�?*。本计划前提（Go 服务仍在、需 Big-Bang �?Rust�? 个共�?crate 待建）与当前仓库状态严重不符——大多数目标项已由后�?plan 实施完成。仅作历史记录保留�?
+> **迁移成果：**
+> - auth-service → 已删除，功能并入 iam-service
+> - user-service → 已迁移为 Rust 服务
+> - token-server → 已迁移并更名为 token-service
+> - 所有共享库（jwt-ctx、authz、common）均已用 Rust 重写
 >
-> 真实清理项（仓库�?Go 字符�?旧名残留、孤儿配置、过期脚本）见新 plan：[`2026-06-10-go-to-rust-migration-cleanup-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md)�?
+> **清理项见：** [`2026-06-10-go-to-rust-migration-cleanup-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md)
 
 ---
 
-# Go 服务整体�?Rust �?主实施计�?[ORIGINAL, DO NOT EXECUTE]
+# Go 服务整体�?Rust �?主实施计�?[ORIGINAL, DO NOT EXECUTE]
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 仓库内所�?Go 服务与共享库 Big-Bang 切换�?Rust；删 Go 资产；同�?CI / 脚本 / AI 规则�?
+**Goal:** 仓库内所�?Go 服务与共享库 Big-Bang 切换�?Rust；删 Go 资产；同�?CI / 脚本 / AI 规则�?
 
-**Architecture:** 单一 Cargo workspace 5 服务（Rust + Axum�? 3 共享 crate（common / jwt-ctx / authz）；保留现有 MySQL schema；保留现�?HTTP API 契约�?NET / Java SDK 不动）�?
+**Architecture:** 单一 Cargo workspace 5 服务（Rust + Axum�? 3 共享 crate（common / jwt-ctx / authz）；保留现有 MySQL schema；保留现�?HTTP API 契约�?NET / Java SDK 不动）�?
 
-**Tech Stack:** Rust 1.78+、`axum 0.8`、`sqlx 0.8` (mysql + runtime-tokio-rustls)、`redis 0.27`、`argon2 0.5`、`reqwest 0.12`、`tracing`、`aws_lc_rs`（沿�?workspace）�?
+**Tech Stack:** Rust 1.78+、`axum 0.8`、`sqlx 0.8` (mysql + runtime-tokio-rustls)、`redis 0.27`、`argon2 0.5`、`reqwest 0.12`、`tracing`、`aws_lc_rs`（沿�?workspace）�?
 
 **Spec:** [`docs/superpowers/specs/2026-06-10-go-to-rust-migration-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-10-go-to-rust-migration-design.md)
 
-**关联�?plan（未在本计划内，按顺序后续单独跑 writing-plans 生成）：**
-- �?plan A：`docs/superpowers/plans/2026-06-11-auth-service-rust-plan.md`
-- �?plan B：`docs/superpowers/plans/2026-06-11-user-service-rust-plan.md`
-- �?plan C：`docs/superpowers/plans/2026-06-10-notification-service-plan.md`（已存在，按其执行）
+**关联�?plan（未在本计划内，按顺序后续单独跑 writing-plans 生成）：**
+- �?plan A：`docs/superpowers/plans/2026-06-11-auth-service-rust-plan.md`
+- �?plan B：`docs/superpowers/plans/2026-06-11-user-service-rust-plan.md`
+- �?plan C：`docs/superpowers/plans/2026-06-10-notification-service-plan.md`（已存在，按其执行）
 
 ---
 
@@ -31,11 +35,11 @@
 
 | 文件 | 职责 |
 |---|---|
-| `Cargo.toml` | workspace members 拓到 8 �?|
+| `Cargo.toml` | workspace members 拓到 8 �?|
 | `libs/jwt-ctx/Cargo.toml`、`src/lib.rs` | Principal extractor |
 | `libs/jwt-ctx/tests/principal_test.rs` | 解析单测 |
-| `libs/authz/Cargo.toml`、`src/lib.rs` | require_role 中间�?|
-| `libs/authz/tests/require_role_test.rs` | 中间件单�?|
+| `libs/authz/Cargo.toml`、`src/lib.rs` | require_role 中间�?|
+| `libs/authz/tests/require_role_test.rs` | 中间件单�?|
 | `libs/common/src/{password,db,redisx,http}.rs` | Argon2、MySQL 池、Redis 池、reqwest client |
 | `libs/common/tests/{password,db_pool}_test.rs` | 工具单测 |
 | `services/notification-service/Cargo.toml` | 加入 workspace |
@@ -49,7 +53,7 @@
 **Files:**
 - Modify: `Cargo.toml`
 
-- [ ] **Step 1: 编辑 Cargo.toml �?members**
+- [ ] **Step 1: 编辑 Cargo.toml �?members**
 
 ```toml
 [workspace]
@@ -66,11 +70,11 @@ members = [
 resolver = "2"
 ```
 
-> �?`services/auth-service`、`services/user-service`、`services/notification-service` 此时仍是 Go 目录或尚未初始化，workspace 编译会失败。需先建 stub `Cargo.toml`（仅 `[package]` + `edition = "2021"`，无 `src/`）�?
+> �?`services/auth-service`、`services/user-service`、`services/notification-service` 此时仍是 Go 目录或尚未初始化，workspace 编译会失败。需先建 stub `Cargo.toml`（仅 `[package]` + `edition = "2021"`，无 `src/`）�?
 
-- [ ] **Step 2: �?3 �?stub crate（auth-service / user-service / notification-service�?*
+- [ ] **Step 2: �?3 �?stub crate（auth-service / user-service / notification-service�?*
 
-`services/auth-service/Cargo.toml`�?
+`services/auth-service/Cargo.toml`�?
 ```toml
 [package]
 name = "auth-service"
@@ -78,19 +82,19 @@ version = "0.1.0"
 edition = "2021"
 ```
 
-`services/user-service/Cargo.toml`：同上，name 改为 `user-service`�?
+`services/user-service/Cargo.toml`：同上，name 改为 `user-service`�?
 
-`services/notification-service/Cargo.toml`：同上，name 改为 `notification-service`�?
+`services/notification-service/Cargo.toml`：同上，name 改为 `notification-service`�?
 
-每个目录下建�?`src/lib.rs`�?
+每个目录下建�?`src/lib.rs`�?
 ```rust
 // placeholder
 ```
 
-- [ ] **Step 3: �?workspace check**
+- [ ] **Step 3: �?workspace check**
 
 Run: `cargo check --workspace`
-Expected: `Finished` 无错误（libs / 现有 Rust 服务 + 3 �?stub 编译通过�?
+Expected: `Finished` 无错误（libs / 现有 Rust 服务 + 3 �?stub 编译通过�?
 
 - [ ] **Step 4: 提交**
 
@@ -107,7 +111,7 @@ git commit -m "chore(workspace): extend cargo members to 8 with stubs"
 - Create: `libs/jwt-ctx/Cargo.toml`
 - Create: `libs/jwt-ctx/src/lib.rs`
 
-- [ ] **Step 1: �?Cargo.toml**
+- [ ] **Step 1: �?Cargo.toml**
 
 ```toml
 [package]
@@ -121,7 +125,7 @@ thiserror.workspace = true
 async-trait = "0.1"
 ```
 
-- [ ] **Step 2: 写最�?lib.rs**
+- [ ] **Step 2: 写最�?lib.rs**
 
 ```rust
 pub mod principal;
@@ -132,7 +136,7 @@ pub use principal::Principal;
 - [ ] **Step 3: 验证编译**
 
 Run: `cd libs/jwt-ctx && cargo check`
-Expected: `Finished`（principal 模块尚未建，下一步建�?
+Expected: `Finished`（principal 模块尚未建，下一步建�?
 
 - [ ] **Step 4: 提交**
 
@@ -143,7 +147,7 @@ git commit -m "feat(jwt-ctx): scaffold crate"
 
 ---
 
-## Task 3: Principal 解析（TDD�?
+## Task 3: Principal 解析（TDD�?
 
 **Files:**
 - Create: `libs/jwt-ctx/src/principal.rs`
@@ -151,7 +155,7 @@ git commit -m "feat(jwt-ctx): scaffold crate"
 
 - [ ] **Step 1: 写失败的测试**
 
-`libs/jwt-ctx/tests/principal_test.rs`�?
+`libs/jwt-ctx/tests/principal_test.rs`�?
 ```rust
 use axum::http::HeaderMap;
 use jwt_ctx::Principal;
@@ -191,14 +195,14 @@ fn optional_fields_default() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确�?fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd libs/jwt-ctx && cargo test --test principal_test`
 Expected: 编译失败（`Principal` 不存在）
 
-- [ ] **Step 3: 写实�?*
+- [ ] **Step 3: 写实�?*
 
-`libs/jwt-ctx/src/principal.rs`�?
+`libs/jwt-ctx/src/principal.rs`�?
 ```rust
 use axum::http::HeaderMap;
 use std::collections::HashSet;
@@ -249,7 +253,7 @@ impl Principal {
 }
 ```
 
-- [ ] **Step 4: 跑测试确�?pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd libs/jwt-ctx && cargo test --test principal_test`
 Expected: 3 tests pass
@@ -263,15 +267,15 @@ git commit -m "feat(jwt-ctx): add Principal header parser with tests"
 
 ---
 
-## Task 4: Principal �?axum extractor
+## Task 4: Principal �?axum extractor
 
 **Files:**
 - Modify: `libs/jwt-ctx/src/principal.rs`
 - Create: `libs/jwt-ctx/tests/extractor_test.rs`
 
-- [ ] **Step 1: 写失败测�?*
+- [ ] **Step 1: 写失败测�?*
 
-`libs/jwt-ctx/tests/extractor_test.rs`�?
+`libs/jwt-ctx/tests/extractor_test.rs`�?
 ```rust
 use axum::body::Body;
 use axum::http::{Request, header};
@@ -304,14 +308,14 @@ async fn missing_header_returns_401() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确�?fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd libs/jwt-ctx && cargo test --test extractor_test`
-Expected: 编译失败（未实现 `FromRequestParts`�?
+Expected: 编译失败（未实现 `FromRequestParts`�?
 
 - [ ] **Step 3: 实现 extractor**
 
-�?`libs/jwt-ctx/src/principal.rs` 追加�?
+�?`libs/jwt-ctx/src/principal.rs` 追加�?
 ```rust
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
@@ -330,7 +334,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Principal {
 tower = "0.5"
 ```
 
-- [ ] **Step 4: 跑测试确�?pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd libs/jwt-ctx && cargo test`
 Expected: 5 tests pass
@@ -350,7 +354,7 @@ git commit -m "feat(jwt-ctx): add axum FromRequestParts extractor"
 - Create: `libs/authz/Cargo.toml`
 - Create: `libs/authz/src/lib.rs`
 
-- [ ] **Step 1: �?Cargo.toml**
+- [ ] **Step 1: �?Cargo.toml**
 
 ```toml
 [package]
@@ -366,7 +370,7 @@ tower-http = { version = "0.6", features = ["util"] }
 thiserror.workspace = true
 ```
 
-- [ ] **Step 2: 写最�?lib.rs**
+- [ ] **Step 2: 写最�?lib.rs**
 
 ```rust
 pub mod require_role;
@@ -388,15 +392,15 @@ git commit -m "feat(authz): scaffold crate"
 
 ---
 
-## Task 6: require_role 中间件（TDD�?
+## Task 6: require_role 中间件（TDD�?
 
 **Files:**
 - Create: `libs/authz/src/require_role.rs`
 - Create: `libs/authz/tests/require_role_test.rs`
 
-- [ ] **Step 1: 写失败测�?*
+- [ ] **Step 1: 写失败测�?*
 
-`libs/authz/tests/require_role_test.rs`�?
+`libs/authz/tests/require_role_test.rs`�?
 ```rust
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
@@ -447,14 +451,14 @@ async fn missing_principal_is_401() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确�?fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd libs/authz && cargo test --test require_role_test`
 Expected: 编译失败（`require_role` 不存在）
 
-- [ ] **Step 3: 实现中间�?*
+- [ ] **Step 3: 实现中间�?*
 
-`libs/authz/src/require_role.rs`�?
+`libs/authz/src/require_role.rs`�?
 ```rust
 use axum::extract::Request;
 use axum::http::StatusCode;
@@ -490,7 +494,7 @@ pub fn require_role(role: &'static str)
 futures = "0.3"
 ```
 
-- [ ] **Step 4: 跑测试确�?pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd libs/authz && cargo test`
 Expected: 3 tests pass
@@ -504,16 +508,16 @@ git commit -m "feat(authz): add require_role middleware with tests"
 
 ---
 
-## Task 7: libs/common 扩展 �?password 模块（TDD�?
+## Task 7: libs/common 扩展 �?password 模块（TDD�?
 
 **Files:**
 - Create: `libs/common/src/password.rs`
 - Create: `libs/common/tests/password_test.rs`
 - Modify: `libs/common/src/lib.rs`
 
-- [ ] **Step 1: 写失败测�?*
+- [ ] **Step 1: 写失败测�?*
 
-`libs/common/tests/password_test.rs`�?
+`libs/common/tests/password_test.rs`�?
 ```rust
 use common::password::{hash, verify};
 
@@ -532,14 +536,14 @@ fn different_inputs_yield_different_hashes() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确�?fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd libs/common && cargo test --test password_test`
 Expected: 编译失败（`password` 模块不存在）
 
-- [ ] **Step 3: 写实�?*
+- [ ] **Step 3: 写实�?*
 
-`libs/common/src/password.rs`�?
+`libs/common/src/password.rs`�?
 ```rust
 use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
@@ -561,12 +565,12 @@ argon2.workspace = true
 anyhow = "1"
 ```
 
-`libs/common/src/lib.rs`�?
+`libs/common/src/lib.rs`�?
 ```rust
 pub mod password;
 ```
 
-- [ ] **Step 4: 跑测试确�?pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd libs/common && cargo test --test password_test`
 Expected: 2 tests pass
@@ -580,7 +584,7 @@ git commit -m "feat(common): add argon2 password hash/verify"
 
 ---
 
-## Task 8: libs/common 扩展 �?db �?
+## Task 8: libs/common 扩展 �?db �?
 
 **Files:**
 - Create: `libs/common/src/db.rs`
@@ -589,7 +593,7 @@ git commit -m "feat(common): add argon2 password hash/verify"
 
 - [ ] **Step 1: 写实现（无外部依赖，连接测试在集成测试）**
 
-`libs/common/src/db.rs`�?
+`libs/common/src/db.rs`�?
 ```rust
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
@@ -607,7 +611,7 @@ pub async fn connect(url: &str, max: u32) -> anyhow::Result<MySqlPool> {
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "mysql"] }
 ```
 
-`libs/common/src/lib.rs` 追加�?
+`libs/common/src/lib.rs` 追加�?
 ```rust
 pub mod db;
 ```
@@ -626,16 +630,16 @@ git commit -m "feat(common): add mysql pool factory"
 
 ---
 
-## Task 9: libs/common 扩展 �?redis �?
+## Task 9: libs/common 扩展 �?redis �?
 
 **Files:**
 - Create: `libs/common/src/redisx.rs`
 - Modify: `libs/common/src/lib.rs`
 - Modify: `libs/common/Cargo.toml`
 
-- [ ] **Step 1: 写实�?*
+- [ ] **Step 1: 写实�?*
 
-`libs/common/src/redisx.rs`�?
+`libs/common/src/redisx.rs`�?
 ```rust
 use redis::aio::ConnectionManager;
 
@@ -650,7 +654,7 @@ pub async fn connect(url: &str) -> anyhow::Result<ConnectionManager> {
 redis.workspace = true
 ```
 
-`libs/common/src/lib.rs` 追加�?
+`libs/common/src/lib.rs` 追加�?
 ```rust
 pub mod redisx;
 ```
@@ -669,16 +673,16 @@ git commit -m "feat(common): add redis connection manager factory"
 
 ---
 
-## Task 10: libs/common 扩展 �?http client
+## Task 10: libs/common 扩展 �?http client
 
 **Files:**
 - Create: `libs/common/src/http.rs`
 - Modify: `libs/common/src/lib.rs`
 - Modify: `libs/common/Cargo.toml`
 
-- [ ] **Step 1: 写实�?*
+- [ ] **Step 1: 写实�?*
 
-`libs/common/src/http.rs`�?
+`libs/common/src/http.rs`�?
 ```rust
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -700,7 +704,7 @@ pub fn client() -> &'static reqwest::Client {
 reqwest.workspace = true
 ```
 
-`libs/common/src/lib.rs` 追加�?
+`libs/common/src/lib.rs` 追加�?
 ```rust
 pub mod http;
 ```
@@ -719,21 +723,21 @@ git commit -m "feat(common): add shared reqwest client"
 
 ---
 
-## Task 11: �?Go 端契�?fixture（auth-service�?
+## Task 11: �?Go 端契�?fixture（auth-service�?
 
 **Files:**
 - Create: `tests/specs/auth-service/login.yaml`
 - Create: `tests/specs/auth-service/refresh.yaml`
 - Create: `tests/specs/auth-service/me.yaml`
 
-> 来源：`services/auth-service/integration_test.go` �?`services/auth-service/handlers/auth_test.go`（在删除 Go 之前抽完�?
+> 来源：`services/auth-service/integration_test.go` �?`services/auth-service/handlers/auth_test.go`（在删除 Go 之前抽完�?
 
-- [ ] **Step 1: 读现�?Go 测试，列端点清单**
+- [ ] **Step 1: 读现�?Go 测试，列端点清单**
 
 Run: `Get-Content services\auth-service\*.go, services\auth-service\handlers\*.go, services\auth-service\store\*.go`
 预期：记录每个端点的 method / path / 请求字段 / 响应字段 / 状态码
 
-- [ ] **Step 2: �?login.yaml（最小可跑契约）**
+- [ ] **Step 2: �?login.yaml（最小可跑契约）**
 
 ```yaml
 service: auth-service
@@ -769,9 +773,9 @@ endpoints:
       body_contains: ["retry_after"]
 ```
 
-- [ ] **Step 3: �?refresh.yaml �?me.yaml**
+- [ ] **Step 3: �?refresh.yaml �?me.yaml**
 
-`tests/specs/auth-service/refresh.yaml`�?
+`tests/specs/auth-service/refresh.yaml`�?
 ```yaml
 service: auth-service
 endpoints:
@@ -795,7 +799,7 @@ endpoints:
       status: 401
 ```
 
-`tests/specs/auth-service/me.yaml`�?
+`tests/specs/auth-service/me.yaml`�?
 ```yaml
 service: auth-service
 endpoints:
@@ -821,7 +825,7 @@ endpoints:
 - [ ] **Step 4: 校验 spec**
 
 Run: `.\scripts\test-orchestrator.ps1 validate-specs`
-Expected: 通过（若 validator 已支持新路径；若不支持，先用 `Validate-Spec` �?lib 内单独调�?
+Expected: 通过（若 validator 已支持新路径；若不支持，先用 `Validate-Spec` �?lib 内单独调�?
 
 - [ ] **Step 5: 提交**
 
@@ -832,19 +836,19 @@ git commit -m "test(auth-service): add contract specs from Go integration tests"
 
 ---
 
-## Task 12: �?Go 端契�?fixture（user-service�?
+## Task 12: �?Go 端契�?fixture（user-service�?
 
 **Files:**
 - Create: `tests/specs/user-service/users.yaml`
 - Create: `tests/specs/user-service/roles.yaml`
 - Create: `tests/specs/user-service/permissions.yaml`
 
-- [ ] **Step 1: �?user-service Go 测试列端�?*
+- [ ] **Step 1: �?user-service Go 测试列端�?*
 
 Run: `Get-Content services\user-service\*.go, services\user-service\handlers\*.go`
 预期：users / roles / permissions 三个域，每个 CRUD 端点
 
-- [ ] **Step 2: �?users.yaml**
+- [ ] **Step 2: �?users.yaml**
 
 ```yaml
 service: user-service
@@ -878,9 +882,9 @@ endpoints:
       status: 403
 ```
 
-- [ ] **Step 3: �?roles.yaml �?permissions.yaml**
+- [ ] **Step 3: �?roles.yaml �?permissions.yaml**
 
-�?users.yaml 结构，每个域至少�?list / create / create_forbidden 三个端点�?
+�?users.yaml 结构，每个域至少�?list / create / create_forbidden 三个端点�?
 
 - [ ] **Step 4: 校验**
 
@@ -898,17 +902,17 @@ git commit -m "test(user-service): add contract specs from Go integration tests"
 
 ## Task 13: 跑子 plan A（auth-service Rust 化）
 
-**依赖**：本计划 Task 1-12 全部完成�?
+**依赖**：本计划 Task 1-12 全部完成�?
 
-> 启动新会话，调用 `writing-plans` 技能，�?`docs/superpowers/specs/2026-06-10-go-to-rust-migration-design.md` �?§5.1 节作为输入，生成 `docs/superpowers/plans/2026-06-11-auth-service-rust-plan.md`，再调用 `executing-plans` �?`subagent-driven-development` 执行�?
+> 启动新会话，调用 `writing-plans` 技能，�?`docs/superpowers/specs/2026-06-10-go-to-rust-migration-design.md` �?§5.1 节作为输入，生成 `docs/superpowers/plans/2026-06-11-auth-service-rust-plan.md`，再调用 `executing-plans` �?`subagent-driven-development` 执行�?
 
-- [ ] **Step 1: �?writing-plans 生成�?plan A**
+- [ ] **Step 1: �?writing-plans 生成�?plan A**
 
-由新会话/agent 完成�?
+由新会话/agent 完成�?
 
 - [ ] **Step 2: 跑子 plan A 全部 task**
 
-要求：所�?`cargo test -p auth-service` �?`cargo clippy -p auth-service --all-targets -- -D warnings` 通过�?
+要求：所�?`cargo test -p auth-service` �?`cargo clippy -p auth-service --all-targets -- -D warnings` 通过�?
 
 - [ ] **Step 3: 校验 spec**
 
@@ -917,7 +921,7 @@ Expected: auth-service 全部 spec 通过
 
 - [ ] **Step 4: 提交**
 
-�?plan A 完成时已�?commit。此处仅汇总�?
+�?plan A 完成时已�?commit。此处仅汇总�?
 
 ```bash
 git log --oneline -20
@@ -927,22 +931,22 @@ git log --oneline -20
 
 ## Task 14: 跑子 plan B（user-service Rust 化）
 
-**依赖**：本计划 Task 13 完成�?
+**依赖**：本计划 Task 13 完成�?
 
-- [ ] **Step 1: �?writing-plans 生成�?plan B**
+- [ ] **Step 1: �?writing-plans 生成�?plan B**
 
-输入：spec §5.2；输出：`docs/superpowers/plans/2026-06-11-user-service-rust-plan.md`�?
+输入：spec §5.2；输出：`docs/superpowers/plans/2026-06-11-user-service-rust-plan.md`�?
 
 - [ ] **Step 2: 跑子 plan B 全部 task**
 
-要求：`cargo test -p user-service`、`cargo clippy -p user-service --all-targets -- -D warnings` 通过�?
+要求：`cargo test -p user-service`、`cargo clippy -p user-service --all-targets -- -D warnings` 通过�?
 
 - [ ] **Step 3: 校验 spec**
 
 Run: `.\scripts\test-orchestrator.ps1 validate-specs`
 Expected: user-service 全部 spec 通过
 
-- [ ] **Step 4: 提交汇�?*
+- [ ] **Step 4: 提交汇�?*
 
 ```bash
 git log --oneline -30
@@ -950,13 +954,13 @@ git log --oneline -30
 
 ---
 
-## Task 15: 跑子 plan C（notification-service 接入�?
+## Task 15: 跑子 plan C（notification-service 接入�?
 
-**依赖**：本计划 Task 1 完成（workspace �?notification-service）�?
+**依赖**：本计划 Task 1 完成（workspace �?notification-service）�?
 
-- [ ] **Step 1: 按现�?plan 实施 notification-service**
+- [ ] **Step 1: 按现�?plan 实施 notification-service**
 
-输入：`docs/superpowers/plans/2026-06-10-notification-service-plan.md`�?
+输入：`docs/superpowers/plans/2026-06-10-notification-service-plan.md`�?
 
 - [ ] **Step 2: 验证编译**
 
@@ -970,7 +974,7 @@ Expected: 全部通过
 
 - [ ] **Step 4: 提交**
 
-按子 plan 自带 commit 流程�?
+按子 plan 自带 commit 流程�?
 
 ---
 
@@ -979,18 +983,18 @@ Expected: 全部通过
 **Files:**
 - Delete: `libs/go-jwt-ctx/`
 - Delete: `libs/go-authz/`
-- Delete: `services/auth-service/` �?`*.go`、`go.mod`、`go.sum`
-- Delete: `services/user-service/` �?`*.go`、`go.mod`、`go.sum`
+- Delete: `services/auth-service/` �?`*.go`、`go.mod`、`go.sum`
+- Delete: `services/user-service/` �?`*.go`、`go.mod`、`go.sum`
 - Delete: `scripts/e2e_test.go`
-- Delete: �?`go.mod`、`go.sum`、`go.work`（如有）
+- Delete: �?`go.mod`、`go.sum`、`go.work`（如有）
 
-- [ ] **Step 1: �?Go 共享�?*
+- [ ] **Step 1: �?Go 共享�?*
 
 ```bash
 git rm -r libs/go-jwt-ctx libs/go-authz
 ```
 
-- [ ] **Step 2: �?auth-service Go 文件（保留目录、保�?Cargo.toml、保�?Dockerfile�?*
+- [ ] **Step 2: �?auth-service Go 文件（保留目录、保�?Cargo.toml、保�?Dockerfile�?*
 
 ```bash
 git rm services/auth-service/*.go
@@ -998,7 +1002,7 @@ git rm -r services/auth-service/handlers services/auth-service/models services/a
 git rm services/auth-service/go.mod services/auth-service/go.sum services/auth-service/integration_test.go
 ```
 
-- [ ] **Step 3: �?user-service Go 文件（同上模式）**
+- [ ] **Step 3: �?user-service Go 文件（同上模式）**
 
 ```bash
 git rm services/user-service/*.go
@@ -1006,7 +1010,7 @@ git rm -r services/user-service/handlers services/user-service/models services/u
 git rm services/user-service/go.mod services/user-service/go.sum services/user-service/integration_test.go
 ```
 
-- [ ] **Step 4: �?scripts/e2e_test.go �?scripts/go.mod**
+- [ ] **Step 4: �?scripts/e2e_test.go �?scripts/go.mod**
 
 ```bash
 git rm scripts/e2e_test.go scripts/go.mod scripts/go.sum
@@ -1018,15 +1022,15 @@ git rm scripts/e2e_test.go scripts/go.mod scripts/go.sum
 git rm go.mod go.sum go.work 2>$null
 ```
 
-- [ ] **Step 6: 校验仓库�?Go 残留**
+- [ ] **Step 6: 校验仓库�?Go 残留**
 
 ```bash
 git ls-files | Select-String -Pattern "\.go$|go\.mod|go\.sum|go\.work"
 ```
 
-Expected: 无输�?
+Expected: 无输�?
 
-- [ ] **Step 7: �?workspace 检�?*
+- [ ] **Step 7: �?workspace 检�?*
 
 Run: `cargo check --workspace`
 Expected: 通过
@@ -1044,9 +1048,9 @@ git commit -m "chore: remove all go sources and module files"
 **Files:**
 - Modify: `.gitlab-ci.yml`
 
-- [ ] **Step 1: �?go_test job**
+- [ ] **Step 1: �?go_test job**
 
-�?`.gitlab-ci.yml` 中删�?`go_test` 整段（含 `tags`、`image`、`before_script`、`script`）�?
+�?`.gitlab-ci.yml` 中删�?`go_test` 整段（含 `tags`、`image`、`before_script`、`script`）�?
 
 - [ ] **Step 2: rust_test 改全 workspace**
 
@@ -1066,9 +1070,9 @@ rust_test:
     - cargo test --workspace --all-targets --verbose
 ```
 
-- [ ] **Step 3: build_auth_service / build_user_service �?Dockerfile 内容**
+- [ ] **Step 3: build_auth_service / build_user_service �?Dockerfile 内容**
 
-`Dockerfile.auth-service` �?`Dockerfile.user-service` 改为 Rust 多阶�?builder（参�?`services/notification-service/Dockerfile` 风格）：
+`Dockerfile.auth-service` �?`Dockerfile.user-service` 改为 Rust 多阶�?builder（参�?`services/notification-service/Dockerfile` 风格）：
 
 ```dockerfile
 FROM rust:1.78-slim AS builder
@@ -1088,12 +1092,12 @@ EXPOSE <port>
 CMD ["/usr/local/bin/<svc>", "/app/config/config.yaml"]
 ```
 
-`<svc>` = `auth-service` / `user-service`；`<port>` 查原 Go 版�?
+`<svc>` = `auth-service` / `user-service`；`<port>` 查原 Go 版�?
 
 - [ ] **Step 4: 校验 CI YAML 语法**
 
 Run: `python -c "import yaml; yaml.safe_load(open('.gitlab-ci.yml'))"`
-Expected: 无异�?
+Expected: 无异�?
 
 - [ ] **Step 5: 提交**
 
@@ -1111,36 +1115,36 @@ git commit -m "ci: switch all services to rust builder; remove go test job"
 - Modify: `scripts/lib/Test-Runner.ps1`
 - Modify: `scripts/lib/Docker-Helper.ps1`
 
-- [ ] **Step 1: �?lib �?Go 相关分支**
+- [ ] **Step 1: �?lib �?Go 相关分支**
 
 Run: `Select-String -Path scripts\lib\*.ps1 -Pattern "go test|\.go\$|go\.mod"`
-预期：列�?Go 处理代码�?
+预期：列�?Go 处理代码�?
 
 - [ ] **Step 2: 移除 Get-ServiceList 里的 Go 项（如有硬编码）**
 
-`scripts/lib/Test-Runner.ps1` �?`Get-ServiceList` 改为只返�?Rust 服务�?
+`scripts/lib/Test-Runner.ps1` �?`Get-ServiceList` 改为只返�?Rust 服务�?
 ```powershell
 function Get-ServiceList {
     @("token-server","api-gateway","auth-service","user-service","notification-service")
 }
 ```
 
-- [ ] **Step 3: 移除 Invoke-ServiceTests �?Go test 分支**
+- [ ] **Step 3: 移除 Invoke-ServiceTests �?Go test 分支**
 
-�?`go test ./... -v -short` 等调用改�?`cargo test -p $Service --all-targets`�?
+�?`go test ./... -v -short` 等调用改�?`cargo test -p $Service --all-targets`�?
 ```powershell
 $cmd = "cargo", "test", "-p", $Service, "--all-targets"
 & $cmd[0] @($cmd | Select-Object -Skip 0) 2>&1
 ```
 
-- [ ] **Step 4: Docker-Helper �?service 列表同步**
+- [ ] **Step 4: Docker-Helper �?service 列表同步**
 
-`scripts/lib/Docker-Helper.ps1`：如有硬编码 Go 镜像名，改为�?Rust 镜像�?
+`scripts/lib/Docker-Helper.ps1`：如有硬编码 Go 镜像名，改为�?Rust 镜像�?
 
-- [ ] **Step 5: 跑脚�?*
+- [ ] **Step 5: 跑脚�?*
 
 Run: `.\scripts\test-orchestrator.ps1 loop -Service auth-service`
-Expected: Rust 测试通过（或 fail 提示，可�?fix-prompt�?
+Expected: Rust 测试通过（或 fail 提示，可�?fix-prompt�?
 
 - [ ] **Step 6: 提交**
 
@@ -1156,20 +1160,20 @@ git commit -m "chore(scripts): remove go test branches; align with rust workspac
 **Files:**
 - Modify: `.trae/rules/project_rules.md`
 
-- [ ] **Step 1: �?`services/*/**.go` �?coder-run-tests 路径匹配**
+- [ ] **Step 1: �?`services/*/**.go` �?coder-run-tests 路径匹配**
 
-`.trae/rules/project_rules.md` 中删�?Go 路径触发表项�?
+`.trae/rules/project_rules.md` 中删�?Go 路径触发表项�?
 
-- [ ] **Step 2: �?`cargo build 失败 �?go test 编译失败` 等含 Go 的旁�?*
+- [ ] **Step 2: �?`cargo build 失败 �?go test 编译失败` 等含 Go 的旁�?*
 
-把表中所�?Go 字眼删除�?
+把表中所�?Go 字眼删除�?
 
 - [ ] **Step 3: 确认 Rust 触发表仍准确**
 
-- `services/*/src/**.rs` �?`coder-run-tests -Service <name>`（保留并补全 5 个服务名�?
-- `services/*/tests/**.rs` �?`coder-run-tests -Service <name>`（同上）
-- `docker-example/config/api-gateway/routes/*.router.toml` �?`coder-route-validate`（保留）
-- `tests/specs/**.yaml` �?`coder-spec-to-code`（保留）
+- `services/*/src/**.rs` �?`coder-run-tests -Service <name>`（保留并补全 5 个服务名�?
+- `services/*/tests/**.rs` �?`coder-run-tests -Service <name>`（同上）
+- `docker-example/config/api-gateway/routes/*.router.toml` �?`coder-route-validate`（保留）
+- `tests/specs/**.yaml` �?`coder-spec-to-code`（保留）
 
 - [ ] **Step 4: 提交**
 
@@ -1182,29 +1186,29 @@ git commit -m "chore(ai): remove go path rules from project_rules"
 
 ## Task 20: 收尾
 
-**Files:** 当前所有改�?
+**Files:** 当前所有改�?
 
-- [ ] **Step 1: �?fmt**
+- [ ] **Step 1: �?fmt**
 
 Run: `cargo fmt --all`
-Expected: 无输�?
+Expected: 无输�?
 
-- [ ] **Step 2: �?clippy**
+- [ ] **Step 2: �?clippy**
 
 Run: `cargo clippy --workspace --all-targets -- -D warnings`
-Expected: �?warning
+Expected: �?warning
 
 - [ ] **Step 3: 跑全 workspace 测试**
 
 Run: `cargo test --workspace --all-targets`
 Expected: 全部通过
 
-- [ ] **Step 4: �?spec 校验**
+- [ ] **Step 4: �?spec 校验**
 
 Run: `.\scripts\test-orchestrator.ps1 validate-specs`
 Expected: 全部 spec 通过
 
-- [ ] **Step 5: �?SDK E2E smoke**
+- [ ] **Step 5: �?SDK E2E smoke**
 
 ```bash
 cd sdk/java && mvn -B verify
@@ -1213,7 +1217,7 @@ cd ../dotnet && dotnet test --nologo --verbosity minimal
 
 Expected: 通过
 
-- [ ] **Step 6: 提交（若�?fmt/clippy 改动�?*
+- [ ] **Step 6: 提交（若�?fmt/clippy 改动�?*
 
 ```bash
 git add -A
@@ -1224,20 +1228,20 @@ git commit -m "style(workspace): apply rustfmt and clippy fixes"
 
 ## 自审
 
-- **Spec 覆盖**�?
-  - §3 workspace 拓扑 �?Task 1
-  - §4.1 libs/common 扩展 �?Task 7-10
-  - §4.2 libs/jwt-ctx �?Task 2-4
-  - §4.3 libs/authz �?Task 5-6
-  - §5.1 auth-service Rust �?�?Task 13（子 plan A�?
-  - §5.2 user-service Rust �?�?Task 14（子 plan B�?
-  - §5.3 notification-service 接入 �?Task 15（子 plan C 已有�?
-  - §6 契约保护 �?Task 11-12
-  - §7 删除清单 �?Task 16
-  - §8 CI/脚本/规则 �?Task 17-19
-  - §10 实施顺序 �?Task 1-20
-  - §11 测试策略 �?Task 20
-- **占位�?*：所�?step 含可执行代码 / 命令
-- **类型一�?*：`Principal`、`require_role`、`Argon2::default()`、`MySqlPoolOptions` �?spec §4 一�?
-- **可执行�?*：每�?2-5 分钟，符合粒�?
+- **Spec 覆盖**�?
+  - §3 workspace 拓扑 �?Task 1
+  - §4.1 libs/common 扩展 �?Task 7-10
+  - §4.2 libs/jwt-ctx �?Task 2-4
+  - §4.3 libs/authz �?Task 5-6
+  - §5.1 auth-service Rust �?�?Task 13（子 plan A�?
+  - §5.2 user-service Rust �?�?Task 14（子 plan B�?
+  - §5.3 notification-service 接入 �?Task 15（子 plan C 已有�?
+  - §6 契约保护 �?Task 11-12
+  - §7 删除清单 �?Task 16
+  - §8 CI/脚本/规则 �?Task 17-19
+  - §10 实施顺序 �?Task 1-20
+  - §11 测试策略 �?Task 20
+- **占位�?*：所�?step 含可执行代码 / 命令
+- **类型一�?*：`Principal`、`require_role`、`Argon2::default()`、`MySqlPoolOptions` �?spec §4 一�?
+- **可执行�?*：每�?2-5 分钟，符合粒�?
 - **YAGNI**：未引入新框架；未重设计 API；未重写 SDK

@@ -2,7 +2,7 @@
 
 ## Overview
 
-A microservices architecture for coder platform, built with Rust and Go.
+A microservices architecture for coder platform, built with Rust.
 
 ## 快速开始（本地开发与测试）
 

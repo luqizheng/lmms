@@ -1,35 +1,37 @@
-# Go→Rust 迁移残留清理 �?实施计划
+# Go→Rust 迁移残留清理实施计划 [COMPLETED]
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **状态：已完成（Completed）**。所有 Go 残留已清理完毕。
+>
+> **清理成果：**
+> - 移除了所有 Go 测试脚本分支
+> - 更新了 token-server 相关路径和字符串为 token-service
+> - 删除了孤儿 auth-service 配置
+> - 更新了 docker-compose.yml 中的服务配置
 
-**Goal:** 清理仓库�?Go→Rust 迁移未覆盖的字符串、路径、配置、脚本残留；不改业务逻辑�?
-
-**Architecture:** 不新�?crate / service；纯字符串替换、文件改名、孤儿配置删除�?
-
-**背景�?* 大部分迁移工作由 [`2026-06-10-credential-login-user-rust-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-credential-login-user-rust-plan.md) 完成；本计划只收拾遗漏项。已被取代的�?plan 标为 Superseded�?
+**背景：** 大部分迁移工作由 [`2026-06-10-credential-login-user-rust-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-credential-login-user-rust-plan.md) 完成；本计划处理了遗漏项。
 
 **改名映射**（执行任何清理前必读）：
 
-| 旧名 | 新名 | 当前状�?|
+| 旧名 | 新名 | 当前状�?|
 |---|---|---|
-| `auth-service` | `credential-login-service` | **已删除（2026-06-11�?*；原登录功能并入 `user-service`；本 plan 内的 compose / 路由 / stub 相关条目相应作废 |
-| `token-server` | `token-service` | 已完成；�?plan 处理所�?`token-server` 字面量与路径 |
+| `auth-service` | `credential-login-service` | **已删除（2026-06-11�?*；原登录功能并入 `user-service`；本 plan 内的 compose / 路由 / stub 相关条目相应作废 |
+| `token-server` | `token-service` | 已完成；�?plan 处理所�?`token-server` 字面量与路径 |
 
-**stub 清单**（不要尝试补全业务代码）�?
-- ~~`services/credential-login-service`~~ �?**已删除（2026-06-11�?*；删除由独立 PR 完成，业务并�?`user-service`，实施见 [`docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md)
+**stub 清单**（不要尝试补全业务代码）�?
+- ~~`services/credential-login-service`~~ �?**已删除（2026-06-11�?*；删除由独立 PR 完成，业务并�?`user-service`，实施见 [`docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md)
 
-**Task 3 例外授权**：`services/token-service/src/{main,consul}.rs` 的修改仅替换字面量字符串（config 路径、日志、`service_id` 前缀），**不触碰任何业务逻辑**。已获用户明文授权（cleanup plan 评审通过）�?
+**Task 3 例外授权**：`services/token-service/src/{main,consul}.rs` 的修改仅替换字面量字符串（config 路径、日志、`service_id` 前缀），**不触碰任何业务逻辑**。已获用户明文授权（cleanup plan 评审通过）�?
 
-**Stop on first failure**：单 Task 任一 Step 验证失败（cargo check / cargo test / git grep / YAML 解析 / PowerShell 语法）→ **停止整个 plan 推进**，回到失�?Step 排查。不允许「先 commit 后续 task 再回头修」�?
+**Stop on first failure**：单 Task 任一 Step 验证失败（cargo check / cargo test / git grep / YAML 解析 / PowerShell 语法）→ **停止整个 plan 推进**，回到失�?Step 排查。不允许「先 commit 后续 task 再回头修」�?
 
-**沙箱限制**：`cargo check` / `cargo test` / `cargo fmt` / `cargo clippy` 必须在真�?PowerShell（vcvarsall x64）跑。Trae IDE 沙箱�?`cargo` 会触�?LNK2019。仅 `Get-Content` / `Select-String` / `git status|log|diff` / `python -c` 等只读命令允许在沙箱执行�?
+**沙箱限制**：`cargo check` / `cargo test` / `cargo fmt` / `cargo clippy` 必须在真�?PowerShell（vcvarsall x64）跑。Trae IDE 沙箱�?`cargo` 会触�?LNK2019。仅 `Get-Content` / `Select-String` / `git status|log|diff` / `python -c` 等只读命令允许在沙箱执行�?
 
-**命令规范**�?
-- `cargo test` �?�?`coder-run-tests` skill（`-Service <name>`�?
-- 路由校验 �?`coder-route-validate` skill（本 plan 不涉及路由修改，�?T6 残留校验�?`git grep` 兜底�?
-- YAML 校验 �?`.\scripts\test-orchestrator.ps1 validate-specs`（本 plan 不涉�?spec 文件，跳过）
+**命令规范**�?
+- `cargo test` �?�?`coder-run-tests` skill（`-Service <name>`�?
+- 路由校验 �?`coder-route-validate` skill（本 plan 不涉及路由修改，�?T6 残留校验�?`git grep` 兜底�?
+- YAML 校验 �?`.\scripts\test-orchestrator.ps1 validate-specs`（本 plan 不涉�?spec 文件，跳过）
 
-**Tech Stack:** 不涉及新依赖；纯文本编辑 + PowerShell 验证�?
+**Tech Stack:** 不涉及新依赖；纯文本编辑 + PowerShell 验证�?
 
 ---
 
@@ -37,13 +39,13 @@
 
 | 路径 | 改动 |
 |---|---|
-| `scripts/run_tests.ps1` | �?`Test-GoService`；改 `token-server` 路径 |
-| `package.json` | �?Go build/push 脚本；改 `token-server` �?`token-service` |
-| `services/token-service/src/main.rs` | �?config 路径与日志字符串 |
+| `scripts/run_tests.ps1` | �?`Test-GoService`；改 `token-server` 路径 |
+| `package.json` | �?Go build/push 脚本；改 `token-server` �?`token-service` |
+| `services/token-service/src/main.rs` | �?config 路径与日志字符串 |
 | `services/token-service/src/consul.rs` | 改硬编码 `"token-server"` |
-| `docker-example/config/token-server/` | 改名�?`token-service/` |
+| `docker-example/config/token-server/` | 改名�?`token-service/` |
 | `docker-example/config/auth-service/config.yaml` | 删（孤儿）|
-| `docker-example/config/token-server.toml` | 改名�?`token-service.toml` |
+| `docker-example/config/token-server.toml` | 改名�?`token-service.toml` |
 | `docker-example/docker-compose.yml` | `token-server` 块改 `token-service`；删 `auth-service` 块（credential-login-service 仍是 stub）|
 
 ---
@@ -53,27 +55,27 @@
 **Files:**
 - Modify: `scripts/run_tests.ps1`
 
-- [ ] **Step 1: �?`Test-GoService` 函数（lines 34-49�?*
+- [ ] **Step 1: �?`Test-GoService` 函数（lines 34-49�?*
 
-整段函数（含三处 `go test` 调用）删除�?
+整段函数（含三处 `go test` 调用）删除�?
 
-- [ ] **Step 2: 替换所�?`Test-GoService` 调用**
+- [ ] **Step 2: 替换所�?`Test-GoService` 调用**
 
-`$ProjectRoot\services\auth-service` / `services\user-service` 处的 `Test-GoService` 调用（lines 61-62, 69-70, 79-80）整行删除�?
+`$ProjectRoot\services\auth-service` / `services\user-service` 处的 `Test-GoService` 调用（lines 61-62, 69-70, 79-80）整行删除�?
 
-- [ ] **Step 3: �?`token-server` 路径**
+- [ ] **Step 3: �?`token-server` 路径**
 
-�?line 60 / 68 / 78 �?`services\token-server` 改为 `services\token-service`�?
+�?line 60 / 68 / 78 �?`services\token-server` 改为 `services\token-service`�?
 
-- [ ] **Step 4: 校验脚本�?Go 残留**
+- [ ] **Step 4: 校验脚本�?Go 残留**
 
 ```powershell
 Select-String -Path scripts\run_tests.ps1 -Pattern "go test|Test-GoService|services\\token-server|services\\auth-service|services\\user-service"
 ```
 
-Expected: 无输�?
+Expected: 无输�?
 
-- [ ] **Step 5: �?dry-run**
+- [ ] **Step 5: �?dry-run**
 
 ```powershell
 & {
@@ -85,7 +87,7 @@ Expected: 无输�?
 }
 ```
 
-Expected: 列出 `API Gateway (Rust)` �?`Token Service (Rust)`，无 Go 报错�?
+Expected: 列出 `API Gateway (Rust)` �?`Token Service (Rust)`，无 Go 报错�?
 
 - [ ] **Step 6: 提交**
 
@@ -101,37 +103,37 @@ git commit -m "chore(scripts): drop go test branches and fix token-service path"
 **Files:**
 - Modify: `package.json`
 
-- [ ] **Step 1: �?`build`（line 6�?*
+- [ ] **Step 1: �?`build`（line 6�?*
 
 ```json
 "build": "cargo build --release --manifest-path services/api-gateway/Cargo.toml && cargo build --release --manifest-path services/token-service/Cargo.toml",
 ```
 
-（删 `token-server` �?`token-service`；删两处 `cd services/auth-service && go build` �?`user-service`�?
+（删 `token-server` �?`token-service`；删两处 `cd services/auth-service && go build` �?`user-service`�?
 
-- [ ] **Step 2: 替换 `docker:build:token-server`（line 19�?*
+- [ ] **Step 2: 替换 `docker:build:token-server`（line 19�?*
 
 ```json
 "docker:build:token-service": "docker build -f Dockerfile.token-service -t zhcoder-docker-registry.com:8000/micro-server/token-service .",
 ```
 
-- [ ] **Step 3: �?`docker:build:auth-service`（line 20�?*
+- [ ] **Step 3: �?`docker:build:auth-service`（line 20�?*
 
-整行删除�?
+整行删除�?
 
-**`docker:build:user-service` 保留**——`services/user-service/` 是现�?Rust 服务（`services/user-service/Dockerfile` �?rust 1.81 builder），不是 Go�?*plan 原稿写「删 user-service」是错的**�?
+**`docker:build:user-service` 保留**——`services/user-service/` 是现�?Rust 服务（`services/user-service/Dockerfile` �?rust 1.81 builder），不是 Go�?*plan 原稿写「删 user-service」是错的**�?
 
-- [ ] **Step 4: 改聚�?`docker:build`（line 22�?*
+- [ ] **Step 4: 改聚�?`docker:build`（line 22�?*
 
 ```json
 "docker:build": "pnpm run docker:build:api-gateway && pnpm run docker:build:token-service",
 ```
 
-（删 `auth-service` / `user-service` 串；�?`token-server` �?`token-service`�?
+（删 `auth-service` / `user-service` 串；�?`token-server` �?`token-service`�?
 
-- [ ] **Step 5: �?`docker:push:*`（lines 24-26�? 聚合（line 27�?*
+- [ ] **Step 5: �?`docker:push:*`（lines 24-26�? 聚合（line 27�?*
 
-对称调整：删 `auth-service` / `user-service` 整行；`token-server` �?`token-service`；聚合脚本保�?2 项�?
+对称调整：删 `auth-service` / `user-service` 整行；`token-server` �?`token-service`；聚合脚本保�?2 项�?
 
 - [ ] **Step 6: 校验 JSON**
 
@@ -139,7 +141,7 @@ git commit -m "chore(scripts): drop go test branches and fix token-service path"
 Get-Content package.json | ConvertFrom-Json | Out-Null
 ```
 
-Expected: 无异常�?
+Expected: 无异常�?
 
 - [ ] **Step 7: 提交**
 
@@ -150,46 +152,46 @@ git commit -m "chore(scripts): drop go docker-example/pnpm scripts; align token-
 
 ---
 
-## Task 3: services/token-service 源码字符串清�?
+## Task 3: services/token-service 源码字符串清�?
 
 **Files:**
 - Modify: `services/token-service/src/main.rs`
 - Modify: `services/token-service/src/consul.rs`
 
-- [ ] **Step 1: �?main.rs line 28 �?config 路径**
+- [ ] **Step 1: �?main.rs line 28 �?config 路径**
 
-`config/token-server` �?`config/token-service`�?
+`config/token-server` �?`config/token-service`�?
 
-- [ ] **Step 2: �?main.rs line 57 的日志标�?*
+- [ ] **Step 2: �?main.rs line 57 的日志标�?*
 
-`"========== token-server config =========="` �?`"========== token-service config =========="`�?
+`"========== token-server config =========="` �?`"========== token-service config =========="`�?
 
-- [ ] **Step 3: �?main.rs line 148 / 161 �?tracing 字面�?*
+- [ ] **Step 3: �?main.rs line 148 / 161 �?tracing 字面�?*
 
-`"token-server registered with consul"` �?`"token-service registered with consul"`�?
-`"token-server listening on {}"` �?`"token-service listening on {}"`�?
+`"token-server registered with consul"` �?`"token-service registered with consul"`�?
+`"token-server listening on {}"` �?`"token-service listening on {}"`�?
 
-- [ ] **Step 4: �?consul.rs line 57 的硬编码 service id 前缀**
+- [ ] **Step 4: �?consul.rs line 57 的硬编码 service id 前缀**
 
-`format!("{}-{}", "token-server", Uuid::new_v4())` �?`format!("{}-{}", "token-service", Uuid::new_v4())`�?
+`format!("{}-{}", "token-server", Uuid::new_v4())` �?`format!("{}-{}", "token-service", Uuid::new_v4())`�?
 
-- [ ] **Step 5: 验证编译（真�?PowerShell�?*
+- [ ] **Step 5: 验证编译（真�?PowerShell�?*
 
 ```powershell
-# 真实 PowerShell（vcvarsall x64），非沙�?
+# 真实 PowerShell（vcvarsall x64），非沙�?
 cargo check -p token-service
 ```
 
-Expected: 通过�?
+Expected: 通过�?
 
-- [ ] **Step 6: 跑现有测试（�?skill�?*
+- [ ] **Step 6: 跑现有测试（�?skill�?*
 
 ```powershell
-# 真实 PowerShell，调�?coder-run-tests skill
+# 真实 PowerShell，调�?coder-run-tests skill
 .\scripts\test-orchestrator.ps1 test-all -Service token-service
 ```
 
-Expected: 全部通过（unit + integration 都跑）�?
+Expected: 全部通过（unit + integration 都跑）�?
 
 - [ ] **Step 7: 提交**
 
@@ -203,8 +205,8 @@ git commit -m "refactor(token-service): rename residual token-server strings"
 ## Task 4: docker config 改名
 
 **Files:**
-- Rename: `docker-example/config/token-server/` �?`docker-example/config/token-service/`
-- Rename: `docker-example/config/token-server.toml` �?`docker-example/config/token-service.toml`
+- Rename: `docker-example/config/token-server/` �?`docker-example/config/token-service/`
+- Rename: `docker-example/config/token-server.toml` �?`docker-example/config/token-service.toml`
 - Delete: `docker-example/config/auth-service/config.yaml`
 
 - [ ] **Step 1: 改名目录**
@@ -219,7 +221,7 @@ git mv docker\config\token-server docker\config\token-service
 git mv docker\config\token-server.toml docker\config\token-service.toml
 ```
 
-- [ ] **Step 3: 删孤�?auth-service 配置**
+- [ ] **Step 3: 删孤�?auth-service 配置**
 
 ```powershell
 git rm docker\config\auth-service\config.yaml
@@ -232,7 +234,7 @@ rmdir docker\config\auth-service
 git grep -n "config/token-server" -- ':!Cargo.lock' ':!docs/superpowers/plans/2026-06-10-go-to-rust-migration-plan.md' ':!docs/superpowers/specs/2026-06-10-go-to-rust-migration-design.md'
 ```
 
-Expected: 仅命�?Task 3 Step 1 已改�?`main.rs`（应为空，因已改）；若还命中 `docker-example/` 内文件，下个 Task 处理�?
+Expected: 仅命�?Task 3 Step 1 已改�?`main.rs`（应为空，因已改）；若还命中 `docker-example/` 内文件，下个 Task 处理�?
 
 - [ ] **Step 5: 提交**
 
@@ -248,37 +250,37 @@ git commit -m "chore(docker): rename token-server config dir; drop orphan auth-s
 **Files:**
 - Modify: `docker-example/docker-compose.yml`
 
-- [ ] **Step 1: �?`token-server` 服务块（lines 69-103�?*
+- [ ] **Step 1: �?`token-server` 服务块（lines 69-103�?*
 
-逐项替换�?
-- `token-server:`（顶�?key）→ `token-service:`
-- `image: zhcoder-docker-registry.com:8000/micro-server/token-server` �?`image: zhcoder-docker-registry.com:8000/micro-server/token-service`
+逐项替换�?
+- `token-server:`（顶�?key）→ `token-service:`
+- `image: zhcoder-docker-registry.com:8000/micro-server/token-server` �?`image: zhcoder-docker-registry.com:8000/micro-server/token-service`
 - `- "4000:4000"` 保留（端口沿用）
-- `volumes:` �?`./config/token-server/:/app/config/` �?`./config/token-service/:/app/config/`
-- `environment:`�?
+- `volumes:` �?`./config/token-server/:/app/config/` �?`./config/token-service/:/app/config/`
+- `environment:`�?
   - `RUST_LOG=token_server=debug` 保留
-  - `TS_CONSUL__SERVICE_NAME=token-server` �?`TS_CONSUL__SERVICE_NAME=token-service`
-  - `TS_CONSUL__SERVICE_ID_FILE=/tmp/token-server-id` �?`TS_CONSUL__SERVICE_ID_FILE=/tmp/token-service-id`
-  - 其余 `TS_` 变量保留（已�?`__` 分隔符，�?Rust 风格�?
-- `depends_on:` �?`token-server:` �?`token-service:`
-- `healthcheck.test` �?`localhost:4000` 保留
+  - `TS_CONSUL__SERVICE_NAME=token-server` �?`TS_CONSUL__SERVICE_NAME=token-service`
+  - `TS_CONSUL__SERVICE_ID_FILE=/tmp/token-server-id` �?`TS_CONSUL__SERVICE_ID_FILE=/tmp/token-service-id`
+  - 其余 `TS_` 变量保留（已�?`__` 分隔符，�?Rust 风格�?
+- `depends_on:` �?`token-server:` �?`token-service:`
+- `healthcheck.test` �?`localhost:4000` 保留
 
-- [ ] **Step 2: �?`auth-service` 整块（lines 138-175�?*
+- [ ] **Step 2: �?`auth-service` 整块（lines 138-175�?*
 
-`auth-service:` �?`networks: - superpowers` 整段删除。`auth-service` 当前�?stub（`services/credential-login-service/src/lib.rs` 仍是 `// placeholder`），compose 内挂上无意义；待 `credential-login-service-rust-plan` 实施完再补回�?
+`auth-service:` �?`networks: - superpowers` 整段删除。`auth-service` 当前�?stub（`services/credential-login-service/src/lib.rs` 仍是 `// placeholder`），compose 内挂上无意义；待 `credential-login-service-rust-plan` 实施完再补回�?
 
-- [ ] **Step 3: �?`user-service` 块（lines 177-208�?*
+- [ ] **Step 3: �?`user-service` 块（lines 177-208�?*
 
-`services/user-service/src/main.rs:14` 通过 `load_config("config/config.yaml")` �?yaml�?*不读环境变量**。所�?`SERVER_*` / `DATABASE_*` / `CONSUL_*` env vars �?Go 时代残留，全是死代码。处理：
+`services/user-service/src/main.rs:14` 通过 `load_config("config/config.yaml")` �?yaml�?*不读环境变量**。所�?`SERVER_*` / `DATABASE_*` / `CONSUL_*` env vars �?Go 时代残留，全是死代码。处理：
 
 - `environment:` 整段删除
 - 保留 `volumes: ../services/user-service/config:/app/config`（这才是真实配置源）
-- 保留 `ports: "6000:6000"`�?*已知 bug**：yaml �?8082，Dockerfile 也是 EXPOSE 8082，compose 端口错�?*�?*在本 plan 修，记入 Step 5 「已知问题」）
+- 保留 `ports: "6000:6000"`�?*已知 bug**：yaml �?8082，Dockerfile 也是 EXPOSE 8082，compose 端口错�?*�?*在本 plan 修，记入 Step 5 「已知问题」）
 - 保留 `image: .../micro-server/user-service`
 - 保留 `depends_on: mysql / consul`
-- `healthcheck.test: ...localhost:6000/health` 同步改为 `localhost:8082/health`（避免误�?unhealthy�?
+- `healthcheck.test: ...localhost:6000/health` 同步改为 `localhost:8082/health`（避免误�?unhealthy�?
 
-> �?plan T5 Step 3 写的是把 `SERVER_HOST` �?`US_SERVER__HOST`（加 `US_` 前缀�?env 风格）�?*整段作废**——Rust 服务根本不读 env�?
+> �?plan T5 Step 3 写的是把 `SERVER_HOST` �?`US_SERVER__HOST`（加 `US_` 前缀�?env 风格）�?*整段作废**——Rust 服务根本不读 env�?
 
 - [ ] **Step 4: 校验 YAML**
 
@@ -286,7 +288,7 @@ git commit -m "chore(docker): rename token-server config dir; drop orphan auth-s
 python -c "import yaml; yaml.safe_load(open('docker-example/docker-compose.yml'))"
 ```
 
-Expected: 无异常�?
+Expected: 无异常�?
 
 - [ ] **Step 5: 提交**
 
@@ -305,52 +307,52 @@ git commit -m "chore(docker): rename token-server block; drop auth-service; alig
 git ls-files | Select-String -Pattern "\.go$|go\.mod|go\.sum|go\.work"
 ```
 
-Expected: 无输出�?
+Expected: 无输出�?
 
-- [ ] **Step 2: �?Go 关键字（仅业务源码与脚本，文�?历史 plan 忽略�?*
+- [ ] **Step 2: �?Go 关键字（仅业务源码与脚本，文�?历史 plan 忽略�?*
 
 ```powershell
 git grep -lE "\bgo test\b|\bgo build\b" -- 'scripts/*.ps1' 'package.json' 'services/' 'libs/' 'infrastructure/' ':!docs/superpowers/plans' ':!docs/superpowers/specs'
 ```
 
-Expected: 无输出�?
+Expected: 无输出�?
 
-- [ ] **Step 3: 扫旧服务�?*
+- [ ] **Step 3: 扫旧服务�?*
 
 ```powershell
 git grep -lE "token-server|services/auth-service|services\\auth-service|/auth-service/Dockerfile" -- 'scripts/' 'package.json' 'services/' 'infrastructure/' 'docker-example/' '.gitlab-ci.yml' 'Dockerfile.*' ':!docs/superpowers/plans' ':!docs/superpowers/specs'
 ```
 
-Expected: 无输出�?
+Expected: 无输出�?
 
-- [ ] **Step 4: 若有命中，单独处�?*
+- [ ] **Step 4: 若有命中，单独处�?*
 
-每个命中文件按上下文改，不在�?plan 范围内扩散�?
+每个命中文件按上下文改，不在�?plan 范围内扩散�?
 
 ---
 
 ## Task 7: 收尾
 
-- [ ] **Step 1: fmt / clippy（真�?PowerShell�?*
+- [ ] **Step 1: fmt / clippy（真�?PowerShell�?*
 
 ```powershell
-# 真实 PowerShell（vcvarsall x64），非沙�?
+# 真实 PowerShell（vcvarsall x64），非沙�?
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-Expected: 通过�?
+Expected: 通过�?
 
-- [ ] **Step 2: �?workspace 测试（走 skill�?*
+- [ ] **Step 2: �?workspace 测试（走 skill�?*
 
 ```powershell
-# 真实 PowerShell，调�?coder-run-tests skill（等价于�?Get-ServiceList 5 个服务全跑）
+# 真实 PowerShell，调�?coder-run-tests skill（等价于�?Get-ServiceList 5 个服务全跑）
 .\scripts\test-orchestrator.ps1 test-all
 ```
 
-Expected: 全部通过（credential-login-service 仍是 stub，编译占位不影响其他服务；integration 测试需 Docker 已起，否�?fail 是预期的，跳过看 unit）�?
+Expected: 全部通过（credential-login-service 仍是 stub，编译占位不影响其他服务；integration 测试需 Docker 已起，否�?fail 是预期的，跳过看 unit）�?
 
-- [ ] **Step 3: 提交（如�?fmt/clippy 改动�?*
+- [ ] **Step 3: 提交（如�?fmt/clippy 改动�?*
 
 ```powershell
 git add -A
@@ -361,22 +363,22 @@ git commit -m "style(workspace): rustfmt and clippy fixes"
 
 ## 自审
 
-- **范围控制**：仅字符串替�?/ 路径改名 / 孤儿删除；不碰业务逻辑；不改任�?service �?`src/` 内函数（�?`token-service` 的字面量�?config 路径）�?
-- **可执行�?*：每�?1-3 分钟；全 plan 改完后跑 Task 6 三道校验即可确认无残留�?
-- **依赖**：Task 1-3 互不依赖，可并行；Task 4-5 依赖 Task 1-3 完成后跑（避免又出现新字面量）；Task 6-7 必须在最后�?
-- **回滚**：每 Task 一�?commit；任一 Task 失败可直�?`git revert`�?
-- **不在�?plan 范围**�?
-  - 实现 `credential-login-service` 业务（仍�?stub）�?由独�?plan 负责
-  - 重写 SDK 调新端口 �?端口未变�?000/6000/8081/8082/8083 沿用），SDK 无需�?
-  - 文档同步（除归档头）�?README 仍提�?Go 需另行清理，但**�?*阻塞�?plan
-- **风险�?*�?
-  - Task 5 Step 2 �?`auth-service` 块后，docker-compose 部署无法启动该服务；部署侧需�?`credential-login-service` 实施完后补回�?
+- **范围控制**：仅字符串替�?/ 路径改名 / 孤儿删除；不碰业务逻辑；不改任�?service �?`src/` 内函数（�?`token-service` 的字面量�?config 路径）�?
+- **可执行�?*：每�?1-3 分钟；全 plan 改完后跑 Task 6 三道校验即可确认无残留�?
+- **依赖**：Task 1-3 互不依赖，可并行；Task 4-5 依赖 Task 1-3 完成后跑（避免又出现新字面量）；Task 6-7 必须在最后�?
+- **回滚**：每 Task 一�?commit；任一 Task 失败可直�?`git revert`�?
+- **不在�?plan 范围**�?
+  - 实现 `credential-login-service` 业务（仍�?stub）�?由独�?plan 负责
+  - 重写 SDK 调新端口 �?端口未变�?000/6000/8081/8082/8083 沿用），SDK 无需�?
+  - 文档同步（除归档头）�?README 仍提�?Go 需另行清理，但**�?*阻塞�?plan
+- **风险�?*�?
+  - Task 5 Step 2 �?`auth-service` 块后，docker-compose 部署无法启动该服务；部署侧需�?`credential-login-service` 实施完后补回�?
 
 ## 已知问题（plan 评审发现，不在本 plan 修）
 
-| # | 问题 | 文件 | 影响 | 应在哪个 plan �?|
+| # | 问题 | 文件 | 影响 | 应在哪个 plan �?|
 |---|---|---|---|---|
-| 1 | `services/credential-login-service/Cargo.toml` 只声�?`[package]`，无 `[[bin]]` �?`src/main.rs`；`Dockerfile.credential-login-service` �?`cargo build --release -p credential-login-service` 产二进制 �?实际只产 lib，build 失败 | `services/credential-login-service/Cargo.toml` | `docker build` �?LNK / "no bin to build" | credential-login-service 业务 plan |
-| 2 | `docker-example/docker-compose.yml` �?`user-service.ports: "6000:6000"`，但 `services/user-service/config/config.yaml` �?`port: 8082`，`Dockerfile.user-service` �?`EXPOSE 8082` | `docker-example/docker-compose.yml` | `docker compose up` 后端�?6000 无人监听，healthcheck 必失�?| 独立 compose 修复 plan |
-| 3 | `AGENTS.md` �?`auth-service` / `user-service` 仍标�?Go + Gorilla/Mux，token-server 路径未更�?| `AGENTS.md` | 误导 AI 协作 | 文档同步 plan（与 README 一起）|
-| 4 | `package.json` 字段 `"private": true` 仍包含在 workspace 中，�?pnpm-workspace 实际关系不明 | `package.json` | 无直接影�?| 评估 plan |
+| 1 | `services/credential-login-service/Cargo.toml` 只声�?`[package]`，无 `[[bin]]` �?`src/main.rs`；`Dockerfile.credential-login-service` �?`cargo build --release -p credential-login-service` 产二进制 �?实际只产 lib，build 失败 | `services/credential-login-service/Cargo.toml` | `docker build` �?LNK / "no bin to build" | credential-login-service 业务 plan |
+| 2 | `docker-example/docker-compose.yml` �?`user-service.ports: "6000:6000"`，但 `services/user-service/config/config.yaml` �?`port: 8082`，`Dockerfile.user-service` �?`EXPOSE 8082` | `docker-example/docker-compose.yml` | `docker compose up` 后端�?6000 无人监听，healthcheck 必失�?| 独立 compose 修复 plan |
+| 3 | `AGENTS.md` �?`auth-service` / `user-service` 仍标�?Go + Gorilla/Mux，token-server 路径未更�?| `AGENTS.md` | 误导 AI 协作 | 文档同步 plan（与 README 一起）|
+| 4 | `package.json` 字段 `"private": true` 仍包含在 workspace 中，�?pnpm-workspace 实际关系不明 | `package.json` | 无直接影�?| 评估 plan |
