@@ -2,12 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 合并 token-service、credential-login-service 和 user-service 为统一的 iam-service。
+**Goal:** 合并 token-service、credential-login-service �?user-service 为统一�?iam-service�?
 
 **Architecture:** 
-- 创建新服务 `services/iam-service/`，整合认证、用户、角色、权限、菜单、部门、Token 管理能力
+- 创建新服�?`services/iam-service/`，整合认证、用户、角色、权限、菜单、部门、Token 管理能力
 - 复用 libs 层：common-error、common-log、common-config、common-db、common-cache、jwt-ctx、authz
-- 端点域统一为 `/iam/*`
+- 端点域统一�?`/iam/*`
 
 **Tech Stack:** Rust、Axum、SQLx、Redis、JWT、Argon2
 
@@ -18,59 +18,59 @@
 ```
 services/iam-service/
 ├── src/
-│   ├── main.rs              # 服务入口
-│   ├── lib.rs               # 模块导出
-│   ├── config.rs            # 配置加载
-│   ├── db.rs                # 数据库连接
-│   ├── error.rs             # 错误定义
-│   ├── auth.rs              # JWT 认证中间件
-│   ├── state.rs             # AppState
-│   ├── models/              # 数据库模型
-│   │   ├── user.rs          # 用户
-│   │   ├── role.rs          # 角色
-│   │   ├── permission.rs    # 权限
-│   │   ├── menu.rs          # 菜单
-│   │   ├── org_unit.rs      # 部门
-│   │   ├── login_log.rs     # 登录日志
-│   │   ├── refresh_token.rs # 刷新令牌
-│   │   └── mod.rs
-│   ├── dto/                 # 请求/响应 DTO
-│   │   ├── auth.rs          # 认证相关
-│   │   ├── user.rs          # 用户相关
-│   │   ├── role.rs          # 角色相关
-│   │   ├── permission.rs    # 权限相关
-│   │   ├── menu.rs          # 菜单相关
-│   │   ├── org_unit.rs      # 部门相关
-│   │   └── mod.rs
-│   ├── service/             # 业务服务层
-│   │   ├── auth_svc.rs      # 认证服务
-│   │   ├── user_svc.rs      # 用户服务
-│   │   ├── role_svc.rs      # 角色服务
-│   │   ├── permission_svc.rs # 权限服务
-│   │   ├── menu_svc.rs      # 菜单服务
-│   │   ├── org_svc.rs       # 部门服务
-│   │   ├── token_svc.rs     # Token 服务
-│   │   └── mod.rs
-│   └── routes/              # API 路由
-│       ├── auth.rs          # /iam/auth/*
-│       ├── users.rs         # /iam/users/*
-│       ├── roles.rs         # /iam/roles/*
-│       ├── permissions.rs   # /iam/permissions/*
-│       ├── menus.rs         # /iam/menus/*
-│       ├── org_units.rs     # /iam/org-units/*
-│       ├── tokens.rs        # /iam/tokens/*
-│       ├── sessions.rs      # /iam/sessions/*
-│       └── mod.rs
-├── migrations/              # 数据库迁移
-│   ├── mysql/               # MySQL 迁移
-│   └── sqlite/              # SQLite 迁移（测试）
+�?  ├── main.rs              # 服务入口
+�?  ├── lib.rs               # 模块导出
+�?  ├── config.rs            # 配置加载
+�?  ├── db.rs                # 数据库连�?
+�?  ├── error.rs             # 错误定义
+�?  ├── auth.rs              # JWT 认证中间�?
+�?  ├── state.rs             # AppState
+�?  ├── models/              # 数据库模�?
+�?  �?  ├── user.rs          # 用户
+�?  �?  ├── role.rs          # 角色
+�?  �?  ├── permission.rs    # 权限
+�?  �?  ├── menu.rs          # 菜单
+�?  �?  ├── org_unit.rs      # 部门
+�?  �?  ├── login_log.rs     # 登录日志
+�?  �?  ├── refresh_token.rs # 刷新令牌
+�?  �?  └── mod.rs
+�?  ├── dto/                 # 请求/响应 DTO
+�?  �?  ├── auth.rs          # 认证相关
+�?  �?  ├── user.rs          # 用户相关
+�?  �?  ├── role.rs          # 角色相关
+�?  �?  ├── permission.rs    # 权限相关
+�?  �?  ├── menu.rs          # 菜单相关
+�?  �?  ├── org_unit.rs      # 部门相关
+�?  �?  └── mod.rs
+�?  ├── service/             # 业务服务�?
+�?  �?  ├── auth_svc.rs      # 认证服务
+�?  �?  ├── user_svc.rs      # 用户服务
+�?  �?  ├── role_svc.rs      # 角色服务
+�?  �?  ├── permission_svc.rs # 权限服务
+�?  �?  ├── menu_svc.rs      # 菜单服务
+�?  �?  ├── org_svc.rs       # 部门服务
+�?  �?  ├── token_svc.rs     # Token 服务
+�?  �?  └── mod.rs
+�?  └── routes/              # API 路由
+�?      ├── auth.rs          # /iam/auth/*
+�?      ├── users.rs         # /iam/users/*
+�?      ├── roles.rs         # /iam/roles/*
+�?      ├── permissions.rs   # /iam/permissions/*
+�?      ├── menus.rs         # /iam/menus/*
+�?      ├── org_units.rs     # /iam/org-units/*
+�?      ├── tokens.rs        # /iam/tokens/*
+�?      ├── sessions.rs      # /iam/sessions/*
+�?      └── mod.rs
+├── migrations/              # 数据库迁�?
+�?  ├── mysql/               # MySQL 迁移
+�?  └── sqlite/              # SQLite 迁移（测试）
 ├── config/                  # 配置文件
-│   └── config.yaml
+�?  └── config.yaml
 ├── tests/                   # 集成测试
-│   ├── auth_test.rs
-│   ├── user_test.rs
-│   ├── role_test.rs
-│   └── integration_test.rs
+�?  ├── auth_test.rs
+�?  ├── user_test.rs
+�?  ├── role_test.rs
+�?  └── integration_test.rs
 ├── Cargo.toml
 └── Dockerfile
 ```
@@ -223,7 +223,7 @@ consul:
   service_name: iam-service
 ```
 
-- [ ] **Step 5: 初始化项目**
+- [ ] **Step 5: 初始化项�?*
 
 Run: `cd services/iam-service && cargo init`
 Expected: 创建基础项目结构
@@ -235,7 +235,7 @@ Expected: 编译成功
 
 ---
 
-## Task 2: 创建配置和状态模块
+## Task 2: 创建配置和状态模�?
 
 **Files:**
 - Create: `services/iam-service/src/config.rs`
@@ -349,7 +349,7 @@ Expected: 编译成功
 
 ---
 
-## Task 3: 创建错误和认证模块
+## Task 3: 创建错误和认证模�?
 
 **Files:**
 - Create: `services/iam-service/src/error.rs`
@@ -513,7 +513,7 @@ Expected: 编译成功
 
 ---
 
-## Task 4: 创建数据库模型
+## Task 4: 创建数据库模�?
 
 **Files:**
 - Create: `services/iam-service/src/models/mod.rs`
@@ -1259,7 +1259,7 @@ Expected: 编译成功
 
 ---
 
-## Task 7: 创建服务层模块
+## Task 7: 创建服务层模�?
 
 **Files:**
 - Create: `services/iam-service/src/service/mod.rs`
@@ -1780,7 +1780,7 @@ Expected: 编译成功
 
 ---
 
-## Task 8: 创建剩余服务层模块
+## Task 8: 创建剩余服务层模�?
 
 **Files:**
 - Create: `services/iam-service/src/service/role_svc.rs`
@@ -3659,7 +3659,7 @@ CMD ["./iam-service"]
 ## Task 11: 更新路由配置
 
 **Files:**
-- Modify: `docker/config/api-gateway/routes/iam.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/iam.router.toml`
 
 - [ ] **Step 1: 创建 iam.router.toml**
 
@@ -3723,14 +3723,14 @@ backend = "iam-service"
 
 ---
 
-## Task 12: 清理旧服务
+## Task 12: 清理旧服�?
 
 **Files:**
-- Delete: `services/token-service/` (保留内核能力到 iam-service)
+- Delete: `services/token-service/` (保留内核能力�?iam-service)
 - Delete: `services/credential-login-service/`
-- Update: `services/user-service/` (标记为 deprecated)
+- Update: `services/user-service/` (标记�?deprecated)
 
-- [ ] **Step 1: 标记 user-service 为 deprecated**
+- [ ] **Step 1: 标记 user-service �?deprecated**
 
 创建 `services/user-service/DEPRECATED.md`:
 
@@ -3760,7 +3760,7 @@ Expected: 更新依赖
 
 ---
 
-## Task 13: 验证和测试
+## Task 13: 验证和测�?
 
 **Files:**
 - Run: `cargo build --manifest-path services/iam-service/Cargo.toml`
@@ -3778,7 +3778,7 @@ Expected: 测试通过
 
 - [ ] **Step 3: 验证路由配置**
 
-Run: `cargo run -p api-gateway -- validate --routes docker/config/api-gateway/routes`
+Run: `cargo run -p api-gateway -- validate --routes docker-example/config/api-gateway/routes`
 Expected: 路由配置验证通过
 
 ---
@@ -3787,8 +3787,8 @@ Expected: 路由配置验证通过
 
 Plan complete and saved to `docs/superpowers/plans/2026-06-13-iam-service-merge-plan.md`.
 
-**1. Subagent-Driven (recommended)** - 每个任务派发独立子代理，任务间审核，快速迭代
+**1. Subagent-Driven (recommended)** - 每个任务派发独立子代理，任务间审核，快速迭�?
 
 **2. Inline Execution** - 使用 executing-plans 在当前会话执行，批量执行带检查点
 
-**选择哪种方式？**
+**选择哪种方式�?*

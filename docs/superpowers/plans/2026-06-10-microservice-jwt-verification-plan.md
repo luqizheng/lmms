@@ -1,36 +1,36 @@
-# 微服务间 JWT 验证（用户身份层）实现计划
+# 微服务间 JWT 验证（用户身份层）实现计�?
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 实现 api-gateway 透传 JWT + 下游 Go 服务解码 user 身份 + 业务级授权所需的全部代码。
+**Goal:** 实现 api-gateway 透传 JWT + 下游 Go 服务解码 user 身份 + 业务级授权所需的全部代码�?
 
 **Architecture:**
-- **api-gateway (Rust)**：验签后从 JWT claims 注入 `X-User-*` 冗余头，Authorization 原样透传
-- **token-server (Rust)**：`issue_access_token` 改为接受 `extra_claims: serde_json::Value` 透传；access 路由在签发前 `reqwest` 调 `user-service` 内部端点拿 claims
-- **user-service (Go)**：新增 `GET /internal/users/{id}/claims`，聚合 user + dept + roles + permissions 为 claims JSON；引入 `libs/go-jwt-ctx` 中间件
-- **auth-service (Go)**：引入 `libs/go-jwt-ctx` 中间件
+- **api-gateway (Rust)**：验签后�?JWT claims 注入 `X-User-*` 冗余头，Authorization 原样透传
+- **token-server (Rust)**：`issue_access_token` 改为接受 `extra_claims: serde_json::Value` 透传；access 路由在签发前 `reqwest` �?`user-service` 内部端点�?claims
+- **user-service (Go)**：新�?`GET /internal/users/{id}/claims`，聚�?user + dept + roles + permissions �?claims JSON；引�?`libs/go-jwt-ctx` 中间�?
+- **auth-service (Go)**：引�?`libs/go-jwt-ctx` 中间�?
 - **libs/go-jwt-ctx (Go, 新建)**：JWT decode + 通用 `Principal` + gin middleware
-- **libs/go-authz (Go, 新建)**：基于通用 Principal 的 `CanRead/CanWrite` 辅助函数
+- **libs/go-authz (Go, 新建)**：基于通用 Principal �?`CanRead/CanWrite` 辅助函数
 
 **Tech Stack:** Rust 1.78+ / axum / jwt-simple / reqwest；Go 1.22+ / gin / golang-jwt/jwt v5
 
 **Spec:** `docs/superpowers/specs/2026-06-10-microservice-jwt-verification-design.md`
 
-**前置说明：** Service-token（client_credentials 流程）不在本计划范围，spec 第 5 节留接口待后续。
+**前置说明�?* Service-token（client_credentials 流程）不在本计划范围，spec �?5 节留接口待后续�?
 
 ---
 
-## 范围检查
+## 范围检�?
 
-设计文档第 1-4 节（用户身份层 + 下游授权）→ 本计划覆盖。
-设计文档第 5 节（service-token）→ 留待后续独立 plan。
-设计文档第 10 节改动清单（除 service-token 相关项）→ 本计划覆盖。
+设计文档�?1-4 节（用户身份�?+ 下游授权）→ 本计划覆盖�?
+设计文档�?5 节（service-token）→ 留待后续独立 plan�?
+设计文档�?10 节改动清单（�?service-token 相关项）�?本计划覆盖�?
 
 ---
 
 ## 文件结构
 
-| 路径 | 状态 | 职责 |
+| 路径 | 状�?| 职责 |
 |---|---|---|
 | `libs/go-jwt-ctx/go.mod` | 新建 | Go module 声明 |
 | `libs/go-jwt-ctx/principal.go` | 新建 | `Principal` 结构 + `Claims` 通用解码 |
@@ -41,21 +41,21 @@
 | `libs/go-authz/authz_test.go` | 新建 | 单元测试 |
 | `services/user-service/handlers/claims.go` | 新建 | `GetUserClaims` handler |
 | `services/user-service/handlers/claims_test.go` | 新建 | 端点测试 |
-| `services/user-service/routes.go` | 改 | 注册 `/internal/...` 路由组 |
-| `services/user-service/main.go` | 改 | 接入 `libs/go-jwt-ctx` 中间件（除 `/internal` 与 `/health`） |
-| `services/user-service/go.mod` | 改 | `require` libs/go-jwt-ctx |
-| `services/auth-service/main.go` | 改 | 接入 `libs/go-jwt-ctx` 中间件（除 `/api/auth/*` 与 `/health`） |
-| `services/auth-service/go.mod` | 改 | `require` libs/go-jwt-ctx |
-| `services/token-server/src/issuer.rs` | 改 | `issue_access_token` 接受 `extra_claims: serde_json::Value` |
-| `services/token-server/src/routes/access.rs` | 改 | 签 access 前调 user-service 拿 claims |
-| `services/token-server/src/routes/access_test.rs` | 改 | 增加 mock user-service 的测试 |
-| `services/api-gateway/src/middleware/mod.rs` | 改 | 验签后注入 `X-User-*` 头 |
+| `services/user-service/routes.go` | �?| 注册 `/internal/...` 路由�?|
+| `services/user-service/main.go` | �?| 接入 `libs/go-jwt-ctx` 中间件（�?`/internal` �?`/health`�?|
+| `services/user-service/go.mod` | �?| `require` libs/go-jwt-ctx |
+| `services/auth-service/main.go` | �?| 接入 `libs/go-jwt-ctx` 中间件（�?`/api/auth/*` �?`/health`�?|
+| `services/auth-service/go.mod` | �?| `require` libs/go-jwt-ctx |
+| `services/token-server/src/issuer.rs` | �?| `issue_access_token` 接受 `extra_claims: serde_json::Value` |
+| `services/token-server/src/routes/access.rs` | �?| �?access 前调 user-service �?claims |
+| `services/token-server/src/routes/access_test.rs` | �?| 增加 mock user-service 的测�?|
+| `services/api-gateway/src/middleware/mod.rs` | �?| 验签后注�?`X-User-*` �?|
 | `services/api-gateway/src/middleware_test.rs` | 新建 | header 注入测试 |
 | `tests/specs/user-service/claims-endpoint.yaml` | 新建 | E2E 规格 |
 
 ---
 
-## Task 1: libs/go-jwt-ctx 模块初始化
+## Task 1: libs/go-jwt-ctx 模块初始�?
 
 **Files:**
 - Create: `libs/go-jwt-ctx/go.mod`
@@ -71,17 +71,17 @@ go get github.com/golang-jwt/jwt/v5@latest
 go get github.com/gin-gonic/gin@latest
 ```
 
-- [ ] **Step 2: 写 Principal 与 Claims 结构（先写骨架）**
+- [ ] **Step 2: �?Principal �?Claims 结构（先写骨架）**
 
-`libs/go-jwt-ctx/principal.go`：
+`libs/go-jwt-ctx/principal.go`�?
 
 ```go
 package jwtctx
 
 import "encoding/json"
 
-// Principal 是从 JWT 解析出的调用者身份，由 user-service 决定字段，
-// 通用字段放在顶层，业务字段放在 Custom 中按需读取。
+// Principal 是从 JWT 解析出的调用者身份，�?user-service 决定字段�?
+// 通用字段放在顶层，业务字段放�?Custom 中按需读取�?
 type Principal struct {
     UserID       string
     DepartmentID uint
@@ -91,7 +91,7 @@ type Principal struct {
     Custom       map[string]any
 }
 
-// HasPermission 判断是否有指定权限点。
+// HasPermission 判断是否有指定权限点�?
 func (p *Principal) HasPermission(perm string) bool {
     if p == nil {
         return false
@@ -100,7 +100,7 @@ func (p *Principal) HasPermission(perm string) bool {
     return ok
 }
 
-// HasRole 判断是否拥有指定角色。
+// HasRole 判断是否拥有指定角色�?
 func (p *Principal) HasRole(role string) bool {
     if p == nil {
         return false
@@ -113,7 +113,7 @@ func (p *Principal) HasRole(role string) bool {
     return false
 }
 
-// Get 返回自定义字段，类型安全由调用方负责。
+// Get 返回自定义字段，类型安全由调用方负责�?
 func (p *Principal) Get(key string) (any, bool) {
     if p == nil {
         return nil, false
@@ -122,7 +122,7 @@ func (p *Principal) Get(key string) (any, bool) {
     return v, ok
 }
 
-// Claims 是 JWT payload 的通用解码结果，Custom 存放 user-service 提供的所有业务字段。
+// Claims �?JWT payload 的通用解码结果，Custom 存放 user-service 提供的所有业务字段�?
 type Claims struct {
     Sub         string         `json:"sub"`
     Jti         string         `json:"jti"`
@@ -138,7 +138,7 @@ type Claims struct {
     Custom      map[string]any `json:"-"`
 }
 
-// ToPrincipal 把 Claims 转成 Principal，Permissions 转 set 提升查询性能。
+// ToPrincipal �?Claims 转成 Principal，Permissions �?set 提升查询性能�?
 func (c *Claims) ToPrincipal() *Principal {
     set := make(map[string]struct{}, len(c.Permissions))
     for _, p := range c.Permissions {
@@ -154,16 +154,16 @@ func (c *Claims) ToPrincipal() *Principal {
     }
 }
 
-// RawClaims 用 json.RawMessage 抓取未在 struct 定义的字段，存进 Custom。
+// RawClaims �?json.RawMessage 抓取未在 struct 定义的字段，存进 Custom�?
 type RawClaims struct {
     Claims
     Extra map[string]json.RawMessage `json:"-"`
 }
 ```
 
-- [ ] **Step 3: 写 Decode 函数（解析 payload 不验签）**
+- [ ] **Step 3: �?Decode 函数（解�?payload 不验签）**
 
-`libs/go-jwt-ctx/decode.go`：
+`libs/go-jwt-ctx/decode.go`�?
 
 ```go
 package jwtctx
@@ -176,14 +176,14 @@ import (
     "time"
 )
 
-// ErrInvalidToken 标识 JWT 格式错误或解码失败。
+// ErrInvalidToken 标识 JWT 格式错误或解码失败�?
 var ErrInvalidToken = errors.New("invalid_token")
 
-// ErrTokenExpired 标识 JWT exp 已过。
+// ErrTokenExpired 标识 JWT exp 已过�?
 var ErrTokenExpired = errors.New("token_expired")
 
-// Decode 从 "Bearer xxx" 字符串中解析 claims。**不做密码学验签**，
-// 调用方需自行保证 token 来自可信来源（api-gateway）。
+// Decode �?"Bearer xxx" 字符串中解析 claims�?*不做密码学验�?*�?
+// 调用方需自行保证 token 来自可信来源（api-gateway）�?
 func Decode(authHeader string) (*Claims, error) {
     if !strings.HasPrefix(authHeader, "Bearer ") {
         return nil, ErrInvalidToken
@@ -230,7 +230,7 @@ func extractExtras(raw map[string]json.RawMessage, c *Claims) map[string]any {
     return out
 }
 
-// CheckExp 校验 exp，未过期返回 nil。
+// CheckExp 校验 exp，未过期返回 nil�?
 func (c *Claims) CheckExp() error {
     if c.Exp == 0 {
         return nil
@@ -244,7 +244,7 @@ func (c *Claims) CheckExp() error {
 
 - [ ] **Step 4: 写中间件**
 
-`libs/go-jwt-ctx/middleware.go`：
+`libs/go-jwt-ctx/middleware.go`�?
 
 ```go
 package jwtctx
@@ -257,8 +257,8 @@ import (
 
 const principalKey = "user.principal"
 
-// Middleware 返回 gin 中间件，从 Authorization 头解析 JWT 并注入 Principal 到 context。
-// 解析失败返回 401，exp 过期返回 401，权限交由 handler 业务判断。
+// Middleware 返回 gin 中间件，�?Authorization 头解�?JWT 并注�?Principal �?context�?
+// 解析失败返回 401，exp 过期返回 401，权限交�?handler 业务判断�?
 func Middleware() gin.HandlerFunc {
     return func(c *gin.Context) {
         h := c.GetHeader("Authorization")
@@ -280,7 +280,7 @@ func Middleware() gin.HandlerFunc {
     }
 }
 
-// From 从 gin context 取 Principal，未设置时返回 nil。
+// From �?gin context �?Principal，未设置时返�?nil�?
 func From(c *gin.Context) *Principal {
     v, ok := c.Get(principalKey)
     if !ok {
@@ -291,9 +291,9 @@ func From(c *gin.Context) *Principal {
 }
 ```
 
-- [ ] **Step 5: 写单元测试**
+- [ ] **Step 5: 写单元测�?*
 
-`libs/go-jwt-ctx/middleware_test.go`：
+`libs/go-jwt-ctx/middleware_test.go`�?
 
 ```go
 package jwtctx
@@ -399,7 +399,7 @@ func TestMiddlewareInjectsPrincipal(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: 跑测试**
+- [ ] **Step 6: 跑测�?*
 
 ```bash
 Set-Location "libs/go-jwt-ctx"
@@ -408,7 +408,7 @@ go test ./... -v
 
 Expected: all PASS.
 
-- [ ] **Step 7: 暂存（待用户确认 commit）**
+- [ ] **Step 7: 暂存（待用户确认 commit�?*
 
 ```bash
 git add libs/go-jwt-ctx/
@@ -423,7 +423,7 @@ git add libs/go-jwt-ctx/
 - Create: `libs/go-authz/authz.go`
 - Create: `libs/go-authz/authz_test.go`
 
-- [ ] **Step 1: 初始化 module**
+- [ ] **Step 1: 初始�?module**
 
 ```bash
 New-Item -ItemType Directory -Path "libs/go-authz" -Force
@@ -433,7 +433,7 @@ go get github.com/coder-micro-services/go-jwt-ctx@latest
 go get github.com/gin-gonic/gin@latest
 ```
 
-> 实际上 go-jwt-ctx 还没发版，先用 replace 指令指向本地：
+> 实际�?go-jwt-ctx 还没发版，先�?replace 指令指向本地�?
 ```bash
 go mod edit -replace github.com/coder-micro-services/go-jwt-ctx=../go-jwt-ctx
 go mod tidy
@@ -441,19 +441,19 @@ go mod tidy
 
 - [ ] **Step 2: 写通用授权辅助**
 
-`libs/go-authz/authz.go`：
+`libs/go-authz/authz.go`�?
 
 ```go
 package authz
 
 import jwtctx "github.com/coder-micro-services/go-jwt-ctx"
 
-// HasPermission 便捷方法，包一层便于 import 收敛。
+// HasPermission 便捷方法，包一层便�?import 收敛�?
 func HasPermission(p *jwtctx.Principal, perm string) bool {
     return p.HasPermission(perm)
 }
 
-// HasAnyPermission 任一权限命中即返回 true。
+// HasAnyPermission 任一权限命中即返�?true�?
 func HasAnyPermission(p *jwtctx.Principal, perms ...string) bool {
     for _, perm := range perms {
         if p.HasPermission(perm) {
@@ -463,7 +463,7 @@ func HasAnyPermission(p *jwtctx.Principal, perms ...string) bool {
     return false
 }
 
-// HasAllPermissions 所有权限都需命中。
+// HasAllPermissions 所有权限都需命中�?
 func HasAllPermissions(p *jwtctx.Principal, perms ...string) bool {
     for _, perm := range perms {
         if !p.HasPermission(perm) {
@@ -473,12 +473,12 @@ func HasAllPermissions(p *jwtctx.Principal, perms ...string) bool {
     return true
 }
 
-// HasRole 便捷方法。
+// HasRole 便捷方法�?
 func HasRole(p *jwtctx.Principal, role string) bool {
     return p.HasRole(role)
 }
 
-// HasAnyRole 任一角色命中即返回 true。
+// HasAnyRole 任一角色命中即返�?true�?
 func HasAnyRole(p *jwtctx.Principal, roles ...string) bool {
     for _, r := range roles {
         if p.HasRole(r) {
@@ -488,8 +488,8 @@ func HasAnyRole(p *jwtctx.Principal, roles ...string) bool {
     return false
 }
 
-// RequirePermission 返回 gin abort 中间件，未命中返回 403。
-// 仅做粗粒度拦截，业务级判断仍由 handler 内部完成。
+// RequirePermission 返回 gin abort 中间件，未命中返�?403�?
+// 仅做粗粒度拦截，业务级判断仍�?handler 内部完成�?
 import "github.com/gin-gonic/gin"
 import "net/http"
 
@@ -505,7 +505,7 @@ func RequirePermission(perm string) gin.HandlerFunc {
 }
 ```
 
-> 注意：上面 import 与 package 声明顺序要按 Go 规范调整。最终文件结构：
+> 注意：上�?import �?package 声明顺序要按 Go 规范调整。最终文件结构：
 
 ```go
 package authz
@@ -517,12 +517,12 @@ import (
     "github.com/gin-gonic/gin"
 )
 
-// ... 所有函数
+// ... 所有函�?
 ```
 
-- [ ] **Step 3: 写单元测试**
+- [ ] **Step 3: 写单元测�?*
 
-`libs/go-authz/authz_test.go`：
+`libs/go-authz/authz_test.go`�?
 
 ```go
 package authz
@@ -611,7 +611,7 @@ func TestRequirePermission(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: 跑测试**
+- [ ] **Step 4: 跑测�?*
 
 ```bash
 Set-Location "libs/go-authz"
@@ -635,9 +635,9 @@ git add libs/go-authz/
 - Create: `services/user-service/handlers/claims_test.go`
 - Modify: `services/user-service/routes.go`
 
-- [ ] **Step 1: 写 handler**
+- [ ] **Step 1: �?handler**
 
-`services/user-service/handlers/claims.go`：
+`services/user-service/handlers/claims.go`�?
 
 ```go
 package handlers
@@ -651,9 +651,9 @@ import (
     "gorm.io/gorm"
 )
 
-// GetUserClaims 返回 user-service 聚合的 JWT 业务 claims。
+// GetUserClaims 返回 user-service 聚合�?JWT 业务 claims�?
 // 路径：GET /internal/users/:id/claims
-// 仅内网调用（不经 api-gateway），供 token-server 在签 access token 前获取业务字段。
+// 仅内网调用（不经 api-gateway），�?token-server 在签 access token 前获取业务字段�?
 func GetUserClaims(db *gorm.DB) gin.HandlerFunc {
     return func(c *gin.Context) {
         id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -674,8 +674,8 @@ func GetUserClaims(db *gorm.DB) gin.HandlerFunc {
     }
 }
 
-// buildUserClaims 聚合 user + dept + roles + permissions 为 claims 字典。
-// 字段 schema 由本函数决定，token-server 透传不改字段名。
+// buildUserClaims 聚合 user + dept + roles + permissions �?claims 字典�?
+// 字段 schema 由本函数决定，token-server 透传不改字段名�?
 func buildUserClaims(db *gorm.DB, userID uint) (gin.H, error) {
     var u User
     if err := db.Preload("Roles.Permissions").First(&u, userID).Error; err != nil {
@@ -703,13 +703,13 @@ func buildUserClaims(db *gorm.DB, userID uint) (gin.H, error) {
 }
 ```
 
-> 依赖类型 `User` 已存在于 `services/user-service/models/user.go`，
-> 包含 `Roles []Role` 关联。`Role.Permissions` 见 `models/role.go`。
-> 若 `User.DepartmentID` / `IsDeptLeader` 字段名不同，按实际表名调整。
+> 依赖类型 `User` 已存在于 `services/user-service/models/user.go`�?
+> 包含 `Roles []Role` 关联。`Role.Permissions` �?`models/role.go`�?
+> �?`User.DepartmentID` / `IsDeptLeader` 字段名不同，按实际表名调整�?
 
-- [ ] **Step 2: 写测试（用内存 sqlite 或 docker mysql）**
+- [ ] **Step 2: 写测试（用内�?sqlite �?docker mysql�?*
 
-`services/user-service/handlers/claims_test.go`：
+`services/user-service/handlers/claims_test.go`�?
 
 ```go
 package handlers
@@ -784,7 +784,7 @@ func TestGetUserClaimsAggregate(t *testing.T) {
 
 - [ ] **Step 3: 注册路由**
 
-`services/user-service/routes.go` 在 `setupRoutes` 内新增：
+`services/user-service/routes.go` �?`setupRoutes` 内新增：
 
 ```go
 internal := s.engine.Group("/internal")
@@ -793,7 +793,7 @@ internal := s.engine.Group("/internal")
 }
 ```
 
-- [ ] **Step 4: 跑测试**
+- [ ] **Step 4: 跑测�?*
 
 ```bash
 Set-Location "services/user-service"
@@ -810,13 +810,13 @@ git add services/user-service/handlers/claims.go services/user-service/handlers/
 
 ---
 
-## Task 4: user-service 接入 JWT 中间件
+## Task 4: user-service 接入 JWT 中间�?
 
 **Files:**
 - Modify: `services/user-service/main.go`
 - Modify: `services/user-service/go.mod`
 
-- [ ] **Step 1: 加依赖**
+- [ ] **Step 1: 加依�?*
 
 ```bash
 Set-Location "services/user-service"
@@ -825,7 +825,7 @@ go mod edit -replace github.com/coder-micro-services/go-jwt-ctx=../../libs/go-jw
 go mod tidy
 ```
 
-- [ ] **Step 2: 接入中间件（白名单 /internal 和 /health）**
+- [ ] **Step 2: 接入中间件（白名�?/internal �?/health�?*
 
 `services/user-service/main.go` 中路由分组改为：
 
@@ -833,13 +833,13 @@ go mod tidy
 func (s *Server) setupRoutes() {
     s.engine.GET("/health", s.healthHandler)
 
-    // 内部端点不经 api-gateway，不挂 JWT 中间件
+    // 内部端点不经 api-gateway，不�?JWT 中间�?
     internal := s.engine.Group("/internal")
     {
         internal.GET("/users/:id/claims", handlers.GetUserClaims(s.db))
     }
 
-    // 业务路由走 JWT 中间件
+    // 业务路由�?JWT 中间�?
     api := s.engine.Group("/api")
     api.Use(jwtctx.Middleware())
     {
@@ -881,13 +881,13 @@ git add services/user-service/main.go services/user-service/go.mod services/user
 
 ---
 
-## Task 5: auth-service 接入 JWT 中间件
+## Task 5: auth-service 接入 JWT 中间�?
 
 **Files:**
 - Modify: `services/auth-service/main.go`
 - Modify: `services/auth-service/go.mod`
 
-- [ ] **Step 1: 加依赖**
+- [ ] **Step 1: 加依�?*
 
 ```bash
 Set-Location "services/auth-service"
@@ -896,7 +896,7 @@ go mod edit -replace github.com/coder-micro-services/go-jwt-ctx=../../libs/go-jw
 go mod tidy
 ```
 
-- [ ] **Step 2: 接入中间件**
+- [ ] **Step 2: 接入中间�?*
 
 `services/auth-service/main.go` 中：
 
@@ -904,14 +904,14 @@ go mod tidy
 func (s *Server) setupRoutes() {
     s.engine.GET("/health", s.healthHandler)
 
-    // /api/auth/login 与 /register 不需要 JWT（登录用）
+    // /api/auth/login �?/register 不需�?JWT（登录用�?
     authPublic := s.engine.Group("/api/auth")
     {
         authPublic.POST("/register", handlers.Register(s.db))
         authPublic.POST("/login", handlers.Login(s.db, s.redis, s.cfg))
     }
 
-    // /api/auth/logout 需要 JWT
+    // /api/auth/logout 需�?JWT
     authProtected := s.engine.Group("/api/auth")
     authProtected.Use(jwtctx.Middleware())
     {
@@ -937,16 +937,16 @@ git add services/auth-service/main.go services/auth-service/go.mod services/auth
 
 ---
 
-## Task 6: token-server 改造 issuer 接受 extra_claims
+## Task 6: token-server 改�?issuer 接受 extra_claims
 
 **Files:**
 - Modify: `services/token-server/src/issuer.rs`
 - Modify: `services/token-server/src/routes/access.rs`
-- Modify: `services/token-server/Cargo.toml`（如需 reqwest）
+- Modify: `services/token-server/Cargo.toml`（如需 reqwest�?
 
-- [ ] **Step 1: 加 reqwest 依赖**
+- [ ] **Step 1: �?reqwest 依赖**
 
-`services/token-server/Cargo.toml` 的 `[dependencies]` 段加：
+`services/token-server/Cargo.toml` �?`[dependencies]` 段加�?
 
 ```toml
 reqwest = { version = "0.12", features = ["json"] }
@@ -954,7 +954,7 @@ reqwest = { version = "0.12", features = ["json"] }
 
 （若已存在跳过。）
 
-- [ ] **Step 2: 改 issuer.rs**
+- [ ] **Step 2: �?issuer.rs**
 
 替换 `issue_access_token` 签名为：
 
@@ -975,7 +975,7 @@ pub fn issue_access_token(
     let mut custom = HashMap::new();
     custom.insert("scope".to_string(), serde_json::Value::String("access".to_string()));
     custom.insert("client_id".to_string(), serde_json::Value::String(client_id.to_string()));
-    // 合并 user-service 提供的业务 claims，user-service 决定 schema
+    // 合并 user-service 提供的业�?claims，user-service 决定 schema
     if let Some(obj) = extra_claims.as_object() {
         for (k, v) in obj {
             custom.insert(k.clone(), v.clone());
@@ -988,9 +988,9 @@ pub fn issue_access_token(
 }
 ```
 
-> 同步移除旧的 `permissions` 参数调用（现在由 extra_claims 透传）。
+> 同步移除旧的 `permissions` 参数调用（现在由 extra_claims 透传）�?
 
-- [ ] **Step 3: 改 access.rs：先调 user-service 拿 claims 再签发**
+- [ ] **Step 3: �?access.rs：先�?user-service �?claims 再签�?*
 
 `access.rs` 关键改动伪代码（保留原有 code 兑换逻辑）：
 
@@ -999,12 +999,12 @@ async fn handle_access(
     State(state): State<AppState>,
     Json(req): Json<AccessRequest>,
 ) -> Result<Json<AccessResponse>, (StatusCode, String)> {
-    // 1. 兑 code 拿 user_id（保留旧逻辑）
+    // 1. �?code �?user_id（保留旧逻辑�?
     let user_id = state.redis.get_code(&req.code).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or((StatusCode::BAD_REQUEST, "invalid_code".to_string()))?;
 
-    // 2. 调 user-service 拿业务 claims
+    // 2. �?user-service 拿业�?claims
     let url = format!("{}/internal/users/{}/claims", state.config.user_service_url, user_id);
     let claims: serde_json::Value = state.http_client.get(&url).send().await
         .map_err(|e| (StatusCode::SERVICE_UNAVAILABLE, format!("user_service_unreachable: {e}")))?
@@ -1018,16 +1018,16 @@ async fn handle_access(
     // 4. 签发 access token
     let access = state.issuer.issue_access_token(&user_id, &req.client_id, claims, state.config.access_ttl_sec)?;
 
-    // 5. 签 refresh（不变）
+    // 5. �?refresh（不变）
     // ...
 
     Ok(Json(AccessResponse { access_token: access, refresh_token: refresh, ... }))
 }
 ```
 
-- [ ] **Step 4: 配 user-service URL**
+- [ ] **Step 4: �?user-service URL**
 
-`services/token-server/src/config.rs` 增加字段（具体配置名按现有约定）：
+`services/token-server/src/config.rs` 增加字段（具体配置名按现有约定）�?
 
 ```rust
 pub struct Config {
@@ -1036,21 +1036,21 @@ pub struct Config {
 }
 ```
 
-`docker/config/token-server/token-server.toml` 加：
+`docker-example/config/token-server/token-server.toml` 加：
 
 ```toml
 [upstream]
 user_service_url = "http://user-service:8080"
 ```
 
-- [ ] **Step 5: 跑测试**
+- [ ] **Step 5: 跑测�?*
 
 ```bash
 Set-Location "services/token-server"
 cargo test
 ```
 
-Expected: 现有测试 + 改造后用例 PASS。
+Expected: 现有测试 + 改造后用例 PASS�?
 
 - [ ] **Step 6: 暂存**
 
@@ -1060,15 +1060,15 @@ git add services/token-server/
 
 ---
 
-## Task 7: api-gateway 注入 X-User-* 头
+## Task 7: api-gateway 注入 X-User-* �?
 
 **Files:**
 - Modify: `services/api-gateway/src/middleware/mod.rs`
-- Create: `services/api-gateway/src/middleware_test.rs`（追加测试到既有测试文件也行）
+- Create: `services/api-gateway/src/middleware_test.rs`（追加测试到既有测试文件也行�?
 
-- [ ] **Step 1: 改 middleware/mod.rs 注入 header**
+- [ ] **Step 1: �?middleware/mod.rs 注入 header**
 
-在 JWT 验签通过后（找到 `claims` 已被解析的位置），追加：
+�?JWT 验签通过后（找到 `claims` 已被解析的位置），追加：
 
 ```rust
 fn inject_user_headers(headers: &mut HeaderMap, claims: &JwtClaims) {
@@ -1121,9 +1121,9 @@ fn inject_user_headers(headers: &mut HeaderMap, claims: &JwtClaims) {
 inject_user_headers(&mut proxied_headers, &claims);
 ```
 
-- [ ] **Step 2: 写测试**
+- [ ] **Step 2: 写测�?*
 
-`services/api-gateway/src/middleware_test.rs`（新建或追加到 `jwt_test.rs`）：
+`services/api-gateway/src/middleware_test.rs`（新建或追加�?`jwt_test.rs`）：
 
 ```rust
 #[test]
@@ -1148,7 +1148,7 @@ fn inject_user_headers_reads_custom_claims() {
 }
 ```
 
-- [ ] **Step 3: 跑测试**
+- [ ] **Step 3: 跑测�?*
 
 ```bash
 Set-Location "services/api-gateway"
@@ -1165,21 +1165,21 @@ git add services/api-gateway/
 
 ---
 
-## Task 8: E2E 规格与运行验证
+## Task 8: E2E 规格与运行验�?
 
 **Files:**
 - Create: `tests/specs/user-service/claims-endpoint.yaml`
 - Create: `tests/specs/microservice-jwt-verification.yaml`
 
-- [ ] **Step 1: 写 claims endpoint 规格**
+- [ ] **Step 1: �?claims endpoint 规格**
 
-`tests/specs/user-service/claims-endpoint.yaml`：
+`tests/specs/user-service/claims-endpoint.yaml`�?
 
 ```yaml
 name: user-service-claims-endpoint
 description: |
-  验证 GET /internal/users/{id}/claims 返回 user + dept + roles + permissions 聚合。
-  端点仅内网调用，不经 api-gateway，不挂 JWT 中间件。
+  验证 GET /internal/users/{id}/claims 返回 user + dept + roles + permissions 聚合�?
+  端点仅内网调用，不经 api-gateway，不�?JWT 中间件�?
 scenarios:
   - name: 正常用户返回完整 claims
     steps:
@@ -1196,15 +1196,15 @@ scenarios:
       - expect: { status: 404, json: { error: not_found } }
 ```
 
-- [ ] **Step 2: 写 JWT 验证流程规格**
+- [ ] **Step 2: �?JWT 验证流程规格**
 
-`tests/specs/microservice-jwt-verification.yaml`：
+`tests/specs/microservice-jwt-verification.yaml`�?
 
 ```yaml
 name: microservice-jwt-verification
 description: |
-  验证：登录 → token-server 调 user-service 拿 claims → 返回 JWT 含业务字段 →
-  api-gateway 注入 X-User-* 头 → 下游 service 解析 Authorization 拿 Principal。
+  验证：登�?�?token-server �?user-service �?claims �?返回 JWT 含业务字�?�?
+  api-gateway 注入 X-User-* �?�?下游 service 解析 Authorization �?Principal�?
 scenarios:
   - name: 完整登录 + 业务访问链路
     steps:
@@ -1228,14 +1228,14 @@ scenarios:
           headers_in_response_chain: { X-User-Id: "1", X-User-Dept: "42" }
 ```
 
-- [ ] **Step 3: 用 test-orchestrator 跑**
+- [ ] **Step 3: �?test-orchestrator �?*
 
 ```bash
 Set-Location "d:\projects\coder-micro-services"
 .\scripts\test-orchestrator.ps1 loop
 ```
 
-Expected: 全部通过 / 现有 fail 数量不变。
+Expected: 全部通过 / 现有 fail 数量不变�?
 
 - [ ] **Step 4: 暂存**
 
@@ -1247,19 +1247,19 @@ git add tests/specs/
 
 ## 自检
 
-- [x] Spec 第 3 节（用户身份层）→ Task 1, 4, 5, 7
-- [x] Spec 第 4 节（下游业务授权）→ Task 2
-- [x] Spec 第 6.1 节（claims schema 由 user-service 决定）→ Task 3, 6
-- [x] Spec 第 7 节（错误处理）→ Task 1 中间件已实现
-- [x] Spec 第 5 节（service-token）→ 明确排除（后续独立 plan）
-- [x] 无 TBD / TODO 占位
+- [x] Spec �?3 节（用户身份层）�?Task 1, 4, 5, 7
+- [x] Spec �?4 节（下游业务授权）→ Task 2
+- [x] Spec �?6.1 节（claims schema �?user-service 决定）→ Task 3, 6
+- [x] Spec �?7 节（错误处理）→ Task 1 中间件已实现
+- [x] Spec �?5 节（service-token）→ 明确排除（后续独�?plan�?
+- [x] �?TBD / TODO 占位
 - [x] 类型一致：`Principal.UserID` / `Claims.Sub` / `JwtClaims.sub` 三处语义统一
 
 ---
 
 ## 执行选项
 
-1. **Subagent-Driven (推荐)** — 每个 task 起新 subagent，两阶段评审
-2. **Inline Execution** — 在本会话中分批执行，含 checkpoint 复审
+1. **Subagent-Driven (推荐)** �?每个 task 起新 subagent，两阶段评审
+2. **Inline Execution** �?在本会话中分批执行，�?checkpoint 复审
 
 选哪个？

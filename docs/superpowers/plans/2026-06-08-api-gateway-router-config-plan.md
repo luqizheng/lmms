@@ -1,50 +1,44 @@
-# API Gateway 多文件路由配置 实施计划
+# API Gateway 多文件路由配�?实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 api-gateway 单文件路由配置拆为 `routes/*.router.toml`，引入重写规则链与手工触发的 `validate`/`reload` 命令。
-
-**Architecture:** 启动期从 `routes/` 目录并行解析所有 `*.router.toml` → 合并校验 → 注入 `ArcSwap<RouteTable>`。运行时 `forward_to_service` 命中路由后调用 `rewrite::apply` 改写请求，再转发。`validate` 子命令只校验不装载；`reload` 重新解析并原子切换 ArcSwap。
-
-**Tech Stack:** Rust + axum + tokio + `arc-swap` + `clap`，TOML via `serde` + `toml` crate。
-
+**Goal:** �?api-gateway 单文件路由配置拆�?`routes/*.router.toml`，引入重写规则链与手工触发的 `validate`/`reload` 命令�?
+**Architecture:** 启动期从 `routes/` 目录并行解析所�?`*.router.toml` �?合并校验 �?注入 `ArcSwap<RouteTable>`。运行时 `forward_to_service` 命中路由后调�?`rewrite::apply` 改写请求，再转发。`validate` 子命令只校验不装载；`reload` 重新解析并原子切�?ArcSwap�?
+**Tech Stack:** Rust + axum + tokio + `arc-swap` + `clap`，TOML via `serde` + `toml` crate�?
 ---
 
 ## File Structure
 
-**新建：**
-- `services/api-gateway/src/routes_loader.rs`：扫描 `routes/` + 解析 + 合并校验
+**新建�?*
+- `services/api-gateway/src/routes_loader.rs`：扫�?`routes/` + 解析 + 合并校验
 - `services/api-gateway/src/rewrite.rs`：`Rewrite` 枚举 + `apply` 函数
-- `services/api-gateway/src/cli.rs`：`validate` / `reload` / `serve` 子命令
-- `services/api-gateway/tests/routes_loader_test.rs`
+- `services/api-gateway/src/cli.rs`：`validate` / `reload` / `serve` 子命�?- `services/api-gateway/tests/routes_loader_test.rs`
 - `services/api-gateway/tests/rewrite_test.rs`
 - `services/api-gateway/tests/validate_cli_test.rs`
 - `services/api-gateway/tests/reload_test.rs`
-- `docker/config/api-gateway/routes/auth.router.toml`
-- `docker/config/api-gateway/routes/tokens.router.toml`
-- `docker/config/api-gateway/routes/users.router.toml`
-- `docker/config/api-gateway/routes/roles.router.toml`
-- `docker/config/api-gateway/routes/permissions.router.toml`
+- `docker-example/config/api-gateway/routes/auth.router.toml`
+- `docker-example/config/api-gateway/routes/tokens.router.toml`
+- `docker-example/config/api-gateway/routes/users.router.toml`
+- `docker-example/config/api-gateway/routes/roles.router.toml`
+- `docker-example/config/api-gateway/routes/permissions.router.toml`
 
-**修改：**
-- `services/api-gateway/Cargo.toml`：新增 `arc-swap`、`clap`、`toml`、`glob`
+**修改�?*
+- `services/api-gateway/Cargo.toml`：新�?`arc-swap`、`clap`、`toml`、`glob`
 - `services/api-gateway/src/config.rs`：`RouteConfig` 拆为精确 match + 通配 + rewrite
-- `services/api-gateway/src/lib.rs`：注册 `routes_loader` / `rewrite` / `cli`，`AppState` 增加 `ArcSwap<RouteTable>`
-- `services/api-gateway/src/main.rs`：解析 CLI 子命令，`serve` 时启动 router + 注册 SIGHUP
+- `services/api-gateway/src/lib.rs`：注�?`routes_loader` / `rewrite` / `cli`，`AppState` 增加 `ArcSwap<RouteTable>`
+- `services/api-gateway/src/main.rs`：解�?CLI 子命令，`serve` 时启�?router + 注册 SIGHUP
 - `services/api-gateway/src/router.rs`：命中路由后调用 `rewrite::apply`
-- `docker/config/api-gateway/api-gateway.toml`：删除 `[[routes]]` 块
-
+- `docker-example/config/api-gateway/api-gateway.toml`：删�?`[[routes]]` �?
 ---
 
-## Task 1：更新 Cargo.toml 依赖
+## Task 1：更�?Cargo.toml 依赖
 
 **Files:**
 - Modify: `services/api-gateway/Cargo.toml`
 
-- [ ] **Step 1：添加依赖**
+- [ ] **Step 1：添加依�?*
 
-在 `[dependencies]` 末尾追加：
-
+�?`[dependencies]` 末尾追加�?
 ```toml
 arc-swap = "1"
 clap = { version = "4", features = ["derive"] }
@@ -52,12 +46,11 @@ toml = "0.8"
 glob = "0.3"
 ```
 
-- [ ] **Step 2：构建确认**
+- [ ] **Step 2：构建确�?*
 
 Run: `cargo build -p api-gateway`
-Expected: 成功，无 warning。
-
-- [ ] **Step 3：提交**
+Expected: 成功，无 warning�?
+- [ ] **Step 3：提�?*
 
 ```bash
 git add services/api-gateway/Cargo.toml Cargo.lock
@@ -66,20 +59,18 @@ git commit -m "build(api-gateway): add arc-swap, clap, toml, glob"
 
 ---
 
-## Task 2：创建 routes/ 配置目录与初始文件
-
+## Task 2：创�?routes/ 配置目录与初始文�?
 **Files:**
-- Create: `docker/config/api-gateway/routes/auth.router.toml`
-- Create: `docker/config/api-gateway/routes/tokens.router.toml`
-- Create: `docker/config/api-gateway/routes/users.router.toml`
-- Create: `docker/config/api-gateway/routes/roles.router.toml`
-- Create: `docker/config/api-gateway/routes/permissions.router.toml`
-- Modify: `docker/config/api-gateway/api-gateway.toml`
+- Create: `docker-example/config/api-gateway/routes/auth.router.toml`
+- Create: `docker-example/config/api-gateway/routes/tokens.router.toml`
+- Create: `docker-example/config/api-gateway/routes/users.router.toml`
+- Create: `docker-example/config/api-gateway/routes/roles.router.toml`
+- Create: `docker-example/config/api-gateway/routes/permissions.router.toml`
+- Modify: `docker-example/config/api-gateway/api-gateway.toml`
 
 - [ ] **Step 1：写 auth.router.toml**
 
-`docker/config/api-gateway/routes/auth.router.toml`：
-
+`docker-example/config/api-gateway/routes/auth.router.toml`�?
 ```toml
 [[route]]
 match = "/auth/**"
@@ -123,28 +114,25 @@ service = "user-service"
 public = false
 ```
 
-- [ ] **Step 6：删除 api-gateway.toml 的 routes 块**
+- [ ] **Step 6：删�?api-gateway.toml �?routes �?*
 
-修改 `docker/config/api-gateway/api-gateway.toml`，删除第 13-39 行（注释与 5 条 `[[routes]]`）。文件保留 `server`/`redis`/`consul_addr`/`jwks_public_key_path`/`issuer`。
-
-- [ ] **Step 7：提交**
+修改 `docker-example/config/api-gateway/api-gateway.toml`，删除第 13-39 行（注释�?5 �?`[[routes]]`）。文件保�?`server`/`redis`/`consul_addr`/`jwks_public_key_path`/`issuer`�?
+- [ ] **Step 7：提�?*
 
 ```bash
-git add docker/config/api-gateway/
+git add docker-example/config/api-gateway/
 git commit -m "feat(config): split api-gateway routes into routes/*.router.toml"
 ```
 
 ---
 
-## Task 3：改写 RouteConfig 与 RouteTable（config.rs）
-
+## Task 3：改�?RouteConfig �?RouteTable（config.rs�?
 **Files:**
 - Modify: `services/api-gateway/src/config.rs`
 
-- [ ] **Step 1：写失败的 compile 测试**
+- [ ] **Step 1：写失败�?compile 测试**
 
-`services/api-gateway/src/config.rs` 顶部新增：
-
+`services/api-gateway/src/config.rs` 顶部新增�?
 ```rust
 #[cfg(test)]
 mod tests {
@@ -166,15 +154,13 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2：运行确认编译失败**
+- [ ] **Step 2：运行确认编译失�?*
 
 Run: `cargo test -p api-gateway config::tests`
-Expected: `cannot find type RouteFile`。
+Expected: `cannot find type RouteFile`�?
+- [ ] **Step 3：实�?RouteFile 与扩�?RouteConfig**
 
-- [ ] **Step 3：实现 RouteFile 与扩展 RouteConfig**
-
-重写 `services/api-gateway/src/config.rs`：
-
+重写 `services/api-gateway/src/config.rs`�?
 ```rust
 use serde::Deserialize;
 
@@ -218,9 +204,8 @@ pub struct RouteTable {
 - [ ] **Step 4：运行测试确认通过**
 
 Run: `cargo test -p api-gateway config::tests`
-Expected: 1 passed。
-
-- [ ] **Step 5：提交**
+Expected: 1 passed�?
+- [ ] **Step 5：提�?*
 
 ```bash
 git add services/api-gateway/src/config.rs
@@ -229,15 +214,14 @@ git commit -m "refactor(api-gateway): RouteConfig with match/rewrite, RouteTable
 
 ---
 
-## Task 4：实现 routes_loader.rs
+## Task 4：实�?routes_loader.rs
 
 **Files:**
 - Create: `services/api-gateway/src/routes_loader.rs`
 
-- [ ] **Step 1：写失败的测试**
+- [ ] **Step 1：写失败的测�?*
 
-`services/api-gateway/tests/routes_loader_test.rs`：
-
+`services/api-gateway/tests/routes_loader_test.rs`�?
 ```rust
 use api_gateway::routes_loader::load_routes;
 use std::fs;
@@ -293,18 +277,16 @@ fn rejects_unknown_rewrite_type() {
 }
 ```
 
-`tempfile` 加入 `[dev-dependencies]`：
-
+`tempfile` 加入 `[dev-dependencies]`�?
 ```toml
 tempfile = "3"
 ```
 
-- [ ] **Step 2：运行确认失败**
+- [ ] **Step 2：运行确认失�?*
 
 Run: `cargo test -p api-gateway --test routes_loader_test`
-Expected: 编译错误 `module routes_loader not found`。
-
-- [ ] **Step 3：实现 routes_loader.rs**
+Expected: 编译错误 `module routes_loader not found`�?
+- [ ] **Step 3：实�?routes_loader.rs**
 
 ```rust
 use crate::config::{RouteConfig, RouteTable, RouteFile};
@@ -362,8 +344,7 @@ pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
 
 - [ ] **Step 4：注册到 lib.rs**
 
-修改 `services/api-gateway/src/lib.rs`：
-
+修改 `services/api-gateway/src/lib.rs`�?
 ```rust
 pub mod routes_loader;
 pub mod rewrite;
@@ -372,9 +353,8 @@ pub mod rewrite;
 - [ ] **Step 5：运行测试确认通过**
 
 Run: `cargo test -p api-gateway --test routes_loader_test`
-Expected: 3 passed。
-
-- [ ] **Step 6：提交**
+Expected: 3 passed�?
+- [ ] **Step 6：提�?*
 
 ```bash
 git add services/api-gateway/src/routes_loader.rs services/api-gateway/src/lib.rs services/api-gateway/Cargo.toml services/api-gateway/tests/routes_loader_test.rs
@@ -383,15 +363,13 @@ git commit -m "feat(api-gateway): load routes/*.router.toml with conflict detect
 
 ---
 
-## Task 5：实现 rewrite.rs 规则执行器
-
+## Task 5：实�?rewrite.rs 规则执行�?
 **Files:**
 - Create: `services/api-gateway/src/rewrite.rs`
 
-- [ ] **Step 1：写失败的测试**
+- [ ] **Step 1：写失败的测�?*
 
-`services/api-gateway/tests/rewrite_test.rs`：
-
+`services/api-gateway/tests/rewrite_test.rs`�?
 ```rust
 use api_gateway::config::RewriteSpec;
 use api_gateway::rewrite::apply;
@@ -438,12 +416,11 @@ fn redirect_short_circuits() {
 }
 ```
 
-- [ ] **Step 2：运行确认失败**
+- [ ] **Step 2：运行确认失�?*
 
 Run: `cargo test -p api-gateway --test rewrite_test`
-Expected: `module rewrite not found`。
-
-- [ ] **Step 3：实现 rewrite.rs**
+Expected: `module rewrite not found`�?
+- [ ] **Step 3：实�?rewrite.rs**
 
 ```rust
 use crate::config::RewriteSpec;
@@ -518,9 +495,8 @@ fn build_uri(orig: &Uri, new_path: &str) -> Uri {
 - [ ] **Step 4：运行测试确认通过**
 
 Run: `cargo test -p api-gateway --test rewrite_test`
-Expected: 3 passed。
-
-- [ ] **Step 5：提交**
+Expected: 3 passed�?
+- [ ] **Step 5：提�?*
 
 ```bash
 git add services/api-gateway/src/rewrite.rs services/api-gateway/tests/rewrite_test.rs
@@ -529,15 +505,14 @@ git commit -m "feat(api-gateway): rewrite rule chain executor"
 
 ---
 
-## Task 6：改造 AppState 使用 ArcSwap<RouteTable>
+## Task 6：改�?AppState 使用 ArcSwap<RouteTable>
 
 **Files:**
 - Modify: `services/api-gateway/src/lib.rs`
 
 - [ ] **Step 1：写测试**
 
-在 `services/api-gateway/src/lib.rs` 末尾：
-
+�?`services/api-gateway/src/lib.rs` 末尾�?
 ```rust
 #[cfg(test)]
 mod tests {
@@ -559,12 +534,11 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2：运行确认编译失败**
+- [ ] **Step 2：运行确认编译失�?*
 
 Run: `cargo test -p api-gateway lib::tests`
-Expected: `cannot find type RouteTable` 或 `ArcSwap`。
-
-- [ ] **Step 3：修改 lib.rs**
+Expected: `cannot find type RouteTable` �?`ArcSwap`�?
+- [ ] **Step 3：修�?lib.rs**
 
 ```rust
 pub mod blacklist;
@@ -614,9 +588,8 @@ pub async fn create_test_app() -> Router {
 - [ ] **Step 4：运行测试确认通过**
 
 Run: `cargo test -p api-gateway lib::tests`
-Expected: 1 passed。
-
-- [ ] **Step 5：提交**
+Expected: 1 passed�?
+- [ ] **Step 5：提�?*
 
 ```bash
 git add services/api-gateway/src/lib.rs
@@ -633,8 +606,7 @@ git commit -m "refactor(api-gateway): AppState routes via ArcSwap<RouteTable>"
 
 - [ ] **Step 1：写测试**
 
-`services/api-gateway/src/router.rs` 末尾：
-
+`services/api-gateway/src/router.rs` 末尾�?
 ```rust
 #[cfg(test)]
 mod tests {
@@ -655,8 +627,7 @@ mod tests {
 }
 ```
 
-`main.rs` 删掉旧的 `find_route` 与 `match_prefix`，在 `router.rs` 暴露：
-
+`main.rs` 删掉旧的 `find_route` �?`match_prefix`，在 `router.rs` 暴露�?
 ```rust
 pub fn match_route(path: &str, pattern: &str) -> bool {
     if let Some(prefix) = pattern.strip_suffix("/**") {
@@ -668,8 +639,7 @@ pub fn match_route(path: &str, pattern: &str) -> bool {
 }
 ```
 
-`router::forward_to_service` 增加 `rewrite` 参数（从 AppState 取），调用 `rewrite::apply`：
-
+`router::forward_to_service` 增加 `rewrite` 参数（从 AppState 取），调�?`rewrite::apply`�?
 ```rust
 pub async fn forward_to_service(
     cfg: Arc<RouterConfig>,
@@ -723,10 +693,9 @@ pub async fn forward_to_service(
 }
 ```
 
-- [ ] **Step 2：更新 main.rs 调用**
+- [ ] **Step 2：更�?main.rs 调用**
 
-`proxy_handler` 改为：
-
+`proxy_handler` 改为�?
 ```rust
 async fn proxy_handler(
     State(state): State<Arc<AppState>>,
@@ -747,12 +716,11 @@ async fn proxy_handler(
 }
 ```
 
-- [ ] **Step 3：运行测试**
+- [ ] **Step 3：运行测�?*
 
 Run: `cargo test -p api-gateway router::tests`
-Expected: 1 passed。
-
-- [ ] **Step 4：提交**
+Expected: 1 passed�?
+- [ ] **Step 4：提�?*
 
 ```bash
 git add services/api-gateway/src/router.rs services/api-gateway/src/main.rs
@@ -761,15 +729,14 @@ git commit -m "feat(api-gateway): match wildcards and apply rewrite before forwa
 
 ---
 
-## Task 8：CLI 子命令 validate / serve
+## Task 8：CLI 子命�?validate / serve
 
 **Files:**
 - Create: `services/api-gateway/src/cli.rs`
 
 - [ ] **Step 1：写测试**
 
-`services/api-gateway/tests/validate_cli_test.rs`：
-
+`services/api-gateway/tests/validate_cli_test.rs`�?
 ```rust
 use std::fs;
 use std::process::Command;
@@ -819,7 +786,7 @@ fn validate_exits_nonzero_on_duplicate() {
 }
 ```
 
-- [ ] **Step 2：实现 cli.rs**
+- [ ] **Step 2：实�?cli.rs**
 
 ```rust
 use clap::{Parser, Subcommand};
@@ -881,18 +848,17 @@ async fn main() {
 
 async fn serve(routes_dir: PathBuf) {
     let table = load_routes(&routes_dir).expect("routes load failed");
-    // ... 读取 GatewayConfig、构建 AppState、ArcSwap.store ...
-    // ... 注册 SIGHUP handler（Task 9） ...
+    // ... 读取 GatewayConfig、构�?AppState、ArcSwap.store ...
+    // ... 注册 SIGHUP handler（Task 9�?...
     // ... axum::serve ...
 }
 ```
 
-- [ ] **Step 4：运行测试**
+- [ ] **Step 4：运行测�?*
 
 Run: `cargo test -p api-gateway --test validate_cli_test`
-Expected: 2 passed。
-
-- [ ] **Step 5：提交**
+Expected: 2 passed�?
+- [ ] **Step 5：提�?*
 
 ```bash
 git add services/api-gateway/src/cli.rs services/api-gateway/src/main.rs services/api-gateway/tests/validate_cli_test.rs
@@ -901,7 +867,7 @@ git commit -m "feat(api-gateway): cli validate/serve subcommands"
 
 ---
 
-## Task 9：reload 命令与 SIGHUP handler
+## Task 9：reload 命令�?SIGHUP handler
 
 **Files:**
 - Modify: `services/api-gateway/src/main.rs`
@@ -987,16 +953,13 @@ fn reload(dir: &Path, swap: &arc_swap::ArcSwap<RouteTable>) -> Result<usize, api
 }
 ```
 
-`load_global_config` / `build_app_state` / `build_proxy_router` 在 Task 8 已经搭好骨架，本 Task 只补 reload 与 admin 端点。
-
-`Serve` 同时注册 `POST /__admin/reload`。
-
-- [ ] **Step 3：运行测试**
+`load_global_config` / `build_app_state` / `build_proxy_router` �?Task 8 已经搭好骨架，本 Task 只补 reload �?admin 端点�?
+`Serve` 同时注册 `POST /__admin/reload`�?
+- [ ] **Step 3：运行测�?*
 
 Run: `cargo test -p api-gateway --test reload_test`
-Expected: 1 passed。
-
-- [ ] **Step 4：提交**
+Expected: 1 passed�?
+- [ ] **Step 4：提�?*
 
 ```bash
 git add services/api-gateway/src/main.rs services/api-gateway/tests/reload_test.rs
@@ -1005,30 +968,25 @@ git commit -m "feat(api-gateway): SIGHUP + /__admin/reload swap route table"
 
 ---
 
-## Task 10：全量回归
-
+## Task 10：全量回�?
 **Files:** none
 
 - [ ] **Step 1：跑全套测试**
 
 Run: `cargo test -p api-gateway`
-Expected: 全部通过。
-
+Expected: 全部通过�?
 - [ ] **Step 2：本地起 gateway**
 
-Run: `cargo run -p api-gateway -- serve --routes docker/config/api-gateway/routes`
-Expected: 监听 3000，启动日志打印 `5 routes`。
-
+Run: `cargo run -p api-gateway -- serve --routes docker-example/config/api-gateway/routes`
+Expected: 监听 3000，启动日志打�?`5 routes`�?
 - [ ] **Step 3：curl 烟测**
 
 Run: `curl -i http://localhost:3000/health`
-Expected: `200 OK`。
-
+Expected: `200 OK`�?
 - [ ] **Step 4：commit & 收尾**
 
 ```bash
 git status
-# 若有遗留格式改动：
-git add -A
+# 若有遗留格式改动�?git add -A
 git commit -m "chore: post-impl cleanup"
 ```

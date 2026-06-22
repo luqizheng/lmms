@@ -1,10 +1,10 @@
-# 端到端登录 Implementation Plan
+# 端到端登�?Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 实现 frontend → api-gateway → user-service + token-service 完整登录链路，账号 `admin/admin123` 可成功登录。
+**Goal:** 实现 frontend �?api-gateway �?user-service + token-service 完整登录链路，账�?`admin/admin123` 可成功登录�?
 
-**Architecture:** 沿用 `user-service-password-login-plan` 后端登录，新增 `register`/`setup-status` 端点；首位注册 = admin。前端 Vite dev proxy 联调。Gateway 新增 `auth.router.toml` 替代 stub。`token-service` 启动时用 dev 明文现算 argon2 哈希。
+**Architecture:** 沿用 `user-service-password-login-plan` 后端登录，新�?`register`/`setup-status` 端点；首位注�?= admin。前�?Vite dev proxy 联调。Gateway 新增 `auth.router.toml` 替代 stub。`token-service` 启动时用 dev 明文现算 argon2 哈希�?
 
 **Tech Stack:** Rust / axum 0.7 / sqlx 0.8 / redis 0.27 / argon2 0.5 / nanoid 0.4 + Vue 3 / Vite / pinia / axios
 
@@ -17,14 +17,14 @@
 
 ### 新建
 - `migrations/2026_06_11_auth_login_and_register.sql`
-- `docker/config/api-gateway/routes/auth.router.toml`
+- `docker-example/config/api-gateway/routes/auth.router.toml`
 - `frontend/src/views/login/register.vue`
 - `docs/superpowers/specs/2026-06-11-frontend-e2e-login-design.md`（已建）
 
 ### 修改
-- `services/user-service/Cargo.toml`（+argon2, +nanoid）
-- `services/user-service/src/dto.rs`（+RegisterReq/Resp）
-- `services/user-service/src/config.rs`（+LoginSecurityCfg/Argon2Cfg）
+- `services/user-service/Cargo.toml`�?argon2, +nanoid�?
+- `services/user-service/src/dto.rs`�?RegisterReq/Resp�?
+- `services/user-service/src/config.rs`�?LoginSecurityCfg/Argon2Cfg�?
 - `services/user-service/src/models/login_log.rs`
 - `services/user-service/src/models/mod.rs`
 - `services/user-service/src/service/auth_svc.rs`
@@ -32,47 +32,47 @@
 - `services/user-service/src/routes/auth.rs`
 - `services/user-service/src/routes/mod.rs`
 - `services/user-service/src/main.rs`
-- `services/user-service/config/config.yaml`（+login_security）
-- `services/user-service/docker/config/user-service/config.yaml`（+login_security）
+- `services/user-service/config/config.yaml`�?login_security�?
+- `services/user-service/docker-example/config/user-service/config.yaml`�?login_security�?
 - `services/token-service/src/store/client.rs`（启动时明文→哈希）
-- `docker/config/api-gateway/routes/credential-login.router.toml`（删）
-- `frontend/vite.config.ts`（+proxy）
+- `docker-example/config/api-gateway/routes/credential-login.router.toml`（删�?
+- `frontend/vite.config.ts`�?proxy�?
 - `frontend/src/api/auth.ts`
 - `frontend/src/api/token.ts`
 - `frontend/src/api/user.ts`
-- `frontend/src/utils/http/index.ts`（白名单）
+- `frontend/src/utils/http/index.ts`（白名单�?
 - `frontend/src/views/login/index.vue`
-- `frontend/src/router/modules/account.ts`（+register）
-- `frontend/src/router/index.ts`（白名单）
-- `frontend/.env.development`（+VITE_CLIENT_SECRET）
+- `frontend/src/router/modules/account.ts`�?register�?
+- `frontend/src/router/index.ts`（白名单�?
+- `frontend/.env.development`�?VITE_CLIENT_SECRET�?
 
 ---
 
 ## 执行约束
 
-- 所有 `cargo build / cargo test` 在真实 PowerShell（vcvarsall x64）执行，沙箱内不跑 cargo
-- TDD：每个 task 先写失败测试，再写实现
+- 所�?`cargo build / cargo test` 在真�?PowerShell（vcvarsall x64）执行，沙箱内不�?cargo
+- TDD：每�?task 先写失败测试，再写实�?
 - 频繁 commit：每 task 末尾单独 git commit
 - commit message 前缀：`feat(user-service):` / `feat(token-service):` / `feat(api-gateway):` / `feat(frontend):`
-- 改 `routes/*.router.toml` 后必须先 `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` 再 commit
+- �?`routes/*.router.toml` 后必须先 `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` �?commit
 
 ---
 
-### Task 1: user-service 依赖 — Cargo.toml
+### Task 1: user-service 依赖 �?Cargo.toml
 
 **Files:**
 - Modify: `services/user-service/Cargo.toml`
 
-- [ ] **Step 1: 在真实 PowerShell 编辑 Cargo.toml**
+- [ ] **Step 1: 在真�?PowerShell 编辑 Cargo.toml**
 
-`services/user-service/Cargo.toml` 末尾 `[dev-dependencies]` 之前插入：
+`services/user-service/Cargo.toml` 末尾 `[dev-dependencies]` 之前插入�?
 
 ```toml
 argon2 = { workspace = true }
 nanoid = "0.4"
 ```
 
-最终依赖块：
+最终依赖块�?
 
 ```toml
 [dependencies]
@@ -110,7 +110,7 @@ Run（在 vcvarsall x64 PowerShell）：
 cd d:\projects\coder-micro-services
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 3: Commit**
 
@@ -121,14 +121,14 @@ git commit -m "feat(user-service): add argon2 and nanoid deps"
 
 ---
 
-### Task 2: 数据库迁移 SQL
+### Task 2: 数据库迁�?SQL
 
 **Files:**
 - Create: `migrations/2026_06_11_auth_login_and_register.sql`
 
 - [ ] **Step 1: 新建迁移文件**
 
-`migrations/2026_06_11_auth_login_and_register.sql`：
+`migrations/2026_06_11_auth_login_and_register.sql`�?
 
 ```sql
 USE oa3;
@@ -158,8 +158,8 @@ CREATE TABLE IF NOT EXISTS user_login_log (
 
 -- 预置角色（幂等）
 INSERT IGNORE INTO roles (code, name, status) VALUES
-  ('admin', '系统管理员', 1),
-  ('user',  '普通用户',   1);
+  ('admin', '系统管理�?, 1),
+  ('user',  '普通用�?,   1);
 ```
 
 - [ ] **Step 2: Commit**
@@ -171,16 +171,16 @@ git commit -m "feat(user-service): migration for login + first-admin role seed"
 
 ---
 
-### Task 3: 配置 — LoginSecurityCfg
+### Task 3: 配置 �?LoginSecurityCfg
 
 **Files:**
 - Modify: `services/user-service/src/config.rs`
 - Modify: `services/user-service/config/config.yaml`
-- Modify: `services/user-service/docker/config/user-service/config.yaml`
+- Modify: `services/user-service/docker-example/config/user-service/config.yaml`
 
 - [ ] **Step 1: 先写失败测试**
 
-在 `services/user-service/src/config.rs` 文件末尾 `mod tests` 中追加：
+�?`services/user-service/src/config.rs` 文件末尾 `mod tests` 中追加：
 
 ```rust
 #[test]
@@ -224,14 +224,14 @@ login_security:
 }
 ```
 
-- [ ] **Step 2: 运行测试，确认失败**
+- [ ] **Step 2: 运行测试，确认失�?*
 
 ```powershell
 cargo test -p user-service --lib config::tests::login_security
 ```
-Expected: FAIL（无 `login_security` 字段）。
+Expected: FAIL（无 `login_security` 字段）�?
 
-- [ ] **Step 3: 写实现**
+- [ ] **Step 3: 写实�?*
 
 `services/user-service/src/config.rs` 替换为：
 
@@ -386,7 +386,7 @@ login_security:
 
 - [ ] **Step 4: 更新 yaml**
 
-`services/user-service/config/config.yaml` 末尾追加：
+`services/user-service/config/config.yaml` 末尾追加�?
 
 ```yaml
 login_security:
@@ -400,27 +400,27 @@ login_security:
     parallelism: 1
 ```
 
-`services/user-service/docker/config/user-service/config.yaml` 同步追加同样段。
+`services/user-service/docker-example/config/user-service/config.yaml` 同步追加同样段�?
 
 - [ ] **Step 5: 跑测试确认通过**
 
 ```powershell
 cargo test -p user-service --lib config
 ```
-Expected: PASS。
+Expected: PASS�?
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add services/user-service/src/config.rs \
         services/user-service/config/config.yaml \
-        services/user-service/docker/config/user-service/config.yaml
+        services/user-service/docker-example/config/user-service/config.yaml
 git commit -m "feat(user-service): add login_security config section"
 ```
 
 ---
 
-### Task 4: 模型 — LoginLogRow
+### Task 4: 模型 �?LoginLogRow
 
 **Files:**
 - Create: `services/user-service/src/models/login_log.rs`
@@ -428,7 +428,7 @@ git commit -m "feat(user-service): add login_security config section"
 
 - [ ] **Step 1: 新建 login_log.rs**
 
-`services/user-service/src/models/login_log.rs`：
+`services/user-service/src/models/login_log.rs`�?
 
 ```rust
 use sqlx::FromRow;
@@ -452,7 +452,7 @@ pub const FAIL_LOCKED: &str = "locked";
 
 - [ ] **Step 2: 修改 models/mod.rs**
 
-`services/user-service/src/models/mod.rs`：
+`services/user-service/src/models/mod.rs`�?
 
 ```rust
 pub mod permission;
@@ -466,7 +466,7 @@ pub mod login_log;
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 4: Commit**
 
@@ -478,14 +478,14 @@ git commit -m "feat(user-service): add LoginLogRow model"
 
 ---
 
-### Task 5: DTO — Login & Register
+### Task 5: DTO �?Login & Register
 
 **Files:**
 - Modify: `services/user-service/src/dto.rs`
 
 - [ ] **Step 1: 追加 DTO**
 
-`services/user-service/src/dto.rs` 末尾追加：
+`services/user-service/src/dto.rs` 末尾追加�?
 
 ```rust
 #[derive(Debug, Deserialize)]
@@ -535,14 +535,14 @@ pub struct SetupStatusResp {
 }
 ```
 
-确保文件顶部有 `use serde::{Deserialize, Serialize};`。
+确保文件顶部�?`use serde::{Deserialize, Serialize};`�?
 
 - [ ] **Step 2: 编译**
 
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 3: Commit**
 
@@ -553,7 +553,7 @@ git commit -m "feat(user-service): add Login/Register DTOs"
 
 ---
 
-### Task 6: 服务 — auth_svc（login + register + setup_status）
+### Task 6: 服务 �?auth_svc（login + register + setup_status�?
 
 **Files:**
 - Modify: `services/user-service/src/service/mod.rs`
@@ -561,7 +561,7 @@ git commit -m "feat(user-service): add Login/Register DTOs"
 
 - [ ] **Step 1: 修改 service/mod.rs**
 
-`services/user-service/src/service/mod.rs`：
+`services/user-service/src/service/mod.rs`�?
 
 ```rust
 pub mod claim_svc;
@@ -570,9 +570,9 @@ pub mod user_svc;
 pub mod auth_svc;
 ```
 
-- [ ] **Step 2: 写 auth_svc.rs**
+- [ ] **Step 2: �?auth_svc.rs**
 
-`services/user-service/src/service/auth_svc.rs`：
+`services/user-service/src/service/auth_svc.rs`�?
 
 ```rust
 use crate::config::{Argon2Cfg, LoginSecurityCfg};
@@ -895,14 +895,14 @@ mod tests {
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
-- [ ] **Step 4: 跑模块测试**
+- [ ] **Step 4: 跑模块测�?*
 
 ```powershell
 cargo test -p user-service --lib service::auth_svc
 ```
-Expected: PASS（dummy hash parse / truncate_ua / valid_username）。
+Expected: PASS（dummy hash parse / truncate_ua / valid_username）�?
 
 - [ ] **Step 5: Commit**
 
@@ -914,7 +914,7 @@ git commit -m "feat(user-service): add auth_svc login/register/setup_status logi
 
 ---
 
-### Task 7: 路由 — POST /api/v1/auth/login + register + setup-status
+### Task 7: 路由 �?POST /api/v1/auth/login + register + setup-status
 
 **Files:**
 - Modify: `services/user-service/src/routes/mod.rs`
@@ -922,7 +922,7 @@ git commit -m "feat(user-service): add auth_svc login/register/setup_status logi
 
 - [ ] **Step 1: 修改 routes/mod.rs**
 
-`services/user-service/src/routes/mod.rs`：
+`services/user-service/src/routes/mod.rs`�?
 
 ```rust
 pub mod auth;
@@ -934,9 +934,9 @@ pub mod permissions;
 pub mod user_roles;
 ```
 
-- [ ] **Step 2: 写 routes/auth.rs**
+- [ ] **Step 2: �?routes/auth.rs**
 
-`services/user-service/src/routes/auth.rs`：
+`services/user-service/src/routes/auth.rs`�?
 
 ```rust
 use crate::config::Config;
@@ -1093,14 +1093,14 @@ mod tests {
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
-- [ ] **Step 4: 跑路由单元测试**
+- [ ] **Step 4: 跑路由单元测�?*
 
 ```powershell
 cargo test -p user-service --lib routes::auth
 ```
-Expected: PASS。
+Expected: PASS�?
 
 - [ ] **Step 5: Commit**
 
@@ -1119,7 +1119,7 @@ git commit -m "feat(user-service): add /api/v1/auth/{login,register,setup-status
 
 - [ ] **Step 1: 替换 main.rs**
 
-`services/user-service/src/main.rs`：
+`services/user-service/src/main.rs`�?
 
 ```rust
 use anyhow::Result;
@@ -1165,7 +1165,7 @@ async fn main() -> Result<()> {
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。需 workspace 已有 `tower-http`。
+Expected: 0 error。需 workspace 已有 `tower-http`�?
 
 - [ ] **Step 3: Commit**
 
@@ -1181,12 +1181,12 @@ git commit -m "feat(user-service): mount auth router in main"
 **Files:**
 - Create: `services/user-service/tests/auth_e2e_test.rs`
 
-- [ ] **Step 1: 写集成测试**
+- [ ] **Step 1: 写集成测�?*
 
-`services/user-service/tests/auth_e2e_test.rs`：
+`services/user-service/tests/auth_e2e_test.rs`�?
 
 ```rust
-//! 集成测试：登录 + 注册 + setup-status
+//! 集成测试：登�?+ 注册 + setup-status
 //! 跑：cargo test -p user-service --test auth_e2e_test -- --test-threads=1
 
 use argon2::password_hash::{PasswordHasher, SaltString};
@@ -1217,7 +1217,7 @@ async fn setup() -> Ctx {
     let mysql_url = format!("mysql://root:secret@{m_host}:{m_port}/mysql");
     let m_pool = MySqlPool::connect(&mysql_url).await.expect("mysql connect");
 
-    // 应用 migration；多语句默认不支持，分两条
+    // 应用 migration；多语句默认不支持，分两�?
     sqlx::query("CREATE DATABASE IF NOT EXISTS oa3").execute(&m_pool).await.ok();
     let oa3_url = format!("mysql://root:secret@{m_host}:{m_port}/oa3");
     let oa3_pool = MySqlPool::connect(&oa3_url).await.expect("oa3 connect");
@@ -1360,13 +1360,13 @@ async fn login_lock_after_max_failures() {
 }
 ```
 
-- [ ] **Step 2: 跑集成测试**
+- [ ] **Step 2: 跑集成测�?*
 
 ```powershell
 cd d:\projects\coder-micro-services
 cargo test -p user-service --test auth_e2e_test -- --test-threads=1
 ```
-Expected: 6 个测试全 PASS。需要 Docker 运行中。
+Expected: 6 个测试全 PASS。需�?Docker 运行中�?
 
 - [ ] **Step 3: Commit**
 
@@ -1380,10 +1380,10 @@ git commit -m "feat(user-service): integration tests for login + register + setu
 ### Task 10: API 网关路由配置
 
 **Files:**
-- Delete: `docker/config/api-gateway/routes/credential-login.router.toml`
-- Create: `docker/config/api-gateway/routes/auth.router.toml`
+- Delete: `docker-example/config/api-gateway/routes/credential-login.router.toml`
+- Create: `docker-example/config/api-gateway/routes/auth.router.toml`
 
-- [ ] **Step 1: 删 stub 路由文件**
+- [ ] **Step 1: �?stub 路由文件**
 
 ```powershell
 Remove-Item d:\projects\coder-micro-services\docker\config\api-gateway\routes\credential-login.router.toml
@@ -1391,7 +1391,7 @@ Remove-Item d:\projects\coder-micro-services\docker\config\api-gateway\routes\cr
 
 - [ ] **Step 2: 新建 auth 路由文件**
 
-`docker/config/api-gateway/routes/auth.router.toml`：
+`docker-example/config/api-gateway/routes/auth.router.toml`�?
 
 ```toml
 [[route]]
@@ -1407,32 +1407,32 @@ rewrite = { type = "strip_prefix", prefix = "/api/v1" }
 cd d:\projects\coder-micro-services
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git rm docker/config/api-gateway/routes/credential-login.router.toml
-git add docker/config/api-gateway/routes/auth.router.toml
+git rm docker-example/config/api-gateway/routes/credential-login.router.toml
+git add docker-example/config/api-gateway/routes/auth.router.toml
 git commit -m "feat(api-gateway): route /api/v1/auth/** to user-service; drop stub"
 ```
 
 ---
 
-### Task 11: token-service 启动时 client_secret 明文→哈希
+### Task 11: token-service 启动�?client_secret 明文→哈�?
 
 **Files:**
 - Modify: `services/token-service/src/store/client.rs`
 
-- [ ] **Step 1: 读现有 client.rs 了解结构**
+- [ ] **Step 1: 读现�?client.rs 了解结构**
 
 Run: `Get-Content d:\projects\coder-micro-services\services\token-service\src\store\client.rs`
 
-记下 `Client` 结构与 `find_by_id` 等函数位置（用于下一步编辑）。
+记下 `Client` 结构�?`find_by_id` 等函数位置（用于下一步编辑）�?
 
-- [ ] **Step 2: 写失败测试**
+- [ ] **Step 2: 写失败测�?*
 
-在 `services/token-service/src/store/client.rs` 末尾追加（若文件无 `#[cfg(test)]` 模块则加）：
+�?`services/token-service/src/store/client.rs` 末尾追加（若文件�?`#[cfg(test)]` 模块则加）：
 
 ```rust
 #[cfg(test)]
@@ -1443,7 +1443,7 @@ mod tests {
     fn hash_plaintext_secret_matches_argon2id() {
         let h = hash_client_secret_plaintext("dev-gateway-secret");
         assert!(argon2::password_hash::PasswordHash::new(&h).is_ok());
-        // 验证可校验
+        // 验证可校�?
         let ph = argon2::password_hash::PasswordHash::new(&h).unwrap();
         assert!(argon2::Argon2::default()
             .verify_password(b"dev-gateway-secret", &ph).is_ok());
@@ -1470,7 +1470,7 @@ mod tests {
 }
 ```
 
-同时在文件顶部 `pub struct Client { ... }` 后追加两个公开函数：
+同时在文件顶�?`pub struct Client { ... }` 后追加两个公开函数�?
 
 ```rust
 pub fn hash_client_secret_plaintext(plain: &str) -> String {
@@ -1495,13 +1495,13 @@ pub fn maybe_upgrade_client_secret(c: &mut Client, default_plain: &str) {
 ```powershell
 cargo test -p token-service --lib store::client
 ```
-Expected: PASS。
+Expected: PASS�?
 
-- [ ] **Step 4: 改 ClientStore 加载后升级**
+- [ ] **Step 4: �?ClientStore 加载后升�?*
 
-在 `ClientStore` 实现里 `load` 或 `new` 后，对每个 `Client` 调用 `maybe_upgrade_client_secret(c, "dev-gateway-secret")`。具体调用点视现有结构而定（grep `client_secret_hash` 定位）。
+�?`ClientStore` 实现�?`load` �?`new` 后，对每�?`Client` 调用 `maybe_upgrade_client_secret(c, "dev-gateway-secret")`。具体调用点视现有结构而定（grep `client_secret_hash` 定位）�?
 
-典型插入点示例（视实际代码调整）：
+典型插入点示例（视实际代码调整）�?
 
 ```rust
 impl ClientStore {
@@ -1520,7 +1520,7 @@ impl ClientStore {
 ```powershell
 cargo check -p token-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 6: Commit**
 
@@ -1536,9 +1536,9 @@ git commit -m "feat(token-service): hash plaintext client_secret on startup"
 **Files:**
 - Modify: `frontend/vite.config.ts`
 
-- [ ] **Step 1: 改 server.proxy**
+- [ ] **Step 1: �?server.proxy**
 
-在 `frontend/vite.config.ts` 找到 `proxy: {},` 改为：
+�?`frontend/vite.config.ts` 找到 `proxy: {},` 改为�?
 
 ```ts
 proxy: {
@@ -1549,14 +1549,14 @@ proxy: {
 },
 ```
 
-- [ ] **Step 2: 本地编译确认（无 type error）**
+- [ ] **Step 2: 本地编译确认（无 type error�?*
 
 Run:
 ```powershell
 cd d:\projects\coder-micro-services\frontend
 pnpm typecheck
 ```
-Expected: 无新增 error（已有 error 忽略）。
+Expected: 无新�?error（已�?error 忽略）�?
 
 - [ ] **Step 3: Commit**
 
@@ -1574,7 +1574,7 @@ git commit -m "feat(frontend): vite dev proxy /api -> api-gateway :3000"
 
 - [ ] **Step 1: 替换文件内容**
 
-`frontend/src/api/auth.ts`：
+`frontend/src/api/auth.ts`�?
 
 ```ts
 import { http } from "@/utils/http";
@@ -1628,7 +1628,7 @@ export function register(data: RegisterRequest) {
 cd d:\projects\coder-micro-services\frontend
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
 - [ ] **Step 3: Commit**
 
@@ -1646,7 +1646,7 @@ git commit -m "feat(frontend): api/auth paths + register/setup-status"
 
 - [ ] **Step 1: 替换文件内容**
 
-`frontend/src/api/token.ts`：
+`frontend/src/api/token.ts`�?
 
 ```ts
 import { http } from "@/utils/http";
@@ -1701,7 +1701,7 @@ export function createApiKey(data: { name: string; scopes?: string[] }) {
 ```powershell
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
 - [ ] **Step 3: Commit**
 
@@ -1719,13 +1719,13 @@ git commit -m "feat(frontend): api/token paths to /api/v1/tokens/*"
 
 - [ ] **Step 1: 替换路径**
 
-将 `frontend/src/api/user.ts` 中：
-- `"/users/me"` → `"/api/v1/users/me"`
-- `"/users/me"` (PUT) → `"/api/v1/users/me"`
-- `"/users"` → `"/api/v1/users"`
-- `` `/users/${id}` `` → `` `/api/v1/users/${id}` ``
-- `` `/users/${id}/extends` `` → `` `/api/v1/users/${id}/extends` ``
-- `` `/users/${id}/roles` `` → `` `/api/v1/users/${id}/roles` ``
+�?`frontend/src/api/user.ts` 中：
+- `"/users/me"` �?`"/api/v1/users/me"`
+- `"/users/me"` (PUT) �?`"/api/v1/users/me"`
+- `"/users"` �?`"/api/v1/users"`
+- `` `/users/${id}` `` �?`` `/api/v1/users/${id}` ``
+- `` `/users/${id}/extends` `` �?`` `/api/v1/users/${id}/extends` ``
+- `` `/users/${id}/roles` `` �?`` `/api/v1/users/${id}/roles` ``
 
 最终文件：
 
@@ -1796,7 +1796,7 @@ export function removeUserRoles(id: number, roleIds: number[]) {
 ```powershell
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
 - [ ] **Step 3: Commit**
 
@@ -1807,20 +1807,20 @@ git commit -m "feat(frontend): api/user paths to /api/v1/users/*"
 
 ---
 
-### Task 16: 前端 http 白名单
+### Task 16: 前端 http 白名�?
 
 **Files:**
 - Modify: `frontend/src/utils/http/index.ts`
 
 - [ ] **Step 1: 改白名单**
 
-`frontend/src/utils/http/index.ts` 找到：
+`frontend/src/utils/http/index.ts` 找到�?
 
 ```ts
 const whiteList = ["/refresh-token", "/login"];
 ```
 
-改为：
+改为�?
 
 ```ts
 const whiteList = ["/api/v1/auth/", "/api/v1/tokens/access", "/api/v1/tokens/refresh"];
@@ -1831,7 +1831,7 @@ const whiteList = ["/api/v1/auth/", "/api/v1/tokens/access", "/api/v1/tokens/ref
 ```powershell
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
 - [ ] **Step 3: Commit**
 
@@ -1842,21 +1842,21 @@ git commit -m "feat(frontend): http whitelist for /api/v1/auth + /api/v1/tokens"
 
 ---
 
-### Task 17: 前端 login 视图加 setup 检测
+### Task 17: 前端 login 视图�?setup 检�?
 
 **Files:**
 - Modify: `frontend/src/views/login/index.vue`
 
 - [ ] **Step 1: 修改 script**
 
-在 `frontend/src/views/login/index.vue` `<script setup>` 内：
-- import 增加 `import { getSetupStatus } from "@/api/auth";` 与 `import { onMounted, ref } from "vue";`（已有 ref）
-- 加 `const setupRequired = ref(false);`
-- 加 `onMounted(async () => { const r = await getSetupStatus(); setupRequired.value = r.data.setup_required; if (setupRequired.value) router.push("/register"); });`
+�?`frontend/src/views/login/index.vue` `<script setup>` 内：
+- import 增加 `import { getSetupStatus } from "@/api/auth";` �?`import { onMounted, ref } from "vue";`（已�?ref�?
+- �?`const setupRequired = ref(false);`
+- �?`onMounted(async () => { const r = await getSetupStatus(); setupRequired.value = r.data.setup_required; if (setupRequired.value) router.push("/register"); });`
 
 - [ ] **Step 2: 修改 template**
 
-在 `<el-form-item>`（含登录按钮）之后，加：
+�?`<el-form-item>`（含登录按钮）之后，加：
 
 ```html
 <div v-if="setupRequired" class="mt-2 text-center">
@@ -1871,7 +1871,7 @@ git commit -m "feat(frontend): http whitelist for /api/v1/auth + /api/v1/tokens"
 ```powershell
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
 - [ ] **Step 4: Commit**
 
@@ -1882,14 +1882,14 @@ git commit -m "feat(frontend): login view detects setup and links to register"
 
 ---
 
-### Task 18: 前端注册页 register.vue
+### Task 18: 前端注册�?register.vue
 
 **Files:**
 - Create: `frontend/src/views/login/register.vue`
 
 - [ ] **Step 1: 新建文件**
 
-`frontend/src/views/login/register.vue`：
+`frontend/src/views/login/register.vue`�?
 
 ```vue
 <script setup lang="ts">
@@ -1918,14 +1918,14 @@ const form = reactive({
 
 const onRegister = async () => {
   if (form.password !== form.confirm) {
-    message("两次密码不一致", { type: "error" });
+    message("两次密码不一�?, { type: "error" });
     return;
   }
   loading.value = true;
   try {
     const status = await getSetupStatus();
     if (!status.data.setup_required) {
-      message("注册已关闭", { type: "error" });
+      message("注册已关�?, { type: "error" });
       router.push("/login");
       return;
     }
@@ -1955,10 +1955,10 @@ const onRegister = async () => {
     <div class="login-container">
       <div class="login-form">
         <avatar class="avatar" />
-        <h2 class="outline-hidden">注册管理员</h2>
+        <h2 class="outline-hidden">注册管理�?/h2>
         <el-form :model="form" size="large" @submit.prevent>
           <el-form-item>
-            <el-input v-model="form.username" clearable placeholder="用户名">
+            <el-input v-model="form.username" clearable placeholder="用户�?>
               <template #prefix><User /></template>
             </el-input>
           </el-form-item>
@@ -1977,7 +1977,7 @@ const onRegister = async () => {
           </el-form-item>
           <el-form-item>
             <el-button class="w-full" type="primary" :loading="loading" @click="onRegister">
-              注册并登录
+              注册并登�?
             </el-button>
           </el-form-item>
           <el-form-item>
@@ -1999,7 +1999,7 @@ const onRegister = async () => {
 ```powershell
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
 - [ ] **Step 3: Commit**
 
@@ -2010,7 +2010,7 @@ git commit -m "feat(frontend): add register page"
 
 ---
 
-### Task 19: 前端路由加 /register
+### Task 19: 前端路由�?/register
 
 **Files:**
 - Modify: `frontend/src/router/modules/account.ts`
@@ -2018,26 +2018,26 @@ git commit -m "feat(frontend): add register page"
 
 - [ ] **Step 1: 修改 account.ts**
 
-`frontend/src/router/modules/account.ts` 末尾 `] satisfies RouteConfigsTable;` 之前追加：
+`frontend/src/router/modules/account.ts` 末尾 `] satisfies RouteConfigsTable;` 之前追加�?
 
 ```ts
 {
   path: "/register",
   name: "Register",
   component: () => import("@/views/login/register.vue"),
-  meta: { title: "注册管理员", showLink: false, hidden: true }
+  meta: { title: "注册管理�?, showLink: false, hidden: true }
 }
 ```
 
-- [ ] **Step 2: 修改 router 白名单**
+- [ ] **Step 2: 修改 router 白名�?*
 
-`frontend/src/router/index.ts` 找到：
+`frontend/src/router/index.ts` 找到�?
 
 ```ts
 const whiteList = ["/login"];
 ```
 
-改为：
+改为�?
 
 ```ts
 const whiteList = ["/login", "/register"];
@@ -2048,7 +2048,7 @@ const whiteList = ["/login", "/register"];
 ```powershell
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
 - [ ] **Step 4: Commit**
 
@@ -2060,14 +2060,14 @@ git commit -m "feat(frontend): add /register route to whitelist"
 
 ---
 
-### Task 20: 前端 .env 加 client secret
+### Task 20: 前端 .env �?client secret
 
 **Files:**
 - Modify: `frontend/.env.development`
 
 - [ ] **Step 1: 追加变量**
 
-`frontend/.env.development` 末尾追加：
+`frontend/.env.development` 末尾追加�?
 
 ```
 VITE_CLIENT_SECRET = dev-gateway-secret
@@ -2084,7 +2084,7 @@ git commit -m "feat(frontend): VITE_CLIENT_SECRET for dev token exchange"
 
 ### Task 21: 全量验证
 
-**Files:** (无)
+**Files:** (�?
 
 - [ ] **Step 1: fmt + clippy**
 
@@ -2094,35 +2094,35 @@ cargo fmt --all
 cargo clippy -p user-service --all-targets -- -D warnings
 cargo clippy -p token-service --all-targets -- -D warnings
 ```
-Expected: 0 warning。
+Expected: 0 warning�?
 
 - [ ] **Step 2: user-service 全量 lib 测试**
 
 ```powershell
 cargo test -p user-service --lib
 ```
-Expected: PASS。
+Expected: PASS�?
 
 - [ ] **Step 3: user-service 集成测试**
 
 ```powershell
 cargo test -p user-service --test auth_e2e_test -- --test-threads=1
 ```
-Expected: 6 个测试全 PASS。
+Expected: 6 个测试全 PASS�?
 
 - [ ] **Step 4: token-service lib 测试**
 
 ```powershell
 cargo test -p token-service --lib
 ```
-Expected: PASS。
+Expected: PASS�?
 
 - [ ] **Step 5: 网关路由再次校验**
 
 ```powershell
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 6: 前端 typecheck**
 
@@ -2130,22 +2130,22 @@ Expected: 0 error。
 cd d:\projects\coder-micro-services\frontend
 pnpm typecheck
 ```
-Expected: 无新增 error。
+Expected: 无新�?error�?
 
-- [ ] **Step 7: 提交任何自动格式化产物**
+- [ ] **Step 7: 提交任何自动格式化产�?*
 
 ```bash
 git status
-# 若有改动：
+# 若有改动�?
 git add -u
 git commit -m "chore: apply fmt and clippy fixes"
 ```
 
 ---
 
-### Task 22: 端到端冒烟
+### Task 22: 端到端冒�?
 
-**Files:** (无)
+**Files:** (�?
 
 - [ ] **Step 1: 启动基础设施**
 
@@ -2157,15 +2157,15 @@ docker compose -f infrastructure\docker-compose.yml up -d
 - [ ] **Step 2: 应用迁移**
 
 ```powershell
-# 假设 mysql 容器名为 coder-mysql，oa3 库
+# 假设 mysql 容器名为 coder-mysql，oa3 �?
 Get-Content migrations\2026_06_11_auth_login_and_register.sql |
   docker exec -i coder-mysql mysql -uroot -psecret
 ```
-（实际容器名/密码按 `docker-compose.yml` 调整。）
+（实际容器名/密码�?`docker-compose.yml` 调整。）
 
 - [ ] **Step 3: 启动三个 Rust 服务**
 
-在三个真实 PowerShell（vcvarsall x64）窗口分别：
+在三个真�?PowerShell（vcvarsall x64）窗口分别：
 
 ```powershell
 cd d:\projects\coder-micro-services
@@ -2189,13 +2189,13 @@ cd d:\projects\coder-micro-services\frontend
 pnpm dev
 ```
 
-- [ ] **Step 5: 浏览器验证**
+- [ ] **Step 5: 浏览器验�?*
 
-打开 `http://localhost:8848/#/login`：
+打开 `http://localhost:8848/#/login`�?
 - 应自动跳 `/register`
-- 填 `admin` / `admin123` 提交 → 跳 `/welcome`
-- 退出 → 跳 `/login` → `admin` / `admin123` → 跳 `/welcome`
-- 故意输错 6 次 → 应提示"账号被锁" + retry_after
+- �?`admin` / `admin123` 提交 �?�?`/welcome`
+- 退�?�?�?`/login` �?`admin` / `admin123` �?�?`/welcome`
+- 故意输错 6 �?�?应提�?账号被锁" + retry_after
 
 - [ ] **Step 6: 提交验证结果**
 
@@ -2208,22 +2208,22 @@ git commit -m "chore: e2e smoke verified admin/admin123 login"
 
 ---
 
-## 自检（与 spec 对齐）
+## 自检（与 spec 对齐�?
 
-- 后端 `/api/v1/auth/login` → Task 7
-- 后端 `/api/v1/auth/register`（首位=admin）→ Task 6 + Task 7
-- 后端 `/api/v1/auth/setup-status` → Task 6 + Task 7
-- 网关 `auth.router.toml` + 删 stub → Task 10
-- token-service 启动哈希 client_secret → Task 11
-- 迁移 SQL + 角色预置 → Task 2
-- user-service 集成测试（登录+注册+setup）→ Task 9
-- 前端 vite proxy → Task 12
-- 前端 api 路径统一 v1 → Task 13/14/15
-- 前端 http 白名单 → Task 16
-- 前端 login 视图 setup 检测 → Task 17
-- 前端 register 页 → Task 18
-- 前端路由 /register → Task 19
-- 前端 .env client_secret → Task 20
-- 端到端冒烟 → Task 22
+- 后端 `/api/v1/auth/login` �?Task 7
+- 后端 `/api/v1/auth/register`（首�?admin）→ Task 6 + Task 7
+- 后端 `/api/v1/auth/setup-status` �?Task 6 + Task 7
+- 网关 `auth.router.toml` + �?stub �?Task 10
+- token-service 启动哈希 client_secret �?Task 11
+- 迁移 SQL + 角色预置 �?Task 2
+- user-service 集成测试（登�?注册+setup）→ Task 9
+- 前端 vite proxy �?Task 12
+- 前端 api 路径统一 v1 �?Task 13/14/15
+- 前端 http 白名�?�?Task 16
+- 前端 login 视图 setup 检�?�?Task 17
+- 前端 register �?�?Task 18
+- 前端路由 /register �?Task 19
+- 前端 .env client_secret �?Task 20
+- 端到端冒�?�?Task 22
 
-无占位符；类型/函数名跨 task 一致（`register_admin` / `setup_status` / `login` / `AuthState` / `LoginCtx` / `RegisterError`）。
+无占位符；类�?函数名跨 task 一致（`register_admin` / `setup_status` / `login` / `AuthState` / `LoginCtx` / `RegisterError`）�?

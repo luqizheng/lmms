@@ -41,10 +41,11 @@ const selectedUsers = computed({
     props.modelValue
       .filter(v => v.scope_type === "user")
       .map(v => ({ id: v.scope_id, name: v.name })),
-  set: (val: UserValue[]) => {
+  set: (val: UserValue[] | undefined | null) => {
+    const safeVal = Array.isArray(val) ? val : [];
     const newValue = [
       ...props.modelValue.filter(v => v.scope_type !== "user"),
-      ...val.map(v => ({
+      ...safeVal.map(v => ({
         scope_type: "user" as const,
         scope_id: v.id,
         name: v.name
@@ -60,10 +61,11 @@ const selectedRoles = computed({
     props.modelValue
       .filter(v => v.scope_type === "role")
       .map(v => ({ id: v.scope_id, name: v.name })),
-  set: (val: RoleValue[]) => {
+  set: (val: RoleValue[] | undefined | null) => {
+    const safeVal = Array.isArray(val) ? val : [];
     const newValue = [
       ...props.modelValue.filter(v => v.scope_type !== "role"),
-      ...val.map(v => ({
+      ...safeVal.map(v => ({
         scope_type: "role" as const,
         scope_id: v.id,
         name: v.name
@@ -79,10 +81,11 @@ const selectedDepts = computed({
     props.modelValue
       .filter(v => v.scope_type === "dept")
       .map(v => ({ id: v.scope_id, name: v.name, path: [] })),
-  set: (val: OrgValue[]) => {
+  set: (val: OrgValue[] | undefined | null) => {
+    const safeVal = Array.isArray(val) ? val : [];
     const newValue = [
       ...props.modelValue.filter(v => v.scope_type !== "dept"),
-      ...val.map(v => ({
+      ...safeVal.map(v => ({
         scope_type: "dept" as const,
         scope_id: v.id,
         name: v.name

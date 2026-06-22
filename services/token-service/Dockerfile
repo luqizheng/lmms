@@ -6,8 +6,8 @@ COPY Cargo.toml Cargo.lock ./
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk
-COPY docker/config/token-service docker/config/token-service
-COPY docker/secrets docker/secrets
+COPY docker-example/config/token-service docker-example/config/token-service
+COPY docker-example/secrets docker-example/secrets
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
@@ -18,9 +18,9 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/token-service /app/token-service
-COPY --from=builder /app/docker/config/token-service/clients.json /app/clients.json
-COPY --from=builder /app/docker/secrets/private.pem /app/keys/private.pem
-COPY --from=builder /app/docker/secrets/public.pem /app/keys/public.pem
+COPY --from=builder /app/docker-example/config/token-service/clients.json /app/clients.json
+COPY --from=builder /app/docker-example/secrets/private.pem /app/keys/private.pem
+COPY --from=builder /app/docker-example/secrets/public.pem /app/keys/public.pem
 COPY --from=builder /app/services/token-service/config /app/config
 ENV RUST_LOG=token_service=debug
 CMD ["/app/token-service"]

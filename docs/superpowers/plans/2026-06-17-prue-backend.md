@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 新增 `prue_backend` Rust 服务，使用版本化 JSON 持久化 pure-admin 菜单配置，并从 `iam-service` 移除菜单职责。
+**Goal:** 新增 `prue_backend` Rust 服务，使用版本化 JSON 持久�?pure-admin 菜单配置，并�?`iam-service` 移除菜单职责�?
 
-**Architecture:** `prue_backend` 是独立 BFF 服务，不关联 `iam-service`。服务将完整 pure-admin 路由树保存为 JSON 版本快照，`/get-async-routes` 只读取 active 版本。
+**Architecture:** `prue_backend` 是独�?BFF 服务，不关联 `iam-service`。服务将完整 pure-admin 路由树保存为 JSON 版本快照，`/get-async-routes` 只读�?active 版本�?
 
-**Tech Stack:** Rust 2021、Axum 0.8、SQLx 0.8、MySQL/SQLite、serde_json、api-gateway TOML、Docker Compose。
+**Tech Stack:** Rust 2021、Axum 0.8、SQLx 0.8、MySQL/SQLite、serde_json、api-gateway TOML、Docker Compose�?
 
 ---
 
@@ -14,39 +14,39 @@
 
 ### 新增
 
-- `services/prue_backend/Cargo.toml`：服务 crate 配置。
-- `services/prue_backend/Dockerfile`：Linux/musl 容器构建。
-- `services/prue_backend/README.md`：服务说明。
-- `services/prue_backend/AGENTS.md`：服务规范和 pure-admin 链接。
-- `services/prue_backend/src/lib.rs`：模块导出。
-- `services/prue_backend/src/main.rs`：服务启动入口。
-- `services/prue_backend/src/config.rs`：环境变量配置。
-- `services/prue_backend/src/error.rs`：服务错误类型。
-- `services/prue_backend/src/state.rs`：AppState。
-- `services/prue_backend/src/dto/mod.rs`：DTO 导出。
-- `services/prue_backend/src/dto/menu_config.rs`：请求和响应结构。
-- `services/prue_backend/src/service/mod.rs`：服务导出。
-- `services/prue_backend/src/service/menu_config_svc.rs`：菜单版本业务逻辑。
-- `services/prue_backend/src/routes/mod.rs`：路由组装。
-- `services/prue_backend/src/routes/menu_configs.rs`：菜单配置接口。
-- `services/prue_backend/migrations/mysql/V001__init.sql`：MySQL 表结构。
-- `services/prue_backend/migrations/sqlite/V001__init.sql`：SQLite 表结构。
-- `services/prue_backend/tests/menu_config_model_test.rs`：DTO 和校验单测。
-- `docker/config/api-gateway/routes/prue_backend.router.toml`：网关路由。
+- `services/prue_backend/Cargo.toml`：服�?crate 配置�?
+- `services/prue_backend/Dockerfile`：Linux/musl 容器构建�?
+- `services/prue_backend/README.md`：服务说明�?
+- `services/prue_backend/AGENTS.md`：服务规范和 pure-admin 链接�?
+- `services/prue_backend/src/lib.rs`：模块导出�?
+- `services/prue_backend/src/main.rs`：服务启动入口�?
+- `services/prue_backend/src/config.rs`：环境变量配置�?
+- `services/prue_backend/src/error.rs`：服务错误类型�?
+- `services/prue_backend/src/state.rs`：AppState�?
+- `services/prue_backend/src/dto/mod.rs`：DTO 导出�?
+- `services/prue_backend/src/dto/menu_config.rs`：请求和响应结构�?
+- `services/prue_backend/src/service/mod.rs`：服务导出�?
+- `services/prue_backend/src/service/menu_config_svc.rs`：菜单版本业务逻辑�?
+- `services/prue_backend/src/routes/mod.rs`：路由组装�?
+- `services/prue_backend/src/routes/menu_configs.rs`：菜单配置接口�?
+- `services/prue_backend/migrations/mysql/V001__init.sql`：MySQL 表结构�?
+- `services/prue_backend/migrations/sqlite/V001__init.sql`：SQLite 表结构�?
+- `services/prue_backend/tests/menu_config_model_test.rs`：DTO 和校验单测�?
+- `docker-example/config/api-gateway/routes/prue_backend.router.toml`：网关路由�?
 
 ### 修改
 
-- `Cargo.toml`：加入 `services/prue_backend` workspace member。
-- `infrastructure/docker-compose.yml`：新增 `prue_backend` 服务，端口 `6004:8080`。
-- `services/iam-service/src/routes/mod.rs`：移除 menus 模块和路由合并。
-- `services/iam-service/src/dto/mod.rs`：移除 menu DTO 导出。
-- `services/iam-service/src/models/mod.rs`：移除 menu model 导出。
-- `services/iam-service/src/service/mod.rs`：移除 menu service 导出。
-- `services/iam-service/src/openapi.rs`：移除 menus OpenAPI 引用。
-- `services/iam-service/README.md`：移除菜单管理描述。
-- `services/iam-service/AGENTS.md`：移除菜单端点描述。
-- `services/iam-service/tests/swagger_test.rs`：移除 `/iam/menus*` 断言。
-- `docker/config/api-gateway/routes/iam.router.toml`：移除 `/iam/menus/**`。
+- `Cargo.toml`：加�?`services/prue_backend` workspace member�?
+- `infrastructure/docker-compose.yml`：新�?`prue_backend` 服务，端�?`6004:8080`�?
+- `services/iam-service/src/routes/mod.rs`：移�?menus 模块和路由合并�?
+- `services/iam-service/src/dto/mod.rs`：移�?menu DTO 导出�?
+- `services/iam-service/src/models/mod.rs`：移�?menu model 导出�?
+- `services/iam-service/src/service/mod.rs`：移�?menu service 导出�?
+- `services/iam-service/src/openapi.rs`：移�?menus OpenAPI 引用�?
+- `services/iam-service/README.md`：移除菜单管理描述�?
+- `services/iam-service/AGENTS.md`：移除菜单端点描述�?
+- `services/iam-service/tests/swagger_test.rs`：移�?`/iam/menus*` 断言�?
+- `docker-example/config/api-gateway/routes/iam.router.toml`：移�?`/iam/menus/**`�?
 
 ### 删除
 
@@ -57,7 +57,7 @@
 
 ---
 
-## Task 1: 新服务骨架
+## Task 1: 新服务骨�?
 
 **Files:**
 - Modify: `Cargo.toml`
@@ -72,17 +72,17 @@
 
 - [ ] **Step 1: 修改 workspace**
 
-在根 `Cargo.toml` 的 `members` 中追加：
+在根 `Cargo.toml` �?`members` 中追加：
 
 ```toml
     "services/prue_backend",
 ```
 
-放在其他 `services/*` 后面。
+放在其他 `services/*` 后面�?
 
 - [ ] **Step 2: 创建服务 Cargo.toml**
 
-写入 `services/prue_backend/Cargo.toml`：
+写入 `services/prue_backend/Cargo.toml`�?
 
 ```toml
 [package]
@@ -117,7 +117,7 @@ path = "src/main.rs"
 
 - [ ] **Step 3: 创建 lib.rs**
 
-写入 `services/prue_backend/src/lib.rs`：
+写入 `services/prue_backend/src/lib.rs`�?
 
 ```rust
 pub mod config;
@@ -130,7 +130,7 @@ pub mod state;
 
 - [ ] **Step 4: 创建 config.rs**
 
-写入 `services/prue_backend/src/config.rs`：
+写入 `services/prue_backend/src/config.rs`�?
 
 ```rust
 #[derive(Debug, Clone)]
@@ -167,7 +167,7 @@ impl AppConfig {
 
 - [ ] **Step 5: 创建 state.rs**
 
-写入 `services/prue_backend/src/state.rs`：
+写入 `services/prue_backend/src/state.rs`�?
 
 ```rust
 use common_db::DbPool;
@@ -186,7 +186,7 @@ impl AppState {
 
 - [ ] **Step 6: 创建 main.rs**
 
-写入 `services/prue_backend/src/main.rs`：
+写入 `services/prue_backend/src/main.rs`�?
 
 ```rust
 use common_db::init_pool;
@@ -217,7 +217,7 @@ async fn main() {
 
 - [ ] **Step 7: 创建 AGENTS.md**
 
-写入 `services/prue_backend/AGENTS.md`：
+写入 `services/prue_backend/AGENTS.md`�?
 
 ```markdown
 # prue_backend 服务规范
@@ -230,16 +230,16 @@ async fn main() {
 ## 必需组件
 
 - [x] Dockerfile
-- [x] 健康检查端点（/health、/metrics）
-- [x] 数据库迁移文件（migrations/）
+- [x] 健康检查端点（/health�?metrics�?
+- [x] 数据库迁移文件（migrations/�?
 - [x] README.md
 - [x] tests/ 目录
 
 ## 环境变量
 
-| 变量 | 默认值 | 说明 |
+| 变量 | 默认�?| 说明 |
 |------|--------|------|
-| DATABASE_URL | sqlite::memory: | 数据库连接 |
+| DATABASE_URL | sqlite::memory: | 数据库连�?|
 | SERVER_HOST | 0.0.0.0 | 服务监听主机 |
 | SERVER_PORT | 8080 | 服务监听端口 |
 | SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址 |
@@ -247,53 +247,53 @@ async fn main() {
 
 ## 服务边界
 
-- 只管理 pure-admin 菜单配置和动态路由。
-- 菜单配置使用版本化 JSON 持久化。
-- 用户和角色仅保存为字符串数组。
-- 不关联 iam-service。
-- 不管理用户、角色、权限实体。
+- 只管�?pure-admin 菜单配置和动态路由�?
+- 菜单配置使用版本�?JSON 持久化�?
+- 用户和角色仅保存为字符串数组�?
+- 不关�?iam-service�?
+- 不管理用户、角色、权限实体�?
 
-## 端点域
+## 端点�?
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /get-async-routes | GET | 获取 active 菜单版本的 pure-admin 动态路由 |
+| /get-async-routes | GET | 获取 active 菜单版本�?pure-admin 动态路�?|
 | /pure/menu-configs | GET | 查询菜单配置版本列表 |
 | /pure/menu-configs | POST | 新建草稿菜单配置 |
 | /pure/menu-configs/{id} | GET | 查看菜单配置版本详情 |
 | /pure/menu-configs/{id} | PUT | 更新草稿菜单配置 |
-| /pure/menu-configs/{id}/publish | POST | 发布菜单配置为 active |
-| /pure/menu-configs/{id}/clone | POST | 克隆历史版本为草稿 |
-| /pure/menu-configs/{id} | DELETE | 删除未发布菜单配置 |
-| /health | GET | 健康检查 |
+| /pure/menu-configs/{id}/publish | POST | 发布菜单配置�?active |
+| /pure/menu-configs/{id}/clone | POST | 克隆历史版本为草�?|
+| /pure/menu-configs/{id} | DELETE | 删除未发布菜单配�?|
+| /health | GET | 健康检�?|
 | /metrics | GET | Prometheus 指标 |
 
 ## 数据库方言
 
-支持 MySQL 和 SQLite。
+支持 MySQL �?SQLite�?
 ```
 
 - [ ] **Step 8: 创建 README.md**
 
-写入 `services/prue_backend/README.md`：
+写入 `services/prue_backend/README.md`�?
 
 ````markdown
 # prue_backend
 
-pure-admin 后台适配服务。
+pure-admin 后台适配服务�?
 
 ## 功能
 
 - 管理菜单配置版本
-- JSON 持久化 pure-admin 路由树
+- JSON 持久�?pure-admin 路由�?
 - 发布 active 菜单版本
 - 提供 `/get-async-routes`
 
 ## 边界
 
-用户和角色只保存字符串数组。
+用户和角色只保存字符串数组�?
 
-服务不关联 iam-service。
+服务不关�?iam-service�?
 
 ## 运行
 
@@ -306,7 +306,7 @@ prue_backend
 
 - [ ] **Step 9: 创建 Dockerfile**
 
-写入 `services/prue_backend/Dockerfile`：
+写入 `services/prue_backend/Dockerfile`�?
 
 ```dockerfile
 FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
@@ -346,7 +346,7 @@ CMD ["prue_backend"]
 
 - [ ] **Step 1: 创建 error.rs**
 
-写入 `services/prue_backend/src/error.rs`：
+写入 `services/prue_backend/src/error.rs`�?
 
 ```rust
 use axum::{http::StatusCode, response::{IntoResponse, Response}, Json};
@@ -389,7 +389,7 @@ impl IntoResponse for AppError {
 
 - [ ] **Step 2: 创建 dto/mod.rs**
 
-写入 `services/prue_backend/src/dto/mod.rs`：
+写入 `services/prue_backend/src/dto/mod.rs`�?
 
 ```rust
 pub mod menu_config;
@@ -399,7 +399,7 @@ pub use menu_config::*;
 
 - [ ] **Step 3: 创建 dto/menu_config.rs**
 
-写入 `services/prue_backend/src/dto/menu_config.rs`：
+写入 `services/prue_backend/src/dto/menu_config.rs`�?
 
 ```rust
 use chrono::{DateTime, Utc};
@@ -537,7 +537,7 @@ fn validate_string_array(value: Option<&Value>, field: &str) -> Result<(), Strin
 
 - [ ] **Step 4: 创建 DTO 测试**
 
-写入 `services/prue_backend/tests/menu_config_model_test.rs`：
+写入 `services/prue_backend/tests/menu_config_model_test.rs`�?
 
 ```rust
 use prue_backend::dto::{validate_routes_json, ApiResponse, CreateMenuConfigRequest};
@@ -619,17 +619,17 @@ fn validate_routes_json_rejects_non_string_roles() {
 }
 ```
 
-- [ ] **Step 5: 在真实 PowerShell 运行测试**
+- [ ] **Step 5: 在真�?PowerShell 运行测试**
 
-仓库规则禁止在 IDE 终端直接跑 cargo。
+仓库规则禁止�?IDE 终端直接�?cargo�?
 
-在真实 PowerShell（vcvarsall x64）运行：
+在真�?PowerShell（vcvarsall x64）运行：
 
 ```powershell
 cargo test -p prue_backend --test menu_config_model_test
 ```
 
-期望：测试通过。
+期望：测试通过�?
 
 ---
 
@@ -643,7 +643,7 @@ cargo test -p prue_backend --test menu_config_model_test
 
 - [ ] **Step 1: 创建 MySQL 迁移**
 
-写入 `services/prue_backend/migrations/mysql/V001__init.sql`：
+写入 `services/prue_backend/migrations/mysql/V001__init.sql`�?
 
 ```sql
 CREATE TABLE IF NOT EXISTS menu_configs (
@@ -667,7 +667,7 @@ CREATE TABLE IF NOT EXISTS menu_configs (
 
 - [ ] **Step 2: 创建 SQLite 迁移**
 
-写入 `services/prue_backend/migrations/sqlite/V001__init.sql`：
+写入 `services/prue_backend/migrations/sqlite/V001__init.sql`�?
 
 ```sql
 CREATE TABLE IF NOT EXISTS menu_configs (
@@ -691,7 +691,7 @@ CREATE INDEX IF NOT EXISTS idx_menu_configs_status ON menu_configs(status);
 
 - [ ] **Step 3: 创建 service/mod.rs**
 
-写入 `services/prue_backend/src/service/mod.rs`：
+写入 `services/prue_backend/src/service/mod.rs`�?
 
 ```rust
 pub mod menu_config_svc;
@@ -701,7 +701,7 @@ pub use menu_config_svc::MenuConfigService;
 
 - [ ] **Step 4: 创建 menu_config_svc.rs**
 
-写入 `services/prue_backend/src/service/menu_config_svc.rs`：
+写入 `services/prue_backend/src/service/menu_config_svc.rs`�?
 
 ```rust
 use crate::{
@@ -949,11 +949,11 @@ impl MenuConfigService {
 }
 ```
 
-- [ ] **Step 5: 固化数据库执行方式**
+- [ ] **Step 5: 固化数据库执行方�?*
 
-把 `menu_config_svc.rs` 中所有数据库调用改成按 `DbPool` 分支执行。
+�?`menu_config_svc.rs` 中所有数据库调用改成�?`DbPool` 分支执行�?
 
-先在文件顶部加入：
+先在文件顶部加入�?
 
 ```rust
 use common_db::DbPool;
@@ -968,9 +968,9 @@ use common_db::DbPool;
 .execute(&self.state.db)
 ```
 
-改为 match 结构。
+改为 match 结构�?
 
-`list()` 使用：
+`list()` 使用�?
 
 ```rust
 let rows: Vec<MenuConfigRow> = match &self.state.db {
@@ -979,7 +979,7 @@ let rows: Vec<MenuConfigRow> = match &self.state.db {
 };
 ```
 
-`get_row()` 使用：
+`get_row()` 使用�?
 
 ```rust
 let row: Option<MenuConfigRow> = match &self.state.db {
@@ -988,7 +988,7 @@ let row: Option<MenuConfigRow> = match &self.state.db {
 };
 ```
 
-`next_version()` 使用：
+`next_version()` 使用�?
 
 ```rust
 let current: (i64,) = match &self.state.db {
@@ -997,23 +997,23 @@ let current: (i64,) = match &self.state.db {
 };
 ```
 
-写入类方法使用 MySQL/SQLite 两套 SQL。
+写入类方法使�?MySQL/SQLite 两套 SQL�?
 
-MySQL 时间函数用 `NOW()`。
+MySQL 时间函数�?`NOW()`�?
 
-SQLite 时间函数用 `CURRENT_TIMESTAMP`。
+SQLite 时间函数�?`CURRENT_TIMESTAMP`�?
 
-每次 `INSERT ... RETURNING` 或 `UPDATE ... RETURNING` 都按方言分支执行。
+每次 `INSERT ... RETURNING` �?`UPDATE ... RETURNING` 都按方言分支执行�?
 
-事务发布也按 `DbPool::Mysql(pool)` 和 `DbPool::Sqlite(pool)` 分支各写一遍。
+事务发布也按 `DbPool::Mysql(pool)` �?`DbPool::Sqlite(pool)` 分支各写一遍�?
 
-- [ ] **Step 6: 在真实 PowerShell 运行检查**
+- [ ] **Step 6: 在真�?PowerShell 运行检�?*
 
 ```powershell
 cargo check -p prue_backend
 ```
 
-期望：`prue_backend` 编译通过。
+期望：`prue_backend` 编译通过�?
 
 ---
 
@@ -1025,7 +1025,7 @@ cargo check -p prue_backend
 
 - [ ] **Step 1: 创建 routes/mod.rs**
 
-写入 `services/prue_backend/src/routes/mod.rs`：
+写入 `services/prue_backend/src/routes/mod.rs`�?
 
 ```rust
 pub mod menu_configs;
@@ -1056,7 +1056,7 @@ async fn metrics() -> axum::response::Html<String> {
 
 - [ ] **Step 2: 创建 routes/menu_configs.rs**
 
-写入 `services/prue_backend/src/routes/menu_configs.rs`：
+写入 `services/prue_backend/src/routes/menu_configs.rs`�?
 
 ```rust
 use axum::{
@@ -1156,25 +1156,25 @@ async fn delete_menu_config(
 }
 ```
 
-- [ ] **Step 3: 在真实 PowerShell 运行检查**
+- [ ] **Step 3: 在真�?PowerShell 运行检�?*
 
 ```powershell
 cargo check -p prue_backend
 ```
 
-期望：路由编译通过。
+期望：路由编译通过�?
 
 ---
 
-## Task 5: 网关和 Docker 编排
+## Task 5: 网关�?Docker 编排
 
 **Files:**
-- Create: `docker/config/api-gateway/routes/prue_backend.router.toml`
+- Create: `docker-example/config/api-gateway/routes/prue_backend.router.toml`
 - Modify: `infrastructure/docker-compose.yml`
 
 - [ ] **Step 1: 创建网关路由**
 
-写入 `docker/config/api-gateway/routes/prue_backend.router.toml`：
+写入 `docker-example/config/api-gateway/routes/prue_backend.router.toml`�?
 
 ```toml
 [[route]]
@@ -1196,7 +1196,7 @@ rewrite = { type = "strip_prefix", prefix = "/prue" }
 
 - [ ] **Step 2: 修改 Docker Compose**
 
-在 `infrastructure/docker-compose.yml` 的 `iam-service` 后添加：
+�?`infrastructure/docker-compose.yml` �?`iam-service` 后添加：
 
 ```yaml
   prue_backend:
@@ -1221,15 +1221,15 @@ rewrite = { type = "strip_prefix", prefix = "/prue" }
 
 - [ ] **Step 3: 校验路由**
 
-仓库规则要求路由变更后校验。
+仓库规则要求路由变更后校验�?
 
-在真实 PowerShell（vcvarsall x64）运行：
+在真�?PowerShell（vcvarsall x64）运行：
 
 ```powershell
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 ```
 
-期望：路由校验通过，无 duplicate match pattern。
+期望：路由校验通过，无 duplicate match pattern�?
 
 ---
 
@@ -1244,7 +1244,7 @@ cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 - Modify: `services/iam-service/README.md`
 - Modify: `services/iam-service/AGENTS.md`
 - Modify: `services/iam-service/tests/swagger_test.rs`
-- Modify: `docker/config/api-gateway/routes/iam.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/iam.router.toml`
 - Delete: `services/iam-service/src/routes/menus.rs`
 - Delete: `services/iam-service/src/dto/menu.rs`
 - Delete: `services/iam-service/src/models/menu.rs`
@@ -1258,7 +1258,7 @@ cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 pub mod menus;
 ```
 
-删除。
+删除�?
 
 把：
 
@@ -1266,11 +1266,11 @@ pub mod menus;
         .merge(menus::routes(state.clone()))
 ```
 
-删除。
+删除�?
 
 - [ ] **Step 2: 修改 dto/mod.rs**
 
-删除：
+删除�?
 
 ```rust
 pub mod menu;
@@ -1279,7 +1279,7 @@ pub use menu::*;
 
 - [ ] **Step 3: 修改 models/mod.rs**
 
-删除：
+删除�?
 
 ```rust
 pub mod menu;
@@ -1288,7 +1288,7 @@ pub use menu::Menu;
 
 - [ ] **Step 4: 修改 service/mod.rs**
 
-删除：
+删除�?
 
 ```rust
 pub mod menu_svc;
@@ -1303,7 +1303,7 @@ pub use menu_svc::MenuService;
 use crate::routes::{auth, menus, users};
 ```
 
-改为：
+改为�?
 
 ```rust
 use crate::routes::{auth, users};
@@ -1334,38 +1334,38 @@ use crate::routes::{auth, users};
         (name = "menus", description = "Menu management"),
 ```
 
-把 info description 中的 `menu` 描述移除。
+�?info description 中的 `menu` 描述移除�?
 
 - [ ] **Step 6: 修改 swagger_test.rs**
 
-删除：
+删除�?
 
 ```rust
     assert!(paths.contains_key("/iam/menus"));
     assert!(paths.contains_key("/iam/menus/{menu_id}"));
 ```
 
-保留 auth 和 users 断言。
+保留 auth �?users 断言�?
 
 - [ ] **Step 7: 修改 iam README**
 
-从 `services/iam-service/README.md` 删除菜单管理段落：
+�?`services/iam-service/README.md` 删除菜单管理段落�?
 
 ```markdown
 - **菜单管理** (`/iam/menus/*`)
-  - 菜单树结构
+  - 菜单树结�?
   - 菜单权限关联
 ```
 
 把开头描述改为：
 
 ```markdown
-统一身份与访问管理服务，整合认证、用户、角色、权限、部门、Token 管理能力。
+统一身份与访问管理服务，整合认证、用户、角色、权限、部门、Token 管理能力�?
 ```
 
 - [ ] **Step 8: 修改 iam AGENTS**
 
-从 `services/iam-service/AGENTS.md` 删除菜单端点段落：
+�?`services/iam-service/AGENTS.md` 删除菜单端点段落�?
 
 ```markdown
 ### 菜单 /iam/menus/*
@@ -1380,7 +1380,7 @@ use crate::routes::{auth, users};
 
 - [ ] **Step 9: 修改 iam 网关路由**
 
-从 `docker/config/api-gateway/routes/iam.router.toml` 删除：
+�?`docker-example/config/api-gateway/routes/iam.router.toml` 删除�?
 
 ```toml
 [[route]]
@@ -1391,7 +1391,7 @@ public = false
 
 - [ ] **Step 10: 删除 iam 菜单源码**
 
-删除：
+删除�?
 
 ```text
 services/iam-service/src/routes/menus.rs
@@ -1400,9 +1400,9 @@ services/iam-service/src/models/menu.rs
 services/iam-service/src/service/menu_svc.rs
 ```
 
-使用 IDE 删除工具，不能用 shell 删除。
+使用 IDE 删除工具，不能用 shell 删除�?
 
-- [ ] **Step 11: 检查残留引用**
+- [ ] **Step 11: 检查残留引�?*
 
 使用内容搜索检查：
 
@@ -1414,9 +1414,9 @@ MenuListResponse
 /iam/menus
 ```
 
-期望：业务源码中无残留引用。
+期望：业务源码中无残留引用�?
 
-文档历史 spec/plan 可保留。
+文档历史 spec/plan 可保留�?
 
 ---
 
@@ -1425,17 +1425,17 @@ MenuListResponse
 **Files:**
 - All changed files
 
-- [ ] **Step 1: Rust 格式检查**
+- [ ] **Step 1: Rust 格式检�?*
 
-在真实 PowerShell（vcvarsall x64）运行：
+在真�?PowerShell（vcvarsall x64）运行：
 
 ```powershell
 cargo fmt --check
 ```
 
-期望：格式通过。
+期望：格式通过�?
 
-如失败，运行：
+如失败，运行�?
 
 ```powershell
 cargo fmt
@@ -1449,72 +1449,72 @@ cargo fmt --check
 
 - [ ] **Step 2: prue_backend 测试**
 
-在真实 PowerShell（vcvarsall x64）运行：
+在真�?PowerShell（vcvarsall x64）运行：
 
 ```powershell
 cargo test -p prue_backend
 ```
 
-期望：测试通过。
+期望：测试通过�?
 
 - [ ] **Step 3: iam-service OpenAPI 测试**
 
-在真实 PowerShell（vcvarsall x64）运行：
+在真�?PowerShell（vcvarsall x64）运行：
 
 ```powershell
 cargo test -p iam-service --test swagger_test
 ```
 
-期望：测试通过，且不再断言 `/iam/menus*`。
+期望：测试通过，且不再断言 `/iam/menus*`�?
 
-- [ ] **Step 4: clippy 检查**
+- [ ] **Step 4: clippy 检�?*
 
-在真实 PowerShell（vcvarsall x64）运行：
+在真�?PowerShell（vcvarsall x64）运行：
 
 ```powershell
 cargo clippy --all-targets -- -D warnings
 ```
 
-期望：无 warning。
+期望：无 warning�?
 
 - [ ] **Step 5: 路由校验**
 
-在真实 PowerShell（vcvarsall x64）运行：
+在真�?PowerShell（vcvarsall x64）运行：
 
 ```powershell
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 ```
 
-期望：通过。
+期望：通过�?
 
-- [ ] **Step 6: 变更检查**
+- [ ] **Step 6: 变更检�?*
 
-运行只读命令：
+运行只读命令�?
 
 ```powershell
 git status --short
 ```
 
-确认没有把 `private.pem`、构建产物、报告文件加入变更。
+确认没有�?`private.pem`、构建产物、报告文件加入变更�?
 
 ---
 
 ## 自检清单
 
-- spec 要求的独立 `prue_backend`：Task 1 覆盖。
-- JSON 版本化持久化：Task 2、Task 3 覆盖。
-- active 版本输出 `/get-async-routes`：Task 4 覆盖。
-- 用户、角色只作为字符串数组：Task 2 覆盖。
-- 不关联 iam-service：Task 3 不引入 iam 依赖。
-- 移除 iam 菜单职责：Task 6 覆盖。
-- 网关路由：Task 5、Task 7 覆盖。
-- Docker 端口 6004：Task 5 覆盖。
-- pure-admin 文档链接写入 AGENTS：Task 1 覆盖。
+- spec 要求的独�?`prue_backend`：Task 1 覆盖�?
+- JSON 版本化持久化：Task 2、Task 3 覆盖�?
+- active 版本输出 `/get-async-routes`：Task 4 覆盖�?
+- 用户、角色只作为字符串数组：Task 2 覆盖�?
+- 不关�?iam-service：Task 3 不引�?iam 依赖�?
+- 移除 iam 菜单职责：Task 6 覆盖�?
+- 网关路由：Task 5、Task 7 覆盖�?
+- Docker 端口 6004：Task 5 覆盖�?
+- pure-admin 文档链接写入 AGENTS：Task 1 覆盖�?
 
 ## 执行约束
 
-- 不在 IDE 终端直接运行 cargo。
-- cargo 命令必须在真实 PowerShell（vcvarsall x64）运行。
-- 不主动 commit。
-- 不主动 push。
-- 删除文件使用 IDE 删除工具。
+- 不在 IDE 终端直接运行 cargo�?
+- cargo 命令必须在真�?PowerShell（vcvarsall x64）运行�?
+- 不主�?commit�?
+- 不主�?push�?
+- 删除文件使用 IDE 删除工具�?

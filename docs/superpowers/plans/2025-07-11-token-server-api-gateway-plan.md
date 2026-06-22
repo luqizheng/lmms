@@ -1,17 +1,15 @@
 # Token Server + API Gateway 实施计划
 
-> **目标:** 基于设计文档实现完整的 API 鉴权基础设施：api-gateway (Rust) + token-server (Rust) + auth-service (Go) + user-service (Go)，含 docker-compose 编排
+> **目标:** 基于设计文档实现完整�?API 鉴权基础设施：api-gateway (Rust) + token-server (Rust) + auth-service (Go) + user-service (Go)，含 docker-compose 编排
 
-**架构:** Rust Workspace（common + api-gateway + token-server）+ Go 独立模块（auth-service + user-service），Nginx 反向代理，Consul 服务发现，Redis 黑名单，支持 MySQL/MSSQL/DM 多数据库
+**架构:** Rust Workspace（common + api-gateway + token-server�? Go 独立模块（auth-service + user-service），Nginx 反向代理，Consul 服务发现，Redis 黑名单，支持 MySQL/MSSQL/DM 多数据库
 
 **技术栈:** Rust (axum, jsonwebtoken, redis-rs), Go (gin, GORM), Redis, Consul, Nginx, Docker
 
 ---
 
-## Phase 0: 项目脚手架
-
-### Task 0.1: Cargo Workspace 初始化
-
+## Phase 0: 项目脚手�?
+### Task 0.1: Cargo Workspace 初始�?
 **文件:**
 - Create: `Cargo.workspace.toml`
 - Create: `Cargo.toml` (workspace root)
@@ -22,7 +20,7 @@
 - Create: `api-gateway/Cargo.toml`
 - Create: `api-gateway/src/main.rs`
 
-- [ ] **Step 1: 创建 workspace 根 Cargo.toml**
+- [ ] **Step 1: 创建 workspace �?Cargo.toml**
 
 ```toml
 [workspace]
@@ -148,10 +146,10 @@ fn main() {
 
 运行: `cargo build`
 
-期望: Cargo workspace 编译成功，打印 "token-server starting..." 或 "api-gateway starting..." 取决于运行的 crate
+期望: Cargo workspace 编译成功，打�?"token-server starting..." �?"api-gateway starting..." 取决于运行的 crate
 
-运行: `cargo run -p token-server` → 期望: "token-server starting..."
-运行: `cargo run -p api-gateway` → 期望: "api-gateway starting..."
+运行: `cargo run -p token-server` �?期望: "token-server starting..."
+运行: `cargo run -p api-gateway` �?期望: "api-gateway starting..."
 
 - [ ] **Step 6: 提交**
 
@@ -162,15 +160,14 @@ git commit -m "scaffold: cargo workspace with common, token-server, api-gateway"
 
 ---
 
-### Task 0.2: Go 模块初始化
-
+### Task 0.2: Go 模块初始�?
 **文件:**
 - Create: `auth-service/go.mod`
 - Create: `auth-service/main.go`
 - Create: `user-service/go.mod`
 - Create: `user-service/main.go`
 
-- [ ] **Step 1: 初始化 auth-service**
+- [ ] **Step 1: 初始�?auth-service**
 
 ```bash
 cd auth-service
@@ -193,7 +190,7 @@ func main() {
 }
 ```
 
-- [ ] **Step 2: 初始化 user-service**
+- [ ] **Step 2: 初始�?user-service**
 
 ```bash
 cd user-service
@@ -217,8 +214,8 @@ func main() {
 
 - [ ] **Step 3: 验证**
 
-运行: `cd auth-service && go run main.go` → 期望: "auth-service starting..."
-运行: `cd user-service && go run main.go` → 期望: "user-service starting..."
+运行: `cd auth-service && go run main.go` �?期望: "auth-service starting..."
+运行: `cd user-service && go run main.go` �?期望: "user-service starting..."
 
 - [ ] **Step 4: 提交**
 
@@ -229,13 +226,12 @@ git commit -m "scaffold: go modules for auth-service and user-service"
 
 ---
 
-### Task 0.3: Rust 工具链和日志初始化
-
+### Task 0.3: Rust 工具链和日志初始�?
 **文件:**
 - Modify: `token-server/src/main.rs:1-3`
 - Modify: `api-gateway/src/main.rs:1-3`
 
-- [ ] **Step 1: 为 token-server 添加 tracing 初始化**
+- [ ] **Step 1: �?token-server 添加 tracing 初始�?*
 
 `token-server/src/main.rs`:
 ```rust
@@ -254,7 +250,7 @@ async fn main() {
 }
 ```
 
-- [ ] **Step 2: 为 api-gateway 添加 tracing 初始化**
+- [ ] **Step 2: �?api-gateway 添加 tracing 初始�?*
 
 `api-gateway/src/main.rs`:
 ```rust
@@ -275,8 +271,8 @@ async fn main() {
 
 - [ ] **Step 3: 验证**
 
-运行: `cargo run -p token-server 2>&1` → 期望: 看到 `INFO token_server: token-server starting...`
-运行: `cargo run -p api-gateway 2>&1` → 期望: 看到 `INFO api_gateway: api-gateway starting...`
+运行: `cargo run -p token-server 2>&1` �?期望: 看到 `INFO token_server: token-server starting...`
+运行: `cargo run -p api-gateway 2>&1` �?期望: 看到 `INFO api_gateway: api-gateway starting...`
 
 - [ ] **Step 4: 提交**
 
@@ -322,7 +318,7 @@ pub enum CommonError {
 pub type Result<T> = std::result::Result<T, CommonError>;
 ```
 
-- [ ] **Step 2: 编写 JWT Claims 结构体**
+- [ ] **Step 2: 编写 JWT Claims 结构�?*
 
 `common/src/token.rs`:
 ```rust
@@ -486,9 +482,9 @@ pub struct TokenServerConfig {
     pub issuer: String,
     pub clients_file_path: String,
 
-    pub default_access_ttl_sec: i64,        // 如 3600
-    pub default_refresh_ttl_sec: i64,       // 如 2592000
-    pub default_resource_ttl_sec: i64,      // 如 300
+    pub default_access_ttl_sec: i64,        // �?3600
+    pub default_refresh_ttl_sec: i64,       // �?2592000
+    pub default_resource_ttl_sec: i64,      // �?300
 }
 
 impl Default for TokenServerConfig {
@@ -501,14 +497,13 @@ impl Default for TokenServerConfig {
             issuer: "superpowers-token-server".into(),
             clients_file_path: "clients.json".into(),
             default_access_ttl_sec: 3600,
-            default_refresh_ttl_sec: 2592000,  // 30 天
-            default_resource_ttl_sec: 300,
+            default_refresh_ttl_sec: 2592000,  // 30 �?            default_resource_ttl_sec: 300,
         }
     }
 }
 ```
 
-- [ ] **Step 2: 更新 main.rs — 启动配置**
+- [ ] **Step 2: 更新 main.rs �?启动配置**
 
 ```rust
 mod config;
@@ -541,8 +536,7 @@ async fn main() {
 运行:
 ```bash
 mkdir -p config keys
-# 生成测试密钥对
-ssh-keygen -t rsa -b 2048 -m PEM -f keys/private.pem -N ""
+# 生成测试密钥�?ssh-keygen -t rsa -b 2048 -m PEM -f keys/private.pem -N ""
 ssh-keygen -f keys/private.pem -e -m PKCS8 > keys/public.pem
 # 验证启动
 cargo run -p token-server
@@ -831,7 +825,7 @@ impl TokenIssuer {
 }
 ```
 
-- [ ] **Step 2: 验证 — 编写快速测试**
+- [ ] **Step 2: 验证 �?编写快速测�?*
 
 创建 `token-server/tests/issuer_test.rs`:
 ```rust
@@ -848,8 +842,7 @@ fn test_issue_and_verify_access_token() {
 
     let token = issuer.issue_access_token("1", "test-client", &["file:read".into()], 3600).unwrap();
 
-    // 用公钥验证
-    let validation = Validation::new(Algorithm::RS256);
+    // 用公钥验�?    let validation = Validation::new(Algorithm::RS256);
     let decoding_key = DecodingKey::from_rsa_pem(
         include_str!("../../keys/public.pem").as_bytes()
     ).unwrap();
@@ -865,11 +858,10 @@ fn test_issue_and_verify_access_token() {
 - [ ] **Step 3: 运行测试**
 
 运行: `cargo test -p token-server`
-期望: 测试通过，token 签发后用公钥能验证成功
+期望: 测试通过，token 签发后用公钥能验证成�?
+- [ ] **Step 4: �?Cargo.toml 的测试引用加�?token-server**
 
-- [ ] **Step 4: 将 Cargo.toml 的测试引用加到 token-server**
-
-在 `token-server/Cargo.toml` 添加:
+�?`token-server/Cargo.toml` 添加:
 ```toml
 [dev-dependencies]
 jsonwebtoken.workspace = true
@@ -931,7 +923,7 @@ pub async fn handle_access(
     let client = state.client_store.find_by_id(&req.client_id).await
         .ok_or((axum::http::StatusCode::UNAUTHORIZED, "invalid client".into()))?;
 
-    // 2. 从 Redis 取 code
+    // 2. �?Redis �?code
     let mut conn = state.redis_conn.clone();
     let user_id = redis::get_code(&mut conn, &state.redis_prefix, &req.code).await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
@@ -940,8 +932,7 @@ pub async fn handle_access(
     // 3. 删除 code（一次性使用）
     let _ = redis::del_code(&mut conn, &state.redis_prefix, &req.code).await;
 
-    // 4. 签发 token 对
-    let (refresh_token, _family) = state.issuer.issue_refresh_token(
+    // 4. 签发 token �?    let (refresh_token, _family) = state.issuer.issue_refresh_token(
         &user_id,
         client.refresh_token_ttl_sec,
     ).map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -1004,22 +995,20 @@ pub async fn handle_refresh(
         .map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "invalid refresh token".into()))?
         .claims;
 
-    // 3. 检查 refresh token 是否已被标记（防止重放）
+    // 3. 检�?refresh token 是否已被标记（防止重放）
     let mut conn = state.redis_conn.clone();
     if redis::is_refresh_marked(&mut conn, &state.redis_prefix, &old_claims.jti).await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))? {
-        // 检测到重放攻击 — 轮换整个 family
+        // 检测到重放攻击 �?轮换整个 family
         return Err((axum::http::StatusCode::UNAUTHORIZED, "refresh token already used".into()));
     }
 
-    // 4. 标记旧 token 已使用
-    let ttl = old_claims.exp - std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    // 4. 标记�?token 已使�?    let ttl = old_claims.exp - std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
     if ttl > 0 {
         let _ = redis::add_refresh_family(&mut conn, &state.redis_prefix, &old_claims.jti, ttl as u64).await;
     }
 
-    // 5. 签发新 token 对
-    let (new_refresh, _) = state.issuer.issue_refresh_token(&old_claims.sub, client.refresh_token_ttl_sec)
+    // 5. 签发�?token �?    let (new_refresh, _) = state.issuer.issue_refresh_token(&old_claims.sub, client.refresh_token_ttl_sec)
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let new_access = state.issuer.issue_access_token(
@@ -1058,8 +1047,7 @@ pub async fn handle_revoke(
     Json(req): Json<RevokeRequest>,
 ) -> StatusCode {
     let decoding_key = DecodingKey::from_rsa_pem(state.public_key_pem.as_bytes())
-        .unwrap(); // 简化错误处理
-
+        .unwrap(); // 简化错误处�?
     let validation = Validation::new(Algorithm::RS256);
     validation.insecure_disable_expiry_validation(); // 已过期的也可以注销
 
@@ -1083,7 +1071,7 @@ pub async fn handle_revoke(
 }
 ```
 
-- [ ] **Step 4: 编写 /tokens/resource 和 /api-keys 和 /jwks 路由（骨架）**
+- [ ] **Step 4: 编写 /tokens/resource �?/api-keys �?/jwks 路由（骨架）**
 
 `token-server/src/routes/resource.rs`:
 ```rust
@@ -1144,7 +1132,7 @@ pub struct JwkKey {
 }
 
 pub async fn handle_jwks() -> Json<JwksResponse> {
-    // TODO: 从公钥文件解析 n, e 生成 JWKS
+    // TODO: 从公钥文件解�?n, e 生成 JWKS
     Json(JwksResponse { keys: vec![] })
 }
 ```
@@ -1177,7 +1165,7 @@ pub mod api_key;
 pub mod jwks;
 ```
 
-- [ ] **Step 6: 更新 main.rs — 组装 HTTP server**
+- [ ] **Step 6: 更新 main.rs �?组装 HTTP server**
 
 ```rust
 mod config;
@@ -1255,7 +1243,7 @@ git commit -m "feat(token-server): http routes for token issuance, refresh, revo
 
 ### Task 2.5: token-server 完成集成
 
-- [ ] **Step 1: 修复 main.rs 配置加载（用实际代码替换 todo!()）**
+- [ ] **Step 1: 修复 main.rs 配置加载（用实际代码替换 todo!()�?*
 
 - [ ] **Step 2: 启动 Redis（docker），启动 token-server，用 curl 测试 /tokens/access 端点**
 
@@ -1314,7 +1302,7 @@ impl Default for GatewayConfig {
 }
 ```
 
-- [ ] **Step 2: Consul 服务发现客户端**
+- [ ] **Step 2: Consul 服务发现客户�?*
 
 `api-gateway/src/discovery.rs`:
 ```rust
@@ -1382,14 +1370,13 @@ git commit -m "feat(api-gateway): config loading and consul service discovery"
 
 ---
 
-### Task 3.2: JWT 验证 + Redis 黑名单
-
+### Task 3.2: JWT 验证 + Redis 黑名�?
 **文件:**
 - Create: `api-gateway/src/jwt.rs`
 - Create: `api-gateway/src/middleware/mod.rs`
 - Create: `api-gateway/src/middleware/jwt_auth.rs`
 
-- [ ] **Step 1: JWT 验签 + 黑名单检查**
+- [ ] **Step 1: JWT 验签 + 黑名单检�?*
 
 `api-gateway/src/jwt.rs`:
 ```rust
@@ -1428,7 +1415,7 @@ pub async fn check_blacklist(
 }
 ```
 
-- [ ] **Step 2: JWT 鉴权中间件**
+- [ ] **Step 2: JWT 鉴权中间�?*
 
 `api-gateway/src/middleware/jwt_auth.rs`:
 ```rust
@@ -1470,7 +1457,7 @@ pub async fn jwt_auth_middleware(
         _ => {}
     }
 
-    // 3. 注入 claims 到 request extensions
+    // 3. 注入 claims �?request extensions
     req.extensions_mut().insert(claims);
     next.run(req).await
 }
@@ -1508,8 +1495,7 @@ use axum::{
 use reqwest::Client;
 use std::collections::HashSet;
 
-// JWT 验证白名单
-fn path_is_whitelisted(path: &str) -> bool {
+// JWT 验证白名�?fn path_is_whitelisted(path: &str) -> bool {
     let whitelist: &[&str] = &[
         "/api/auth/",
         "/api/tokens/",
@@ -1607,10 +1593,10 @@ async fn main() {
 
     let cfg: GatewayConfig = /* config load */ todo!();
 
-    // 从 JWKS 端点拉取公钥
+    // �?JWKS 端点拉取公钥
     let client = reqwest::Client::new();
     let jwks_resp = client.get(&cfg.jwt_public_key_url).send().await;
-    // TODO: 解析 JWKS JSON，提取公钥 → 转为 PEM
+    // TODO: 解析 JWKS JSON，提取公�?�?转为 PEM
     let public_key_pem = get_public_key_from_jwks(&cfg.jwt_public_key_url).await.unwrap();
 
     let jwt_validator = JwtValidator::new(&public_key_pem).unwrap();
@@ -1627,12 +1613,10 @@ async fn main() {
         user_service_name: cfg.user_service.clone(),
     };
 
-    // 白名单路由（不验证 JWT）
-    let app = Router::new()
+    // 白名单路由（不验�?JWT�?    let app = Router::new()
         .route("/api/auth/*path", any(router::proxy_handler))
         .route("/api/tokens/*path", any(router::proxy_handler))
-        // 其他 API 路由（验证 JWT）
-        .route("/api/*path", any(router::proxy_handler)
+        // 其他 API 路由（验�?JWT�?        .route("/api/*path", any(router::proxy_handler)
             .route_layer(axum_middleware::from_fn_with_state(
                 state.clone(),
                 middleware::jwt_auth::jwt_auth_middleware,
@@ -1660,7 +1644,7 @@ git commit -m "feat(api-gateway): route forwarding with consul discovery"
 
 ### Task 3.4: api-gateway 启动完成
 
-- [ ] **Step 1: 修复所有 todo!() 占位符**
+- [ ] **Step 1: 修复所�?todo!() 占位�?*
 
 - [ ] **Step 2: 启动 Redis + Consul（docker），启动 token-server + api-gateway，curl 验证完整链路**
 
@@ -1670,14 +1654,13 @@ git commit -m "feat(api-gateway): route forwarding with consul discovery"
 
 ## Phase 4: auth-service (Go)
 
-### Task 4.1: 配置加载 + DB 多驱动连接
-
+### Task 4.1: 配置加载 + DB 多驱动连�?
 **文件:**
 - Create: `auth-service/config/config.go`
 - Create: `auth-service/store/db.go`
 - Create: `auth-service/models/user.go`
 
-- [ ] **Step 1: DB 配置 + 多驱动切换 → 写代码 → 编译验证 → 提交**
+- [ ] **Step 1: DB 配置 + 多驱动切�?�?写代�?�?编译验证 �?提交**
 
 ---
 
@@ -1688,9 +1671,9 @@ git commit -m "feat(api-gateway): route forwarding with consul discovery"
 - Create: `auth-service/handlers/login.go`
 - Create: `auth-service/handlers/logout.go`
 
-- [ ] **Step 1: 编写注册（password_hash → DB）**
-- [ ] **Step 2: 编写登录（验证密码 → 生成code → Redis → 返回）**
-- [ ] **Step 3: 编写注销（调用 token-server POST /api/tokens/revoke）**
+- [ ] **Step 1: 编写注册（password_hash �?DB�?*
+- [ ] **Step 2: 编写登录（验证密�?�?生成code �?Redis �?返回�?*
+- [ ] **Step 3: 编写注销（调�?token-server POST /api/tokens/revoke�?*
 
 - [ ] **Step 4: 验证**
 
@@ -1698,11 +1681,11 @@ git commit -m "feat(api-gateway): route forwarding with consul discovery"
 cd auth-service && go run main.go
 curl -X POST http://localhost:5000/api/auth/register \
   -d '{"username":"test","password":"123456"}'
-# → 201 Created
+# �?201 Created
 
 curl -X POST http://localhost:5000/api/auth/login \
   -d '{"username":"test","password":"123456"}'
-# → {"code":"...", "expires_in":300}
+# �?{"code":"...", "expires_in":300}
 ```
 
 - [ ] **Step 5: 提交**
@@ -1720,9 +1703,9 @@ curl -X POST http://localhost:5000/api/auth/login \
 - Create: `user-service/models/role.go`
 - Create: `user-service/models/permission.go`
 
-- [ ] **Step 1: 多驱动 DB 初始化（与 auth-service 相同模式）**
-- [ ] **Step 2: GORM Model 定义 — UsrUser, UsrRole, UsrPermission 及关联**
-- [ ] **Step 3: 编译验证 → 提交**
+- [ ] **Step 1: 多驱�?DB 初始化（�?auth-service 相同模式�?*
+- [ ] **Step 2: GORM Model 定义 �?UsrUser, UsrRole, UsrPermission 及关�?*
+- [ ] **Step 3: 编译验证 �?提交**
 
 ---
 
@@ -1731,11 +1714,11 @@ curl -X POST http://localhost:5000/api/auth/login \
 **文件:**
 - Create: `user-service/handlers/user.go`
 
-- [ ] **Step 1: GET /api/users/me — 根据 JWT sub 查用户资料**
-- [ ] **Step 2: PUT /api/users/me — 更新自己的资料**
-- [ ] **Step 3: GET /api/users — 分页列表（需 admin）**
-- [ ] **Step 4: GET /api/users/{id} — 单个用户**
-- [ ] **Step 5: 编译验证 → 提交**
+- [ ] **Step 1: GET /api/users/me �?根据 JWT sub 查用户资�?*
+- [ ] **Step 2: PUT /api/users/me �?更新自己的资�?*
+- [ ] **Step 3: GET /api/users �?分页列表（需 admin�?*
+- [ ] **Step 4: GET /api/users/{id} �?单个用户**
+- [ ] **Step 5: 编译验证 �?提交**
 
 ---
 
@@ -1745,11 +1728,11 @@ curl -X POST http://localhost:5000/api/auth/login \
 - Create: `user-service/handlers/role.go`
 - Create: `user-service/handlers/permission.go`
 
-- [ ] **Step 1: 角色 CRUD（GET/POST/PUT/DELETE）**
-- [ ] **Step 2: 权限列表（GET /api/permissions）**
-- [ ] **Step 3: 用户-角色关联（POST/DELETE /api/users/{id}/roles）**
-- [ ] **Step 4: 角色-权限关联（POST /api/roles/{id}/permissions）**
-- [ ] **Step 5: 编译验证 → 提交**
+- [ ] **Step 1: 角色 CRUD（GET/POST/PUT/DELETE�?*
+- [ ] **Step 2: 权限列表（GET /api/permissions�?*
+- [ ] **Step 3: 用户-角色关联（POST/DELETE /api/users/{id}/roles�?*
+- [ ] **Step 4: 角色-权限关联（POST /api/roles/{id}/permissions�?*
+- [ ] **Step 5: 编译验证 �?提交**
 
 ---
 
@@ -1813,8 +1796,7 @@ WORKDIR /app
 CMD ["token-server"]
 ```
 
-（类似格式生成其余 3 个 Dockerfile）
-
+（类似格式生成其�?3 �?Dockerfile�?
 - [ ] **Step 2: 提交**
 
 ---
@@ -1955,8 +1937,7 @@ git commit -m "feat: docker-compose, nginx, consul, dockerfiles"
 
 ---
 
-### Task 6.4: 端到端集成验证
-
+### Task 6.4: 端到端集成验�?
 - [ ] **Step 1: 完整 OAuth2 流程**
 
 ```bash
@@ -1965,31 +1946,30 @@ curl -X POST http://localhost/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"test","password":"123456"}'
 
-# 2. 登录 → 获取 code
+# 2. 登录 �?获取 code
 curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"test","password":"123456"}'
-# → {"code":"a8f3c9e1b2d4...","expires_in":300}
+# �?{"code":"a8f3c9e1b2d4...","expires_in":300}
 
-# 3. code 换 token
+# 3. code �?token
 curl -X POST http://localhost/api/tokens/access \
   -H "Content-Type: application/json" \
   -d '{"grant_type":"authorization_code","code":"a8f3c9e1b2d4...","client_id":"api-gateway","client_secret":"..."}'
-# → {"access_token":"eyJ...","refresh_token":"eyJ...","token_type":"Bearer","expires_in":3600}
+# �?{"access_token":"eyJ...","refresh_token":"eyJ...","token_type":"Bearer","expires_in":3600}
 
-# 4. 用 access_token 访问被保护的 API
+# 4. �?access_token 访问被保护的 API
 curl http://localhost/api/users/me \
   -H "Authorization: Bearer eyJ..."
-# → {"id":1,"display_name":"test",...}
+# �?{"id":1,"display_name":"test",...}
 
 # 5. 注销
 curl -X POST http://localhost/api/auth/logout \
   -H "Authorization: Bearer eyJ..."
 
-# 6. 验证 token 已失效
-curl http://localhost/api/users/me \
+# 6. 验证 token 已失�?curl http://localhost/api/users/me \
   -H "Authorization: Bearer eyJ..."
-# → 401 Unauthorized
+# �?401 Unauthorized
 ```
 
 - [ ] **Step 2: 提交**
@@ -2000,12 +1980,12 @@ curl http://localhost/api/users/me \
 
 | Phase | 内容 | Tasks | 语言 |
 |-------|------|-------|------|
-| 0 | 项目脚手架 | 3 | Rust + Go |
+| 0 | 项目脚手�?| 3 | Rust + Go |
 | 1 | common crate | 2 | Rust |
 | 2 | token-server | 5 | Rust |
 | 3 | api-gateway | 4 | Rust |
 | 4 | auth-service | 2 | Go |
 | 5 | user-service | 3 | Go |
-| 6 | 基础设施 | 4 | Docker/Nginx |
+| 6 | 基础设施 | 4 | docker-example/Nginx |
 
 **Total: 23 Tasks**

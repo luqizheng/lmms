@@ -21,6 +21,6 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /app/api-gateway /app/api-gateway
-COPY docker/config/api-gateway/routes /app/config/routes
+COPY docker-example/config/api-gateway/routes /app/config/routes
 ENV RUST_LOG=api_gateway=debug
 CMD ["/app/api-gateway", "serve", "--routes", "/app/config/routes"]

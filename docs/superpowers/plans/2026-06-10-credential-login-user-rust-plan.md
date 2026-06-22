@@ -1,26 +1,26 @@
-# Credential-Login & User Service 重头做 — 主实施计划
+# Credential-Login & User Service 重头�?�?主实施计�?
 
-> **状态：Superseded（2026-06-11）**
-> **原因：** `credential-login-service` 已整体删除，原计划承担的账号密码登录功能并入 `user-service`。
-> **接替：** 实施见 [`docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md)；前端打通见 [`docs/superpowers/plans/2026-06-11-frontend-e2e-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-11-frontend-e2e-login-plan.md)。
-> **本文件保留为历史决策记录，不再执行。**
+> **状态：Superseded�?026-06-11�?*
+> **原因�?* `credential-login-service` 已整体删除，原计划承担的账号密码登录功能并入 `user-service`�?
+> **接替�?* 实施�?[`docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-user-service-password-login-plan.md)；前端打通见 [`docs/superpowers/plans/2026-06-11-frontend-e2e-login-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-11-frontend-e2e-login-plan.md)�?
+> **本文件保留为历史决策记录，不再执行�?*
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 删除 Go 版 auth-service / user-service；新建 Rust 版 credential-login-service 与 user-service；改造 token-server 为 token-service，承担所有 token 签发；删 Go 资产；同步 CI / 脚本 / AI 规则。
+**Goal:** 删除 Go �?auth-service / user-service；新�?Rust �?credential-login-service �?user-service；改�?token-server �?token-service，承担所�?token 签发；删 Go 资产；同�?CI / 脚本 / AI 规则�?
 
-**Architecture:** 单一 Cargo workspace（4 Rust 服务 + 3 共享 crate）；token-service 集中签发 user JWT 与 service JWT；credential-login-service 与 user-service 通过 service JWT 互调内部端点；user-service 数据落 `oa3.member_*`（沿用 docs/member_org.sql），新增 `UserCode` 字段。
+**Architecture:** 单一 Cargo workspace�? Rust 服务 + 3 共享 crate）；token-service 集中签发 user JWT �?service JWT；credential-login-service �?user-service 通过 service JWT 互调内部端点；user-service 数据�?`oa3.member_*`（沿�?docs/member_org.sql），新增 `UserCode` 字段�?
 
-**Tech Stack:** Rust 1.78+、`axum 0.8`、`sqlx 0.8` (mysql + runtime-tokio-rustls)、`redis 0.27`、`argon2 0.5`、`jwt-simple 0.12`（**API: `claims.audiences: Option<Audiences>`，不是 `Option<HashSet<String>>`；用 `Audiences::AsString(...)` 或 `Audiences::AsSet(...)`**）、`reqwest 0.12`、`nanoid 0.4`、`tracing`、`aws_lc_rs`（沿用 workspace）。
+**Tech Stack:** Rust 1.78+、`axum 0.8`、`sqlx 0.8` (mysql + runtime-tokio-rustls)、`redis 0.27`、`argon2 0.5`、`jwt-simple 0.12`�?*API: `claims.audiences: Option<Audiences>`，不�?`Option<HashSet<String>>`；用 `Audiences::AsString(...)` �?`Audiences::AsSet(...)`**）、`reqwest 0.12`、`nanoid 0.4`、`tracing`、`aws_lc_rs`（沿�?workspace）�?
 
 **Spec:** [`docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md`](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md)
 
-**关联子 plan（按顺序后续单独跑 writing-plans 生成）：**
-- 子 plan A：`docs/superpowers/plans/2026-06-11-user-service-rust-plan.md`
-- 子 plan B：`docs/superpowers/plans/2026-06-11-credential-login-service-rust-plan.md`
+**关联�?plan（按顺序后续单独�?writing-plans 生成）：**
+- �?plan A：`docs/superpowers/plans/2026-06-11-user-service-rust-plan.md`
+- �?plan B：`docs/superpowers/plans/2026-06-11-credential-login-service-rust-plan.md`
 
-**取代关系：**
-- 本计划取代 `docs/superpowers/plans/2026-06-10-go-to-rust-migration-plan.md`（已标 Superseded）
+**取代关系�?*
+- 本计划取�?`docs/superpowers/plans/2026-06-10-go-to-rust-migration-plan.md`（已�?Superseded�?
 - `docs/superpowers/specs/2026-06-10-go-to-rust-migration-design.md` 已标 Superseded
 
 ---
@@ -30,20 +30,20 @@
 | 文件 | 职责 |
 |---|---|
 | `Cargo.toml` | workspace members 调整 |
-| `migrations/2026_06_10_add_user_code.sql` | oa3.member_user 加 UserCode 列 + Rust 回填入口 |
-| `services/token-server/` → `services/token-service/` | 改名；加 `/api/v1/tokens/user-jwt` 端点 |
-| `services/credential-login-service/` (新建) | 完整 Rust 服务（子 plan B 实施） |
-| `services/user-service/` (新建) | 完整 Rust 服务（子 plan A 实施） |
-| `libs/jwt-ctx/src/principal.rs` | `Principal` 加 `user_code` 字段 |
-| `libs/authz/src/require_service_token.rs` (新建) | service JWT 验签中间件 |
-| `docker/config/api-gateway/routes/{credential-login,user,token}.router.toml` (新建) | 路由 |
-| `docker/config/{credential-login,user,token}-service/config.yaml` (新建) | 容器内配置 |
+| `migrations/2026_06_10_add_user_code.sql` | oa3.member_user �?UserCode �?+ Rust 回填入口 |
+| `services/token-server/` �?`services/token-service/` | 改名；加 `/api/v1/tokens/user-jwt` 端点 |
+| `services/credential-login-service/` (新建) | 完整 Rust 服务（子 plan B 实施�?|
+| `services/user-service/` (新建) | 完整 Rust 服务（子 plan A 实施�?|
+| `libs/jwt-ctx/src/principal.rs` | `Principal` �?`user_code` 字段 |
+| `libs/authz/src/require_service_token.rs` (新建) | service JWT 验签中间�?|
+| `docker-example/config/api-gateway/routes/{credential-login,user,token}.router.toml` (新建) | 路由 |
+| `docker-example/config/{credential-login,user,token}-service/config.yaml` (新建) | 容器内配�?|
 | `Dockerfile.{credential-login,user,token}-service` (新建) | Rust builder |
 | `infrastructure/docker-compose.*.yaml` | image 调整 |
-| `.gitlab-ci.yml` | 删 go_test；改 rust_test；改 build jobs |
+| `.gitlab-ci.yml` | �?go_test；改 rust_test；改 build jobs |
 | `scripts/test-orchestrator.ps1`、`scripts/lib/*.ps1` | 移除 Go 分支 |
-| `.trae/rules/project_rules.md` | 删 Go 规则 |
-| 删除：`services/auth-service/`、`libs/go-jwt-ctx/`、`libs/go-authz/`、`scripts/e2e_test.go`、根 `go.mod`/`go.sum`/`go.work` | — |
+| `.trae/rules/project_rules.md` | �?Go 规则 |
+| 删除：`services/auth-service/`、`libs/go-jwt-ctx/`、`libs/go-authz/`、`scripts/e2e_test.go`、根 `go.mod`/`go.sum`/`go.work` | �?|
 
 ---
 
@@ -69,15 +69,15 @@ members = [
 resolver = "2"
 ```
 
-- [ ] **Step 2: 把 `services/token-server/` 改名为 `services/token-service/`**
+- [ ] **Step 2: �?`services/token-server/` 改名�?`services/token-service/`**
 
 ```bash
 git mv services/token-server services/token-service
 ```
 
-- [ ] **Step 3: 改 `services/token-service/Cargo.toml` 的 package.name**
+- [ ] **Step 3: �?`services/token-service/Cargo.toml` �?package.name**
 
-`services/token-service/Cargo.toml`：
+`services/token-service/Cargo.toml`�?
 ```toml
 [package]
 name = "token-service"
@@ -85,9 +85,9 @@ version = "0.1.0"
 edition = "2021"
 ```
 
-- [ ] **Step 4: 建 2 个 stub（credential-login-service / user-service）**
+- [ ] **Step 4: �?2 �?stub（credential-login-service / user-service�?*
 
-`services/credential-login-service/Cargo.toml`：
+`services/credential-login-service/Cargo.toml`�?
 ```toml
 [package]
 name = "credential-login-service"
@@ -95,12 +95,12 @@ version = "0.1.0"
 edition = "2021"
 ```
 
-`services/credential-login-service/src/lib.rs`：
+`services/credential-login-service/src/lib.rs`�?
 ```rust
 // placeholder
 ```
 
-`services/user-service/Cargo.toml`：
+`services/user-service/Cargo.toml`�?
 ```toml
 [package]
 name = "user-service"
@@ -108,7 +108,7 @@ version = "0.1.0"
 edition = "2021"
 ```
 
-`services/user-service/src/lib.rs`：
+`services/user-service/src/lib.rs`�?
 ```rust
 // placeholder
 ```
@@ -116,7 +116,7 @@ edition = "2021"
 - [ ] **Step 5: 验证 workspace 编译**
 
 Run: `cargo check --workspace`
-Expected: `Finished`（含 token-service 改名 + 2 个 stub 通过；现有 5 个成员仍编译）
+Expected: `Finished`（含 token-service 改名 + 2 �?stub 通过；现�?5 个成员仍编译�?
 
 - [ ] **Step 6: 提交**
 
@@ -133,7 +133,7 @@ git commit -m "chore(workspace): rename token-server to token-service; add stubs
 - Create: `libs/jwt-ctx/Cargo.toml`
 - Create: `libs/jwt-ctx/src/lib.rs`
 
-- [ ] **Step 1: 写 Cargo.toml**
+- [ ] **Step 1: �?Cargo.toml**
 
 ```toml
 [package]
@@ -148,7 +148,7 @@ async-trait = "0.1"
 tower = "0.5"
 ```
 
-- [ ] **Step 2: 写 lib.rs**
+- [ ] **Step 2: �?lib.rs**
 
 ```rust
 pub mod principal;
@@ -159,7 +159,7 @@ pub use principal::Principal;
 - [ ] **Step 3: 验证编译**
 
 Run: `cd libs/jwt-ctx && cargo check`
-Expected: `Finished`（principal 模块尚未建，下一步建）
+Expected: `Finished`（principal 模块尚未建，下一步建�?
 
 - [ ] **Step 4: 提交**
 
@@ -170,15 +170,15 @@ git commit -m "feat(jwt-ctx): scaffold crate"
 
 ---
 
-## Task 3: Principal 解析（含 user_code 字段）
+## Task 3: Principal 解析（含 user_code 字段�?
 
 **Files:**
 - Create: `libs/jwt-ctx/src/principal.rs`
 - Create: `libs/jwt-ctx/tests/principal_test.rs`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失败测�?*
 
-`libs/jwt-ctx/tests/principal_test.rs`：
+`libs/jwt-ctx/tests/principal_test.rs`�?
 ```rust
 use axum::http::HeaderMap;
 use jwt_ctx::Principal;
@@ -218,14 +218,14 @@ fn optional_fields_default() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认 fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd libs/jwt-ctx && cargo test --test principal_test`
 Expected: 编译失败（`Principal` 不存在）
 
-- [ ] **Step 3: 写实现**
+- [ ] **Step 3: 写实�?*
 
-`libs/jwt-ctx/src/principal.rs`：
+`libs/jwt-ctx/src/principal.rs`�?
 ```rust
 use axum::http::HeaderMap;
 use std::collections::HashSet;
@@ -233,7 +233,7 @@ use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct Principal {
     pub user_id: String,    // UUID
-    pub user_code: String,  // 8 位 NanoID
+    pub user_code: String,  // 8 �?NanoID
     pub dept_id: Option<i64>,
     pub roles: Vec<String>,
     pub permissions: HashSet<String>,
@@ -275,7 +275,7 @@ impl Principal {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认 pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd libs/jwt-ctx && cargo test --test principal_test`
 Expected: 3 tests pass
@@ -289,15 +289,15 @@ git commit -m "feat(jwt-ctx): add Principal with user_code field"
 
 ---
 
-## Task 4: Principal 的 axum extractor
+## Task 4: Principal �?axum extractor
 
 **Files:**
 - Modify: `libs/jwt-ctx/src/principal.rs`
 - Create: `libs/jwt-ctx/tests/extractor_test.rs`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失败测�?*
 
-`libs/jwt-ctx/tests/extractor_test.rs`：
+`libs/jwt-ctx/tests/extractor_test.rs`�?
 ```rust
 use axum::body::Body;
 use axum::http::{Request, header};
@@ -331,14 +331,14 @@ async fn missing_header_returns_401() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认 fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd libs/jwt-ctx && cargo test --test extractor_test`
-Expected: 编译失败（未实现 `FromRequestParts`）
+Expected: 编译失败（未实现 `FromRequestParts`�?
 
 - [ ] **Step 3: 实现 extractor**
 
-在 `libs/jwt-ctx/src/principal.rs` 追加：
+�?`libs/jwt-ctx/src/principal.rs` 追加�?
 ```rust
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
@@ -352,7 +352,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Principal {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认 pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd libs/jwt-ctx && cargo test`
 Expected: 5 tests pass
@@ -372,7 +372,7 @@ git commit -m "feat(jwt-ctx): add axum FromRequestParts extractor"
 - Create: `libs/authz/Cargo.toml`
 - Create: `libs/authz/src/lib.rs`
 
-- [ ] **Step 1: 写 Cargo.toml**
+- [ ] **Step 1: �?Cargo.toml**
 
 ```toml
 [package]
@@ -388,7 +388,7 @@ thiserror.workspace = true
 futures = "0.3"
 ```
 
-- [ ] **Step 2: 写 lib.rs**
+- [ ] **Step 2: �?lib.rs**
 
 ```rust
 pub mod require_role;
@@ -412,15 +412,15 @@ git commit -m "feat(authz): scaffold crate"
 
 ---
 
-## Task 6: require_role 中间件（TDD）
+## Task 6: require_role 中间件（TDD�?
 
 **Files:**
 - Create: `libs/authz/src/require_role.rs`
 - Create: `libs/authz/tests/require_role_test.rs`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失败测�?*
 
-`libs/authz/tests/require_role_test.rs`：
+`libs/authz/tests/require_role_test.rs`�?
 ```rust
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
@@ -461,14 +461,14 @@ async fn without_role_is_403() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认 fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd libs/authz && cargo test --test require_role_test`
 Expected: 编译失败（`require_role` 不存在）
 
-- [ ] **Step 3: 实现中间件**
+- [ ] **Step 3: 实现中间�?*
 
-`libs/authz/src/require_role.rs`：
+`libs/authz/src/require_role.rs`�?
 ```rust
 use axum::extract::Request;
 use axum::http::StatusCode;
@@ -499,7 +499,7 @@ pub fn require_role(role: &'static str)
 }
 ```
 
-- [ ] **Step 4: 跑测试确认 pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd libs/authz && cargo test`
 Expected: 2 tests pass
@@ -513,24 +513,24 @@ git commit -m "feat(authz): add require_role middleware"
 
 ---
 
-## Task 7: require_service_token 中间件
+## Task 7: require_service_token 中间�?
 
 **Files:**
 - Create: `libs/authz/src/require_service_token.rs`
 - Create: `libs/authz/tests/require_service_token_test.rs`
 
-- [ ] **Step 1: 加依赖**
+- [ ] **Step 1: 加依�?*
 
-`libs/authz/Cargo.toml` 追加：
+`libs/authz/Cargo.toml` 追加�?
 ```toml
 jwt-simple.workspace = true
 base64.workspace = true
 serde_json.workspace = true
 ```
 
-- [ ] **Step 2: 写失败测试**
+- [ ] **Step 2: 写失败测�?*
 
-`libs/authz/tests/require_service_token_test.rs`：
+`libs/authz/tests/require_service_token_test.rs`�?
 ```rust
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
@@ -598,14 +598,14 @@ async fn missing_token_is_401() {
 }
 ```
 
-- [ ] **Step 3: 跑测试确认 fail**
+- [ ] **Step 3: 跑测试确�?fail**
 
 Run: `cd libs/authz && cargo test --test require_service_token_test`
 Expected: 编译失败（`require_service_token` 不存在）
 
-- [ ] **Step 4: 实现中间件**
+- [ ] **Step 4: 实现中间�?*
 
-`libs/authz/src/require_service_token.rs`：
+`libs/authz/src/require_service_token.rs`�?
 ```rust
 use axum::extract::Request;
 use axum::http::header::AUTHORIZATION;
@@ -657,10 +657,10 @@ pub fn require_service_token(
 }
 ```
 
-- [ ] **Step 5: 跑测试确认 pass**
+- [ ] **Step 5: 跑测试确�?pass**
 
 Run: `cd libs/authz && cargo test`
-Expected: 5 tests pass（2 个 require_role + 3 个 require_service_token）
+Expected: 5 tests pass�? �?require_role + 3 �?require_service_token�?
 
 - [ ] **Step 6: 提交**
 
@@ -682,9 +682,9 @@ git commit -m "feat(authz): add require_service_token middleware with sig verify
 - Modify: `libs/common/Cargo.toml`
 - Modify: `libs/common/src/lib.rs`
 
-- [ ] **Step 1: 加依赖**
+- [ ] **Step 1: 加依�?*
 
-`libs/common/Cargo.toml`：
+`libs/common/Cargo.toml`�?
 ```toml
 [dependencies]
 serde.workspace = true
@@ -701,9 +701,9 @@ reqwest.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 ```
 
-- [ ] **Step 2: 写 password 模块（TDD）**
+- [ ] **Step 2: �?password 模块（TDD�?*
 
-`libs/common/tests/password_test.rs`：
+`libs/common/tests/password_test.rs`�?
 ```rust
 use common::password::{hash, verify};
 
@@ -722,7 +722,7 @@ fn different_inputs_yield_different_hashes() {
 }
 ```
 
-`libs/common/src/password.rs`：
+`libs/common/src/password.rs`�?
 ```rust
 use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
@@ -738,9 +738,9 @@ pub fn verify(p: &str, h: &str) -> anyhow::Result<bool> {
 }
 ```
 
-- [ ] **Step 3: 写 db / redisx / http 模块**
+- [ ] **Step 3: �?db / redisx / http 模块**
 
-`libs/common/src/db.rs`：
+`libs/common/src/db.rs`�?
 ```rust
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
@@ -753,7 +753,7 @@ pub async fn connect(url: &str, max: u32) -> anyhow::Result<MySqlPool> {
 }
 ```
 
-`libs/common/src/redisx.rs`：
+`libs/common/src/redisx.rs`�?
 ```rust
 use redis::aio::ConnectionManager;
 
@@ -763,7 +763,7 @@ pub async fn connect(url: &str) -> anyhow::Result<ConnectionManager> {
 }
 ```
 
-`libs/common/src/http.rs`：
+`libs/common/src/http.rs`�?
 ```rust
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -780,9 +780,9 @@ pub fn client() -> &'static reqwest::Client {
 }
 ```
 
-- [ ] **Step 4: 写 lib.rs**
+- [ ] **Step 4: �?lib.rs**
 
-`libs/common/src/lib.rs`：
+`libs/common/src/lib.rs`�?
 ```rust
 pub mod password;
 pub mod db;
@@ -790,7 +790,7 @@ pub mod redisx;
 pub mod http;
 ```
 
-- [ ] **Step 5: 跑测试**
+- [ ] **Step 5: 跑测�?*
 
 Run: `cd libs/common && cargo test --test password_test`
 Expected: 2 tests pass
@@ -809,42 +809,42 @@ git commit -m "feat(common): add password/db/redisx/http utilities"
 
 ---
 
-## Task 9: DB 迁移 — oa3.member_user 加 UserCode
+## Task 9: DB 迁移 �?oa3.member_user �?UserCode
 
 **Files:**
 - Create: `migrations/2026_06_10_add_user_code.sql`
 - Create: `services/user-service/src/bin/backfill_user_code.rs`（回填入口，stub 阶段先建空文件）
 
-> **本任务只生成 DDL 与回填工具**。回填执行由后续子 plan A 内的 user-service 完整代码负责（应用层生成保证唯一性）。
+> **本任务只生成 DDL 与回填工�?*。回填执行由后续�?plan A 内的 user-service 完整代码负责（应用层生成保证唯一性）�?
 
-- [ ] **Step 1: 写 DDL**
+- [ ] **Step 1: �?DDL**
 
-`migrations/2026_06_10_add_user_code.sql`：
+`migrations/2026_06_10_add_user_code.sql`�?
 ```sql
 USE oa3;
 ALTER TABLE member_user
   ADD COLUMN UserCode VARCHAR(16) NOT NULL UNIQUE AFTER Id;
 ```
 
-> 用户上线后此 DDL 执行期间表可能锁；建议在低峰期或使用 gh-ost/pt-online-schema-change 工具。但**v1 接受短暂锁表**。
+> 用户上线后此 DDL 执行期间表可能锁；建议在低峰期或使用 gh-ost/pt-online-schema-change 工具。但**v1 接受短暂锁表**�?
 
-- [ ] **Step 2: 跑 DDL 验证（针对本地 MySQL 容器）**
+- [ ] **Step 2: �?DDL 验证（针对本�?MySQL 容器�?*
 
 ```powershell
 docker exec -i mysql mysql -uroot -p<pwd> < migrations\2026_06_10_add_user_code.sql
 docker exec -i mysql mysql -uroot -p<pwd> -e "USE oa3; DESCRIBE member_user;"
 ```
 
-Expected: `UserCode VARCHAR(16)` 列出现
+Expected: `UserCode VARCHAR(16)` 列出�?
 
-- [ ] **Step 3: 建回填工具 stub**
+- [ ] **Step 3: 建回填工�?stub**
 
-`services/user-service/src/bin/backfill_user_code.rs`：
+`services/user-service/src/bin/backfill_user_code.rs`�?
 ```rust
-// TODO 子 plan A 实施：循环更新 member_user SET UserCode = <NanoID> WHERE UserCode = '' OR UserCode IS NULL
-// 实施时使用 nanoid 0.4 crate 在 Rust 端生成 8 位 NanoID，保证唯一性
+// TODO �?plan A 实施：循环更�?member_user SET UserCode = <NanoID> WHERE UserCode = '' OR UserCode IS NULL
+// 实施时使�?nanoid 0.4 crate �?Rust 端生�?8 �?NanoID，保证唯一�?
 fn main() {
-    println!("backfill_user_code: stub (see 子 plan A)");
+    println!("backfill_user_code: stub (see �?plan A)");
 }
 ```
 
@@ -860,26 +860,26 @@ git commit -m "feat(db): add UserCode column to member_user; backfill stub"
 ## Task 10: token-service 改名验证
 
 **Files:**
-- Modify: `services/token-service/Cargo.toml`（package.name 已改）
-- Modify: `services/token-service/src/**/*.rs`（如含 `token-server` 字面量）
+- Modify: `services/token-service/Cargo.toml`（package.name 已改�?
+- Modify: `services/token-service/src/**/*.rs`（如�?`token-server` 字面量）
 
-- [ ] **Step 1: 全仓搜 `token-server` 字面量**
+- [ ] **Step 1: 全仓�?`token-server` 字面�?*
 
 ```bash
 git grep -n "token-server" -- ':!Cargo.lock' ':!docs/superpowers/specs/2026-06-10-go-to-rust-migration-design.md' ':!docs/superpowers/plans/2026-06-10-go-to-rust-migration-plan.md'
 ```
 
-预期：仅 docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md 与本 plan 含此字面量（保留作为 Superseded 标记）。如果源码中含 `token-server` 字面量（如 `tracing::info!("token-server started")`），逐个替换为 `token-service`。
+预期：仅 docs/superpowers/specs/2026-06-10-credential-login-user-rust-design.md 与本 plan 含此字面量（保留作为 Superseded 标记）。如果源码中�?`token-server` 字面量（�?`tracing::info!("token-server started")`），逐个替换�?`token-service`�?
 
 - [ ] **Step 2: 验证编译**
 
 Run: `cargo check -p token-service`
 Expected: 通过
 
-- [ ] **Step 3: 跑现有 token-service 测试**
+- [ ] **Step 3: 跑现�?token-service 测试**
 
 Run: `cargo test -p token-service --all-targets`
-Expected: 通过（无新功能；仅确保改名不破坏）
+Expected: 通过（无新功能；仅确保改名不破坏�?
 
 - [ ] **Step 4: 提交（如有源码改动）**
 
@@ -897,9 +897,9 @@ git commit -m "refactor(token-service): rename references from token-server"
 - Create: `services/token-service/src/routes/user_jwt.rs`
 - Modify: `services/token-service/src/main.rs`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失败测�?*
 
-`services/token-service/tests/user_jwt_test.rs`：
+`services/token-service/tests/user_jwt_test.rs`�?
 ```rust
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
@@ -920,16 +920,16 @@ async fn user_jwt_requires_service_token() {
 }
 ```
 
-> 端点的 `build_router_with_pem` 是测试辅助工厂。**实际完整测试**（含签名验签 / audience 校验）在子 plan A / B 调通后补；本任务只确保路由可挂、缺少 token 时拒绝。
+> 端点�?`build_router_with_pem` 是测试辅助工厂�?*实际完整测试**（含签名验签 / audience 校验）在�?plan A / B 调通后补；本任务只确保路由可挂、缺�?token 时拒绝�?
 
-- [ ] **Step 2: 跑测试确认 fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd services/token-service && cargo test --test user_jwt_test`
-Expected: 编译失败（`build_router_with_pem` 不存在或路由未挂）
+Expected: 编译失败（`build_router_with_pem` 不存在或路由未挂�?
 
 - [ ] **Step 3: 实现端点**
 
-`services/token-service/src/routes/user_jwt.rs`：
+`services/token-service/src/routes/user_jwt.rs`�?
 ```rust
 use crate::error::AppError;
 use crate::issuer::TokenIssuer;
@@ -970,7 +970,7 @@ pub async fn handler(
 }
 ```
 
-`services/token-service/src/issuer.rs` 追加：
+`services/token-service/src/issuer.rs` 追加�?
 ```rust
 use jwt_simple::prelude::*;
 use serde_json::Value;
@@ -1017,7 +1017,7 @@ impl TokenIssuer {
 
 - [ ] **Step 4: 路由注册**
 
-`services/token-service/src/main.rs`（或 router 装配处）追加：
+`services/token-service/src/main.rs`（或 router 装配处）追加�?
 ```rust
 .route("/api/v1/tokens/user-jwt", post(routes::user_jwt::handler))
 ```
@@ -1027,7 +1027,7 @@ impl TokenIssuer {
 Run: `cargo check -p token-service`
 Expected: 通过
 
-- [ ] **Step 6: 跑测试**
+- [ ] **Step 6: 跑测�?*
 
 Run: `cd services/token-service && cargo test --test user_jwt_test`
 Expected: 测试通过（或按测试调整）
@@ -1041,17 +1041,17 @@ git commit -m "feat(token-service): add /api/v1/tokens/user-jwt endpoint"
 
 ---
 
-## Task 12: api-gateway 路由（credential-login / user / token）
+## Task 12: api-gateway 路由（credential-login / user / token�?
 
 **Files:**
-- Create: `docker/config/api-gateway/routes/credential-login.router.toml`
-- Create: `docker/config/api-gateway/routes/user.router.toml`
-- Create: `docker/config/api-gateway/routes/token.router.toml`
-- Modify: `services/api-gateway/src/router.rs`（如需）
+- Create: `docker-example/config/api-gateway/routes/credential-login.router.toml`
+- Create: `docker-example/config/api-gateway/routes/user.router.toml`
+- Create: `docker-example/config/api-gateway/routes/token.router.toml`
+- Modify: `services/api-gateway/src/router.rs`（如需�?
 
-- [ ] **Step 1: 写 credential-login 路由**
+- [ ] **Step 1: �?credential-login 路由**
 
-`docker/config/api-gateway/routes/credential-login.router.toml`：
+`docker-example/config/api-gateway/routes/credential-login.router.toml`�?
 ```toml
 [[routes]]
 match = "/api/v1/auth"
@@ -1059,9 +1059,9 @@ service = "credential-login-service"
 strip_prefix = "/api/v1/auth"
 ```
 
-- [ ] **Step 2: 写 user 路由**
+- [ ] **Step 2: �?user 路由**
 
-`docker/config/api-gateway/routes/user.router.toml`：
+`docker-example/config/api-gateway/routes/user.router.toml`�?
 ```toml
 [[routes]]
 match = "/api/v1/users"
@@ -1084,9 +1084,9 @@ service = "user-service"
 strip_prefix = "/api/v1/posts"
 ```
 
-- [ ] **Step 3: 写 token 路由**
+- [ ] **Step 3: �?token 路由**
 
-`docker/config/api-gateway/routes/token.router.toml`：
+`docker-example/config/api-gateway/routes/token.router.toml`�?
 ```toml
 [[routes]]
 match = "/api/v1/tokens"
@@ -1102,12 +1102,12 @@ strip_prefix = "/.well-known"
 - [ ] **Step 4: 校验路由**
 
 Run: `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
-Expected: 无错误
+Expected: 无错�?
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add docker/config/api-gateway/routes
+git add docker-example/config/api-gateway/routes
 git commit -m "feat(api-gateway): add routes for credential-login/user/token"
 ```
 
@@ -1120,21 +1120,21 @@ git commit -m "feat(api-gateway): add routes for credential-login/user/token"
 - Delete: `libs/go-jwt-ctx/`
 - Delete: `libs/go-authz/`
 - Delete: `scripts/e2e_test.go`
-- Delete: 根 `go.mod`、`go.sum`、`go.work`（如有）
+- Delete: �?`go.mod`、`go.sum`、`go.work`（如有）
 
-- [ ] **Step 1: 删 Go 共享库**
+- [ ] **Step 1: �?Go 共享�?*
 
 ```bash
 git rm -r libs/go-jwt-ctx libs/go-authz
 ```
 
-- [ ] **Step 2: 删 auth-service（Go）**
+- [ ] **Step 2: �?auth-service（Go�?*
 
 ```bash
 git rm -r services/auth-service
 ```
 
-- [ ] **Step 3: 删 scripts/e2e_test.go + scripts/go.mod**
+- [ ] **Step 3: �?scripts/e2e_test.go + scripts/go.mod**
 
 ```bash
 git rm scripts/e2e_test.go scripts/go.mod scripts/go.sum
@@ -1146,13 +1146,13 @@ git rm scripts/e2e_test.go scripts/go.mod scripts/go.sum
 git rm go.mod go.sum go.work 2>$null
 ```
 
-- [ ] **Step 5: 校验无 Go 残留**
+- [ ] **Step 5: 校验�?Go 残留**
 
 ```bash
 git ls-files | Select-String -Pattern "\.go$|go\.mod|go\.sum|go\.work"
 ```
 
-Expected: 无输出
+Expected: 无输�?
 
 - [ ] **Step 6: 验证 workspace 编译**
 
@@ -1175,9 +1175,9 @@ git commit -m "chore: remove go auth-service and go shared libs"
 - Create: `Dockerfile.user-service`
 - Create: `Dockerfile.token-service`
 
-- [ ] **Step 1: 删 go_test job**
+- [ ] **Step 1: �?go_test job**
 
-在 `.gitlab-ci.yml` 中删除 `go_test` 整段。
+�?`.gitlab-ci.yml` 中删�?`go_test` 整段�?
 
 - [ ] **Step 2: rust_test 改全 workspace**
 
@@ -1197,9 +1197,9 @@ rust_test:
     - cargo test --workspace --all-targets --verbose
 ```
 
-- [ ] **Step 3: 删 `build_auth_service` job**
+- [ ] **Step 3: �?`build_auth_service` job**
 
-- [ ] **Step 4: 改 `build_token_server` → `build_token_service`**
+- [ ] **Step 4: �?`build_token_server` �?`build_token_service`**
 
 ```yaml
 build_token_service:
@@ -1212,11 +1212,11 @@ build_token_service:
     - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-service:latest
 ```
 
-- [ ] **Step 5: 新增 `build_credential_login_service` 与 `build_user_service`**
+- [ ] **Step 5: 新增 `build_credential_login_service` �?`build_user_service`**
 
-模板同上，文件名与镜像名替换为对应服务。
+模板同上，文件名与镜像名替换为对应服务�?
 
-- [ ] **Step 6: 写 Dockerfile.credential-login-service**
+- [ ] **Step 6: �?Dockerfile.credential-login-service**
 
 ```dockerfile
 FROM rust:1.78-slim AS builder
@@ -1231,21 +1231,21 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/credential-login-service /usr/local/bin/credential-login-service
-COPY docker/config/credential-login-service /app/config
+COPY docker-example/config/credential-login-service /app/config
 EXPOSE 8081
 CMD ["/usr/local/bin/credential-login-service", "/app/config/config.yaml"]
 ```
 
-- [ ] **Step 7: 写 Dockerfile.user-service（镜像名/路径/端口替换为 user-service / 8082）**
+- [ ] **Step 7: �?Dockerfile.user-service（镜像名/路径/端口替换�?user-service / 8082�?*
 
-- [ ] **Step 8: 写 Dockerfile.token-service（镜像名/路径/端口替换为 token-service；端口沿用 4000）**
+- [ ] **Step 8: �?Dockerfile.token-service（镜像名/路径/端口替换�?token-service；端口沿�?4000�?*
 
-> 端口分配需与现有 token-server 不冲突；如冲突，token-service 沿用 token-server 旧端口。
+> 端口分配需与现�?token-server 不冲突；如冲突，token-service 沿用 token-server 旧端口�?
 
 - [ ] **Step 9: 校验 CI YAML**
 
 Run: `python -c "import yaml; yaml.safe_load(open('.gitlab-ci.yml'))"`
-Expected: 无异常
+Expected: 无异�?
 
 - [ ] **Step 10: 提交**
 
@@ -1263,7 +1263,7 @@ git commit -m "ci: rust workspace test; rename token-server to token-service; ad
 - Modify: `scripts/lib/Test-Runner.ps1`
 - Modify: `scripts/lib/Docker-Helper.ps1`
 
-- [ ] **Step 1: 改 Get-ServiceList**
+- [ ] **Step 1: �?Get-ServiceList**
 
 `scripts/lib/Test-Runner.ps1` 中：
 ```powershell
@@ -1274,17 +1274,17 @@ function Get-ServiceList {
 
 - [ ] **Step 2: 移除 Go test 分支**
 
-`scripts/lib/Test-Runner.ps1` 中将 `go test` 调用改为：
+`scripts/lib/Test-Runner.ps1` 中将 `go test` 调用改为�?
 ```powershell
 $cmd = @("cargo","test","-p",$Service,"--all-targets")
 & $cmd[0] @($cmd[1..($cmd.Length-1)]) 2>&1
 ```
 
-- [ ] **Step 3: 改 Docker-Helper service 列表**
+- [ ] **Step 3: �?Docker-Helper service 列表**
 
-将 Go 服务名替换为 Rust 服务名（与 Get-ServiceList 一致）。
+�?Go 服务名替换为 Rust 服务名（�?Get-ServiceList 一致）�?
 
-- [ ] **Step 4: 跑脚本**
+- [ ] **Step 4: 跑脚�?*
 
 Run: `.\scripts\test-orchestrator.ps1 loop -Service token-service`
 Expected: Rust 测试通过
@@ -1303,15 +1303,15 @@ git commit -m "chore(scripts): align service list and remove go test branches"
 **Files:**
 - Modify: `.trae/rules/project_rules.md`
 
-- [ ] **Step 1: 删 Go 路径触发表项**
+- [ ] **Step 1: �?Go 路径触发表项**
 
-`.trae/rules/project_rules.md` 中删除 `services/*/**.go`、`services/*/**_test.go` 触发表项。
+`.trae/rules/project_rules.md` 中删�?`services/*/**.go`、`services/*/**_test.go` 触发表项�?
 
-- [ ] **Step 2: 删 `go test` 失败 → coder-fix-tests 表项**
+- [ ] **Step 2: �?`go test` 失败 �?coder-fix-tests 表项**
 
-- [ ] **Step 3: 补全 Rust 触发表（5 个服务名）**
+- [ ] **Step 3: 补全 Rust 触发表（5 个服务名�?*
 
-- `services/*/src/**.rs` → `coder-run-tests -Service <name>`
+- `services/*/src/**.rs` �?`coder-run-tests -Service <name>`
 - 服务名清单：`token-service` / `api-gateway` / `credential-login-service` / `user-service` / `notification-service`
 
 - [ ] **Step 4: 提交**
@@ -1325,17 +1325,17 @@ git commit -m "chore(ai): align project_rules with rust workspace"
 
 ## Task 17: 收尾
 
-**Files:** 当前所有改动
+**Files:** 当前所有改�?
 
-- [ ] **Step 1: 跑 fmt**
+- [ ] **Step 1: �?fmt**
 
 Run: `cargo fmt --all`
-Expected: 无输出
+Expected: 无输�?
 
-- [ ] **Step 2: 跑 clippy**
+- [ ] **Step 2: �?clippy**
 
 Run: `cargo clippy --workspace --all-targets -- -D warnings`
-Expected: 无 warning
+Expected: �?warning
 
 - [ ] **Step 3: 跑全 workspace 测试**
 
@@ -1347,7 +1347,7 @@ Expected: 全部通过
 Run: `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
 Expected: 通过
 
-- [ ] **Step 5: 提交（若有 fmt/clippy 改动）**
+- [ ] **Step 5: 提交（若�?fmt/clippy 改动�?*
 
 ```bash
 git add -A
@@ -1358,19 +1358,19 @@ git commit -m "style(workspace): apply rustfmt and clippy fixes"
 
 ## 自审
 
-- **Spec 覆盖**：
-  - §2 服务清单 → Task 1-2（含 token-service 改名 + stub）
-  - §3 数据库 / UserCode → Task 9（DDL + 回填 stub）
-  - §4 端点 → Task 11（user-jwt 端点）；credential-login / user 端点由子 plan A / B
-  - §5 协作流 → 由子 plan A / B 实现
-  - §6 JWT claims → Task 3-7（Principal / 服务间鉴权）
-  - §7 Cargo workspace → Task 1
-  - §8 内部端点鉴权 → Task 7（require_service_token）
-  - §9 删除 / 改造 → Task 10-13
-  - §10 风险 → 散落各 task（如 Task 9 注释 DDL 锁表风险）
-  - §11 实施顺序 1-4 → 主 plan Task 1-12；5-6 → 子 plan A / B；7-10 → 主 plan Task 12-17
-- **占位符**：所有 step 含可执行代码 / 命令
-- **类型一致**：`Principal.user_code: String`、`require_service_token(expected_aud, public_key_pem)` 与 spec 一致
-- **可执行性**：每步 2-5 分钟
+- **Spec 覆盖**�?
+  - §2 服务清单 �?Task 1-2（含 token-service 改名 + stub�?
+  - §3 数据�?/ UserCode �?Task 9（DDL + 回填 stub�?
+  - §4 端点 �?Task 11（user-jwt 端点）；credential-login / user 端点由子 plan A / B
+  - §5 协作�?�?由子 plan A / B 实现
+  - §6 JWT claims �?Task 3-7（Principal / 服务间鉴权）
+  - §7 Cargo workspace �?Task 1
+  - §8 内部端点鉴权 �?Task 7（require_service_token�?
+  - §9 删除 / 改�?�?Task 10-13
+  - §10 风险 �?散落�?task（如 Task 9 注释 DDL 锁表风险�?
+  - §11 实施顺序 1-4 �?�?plan Task 1-12�?-6 �?�?plan A / B�?-10 �?�?plan Task 12-17
+- **占位�?*：所�?step 含可执行代码 / 命令
+- **类型一�?*：`Principal.user_code: String`、`require_service_token(expected_aud, public_key_pem)` �?spec 一�?
+- **可执行�?*：每�?2-5 分钟
 - **YAGNI**：未引入新框架；未重设计 API；未重写 SDK；未做防爆破 / 2FA
-- **可拆 plan 性**：子 plan A / B 触发点在 Task 1 之后任意时间启动
+- **可拆 plan �?*：子 plan A / B 触发点在 Task 1 之后任意时间启动

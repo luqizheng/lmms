@@ -4,7 +4,7 @@ services:
     ports:
       - "8500:8500"
     volumes:
-      - ../docker/config/consul/config.docker.json:/consul/config/services.json:ro
+      - ../docker-example/config/consul/config.docker.json:/consul/config/services.json:ro
     command: agent -dev -config-dir=/consul/config -bind=0.0.0.0 -client=0.0.0.0
     healthcheck:
       test: ["CMD", "consul", "members"]
@@ -73,7 +73,7 @@ services:
         exec /app/api-gateway serve --routes /app/config/api-gateway/routes
     volumes:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
-      - ../docker/secrets:/app/keys:ro
+      - ../docker-example/secrets:/app/keys:ro
     depends_on:
       consul:
         condition: service_healthy
@@ -91,8 +91,8 @@ services:
     ports:
       - "6001:8080"
     volumes:
-      - ../docker/secrets:/app/keys
-      - ../docker/config/token-service:/app/config/token-service
+      - ../docker-example/secrets:/app/keys
+      - ../docker-example/config/token-service:/app/config/token-service
       - ../services/token-service/config:/app/config
     environment:
       SERVER_HOST: "0.0.0.0"
@@ -128,7 +128,7 @@ services:
     ports:
       - "6002:8080"
     volumes:
-      - ../docker/secrets:/app/keys:ro
+      - ../docker-example/secrets:/app/keys:ro
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
       SERVER_HOST: "0.0.0.0"
@@ -192,7 +192,7 @@ services:
       DATABASE_NAME: superpowers
       REDIS_URL: "redis://redis:6379"
     volumes:
-      - ../docker/config/notification-service:/app/config:ro
+      - ../docker-example/config/notification-service:/app/config:ro
     networks:
       - superpowers
 

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 user-service 中实现账号密码登录（Argon2id 校验）、Redis 防爆破计数与锁、登录日志与最近登录信息记录，签发 5 分钟 auth code 供 token-service 交换。
+**Goal:** �?user-service 中实现账号密码登录（Argon2id 校验）、Redis 防爆破计数与锁、登录日志与最近登录信息记录，签发 5 分钟 auth code �?token-service 交换�?
 
-**Architecture:** user-service 直接暴露 `POST /api/auth/login`。新增独立 `service::auth_svc` / `routes::auth` / `models::login_log` 三个模块，不动现有 user CRUD。Redis 维护 fail counter + lock key + auth:code key。SQL 迁移通过 `include_str!` 应用。
+**Architecture:** user-service 直接暴露 `POST /api/auth/login`。新增独�?`service::auth_svc` / `routes::auth` / `models::login_log` 三个模块，不动现�?user CRUD。Redis 维护 fail counter + lock key + auth:code key。SQL 迁移通过 `include_str!` 应用�?
 
 **Tech Stack:** Rust / axum 0.7 / sqlx 0.8 (mysql) / redis 0.27 (workspace) / argon2 0.5 (workspace) / nanoid 0.4 / anyhow / tracing
 
@@ -24,45 +24,45 @@
 ### 修改
 - `services/user-service/Cargo.toml`
 - `services/user-service/config/config.yaml`
-- `services/user-service/docker/config/user-service/config.yaml`
+- `services/user-service/docker-example/config/user-service/config.yaml`
 - `services/user-service/src/config.rs`
 - `services/user-service/src/models/mod.rs`
 - `services/user-service/src/service/mod.rs`
 - `services/user-service/src/routes/mod.rs`
 - `services/user-service/src/dto.rs`
 - `services/user-service/src/main.rs`
-- `docker/config/api-gateway/routes/*.router.toml`（新建或修改其中一个路由文件）
+- `docker-example/config/api-gateway/routes/*.router.toml`（新建或修改其中一个路由文件）
 
 ### 不删
-- ~~`services/credential-login-service/`~~（2026-06-11 已删除，登录功能并入 user-service）
+- ~~`services/credential-login-service/`~~�?026-06-11 已删除，登录功能并入 user-service�?
 
 ---
 
 ## 执行约束
 
-- 所有 `cargo build / cargo test` 在真实 PowerShell（vcvarsall x64）执行，沙箱内不跑 cargo
-- TDD：每个 task 先写失败测试，再写实现
+- 所�?`cargo build / cargo test` 在真�?PowerShell（vcvarsall x64）执行，沙箱内不�?cargo
+- TDD：每�?task 先写失败测试，再写实�?
 - 频繁 commit：每 task 末尾单独 git commit
 - commit message 前缀：`feat(user-service):`
-- 改 `routes/*.router.toml` 后必须先 `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` 再 commit
+- �?`routes/*.router.toml` 后必须先 `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes` �?commit
 
 ---
 
-### Task 1: 依赖准备 — Cargo.toml
+### Task 1: 依赖准备 �?Cargo.toml
 
 **Files:**
 - Modify: `services/user-service/Cargo.toml`
 
-- [ ] **Step 1: 添加 argon2 与 nanoid 依赖**
+- [ ] **Step 1: 添加 argon2 �?nanoid 依赖**
 
-在 `services/user-service/Cargo.toml` 末尾 `[dev-dependencies]` 之前插入：
+�?`services/user-service/Cargo.toml` 末尾 `[dev-dependencies]` 之前插入�?
 
 ```toml
 argon2 = { workspace = true }
 nanoid = "0.4"
 ```
 
-完整文件：
+完整文件�?
 
 ```toml
 [package]
@@ -98,14 +98,14 @@ testcontainers-modules = { version = "0.8", features = ["mysql"] }
 reqwest.workspace = true
 ```
 
-- [ ] **Step 2: 在真实 PowerShell 编译验证**
+- [ ] **Step 2: 在真�?PowerShell 编译验证**
 
-Run: 在 vcvarsall 后的 PowerShell 中
+Run: �?vcvarsall 后的 PowerShell �?
 ```powershell
 cd d:\projects\coder-micro-services
 cargo check -p user-service
 ```
-Expected: `Finished` 状态，0 error。新依赖下载 + 编译通过。
+Expected: `Finished` 状态，0 error。新依赖下载 + 编译通过�?
 
 - [ ] **Step 3: Commit**
 
@@ -116,18 +116,18 @@ git commit -m "feat(user-service): add argon2 and nanoid deps"
 
 ---
 
-### Task 2: 数据库迁移 SQL
+### Task 2: 数据库迁�?SQL
 
 **Files:**
 - Create: `migrations/2026_06_10_add_password_and_login_log.sql`
 
-- [ ] **Step 1: 写迁移文件**
+- [ ] **Step 1: 写迁移文�?*
 
-`migrations/2026_06_10_add_password_and_login_log.sql`：
+`migrations/2026_06_10_add_password_and_login_log.sql`�?
 
 ```sql
 -- 2026-06-10 user-service 密码登录：加 password_hash / last_login_*
--- 新增 user_login_log 表记录成功 / 失败登录
+-- 新增 user_login_log 表记录成�?/ 失败登录
 
 USE oa3;
 
@@ -162,16 +162,16 @@ git commit -m "feat(user-service): add password_hash and user_login_log migratio
 
 ---
 
-### Task 3: 配置 — LoginSecurityCfg
+### Task 3: 配置 �?LoginSecurityCfg
 
 **Files:**
 - Modify: `services/user-service/src/config.rs`
 - Modify: `services/user-service/config/config.yaml`
-- Modify: `services/user-service/docker/config/user-service/config.yaml`
+- Modify: `services/user-service/docker-example/config/user-service/config.yaml`
 
 - [ ] **Step 1: 先写失败测试**
 
-在 `config.rs` 文件末尾的 `mod tests` 中添加：
+�?`config.rs` 文件末尾�?`mod tests` 中添加：
 
 ```rust
 #[test]
@@ -216,15 +216,15 @@ login_security:
 }
 ```
 
-- [ ] **Step 2: 运行测试，确认失败**
+- [ ] **Step 2: 运行测试，确认失�?*
 
 Run（在 vcvarsall PowerShell）：
 ```powershell
 cargo test -p user-service --lib config::tests::login_security
 ```
-Expected: FAIL — `Config` 无 `login_security` 字段。
+Expected: FAIL �?`Config` �?`login_security` 字段�?
 
-- [ ] **Step 3: 写实现**
+- [ ] **Step 3: 写实�?*
 
 替换 `services/user-service/src/config.rs` 为：
 
@@ -476,7 +476,7 @@ login_security:
 
 - [ ] **Step 4: 更新 yaml**
 
-`services/user-service/config/config.yaml` 末尾追加：
+`services/user-service/config/config.yaml` 末尾追加�?
 
 ```yaml
 login_security:
@@ -490,7 +490,7 @@ login_security:
     parallelism: 1
 ```
 
-`services/user-service/docker/config/user-service/config.yaml` 同步追加同样段。
+`services/user-service/docker-example/config/user-service/config.yaml` 同步追加同样段�?
 
 - [ ] **Step 5: 运行测试，确认通过**
 
@@ -498,20 +498,20 @@ Run:
 ```powershell
 cargo test -p user-service --lib config
 ```
-Expected: 所有 `config::tests::*` PASS。
+Expected: 所�?`config::tests::*` PASS�?
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add services/user-service/src/config.rs \
         services/user-service/config/config.yaml \
-        services/user-service/docker/config/user-service/config.yaml
+        services/user-service/docker-example/config/user-service/config.yaml
 git commit -m "feat(user-service): add login_security config section"
 ```
 
 ---
 
-### Task 4: 模型 — LoginLogRow
+### Task 4: 模型 �?LoginLogRow
 
 **Files:**
 - Create: `services/user-service/src/models/login_log.rs`
@@ -519,7 +519,7 @@ git commit -m "feat(user-service): add login_security config section"
 
 - [ ] **Step 1: 新建 login_log.rs**
 
-`services/user-service/src/models/login_log.rs`：
+`services/user-service/src/models/login_log.rs`�?
 
 ```rust
 use sqlx::FromRow;
@@ -543,7 +543,7 @@ pub const FAIL_LOCKED: &str = "locked";
 
 - [ ] **Step 2: 修改 models/mod.rs**
 
-`services/user-service/src/models/mod.rs`：
+`services/user-service/src/models/mod.rs`�?
 
 ```rust
 pub mod permission;
@@ -558,7 +558,7 @@ Run:
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 4: Commit**
 
@@ -570,14 +570,14 @@ git commit -m "feat(user-service): add LoginLogRow model"
 
 ---
 
-### Task 5: DTO — LoginReq
+### Task 5: DTO �?LoginReq
 
 **Files:**
 - Modify: `services/user-service/src/dto.rs`
 
 - [ ] **Step 1: 追加 LoginReq**
 
-在 `services/user-service/src/dto.rs` 末尾追加：
+�?`services/user-service/src/dto.rs` 末尾追加�?
 
 ```rust
 #[derive(Debug, Deserialize)]
@@ -604,7 +604,7 @@ pub struct InvalidCredsResp {
 }
 ```
 
-并在文件顶部 `use serde::{Deserialize, Serialize};`（已有）。
+并在文件顶部 `use serde::{Deserialize, Serialize};`（已有）�?
 
 - [ ] **Step 2: 编译**
 
@@ -612,7 +612,7 @@ Run:
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
 - [ ] **Step 3: Commit**
 
@@ -623,7 +623,7 @@ git commit -m "feat(user-service): add LoginReq DTOs"
 
 ---
 
-### Task 6: 服务 — auth_svc（先骨架）
+### Task 6: 服务 �?auth_svc（先骨架�?
 
 **Files:**
 - Modify: `services/user-service/src/service/mod.rs`
@@ -631,7 +631,7 @@ git commit -m "feat(user-service): add LoginReq DTOs"
 
 - [ ] **Step 1: 修改 service/mod.rs**
 
-`services/user-service/src/service/mod.rs`：
+`services/user-service/src/service/mod.rs`�?
 
 ```rust
 pub mod claim_svc;
@@ -640,9 +640,9 @@ pub mod user_svc;
 pub mod auth_svc;
 ```
 
-- [ ] **Step 2: 写骨架（编译通过）**
+- [ ] **Step 2: 写骨架（编译通过�?*
 
-`services/user-service/src/service/auth_svc.rs`：
+`services/user-service/src/service/auth_svc.rs`�?
 
 ```rust
 use crate::config::{Argon2Cfg, LoginSecurityCfg};
@@ -761,7 +761,7 @@ async fn verify_password(
 }
 
 fn argon2_from_cfg(_cfg: &Argon2Cfg) -> Argon2 {
-    // argon2 crate 0.5 使用 Algorithm 默认参数；本函数保留扩展点
+    // argon2 crate 0.5 使用 Algorithm 默认参数；本函数保留扩展�?
     Argon2::default()
 }
 
@@ -857,7 +857,7 @@ mod tests {
     fn dummy_hash_parses_and_rejects_other_passwords() {
         let h = dummy_hash();
         assert!(PasswordHash::new(&h).is_ok());
-        // 任何其他输入都应 false（防 verify 路径走捷径返回 true）
+        // 任何其他输入都应 false（防 verify 路径走捷径返�?true�?
         assert!(Argon2::default()
             .verify_password(b"definitely-not-the-dummy-password", &PasswordHash::new(&h).unwrap())
             .is_err());
@@ -878,15 +878,15 @@ Run:
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。可能需要确认 `nanoid = "0.4"` 已就绪。
+Expected: 0 error。可能需要确�?`nanoid = "0.4"` 已就绪�?
 
-- [ ] **Step 4: 跑模块测试**
+- [ ] **Step 4: 跑模块测�?*
 
 Run:
 ```powershell
 cargo test -p user-service --lib service::auth_svc
 ```
-Expected: PASS（dummy hash parse + truncate_ua）。
+Expected: PASS（dummy hash parse + truncate_ua）�?
 
 - [ ] **Step 5: Commit**
 
@@ -898,7 +898,7 @@ git commit -m "feat(user-service): add auth_svc login business logic"
 
 ---
 
-### Task 7: 路由 — POST /api/auth/login
+### Task 7: 路由 �?POST /api/auth/login
 
 **Files:**
 - Modify: `services/user-service/src/routes/mod.rs`
@@ -906,7 +906,7 @@ git commit -m "feat(user-service): add auth_svc login business logic"
 
 - [ ] **Step 1: 修改 routes/mod.rs**
 
-`services/user-service/src/routes/mod.rs`：
+`services/user-service/src/routes/mod.rs`�?
 
 ```rust
 pub mod auth;
@@ -918,9 +918,9 @@ pub mod permissions;
 pub mod user_roles;
 ```
 
-- [ ] **Step 2: 写路由 handler**
+- [ ] **Step 2: 写路�?handler**
 
-`services/user-service/src/routes/auth.rs`：
+`services/user-service/src/routes/auth.rs`�?
 
 ```rust
 use crate::config::Config;
@@ -1034,15 +1034,15 @@ Run:
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
-- [ ] **Step 4: 跑路由单元测试**
+- [ ] **Step 4: 跑路由单元测�?*
 
 Run:
 ```powershell
 cargo test -p user-service --lib routes::auth
 ```
-Expected: PASS。
+Expected: PASS�?
 
 - [ ] **Step 5: Commit**
 
@@ -1061,7 +1061,7 @@ git commit -m "feat(user-service): add POST /api/auth/login handler"
 
 - [ ] **Step 1: 替换 main.rs**
 
-`services/user-service/src/main.rs`：
+`services/user-service/src/main.rs`�?
 
 ```rust
 use anyhow::Result;
@@ -1108,7 +1108,7 @@ Run:
 ```powershell
 cargo check -p user-service
 ```
-Expected: 0 error。需要确认 workspace 有 `tower-http` 与 `redis` 依赖：均已在 workspace.dependencies 中。
+Expected: 0 error。需要确�?workspace �?`tower-http` �?`redis` 依赖：均已在 workspace.dependencies 中�?
 
 - [ ] **Step 3: Commit**
 
@@ -1122,7 +1122,7 @@ git commit -m "feat(user-service): mount /api/auth/login router in main"
 ### Task 9: API 网关路由配置
 
 **Files:**
-- Modify or Create: `docker/config/api-gateway/routes/login.router.toml`（具体文件名按现有目录确认）
+- Modify or Create: `docker-example/config/api-gateway/routes/login.router.toml`（具体文件名按现有目录确认）
 
 - [ ] **Step 1: 查看现有路由文件结构**
 
@@ -1133,7 +1133,7 @@ Get-ChildItem d:\projects\coder-micro-services\docker\config\api-gateway\routes
 
 - [ ] **Step 2: 新增路由文件**
 
-新建 `docker/config/api-gateway/routes/login.router.toml`（如果存在 `auth.router.toml` 等命名冲突则改为 `password-login.router.toml`）：
+新建 `docker-example/config/api-gateway/routes/login.router.toml`（如果存�?`auth.router.toml` 等命名冲突则改为 `password-login.router.toml`）：
 
 ```toml
 [[routes]]
@@ -1142,7 +1142,7 @@ upstream = "user-service"
 rewrite = { type = "strip_prefix", prefix = "/api/auth" }
 ```
 
-若使用 `.router.toml` 单文件包含所有路由（如 `api-gateway.router.toml`），则在对应文件中追加 `[[routes]]` 段。
+若使�?`.router.toml` 单文件包含所有路由（�?`api-gateway.router.toml`），则在对应文件中追�?`[[routes]]` 段�?
 
 - [ ] **Step 3: 校验**
 
@@ -1151,30 +1151,30 @@ Run（在 vcvarsall PowerShell）：
 cd d:\projects\coder-micro-services
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 ```
-Expected: 0 error，"match pattern unique" 校验通过。
+Expected: 0 error�?match pattern unique" 校验通过�?
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docker/config/api-gateway/routes/
+git add docker-example/config/api-gateway/routes/
 git commit -m "feat(api-gateway): route POST /api/auth/login to user-service"
 ```
 
 ---
 
-### Task 10: 集成测试 — auth_test.rs
+### Task 10: 集成测试 �?auth_test.rs
 
 **Files:**
 - Create: `services/user-service/tests/auth_test.rs`
 
-- [ ] **Step 1: 写测试**
+- [ ] **Step 1: 写测�?*
 
-`services/user-service/tests/auth_test.rs`：
+`services/user-service/tests/auth_test.rs`�?
 
 ```rust
-//! 集成测试：登录安全策略
+//! 集成测试：登录安全策�?
 //! 跑：cargo test -p user-service --test auth_test -- --test-threads=1
-//! 依赖：Docker（testcontainers 启动 mysql + redis）
+//! 依赖：Docker（testcontainers 启动 mysql + redis�?
 
 use argon2::password_hash::{PasswordHasher, SaltString};
 use argon2::Argon2;
@@ -1363,14 +1363,14 @@ async fn failure_writes_log_with_reason() {
 }
 ```
 
-- [ ] **Step 2: 跑集成测试**
+- [ ] **Step 2: 跑集成测�?*
 
 Run:
 ```powershell
 cd d:\projects\coder-micro-services
 cargo test -p user-service --test auth_test -- --test-threads=1
 ```
-Expected: 5 个测试全 PASS。需要 Docker 运行中。
+Expected: 5 个测试全 PASS。需�?Docker 运行中�?
 
 - [ ] **Step 3: Commit**
 
@@ -1383,7 +1383,7 @@ git commit -m "feat(user-service): integration tests for login security"
 
 ### Task 11: 全量验证
 
-**Files:** (无)
+**Files:** (�?
 
 - [ ] **Step 1: fmt + clippy**
 
@@ -1393,7 +1393,7 @@ cd d:\projects\coder-micro-services
 cargo fmt --all
 cargo clippy -p user-service --all-targets -- -D warnings
 ```
-Expected: 0 warning。
+Expected: 0 warning�?
 
 - [ ] **Step 2: 全量 lib 测试**
 
@@ -1401,7 +1401,7 @@ Run:
 ```powershell
 cargo test -p user-service --lib
 ```
-Expected: 所有单元测试 PASS（含 config / service / routes）。
+Expected: 所有单元测�?PASS（含 config / service / routes）�?
 
 - [ ] **Step 3: 全量集成测试**
 
@@ -1409,7 +1409,7 @@ Run:
 ```powershell
 cargo test -p user-service -- --test-threads=1
 ```
-Expected: 全部 PASS。
+Expected: 全部 PASS�?
 
 - [ ] **Step 4: api-gateway 路由再次校验**
 
@@ -1417,28 +1417,28 @@ Run:
 ```powershell
 cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes
 ```
-Expected: 0 error。
+Expected: 0 error�?
 
-- [ ] **Step 5: 提交任何自动格式化产物**
+- [ ] **Step 5: 提交任何自动格式化产�?*
 
 ```bash
 git status
-# 若有改动：
+# 若有改动�?
 git add -u
 git commit -m "chore(user-service): apply fmt and clippy fixes"
 ```
 
 ---
 
-## 自检（与 spec 对齐）
+## 自检（与 spec 对齐�?
 
-- `password_hash` / `last_login_at` / `last_login_ip` 字段 → Task 2
-- `user_login_log` 表 → Task 2
-- Argon2id 校验 + Redis 防爆破 → Task 6
-- 签发 5min auth code → Task 6 (issue_code) + Task 7 (response)
-- 错误码 400/401/423/200 → Task 7
-- 登录日志写入 → Task 6 (write_log) + Task 10 测试
-- gateway 路由 → Task 9
-- credential-login-service 删除 → 不在本 plan（独立清理 plan）
+- `password_hash` / `last_login_at` / `last_login_ip` 字段 �?Task 2
+- `user_login_log` �?�?Task 2
+- Argon2id 校验 + Redis 防爆�?�?Task 6
+- 签发 5min auth code �?Task 6 (issue_code) + Task 7 (response)
+- 错误�?400/401/423/200 �?Task 7
+- 登录日志写入 �?Task 6 (write_log) + Task 10 测试
+- gateway 路由 �?Task 9
+- credential-login-service 删除 �?不在�?plan（独立清�?plan�?
 
-所有 spec 需求覆盖，无占位符，类型/方法名跨 task 一致。
+所�?spec 需求覆盖，无占位符，类�?方法名跨 task 一致�?

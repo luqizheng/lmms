@@ -13,7 +13,7 @@
 
 ### 1.1 启动基础设施（强制 infrastructure 目录）
 
-所有 e2e 必须基于 `infrastructure/` 目录运行，容器名以 `infrastructure-` 前缀。**禁止**用旧的 `docker/` 路径。
+所有 e2e 必须基于 `infrastructure/` 目录运行，容器名以 `infrastructure-` 前缀。**禁止**用旧的 `docker-example/` 路径。
 
 ```powershell
 cd D:\projects\coder-micro-services\infrastructure

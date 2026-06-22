@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 api-gateway 路由配置由 `match` + `rewrite[]` 重构为 Ocelot 风格的 `upstream` / `downstream` 模板，全部 router.toml 用新写法重写。
+**Goal:** �?api-gateway 路由配置�?`match` + `rewrite[]` 重构�?Ocelot 风格�?`upstream` / `downstream` 模板，全�?router.toml 用新写法重写�?
 
-**Architecture:** 配置反序列化得到 `RouteConfig { upstream, downstream, service, public, ws, headers }`；启动期编译为 `CompiledRoute`（由 `Template { parts: Vec<Literal|Var> }` 表示 upstream/downstream）；请求期对 path+query 做"提取 dict → 渲染 downstream"两步，再透传给 Consul 发现的微服务。
+**Architecture:** 配置反序列化得到 `RouteConfig { upstream, downstream, service, public, ws, headers }`；启动期编译�?`CompiledRoute`（由 `Template { parts: Vec<Literal|Var> }` 表示 upstream/downstream）；请求期对 path+query �?提取 dict �?渲染 downstream"两步，再透传�?Consul 发现的微服务�?
 
-**Tech Stack:** Rust 2021 / axum / serde / toml / arc_swap，仍走 musl 容器，cargo 命令在 PowerShell 真实环境跑（沙箱不支持）。
+**Tech Stack:** Rust 2021 / axum / serde / toml / arc_swap，仍�?musl 容器，cargo 命令�?PowerShell 真实环境跑（沙箱不支持）�?
 
 ---
 
@@ -14,26 +14,26 @@
 
 | 文件 | 责任 |
 |---|---|
-| `services/api-gateway/src/template.rs`（新增） | `Template` / `TplPart` 类型、`parse()` / `extract()` / `render()` 三个纯函数 |
+| `services/api-gateway/src/template.rs`（新增） | `Template` / `TplPart` 类型、`parse()` / `extract()` / `render()` 三个纯函�?|
 | `services/api-gateway/src/config.rs` | `RouteConfig` 结构改为新字段，删除 `RewriteSpec` |
-| `services/api-gateway/src/routes_loader.rs` | 加载 → 编译 → 校验，输出 `Vec<CompiledRoute>` |
-| `services/api-gateway/src/rewrite.rs` | 删除全部内容（Ocelot 模式不再需要 strip_prefix 等） |
+| `services/api-gateway/src/routes_loader.rs` | 加载 �?编译 �?校验，输�?`Vec<CompiledRoute>` |
+| `services/api-gateway/src/rewrite.rs` | 删除全部内容（Ocelot 模式不再需�?strip_prefix 等） |
 | `services/api-gateway/src/router.rs` | 接收已渲染的 `target_path_query`，按 service 转发 |
-| `services/api-gateway/src/main.rs` | `proxy_handler` 改用 `extract → render → forward` |
+| `services/api-gateway/src/main.rs` | `proxy_handler` 改用 `extract �?render �?forward` |
 | `services/api-gateway/src/lib.rs` | 模块声明同步、re-export 调整 |
 | `services/api-gateway/src/cli.rs` | 注释/帮助文案同步 |
 | `services/api-gateway/tests/template_test.rs`（新增） | template 单元测试 |
 | `services/api-gateway/tests/routes_loader_test.rs` | 改写为新模型 |
-| `services/api-gateway/tests/rewrite_test.rs` | 删除（替换为 template_test） |
-| `services/api-gateway/tests/integration_test.rs` | 修匹配/转发断言 |
-| `docker/config/api-gateway/routes/*.router.toml` | 8 个文件全部改写 |
+| `services/api-gateway/tests/rewrite_test.rs` | 删除（替换为 template_test�?|
+| `services/api-gateway/tests/integration_test.rs` | 修匹�?转发断言 |
+| `docker-example/config/api-gateway/routes/*.router.toml` | 8 个文件全部改�?|
 | `.trae/rules/routing-rules.md` | §2.2/§2.3/§2.5/§2.6/§2.7 重写 |
-| `.trae/rules/project_rules.md` | 删除 rewrite 类型白名单段落 |
+| `.trae/rules/project_rules.md` | 删除 rewrite 类型白名单段�?|
 | `docs/guides/api-gateway-routing.md` | 同步用户文档（如已存在） |
 
 ---
 
-## Task 1：新增 `template.rs` 数据结构与解析
+## Task 1：新�?`template.rs` 数据结构与解�?
 
 **Files:**
 - Create: `services/api-gateway/src/template.rs`
@@ -42,7 +42,7 @@
 
 - [ ] **Step 1: 写失败的解析单元测试**
 
-写到 `services/api-gateway/src/template.rs` 末尾的 `#[cfg(test)] mod tests`：
+写到 `services/api-gateway/src/template.rs` 末尾�?`#[cfg(test)] mod tests`�?
 
 ```rust
 #[cfg(test)]
@@ -113,10 +113,10 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 实现最小 `template.rs`**
+- [ ] **Step 2: 实现最�?`template.rs`**
 
 ```rust
-//! Ocelot 风格路径模板：字面量与 {var} 交替，提取 dict 后做朴素 replace。
+//! Ocelot 风格路径模板：字面量�?{var} 交替，提�?dict 后做朴素 replace�?
 
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
@@ -262,7 +262,7 @@ impl Template {
 }
 ```
 
-在 `lib.rs` 加：
+�?`lib.rs` 加：
 
 ```rust
 pub mod template;
@@ -270,15 +270,15 @@ pub mod template;
 
 - [ ] **Step 3: 跑解析测试，全部 PASS**
 
-在 PowerShell 真实环境（vcvarsall x64）：
+�?PowerShell 真实环境（vcvarsall x64）：
 
 ```powershell
 cargo test -p api-gateway --lib template::tests
 ```
 
-期望：parse 七个 case 全 PASS。
+期望：parse 七个 case �?PASS�?
 
-- [ ] **Step 4: 写 extract 单元测试到 `tests/template_test.rs`**
+- [ ] **Step 4: �?extract 单元测试�?`tests/template_test.rs`**
 
 ```rust
 use api_gateway::template::{ExtractError, Template};
@@ -320,9 +320,9 @@ fn extract_anchor_not_found() {
 }
 ```
 
-- [ ] **Step 5: 写 render 单元测试**
+- [ ] **Step 5: �?render 单元测试**
 
-继续追加：
+继续追加�?
 
 ```rust
 use std::collections::HashMap;
@@ -359,13 +359,13 @@ fn render_missing_var() {
 }
 ```
 
-- [ ] **Step 6: 跑全部 template 测试**
+- [ ] **Step 6: 跑全�?template 测试**
 
 ```powershell
 cargo test -p api-gateway template
 ```
 
-期望：全部 PASS。
+期望：全�?PASS�?
 
 - [ ] **Step 7: Commit**
 
@@ -376,7 +376,7 @@ git commit -m "feat(api-gateway): add Ocelot-style path template (parse/extract/
 
 ---
 
-## Task 2：替换 `RouteConfig` 与删除 `RewriteSpec`
+## Task 2：替�?`RouteConfig` 与删�?`RewriteSpec`
 
 **Files:**
 - Modify: `services/api-gateway/src/config.rs`
@@ -384,7 +384,7 @@ git commit -m "feat(api-gateway): add Ocelot-style path template (parse/extract/
 
 - [ ] **Step 1: 改写 `config.rs`**
 
-把 `RouteConfig` / `RewriteSpec` 段落替换为：
+�?`RouteConfig` / `RewriteSpec` 段落替换为：
 
 ```rust
 use common::config::{RedisConfig, ServerConfig};
@@ -415,7 +415,7 @@ pub struct RouteTable {
 }
 ```
 
-`GatewayConfig` 段落保持不变（仅 `routes: Vec<RouteConfig>` 沿用新结构）。删除 `RewriteSpec` 枚举与所有引用。
+`GatewayConfig` 段落保持不变（仅 `routes: Vec<RouteConfig>` 沿用新结构）。删�?`RewriteSpec` 枚举与所有引用�?
 
 - [ ] **Step 2: 删除 `lib.rs` 中的 `RewriteSpec` re-export**
 
@@ -425,7 +425,7 @@ pub struct RouteTable {
 pub use config::{GatewayConfig, RewriteSpec, RouteConfig, RouteFile, RouteTable};
 ```
 
-改为：
+改为�?
 
 ```rust
 pub use config::{GatewayConfig, RouteConfig, RouteFile, RouteTable};
@@ -446,17 +446,17 @@ swap.store(Arc::new(RouteTable {
 }));
 ```
 
-- [ ] **Step 3: `cargo check` 看断面**
+- [ ] **Step 3: `cargo check` 看断�?*
 
 ```powershell
 cargo check -p api-gateway
 ```
 
-期望：在 `routes_loader.rs` / `main.rs` / `rewrite.rs` 等处出错（这些将在后续 Task 修）。先记录错误数量。
+期望：在 `routes_loader.rs` / `main.rs` / `rewrite.rs` 等处出错（这些将在后�?Task 修）。先记录错误数量�?
 
-- [ ] **Step 4: Commit（带 broken state）**
+- [ ] **Step 4: Commit（带 broken state�?*
 
-允许此处中间态不可编译，下游 Task 立即接续：
+允许此处中间态不可编译，下游 Task 立即接续�?
 
 ```powershell
 git add services/api-gateway/src/config.rs services/api-gateway/src/lib.rs
@@ -465,7 +465,7 @@ git commit -m "refactor(api-gateway): replace RouteConfig with upstream/downstre
 
 ---
 
-## Task 3：删除 `rewrite.rs`，`router.rs` 接收已渲染的 `target_path_query`
+## Task 3：删�?`rewrite.rs`，`router.rs` 接收已渲染的 `target_path_query`
 
 **Files:**
 - Delete: `services/api-gateway/src/rewrite.rs`
@@ -473,7 +473,7 @@ git commit -m "refactor(api-gateway): replace RouteConfig with upstream/downstre
 - Modify: `services/api-gateway/src/router.rs`
 - Modify: `services/api-gateway/src/lib.rs`
 
-- [ ] **Step 1: 删除 `rewrite.rs` 与对应测试**
+- [ ] **Step 1: 删除 `rewrite.rs` 与对应测�?*
 
 ```powershell
 git rm services/api-gateway/src/rewrite.rs services/api-gateway/tests/rewrite_test.rs
@@ -481,9 +481,9 @@ git rm services/api-gateway/src/rewrite.rs services/api-gateway/tests/rewrite_te
 
 - [ ] **Step 2: `lib.rs` 删除 `pub mod rewrite;`**
 
-- [ ] **Step 3: 改写 `router.rs::forward_to_service` 为接收目标 path+query**
+- [ ] **Step 3: 改写 `router.rs::forward_to_service` 为接收目�?path+query**
 
-替换函数签名与 url 拼装：
+替换函数签名�?url 拼装�?
 
 ```rust
 pub async fn forward_to_service(
@@ -550,7 +550,7 @@ git commit -m "refactor(api-gateway): drop rewrite module; pass rendered target 
 
 ---
 
-## Task 4：`routes_loader` 增加编译与校验
+## Task 4：`routes_loader` 增加编译与校�?
 
 **Files:**
 - Modify: `services/api-gateway/src/routes_loader.rs`
@@ -559,7 +559,7 @@ git commit -m "refactor(api-gateway): drop rewrite module; pass rendered target 
 
 - [ ] **Step 1: 写失败的加载测试**
 
-替换 `routes_loader_test.rs` 全部内容：
+替换 `routes_loader_test.rs` 全部内容�?
 
 ```rust
 use api_gateway::routes_loader::{load_routes, LoadError};
@@ -645,7 +645,7 @@ service = "s"
 }
 ```
 
-> 注：测试需要 `tempfile`。若 `services/api-gateway/Cargo.toml` 的 `[dev-dependencies]` 未含 `tempfile`，加 `tempfile = "3"`。
+> 注：测试需�?`tempfile`。若 `services/api-gateway/Cargo.toml` �?`[dev-dependencies]` 未含 `tempfile`，加 `tempfile = "3"`�?
 
 - [ ] **Step 2: 改写 `routes_loader.rs`**
 
@@ -706,7 +706,7 @@ pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
             source: e,
         })?;
         for r in file.route {
-            // 编译期校验 upstream/downstream
+            // 编译期校�?upstream/downstream
             let up = Template::parse(&r.upstream).map_err(|e| LoadError::Template {
                 field: "upstream",
                 template: r.upstream.clone(),
@@ -756,13 +756,13 @@ fn literal_len(template: &str) -> usize {
 }
 ```
 
-- [ ] **Step 3: 跑加载测试**
+- [ ] **Step 3: 跑加载测�?*
 
 ```powershell
 cargo test -p api-gateway --test routes_loader_test
 ```
 
-期望：四个 case 全 PASS。
+期望：四�?case �?PASS�?
 
 - [ ] **Step 4: Commit**
 
@@ -778,7 +778,7 @@ git commit -m "feat(api-gateway): compile and validate upstream/downstream templ
 **Files:**
 - Modify: `services/api-gateway/src/main.rs`
 
-- [ ] **Step 1: 删除旧 `match_pattern` / `find_route` / `print_routes` 实现**
+- [ ] **Step 1: 删除�?`match_pattern` / `find_route` / `print_routes` 实现**
 
 替换为：
 
@@ -837,7 +837,7 @@ async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request)
         }
     };
 
-    // 注入 headers（启动期已校验合法，但运行期同样要 graceful）
+    // 注入 headers（启动期已校验合法，但运行期同样�?graceful�?
     for (k, v) in &route.headers {
         if let (Ok(name), Ok(val)) = (k.parse::<HeaderName>(), v.parse::<HeaderValue>()) {
             request.headers_mut().insert(name, val);
@@ -855,7 +855,7 @@ async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request)
 cargo check -p api-gateway
 ```
 
-期望：编译通过。如有遗留对 `rewrite::apply` / `RewriteSpec` 的引用，删干净。
+期望：编译通过。如有遗留对 `rewrite::apply` / `RewriteSpec` 的引用，删干净�?
 
 - [ ] **Step 4: Commit**
 
@@ -866,21 +866,21 @@ git commit -m "feat(api-gateway): proxy handler routes via extract+render+forwar
 
 ---
 
-## Task 6：迁移全部 router.toml
+## Task 6：迁移全�?router.toml
 
 **Files:**
-- Modify: `docker/config/api-gateway/routes/audit.router.toml`
-- Modify: `docker/config/api-gateway/routes/iam.router.toml`
-- Modify: `docker/config/api-gateway/routes/notification.router.toml`
-- Modify: `docker/config/api-gateway/routes/permissions.router.toml`
-- Modify: `docker/config/api-gateway/routes/prue_backend.router.toml`
-- Modify: `docker/config/api-gateway/routes/roles.router.toml`
-- Modify: `docker/config/api-gateway/routes/token.router.toml`
-- Modify: `docker/config/api-gateway/routes/user.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/audit.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/iam.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/notification.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/permissions.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/prue_backend.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/roles.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/token.router.toml`
+- Modify: `docker-example/config/api-gateway/routes/user.router.toml`
 
-迁移规则（机械替换）：
+迁移规则（机械替换）�?
 
-| 旧 | 新 |
+| �?| �?|
 |---|---|
 | `match = "/v1/X"` + `strip_prefix /v1` | `upstream = "/v1/X"`，`downstream = "/X"` |
 | `match = "/v1/X/**"` + `strip_prefix /v1` | `upstream = "/v1/X/{rest}"`，`downstream = "/X/{rest}"` |
@@ -888,7 +888,7 @@ git commit -m "feat(api-gateway): proxy handler routes via extract+render+forwar
 
 - [ ] **Step 1: iam.router.toml**
 
-把每条 `[[route]]` 重写为新写法。示例（仅展示前两条，其他按规则同步）：
+把每�?`[[route]]` 重写为新写法。示例（仅展示前两条，其他按规则同步）：
 
 ```toml
 [[route]]
@@ -921,36 +921,36 @@ downstream = "/iam/auth/{rest}"
 service    = "iam-service"
 ```
 
-> 把同文件其余条目按相同规则改完。
+> 把同文件其余条目按相同规则改完�?
 
 - [ ] **Step 2: token / audit / notification / user / roles / permissions / prue_backend**
 
 逐文件应用迁移规则：
 
-- 精确路径条目：保留 `upstream = match`，新增 `downstream = upstream 去掉 /v1`
-- `/**` 通配：把 upstream 的 `**` 替换成 `{rest}`，downstream 同名变量
+- 精确路径条目：保�?`upstream = match`，新�?`downstream = upstream 去掉 /v1`
+- `/**` 通配：把 upstream �?`**` 替换�?`{rest}`，downstream 同名变量
 - `ws = true` 字段保留
 - 删除整段 `rewrite = [...]`
-- 注意：旧 notification 文件里 `/v1/notification/health` 排在 `/v1/notification/**` 之后，新 loader 已按字面量长度排序，可保持任意顺序，但请把 `health` 标 `public = true`
+- 注意：旧 notification 文件�?`/v1/notification/health` 排在 `/v1/notification/**` 之后，新 loader 已按字面量长度排序，可保持任意顺序，但请�?`health` �?`public = true`
 
-- [ ] **Step 3: 启动期 validate**
+- [ ] **Step 3: 启动�?validate**
 
 ```powershell
-cargo run -p api-gateway -- validate --routes docker/config/api-gateway/routes
+cargo run -p api-gateway -- validate --routes docker-example/config/api-gateway/routes
 ```
 
-期望输出：`OK: N routes from ...`，列出所有路由 upstream → service。
+期望输出：`OK: N routes from ...`，列出所有路�?upstream �?service�?
 
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add docker/config/api-gateway/routes/*.router.toml
+git add docker-example/config/api-gateway/routes/*.router.toml
 git commit -m "feat(api-gateway): migrate all routes to upstream/downstream syntax"
 ```
 
 ---
 
-## Task 7：修集成测试与 lib 内部测试
+## Task 7：修集成测试�?lib 内部测试
 
 **Files:**
 - Modify: `services/api-gateway/tests/integration_test.rs`
@@ -976,13 +976,13 @@ RouteConfig {
 }
 ```
 
-- [ ] **Step 2: 跑全部测试**
+- [ ] **Step 2: 跑全部测�?*
 
 ```powershell
 cargo test -p api-gateway
 ```
 
-期望：全部 PASS。
+期望：全�?PASS�?
 
 - [ ] **Step 3: Commit**
 
@@ -998,11 +998,11 @@ git commit -m "test(api-gateway): align tests with upstream/downstream model"
 **Files:**
 - Modify: `.trae/rules/routing-rules.md`
 - Modify: `.trae/rules/project_rules.md`
-- Modify: `docs/guides/api-gateway-routing.md`（如存在）
+- Modify: `docs/guides/api-gateway-routing.md`（如存在�?
 
 - [ ] **Step 1: `.trae/rules/routing-rules.md`**
 
-重写 §2.2 路由条目模板：
+重写 §2.2 路由条目模板�?
 
 ````markdown
 ### 2.2 路由条目模板
@@ -1015,25 +1015,25 @@ service    = "<service>-service"
 public     = false
 ```
 
-字段说明：
+字段说明�?
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
-| `upstream` | 是 | 网关入口模板（已剥除 `/api`） |
-| `downstream` | 是 | 转发到微服务的路径模板，可含 query |
-| `service` | 是 | Consul 注册名 |
-| `public` | 否 | true 跳过 JWT |
-| `ws` | 否 | true 升级 WebSocket |
-| `headers` | 否 | 转发时附加请求头 |
+| `upstream` | �?| 网关入口模板（已剥除 `/api`�?|
+| `downstream` | �?| 转发到微服务的路径模板，可含 query |
+| `service` | �?| Consul 注册�?|
+| `public` | �?| true 跳过 JWT |
+| `ws` | �?| true 升级 WebSocket |
+| `headers` | �?| 转发时附加请求头 |
 
-占位符：`{name}` 提取请求 url 中的字符串到 dict，downstream 做 `{name}` → `dict[name]` 替换。变量值可包含 `/`。
+占位符：`{name}` 提取请求 url 中的字符串到 dict，downstream �?`{name}` �?`dict[name]` 替换。变量值可包含 `/`�?
 ````
 
-删除 §2.3 rewrite 类型白名单，§2.4 改"匹配按字面量长度降序"，§2.5 / §2.6 / §2.7 全部改用 upstream/downstream 例子。
+删除 §2.3 rewrite 类型白名单，§2.4 �?匹配按字面量长度降序"，�?.5 / §2.6 / §2.7 全部改用 upstream/downstream 例子�?
 
 - [ ] **Step 2: `.trae/rules/project_rules.md`**
 
-删除"`rewrite` 类型只能是 `strip_prefix` / `redirect` / ..."一条，替换为：
+删除"`rewrite` 类型只能�?`strip_prefix` / `redirect` / ..."一条，替换为：
 
 ```markdown
 - 路由条目使用 `upstream` / `downstream` 占位符语法，不再支持 `match` / `rewrite`
@@ -1041,7 +1041,7 @@ public     = false
 
 - [ ] **Step 3: `docs/guides/api-gateway-routing.md`**
 
-如已存在，重写"配置语法"章节为占位符模型；如不存在，跳过。
+如已存在，重�?配置语法"章节为占位符模型；如不存在，跳过�?
 
 - [ ] **Step 4: Commit**
 
@@ -1054,49 +1054,49 @@ git commit -m "docs(api-gateway): update routing rules to upstream/downstream sy
 
 ## Task 9：端到端验收
 
-**Files:**（无修改）
+**Files:**（无修改�?
 
-- [ ] **Step 1: 跑路由校验**
+- [ ] **Step 1: 跑路由校�?*
 
 ```powershell
-cargo run -p api-gateway -- validate --routes docker/config/api-gateway/routes
+cargo run -p api-gateway -- validate --routes docker-example/config/api-gateway/routes
 ```
 
-期望：退出码 0。
+期望：退出码 0�?
 
-- [ ] **Step 2: 跑全量单元/集成测试**
+- [ ] **Step 2: 跑全量单�?集成测试**
 
 ```powershell
 cargo test -p api-gateway
 ```
 
-期望：全部 PASS。
+期望：全�?PASS�?
 
-- [ ] **Step 3: 跑 e2e（容器）**
+- [ ] **Step 3: �?e2e（容器）**
 
 ```powershell
 node scripts/test-orchestrator.js loop
 ```
 
-期望：现有 e2e（如 `tests/e2e/config.e2e.test.ts` 中 `/v1/config/namespace?page=1&size=10`）保持 200。
+期望：现�?e2e（如 `tests/e2e/config.e2e.test.ts` �?`/v1/config/namespace?page=1&size=10`）保�?200�?
 
-- [ ] **Step 4: 输出 summary 并 tag**
+- [ ] **Step 4: 输出 summary �?tag**
 
 ```powershell
 git tag pre-ocelot-routing-base
 git log --oneline -10
 ```
 
-留作回滚锚点。
+留作回滚锚点�?
 
 ---
 
 ## Self-Review Notes
 
-- spec §2 / §3 / §4 全部覆盖：模板语法 → Task 1 / Task 4，匹配渲染 → Task 1 / Task 5，校验规则 → Task 4
-- spec §5 改动清单：每条都对应一个 Task（rewrite.rs 删除 → Task 3，路由文件迁移 → Task 6，规则同步 → Task 8）
-- spec §6 迁移示例已嵌入 Task 6 的迁移规则表
-- spec §7 错误处理：404/502/503 路径在 router.rs / main.rs 均保留
+- spec §2 / §3 / §4 全部覆盖：模板语�?�?Task 1 / Task 4，匹配渲�?�?Task 1 / Task 5，校验规�?�?Task 4
+- spec §5 改动清单：每条都对应一�?Task（rewrite.rs 删除 �?Task 3，路由文件迁�?�?Task 6，规则同�?�?Task 8�?
+- spec §6 迁移示例已嵌�?Task 6 的迁移规则表
+- spec §7 错误处理�?04/502/503 路径�?router.rs / main.rs 均保�?
 - spec §8 测试覆盖：Task 1 单元 + Task 4 加载校验 + Task 7 集成 + Task 9 e2e
-- 占位符语义统一：所有 `{name}` 贪婪匹配剩余字符串，无段限定，与 spec §2.2 一致
+- 占位符语义统一：所�?`{name}` 贪婪匹配剩余字符串，无段限定，与 spec §2.2 一�?
 - 类型一致性：`Template` / `TplPart` / `RouteConfig` 字段名在 Task 1 / 2 / 4 / 5 各处保持同名

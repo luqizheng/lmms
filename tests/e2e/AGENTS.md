@@ -9,7 +9,7 @@
 - nginx：`infrastructure/nginx/`
 - 镜像清单：`infrastructure/base-images.json`
 
-**禁止** 使用 `docker/`、`docker-compose.yml`（旧）等其它路径启动服务。容器名固定以 `infrastructure-` 前缀。
+**禁止** 使用 `docker-example/`、`docker-compose.yml`（旧）等其它路径启动服务。容器名固定以 `infrastructure-` 前缀。
 
 ## 启动与运行
 

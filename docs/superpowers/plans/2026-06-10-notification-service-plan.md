@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 新建独立的 `notification-service`（Rust + Axum），提供系统内消息：登录后弹窗 / 顶部公告栏，支持定时发布、置顶、已读未读
+**Goal:** 新建独立�?`notification-service`（Rust + Axum），提供系统内消息：登录后弹�?/ 顶部公告栏，支持定时发布、置顶、已读未�?
 
-**Architecture:** Axum HTTP + WebSocket；MySQL 主存（announcements / recipients / deliveries / reads）；Redis 缓存未读计数；服务内置 tokio 调度器扫描定时发布；通过 api-gateway 暴露
+**Architecture:** Axum HTTP + WebSocket；MySQL 主存（announcements / recipients / deliveries / reads）；Redis 缓存未读计数；服务内�?tokio 调度器扫描定时发布；通过 api-gateway 暴露
 
 **Tech Stack:** Rust 1.78+, Axum 0.7, sqlx 0.8 (mysql), redis 0.27, tokio 1, serde, tracing, aws_lc_rs (沿用 token-server/api-gateway)
 
@@ -20,31 +20,31 @@
 | `services/notification-service/migrations/2026_06_10_init.sql` | DDL |
 | `services/notification-service/src/main.rs` | 启动入口 |
 | `services/notification-service/src/config.rs` | 配置加载 |
-| `services/notification-service/src/db.rs` | MySQL 池 + 查询 |
-| `services/notification-service/src/redis_cli.rs` | Redis 池 + 未读计数 |
+| `services/notification-service/src/db.rs` | MySQL �?+ 查询 |
+| `services/notification-service/src/redis_cli.rs` | Redis �?+ 未读计数 |
 | `services/notification-service/src/models.rs` | 数据结构 |
 | `services/notification-service/src/error.rs` | 统一错误 |
-| `services/notification-service/src/auth.rs` | 从 X-User-* 头解析身份 |
+| `services/notification-service/src/auth.rs` | �?X-User-* 头解析身�?|
 | `services/notification-service/src/recipient_resolver.rs` | scope 展开 |
 | `services/notification-service/src/rest.rs` | REST handlers |
 | `services/notification-service/src/ws.rs` | WebSocket handler |
 | `services/notification-service/src/ws_hub.rs` | 连接管理 + 广播 |
 | `services/notification-service/src/scheduler.rs` | 定时扫描 |
 | `services/notification-service/tests/integration_test.rs` | 集成测试 |
-| `docker/config/api-gateway/routes/notification.router.toml` | 网关路由 |
-| `docker/config/notification-service/config.yaml` | 容器内配置 |
+| `docker-example/config/api-gateway/routes/notification.router.toml` | 网关路由 |
+| `docker-example/config/notification-service/config.yaml` | 容器内配�?|
 | `tests/specs/notification-service/announcement.yaml` | 行为规格 |
 | `infrastructure/docker-compose.yml` | 追加 notification-service 定义 |
 
 ---
 
-## Task 1: 项目骨架与依赖
+## Task 1: 项目骨架与依�?
 
 **Files:**
 - Create: `services/notification-service/Cargo.toml`
 - Create: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 Cargo.toml**
+- [ ] **Step 1: �?Cargo.toml**
 
 ```toml
 [package]
@@ -71,7 +71,7 @@ thiserror = "1"
 async-trait = "0.1"
 ```
 
-- [ ] **Step 2: 写最小 main.rs**
+- [ ] **Step 2: 写最�?main.rs**
 
 ```rust
 fn main() {
@@ -82,7 +82,7 @@ fn main() {
 - [ ] **Step 3: 验证编译**
 
 Run: `cd services/notification-service && cargo check`
-Expected: `Finished` 无错误
+Expected: `Finished` 无错�?
 
 - [ ] **Step 4: 提交**
 
@@ -100,7 +100,7 @@ git commit -m "feat(notification-service): scaffold cargo project"
 - Create: `services/notification-service/config/config.yaml`
 - Modify: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 config/config.yaml**
+- [ ] **Step 1: �?config/config.yaml**
 
 ```yaml
 server:
@@ -116,7 +116,7 @@ log:
   level: "info"
 ```
 
-- [ ] **Step 2: 写 config.rs**
+- [ ] **Step 2: �?config.rs**
 
 ```rust
 use serde::Deserialize;
@@ -191,7 +191,7 @@ git commit -m "feat(notification-service): add config loading"
 **Files:**
 - Create: `services/notification-service/migrations/2026_06_10_init.sql`
 
-- [ ] **Step 1: 写迁移 SQL**
+- [ ] **Step 1: 写迁�?SQL**
 
 ```sql
 CREATE DATABASE IF NOT EXISTS notification
@@ -238,15 +238,15 @@ CREATE TABLE IF NOT EXISTS announcement_reads (
 ) ENGINE=InnoDB;
 ```
 
-- [ ] **Step 2: 手动跑迁移验证（用本地 mysql 容器）**
+- [ ] **Step 2: 手动跑迁移验证（用本�?mysql 容器�?*
 
 Run:
 ```powershell
 docker exec -i mysql mysql -unotif -pnotif < services/notification-service/migrations/2026_06_10_init.sql
 ```
-Expected: 无错误
+Expected: 无错�?
 
-- [ ] **Step 3: 验证表创建**
+- [ ] **Step 3: 验证表创�?*
 
 Run:
 ```powershell
@@ -263,13 +263,13 @@ git commit -m "feat(notification-service): add mysql migration"
 
 ---
 
-## Task 4: 错误类型与数据模型
+## Task 4: 错误类型与数据模�?
 
 **Files:**
 - Create: `services/notification-service/src/error.rs`
 - Create: `services/notification-service/src/models.rs`
 
-- [ ] **Step 1: 写 error.rs**
+- [ ] **Step 1: �?error.rs**
 
 ```rust
 use axum::http::StatusCode;
@@ -307,7 +307,7 @@ impl IntoResponse for AppError {
 pub type AppResult<T> = Result<T, AppError>;
 ```
 
-- [ ] **Step 2: 写 models.rs**
+- [ ] **Step 2: �?models.rs**
 
 ```rust
 use chrono::{DateTime, Utc};
@@ -375,7 +375,7 @@ git commit -m "feat(notification-service): add error and models"
 - Create: `services/notification-service/src/db.rs`
 - Modify: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 db.rs**
+- [ ] **Step 1: �?db.rs**
 
 ```rust
 use crate::error::AppResult;
@@ -474,7 +474,7 @@ impl Db {
 }
 ```
 
-- [ ] **Step 2: main.rs 临时连接验证（仅本地）**
+- [ ] **Step 2: main.rs 临时连接验证（仅本地�?*
 
 ```rust
 mod config;
@@ -496,7 +496,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-- [ ] **Step 3: 跑通**
+- [ ] **Step 3: 跑�?*
 
 Run: `cd services/notification-service && cargo run -- config/config.yaml`
 Expected: 输出 `db connected`
@@ -516,7 +516,7 @@ git commit -m "feat(notification-service): add db access layer"
 - Create: `services/notification-service/src/redis_cli.rs`
 - Modify: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 redis_cli.rs**
+- [ ] **Step 1: �?redis_cli.rs**
 
 ```rust
 use crate::error::AppResult;
@@ -586,7 +586,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-- [ ] **Step 3: 跑通**
+- [ ] **Step 3: 跑�?*
 
 Run: `cd services/notification-service && cargo run -- config/config.yaml`
 Expected: 输出 `unread(1) = 1`
@@ -606,7 +606,7 @@ git commit -m "feat(notification-service): add redis unread counter"
 - Create: `services/notification-service/src/auth.rs`
 - Modify: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 auth.rs**
+- [ ] **Step 1: �?auth.rs**
 
 ```rust
 use crate::error::{AppError, AppResult};
@@ -663,13 +663,13 @@ git commit -m "feat(notification-service): add identity extractor"
 
 ---
 
-## Task 8: scope 展开器
+## Task 8: scope 展开�?
 
 **Files:**
 - Create: `services/notification-service/src/recipient_resolver.rs`
 - Create: `services/notification-service/tests/recipient_resolver_test.rs`
 
-- [ ] **Step 1: 写测试**
+- [ ] **Step 1: 写测�?*
 
 ```rust
 use notification_service::recipient_resolver::expand_local;
@@ -695,14 +695,14 @@ fn expand_dedupes_users_across_scopes() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认 fail**
+- [ ] **Step 2: 跑测试确�?fail**
 
 Run: `cd services/notification-service && cargo test --test recipient_resolver_test`
 Expected: 编译失败（`expand_local` 不存在）
 
-- [ ] **Step 3: 写实现（lib 暴露）**
+- [ ] **Step 3: 写实现（lib 暴露�?*
 
-在 `src/lib.rs` 新建：
+�?`src/lib.rs` 新建�?
 
 ```rust
 pub mod auth;
@@ -714,7 +714,7 @@ pub mod recipient_resolver;
 pub mod redis_cli;
 ```
 
-`src/recipient_resolver.rs`：
+`src/recipient_resolver.rs`�?
 
 ```rust
 use crate::models::ScopeType;
@@ -741,7 +741,7 @@ pub fn expand_local(
 }
 ```
 
-- [ ] **Step 4: 跑测试确认 pass**
+- [ ] **Step 4: 跑测试确�?pass**
 
 Run: `cd services/notification-service && cargo test --test recipient_resolver_test`
 Expected: PASS
@@ -761,7 +761,7 @@ git commit -m "feat(notification-service): add recipient resolver with tests"
 - Create: `services/notification-service/src/rest.rs`
 - Modify: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 rest.rs**
+- [ ] **Step 1: �?rest.rs**
 
 ```rust
 use crate::auth::Identity;
@@ -896,14 +896,14 @@ git commit -m "feat(notification-service): add rest endpoints"
 
 ---
 
-## Task 10: WebSocket Hub 与推送
+## Task 10: WebSocket Hub 与推�?
 
 **Files:**
 - Create: `services/notification-service/src/ws.rs`
 - Create: `services/notification-service/src/ws_hub.rs`
 - Modify: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 ws_hub.rs**
+- [ ] **Step 1: �?ws_hub.rs**
 
 ```rust
 use serde::Serialize;
@@ -953,7 +953,7 @@ impl WsHub {
 }
 ```
 
-- [ ] **Step 2: 写 ws.rs**
+- [ ] **Step 2: �?ws.rs**
 
 ```rust
 use crate::ws_hub::{WsHub, WsOut};
@@ -1033,13 +1033,13 @@ git commit -m "feat(notification-service): add websocket hub"
 
 ---
 
-## Task 11: 定时调度器
+## Task 11: 定时调度�?
 
 **Files:**
 - Create: `services/notification-service/src/scheduler.rs`
 - Modify: `services/notification-service/src/main.rs`
 
-- [ ] **Step 1: 写 scheduler.rs**
+- [ ] **Step 1: �?scheduler.rs**
 
 ```rust
 use crate::db::Db;
@@ -1078,7 +1078,7 @@ pub async fn publish_one(db: &Db, redis: &RedisCli, hub: &WsHub, ann_id: u64) ->
         "SELECT scope_type, scope_id FROM announcement_recipients WHERE announcement_id=?"
     ).bind(ann_id).fetch_all(&db.pool).await?;
     let users: HashSet<u64> = HashSet::new();
-    let _ = users; // 实际展开应通过 user-service 内部接口；v1 简化版：调 user_service 接口后填充
+    let _ = users; // 实际展开应通过 user-service 内部接口；v1 简化版：调 user_service 接口后填�?
     db.set_status(ann_id, crate::models::Status::Published).await.ok();
     db.insert_deliveries(ann_id, &users).await.ok();
     for u in &users {
@@ -1095,7 +1095,7 @@ pub async fn publish_one(db: &Db, redis: &RedisCli, hub: &WsHub, ann_id: u64) ->
 
 - [ ] **Step 2: main.rs 启动调度**
 
-追加：
+追加�?
 ```rust
 let hub_for_sched = hub.clone();
 let db_for_sched = db.clone();
@@ -1105,7 +1105,7 @@ tokio::spawn(async move {
 });
 ```
 
-需要 `Arc<Db>` —— 把 `Db` 包成 `Arc`，调整 `ws::WsState` / `rest::RestState` 持有 `Arc<Db>`。
+需�?`Arc<Db>` —�?�?`Db` 包成 `Arc`，调�?`ws::WsState` / `rest::RestState` 持有 `Arc<Db>`�?
 
 - [ ] **Step 3: 验证编译**
 
@@ -1126,7 +1126,7 @@ git commit -m "feat(notification-service): add scheduler tick"
 **Files:**
 - Create: `services/notification-service/Dockerfile`
 
-- [ ] **Step 1: 写 Dockerfile**
+- [ ] **Step 1: �?Dockerfile**
 
 ```dockerfile
 FROM rust:1.78-slim AS builder
@@ -1157,9 +1157,9 @@ git commit -m "feat(notification-service): add dockerfile"
 ## Task 13: API Gateway 路由
 
 **Files:**
-- Create: `docker/config/api-gateway/routes/notification.router.toml`
+- Create: `docker-example/config/api-gateway/routes/notification.router.toml`
 
-- [ ] **Step 1: 写路由**
+- [ ] **Step 1: 写路�?*
 
 ```toml
 [[routes]]
@@ -1177,12 +1177,12 @@ strip_prefix = "/api/notifications"
 - [ ] **Step 2: 校验**
 
 Run: `cargo run -p api-gateway -- validate --routes docker\config\api-gateway\routes`
-Expected: 无错误
+Expected: 无错�?
 
 - [ ] **Step 3: 提交**
 
 ```bash
-git add docker/config/api-gateway/routes/notification.router.toml
+git add docker-example/config/api-gateway/routes/notification.router.toml
 git commit -m "feat(api-gateway): add notification routes"
 ```
 
@@ -1192,7 +1192,7 @@ git commit -m "feat(api-gateway): add notification routes"
 
 **Files:**
 - Modify: `infrastructure/docker-compose.yml`
-- Create: `docker/config/notification-service/config.yaml`
+- Create: `docker-example/config/notification-service/config.yaml`
 
 - [ ] **Step 1: 容器配置**
 
@@ -1212,20 +1212,20 @@ log:
 
 - [ ] **Step 2: docker-compose 追加 service**
 
-追加：
+追加�?
 ```yaml
   notification-service:
     build: ../services/notification-service
     ports: ["8083:8083"]
     depends_on: [mysql, redis]
     volumes:
-      - ../docker/config/notification-service:/app/config:ro
+      - ../docker-example/config/notification-service:/app/config:ro
 ```
 
 - [ ] **Step 3: 提交**
 
 ```bash
-git add infrastructure/docker-compose.yml docker/config/notification-service
+git add infrastructure/docker-compose.yml docker-example/config/notification-service
 git commit -m "feat(notification-service): wire docker-compose"
 ```
 
@@ -1236,7 +1236,7 @@ git commit -m "feat(notification-service): wire docker-compose"
 **Files:**
 - Create: `tests/specs/notification-service/announcement.yaml`
 
-- [ ] **Step 1: 写规格**
+- [ ] **Step 1: 写规�?*
 
 ```yaml
 service: notification-service
@@ -1285,7 +1285,7 @@ git commit -m "test(notification-service): add behavior spec"
 **Files:**
 - Create: `services/notification-service/tests/integration_test.rs`
 
-- [ ] **Step 1: 写测试（端到端，依赖 MySQL/Redis 容器）**
+- [ ] **Step 1: 写测试（端到端，依赖 MySQL/Redis 容器�?*
 
 ```rust
 use notification_service::config::AppConfig;
@@ -1314,7 +1314,7 @@ async fn create_then_publish_then_read_flow() {
 }
 ```
 
-- [ ] **Step 2: 跑测试**
+- [ ] **Step 2: 跑测�?*
 
 Run: `cd services/notification-services && cargo test --test integration_test -- --ignored`
 Expected: PASS
@@ -1330,17 +1330,17 @@ git commit -m "test(notification-service): add integration test"
 
 ## Task 17: clippy / fmt 收尾
 
-**Files:** 当前所有改动
+**Files:** 当前所有改�?
 
-- [ ] **Step 1: 跑 fmt**
+- [ ] **Step 1: �?fmt**
 
 Run: `cd services/notification-service && cargo fmt`
-Expected: 无 diff
+Expected: �?diff
 
-- [ ] **Step 2: 跑 clippy**
+- [ ] **Step 2: �?clippy**
 
 Run: `cd services/notification-service && cargo clippy --all-targets -- -D warnings`
-Expected: 无 warning
+Expected: �?warning
 
 - [ ] **Step 3: 提交（若 fmt 有改动）**
 
@@ -1353,7 +1353,7 @@ git commit -m "style(notification-service): apply rustfmt"
 
 ## 自审
 
-- Spec 覆盖：消息主表 §3 / 接收范围 §3 / 展开投递 §6.3 / 定时发布 §6.2 / 已读 §6.4 / 未读计数 §4 / WS 协议 §5 / REST 接口 §4 / 测试 §8 → 对应 Task 3-16
-- 占位符：无 TBD / TODO
-- 类型一致性：`Db::create_announcement` 入参 `&CreateAnnouncement`、`Status::Published` 在 Task 5/9/11 一致；`WsHub::publish` 入参 `WsOut` 在 Task 10/11 一致
-- YAGNI：模板/邮件/ES 历史搜索放 §10 未实现
+- Spec 覆盖：消息主�?§3 / 接收范围 §3 / 展开投�?§6.3 / 定时发布 §6.2 / 已读 §6.4 / 未读计数 §4 / WS 协议 §5 / REST 接口 §4 / 测试 §8 �?对应 Task 3-16
+- 占位符：�?TBD / TODO
+- 类型一致性：`Db::create_announcement` 入参 `&CreateAnnouncement`、`Status::Published` �?Task 5/9/11 一致；`WsHub::publish` 入参 `WsOut` �?Task 10/11 一�?
+- YAGNI：模�?邮件/ES 历史搜索�?§10 未实�?

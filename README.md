@@ -86,7 +86,7 @@ cargo run                        # 启动
 服务进程读取以下配置文件（优先级从高到低）：
 
 - `services/<svc>/config/config.yaml`（首选，宿主机路径）
-- `docker/config/<svc>/config.yaml`（容器化部署时使用）
+- `docker-example/config/<svc>/config.yaml`（容器化部署时使用）
 
 基础设施的 docker compose 文件位于 `infrastructure/`：
 
