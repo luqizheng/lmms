@@ -13,6 +13,11 @@ variables:
   IMAGE_TAG: $CI_COMMIT_SHORT_SHA
   MAVEN_REPO_URL: http://mvn.kudi.repos/repository/maven-releases/
   NUGET_REPO_URL: http://nuget.kudi.repos/v3/index.json
+  E2E_BASE_URL: http://localhost:3000
+  E2E_DB_HOST: localhost
+  E2E_DB_USER: root
+  E2E_DB_PASSWORD: rootpass
+  E2E_DB_NAME: superpowers
 
 rust_test:
   stage: test
@@ -27,6 +32,34 @@ rust_test:
     - apt-get update && apt-get install -y pkg-config libssl-dev
   script:
     - cargo test --workspace --all-targets --verbose
+
+service_standard_check:
+  stage: test
+  tags: [docker]
+  image: node:20
+  script:
+    - node scripts/check-service-standard.js
+
+e2e_api_test:
+  stage: test
+  tags: [docker]
+  image: node:20
+  before_script:
+    - cd tests/e2e && npm install
+    - npm install -g pnpm && pnpm install
+  script:
+    - cd tests/e2e && pnpm run test:api
+
+e2e_ui_test:
+  stage: test
+  tags: [docker]
+  image: mcr.microsoft.com/playwright:v1.48.0-jammy
+  before_script:
+    - cd tests/e2e && npm install
+    - npm install -g pnpm && pnpm install
+    - npx playwright install chromium
+  script:
+    - cd tests/e2e && pnpm run test:ui
 
 build_api_gateway:
   stage: build

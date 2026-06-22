@@ -1,37 +1,25 @@
-# config-service 开发规范
+# config-service 服务规范
 
-## 必须项
+## 必需组件
 
-- [x] Dockerfile
-- [x] 健康检查端点（/health）
-- [x] 数据库迁移文件（migrations/）
-- [x] config.yaml
-- [x] AGENTS.md
+- Dockerfile ✓
+- Swagger 配置（可配置启用/禁用）✓
+- 健康检查端点（/health、/ready、/metrics）✓
+- 数据库迁移文件（migrations/）✓
+- README.md ✓
+- tests/ 目录 ✓
 
-## 环境变量
+## 配置选项
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| DATABASE_URL | sqlite::memory: | 数据库连接 |
-| SERVER_ADDR | 0.0.0.0:8081 | 服务监听地址 |
-| RUST_LOG | info | 日志级别 |
+- swagger_enabled: 环境变量 SWAGGER_ENABLED 或默认 true
+- health_check_required: 环境变量 HEALTH_CHECK_REQUIRED 或默认 true
+- migrations_required: 环境变量 MIGRATIONS_REQUIRED 或默认 true
 
-## 端点域
+## package.json 脚本
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| /health | GET | 健康检查 |
-| /config/namespace | POST | 创建命名空间 |
-| /config/namespace | GET | 查询命名空间列表 |
-| /config/namespace/{id} | GET/PUT/DELETE | 命名空间 CRUD |
-| /config/item | POST | 创建配置项 |
-| /config/item | GET | 查询配置项列表 |
-| /config/item/{id} | GET/PUT/DELETE | 配置项 CRUD |
-| /config/watch | GET | 长轮询监听变更 |
-| /config/sse | GET | SSE 推送 |
-| /config/export/{namespace_id} | GET | 导出配置 JSON |
-| /config/import/{namespace_id} | POST | 导入配置 JSON |
+- build:docker
+- build:cargo
 
-## 数据库方言
+## AI 检查时机
 
-支持 MySQL 和 SQLite，通过 DATABASE_URL 自动检测。
+修改 services/config-service/ 下

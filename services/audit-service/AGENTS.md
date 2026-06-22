@@ -1,61 +1,25 @@
-# audit-service 开发规范
+# audit-service 服务规范
 
-## 必须项
+## 必需组件
 
-- [x] Dockerfile
-- [x] 健康检查端点（/health）
-- [x] 数据库迁移文件（migrations/）
-- [x] config.yaml
-- [x] AGENTS.md
+- Dockerfile ✓
+- Swagger 配置（可配置启用/禁用）✓
+- 健康检查端点（/health、/ready、/metrics）✓
+- 数据库迁移文件（migrations/）✓
+- README.md ✓
+- tests/ 目录 ✓
 
-## 环境变量
+## 配置选项
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| DATABASE_URL | sqlite::memory: | 数据库连接 |
-| SERVER_ADDR | 0.0.0.0:8080 | 服务监听地址 |
-| RUST_LOG | info | 日志级别 |
+- swagger_enabled: 环境变量 SWAGGER_ENABLED 或默认 true
+- health_check_required: 环境变量 HEALTH_CHECK_REQUIRED 或默认 true
+- migrations_required: 环境变量 MIGRATIONS_REQUIRED 或默认 true
 
-## 端点域
+## package.json 脚本
 
-### 操作日志
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| /audit/operation | POST | 创建操作日志 |
-| /audit/operation | GET | 查询操作日志 |
+- build:docker
+- build:cargo
 
-### 登录日志
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| /audit/login | POST | 创建登录日志 |
-| /audit/login | GET | 查询登录日志 |
+## AI 检查时机
 
-### 导出
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| /audit/export/operation/csv | GET | 导出操作日志 CSV |
-| /audit/export/operation/json | GET | 导出操作日志 JSON |
-| /audit/export/compliance/operation/csv | GET | 按用户导出合规报告 |
-| /audit/export/compliance/operation/json | GET | 按用户导出 JSON |
-| /audit/export/compliance/login/csv | GET | 按用户导出登录日志 |
-
-### 保留策略
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| /audit/retention/stats | GET | 获取保留统计 |
-| /audit/retention/policy | GET | 获取保留策略 |
-| /audit/retention/policy | PUT | 更新保留策略 |
-| /audit/retention/cleanup | POST | 手动触发清理 |
-| /audit/retention/stage/:created_at | GET | 查询数据阶段 |
-
-## 数据保留策略
-
-| 阶段 | 默认保留 | 说明 |
-|------|----------|------|
-| Hot | 90天 | 在线可查询 |
-| Warm | 365天 | 近线存储 |
-| Cold | 7年 | 冷归档 |
-
-## 数据库方言
-
-支持 MySQL 和 SQLite，通过 DATABASE_URL 自动检测。
+修改 services/audit
