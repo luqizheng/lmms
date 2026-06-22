@@ -17,3 +17,4 @@ sdk/dotnet/**/obj/
 sdk/java/**/target/
 *.nuspec
 reports/
+docker-example/mysql
