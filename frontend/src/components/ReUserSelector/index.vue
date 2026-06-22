@@ -17,7 +17,7 @@ const props = withDefaults(
     remoteMethod?: (keyword: string) => Promise<IamUserSimple[]>;
   }>(),
   {
-    multiple: false,
+    multiple: true,
     placeholder: "搜索用户",
     disabled: false
   }

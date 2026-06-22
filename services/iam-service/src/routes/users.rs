@@ -1,11 +1,12 @@
-use axum::{Router, routing::get, extract::{Json, Path, Query, State}};
-use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleListResponse}, service::UserService};
+use axum::{Router, routing::{get, post}, extract::{Json, Path, Query, State}};
+use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleListResponse, UserClaimsResponse}, service::UserService};
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/users", get(list_users).post(create_user))
         .route("/iam/users/{user_id}", get(get_user).put(update_user).delete(delete_user))
         .route("/iam/users/simple", get(list_users_simple))
+        .route("/internal/users/{user_id}/claims", get(get_user_claims))
         .with_state(state)
 }
 
@@ -142,5 +143,19 @@ pub async fn list_users_simple(
 ) -> Result<Json<UserSimpleListResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
     let response = service.list_simple(query).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    Ok(Json(response))
+}
+
+pub async fn get_user_claims(
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+) -> Result<Json<UserClaimsResponse>, (axum::http::StatusCode, &'static str)> {
+    let service = UserService::new(state);
+    let response = service.get_claims(&user_id).await.map_err(|e| {
+        match e {
+            crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
+        }
+    })?;
     Ok(Json(response))
 }

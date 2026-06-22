@@ -103,7 +103,7 @@ export function useAdmin() {
               popover: cur.popover,
               recipients: cur.recipients.map((r: any) => ({
                 scope_type: r.scope_type,
-                scope_id: r.scope_id
+                scope_id: Number(r.scope_id)
               }))
             });
             ElMessage.success("创建成功");

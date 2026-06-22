@@ -1,4 +1,7 @@
 use axum::http::HeaderMap;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
+use serde_json::Value;
 use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
@@ -12,47 +15,86 @@ pub struct Principal {
 
 #[derive(Debug, thiserror::Error)]
 pub enum PrincipalError {
-    #[error("missing x-user-id")]
-    MissingUserId,
+    #[error("missing authorization header")]
+    MissingAuthorization,
+    #[error("invalid authorization header format")]
+    InvalidAuthorizationFormat,
+    #[error("invalid jwt format")]
+    InvalidJwtFormat,
+    #[error("invalid base64 payload")]
+    InvalidBase64,
+    #[error("invalid json payload")]
+    InvalidJson,
+    #[error("missing sub claim")]
+    MissingSub,
 }
 
 impl Principal {
     pub fn from_headers(h: &HeaderMap) -> Result<Self, PrincipalError> {
-        let user_id = h
-            .get("x-user-id")
-            .ok_or(PrincipalError::MissingUserId)?
+        let auth_header = h
+            .get("Authorization")
+            .ok_or(PrincipalError::MissingAuthorization)?
             .to_str()
-            .map_err(|_| PrincipalError::MissingUserId)?
+            .map_err(|_| PrincipalError::InvalidAuthorizationFormat)?;
+        
+        let token = auth_header
+            .strip_prefix("Bearer ")
+            .ok_or(PrincipalError::InvalidAuthorizationFormat)?;
+        
+        Self::from_jwt_payload(token)
+    }
+
+    pub fn from_jwt_payload(token: &str) -> Result<Self, PrincipalError> {
+        let parts: Vec<&str> = token.split('.').collect();
+        if parts.len() != 3 {
+            return Err(PrincipalError::InvalidJwtFormat);
+        }
+        
+        let payload_b64 = parts[1];
+        let payload_bytes = URL_SAFE_NO_PAD.decode(payload_b64)
+            .map_err(|_| PrincipalError::InvalidBase64)?;
+        
+        let payload: Value = serde_json::from_slice(&payload_bytes)
+            .map_err(|_| PrincipalError::InvalidJson)?;
+        
+        let user_id = payload
+            .get("sub")
+            .and_then(|v| v.as_str())
+            .ok_or(PrincipalError::MissingSub)?
             .to_string();
-        let user_code = h
-            .get("x-user-code")
-            .and_then(|v| v.to_str().ok())
+        
+        let user_code = payload
+            .get("user_code")
+            .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let dept_id = h
-            .get("x-user-dept")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.parse::<i64>().ok());
-        let roles = h
-            .get("x-user-roles")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| {
-                s.split(',')
+        
+        let dept_id = payload
+            .get("dept_id")
+            .and_then(|v| v.as_i64());
+        
+        let roles = payload
+            .get("roles")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(String::from))
                     .filter(|x| !x.is_empty())
-                    .map(String::from)
                     .collect()
             })
             .unwrap_or_default();
-        let permissions = h
-            .get("x-user-perms")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| {
-                s.split(',')
+        
+        let permissions = payload
+            .get("permissions")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(String::from))
                     .filter(|x| !x.is_empty())
-                    .map(String::from)
                     .collect()
             })
             .unwrap_or_default();
+        
         Ok(Self {
             user_id,
             user_code,

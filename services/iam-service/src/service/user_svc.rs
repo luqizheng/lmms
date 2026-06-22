@@ -1,7 +1,7 @@
 use crate::{
     error::IamError,
     state::AppState,
-    dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleResponse, UserSimpleListResponse},
+    dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleResponse, UserSimpleListResponse, UserClaimsResponse},
 };
 use common_crypto::password::hash;
 use chrono::Utc;
@@ -338,5 +338,43 @@ impl UserService {
             created_at: user.created_at,
             updated_at: user.updated_at,
         }
+    }
+
+    pub async fn get_claims(&self, user_id: &str) -> Result<UserClaimsResponse, IamError> {
+        let user: Option<UserRow> = sqlx::query_as(
+            "SELECT id, username, email, phone, nickname FROM users WHERE id = ? AND deleted_at IS NULL AND status = 'active'"
+        )
+        .bind(user_id)
+        .fetch_optional(&self.state.db)
+        .await?;
+
+        let user = match user {
+            Some(u) => u,
+            None => return Err(IamError::UserNotFound),
+        };
+
+        let roles: Vec<String> = sqlx::query_as(
+            "SELECT r.code FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.deleted_at IS NULL"
+        )
+        .bind(user_id)
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let permissions: Vec<String> = sqlx::query_as(
+            "SELECT p.code FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.deleted_at IS NULL"
+        )
+        .bind(user_id)
+        .fetch_all(&self.state.db)
+        .await?;
+
+        Ok(UserClaimsResponse {
+            user_id: user.id,
+            username: user.username,
+            nickname: user.nickname,
+            email: user.email,
+            phone: user.phone,
+            roles,
+            permissions,
+        })
     }
 }

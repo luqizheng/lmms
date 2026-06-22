@@ -8,7 +8,11 @@ axum.workspace = true
 thiserror.workspace = true
 async-trait = "0.1"
 tower = "0.5"
+base64.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
+base64.workspace = true

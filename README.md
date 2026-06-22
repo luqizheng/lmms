@@ -288,6 +288,52 @@ pnpm run setup
 | `pnpm run docker:build:config-service`       | 仅构建 config-service 镜像                        |
 | `pnpm run docker:build:file-service`         | 仅构建 file-service 镜像                          |
 | `pnpm run check:env`                          | 检查开发环境服务状态                              |
+| `pnpm run ai:review`                          | AI 代码审查，自动识别不符合规范的代码             |
+| `pnpm run ai:gen-e2e`                         | 从 OpenAPI 文档自动生成 E2E 测试用例             |
+| `pnpm run contracts:gen`                      | 生成契约代码（错误码、权限码）                    |
+| `pnpm run check:service-standard`             | 检查服务规范合规性                                |
+
+### AI 辅助工具
+
+#### 智能代码审查
+
+自动扫描代码库，识别不符合规范的代码：
+
+```bash
+# 扫描整个仓库
+pnpm run ai:review
+
+# 扫描指定目录
+pnpm run ai:review services/
+
+# 检查内容包括：
+# - Rust: 命名规范(snake_case)、未使用导入、panic!宏使用
+# - JavaScript/TypeScript: var声明、console.log使用
+```
+
+#### 测试用例生成
+
+从 OpenAPI 文档自动生成 E2E 测试用例：
+
+```bash
+# 从 OpenAPI 文档生成测试用例
+pnpm run ai:gen-e2e <openapi文件> <输出路径>
+
+# 示例
+pnpm run ai:gen-e2e services/audit-service/openapi.yaml tests/e2e/api/cases/audit-auto.yaml
+```
+
+#### 契约代码生成
+
+管理全局错误码和权限码的单一真相源：
+
+```bash
+# 生成契约代码
+pnpm run contracts:gen
+
+# CI 检查契约是否更新
+pnpm run contracts:check
+```
 
 ### 子包脚本
 

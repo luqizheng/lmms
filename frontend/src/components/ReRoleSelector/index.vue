@@ -16,7 +16,7 @@ const props = withDefaults(
     disabled?: boolean;
   }>(),
   {
-    multiple: false,
+    multiple: true,
     placeholder: "搜索角色",
     disabled: false
   }

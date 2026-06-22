@@ -94,5 +94,16 @@ pub struct UserSimpleListResponse {
     pub size: u32,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UserClaimsResponse {
+    pub user_id: String,
+    pub username: String,
+    pub nickname: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub roles: Vec<String>,
+    pub permissions: Vec<String>,
+}
+
 fn default_page() -> u32 { 1 }
 fn default_size() -> u32 { 20 }
