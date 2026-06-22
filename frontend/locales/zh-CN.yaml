@@ -85,6 +85,22 @@ menus:
   notificationInbox: 收件箱
   notificationAdmin: 公告管理
   notificationDetail: 公告详情
+  notificationUnread: 未读
+  notificationRead: 已读
+  notificationDraft: 草稿
+  notificationPublished: 已发布
+  notificationRevoked: 已撤销
+  notificationMarkRead: 标为已读
+  notificationMarkAllRead: 全部标为已读
+  notificationRefresh: 刷新通知
+  announcement: 公告
+  announcementTitle: 公告标题
+  announcementContent: 公告内容
+  announcementPublishTime: 发布时间
+  announcementExpireTime: 过期时间
+  announcementPinned: 置顶
+  announcementPopover: 弹窗提示
+  announcementRecipients: 接收人
   pureSystemMenu: 菜单管理
   pureDept: 部门管理
   pureSysMonitor: 系统监控

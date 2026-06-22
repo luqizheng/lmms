@@ -42,19 +42,23 @@ const selectedIds = computed(() => {
   return props.modelValue.map(v => v.id);
 });
 
+interface IamOrgUnitWithPath extends IamOrgUnit {
+  path?: string[];
+}
+
 const treeData = computed(() => {
   function convertTree(
     items: IamOrgUnit[],
     parentNames: string[] = []
-  ): IamOrgUnit[] {
+  ): IamOrgUnitWithPath[] {
     return items.map(item => {
       const newNames = [item.name, ...parentNames];
-      const node: IamOrgUnit = {
+      const node: IamOrgUnitWithPath = {
         ...item,
         path: newNames
       };
       if (item.children && item.children.length > 0) {
-        node.children = convertTree(item.children, newNames);
+        node.children = convertTree(item.children, newNames) as any;
       }
       return node;
     });

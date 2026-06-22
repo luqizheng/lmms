@@ -22,6 +22,18 @@ export function useAdmin() {
   });
   const form = reactive({ keyword: "", status: "" });
 
+  const statusMap: Record<
+    string,
+    {
+      label: string;
+      type: "primary" | "success" | "warning" | "info" | "danger";
+    }
+  > = {
+    draft: { label: "草稿", type: "info" },
+    published: { label: "已发布", type: "success" },
+    revoked: { label: "已撤销", type: "danger" }
+  };
+
   const columns: TableColumnList = [
     { label: "ID", prop: "id", width: 60 },
     { label: "标题", prop: "title", minWidth: 200 },
@@ -29,11 +41,13 @@ export function useAdmin() {
       label: "状态",
       prop: "status",
       width: 100,
-      cellRenderer: ({ row }: any) => (
-        <el-tag type={row.status === "published" ? "success" : "info"}>
-          {row.status}
-        </el-tag>
-      )
+      cellRenderer: ({ row }: any) => {
+        const status = statusMap[row.status] || {
+          label: row.status,
+          type: "info"
+        };
+        return <el-tag type={status.type}>{status.label}</el-tag>;
+      }
     },
     {
       label: "发布时间",

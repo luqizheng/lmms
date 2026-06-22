@@ -1,3 +1,6 @@
+import { storageLocal } from "@pureadmin/utils";
+import { TokenKey } from "@/utils/auth";
+
 type Handler = (msg: any) => void;
 type WsMessage = {
   type: string;
@@ -12,6 +15,10 @@ let retryTimer: number | null = null;
 const handlers = new Map<string, Set<Handler>>();
 
 const RETRY_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
+
+function getToken(): string | null {
+  return storageLocal().getItem<string>(TokenKey);
+}
 
 function wsUrl() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -54,6 +61,10 @@ function open() {
   };
   socket.onopen = () => {
     retry = 0;
+    const token = getToken();
+    if (token) {
+      socket?.send(JSON.stringify({ token }));
+    }
   };
 }
 

@@ -1,4 +1,4 @@
-use crate::auth::Identity;
+use crate::auth::{AdminCheck, Identity};
 use crate::db::Db;
 use crate::error::{AppError, AppResult};
 use crate::models::*;

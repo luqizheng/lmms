@@ -73,7 +73,11 @@ export interface IamUserSimpleListResponse {
 }
 
 export function listIamUsersSimple(params: IamUserSimpleQuery) {
-  return http.request<IamUserSimpleListResponse>("get", "/v1/iam/users/simple", { params });
+  return http.request<IamUserSimpleListResponse>(
+    "get",
+    "/v1/iam/users/simple",
+    { params }
+  );
 }
 
 export function createIamUser(data: CreateIamUserRequest) {

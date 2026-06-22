@@ -121,6 +121,60 @@ VITE_PUBLIC_PATH=/
 VITE_ROUTER_HISTORY=h5
 ```
 
+## 身份认证规范
+
+### 用户信息获取
+
+前端**必须**从 `Authorization: Bearer <JWT>` 请求头中的 JWT payload 提取用户身份信息，**禁止**使用或读取 `X-User-Id`、`X-User-Roles`、`X-User-Dept` 等 X-User-* headers。
+
+### JWT Payload 结构
+
+从 JWT payload 中提取以下 claims：
+
+| Claim | 说明 | 必填 |
+|-------|------|------|
+| `sub` | 用户 ID | 是 |
+| `user_code` | 用户编码 | 否 |
+| `dept_id` | 部门 ID | 否 |
+| `roles` | 角色列表（JSON array） | 否 |
+| `permissions` | 权限列表（JSON array） | 否 |
+
+### 实现方式
+
+使用 `@/utils/auth.ts` 中的工具函数解析 JWT：
+
+```typescript
+import { storageLocal, userKey, type DataInfo } from "@/utils/auth";
+
+const userInfo = storageLocal().getItem<DataInfo<number>>(userKey);
+const userId = userInfo?.userId;
+const roles = userInfo?.roles;
+```
+
+### 安全原则
+
+- 前端**不验证** JWT 签名，仅解码 payload
+- 信任前提：api-gateway 已完成 RSA 验签和黑名单检查
+- 所有 API 请求必须携带 `Authorization: Bearer <JWT>` header
+
+### WebSocket 连接
+
+WebSocket 连接也必须通过 `Authorization` header 传递 JWT：
+
+```typescript
+const socket = new WebSocket(wsUrl);
+socket.onopen = () => {
+  socket.send(JSON.stringify({
+    token: localStorage.getItem("token")
+  }));
+};
+```
+
+### 违规处理
+
+- 代码审查时发现使用 X-User-* headers 应拒绝合并
+- 现有代码应逐步迁移到 JWT 解析方式
+
 ## 部署说明
 
 前端构建产物通过 Docker 镜像部署，容器内使用 nginx 作为静态文件服务器。nginx 配置位于 `nginx.conf`，负责：

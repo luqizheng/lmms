@@ -3,6 +3,11 @@
     <router-view />
     <ReDialog />
     <ReDrawer />
+    <ReAnnouncementModal
+      :show="popoverVisible"
+      :announcement-id="popoverId"
+      @close="handlePopoverClose"
+    />
   </el-config-provider>
 </template>
 
@@ -11,9 +16,18 @@ import { checkVersion } from "version-rocket";
 import { ElConfigProvider } from "element-plus";
 import { useRouter, useRoute } from "vue-router";
 import { useGlobal, useWatermark } from "@pureadmin/utils";
-import { defineComponent, computed, watch, nextTick } from "vue";
+import {
+  defineComponent,
+  computed,
+  watch,
+  nextTick,
+  ref,
+  onMounted
+} from "vue";
 import { ReDialog, closeAllDialog } from "@/components/ReDialog";
 import { ReDrawer, closeAllDrawer } from "@/components/ReDrawer";
+import ReAnnouncementModal from "@/components/ReAnnouncementModal";
+import { usePopoverAnnouncement } from "@/hooks/usePopoverAnnouncement";
 import en from "element-plus/es/locale/lang/en";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import plusEn from "plus-pro-components/es/locale/lang/en";
@@ -24,7 +38,8 @@ export default defineComponent({
   components: {
     [ElConfigProvider.name]: ElConfigProvider,
     ReDialog,
-    ReDrawer
+    ReDrawer,
+    ReAnnouncementModal
   },
   setup() {
     const route = useRoute();
@@ -38,6 +53,16 @@ export default defineComponent({
         ? { ...zhCn, ...plusZhCn }
         : { ...en, ...plusEn };
     });
+
+    const popover = usePopoverAnnouncement();
+    const popoverLoaded = ref(false);
+
+    const popoverVisible = popover.visible;
+    const popoverId = popover.currentId;
+
+    function handlePopoverClose() {
+      popover.handleClose();
+    }
 
     router.beforeEach(() => {
       closeAllDialog();
@@ -53,14 +78,28 @@ export default defineComponent({
         } else {
           clear();
         }
+        if (name !== "Login" && !popoverLoaded.value) {
+          popoverLoaded.value = true;
+          popover.loadPopoverAnnouncements();
+        }
       },
       {
         immediate: true
       }
     );
 
+    onMounted(() => {
+      if (route.name !== "Login" && !popoverLoaded.value) {
+        popoverLoaded.value = true;
+        popover.loadPopoverAnnouncements();
+      }
+    });
+
     return {
-      currentLocale
+      currentLocale,
+      popoverVisible,
+      popoverId,
+      handlePopoverClose
     };
   },
   beforeCreate() {

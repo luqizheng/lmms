@@ -1,2 +1,2 @@
-﻿export { default } from "./index.vue";
-export type { ScopeItem, ScopeValue } from "./index.vue";
+export { default } from "./index.vue";
+export type { ScopeValue } from "./index.vue";

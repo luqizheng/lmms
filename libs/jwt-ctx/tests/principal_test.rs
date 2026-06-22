@@ -1,4 +1,4 @@
-use axum::http::{HeaderMap, HeaderValue};
+use axum::http::HeaderMap;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use jwt_ctx::Principal;

@@ -4,7 +4,7 @@ use crate::RouteConfig;
 use axum::body::Body;
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::http::{HeaderMap, HeaderName, HeaderValue, Request};
+use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use redis::aio::MultiplexedConnection;
@@ -69,49 +69,6 @@ pub async fn auth_middleware(
 
     let mut request = request;
     request.extensions_mut().insert(claims.clone());
-    inject_user_headers(request.headers_mut(), &claims);
 
     next.run(request).await
-}
-
-/// 把 JWT claims 里的 user 字段写入 X-User-* 冗余头，便于下游审计与字段级 fallback。
-/// 字段从 claims.custom 读，user-service 决定 schema。
-pub fn inject_user_headers(headers: &mut HeaderMap, claims: &crate::jwt::JwtClaims) {
-    if let Ok(v) = HeaderValue::from_str(&claims.sub) {
-        headers.insert(HeaderName::from_static("x-user-id"), v);
-    }
-    if let Some(v) = claims.custom.get("dept_id").and_then(|v| v.as_u64()) {
-        if let Ok(hv) = HeaderValue::from_str(&v.to_string()) {
-            headers.insert(HeaderName::from_static("x-user-dept"), hv);
-        }
-    }
-    if let Some(b) = claims
-        .custom
-        .get("is_dept_leader")
-        .and_then(|v| v.as_bool())
-    {
-        headers.insert(
-            HeaderName::from_static("x-user-dept-leader"),
-            HeaderValue::from_static(if b { "true" } else { "false" }),
-        );
-    }
-    if !claims.roles.is_empty() {
-        if let Ok(hv) = HeaderValue::from_str(&claims.roles.join(",")) {
-            headers.insert(HeaderName::from_static("x-user-roles"), hv);
-        }
-    }
-    if let Some(arr) = claims.custom.get("permissions").and_then(|v| v.as_array()) {
-        let joined: Vec<String> = arr
-            .iter()
-            .filter_map(|x| x.as_str().map(String::from))
-            .collect();
-        if let Ok(hv) = HeaderValue::from_str(&joined.join(",")) {
-            headers.insert(HeaderName::from_static("x-user-perms"), hv);
-        }
-    }
-    if let Some(s) = claims.custom.get("client_id").and_then(|v| v.as_str()) {
-        if let Ok(hv) = HeaderValue::from_str(s) {
-            headers.insert(HeaderName::from_static("x-user-client"), hv);
-        }
-    }
 }

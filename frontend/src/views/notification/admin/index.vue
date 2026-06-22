@@ -50,9 +50,9 @@ function reset() {
           clearable
           class="w-40!"
         >
-          <el-option label="draft" value="draft" />
-          <el-option label="published" value="published" />
-          <el-option label="revoked" value="revoked" />
+          <el-option label="草稿" value="draft" />
+          <el-option label="已发布" value="published" />
+          <el-option label="已撤销" value="revoked" />
         </el-select>
       </el-form-item>
       <el-form-item>

@@ -16,6 +16,14 @@
 | `coder-service-audit` | 服务审计、规范检查 | node scripts/check-service-standard.js --service <name> |
 | `coder-check-env` | 检查环境、环境检查 | pnpm run check:env |
 
+## 身份认证规则
+
+微服务身份传递必须遵循 [.trae/rules/auth-rules.md](.trae/rules/auth-rules.md)：
+
+- **禁止使用 X-User-* headers**，下游服务必须从 `Authorization: Bearer <jwt>` 解析 JWT payload
+- 使用 `libs/jwt-ctx` 库的 `Principal` extractor 提取用户身份
+- 下游服务不验证 JWT 签名，仅解码 payload
+
 ## 服务规范规则系统
 
 ### 概述

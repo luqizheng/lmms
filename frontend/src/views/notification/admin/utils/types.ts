@@ -10,8 +10,8 @@ export interface FormItemProps {
   popover: boolean;
   recipients: {
     scope_type: ScopeType;
-    scope_id: number;
-    name?: string;
+    scope_id: string;
+    name: string;
   }[];
 }
 
