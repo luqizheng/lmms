@@ -58,8 +58,8 @@ const { title, getDropdownItemStyle, getDropdownItemClass } = useNav();
 const { locale, translationCh, translationEn } = useTranslationLang();
 
 const ruleForm = reactive({
-  username: "",
-  password: "",
+  username: import.meta.env.DEV ? "e2eadmin" : "",
+  password: import.meta.env.DEV ? "P@ssw0rd!" : "",
   verifyCode: ""
 });
 
