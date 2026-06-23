@@ -292,6 +292,7 @@ pnpm run setup
 | `pnpm run ai:gen-e2e`                         | 从 OpenAPI 文档自动生成 E2E 测试用例             |
 | `pnpm run contracts:gen`                      | 生成契约代码（错误码、权限码）                    |
 | `pnpm run check:service-standard`             | 检查服务规范合规性                                |
+| `pnpm run check:spec`                         | 检查契约规范（权限码、错误码、OpenAPI）           |
 
 ### AI 辅助工具
 
@@ -333,6 +334,20 @@ pnpm run contracts:gen
 
 # CI 检查契约是否更新
 pnpm run contracts:check
+```
+
+#### 契约规范检查
+
+验证权限码、错误码和 OpenAPI 文档的规范性：
+
+```bash
+# 检查所有契约规范
+pnpm run check:spec
+
+# 检查内容包括：
+# - 权限码：格式是否正确（SERVICE_RESOURCE_ACTION）、是否重复
+# - 错误码：格式是否正确（SERVICE_CATEGORY_NUMBER）、是否重复
+# - OpenAPI：必填字段是否齐全（operationId、summary 等）
 ```
 
 ### 子包脚本

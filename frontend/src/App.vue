@@ -16,14 +16,7 @@ import { checkVersion } from "version-rocket";
 import { ElConfigProvider } from "element-plus";
 import { useRouter, useRoute } from "vue-router";
 import { useGlobal, useWatermark } from "@pureadmin/utils";
-import {
-  defineComponent,
-  computed,
-  watch,
-  nextTick,
-  ref,
-  onMounted
-} from "vue";
+import { defineComponent, computed, watch, nextTick, ref, onMounted } from "vue";
 import { ReDialog, closeAllDialog } from "@/components/ReDialog";
 import { ReDrawer, closeAllDrawer } from "@/components/ReDrawer";
 import ReAnnouncementModal from "@/components/ReAnnouncementModal";
