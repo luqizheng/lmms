@@ -19,6 +19,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 nanoid = "0.4"
 prometheus = "0.13"
+anyhow = "1"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

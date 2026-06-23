@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-19T00:48:18.419Z",
+  "generatedAt": "2026-06-23T05:13:40.185Z",
   "images": [
     {
       "ref": "alpine:3.21",
@@ -30,6 +30,11 @@
     {
       "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl",
       "source": "services\\api-gateway\\Dockerfile",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest",
+      "source": "infrastructure\\docker-compose.yml",
       "mirror": null
     }
   ]

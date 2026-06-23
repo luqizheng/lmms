@@ -353,14 +353,14 @@ impl UserService {
             None => return Err(IamError::UserNotFound),
         };
 
-        let roles: Vec<String> = sqlx::query_as(
+        let roles: Vec<String> = sqlx::query_scalar(
             "SELECT r.code FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_all(&self.state.db)
         .await?;
 
-        let permissions: Vec<String> = sqlx::query_as(
+        let permissions: Vec<String> = sqlx::query_scalar(
             "SELECT p.code FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.deleted_at IS NULL"
         )
         .bind(user_id)

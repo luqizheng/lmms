@@ -6,4 +6,8 @@ target
 *.swo
 .DS_Store
 docker/mysql/data
+docker-example/mysql
+docker-example/redis_data
+docker-example/config/mysql
+docker-example/config/redis_data
 *.sock
