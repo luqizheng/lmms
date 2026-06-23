@@ -13,15 +13,16 @@ description: "首次启动本地开发环境（拉取源码后 / 数据库已清
 
 ## 前置
 
-- Docker Desktop 已启动
+- 运行环境：WSL / macOS / Linux（Windows 必须在 WSL 内执行）
+- Docker 已启动
 - Node 18+ / pnpm
-- 所有命令在**项目根目录**执行，禁止写死盘符路径
+- 所有命令在**项目根目录**执行，禁止写死绝对路径
 
 ## 目录检查（每次执行前必做）
 
-```powershell
-Get-Location
-Test-Path infrastructure, scripts\check-dev-env.js, package.json
+```bash
+pwd
+test -d infrastructure && test -f scripts/check-dev-env.js && test -f package.json
 ```
 
 若不在根目录：`cd <仓库根>`。
@@ -30,13 +31,13 @@ Test-Path infrastructure, scripts\check-dev-env.js, package.json
 
 ### 1. 同步并预拉基础镜像
 
-```powershell
+```bash
 pnpm images:sync
 ```
 
 ### 2. 启动基础设施（首次需 build 业务镜像）
 
-```powershell
+```bash
 docker compose -f infrastructure/docker-compose.yml up -d --build
 ```
 
@@ -51,7 +52,7 @@ docker compose -f infrastructure/docker-compose.yml up -d --build
 
 ### 3. 等待健康
 
-```powershell
+```bash
 docker compose -f infrastructure/docker-compose.yml ps
 ```
 
@@ -66,7 +67,7 @@ docker compose -f infrastructure/docker-compose.yml ps
 
 ### 5. 环境检查
 
-```powershell
+```bash
 pnpm check:env
 ```
 
@@ -76,7 +77,7 @@ pnpm check:env
 
 自动注册 `e2eadmin / P@ssw0rd!` 并跑认证用例：
 
-```powershell
+```bash
 pnpm -C tests/e2e install
 node scripts/run-e2e-local.js auth
 ```
@@ -103,12 +104,12 @@ node scripts/run-e2e-local.js auth
 
 ## 故障排查
 
-- 端口冲突：`Get-NetTCPConnection -LocalPort 3000`
+- 端口冲突：`lsof -i :3000` 或 `ss -lntp | grep :3000`
 - 镜像拉不动：`pnpm images:sync` 重试，必要时按 `coder-base-images-sync` skill 设 mirror
 - 容器 unhealthy：`docker logs <container>`，优先排查 `infrastructure-mysql-1`
 - api-gateway 卡在等 jwks：先看 `infrastructure-token-service-1` 日志
 - 彻底重置环境（再次清库）：
-  ```powershell
+  ```bash
   docker compose -f infrastructure/docker-compose.yml down -v
   ```
 

@@ -11,7 +11,8 @@ description: "Audits services against AGENTS.md standards. Invoke when user asks
 
 ## 前置
 
-- 工作目录：`d:\projects\coder-micro-services`
+- 运行环境：WSL / macOS / Linux（Windows 必须在 WSL 内执行）
+- 工作目录：项目根目录
 - Node.js 18+
 
 ## 步骤

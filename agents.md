@@ -16,6 +16,10 @@
 | `coder-service-audit`          | 服务审计、规范检查       | node scripts/check-service-standard.js --service <name> |
 | `coder-check-env`              | 检查环境、环境检查       | pnpm run check:env                                      |
 
+## 开发环境
+
+默认使用 WSL / macOS / Linux，所有脚本、命令、路径示例均基于类 Unix 环境。Windows 用户必须在 WSL 中执行，禁止使用原生 PowerShell / CMD。
+
 ## 身份认证规则
 
 微服务身份传递必须遵循 [.trae/rules/auth-rules.md](.trae/rules/auth-rules.md)：

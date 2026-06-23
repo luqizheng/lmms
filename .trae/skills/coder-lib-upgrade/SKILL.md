@@ -11,8 +11,9 @@ description: "Upgrades common-* libraries (common, common-http, common-crypto, e
 
 ## 前置
 
-- 工作目录：`d:\projects\coder-micro-services`
-- Rust工具链已安装
+- 运行环境：WSL / macOS / Linux（Windows 必须在 WSL 内执行）
+- 工作目录：项目根目录
+- Rust 工具链已安装
 
 ## 步骤
 
