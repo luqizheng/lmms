@@ -16,7 +16,7 @@ export interface Announcement {
   pinned: boolean;
   popover: boolean;
   status: AnnouncementStatus;
-  created_by: number;
+  created_by: string;
   created_at: string;
 }
 
@@ -27,7 +27,7 @@ export interface CreateAnnouncementDto {
   expire_at?: string | null;
   pinned?: boolean;
   popover?: boolean;
-  recipients: { scope_type: ScopeType; scope_id: number }[];
+  recipients: { scope_type: ScopeType; scope_id: string }[];
 }
 
 export function listAnnouncements() {

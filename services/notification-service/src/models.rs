@@ -41,7 +41,7 @@ pub struct Announcement {
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct ScopeInput {
     pub scope_type: ScopeType,
-    pub scope_id: u64,
+    pub scope_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]

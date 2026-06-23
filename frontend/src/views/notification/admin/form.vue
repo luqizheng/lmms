@@ -23,7 +23,7 @@ watch(
 function getRef() {
   return ruleFormRef.value;
 }
-defineExpose({ getRef });
+defineExpose({ getRef, newFormInline });
 </script>
 
 <template>

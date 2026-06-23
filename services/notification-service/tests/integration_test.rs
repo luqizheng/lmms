@@ -22,16 +22,16 @@ async fn create_then_publish_then_read_flow() {
                 popover: true,
                 recipients: vec![ScopeInput {
                     scope_type: ScopeType::User,
-                    scope_id: 42,
+                    scope_id: "42".into(),
                 }],
             },
-            9001,
+            "9001".into(),
         )
         .await
         .unwrap();
     db.set_status(id, Status::Published).await.unwrap();
-    let changed = db.mark_read(id, 42).await.unwrap();
+    let changed = db.mark_read(id, "42".into()).await.unwrap();
     assert!(changed);
-    r.decr_unread_floor0(42).await.unwrap();
-    assert!(r.get_unread(42).await.unwrap() <= 0);
+    r.decr_unread_floor0("42".into()).await.unwrap();
+    assert!(r.get_unread("42".into()).await.unwrap() <= 0);
 }

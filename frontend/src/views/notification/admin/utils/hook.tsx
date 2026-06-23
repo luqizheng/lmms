@@ -1,7 +1,8 @@
 import dayjs from "dayjs";
 import { reactive, ref, onMounted, h } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { addDialog } from "@/components/ReDialog";
+import { useDebounceFn } from "@vueuse/core";
+import { addDialog, closeDialog } from "@/components/ReDialog";
 import {
   listAnnouncements,
   createAnnouncement,
@@ -88,6 +89,46 @@ export function useAdmin() {
       recipients: []
     };
     let formRef: any = null;
+    const submitPublish = useDebounceFn(async (options: any, index: number) => {
+      if (!formRef) return;
+      const cur = formRef.newFormInline;
+      if (!cur) return;
+      try {
+        let id = cur.id;
+          if (!isEdit) {
+            const recipients = (cur.recipients || [])
+              .filter((r: any) => r?.scope_id != null && r.scope_id !== "")
+              .map((r: any) => ({
+                scope_type: r.scope_type,
+                scope_id: r.scope_id
+              }));
+            if (recipients.length === 0) {
+              ElMessage.error("请至少选择一个有效的接收人");
+              return;
+            }
+            const created = await createAnnouncement({
+              title: cur.title,
+              body: cur.body,
+              publish_at: cur.publish_at,
+              expire_at: cur.expire_at,
+              pinned: cur.pinned,
+              popover: cur.popover,
+              recipients
+            });
+            id = (created as any)?.id ?? id;
+          }
+        if (!id) {
+          ElMessage.error("缺少公告 ID，无法发布");
+          return;
+        }
+        await publishAnnouncement(id);
+        ElMessage.success("已发布");
+        closeDialog(options, index);
+        onSearch();
+      } catch (e: any) {
+        ElMessage.error(`发布失败：${e?.message ?? e}`);
+      }
+    }, 300);
     addDialog({
       title: isEdit ? "修改公告" : "新建公告",
       width: "640px",
@@ -102,34 +143,21 @@ export function useAdmin() {
           formInline: options.props.formInline,
           isEdit
         }),
-      beforeSure: async done => {
-        if (!formRef) return;
-        const cur = formRef.getRef()?.newFormInline;
-        if (!cur) return;
-        try {
-          if (!isEdit) {
-            await createAnnouncement({
-              title: cur.title,
-              body: cur.body,
-              publish_at: cur.publish_at,
-              expire_at: cur.expire_at,
-              pinned: cur.pinned,
-              popover: cur.popover,
-              recipients: cur.recipients.map((r: any) => ({
-                scope_type: r.scope_type,
-                scope_id: Number(r.scope_id)
-              }))
-            });
-            ElMessage.success("创建成功");
-          } else {
-            ElMessage.warning("修改功能未实现，请用发布/撤销控制状态");
+      footerButtons: [
+        {
+          label: "取消",
+          btnClick: ({ dialog: { options, index } }) => {
+            closeDialog(options, index);
           }
-          done();
-          onSearch();
-        } catch (e: any) {
-          ElMessage.error(`操作失败：${e?.message ?? e}`);
+        },
+        {
+          label: "发布",
+          type: "primary",
+          btnClick: ({ dialog: { options, index } }) => {
+            submitPublish(options, index);
+          }
         }
-      }
+      ]
     });
   }
 

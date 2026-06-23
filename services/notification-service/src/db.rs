@@ -119,7 +119,7 @@ impl Db {
             sqlx::query(
                 "INSERT INTO announcement_recipients (announcement_id, scope_type, scope_id) VALUES (?,?,?)"
             )
-            .bind(id).bind(s.scope_type).bind(s.scope_id)
+            .bind(id).bind(s.scope_type).bind(&s.scope_id)
             .execute(&mut *tx).await?;
         }
         tx.commit().await?;
@@ -142,8 +142,8 @@ impl Db {
         ).bind(id).fetch_optional(&self.pool).await?)
     }
 
-    pub async fn list_recipient_scopes(&self, ann_id: u64) -> AppResult<Vec<(ScopeType, u64)>> {
-        let rows: Vec<(String, u64)> = sqlx::query_as(
+    pub async fn list_recipient_scopes(&self, ann_id: u64) -> AppResult<Vec<(ScopeType, String)>> {
+        let rows: Vec<(String, String)> = sqlx::query_as(
             "SELECT scope_type, scope_id FROM announcement_recipients WHERE announcement_id=?",
         )
         .bind(ann_id)
