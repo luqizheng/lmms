@@ -1,3 +1,30 @@
+<template>
+  <ElSelect
+    v-model="selectedId"
+    :multiple="multiple"
+    :placeholder="placeholder"
+    :disabled="disabled"
+    :loading="loading"
+    :filterable="true"
+    :remote="true"
+    :remote-method="handleRemoteSearch"
+    :clearable="!disabled"
+    class="re-user-selector"
+    @clear="handleClear"
+  >
+    <ElOption
+      v-for="user in userList"
+      :key="user.id"
+      :label="user.nickname"
+      :value="user.id"
+    >
+      <span class="option-name">{{ user.nickname }}</span>
+    </ElOption>
+    <template #empty>
+      {{ searchKeyword ? "未找到匹配用户" : "请输入关键词搜索" }}
+    </template>
+  </ElSelect>
+</template>
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from "vue";
 import { ElSelect, ElOption } from "element-plus";
@@ -117,35 +144,6 @@ onUnmounted(() => {
   if (debounceTimer) clearTimeout(debounceTimer);
 });
 </script>
-
-<template>
-  <ElSelect
-    v-model="selectedId"
-    :multiple="multiple"
-    :placeholder="placeholder"
-    :disabled="disabled"
-    :loading="loading"
-    :filterable="true"
-    :remote="true"
-    :remote-method="handleRemoteSearch"
-    :clearable="!disabled"
-    class="re-user-selector"
-    @clear="handleClear"
-  >
-    <ElOption
-      v-for="user in userList"
-      :key="user.id"
-      :label="user.nickname"
-      :value="user.id"
-    >
-      <span class="option-name">{{ user.nickname }}</span>
-    </ElOption>
-    <template #empty>
-      {{ searchKeyword ? "未找到匹配用户" : "请输入关键词搜索" }}
-    </template>
-  </ElSelect>
-</template>
-
 <style scoped>
 .re-user-selector {
   width: 100%;

@@ -2,25 +2,25 @@
 
 ## Skill 索引
 
-| Skill | 触发关键词 | 命令 |
-|---|---|---|
-| `coder-run-tests` | 测试、test | node scripts/run-e2e-local.js |
-| `coder-base-images-sync` | base images、镜像清单 | node scripts/base-images-sync.js |
-| `coder-route-validate` | 校验路由、reload | cargo run -p api-gateway -- validate |
-| `coder-spec-to-code` | spec-to-code、写测试用例 | node scripts/spec-to-code.js |
-| `coder-sdk-publish` | 发 SDK、sdk:publish | node scripts/sdk-publish.js |
-| `coder-microservice-dev` | 起服务、本地开发 | node scripts/dev-services.js |
-| `coder-service-standard-check` | 检查服务规范、standard | node scripts/check-service-standard.js |
-| `coder-e2e-test` | E2E测试、登录验证 | node scripts/run-e2e-local.js |
-| `coder-lib-upgrade` | 升级通用库 | cargo upgrade -p <lib> |
-| `coder-service-audit` | 服务审计、规范检查 | node scripts/check-service-standard.js --service <name> |
-| `coder-check-env` | 检查环境、环境检查 | pnpm run check:env |
+| Skill                          | 触发关键词               | 命令                                                    |
+| ------------------------------ | ------------------------ | ------------------------------------------------------- |
+| `coder-run-tests`              | 测试、test               | node scripts/run-e2e-local.js                           |
+| `coder-base-images-sync`       | base images、镜像清单    | node scripts/base-images-sync.js                        |
+| `coder-route-validate`         | 校验路由、reload         | cargo run -p api-gateway -- validate                    |
+| `coder-spec-to-code`           | spec-to-code、写测试用例 | node scripts/spec-to-code.js                            |
+| `coder-sdk-publish`            | 发 SDK、sdk:publish      | node scripts/sdk-publish.js                             |
+| `coder-microservice-dev`       | 起服务、本地开发         | node scripts/dev-services.js                            |
+| `coder-service-standard-check` | 检查服务规范、standard   | node scripts/check-service-standard.js                  |
+| `coder-e2e-test`               | E2E测试、登录验证        | node scripts/run-e2e-local.js                           |
+| `coder-lib-upgrade`            | 升级通用库               | cargo upgrade -p <lib>                                  |
+| `coder-service-audit`          | 服务审计、规范检查       | node scripts/check-service-standard.js --service <name> |
+| `coder-check-env`              | 检查环境、环境检查       | pnpm run check:env                                      |
 
 ## 身份认证规则
 
 微服务身份传递必须遵循 [.trae/rules/auth-rules.md](.trae/rules/auth-rules.md)：
 
-- **禁止使用 X-User-* headers**，下游服务必须从 `Authorization: Bearer <jwt>` 解析 JWT payload
+- **禁止使用 X-User-\* headers**，下游服务必须从 `Authorization: Bearer <jwt>` 解析 JWT payload
 - 使用 `libs/jwt-ctx` 库的 `Principal` extractor 提取用户身份
 - 下游服务不验证 JWT 签名，仅解码 payload
 
@@ -98,6 +98,7 @@ docker run --rm --network host \
 **格式**: `https://gh-proxy.org/<原始链接>`
 
 **示例**:
+
 - 原始: `https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip`
 - 代理: `https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip`
 
@@ -109,11 +110,11 @@ docker run --rm --network host \
 
 ### 文件结构
 
-| 文件 | 用途 |
-|---|---|
-| error-codes.yaml | 全局错误码字典 |
-| permissions.yaml | 权限码字典 |
-| events.yaml | 领域事件名（预留） |
+| 文件                | 用途                    |
+| ------------------- | ----------------------- |
+| error-codes.yaml    | 全局错误码字典          |
+| permissions.yaml    | 权限码字典              |
+| events.yaml         | 领域事件名（预留）      |
 | http-conventions.md | HTTP 响应/分页/排序约定 |
 
 ### 代码生成
@@ -123,6 +124,7 @@ node scripts/contracts-gen.js
 ```
 
 生成目标：
+
 - `libs/common-error/src/codes.rs` — Rust 错误码常量
 - `libs/authz/src/perms.rs` — Rust 权限码常量
 - `frontend/src/contracts/*.ts` — TypeScript 类型（预留）
