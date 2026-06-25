@@ -2,6 +2,7 @@ group: notification-service
 cases:
   - caseId: NOTIF-001
     desc: 创建公告
+    smoke: true
     method: POST
     path: /v1/notification/announcements
     body:

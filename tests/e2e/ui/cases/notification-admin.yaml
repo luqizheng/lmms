@@ -2,6 +2,8 @@ group: notification-admin
 cases:
   - caseId: UI-NOTIF-001
     desc: 创建公告-仅标题
+    smoke: true
+    tags: ['@smoke']
     flow: createAnnouncement
     params:
       title: e2e公告${rand}

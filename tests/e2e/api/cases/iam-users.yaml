@@ -2,6 +2,7 @@ group: iam-users
 cases:
   - caseId: IAM-USER-001
     desc: 创建用户
+    smoke: true
     method: POST
     path: /v1/iam/users
     body:

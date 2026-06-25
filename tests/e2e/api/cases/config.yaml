@@ -2,6 +2,7 @@ group: config-service
 cases:
   - caseId: CONFIG-001
     desc: 列出命名空间
+    smoke: true
     method: GET
     path: /v1/config/namespace?page=1&size=10
     expectStatus: [200, 502, 404]

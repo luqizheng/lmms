@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import { config } from '../shared/config';
 import { resetBase } from '../shared/db/reset';
+import { preflight } from '../shared/health';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default async function () {
+  await preflight();
   await resetBase();
 
   // admin 由 API 注册（首个用户即 admin），保证密码哈希正确

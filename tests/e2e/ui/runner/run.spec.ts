@@ -3,7 +3,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from '@playwright/test';
 import { resetBusiness } from '../../shared/db/reset';
-import { readCases, resolve, type UiCase } from '../../shared/data/cases';
+import {
+  readCases,
+  resolve,
+  filterBySmoke,
+  type UiCase,
+} from '../../shared/data/cases';
 import {
   writeReport,
   writeErrorJson,
@@ -17,6 +22,8 @@ const files = readdirSync(casesDir).filter((f) => /\.ya?ml$/.test(f));
 const results: CaseResult[] = [];
 const ctx: Record<string, unknown> = {};
 
+const SMOKE_ONLY = process.env.E2E_SMOKE === '1';
+
 test.beforeAll(async () => {
   await resetBusiness();
 });
@@ -27,8 +34,10 @@ test.afterAll(async () => {
 
 for (const file of files) {
   const { group, cases } = readCases<UiCase>(join(casesDir, file));
+  const filtered = filterBySmoke(cases, SMOKE_ONLY);
+  if (filtered.length === 0) continue;
   test.describe(`${file} > ${group}`, () => {
-    for (const c of cases) {
+    for (const c of filtered) {
       const runner = c.skip ? test.skip : test;
       runner(`${c.caseId} ${c.desc}`, async ({ page }) => {
         const start = Date.now();

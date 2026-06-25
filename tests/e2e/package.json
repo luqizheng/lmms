@@ -6,7 +6,9 @@
   "scripts": {
     "test": "pnpm run test:api && pnpm run test:ui",
     "test:api": "vitest run --config api/vitest.config.ts",
-    "test:ui": "playwright test --config ui/playwright.config.ts"
+    "test:ui": "playwright test --config ui/playwright.config.ts",
+    "test:smoke": "E2E_SMOKE=1 vitest run --config api/vitest.config.ts",
+    "test:smoke:ui": "playwright test --config ui/playwright.config.ts --grep @smoke"
   },
   "devDependencies": {
     "@playwright/test": "^1.48",

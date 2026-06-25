@@ -13,6 +13,8 @@ export interface ApiCase {
   expectStatus: number | string | Array<number | string>; // 单值或容忍数组
   expect?: string[]; // 断言表达式数组
   skip?: boolean;
+  smoke?: boolean; // true → 纳入 smoke 子集（test:smoke）
+  timeoutMs?: number; // 覆盖默认 testTimeout
 }
 
 export interface UiCase {
@@ -22,6 +24,8 @@ export interface UiCase {
   params?: Record<string, unknown>;
   expect?: string[]; // 形如 ["toast=已新增用户"]
   skip?: boolean;
+  smoke?: boolean; // true → 纳入 smoke 子集
+  tags?: string[]; // 例如 ['@smoke'] 用于 playwright grep
 }
 
 interface CaseFile<T> {
@@ -66,6 +70,14 @@ function resolveString(input: string, ctx: Record<string, unknown>): string {
       const val = field.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], resp);
       return String(val ?? '');
     });
+}
+
+// 按 smoke 标记过滤；smokeOnly=false 返回全部
+export function filterBySmoke<T extends { smoke?: boolean }>(
+  cases: T[],
+  smokeOnly: boolean,
+): T[] {
+  return smokeOnly ? cases.filter((c) => c.smoke === true) : cases;
 }
 
 // 状态码匹配：期望可为单值或数组（容忍多状态）

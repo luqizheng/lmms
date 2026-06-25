@@ -2,6 +2,7 @@ group: menu-configs
 cases:
   - caseId: MENU-001
     desc: 列出菜单配置
+    smoke: true
     method: GET
     path: /v1/pure/menu-configs
     expectStatus: 200

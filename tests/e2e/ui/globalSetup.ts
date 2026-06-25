@@ -1,8 +1,10 @@
 import { resetBase } from '../shared/db/reset';
 import { config } from '../shared/config';
+import { preflight } from '../shared/health';
 import request from 'supertest';
 
 export default async function () {
+  await preflight();
   await resetBase();
 
   // admin 由 API 注册，保证密码哈希正确（UI 登录用同一账号）

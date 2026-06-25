@@ -5,7 +5,14 @@ import { afterAll, beforeAll, describe, it } from 'vitest';
 import request from 'supertest';
 import { config } from '../../shared/config';
 import { resetBusiness } from '../../shared/db/reset';
-import { readCases, resolve, assertBody, statusMatches, type ApiCase } from '../../shared/data/cases';
+import {
+  readCases,
+  resolve,
+  assertBody,
+  statusMatches,
+  filterBySmoke,
+  type ApiCase,
+} from '../../shared/data/cases';
 import {
   writeReport,
   writeErrorJson,
@@ -23,6 +30,8 @@ const ctx: Record<string, unknown> = {};
 const casesDir = join(__dirname, '..', 'cases');
 const files = readdirSync(casesDir).filter((f) => /\.ya?ml$/.test(f));
 
+const SMOKE_ONLY = process.env.E2E_SMOKE === '1';
+
 beforeAll(async () => {
   await resetBusiness();
 });
@@ -34,8 +43,10 @@ afterAll(() => {
 
 for (const file of files) {
   const { group, cases } = readCases<ApiCase>(join(casesDir, file));
+  const filtered = filterBySmoke(cases, SMOKE_ONLY);
+  if (filtered.length === 0) continue;
   describe(`${file} > ${group}`, () => {
-    for (const c of cases) {
+    for (const c of filtered) {
       const run = c.skip ? it.skip : it;
       run(`${c.caseId} ${c.desc}`, async () => {
         const start = Date.now();
@@ -83,7 +94,7 @@ for (const file of files) {
             `${c.caseId} FAIL: status=${res.status} (期望${c.expectStatus}) ${bodyCheck.reason ?? ''}`,
           );
         }
-      });
+      }, c.timeoutMs ?? 20000);
     }
   });
 }

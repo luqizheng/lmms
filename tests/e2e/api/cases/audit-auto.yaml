@@ -2,6 +2,7 @@ group: audit-service
 cases:
   - caseId: HEALTH
     desc: health
+    smoke: true
     method: GET
     path: /v1/health
     expectStatus: [200,201,204,502,503,404]

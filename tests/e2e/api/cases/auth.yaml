@@ -2,6 +2,7 @@ group: auth
 cases:
   - caseId: AUTH-001
     desc: admin 登录返回 access_token
+    smoke: true
     method: POST
     path: /v1/iam/auth/login
     auth: false
