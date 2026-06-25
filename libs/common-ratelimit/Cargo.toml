@@ -1,0 +1,14 @@
+[package]
+name = "common-ratelimit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+prometheus = "0.13"
+tracing.workspace = true
+chrono.workspace = true
+redis = { workspace = true, features = ["tokio-comp", "connection-manager"] }

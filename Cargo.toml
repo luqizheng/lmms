@@ -4,6 +4,7 @@ members = [
     "libs/common-error",
     "libs/common-log",
     "libs/common-telemetry",
+    "libs/common-ratelimit",
     "libs/common-config",
     "libs/common-db",
     "libs/common-cache",

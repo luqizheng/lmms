@@ -158,11 +158,15 @@ These are real issues we've hit. Save yourself an afternoon:
 
 13. **Gateway rate limit returns 429 with `Retry-After`** — check `infrastructure/config/api-gateway/rate-limits.toml` for per-route overrides. Default is 100 rps / 200 burst; auth endpoints are stricter (5 rps / 10 burst on `/v1/iam/auth/login`). To add a new route limit, append to that TOML and restart the gateway.
 
+13. **Service-side rate limit opt-in via `common-ratelimit`** — Redis sliding window, shared across replicas. Opt-in pattern in `services/notification-service/src/rest.rs`. Fails open on Redis errors. Different from gateway rate limit (P3.2 in-memory). See `libs/common-ratelimit/` and `docs/USER_MANUAL.md#7-rate-limiting`.
+
 14. **Canary via `canary` tag in Consul** — instances tagged `canary` in Consul receive ~10% of traffic via Nginx `split_clients`. Use `?canary=1` query param or `X-Canary: true` header to force canary for testing. See `docs/guides/canary-rollout.md`.
 
-15. **Smoke subset via `E2E_SMOKE=1`** — only runs cases with `smoke: true` flag. The 8 API cases + 2 UI cases take ~2 min vs ~5 min for full API. CI should always run full; smoke is for dev iteration. See `docs/guides/testing.md`.
+15. **Dual-layer rate limit** — gateway (in-memory token bucket, P3.2) + service-side (Redis sliding window, P3.2b) compose. Gateway handles coarse anti-DDoS, services handle fine business-logic limits (e.g. `5 announcements per admin per minute` in notification-service). Service-side `common-ratelimit` lib is the opt-in for any service; check `services/notification-service/src/rest.rs` for the pattern. Fails open on Redis errors (logs warn, allows request).
 
-16. **E2E preflight health check** — `tests/e2e/shared/health.ts` probes `/health` and `/iam/health` BEFORE tests run. If infra isn't up, you get a clear error pointing to `infrastructure/docker-compose.yml` instead of cascading failures.
+16. **Smoke subset via `E2E_SMOKE=1`** — only runs cases with `smoke: true` flag. The 8 API cases + 2 UI cases take ~2 min vs ~5 min for full API. CI should always run full; smoke is for dev iteration. See `docs/guides/testing.md`.
+
+17. **E2E preflight health check** — `tests/e2e/shared/health.ts` probes `/health` and `/iam/health` BEFORE tests run. If infra isn't up, you get a clear error pointing to `infrastructure/docker-compose.yml` instead of cascading failures.
 
 ---
 

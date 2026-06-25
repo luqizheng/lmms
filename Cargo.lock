@@ -961,6 +961,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-ratelimit"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "chrono",
+ "prometheus 0.13.4",
+ "redis",
+ "serde",
+ "serde_json",
+ "tokio 1.52.3",
+ "tracing",
+]
+
+[[package]]
 name = "common-telemetry"
 version = "0.1.0"
 dependencies = [
@@ -3250,6 +3264,7 @@ dependencies = [
  "async-trait",
  "axum 0.8.9",
  "chrono",
+ "common-ratelimit",
  "common-telemetry",
  "config",
  "consul-registrar",

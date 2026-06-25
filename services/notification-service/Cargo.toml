@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 consul-registrar = { path = "../../libs/consul-registrar" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+common-ratelimit = { path = "../../libs/common-ratelimit" }
 axum = { workspace = true, features = ["ws", "macros"] }
 tokio = { workspace = true }
 tower = { workspace = true }

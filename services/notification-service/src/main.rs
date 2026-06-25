@@ -30,6 +30,9 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| "config/config.yaml".to_string());
     let cfg = AppConfig::load(std::path::Path::new(&path))?;
     common_telemetry::init_tracing("notification-service");
+    common_ratelimit::init_metrics("notification-service");
+    // Tell rate-limit middleware which service it is (for metric labels)
+    std::env::set_var("SERVICE_NAME", "notification-service");
     println!("==== notification-service config ====");
     println!("config_path: {}", path);
     match serde_json::to_string_pretty(&cfg) {
@@ -47,6 +50,10 @@ async fn main() -> anyhow::Result<()> {
     let rest_state = rest::RestState {
         db: db.clone(),
         redis: redis.clone(),
+        rate_limiter: common_ratelimit::RateLimiter::new(
+            redis.conn.clone(),
+            rest::default_limits(),
+        ),
     };
     let ws_state = ws::WsState { hub: hub.clone() };
 

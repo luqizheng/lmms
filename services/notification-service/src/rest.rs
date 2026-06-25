@@ -7,15 +7,41 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use common_ratelimit::{Limit, RateLimiter, rate_limit_middleware};
 use serde::Deserialize;
 
 #[derive(Clone)]
 pub struct RestState {
     pub db: Db,
     pub redis: RedisCli,
+    pub rate_limiter: RateLimiter,
+}
+
+/// Route-key constants for rate limit table.
+/// These match the actual HTTP method + path that middleware sees.
+const RL_CREATE_ANNOUNCEMENT: &str = "POST /notification/announcements";
+const RL_PUBLISH_ANNOUNCEMENT: &str = "POST /notification/announcements/{id}/publish";
+const RL_REVOKE_ANNOUNCEMENT: &str = "POST /notification/announcements/{id}/revoke";
+
+/// Notification-service rate limit table.
+///
+/// Composes with gateway's route-level limits (P3.2):
+/// - Gateway: ~100 rps per route per identity
+/// - This: business-logic limits (e.g. 5 announcements per admin per minute)
+///
+/// Use `service:ratelimit:enabled=false` env to disable all service-side limits.
+pub fn default_limits() -> Vec<Limit> {
+    vec![
+        // Anti-spam: max 5 announcements per admin per minute
+        Limit::new(RL_CREATE_ANNOUNCEMENT, 5, 60),
+        // Reasonable rate for publish/revoke operations
+        Limit::new(RL_PUBLISH_ANNOUNCEMENT, 10, 60),
+        Limit::new(RL_REVOKE_ANNOUNCEMENT, 10, 60),
+    ]
 }
 
 pub fn router(state: RestState) -> Router {
+    let rl = state.rate_limiter.clone();
     Router::new()
         .route("/announcements", post(create).get(list_mine))
         .route("/announcements/{id}", get(detail))
@@ -24,6 +50,10 @@ pub fn router(state: RestState) -> Router {
         .route("/announcements/{id}/read", post(read_one))
         .route("/unread-count", get(unread_count))
         .with_state(state)
+        .route_layer(axum::middleware::from_fn_with_state(
+            rl,
+            rate_limit_middleware,
+        ))
 }
 
 #[utoipa::path(

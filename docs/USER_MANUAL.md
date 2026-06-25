@@ -428,14 +428,44 @@ node scripts/check-service-standard.js && \
 
 ## 7. Rate Limiting
 
-### 7.1 How it works
+### 7.1 How it works — dual-layer architecture
 
-Api-gateway enforces per-route token bucket rate limits via the `governor` crate. Identity priority:
-1. `X-User-Id` (from JWT validation in extensions)
-2. `X-Real-IP` (nginx-injected)
-3. Peer IP (fallback)
+Rate limiting is **two independent layers**:
 
-### 7.2 Configuration
+**Layer 1: Gateway (P3.2)** — coarse route-level limits
+- Algorithm: in-memory `governor` token bucket
+- Identity: user_id → X-Real-IP → peer IP
+- Scope: anti-DDoS, anti-brute-force, fair-use
+- Storage: per-instance in-memory
+- Config: `infrastructure/config/api-gateway/rate-limits.toml`
+
+**Layer 2: Service-side (P3.2b)** — fine business-logic limits
+- Algorithm: Redis sliding-window ZSET
+- Identity: X-User-Id → Authorization header → peer IP
+- Scope: business rules (e.g. "5 announcements per admin per minute")
+- Storage: shared across replicas via Redis
+- Config: hard-coded in service `default_limits()` for now
+
+```
+Request
+  ↓
+[Nginx]
+  ↓
+[api-gateway]
+  ├─ JWT validation (X-User-Id injection)
+  ├─ Gateway rate limit (route-level, in-memory)
+  ├─ Blacklist check
+  └─ Proxy handler (injects traceparent)
+      ↓
+  [Downstream service, e.g. notification-service]
+      └─ Service-side rate limit (business-logic, Redis)
+          ↓
+      [Handler]
+```
+
+A request passes both layers, or fails one and gets 429.
+
+### 7.2 Gateway configuration
 
 `infrastructure/config/api-gateway/rate-limits.toml`:
 
@@ -451,23 +481,53 @@ burst = 10
 
 Edit and restart the gateway to apply changes.
 
-### 7.3 Response when limited
+### 7.3 Service-side configuration (notification-service example)
+
+In `services/notification-service/src/rest.rs`:
+
+```rust
+pub fn default_limits() -> Vec<Limit> {
+    vec![
+        Limit::new("POST /notification/announcements", 5, 60),      // anti-spam
+        Limit::new("POST /notification/announcements/{id}/publish", 10, 60),
+        Limit::new("POST /notification/announcements/{id}/revoke", 10, 60),
+    ]
+}
+```
+
+Currently `notification-service` is the first service with service-side limits. Other services can opt in by:
+
+1. Add `common-ratelimit = { path = "../../libs/common-ratelimit" }` to Cargo.toml
+2. Create `RateLimiter::new(redis.conn.clone(), default_limits())`
+3. Add `.route_layer(axum::middleware::from_fn_with_state(rate_limiter, rate_limit_middleware))`
+4. Call `common_ratelimit::init_metrics("service-name")` in main
+
+### 7.4 Response when limited
 
 ```http
 HTTP/1.1 429 Too Many Requests
-Retry-After: 1
+Retry-After: 60
 Content-Type: application/json
 
 {
   "code": "RATE_LIMITED",
   "message": "too many requests",
-  "retry_after_ms": 1000
+  "retry_after_ms": 60000
 }
 ```
 
-### 7.4 Observability
+### 7.5 Failure mode
 
-`gateway_rate_limited_total{route="..."}` Prometheus counter. Visible in Grafana → Gateway Overview → "Rate Limited (req/s by route)" panel.
+**Service-side rate limiter fails open**: if Redis is unreachable, the request is allowed (with a `warn` log). Reason: Redis going down shouldn't break the whole product. Gateway rate limiter (in-memory) still works.
+
+### 7.6 Observability
+
+| Metric | Layer | Labels |
+|--------|-------|--------|
+| `gateway_rate_limited_total` | gateway | route |
+| `service_rate_limited_total` | service | service, route |
+
+Both visible in Grafana → Gateway Overview → "Rate Limited (req/s by route)" panel (the service metric will need its own panel once more services opt in).
 
 ---
 
