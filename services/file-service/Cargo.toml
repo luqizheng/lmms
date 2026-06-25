@@ -16,6 +16,8 @@ uuid.workspace = true
 bytes.workspace = true
 futures.workspace = true
 prometheus = "0.13"
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tokio-util = { version = "0.7", features = ["io"] }
 async-trait = "0.1"
 common-error = { path = "../../libs/common-error" }
