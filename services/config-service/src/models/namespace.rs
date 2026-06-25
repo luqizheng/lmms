@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Namespace {
     pub id: String,
     pub app: String,
@@ -13,7 +14,7 @@ pub struct Namespace {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateNamespace {
     pub app: String,
     pub env: String,
@@ -21,12 +22,12 @@ pub struct CreateNamespace {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateNamespace {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct QueryNamespaces {
     pub app: Option<String>,
     pub env: Option<String>,
@@ -44,7 +45,7 @@ fn default_size() -> Option<u32> {
     Some(20)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PagedNamespaces {
     pub items: Vec<Namespace>,
     pub total: i64,

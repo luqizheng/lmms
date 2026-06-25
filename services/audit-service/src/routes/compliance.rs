@@ -15,7 +15,15 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn export_operation_csv(
+#[utoipa::path(
+    get,
+    path = "/audit/export/compliance/operation/csv",
+    responses(
+        (status = 200, description = "CSV export of operation logs", body = String),
+    ),
+    tag = "compliance"
+)]
+pub async fn export_operation_csv(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> AppResult<impl axum::response::IntoResponse> {
@@ -42,7 +50,15 @@ async fn export_operation_csv(
     ))
 }
 
-async fn export_operation_json(
+#[utoipa::path(
+    get,
+    path = "/audit/export/compliance/operation/json",
+    responses(
+        (status = 200, description = "JSON export of operation logs", body = String),
+    ),
+    tag = "compliance"
+)]
+pub async fn export_operation_json(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> AppResult<impl axum::response::IntoResponse> {
@@ -56,7 +72,15 @@ async fn export_operation_json(
     ))
 }
 
-async fn export_login_csv(
+#[utoipa::path(
+    get,
+    path = "/audit/export/compliance/login/csv",
+    responses(
+        (status = 200, description = "CSV export of login logs", body = String),
+    ),
+    tag = "compliance"
+)]
+pub async fn export_login_csv(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> AppResult<impl axum::response::IntoResponse> {

@@ -8,7 +8,18 @@ pub fn routes(state: AppState) -> axum::Router {
         .with_state(state)
 }
 
-async fn create_presign(
+#[utoipa::path(
+    post,
+    path = "/file/presign",
+    request_body = CreatePresignUrl,
+    responses(
+        (status = 200, description = "Presigned URL", body = PresignUrlResponse),
+        (status = 401, description = "Presign expired"),
+        (status = 404, description = "File not found"),
+    ),
+    tag = "presign"
+)]
+pub async fn create_presign(
     State(state): State<AppState>,
     Json(req): Json<CreatePresignUrl>,
 ) -> Result<Json<PresignUrlResponse>, (StatusCode, &'static str)> {

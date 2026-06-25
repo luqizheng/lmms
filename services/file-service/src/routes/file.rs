@@ -13,7 +13,16 @@ pub fn routes(state: AppState) -> axum::Router {
         .with_state(state)
 }
 
-async fn upload_file(
+#[utoipa::path(
+    post,
+    path = "/file/upload",
+    request_body = UploadFileMeta,
+    responses(
+        (status = 200, description = "Uploaded file metadata", body = FileInfo),
+    ),
+    tag = "file"
+)]
+pub async fn upload_file(
     State(state): State<AppState>,
     Json(meta): Json<UploadFileMeta>,
 ) -> Result<Json<FileInfo>, (StatusCode, &'static str)> {
@@ -22,7 +31,16 @@ async fn upload_file(
     Ok(Json(info))
 }
 
-async fn query_files(
+#[utoipa::path(
+    get,
+    path = "/file/list",
+    params(QueryFiles),
+    responses(
+        (status = 200, description = "Paged file list", body = PagedFiles),
+    ),
+    tag = "file"
+)]
+pub async fn query_files(
     State(state): State<AppState>,
     Query(query): Query<QueryFiles>,
 ) -> Result<Json<PagedFiles>, (StatusCode, &'static str)> {
@@ -30,7 +48,17 @@ async fn query_files(
     Ok(Json(result))
 }
 
-async fn download_file(
+#[utoipa::path(
+    get,
+    path = "/file/{id}",
+    params(("id" = String, Path, description = "File id")),
+    responses(
+        (status = 200, description = "File bytes (octet-stream or content-type)", body = String),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "file"
+)]
+pub async fn download_file(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<(axum::http::HeaderMap, Vec<u8>), (StatusCode, &'static str)> {
@@ -50,7 +78,17 @@ async fn download_file(
     Ok((headers, data.to_vec()))
 }
 
-async fn delete_file(
+#[utoipa::path(
+    delete,
+    path = "/file/{id}",
+    params(("id" = String, Path, description = "File id")),
+    responses(
+        (status = 200, description = "Deleted", body = serde_json::Value),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "file"
+)]
+pub async fn delete_file(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
@@ -60,7 +98,17 @@ async fn delete_file(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
-async fn get_file_info(
+#[utoipa::path(
+    get,
+    path = "/file/{id}/info",
+    params(("id" = String, Path, description = "File id")),
+    responses(
+        (status = 200, description = "File info", body = FileInfo),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "file"
+)]
+pub async fn get_file_info(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<FileInfo>, (StatusCode, &'static str)> {

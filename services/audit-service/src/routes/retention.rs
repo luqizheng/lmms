@@ -13,6 +13,14 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+#[utoipa::path(
+    get,
+    path = "/audit/retention/stats",
+    responses(
+        (status = 200, description = "Retention stats", body = RetentionStats),
+    ),
+    tag = "retention"
+)]
 pub async fn get_retention_stats(
     State(state): State<AppState>,
 ) -> AppResult<Json<RetentionStats>> {
@@ -20,6 +28,14 @@ pub async fn get_retention_stats(
     Ok(Json(stats))
 }
 
+#[utoipa::path(
+    get,
+    path = "/audit/retention/policy",
+    responses(
+        (status = 200, description = "Current retention policy", body = crate::models::RetentionPolicy),
+    ),
+    tag = "retention"
+)]
 pub async fn get_retention_policy(
     State(state): State<AppState>,
 ) -> AppResult<Json<crate::models::RetentionPolicy>> {
@@ -27,6 +43,16 @@ pub async fn get_retention_policy(
     Ok(Json(policy))
 }
 
+#[utoipa::path(
+    put,
+    path = "/audit/retention/policy",
+    request_body = crate::models::RetentionPolicy,
+    responses(
+        (status = 200, description = "Updated retention policy", body = crate::models::RetentionPolicy),
+        (status = 400, description = "Invalid policy (hot < warm < cold required)"),
+    ),
+    tag = "retention"
+)]
 pub async fn update_retention_policy(
     State(state): State<AppState>,
     Json(policy): Json<crate::models::RetentionPolicy>,
@@ -50,6 +76,14 @@ pub async fn update_retention_policy(
     Ok(Json(policy))
 }
 
+#[utoipa::path(
+    post,
+    path = "/audit/retention/cleanup",
+    responses(
+        (status = 200, description = "Cleanup result", body = serde_json::Value),
+    ),
+    tag = "retention"
+)]
 pub async fn trigger_cleanup(
     State(state): State<AppState>,
 ) -> AppResult<Json<serde_json::Value>> {
@@ -62,6 +96,16 @@ pub async fn trigger_cleanup(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/audit/retention/stage/{created_at}",
+    params(("created_at" = String, Path, description = "RFC3339 timestamp")),
+    responses(
+        (status = 200, description = "Data stage classification", body = serde_json::Value),
+        (status = 400, description = "Invalid date format"),
+    ),
+    tag = "retention"
+)]
 pub async fn get_data_stage(
     State(state): State<AppState>,
     Path(created_at): Path<String>,

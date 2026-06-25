@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct ConfigItem {
     pub id: String,
     pub namespace_id: String,
@@ -15,7 +16,7 @@ pub struct ConfigItem {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateConfigItem {
     pub namespace_id: String,
     pub key: String,
@@ -35,7 +36,7 @@ fn default_is_secret() -> bool {
     false
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateConfigItem {
     pub value: Option<String>,
     pub value_type: Option<String>,
@@ -43,7 +44,7 @@ pub struct UpdateConfigItem {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct QueryConfigItems {
     pub namespace_id: Option<String>,
     pub key: Option<String>,
@@ -61,7 +62,7 @@ fn default_size() -> Option<u32> {
     Some(20)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PagedConfigItems {
     pub items: Vec<ConfigItem>,
     pub total: i64,

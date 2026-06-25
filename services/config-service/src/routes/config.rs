@@ -14,7 +14,16 @@ pub fn routes(state: AppState) -> axum::Router {
         .with_state(state)
 }
 
-async fn create_config_item(
+#[utoipa::path(
+    post,
+    path = "/config/item",
+    request_body = CreateConfigItem,
+    responses(
+        (status = 200, description = "Config item created", body = ConfigItem),
+    ),
+    tag = "config-item"
+)]
+pub async fn create_config_item(
     State(state): State<AppState>,
     Json(item): Json<CreateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
@@ -22,7 +31,16 @@ async fn create_config_item(
     Ok(Json(result))
 }
 
-async fn query_config_items(
+#[utoipa::path(
+    get,
+    path = "/config/item",
+    params(QueryConfigItems),
+    responses(
+        (status = 200, description = "Paged config items", body = PagedConfigItems),
+    ),
+    tag = "config-item"
+)]
+pub async fn query_config_items(
     State(state): State<AppState>,
     Query(query): Query<QueryConfigItems>,
 ) -> Result<Json<PagedConfigItems>, (StatusCode, &'static str)> {
@@ -30,7 +48,17 @@ async fn query_config_items(
     Ok(Json(result))
 }
 
-async fn get_config_item(
+#[utoipa::path(
+    get,
+    path = "/config/item/{id}",
+    params(("id" = String, Path, description = "Config item id")),
+    responses(
+        (status = 200, description = "Config item", body = ConfigItem),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "config-item"
+)]
+pub async fn get_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
@@ -40,7 +68,18 @@ async fn get_config_item(
     Ok(Json(result))
 }
 
-async fn update_config_item(
+#[utoipa::path(
+    put,
+    path = "/config/item/{id}",
+    params(("id" = String, Path, description = "Config item id")),
+    request_body = UpdateConfigItem,
+    responses(
+        (status = 200, description = "Updated config item", body = ConfigItem),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "config-item"
+)]
+pub async fn update_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(update): Json<UpdateConfigItem>,
@@ -51,7 +90,17 @@ async fn update_config_item(
     Ok(Json(result))
 }
 
-async fn delete_config_item(
+#[utoipa::path(
+    delete,
+    path = "/config/item/{id}",
+    params(("id" = String, Path, description = "Config item id")),
+    responses(
+        (status = 200, description = "Deleted", body = serde_json::Value),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "config-item"
+)]
+pub async fn delete_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
@@ -61,7 +110,16 @@ async fn delete_config_item(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
-async fn export_config(
+#[utoipa::path(
+    get,
+    path = "/config/export/{namespace_id}",
+    params(("namespace_id" = String, Path, description = "Namespace id")),
+    responses(
+        (status = 200, description = "Exported config as JSON string", body = String),
+    ),
+    tag = "config-item"
+)]
+pub async fn export_config(
     State(state): State<AppState>,
     Path(namespace_id): Path<String>,
 ) -> Result<String, (StatusCode, &'static str)> {
@@ -81,7 +139,18 @@ async fn export_config(
     Ok(serde_json::to_string_pretty(&data).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "serialize failed"))?)
 }
 
-async fn import_config(
+#[utoipa::path(
+    post,
+    path = "/config/import/{namespace_id}",
+    params(("namespace_id" = String, Path, description = "Namespace id")),
+    request_body = String,
+    responses(
+        (status = 200, description = "Import result", body = serde_json::Value),
+        (status = 400, description = "Invalid JSON body"),
+    ),
+    tag = "config-item"
+)]
+pub async fn import_config(
     State(state): State<AppState>,
     Path(namespace_id): Path<String>,
     body: String,

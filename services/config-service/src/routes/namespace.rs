@@ -12,7 +12,16 @@ pub fn routes(state: AppState) -> axum::Router {
         .with_state(state)
 }
 
-async fn create_namespace(
+#[utoipa::path(
+    post,
+    path = "/config/namespace",
+    request_body = CreateNamespace,
+    responses(
+        (status = 200, description = "Namespace created", body = Namespace),
+    ),
+    tag = "namespace"
+)]
+pub async fn create_namespace(
     State(state): State<AppState>,
     Json(ns): Json<CreateNamespace>,
 ) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
@@ -20,7 +29,16 @@ async fn create_namespace(
     Ok(Json(result))
 }
 
-async fn query_namespaces(
+#[utoipa::path(
+    get,
+    path = "/config/namespace",
+    params(QueryNamespaces),
+    responses(
+        (status = 200, description = "Paged namespaces", body = PagedNamespaces),
+    ),
+    tag = "namespace"
+)]
+pub async fn query_namespaces(
     State(state): State<AppState>,
     Query(query): Query<QueryNamespaces>,
 ) -> Result<Json<PagedNamespaces>, (StatusCode, &'static str)> {
@@ -28,7 +46,17 @@ async fn query_namespaces(
     Ok(Json(result))
 }
 
-async fn get_namespace(
+#[utoipa::path(
+    get,
+    path = "/config/namespace/{id}",
+    params(("id" = String, Path, description = "Namespace id")),
+    responses(
+        (status = 200, description = "Namespace", body = Namespace),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "namespace"
+)]
+pub async fn get_namespace(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
@@ -38,7 +66,18 @@ async fn get_namespace(
     Ok(Json(result))
 }
 
-async fn update_namespace(
+#[utoipa::path(
+    put,
+    path = "/config/namespace/{id}",
+    params(("id" = String, Path, description = "Namespace id")),
+    request_body = UpdateNamespace,
+    responses(
+        (status = 200, description = "Updated namespace", body = Namespace),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "namespace"
+)]
+pub async fn update_namespace(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(update): Json<UpdateNamespace>,
@@ -49,7 +88,17 @@ async fn update_namespace(
     Ok(Json(result))
 }
 
-async fn delete_namespace(
+#[utoipa::path(
+    delete,
+    path = "/config/namespace/{id}",
+    params(("id" = String, Path, description = "Namespace id")),
+    responses(
+        (status = 200, description = "Deleted", body = serde_json::Value),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "namespace"
+)]
+pub async fn delete_namespace(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {

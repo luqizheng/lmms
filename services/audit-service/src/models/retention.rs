@@ -1,7 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RetentionPolicy {
     pub hot_days: u32,       // 热数据保留天数（在线）
     pub warm_days: u32,     // 温数据保留天数（近线）
@@ -61,7 +62,7 @@ impl RetentionPolicy {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum DataStage {
     Hot,    // 在线，可查询
     Warm,   // 近线，归档中
@@ -80,7 +81,7 @@ impl DataStage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RetentionStats {
     pub hot_count: i64,
     pub warm_count: i64,

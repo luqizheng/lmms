@@ -31,13 +31,29 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn get_async_routes(State(state): State<AppState>) -> AppResult<Json<ApiResponse<Value>>> {
+#[utoipa::path(
+    get,
+    path = "/get-async-routes",
+    responses(
+        (status = 200, description = "Active dynamic routes (sanitized)", body = serde_json::Value),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn get_async_routes(State(state): State<AppState>) -> AppResult<Json<ApiResponse<Value>>> {
     let service = MenuConfigService::new(state);
     let routes = service.active_routes().await?;
     Ok(Json(ApiResponse::ok(routes)))
 }
 
-async fn list_menu_configs(
+#[utoipa::path(
+    get,
+    path = "/pure/menu-configs",
+    responses(
+        (status = 200, description = "Menu config versions", body = MenuConfigListResponse),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn list_menu_configs(
     State(state): State<AppState>,
 ) -> AppResult<Json<ApiResponse<MenuConfigListResponse>>> {
     let service = MenuConfigService::new(state);
@@ -45,7 +61,16 @@ async fn list_menu_configs(
     Ok(Json(ApiResponse::ok(result)))
 }
 
-async fn create_menu_config(
+#[utoipa::path(
+    post,
+    path = "/pure/menu-configs",
+    request_body = CreateMenuConfigRequest,
+    responses(
+        (status = 200, description = "Draft created", body = MenuConfigDetail),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn create_menu_config(
     State(state): State<AppState>,
     Json(req): Json<CreateMenuConfigRequest>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
@@ -54,7 +79,17 @@ async fn create_menu_config(
     Ok(Json(ApiResponse::ok(result)))
 }
 
-async fn get_menu_config(
+#[utoipa::path(
+    get,
+    path = "/pure/menu-configs/{id}",
+    params(("id" = String, Path, description = "Menu config id")),
+    responses(
+        (status = 200, description = "Menu config detail", body = MenuConfigDetail),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn get_menu_config(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
@@ -63,7 +98,19 @@ async fn get_menu_config(
     Ok(Json(ApiResponse::ok(result)))
 }
 
-async fn update_menu_config(
+#[utoipa::path(
+    put,
+    path = "/pure/menu-configs/{id}",
+    params(("id" = String, Path, description = "Menu config id")),
+    request_body = UpdateMenuConfigRequest,
+    responses(
+        (status = 200, description = "Updated draft", body = MenuConfigDetail),
+        (status = 400, description = "Validation failed (e.g. missing if_match_etag)"),
+        (status = 409, description = "Etag conflict or status not draft"),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn update_menu_config(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(req): Json<UpdateMenuConfigRequest>,
@@ -73,7 +120,16 @@ async fn update_menu_config(
     Ok(Json(ApiResponse::ok(result)))
 }
 
-async fn publish_menu_config(
+#[utoipa::path(
+    post,
+    path = "/pure/menu-configs/{id}/publish",
+    params(("id" = String, Path, description = "Menu config id")),
+    responses(
+        (status = 200, description = "Published", body = MenuConfigDetail),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn publish_menu_config(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
@@ -82,7 +138,16 @@ async fn publish_menu_config(
     Ok(Json(ApiResponse::ok(result)))
 }
 
-async fn clone_menu_config(
+#[utoipa::path(
+    post,
+    path = "/pure/menu-configs/{id}/clone",
+    params(("id" = String, Path, description = "Menu config id")),
+    responses(
+        (status = 200, description = "Cloned draft", body = MenuConfigDetail),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn clone_menu_config(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
@@ -91,7 +156,17 @@ async fn clone_menu_config(
     Ok(Json(ApiResponse::ok(result)))
 }
 
-async fn delete_menu_config(
+#[utoipa::path(
+    delete,
+    path = "/pure/menu-configs/{id}",
+    params(("id" = String, Path, description = "Menu config id")),
+    responses(
+        (status = 204, description = "Deleted"),
+        (status = 409, description = "Cannot delete published config"),
+    ),
+    tag = "menu-configs"
+)]
+pub async fn delete_menu_config(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> AppResult<StatusCode> {

@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
+use utoipa::ToSchema;
 
 #[derive(Debug, Serialize)]
 pub struct ApiResponse<T> {
@@ -20,7 +21,7 @@ impl<T> ApiResponse<T> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct CreateMenuConfigRequest {
     pub name: String,
     pub description: Option<String>,
@@ -28,7 +29,7 @@ pub struct CreateMenuConfigRequest {
     pub created_by: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct UpdateMenuConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -36,7 +37,7 @@ pub struct UpdateMenuConfigRequest {
     pub if_match_etag: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub struct MenuConfigSummary {
     pub id: String,
     pub version: i64,
@@ -51,7 +52,7 @@ pub struct MenuConfigSummary {
     pub routes_etag: String,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub struct MenuConfigDetail {
     pub id: String,
     pub version: i64,
@@ -67,7 +68,7 @@ pub struct MenuConfigDetail {
     pub routes_etag: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct MenuConfigListResponse {
     pub items: Vec<MenuConfigSummary>,
     pub total: u64,

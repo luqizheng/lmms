@@ -10,7 +10,16 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn create_login_log(
+#[utoipa::path(
+    post,
+    path = "/audit/login",
+    request_body = CreateLoginLog,
+    responses(
+        (status = 200, description = "Login log created", body = serde_json::Value),
+    ),
+    tag = "login"
+)]
+pub async fn create_login_log(
     State(state): State<AppState>,
     Json(log): Json<CreateLoginLog>,
 ) -> AppResult<Json<serde_json::Value>> {
@@ -18,7 +27,16 @@ async fn create_login_log(
     Ok(Json(serde_json::json!({ "id": id })))
 }
 
-async fn query_login_logs(
+#[utoipa::path(
+    get,
+    path = "/audit/login",
+    params(QueryLoginLogs),
+    responses(
+        (status = 200, description = "Paged login logs", body = PagedLoginLogs),
+    ),
+    tag = "login"
+)]
+pub async fn query_login_logs(
     State(state): State<AppState>,
     Query(query): Query<QueryLoginLogs>,
 ) -> AppResult<Json<PagedLoginLogs>> {

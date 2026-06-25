@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct OperationLog {
     pub id: i64,
     pub user_id: String,
@@ -17,7 +18,7 @@ pub struct OperationLog {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateOperationLog {
     pub user_id: String,
     pub action: String,
@@ -30,7 +31,7 @@ pub struct CreateOperationLog {
     pub user_agent: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct QueryOperationLogs {
     pub user_id: Option<String>,
     pub action: Option<String>,
@@ -51,7 +52,7 @@ fn default_size() -> Option<u32> {
     Some(20)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PagedOperationLogs {
     pub items: Vec<OperationLog>,
     pub total: i64,
