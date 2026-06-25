@@ -1,0 +1,497 @@
+openapi: 3.1.0
+info:
+  title: iam-service
+  description: Identity, role and user management
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /iam/auth/login:
+    post:
+      tags:
+      - auth
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: invalid credentials
+  /iam/auth/logout:
+    post:
+      tags:
+      - auth
+      operationId: logout
+      responses:
+        '204':
+          description: logged out
+      security:
+      - bearer_auth: []
+  /iam/auth/password:
+    post:
+      tags:
+      - auth
+      operationId: change_password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: password changed
+        '401':
+          description: invalid credentials
+      security:
+      - bearer_auth: []
+  /iam/auth/refresh:
+    post:
+      tags:
+      - auth
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: token expired
+  /iam/auth/sessions:
+    get:
+      tags:
+      - auth
+      operationId: list_sessions
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionInfo'
+      security:
+      - bearer_auth: []
+  /iam/users:
+    get:
+      tags:
+      - users
+      operationId: list_users
+      parameters:
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: status
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: org_unit_id
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - users
+      operationId: create_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '409':
+          description: duplicate user
+      security:
+      - bearer_auth: []
+  /iam/users/{user_id}:
+    get:
+      tags:
+      - users
+      operationId: get_user
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: not found
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - users
+      operationId: update_user
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: not found
+      security:
+      - bearer_auth: []
+    delete:
+      tags:
+      - users
+      operationId: delete_user
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: deleted
+        '404':
+          description: not found
+      security:
+      - bearer_auth: []
+components:
+  schemas:
+    ChangePasswordRequest:
+      type: object
+      required:
+      - old_password
+      - new_password
+      properties:
+        new_password:
+          type: string
+        old_password:
+          type: string
+    CreateUserRequest:
+      type: object
+      required:
+      - username
+      - password
+      - nickname
+      properties:
+        avatar:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        nickname:
+          type: string
+        password:
+          type: string
+        phone:
+          type:
+          - string
+          - 'null'
+        role_ids:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+        username:
+          type: string
+    LoginRequest:
+      type: object
+      required:
+      - username
+      - password
+      properties:
+        password:
+          type: string
+        username:
+          type: string
+    LoginResponse:
+      type: object
+      required:
+      - access_token
+      - refresh_token
+      - token_type
+      - expires_in
+      - user
+      properties:
+        access_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+          minimum: 0
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserInfo'
+    RefreshRequest:
+      type: object
+      required:
+      - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    RefreshResponse:
+      type: object
+      required:
+      - access_token
+      - refresh_token
+      - token_type
+      - expires_in
+      properties:
+        access_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+          minimum: 0
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+    SessionInfo:
+      type: object
+      required:
+      - id
+      - user_id
+      - client_ip
+      - created_at
+      - expires_at
+      - is_current
+      properties:
+        client_ip:
+          type: string
+        created_at:
+          type: string
+        expires_at:
+          type: string
+        id:
+          type: string
+        is_current:
+          type: boolean
+        user_agent:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type: string
+    UpdateUserRequest:
+      type: object
+      properties:
+        avatar:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        nickname:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+        status:
+          type:
+          - string
+          - 'null'
+    UserInfo:
+      type: object
+      required:
+      - id
+      - username
+      - nickname
+      - roles
+      - permissions
+      properties:
+        avatar:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+        nickname:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        phone:
+          type:
+          - string
+          - 'null'
+        roles:
+          type: array
+          items:
+            type: string
+        username:
+          type: string
+    UserListResponse:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    UserResponse:
+      type: object
+      required:
+      - id
+      - username
+      - nickname
+      - status
+      - email_verified
+      - phone_verified
+      - created_at
+      - updated_at
+      properties:
+        avatar:
+          type:
+          - string
+          - 'null'
+        created_at:
+          type: string
+          format: date-time
+        email:
+          type:
+          - string
+          - 'null'
+        email_verified:
+          type: boolean
+        id:
+          type: string
+        last_login_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_login_ip:
+          type:
+          - string
+          - 'null'
+        nickname:
+          type: string
+        phone:
+          type:
+          - string
+          - 'null'
+        phone_verified:
+          type: boolean
+        status:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        username:
+          type: string
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: auth
+  description: Authentication
+- name: users
+  description: User management

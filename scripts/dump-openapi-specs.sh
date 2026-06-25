@@ -16,5 +16,9 @@ dump_service audit-service
 dump_service config-service
 dump_service file-service
 dump_service prue_backend
+dump_service api-gateway
+dump_service token-service
+dump_service iam-service
+dump_service notification-service
 
-echo "=== All OpenAPI specs dumped ==="
+echo "=== All 8 OpenAPI specs dumped ==="

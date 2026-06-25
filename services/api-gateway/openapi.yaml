@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info:
+  title: API Gateway
+  description: API Gateway for coder-micro-services. Proxies requests to downstream services. For per-service OpenAPI specs, see the respective service's Swagger UI.
+  license:
+    name: ''
+  version: 1.0.0
+paths: {}
+components: {}

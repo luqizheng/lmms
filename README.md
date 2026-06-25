@@ -107,12 +107,17 @@ scripts/start-observability.sh
 
 设置环境变量 `SWAGGER_ENABLED=true` 启动服务后，可访问以下地址查看 API 文档：
 
-| 服务          | Swagger UI                       | OpenAPI JSON                                |
-| ------------- | -------------------------------- | ------------------------------------------- |
-| token-service | http://localhost:6001/swagger-ui | http://localhost:6001/api-docs/openapi.json |
-| iam-service   | http://localhost:6002/swagger-ui | http://localhost:6002/api-docs/openapi.json |
+| 服务                 | 外部端口 | Swagger UI                       | OpenAPI JSON                                |
+| -------------------- | -------- | -------------------------------- | ------------------------------------------- |
+| token-service        | 6001     | http://localhost:6001/swagger-ui | http://localhost:6001/api-docs/openapi.json |
+| iam-service          | 6002     | http://localhost:6002/swagger-ui | http://localhost:6002/api-docs/openapi.json |
+| notification-service | 6003     | http://localhost:6003/swagger-ui | http://localhost:6003/api-docs/openapi.json |
+| prue_backend         | 6004     | http://localhost:6004/swagger-ui | http://localhost:6004/api-docs/openapi.json |
+| audit-service        | 6005     | http://localhost:6005/swagger-ui | http://localhost:6005/api-docs/openapi.json |
+| config-service       | 6006     | http://localhost:6006/swagger-ui | http://localhost:6006/api-docs/openapi.json |
+| file-service         | 6007     | http://localhost:6007/swagger-ui | http://localhost:6007/api-docs/openapi.json |
 
-> 4 个 service（audit/config/file/prue_backend）的 openapi.yaml 是 utoipa 自动生成的，详见 `scripts/dump-openapi-specs.sh` 和 `.agents/skills/coder-new-service`。
+> 全部 7 个业务服务的 openapi.yaml 都是 utoipa 自动生成的。`api-gateway` 是代理，无自有路由（详情见 `services/api-gateway/openapi.yaml`）。详见 `scripts/dump-openapi-specs.sh` 和 `.agents/skills/coder-new-service`。
 
 ### API Gateway 限流
 

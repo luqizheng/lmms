@@ -4,6 +4,7 @@ pub mod discovery;
 pub mod jwks;
 pub mod jwt;
 pub mod middleware;
+pub mod openapi;
 pub mod router;
 pub mod routes_loader;
 pub mod template;

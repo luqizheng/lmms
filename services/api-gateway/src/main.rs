@@ -212,20 +212,6 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
-    #[derive(OpenApi)]
-    #[openapi(
-        info(
-            title = "API Gateway",
-            version = "1.0.0",
-            description = "API Gateway for coder-micro-services"
-        ),
-        paths(
-        ),
-        components(
-        )
-    )]
-    struct ApiDoc;
-
     let health_route = Router::new()
         .route(
             "/health",
@@ -234,7 +220,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         .route("/metrics", get(metrics))
         .route(
             "/api-docs/openapi.json",
-            get(|| async { axum::Json(ApiDoc::openapi()) }),
+            get(|| async { axum::Json(api_gateway::openapi::ApiDoc::openapi()) }),
         );
 
     let api_routes = Router::new()

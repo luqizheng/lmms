@@ -65,38 +65,6 @@ async fn main() -> anyhow::Result<()> {
         axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
-    #[derive(OpenApi)]
-    #[openapi(
-        info(
-            title = "Notification Service",
-            version = "1.0.0",
-            description = "Notification Service for coder-micro-services"
-        ),
-        paths(
-            rest::create,
-            rest::publish,
-            rest::revoke,
-            rest::detail,
-            rest::list_mine,
-            rest::read_one,
-            rest::unread_count,
-        ),
-        components(
-            schemas(
-                models::Announcement,
-                models::CreateAnnouncement,
-                models::ScopeInput,
-                models::Status,
-                models::ScopeType,
-                rest::ListQuery,
-            )
-        ),
-        tags(
-            (name = "announcements", description = "公告管理"),
-            (name = "notifications", description = "通知管理"),
-        )
-    )]
-    struct ApiDoc;
 
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
         .map(|v| v != "false" && v != "0")
@@ -120,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
     if swagger_enabled {
         app = app.merge(
             SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", ApiDoc::openapi()),
+                .url("/api-docs/openapi.json", notification_service::openapi::ApiDoc::openapi()),
         );
         tracing::info!("swagger ui enabled at /swagger-ui");
     }

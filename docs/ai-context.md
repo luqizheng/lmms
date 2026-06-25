@@ -89,6 +89,7 @@ Each Rust service has:
 | Service standard sweep (P1.3) | `2026-06-25-service-standard-sweep-design.md` |
 | prue_backend concurrency (P1.1+P1.2) | `2026-06-25-prue-backend-concurrency-design.md` |
 | Swagger utoipa coverage (P2.1) | `2026-06-25-swagger-coverage-design.md` |
+| Swagger for remaining 4 services (P2.5b) | `2026-06-25-p25b-remaining-utoipa-design.md` |
 | OpenAPI auto-dump (P2.2) | `2026-06-25-openapi-auto-dump-design.md` |
 | Coder skills (P2.3) | `2026-06-25-coder-skills-design.md` |
 | L4 triggers (P2.4) | `2026-06-25-l4-triggers-design.md` |

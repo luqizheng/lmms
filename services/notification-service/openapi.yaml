@@ -1,0 +1,266 @@
+openapi: 3.1.0
+info:
+  title: Notification Service
+  description: Notification Service for coder-micro-services
+  license:
+    name: ''
+  version: 1.0.0
+paths:
+  /notification/announcements:
+    get:
+      tags:
+      - announcements
+      operationId: list_mine
+      parameters:
+      - name: pinned
+        in: query
+        required: false
+        schema:
+          type:
+          - boolean
+          - 'null'
+      - name: active
+        in: query
+        required: false
+        schema:
+          type:
+          - boolean
+          - 'null'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Announcement'
+    post:
+      tags:
+      - announcements
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAnnouncement'
+        required: true
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema: {}
+        '403':
+          description: 无权限
+  /notification/announcements/{id}:
+    get:
+      tags:
+      - announcements
+      operationId: detail
+      parameters:
+      - name: id
+        in: path
+        description: 公告ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Announcement'
+        '404':
+          description: 公告不存在
+  /notification/announcements/{id}/publish:
+    post:
+      tags:
+      - announcements
+      operationId: publish
+      parameters:
+      - name: id
+        in: path
+        description: 公告ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: 发布成功
+          content:
+            application/json:
+              schema: {}
+        '403':
+          description: 无权限
+  /notification/announcements/{id}/read:
+    post:
+      tags:
+      - notifications
+      operationId: read_one
+      parameters:
+      - name: id
+        in: path
+        description: 公告ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: 标记已读
+          content:
+            application/json:
+              schema: {}
+  /notification/announcements/{id}/revoke:
+    post:
+      tags:
+      - announcements
+      operationId: revoke
+      parameters:
+      - name: id
+        in: path
+        description: 公告ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: 撤销成功
+          content:
+            application/json:
+              schema: {}
+        '403':
+          description: 无权限
+  /notification/unread-count:
+    get:
+      tags:
+      - notifications
+      operationId: unread_count
+      responses:
+        '200':
+          description: 获取未读数
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    Announcement:
+      type: object
+      required:
+      - id
+      - title
+      - body
+      - publish_at
+      - pinned
+      - popover
+      - status
+      - created_by
+      - created_at
+      properties:
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+        expire_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        pinned:
+          type: integer
+          format: int32
+        popover:
+          type: integer
+          format: int32
+        publish_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/Status'
+        title:
+          type: string
+    CreateAnnouncement:
+      type: object
+      required:
+      - title
+      - body
+      - publish_at
+      - pinned
+      - popover
+      - recipients
+      properties:
+        body:
+          type: string
+        expire_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        pinned:
+          type: boolean
+        popover:
+          type: boolean
+        publish_at:
+          type: string
+          format: date-time
+        recipients:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScopeInput'
+        title:
+          type: string
+    ListQuery:
+      type: object
+      properties:
+        active:
+          type:
+          - boolean
+          - 'null'
+        pinned:
+          type:
+          - boolean
+          - 'null'
+    ScopeInput:
+      type: object
+      required:
+      - scope_type
+      - scope_id
+      properties:
+        scope_id:
+          type: string
+        scope_type:
+          $ref: '#/components/schemas/ScopeType'
+    ScopeType:
+      type: string
+      enum:
+      - user
+      - role
+      - dept
+    Status:
+      type: string
+      enum:
+      - draft
+      - scheduled
+      - published
+      - revoked
+tags:
+- name: announcements
+  description: 公告管理
+- name: notifications
+  description: 通知管理

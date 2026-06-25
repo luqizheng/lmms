@@ -153,6 +153,28 @@ Every Rust service must have (per ADR-002):
 
 CI gate: `node scripts/check-service-standard.js` exits 0 if all services comply.
 
+### 2.5 Swagger UI coverage (8/8)
+
+All 7 business services expose a full Swagger UI when `SWAGGER_ENABLED=true`. The `openapi.yaml` files are auto-generated from utoipa annotations on each handler.
+
+| Service | Port | Swagger UI | OpenAPI YAML |
+|---------|------|------------|--------------|
+| token-service | 6001 | http://localhost:6001/swagger-ui | `services/token-service/openapi.yaml` |
+| iam-service | 6002 | http://localhost:6002/swagger-ui | `services/iam-service/openapi.yaml` |
+| notification-service | 6003 | http://localhost:6003/swagger-ui | `services/notification-service/openapi.yaml` |
+| prue_backend | 6004 | http://localhost:6004/swagger-ui | `services/prue_backend/openapi.yaml` |
+| audit-service | 6005 | http://localhost:6005/swagger-ui | `services/audit-service/openapi.yaml` |
+| config-service | 6006 | http://localhost:6006/swagger-ui | `services/config-service/openapi.yaml` |
+| file-service | 6007 | http://localhost:6007/swagger-ui | `services/file-service/openapi.yaml` |
+| api-gateway | 3000 | (passthrough — see downstream UIs) | `services/api-gateway/openapi.yaml` |
+
+Regenerate after annotation changes:
+```bash
+scripts/dump-openapi-specs.sh   # all 8 services
+```
+
+CI gate: `node scripts/check-spec.js` validates all 8 yaml files.
+
 ---
 
 ## 3. Local Development

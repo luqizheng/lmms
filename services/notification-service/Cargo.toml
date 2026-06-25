@@ -26,8 +26,12 @@ futures = "0.3"
 config = { workspace = true }
 prometheus = "0.13"
 prometheus_exporter = "0.1"
-utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 rand.workspace = true
+
+[[bin]]
+name = "dump-openapi"
+path = "src/bin/dump-openapi.rs"

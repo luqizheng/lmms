@@ -5,6 +5,7 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod models;
+pub mod openapi;
 pub mod recipient_resolver;
 pub mod redis_cli;
 pub mod rest;

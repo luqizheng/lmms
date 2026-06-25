@@ -45,8 +45,12 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 prometheus = "0.13"
 prometheus_exporter = "0.1"
-utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
+
+[[bin]]
+name = "dump-openapi"
+path = "src/bin/dump-openapi.rs"
 
 
 
