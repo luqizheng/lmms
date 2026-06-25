@@ -3,6 +3,11 @@
 This file is the top-level AI trigger document for the `coder-micro-services` repository.
 AI agents MUST load this file on first file touch in this repo.
 
+## 0. AI Entry Point
+
+**Read `docs/ai-context.md` FIRST** before loading per-service AGENTS.md or any spec.
+`ai-context.md` is the single source of truth for project shape, conventions, known pitfalls, and skill catalog.
+
 ---
 
 ## 1. Mandatory Rules (Always On)
