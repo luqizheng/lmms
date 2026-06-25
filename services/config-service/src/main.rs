@@ -16,12 +16,27 @@ async fn main() {
 
     let state = create_state(pool);
 
+    let app = routes::routes(state);
+
+    let swagger_enabled = std::env::var("SWAGGER_ENABLED")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(false);
+    let app = if swagger_enabled {
+        use utoipa::OpenApi;
+        use utoipa_swagger_ui::SwaggerUi;
+        tracing::info!("swagger ui enabled at /swagger-ui");
+        app.merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", config_service::openapi::ApiDoc::openapi()),
+        )
+    } else {
+        app
+    };
+
     let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");
-    
+
     let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");
     tracing::info!("config-service listening on {}", addr);
 
-    let app = routes::routes(state);
-    
     axum::serve(listener, app).await.expect("Server error");
 }
