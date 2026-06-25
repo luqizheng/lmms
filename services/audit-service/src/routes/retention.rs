@@ -9,7 +9,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/retention/policy", axum::routing::get(get_retention_policy))
         .route("/retention/policy", axum::routing::put(update_retention_policy))
         .route("/retention/cleanup", axum::routing::post(trigger_cleanup))
-        .route("/retention/stage/:created_at", axum::routing::get(get_data_stage))
+        .route("/retention/stage/{created_at}", axum::routing::get(get_data_stage))
         .with_state(state)
 }
 

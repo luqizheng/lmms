@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::services::{AuditService, CleanupService};
 use crate::models::RetentionPolicy;
 use crate::error::AppResult;
-use axum::Router;
+use axum::{Router, routing::get};
 use sqlx::mysql::MySqlPool;
 
 pub type AppState = Arc<AppServices>;
@@ -47,6 +47,12 @@ pub fn routes(state: AppState) -> Router {
         .nest("/audit", login::routes(state.clone()))
         .nest("/audit", compliance::routes(state.clone()))
         .nest("/audit", retention::routes(state.clone()))
+        .route("/health", get(health))
+        .route("/audit/health", get(health))
+}
+
+async fn health() -> &'static str {
+    "OK"
 }
 
 pub fn create_state(pool: MySqlPool) -> AppState {

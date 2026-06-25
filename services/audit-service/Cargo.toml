@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1"
 axum.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -18,6 +19,7 @@ common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
 common = { path = "../../libs/common" }
+consul-registrar = { path = "../../libs/consul-registrar" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

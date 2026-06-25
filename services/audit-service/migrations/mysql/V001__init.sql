@@ -10,7 +10,7 @@ CREATE TABLE operation_logs (
     request_id VARCHAR(64) NOT NULL COMMENT 'Request ID',
     ip_address VARCHAR(45) COMMENT 'IP Address',
     user_agent TEXT COMMENT 'User-Agent',
-    created_at DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_operation_user_id (user_id),
     INDEX idx_operation_action (action),
     INDEX idx_operation_created_at (created_at)
@@ -27,7 +27,7 @@ CREATE TABLE login_logs (
     location VARCHAR(256) COMMENT 'Location',
     user_agent TEXT COMMENT 'User-Agent',
     request_id VARCHAR(64) NOT NULL COMMENT 'Request ID',
-    created_at DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_login_username (username),
     INDEX idx_login_success (success),
     INDEX idx_login_created_at (created_at)
@@ -43,7 +43,7 @@ CREATE TABLE api_access_logs (
     duration_ms INT NOT NULL COMMENT 'Duration ms',
     user_id VARCHAR(64) COMMENT 'User ID',
     request_id VARCHAR(64) NOT NULL COMMENT 'Request ID',
-    created_at DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_api_service (service_name),
     INDEX idx_api_path (path(255)),
     INDEX idx_api_created_at (created_at)

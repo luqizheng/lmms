@@ -3,18 +3,18 @@ USER root
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
-COPY libs ./libs
-COPY services ./services
-COPY sdk ./sdk
+COPY libs/ libs/
+COPY services/ services/
+COPY sdk sdk
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
-    cargo build --release -p audit-service && \
-    cp /app/target/release/audit-service /app/audit-service
+    cargo build --release --target x86_64-unknown-linux-musl -p audit-service && \
+    cp /app/target/x86_64-unknown-linux-musl/release/audit-service /app/audit-service
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/audit-service /usr/local/bin/
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /app/audit-service /usr/local/bin/audit-service
 EXPOSE 8080
 ENV RUST_LOG=info
 CMD ["audit-service"]
