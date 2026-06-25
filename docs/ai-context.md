@@ -107,6 +107,7 @@ Older specs live in the same `docs/superpowers/specs/` directory and describe se
 |-------|---------|
 | `coder-add-route` | Scaffold new route handler with utoipa annotations + openapi.rs registration |
 | `coder-migrate-db` | Scaffold dual MySQL/SQLite migration files with up/down |
+| `coder-new-service` | Scaffold a brand-new Rust microservice that satisfies the 8-item service standard |
 
 ### Platform skills (`.trae/skills/`)
 

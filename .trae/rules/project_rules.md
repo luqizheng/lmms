@@ -124,6 +124,7 @@ AI MUST read the AGENTS.md file when modifying files under any of these paths:
 |-------------|---------------|
 | Add a route/endpoint | `.agents/skills/coder-add-route/SKILL.md` |
 | Add a DB migration | `.agents/skills/coder-migrate-db/SKILL.md` |
+| Create a new Rust service | `.agents/skills/coder-new-service/SKILL.md` |
 | Review a plan | `.agents/skills/plan-eng-review/SKILL.md` |
 | Sync base Docker images | `.trae/skills/coder-base-images-sync/SKILL.md` |
 | Bootstrap dev env | `.trae/skills/coder-dev-bootstrap/SKILL.md` |
