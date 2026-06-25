@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 /**
  * 契约代码生成入口
- * 调用 contracts/codegen/*.js 生成各语言代码
+ * - 默认：调用 contracts/codegen/*.js 生成各语言代码
+ * - --check：生成后用 git diff 检查产物是否漂移，漂移则 exit 1
  */
 
 const path = require('path');
 const { execSync } = require('child_process');
 
 const codegenDir = path.resolve(__dirname, '../contracts/codegen');
+const repoRoot = path.resolve(__dirname, '..');
+const isCheck = process.argv.includes('--check');
 
 console.log('=== Contracts Code Generation ===');
 console.log('');
 
-// 生成 Rust 错误码
 console.log('1. Generating Rust error codes...');
 try {
   execSync(`node ${path.join(codegenDir, 'gen-rust.js')}`, { stdio: 'inherit' });
@@ -21,7 +23,6 @@ try {
   process.exit(1);
 }
 
-// 生成 Rust 权限码
 console.log('');
 console.log('2. Generating Rust permission codes...');
 try {
@@ -31,15 +32,29 @@ try {
   process.exit(1);
 }
 
-// 生成 TypeScript（预留）
 console.log('');
 console.log('3. Generating TypeScript contracts...');
 try {
   execSync(`node ${path.join(codegenDir, 'gen-ts.js')}`, { stdio: 'inherit' });
 } catch (e) {
-  // TypeScript 生成失败不阻断（预留状态）
   console.log('TypeScript generation skipped (frontend not ready)');
 }
 
 console.log('');
 console.log('=== Done ===');
+
+if (isCheck) {
+  console.log('');
+  console.log('4. Checking for drift...');
+  try {
+    execSync('git diff --exit-code -- libs/common-error libs/authz frontend/src/contracts', {
+      cwd: repoRoot,
+      stdio: 'inherit',
+    });
+    console.log('✅ Contracts in sync');
+  } catch (e) {
+    console.error('');
+    console.error('❌ Contract drift detected. Run `pnpm run contracts:gen` and commit the result.');
+    process.exit(1);
+  }
+}
