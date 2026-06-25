@@ -33,6 +33,7 @@ pub struct UpdateMenuConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
     pub routes_json: Option<Value>,
+    pub if_match_etag: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -47,6 +48,7 @@ pub struct MenuConfigSummary {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub published_at: Option<DateTime<Utc>>,
+    pub routes_etag: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -62,6 +64,7 @@ pub struct MenuConfigDetail {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub published_at: Option<DateTime<Utc>>,
+    pub routes_etag: String,
 }
 
 #[derive(Debug, Serialize)]

@@ -300,12 +300,15 @@ dependencies = [
  "common-log",
  "consul-registrar",
  "csv",
+ "prometheus 0.13.4",
  "serde",
  "serde_json",
  "sqlx",
  "tokio 1.52.3",
  "tracing",
  "tracing-subscriber",
+ "utoipa 5.5.0",
+ "utoipa-swagger-ui",
 ]
 
 [[package]]
@@ -929,12 +932,15 @@ dependencies = [
  "common-db",
  "common-error",
  "common-log",
+ "prometheus 0.13.4",
  "serde",
  "serde_json",
  "sqlx",
  "tokio 1.52.3",
  "tracing",
  "tracing-subscriber",
+ "utoipa 5.5.0",
+ "utoipa-swagger-ui",
  "uuid",
 ]
 
@@ -1639,6 +1645,8 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
+ "utoipa 5.5.0",
+ "utoipa-swagger-ui",
  "uuid",
 ]
 
@@ -3641,11 +3649,14 @@ dependencies = [
  "prometheus 0.13.4",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "thiserror 2.0.18",
  "tokio 1.52.3",
  "tracing",
  "tracing-subscriber",
+ "utoipa 5.5.0",
+ "utoipa-swagger-ui",
 ]
 
 [[package]]
