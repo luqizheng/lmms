@@ -4,6 +4,10 @@
 
 A microservices architecture for coder platform, built with Rust.
 
+**Full documentation**: [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting.
+
+**AI entry point**: [`docs/ai-context.md`](docs/ai-context.md) — service map, known pitfalls, common commands (read first when starting work in this repo).
+
 ## 快速开始（本地开发与测试）
 
 本地采用 **「基础设施跑在 Docker、服务进程跑在宿主机」** 的开发模式：MySQL / Redis / Consul 通过 `docker compose` 启动，各服务（api-gateway、token-service、iam-service、notification-service、audit-service、config-service、file-service）直接以 `cargo run` 跑在宿主机上，便于热重载和断点调试。
@@ -20,13 +24,20 @@ A microservices architecture for coder platform, built with Rust.
 # 1. 启动基础设施 + 服务（infrastructure/docker-compose.yml）
 docker compose -f infrastructure/docker-compose.yml up -d
 
-# 2. 安装 e2e 依赖（独立 workspace）
+# 2. （可选）启动可观测性 overlay（Prometheus + Grafana + Jaeger + OTel collector）
+scripts/start-observability.sh
+# → Prometheus :9090  Grafana :3001  Jaeger :16686
+
+# 3. 安装 e2e 依赖（独立 workspace）
 pnpm -C tests/e2e install
 
-# 3. 跑端到端测试（详见 tests/e2e/README.md）
-pnpm run test:e2e
+# 4. 跑端到端测试
+cd tests/e2e
+pnpm test:smoke        # 2 min smoke 子集
+pnpm test:api          # 5 min 全量 API
+pnpm test:ui           # 10 min UI（需前端容器）
 
-# 4. 停止基础设施
+# 5. 停止基础设施
 docker compose -f infrastructure/docker-compose.yml down
 ```
 
@@ -40,6 +51,11 @@ docker compose -f infrastructure/docker-compose.yml down
 | `pnpm run test:e2e:ui`            | 数据驱动 UI 业务流（Playwright，需前端容器）      |
 | `node scripts/run-tests-docker.js [service]` | 容器内跑 Rust 单元测试（见 AGENTS.md） |
 | `pnpm run check:env` | 检查开发环境服务状态 |
+| `pnpm -C tests/e2e test:smoke` | E2E smoke 子集（2 min，8 API + 2 UI 用例） |
+| `node scripts/check-service-standard.js` | CI gate: 8-item 服务规范检查 |
+| `node scripts/check-spec.js` | CI gate: OpenAPI / 错误码 / 权限码检查 |
+| `node scripts/contracts-gen.js --check` | CI gate: 契约生成代码与 YAML 一致性 |
+| `scripts/dump-openapi-specs.sh` | 重新生成 4 个 service 的 openapi.yaml |
 
 ### 单独跑某个服务
 
@@ -58,20 +74,34 @@ cargo run                        # 启动
 
 ### 服务端口与依赖
 
-| 服务                 | 外部端口 | 依赖                                      |
-| -------------------- | -------- | ----------------------------------------- |
-| api-gateway          | 3000     | token-service, iam-service（consul 发现） |
-| token-service        | 6001     | MySQL / Redis / Consul                    |
-| iam-service          | 6002     | MySQL / Consul                            |
-| notification-service | 6003     | MySQL / Redis / Consul                    |
-| audit-service        | —        | MySQL / Consul                            |
-| config-service       | —        | MySQL / Consul                            |
-| file-service         | —        | MySQL / Consul                            |
-| consul               | 8500     | —                                         |
-| redis                | 6379     | —                                         |
-| mysql                | 3306     | root / rootpass                           |
+| 服务                 | 外部端口 | 依赖                                      | OTel |
+| -------------------- | -------- | ----------------------------------------- | ---- |
+| api-gateway          | 3000     | token-service, iam-service（consul 发现） | ✅ |
+| token-service        | 6001     | MySQL / Redis / Consul                    | ✅ |
+| iam-service          | 6002     | MySQL / Consul                            | ✅ |
+| notification-service | 6003     | MySQL / Redis / Consul                    | ✅ |
+| prue_backend         | 6004     | SQLite / MySQL / Consul                   | — |
+| audit-service        | 6005     | MySQL / Consul                            | — |
+| config-service       | 6006     | MySQL / Consul                            | — |
+| file-service         | 6007     | MySQL / Consul                            | — |
+| consul               | 8500     | —                                         | — |
+| redis                | 6379     | —                                         | — |
+| mysql                | 3306     | root / rootpass                           | — |
 
 > 服务内部端口统一为 8080，对外端口范围 6000-6999；api-gateway 对外/对内均为 3000。
+> ✅ = 启用 OpenTelemetry traces（跨服务 trace 链在 Jaeger 可视化）
+
+### 可观测性
+
+详见 [`docs/guides/observability.md`](docs/guides/observability.md)。
+
+```bash
+scripts/start-observability.sh
+# Prometheus :9090  (metrics scraping, Consul SD)
+# Grafana    :3001  (admin/admin, 预置 Gateway Overview dashboard)
+# Jaeger     :16686 (traces UI, 4 OTel-enabled services)
+# OTel collector OTLP gRPC :4317 (接收 service spans)
+```
 
 ### Swagger UI
 
@@ -81,6 +111,38 @@ cargo run                        # 启动
 | ------------- | -------------------------------- | ------------------------------------------- |
 | token-service | http://localhost:6001/swagger-ui | http://localhost:6001/api-docs/openapi.json |
 | iam-service   | http://localhost:6002/swagger-ui | http://localhost:6002/api-docs/openapi.json |
+
+> 4 个 service（audit/config/file/prue_backend）的 openapi.yaml 是 utoipa 自动生成的，详见 `scripts/dump-openapi-specs.sh` 和 `.agents/skills/coder-new-service`。
+
+### API Gateway 限流
+
+api-gateway 集中限流，按 `infrastructure/config/api-gateway/rate-limits.toml` 配置：
+
+```toml
+[defaults]
+requests_per_second = 100
+burst = 200
+
+[routes."/v1/iam/auth/login"]
+requests_per_second = 5     # auth 端点严格
+burst = 10
+```
+
+限流时返回 HTTP 429 + `Retry-After: 1`。详见 `docs/USER_MANUAL.md#7-rate-limiting`。
+
+### 灰度发布
+
+详见 [`docs/guides/canary-rollout.md`](docs/guides/canary-rollout.md)。
+
+```bash
+# 部署 canary 实例 + tag
+docker exec consul consul tags -add -service audit-service -tag canary -id <id>
+
+# 10% 流量到 canary；用 X-Canary: true 强制路由
+
+# 回滚（1 秒内）
+docker exec consul consul tags -delete -service audit-service -tag canary -id <id>
+```
 
 ### 配置文件位置
 
@@ -92,6 +154,7 @@ cargo run                        # 启动
 基础设施的 docker compose 文件位于 `infrastructure/`：
 
 - `docker-compose.yml` — 仅基础设施（3 容器：consul / redis / mysql，配合本地服务进程）
+- `docker-compose-observability.yml` — overlay（Prometheus + Grafana + Jaeger + OTel collector）
 
 ### 在 Docker 中跑 Rust 单元测试
 
@@ -137,20 +200,35 @@ docker run --rm `
 - **cargo 链接错误（fiat_25519）**：本仓库已切到 `aws_lc_rs` crypto provider；如回退到 `ring` 会触发 MSVC LNK2019
 - **服务起不来**：`docker logs <container>` 看基础设施；服务进程日志直接输出到终端
 - **测试数据脏**：e2e 的 `globalSetup` 会在每轮开始清库重置；也可重启 mysql 容器
+- **trace 不出现在 Jaeger**：检查 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量是否设置（详见 `docs/guides/otel-tracing.md`）
+- **API 返回 429**：被 rate limit 了，调整 `infrastructure/config/api-gateway/rate-limits.toml`
+- **OpenAPI drift CI 失败**：运行 `scripts/dump-openapi-specs.sh` 重新生成并 commit
 
 ## Services
 
-| Service              | Language | Framework |
-| -------------------- | -------- | --------- |
-| API Gateway          | Rust     | Axum      |
-| Token Service        | Rust     | Axum      |
-| IAM Service          | Rust     | Axum      |
-| Notification Service | Rust     | Axum      |
-| Audit Service        | Rust     | Axum      |
-| Config Service       | Rust     | Axum      |
-| File Service         | Rust     | Axum      |
+| Service              | Language | Framework | OTel |
+| -------------------- | -------- | --------- | ---- |
+| API Gateway          | Rust     | Axum      | ✅ |
+| Token Service        | Rust     | Axum      | ✅ |
+| IAM Service          | Rust     | Axum      | ✅ |
+| Notification Service | Rust     | Axum      | ✅ |
+| Audit Service        | Rust     | Axum      | — |
+| Config Service       | Rust     | Axum      | — |
+| File Service         | Rust     | Axum      | — |
 
 > 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`。
+
+## AI 辅助开发
+
+项目使用 `.agents/skills/` 提供 AI skill：
+
+| Skill | 用途 |
+|-------|------|
+| `coder-add-route` | 给现有 service 加路由（含 utoipa 注解 + openapi.rs 注册） |
+| `coder-migrate-db` | 加迁移（MySQL + SQLite 双版本） |
+| `coder-new-service` | 脚手架新 Rust microservice（满足 8-item 服务规范） |
+
+完整 L4 触发器规则见 `.trae/rules/project_rules.md`。
 
 ## CI/CD Deployment
 
@@ -293,6 +371,8 @@ pnpm run setup
 | `pnpm run contracts:gen`                      | 生成契约代码（错误码、权限码）                    |
 | `pnpm run check:service-standard`             | 检查服务规范合规性                                |
 | `pnpm run check:spec`                         | 检查契约规范（权限码、错误码、OpenAPI）           |
+| `node scripts/dump-openapi-specs.sh`          | 重新生成 4 个 service 的 openapi.yaml            |
+| `scripts/start-observability.sh`              | 启动可观测性 overlay（Prometheus + Grafana + Jaeger + OTel collector） |
 
 ### AI 辅助工具
 
@@ -379,3 +459,20 @@ pnpm run check && pnpm run test && pnpm run build
 # 构建镜像
 pnpm run docker:build
 ```
+
+## 参考文档
+
+按使用场景：
+
+| 场景 | 文档 |
+|------|------|
+| 我是新人 / 新 AI 实例 | [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) |
+| AI 协作者读取入口 | [`docs/ai-context.md`](docs/ai-context.md) |
+| 加路由 / 加迁移 / 新建 service | [`.agents/skills/`](.agents/skills/) |
+| E2E 测试 (smoke / data-driven) | [`docs/guides/testing.md`](docs/guides/testing.md) |
+| OpenTelemetry / Jaeger / 跨服务 trace | [`docs/guides/otel-tracing.md`](docs/guides/otel-tracing.md) |
+| 可观测性 stack (Prometheus + Grafana + OTel) | [`docs/guides/observability.md`](docs/guides/observability.md) |
+| Canary 灰度发布 | [`docs/guides/canary-rollout.md`](docs/guides/canary-rollout.md) |
+| api-gateway 路由配置 | [`docs/guides/api-gateway-routing.md`](docs/guides/api-gateway-routing.md) |
+| ADR (架构决策) | [`docs/decisions/`](docs/decisions/) |
+| 12 周路线图与月度复盘 | [`docs/superpowers/`](docs/superpowers/) |
