@@ -175,6 +175,11 @@ pnpm -C tests/e2e test:ui           # full UI (needs frontend running)
 # Build images
 node scripts/base-images-sync.js --check
 
+# Observability overlay (Prometheus + Grafana + consul-template)
+docker compose -f infrastructure/docker-compose.yml up -d
+scripts/start-observability.sh
+# Then: Prometheus :9090, Grafana :3001 (admin/admin)
+
 # Install pre-commit hook (one-time)
 pre-commit install
 # OR fallback:
