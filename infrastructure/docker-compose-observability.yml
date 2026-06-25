@@ -1,0 +1,76 @@
+# Observability overlay — bring up alongside main docker-compose.yml.
+# Usage:
+#   docker compose -f infrastructure/docker-compose.yml up -d
+#   docker compose -f infrastructure/docker-compose-observability.yml up -d
+#
+# Then access:
+#   Prometheus:  http://localhost:9090
+#   Grafana:     http://localhost:3001  (admin / admin, change after first login)
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: observability-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - superpowers
+    depends_on:
+      - consul
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: observability-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    networks:
+      - superpowers
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Canary routing: watches Consul for service tag changes
+  # and re-renders nginx config to split traffic stable/canary
+  consul-template:
+    image: hashicorp/consul-template:0.32.0
+    container_name: observability-consul-template
+    volumes:
+      - ./config/nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./config/nginx/consul-template.hcl:/etc/consul-template/config.hcl:ro
+      - nginx_rendered:/etc/nginx
+    command:
+      - "-config=/etc/consul-template/config.hcl"
+    networks:
+      - superpowers
+    depends_on:
+      - consul
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  nginx_rendered:
+
+networks:
+  superpowers:
+    external: true
+    name: superpowers
