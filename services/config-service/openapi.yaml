@@ -1,361 +1,520 @@
-{
-  "openapi": "3.0.3",
-  "info": {
-    "title": "Config Service API",
-    "version": "1.0.0",
-    "description": "配置中心服务 API"
-  },
-  "servers": [
-    {
-      "url": "http://localhost:8081",
-      "description": "本地开发"
-    }
-  ],
-  "paths": {
-    "/health": {
-      "get": {
-        "summary": "健康检查",
-        "operationId": "health",
-        "tags": ["System"],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": { "type": "string" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/config/namespace": {
-      "get": {
-        "summary": "查询命名空间列表",
-        "operationId": "listNamespaces",
-        "tags": ["Namespace"],
-        "parameters": [
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/Size" }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PagedNamespaces" }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "创建命名空间",
-        "operationId": "createNamespace",
-        "tags": ["Namespace"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateNamespace" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Namespace" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/config/namespace/{id}": {
-      "get": {
-        "summary": "获取命名空间详情",
-        "operationId": "getNamespace",
-        "tags": ["Namespace"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Namespace" }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "summary": "更新命名空间",
-        "operationId": "updateNamespace",
-        "tags": ["Namespace"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateNamespace" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
-      "delete": {
-        "summary": "删除命名空间",
-        "operationId": "deleteNamespace",
-        "tags": ["Namespace"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/config/item": {
-      "get": {
-        "summary": "查询配置项列表",
-        "operationId": "listConfigItems",
-        "tags": ["Config"],
-        "parameters": [
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/Size" },
-          { "name": "namespace_id", "in": "query", "schema": { "type": "string" } },
-          { "name": "key", "in": "query", "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PagedConfigItems" }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "创建配置项",
-        "operationId": "createConfigItem",
-        "tags": ["Config"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateConfigItem" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ConfigItem" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/config/item/{id}": {
-      "get": {
-        "summary": "获取配置项详情",
-        "operationId": "getConfigItem",
-        "tags": ["Config"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ConfigItem" }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "summary": "更新配置项",
-        "operationId": "updateConfigItem",
-        "tags": ["Config"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateConfigItem" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
-      "delete": {
-        "summary": "删除配置项",
-        "operationId": "deleteConfigItem",
-        "tags": ["Config"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/config/watch": {
-      "get": {
-        "summary": "长轮询监听配置变更",
-        "operationId": "watchConfig",
-        "tags": ["Config"],
-        "parameters": [
-          { "name": "namespace_id", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "version", "in": "query", "schema": { "type": "integer" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "配置变更通知",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ConfigWatchResponse" }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "parameters": {
-      "Page": {
-        "name": "page",
-        "in": "query",
-        "schema": { "type": "integer", "default": 1 }
-      },
-      "Size": {
-        "name": "size",
-        "in": "query",
-        "schema": { "type": "integer", "default": 20 }
-      }
-    },
-    "schemas": {
-      "Namespace": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "app": { "type": "string" },
-          "env": { "type": "string" },
-          "profile": { "type": "string" },
-          "description": { "type": "string" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "CreateNamespace": {
-        "type": "object",
-        "required": ["name", "app"],
-        "properties": {
-          "name": { "type": "string" },
-          "app": { "type": "string" },
-          "env": { "type": "string", "default": "dev" },
-          "profile": { "type": "string", "default": "default" },
-          "description": { "type": "string" }
-        }
-      },
-      "UpdateNamespace": {
-        "type": "object",
-        "properties": {
-          "description": { "type": "string" }
-        }
-      },
-      "PagedNamespaces": {
-        "type": "object",
-        "properties": {
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Namespace" } },
-          "total": { "type": "integer" },
-          "page": { "type": "integer" },
-          "size": { "type": "integer" }
-        }
-      },
-      "ConfigItem": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "namespace_id": { "type": "string" },
-          "key": { "type": "string" },
-          "value": { "type": "string" },
-          "value_type": { "type": "string", "enum": ["string", "int", "bool", "json", "yaml"] },
-          "version": { "type": "integer" },
-          "is_secret": { "type": "boolean" },
-          "description": { "type": "string" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "CreateConfigItem": {
-        "type": "object",
-        "required": ["namespace_id", "key", "value"],
-        "properties": {
-          "namespace_id": { "type": "string" },
-          "key": { "type": "string" },
-          "value": { "type": "string" },
-          "value_type": { "type": "string", "enum": ["string", "int", "bool", "json", "yaml"], "default": "string" },
-          "is_secret": { "type": "boolean", "default": false },
-          "description": { "type": "string" }
-        }
-      },
-      "UpdateConfigItem": {
-        "type": "object",
-        "properties": {
-          "value": { "type": "string" },
-          "description": { "type": "string" }
-        }
-      },
-      "PagedConfigItems": {
-        "type": "object",
-        "properties": {
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ConfigItem" } },
-          "total": { "type": "integer" },
-          "page": { "type": "integer" },
-          "size": { "type": "integer" }
-        }
-      },
-      "ConfigWatchResponse": {
-        "type": "object",
-        "properties": {
-          "changed": { "type": "boolean" },
-          "version": { "type": "integer" },
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ConfigItem" } }
-        }
-      }
-    }
-  }
-}
+openapi: 3.1.0
+info:
+  title: config-service
+  description: Dynamic configuration management
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /config/export/{namespace_id}:
+    get:
+      tags:
+      - config-item
+      operationId: export_config
+      parameters:
+      - name: namespace_id
+        in: path
+        description: Namespace id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Exported config as JSON string
+          content:
+            text/plain:
+              schema:
+                type: string
+  /config/import/{namespace_id}:
+    post:
+      tags:
+      - config-item
+      operationId: import_config
+      parameters:
+      - name: namespace_id
+        in: path
+        description: Namespace id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+        required: true
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid JSON body
+  /config/item:
+    get:
+      tags:
+      - config-item
+      operationId: query_config_items
+      parameters:
+      - name: namespace_id
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: key
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: Paged config items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedConfigItems'
+    post:
+      tags:
+      - config-item
+      operationId: create_config_item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConfigItem'
+        required: true
+      responses:
+        '200':
+          description: Config item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigItem'
+  /config/item/{id}:
+    get:
+      tags:
+      - config-item
+      operationId: get_config_item
+      parameters:
+      - name: id
+        in: path
+        description: Config item id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Config item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigItem'
+        '404':
+          description: Not found
+    put:
+      tags:
+      - config-item
+      operationId: update_config_item
+      parameters:
+      - name: id
+        in: path
+        description: Config item id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConfigItem'
+        required: true
+      responses:
+        '200':
+          description: Updated config item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigItem'
+        '404':
+          description: Not found
+    delete:
+      tags:
+      - config-item
+      operationId: delete_config_item
+      parameters:
+      - name: id
+        in: path
+        description: Config item id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: Not found
+  /config/namespace:
+    get:
+      tags:
+      - namespace
+      operationId: query_namespaces
+      parameters:
+      - name: app
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: env
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: Paged namespaces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedNamespaces'
+    post:
+      tags:
+      - namespace
+      operationId: create_namespace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNamespace'
+        required: true
+      responses:
+        '200':
+          description: Namespace created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Namespace'
+  /config/namespace/{id}:
+    get:
+      tags:
+      - namespace
+      operationId: get_namespace
+      parameters:
+      - name: id
+        in: path
+        description: Namespace id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Namespace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Namespace'
+        '404':
+          description: Not found
+    put:
+      tags:
+      - namespace
+      operationId: update_namespace
+      parameters:
+      - name: id
+        in: path
+        description: Namespace id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNamespace'
+        required: true
+      responses:
+        '200':
+          description: Updated namespace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Namespace'
+        '404':
+          description: Not found
+    delete:
+      tags:
+      - namespace
+      operationId: delete_namespace
+      parameters:
+      - name: id
+        in: path
+        description: Namespace id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: Not found
+  /config/watch:
+    get:
+      tags:
+      - watch
+      operationId: watch_config
+      parameters:
+      - name: namespace_id
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: Long-poll result
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    ConfigItem:
+      type: object
+      required:
+      - id
+      - namespace_id
+      - key
+      - value
+      - value_type
+      - is_secret
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+        is_secret:
+          type: boolean
+        key:
+          type: string
+        namespace_id:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        value:
+          type: string
+        value_type:
+          type: string
+    CreateConfigItem:
+      type: object
+      required:
+      - namespace_id
+      - key
+      - value
+      properties:
+        description:
+          type:
+          - string
+          - 'null'
+        is_secret:
+          type: boolean
+        key:
+          type: string
+        namespace_id:
+          type: string
+        value:
+          type: string
+        value_type:
+          type: string
+    CreateNamespace:
+      type: object
+      required:
+      - app
+      - env
+      properties:
+        app:
+          type: string
+        description:
+          type:
+          - string
+          - 'null'
+        env:
+          type: string
+        profile:
+          type:
+          - string
+          - 'null'
+    Namespace:
+      type: object
+      required:
+      - id
+      - app
+      - env
+      - created_at
+      - updated_at
+      properties:
+        app:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type:
+          - string
+          - 'null'
+        env:
+          type: string
+        id:
+          type: string
+        profile:
+          type:
+          - string
+          - 'null'
+        updated_at:
+          type: string
+          format: date-time
+    PagedConfigItems:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigItem'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+    PagedNamespaces:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Namespace'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+    UpdateConfigItem:
+      type: object
+      properties:
+        description:
+          type:
+          - string
+          - 'null'
+        is_secret:
+          type:
+          - boolean
+          - 'null'
+        value:
+          type:
+          - string
+          - 'null'
+        value_type:
+          type:
+          - string
+          - 'null'
+    UpdateNamespace:
+      type: object
+      properties:
+        description:
+          type:
+          - string
+          - 'null'
+tags:
+- name: namespace
+  description: Namespace management
+- name: config-item
+  description: Config item CRUD + export/import
+- name: watch
+  description: Long-poll watch

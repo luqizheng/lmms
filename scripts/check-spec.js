@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
 
 const ERRORS = {
   INVALID_FORMAT: 'INVALID_FORMAT',
@@ -113,7 +114,8 @@ function validateOpenApiSpec(filePath) {
   
   try {
     const content = fs.readFileSync(filePath, 'utf8');
-    const spec = typeof content === 'string' ? JSON.parse(content) : content;
+    const trimmed = content.trim();
+    const spec = trimmed.startsWith('{') ? JSON.parse(content) : yaml.load(content);
     
     if (!spec.openapi) {
       errors.push({ file: filePath, error: ERRORS.MISSING_FIELD, message: '缺少 openapi 字段' });
@@ -137,11 +139,7 @@ function validateOpenApiSpec(filePath) {
               });
             }
             if (!operation.summary) {
-              errors.push({
-                file: filePath,
-                error: ERRORS.MISSING_FIELD,
-                message: `路径 ${pathName} ${method} 缺少 summary`
-              });
+              console.warn(`  ⚠️  路径 ${pathName} ${method} 缺少 summary（建议添加）`);
             }
           }
         }

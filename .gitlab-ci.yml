@@ -54,6 +54,21 @@ contracts_check:
   script:
     - node scripts/contracts-gen.js --check
 
+spec_generate:
+  stage: test
+  tags: [docker]
+  image: zhcoder-docker-registry.com:8000/official/rust:1.96-slim
+  before_script:
+    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
+    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    - apt-get update && apt-get install -y pkg-config libssl-dev
+  script:
+    - chmod +x scripts/dump-openapi-specs.sh
+    - scripts/dump-openapi-specs.sh
+    - git diff --exit-code -- 'services/*/openapi.yaml'
+  dependencies:
+    - spec_check
+
 e2e_api_test:
   stage: test
   tags: [docker]

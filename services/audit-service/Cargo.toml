@@ -15,7 +15,7 @@ serde_json.workspace = true
 chrono.workspace = true
 csv.workspace = true
 prometheus = "0.13"
-utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 common-error = { path = "../../libs/common-error" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
@@ -23,6 +23,10 @@ common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
 common = { path = "../../libs/common" }
 consul-registrar = { path = "../../libs/consul-registrar" }
+
+[[bin]]
+name = "dump-openapi"
+path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

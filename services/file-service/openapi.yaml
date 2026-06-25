@@ -1,236 +1,297 @@
-{
-  "openapi": "3.0.3",
-  "info": {
-    "title": "File Service API",
-    "version": "1.0.0",
-    "description": "文件服务 API"
-  },
-  "servers": [
-    {
-      "url": "http://localhost:8082",
-      "description": "本地开发"
-    }
-  ],
-  "paths": {
-    "/health": {
-      "get": {
-        "summary": "健康检查",
-        "operationId": "health",
-        "tags": ["System"],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": { "type": "string" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/file/upload": {
-      "post": {
-        "summary": "上传文件",
-        "operationId": "uploadFile",
-        "tags": ["File"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/UploadFileMeta" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/FileInfo" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/file/list": {
-      "get": {
-        "summary": "查询文件列表",
-        "operationId": "listFiles",
-        "tags": ["File"],
-        "parameters": [
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/Size" },
-          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } },
-          { "name": "user_id", "in": "query", "schema": { "type": "string" } },
-          { "name": "filename", "in": "query", "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PagedFiles" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/file/{id}": {
-      "get": {
-        "summary": "下载文件",
-        "operationId": "downloadFile",
-        "tags": ["File"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "文件内容",
-            "content": {
-              "application/octet-stream": {
-                "schema": { "type": "string", "format": "binary" }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "summary": "删除文件",
-        "operationId": "deleteFile",
-        "tags": ["File"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/file/{id}/info": {
-      "get": {
-        "summary": "获取文件元数据",
-        "operationId": "getFileInfo",
-        "tags": ["File"],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/FileInfo" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/file/presign": {
-      "post": {
-        "summary": "创建预签名 URL",
-        "operationId": "createPresignUrl",
-        "tags": ["File"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreatePresignUrl" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PresignUrlResponse" }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "parameters": {
-      "Page": {
-        "name": "page",
-        "in": "query",
-        "schema": { "type": "integer", "default": 1 }
-      },
-      "Size": {
-        "name": "size",
-        "in": "query",
-        "schema": { "type": "integer", "default": 20 }
-      }
-    },
-    "schemas": {
-      "FileInfo": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "filename": { "type": "string" },
-          "content_type": { "type": "string" },
-          "size": { "type": "integer" },
-          "hash": { "type": "string" },
-          "storage_path": { "type": "string" },
-          "tenant_id": { "type": "string" },
-          "user_id": { "type": "string" },
-          "is_temporary": { "type": "boolean" },
-          "expires_at": { "type": "string", "format": "date-time" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "UploadFileMeta": {
-        "type": "object",
-        "required": ["filename"],
-        "properties": {
-          "filename": { "type": "string" },
-          "content_type": { "type": "string" },
-          "tenant_id": { "type": "string" },
-          "user_id": { "type": "string" },
-          "is_temporary": { "type": "boolean", "default": false },
-          "expires_in_seconds": { "type": "integer" }
-        }
-      },
-      "PagedFiles": {
-        "type": "object",
-        "properties": {
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/FileInfo" } },
-          "total": { "type": "integer" },
-          "page": { "type": "integer" },
-          "size": { "type": "integer" }
-        }
-      },
-      "CreatePresignUrl": {
-        "type": "object",
-        "required": ["file_id", "operation"],
-        "properties": {
-          "file_id": { "type": "string" },
-          "operation": { "type": "string", "enum": ["get", "put"] },
-          "expires_in_seconds": { "type": "integer", "default": 3600 }
-        }
-      },
-      "PresignUrlResponse": {
-        "type": "object",
-        "properties": {
-          "url": { "type": "string" },
-          "expires_at": { "type": "string", "format": "date-time" },
-          "operation": { "type": "string" }
-        }
-      }
-    }
-  }
-}
+openapi: 3.1.0
+info:
+  title: file-service
+  description: File upload, download and presign
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /file/list:
+    get:
+      tags:
+      - file
+      operationId: query_files
+      parameters:
+      - name: tenant_id
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: filename
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: Paged file list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedFiles'
+  /file/presign:
+    post:
+      tags:
+      - presign
+      operationId: create_presign
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePresignUrl'
+        required: true
+      responses:
+        '200':
+          description: Presigned URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignUrlResponse'
+        '401':
+          description: Presign expired
+        '404':
+          description: File not found
+  /file/upload:
+    post:
+      tags:
+      - file
+      operationId: upload_file
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadFileMeta'
+        required: true
+      responses:
+        '200':
+          description: Uploaded file metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+  /file/{id}:
+    get:
+      tags:
+      - file
+      operationId: download_file
+      parameters:
+      - name: id
+        in: path
+        description: File id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: File bytes (octet-stream or content-type)
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Not found
+    delete:
+      tags:
+      - file
+      operationId: delete_file
+      parameters:
+      - name: id
+        in: path
+        description: File id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: Not found
+  /file/{id}/info:
+    get:
+      tags:
+      - file
+      operationId: get_file_info
+      parameters:
+      - name: id
+        in: path
+        description: File id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: File info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+        '404':
+          description: Not found
+components:
+  schemas:
+    CreatePresignUrl:
+      type: object
+      required:
+      - file_id
+      - operation
+      properties:
+        expires_in_seconds:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        file_id:
+          type: string
+        operation:
+          type: string
+    FileInfo:
+      type: object
+      required:
+      - id
+      - filename
+      - size
+      - storage_path
+      - is_temporary
+      - created_at
+      - updated_at
+      properties:
+        content_type:
+          type:
+          - string
+          - 'null'
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        filename:
+          type: string
+        hash:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+        is_temporary:
+          type: boolean
+        size:
+          type: integer
+          format: int64
+        storage_path:
+          type: string
+        tenant_id:
+          type:
+          - string
+          - 'null'
+        updated_at:
+          type: string
+          format: date-time
+        user_id:
+          type:
+          - string
+          - 'null'
+    PagedFiles:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfo'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+    PresignUrlResponse:
+      type: object
+      required:
+      - url
+      - expires_at
+      - operation
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+        operation:
+          type: string
+        url:
+          type: string
+    UploadFileMeta:
+      type: object
+      required:
+      - filename
+      properties:
+        content_type:
+          type:
+          - string
+          - 'null'
+        expires_in_seconds:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        filename:
+          type: string
+        is_temporary:
+          type:
+          - boolean
+          - 'null'
+        tenant_id:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - string
+          - 'null'
+tags:
+- name: file
+  description: File upload / download / info
+- name: presign
+  description: Presigned URL

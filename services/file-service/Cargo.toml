@@ -16,7 +16,7 @@ uuid.workspace = true
 bytes.workspace = true
 futures.workspace = true
 prometheus = "0.13"
-utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tokio-util = { version = "0.7", features = ["io"] }
 async-trait = "0.1"
@@ -24,6 +24,10 @@ common-error = { path = "../../libs/common-error" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
+
+[[bin]]
+name = "dump-openapi"
+path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

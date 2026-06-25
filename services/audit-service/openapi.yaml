@@ -1,336 +1,545 @@
-{
-  "openapi": "3.0.3",
-  "info": {
-    "title": "Audit Service API",
-    "version": "1.0.0",
-    "description": "审计日志服务 API"
-  },
-  "servers": [
-    {
-      "url": "http://localhost:8080",
-      "description": "本地开发"
-    }
-  ],
-  "paths": {
-    "/health": {
-      "get": {
-        "summary": "健康检查",
-        "operationId": "health",
-        "tags": ["System"],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": { "type": "string" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/audit/operation": {
-      "get": {
-        "summary": "查询操作日志",
-        "operationId": "queryOperationLogs",
-        "tags": ["Operation"],
-        "parameters": [
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/Size" },
-          { "name": "user_id", "in": "query", "schema": { "type": "string" } },
-          { "name": "action", "in": "query", "schema": { "type": "string" } },
-          { "name": "resource", "in": "query", "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PagedOperationLogs" }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "创建操作日志",
-        "operationId": "createOperationLog",
-        "tags": ["Operation"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateOperationLog" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": { "type": "integer" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/audit/login": {
-      "get": {
-        "summary": "查询登录日志",
-        "operationId": "queryLoginLogs",
-        "tags": ["Login"],
-        "parameters": [
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/Size" }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PagedLoginLogs" }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "创建登录日志",
-        "operationId": "createLoginLog",
-        "tags": ["Login"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateLoginLog" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/audit/export/compliance/operation/csv/{user_id}": {
-      "get": {
-        "summary": "按用户导出操作日志 CSV",
-        "operationId": "exportOperationCsv",
-        "tags": ["Export"],
-        "parameters": [
-          { "name": "user_id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "CSV 文件",
-            "content": {
-              "text/csv": {
-                "schema": { "type": "string" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/audit/retention/stats": {
-      "get": {
-        "summary": "获取保留统计",
-        "operationId": "getRetentionStats",
-        "tags": ["Retention"],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/RetentionStats" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/audit/retention/policy": {
-      "get": {
-        "summary": "获取保留策略",
-        "operationId": "getRetentionPolicy",
-        "tags": ["Retention"],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/RetentionPolicy" }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "summary": "更新保留策略",
-        "operationId": "updateRetentionPolicy",
-        "tags": ["Retention"],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/RetentionPolicy" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/audit/retention/cleanup": {
-      "post": {
-        "summary": "手动触发清理",
-        "operationId": "triggerCleanup",
-        "tags": ["Retention"],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "deleted_count": { "type": "integer" },
-                    "success": { "type": "boolean" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "parameters": {
-      "Page": {
-        "name": "page",
-        "in": "query",
-        "schema": { "type": "integer", "default": 1 }
-      },
-      "Size": {
-        "name": "size",
-        "in": "query",
-        "schema": { "type": "integer", "default": 20 }
-      }
-    },
-    "schemas": {
-      "OperationLog": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer" },
-          "user_id": { "type": "string" },
-          "action": { "type": "string" },
-          "resource": { "type": "string" },
-          "resource_id": { "type": "string" },
-          "before_value": { "type": "string" },
-          "after_value": { "type": "string" },
-          "request_id": { "type": "string" },
-          "ip_address": { "type": "string" },
-          "user_agent": { "type": "string" },
-          "created_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "CreateOperationLog": {
-        "type": "object",
-        "required": ["user_id", "action", "resource"],
-        "properties": {
-          "user_id": { "type": "string" },
-          "action": { "type": "string" },
-          "resource": { "type": "string" },
-          "resource_id": { "type": "string" },
-          "before_value": { "type": "string" },
-          "after_value": { "type": "string" },
-          "request_id": { "type": "string" },
-          "ip_address": { "type": "string" },
-          "user_agent": { "type": "string" }
-        }
-      },
-      "PagedOperationLogs": {
-        "type": "object",
-        "properties": {
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/OperationLog" } },
-          "total": { "type": "integer" },
-          "page": { "type": "integer" },
-          "size": { "type": "integer" }
-        }
-      },
-      "LoginLog": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer" },
-          "user_id": { "type": "string" },
-          "username": { "type": "string" },
-          "success": { "type": "boolean" },
-          "fail_reason": { "type": "string" },
-          "ip_address": { "type": "string" },
-          "location": { "type": "string" },
-          "user_agent": { "type": "string" },
-          "created_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "CreateLoginLog": {
-        "type": "object",
-        "required": ["user_id", "username", "success"],
-        "properties": {
-          "user_id": { "type": "string" },
-          "username": { "type": "string" },
-          "success": { "type": "boolean" },
-          "fail_reason": { "type": "string" },
-          "ip_address": { "type": "string" },
-          "location": { "type": "string" },
-          "user_agent": { "type": "string" },
-          "request_id": { "type": "string" }
-        }
-      },
-      "PagedLoginLogs": {
-        "type": "object",
-        "properties": {
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/LoginLog" } },
-          "total": { "type": "integer" },
-          "page": { "type": "integer" },
-          "size": { "type": "integer" }
-        }
-      },
-      "RetentionPolicy": {
-        "type": "object",
-        "properties": {
-          "hot_days": { "type": "integer", "default": 90 },
-          "warm_days": { "type": "integer", "default": 365 },
-          "cold_days": { "type": "integer", "default": 2555 },
-          "archive_enabled": { "type": "boolean", "default": true },
-          "purge_enabled": { "type": "boolean", "default": true }
-        }
-      },
-      "RetentionStats": {
-        "type": "object",
-        "properties": {
-          "hot_count": { "type": "integer" },
-          "warm_count": { "type": "integer" },
-          "cold_count": { "type": "integer" },
-          "expired_count": { "type": "integer" },
-          "total_size_bytes": { "type": "integer" }
-        }
-      }
-    }
-  }
-}
+openapi: 3.1.0
+info:
+  title: audit-service
+  description: Audit log and retention
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /audit/export/compliance/login/csv:
+    get:
+      tags:
+      - compliance
+      operationId: export_login_csv
+      responses:
+        '200':
+          description: CSV export of login logs
+          content:
+            text/plain:
+              schema:
+                type: string
+  /audit/export/compliance/operation/csv:
+    get:
+      tags:
+      - compliance
+      operationId: export_operation_csv
+      responses:
+        '200':
+          description: CSV export of operation logs
+          content:
+            text/plain:
+              schema:
+                type: string
+  /audit/export/compliance/operation/json:
+    get:
+      tags:
+      - compliance
+      operationId: export_operation_json
+      responses:
+        '200':
+          description: JSON export of operation logs
+          content:
+            text/plain:
+              schema:
+                type: string
+  /audit/login:
+    get:
+      tags:
+      - login
+      operationId: query_login_logs
+      parameters:
+      - name: username
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: success
+        in: query
+        required: false
+        schema:
+          type:
+          - boolean
+          - 'null'
+      - name: start_time
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: end_time
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: Paged login logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedLoginLogs'
+    post:
+      tags:
+      - login
+      operationId: create_login_log
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoginLog'
+        required: true
+      responses:
+        '200':
+          description: Login log created
+          content:
+            application/json:
+              schema: {}
+  /audit/operation:
+    get:
+      tags:
+      - operation
+      operationId: query_operation_logs
+      parameters:
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: action
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: resource
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: start_time
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: end_time
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: Paged operation logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedOperationLogs'
+    post:
+      tags:
+      - operation
+      operationId: create_operation_log
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOperationLog'
+        required: true
+      responses:
+        '200':
+          description: Operation log created
+          content:
+            application/json:
+              schema: {}
+  /audit/retention/cleanup:
+    post:
+      tags:
+      - retention
+      operationId: trigger_cleanup
+      responses:
+        '200':
+          description: Cleanup result
+          content:
+            application/json:
+              schema: {}
+  /audit/retention/policy:
+    get:
+      tags:
+      - retention
+      operationId: get_retention_policy
+      responses:
+        '200':
+          description: Current retention policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+    put:
+      tags:
+      - retention
+      operationId: update_retention_policy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetentionPolicy'
+        required: true
+      responses:
+        '200':
+          description: Updated retention policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+        '400':
+          description: Invalid policy (hot < warm < cold required)
+  /audit/retention/stage/{created_at}:
+    get:
+      tags:
+      - retention
+      operationId: get_data_stage
+      parameters:
+      - name: created_at
+        in: path
+        description: RFC3339 timestamp
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Data stage classification
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid date format
+  /audit/retention/stats:
+    get:
+      tags:
+      - retention
+      operationId: get_retention_stats
+      responses:
+        '200':
+          description: Retention stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionStats'
+components:
+  schemas:
+    CreateLoginLog:
+      type: object
+      required:
+      - username
+      - success
+      - ip_address
+      - request_id
+      properties:
+        fail_reason:
+          type:
+          - string
+          - 'null'
+        ip_address:
+          type: string
+        location:
+          type:
+          - string
+          - 'null'
+        request_id:
+          type: string
+        success:
+          type: boolean
+        user_agent:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - string
+          - 'null'
+        username:
+          type: string
+    CreateOperationLog:
+      type: object
+      required:
+      - user_id
+      - action
+      - resource
+      - request_id
+      properties:
+        action:
+          type: string
+        after_value:
+          type:
+          - string
+          - 'null'
+        before_value:
+          type:
+          - string
+          - 'null'
+        ip_address:
+          type:
+          - string
+          - 'null'
+        request_id:
+          type: string
+        resource:
+          type: string
+        resource_id:
+          type:
+          - string
+          - 'null'
+        user_agent:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type: string
+    DataStage:
+      type: string
+      enum:
+      - Hot
+      - Warm
+      - Cold
+      - Expired
+    LoginLog:
+      type: object
+      required:
+      - id
+      - username
+      - success
+      - ip_address
+      - request_id
+      - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        fail_reason:
+          type:
+          - string
+          - 'null'
+        id:
+          type: integer
+          format: int64
+        ip_address:
+          type: string
+        location:
+          type:
+          - string
+          - 'null'
+        request_id:
+          type: string
+        success:
+          type: boolean
+        user_agent:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - string
+          - 'null'
+        username:
+          type: string
+    OperationLog:
+      type: object
+      required:
+      - id
+      - user_id
+      - action
+      - resource
+      - request_id
+      - created_at
+      properties:
+        action:
+          type: string
+        after_value:
+          type:
+          - string
+          - 'null'
+        before_value:
+          type:
+          - string
+          - 'null'
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        ip_address:
+          type:
+          - string
+          - 'null'
+        request_id:
+          type: string
+        resource:
+          type: string
+        resource_id:
+          type:
+          - string
+          - 'null'
+        user_agent:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type: string
+    PagedLoginLogs:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoginLog'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+    PagedOperationLogs:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationLog'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+    RetentionPolicy:
+      type: object
+      required:
+      - hot_days
+      - warm_days
+      - cold_days
+      - archive_enabled
+      - purge_enabled
+      properties:
+        archive_enabled:
+          type: boolean
+        cold_days:
+          type: integer
+          format: int32
+          minimum: 0
+        hot_days:
+          type: integer
+          format: int32
+          minimum: 0
+        purge_enabled:
+          type: boolean
+        warm_days:
+          type: integer
+          format: int32
+          minimum: 0
+    RetentionStats:
+      type: object
+      required:
+      - hot_count
+      - warm_count
+      - cold_count
+      - expired_count
+      - total_size_bytes
+      properties:
+        cold_count:
+          type: integer
+          format: int64
+        expired_count:
+          type: integer
+          format: int64
+        hot_count:
+          type: integer
+          format: int64
+        last_cleanup:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        total_size_bytes:
+          type: integer
+          format: int64
+        warm_count:
+          type: integer
+          format: int64
+tags:
+- name: operation
+  description: Operation logs
+- name: login
+  description: Login logs
+- name: compliance
+  description: Compliance export
+- name: retention
+  description: Retention policy & cleanup

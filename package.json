@@ -65,5 +65,8 @@
   },
   "dependencies": {
     "argon2": "^0.44.0"
+  },
+  "devDependencies": {
+    "js-yaml": "^5.1.0"
   }
 }

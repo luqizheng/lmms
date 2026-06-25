@@ -1,0 +1,293 @@
+openapi: 3.1.0
+info:
+  title: prue_backend
+  description: pure-admin menu config backend
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /get-async-routes:
+    get:
+      tags:
+      - menu-configs
+      operationId: get_async_routes
+      responses:
+        '200':
+          description: Active dynamic routes (sanitized)
+          content:
+            application/json:
+              schema: {}
+  /pure/menu-configs:
+    get:
+      tags:
+      - menu-configs
+      operationId: list_menu_configs
+      responses:
+        '200':
+          description: Menu config versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuConfigListResponse'
+    post:
+      tags:
+      - menu-configs
+      operationId: create_menu_config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMenuConfigRequest'
+        required: true
+      responses:
+        '200':
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuConfigDetail'
+  /pure/menu-configs/{id}:
+    get:
+      tags:
+      - menu-configs
+      operationId: get_menu_config
+      parameters:
+      - name: id
+        in: path
+        description: Menu config id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Menu config detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuConfigDetail'
+        '404':
+          description: Not found
+    put:
+      tags:
+      - menu-configs
+      operationId: update_menu_config
+      parameters:
+      - name: id
+        in: path
+        description: Menu config id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMenuConfigRequest'
+        required: true
+      responses:
+        '200':
+          description: Updated draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuConfigDetail'
+        '400':
+          description: Validation failed (e.g. missing if_match_etag)
+        '409':
+          description: Etag conflict or status not draft
+    delete:
+      tags:
+      - menu-configs
+      operationId: delete_menu_config
+      parameters:
+      - name: id
+        in: path
+        description: Menu config id
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '409':
+          description: Cannot delete published config
+  /pure/menu-configs/{id}/clone:
+    post:
+      tags:
+      - menu-configs
+      operationId: clone_menu_config
+      parameters:
+      - name: id
+        in: path
+        description: Menu config id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Cloned draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuConfigDetail'
+  /pure/menu-configs/{id}/publish:
+    post:
+      tags:
+      - menu-configs
+      operationId: publish_menu_config
+      parameters:
+      - name: id
+        in: path
+        description: Menu config id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuConfigDetail'
+components:
+  schemas:
+    CreateMenuConfigRequest:
+      type: object
+      required:
+      - name
+      - routes_json
+      properties:
+        created_by:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+        routes_json: {}
+    MenuConfigDetail:
+      type: object
+      required:
+      - id
+      - version
+      - name
+      - routes_json
+      - status
+      - is_active
+      - created_at
+      - updated_at
+      - routes_etag
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+        is_active:
+          type: boolean
+        name:
+          type: string
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        routes_etag:
+          type: string
+        routes_json: {}
+        status:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    MenuConfigListResponse:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuConfigSummary'
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    MenuConfigSummary:
+      type: object
+      required:
+      - id
+      - version
+      - name
+      - status
+      - is_active
+      - created_at
+      - updated_at
+      - routes_etag
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+        is_active:
+          type: boolean
+        name:
+          type: string
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        routes_etag:
+          type: string
+        status:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    UpdateMenuConfigRequest:
+      type: object
+      properties:
+        description:
+          type:
+          - string
+          - 'null'
+        if_match_etag:
+          type:
+          - string
+          - 'null'
+        name:
+          type:
+          - string
+          - 'null'
+        routes_json: {}
+tags:
+- name: menu-configs
+  description: Menu config versions
