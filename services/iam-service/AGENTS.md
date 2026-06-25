@@ -3,21 +3,30 @@
 ## 必需组件
 
 - [x] Dockerfile
-- [x] Swagger 配置（可配置启用/禁用）
-- [x] 健康检查端点（/health、/metrics）
-- [x] 数据库迁移文件（migrations/）
+- [x] AGENTS.md
 - [x] README.md
 - [x] tests/ 目录
+- [x] /health 端点
+- [x] /metrics 端点
+- [x] migrations/ 目录
+- [x] Swagger 配置（SWAGGER_ENABLED 开关）
 
-## 配置选项
+## 环境变量
 
-- swagger_enabled: 环境变量 SWAGGER_ENABLED 或默认 true
-- health_check_required: 环境变量 HEALTH_CHECK_REQUIRED 或默认 true
-- migrations_required: 环境变量 MIGRATIONS_REQUIRED 或默认 true
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| SERVER_HOST | 0.0.0.0 | 监听主机 |
+| SERVER_PORT | 8080 | 监听端口 |
+| SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址 |
+| DATABASE_URL | 服务自定义 | 数据库连接 |
+| RUST_LOG | info | 日志级别 |
+| SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
+| CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
 
 ## 端点域
 
 ### 认证 /iam/auth/*
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /iam/auth/login | POST | 用户登录 |
@@ -28,6 +37,7 @@
 | /iam/auth/sessions/:id | DELETE | 撤销会话 |
 
 ### 用户 /iam/users/*
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /iam/users | GET | 查询用户列表 |
@@ -37,6 +47,7 @@
 | /iam/users/:id | DELETE | 删除用户 |
 
 ### 角色 /iam/roles/*
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /iam/roles | GET | 查询角色列表 |
@@ -47,6 +58,7 @@
 | /iam/roles/:id/permissions | PUT | 绑定权限 |
 
 ### 权限 /iam/permissions/*
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /iam/permissions | GET | 查询权限列表 |
@@ -56,6 +68,7 @@
 | /iam/permissions/:id | DELETE | 删除权限 |
 
 ### 组织单元 /iam/org-units/*
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /iam/org-units | GET | 查询组织列表（树形） |
@@ -64,16 +77,26 @@
 | /iam/org-units/:id | PUT | 更新组织 |
 | /iam/org-units/:id | DELETE | 删除组织 |
 
-## 数据库方言
+### 系统
 
-支持 MySQL 和 SQLite。
-
-## 系统端点
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
+| /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|
+
+## 数据库方言
+
+支持 MySQL 和 SQLite。
+
+## 豁免
+
+（无）
 
 ## 状态说明
 
 本服务整合了 token-service、credential-login-service、user-service 的功能。
+
+## AI 检查时机
+
+修改 services/iam-service/ 下文件时自动检查
