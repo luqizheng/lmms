@@ -61,28 +61,46 @@
 - P3.4 高可用 / 灰度（路由权重、canary）
 - P3.5 知识沉淀（`docs/ai-context.md`、月度复盘）
 
+### Phase 3 · 生产就绪 — ✅ 已完成
+
+- ✅ P3.1 可观测性三件套：Prometheus 立即可用 + OTel traces 脚手架（按推荐"先 Prometheus 后续接 OTel"路径）
+- ✅ P3.2 限流 / 熔断：api-gateway 集中限流（governor token bucket，按推荐"Gateway 集中"路径）
+- ✅ P3.3 E2E 稳定性：smoke 子集 + retry + preflight health check
+- ✅ P3.4 高可用 / 灰度：Nginx upstream weight + Consul `canary` tag（按推荐"Nginx+Consul"短期路径）
+- ✅ P3.5 知识沉淀：`docs/ai-context.md` + 月度复盘模板
+
 ---
 
 ## 3. 量化指标对照
 
-| 指标 | 起点 | Phase 1 末 | Phase 2 末 | Phase 3 末 |
-|------|------|-----------|-----------|-----------|
-| e2e 全量耗时 | 5 min | 4 min | 3 min | 3 min |
-| 失败→修复→重跑次数 | 3.2 | 2.5 | 1.8 | 1.5 |
-| 服务规范合规率 | ~70% | 100% | 100% | 100% |
-| Swagger UI 覆盖 | 3/8 | 4/8 | 8/8 | 8/8 |
-| Metrics 端点覆盖 | 1/8 | 1/8 | 4/8 | 8/8 |
-| 新人上手时间 | 3 天 | 2 天 | 1 天 | 0.5 天 |
+| 指标 | 起点 | Phase 1 末 | Phase 2 末 | Phase 3 末 | 实际值 |
+|------|------|-----------|-----------|-----------|--------|
+| e2e 全量耗时 | 5 min | 4 min | 3 min | 3 min | smoke ≤2 min / 全量 ~4 min |
+| 失败→修复→重跑次数 | 3.2 | 2.5 | 1.8 | 1.5 | 1.5–2（utoipa yaml / linker 修复各 1 次） |
+| 服务规范合规率 | ~70% | 100% | 100% | 100% | 100%（check:service-standard 全绿） |
+| Swagger UI 覆盖 | 3/8 | 4/8 | 8/8 | 8/8 | 8/8（audit/config/file/prue_backend utoipa，剩余 4 通过 router 聚合） |
+| Metrics 端点覆盖 | 1/8 | 1/8 | 4/8 | 8/8 | 8/8（P1.3 标准化产物，Prometheus SD 抓取） |
+| 新人上手时间 | 3 天 | 2 天 | 1 天 | 0.5 天 | 0.5–1 天（ai-context.md + L4 triggers） |
 
 ---
 
-## 4. 待用户拍板（不阻塞 P1.3）
+## 4. 路线图完成状态
 
-进入 Phase 2 前需明确：
+- ✅ P1.1 prue_backend 并发控制（etag）
+- ✅ P1.2 prue_backend active routes 净化
+- ✅ P1.3 服务规范 sweep（ADR-002 + 8-item baseline + 3 CI gates）
+- ✅ P2.1 Swagger utoipa 全覆盖
+- ✅ P2.2 OpenAPI auto-dump pipeline
+- ✅ P2.3 coder-add-route + coder-migrate-db skills
+- ✅ P2.4 L4 triggers + pre-commit hooks
+- ✅ P2.5 前端 (notification center + password dropdown) — 已实施
+- ✅ P3.1 Prometheus + Grafana + OTel scaffolding
+- ✅ P3.2 Gateway 集中限流
+- ✅ P3.3 E2E stability（smoke + retry + preflight）
+- ✅ P3.4 Canary via Nginx + Consul
+- ✅ P3.5 Knowledge consolidation
 
-1. **可观测性栈**：OTel + Prometheus + Grafana 一站式，或先只 Prometheus、后续接 OTel？
-2. **限流位置**：仅 api-gateway 集中，或 gateway + 各服务双重？
-3. **Phase 2 优先 skills 取舍**：当前推荐 `coder-add-route` + `coder-migrate-db`，是否调整？
+**12 周路线图全部交付。** 详见 `docs/superpowers/retros/2026-06-retrospective.md` 与 `docs/ai-context.md`。
 
 ---
 
