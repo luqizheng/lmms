@@ -23,6 +23,7 @@ pub struct AppState {
     pub redis_prefix: String,
     pub router_cfg: Arc<RouterConfig>,
     pub route_table: Arc<arc_swap::ArcSwap<RouteTable>>,
+    pub route_limiters: crate::middleware::rate_limit::RouteLimiterSet,
 }
 
 pub async fn create_app(state: AppState) -> Router {

@@ -9,7 +9,6 @@ use axum::Router;
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use prometheus::{Encoder, TextEncoder};
 use utoipa::OpenApi;
 
@@ -86,15 +85,11 @@ fn do_reload(
 #[tokio::main]
 async fn main() {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "api_gateway=debug,info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    common_telemetry::init_tracing("api-gateway");
+    middleware::rate_limit::init_metrics();
 
     let cli = Cli::parse();
-    match cli.cmd {
+    let result = match cli.cmd {
         Cmd::Validate { routes } => match routes_loader::load_routes(&routes) {
             Ok(t) => {
                 println!("OK: {} routes from {}", t.routes.len(), routes.display());
@@ -107,7 +102,10 @@ async fn main() {
             }
         },
         Cmd::Serve { routes, admin_port } => serve(routes, admin_port).await,
-    }
+    };
+
+    common_telemetry::shutdown();
+    result
 }
 
 async fn serve(routes_dir: PathBuf, admin_port: u16) {
@@ -200,6 +198,9 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         redis_prefix: cfg.redis.prefix.clone(),
         router_cfg: router_cfg.clone(),
         route_table: route_table.clone(),
+        route_limiters: middleware::rate_limit::RouteLimiterSet::from_config(
+            &middleware::rate_limit::RateLimitConfig::default(),
+        ),
     });
 
     async fn metrics() -> axum::response::Html<String> {
@@ -247,6 +248,10 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         .route_layer(axum_mw::from_fn_with_state(
             state.clone(),
             middleware::auth_middleware,
+        ))
+        .route_layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            middleware::rate_limit::rate_limit_middleware,
         ))
         .without_v07_checks();
 

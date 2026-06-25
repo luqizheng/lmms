@@ -10,6 +10,8 @@ use axum::response::{IntoResponse, Response};
 use redis::aio::MultiplexedConnection;
 use std::sync::Arc;
 
+pub mod rate_limit;
+
 pub fn is_public_route(routes: &[RouteConfig], path: &str) -> bool {
     routes
         .iter()
