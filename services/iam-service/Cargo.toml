@@ -8,6 +8,7 @@ default-run = "iam-service"
 common = { path = "../../libs/common" }
 common-error = { path = "../../libs/common-error" }
 common-log = { path = "../../libs/common-log" }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-config = { path = "../../libs/common-config" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-cache = { path = "../../libs/common-cache" }
@@ -16,6 +17,8 @@ common-validator = { path = "../../libs/common-validator" }
 jwt-ctx = { path = "../../libs/jwt-ctx" }
 authz = { path = "../../libs/authz" }
 consul-registrar = { path = "../../libs/consul-registrar" }
+opentelemetry = "0.24"
+tracing-opentelemetry = "0.25"
 
 axum.workspace = true
 tokio.workspace = true

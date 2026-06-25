@@ -5,19 +5,13 @@ use token_service::service::oauth_client_svc;
 use token_service::{
     load_config, ConsulRegistrar, TokenIssuer, TokenServerConfig, TokenServerState,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use prometheus::{Encoder, TextEncoder};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "token_service=debug,info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    common_telemetry::init_tracing("token-service");
 
     let cfg: TokenServerConfig = load_config("config/config.yaml")
         .or_else(|_| load_config("config/token-service.yaml"))
@@ -139,6 +133,9 @@ async fn main() {
             "/admin/oauth-clients/{client_id}/reset-secret",
             axum::routing::post(routes::admin::handle_reset_secret),
         )
+        .route_layer(axum::middleware::from_fn(
+            token_service::tracing_mw::trace_request_middleware,
+        ))
         .with_state(state);
 
     if swagger_enabled {

@@ -60,6 +60,8 @@ services:
       GW_ISSUER: "superpowers-token-service"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
+      # OTel tracing — enable when observability overlay is up
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     entrypoint: ["sh", "-c"]
     command:
       - |
@@ -108,6 +110,8 @@ services:
       TS_CLIENTS_FILE_PATH: "/app/config/clients.json"
       TS_CONSUL_ADDR: "http://consul:8500"
       CONFIG_FILE: "/config/config.yaml"
+      # OTel tracing — enable when observability overlay is up
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     healthcheck:
       test: ["CMD", "busybox", "wget", "-q", "--spider", "http://127.0.0.1:8080/.well-known/jwks.json"]
       interval: 10s
@@ -140,6 +144,8 @@ services:
       DATABASE_NAME: superpowers
       CONSUL_ADDR: "http://consul:8500"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
+      # OTel tracing — enable when observability overlay is up
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mysql:
         condition: service_healthy
@@ -191,6 +197,8 @@ services:
       DATABASE_PASSWORD: rootpass
       DATABASE_NAME: superpowers
       REDIS_URL: "redis://redis:6379"
+      # OTel tracing — enable when observability overlay is up
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     volumes:
       - ../docker-example/config/notification-service:/app/config:ro
     networks:

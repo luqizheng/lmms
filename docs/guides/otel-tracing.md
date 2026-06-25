@@ -85,18 +85,26 @@ docker logs api-gateway 2>&1 | grep "<trace_id>"
 
 When api-gateway proxies to a downstream service, it injects the W3C `traceparent` header into the outgoing request. Downstream services that also run with OTel enabled will pick it up and continue the trace.
 
+**Services with OTel enabled (June 2026):**
+- `api-gateway` — entry point; extracts inbound traceparent, injects to downstream
+- `token-service` — handles JWT issuance
+- `iam-service` — user/role/permission lookups
+- `notification-service` — announcements + WebSocket push
+
 ```yaml
 # A trace from gateway → token-service → iam-service:
 api-gateway         POST /v1/auth/login
   └─ http_request
        └─ proxy_handler
-            └─ token-service  POST /token/issue
+            └─ token-service  POST /tokens/access
                  └─ http_request
                       └─ iam-service  GET /iam/users/{sub}
                            └─ http_request
 ```
 
 Look up the trace in Jaeger by `service.api-gateway` and you'll see the entire tree.
+
+The `docker-compose.yml` already sets `OTEL_EXPORTER_OTLP_ENDPOINT` for these 4 services, so as long as the observability overlay is running (`scripts/start-observability.sh`), they all export to the same OTel collector → Jaeger.
 
 ## Common issues
 

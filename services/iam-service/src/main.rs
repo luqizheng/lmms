@@ -1,5 +1,5 @@
 use iam_service::{config::load_config, db, openapi::ApiDoc, routes, state::AppState};
-use common_log::init_json;
+use common_telemetry;
 use common_cache::MemoryCache;
 use consul_registrar::ConsulRegistrar;
 use tracing::{info, warn};
@@ -9,16 +9,16 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    init_json("info");
-    
+    common_telemetry::init_tracing("iam-service");
+
     let config = load_config()?;
     info!("Loaded config: {:?}", config.app.name);
-    
+
     let db_pool = db::connect(&config.database).await?;
     let cache = MemoryCache::new(10000);
-    
+
     let state = AppState::new(db_pool, cache, config.clone());
-    
+
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
         .map(|v| v != "false" && v != "0")
         .unwrap_or(true);

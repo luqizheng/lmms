@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 consul-registrar = { path = "../../libs/consul-registrar" }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 axum = { workspace = true, features = ["ws", "macros"] }
 tokio = { workspace = true }
 tower = { workspace = true }
@@ -26,3 +27,6 @@ prometheus = "0.13"
 prometheus_exporter = "0.1"
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
+opentelemetry = "0.24"
+tracing-opentelemetry = "0.25"
+rand.workspace = true

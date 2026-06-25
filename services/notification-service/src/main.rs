@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
         .nth(1)
         .unwrap_or_else(|| "config/config.yaml".to_string());
     let cfg = AppConfig::load(std::path::Path::new(&path))?;
-    tracing_subscriber::fmt::init();
+    common_telemetry::init_tracing("notification-service");
     println!("==== notification-service config ====");
     println!("config_path: {}", path);
     match serde_json::to_string_pretty(&cfg) {
@@ -105,7 +105,10 @@ async fn main() -> anyhow::Result<()> {
             "/health",
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         )
-        .route("/metrics", get(metrics));
+        .route("/metrics", get(metrics))
+        .layer(axum::middleware::from_fn(
+            notification_service::tracing_mw::trace_request_middleware,
+        ));
 
     if swagger_enabled {
         app = app.merge(

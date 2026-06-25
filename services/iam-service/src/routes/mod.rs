@@ -4,8 +4,9 @@ pub mod permissions;
 pub mod roles;
 pub mod users;
 
-use axum::{Router, routing::get};
+use axum::{Router, middleware as axum_mw, routing::get};
 use crate::state::AppState;
+use crate::tracing_mw;
 use prometheus::{Encoder, TextEncoder};
 
 pub fn build_router(state: AppState) -> Router {
@@ -25,6 +26,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(org_units::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))
+        .route_layer(axum_mw::from_fn(tracing_mw::trace_request_middleware))
 }
 
 async fn health() -> &'static str {
