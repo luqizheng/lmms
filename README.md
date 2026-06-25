@@ -1,5 +1,7 @@
 # Coder Micro Services
 
+> **新人入职？** 请先阅读 [`docs/onboarding/README.md`](docs/onboarding/README.md) — 从零开始的手把手入门指南（中文），覆盖环境准备、第一次跑通、日志排查、前后端联调。
+
 ## Overview
 
 A microservices architecture for coder platform, built with Rust.
