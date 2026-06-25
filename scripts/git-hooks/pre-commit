@@ -1,0 +1,49 @@
+#!/bin/bash
+# Manual pre-commit hook for coder-micro-services
+# Install: cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+#
+# This hook mirrors the gates in .pre-commit-config.yaml for developers
+# who don't use the pre-commit framework.
+
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+STAGED=$(git diff --cached --name-only)
+
+run_check() {
+    local label="$1"
+    local pattern="$2"
+    shift 2
+    if echo "$STAGED" | grep -qE "$pattern"; then
+        echo "[pre-commit] running $label..."
+        if ! "$@"; then
+            echo "[pre-commit] FAIL: $label"
+            exit 1
+        fi
+        echo "[pre-commit] OK: $label"
+    else
+        echo "[pre-commit] skip $label (no matching files)"
+    fi
+}
+
+run_check "service-standard" '^services/' node scripts/check-service-standard.js
+run_check "spec" '^services/.*/openapi\.yaml$' node scripts/check-spec.js
+run_check "contracts" '^contracts/' node scripts/contracts-gen.js --check
+
+if echo "$STAGED" | grep -qE '^services/.*(Cargo\.toml|src/routes/.*\.rs|src/openapi\.rs)$'; then
+    echo "[pre-commit] running openapi-drift..."
+    if ! bash scripts/dump-openapi-specs.sh > /dev/null 2>&1; then
+        echo "[pre-commit] FAIL: openapi-drift (dump failed)"
+        exit 1
+    fi
+    if ! git diff --exit-code -- services/*/openapi.yaml > /dev/null 2>&1; then
+        echo "[pre-commit] FAIL: openapi-drift"
+        echo "  openapi.yaml has drifted. Run: scripts/dump-openapi-specs.sh && git add services/*/openapi.yaml"
+        exit 1
+    fi
+    echo "[pre-commit] OK: openapi-drift"
+fi
+
+exit 0
