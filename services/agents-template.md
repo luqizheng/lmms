@@ -2,23 +2,38 @@
 
 ## 必需组件
 
-- Dockerfile
-- Swagger 配置（可配置启用/禁用）
-- 健康检查端点（/health、/ready、/metrics）
-- 数据库迁移文件（migrations/）
-- README.md
-- tests/ 目录
+- [ ] Dockerfile
+- [ ] AGENTS.md
+- [ ] README.md
+- [ ] tests/ 目录
+- [ ] /health 端点
+- [ ] /metrics 端点
+- [ ] migrations/ 目录
+- [ ] Swagger 配置（SWAGGER_ENABLED 开关）
 
-## 配置选项
+## 环境变量
 
-- swagger_enabled: 环境变量 SWAGGER_ENABLED 或默认 true
-- health_check_required: 环境变量 HEALTH_CHECK_REQUIRED 或默认 true
-- migrations_required: 环境变量 MIGRATIONS_REQUIRED 或默认 true
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| SERVER_HOST | 0.0.0.0 | 监听主机 |
+| SERVER_PORT | 8080 | 监听端口 |
+| SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址（优先级高于上两项）|
+| DATABASE_URL | 服务自定义 | 数据库连接 |
+| RUST_LOG | info | 日志级别 |
+| SWAGGER_ENABLED | false | 是否挂 SwaggerUi |
+| CONSUL_ADDR | 服务自定义 | Consul 地址 |
 
-## package.json 脚本
+## 端点域
 
-- build:docker
-- build:cargo
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| /health | GET | 健康检查 |
+| /metrics | GET | Prometheus 指标 |
+| /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true 时启用）|
+
+## 豁免
+
+（无豁免则保留空段；豁免项写在此处，每行一项必需组件名）
 
 ## AI 检查时机
 
