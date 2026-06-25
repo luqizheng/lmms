@@ -16,7 +16,9 @@ import {
   updateIamUser,
   deleteIamUser,
   listIamRoles,
-  type IamUser
+  listIamOrgUnits,
+  type IamUser,
+  type IamOrgUnit
 } from "@/api/iam";
 import { type Ref, h, ref, computed, reactive, onMounted } from "vue";
 
@@ -244,6 +246,19 @@ export function useUser(tableRef: Ref, _treeRef: Ref) {
     // IAM 暂未提供组织树过滤，保留接口签名
   }
 
+  /** 加载组织（部门）树 */
+  async function loadOrgTree() {
+    treeLoading.value = true;
+    try {
+      const res = await listIamOrgUnits();
+      treeData.value = (res?.items ?? []) as IamOrgUnit[];
+    } catch (e: any) {
+      message(`加载组织列表失败：${e?.message || e}`, { type: "error" });
+    } finally {
+      treeLoading.value = false;
+    }
+  }
+
   function openDialog(title = "新增", row?: FormItemProps) {
     addDialog({
       title: `${title}用户`,
@@ -364,6 +379,7 @@ export function useUser(tableRef: Ref, _treeRef: Ref) {
 
   onMounted(async () => {
     onSearch();
+    loadOrgTree();
     try {
       const res = await listIamRoles({ page: 1, size: 1000 });
       roleOptions.value = (res?.items ?? []).map(r => ({
