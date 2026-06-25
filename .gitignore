@@ -18,4 +18,5 @@ sdk/java/**/target/
 *.nuspec
 reports/
 docker-example/mysql
-/build-*.log
+/build-*.log.superpowers/
+.superpowers/
