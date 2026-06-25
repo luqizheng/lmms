@@ -40,6 +40,20 @@ service_standard_check:
   script:
     - node scripts/check-service-standard.js
 
+spec_check:
+  stage: test
+  tags: [docker]
+  image: node:20
+  script:
+    - node scripts/check-spec.js
+
+contracts_check:
+  stage: test
+  tags: [docker]
+  image: node:20
+  script:
+    - node scripts/contracts-gen.js --check
+
 e2e_api_test:
   stage: test
   tags: [docker]
