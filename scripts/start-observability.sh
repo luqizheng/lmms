@@ -20,8 +20,13 @@ docker compose -f infrastructure/docker-compose-observability.yml up -d
 
 echo
 echo "=== Observability stack is up ==="
-echo "  Prometheus:  http://localhost:9090"
-echo "  Grafana:     http://localhost:3001  (admin/admin)"
+echo "  Prometheus:           http://localhost:9090"
+echo "  Grafana:              http://localhost:3001  (admin/admin)"
+echo "  Jaeger (traces UI):   http://localhost:16686"
+echo "  OTel Collector OTLP:  localhost:4317 (gRPC) / localhost:4318 (HTTP)"
+echo
+echo "To enable OTel tracing in services, set env var:"
+echo "  OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317"
 echo
 echo "Verify service targets:"
 echo "  curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[].labels.service'"

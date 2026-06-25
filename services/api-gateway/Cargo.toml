@@ -12,7 +12,7 @@ tempfile = "3"
 
 [dependencies]
 common = { path = "../../libs/common" }
-common-telemetry = { path = "../../libs/common-telemetry" }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 axum.workspace = true
 tokio.workspace = true
 tower.workspace = true
@@ -38,3 +38,6 @@ prometheus = "0.13"
 prometheus_exporter = "0.1"
 utoipa = { version = "4", features = ["axum_extras"] }
 governor = "0.6"
+opentelemetry = "0.24"
+tracing-opentelemetry = "0.25"
+rand.workspace = true

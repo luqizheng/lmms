@@ -150,6 +150,10 @@ These are real issues we've hit. Save yourself an afternoon:
 
 10. **WS auth on `notification/ws`** — gateway validates JWT and injects user identity. Browser auto-carries `Authorization` on WS upgrade. Don't pass token in URL.
 
+11. **OTel traces opt-in via env** — `common-telemetry` only exports spans when `OTEL_EXPORTER_OTLP_ENDPOINT` is set AND the `otlp` feature is enabled. Without both, it's silent stdout-only. api-gateway has both wired. Other services need both feature flag + env var. See `docs/guides/otel-tracing.md`.
+
+12. **`TraceContextPropagator` only works with OTel subscriber** — in unit tests without an OTel subscriber, `set_parent(traceparent)` doesn't carry the trace_id into the span context. The middleware falls back to a random `TraceId::from_bytes` so tests can still verify the `X-Trace-Id` header shape. End-to-end chain verification requires running with `OTEL_EXPORTER_OTLP_ENDPOINT` set.
+
 ---
 
 ## 8. Common Commands

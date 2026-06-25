@@ -173,8 +173,10 @@ dependencies = [
  "hyper 1.10.1",
  "jwt-simple",
  "mockall",
+ "opentelemetry",
  "prometheus 0.13.4",
  "prometheus_exporter",
+ "rand 0.8.6",
  "redis",
  "reqwest",
  "rsa",
@@ -189,6 +191,7 @@ dependencies = [
  "tower 0.5.3",
  "tower-http",
  "tracing",
+ "tracing-opentelemetry",
  "tracing-subscriber",
  "utoipa 4.2.3",
 ]

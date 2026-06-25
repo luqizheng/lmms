@@ -10,6 +10,7 @@ use clap::Parser;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use prometheus::{Encoder, TextEncoder};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use utoipa::OpenApi;
 
 use api_gateway::template::Template;
@@ -253,6 +254,9 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
             state.clone(),
             middleware::rate_limit::rate_limit_middleware,
         ))
+        .route_layer(axum_mw::from_fn(
+            middleware::tracing_mw::trace_request_middleware,
+        ))
         .without_v07_checks();
 
     let app = Router::new()
@@ -346,6 +350,23 @@ async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request)
             request.headers_mut().insert(name, val);
         }
     }
+
+    // Inject W3C trace context so downstream services chain into our trace.
+    opentelemetry::global::get_text_map_propagator(|propagator| {
+        use opentelemetry::propagation::Injector;
+        struct Hd<'a>(&'a mut axum::http::HeaderMap);
+        impl<'a> Injector for Hd<'a> {
+            fn set(&mut self, key: &str, value: String) {
+                if let (Ok(name), Ok(val)) = (
+                    key.parse::<axum::http::HeaderName>(),
+                    axum::http::HeaderValue::from_str(&value),
+                ) {
+                    self.0.insert(name, val);
+                }
+            }
+        }
+        propagator.inject_context(&tracing::Span::current().context(), &mut Hd(request.headers_mut()));
+    });
 
     router::forward_to_service(state.router_cfg.clone(), request, &route.service, &target).await
 }
