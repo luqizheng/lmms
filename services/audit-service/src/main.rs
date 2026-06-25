@@ -67,6 +67,21 @@ async fn main() -> anyhow::Result<()> {
 
     let app = routes::routes(state);
 
+    let swagger_enabled = std::env::var("SWAGGER_ENABLED")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(false);
+    let app = if swagger_enabled {
+        use utoipa::OpenApi;
+        use utoipa_swagger_ui::SwaggerUi;
+        info!("swagger ui enabled at /swagger-ui");
+        app.merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", audit_service::openapi::ApiDoc::openapi()),
+        )
+    } else {
+        app
+    };
+
     let mut consul_registrar = ConsulRegistrar::new(
         &config.consul_addr,
         &config.consul_service_name,

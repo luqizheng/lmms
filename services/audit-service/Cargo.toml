@@ -14,6 +14,9 @@ serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
 csv.workspace = true
+prometheus = "0.13"
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 common-error = { path = "../../libs/common-error" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
