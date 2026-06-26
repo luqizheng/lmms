@@ -21,7 +21,7 @@ impl ConfigService {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
-                    r#"INSERT INTO namespaces 
+                    r#"INSERT INTO cfg_namespaces 
                        (id, app, env, profile, description, created_at, updated_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?)"#
                 )
@@ -37,7 +37,7 @@ impl ConfigService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
-                    r#"INSERT INTO namespaces 
+                    r#"INSERT INTO cfg_namespaces 
                        (id, app, env, profile, description, created_at, updated_at)
                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#
                 )
@@ -72,7 +72,7 @@ impl ConfigService {
         let namespaces: Vec<Namespace> = match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query_as::<_, Namespace>(
-                    "SELECT * FROM namespaces ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                    "SELECT * FROM cfg_namespaces ORDER BY created_at DESC LIMIT ? OFFSET ?"
                 )
                 .bind(size)
                 .bind(offset)
@@ -81,7 +81,7 @@ impl ConfigService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query_as::<_, Namespace>(
-                    "SELECT * FROM namespaces ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
+                    "SELECT * FROM cfg_namespaces ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
                 )
                 .bind(size)
                 .bind(offset)
@@ -98,13 +98,13 @@ impl ConfigService {
     pub async fn get_namespace(&self, id: &str) -> AppResult<Namespace> {
         let ns: Option<Namespace> = match &self.pool {
             common_db::DbPool::Mysql(p) => {
-                sqlx::query_as::<_, Namespace>("SELECT * FROM namespaces WHERE id = ?")
+                sqlx::query_as::<_, Namespace>("SELECT * FROM cfg_namespaces WHERE id = ?")
                     .bind(id)
                     .fetch_optional(p)
                     .await?
             }
             common_db::DbPool::Sqlite(p) => {
-                sqlx::query_as::<_, Namespace>("SELECT * FROM namespaces WHERE id = ?1")
+                sqlx::query_as::<_, Namespace>("SELECT * FROM cfg_namespaces WHERE id = ?1")
                     .bind(id)
                     .fetch_optional(p)
                     .await?
@@ -120,7 +120,7 @@ impl ConfigService {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
-                    "UPDATE namespaces SET description = COALESCE(?, description), updated_at = ? WHERE id = ?"
+                    "UPDATE cfg_namespaces SET description = COALESCE(?, description), updated_at = ? WHERE id = ?"
                 )
                 .bind(&update.description)
                 .bind(now)
@@ -130,7 +130,7 @@ impl ConfigService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
-                    "UPDATE namespaces SET description = COALESCE(?1, description), updated_at = ?2 WHERE id = ?3"
+                    "UPDATE cfg_namespaces SET description = COALESCE(?1, description), updated_at = ?2 WHERE id = ?3"
                 )
                 .bind(&update.description)
                 .bind(now)
@@ -146,13 +146,13 @@ impl ConfigService {
     pub async fn delete_namespace(&self, id: &str) -> AppResult<()> {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
-                sqlx::query("DELETE FROM namespaces WHERE id = ?")
+                sqlx::query("DELETE FROM cfg_namespaces WHERE id = ?")
                     .bind(id)
                     .execute(p)
                     .await?;
             }
             common_db::DbPool::Sqlite(p) => {
-                sqlx::query("DELETE FROM namespaces WHERE id = ?1")
+                sqlx::query("DELETE FROM cfg_namespaces WHERE id = ?1")
                     .bind(id)
                     .execute(p)
                     .await?;
@@ -168,7 +168,7 @@ impl ConfigService {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
-                    r#"INSERT INTO config_items 
+                    r#"INSERT INTO cfg_config_items 
                        (id, namespace_id, key, value, value_type, is_secret, description, created_at, updated_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"#
                 )
@@ -186,7 +186,7 @@ impl ConfigService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
-                    r#"INSERT INTO config_items 
+                    r#"INSERT INTO cfg_config_items 
                        (id, namespace_id, key, value, value_type, is_secret, description, created_at, updated_at)
                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#
                 )
@@ -225,7 +225,7 @@ impl ConfigService {
         let items: Vec<ConfigItem> = match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query_as::<_, ConfigItem>(
-                    "SELECT * FROM config_items ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                    "SELECT * FROM cfg_config_items ORDER BY created_at DESC LIMIT ? OFFSET ?"
                 )
                 .bind(size)
                 .bind(offset)
@@ -234,7 +234,7 @@ impl ConfigService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query_as::<_, ConfigItem>(
-                    "SELECT * FROM config_items ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
+                    "SELECT * FROM cfg_config_items ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
                 )
                 .bind(size)
                 .bind(offset)
@@ -251,13 +251,13 @@ impl ConfigService {
     pub async fn get_config_item(&self, id: &str) -> AppResult<ConfigItem> {
         let item: Option<ConfigItem> = match &self.pool {
             common_db::DbPool::Mysql(p) => {
-                sqlx::query_as::<_, ConfigItem>("SELECT * FROM config_items WHERE id = ?")
+                sqlx::query_as::<_, ConfigItem>("SELECT * FROM cfg_config_items WHERE id = ?")
                     .bind(id)
                     .fetch_optional(p)
                     .await?
             }
             common_db::DbPool::Sqlite(p) => {
-                sqlx::query_as::<_, ConfigItem>("SELECT * FROM config_items WHERE id = ?1")
+                sqlx::query_as::<_, ConfigItem>("SELECT * FROM cfg_config_items WHERE id = ?1")
                     .bind(id)
                     .fetch_optional(p)
                     .await?
@@ -273,7 +273,7 @@ impl ConfigService {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
-                    "UPDATE config_items SET value = COALESCE(?, value), value_type = COALESCE(?, value_type), is_secret = COALESCE(?, is_secret), description = COALESCE(?, description), updated_at = ? WHERE id = ?"
+                    "UPDATE cfg_config_items SET value = COALESCE(?, value), value_type = COALESCE(?, value_type), is_secret = COALESCE(?, is_secret), description = COALESCE(?, description), updated_at = ? WHERE id = ?"
                 )
                 .bind(&update.value)
                 .bind(&update.value_type)
@@ -286,7 +286,7 @@ impl ConfigService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
-                    "UPDATE config_items SET value = COALESCE(?1, value), value_type = COALESCE(?2, value_type), is_secret = COALESCE(?3, is_secret), description = COALESCE(?4, description), updated_at = ?5 WHERE id = ?6"
+                    "UPDATE cfg_config_items SET value = COALESCE(?1, value), value_type = COALESCE(?2, value_type), is_secret = COALESCE(?3, is_secret), description = COALESCE(?4, description), updated_at = ?5 WHERE id = ?6"
                 )
                 .bind(&update.value)
                 .bind(&update.value_type)
@@ -305,13 +305,13 @@ impl ConfigService {
     pub async fn delete_config_item(&self, id: &str) -> AppResult<()> {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
-                sqlx::query("DELETE FROM config_items WHERE id = ?")
+                sqlx::query("DELETE FROM cfg_config_items WHERE id = ?")
                     .bind(id)
                     .execute(p)
                     .await?;
             }
             common_db::DbPool::Sqlite(p) => {
-                sqlx::query("DELETE FROM config_items WHERE id = ?1")
+                sqlx::query("DELETE FROM cfg_config_items WHERE id = ?1")
                     .bind(id)
                     .execute(p)
                     .await?;
@@ -328,7 +328,7 @@ impl ConfigService {
         let versions: Vec<ConfigVersion> = match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query_as::<_, ConfigVersion>(
-                    "SELECT * FROM config_versions ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                    "SELECT * FROM cfg_config_versions ORDER BY created_at DESC LIMIT ? OFFSET ?"
                 )
                 .bind(size)
                 .bind(offset)
@@ -337,7 +337,7 @@ impl ConfigService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query_as::<_, ConfigVersion>(
-                    "SELECT * FROM config_versions ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
+                    "SELECT * FROM cfg_config_versions ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
                 )
                 .bind(size)
                 .bind(offset)

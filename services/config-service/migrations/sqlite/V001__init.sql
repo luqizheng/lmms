@@ -1,5 +1,5 @@
 -- Namespaces: app + env + profile
-CREATE TABLE IF NOT EXISTS namespaces (
+CREATE TABLE IF NOT EXISTS cfg_namespaces (
     id TEXT PRIMARY KEY,
     app TEXT NOT NULL,
     env TEXT NOT NULL,
@@ -9,11 +9,11 @@ CREATE TABLE IF NOT EXISTS namespaces (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_ns_app ON namespaces(app);
-CREATE INDEX IF NOT EXISTS idx_ns_env ON namespaces(env);
+CREATE INDEX IF NOT EXISTS idx_cfg_namespaces_app ON cfg_namespaces(app);
+CREATE INDEX IF NOT EXISTS idx_cfg_namespaces_env ON cfg_namespaces(env);
 
 -- Config Items: key-value pairs with type
-CREATE TABLE IF NOT EXISTS config_items (
+CREATE TABLE IF NOT EXISTS cfg_config_items (
     id TEXT PRIMARY KEY,
     namespace_id TEXT NOT NULL,
     key TEXT NOT NULL,
@@ -25,11 +25,11 @@ CREATE TABLE IF NOT EXISTS config_items (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_item_ns ON config_items(namespace_id);
-CREATE INDEX IF NOT EXISTS idx_item_key ON config_items(key);
+CREATE INDEX IF NOT EXISTS idx_cfg_config_items_namespace_id ON cfg_config_items(namespace_id);
+CREATE INDEX IF NOT EXISTS idx_cfg_config_items_key ON cfg_config_items(key);
 
 -- Config Versions: audit trail for changes
-CREATE TABLE IF NOT EXISTS config_versions (
+CREATE TABLE IF NOT EXISTS cfg_config_versions (
     id TEXT PRIMARY KEY,
     namespace_id TEXT NOT NULL,
     item_id TEXT NOT NULL,
@@ -41,5 +41,5 @@ CREATE TABLE IF NOT EXISTS config_versions (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_version_ns ON config_versions(namespace_id);
-CREATE INDEX IF NOT EXISTS idx_version_item ON config_versions(item_id);
+CREATE INDEX IF NOT EXISTS idx_cfg_config_versions_namespace_id ON cfg_config_versions(namespace_id);
+CREATE INDEX IF NOT EXISTS idx_cfg_config_versions_item_id ON cfg_config_versions(item_id);

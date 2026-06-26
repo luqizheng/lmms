@@ -14,6 +14,10 @@ async fn main() {
         .await
         .expect("Failed to initialize database pool");
 
+    config_service::db::ensure_schema(&pool)
+        .await
+        .expect("ensure_schema failed");
+
     let state = create_state(pool);
 
     let app = routes::routes(state);
