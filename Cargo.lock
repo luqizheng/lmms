@@ -932,6 +932,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-health"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "http-body-util",
+ "once_cell",
+ "prometheus 0.13.4",
+ "redis",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio 1.52.3",
+ "tower 0.5.3",
+ "tracing",
+]
+
+[[package]]
 name = "common-http"
 version = "0.1.0"
 dependencies = [
