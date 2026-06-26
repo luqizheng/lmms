@@ -1,29 +1,36 @@
-# 领域事件名（预留）
-# 格式：<SERVICE>_<ENTITY>_<EVENT>
-# 用于后续事件驱动架构 / 消息队列集成
+# 领域事件 schema 定义
+# 由 contracts/codegen/gen-rust-events.js 编译为 Rust struct + routing-key 常量
+# 由 services 在业务事务中通过 OutboxRepo::enqueue 写入 iam_<svc>_outbox_events
+# routing-key 格式：<service>.<resource>.<action>  （小写，下划线转点）
 
 version: "1.0.0"
+
+# 默认 schema_version，新事件可覆盖
+default_schema_version: 1
+
 events:
-  # === 用户事件 ===
-  IAM_USER_CREATED:
+  # === 用户事件（iam-service 产出） ===
+  iam.user.created:
+    schema_version: 1
     description: "用户创建"
-  IAM_USER_UPDATED:
-    description: "用户更新"
-  IAM_USER_DELETED:
-    description: "用户删除"
-  IAM_USER_LOGIN:
-    description: "用户登录"
-  IAM_USER_LOGOUT:
-    description: "用户登出"
+    payload:
+      user_id:     { type: string,  required: true }
+      username:    { type: string,  required: true }
+      email:       { type: string,  required: false }
+      org_unit_id: { type: string,  required: false }
 
-  # === 角色事件 ===
-  IAM_ROLE_CREATED:
-    description: "角色创建"
-  IAM_ROLE_UPDATED:
-    description: "角色更新"
-  IAM_ROLE_DELETED:
-    description: "角色删除"
+  iam.user.deleted:
+    schema_version: 1
+    description: "用户删除（软删或硬删）"
+    payload:
+      user_id:    { type: string, required: true }
+      deleted_by: { type: string, required: true }   # 操作者 user_id
 
-  # === 配置事件 ===
-  CFG_CONFIG_CHANGED:
-    description: "配置变更"
+  iam.login.succeeded:
+    schema_version: 1
+    description: "登录成功"
+    payload:
+      user_id:    { type: string, required: true }
+      ip:         { type: string, required: true }
+      user_agent: { type: string, required: false }
+      method:     { type: string, required: true }   # password | sso | refresh
