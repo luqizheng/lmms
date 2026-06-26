@@ -1,5 +1,5 @@
 -- Files: uploaded file metadata
-CREATE TABLE IF NOT EXISTS files (
+CREATE TABLE IF NOT EXISTS file_files (
     id TEXT PRIMARY KEY,
     filename TEXT NOT NULL,
     content_type TEXT,
@@ -14,12 +14,12 @@ CREATE TABLE IF NOT EXISTS files (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_files_tenant ON files(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id);
-CREATE INDEX IF NOT EXISTS idx_files_expires ON files(expires_at);
+CREATE INDEX IF NOT EXISTS idx_file_files_tenant ON file_files(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_file_files_user ON file_files(user_id);
+CREATE INDEX IF NOT EXISTS idx_file_files_expires ON file_files(expires_at);
 
 -- Presign URLs: temporary access URLs
-CREATE TABLE IF NOT EXISTS presign_urls (
+CREATE TABLE IF NOT EXISTS file_presign_urls (
     id TEXT PRIMARY KEY,
     file_id TEXT NOT NULL,
     operation TEXT NOT NULL,
@@ -29,5 +29,5 @@ CREATE TABLE IF NOT EXISTS presign_urls (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_presign_file ON presign_urls(file_id);
-CREATE INDEX IF NOT EXISTS idx_presign_expires ON presign_urls(expires_at);
+CREATE INDEX IF NOT EXISTS idx_file_presign_urls_file_id ON file_presign_urls(file_id);
+CREATE INDEX IF NOT EXISTS idx_file_presign_urls_expires_at ON file_presign_urls(expires_at);

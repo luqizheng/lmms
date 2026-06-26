@@ -110,7 +110,7 @@ impl FileService {
         let files: Vec<FileInfo> = match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query_as::<_, FileInfo>(
-                    "SELECT * FROM files ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                    "SELECT * FROM file_files ORDER BY created_at DESC LIMIT ? OFFSET ?"
                 )
                 .bind(size)
                 .bind(offset)
@@ -119,7 +119,7 @@ impl FileService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query_as::<_, FileInfo>(
-                    "SELECT * FROM files ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
+                    "SELECT * FROM file_files ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
                 )
                 .bind(size)
                 .bind(offset)
@@ -136,13 +136,13 @@ impl FileService {
     pub async fn get_file_info(&self, id: &str) -> AppResult<FileInfo> {
         let info: Option<FileInfo> = match &self.pool {
             common_db::DbPool::Mysql(p) => {
-                sqlx::query_as::<_, FileInfo>("SELECT * FROM files WHERE id = ?")
+                sqlx::query_as::<_, FileInfo>("SELECT * FROM file_files WHERE id = ?")
                     .bind(id)
                     .fetch_optional(p)
                     .await?
             }
             common_db::DbPool::Sqlite(p) => {
-                sqlx::query_as::<_, FileInfo>("SELECT * FROM files WHERE id = ?1")
+                sqlx::query_as::<_, FileInfo>("SELECT * FROM file_files WHERE id = ?1")
                     .bind(id)
                     .fetch_optional(p)
                     .await?
@@ -156,7 +156,7 @@ impl FileService {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
-                    r#"INSERT INTO files 
+                    r#"INSERT INTO file_files
                        (id, filename, content_type, size, hash, storage_path, tenant_id, user_id, is_temporary, expires_at, created_at, updated_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
                 )
@@ -177,7 +177,7 @@ impl FileService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
-                    r#"INSERT INTO files 
+                    r#"INSERT INTO file_files
                        (id, filename, content_type, size, hash, storage_path, tenant_id, user_id, is_temporary, expires_at, created_at, updated_at)
                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)"#
                 )
@@ -203,13 +203,13 @@ impl FileService {
     async fn delete_file_info(&self, id: &str) -> AppResult<()> {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
-                sqlx::query("DELETE FROM files WHERE id = ?")
+                sqlx::query("DELETE FROM file_files WHERE id = ?")
                     .bind(id)
                     .execute(p)
                     .await?;
             }
             common_db::DbPool::Sqlite(p) => {
-                sqlx::query("DELETE FROM files WHERE id = ?1")
+                sqlx::query("DELETE FROM file_files WHERE id = ?1")
                     .bind(id)
                     .execute(p)
                     .await?;
@@ -222,7 +222,7 @@ impl FileService {
         match &self.pool {
             common_db::DbPool::Mysql(p) => {
                 sqlx::query(
-                    r#"INSERT INTO presign_urls 
+                    r#"INSERT INTO file_presign_urls
                        (id, file_id, operation, url, expires_at, created_by, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?)"#
                 )
@@ -238,7 +238,7 @@ impl FileService {
             }
             common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
-                    r#"INSERT INTO presign_urls 
+                    r#"INSERT INTO file_presign_urls
                        (id, file_id, operation, url, expires_at, created_by, created_at)
                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#
                 )

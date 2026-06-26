@@ -17,6 +17,10 @@ async fn main() {
         .await
         .expect("Failed to initialize database pool");
 
+    file_service::db::ensure_schema(&pool)
+        .await
+        .expect("ensure_schema failed");
+
     let storage = Arc::new(LocalStorage::new(&config.storage_path));
     let base_url = format!("http://localhost:8082/file/");
 
