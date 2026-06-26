@@ -74,7 +74,7 @@ pub async fn find_by_id(pool: &DbPool, client_id: &str) -> Result<Option<Client>
             let row: Option<ClientRow> = sqlx::query_as(
                 "SELECT client_id, client_secret_hash, name, permissions, grant_types, \
                         access_token_ttl_sec, refresh_token_ttl_sec, status, created_at, updated_at \
-                 FROM oauth_clients WHERE client_id = ?",
+                 FROM token_oauth_clients WHERE client_id = ?",
             )
             .bind(client_id)
             .fetch_optional(p)
@@ -90,7 +90,7 @@ pub async fn insert(pool: &DbPool, c: &Client) -> Result<(), sqlx::Error> {
             let perms = sqlx::types::Json(&c.permissions);
             let grants = sqlx::types::Json(&c.grant_types);
             sqlx::query(
-                "INSERT INTO oauth_clients \
+                "INSERT INTO token_oauth_clients \
                  (client_id, client_secret_hash, name, permissions, grant_types, \
                   access_token_ttl_sec, refresh_token_ttl_sec, status) \
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -170,7 +170,7 @@ fn default_clients() -> Vec<Client> {
 pub async fn seed_default_clients(pool: &DbPool) -> Result<u64, sqlx::Error> {
     let n: (i64,) = match pool {
         DbPool::Mysql(p) => {
-            sqlx::query_as("SELECT COUNT(*) FROM oauth_clients")
+            sqlx::query_as("SELECT COUNT(*) FROM token_oauth_clients")
                 .fetch_one(p)
                 .await?
         }
@@ -205,7 +205,7 @@ pub async fn list(
                 let rows: Vec<ClientRow> = sqlx::query_as(
                     "SELECT client_id, client_secret_hash, name, permissions, grant_types, \
                             access_token_ttl_sec, refresh_token_ttl_sec, status, created_at, updated_at \
-                     FROM oauth_clients \
+                     FROM token_oauth_clients \
                      WHERE (client_id LIKE ? OR name LIKE ?) AND status = ? \
                      ORDER BY created_at DESC LIMIT ? OFFSET ?",
                 )
@@ -217,7 +217,7 @@ pub async fn list(
                 .fetch_all(p)
                 .await?;
                 let total: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM oauth_clients \
+                    "SELECT COUNT(*) FROM token_oauth_clients \
                      WHERE (client_id LIKE ? OR name LIKE ?) AND status = ?",
                 )
                 .bind(&kw_pat)
@@ -230,7 +230,7 @@ pub async fn list(
                 let rows: Vec<ClientRow> = sqlx::query_as(
                     "SELECT client_id, client_secret_hash, name, permissions, grant_types, \
                             access_token_ttl_sec, refresh_token_ttl_sec, status, created_at, updated_at \
-                     FROM oauth_clients \
+                     FROM token_oauth_clients \
                      WHERE client_id LIKE ? OR name LIKE ? \
                      ORDER BY created_at DESC LIMIT ? OFFSET ?",
                 )
@@ -241,7 +241,7 @@ pub async fn list(
                 .fetch_all(p)
                 .await?;
                 let total: (i64,) = sqlx::query_as(
-                    "SELECT COUNT(*) FROM oauth_clients \
+                    "SELECT COUNT(*) FROM token_oauth_clients \
                      WHERE client_id LIKE ? OR name LIKE ?",
                 )
                 .bind(&kw_pat)
@@ -287,7 +287,7 @@ pub async fn update(
             let perms = sqlx::types::Json(&c.permissions);
             let grants = sqlx::types::Json(&c.grant_types);
             let res = sqlx::query(
-                "UPDATE oauth_clients SET name = ?, permissions = ?, grant_types = ?, \
+                "UPDATE token_oauth_clients SET name = ?, permissions = ?, grant_types = ?, \
                  access_token_ttl_sec = ?, refresh_token_ttl_sec = ?, status = ? \
                  WHERE client_id = ?",
             )
@@ -308,7 +308,7 @@ pub async fn update(
 pub async fn delete(pool: &DbPool, client_id: &str) -> Result<bool, sqlx::Error> {
     match pool {
         DbPool::Mysql(p) => {
-            let res = sqlx::query("DELETE FROM oauth_clients WHERE client_id = ?")
+            let res = sqlx::query("DELETE FROM token_oauth_clients WHERE client_id = ?")
                 .bind(client_id)
                 .execute(p)
                 .await?;
@@ -327,7 +327,7 @@ pub async fn reset_secret(
     match pool {
         DbPool::Mysql(p) => {
             let res =
-                sqlx::query("UPDATE oauth_clients SET client_secret_hash = ? WHERE client_id = ?")
+                sqlx::query("UPDATE token_oauth_clients SET client_secret_hash = ? WHERE client_id = ?")
                     .bind(&hash)
                     .bind(client_id)
                     .execute(p)

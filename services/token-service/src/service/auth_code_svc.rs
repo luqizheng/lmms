@@ -10,7 +10,7 @@ pub async fn save(
     match pool {
         DbPool::Mysql(p) => {
             let res = sqlx::query(
-                "INSERT INTO auth_codes (code, user_id, expires_at) \
+                "INSERT INTO token_auth_codes (code, user_id, expires_at) \
                  VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))",
             )
             .bind(code)
@@ -38,7 +38,7 @@ pub async fn consume(pool: &DbPool, code: &str) -> Result<Option<String>, sqlx::
     match pool {
         DbPool::Mysql(p) => {
             let res = sqlx::query(
-                "UPDATE auth_codes SET consumed_at = NOW() \
+                "UPDATE token_auth_codes SET consumed_at = NOW() \
                  WHERE code = ? AND consumed_at IS NULL AND expires_at > NOW()",
             )
             .bind(code)
@@ -48,7 +48,7 @@ pub async fn consume(pool: &DbPool, code: &str) -> Result<Option<String>, sqlx::
                 return Ok(None);
             }
             let row: Option<(String,)> =
-                sqlx::query_as("SELECT user_id FROM auth_codes WHERE code = ?")
+                sqlx::query_as("SELECT user_id FROM token_auth_codes WHERE code = ?")
                     .bind(code)
                     .fetch_optional(p)
                     .await?;

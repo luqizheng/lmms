@@ -7,7 +7,7 @@ use tracing::{info, warn};
 use crate::config::DatabaseCfg;
 
 pub const INIT_SQL: &str = include_str!("../migrations/20260611000001_init.sql");
-const SCHEMA_MARKER_TABLE: &str = "oauth_clients";
+const SCHEMA_MARKER_TABLE: &str = "token_oauth_clients";
 
 #[derive(Clone)]
 pub enum DbPool {
@@ -72,7 +72,7 @@ pub async fn init_schema(pool: &DbPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-/// 首次启动探测：marker 表（oauth_clients）存在则跳过整个迁移；
+/// 首次启动探测：marker 表（token_oauth_clients）存在则跳过整个迁移；
 /// 不存在则执行 init_schema 完成建表。
 pub async fn ensure_schema(pool: &DbPool) -> Result<()> {
     let DbPool::Mysql(p) = pool;
@@ -112,10 +112,10 @@ mod tests {
     fn init_sql_contains_all_marker_tables() {
         let upper = INIT_SQL.to_uppercase();
         for tbl in [
-            "OAUTH_CLIENTS",
-            "AUTH_CODES",
-            "REVOKED_JTIS",
-            "REFRESH_MARKERS",
+            "TOKEN_OAUTH_CLIENTS",
+            "TOKEN_AUTH_CODES",
+            "TOKEN_REVOKED_JTIS",
+            "TOKEN_REFRESH_MARKERS",
         ] {
             assert!(
                 upper.contains(&format!("CREATE TABLE {tbl}")),
