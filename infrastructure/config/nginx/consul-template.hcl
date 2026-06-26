@@ -15,7 +15,13 @@ template {
   source      = "/etc/nginx/nginx.conf.template"
   destination = "/etc/nginx/nginx.conf"
   perms       = 0644
-  command     = "nginx -s reload || true"
+  # consul-template only renders the file; the nginx process lives in a
+  # separate sidecar container that consumes the shared `nginx_rendered`
+  # named volume. When the sidecar is added, change this to send SIGHUP
+  # to the nginx container (e.g. `docker kill -s HUP observability-nginx`)
+  # or use a shared signal file. For now we just noop so the renderer
+  # doesn't spam errors about missing `nginx`.
+  command     = "sh -c ':'"
   wait {
     min = "2s"
     max = "10s"

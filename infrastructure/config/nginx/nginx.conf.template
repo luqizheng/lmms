@@ -15,22 +15,25 @@ server {
 
     {{ $services := "audit-service config-service file-service iam-service notification-service prue_backend token-service" }}
 
-    {{ range $svc := splitList $services }}
+    {{ range $svc := split " " $services }}
+    {{ $var := $svc | replaceAll "-" "_" }}
     upstream {{ $svc }}-stable {
-        {{ range service $svc }}{{ if not (hasTag "canary") }}
+        {{ range service $svc }}{{ if not (.Tags | contains "canary") }}
         server {{ .Address }}:{{ .Port }};
         {{ end }}{{ end }}
     }
 
     upstream {{ $svc }}-canary {
-        {{ range service $svc }}{{ if hasTag "canary" }}
+        {{ range service $svc }}{{ if .Tags | contains "canary" }}
         server {{ .Address }}:{{ .Port }};
         {{ end }}{{ end }}
     }
 
-    # split_clients routes traffic by hashed request_id
-    split_clients $request_id ${{ $svc }}_backend {
-        {{- if service $svc "canary" }}
+    # split_clients routes traffic by hashed request_id.
+    # nginx variable names must be [A-Za-z0-9_] only — use $var with dashes
+    # replaced by underscores.
+    split_clients $request_id ${{ $var }}_backend {
+        {{- if service (printf "canary.%s" $svc) }}
         10%   {{ $svc }}-canary;
         *     {{ $svc }}-stable;
         {{- else }}

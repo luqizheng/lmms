@@ -23,14 +23,36 @@ processors:
         value: dev
         action: upsert
 
+connectors:
+  # Aggregate RED metrics (Rate / Errors / Duration) from incoming spans.
+  # Jaeger UI's Monitor tab reads these via Prometheus to draw service
+  # performance charts.
+  spanmetrics:
+    namespace: traces.spanmetrics
+    histogram:
+      explicit:
+        buckets: [2ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s]
+    dimensions:
+      - name: http.method
+      - name: http.status_code
+      - name: deployment.environment
+    exemplars:
+      enabled: true
+    exclude_dimensions: ['status.code']
+    metrics_flush_interval: 15s
+
 exporters:
-  # Jaeger as the primary trace UI backend
-  jaeger:
-    endpoint: jaeger:14250
+  # Jaeger as the primary trace UI backend.
+  # Jaeger v1.35+ natively accepts OTLP (COLLECTOR_OTLP_ENABLED=true is set on
+  # the jaeger all-in-one container), so we use the otlp exporter — the
+  # legacy `jaeger` exporter was removed from the Collector in v0.86+.
+  otlp/jaeger:
+    endpoint: jaeger:4317
     tls:
       insecure: true
 
-  # Also expose metrics generated from traces (RED: rate / errors / duration)
+  # Expose metrics generated from traces (RED) plus any OTLP metrics that
+  # services push directly. Jaeger SPM scrapes these via Prometheus.
   prometheus:
     endpoint: 0.0.0.0:8889
     resource_to_telemetry_conversion:
@@ -46,9 +68,9 @@ service:
     traces:
       receivers: [otlp]
       processors: [resource, batch]
-      exporters: [jaeger, debug]
+      exporters: [otlp/jaeger, spanmetrics, debug]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, spanmetrics]
       processors: [resource, batch]
       exporters: [prometheus]
 

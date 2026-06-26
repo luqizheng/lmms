@@ -1,0 +1,56 @@
+services:
+  consul:
+    image: consul:1.15
+    ports:
+      - "8500:8500"
+    volumes:
+      - ../docker-example/config/consul/config.docker.json:/consul/config/services.json:ro
+    command: agent -dev -config-dir=/consul/config -bind=0.0.0.0 -client=0.0.0.0
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: superpowers
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+volumes:
+  redis_data:
+  mysql_data:
+
+networks:
+  superpowers:
+    name: superpowers
+    driver: bridge
+
