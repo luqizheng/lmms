@@ -8,7 +8,7 @@ use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/2026_06_10_init.sql");
 const USER_ID_STRING_SQL: &str = include_str!("../migrations/2026_06_21_user_id_string.sql");
-const SCHEMA_MARKER_TABLE: &str = "announcements";
+const SCHEMA_MARKER_TABLE: &str = "ntf_announcements";
 
 #[derive(Clone)]
 pub struct Db {
@@ -100,7 +100,7 @@ impl Db {
             Status::Scheduled
         };
         let res = sqlx::query(
-            "INSERT INTO announcements \
+            "INSERT INTO ntf_announcements \
              (title, body, publish_at, expire_at, pinned, popover, status, created_by, created_at) \
              VALUES (?,?,?,?,?,?,?,?,NOW())",
         )
@@ -117,7 +117,7 @@ impl Db {
         let id = res.last_insert_id();
         for s in &a.recipients {
             sqlx::query(
-                "INSERT INTO announcement_recipients (announcement_id, scope_type, scope_id) VALUES (?,?,?)"
+                "INSERT INTO ntf_announcement_recipients (announcement_id, scope_type, scope_id) VALUES (?,?,?)"
             )
             .bind(id).bind(s.scope_type).bind(&s.scope_id)
             .execute(&mut *tx).await?;
@@ -127,7 +127,7 @@ impl Db {
     }
 
     pub async fn set_status(&self, id: u64, status: Status) -> AppResult<()> {
-        sqlx::query("UPDATE announcements SET status=? WHERE id=?")
+        sqlx::query("UPDATE ntf_announcements SET status=? WHERE id=?")
             .bind(status)
             .bind(id)
             .execute(&self.pool)
@@ -138,13 +138,13 @@ impl Db {
     pub async fn get(&self, id: u64) -> AppResult<Option<Announcement>> {
         Ok(sqlx::query_as::<_, Announcement>(
             "SELECT id, title, body, publish_at, expire_at, pinned, popover, status, created_by, created_at \
-             FROM announcements WHERE id=?"
+             FROM ntf_announcements WHERE id=?"
         ).bind(id).fetch_optional(&self.pool).await?)
     }
 
     pub async fn list_recipient_scopes(&self, ann_id: u64) -> AppResult<Vec<(ScopeType, String)>> {
         let rows: Vec<(String, String)> = sqlx::query_as(
-            "SELECT scope_type, scope_id FROM announcement_recipients WHERE announcement_id=?",
+            "SELECT scope_type, scope_id FROM ntf_announcement_recipients WHERE announcement_id=?",
         )
         .bind(ann_id)
         .fetch_all(&self.pool)
@@ -162,7 +162,7 @@ impl Db {
 
     pub async fn due_scheduled(&self, now: DateTime<Utc>) -> AppResult<Vec<u64>> {
         let rows: Vec<(u64,)> = sqlx::query_as(
-            "SELECT id FROM announcements WHERE status='scheduled' AND publish_at <= ?",
+            "SELECT id FROM ntf_announcements WHERE status='scheduled' AND publish_at <= ?",
         )
         .bind(now)
         .fetch_all(&self.pool)
@@ -174,8 +174,8 @@ impl Db {
         Ok(sqlx::query_as::<_, Announcement>(
             "SELECT a.id, a.title, a.body, a.publish_at, a.expire_at, a.pinned, a.popover, \
                     a.status, a.created_by, a.created_at \
-             FROM announcements a \
-             JOIN announcement_deliveries d ON d.announcement_id = a.id \
+             FROM ntf_announcements a \
+             JOIN ntf_announcement_deliveries d ON d.announcement_id = a.id \
              WHERE d.user_id=? AND a.status='published' \
                AND (a.expire_at IS NULL OR a.expire_at > NOW()) \
              ORDER BY a.pinned DESC, a.publish_at DESC",
@@ -192,7 +192,7 @@ impl Db {
         let mut tx = self.pool.begin().await?;
         for uid in users {
             sqlx::query(
-                "INSERT IGNORE INTO announcement_deliveries (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())"
+                "INSERT IGNORE INTO ntf_announcement_deliveries (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())"
             ).bind(ann_id).bind(uid).execute(&mut *tx).await?;
         }
         tx.commit().await?;
@@ -201,7 +201,7 @@ impl Db {
 
     pub async fn mark_read(&self, ann_id: u64, user_id: String) -> AppResult<bool> {
         let res = sqlx::query(
-            "INSERT IGNORE INTO announcement_reads (announcement_id, user_id, read_at) VALUES (?,?,NOW())"
+            "INSERT IGNORE INTO ntf_announcement_reads (announcement_id, user_id, read_at) VALUES (?,?,NOW())"
         ).bind(ann_id).bind(user_id).execute(&self.pool).await?;
         Ok(res.rows_affected() == 1)
     }
@@ -222,10 +222,10 @@ mod tests {
     fn init_sql_contains_all_tables() {
         let upper = INIT_SQL.to_uppercase();
         for tbl in [
-            "ANNOUNCEMENTS",
-            "ANNOUNCEMENT_RECIPIENTS",
-            "ANNOUNCEMENT_DELIVERIES",
-            "ANNOUNCEMENT_READS",
+            "NTF_ANNOUNCEMENTS",
+            "NTF_ANNOUNCEMENT_RECIPIENTS",
+            "NTF_ANNOUNCEMENT_DELIVERIES",
+            "NTF_ANNOUNCEMENT_READS",
         ] {
             assert!(
                 upper.contains(&format!("CREATE TABLE IF NOT EXISTS {tbl}")),

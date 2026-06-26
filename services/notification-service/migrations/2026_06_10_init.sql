@@ -3,7 +3,7 @@ CREATE DATABASE IF NOT EXISTS notification
 
 USE notification;
 
-CREATE TABLE IF NOT EXISTS announcements (
+CREATE TABLE IF NOT EXISTS ntf_announcements (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   title           VARCHAR(200)    NOT NULL,
   body            MEDIUMTEXT      NOT NULL,
@@ -15,28 +15,28 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_by      BIGINT          NOT NULL,
   created_at      DATETIME        NOT NULL,
   PRIMARY KEY (id),
-  KEY idx_status_publish (status, publish_at)
+  KEY idx_ntf_announcements_status_publish (status, publish_at)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS announcement_recipients (
+CREATE TABLE IF NOT EXISTS ntf_announcement_recipients (
   announcement_id BIGINT NOT NULL,
   scope_type      ENUM('user','role','dept') NOT NULL,
   scope_id        BIGINT NOT NULL,
   PRIMARY KEY (announcement_id, scope_type, scope_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS announcement_deliveries (
+CREATE TABLE IF NOT EXISTS ntf_announcement_deliveries (
   announcement_id BIGINT  NOT NULL,
   user_id         BIGINT  NOT NULL,
   delivered_at    DATETIME NOT NULL,
   PRIMARY KEY (announcement_id, user_id),
-  KEY idx_user (user_id, announcement_id)
+  KEY idx_ntf_announcement_deliveries_user (user_id, announcement_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS announcement_reads (
+CREATE TABLE IF NOT EXISTS ntf_announcement_reads (
   announcement_id BIGINT  NOT NULL,
   user_id         BIGINT  NOT NULL,
   read_at         DATETIME NOT NULL,
   PRIMARY KEY (announcement_id, user_id),
-  KEY idx_user_unread (user_id, read_at)
+  KEY idx_ntf_announcement_reads_user_unread (user_id, read_at)
 ) ENGINE=InnoDB;
