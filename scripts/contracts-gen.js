@@ -41,13 +41,22 @@ try {
 }
 
 console.log('');
+console.log('4. Generating Rust event structs...');
+try {
+  execSync(`node ${path.join(codegenDir, 'gen-rust-events.js')}`, { stdio: 'inherit' });
+} catch (e) {
+  console.error('Failed to generate Rust events');
+  process.exit(1);
+}
+
+console.log('');
 console.log('=== Done ===');
 
 if (isCheck) {
   console.log('');
-  console.log('4. Checking for drift...');
+  console.log('5. Checking for drift...');
   try {
-    execSync('git diff --exit-code -- libs/common-error libs/authz frontend/src/contracts', {
+    execSync('git diff --exit-code -- libs/common-error libs/authz libs/common-event frontend/src/contracts', {
       cwd: repoRoot,
       stdio: 'inherit',
     });
