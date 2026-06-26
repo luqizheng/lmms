@@ -1,117 +1,118 @@
-# Canary Rollout Runbook
+# 灰度发布运维手册（Canary Rollout）
 
-Step-by-step guide for rolling out a new version of any service via canary (10% → 50% → 100%).
+> 任意服务新版本通过灰度发布逐步切流（10% → 50% → 100%）的分步指南。
 
-## When to use
+## 适用场景
 
-- Production rollout where you want gradual traffic shift
-- New version might break but you want to validate with real traffic
-- You need fast rollback capability
+- 生产环境希望流量逐步切换
+- 新版本可能有风险，需要用真实流量灰度验证
+- 需要具备秒级回滚能力
 
-## Architecture
+## 架构
 
-- **Nginx** fronts all 8 services via Consul service discovery
-- **consul-template** watches Consul every 2–10s and re-renders nginx config
-- A service instance tagged `canary` in Consul receives 10% of traffic initially
-- `?canary=1` query param or `X-Canary: true` header forces canary for testing
+- **Nginx** 通过 Consul 服务发现把流量打到全部 8 个服务
+- **consul-template** 每 2–10 秒轮询 Consul，重新渲染 nginx 配置
+- 在 Consul 中带 `canary` 标签的服务实例初始拿到 10% 流量
+- 请求带 `?canary=1` query 参数或 `X-Canary: true` header 时强制路由到 canary，便于灰度测试
 
-## Step 1: Deploy canary instance
+## Step 1：部署 canary 实例
 
-Add the new version with a different service name suffix or use a tag.
+使用不同的服务名后缀，或者给已有实例打 canary 标签。
 
 ```bash
-# Option A: separate canary stack via compose override
+# 方式 A：通过 compose override 启一个独立的 canary 栈（推荐）
 docker compose -f infrastructure/docker-compose-canary.yml up -d audit-service-canary
 
-# Option B: tag the existing instance (not recommended for production)
-# but useful for quick testing:
+# 方式 B：给已有实例打 canary 标签（不建议生产使用，但适合快速验证）
 consul-cli tag add -service audit-service -tag canary -id <instance-id>
 ```
 
-The `audit-service-canary` instance must register itself in Consul with tag `canary`.
+`audit-service-canary` 实例启动后必须把自己注册到 Consul，并携带 `canary` 标签。
 
-## Step 2: Verify Consul sees the canary
+## Step 2：确认 Consul 已识别 canary
 
 ```bash
 curl http://localhost:8500/v1/health/service/audit-service?tag=canary
 ```
 
-Should return the canary instance(s).
+应当返回 canary 实例列表。
 
-## Step 3: Watch nginx config update
+## Step 3：观察 nginx 配置自动更新
 
 ```bash
 docker exec observability-consul-template consul-template -config=/etc/consul-template/config.hcl \
   -dry -once 2>&1 | grep -A 5 "audit-service"
 ```
 
-You should see both `-stable` and `-canary` upstreams.
+应当能看到同时出现 `-stable` 与 `-canary` 两个 upstream。
 
-## Step 4: Smoke-test canary directly
+## Step 4：对 canary 做冒烟测试
 
 ```bash
-# Force canary via header
+# 通过 header 强制路由到 canary
 curl -H "X-Canary: true" https://api.example.com/v1/audit/health
-# Should hit canary instance
+# 应当命中 canary 实例
 
-# Without header → ~10% should hit canary over many requests
+# 不带 header 时，多次请求中约 10% 会命中 canary
 for i in {1..100}; do curl -s -o /dev/null -w "%{http_code}\n" https://api.example.com/v1/audit/health; done
 ```
 
-## Step 5: Monitor metrics
+## Step 5：观测指标
 
-Open Grafana → Gateway Overview dashboard:
-- Request rate per service (split into stable vs canary via `instance` label)
-- Error rate should remain flat
-- Latency p95 should match stable
+打开 Grafana → Gateway Overview 面板：
 
-If error rate spikes on canary:
+- 各服务的请求速率（按 `instance` 标签区分 stable / canary）
+- 错误率应当保持平稳
+- p95 时延应当与 stable 接近
+
+如果 canary 的错误率突增：
+
 ```bash
-# Roll back canary
+# 立即回滚 canary
 docker compose -f infrastructure/docker-compose-canary.yml down audit-service-canary
-# OR
+# 或
 consul-cli tag delete -service audit-service -tag canary -id <instance-id>
 ```
 
-Within 10 seconds, all traffic returns to stable.
+10 秒内全部流量回切到 stable。
 
-## Step 6: Promote to 100%
+## Step 6：放量到 100%
 
-Once confident:
+确认 canary 表现稳定后：
 
 ```bash
-# Tear down stable stack (after canary succeeds)
+# 关掉 stable 栈（在 canary 验证成功之后）
 docker compose -f infrastructure/docker-compose.yml up -d --scale audit-service-canary=2
 
-# OR: redeploy stable with new image
+# 或：直接用新镜像重新部署 stable
 docker compose -f infrastructure/docker-compose.yml up -d audit-service
 docker compose -f infrastructure/docker-compose-canary.yml down
 ```
 
-The canary tag is removed; all instances become stable.
+canary 标签被移除，所有实例都变成 stable。
 
-## Adjusting traffic split
+## 调整流量比例
 
-Edit `infrastructure/config/nginx/nginx.conf.template`:
+编辑 `infrastructure/config/nginx/nginx.conf.template`：
 
 ```nginx
 split_clients $request_id $audit-service_backend {
-    50%   audit-service-canary;  # was 10%
+    50%   audit-service-canary;  # 原本是 10%
     *     audit-service-stable;
 }
 ```
 
-consul-template reloads nginx automatically within ~10s.
+consul-template 会在 ~10 秒内自动 reload nginx。
 
-## Rollback checklist
+## 回滚检查清单
 
-- [ ] Identify the issue from logs/metrics
+- [ ] 从 logs / metrics 定位问题
 - [ ] `docker compose -f infrastructure/docker-compose-canary.yml down <svc>-canary`
-- [ ] Verify `gateway_request_rate{instance=...canary}` returns to 0 in Grafana
-- [ ] Postmortem within 24h, file issue/PR
+- [ ] 在 Grafana 上确认 `gateway_request_rate{instance=...canary}` 已归零
+- [ ] 24 小时内完成 postmortem，提交 issue / PR
 
-## Out of scope
+## 暂不支持
 
-- A/B testing with rule-based splits (use mesh solution)
-- Multi-region failover
-- Sticky sessions (stateless services only)
+- 基于规则的 A/B 测试（需要 service mesh 方案）
+- 多区域故障转移
+- 粘性会话（仅支持无状态服务）

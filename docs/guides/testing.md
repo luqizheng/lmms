@@ -1,57 +1,58 @@
-# Testing Guide
+# 测试指南（Testing Guide）
 
-> Last updated: 2026-06-25
+> 最近更新：2026-06-25
 
-This document covers:
-1. The 3-tier test pyramid (unit → integration → e2e)
-2. Running tests locally and in CI
-3. Data-driven e2e test format
-4. Smoke subset for fast feedback
-5. Pre-flight health checks
+本文档涵盖：
+
+1. 三层测试金字塔（unit → integration → e2e）
+2. 本地与 CI 执行测试
+3. 数据驱动 e2e 用例格式
+4. 快速反馈的 smoke 子集
+5. 启动前健康检查（preflight）
 
 ---
 
-## 1. Test pyramid
+## 1. 测试金字塔
 
 ```
         ┌──────────────────────────────────────┐
-   e2e  │  Playwright UI + Vitest API         │  ~10 min full / ~2 min smoke
-        │  Real services in docker             │
+   e2e  │  Playwright UI + Vitest API         │  全量 ~10 min / smoke ~2 min
+        │  在 docker 中跑真实服务              │
         ├──────────────────────────────────────┤
-  intg  │  Rust cargo test --test <name>       │  per-service ~30s
+  intg  │  Rust cargo test --test <name>       │  单服务 ~30s
         │  sqlx / mockall / testcontainers     │
         ├──────────────────────────────────────┤
-  unit  │  Rust cargo test --lib               │  per-service ~5s
-        │  Service logic, no I/O                │
+  unit  │  Rust cargo test --lib               │  单服务 ~5s
+        │  纯业务逻辑，无 I/O                   │
         └──────────────────────────────────────┘
 ```
 
-| Tier | Time (per service / full) | Use when |
-|------|---------------------------|----------|
-| Unit | ~5s | Pure logic, no DB / network |
-| Integration | ~30s | DB / network / testcontainers |
-| E2E (smoke) | ~2 min | Critical happy path |
-| E2E (API full) | ~5 min | All API contracts |
-| E2E (UI full) | ~10 min | All user flows |
+| 层级 | 单服务 / 全量耗时 | 适用场景 |
+|------|-------------------|----------|
+| Unit | ~5s | 纯逻辑，无 DB / 网络 |
+| Integration | ~30s | DB / 网络 / testcontainers |
+| E2E (smoke) | ~2 min | 关键 happy path |
+| E2E (API 全量) | ~5 min | 所有 API 契约 |
+| E2E (UI 全量) | ~10 min | 所有用户流程 |
 
 ---
 
-## 2. Running tests
+## 2. 执行测试
 
-### 2.1 Unit + integration (per service)
+### 2.1 单元 + 集成（按服务）
 
 ```bash
-# All tests for a service (uses docker, no local cc linker needed)
+# 跑某个服务的全部测试（基于 docker，无需本机 cc linker）
 node scripts/run-tests-docker.js iam-service
 
-# Multiple services
+# 多服务
 node scripts/run-tests-docker.js iam-service token-service notification-service
 
-# All services
+# 全部服务
 node scripts/run-tests-docker.js
 ```
 
-Equivalent low-level docker command:
+等价的底层 docker 命令：
 
 ```bash
 docker run --rm --network host \
@@ -65,276 +66,282 @@ docker run --rm --network host \
   cargo test --target x86_64-unknown-linux-musl -p iam-service -- --nocapture
 ```
 
-### 2.2 Run a specific test by name
+### 2.2 按名字跑单个测试
 
 ```bash
-# Integration test
+# 集成测试
 cargo test --test integration_test -- --nocapture test_login
 
-# Unit test
+# 单元测试
 cargo test --lib -- --nocapture create_user
 ```
 
-### 2.3 E2E tests
+### 2.3 E2E 测试
 
 ```bash
 cd tests/e2e
-pnpm install  # first time only
+pnpm install  # 仅首次
 
-# Smoke subset (fast, ~2 min)
+# Smoke 子集（快，~2 min）
 pnpm test:smoke           # API smoke
-pnpm test:smoke:ui        # UI smoke (with @smoke tag)
+pnpm test:smoke:ui        # UI smoke（按 @smoke 标签过滤）
 
-# Full API
+# 全量 API
 pnpm test:api
 
-# Full UI (requires frontend container)
+# 全量 UI（需前端容器）
 docker compose -f infrastructure/docker-compose.yml up -d frontend
 pnpm test:ui
 ```
 
-### 2.4 Environment variables
+### 2.4 环境变量
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
+| 变量 | 默认 | 用途 |
+|------|------|------|
 | `E2E_BASE_URL` | `http://localhost:3000` | api-gateway URL |
-| `E2E_FRONTEND_URL` | `http://localhost:8080` | Frontend URL (UI tests) |
-| `E2E_ADMIN_USER` | `e2eadmin` | Auto-registered admin user |
-| `E2E_ADMIN_PASS` | `P@ssw0rd!` | Admin password |
-| `E2E_DEBUG` | `0` | Set to `1` for request/response logs |
-| `E2E_SMOKE` | unset | Set to `1` to filter to smoke subset |
-| `E2E_RETRY` | `1` | Override retry count for vitest |
+| `E2E_FRONTEND_URL` | `http://localhost:8080` | 前端 URL（UI 测试用） |
+| `E2E_ADMIN_USER` | `e2eadmin` | 自动注册的管理员账号 |
+| `E2E_ADMIN_PASS` | `P@ssw0rd!` | 管理员密码 |
+| `E2E_DEBUG` | `0` | 设为 `1` 输出请求 / 响应详细日志 |
+| `E2E_SMOKE` | 未设置 | 设为 `1` 过滤到 smoke 子集 |
+| `E2E_RETRY` | `1` | 覆盖 vitest 重试次数 |
 
 ---
 
-## 3. Data-driven E2E test format
+## 3. 数据驱动 E2E 用例格式
 
-All e2e cases live in YAML, one file per service or business flow.
+所有 e2e 用例写在 YAML 里，按服务或业务流程一个文件。
 
-### 3.1 API case format
+### 3.1 API 用例格式
 
-`tests/e2e/api/cases/<service>.yaml`:
+`tests/e2e/api/cases/<service>.yaml`：
 
 ```yaml
 group: <service-group-name>
 cases:
   - caseId: <PREFIX>-<NUMBER>
-    desc: <human description>
-    smoke: true                       # include in smoke subset (optional)
+    desc: <人类可读描述>
+    smoke: true                       # 加入 smoke 子集（可选）
     method: POST | GET | PUT | DELETE | PATCH
     path: /v1/iam/users
-    auth: false                       # default true; false for unauthenticated
-    headers:                          # optional extra headers
+    auth: false                       # 默认 true；false 表示匿名请求
+    headers:                          # 额外 header（可选）
       X-Trace-Id: <32-hex>
-    body:                             # request body (any JSON)
-      username: new${rand}            # ${rand} generates unique value
+    body:                             # 请求 body（任意 JSON）
+      username: new${rand}            # ${rand} 生成唯一值
       password: P@ssw0rd!
-    expectStatus: 200                 # or [200, 201] for tolerant
-    expect:                           # optional body assertions
-      - $.id exists                   # path + operator + value
+    expectStatus: 200                 # 或写成 [200, 201] 表示容忍
+    expect:                           # body 断言（可选）
+      - $.id exists                   # JSONPath + 操作符 + 期望值
       - $.username==new${rand}
-    timeoutMs: 30000                  # override default 20s
-    skip: false                       # mark as skipped
+    timeoutMs: 30000                  # 覆盖默认 20s
+    skip: false                       # 标记为跳过
 ```
 
-### 3.2 UI case format
+### 3.2 UI 用例格式
 
-`tests/e2e/ui/cases/<flow>.yaml`:
+`tests/e2e/ui/cases/<flow>.yaml`：
 
 ```yaml
 group: <ui-group-name>
 cases:
   - caseId: UI-<PREFIX>-<NUMBER>
-    desc: <description>
+    desc: <描述>
     smoke: true
-    tags: ['@smoke']                  # for playwright grep
-    flow: <flow-name>                 # must exist in tests/e2e/ui/flows/
-    params:                           # passed to flow function
+    tags: ['@smoke']                  # 给 playwright --grep 用
+    flow: <flow-name>                 # 必须存在于 tests/e2e/ui/flows/
+    params:                           # 传给 flow 函数
       title: e2e-test-${rand}
-    expect:                           # UI assertions
-      - toast=success                 # toast contains "success"
-      - dialog=created                # dialog contains "created"
+    expect:                           # UI 断言
+      - toast=success                 # toast 文本包含 "success"
+      - dialog=created                # 弹窗包含 "created"
 ```
 
-### 3.3 Assertion expressions
+### 3.3 断言表达式
 
-The runner supports 5 assertion operators in `expect`:
+`expect` 支持 5 种操作符：
 
-| Expression | Meaning |
-|------------|---------|
-| `$.field exists` | Field is present and not null |
-| `$.field not exists` | Field is absent or null |
-| `$.field is array` | Field is a JSON array |
-| `$.field contains <substr>` | Field (stringified) contains substring |
-| `$.field==<value>` | Field equals value (string compare) |
+| 表达式 | 含义 |
+|--------|------|
+| `$.field exists` | 字段存在且非空 |
+| `$.field not exists` | 字段缺失或为空 |
+| `$.field is array` | 字段是数组 |
+| `$.field contains <substr>` | 字段（字符串化后）包含子串 |
+| `$.field==<value>` | 字段等于指定值（按字符串比较） |
 
-### 3.4 Placeholders
+### 3.4 占位符
 
-| Placeholder | Replaced with |
-|-------------|---------------|
-| `${rand}` | Random `Date.now() + 4-char hex` |
-| `${case-id.field}` | Reference to prior case's response field |
+| 占位符 | 替换为 |
+|--------|--------|
+| `${rand}` | 随机值 `Date.now() + 4-char hex` |
+| `${case-id.field}` | 引用前一个 case 响应中的某字段 |
 
-Example: `${IAM-USER-001.id}` references the `id` field returned by case `IAM-USER-001`.
+示例：`${IAM-USER-001.id}` 引用了 `IAM-USER-001` 返回的 `id`。
 
 ---
 
-## 4. Smoke subset
+## 4. Smoke 子集
 
-### 4.1 What is smoke?
+### 4.1 什么是 smoke
 
-Smoke is a curated subset of critical-path cases marked with `smoke: true` in YAML. Purpose: fast feedback loop during development.
+smoke 是一批被 `smoke: true` 标记的关键路径用例，用途是开发时拿到快速反馈。
 
-| Tier | Time | Cases | When to run |
-|------|------|-------|-------------|
-| **smoke** | ~2 min | 8 API + 2 UI | Pre-commit, dev iteration |
-| **api** | ~5 min | 50+ | Pre-deploy, CI |
-| **ui** | ~10 min | 20+ | Pre-deploy, CI |
+| 层级 | 时长 | 用例数 | 适用时机 |
+|------|------|--------|----------|
+| **smoke** | ~2 min | 8 API + 2 UI | 提交前、迭代开发 |
+| **api** | ~5 min | 50+ | 发布前、CI |
+| **ui** | ~10 min | 20+ | 发布前、CI |
 
-### 4.2 Running smoke
+### 4.2 执行 smoke
 
 ```bash
 cd tests/e2e
 
-# Smoke via env var
+# 通过环境变量
 E2E_SMOKE=1 pnpm test:api
 
-# Or via dedicated script
+# 或者用专门脚本
 pnpm test:smoke
-pnpm test:smoke:ui    # uses --grep @smoke in playwright
+pnpm test:smoke:ui    # playwright 使用 --grep @smoke
 ```
 
-### 4.3 Adding a case to smoke
+### 4.3 把某用例加入 smoke
 
-In the case YAML, set `smoke: true`:
+在 YAML 用例里设置 `smoke: true`：
 
 ```yaml
 cases:
   - caseId: NOTIF-001
-    desc: Create announcement
-    smoke: true       # ← include in smoke subset
+    desc: 创建公告
+    smoke: true       # ← 加入 smoke
     method: POST
     ...
 ```
 
-For UI tests, also add the tag:
+UI 测试还要额外加标签：
 
 ```yaml
 - caseId: UI-NOTIF-001
   smoke: true
-  tags: ['@smoke']   # ← for playwright --grep
+  tags: ['@smoke']   # ← 给 playwright --grep 用
   ...
 ```
 
-### 4.4 What makes a good smoke case
+### 4.4 什么算好的 smoke 用例
 
-- Critical happy path of one endpoint
-- No dependencies on prior cases (or minimal)
-- Fast (no large uploads / long waits)
-- Validates a real production scenario
+- 某个端点的关键 happy path
+- 不依赖前置用例（或依赖极少）
+- 执行快（无大文件上传、无长等待）
+- 验证的是真实生产场景
 
-Mark these as smoke:
-- `AUTH-001` (login works)
-- `GW-001` (gateway routing works)
-- `HEALTH` (basic health check)
-- `IAM-USER-001` (user creation)
-- One critical path per service
+应当标 smoke：
 
-Don't mark these as smoke:
-- Tests that depend on many prior cases
-- Edge cases / error paths
-- Bulk operations
+- `AUTH-001`（登录）
+- `GW-001`（网关路由）
+- `HEALTH`（健康检查）
+- `IAM-USER-001`（创建用户）
+- 每个服务的一条关键路径
+
+不要标 smoke：
+
+- 依赖大量前置用例的
+- 边界 / 错误路径用例
+- 批量操作
 
 ---
 
-## 5. Pre-flight health checks
+## 5. 启动前健康检查（preflight）
 
-Before any e2e test runs, the harness verifies infrastructure is up. This prevents cascading failures that look like test failures but are actually infra problems.
+任何 e2e 跑之前会先做 preflight，确认基础设施是好的，防止因基础设施挂掉导致一连串假阳性测试失败。
 
-### 5.1 What gets checked
+### 5.1 检查项
 
-`tests/e2e/shared/health.ts` probes:
+`tests/e2e/shared/health.ts` 会探测：
 
-| Probe | URL | Expected |
-|-------|-----|----------|
+| 探针 | URL | 期望 |
+|------|-----|------|
 | `api-gateway /health` | `${E2E_BASE_URL}/health` | 200 |
 | `iam via gateway` | `${E2E_BASE_URL}/iam/health` | 200 |
 
-Each probe has a 3-second timeout.
+每个探针 3 秒超时。
 
-### 5.2 When it fails
+### 5.2 失败后
 
 ```
 preflight api-gateway /health FAILED: ...
   → 请先启动 infrastructure: docker compose -f infrastructure/docker-compose.yml up -d
 ```
 
-Fix: ensure infrastructure is running:
+修复：先把基础设施跑起来：
 
 ```bash
 docker compose -f infrastructure/docker-compose.yml up -d
 ```
 
-Then re-run tests.
+然后再跑测试。
 
-### 5.3 Why preflight matters
+### 5.3 为什么要 preflight
 
-Without preflight, a broken infra would cause 50+ test failures with misleading "test broken" messages. With preflight, you get one clear error pointing to the root cause.
+没有 preflight 的话，基础设施挂掉会导致 50+ 用例失败，但每条报错都形似业务测试 bug，定位很费时。有了 preflight，一条清晰的错误就能指向根因。
 
 ---
 
-## 6. Retry policy
+## 6. 重试策略
 
 ### 6.1 Vitest
 
-Default retry: 1 (test re-runs once if it fails). Override with `E2E_RETRY=N`:
+默认重试 1 次（失败后再跑一次）。用 `E2E_RETRY=N` 覆盖：
 
 ```bash
-E2E_RETRY=0 pnpm test:api      # no retry (CI stricter)
-E2E_RETRY=3 pnpm test:smoke    # more retry (flaky network)
+E2E_RETRY=0 pnpm test:api      # 不重试（CI 更严）
+E2E_RETRY=3 pnpm test:smoke    # 多重试（网络抖动）
 ```
 
 ### 6.2 Playwright
 
-Default: `retries: 0` locally, `retries: 2` in CI (set via `process.env.CI`).
+默认：本地 `retries: 0`，CI `retries: 2`（通过 `process.env.CI` 区分）。
 
-### 6.3 When retries help vs hide bugs
+### 6.3 什么时候重试有益、什么时候是在掩盖 bug
 
-Retries help with:
-- Transient network failures (MySQL pool reset)
-- Timing-sensitive tests (WS message arrival)
+重试能解决：
 
-Retries hide:
-- Race conditions in the production code (e.g., etag conflict — should not retry, should fail clearly)
-- Missing test data setup
+- 偶发网络问题（MySQL pool reset）
+- 时序敏感的测试（WS 消息到达）
 
-If a test consistently needs retries to pass, that's a smell — investigate the underlying flakiness rather than masking it.
+重试会掩盖：
+
+- 生产代码的竞态（如 etag 冲突 —— 应当明确失败而不是重试）
+- 测试数据准备不完整
+
+如果某用例长期需要重试才能通过，**这是个臭味**，应当查根因而不是加重试。
 
 ---
 
-## 7. Reports
+## 7. 报告
 
-### 7.1 Excel report
+### 7.1 Excel 报告
 
-After each e2e run, an Excel report is generated at:
+每次 e2e 跑完会生成 Excel 报告：
 
 ```
 tests/e2e/shared/report/report-<timestamp>.xlsx
 ```
 
-Sheets:
-- **明细 (Details)**: case-by-case result, status, duration, error message
-- **汇总 (Summary)**: total / pass / fail / skip counts
+Sheet：
 
-### 7.2 Error details
+- **明细**：每条用例的结果、状态、耗时、错误信息
+- **汇总**：总数 / 通过 / 失败 / 跳过 计数
 
-For each failed case, a JSON file is written to:
+### 7.2 失败详情
+
+对每条失败用例还会写一份 JSON：
 
 ```
 tests/e2e/shared/report/errors/<caseId>.json
 ```
 
-Contents:
+内容：
+
 ```json
 {
   "caseId": "IAM-USER-002",
@@ -345,12 +352,13 @@ Contents:
 }
 ```
 
-UI failures also include a screenshot at:
+UI 失败还会同时保存截图：
+
 ```
 tests/e2e/shared/report/errors/<caseId>.png
 ```
 
-### 7.3 Reading the report
+### 7.3 查看报告
 
 ```bash
 # macOS
@@ -359,41 +367,41 @@ open tests/e2e/shared/report/report-*.xlsx
 # Linux
 xdg-open tests/e2e/shared/report/report-*.xlsx
 
-# Or programmatically:
+# 程序读取：
 python3 -c "import openpyxl; wb = openpyxl.load_workbook('tests/e2e/shared/report/report-latest.xlsx'); print(wb.sheetnames)"
 ```
 
 ---
 
-## 8. CI integration
+## 8. CI 集成
 
-### 8.1 GitLab CI jobs
+### 8.1 GitLab CI Job
 
-`.gitlab-ci.yml` defines:
+`.gitlab-ci.yml` 中定义了：
 
-| Job | Stage | Purpose |
-|-----|-------|---------|
+| Job | Stage | 用途 |
+|-----|-------|------|
 | `rust_test` | test | `cargo test --workspace --all-targets` |
 | `e2e_api_test` | test | `pnpm -C tests/e2e run test:api` |
-| `e2e_ui_test` | test | `pnpm -C tests/e2e run test:ui` (needs frontend) |
-| `service_standard_check` | test | Gate |
-| `spec_check` | test | Gate |
-| `contracts_check` | test | Gate |
+| `e2e_ui_test` | test | `pnpm -C tests/e2e run test:ui`（需前端） |
+| `service_standard_check` | test | 服务规范门禁 |
+| `spec_check` | test | OpenAPI / 错误码 / 权限码门禁 |
+| `contracts_check` | test | 契约门禁 |
 
-### 8.2 Pre-commit hooks
+### 8.2 Pre-commit 钩子
 
-Configured via `.pre-commit-config.yaml` (pre-commit framework) or `scripts/git-hooks/pre-commit` (zero-dep fallback).
+通过 `.pre-commit-config.yaml`（pre-commit 框架）或 `scripts/git-hooks/pre-commit`（零依赖兜底）配置。
 
-The hook runs service-standard / spec / contracts / openapi-drift gates before each commit. E2E is NOT run in pre-commit (too slow); use `pnpm test:smoke` for fast local feedback.
+钩子在每次 commit 前会跑 service-standard / spec / contracts / openapi-drift 门禁。E2E **不**会在 pre-commit 里跑（太慢），本地快速反馈用 `pnpm test:smoke`。
 
 ---
 
-## 9. Common patterns
+## 9. 常见模式
 
-### 9.1 Reuse context across cases
+### 9.1 跨用例复用上下文
 
 ```yaml
-# First case creates a user
+# 第一个用例创建用户
 - caseId: USER-CREATE
   method: POST
   path: /v1/iam/users
@@ -403,31 +411,32 @@ The hook runs service-standard / spec / contracts / openapi-drift gates before e
   expect:
     - $.id exists
 
-# Second case uses the created user's ID
+# 第二个用例引用前一个用例的 id
 - caseId: USER-GET
   method: GET
-  path: /v1/iam/users/${USER-CREATE.id}  # references prior case
+  path: /v1/iam/users/${USER-CREATE.id}  # 引用前置用例
   expectStatus: 200
   expect:
     - $.username matches alice-*
 ```
 
-### 9.2 Tolerate multiple acceptable statuses
+### 9.2 容忍多个状态码
 
 ```yaml
-expectStatus: [200, 201]   # either is acceptable
+expectStatus: [200, 201]   # 200 或 201 都接受
 ```
 
-Useful when:
-- Service returns 200 sometimes, 201 other times
-- New service returns 200, old service returns 201 (during migration)
+适用场景：
 
-### 9.3 Test multi-step business flows
+- 服务可能返回 200，也可能返回 201
+- 新版返回 200，旧版返回 201（迁移期间）
 
-Use UI cases for full business flows, API cases for individual endpoint contracts.
+### 9.3 测多步业务流程
+
+UI 用例适合跑端到端业务流程；API 用例适合验证单个端点的契约。
 
 ```yaml
-# UI: create + publish + verify
+# UI：创建 + 发布 + 验证
 - caseId: UI-NOTIF-FULL
   flow: createAndPublish
   params:
@@ -436,21 +445,21 @@ Use UI cases for full business flows, API cases for individual endpoint contract
     - toast=已发布
 ```
 
-The flow implementation lives in `tests/e2e/ui/flows/index.ts`.
+flow 的实现位于 `tests/e2e/ui/flows/index.ts`。
 
 ---
 
-## 10. Debugging
+## 10. 调试
 
-### 10.1 Enable verbose logging
+### 10.1 打开详细日志
 
 ```bash
 E2E_DEBUG=1 pnpm test:api
 ```
 
-Logs every request/response to stderr.
+会把每个请求 / 响应输出到 stderr。
 
-### 10.2 Run a single case
+### 10.2 跑单个用例
 
 ```bash
 # Vitest
@@ -461,27 +470,27 @@ pnpm vitest run --config api/vitest.config.ts -t "AUTH-001"
 pnpm playwright test --config ui/playwright.config.ts --grep "UI-IAM-CHPW-001"
 ```
 
-### 10.3 Inspect test state
+### 10.3 排查测试状态
 
 ```bash
-# Tail runner output
+# 看 runner 输出
 node scripts/run-tests-docker.js iam-service 2>&1 | tail -50
 
-# Check infrastructure health
+# 看基础设施健康
 docker ps
 docker logs <container>
 curl http://localhost:3000/health
 ```
 
-### 10.4 Common issues
+### 10.4 常见问题
 
-| Issue | Fix |
-|-------|-----|
-| Test "passes locally, fails in CI" | Check env vars; CI may have different MySQL/Redis versions |
-| Cascading failures (50 tests fail) | Likely infra; check preflight output |
-| Test "fails on first run, passes on retry" | Race condition; investigate rather than increase retry |
-| Screenshot shows blank page | Frontend container not started; `docker compose up -d frontend` |
+| 现象 | 处理 |
+|------|------|
+| 测试“本地通过、CI 失败” | 检查环境变量；CI 可能 MySQL / Redis 版本不同 |
+| 一连串测试失败（50 条） | 多半是基础设施挂了；看 preflight 输出 |
+| 测试“首次失败、重试通过” | 是竞态，应查根因，而不是加重试次数 |
+| UI 截图是空白页 | 前端容器没起；`docker compose up -d frontend` |
 
 ---
 
-_This guide is maintained alongside the codebase. See `docs/superpowers/specs/2026-06-25-e2e-stability-design.md` for the design rationale._
+_本指南随代码库一起维护。设计思路见 `docs/superpowers/specs/2026-06-25-e2e-stability-design.md`。_
