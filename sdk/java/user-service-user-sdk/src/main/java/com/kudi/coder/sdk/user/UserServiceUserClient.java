@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * user → user-service SDK。
+ * user → iam-service SDK。
  * 用 username/password 登录，缓存 access_token。
  */
 public class UserServiceUserClient extends SdkClient {
@@ -26,12 +26,12 @@ public class UserServiceUserClient extends SdkClient {
     public static UserServiceUserClient login(String baseUrl, String username, String password) {
         SdkConfig cfg = new SdkConfig(baseUrl);
         CredentialProvider p = new PasswordCredentialProvider(cfg, username, password);
-        return new UserServiceUserClient(cfg, p, "/api");
+        return new UserServiceUserClient(cfg, p, "/v1/iam");
     }
 
     public static UserServiceUserClient login(SdkConfig config, String username, String password) {
         CredentialProvider p = new PasswordCredentialProvider(config, username, password);
-        return new UserServiceUserClient(config, p, "/api");
+        return new UserServiceUserClient(config, p, "/v1/iam");
     }
 
     private String url(String suffix) {
@@ -49,9 +49,7 @@ public class UserServiceUserClient extends SdkClient {
 
     public List<User> list() {
         HttpResponse r = executeWithAuth(HttpRequest.get(url("/users")));
-        return JsonUtil.fromJson(r.getBody(),
-                com.kudi.coder.sdk.common.JsonUtil.mapper().getTypeFactory()
-                        .constructCollectionType(java.util.List.class, User.class));
+        return map(r.getBody(), User.class);
     }
 
     public CompletableFuture<List<User>> listAsync() {
@@ -70,25 +68,22 @@ public class UserServiceUserClient extends SdkClient {
 
     public List<Role> listRoles() {
         HttpResponse r = executeWithAuth(HttpRequest.get(url("/roles")));
-        return JsonUtil.fromJson(r.getBody(),
-                com.kudi.coder.sdk.common.JsonUtil.mapper().getTypeFactory()
-                        .constructCollectionType(java.util.List.class, Role.class));
+        return map(r.getBody(), Role.class);
     }
 
     public List<Permission> listPermissions() {
         HttpResponse r = executeWithAuth(HttpRequest.get(url("/permissions")));
-        return JsonUtil.fromJson(r.getBody(),
-                com.kudi.coder.sdk.common.JsonUtil.mapper().getTypeFactory()
-                        .constructCollectionType(java.util.List.class, Permission.class));
+        return map(r.getBody(), Permission.class);
     }
 
-    private static final class JsonUtil {
-        static <T> T fromJson(String body, com.fasterxml.jackson.databind.JavaType t) {
-            try {
-                return com.kudi.coder.sdk.common.JsonUtil.mapper().readValue(body, t);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+    private <T> List<T> map(String body, Class<T> element) {
+        try {
+            return com.kudi.coder.sdk.common.JsonUtil.mapper()
+                    .readValue(body,
+                            com.kudi.coder.sdk.common.JsonUtil.mapper().getTypeFactory()
+                                    .constructCollectionType(java.util.List.class, element));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

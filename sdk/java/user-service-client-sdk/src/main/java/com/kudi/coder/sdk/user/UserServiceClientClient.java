@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * client → user-service SDK。
+ * client → iam-service SDK。
  * 用 api_key/secret（client_credentials）调用。
  */
 public class UserServiceClientClient extends SdkClient {
@@ -26,12 +26,12 @@ public class UserServiceClientClient extends SdkClient {
     public static UserServiceClientClient create(String baseUrl, String apiKey, String secret, String code) {
         SdkConfig cfg = new SdkConfig(baseUrl);
         CredentialProvider p = new ClientCredentialsProvider(cfg, apiKey, secret, code);
-        return new UserServiceClientClient(cfg, p, "/api");
+        return new UserServiceClientClient(cfg, p, "/v1/iam");
     }
 
     public static UserServiceClientClient create(SdkConfig config, String apiKey, String secret, String code) {
         CredentialProvider p = new ClientCredentialsProvider(config, apiKey, secret, code);
-        return new UserServiceClientClient(config, p, "/api");
+        return new UserServiceClientClient(config, p, "/v1/iam");
     }
 
     private String url(String suffix) {

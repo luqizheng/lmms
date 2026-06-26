@@ -42,15 +42,16 @@ class UserServiceClientClientTest {
 
         RecordedRequest login = gw.takeRequest();
         assertEquals("POST", login.getMethod());
-        assertTrue(login.getPath().endsWith("/api/tokens/access"));
+        assertTrue(login.getPath().endsWith("/v1/tokens/access"));
+        assertEquals("application/json", login.getHeader("Content-Type"));
         String body = login.getBody().readUtf8();
-        assertTrue(body.contains("grant_type=authorization_code"));
-        assertTrue(body.contains("client_id=ak"));
-        assertTrue(body.contains("code=code-1"));
+        assertTrue(body.contains("\"grant_type\":\"authorization_code\""));
+        assertTrue(body.contains("\"client_id\":\"ak\""));
+        assertTrue(body.contains("\"code\":\"code-1\""));
 
         RecordedRequest userReq = gw.takeRequest();
         assertEquals("GET", userReq.getMethod());
-        assertTrue(userReq.getPath().endsWith("/api/users/u-9"));
+        assertTrue(userReq.getPath().endsWith("/v1/iam/users/u-9"));
         assertEquals("Bearer c-tok", userReq.getHeader("Authorization"));
     }
 }

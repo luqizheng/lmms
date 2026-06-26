@@ -9,7 +9,6 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import com.kudi.coder.httpclient.Exceptions.NetworkException;
 
 public class HttpTransport {
@@ -30,23 +29,7 @@ public class HttpTransport {
         this.options = options;
     }
 
-    public Response postForm(String url, Map<String, String> form) throws Exception {
-        String body = form.entrySet().stream()
-                .map(e -> urlEncode(e.getKey()) + "=" + urlEncode(e.getValue()))
-                .reduce((a, b) -> a + "&" + b)
-                .orElse("");
-        return send("POST", url, null, "application/x-www-form-urlencoded", body);
-    }
-
-    public Response postJson(String url, String json, String bearer) throws Exception {
-        return send("POST", url, bearer, "application/json", json);
-    }
-
-    public Response get(String url, String bearer) throws Exception {
-        return send("GET", url, bearer, null, null);
-    }
-
-    private Response send(String method, String url, String bearer, String contentType, String body) throws Exception {
+    public Response send(String method, String url, String bearer, String contentType, String body) {
         HttpURLConnection conn = null;
         try {
             URL u = URI.create(url).toURL();
@@ -55,12 +38,11 @@ public class HttpTransport {
             conn.setConnectTimeout((int) options.connectTimeout.toMillis());
             conn.setReadTimeout((int) options.readTimeout.toMillis());
             conn.setRequestProperty("User-Agent", options.userAgent);
+            conn.setRequestProperty("Accept", "application/json");
             if (bearer != null) conn.setRequestProperty("Authorization", "Bearer " + bearer);
             if (body != null) {
                 conn.setDoOutput(true);
                 if (contentType != null) conn.setRequestProperty("Content-Type", contentType);
-            }
-            if (body != null) {
                 try (DataOutputStream os = new DataOutputStream(conn.getOutputStream())) {
                     os.write(body.getBytes(StandardCharsets.UTF_8));
                 }
@@ -85,17 +67,5 @@ public class HttpTransport {
             }
             return sb.toString();
         }
-    }
-
-    private static String urlEncode(String s) {
-        StringBuilder out = new StringBuilder();
-        for (char c : s.toCharArray()) {
-            if (Character.isLetterOrDigit(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-                out.append(c);
-            } else {
-                out.append(String.format("%%%02X", (int) c));
-            }
-        }
-        return out.toString();
     }
 }

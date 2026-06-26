@@ -33,7 +33,6 @@ public class HttpRequest {
     }
 
     public HttpRequest jsonBody(Object value) {
-        com.kudi.coder.sdk.common.JsonUtil mapper = null;
         try {
             this.body = com.kudi.coder.sdk.common.JsonUtil.toJson(value);
         } catch (Exception e) {

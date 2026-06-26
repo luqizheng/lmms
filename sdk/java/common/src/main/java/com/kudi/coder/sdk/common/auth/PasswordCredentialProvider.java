@@ -12,7 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 用户名/密码登录。调用 /api/v1/auth/login，期望返回 {access_token, refresh_token, expires_in}。
+ * 用户名/密码登录。调用 /v1/iam/auth/login（JSON body），期望返回 {access_token, refresh_token, expires_in, ...}。
  */
 public class PasswordCredentialProvider implements CredentialProvider {
     private final SdkConfig config;
@@ -23,7 +23,7 @@ public class PasswordCredentialProvider implements CredentialProvider {
     private volatile TokenInfo lastToken;
 
     public PasswordCredentialProvider(SdkConfig config, String username, String password) {
-        this(config, username, password, "/api/v1/auth/login");
+        this(config, username, password, "/v1/iam/auth/login");
     }
 
     public PasswordCredentialProvider(SdkConfig config, String username, String password, String loginPath) {
@@ -36,20 +36,11 @@ public class PasswordCredentialProvider implements CredentialProvider {
 
     @Override
     public TokenInfo fetchToken() {
-        Map<String, String> form = new LinkedHashMap<>();
-        form.put("username", username);
-        form.put("password", password);
-        StringBuilder body = new StringBuilder();
-        for (Map.Entry<String, String> e : form.entrySet()) {
-            if (body.length() > 0) body.append('&');
-            try {
-                body.append(e.getKey()).append('=').append(java.net.URLEncoder.encode(e.getValue(), "UTF-8"));
-            } catch (java.io.UnsupportedEncodingException ex) {
-                throw new SdkException("URL encoding failed", ex);
-            }
-        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("username", username);
+        payload.put("password", password);
         HttpRequest req = HttpRequest.post(config.getBaseUrl() + loginPath)
-                .body(body.toString(), "application/x-www-form-urlencoded");
+                .jsonBody(payload);
         HttpResponse resp = http.execute(req);
         if (resp.getStatusCode() == 401 || resp.getStatusCode() == 403) {
             throw new AuthException("login failed", resp.getStatusCode(), resp.getBody());

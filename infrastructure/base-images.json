@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-23T05:13:40.185Z",
+  "generatedAt": "2026-06-26T13:00:00.000Z",
   "images": [
     {
       "ref": "alpine:3.21",
@@ -18,6 +18,11 @@
       "mirror": null
     },
     {
+      "ref": "maven:3.9-eclipse-temurin-21",
+      "source": "sdk\\java\\Dockerfile.builder",
+      "mirror": null
+    },
+    {
       "ref": "mysql:8.0",
       "source": "infrastructure\\docker-compose.yml",
       "mirror": null
@@ -25,6 +30,11 @@
     {
       "ref": "redis:7-alpine",
       "source": "infrastructure\\docker-compose.yml",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/builder/java-sdk:0.2.0",
+      "source": "sdk\\java\\Dockerfile.builder",
       "mirror": null
     },
     {

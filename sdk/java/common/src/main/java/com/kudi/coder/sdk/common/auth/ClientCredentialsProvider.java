@@ -12,7 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * client_credentials 流程，调用 /api/tokens/access。
+ * client_credentials 流程，调用 /v1/tokens/access（JSON body）。
  */
 public class ClientCredentialsProvider implements CredentialProvider {
     private final SdkConfig config;
@@ -23,7 +23,7 @@ public class ClientCredentialsProvider implements CredentialProvider {
     private final String tokenPath;
 
     public ClientCredentialsProvider(SdkConfig config, String clientId, String clientSecret, String code) {
-        this(config, clientId, clientSecret, code, "/api/tokens/access");
+        this(config, clientId, clientSecret, code, "/v1/tokens/access");
     }
 
     public ClientCredentialsProvider(SdkConfig config, String clientId, String clientSecret, String code, String tokenPath) {
@@ -37,22 +37,13 @@ public class ClientCredentialsProvider implements CredentialProvider {
 
     @Override
     public TokenInfo fetchToken() {
-        Map<String, String> form = new LinkedHashMap<>();
-        form.put("grant_type", "authorization_code");
-        form.put("code", code);
-        form.put("client_id", clientId);
-        form.put("client_secret", clientSecret);
-        StringBuilder body = new StringBuilder();
-        for (Map.Entry<String, String> e : form.entrySet()) {
-            if (body.length() > 0) body.append('&');
-            try {
-                body.append(e.getKey()).append('=').append(java.net.URLEncoder.encode(e.getValue(), "UTF-8"));
-            } catch (java.io.UnsupportedEncodingException ex) {
-                throw new SdkException("URL encoding failed", ex);
-            }
-        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("grant_type", "authorization_code");
+        payload.put("code", code);
+        payload.put("client_id", clientId);
+        payload.put("client_secret", clientSecret);
         HttpRequest req = HttpRequest.post(config.getBaseUrl() + tokenPath)
-                .body(body.toString(), "application/x-www-form-urlencoded");
+                .jsonBody(payload);
         HttpResponse resp = http.execute(req);
         if (resp.getStatusCode() == 401 || resp.getStatusCode() == 403) {
             throw new AuthException("client_credentials failed", resp.getStatusCode(), resp.getBody());

@@ -43,13 +43,14 @@ class TokenServerUserClientTest {
 
         RecordedRequest login = gw.takeRequest();
         assertEquals("POST", login.getMethod());
-        assertTrue(login.getPath().endsWith("/api/tokens/access"));
+        assertTrue(login.getPath().endsWith("/v1/iam/auth/login"));
 
         RecordedRequest refresh = gw.takeRequest();
         assertEquals("POST", refresh.getMethod());
-        assertTrue(refresh.getPath().endsWith("/api/tokens/refresh"));
+        assertTrue(refresh.getPath().endsWith("/v1/tokens/refresh"));
+        assertEquals("application/json", refresh.getHeader("Content-Type"));
         String body = refresh.getBody().readUtf8();
-        assertTrue(body.contains("grant_type=refresh_token"));
-        assertTrue(body.contains("refresh_token=t-ref"));
+        assertTrue(body.contains("\"refresh_token\":\"t-ref\""));
+        assertTrue(body.contains("\"client_id\":\"cid\""));
     }
 }

@@ -3,7 +3,6 @@ package com.kudi.coder.sdk.common.http;
 import com.kudi.coder.sdk.common.SdkConfig;
 import com.kudi.coder.sdk.common.exception.NetworkException;
 
-import javax.net.ssl.HttpsURLConnection;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,9 +25,6 @@ public class HttpClientWrapper {
         try {
             URL url = URI.create(request.getUrl()).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            if (conn instanceof HttpsURLConnection) {
-                // default
-            }
             conn.setRequestMethod(request.getMethod());
             conn.setConnectTimeout(config.getConnectTimeoutMs());
             conn.setReadTimeout(config.getReadTimeoutMs());

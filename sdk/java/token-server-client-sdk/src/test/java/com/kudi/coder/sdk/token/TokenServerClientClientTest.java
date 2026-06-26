@@ -35,19 +35,25 @@ class TokenServerClientClientTest {
     void createApiKeyAfterLogin() throws Exception {
         gw.enqueue(new MockResponse()
                 .setResponseCode(200)
-                .setBody("{\"api_key\":\"ak-2\",\"secret\":\"sec-2\",\"created_at\":\"2026-06-08T00:00:00Z\"}"));
+                .setBody("{\"api_key_id\":\"ak-2\",\"api_key_secret\":\"sec-2\"}"));
 
-        ApiKeyInfo key = client.createApiKey("backend-x", "cid", "csec");
-        assertEquals("ak-2", key.getApiKey());
+        ApiKeyInfo key = client.createApiKey("backend-x",
+                java.util.Arrays.asList("notification.admin"),
+                java.util.Arrays.asList("client_credentials"));
+        assertEquals("ak-2", key.getApiKeyId());
+        assertEquals("sec-2", key.getApiKeySecret());
 
         RecordedRequest login = gw.takeRequest();
-        assertTrue(login.getPath().endsWith("/api/tokens/access"));
+        assertTrue(login.getPath().endsWith("/v1/tokens/access"));
+        assertEquals("application/json", login.getHeader("Content-Type"));
 
         RecordedRequest createKey = gw.takeRequest();
         assertEquals("POST", createKey.getMethod());
-        assertTrue(createKey.getPath().endsWith("/api/api-keys"));
+        assertTrue(createKey.getPath().endsWith("/v1/api-keys"));
+        assertEquals("application/json", createKey.getHeader("Content-Type"));
         String body = createKey.getBody().readUtf8();
-        assertTrue(body.contains("name=backend-x"));
-        assertTrue(body.contains("client_id=cid"));
+        assertTrue(body.contains("\"name\":\"backend-x\""));
+        assertTrue(body.contains("\"permissions\":[\"notification.admin\"]"));
+        assertTrue(body.contains("\"grant_types\":[\"client_credentials\"]"));
     }
 }
