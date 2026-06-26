@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
-const SCHEMA_MARKER_TABLE: &str = "operation_logs";
+const SCHEMA_MARKER_TABLE: &str = "audit_operation_logs";
 
 async fn ensure_schema(pool: &sqlx::mysql::MySqlPool) -> anyhow::Result<()> {
     let row: (i64,) = sqlx::query_as(

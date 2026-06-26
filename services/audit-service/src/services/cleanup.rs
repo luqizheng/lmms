@@ -28,14 +28,14 @@ impl CleanupService {
         let cold_cutoff = policy.cold_cutoff();
 
         let hot: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM operation_logs WHERE created_at >= ?"
+            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at >= ?"
         )
         .bind(hot_cutoff)
         .fetch_one(&self.pool)
         .await?;
 
         let warm: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM operation_logs WHERE created_at < ? AND created_at >= ?"
+            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ? AND created_at >= ?"
         )
         .bind(hot_cutoff)
         .bind(warm_cutoff)
@@ -43,7 +43,7 @@ impl CleanupService {
         .await?;
 
         let cold: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM operation_logs WHERE created_at < ? AND created_at >= ?"
+            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ? AND created_at >= ?"
         )
         .bind(warm_cutoff)
         .bind(cold_cutoff)
@@ -51,7 +51,7 @@ impl CleanupService {
         .await?;
 
         let expired: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM operation_logs WHERE created_at < ?"
+            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ?"
         )
         .bind(cold_cutoff)
         .fetch_one(&self.pool)
@@ -72,7 +72,7 @@ impl CleanupService {
         let cold_cutoff = policy.cold_cutoff();
 
         let result = sqlx::query(
-            "DELETE FROM operation_logs WHERE created_at < ?"
+            "DELETE FROM audit_operation_logs WHERE created_at < ?"
         )
         .bind(cold_cutoff)
         .execute(&self.pool)
@@ -123,7 +123,7 @@ impl CleanupService {
                 };
 
                 let result = sqlx::query(
-                    "DELETE FROM operation_logs WHERE created_at < ?"
+                    "DELETE FROM audit_operation_logs WHERE created_at < ?"
                 )
                 .bind(cutoff)
                 .execute(&pool)

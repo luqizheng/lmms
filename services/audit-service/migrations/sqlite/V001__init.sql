@@ -1,5 +1,5 @@
 -- Operation Logs: Business operation audit trail
-CREATE TABLE IF NOT EXISTS operation_logs (
+CREATE TABLE IF NOT EXISTS audit_operation_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
     action TEXT NOT NULL,
@@ -13,12 +13,12 @@ CREATE TABLE IF NOT EXISTS operation_logs (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_operation_user_id ON operation_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_operation_action ON operation_logs(action);
-CREATE INDEX IF NOT EXISTS idx_operation_created_at ON operation_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_operation_logs_user_id ON audit_operation_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_operation_logs_action ON audit_operation_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_operation_logs_created_at ON audit_operation_logs(created_at);
 
 -- Login Logs: Authentication audit trail
-CREATE TABLE IF NOT EXISTS login_logs (
+CREATE TABLE IF NOT EXISTS audit_login_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT,
     username TEXT NOT NULL,
@@ -31,12 +31,12 @@ CREATE TABLE IF NOT EXISTS login_logs (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_login_username ON login_logs(username);
-CREATE INDEX IF NOT EXISTS idx_login_success ON login_logs(success);
-CREATE INDEX IF NOT EXISTS idx_login_created_at ON login_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_login_logs_username ON audit_login_logs(username);
+CREATE INDEX IF NOT EXISTS idx_audit_login_logs_success ON audit_login_logs(success);
+CREATE INDEX IF NOT EXISTS idx_audit_login_logs_created_at ON audit_login_logs(created_at);
 
 -- API Access Logs: Gateway access audit
-CREATE TABLE IF NOT EXISTS api_access_logs (
+CREATE TABLE IF NOT EXISTS audit_api_access_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     service_name TEXT NOT NULL,
     method TEXT NOT NULL,
@@ -48,6 +48,6 @@ CREATE TABLE IF NOT EXISTS api_access_logs (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_api_service ON api_access_logs(service_name);
-CREATE INDEX IF NOT EXISTS idx_api_path ON api_access_logs(path);
-CREATE INDEX IF NOT EXISTS idx_api_created_at ON api_access_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_api_access_logs_service_name ON audit_api_access_logs(service_name);
+CREATE INDEX IF NOT EXISTS idx_audit_api_access_logs_path ON audit_api_access_logs(path);
+CREATE INDEX IF NOT EXISTS idx_audit_api_access_logs_created_at ON audit_api_access_logs(created_at);

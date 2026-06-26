@@ -14,7 +14,7 @@ impl AuditService {
     pub async fn create_operation_log(&self, log: CreateOperationLog) -> AppResult<i64> {
         let result = sqlx::query(
             r#"
-            INSERT INTO operation_logs (user_id, action, resource, resource_id, before_value, after_value, request_id, ip_address, user_agent)
+            INSERT INTO audit_operation_logs (user_id, action, resource, resource_id, before_value, after_value, request_id, ip_address, user_agent)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
@@ -36,7 +36,7 @@ impl AuditService {
     pub async fn create_login_log(&self, log: CreateLoginLog) -> AppResult<i64> {
         let result = sqlx::query(
             r#"
-            INSERT INTO login_logs (user_id, username, success, fail_reason, ip_address, location, user_agent, request_id)
+            INSERT INTO audit_login_logs (user_id, username, success, fail_reason, ip_address, location, user_agent, request_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
@@ -57,7 +57,7 @@ impl AuditService {
     pub async fn get_user_operation_logs(&self, user_id: &str, limit: i64) -> AppResult<Vec<OperationLog>> {
         let logs = sqlx::query_as::<_, OperationLog>(
             r#"
-            SELECT * FROM operation_logs 
+            SELECT * FROM audit_operation_logs 
             WHERE user_id = ? 
             ORDER BY created_at DESC 
             LIMIT ?
@@ -74,7 +74,7 @@ impl AuditService {
     pub async fn get_user_login_logs(&self, user_id: &str, limit: i64) -> AppResult<Vec<LoginLog>> {
         let logs = sqlx::query_as::<_, LoginLog>(
             r#"
-            SELECT * FROM login_logs 
+            SELECT * FROM audit_login_logs 
             WHERE user_id = ? 
             ORDER BY created_at DESC 
             LIMIT ?
@@ -91,7 +91,7 @@ impl AuditService {
     pub async fn get_operation_log(&self, id: i64) -> AppResult<Option<OperationLog>> {
         let log = sqlx::query_as::<_, OperationLog>(
             r#"
-            SELECT * FROM operation_logs WHERE id = ?
+            SELECT * FROM audit_operation_logs WHERE id = ?
             "#,
         )
         .bind(id)
@@ -104,7 +104,7 @@ impl AuditService {
     pub async fn get_login_log(&self, id: i64) -> AppResult<Option<LoginLog>> {
         let log = sqlx::query_as::<_, LoginLog>(
             r#"
-            SELECT * FROM login_logs WHERE id = ?
+            SELECT * FROM audit_login_logs WHERE id = ?
             "#,
         )
         .bind(id)
@@ -125,7 +125,7 @@ impl AuditService {
 
         let total = self.count_operation_logs(user_id_ref, action_ref, resource_ref).await?;
 
-        let mut sql = String::from("SELECT * FROM operation_logs WHERE 1=1");
+        let mut sql = String::from("SELECT * FROM audit_operation_logs WHERE 1=1");
 
         if user_id_ref.is_some() {
             sql.push_str(" AND user_id = ?");
@@ -184,7 +184,7 @@ impl AuditService {
 
         let total = self.count_login_logs(username_ref, query.success).await?;
 
-        let mut sql = String::from("SELECT * FROM login_logs WHERE 1=1");
+        let mut sql = String::from("SELECT * FROM audit_login_logs WHERE 1=1");
 
         if username_ref.is_some() {
             sql.push_str(" AND username = ?");
@@ -229,7 +229,7 @@ impl AuditService {
     }
 
     async fn count_operation_logs(&self, user_id: Option<&str>, action: Option<&str>, resource: Option<&str>) -> AppResult<i64> {
-        let mut sql = String::from("SELECT COUNT(*) FROM operation_logs WHERE 1=1");
+        let mut sql = String::from("SELECT COUNT(*) FROM audit_operation_logs WHERE 1=1");
 
         if user_id.is_some() {
             sql.push_str(" AND user_id = ?");
@@ -258,7 +258,7 @@ impl AuditService {
     }
 
     async fn count_login_logs(&self, username: Option<&str>, success: Option<bool>) -> AppResult<i64> {
-        let mut sql = String::from("SELECT COUNT(*) FROM login_logs WHERE 1=1");
+        let mut sql = String::from("SELECT COUNT(*) FROM audit_login_logs WHERE 1=1");
 
         if username.is_some() {
             sql.push_str(" AND username = ?");
@@ -290,7 +290,7 @@ impl AuditService {
         limit: i64,
         offset: i64,
     ) -> AppResult<Vec<OperationLog>> {
-        let mut sql = String::from("SELECT * FROM operation_logs WHERE 1=1");
+        let mut sql = String::from("SELECT * FROM audit_operation_logs WHERE 1=1");
 
         if user_id.is_some() {
             sql.push_str(" AND user_id = ?");
