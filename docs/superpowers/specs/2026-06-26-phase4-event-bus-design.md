@@ -3,7 +3,7 @@
 > Status: Draft → Review
 > Date: 2026-06-26
 > Scope: Phase 4 of architect review roadmap (see `TODO.md`)
-> Predecessor: 无（首阶段引入消息中间件）
+> Predecessor: **Phase 4.0 数据表命名规范统一**（见 `2026-06-26-phase4.0-table-naming-design.md`）—— 本 Phase 落地的 `iam_outbox_events` 与 `audit_events` 都按新规范命名，必须在 4.0 合并后才能开工
 
 ---
 
@@ -277,10 +277,10 @@ SQLite 不支持 `FOR UPDATE`，但 SQLite 模式（仅 prue_backend dev）天�
 
 ### 7.1 iam-service 新迁移
 
-`services/iam-service/migrations/mysql/V{NNN}__outbox_events.sql`：
+`services/iam-service/migrations/mysql/V{NNN}__iam_outbox_events.sql`：
 
 ```sql
-CREATE TABLE outbox_events (
+CREATE TABLE iam_outbox_events (
     id              BIGINT       NOT NULL AUTO_INCREMENT,
     event_id        CHAR(36)     NOT NULL,
     event_type      VARCHAR(128) NOT NULL,
@@ -289,8 +289,8 @@ CREATE TABLE outbox_events (
     created_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     published_at    DATETIME(3)  NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_outbox_event_id (event_id),
-    KEY idx_outbox_unpublished (published_at, id)
+    UNIQUE KEY uk_iam_outbox_event_id (event_id),
+    KEY idx_iam_outbox_unpublished (published_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
@@ -298,15 +298,29 @@ iam-service 当前没有 sqlite 迁移分支，不需要补 sqlite 版本。
 
 ### 7.2 audit-service 新迁移
 
-`services/audit-service/migrations/mysql/V{NNN}__event_id_idempotency.sql`：
+audit-service 主表已在 Phase 4.0 重命名为 `audit_operation_logs` / `audit_login_logs` / `audit_api_access_logs`。本 Phase 新增一张**事件投递表**作为消费 outbox 的幂等存储（替代旧 HTTP 接口写入）：
+
+`services/audit-service/migrations/mysql/V{NNN}__audit_events.sql`：
 
 ```sql
-ALTER TABLE audit_events
-    ADD COLUMN event_id CHAR(36) NULL AFTER id,
-    ADD UNIQUE KEY uk_audit_event_id (event_id);
+CREATE TABLE audit_events (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    event_id        CHAR(36)     NOT NULL,             -- 幂等键，对齐 envelope.event_id
+    event_type      VARCHAR(128) NOT NULL,
+    occurred_at     DATETIME(3)  NOT NULL,
+    received_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    trace_id        VARCHAR(64)  NULL,
+    producer        VARCHAR(64)  NOT NULL,
+    payload_json    JSON         NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_audit_events_event_id (event_id),
+    KEY idx_audit_events_type_time (event_type, occurred_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-（具体列名以 audit-service 当前 schema 为准；实施阶段再确认列名。）
+consumer 用 `INSERT ... ON DUPLICATE KEY UPDATE id=id` 做幂等。
+
+后续是否把已有 `audit_login_logs` 改造成事件投递表的物化视图，留给 Phase 4.x。
 
 ### 7.3 publisher 归档（避免无限增长）
 

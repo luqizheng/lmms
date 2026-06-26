@@ -15,13 +15,34 @@
 
 ### Phase 4 — 异步事件总线（P0，解锁最终一致性 / 削峰 / 解耦）
 
-- [ ] **引入消息总线（建议 NATS JetStream，轻量、Rust 友好）**
-  - [ ] 启用 `contracts/events.yaml`，沉淀首批领域事件：`UserCreated` / `UserDeleted` / `LoginSucceeded` / `LoginFailed` / `PermissionChanged` / `AnnouncementPublished`
-  - [ ] 新增 `libs/common-event` lib：发布者 / 消费者 / 序列化 / 死信处理抽象
-  - [ ] **Outbox Pattern** 落地：iam-service 写库 + 写 outbox 表同事务，独立 publisher worker 推消息
-  - [ ] `audit-service` 改造为事件消费者（取代当前同步 HTTP 调用）
-  - [ ] `notification-service` 接入 `AnnouncementPublished` 事件触发 WebSocket 广播
-  - [ ] `contracts-gen.js` 扩展：从 `events.yaml` 生成 Rust event struct + TS 类型
+> 中间件 = RabbitMQ；Topology = 单 topic exchange + routing-key；Outbox = 每服务一张表 + 同事务；Publisher = 独立二进制 + 多副本 `SELECT ... FOR UPDATE SKIP LOCKED`；首批事件 = `iam.user.created` / `iam.user.deleted` / `iam.login.succeeded`；首批闭环 = iam → audit（旧 HTTP 直接删）。
+> Spec: `docs/superpowers/specs/2026-06-26-phase4-event-bus-design.md`
+
+#### Phase 4.0 — 数据表命名规范统一（**前置，必须先合并**）
+
+> 现状：所有 Rust 服务共用 MySQL `superpowers` 库，且无任何表名隔离约定，已经出现 iam/audit 两个 `login_logs` 撞名 —— 谁先跑迁移谁占位。继续往里加 outbox 等表会让坑越挖越大。
+> Spec: `docs/superpowers/specs/2026-06-26-phase4.0-table-naming-design.md`
+
+- [ ] 新建 `contracts/db-conventions.md`，定前缀映射：`iam_/audit_/token_/ntf_/cfg_/file_/prue_`
+- [ ] 排查 dev 环境 `login_logs` 撞名实际情况，确定归属
+- [ ] 各服务 `V00X__rename_tables.sql` 一次性 RENAME 存量表
+- [ ] sqlx 查询、e2e fixture、测试 setup、文档同步改名
+- [ ] `scripts/check-db-naming.js` CI gate
+- [ ] `agents.md` / `services/<svc>/AGENTS.md` 更新规范
+- [ ] `coder-migrate-db` skill 模板加前缀默认值
+
+#### Phase 4 主任务（4.0 合并后开工）
+
+- [ ] 基础设施：`infrastructure/docker-compose-infra.yml` 加 RabbitMQ + `definitions.json` 预声明 topology
+- [ ] `contracts/events.yaml` 启用首批三事件 + envelope schema
+- [ ] `scripts/contracts-gen.js` 扩展：events.yaml → Rust event struct + routing-key 常量
+- [ ] **`libs/common-event` 完整抽象**：Publisher / Consumer / Envelope / OutboxRepo<DB> trait + lapin RabbitMQ 实现
+- [ ] iam-service 加 `iam_outbox_events` 表 + 业务事务里写 outbox
+- [ ] iam-service 加 `[[bin]] outbox-publisher`（同镜像切 CMD）
+- [ ] audit-service 加 `audit_events` 表 + RabbitMQ consumer + 删除旧 HTTP 写入端点
+- [ ] audit-service 补 OTel 接入（验收要求端到端 trace 链）
+- [ ] e2e 用例 `audit-event-flow.yaml`
+- [ ] 验收：RabbitMQ 拔掉/恢复、consumer panic → DLQ、Jaeger 端到端 trace 链
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
