@@ -35,9 +35,12 @@ const routingKeysRs = [
 ].join('\n');
 fs.writeFileSync(path.join(outDir, 'routing_keys.rs'), routingKeysRs);
 
-// ---- events.rs (placeholder, will be replaced in Task 7) ----
+// ---- events.rs ----
+const pascal = (rk) => rk.split('.').map((s) => s[0].toUpperCase() + s.slice(1)).join('');
+
 const structDefs = Object.entries(events).map(([rk, def]) => {
-  const NAME = rk.split('.').map((s) => s[0].toUpperCase() + s.slice(1)).join('');
+  const NAME = pascal(rk);
+  const version = def.schema_version || defaultVersion;
   const fields = Object.entries(def.payload || {}).map(([fname, fdef]) => {
     const T = rustType(fdef.type);
     const OPT = fdef.required ? '' : 'Option<';
@@ -49,11 +52,16 @@ const structDefs = Object.entries(events).map(([rk, def]) => {
     `pub struct ${NAME} {`,
     fields,
     `}`,
+    ``,
+    `impl Event for ${NAME} {`,
+    `    fn event_type() -> &'static str { "${rk}" }`,
+    `    fn schema_version() -> u32 { ${version} }`,
+    `}`,
   ].join('\n');
 });
 
 const enumVariants = Object.keys(events).map((rk) => {
-  const NAME = rk.split('.').map((s) => s[0].toUpperCase() + s.slice(1)).join('');
+  const NAME = pascal(rk);
   return `    ${NAME}(Envelope<${NAME}>),`;
 }).join('\n');
 
@@ -64,6 +72,7 @@ const eventsRs = [
   'use serde::{Deserialize, Serialize};',
   '',
   'use crate::envelope::Envelope;',
+  'use crate::event::Event;',
   '',
   ...structDefs,
   '',

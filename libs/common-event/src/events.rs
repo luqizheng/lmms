@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::envelope::Envelope;
+use crate::event::Event;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamUserCreated {
@@ -12,10 +13,20 @@ pub struct IamUserCreated {
     pub email: Option<String>,
     pub org_unit_id: Option<String>,
 }
+
+impl Event for IamUserCreated {
+    fn event_type() -> &'static str { "iam.user.created" }
+    fn schema_version() -> u32 { 1 }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamUserDeleted {
     pub user_id: String,
     pub deleted_by: String,
+}
+
+impl Event for IamUserDeleted {
+    fn event_type() -> &'static str { "iam.user.deleted" }
+    fn schema_version() -> u32 { 1 }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamLoginSucceeded {
@@ -23,6 +34,11 @@ pub struct IamLoginSucceeded {
     pub ip: String,
     pub user_agent: Option<String>,
     pub method: String,
+}
+
+impl Event for IamLoginSucceeded {
+    fn event_type() -> &'static str { "iam.login.succeeded" }
+    fn schema_version() -> u32 { 1 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

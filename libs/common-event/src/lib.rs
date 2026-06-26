@@ -17,11 +17,13 @@ pub mod publisher_loop;
 pub mod routing_keys;
 
 pub use config::EventBusConfig;
-pub use consumer::{Consumer, RabbitMqConsumer};
 pub use envelope::Envelope;
 pub use error::{ConsumeError, HandlerError, OutboxError, PublishError, RunError};
 pub use event::Event;
 pub use events::IamEventEnum;
-pub use outbox::{MySqlOutboxRepo, OutboxRepo, OutboxRow};
-pub use publisher::{Publisher, RabbitMqPublisher};
-pub use publisher_loop::{OutboxPublisher, OutboxPublisherConfig};
+
+// Re-exports below are wired as their modules land in later tasks:
+// pub use consumer::{Consumer, RabbitMqConsumer};       // Task 10
+// pub use outbox::{MySqlOutboxRepo, OutboxRepo, OutboxRow}; // Task 8
+// pub use publisher::{Publisher, RabbitMqPublisher};    // Task 9
+// pub use publisher_loop::{OutboxPublisher, OutboxPublisherConfig}; // Task 10

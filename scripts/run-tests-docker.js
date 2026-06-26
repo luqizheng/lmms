@@ -32,6 +32,35 @@ function run(cmd, args, opts = {}) {
   return res.status === 0;
 }
 
+// 列出当前所有 mysql:* / testcontainers ryuk 的容器 id（运行中 + 已退出）。
+// 用于在测试前后做差分，仅清理本次新生出来的 testcontainers 容器，避免误伤宿主上其它 mysql。
+function listTestContainerIds() {
+  const ids = new Set();
+  const filters = [
+    ['--filter', 'ancestor=mysql:8.0'],
+    ['--filter', 'ancestor=mysql:8.1'],
+    ['--filter', 'ancestor=mysql:8'],
+    ['--filter', 'ancestor=mysql:latest'],
+    ['--filter', 'name=testcontainers'],
+    ['--filter', 'label=org.testcontainers'],
+  ];
+  for (const f of filters) {
+    const res = spawnSync('docker', ['ps', '-aq', ...f], { encoding: 'utf8' });
+    if (res.status === 0 && res.stdout) {
+      for (const id of res.stdout.trim().split('\n').filter(Boolean)) ids.add(id);
+    }
+  }
+  return ids;
+}
+
+function cleanupNewContainers(beforeIds) {
+  const after = listTestContainerIds();
+  const newOnes = [...after].filter(id => !beforeIds.has(id));
+  if (newOnes.length === 0) return;
+  console.log(`\n[cleanup] removing ${newOnes.length} test mysql container(s)...`);
+  spawnSync('docker', ['rm', '-f', ...newOnes], { stdio: 'inherit' });
+}
+
 function runTests(svc) {
   console.log(`\n[test] ${svc}`);
   return run('docker', [
@@ -50,9 +79,26 @@ function runTests(svc) {
 
 function main() {
   const targets = pickTargets(process.argv.slice(2));
+  const before = listTestContainerIds();
+
+  // 包装一次清理，确保 Ctrl-C / 异常退出也能跑到
+  let cleaned = false;
+  const doCleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    try { cleanupNewContainers(before); } catch (e) { console.error('[cleanup] failed:', e); }
+  };
+  process.on('SIGINT',  () => { doCleanup(); process.exit(130); });
+  process.on('SIGTERM', () => { doCleanup(); process.exit(143); });
+  process.on('exit', doCleanup);
+
   const failed = [];
-  for (const svc of targets) {
-    if (!runTests(svc)) { failed.push(`${svc} (test)`); }
+  try {
+    for (const svc of targets) {
+      if (!runTests(svc)) { failed.push(`${svc} (test)`); }
+    }
+  } finally {
+    doCleanup();
   }
   console.log('\n=== summary ===');
   console.log(`total : ${targets.length}`);
