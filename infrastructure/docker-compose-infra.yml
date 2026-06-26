@@ -45,9 +45,29 @@ services:
     networks:
       - superpowers
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: infrastructure-rabbitmq-1
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./config/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
 volumes:
   redis_data:
   mysql_data:
+  rabbitmq-data:
 
 networks:
   superpowers:
