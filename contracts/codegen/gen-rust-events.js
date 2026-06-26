@@ -21,16 +21,15 @@ const defaultVersion = doc.default_schema_version || 1;
 // ---- routing_keys.rs ----
 const constLines = Object.keys(events).map((rk) => {
   const NAME = rk.toUpperCase().replace(/\./g, '_');
-  return `    pub const ${NAME}: &str = "${rk}";`;
+  return `pub const ${NAME}: &str = "${rk}";`;
 });
 const routingKeysRs = [
   '// Auto-generated from contracts/events.yaml',
   '// DO NOT EDIT MANUALLY',
   '',
-  '/// Routing-key constants for events published to the `events` topic exchange.',
-  'pub mod routing_keys {',
+  '//! Routing-key constants for events published to the `events` topic exchange.',
+  '',
   ...constLines,
-  '}',
   '',
 ].join('\n');
 fs.writeFileSync(path.join(outDir, 'routing_keys.rs'), routingKeysRs);
