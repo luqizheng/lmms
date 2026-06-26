@@ -5,8 +5,8 @@ CREATE TABLE cfg_namespaces (
     env VARCHAR(32) NOT NULL COMMENT 'Environment (dev/staging/prod)',
     profile VARCHAR(64) COMMENT 'Profile name',
     description VARCHAR(512) COMMENT 'Description',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
     INDEX idx_cfg_namespaces_app (app),
     INDEX idx_cfg_namespaces_env (env),
     UNIQUE KEY uk_cfg_namespaces_app_env_profile (app, env, profile)
@@ -21,8 +21,8 @@ CREATE TABLE cfg_config_items (
     value_type VARCHAR(32) NOT NULL DEFAULT 'string' COMMENT 'Value type',
     is_secret TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Is secret',
     description VARCHAR(512) COMMENT 'Description',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
     INDEX idx_cfg_config_items_namespace_id (namespace_id),
     INDEX idx_cfg_config_items_key (`key`),
     CONSTRAINT fk_cfg_config_items_namespace_id FOREIGN KEY (namespace_id) REFERENCES cfg_namespaces(id)
@@ -38,7 +38,7 @@ CREATE TABLE cfg_config_versions (
     new_value TEXT NOT NULL COMMENT 'New value',
     operator VARCHAR(64) COMMENT 'Operator',
     comment VARCHAR(512) COMMENT 'Comment',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL,
     INDEX idx_cfg_config_versions_namespace_id (namespace_id),
     INDEX idx_cfg_config_versions_item_id (item_id),
     INDEX idx_cfg_config_versions_created_at (created_at)
