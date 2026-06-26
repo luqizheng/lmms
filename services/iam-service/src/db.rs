@@ -3,7 +3,7 @@ use crate::config::DatabaseConfig;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
-const SCHEMA_MARKER_TABLE: &str = "users";
+const SCHEMA_MARKER_TABLE: &str = "iam_users";
 
 pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
     let pool = common::db::connect(&config.url, config.max_connections).await?;

@@ -23,7 +23,7 @@ impl AuthService {
 
     pub async fn login(&self, req: LoginRequest, ip_address: &str, user_agent: &str) -> Result<LoginResponse, IamError> {
         let user: Option<User> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE username = ? AND deleted_at IS NULL"
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE username = ? AND deleted_at IS NULL"
         )
         .bind(&req.username)
         .fetch_optional(&self.state.db)
@@ -68,7 +68,7 @@ impl AuthService {
         let refresh_expires_at = Utc::now() + Duration::days(30);
 
         sqlx::query(
-            "INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, client_ip, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())"
+            "INSERT INTO iam_refresh_tokens (id, user_id, token_hash, expires_at, client_ip, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())"
         )
         .bind(&refresh_token_id)
         .bind(&user.id)
@@ -81,7 +81,7 @@ impl AuthService {
 
         // 更新最后登录信息
         sqlx::query(
-            "UPDATE users SET last_login_at = NOW(), last_login_ip = ?, updated_at = NOW() WHERE id = ?"
+            "UPDATE iam_users SET last_login_at = NOW(), last_login_ip = ?, updated_at = NOW() WHERE id = ?"
         )
         .bind(ip_address)
         .bind(&user.id)
@@ -116,7 +116,7 @@ impl AuthService {
         let token_hash = Self::hash_token(refresh_token);
         
         let token: Option<RefreshToken> = sqlx::query_as(
-            "SELECT id, user_id, token_hash, expires_at, revoked, created_at FROM refresh_tokens WHERE token_hash = ?"
+            "SELECT id, user_id, token_hash, expires_at, revoked, created_at FROM iam_refresh_tokens WHERE token_hash = ?"
         )
         .bind(&token_hash)
         .fetch_optional(&self.state.db)
@@ -134,7 +134,7 @@ impl AuthService {
 
         // 获取用户信息
         let user: Option<User> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(&token.user_id)
         .fetch_optional(&self.state.db)
@@ -178,7 +178,7 @@ impl AuthService {
     pub async fn logout(&self, user_id: &str) -> Result<(), IamError> {
         // 撤销用户的所有 refresh tokens
         sqlx::query(
-            "UPDATE refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE user_id = ? AND revoked = FALSE"
+            "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE user_id = ? AND revoked = FALSE"
         )
         .bind(user_id)
         .execute(&self.state.db)
@@ -189,7 +189,7 @@ impl AuthService {
 
     pub async fn revoke_session(&self, session_id: &str) -> Result<(), IamError> {
         sqlx::query(
-            "UPDATE refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE id = ?"
+            "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE id = ?"
         )
         .bind(session_id)
         .execute(&self.state.db)
@@ -200,7 +200,7 @@ impl AuthService {
 
     pub async fn get_user_sessions(&self, user_id: &str) -> Result<Vec<RefreshToken>, IamError> {
         let tokens: Vec<RefreshToken> = sqlx::query_as(
-            "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM refresh_tokens WHERE user_id = ? AND revoked = FALSE ORDER BY created_at DESC"
+            "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE user_id = ? AND revoked = FALSE ORDER BY created_at DESC"
         )
         .bind(user_id)
         .fetch_all(&self.state.db)
@@ -211,7 +211,7 @@ impl AuthService {
 
     pub async fn change_password(&self, user_id: &str, req: ChangePasswordRequest) -> Result<(), IamError> {
         let user: Option<User> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
@@ -232,7 +232,7 @@ impl AuthService {
         // 更新密码并将密码设置为 90 天后过期
         let password_expired_at = Utc::now() + Duration::days(90);
         sqlx::query(
-            "UPDATE users SET password_hash = ?, password_expired_at = ?, updated_at = NOW() WHERE id = ?"
+            "UPDATE iam_users SET password_hash = ?, password_expired_at = ?, updated_at = NOW() WHERE id = ?"
         )
         .bind(&new_hash)
         .bind(password_expired_at)
@@ -245,7 +245,7 @@ impl AuthService {
 
     async fn get_user_roles(&self, user_id: &str) -> Result<Vec<String>, IamError> {
         let roles: Vec<(String,)> = sqlx::query_as(
-            "SELECT r.code FROM roles r INNER JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.status = 'active' AND r.deleted_at IS NULL"
+            "SELECT r.code FROM iam_roles r INNER JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.status = 'active' AND r.deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_all(&self.state.db)
@@ -256,7 +256,7 @@ impl AuthService {
 
     async fn get_user_permissions(&self, user_id: &str) -> Result<Vec<String>, IamError> {
         let permissions: Vec<(String,)> = sqlx::query_as(
-            "SELECT DISTINCT p.code FROM permissions p INNER JOIN role_permissions rp ON p.id = rp.permission_id INNER JOIN user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.status = 'enabled' AND p.deleted_at IS NULL"
+            "SELECT DISTINCT p.code FROM iam_permissions p INNER JOIN iam_role_permissions rp ON p.id = rp.permission_id INNER JOIN iam_user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.status = 'enabled' AND p.deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_all(&self.state.db)
@@ -277,7 +277,7 @@ impl AuthService {
     ) -> Result<(), IamError> {
         let log_id = nanoid!();
         sqlx::query(
-            "INSERT INTO login_logs (id, user_id, username, ip_address, user_agent, login_type, success, error_message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())"
+            "INSERT INTO iam_login_logs (id, user_id, username, ip_address, user_agent, login_type, success, error_message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())"
         )
         .bind(&log_id)
         .bind(user_id)

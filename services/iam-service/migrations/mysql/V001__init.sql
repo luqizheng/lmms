@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS iam_users (
     id VARCHAR(36) PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(255),
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at DATETIME
 );
 
-CREATE TABLE IF NOT EXISTS roles (
+CREATE TABLE IF NOT EXISTS iam_roles (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     code VARCHAR(50) NOT NULL UNIQUE,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS roles (
     deleted_at DATETIME
 );
 
-CREATE TABLE IF NOT EXISTS permissions (
+CREATE TABLE IF NOT EXISTS iam_permissions (
     id VARCHAR(36) PRIMARY KEY,
     code VARCHAR(100) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS permissions (
     deleted_at DATETIME
 );
 
-CREATE TABLE IF NOT EXISTS menus (
+CREATE TABLE IF NOT EXISTS iam_menus (
     id VARCHAR(36) PRIMARY KEY,
     parent_id VARCHAR(36),
     name VARCHAR(100) NOT NULL,
@@ -60,11 +60,11 @@ CREATE TABLE IF NOT EXISTS menus (
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     deleted_at DATETIME,
-    FOREIGN KEY (parent_id) REFERENCES menus(id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+    FOREIGN KEY (parent_id) REFERENCES iam_menus(id),
+    FOREIGN KEY (permission_id) REFERENCES iam_permissions(id)
 );
 
-CREATE TABLE IF NOT EXISTS org_units (
+CREATE TABLE IF NOT EXISTS iam_org_units (
     id VARCHAR(36) PRIMARY KEY,
     parent_id VARCHAR(36),
     name VARCHAR(100) NOT NULL,
@@ -75,38 +75,38 @@ CREATE TABLE IF NOT EXISTS org_units (
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     deleted_at DATETIME,
-    FOREIGN KEY (parent_id) REFERENCES org_units(id)
+    FOREIGN KEY (parent_id) REFERENCES iam_org_units(id)
 );
 
-CREATE TABLE IF NOT EXISTS user_roles (
+CREATE TABLE IF NOT EXISTS iam_user_roles (
     user_id VARCHAR(36) NOT NULL,
     role_id VARCHAR(36) NOT NULL,
     created_at DATETIME NOT NULL,
     PRIMARY KEY (user_id, role_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (role_id) REFERENCES roles(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id),
+    FOREIGN KEY (role_id) REFERENCES iam_roles(id)
 );
 
-CREATE TABLE IF NOT EXISTS role_permissions (
+CREATE TABLE IF NOT EXISTS iam_role_permissions (
     role_id VARCHAR(36) NOT NULL,
     permission_id VARCHAR(36) NOT NULL,
     created_at DATETIME NOT NULL,
     PRIMARY KEY (role_id, permission_id),
-    FOREIGN KEY (role_id) REFERENCES roles(id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+    FOREIGN KEY (role_id) REFERENCES iam_roles(id),
+    FOREIGN KEY (permission_id) REFERENCES iam_permissions(id)
 );
 
-CREATE TABLE IF NOT EXISTS user_org_units (
+CREATE TABLE IF NOT EXISTS iam_user_org_units (
     user_id VARCHAR(36) NOT NULL,
     org_unit_id VARCHAR(36) NOT NULL,
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     created_at DATETIME NOT NULL,
     PRIMARY KEY (user_id, org_unit_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (org_unit_id) REFERENCES org_units(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id),
+    FOREIGN KEY (org_unit_id) REFERENCES iam_org_units(id)
 );
 
-CREATE TABLE IF NOT EXISTS refresh_tokens (
+CREATE TABLE IF NOT EXISTS iam_refresh_tokens (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     token_hash VARCHAR(64) NOT NULL UNIQUE,
@@ -117,10 +117,10 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     revoked_at DATETIME,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id)
 );
 
-CREATE TABLE IF NOT EXISTS login_logs (
+CREATE TABLE IF NOT EXISTS iam_login_logs (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36),
     username VARCHAR(50) NOT NULL,
@@ -131,5 +131,5 @@ CREATE TABLE IF NOT EXISTS login_logs (
     success BOOLEAN NOT NULL,
     error_message TEXT,
     created_at DATETIME NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id)
 );

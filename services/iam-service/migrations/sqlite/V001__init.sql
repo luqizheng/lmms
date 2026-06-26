@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS iam_users (
     id TEXT PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     email TEXT,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS roles (
+CREATE TABLE IF NOT EXISTS iam_roles (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     code TEXT NOT NULL UNIQUE,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS roles (
     deleted_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS permissions (
+CREATE TABLE IF NOT EXISTS iam_permissions (
     id TEXT PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS permissions (
     deleted_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS menus (
+CREATE TABLE IF NOT EXISTS iam_menus (
     id TEXT PRIMARY KEY,
     parent_id TEXT,
     name TEXT NOT NULL,
@@ -60,11 +60,11 @@ CREATE TABLE IF NOT EXISTS menus (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     deleted_at TEXT,
-    FOREIGN KEY (parent_id) REFERENCES menus(id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+    FOREIGN KEY (parent_id) REFERENCES iam_menus(id),
+    FOREIGN KEY (permission_id) REFERENCES iam_permissions(id)
 );
 
-CREATE TABLE IF NOT EXISTS org_units (
+CREATE TABLE IF NOT EXISTS iam_org_units (
     id TEXT PRIMARY KEY,
     parent_id TEXT,
     name TEXT NOT NULL,
@@ -75,38 +75,38 @@ CREATE TABLE IF NOT EXISTS org_units (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     deleted_at TEXT,
-    FOREIGN KEY (parent_id) REFERENCES org_units(id)
+    FOREIGN KEY (parent_id) REFERENCES iam_org_units(id)
 );
 
-CREATE TABLE IF NOT EXISTS user_roles (
+CREATE TABLE IF NOT EXISTS iam_user_roles (
     user_id TEXT NOT NULL,
     role_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
     PRIMARY KEY (user_id, role_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (role_id) REFERENCES roles(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id),
+    FOREIGN KEY (role_id) REFERENCES iam_roles(id)
 );
 
-CREATE TABLE IF NOT EXISTS role_permissions (
+CREATE TABLE IF NOT EXISTS iam_role_permissions (
     role_id TEXT NOT NULL,
     permission_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
     PRIMARY KEY (role_id, permission_id),
-    FOREIGN KEY (role_id) REFERENCES roles(id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+    FOREIGN KEY (role_id) REFERENCES iam_roles(id),
+    FOREIGN KEY (permission_id) REFERENCES iam_permissions(id)
 );
 
-CREATE TABLE IF NOT EXISTS user_org_units (
+CREATE TABLE IF NOT EXISTS iam_user_org_units (
     user_id TEXT NOT NULL,
     org_unit_id TEXT NOT NULL,
     is_primary INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     PRIMARY KEY (user_id, org_unit_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (org_unit_id) REFERENCES org_units(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id),
+    FOREIGN KEY (org_unit_id) REFERENCES iam_org_units(id)
 );
 
-CREATE TABLE IF NOT EXISTS refresh_tokens (
+CREATE TABLE IF NOT EXISTS iam_refresh_tokens (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     token_hash TEXT NOT NULL UNIQUE,
@@ -117,10 +117,10 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     revoked_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id)
 );
 
-CREATE TABLE IF NOT EXISTS login_logs (
+CREATE TABLE IF NOT EXISTS iam_login_logs (
     id TEXT PRIMARY KEY,
     user_id TEXT,
     username TEXT NOT NULL,
@@ -131,5 +131,5 @@ CREATE TABLE IF NOT EXISTS login_logs (
     success INTEGER NOT NULL,
     error_message TEXT,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES iam_users(id)
 );

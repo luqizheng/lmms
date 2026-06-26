@@ -42,7 +42,7 @@ impl PermissionService {
         };
 
         let permission: PermissionRow = sqlx::query_as(
-            "INSERT INTO permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', NOW(), NOW()) RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
+            "INSERT INTO iam_permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', NOW(), NOW()) RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
         )
         .bind(&permission_id)
         .bind(&req.code)
@@ -60,7 +60,7 @@ impl PermissionService {
 
     pub async fn get(&self, permission_id: &str) -> Result<PermissionResponse, IamError> {
         let permission: Option<PermissionRow> = sqlx::query_as(
-            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE id = ? AND deleted_at IS NULL",
+            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(permission_id)
         .fetch_optional(&self.state.db)
@@ -86,7 +86,7 @@ impl PermissionService {
                     _ => "api",
                 };
                 sqlx::query_as(
-                    "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL AND (code LIKE ? OR name LIKE ?) AND category = ? ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+                    "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE deleted_at IS NULL AND (code LIKE ? OR name LIKE ?) AND category = ? ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
                 )
                 .bind(&pattern)
                 .bind(&pattern)
@@ -97,7 +97,7 @@ impl PermissionService {
                 .await?
             } else {
                 sqlx::query_as(
-                    "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL AND (code LIKE ? OR name LIKE ?) ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+                    "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE deleted_at IS NULL AND (code LIKE ? OR name LIKE ?) ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
                 )
                 .bind(&pattern)
                 .bind(&pattern)
@@ -114,7 +114,7 @@ impl PermissionService {
                 _ => "api",
             };
             sqlx::query_as(
-                "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL AND category = ? ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+                "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE deleted_at IS NULL AND category = ? ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
             )
             .bind(cat_str)
             .bind(limit)
@@ -123,7 +123,7 @@ impl PermissionService {
             .await?
         } else {
             sqlx::query_as(
-                "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE deleted_at IS NULL ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
+                "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE deleted_at IS NULL ORDER BY sort_order, created_at LIMIT ? OFFSET ?",
             )
             .bind(limit)
             .bind(offset)
@@ -131,7 +131,7 @@ impl PermissionService {
             .await?
         };
 
-        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM permissions WHERE deleted_at IS NULL")
+        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_permissions WHERE deleted_at IS NULL")
             .fetch_one(&self.state.db)
             .await?;
 
@@ -145,7 +145,7 @@ impl PermissionService {
 
     pub async fn update(&self, permission_id: &str, req: UpdatePermissionRequest) -> Result<PermissionResponse, IamError> {
         let permission: Option<PermissionRow> = sqlx::query_as(
-            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM permissions WHERE id = ? AND deleted_at IS NULL",
+            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(permission_id)
         .fetch_optional(&self.state.db)
@@ -162,7 +162,7 @@ impl PermissionService {
         let status = req.status.unwrap_or(permission.status);
 
         let result: PermissionRow = sqlx::query_as(
-            "UPDATE permissions SET name = ?, description = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
+            "UPDATE iam_permissions SET name = ?, description = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
         )
         .bind(&name)
         .bind(&description)
@@ -177,7 +177,7 @@ impl PermissionService {
 
     pub async fn delete(&self, permission_id: &str) -> Result<(), IamError> {
         let result: MySqlQueryResult = sqlx::query(
-            "UPDATE permissions SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
+            "UPDATE iam_permissions SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(permission_id)
         .execute(&self.state.db)
@@ -188,7 +188,7 @@ impl PermissionService {
         }
 
         let _: MySqlQueryResult = sqlx::query(
-            "DELETE FROM role_permissions WHERE permission_id = ?",
+            "DELETE FROM iam_role_permissions WHERE permission_id = ?",
         )
         .bind(permission_id)
         .execute(&self.state.db)

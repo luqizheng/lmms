@@ -34,7 +34,7 @@ impl RoleService {
         let data_scope_str = data_scope_to_str(req.data_scope);
 
         sqlx::query(
-            r#"INSERT INTO roles (id, name, code, description, data_scope, status, created_at, updated_at)
+            r#"INSERT INTO iam_roles (id, name, code, description, data_scope, status, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())"#,
         )
         .bind(&role_id)
@@ -50,7 +50,7 @@ impl RoleService {
 
     pub async fn get(&self, role_id: &str) -> Result<RoleResponse, IamError> {
         let role: Option<RoleRow> = sqlx::query_as(
-            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM roles WHERE id = ? AND deleted_at IS NULL",
+            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)
         .fetch_optional(&self.state.db)
@@ -69,7 +69,7 @@ impl RoleService {
         let roles: Vec<RoleRow> = if let Some(keyword) = &query.keyword {
             let pattern = format!("%{}%", keyword);
             sqlx::query_as(
-                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM roles WHERE deleted_at IS NULL AND (name LIKE ? OR code LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL AND (name LIKE ? OR code LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?",
             )
             .bind(&pattern)
             .bind(&pattern)
@@ -79,7 +79,7 @@ impl RoleService {
             .await?
         } else {
             sqlx::query_as(
-                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM roles WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?",
             )
             .bind(limit)
             .bind(offset)
@@ -87,7 +87,7 @@ impl RoleService {
             .await?
         };
 
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM roles WHERE deleted_at IS NULL")
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_roles WHERE deleted_at IS NULL")
             .fetch_one(&self.state.db)
             .await?;
 
@@ -101,7 +101,7 @@ impl RoleService {
 
     pub async fn update(&self, role_id: &str, req: UpdateRoleRequest) -> Result<RoleResponse, IamError> {
         let role: Option<RoleRow> = sqlx::query_as(
-            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM roles WHERE id = ? AND deleted_at IS NULL",
+            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)
         .fetch_optional(&self.state.db)
@@ -121,7 +121,7 @@ impl RoleService {
         let status = req.status.unwrap_or(role.status);
 
         sqlx::query(
-            "UPDATE roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ?",
+            "UPDATE iam_roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ?",
         )
         .bind(&name)
         .bind(&description)
@@ -136,7 +136,7 @@ impl RoleService {
 
     pub async fn delete(&self, role_id: &str) -> Result<(), IamError> {
         let result: MySqlQueryResult = sqlx::query(
-            "UPDATE roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
+            "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)
         .execute(&self.state.db)
@@ -150,14 +150,14 @@ impl RoleService {
     }
 
     pub async fn assign_permissions(&self, role_id: &str, permission_ids: Vec<String>) -> Result<(), IamError> {
-        let _ = sqlx::query("DELETE FROM role_permissions WHERE role_id = ?")
+        let _ = sqlx::query("DELETE FROM iam_role_permissions WHERE role_id = ?")
             .bind(role_id)
             .execute(&self.state.db)
             .await;
 
         for permission_id in permission_ids {
             let _ = sqlx::query(
-                "INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+                "INSERT INTO iam_role_permissions (role_id, permission_id) VALUES (?, ?)",
             )
             .bind(role_id)
             .bind(&permission_id)

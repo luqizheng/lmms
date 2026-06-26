@@ -189,7 +189,7 @@ async fn register(
     Json(req): Json<CreateUserRequest>,
 ) -> Result<(StatusCode, AxumJson<UserResponse>), (StatusCode, &'static str)> {
     let user_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL"
+        "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
     )
     .fetch_one(&state.db)
     .await
@@ -220,7 +220,7 @@ async fn setup_status(
     State(state): State<AppState>,
 ) -> Result<AxumJson<serde_json::Value>, (StatusCode, &'static str)> {
     let user_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL"
+        "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
     )
     .fetch_one(&state.db)
     .await

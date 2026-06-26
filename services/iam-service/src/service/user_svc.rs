@@ -40,7 +40,7 @@ impl UserService {
 
     pub async fn create(&self, req: CreateUserRequest) -> Result<UserResponse, IamError> {
         let exists: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM users WHERE username = ? AND deleted_at IS NULL"
+            "SELECT id FROM iam_users WHERE username = ? AND deleted_at IS NULL"
         )
         .bind(&req.username)
         .fetch_optional(&self.state.db)
@@ -57,7 +57,7 @@ impl UserService {
         let salt = nanoid!(32);
 
         let _: () = sqlx::query(
-            "INSERT INTO users (id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
+            "INSERT INTO iam_users (id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
         )
         .bind(&user_id)
         .bind(&req.username)
@@ -72,14 +72,14 @@ impl UserService {
         .map(|_| ())?;
 
         let user: UserRow = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ?"
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ?"
         )
         .bind(&user_id)
         .fetch_one(&self.state.db)
         .await?;
 
         let user_count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL"
+            "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
         )
         .fetch_one(&self.state.db)
         .await?;
@@ -93,7 +93,7 @@ impl UserService {
 
         for role_id in &role_ids {
             sqlx::query(
-                "INSERT INTO user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())"
+                "INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())"
             )
             .bind(&user_id)
             .bind(role_id)
@@ -106,7 +106,7 @@ impl UserService {
 
     async fn ensure_admin_role(&self) -> Result<String, IamError> {
         let existing_role: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM roles WHERE name = 'admin' AND deleted_at IS NULL"
+            "SELECT id FROM iam_roles WHERE name = 'admin' AND deleted_at IS NULL"
         )
         .fetch_optional(&self.state.db)
         .await?;
@@ -117,7 +117,7 @@ impl UserService {
 
         let role_id = nanoid!();
         sqlx::query(
-            "INSERT INTO roles (id, name, code, description, data_scope, status, created_at, updated_at) VALUES (?, ?, ?, '系统管理员角色', 'all', 'active', NOW(), NOW())"
+            "INSERT INTO iam_roles (id, name, code, description, data_scope, status, created_at, updated_at) VALUES (?, ?, ?, '系统管理员角色', 'all', 'active', NOW(), NOW())"
         )
         .bind(&role_id)
         .bind("admin")
@@ -137,7 +137,7 @@ impl UserService {
 
         for (code, name, resource, action, category) in defaults {
             let existing: Option<(String,)> = sqlx::query_as(
-                "SELECT id FROM permissions WHERE code = ? AND deleted_at IS NULL"
+                "SELECT id FROM iam_permissions WHERE code = ? AND deleted_at IS NULL"
             )
             .bind(code)
             .fetch_optional(&self.state.db)
@@ -148,7 +148,7 @@ impl UserService {
             } else {
                 let id = nanoid!();
                 sqlx::query(
-                    "INSERT INTO permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'enabled', NOW(), NOW())"
+                    "INSERT INTO iam_permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'enabled', NOW(), NOW())"
                 )
                 .bind(&id)
                 .bind(code)
@@ -163,7 +163,7 @@ impl UserService {
             };
 
             sqlx::query(
-                "INSERT IGNORE INTO role_permissions (role_id, permission_id, created_at) VALUES (?, ?, NOW())"
+                "INSERT IGNORE INTO iam_role_permissions (role_id, permission_id, created_at) VALUES (?, ?, NOW())"
             )
             .bind(role_id)
             .bind(&perm_id)
@@ -176,7 +176,7 @@ impl UserService {
 
     pub async fn get(&self, user_id: &str) -> Result<UserResponse, IamError> {
         let user: Option<UserRow> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
@@ -195,7 +195,7 @@ impl UserService {
         let users: Vec<UserRow> = if let Some(keyword) = &query.keyword {
             let pattern = format!("%{}%", keyword);
             sqlx::query_as(
-                "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE deleted_at IS NULL AND (username LIKE ? OR nickname LIKE ? OR email LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE deleted_at IS NULL AND (username LIKE ? OR nickname LIKE ? OR email LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?"
             )
             .bind(&pattern)
             .bind(&pattern)
@@ -206,7 +206,7 @@ impl UserService {
             .await?
         } else {
             sqlx::query_as(
-                "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?"
             )
             .bind(limit)
             .bind(offset)
@@ -214,7 +214,7 @@ impl UserService {
             .await?
         };
 
-        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL")
+        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL")
             .fetch_one(&self.state.db)
             .await?;
 
@@ -228,7 +228,7 @@ impl UserService {
 
     pub async fn update(&self, user_id: &str, req: UpdateUserRequest) -> Result<UserResponse, IamError> {
         let existing: Option<UserRow> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
@@ -246,7 +246,7 @@ impl UserService {
         let status = req.status.unwrap_or(existing.status);
 
         let _: () = sqlx::query(
-            "UPDATE users SET nickname = ?, email = ?, phone = ?, avatar = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
+            "UPDATE iam_users SET nickname = ?, email = ?, phone = ?, avatar = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(&nickname)
         .bind(&email)
@@ -259,7 +259,7 @@ impl UserService {
         .map(|_| ())?;
 
         let user: UserRow = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_one(&self.state.db)
@@ -270,7 +270,7 @@ impl UserService {
 
     pub async fn delete(&self, user_id: &str) -> Result<(), IamError> {
         let result: MySqlQueryResult = sqlx::query(
-            "UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
+            "UPDATE iam_users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .execute(&self.state.db)
@@ -290,7 +290,7 @@ impl UserService {
         let users: Vec<UserSimpleResponse> = if let Some(keyword) = &query.keyword {
             let pattern = format!("%{}%", keyword);
             sqlx::query_as(
-                "SELECT id, nickname FROM users WHERE deleted_at IS NULL AND status = 'active' AND (username LIKE ? OR nickname LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                "SELECT id, nickname FROM iam_users WHERE deleted_at IS NULL AND status = 'active' AND (username LIKE ? OR nickname LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?"
             )
             .bind(&pattern)
             .bind(&pattern)
@@ -300,7 +300,7 @@ impl UserService {
             .await?
         } else {
             sqlx::query_as(
-                "SELECT id, nickname FROM users WHERE deleted_at IS NULL AND status = 'active' ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                "SELECT id, nickname FROM iam_users WHERE deleted_at IS NULL AND status = 'active' ORDER BY created_at DESC LIMIT ? OFFSET ?"
             )
             .bind(limit)
             .bind(offset)
@@ -309,7 +309,7 @@ impl UserService {
         };
 
         let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND status = 'active'"
+            "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL AND status = 'active'"
         )
         .fetch_one(&self.state.db)
         .await?;
@@ -342,7 +342,7 @@ impl UserService {
 
     pub async fn get_claims(&self, user_id: &str) -> Result<UserClaimsResponse, IamError> {
         let user: Option<UserRow> = sqlx::query_as(
-            "SELECT id, username, email, phone, nickname FROM users WHERE id = ? AND deleted_at IS NULL AND status = 'active'"
+            "SELECT id, username, email, phone, nickname FROM iam_users WHERE id = ? AND deleted_at IS NULL AND status = 'active'"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
@@ -354,14 +354,14 @@ impl UserService {
         };
 
         let roles: Vec<String> = sqlx::query_scalar(
-            "SELECT r.code FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.deleted_at IS NULL"
+            "SELECT r.code FROM iam_roles r JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_all(&self.state.db)
         .await?;
 
         let permissions: Vec<String> = sqlx::query_scalar(
-            "SELECT p.code FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.deleted_at IS NULL"
+            "SELECT p.code FROM iam_permissions p JOIN iam_role_permissions rp ON p.id = rp.permission_id JOIN iam_user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_all(&self.state.db)
