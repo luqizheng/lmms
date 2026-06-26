@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS menu_configs (
+CREATE TABLE IF NOT EXISTS prue_menu_configs (
     id TEXT PRIMARY KEY,
     version INTEGER NOT NULL UNIQUE,
     name TEXT NOT NULL,
@@ -13,5 +13,5 @@ CREATE TABLE IF NOT EXISTS menu_configs (
     deleted_at TEXT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_menu_configs_active ON menu_configs(is_active);
-CREATE INDEX IF NOT EXISTS idx_menu_configs_status ON menu_configs(status);
+CREATE INDEX IF NOT EXISTS idx_prue_menu_configs_active ON prue_menu_configs(is_active);
+CREATE INDEX IF NOT EXISTS idx_prue_menu_configs_status ON prue_menu_configs(status);

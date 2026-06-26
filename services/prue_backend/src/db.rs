@@ -7,7 +7,7 @@ const INIT_SQL_MYSQL: &str = include_str!("../migrations/mysql/V001__init.sql");
 const INIT_SQL_SQLITE: &str = include_str!("../migrations/sqlite/V001__init.sql");
 const V002_SQL_MYSQL: &str = include_str!("../migrations/mysql/V002__routes_etag.sql");
 const V002_SQL_SQLITE: &str = include_str!("../migrations/sqlite/V002__routes_etag.sql");
-const SCHEMA_MARKER_TABLE: &str = "menu_configs";
+const SCHEMA_MARKER_TABLE: &str = "prue_menu_configs";
 const ETAG_COLUMN: &str = "routes_etag";
 
 pub async fn ensure_schema(pool: &DbPool) -> anyhow::Result<()> {
@@ -84,7 +84,7 @@ async fn apply_v002_mysql(p: &sqlx::MySqlPool) -> anyhow::Result<()> {
 
 async fn apply_v002_sqlite(p: &sqlx::SqlitePool) -> anyhow::Result<()> {
     let row: Option<(String,)> =
-        sqlx::query_as("SELECT name FROM pragma_table_info('menu_configs') WHERE name = ?")
+        sqlx::query_as("SELECT name FROM pragma_table_info('prue_menu_configs') WHERE name = ?")
             .bind(ETAG_COLUMN)
             .fetch_optional(p)
             .await?;
@@ -98,7 +98,7 @@ async fn apply_v002_sqlite(p: &sqlx::SqlitePool) -> anyhow::Result<()> {
     }
 
     let pending: Vec<(String, String)> = sqlx::query_as(
-        "SELECT id, routes_json FROM menu_configs WHERE deleted_at IS NULL AND routes_etag = ''",
+        "SELECT id, routes_json FROM prue_menu_configs WHERE deleted_at IS NULL AND routes_etag = ''",
     )
     .fetch_all(p)
     .await?;
@@ -108,7 +108,7 @@ async fn apply_v002_sqlite(p: &sqlx::SqlitePool) -> anyhow::Result<()> {
     info!(count = pending.len(), "prue_backend backfilling routes_etag");
     for (id, routes_json) in pending {
         let etag = compute_etag_from_string(&routes_json)?;
-        sqlx::query("UPDATE menu_configs SET routes_etag = ? WHERE id = ?")
+        sqlx::query("UPDATE prue_menu_configs SET routes_etag = ? WHERE id = ?")
             .bind(&etag)
             .bind(&id)
             .execute(p)

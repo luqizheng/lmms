@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS menu_configs (
+CREATE TABLE IF NOT EXISTS prue_menu_configs (
     id VARCHAR(64) PRIMARY KEY,
     version BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS menu_configs (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     published_at TIMESTAMP NULL,
     deleted_at TIMESTAMP NULL,
-    UNIQUE KEY uk_menu_configs_version (version),
-    INDEX idx_menu_configs_active (is_active),
-    INDEX idx_menu_configs_status (status)
+    UNIQUE KEY uk_prue_menu_configs_version (version),
+    INDEX idx_prue_menu_configs_active (is_active),
+    INDEX idx_prue_menu_configs_status (status)
 );
