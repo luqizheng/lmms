@@ -19,7 +19,25 @@ Only these services have migration infrastructure — ask the user to pick one:
 - `iam-service` (uses `migrations/` directly, not mysql/sqlite subdirs)
 - `notification-service` (uses `YYYY_MM_DD_*.sql` naming)
 - `prue_backend` (uses `migrations/{mysql,sqlite}/`)
-- `token-service` (uses `migrations/` directly)
+- `token-service` (uses `migrations/` directly`)
+
+## Table Naming Convention
+
+**All tables MUST be prefixed with the service prefix** to avoid collisions in the shared `superpowers` MySQL database. See `contracts/db-conventions.md` for the full convention.
+
+| Service | Prefix | Example |
+|---------|--------|---------|
+| `iam-service` | `iam_` | `iam_users`, `iam_roles` |
+| `audit-service` | `audit_` | `audit_operation_logs`, `audit_login_logs` |
+| `token-service` | `token_` | `token_sessions`, `token_revocations` |
+| `notification-service` | `ntf_` | `ntf_announcements` |
+| `config-service` | `cfg_` | `cfg_namespaces`, `cfg_items` |
+| `file-service` | `file_` | `file_files`, `file_presign_urls` |
+| `prue_backend` | `prue_` | `prue_menu_configs` |
+
+**Index naming**: `idx_<table>_<col1>_<col2>` (use the full prefixed table name). UKs: `uk_<table>_<col>`. FKs: `fk_<table>_<col>`.
+
+A CI gate enforces this: `node scripts/check-db-naming.js` fails if any table reference in `services/*/migrations/**/*.sql` or `services/*/src/**/*.rs` (`sqlx::query*` calls) lacks its service prefix. Run before committing migrations.
 
 ## Gathering Migration Info
 
@@ -27,10 +45,10 @@ Ask the user for:
 
 1. **Service name** (e.g. `prue_backend`)
 2. **Migration description** (snake_case, e.g. `add_user_roles`, `extend_session_timeout`) — used in filename
-3. **Table name** (e.g. `menu_configs`, `user_sessions`)
+3. **Table name with prefix** (e.g. `prue_menu_configs`, `iam_user_sessions`) — see table naming convention above
 4. **Column definitions** — each as: `name type [NULL | NOT NULL] [DEFAULT value] [PRIMARY KEY | UNIQUE]`
 5. **Indexes** (optional): `INDEX index_name (col1, col2)` or `UNIQUE INDEX unique_name (col1)`
-6. **Foreign keys** (optional): `FOREIGN KEY (col) REFERENCES other_table(col)`
+6. **Foreign keys** (optional): `FOREIGN KEY (col) REFERENCES other_table(col)` — note that the referenced table must also be prefixed
 
 ## Timestamp Convention
 

@@ -89,6 +89,10 @@
 
 支持 MySQL 和 SQLite。
 
+## 表命名约定
+
+所有表必须以 `iam_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+
 ## 豁免
 
 （无）

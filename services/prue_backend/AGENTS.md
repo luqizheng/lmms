@@ -59,6 +59,10 @@
 
 支持 MySQL 和 SQLite。
 
+## 表命名约定
+
+所有表必须以 `prue_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+
 ## AI 检查时机
 
 修改 services/prue_backend/ 下文件时自动检查

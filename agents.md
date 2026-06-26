@@ -120,6 +120,7 @@ docker run --rm --network host \
 | permissions.yaml    | 权限码字典              |
 | events.yaml         | 领域事件名（预留）      |
 | http-conventions.md | HTTP 响应/分页/排序约定 |
+| db-conventions.md   | 数据库表命名约定（服务前缀） |
 
 ### 代码生成
 
@@ -140,3 +141,11 @@ node scripts/contracts-gen.js   # 重新生成后用 git diff 检查是否有未
 ```
 
 若生成结果与已提交代码不一致（git diff 非空），说明契约漂移，需重新提交生成产物。
+
+### 数据库表命名
+
+所有迁移表必须带服务前缀（`iam_` / `audit_` / `token_` / `ntf_` / `cfg_` / `file_` / `prue_`），共享 MySQL `superpowers` 数据库下避免冲突。详见 `contracts/db-conventions.md`。
+
+```bash
+node scripts/check-db-naming.js   # 扫描所有 migrations/*.sql 与 sqlx::query 调用，违例退出 1
+```

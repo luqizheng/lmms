@@ -2,7 +2,7 @@
 
 > **AI agents MUST read this file first** when starting work in this repo.
 > It is the single source of truth for project shape, conventions, and pitfalls.
-> Last updated: 2026-06-25 (after Phase 3 completion + OTel expansion + coder-new-service skill).
+> Last updated: 2026-06-26 (after Phase 4.0 table-naming refactor + check-db-naming CI gate).
 
 ---
 
@@ -96,6 +96,8 @@ Each Rust service has:
 | Frontend verification (P2.5) | `2026-06-25-p25-verification.md` |
 | E2E stability (P3.3) | `2026-06-25-e2e-stability-design.md` |
 | Knowledge consolidation (P3.5) | `2026-06-25-knowledge-consolidation-design.md` |
+| Phase 4 event bus (architecture) | `2026-06-26-phase4-event-bus-design.md` |
+| Phase 4.0 table-naming refactor | `2026-06-26-phase4.0-table-naming-design.md` |
 
 Older specs live in the same `docs/superpowers/specs/` directory and describe services that are already shipped.
 
@@ -168,6 +170,7 @@ These are real issues we've hit. Save yourself an afternoon:
 16. **Smoke subset via `E2E_SMOKE=1`** — only runs cases with `smoke: true` flag. The 8 API cases + 2 UI cases take ~2 min vs ~5 min for full API. CI should always run full; smoke is for dev iteration. See `docs/guides/testing.md`.
 
 17. **E2E preflight health check** — `tests/e2e/shared/health.ts` probes `/health` and `/iam/health` BEFORE tests run. If infra isn't up, you get a clear error pointing to `infrastructure/docker-compose.yml` instead of cascading failures.
+18. **Shared MySQL `superpowers` DB — all tables must have a service prefix** (Phase 4.0). `iam_` / `audit_` / `token_` / `ntf_` / `cfg_` / `file_` / `prue_`. CI gate `node scripts/check-db-naming.js` enforces it. When creating a new migration, prefix the table name and update all `sqlx::query*` calls. See `contracts/db-conventions.md` for the full rules.
 
 ---
 
@@ -178,6 +181,7 @@ These are real issues we've hit. Save yourself an afternoon:
 node scripts/check-service-standard.js
 node scripts/check-spec.js
 node scripts/contracts-gen.js --check
+node scripts/check-db-naming.js
 
 # Cargo tests (docker)
 node scripts/run-tests-docker.js audit-service config-service file-service prue_backend iam-service notification-service token-service
@@ -224,6 +228,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 | Service Standard | `node scripts/check-service-standard.js` | `services/**` | ✅ all 8 services 100% |
 | Spec Check | `node scripts/check-spec.js` | `services/*/openapi.yaml` | ✅ exit 0 |
 | Contracts Check | `node scripts/contracts-gen.js --check` | `contracts/**` | ✅ exit 0 |
+| **DB Naming** | `node scripts/check-db-naming.js` | `services/*/migrations/**`, `services/*/src/**/*.rs` (sqlx) | ✅ all 7 services prefixed (Phase 4.0) |
 | OpenAPI Drift | `scripts/dump-openapi-specs.sh` + `git diff --exit-code` | `services/*/openapi.yaml` | ✅ all 4 services in sync |
 | Rust Tests | `node scripts/run-tests-docker.js <svc>` | `services/<svc>/**` | ✅ (api-gateway blacklist test pre-existing failure) |
 | E2E API | `pnpm -C tests/e2e test:api` | `tests/e2e/api/cases/*.yaml` | ✅ |
@@ -253,4 +258,4 @@ All gates run in GitLab CI `test` stage; failure blocks build/deploy.
 
 ---
 
-_Last updated: 2026-06-25 (P3.5 close). When adding a new service / skill / ADR, update the relevant section here._
+_Last updated: 2026-06-26 (P4.0 close). When adding a new service / skill / ADR, update the relevant section here._
