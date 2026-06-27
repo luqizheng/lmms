@@ -92,9 +92,10 @@ impl OutboxRepo for MySqlOutboxRepo {
                 })
             })
             .collect();
-        // Keep the tx open; the caller will mark_published then commit.
-        // For simplicity in this phase we commit immediately and rely on
-        // FOR UPDATE SKIP LOCKED to be re-evaluated on next claim.
+        // Phase 4: at-least-once delivery. FOR UPDATE SKIP LOCKED releases the
+        // lock on commit here, so the claim is advisory only — mark_published is
+        // the real re-claim guard, backed by the consumer's idempotency key.
+        // A later phase may span claim→publish→mark in one tx or add a lease column.
         tx.commit()
             .await
             .map_err(|e| OutboxError::Database(e.to_string()))?;
