@@ -8,7 +8,7 @@ use crate::{
     service::TokenService,
 };
 use common_crypto::password::{hash, verify};
-use common_event::events::IamLoginSucceeded;
+use common_event::events::{IamLoginSucceeded, IamLoginFailed};
 use common_event::{Envelope, OutboxRepo};
 use chrono::{Utc, Duration};
 use nanoid::nanoid;
@@ -31,14 +31,22 @@ impl AuthService {
         .fetch_optional(&self.state.db)
         .await?;
 
-        let user = user.ok_or(IamError::InvalidCredentials)?;
+        let user = match user {
+            Some(u) => u,
+            None => {
+                self.record_login_failure(&req.username, None, ip_address, user_agent, "user_not_found").await?;
+                return Err(IamError::InvalidCredentials);
+            }
+        };
 
         if !user.status.is_active() {
+            self.record_login_failure(&user.username, Some(&user.id), ip_address, user_agent, "user_disabled").await?;
             return Err(IamError::UserDisabled);
         }
 
         if let Some(expired_at) = user.password_expired_at {
             if expired_at < Utc::now() {
+                self.record_login_failure(&user.username, Some(&user.id), ip_address, user_agent, "password_expired").await?;
                 return Err(IamError::PasswordExpired);
             }
         }
@@ -47,9 +55,7 @@ impl AuthService {
             .map_err(|e| IamError::Jwt(e.to_string()))?;
         
         if !valid {
-            // 记录登录失败
-            self.record_login_log(&user.id, &user.username, ip_address, user_agent, "password", false, Some("invalid password"))
-                .await?;
+            self.record_login_failure(&user.username, Some(&user.id), ip_address, user_agent, "bad_password").await?;
             return Err(IamError::InvalidCredentials);
         }
 
@@ -311,6 +317,47 @@ impl AuthService {
         .execute(&self.state.db)
         .await?;
 
+        Ok(())
+    }
+
+    async fn record_login_failure(
+        &self,
+        username: &str,
+        user_id: Option<&str>,
+        ip: &str,
+        user_agent: &str,
+        reason: &str,
+    ) -> Result<(), IamError> {
+        let mut tx = self.state.db.begin().await?;
+        sqlx::query(
+            "INSERT INTO iam_login_logs (id, user_id, username, ip_address, user_agent, \
+             login_type, success, error_message, created_at) \
+             VALUES (?, ?, ?, ?, ?, 'password', false, ?, NOW())",
+        )
+        .bind(nanoid!())
+        .bind(user_id)
+        .bind(username)
+        .bind(ip)
+        .bind(user_agent)
+        .bind(reason)
+        .execute(&mut *tx)
+        .await?;
+
+        let envelope = Envelope::new(
+            "iam-service",
+            IamLoginFailed {
+                username: username.to_string(),
+                user_id: user_id.map(|s| s.to_string()),
+                ip: ip.to_string(),
+                user_agent: Some(user_agent.to_string()),
+                reason: reason.to_string(),
+            },
+        );
+        common_event::MySqlOutboxRepo::new(self.state.db.clone())
+            .enqueue(&mut tx, &envelope)
+            .await
+            .map_err(|e| IamError::Internal(e.to_string()))?;
+        tx.commit().await?;
         Ok(())
     }
 
