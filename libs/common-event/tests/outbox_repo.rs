@@ -11,6 +11,7 @@ const DDL: &str = r#"
 CREATE TABLE outbox_events (
     id BIGINT NOT NULL AUTO_INCREMENT,
     event_id CHAR(36) NOT NULL,
+    event_type VARCHAR(128) NOT NULL,
     routing_key VARCHAR(128) NOT NULL,
     envelope_json JSON NOT NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

@@ -13,11 +13,8 @@ cases:
     path: /v1/audit/operation
     expectStatus: [200,201,204,502,503,404]
 
-  - caseId: CREATEOPERATIONLOG
-    desc: createOperationLog
-    method: POST
-    path: /v1/audit/operation
-    expectStatus: [200,201,204,502,503,404]
+  # CREATEOPERATIONLOG (POST /v1/audit/operation) removed in Phase 4:
+  # operation logs now arrive via the event bus, not HTTP. See spec §9.2.
 
   - caseId: QUERYLOGINLOGS
     desc: queryLoginLogs
@@ -25,11 +22,8 @@ cases:
     path: /v1/audit/login
     expectStatus: [200,201,204,502,503,404]
 
-  - caseId: CREATELOGINLOG
-    desc: createLoginLog
-    method: POST
-    path: /v1/audit/login
-    expectStatus: [200,201,204,502,503,404]
+  # CREATELOGINLOG (POST /v1/audit/login) removed in Phase 4: login logs now
+  # arrive via the iam.login.succeeded event, not HTTP. See spec §9.2.
 
   - caseId: EXPORTOPERATIONCSV
     desc: exportOperationCsv

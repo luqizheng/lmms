@@ -76,14 +76,22 @@ async fn main() -> anyhow::Result<()> {
 
     let poll_interval = Duration::from_millis(poll_ms);
     while !shutdown.load(Ordering::SeqCst) {
-        let published = outbox.run_once().await.context("outbox run_once")?;
-        if published > 0 {
-            info!(published, "published outbox batch");
-            // More may be pending — loop again immediately without sleeping.
-            continue;
+        // Errors here (transient DB hiccups, broker reconnects, missing table
+        // during startup race) are logged but not fatal — the daemon retries
+        // on the next cycle. Outbox rows remain unpublished until success, so
+        // no data is lost.
+        match outbox.run_once().await {
+            Ok(0) => {
+                tokio::time::sleep(poll_interval).await;
+            }
+            Ok(n) => {
+                info!(published = n, "published outbox batch");
+            }
+            Err(e) => {
+                warn!(error = %e, "outbox cycle failed, will retry");
+                tokio::time::sleep(poll_interval).await;
+            }
         }
-        // Outbox empty: sleep, but wake early if shutdown fires.
-        tokio::time::sleep(poll_interval).await;
     }
 
     info!("outbox publisher exited cleanly");

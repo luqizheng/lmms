@@ -64,14 +64,16 @@ impl OutboxRepo for MySqlOutboxRepo {
         env: &Envelope<P>,
     ) -> Result<(), OutboxError> {
         let json = serde_json::to_value(env)?;
+        let event_type = P::event_type();
         sqlx::query(&format!(
-            "INSERT INTO {} (event_id, routing_key, envelope_json) \
-             VALUES (?, ?, ?) \
+            "INSERT INTO {} (event_id, event_type, routing_key, envelope_json) \
+             VALUES (?, ?, ?, ?) \
              ON DUPLICATE KEY UPDATE id = id",
             self.table
         ))
         .bind(env.event_id.to_string())
-        .bind(P::event_type())
+        .bind(event_type)
+        .bind(event_type)
         .bind(json)
         .execute(&mut **tx)
         .await

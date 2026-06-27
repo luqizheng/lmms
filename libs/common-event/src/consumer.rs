@@ -92,6 +92,17 @@ impl Consumer for RabbitMqConsumer {
             .await
             .map_err(|e| ConsumeError::Broker(e.to_string()))?;
 
+        // Declare the queue with the same x-dead-letter-exchange arg as the
+        // pre-declared topology in definitions.json so a redeclare doesn't
+        // fail with PRECONDITION_FAILED. The DLX exchange itself isn't
+        // required to exist at declare time — RabbitMQ only validates the
+        // arg type/match, and routes through the DLX when a message is
+        // actually dead-lettered.
+        let mut queue_args = FieldTable::default();
+        queue_args.insert(
+            "x-dead-letter-exchange".into(),
+            lapin::types::AMQPValue::LongString("events.dlx".into()),
+        );
         channel
             .queue_declare(
                 queue,
@@ -99,7 +110,7 @@ impl Consumer for RabbitMqConsumer {
                     durable: true,
                     ..Default::default()
                 },
-                FieldTable::default(),
+                queue_args,
             )
             .await
             .map_err(|e| ConsumeError::Broker(e.to_string()))?;

@@ -1,37 +1,14 @@
 group: audit-service
 cases:
-  - caseId: AUDIT-001
-    desc: 创建操作日志
-    method: POST
-    path: /v1/audit/operation
-    body:
-      user_id: e2e_user_${rand}
-      action: e2e_test
-      resource: e2e_resource
-      resource_id: '${rand}'
-      request_id: req_${rand}
-      ip_address: 127.0.0.1
-      user_agent: e2e/1.0
-    expectStatus: [200, 201, 204, 502, 503, 404]
-
+  # AUDIT-001/003 (POST create operation/login logs) removed in Phase 4: those
+  # endpoints are gone — operation and login logs now flow through the event
+  # bus (iam-service publishes → audit-service consumer writes audit_events).
+  # See: docs/superpowers/specs/2026-06-26-phase4-event-bus-design.md §9.2.
   - caseId: AUDIT-002
     desc: 分页查询操作日志
     method: GET
     path: /v1/audit/operation?page=1&size=10
     expectStatus: [200, 502, 503, 404]
-
-  - caseId: AUDIT-003
-    desc: 创建登录日志
-    method: POST
-    path: /v1/audit/login
-    body:
-      user_id: e2e_user_${rand}
-      username: e2e_user_${rand}
-      success: true
-      ip_address: 127.0.0.1
-      user_agent: e2e/1.0
-      request_id: req_${rand}
-    expectStatus: [200, 201, 204, 502, 503, 404]
 
   - caseId: AUDIT-004
     desc: 查询登录日志
