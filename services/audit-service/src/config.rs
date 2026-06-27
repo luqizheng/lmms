@@ -12,6 +12,12 @@ pub struct AppConfig {
     pub consul_addr: String,
     #[serde(default = "default_consul_service_name")]
     pub consul_service_name: String,
+    #[serde(default = "default_redis_url")]
+    pub redis_url: String,
+    #[serde(default = "default_login_risk_threshold")]
+    pub login_risk_threshold: i64,
+    #[serde(default = "default_login_risk_window_secs")]
+    pub login_risk_window_secs: usize,
 }
 
 fn default_database_url() -> String {
@@ -45,6 +51,16 @@ fn default_consul_service_name() -> String {
     std::env::var("CONSUL_SERVICE_NAME").unwrap_or_else(|_| "audit-service".to_string())
 }
 
+fn default_redis_url() -> String {
+    std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string())
+}
+fn default_login_risk_threshold() -> i64 {
+    std::env::var("LOGIN_RISK_THRESHOLD").ok().and_then(|v| v.parse().ok()).unwrap_or(5)
+}
+fn default_login_risk_window_secs() -> usize {
+    std::env::var("LOGIN_RISK_WINDOW_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(300)
+}
+
 impl AppConfig {
     pub fn from_env() -> Self {
         Self {
@@ -53,6 +69,9 @@ impl AppConfig {
             log_level: default_log_level(),
             consul_addr: default_consul_addr(),
             consul_service_name: default_consul_service_name(),
+            redis_url: default_redis_url(),
+            login_risk_threshold: default_login_risk_threshold(),
+            login_risk_window_secs: default_login_risk_window_secs(),
         }
     }
 }
