@@ -4,6 +4,8 @@ use crate::{
     dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleResponse, UserSimpleListResponse, UserClaimsResponse},
 };
 use common_crypto::password::hash;
+use common_event::events::{IamUserCreated, IamUserDeleted};
+use common_event::{Envelope, OutboxRepo};
 use chrono::Utc;
 use nanoid::nanoid;
 use sqlx::{FromRow, mysql::MySqlQueryResult};
@@ -56,7 +58,10 @@ impl UserService {
         let user_id = nanoid!();
         let salt = nanoid!(32);
 
-        let _: () = sqlx::query(
+        // Insert the user and enqueue the creation event in one transaction
+        // (transactional outbox — see libs/common-event + iam_outbox_events).
+        let mut tx = self.state.db.begin().await?;
+        sqlx::query(
             "INSERT INTO iam_users (id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
         )
         .bind(&user_id)
@@ -67,9 +72,23 @@ impl UserService {
         .bind(&req.email)
         .bind(&req.phone)
         .bind(&req.avatar)
-        .execute(&self.state.db)
-        .await
-        .map(|_| ())?;
+        .execute(&mut *tx)
+        .await?;
+
+        let envelope = Envelope::new(
+            "iam-service",
+            IamUserCreated {
+                user_id: user_id.clone(),
+                username: req.username.clone(),
+                email: req.email.clone(),
+                org_unit_id: None,
+            },
+        );
+        common_event::MySqlOutboxRepo::new(self.state.db.clone())
+            .enqueue(&mut tx, &envelope)
+            .await
+            .map_err(|e| IamError::Internal(e.to_string()))?;
+        tx.commit().await?;
 
         let user: UserRow = sqlx::query_as(
             "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ?"
@@ -269,16 +288,33 @@ impl UserService {
     }
 
     pub async fn delete(&self, user_id: &str) -> Result<(), IamError> {
+        let mut tx = self.state.db.begin().await?;
         let result: MySqlQueryResult = sqlx::query(
             "UPDATE iam_users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
-        .execute(&self.state.db)
+        .execute(&mut *tx)
         .await?;
 
         if result.rows_affected() == 0 {
             return Err(IamError::UserNotFound);
         }
+
+        // deleted_by: the delete route does not yet plumb the operator's
+        // Principal down to this layer, so we record "system" for now.
+        // Plumbing the operator id is tracked as a Phase 4.x follow-up.
+        let envelope = Envelope::new(
+            "iam-service",
+            IamUserDeleted {
+                user_id: user_id.to_string(),
+                deleted_by: "system".to_string(),
+            },
+        );
+        common_event::MySqlOutboxRepo::new(self.state.db.clone())
+            .enqueue(&mut tx, &envelope)
+            .await
+            .map_err(|e| IamError::Internal(e.to_string()))?;
+        tx.commit().await?;
 
         Ok(())
     }

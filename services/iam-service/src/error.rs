@@ -65,6 +65,9 @@ pub enum IamError {
     
     #[error("validation error: {0}")]
     Validation(#[from] validator::ValidationErrors),
+
+    #[error("internal error: {0}")]
+    Internal(String),
 }
 
 impl From<IamError> for AppError {
@@ -91,6 +94,7 @@ impl From<IamError> for AppError {
             IamError::Database(e) => AppError::internal("IAM_SYS_9001", e.to_string()),
             IamError::Jwt(e) => AppError::internal("IAM_SYS_9003", e.to_string()),
             IamError::Validation(e) => AppError::bad_request("IAM_SYS_9005", e.to_string()),
+            IamError::Internal(msg) => AppError::internal("IAM_SYS_9006", msg),
         }
     }
 }

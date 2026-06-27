@@ -8,6 +8,8 @@ use crate::{
     service::TokenService,
 };
 use common_crypto::password::{hash, verify};
+use common_event::events::IamLoginSucceeded;
+use common_event::{Envelope, OutboxRepo};
 use chrono::{Utc, Duration};
 use nanoid::nanoid;
 use sha2::{Sha256, Digest};
@@ -91,6 +93,25 @@ impl AuthService {
         // 记录登录成功
         self.record_login_log(&user.id, &user.username, ip_address, user_agent, "password", true, None)
             .await?;
+
+        // 发布 iam.login.succeeded 事件（事务性 outbox）
+        {
+            let mut tx = self.state.db.begin().await?;
+            let envelope = Envelope::new(
+                "iam-service",
+                IamLoginSucceeded {
+                    user_id: user.id.clone(),
+                    ip: ip_address.to_string(),
+                    user_agent: Some(user_agent.to_string()),
+                    method: "password".to_string(),
+                },
+            );
+            common_event::MySqlOutboxRepo::new(self.state.db.clone())
+                .enqueue(&mut tx, &envelope)
+                .await
+                .map_err(|e| IamError::Internal(e.to_string()))?;
+            tx.commit().await?;
+        }
 
         let user_info = UserInfo {
             id: user.id.clone(),

@@ -7,6 +7,7 @@ default-run = "iam-service"
 [dependencies]
 common = { path = "../../libs/common" }
 common-error = { path = "../../libs/common-error" }
+common-event = { path = "../../libs/common-event" }
 common-log = { path = "../../libs/common-log" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-config = { path = "../../libs/common-config" }
