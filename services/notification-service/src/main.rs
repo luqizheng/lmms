@@ -103,6 +103,16 @@ async fn main() -> anyhow::Result<()> {
         scheduler::run(db_for_sched, redis_for_sched, hub_for_sched, tick).await;
     });
 
+    let db_for_consumer = db.clone();
+    let redis_for_consumer = redis.clone();
+    let hub_for_consumer = hub.clone();
+    let event_bus_url = std::env::var("EVENT_BUS_URL").unwrap_or(cfg.event_bus.url.clone());
+    tokio::spawn(async move {
+        if let Err(e) = consumer::run(db_for_consumer.pool.clone(), redis_for_consumer, hub_for_consumer, event_bus_url).await {
+            tracing::warn!("notification consumer exited: {}", e);
+        }
+    });
+
     let port: u16 = cfg
         .server
         .http_addr

@@ -46,6 +46,20 @@ impl Default for ConsulCfg {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct EventBusCfg {
+    pub url: String,
+}
+
+impl Default for EventBusCfg {
+    fn default() -> Self {
+        Self {
+            url: "amqp://guest:guest@localhost:5672/%2f".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AppConfig {
     pub server: ServerCfg,
     pub mysql: MysqlCfg,
@@ -53,6 +67,8 @@ pub struct AppConfig {
     pub scheduler: SchedulerCfg,
     pub log: LogCfg,
     pub consul: ConsulCfg,
+    #[serde(default)]
+    pub event_bus: EventBusCfg,
 }
 
 impl AppConfig {

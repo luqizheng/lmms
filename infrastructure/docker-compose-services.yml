@@ -158,14 +158,8 @@ services:
       dockerfile: services/notification-service/Dockerfile
     ports:
       - "6003:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
     environment:
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
       CONSUL_ADDR: "http://consul:8500"
       SERVER_PORT: "8080"
       DATABASE_HOST: mysql
@@ -174,6 +168,15 @@ services:
       DATABASE_PASSWORD: rootpass
       DATABASE_NAME: superpowers
       REDIS_URL: "redis://redis:6379"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       # OTel tracing — enable when observability overlay is up
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     volumes:
