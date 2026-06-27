@@ -7,6 +7,7 @@ mod db;
 mod error;
 mod models;
 mod recipient_resolver;
+mod service;
 mod redis_cli;
 mod rest;
 mod scheduler;

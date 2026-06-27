@@ -22,6 +22,8 @@ thiserror = { workspace = true }
 anyhow = "1"
 async-trait = "0.1"
 jwt-ctx = { path = "../../libs/jwt-ctx" }
+common-event = { path = "../../libs/common-event" }
+uuid = { version = "1", features = ["v7", "serde"] }
 futures = "0.3"
 config = { workspace = true }
 prometheus = "0.13"
