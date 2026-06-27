@@ -110,6 +110,28 @@ services:
     networks:
       - superpowers
 
+  iam-outbox-publisher:
+    build:
+      context: ..
+      dockerfile: services/iam-service/Dockerfile
+    command: ["outbox-publisher"]
+    volumes:
+      - ../services/iam-service/config:/etc/iam-service:ro
+    environment:
+      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
+      EVENT_BUS_EXCHANGE: "events"
+      OUTBOX_POLL_INTERVAL_MS: "1000"
+      OUTBOX_BATCH_SIZE: "100"
+      CONFIG_PATH: "/etc/iam-service/config.yaml"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - superpowers
+
   prue_backend:
     build:
       context: ..

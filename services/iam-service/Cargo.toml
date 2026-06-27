@@ -69,3 +69,7 @@ mockall = "0.13"
 [[bin]]
 name = "iam-service"
 path = "src/main.rs"
+
+[[bin]]
+name = "outbox-publisher"
+path = "src/bin/outbox_publisher.rs"
