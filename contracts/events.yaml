@@ -34,3 +34,13 @@ events:
       ip:         { type: string, required: true }
       user_agent: { type: string, required: false }
       method:     { type: string, required: true }   # password | sso | refresh
+
+  iam.login.failed:
+    schema_version: 1
+    description: "登录失败"
+    payload:
+      username:   { type: string, required: true }
+      user_id:    { type: string, required: false }
+      ip:         { type: string, required: true }
+      user_agent: { type: string, required: false }
+      reason:     { type: string, required: true }   # bad_password | user_disabled | password_expired | user_not_found

@@ -56,3 +56,19 @@ fn iam_login_succeeded_round_trip() {
     assert_eq!(back.payload.method, "password");
     assert_eq!(back.payload.user_agent, Some("Mozilla".to_string()));
 }
+
+#[test]
+fn iam_login_failed_codegen_present() {
+    use common_event::event::Event;
+    use common_event::events::IamLoginFailed;
+    assert_eq!(IamLoginFailed::event_type(), "iam.login.failed");
+    assert_eq!(IamLoginFailed::schema_version(), 1);
+    assert_eq!(common_event::routing_keys::IAM_LOGIN_FAILED, "iam.login.failed");
+    let _ = IamLoginFailed {
+        username: "u".into(),
+        user_id: Some("id".into()),
+        ip: "1.2.3.4".into(),
+        user_agent: None,
+        reason: "bad_password".into(),
+    };
+}

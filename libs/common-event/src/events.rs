@@ -40,6 +40,19 @@ impl Event for IamLoginSucceeded {
     fn event_type() -> &'static str { "iam.login.succeeded" }
     fn schema_version() -> u32 { 1 }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IamLoginFailed {
+    pub username: String,
+    pub user_id: Option<String>,
+    pub ip: String,
+    pub user_agent: Option<String>,
+    pub reason: String,
+}
+
+impl Event for IamLoginFailed {
+    fn event_type() -> &'static str { "iam.login.failed" }
+    fn schema_version() -> u32 { 1 }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event_type", content = "payload", rename_all = "snake_case")]
@@ -51,4 +64,5 @@ pub enum IamEventEnum {
     IamUserCreated(Envelope<IamUserCreated>),
     IamUserDeleted(Envelope<IamUserDeleted>),
     IamLoginSucceeded(Envelope<IamLoginSucceeded>),
+    IamLoginFailed(Envelope<IamLoginFailed>),
 }
