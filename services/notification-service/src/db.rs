@@ -1,6 +1,8 @@
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::models::*;
 use chrono::{DateTime, Utc};
+use common_event::events::NotificationAnnouncementPublished;
+use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::Row;
 use std::collections::HashSet;
@@ -239,6 +241,107 @@ impl Db {
         ).bind(ann_id).bind(user_id).execute(&self.pool).await?;
         Ok(res.rows_affected() == 1)
     }
+
+    /// 公告发布的统一事务管线（REST publish + scheduler 共用）。
+    ///
+    /// ```text
+    /// publish_announcement(ann_id)  ── ONE TX ──
+    ///   1. SELECT ... FOR UPDATE 锁行；非未发布状态 → 幂等返回 Ok(vec![])
+    ///   2. SELECT scope_type='user' recipients → user_ids（role/dept 仅 warn 跳过）
+    ///   3. INSERT IGNORE deliveries（每 user_id）
+    ///   4. UPDATE status='published'
+    ///   5. enqueue NotificationAnnouncementPublished → ntf_outbox_events
+    ///   COMMIT
+    /// ```
+    /// 不在此处 hub.publish —— 推送统一由 announcement consumer 完成（避免双推）。
+    pub async fn publish_announcement(&self, ann_id: u64) -> AppResult<Vec<String>> {
+        let mut tx = self.pool.begin().await?;
+
+        // 1. 锁行 + 状态守卫
+        let row: Option<(String, String, i8, i8)> = sqlx::query_as(
+            "SELECT title, status, pinned, popover FROM ntf_announcements WHERE id=? FOR UPDATE",
+        )
+        .bind(ann_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let (title, status, pinned, popover) = match row {
+            Some(r) => r,
+            None => {
+                tx.commit().await?;
+                return Ok(vec![]);
+            }
+        };
+        if status == "published" || status == "revoked" {
+            tx.commit().await?;
+            return Ok(vec![]);
+        }
+
+        // 2. user-scope 接收人（role/dept 跳过 — follow-up 4.3-fu2）
+        let scope_rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT scope_type, scope_id FROM ntf_announcement_recipients WHERE announcement_id=?",
+        )
+        .bind(ann_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        let (user_ids, skipped_non_user) = filter_user_scope(&scope_rows);
+        if skipped_non_user > 0 {
+            warn!(
+                ann_id,
+                skipped_non_user,
+                "role/dept recipient scopes skipped (user-scope only; see 4.3-fu2)"
+            );
+        }
+
+        // 3. deliveries
+        for uid in &user_ids {
+            sqlx::query(
+                "INSERT IGNORE INTO ntf_announcement_deliveries (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())",
+            )
+            .bind(ann_id)
+            .bind(uid)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        // 4. status
+        sqlx::query("UPDATE ntf_announcements SET status='published' WHERE id=?")
+            .bind(ann_id)
+            .execute(&mut *tx)
+            .await?;
+
+        // 5. enqueue
+        let envelope = Envelope::new(
+            "notification-service",
+            NotificationAnnouncementPublished {
+                announcement_id: ann_id as i64,
+                title,
+                pinned: pinned != 0,
+                popover: popover != 0,
+                user_ids: serde_json::json!(user_ids),
+            },
+        );
+        MySqlOutboxRepo::with_table(self.pool.clone(), "ntf_outbox_events")
+            .enqueue(&mut tx, &envelope)
+            .await
+            .map_err(|e| AppError::from(anyhow::anyhow!("outbox enqueue: {e}")))?;
+
+        tx.commit().await?;
+        Ok(user_ids)
+    }
+}
+
+/// 从接收人 scope 行中筛出 user-scope 目标，返回 (user_ids, 被跳过的 role/dept 数)。
+pub(crate) fn filter_user_scope(rows: &[(String, String)]) -> (Vec<String>, usize) {
+    let mut users = Vec::new();
+    let mut skipped = 0;
+    for (st, sid) in rows {
+        if st == "user" {
+            users.push(sid.clone());
+        } else {
+            skipped += 1;
+        }
+    }
+    (users, skipped)
 }
 
 fn first_line(s: &str) -> String {
@@ -284,6 +387,19 @@ mod tests {
         assert!(upper.contains("CREATE TABLE IF NOT EXISTS NTF_EVENT_IDEMPOTENCY"));
         assert!(upper.contains("INSERT INTO NTF_TEMPLATES"));
         assert!(WELCOME_TEMPLATE_SQL.contains("'welcome'"));
+    }
+
+    #[test]
+    fn filter_user_scope_keeps_users_and_counts_others() {
+        let rows = vec![
+            ("user".to_string(), "u1".to_string()),
+            ("role".to_string(), "r1".to_string()),
+            ("user".to_string(), "u2".to_string()),
+            ("dept".to_string(), "d1".to_string()),
+        ];
+        let (users, skipped) = filter_user_scope(&rows);
+        assert_eq!(users, vec!["u1", "u2"]);
+        assert_eq!(skipped, 2);
     }
 
     #[test]
