@@ -9,6 +9,7 @@ use tracing::{info, warn};
 const INIT_SQL: &str = include_str!("../migrations/2026_06_10_init.sql");
 const USER_ID_STRING_SQL: &str = include_str!("../migrations/2026_06_21_user_id_string.sql");
 const WELCOME_TEMPLATE_SQL: &str = include_str!("../migrations/2026_06_27_welcome_template.sql");
+const OUTBOX_SQL: &str = include_str!("../migrations/2026_06_27_outbox.sql");
 const SCHEMA_MARKER_TABLE: &str = "ntf_announcements";
 
 #[derive(Clone)]
@@ -101,6 +102,22 @@ impl Db {
             }
         }
         info!("welcome template migration applied");
+
+        for stmt in OUTBOX_SQL.split(';') {
+            let cleaned: String = stmt
+                .lines()
+                .filter(|l| !l.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let s = cleaned.trim();
+            if s.is_empty() {
+                continue;
+            }
+            if let Err(e) = sqlx::query(s).execute(&self.pool).await {
+                warn!(statement = %first_line(s), error = %e, "outbox migration statement failed (may already be applied)");
+            }
+        }
+        info!("outbox migration applied");
 
         Ok(())
     }
@@ -267,5 +284,14 @@ mod tests {
         assert!(upper.contains("CREATE TABLE IF NOT EXISTS NTF_EVENT_IDEMPOTENCY"));
         assert!(upper.contains("INSERT INTO NTF_TEMPLATES"));
         assert!(WELCOME_TEMPLATE_SQL.contains("'welcome'"));
+    }
+
+    #[test]
+    fn outbox_sql_creates_ntf_outbox_events() {
+        let upper = OUTBOX_SQL.to_uppercase();
+        assert!(upper.contains("CREATE TABLE IF NOT EXISTS NTF_OUTBOX_EVENTS"));
+        for col in ["EVENT_ID", "EVENT_TYPE", "ROUTING_KEY", "ENVELOPE_JSON", "PUBLISHED_AT"] {
+            assert!(upper.contains(col), "outbox missing column {col}");
+        }
     }
 }
