@@ -118,7 +118,7 @@ docker run --rm --network host \
 | ------------------- | ----------------------- |
 | error-codes.yaml    | 全局错误码字典          |
 | permissions.yaml    | 权限码字典              |
-| events.yaml         | 领域事件名（预留）      |
+| events.yaml         | 领域事件 schema（Phase 4 起，按 `<svc>.<resource>.<action>` 命名） |
 | http-conventions.md | HTTP 响应/分页/排序约定 |
 | db-conventions.md   | 数据库表命名约定（服务前缀） |
 

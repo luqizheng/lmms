@@ -2,7 +2,7 @@
 
 > **AI agents MUST read this file first** when starting work in this repo.
 > It is the single source of truth for project shape, conventions, and pitfalls.
-> Last updated: 2026-06-26 (after Phase 4.0 table-naming refactor + check-db-naming CI gate).
+> Last updated: 2026-06-27 (Phase 4 event bus — iam→RabbitMQ→audit verified live).
 
 ---
 
@@ -22,12 +22,14 @@
 |---------|------|----|----|------|------|
 | `api-gateway` | 3000 | — | Axum | JWT verify, Redis blacklist, route to downstream + rate limit + tracing middleware | ✅ |
 | `token-service` | 6001 | MySQL | Axum | Issue / refresh / revoke JWTs | ✅ |
-| `iam-service` | 6002 | MySQL | Axum | Users, roles, permissions, departments, auth | ✅ |
+| `iam-service` | 6002 | MySQL | Axum | Users, roles, permissions, departments, auth. **Event producer** (iam_outbox_events → RabbitMQ via `iam-outbox-publisher` bin) | ✅ |
+| `iam-outbox-publisher` | — | MySQL | bin (same image as iam-service) | Independent process: polls iam_outbox_events, publishes to RabbitMQ events exchange, marks published. `SELECT … FOR UPDATE SKIP LOCKED` for multi-replica safety. | — |
 | `notification-service` | 6003 | MySQL | Axum | Announcements CRUD + WebSocket push | ✅ |
 | `prue_backend` | 6004 | SQLite/MySQL | Axum | pure-admin menu config + dynamic routes | — |
-| `audit-service` | 6005 | MySQL | Axum | Operation + login logs, retention, compliance export | — |
+| `audit-service` | 6005 | MySQL | Axum | Operation + login logs, retention, compliance export. **Event consumer** (audit.iam-events queue → audit_events with idempotent upsert). POST log-write endpoints removed in Phase 4 — events flow only. | — |
 | `config-service` | 6006 | MySQL | Axum | Namespaces, items, watch notifications | — |
 | `file-service` | 6007 | MySQL | Axum | File metadata, presigned upload, download | — |
+| `rabbitmq` | 5672/15672 | — | RabbitMQ 3.13 | Event bus broker; topology pre-declared via `infrastructure/config/rabbitmq/definitions.json` (events topic exchange + events.dlx + audit.iam-events queue + events.dlq) | — |
 
 Each Rust service has:
 - `Cargo.toml` with `[[bin]]` for `dump-openapi` (utoipa generator)
@@ -98,6 +100,7 @@ Each Rust service has:
 | Knowledge consolidation (P3.5) | `2026-06-25-knowledge-consolidation-design.md` |
 | Phase 4 event bus (architecture) | `2026-06-26-phase4-event-bus-design.md` |
 | Phase 4.0 table-naming refactor | `2026-06-26-phase4.0-table-naming-design.md` |
+| Phase 4 event bus implementation | `2026-06-26-phase4-event-bus.md` (plans/) — RabbitMQ topic exchange + transactional outbox; iam producer, audit consumer; verified live via `scripts/e2e-event-flow.js` |
 
 Older specs live in the same `docs/superpowers/specs/` directory and describe services that are already shipped.
 
@@ -171,6 +174,8 @@ These are real issues we've hit. Save yourself an afternoon:
 
 17. **E2E preflight health check** — `tests/e2e/shared/health.ts` probes `/health` and `/iam/health` BEFORE tests run. If infra isn't up, you get a clear error pointing to `infrastructure/docker-compose.yml` instead of cascading failures.
 18. **Shared MySQL `superpowers` DB — all tables must have a service prefix** (Phase 4.0). `iam_` / `audit_` / `token_` / `ntf_` / `cfg_` / `file_` / `prue_`. CI gate `node scripts/check-db-naming.js` enforces it. When creating a new migration, prefix the table name and update all `sqlx::query*` calls. See `contracts/db-conventions.md` for the full rules.
+
+19. **Event bus = RabbitMQ + transactional outbox** (Phase 4). Cross-service "notify the audit log" style writes go through the event bus, not direct HTTP. To emit an event: in a single sqlx transaction, write your business row AND call `common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new("<svc>", payload))`. The outbox-publisher binary (separate process, same image) polls the table and publishes to the `events` topic exchange. Consumers bind queues to routing-key patterns (e.g. `iam.#`). All consumers must be **idempotent** keyed on `event_id` (we ship at-least-once). The Value-payload Event impl in `common-event` is **consume-only** — never publish `Envelope<serde_json::Value>` (would route to `"*"`). End-to-end smoke: `node scripts/e2e-event-flow.js`.
 
 ---
 
