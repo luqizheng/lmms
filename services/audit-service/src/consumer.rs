@@ -24,8 +24,7 @@ pub async fn run(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<()> {
 }
 
 async fn persist(pool: &MySqlPool, env: &Envelope<serde_json::Value>) -> Result<(), HandlerError> {
-    let payload_json = serde_json::to_value(&env.payload)
-        .map_err(|e| HandlerError::Handler(e.to_string()))?;
+    // env.payload is already a serde_json::Value — bind it directly.
     sqlx::query(
         "INSERT INTO audit_events \
          (event_id, event_type, occurred_at, trace_id, producer, payload_json) \
@@ -37,7 +36,7 @@ async fn persist(pool: &MySqlPool, env: &Envelope<serde_json::Value>) -> Result<
     .bind(env.occurred_at)
     .bind(&env.trace_id)
     .bind(&env.producer)
-    .bind(payload_json)
+    .bind(&env.payload)
     .execute(pool)
     .await
     .map_err(|e| {
