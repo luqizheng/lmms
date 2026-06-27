@@ -15,11 +15,39 @@ use crate::envelope::Envelope;
 use crate::error::{ConsumeError, HandlerError};
 use crate::event::Event;
 
+/// Tuning knobs for how a queue is declared and consumed.
+///
+/// `subscribe` (durable, DLX-backed, shared queue) and `subscribe_ephemeral`
+/// (server-named, exclusive, auto-delete, no DLX) are thin wrappers that build
+/// one of these and delegate to the shared `subscribe_inner` boilerplate.
+#[derive(Debug, Clone)]
+pub struct SubscribeOptions {
+    pub durable: bool,
+    pub exclusive: bool,
+    pub auto_delete: bool,
+    pub with_dlx: bool,
+    pub consumer_tag: String,
+}
+
 #[async_trait]
 pub trait Consumer: Send + Sync {
     async fn subscribe<P, H, Fut>(
         &self,
         queue: &str,
+        bindings: &[&str],
+        handler: H,
+    ) -> Result<(), ConsumeError>
+    where
+        P: Event,
+        H: Fn(Envelope<P>) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<(), HandlerError>> + Send;
+
+    /// Subscribe via a per-replica EPHEMERAL queue: server-named, exclusive,
+    /// auto-delete, non-durable, no DLX. Each subscriber gets its own queue,
+    /// so a fanout binding delivers every message to ALL subscribers
+    /// (fanout-to-all) rather than load-balancing across them.
+    async fn subscribe_ephemeral<P, H, Fut>(
+        &self,
         bindings: &[&str],
         handler: H,
     ) -> Result<(), ConsumeError>
@@ -52,14 +80,19 @@ impl RabbitMqConsumer {
     pub fn connection(&self) -> &Connection {
         &self.conn
     }
-}
 
-#[async_trait]
-impl Consumer for RabbitMqConsumer {
-    async fn subscribe<P, H, Fut>(
+    /// Shared subscribe boilerplate: create channel + qos, declare the topic
+    /// exchange, declare the queue per `opts`, bind it, start consuming, and
+    /// spawn the delivery loop. `subscribe` and `subscribe_ephemeral` differ
+    /// only in the `SubscribeOptions` (and the queue name) they pass here.
+    ///
+    /// When `queue` is `""` the broker assigns a server-generated name; we
+    /// bind/consume using the actual name returned by `queue_declare`.
+    async fn subscribe_inner<P, H, Fut>(
         &self,
         queue: &str,
         bindings: &[&str],
+        opts: SubscribeOptions,
         handler: H,
     ) -> Result<(), ConsumeError>
     where
@@ -92,22 +125,26 @@ impl Consumer for RabbitMqConsumer {
             .await
             .map_err(|e| ConsumeError::Broker(e.to_string()))?;
 
-        // Declare the queue with the same x-dead-letter-exchange arg as the
-        // pre-declared topology in definitions.json so a redeclare doesn't
-        // fail with PRECONDITION_FAILED. The DLX exchange itself isn't
-        // required to exist at declare time — RabbitMQ only validates the
-        // arg type/match, and routes through the DLX when a message is
-        // actually dead-lettered.
+        // Declare the queue. For durable shared queues we add the same
+        // x-dead-letter-exchange arg as the pre-declared topology in
+        // definitions.json so a redeclare doesn't fail with
+        // PRECONDITION_FAILED. The DLX exchange itself isn't required to exist
+        // at declare time — RabbitMQ only validates the arg type/match, and
+        // routes through the DLX when a message is actually dead-lettered.
         let mut queue_args = FieldTable::default();
-        queue_args.insert(
-            "x-dead-letter-exchange".into(),
-            lapin::types::AMQPValue::LongString("events.dlx".into()),
-        );
-        channel
+        if opts.with_dlx {
+            queue_args.insert(
+                "x-dead-letter-exchange".into(),
+                lapin::types::AMQPValue::LongString("events.dlx".into()),
+            );
+        }
+        let declared = channel
             .queue_declare(
                 queue,
                 QueueDeclareOptions {
-                    durable: true,
+                    durable: opts.durable,
+                    exclusive: opts.exclusive,
+                    auto_delete: opts.auto_delete,
                     ..Default::default()
                 },
                 queue_args,
@@ -115,10 +152,14 @@ impl Consumer for RabbitMqConsumer {
             .await
             .map_err(|e| ConsumeError::Broker(e.to_string()))?;
 
+        // For server-named ("") queues, use the broker-assigned name for
+        // binding + consuming; otherwise this equals `queue`.
+        let queue_name = declared.name().as_str().to_string();
+
         for rk in bindings {
             channel
                 .queue_bind(
-                    queue,
+                    &queue_name,
                     &self.exchange,
                     rk,
                     QueueBindOptions::default(),
@@ -130,8 +171,8 @@ impl Consumer for RabbitMqConsumer {
 
         let mut consumer = channel
             .basic_consume(
-                queue,
-                "audit-service",
+                &queue_name,
+                &opts.consumer_tag,
                 BasicConsumeOptions::default(),
                 FieldTable::default(),
             )
@@ -170,5 +211,59 @@ impl Consumer for RabbitMqConsumer {
             }
         });
         Ok(())
+    }
+}
+
+#[async_trait]
+impl Consumer for RabbitMqConsumer {
+    async fn subscribe<P, H, Fut>(
+        &self,
+        queue: &str,
+        bindings: &[&str],
+        handler: H,
+    ) -> Result<(), ConsumeError>
+    where
+        P: Event,
+        H: Fn(Envelope<P>) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<(), HandlerError>> + Send,
+    {
+        self.subscribe_inner(
+            queue,
+            bindings,
+            SubscribeOptions {
+                durable: true,
+                exclusive: false,
+                auto_delete: false,
+                with_dlx: true,
+                consumer_tag: format!("{}-{}", queue, uuid::Uuid::new_v4()),
+            },
+            handler,
+        )
+        .await
+    }
+
+    async fn subscribe_ephemeral<P, H, Fut>(
+        &self,
+        bindings: &[&str],
+        handler: H,
+    ) -> Result<(), ConsumeError>
+    where
+        P: Event,
+        H: Fn(Envelope<P>) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<(), HandlerError>> + Send,
+    {
+        self.subscribe_inner(
+            "",
+            bindings,
+            SubscribeOptions {
+                durable: false,
+                exclusive: true,
+                auto_delete: true,
+                with_dlx: false,
+                consumer_tag: format!("ephemeral-{}", uuid::Uuid::new_v4()),
+            },
+            handler,
+        )
+        .await
     }
 }
