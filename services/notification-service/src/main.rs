@@ -2,6 +2,7 @@
 
 mod auth;
 mod config;
+mod consumer;
 mod db;
 mod error;
 mod models;
