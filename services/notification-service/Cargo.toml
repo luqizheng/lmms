@@ -34,6 +34,10 @@ opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 rand.workspace = true
 
+[dev-dependencies]
+testcontainers = "0.20"
+testcontainers-modules = { version = "0.8", features = ["mysql"] }
+
 [[bin]]
 name = "notification-service"
 path = "src/main.rs"
