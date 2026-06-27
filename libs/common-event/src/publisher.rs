@@ -12,6 +12,11 @@ use crate::event::Event;
 #[async_trait]
 pub trait Publisher: Send + Sync {
     async fn publish<P: Event>(&self, env: &Envelope<P>) -> Result<(), PublishError>;
+
+    /// Publish a pre-serialized envelope body under an explicit routing key.
+    /// Used by the outbox publisher loop, where the envelope is stored as raw
+    /// JSON and its concrete payload type is not known at compile time.
+    async fn publish_raw(&self, routing_key: &str, body: &[u8]) -> Result<(), PublishError>;
 }
 
 pub struct RabbitMqPublisher {
@@ -84,6 +89,31 @@ impl Publisher for RabbitMqPublisher {
                     .with_content_type("application/json".into())
                     .with_delivery_mode(2) // persistent
                     .with_message_id(env.event_id.to_string().into()),
+            )
+            .await
+            .map_err(|e| PublishError::Broker(e.to_string()))?
+            .await
+            .map_err(|e| PublishError::Broker(e.to_string()))?;
+        if confirm.is_nack() {
+            return Err(PublishError::Broker("publisher confirm nack".into()));
+        }
+        Ok(())
+    }
+
+    async fn publish_raw(&self, routing_key: &str, body: &[u8]) -> Result<(), PublishError> {
+        let confirm = self
+            .channel
+            .basic_publish(
+                &self.exchange,
+                routing_key,
+                BasicPublishOptions {
+                    mandatory: true,
+                    ..Default::default()
+                },
+                body,
+                BasicProperties::default()
+                    .with_content_type("application/json".into())
+                    .with_delivery_mode(2),
             )
             .await
             .map_err(|e| PublishError::Broker(e.to_string()))?
