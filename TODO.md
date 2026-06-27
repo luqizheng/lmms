@@ -53,8 +53,8 @@
 
 #### Phase 4 后续（**Phase 4.x 小迭代，每个子任务一个 spec**）
 
-- [ ] **4.1** notification-service 订阅 `iam.user.created` → 站内信欢迎
-- [ ] **4.2** 落地 `iam.login.failed` + 简易风控消费者
+- [x] **4.1** notification-service 订阅 `iam.user.created` → 站内信欢迎（commits `94593df`..`38a5267`；plan: `2026-06-27-phase4.1-notification-welcome-template-plan.md`）
+- [x] **4.2** 落地 `iam.login.failed` + 简易风控消费者（commits `492abd8`..`01f7723`；spec: `2026-06-27-phase4.2-login-failed-risk-design.md`，plan: `2026-06-27-phase4.2-login-failed-risk-plan.md`）
 - [ ] **4.3** 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动
 - [ ] **4.4** `permission_changed` 事件 + 各服务缓存失效
 

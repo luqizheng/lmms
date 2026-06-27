@@ -22,6 +22,17 @@
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | false | 是否挂 SwaggerUi |
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
+| EVENT_BUS_URL | amqp://guest:guest@localhost:5672/%2f | RabbitMQ 连接（事件消费） |
+| REDIS_URL | redis://127.0.0.1:6379 | 风控滑动窗口计数存储 |
+| LOGIN_RISK_THRESHOLD | 5 | 窗口内登录失败次数告警阈值 |
+| LOGIN_RISK_WINDOW_SECS | 300 | 风控滑动窗口秒数 |
+
+## 事件消费（Phase 4 / 4.2）
+
+| 队列 | 绑定 routing-key | 用途 |
+|------|------------------|------|
+| audit.iam-events | iam.# | 全部 iam 事件落库 `audit_events`（含 `iam.login.failed`） |
+| audit.login-risk | iam.login.failed | 风控：按 username/IP 滑动窗口计数，越线告警 `login_risk_alerts_total{dimension}` |
 
 ## 端点域
 
