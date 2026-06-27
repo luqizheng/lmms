@@ -9,7 +9,7 @@ chrono = { version = "0.4", features = ["serde"] }
 lapin = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8", features = ["runtime-tokio", "macros", "json", "chrono", "uuid"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "macros", "json", "chrono", "uuid", "mysql"] }
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
@@ -18,4 +18,4 @@ prometheus = "0.13"
 
 [dev-dependencies]
 testcontainers = "0.20"
-testcontainers-modules = { version = "0.8", features = ["rabbitmq"] }
+testcontainers-modules = { version = "0.8", features = ["rabbitmq", "mysql"] }
