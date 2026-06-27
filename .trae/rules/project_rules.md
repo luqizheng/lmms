@@ -154,6 +154,9 @@ AI MUST read the AGENTS.md file when modifying files under any of these paths:
    scripts/dump-openapi-specs.sh
    git diff --exit-code -- 'services/*/openapi.yaml' || echo "drift detected"
    ```
+4. **WSL Development (Windows users)**:
+   - Windows 开发者**必须**使用 WSL2 环境
+   - 详细规则见 .trae/rules/wsl-development-rules.md
 
 ---
 
