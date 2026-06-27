@@ -33,8 +33,11 @@ function isValidTableName(name) {
 }
 
 function isOnUpdateClause(text, matchIndex) {
-  const before = text.slice(Math.max(0, matchIndex - 4), matchIndex).toUpperCase();
-  return /ON\s*$/.test(before);
+  // Skip `... ON UPDATE CURRENT_TIMESTAMP` (column default) and
+  // `... ON DUPLICATE KEY UPDATE <col> = ...` (upsert) — in both the token
+  // after UPDATE is a column, not a table.
+  const before = text.slice(Math.max(0, matchIndex - 16), matchIndex).toUpperCase();
+  return /\bON\s*$/.test(before) || /\bKEY\s*$/.test(before);
 }
 
 function checkSqlString(sql, filePath, lineOffset) {
