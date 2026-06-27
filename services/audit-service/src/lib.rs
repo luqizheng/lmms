@@ -3,6 +3,7 @@ pub mod consumer;
 pub mod error;
 pub mod models;
 pub mod openapi;
+pub mod redis_cli;
 pub mod routes;
 pub mod services;
 
