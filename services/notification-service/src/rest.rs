@@ -99,7 +99,7 @@ pub async fn publish(
     if !me.is_admin() {
         return Err(AppError::Forbidden);
     }
-    s.db.set_status(id, Status::Published).await?;
+    let _user_ids = s.db.publish_announcement(id).await?;
     Ok(Json(serde_json::json!({ "id": id, "status": "published" })))
 }
 

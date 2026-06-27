@@ -96,11 +96,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let db_for_sched = db.clone();
-    let redis_for_sched = redis.clone();
-    let hub_for_sched = hub.clone();
     let tick = cfg.scheduler.tick_secs;
     tokio::spawn(async move {
-        scheduler::run(db_for_sched, redis_for_sched, hub_for_sched, tick).await;
+        scheduler::run(db_for_sched, tick).await;
     });
 
     let db_for_consumer = db.clone();
