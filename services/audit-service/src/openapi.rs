@@ -13,9 +13,7 @@ use crate::{
 #[openapi(
     info(title = "audit-service", description = "Audit log and retention"),
     paths(
-        operation::create_operation_log,
         operation::query_operation_logs,
-        login::create_login_log,
         login::query_login_logs,
         compliance::export_operation_csv,
         compliance::export_operation_json,

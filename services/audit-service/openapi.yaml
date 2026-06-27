@@ -101,22 +101,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PagedLoginLogs'
-    post:
-      tags:
-      - login
-      operationId: create_login_log
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateLoginLog'
-        required: true
-      responses:
-        '200':
-          description: Login log created
-          content:
-            application/json:
-              schema: {}
   /audit/operation:
     get:
       tags:
@@ -183,22 +167,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PagedOperationLogs'
-    post:
-      tags:
-      - operation
-      operationId: create_operation_log
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateOperationLog'
-        required: true
-      responses:
-        '200':
-          description: Operation log created
-          content:
-            application/json:
-              schema: {}
   /audit/retention/cleanup:
     post:
       tags:

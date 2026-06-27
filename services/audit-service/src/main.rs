@@ -59,6 +59,18 @@ async fn main() -> anyhow::Result<()> {
         warn!("ensure_schema failed: {}", e);
     }
 
+    // Start the RabbitMQ consumer that ingests iam.* events into audit_events.
+    let event_bus_url = std::env::var("EVENT_BUS_URL")
+        .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());
+    {
+        let pool = pool.clone();
+        tokio::spawn(async move {
+            if let Err(e) = audit_service::consumer::run(pool, &event_bus_url).await {
+                warn!("audit consumer failed to start: {}", e);
+            }
+        });
+    }
+
     let state = create_state(pool);
 
     let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");

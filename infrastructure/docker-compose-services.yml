@@ -196,11 +196,14 @@ services:
       DATABASE_NAME: superpowers
       CONSUL_ADDR: "http://consul:8500"
       CONSUL_SERVICE_NAME: "audit-service"
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
       RUST_LOG: "info"
     depends_on:
       mysql:
         condition: service_healthy
       consul:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - superpowers
