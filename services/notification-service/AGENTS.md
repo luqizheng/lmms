@@ -23,6 +23,23 @@
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
+| EVENT_BUS_URL | amqp://guest:guest@localhost:5672/%2f | RabbitMQ 连接（事件生产/消费） |
+| EVENT_BUS_EXCHANGE | events | outbox publisher 目标 exchange（ntf-outbox-publisher） |
+| OUTBOX_POLL_INTERVAL_MS | 1000 | ntf-outbox-publisher 轮询间隔 |
+| OUTBOX_BATCH_SIZE | 100 | ntf-outbox-publisher 每批行数 |
+
+## 二进制 / 事件生产消费（Phase 4.3）
+
+| 组件 | 说明 |
+|------|------|
+| `notification-service`（主） | HTTP + WS + scheduler + 两个事件 consumer |
+| `ntf-outbox-publisher`（同镜像切 CMD） | 轮询 `ntf_outbox_events` 发布到 `events` exchange |
+
+| 事件 | 方向 | 机制 |
+|------|------|------|
+| `iam.user.created` | 消费 | 队列 `notification.iam-events` → 欢迎站内信（Phase 4.1） |
+| `notification.announcement.published` | **生产** | `publish_announcement` 同事务写 `ntf_outbox_events` → ntf-outbox-publisher |
+| `notification.announcement.published` | 消费 | **每副本 ephemeral 队列**（fanout）→ 本副本 WS 推送 |
 
 ## 端点域
 

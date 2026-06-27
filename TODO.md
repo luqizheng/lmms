@@ -55,7 +55,7 @@
 
 - [x] **4.1** notification-service 订阅 `iam.user.created` → 站内信欢迎（commits `94593df`..`38a5267`；plan: `2026-06-27-phase4.1-notification-welcome-template-plan.md`）
 - [x] **4.2** 落地 `iam.login.failed` + 简易风控消费者（commits `492abd8`..`01f7723`；spec: `2026-06-27-phase4.2-login-failed-risk-design.md`，plan: `2026-06-27-phase4.2-login-failed-risk-plan.md`）
-- [ ] **4.3** 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动（spec: `2026-06-27-phase4.3-announcement-published-ws-design.md`；本期仅 user-scope）
+- [x] **4.3** 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动（commits `c5f423e`..`d9961d0`；spec: `2026-06-27-phase4.3-announcement-published-ws-design.md`，plan: `2026-06-27-phase4.3-announcement-published-ws-plan.md`；本期仅 user-scope）
   - [ ] **4.3-fu1** 大规模扇出时 `publish_announcement` 的 delivery 写入改批量多值 INSERT（当前逐条 INSERT IGNORE，复用 `db.rs:insert_deliveries` 模式；user-scope 规模小不成问题，role/dept 扇出落地后才需要）。依赖：4.3-fu2。
   - [ ] **4.3-fu2** role/dept 接收人解析落地：为 `recipient_resolver::expand_local` 接上数据源（iam「按 role/dept 列用户」端点或成员映射），让 `publish_announcement` 解析 role/dept scope（当前仅 warn 跳过，按角色/部门发的公告实际无人收到）。依赖：iam 成员查询能力；可与 4.4 成员视图协同。
   - [ ] **4.3-fu3** 4.1 welcome 路径（`announcement_service.rs:ensure_welcome_for_user`）多副本化：改走事件驱动 WS 推送而非进程内 `hub.publish`（消除最后一处进程内直推；delivery 已落库故 reload 可见，影响小）。依赖：4.3 的 ephemeral consumer 基建。

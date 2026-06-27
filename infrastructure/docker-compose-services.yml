@@ -168,6 +168,8 @@ services:
       DATABASE_PASSWORD: rootpass
       DATABASE_NAME: superpowers
       REDIS_URL: "redis://redis:6379"
+      # OTel tracing — enable when observability overlay is up
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mysql:
         condition: service_healthy
@@ -177,8 +179,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      # OTel tracing — enable when observability overlay is up
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     volumes:
       - ../docker-example/config/notification-service:/app/config:ro
     networks:
