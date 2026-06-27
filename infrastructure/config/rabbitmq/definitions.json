@@ -12,11 +12,13 @@
   "queues": [
     { "name": "audit.iam-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
     { "name": "notification.iam-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
+    { "name": "audit.login-risk", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
     { "name": "events.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} }
   ],
   "bindings": [
     { "source": "events", "vhost": "/", "destination": "audit.iam-events", "destination_type": "queue", "routing_key": "iam.#", "arguments": {} },
     { "source": "events", "vhost": "/", "destination": "notification.iam-events", "destination_type": "queue", "routing_key": "iam.user.created", "arguments": {} },
+    { "source": "events", "vhost": "/", "destination": "audit.login-risk", "destination_type": "queue", "routing_key": "iam.login.failed", "arguments": {} },
     { "source": "events.dlx", "vhost": "/", "destination": "events.dlq", "destination_type": "queue", "routing_key": "", "arguments": {} }
   ]
 }
