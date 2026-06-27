@@ -48,3 +48,19 @@ CREATE TABLE audit_api_access_logs (
     INDEX idx_audit_api_access_logs_path (path(255)),
     INDEX idx_audit_api_access_logs_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Event idempotency table: consumer of iam events from RabbitMQ (Phase 4).
+-- INSERT ... ON DUPLICATE KEY UPDATE on event_id makes consumption at-least-once safe.
+CREATE TABLE IF NOT EXISTS audit_events (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    event_id        CHAR(36)     NOT NULL,
+    event_type      VARCHAR(128) NOT NULL,
+    occurred_at     DATETIME(3)  NOT NULL,
+    received_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    trace_id        VARCHAR(64)  NULL,
+    producer        VARCHAR(64)  NOT NULL,
+    payload_json    JSON         NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_audit_events_event_id (event_id),
+    KEY idx_audit_events_type_time (event_type, occurred_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

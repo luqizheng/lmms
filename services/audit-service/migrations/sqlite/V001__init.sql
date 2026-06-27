@@ -51,3 +51,16 @@ CREATE TABLE IF NOT EXISTS audit_api_access_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_api_access_logs_service_name ON audit_api_access_logs(service_name);
 CREATE INDEX IF NOT EXISTS idx_audit_api_access_logs_path ON audit_api_access_logs(path);
 CREATE INDEX IF NOT EXISTS idx_audit_api_access_logs_created_at ON audit_api_access_logs(created_at);
+
+-- Event idempotency table: consumer of iam events from RabbitMQ (Phase 4).
+CREATE TABLE IF NOT EXISTS audit_events (
+    id              INTEGER      NOT NULL PRIMARY KEY AUTOINCREMENT,
+    event_id        TEXT         NOT NULL UNIQUE,
+    event_type      TEXT         NOT NULL,
+    occurred_at     TEXT         NOT NULL,
+    received_at     TEXT         NOT NULL DEFAULT (datetime('now')),
+    trace_id        TEXT         NULL,
+    producer        TEXT         NOT NULL,
+    payload_json    TEXT         NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_events_type_time ON audit_events(event_type, occurred_at);
