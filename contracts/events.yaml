@@ -44,3 +44,13 @@ events:
       ip:         { type: string, required: true }
       user_agent: { type: string, required: false }
       reason:     { type: string, required: true }   # bad_password | user_disabled | password_expired | user_not_found
+
+  notification.announcement.published:
+    schema_version: 1
+    description: "公告已发布（触发 WS 推送扇出）"
+    payload:
+      announcement_id: { type: int,    required: true }
+      title:           { type: string, required: true }
+      pinned:          { type: bool,   required: true }
+      popover:         { type: bool,   required: true }
+      user_ids:        { type: json,   required: true }   # Vec<String>

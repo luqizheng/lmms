@@ -72,3 +72,25 @@ fn iam_login_failed_codegen_present() {
         reason: "bad_password".into(),
     };
 }
+
+#[test]
+fn notification_announcement_published_codegen_present() {
+    use common_event::event::Event;
+    use common_event::events::NotificationAnnouncementPublished;
+    assert_eq!(
+        NotificationAnnouncementPublished::event_type(),
+        "notification.announcement.published"
+    );
+    assert_eq!(NotificationAnnouncementPublished::schema_version(), 1);
+    assert_eq!(
+        common_event::routing_keys::NOTIFICATION_ANNOUNCEMENT_PUBLISHED,
+        "notification.announcement.published"
+    );
+    let _ = NotificationAnnouncementPublished {
+        announcement_id: 1,
+        title: "t".into(),
+        pinned: false,
+        popover: false,
+        user_ids: serde_json::json!(["u1"]),
+    };
+}

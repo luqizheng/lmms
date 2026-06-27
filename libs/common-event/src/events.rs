@@ -53,6 +53,19 @@ impl Event for IamLoginFailed {
     fn event_type() -> &'static str { "iam.login.failed" }
     fn schema_version() -> u32 { 1 }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NotificationAnnouncementPublished {
+    pub announcement_id: i64,
+    pub title: String,
+    pub pinned: bool,
+    pub popover: bool,
+    pub user_ids: serde_json::Value,
+}
+
+impl Event for NotificationAnnouncementPublished {
+    fn event_type() -> &'static str { "notification.announcement.published" }
+    fn schema_version() -> u32 { 1 }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event_type", content = "payload", rename_all = "snake_case")]
@@ -65,4 +78,5 @@ pub enum IamEventEnum {
     IamUserDeleted(Envelope<IamUserDeleted>),
     IamLoginSucceeded(Envelope<IamLoginSucceeded>),
     IamLoginFailed(Envelope<IamLoginFailed>),
+    NotificationAnnouncementPublished(Envelope<NotificationAnnouncementPublished>),
 }
