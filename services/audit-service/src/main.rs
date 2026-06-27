@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     {
         let pool = pool.clone();
         tokio::spawn(async move {
-            if let Err(e) = audit_service::consumer::run(pool, &event_bus_url).await {
+            if let Err(e) = audit_service::consumer::run(pool, event_bus_url).await {
                 warn!("audit consumer failed to start: {}", e);
             }
         });

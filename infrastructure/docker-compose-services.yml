@@ -115,6 +115,7 @@ services:
       context: ..
       dockerfile: services/iam-service/Dockerfile
     command: ["outbox-publisher"]
+    restart: unless-stopped
     volumes:
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:

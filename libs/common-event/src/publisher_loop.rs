@@ -65,8 +65,12 @@ impl<R: OutboxRepo, P: Publisher> OutboxPublisher<R, P> {
         Ok(published_ids.len())
     }
 
-    /// Blocking run loop (call from the outbox-publisher binary `main`).
-    /// Polls forever; sleeps `poll_interval` when the outbox is empty.
+    /// Blocking run loop — **TEST HELPER ONLY**. Production publishers should
+    /// own their own loop with reconnect-on-broker-failure semantics (see
+    /// `services/iam-service/src/bin/outbox_publisher.rs` for the production
+    /// pattern). This `run()` propagates errors via `?` and will exit on the
+    /// first transient failure (DB unavailable on startup race, broker bounce,
+    /// etc.) — fine for unit tests, fatal in production.
     pub async fn run(self) -> Result<(), RunError> {
         loop {
             let published = self.run_once().await?;

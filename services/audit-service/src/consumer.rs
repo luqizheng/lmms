@@ -1,13 +1,43 @@
 //! RabbitMQ consumer: ingests iam.* domain events and stores them idempotently
 //! in `audit_events`. Replaces the old synchronous HTTP write endpoints.
+//!
+//! Resilience: a top-level reconnect loop wraps the subscribe call so a
+//! broker bounce (channel closed, connection drop) is handled by reconnecting
+//! after a short backoff. Events that were unacked at the time of the drop
+//! get redelivered by RabbitMQ on the new connection; the idempotency key
+//! (event_id) on `audit_events` ensures we don't write duplicates.
+
+use std::time::Duration;
 
 use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer};
 use sqlx::mysql::MySqlPool;
 use tracing::{info, warn};
 
-/// Start the audit consumer. Subscribes the durable `audit.iam-events` queue
-/// (bound to `iam.#`) and persists each event into `audit_events`.
-pub async fn run(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<()> {
+/// Start the audit consumer. Reconnects on broker failure with a fixed 5s
+/// backoff; returns only if a signal asks it to (i.e. essentially never —
+/// the caller spawns it as a tokio task at startup).
+pub async fn run(pool: MySqlPool, event_bus_url: String) -> anyhow::Result<()> {
+    let backoff = Duration::from_secs(5);
+    loop {
+        match try_subscribe(pool.clone(), &event_bus_url).await {
+            Ok(()) => {
+                // subscribe returned Ok — the consumer task has been spawned
+                // by lapin. We park here for a long time; if/when the broker
+                // drops, lapin's consumer stream ends (the spawned task
+                // exits) and we reconnect on the NEXT iteration. The cheapest
+                // way to detect that is to sleep then loop — at worst we
+                // re-declare an idempotent queue and bindings.
+                tokio::time::sleep(Duration::from_secs(30)).await;
+            }
+            Err(e) => {
+                warn!(error = %e, "audit consumer subscribe failed, retry in 5s");
+                tokio::time::sleep(backoff).await;
+            }
+        }
+    }
+}
+
+async fn try_subscribe(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<()> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
     consumer
         .subscribe::<serde_json::Value, _, _>(
