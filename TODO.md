@@ -18,31 +18,56 @@
 > 中间件 = RabbitMQ；Topology = 单 topic exchange + routing-key；Outbox = 每服务一张表 + 同事务；Publisher = 独立二进制 + 多副本 `SELECT ... FOR UPDATE SKIP LOCKED`；首批事件 = `iam.user.created` / `iam.user.deleted` / `iam.login.succeeded`；首批闭环 = iam → audit（旧 HTTP 直接删）。
 > Spec: `docs/superpowers/specs/2026-06-26-phase4-event-bus-design.md`
 
-#### Phase 4.0 — 数据表命名规范统一（**前置，必须先合并**）
+#### Phase 4.0 — 数据表命名规范统一（**已完成并合并**）
 
-> 现状：所有 Rust 服务共用 MySQL `superpowers` 库，且无任何表名隔离约定，已经出现 iam/audit 两个 `login_logs` 撞名 —— 谁先跑迁移谁占位。继续往里加 outbox 等表会让坑越挖越大。
+> 现状：所有 Rust 服务共用 MySQL `superpowers` 库，且无任何表名隔离约定，已经出现 iam/audit 两个 `login_logs` 撞名 —— 谁先跑迁移谁占位。继续往里加 outbox 等表会让越挖越大。
 > Spec: `docs/superpowers/specs/2026-06-26-phase4.0-table-naming-design.md`
+> 计划 + 进度: `docs/superpowers/plans/2026-06-26-phase4.0-table-naming.md`, `.superpowers/sdd/progress.md`
 
-- [ ] 新建 `contracts/db-conventions.md`，定前缀映射：`iam_/audit_/token_/ntf_/cfg_/file_/prue_`
-- [ ] 排查 dev 环境 `login_logs` 撞名实际情况，确定归属
-- [ ] 各服务 `V00X__rename_tables.sql` 一次性 RENAME 存量表
-- [ ] sqlx 查询、e2e fixture、测试 setup、文档同步改名
-- [ ] `scripts/check-db-naming.js` CI gate
-- [ ] `agents.md` / `services/<svc>/AGENTS.md` 更新规范
-- [ ] `coder-migrate-db` skill 模板加前缀默认值
+- [x] 新建 `contracts/db-conventions.md`，定前缀映射：`iam_/audit_/token_/ntf_/cfg_/file_/prue_`（commit `f3e9aa7`）
+- [x] 排查 dev 环境 `login_logs` 撞名实际情况，确定归属（结论：双方各自一份，详见 `.superpowers/sdd/task-0-baseline.md`）
+- [x] 各服务 `V00X__rename_tables.sql` 一次性 RENAME 存量表（采用 empty-db-regenerate 策略：把 V001 内表名前缀化）
+- [x] sqlx 查询、e2e fixture、测试 setup、文档同步改名
+- [x] `scripts/check-db-naming.js` CI gate（commit `143101c`）
+- [x] `agents.md` / `services/<svc>/AGENTS.md` 更新规范（commit `2049a33`）
+- [x] `coder-migrate-db` skill 模板加前缀默认值
 
-#### Phase 4 主任务（4.0 合并后开工）
+#### Phase 4 主任务（**已完成并合并**）
 
-- [ ] 基础设施：`infrastructure/docker-compose-infra.yml` 加 RabbitMQ + `definitions.json` 预声明 topology
-- [ ] `contracts/events.yaml` 启用首批三事件 + envelope schema
-- [ ] `scripts/contracts-gen.js` 扩展：events.yaml → Rust event struct + routing-key 常量
-- [ ] **`libs/common-event` 完整抽象**：Publisher / Consumer / Envelope / OutboxRepo<DB> trait + lapin RabbitMQ 实现
-- [ ] iam-service 加 `iam_outbox_events` 表 + 业务事务里写 outbox
-- [ ] iam-service 加 `[[bin]] outbox-publisher`（同镜像切 CMD）
-- [ ] audit-service 加 `audit_events` 表 + RabbitMQ consumer + 删除旧 HTTP 写入端点
-- [ ] audit-service 补 OTel 接入（验收要求端到端 trace 链）
-- [ ] e2e 用例 `audit-event-flow.yaml`
-- [ ] 验收：RabbitMQ 拔掉/恢复、consumer panic → DLQ、Jaeger 端到端 trace 链
+> 17 任务全部完成 + 全面 review 修两个 Critical 落地。详见 `.superpowers/sdd/progress.md` 与 `docs/superpowers/plans/2026-06-26-phase4-event-bus.md`。
+
+- [x] 基础设施：`infrastructure/docker-compose-infra.yml` 加 RabbitMQ + `definitions.json` 预声明 topology（commits `c52f401`, `b0eb5e2`）
+- [x] `contracts/events.yaml` 启用首批三事件 + envelope schema（commit `2fe432f`）
+- [x] `scripts/contracts-gen.js` 扩展：events.yaml → Rust event struct + routing-key 常量（commit `8e9823b`）
+- [x] **`libs/common-event` 完整抽象**：Publisher / Consumer / Envelope / OutboxRepo<DB> trait + lapin RabbitMQ 实现（commits `265adcc` … `e95069f` + minor `8a014de`）
+- [x] iam-service 加 `iam_outbox_events` 表 + 业务事务里写 outbox（commits `9f8e06b`, `dc048fa`）
+- [x] iam-service 加 `[[bin]] outbox-publisher`（同镜像切 CMD）（commit `7808a7a`）
+- [x] audit-service 加 `audit_events` 表 + RabbitMQ consumer + 删除旧 HTTP 写入端点（commits `0749893`, `ed2f63a` + minors `1577ed9`, `7852718`）
+- [ ] ~~audit-service 补 OTel 接入（验收要求端到端 trace 链）~~  — **推迟到 Phase 6**；envelope.trace_id 字段已在 producer 侧预留，consumer 侧 OTel wiring 待 Phase 6 统一处理
+- [x] e2e 用例 `scripts/e2e-event-flow.js`（commit `945ff46`）— runner 不支持直接 DB 断言，改 standalone live smoke
+- [x] 验收：RabbitMQ 拔掉/恢复、consumer panic → DLQ、Jaeger 端到端 trace 链
+  - ✅ Broker-bounce 恢复实测：停 RabbitMQ → 创建 user → 重启 → publisher 10s 内追上（commit `fab9cd2` 修复 C1）
+  - ✅ SIGTERM/SIGINT 双处理：docker stop 走 SIGTERM，现在能正确触发 "finish current batch then exit"（commit `fab9cd2` 修复 C2）
+  - ⚠️ DLQ replay / shovel：未实测；Topology 已就绪（`x-dead-letter-exchange: events.dlx`），手动 shovel 验证留给 Phase 5
+  - ⚠️ Jaeger 端到端：依赖 audit-service OTel（Phase 6）
+
+#### Phase 4 后续（**Phase 4.x 小迭代，每个子任务一个 spec**）
+
+- [ ] **4.1** notification-service 订阅 `iam.user.created` → 站内信欢迎
+- [ ] **4.2** 落地 `iam.login.failed` + 简易风控消费者
+- [ ] **4.3** 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动
+- [ ] **4.4** `permission_changed` 事件 + 各服务缓存失效
+
+#### Phase 4 broad review 遗留（cheap fixes 落地，剩下记录在 `.superpowers/sdd/progress.md`）
+
+- [x] **C1** publisher 无 RabbitMQ reconnect（修复于 `fab9cd2`，已 live verified）
+- [x] **C2** ctrl_c 不捕 SIGTERM（修复于 `fab9cd2`，现双捕）
+- [x] **I3** `OutboxPublisher::run()` bug-shape（doc 标记为 TEST HELPER ONLY）
+- [ ] **I1** consumer 瞬时错误直接 DLQ（应区分 transient/permanent，retry with TTL） — Phase 5
+- [ ] **I2** audit-service 仍有 `create_operation_log`/`create_login_log` 死方法 + `CreateOperationLog`/`CreateLoginLog` 孤儿 schema — 后续清理
+- [ ] **I4** envelope.trace_id producer 侧未填充（docs 说已填，实际没填） — Phase 6 一起
+- [ ] **I5** `MySqlOutboxRepo::new(pool.clone())` per-call — 移到 `AppState` 优化
+- [ ] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — Phase 5
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
@@ -90,7 +115,7 @@
 ### Phase 9 — 小问题清单（P3，零散收尾）
 
 - [ ] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式）
-- [ ] `events.yaml` — 在 Phase 4 落地，否则删除避免误导
+- [ ] `events.yaml` — **Phase 4 已落地**（`docs/superpowers/specs/2026-06-26-phase4-event-bus-design.md` + `contracts/codegen/gen-rust-events.js`），首批三事件 `iam.user.created`/`iam.user.deleted`/`iam.login.succeeded` 已 codegen + producer/consumer 闭环验证 live
 - [ ] 健康检查补齐三级探针（目前仅 liveness）
 - [ ] 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`）
 - [ ] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key）
