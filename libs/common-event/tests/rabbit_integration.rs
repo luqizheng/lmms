@@ -112,7 +112,7 @@ async fn outbox_loop_publishes_and_consumer_receives() {
         .expect("subscribe");
 
     // Enqueue an event into the outbox.
-    let repo = MySqlOutboxRepo::new(pool.clone());
+    let repo = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
     let env = Envelope::new(
         "iam-service",
         IamUserCreated {
@@ -129,7 +129,7 @@ async fn outbox_loop_publishes_and_consumer_receives() {
     // Run the outbox publisher once — it should publish the pending row.
     let publisher = connect_publisher(&url).await;
     let outbox = OutboxPublisher::new(
-        MySqlOutboxRepo::new(pool.clone()),
+        MySqlOutboxRepo::with_table(pool.clone(), "outbox_events"),
         publisher,
         OutboxPublisherOptions {
             poll_interval: Duration::from_millis(200),
@@ -151,7 +151,7 @@ async fn outbox_loop_publishes_and_consumer_receives() {
     assert!(got, "consumer did not receive the published event in time");
 
     // The published row should not be re-claimed.
-    let repo2 = MySqlOutboxRepo::new(pool.clone());
+    let repo2 = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
     let remaining = repo2.claim_batch(10).await.unwrap();
     assert!(remaining.is_empty(), "published row must be marked, not re-claimed");
 }

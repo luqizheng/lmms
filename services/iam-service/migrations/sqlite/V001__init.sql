@@ -133,3 +133,15 @@ CREATE TABLE IF NOT EXISTS iam_login_logs (
     created_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES iam_users(id)
 );
+
+-- Outbox table for iam-service domain events (Phase 4 event bus).
+CREATE TABLE IF NOT EXISTS iam_outbox_events (
+    id              INTEGER      NOT NULL PRIMARY KEY AUTOINCREMENT,
+    event_id        TEXT         NOT NULL UNIQUE,
+    event_type      TEXT         NOT NULL,
+    routing_key     TEXT         NOT NULL,
+    envelope_json   TEXT         NOT NULL,
+    created_at      TEXT         NOT NULL DEFAULT (datetime('now')),
+    published_at    TEXT         NULL
+);
+CREATE INDEX IF NOT EXISTS idx_iam_outbox_unpublished ON iam_outbox_events(published_at, id);

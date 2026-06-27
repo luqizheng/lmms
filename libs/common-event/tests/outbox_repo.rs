@@ -47,7 +47,7 @@ async fn make_pool() -> (MySqlPool, ContainerAsync<Mysql>) {
 #[tokio::test]
 async fn enqueue_then_claim_then_mark_published_round_trip() {
     let (pool, _container) = make_pool().await;
-    let repo = MySqlOutboxRepo::new(pool.clone());
+    let repo = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
 
     let env = Envelope::new(
         "iam-service",
@@ -77,7 +77,7 @@ async fn enqueue_then_claim_then_mark_published_round_trip() {
 #[tokio::test]
 async fn enqueue_is_idempotent_on_duplicate_event_id() {
     let (pool, _container) = make_pool().await;
-    let repo = MySqlOutboxRepo::new(pool.clone());
+    let repo = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
 
     let env = Envelope::new(
         "iam-service",

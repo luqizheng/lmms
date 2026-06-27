@@ -30,11 +30,29 @@ pub trait OutboxRepo: Send + Sync {
 
 pub struct MySqlOutboxRepo {
     pool: MySqlPool,
+    table: String,
 }
 
 impl MySqlOutboxRepo {
+    /// Build a repo against the default `iam_outbox_events` table.
     pub fn new(pool: MySqlPool) -> Self {
-        Self { pool }
+        Self::with_table(pool, "iam_outbox_events")
+    }
+
+    /// Build a repo against an explicit outbox table name.
+    /// The table name is validated to a safe identifier (it is interpolated
+    /// into SQL, not bound) — panics on an invalid name, which can only come
+    /// from caller code, never user input.
+    pub fn with_table(pool: MySqlPool, table: impl Into<String>) -> Self {
+        let table = table.into();
+        assert!(
+            !table.is_empty()
+                && table
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_'),
+            "invalid outbox table name: {table:?}"
+        );
+        Self { pool, table }
     }
 }
 
@@ -46,11 +64,12 @@ impl OutboxRepo for MySqlOutboxRepo {
         env: &Envelope<P>,
     ) -> Result<(), OutboxError> {
         let json = serde_json::to_value(env)?;
-        sqlx::query(
-            "INSERT INTO outbox_events (event_id, routing_key, envelope_json) \
+        sqlx::query(&format!(
+            "INSERT INTO {} (event_id, routing_key, envelope_json) \
              VALUES (?, ?, ?) \
              ON DUPLICATE KEY UPDATE id = id",
-        )
+            self.table
+        ))
         .bind(env.event_id.to_string())
         .bind(P::event_type())
         .bind(json)
@@ -67,14 +86,15 @@ impl OutboxRepo for MySqlOutboxRepo {
             .begin()
             .await
             .map_err(|e| OutboxError::Database(e.to_string()))?;
-        let rows: Vec<(i64, String, String, serde_json::Value)> = sqlx::query_as(
+        let rows: Vec<(i64, String, String, serde_json::Value)> = sqlx::query_as(&format!(
             "SELECT id, event_id, routing_key, envelope_json \
-             FROM outbox_events \
+             FROM {} \
              WHERE published_at IS NULL \
              ORDER BY id ASC \
              LIMIT ? \
              FOR UPDATE SKIP LOCKED",
-        )
+            self.table
+        ))
         .bind(limit as i64)
         .fetch_all(&mut *tx)
         .await
@@ -108,8 +128,8 @@ impl OutboxRepo for MySqlOutboxRepo {
         }
         let placeholders = vec!["?"; ids.len()].join(",");
         let sql = format!(
-            "UPDATE outbox_events SET published_at = CURRENT_TIMESTAMP(3) WHERE id IN ({})",
-            placeholders
+            "UPDATE {} SET published_at = CURRENT_TIMESTAMP(3) WHERE id IN ({})",
+            self.table, placeholders
         );
         let mut q = sqlx::query(&sql);
         for id in ids {
