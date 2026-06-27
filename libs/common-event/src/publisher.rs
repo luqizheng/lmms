@@ -16,7 +16,13 @@ pub trait Publisher: Send + Sync {
     /// Publish a pre-serialized envelope body under an explicit routing key.
     /// Used by the outbox publisher loop, where the envelope is stored as raw
     /// JSON and its concrete payload type is not known at compile time.
-    async fn publish_raw(&self, routing_key: &str, body: &[u8]) -> Result<(), PublishError>;
+    /// `message_id` should be the envelope's `event_id` for broker-level tracing.
+    async fn publish_raw(
+        &self,
+        routing_key: &str,
+        message_id: &str,
+        body: &[u8],
+    ) -> Result<(), PublishError>;
 }
 
 pub struct RabbitMqPublisher {
@@ -100,7 +106,12 @@ impl Publisher for RabbitMqPublisher {
         Ok(())
     }
 
-    async fn publish_raw(&self, routing_key: &str, body: &[u8]) -> Result<(), PublishError> {
+    async fn publish_raw(
+        &self,
+        routing_key: &str,
+        message_id: &str,
+        body: &[u8],
+    ) -> Result<(), PublishError> {
         let confirm = self
             .channel
             .basic_publish(
@@ -113,7 +124,8 @@ impl Publisher for RabbitMqPublisher {
                 body,
                 BasicProperties::default()
                     .with_content_type("application/json".into())
-                    .with_delivery_mode(2),
+                    .with_delivery_mode(2)
+                    .with_message_id(message_id.to_string().into()),
             )
             .await
             .map_err(|e| PublishError::Broker(e.to_string()))?
