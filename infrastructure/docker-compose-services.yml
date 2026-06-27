@@ -184,6 +184,30 @@ services:
     networks:
       - superpowers
 
+  notification-outbox-publisher:
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    command: ["ntf-outbox-publisher"]
+    restart: unless-stopped
+    environment:
+      DATABASE_HOST: mysql
+      DATABASE_PORT: "3306"
+      DATABASE_USER: root
+      DATABASE_PASSWORD: rootpass
+      DATABASE_NAME: superpowers
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
+      EVENT_BUS_EXCHANGE: "events"
+      OUTBOX_POLL_INTERVAL_MS: "1000"
+      OUTBOX_BATCH_SIZE: "100"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - superpowers
+
   audit-service:
     build:
       context: ..

@@ -35,5 +35,13 @@ tracing-opentelemetry = "0.25"
 rand.workspace = true
 
 [[bin]]
+name = "notification-service"
+path = "src/main.rs"
+
+[[bin]]
+name = "ntf-outbox-publisher"
+path = "src/bin/outbox_publisher.rs"
+
+[[bin]]
 name = "dump-openapi"
 path = "src/bin/dump-openapi.rs"
