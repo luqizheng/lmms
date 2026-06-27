@@ -47,6 +47,7 @@ async fn ensure_schema(pool: &sqlx::mysql::MySqlPool) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     init_json("info");
+    audit_service::risk::init_metrics();
 
     let config = AppConfig::from_env();
     info!("Starting audit-service on {}", config.server_addr);
@@ -67,6 +68,27 @@ async fn main() -> anyhow::Result<()> {
         tokio::spawn(async move {
             if let Err(e) = audit_service::consumer::run(pool, event_bus_url).await {
                 warn!("audit consumer failed to start: {}", e);
+            }
+        });
+    }
+
+    // 风控 consumer（独立队列 audit.login-risk）
+    {
+        let event_bus_url = std::env::var("EVENT_BUS_URL")
+            .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());
+        let opts = audit_service::risk::RiskOptions {
+            threshold: config.login_risk_threshold,
+            window_secs: config.login_risk_window_secs,
+        };
+        let redis_url = config.redis_url.clone();
+        tokio::spawn(async move {
+            match audit_service::redis_cli::RedisCli::connect(&redis_url).await {
+                Ok(redis) => {
+                    if let Err(e) = audit_service::risk::run(redis, event_bus_url, opts).await {
+                        warn!("risk consumer exited: {}", e);
+                    }
+                }
+                Err(e) => warn!("risk consumer: redis connect failed: {}", e),
             }
         });
     }
