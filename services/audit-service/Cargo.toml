@@ -32,3 +32,5 @@ path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+testcontainers = "0.20"
+testcontainers-modules = { version = "0.8", features = ["rabbitmq", "redis"] }
