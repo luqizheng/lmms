@@ -65,6 +65,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());
     {
         let pool = pool.clone();
+        let event_bus_url = event_bus_url.clone();
         tokio::spawn(async move {
             if let Err(e) = audit_service::consumer::run(pool, event_bus_url).await {
                 warn!("audit consumer failed to start: {}", e);
@@ -74,8 +75,6 @@ async fn main() -> anyhow::Result<()> {
 
     // 风控 consumer（独立队列 audit.login-risk）
     {
-        let event_bus_url = std::env::var("EVENT_BUS_URL")
-            .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());
         let opts = audit_service::risk::RiskOptions {
             threshold: config.login_risk_threshold,
             window_secs: config.login_risk_window_secs,
