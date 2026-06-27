@@ -3712,6 +3712,7 @@ dependencies = [
  "async-trait",
  "axum 0.8.9",
  "chrono",
+ "common-event",
  "common-ratelimit",
  "common-telemetry",
  "config",
@@ -3735,6 +3736,7 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",
+ "uuid",
 ]
 
 [[package]]
