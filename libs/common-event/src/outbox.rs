@@ -15,12 +15,23 @@ pub struct OutboxRow {
     pub envelope_json: serde_json::Value,
 }
 
+/// Internal helper: fill `env.trace_id` from `source()` only when caller left it None.
+/// Extracted so tests can inject a fake source without an OTel runtime.
+/// Caller-supplied trace_id (via `Envelope::with_trace_id(...)`) is always respected.
+fn fill_trace_id<P: Event, F: Fn() -> Option<String>>(env: &mut Envelope<P>, source: F) {
+    if env.trace_id.is_none() {
+        if let Some(tid) = source() {
+            env.trace_id = Some(tid);
+        }
+    }
+}
+
 #[async_trait]
 pub trait OutboxRepo: Send + Sync {
     async fn enqueue<P: Event>(
         &self,
         tx: &mut Transaction<'_, MySql>,
-        env: &Envelope<P>,
+        env: &mut Envelope<P>,
     ) -> Result<(), OutboxError>;
 
     async fn claim_batch(&self, limit: u32) -> Result<Vec<OutboxRow>, OutboxError>;
@@ -61,9 +72,10 @@ impl OutboxRepo for MySqlOutboxRepo {
     async fn enqueue<P: Event>(
         &self,
         tx: &mut Transaction<'_, MySql>,
-        env: &Envelope<P>,
+        env: &mut Envelope<P>,
     ) -> Result<(), OutboxError> {
-        let json = serde_json::to_value(env)?;
+        fill_trace_id(env, common_telemetry::current_trace_id);
+        let json = serde_json::to_value(&*env)?;
         let event_type = P::event_type();
         sqlx::query(&format!(
             "INSERT INTO {} (event_id, event_type, routing_key, envelope_json) \

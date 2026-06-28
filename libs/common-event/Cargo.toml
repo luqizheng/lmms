@@ -17,6 +17,7 @@ tracing = "0.1"
 uuid = { version = "1", features = ["v7", "serde"] }
 prometheus = "0.13"
 redis = { workspace = true }
+common-telemetry = { path = "../common-telemetry", default-features = false, features = ["otlp"] }
 
 [dev-dependencies]
 testcontainers = "0.20"
