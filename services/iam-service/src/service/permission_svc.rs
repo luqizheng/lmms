@@ -207,7 +207,7 @@ impl PermissionService {
         if now_disabled {
             crate::service::perm_change::enqueue_permission_changed(
                 &mut tx,
-                &self.state.db,
+                self.state.outbox_repo.as_ref(),
                 &user_ids,
                 "permission_disabled",
                 None,
@@ -252,7 +252,7 @@ impl PermissionService {
 
         crate::service::perm_change::enqueue_permission_changed(
             &mut tx,
-            &self.state.db,
+            self.state.outbox_repo.as_ref(),
             &user_ids,
             "permission_deleted",
             None,

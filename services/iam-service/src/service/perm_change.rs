@@ -20,7 +20,7 @@ use crate::state::AppState;
 /// enqueue.
 pub async fn enqueue_permission_changed(
     tx: &mut Transaction<'_, MySql>,
-    db: &sqlx::MySqlPool,
+    repo: &MySqlOutboxRepo,
     user_ids: &[String],
     reason: &str,
     actor_id: Option<&str>,
@@ -36,8 +36,7 @@ pub async fn enqueue_permission_changed(
             actor_id: actor_id.map(|s| s.to_string()),
         },
     );
-    MySqlOutboxRepo::new(db.clone())
-        .enqueue(tx, &env)
+    repo.enqueue(tx, &env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))?;
     Ok(())

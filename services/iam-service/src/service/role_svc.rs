@@ -147,7 +147,7 @@ impl RoleService {
         if now_disabled {
             crate::service::perm_change::enqueue_permission_changed(
                 &mut tx,
-                &self.state.db,
+                self.state.outbox_repo.as_ref(),
                 &user_ids,
                 "role_disabled",
                 None,
@@ -184,7 +184,7 @@ impl RoleService {
 
         crate::service::perm_change::enqueue_permission_changed(
             &mut tx,
-            &self.state.db,
+            self.state.outbox_repo.as_ref(),
             &user_ids,
             "role_deleted",
             None,
@@ -219,7 +219,7 @@ impl RoleService {
         }
         crate::service::perm_change::enqueue_permission_changed(
             &mut tx,
-            &self.state.db,
+            self.state.outbox_repo.as_ref(),
             &user_ids,
             "role_permissions_changed",
             None,

@@ -112,8 +112,7 @@ impl AuthService {
                     method: "password".to_string(),
                 },
             );
-            common_event::MySqlOutboxRepo::new(self.state.db.clone())
-                .enqueue(&mut tx, &envelope)
+            common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &envelope)
                 .await
                 .map_err(|e| IamError::Internal(e.to_string()))?;
             tx.commit().await?;
@@ -353,8 +352,7 @@ impl AuthService {
                 reason: reason.to_string(),
             },
         );
-        common_event::MySqlOutboxRepo::new(self.state.db.clone())
-            .enqueue(&mut tx, &envelope)
+        common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
         tx.commit().await?;
