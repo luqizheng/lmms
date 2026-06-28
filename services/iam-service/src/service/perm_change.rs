@@ -28,7 +28,7 @@ pub async fn enqueue_permission_changed(
     if user_ids.is_empty() {
         return Ok(());
     }
-    let env = Envelope::new(
+    let mut env = Envelope::new(
         "iam-service",
         IamPermissionChanged {
             user_ids: serde_json::json!(user_ids),
@@ -36,7 +36,7 @@ pub async fn enqueue_permission_changed(
             actor_id: actor_id.map(|s| s.to_string()),
         },
     );
-    repo.enqueue(tx, &env)
+    repo.enqueue(tx, &mut env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))?;
     Ok(())

@@ -103,7 +103,7 @@ impl AuthService {
         // 发布 iam.login.succeeded 事件（事务性 outbox）
         {
             let mut tx = self.state.db.begin().await?;
-            let envelope = Envelope::new(
+            let mut envelope = Envelope::new(
                 "iam-service",
                 IamLoginSucceeded {
                     user_id: user.id.clone(),
@@ -112,7 +112,7 @@ impl AuthService {
                     method: "password".to_string(),
                 },
             );
-            common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &envelope)
+            common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
                 .await
                 .map_err(|e| IamError::Internal(e.to_string()))?;
             tx.commit().await?;
@@ -342,7 +342,7 @@ impl AuthService {
         .execute(&mut *tx)
         .await?;
 
-        let envelope = Envelope::new(
+        let mut envelope = Envelope::new(
             "iam-service",
             IamLoginFailed {
                 username: username.to_string(),
@@ -352,7 +352,7 @@ impl AuthService {
                 reason: reason.to_string(),
             },
         );
-        common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &envelope)
+        common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
         tx.commit().await?;

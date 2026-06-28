@@ -75,7 +75,7 @@ impl UserService {
         .execute(&mut *tx)
         .await?;
 
-        let envelope = Envelope::new(
+        let mut envelope = Envelope::new(
             "iam-service",
             IamUserCreated {
                 user_id: user_id.clone(),
@@ -85,7 +85,7 @@ impl UserService {
             },
         );
         self.state.outbox_repo.clone()
-            .enqueue(&mut tx, &envelope)
+            .enqueue(&mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
         tx.commit().await?;
@@ -303,7 +303,7 @@ impl UserService {
         // deleted_by: the delete route does not yet plumb the operator's
         // Principal down to this layer, so we record "system" for now.
         // Plumbing the operator id is tracked as a Phase 4.x follow-up.
-        let envelope = Envelope::new(
+        let mut envelope = Envelope::new(
             "iam-service",
             IamUserDeleted {
                 user_id: user_id.to_string(),
@@ -311,7 +311,7 @@ impl UserService {
             },
         );
         self.state.outbox_repo.clone()
-            .enqueue(&mut tx, &envelope)
+            .enqueue(&mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
         tx.commit().await?;

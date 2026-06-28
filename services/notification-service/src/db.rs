@@ -262,7 +262,7 @@ impl Db {
             .await?;
 
         // 5. enqueue
-        let envelope = Envelope::new(
+        let mut envelope = Envelope::new(
             "notification-service",
             NotificationAnnouncementPublished {
                 announcement_id: ann_id as i64,
@@ -273,7 +273,7 @@ impl Db {
             },
         );
         self.outbox_repo.clone()
-            .enqueue(&mut tx, &envelope)
+            .enqueue(&mut tx, &mut envelope)
             .await
             .map_err(|e| AppError::from(anyhow::anyhow!("outbox enqueue: {e}")))?;
 
