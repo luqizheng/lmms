@@ -1,15 +1,19 @@
 /**
- * OpenAPI 代码生成器
- * 
+ * OpenAPI 代码生成器（spec-driven）
+ *
  * 使用: node scripts/openapi-codegen.js <spec> <output> [lang]
- * 
+ *
  * 示例:
- *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml frontend/src/api/typescript
- *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml frontend/src/api/javascript js
+ *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml frontend/src/api/audit
+ *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml frontend/src/api/audit js
+ *
+ * 类型 & client 方法均来自 spec.components.schemas / spec.paths，
+ * 不再硬编码业务实体（避免脚本与 spec 漂移）。
  */
 
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
 
 const SPEC = process.argv[2];
 const OUTPUT = process.argv[3];
@@ -21,9 +25,13 @@ if (!SPEC || !OUTPUT) {
   process.exit(1);
 }
 
-const spec = JSON.parse(fs.readFileSync(SPEC, 'utf-8'));
+const raw = fs.readFileSync(SPEC, 'utf-8');
+const spec = SPEC.endsWith('.json') ? JSON.parse(raw) : yaml.load(raw);
 const outputDir = OUTPUT;
-const serviceName = spec.info.title.replace(' Service', '').replace(' API', '');
+const serviceName = spec.info.title
+  .replace(/ Service$/, '')
+  .replace(/ API$/, '')
+  .replace(/-service$/, '');
 
 console.log(`Generating ${LANG} SDK for ${serviceName}...`);
 console.log(`  Spec: ${SPEC}`);
@@ -42,133 +50,144 @@ if (LANG === 'typescript' || LANG === 'ts') {
 
 console.log(`\nGenerated SDK at ${outputDir}`);
 
+// ============= Type mapping =============
+
+function refName(ref) {
+  return ref.replace(/^#\/components\/schemas\//, '');
+}
+
+function isNullable(schema) {
+  if (!schema) return false;
+  if (schema.nullable === true) return true;
+  if (Array.isArray(schema.type)) return schema.type.includes('null');
+  return false;
+}
+
+function baseType(schema) {
+  if (!schema) return 'any';
+  if (schema.$ref) return refName(schema.$ref);
+  let t = schema.type;
+  if (Array.isArray(t)) t = t.find(x => x !== 'null');
+  switch (t) {
+    case 'string':
+      return schema.format === 'binary' ? 'Blob' : 'string';
+    case 'integer':
+    case 'number':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'array':
+      return `${baseType(schema.items)}[]`;
+    case 'object':
+      return inlineObject(schema);
+    default:
+      return 'any';
+  }
+}
+
+function inlineObject(schema) {
+  const props = schema.properties || {};
+  const required = new Set(schema.required || []);
+  const keys = Object.keys(props).sort();
+  const fields = keys.map(k => {
+    const opt = required.has(k) ? '' : '?';
+    return `${k}${opt}: ${baseType(props[k])}`;
+  });
+  return `{ ${fields.join('; ')} }`;
+}
+
+function tsFieldLine(name, schema, requiredSet) {
+  const opt = requiredSet.has(name) || !isNullable(schema) ? '' : '';
+  const optMarker = requiredSet.has(name) ? '' : '?';
+  return `  ${name}${optMarker}: ${baseType(schema)};`;
+}
+
 // ============= TypeScript Generator =============
 
 function generateTypeScript(spec, outputDir, serviceName) {
-  const clientFile = path.join(outputDir, `${toKebabCase(serviceName)}.client.ts`);
-  const typesFile = path.join(outputDir, `${toKebabCase(serviceName)}.types.ts`);
-  
-  // Generate types
-  let typesContent = `// Auto-generated types from OpenAPI spec
-// DO NOT EDIT
+  const kebab = toKebabCase(serviceName);
+  const clientFile = path.join(outputDir, `${kebab}.client.ts`);
+  const typesFile = path.join(outputDir, `${kebab}.types.ts`);
 
-export interface OperationLog {
-  id: number;
-  user_id: string;
-  action: string;
-  resource: string;
-  resource_id?: string;
-  before_value?: string;
-  after_value?: string;
-  request_id: string;
-  ip_address?: string;
-  user_agent?: string;
-  created_at: string;
-}
+  const schemas = spec.components?.schemas || {};
+  const schemaNames = Object.keys(schemas).sort();
 
-export interface CreateOperationLog {
-  user_id: string;
-  action: string;
-  resource: string;
-  resource_id?: string;
-  before_value?: string;
-  after_value?: string;
-  request_id?: string;
-  ip_address?: string;
-  user_agent?: string;
-}
+  // Types
+  const typeBlocks = schemaNames.map(name => {
+    const s = schemas[name];
+    if (s.enum) {
+      const vals = s.enum.map(v => JSON.stringify(v)).join(' | ');
+      return `export type ${name} = ${vals};`;
+    }
+    const props = s.properties || {};
+    const required = new Set(s.required || []);
+    const lines = Object.keys(props).sort().map(k => tsFieldLine(k, props[k], required));
+    return `export interface ${name} {\n${lines.join('\n')}\n}`;
+  });
 
-export interface PagedOperationLogs {
-  items: OperationLog[];
-  total: number;
-  page: number;
-  size: number;
-}
-
-export interface LoginLog {
-  id: number;
-  user_id: string;
-  username: string;
-  success: boolean;
-  fail_reason?: string;
-  ip_address?: string;
-  location?: string;
-  user_agent?: string;
-  created_at: string;
-}
-
-export interface CreateLoginLog {
-  user_id: string;
-  username: string;
-  success: boolean;
-  fail_reason?: string;
-  ip_address?: string;
-  location?: string;
-  user_agent?: string;
-  request_id?: string;
-}
-
-export interface PagedLoginLogs {
-  items: LoginLog[];
-  total: number;
-  page: number;
-  size: number;
-}
-
-export interface RetentionPolicy {
-  hot_days: number;
-  warm_days: number;
-  cold_days: number;
-  archive_enabled: boolean;
-  purge_enabled: boolean;
-}
-
-export interface RetentionStats {
-  hot_count: number;
-  warm_count: number;
-  cold_count: number;
-  expired_count: number;
-  total_size_bytes: number;
-}
-
-export interface ApiResponse<T = any> {
+  // Generic API response (still useful, but not assumed to be in spec)
+  typeBlocks.push(`export interface ApiResponse<T = any> {
   code: string;
   message: string;
   data?: T;
   request_id?: string;
-}
-`;
+}`);
 
-  // Generate client
-  let clientContent = `// Auto-generated API client from OpenAPI spec
+  const typesContent = `// Auto-generated types from OpenAPI spec
 // DO NOT EDIT
 
-import type {
-  OperationLog,
-  CreateOperationLog,
-  PagedOperationLogs,
-  LoginLog,
-  CreateLoginLog,
-  PagedLoginLogs,
-  RetentionPolicy,
-  RetentionStats,
-  ApiResponse,
-} from './${toKebabCase(serviceName)}.types';
+${typeBlocks.join('\n\n')}
+`;
 
-export interface ClientConfig {
+  // Client methods
+  const ops = collectOperations(spec);
+  const importedTypes = new Set();
+  const methodBlocks = ops.map(op => {
+    const { method, urlPath, opId, params, body, returnType } = op;
+    params.forEach(p => collectRefs(p.schema, importedTypes));
+    if (body) collectRefs(body, importedTypes);
+    if (returnType.refs) returnType.refs.forEach(r => importedTypes.add(r));
+
+    const pathParams = params.filter(p => p.in === 'path');
+    const queryParams = params.filter(p => p.in === 'query');
+
+    const sig = buildSignature(opId, pathParams, queryParams, body, returnType.ts);
+    const urlExpr = buildUrlExpr(urlPath, pathParams);
+    const queryArg = queryParams.length ? 'params' : 'undefined';
+    const bodyArg = body ? 'body' : 'undefined';
+
+    return `  async ${sig} {
+    return this.request("${method.toUpperCase()}", ${urlExpr}, ${queryArg}, ${bodyArg});
+  }`;
+  });
+
+  const importList = [...importedTypes].sort();
+  const importLine = importList.length
+    ? `import type {\n${importList.map(t => `  ${t}`).join(',\n')}\n} from "./${kebab}.types";\n\n`
+    : '';
+
+  const className = serviceName
+    .split(/[-_\s]+/)
+    .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('');
+
+  const clientContent = `// Auto-generated API client from OpenAPI spec
+// DO NOT EDIT
+
+${importLine}export interface ClientConfig {
   baseUrl: string;
   headers?: Record<string, string>;
 }
 
-export class ${serviceName.replace(/-/g, '')}Client {
+export class ${className}Client {
   private baseUrl: string;
   private headers: Record<string, string>;
 
   constructor(config: ClientConfig) {
-    this.baseUrl = config.baseUrl.replace(/\\/$/, '');
+    this.baseUrl = config.baseUrl.replace(/\\/$/, "");
     this.headers = {
-      'Content-Type': 'application/json',
-      ...config.headers,
+      "Content-Type": "application/json",
+      ...config.headers
     };
   }
 
@@ -178,8 +197,8 @@ export class ${serviceName.replace(/-/g, '')}Client {
     params?: Record<string, any>,
     body?: any
   ): Promise<T> {
-    const url = new URL(this.baseUrl + path, 'http://localhost');
-    
+    const url = new URL(this.baseUrl + path, "http://localhost");
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -191,7 +210,7 @@ export class ${serviceName.replace(/-/g, '')}Client {
     const response = await fetch(url.toString(), {
       method,
       headers: this.headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? JSON.stringify(body) : undefined
     });
 
     if (!response.ok) {
@@ -199,98 +218,33 @@ export class ${serviceName.replace(/-/g, '')}Client {
     }
 
     const text = await response.text();
-    const contentType = response.headers.get('content-type') || '';
-    
-    if (contentType.includes('application/json')) {
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
       return JSON.parse(text);
     }
     return text as any;
   }
 
-  // Operation Logs
-  async createOperationLog(log: CreateOperationLog): Promise<{ id: number }> {
-    return this.request('POST', '/audit/operation', undefined, log);
-  }
+${methodBlocks.join('\n\n')}
 
-  async queryOperationLogs(params?: {
-    page?: number;
-    size?: number;
-    user_id?: string;
-    action?: string;
-    resource?: string;
-  }): Promise<PagedOperationLogs> {
-    return this.request('GET', '/audit/operation', params);
-  }
-
-  // Login Logs
-  async createLoginLog(log: CreateLoginLog): Promise<void> {
-    return this.request('POST', '/audit/login', undefined, log);
-  }
-
-  async queryLoginLogs(params?: {
-    page?: number;
-    size?: number;
-  }): Promise<PagedLoginLogs> {
-    return this.request('GET', '/audit/login', params);
-  }
-
-  // Export
-  async exportOperationCsv(userId: string): Promise<string> {
-    return this.request('GET', \`/audit/export/compliance/operation/csv/\${userId}\`);
-  }
-
-  async exportOperationJson(userId: string): Promise<OperationLog[]> {
-    return this.request('GET', \`/audit/export/compliance/operation/json/\${userId}\`);
-  }
-
-  async exportLoginCsv(userId: string): Promise<string> {
-    return this.request('GET', \`/audit/export/compliance/login/csv/\${userId}\`);
-  }
-
-  // Retention
-  async getRetentionStats(): Promise<RetentionStats> {
-    return this.request('GET', '/audit/retention/stats');
-  }
-
-  async getRetentionPolicy(): Promise<RetentionPolicy> {
-    return this.request('GET', '/audit/retention/policy');
-  }
-
-  async updateRetentionPolicy(policy: RetentionPolicy): Promise<RetentionPolicy> {
-    return this.request('PUT', '/audit/retention/policy', undefined, policy);
-  }
-
-  async triggerCleanup(): Promise<{ deleted_count: number; success: boolean }> {
-    return this.request('POST', '/audit/retention/cleanup');
-  }
-
-  async getDataStage(createdAt: string): Promise<{
-    created_at: string;
-    stage: string;
-    policy: RetentionPolicy;
-  }> {
-    return this.request('GET', \`/audit/retention/stage/\${encodeURIComponent(createdAt)}\`);
-  }
-
-  // Health
   async health(): Promise<{ status: string }> {
-    return this.request('GET', '/health');
+    return this.request("GET", "/health");
   }
 }
 
-export default ${serviceName.replace(/-/g, '')}Client;
+export default ${className}Client;
 `;
 
   fs.writeFileSync(typesFile, typesContent);
   fs.writeFileSync(clientFile, clientContent);
-  
-  // Generate index
+
   const indexContent = `// Auto-generated exports
-export * from './${toKebabCase(serviceName)}.types';
-export { default as ${serviceName.replace(/-/g, '')}Client } from './${toKebabCase(serviceName)}.client';
+export * from "./${kebab}.types";
+export { default as ${className}Client } from "./${kebab}.client";
 `;
   fs.writeFileSync(path.join(outputDir, 'index.ts'), indexContent);
-  
+
   console.log(`  Generated ${typesFile}`);
   console.log(`  Generated ${clientFile}`);
 }
@@ -298,79 +252,50 @@ export { default as ${serviceName.replace(/-/g, '')}Client } from './${toKebabCa
 // ============= JavaScript Generator =============
 
 function generateJavaScript(spec, outputDir, serviceName) {
-  const clientFile = path.join(outputDir, `${toKebabCase(serviceName)}.client.cjs`);
-  
-  let clientContent = `// Auto-generated API client from OpenAPI spec
+  const kebab = toKebabCase(serviceName);
+  const clientFile = path.join(outputDir, `${kebab}.client.cjs`);
+
+  const className = serviceName
+    .split(/[-_\s]+/)
+    .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('');
+
+  const ops = collectOperations(spec);
+  const methodBlocks = ops.map(op => {
+    const { method, urlPath, opId, params, body } = op;
+    const pathParams = params.filter(p => p.in === 'path');
+    const queryParams = params.filter(p => p.in === 'query');
+    const argList = [
+      ...pathParams.map(p => p.name),
+      queryParams.length ? `params` : null,
+      body ? 'body' : null,
+    ].filter(Boolean);
+    const urlExpr = buildUrlExpr(urlPath, pathParams);
+    const queryArg = queryParams.length ? 'params' : 'undefined';
+    const bodyArg = body ? 'body' : 'undefined';
+    return `  async ${opId}(${argList.join(', ')}) {
+    return this.request("${method.toUpperCase()}", ${urlExpr}, ${queryArg}, ${bodyArg});
+  }`;
+  });
+
+  const clientContent = `// Auto-generated API client from OpenAPI spec
 // DO NOT EDIT
 
-/**
- * @typedef {Object} OperationLog
- * @property {number} id
- * @property {string} user_id
- * @property {string} action
- * @property {string} resource
- * @property {string} [resource_id]
- * @property {string} [before_value]
- * @property {string} [after_value]
- * @property {string} request_id
- * @property {string} [ip_address]
- * @property {string} [user_agent]
- * @property {string} created_at
- */
-
-/**
- * @typedef {Object} LoginLog
- * @property {number} id
- * @property {string} user_id
- * @property {string} username
- * @property {boolean} success
- * @property {string} [fail_reason]
- * @property {string} [ip_address]
- * @property {string} [location]
- * @property {string} [user_agent]
- * @property {string} created_at
- */
-
-/**
- * @typedef {Object} RetentionPolicy
- * @property {number} hot_days
- * @property {number} warm_days
- * @property {number} cold_days
- * @property {boolean} archive_enabled
- * @property {boolean} purge_enabled
- */
-
-/**
- * @typedef {Object} RetentionStats
- * @property {number} hot_count
- * @property {number} warm_count
- * @property {number} cold_count
- * @property {number} expired_count
- * @property {number} total_size_bytes
- */
-
-class ${serviceName.replace(/-/g, '').replace(/^\w/, c => c.toUpperCase())}Client {
+class ${className}Client {
   /**
    * @param {{ baseUrl: string, headers?: Record<string, string> }} config
    */
   constructor(config) {
-    this.baseUrl = config.baseUrl.replace(/\\/$/, '');
+    this.baseUrl = config.baseUrl.replace(/\\/$/, "");
     this.headers = {
-      'Content-Type': 'application/json',
-      ...config.headers,
+      "Content-Type": "application/json",
+      ...config.headers
     };
   }
 
-  /**
-   * @param {string} method
-   * @param {string} path
-   * @param {Record<string, any>} [params]
-   * @param {any} [body]
-   * @returns {Promise<any>}
-   */
   async request(method, path, params, body) {
-    const url = new URL(this.baseUrl + path, 'http://localhost');
-    
+    const url = new URL(this.baseUrl + path, "http://localhost");
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -382,7 +307,7 @@ class ${serviceName.replace(/-/g, '').replace(/^\w/, c => c.toUpperCase())}Clien
     const response = await fetch(url.toString(), {
       method,
       headers: this.headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? JSON.stringify(body) : undefined
     });
 
     if (!response.ok) {
@@ -390,63 +315,122 @@ class ${serviceName.replace(/-/g, '').replace(/^\w/, c => c.toUpperCase())}Clien
     }
 
     const text = await response.text();
-    const contentType = response.headers.get('content-type') || '';
-    
-    if (contentType.includes('application/json')) {
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
       return JSON.parse(text);
     }
     return text;
   }
 
-  // Operation Logs
-  async createOperationLog(log) {
-    return this.request('POST', '/audit/operation', undefined, log);
-  }
+${methodBlocks.join('\n\n')}
 
-  async queryOperationLogs(params) {
-    return this.request('GET', '/audit/operation', params);
-  }
-
-  // Login Logs
-  async createLoginLog(log) {
-    return this.request('POST', '/audit/login', undefined, log);
-  }
-
-  async queryLoginLogs(params) {
-    return this.request('GET', '/audit/login', params);
-  }
-
-  // Retention
-  async getRetentionStats() {
-    return this.request('GET', '/audit/retention/stats');
-  }
-
-  async getRetentionPolicy() {
-    return this.request('GET', '/audit/retention/policy');
-  }
-
-  async updateRetentionPolicy(policy) {
-    return this.request('PUT', '/audit/retention/policy', undefined, policy);
-  }
-
-  async triggerCleanup() {
-    return this.request('POST', '/audit/retention/cleanup');
-  }
-
-  // Health
   async health() {
-    return this.request('GET', '/health');
+    return this.request("GET", "/health");
   }
 }
 
-module.exports = { ${serviceName.replace(/-/g, '').replace(/^\w/, c => c.toUpperCase())}Client };
+module.exports = { ${className}Client };
 `;
 
   fs.writeFileSync(clientFile, clientContent);
   console.log(`  Generated ${clientFile}`);
 }
 
+// ============= Operation extraction =============
+
+function collectOperations(spec) {
+  const ops = [];
+  const paths = spec.paths || {};
+  for (const urlPath of Object.keys(paths).sort()) {
+    const item = paths[urlPath];
+    for (const method of ['get', 'post', 'put', 'patch', 'delete']) {
+      const op = item[method];
+      if (!op) continue;
+      const opId = op.operationId || `${method}_${urlPath.replace(/[^a-zA-Z0-9]+/g, '_')}`;
+      const params = (op.parameters || []).map(p => ({
+        name: p.name,
+        in: p.in,
+        required: !!p.required,
+        schema: p.schema || { type: 'string' },
+      }));
+      const body = extractRequestBody(op.requestBody);
+      const returnType = extractResponseType(op.responses);
+      ops.push({ method, urlPath, opId: snakeToCamel(opId), params, body, returnType });
+    }
+  }
+  return ops;
+}
+
+function extractRequestBody(rb) {
+  if (!rb) return null;
+  const content = rb.content || {};
+  const json = content['application/json'];
+  return json?.schema || null;
+}
+
+function extractResponseType(responses) {
+  if (!responses) return { ts: 'any', refs: new Set() };
+  const codes = ['200', '201', '202', '204'];
+  const refs = new Set();
+  for (const code of codes) {
+    const r = responses[code];
+    if (!r) continue;
+    if (code === '204') return { ts: 'void', refs };
+    const content = r.content || {};
+    const json = content['application/json'];
+    if (json?.schema) {
+      collectRefs(json.schema, refs);
+      return { ts: baseType(json.schema), refs };
+    }
+    if (content['text/plain']) return { ts: 'string', refs };
+  }
+  return { ts: 'any', refs };
+}
+
+function collectRefs(schema, set) {
+  if (!schema) return;
+  if (schema.$ref) {
+    set.add(refName(schema.$ref));
+    return;
+  }
+  if (schema.items) collectRefs(schema.items, set);
+  if (schema.properties) {
+    for (const k of Object.keys(schema.properties)) {
+      collectRefs(schema.properties[k], set);
+    }
+  }
+}
+
+function buildSignature(opId, pathParams, queryParams, body, returnTs) {
+  const args = [];
+  pathParams.forEach(p => args.push(`${p.name}: ${baseType(p.schema)}`));
+  if (queryParams.length) {
+    const fields = queryParams
+      .map(p => `${p.name}?: ${baseType(p.schema)}`)
+      .join('; ');
+    args.push(`params?: { ${fields} }`);
+  }
+  if (body) {
+    args.push(`body: ${baseType(body)}`);
+  }
+  return `${opId}(${args.join(', ')}): Promise<${returnTs}>`;
+}
+
+function buildUrlExpr(urlPath, pathParams) {
+  if (!pathParams.length) return JSON.stringify(urlPath);
+  let expr = urlPath;
+  pathParams.forEach(p => {
+    expr = expr.replace(`{${p.name}}`, `\${encodeURIComponent(${p.name})}`);
+  });
+  return `\`${expr}\``;
+}
+
 // ============= Utils =============
+
+function snakeToCamel(s) {
+  return s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+}
 
 function toKebabCase(str) {
   return str

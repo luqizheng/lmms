@@ -1,60 +1,64 @@
 // Auto-generated types from OpenAPI spec
 // DO NOT EDIT
 
-export interface OperationLog {
-  id: number;
-  user_id: string;
-  action: string;
-  resource: string;
-  resource_id?: string;
-  before_value?: string;
-  after_value?: string;
-  request_id: string;
-  ip_address?: string;
-  user_agent?: string;
-  created_at: string;
-}
-
-export interface PagedOperationLogs {
-  items: OperationLog[];
-  total: number;
-  page: number;
-  size: number;
-}
+export type DataStage = "Hot" | "Warm" | "Cold" | "Expired";
 
 export interface LoginLog {
-  id: number;
-  user_id: string;
-  username: string;
-  success: boolean;
-  fail_reason?: string;
-  ip_address?: string;
-  location?: string;
-  user_agent?: string;
   created_at: string;
+  fail_reason?: string;
+  id: number;
+  ip_address: string;
+  location?: string;
+  request_id: string;
+  success: boolean;
+  user_agent?: string;
+  user_id?: string;
+  username: string;
+}
+
+export interface OperationLog {
+  action: string;
+  after_value?: string;
+  before_value?: string;
+  created_at: string;
+  id: number;
+  ip_address?: string;
+  request_id: string;
+  resource: string;
+  resource_id?: string;
+  user_agent?: string;
+  user_id: string;
 }
 
 export interface PagedLoginLogs {
   items: LoginLog[];
-  total: number;
   page: number;
   size: number;
+  total: number;
+}
+
+export interface PagedOperationLogs {
+  items: OperationLog[];
+  page: number;
+  size: number;
+  total: number;
 }
 
 export interface RetentionPolicy {
-  hot_days: number;
-  warm_days: number;
-  cold_days: number;
   archive_enabled: boolean;
+  cold_days: number;
+  hot_days: number;
   purge_enabled: boolean;
+  warm_days: number;
 }
 
 export interface RetentionStats {
-  hot_count: number;
-  warm_count: number;
   cold_count: number;
   expired_count: number;
+  hot_count: number;
+  last_cleanup?: string;
   total_size_bytes: number;
+  warm_count: number;
 }
 
 export interface ApiResponse<T = any> {

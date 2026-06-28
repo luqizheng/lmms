@@ -2,13 +2,10 @@
 // DO NOT EDIT
 
 import type {
-  OperationLog,
-  PagedOperationLogs,
-  LoginLog as _LoginLog,
   PagedLoginLogs,
+  PagedOperationLogs,
   RetentionPolicy,
-  RetentionStats,
-  ApiResponse as _ApiResponse
+  RetentionStats
 } from "./audit.types";
 
 export interface ClientConfig {
@@ -63,75 +60,46 @@ export class AuditClient {
     return text as any;
   }
 
-  // Operation Logs
-  async queryOperationLogs(params?: {
-    page?: number;
-    size?: number;
-    user_id?: string;
-    action?: string;
-    resource?: string;
-  }): Promise<PagedOperationLogs> {
-    return this.request("GET", "/audit/operation", params);
+  async exportLoginCsv(): Promise<string> {
+    return this.request("GET", "/audit/export/compliance/login/csv", undefined, undefined);
   }
 
-  // Login Logs
-  async queryLoginLogs(params?: {
-    page?: number;
-    size?: number;
-  }): Promise<PagedLoginLogs> {
-    return this.request("GET", "/audit/login", params);
+  async exportOperationCsv(): Promise<string> {
+    return this.request("GET", "/audit/export/compliance/operation/csv", undefined, undefined);
   }
 
-  // Export
-  async exportOperationCsv(userId: string): Promise<string> {
-    return this.request(
-      "GET",
-      `/audit/export/compliance/operation/csv/${userId}`
-    );
+  async exportOperationJson(): Promise<string> {
+    return this.request("GET", "/audit/export/compliance/operation/json", undefined, undefined);
   }
 
-  async exportOperationJson(userId: string): Promise<OperationLog[]> {
-    return this.request(
-      "GET",
-      `/audit/export/compliance/operation/json/${userId}`
-    );
+  async queryLoginLogs(params?: { username?: string; success?: boolean; start_time?: string; end_time?: string; page?: number; size?: number }): Promise<PagedLoginLogs> {
+    return this.request("GET", "/audit/login", params, undefined);
   }
 
-  async exportLoginCsv(userId: string): Promise<string> {
-    return this.request("GET", `/audit/export/compliance/login/csv/${userId}`);
+  async queryOperationLogs(params?: { user_id?: string; action?: string; resource?: string; start_time?: string; end_time?: string; page?: number; size?: number }): Promise<PagedOperationLogs> {
+    return this.request("GET", "/audit/operation", params, undefined);
   }
 
-  // Retention
-  async getRetentionStats(): Promise<RetentionStats> {
-    return this.request("GET", "/audit/retention/stats");
+  async triggerCleanup(): Promise<any> {
+    return this.request("POST", "/audit/retention/cleanup", undefined, undefined);
   }
 
   async getRetentionPolicy(): Promise<RetentionPolicy> {
-    return this.request("GET", "/audit/retention/policy");
+    return this.request("GET", "/audit/retention/policy", undefined, undefined);
   }
 
-  async updateRetentionPolicy(
-    policy: RetentionPolicy
-  ): Promise<RetentionPolicy> {
-    return this.request("PUT", "/audit/retention/policy", undefined, policy);
+  async updateRetentionPolicy(body: RetentionPolicy): Promise<RetentionPolicy> {
+    return this.request("PUT", "/audit/retention/policy", undefined, body);
   }
 
-  async triggerCleanup(): Promise<{ deleted_count: number; success: boolean }> {
-    return this.request("POST", "/audit/retention/cleanup");
+  async getDataStage(created_at: string): Promise<any> {
+    return this.request("GET", `/audit/retention/stage/${encodeURIComponent(created_at)}`, undefined, undefined);
   }
 
-  async getDataStage(createdAt: string): Promise<{
-    created_at: string;
-    stage: string;
-    policy: RetentionPolicy;
-  }> {
-    return this.request(
-      "GET",
-      `/audit/retention/stage/${encodeURIComponent(createdAt)}`
-    );
+  async getRetentionStats(): Promise<RetentionStats> {
+    return this.request("GET", "/audit/retention/stats", undefined, undefined);
   }
 
-  // Health
   async health(): Promise<{ status: string }> {
     return this.request("GET", "/health");
   }
