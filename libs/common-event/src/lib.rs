@@ -12,6 +12,7 @@ pub mod event;
 pub mod events;
 pub mod metrics;
 pub mod outbox;
+pub mod perm_epoch;
 pub mod publisher;
 pub mod publisher_loop;
 pub mod routing_keys;
@@ -23,5 +24,6 @@ pub use error::{ConsumeError, HandlerError, OutboxError, PublishError, RunError}
 pub use event::Event;
 pub use events::IamEventEnum;
 pub use outbox::{MySqlOutboxRepo, OutboxRepo, OutboxRow};
+pub use perm_epoch::{get_perm_epoch, perm_epoch_key, set_perm_epoch_if_greater};
 pub use publisher::{Publisher, RabbitMqPublisher};
 pub use publisher_loop::{OutboxPublisher, OutboxPublisherOptions};

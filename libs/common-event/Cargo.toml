@@ -16,7 +16,8 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 uuid = { version = "1", features = ["v7", "serde"] }
 prometheus = "0.13"
+redis = { workspace = true }
 
 [dev-dependencies]
 testcontainers = "0.20"
-testcontainers-modules = { version = "0.8", features = ["rabbitmq", "mysql"] }
+testcontainers-modules = { version = "0.8", features = ["rabbitmq", "mysql", "redis"] }
