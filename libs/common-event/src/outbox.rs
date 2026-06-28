@@ -18,7 +18,8 @@ pub struct OutboxRow {
 /// Internal helper: fill `env.trace_id` from `source()` only when caller left it None.
 /// Extracted so tests can inject a fake source without an OTel runtime.
 /// Caller-supplied trace_id (via `Envelope::with_trace_id(...)`) is always respected.
-fn fill_trace_id<P: Event, F: Fn() -> Option<String>>(env: &mut Envelope<P>, source: F) {
+#[doc(hidden)]
+pub fn fill_trace_id<P: Event, F: Fn() -> Option<String>>(env: &mut Envelope<P>, source: F) {
     if env.trace_id.is_none() {
         if let Some(tid) = source() {
             env.trace_id = Some(tid);
