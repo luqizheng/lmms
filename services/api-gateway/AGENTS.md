@@ -21,6 +21,14 @@
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | false | 预留（聚合 UI 待 P2.1）|
+| GW_REDIS__PREFIX | superpowers: | Redis key 前缀（blacklist + perm_epoch）；**必须与 iam REDIS_PREFIX 一致** |
+| GW_EVENT_BUS_URL | amqp://guest:guest@localhost:5672/%2f | RabbitMQ 连接（perm_epoch 兜底 consumer，Phase 4.4）|
+| GW_PERM_EPOCH_TTL_SEC | 900 | perm_epoch 兜底写入 TTL；**应与 iam `access_token_ttl_minutes*60` 对齐** |
+
+## 令牌失效 perm_epoch（Phase 4.4）
+
+- `auth_middleware` 在 blacklist 检查后比对 `token.iat < {prefix}perm_epoch:{sub}` → 401「permissions changed, re-authenticate」。key miss / Redis 错误 → fail-open 放行。
+- 兜底 consumer：ephemeral 队列订阅 `iam.permission.changed`，用 set-if-greater（单调）补写 perm_epoch（用事件 `occurred_at` 作时间基准），关闭 iam 直写的 fail-open 窗口。
 
 ## 端点域
 

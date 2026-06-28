@@ -22,6 +22,17 @@
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
+| REDIS_URL | 服务自定义 | perm_epoch 直写（Phase 4.4）|
+| REDIS_PREFIX | superpowers: | perm_epoch key 前缀，**必须与 api-gateway `GW_REDIS__PREFIX` 一致** |
+
+## 事件生产 / 令牌失效（Phase 4.4）
+
+| 事件 | 触发 | 机制 |
+|------|------|------|
+| `iam.permission.changed` | assign_permissions / role 禁用·删除 / permission 禁用·删除 | 同事务展开受影响 `user_ids` + 写 `iam_outbox_events`（outbox）；commit 后直写 Redis `{prefix}perm_epoch:{user_id}=now`（best-effort，失败由 gateway consumer 兜底）|
+
+- perm_epoch TTL = `jwt.access_token_ttl_minutes * 60`。gateway 比对 `token.iat < perm_epoch` → 401 强制重认证。
+- iam Redis 连接为 `Option`：Redis 不可用时 iam 仍启动，直写降级为 no-op。
 
 ## 端点域
 
