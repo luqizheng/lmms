@@ -118,7 +118,18 @@ impl ResilientClient {
                 Ok(Ok(resp)) => {
                     let status = resp.status();
                     let resp_headers = resp.headers().clone();
-                    let body_bytes = resp.bytes().await.unwrap_or_default();
+                    // 决策 review#2：body 流读失败时显式打 warn，不再静默退化为空
+                    // body（否则调用方拿到 200 + 空 body 与合法空响应无法区分）。
+                    // 返回类型保持 Ok(UpstreamResponse) —— status 仍可达，四态映射不变。
+                    let body_bytes = resp.bytes().await.unwrap_or_else(|e| {
+                        tracing::warn!(
+                            service = service,
+                            status = status.as_u16(),
+                            error = %e,
+                            "failed to read upstream response body; returning empty bytes"
+                        );
+                        bytes::Bytes::new()
+                    });
 
                     // breaker 计失败口径（spec §5.3）：502/503/429 计失败，其余成功
                     let is_failure = matches!(status.as_u16(), 502 | 503 | 429);
