@@ -118,8 +118,21 @@ impl RoleService {
             Some(n) => data_scope_to_str(n).to_string(),
             None => role.data_scope.clone(),
         };
-        let status = req.status.unwrap_or(role.status);
+        let status = req.status.unwrap_or(role.status.clone());
 
+        // Fire iam.permission.changed only on a non-disabled → disabled
+        // status transition (not on rename / other updates).
+        let now_disabled = status == "disabled" && role.status != "disabled";
+        let user_ids: Vec<String> = if now_disabled {
+            sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
+                .bind(role_id)
+                .fetch_all(&self.state.db)
+                .await?
+        } else {
+            Vec::new()
+        };
+
+        let mut tx = self.state.db.begin().await?;
         sqlx::query(
             "UPDATE iam_roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ?",
         )
@@ -128,43 +141,93 @@ impl RoleService {
         .bind(&data_scope_str)
         .bind(&status)
         .bind(role_id)
-        .execute(&self.state.db)
+        .execute(&mut *tx)
         .await?;
+
+        if now_disabled {
+            crate::service::perm_change::enqueue_permission_changed(
+                &mut tx,
+                &self.state.db,
+                &user_ids,
+                "role_disabled",
+                None,
+            )
+            .await?;
+        }
+        tx.commit().await?;
+
+        if now_disabled {
+            crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
+        }
 
         self.get(role_id).await
     }
 
     pub async fn delete(&self, role_id: &str) -> Result<(), IamError> {
+        let user_ids: Vec<String> =
+            sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
+                .bind(role_id)
+                .fetch_all(&self.state.db)
+                .await?;
+
+        let mut tx = self.state.db.begin().await?;
         let result: MySqlQueryResult = sqlx::query(
             "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)
-        .execute(&self.state.db)
+        .execute(&mut *tx)
         .await?;
 
         if result.rows_affected() == 0 {
             return Err(IamError::RoleNotFound);
         }
 
+        crate::service::perm_change::enqueue_permission_changed(
+            &mut tx,
+            &self.state.db,
+            &user_ids,
+            "role_deleted",
+            None,
+        )
+        .await?;
+        tx.commit().await?;
+
+        crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
         Ok(())
     }
 
     pub async fn assign_permissions(&self, role_id: &str, permission_ids: Vec<String>) -> Result<(), IamError> {
-        let _ = sqlx::query("DELETE FROM iam_role_permissions WHERE role_id = ?")
-            .bind(role_id)
-            .execute(&self.state.db)
-            .await;
+        let user_ids: Vec<String> =
+            sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
+                .bind(role_id)
+                .fetch_all(&self.state.db)
+                .await?;
 
-        for permission_id in permission_ids {
-            let _ = sqlx::query(
+        let mut tx = self.state.db.begin().await?;
+        sqlx::query("DELETE FROM iam_role_permissions WHERE role_id = ?")
+            .bind(role_id)
+            .execute(&mut *tx)
+            .await?;
+        for permission_id in &permission_ids {
+            sqlx::query(
                 "INSERT INTO iam_role_permissions (role_id, permission_id) VALUES (?, ?)",
             )
             .bind(role_id)
-            .bind(&permission_id)
-            .execute(&self.state.db)
-            .await;
+            .bind(permission_id)
+            .execute(&mut *tx)
+            .await?;
         }
+        crate::service::perm_change::enqueue_permission_changed(
+            &mut tx,
+            &self.state.db,
+            &user_ids,
+            "role_permissions_changed",
+            None,
+        )
+        .await?;
+        tx.commit().await?;
 
+        crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
         Ok(())
     }
 

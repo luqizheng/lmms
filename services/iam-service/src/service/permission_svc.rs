@@ -159,8 +159,23 @@ impl PermissionService {
         let name = req.name.unwrap_or(permission.name);
         let description = req.description.or(permission.description);
         let sort_order = req.sort_order.unwrap_or(permission.sort_order);
-        let status = req.status.unwrap_or(permission.status);
+        let status = req.status.unwrap_or(permission.status.clone());
 
+        // Fire iam.permission.changed only on a non-disabled → disabled
+        // status transition (not on rename / other updates).
+        let now_disabled = status == "disabled" && permission.status != "disabled";
+        let user_ids: Vec<String> = if now_disabled {
+            sqlx::query_scalar(
+                "SELECT DISTINCT ur.user_id FROM iam_user_roles ur JOIN iam_role_permissions rp ON ur.role_id = rp.role_id WHERE rp.permission_id = ?",
+            )
+            .bind(permission_id)
+            .fetch_all(&self.state.db)
+            .await?
+        } else {
+            Vec::new()
+        };
+
+        let mut tx = self.state.db.begin().await?;
         let result: PermissionRow = sqlx::query_as(
             "UPDATE iam_permissions SET name = ?, description = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
         )
@@ -169,31 +184,66 @@ impl PermissionService {
         .bind(sort_order)
         .bind(&status)
         .bind(permission_id)
-        .fetch_one(&self.state.db)
+        .fetch_one(&mut *tx)
         .await?;
+
+        if now_disabled {
+            crate::service::perm_change::enqueue_permission_changed(
+                &mut tx,
+                &self.state.db,
+                &user_ids,
+                "permission_disabled",
+                None,
+            )
+            .await?;
+        }
+        tx.commit().await?;
+
+        if now_disabled {
+            crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
+        }
 
         Ok(self.to_response(&result))
     }
 
     pub async fn delete(&self, permission_id: &str) -> Result<(), IamError> {
+        // Expand affected users via the join BEFORE we delete the
+        // iam_role_permissions rows we are joining on.
+        let user_ids: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT ur.user_id FROM iam_user_roles ur JOIN iam_role_permissions rp ON ur.role_id = rp.role_id WHERE rp.permission_id = ?",
+        )
+        .bind(permission_id)
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let mut tx = self.state.db.begin().await?;
         let result: MySqlQueryResult = sqlx::query(
             "UPDATE iam_permissions SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(permission_id)
-        .execute(&self.state.db)
+        .execute(&mut *tx)
         .await?;
 
         if result.rows_affected() == 0 {
             return Err(IamError::PermissionNotFound);
         }
 
-        let _: MySqlQueryResult = sqlx::query(
-            "DELETE FROM iam_role_permissions WHERE permission_id = ?",
-        )
-        .bind(permission_id)
-        .execute(&self.state.db)
-        .await?;
+        sqlx::query("DELETE FROM iam_role_permissions WHERE permission_id = ?")
+            .bind(permission_id)
+            .execute(&mut *tx)
+            .await?;
 
+        crate::service::perm_change::enqueue_permission_changed(
+            &mut tx,
+            &self.state.db,
+            &user_ids,
+            "permission_deleted",
+            None,
+        )
+        .await?;
+        tx.commit().await?;
+
+        crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
         Ok(())
     }
 

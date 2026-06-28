@@ -1,5 +1,6 @@
 pub mod auth_svc;
 pub mod org_svc;
+pub mod perm_change;
 pub mod permission_svc;
 pub mod role_svc;
 pub mod token_svc;
