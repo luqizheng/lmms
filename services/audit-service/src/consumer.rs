@@ -20,14 +20,16 @@ pub async fn run(pool: MySqlPool, event_bus_url: String) -> anyhow::Result<()> {
     let backoff = Duration::from_secs(5);
     loop {
         match try_subscribe(pool.clone(), &event_bus_url).await {
-            Ok(()) => {
-                // subscribe returned Ok — the consumer task has been spawned
-                // by lapin. We park here for a long time; if/when the broker
-                // drops, lapin's consumer stream ends (the spawned task
-                // exits) and we reconnect on the NEXT iteration. The cheapest
-                // way to detect that is to sleep then loop — at worst we
-                // re-declare an idempotent queue and bindings.
-                tokio::time::sleep(Duration::from_secs(30)).await;
+            Ok(consumer) => {
+                // Hold the consumer alive, polling connection health.
+                // Re-subscribe ONLY on actual disconnect — durable queue is
+                // idempotent so re-declare is safe, but a healthy broker
+                // shouldn't pay the cost every 30s. See notification
+                // announcement_run for the ephemeral counterpart.
+                while consumer.connection().status().connected() {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+                warn!("audit consumer connection lost, resubscribing");
             }
             Err(e) => {
                 warn!(error = %e, "audit consumer subscribe failed, retry in 5s");
@@ -37,7 +39,7 @@ pub async fn run(pool: MySqlPool, event_bus_url: String) -> anyhow::Result<()> {
     }
 }
 
-async fn try_subscribe(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<()> {
+async fn try_subscribe(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<RabbitMqConsumer> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
     consumer
         .subscribe::<serde_json::Value, _, _>(
@@ -50,7 +52,7 @@ async fn try_subscribe(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<(
         )
         .await?;
     info!("audit consumer subscribed to audit.iam-events (iam.#)");
-    Ok(())
+    Ok(consumer)
 }
 
 async fn persist(pool: &MySqlPool, env: &Envelope<serde_json::Value>) -> Result<(), HandlerError> {
