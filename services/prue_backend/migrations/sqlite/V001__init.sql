@@ -1,9 +1,12 @@
+-- prue_backend 表结构（SQLite 方言）。表前缀 `prue_`。
+
 CREATE TABLE IF NOT EXISTS prue_menu_configs (
     id TEXT PRIMARY KEY,
     version INTEGER NOT NULL UNIQUE,
     name TEXT NOT NULL,
     description TEXT NULL,
     routes_json TEXT NOT NULL,
+    routes_etag TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'draft',
     is_active INTEGER NOT NULL DEFAULT 0,
     created_by TEXT NULL,

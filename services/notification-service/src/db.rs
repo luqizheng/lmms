@@ -9,10 +9,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::{info, warn};
 
-const INIT_SQL: &str = include_str!("../migrations/2026_06_10_init.sql");
-const USER_ID_STRING_SQL: &str = include_str!("../migrations/2026_06_21_user_id_string.sql");
-const WELCOME_TEMPLATE_SQL: &str = include_str!("../migrations/2026_06_27_welcome_template.sql");
-const OUTBOX_SQL: &str = include_str!("../migrations/2026_06_27_outbox.sql");
+const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
 const SCHEMA_MARKER_TABLE: &str = "ntf_announcements";
 
 #[derive(Clone)]
@@ -65,8 +62,6 @@ impl Db {
             if s.is_empty() {
                 continue;
             }
-            // sqlx 连接已由 cfg.mysql.url 指定数据库；
-            // 跳过文件中的 CREATE DATABASE / USE（连接池下不应切库）。
             let upper = s.to_ascii_uppercase();
             if upper.starts_with("CREATE DATABASE") || upper.starts_with("USE ") {
                 continue;
@@ -77,55 +72,6 @@ impl Db {
             }
         }
         info!("initial migration applied");
-        
-        // Apply user_id string migration
-        for stmt in USER_ID_STRING_SQL.split(';') {
-            let cleaned: String = stmt
-                .lines()
-                .filter(|l| !l.trim_start().starts_with("--"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            let s = cleaned.trim();
-            if s.is_empty() {
-                continue;
-            }
-            if let Err(e) = sqlx::query(s).execute(&self.pool).await {
-                warn!(statement = %first_line(s), error = %e, "user_id string migration statement failed (may already be applied)");
-            }
-        }
-        info!("user_id string migration applied");
-
-        for stmt in WELCOME_TEMPLATE_SQL.split(';') {
-            let cleaned: String = stmt
-                .lines()
-                .filter(|l| !l.trim_start().starts_with("--"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            let s = cleaned.trim();
-            if s.is_empty() {
-                continue;
-            }
-            if let Err(e) = sqlx::query(s).execute(&self.pool).await {
-                warn!(statement = %first_line(s), error = %e, "welcome template migration statement failed (may already be applied)");
-            }
-        }
-        info!("welcome template migration applied");
-
-        for stmt in OUTBOX_SQL.split(';') {
-            let cleaned: String = stmt
-                .lines()
-                .filter(|l| !l.trim_start().starts_with("--"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            let s = cleaned.trim();
-            if s.is_empty() {
-                continue;
-            }
-            if let Err(e) = sqlx::query(s).execute(&self.pool).await {
-                warn!(statement = %first_line(s), error = %e, "outbox migration statement failed (may already be applied)");
-            }
-        }
-        info!("outbox migration applied");
 
         Ok(())
     }
@@ -369,6 +315,9 @@ mod tests {
             "NTF_ANNOUNCEMENT_RECIPIENTS",
             "NTF_ANNOUNCEMENT_DELIVERIES",
             "NTF_ANNOUNCEMENT_READS",
+            "NTF_TEMPLATES",
+            "NTF_EVENT_IDEMPOTENCY",
+            "NTF_OUTBOX_EVENTS",
         ] {
             assert!(
                 upper.contains(&format!("CREATE TABLE IF NOT EXISTS {tbl}")),
@@ -387,12 +336,10 @@ mod tests {
     }
 
     #[test]
-    fn welcome_template_sql_contains_required_tables_and_seed() {
-        let upper = WELCOME_TEMPLATE_SQL.to_uppercase();
-        assert!(upper.contains("CREATE TABLE IF NOT EXISTS NTF_TEMPLATES"));
-        assert!(upper.contains("CREATE TABLE IF NOT EXISTS NTF_EVENT_IDEMPOTENCY"));
+    fn init_sql_seeds_welcome_template() {
+        let upper = INIT_SQL.to_uppercase();
         assert!(upper.contains("INSERT INTO NTF_TEMPLATES"));
-        assert!(WELCOME_TEMPLATE_SQL.contains("'welcome'"));
+        assert!(INIT_SQL.contains("'welcome'"));
     }
 
     #[test]
@@ -409,9 +356,8 @@ mod tests {
     }
 
     #[test]
-    fn outbox_sql_creates_ntf_outbox_events() {
-        let upper = OUTBOX_SQL.to_uppercase();
-        assert!(upper.contains("CREATE TABLE IF NOT EXISTS NTF_OUTBOX_EVENTS"));
+    fn init_sql_outbox_columns() {
+        let upper = INIT_SQL.to_uppercase();
         for col in ["EVENT_ID", "EVENT_TYPE", "ROUTING_KEY", "ENVELOPE_JSON", "PUBLISHED_AT"] {
             assert!(upper.contains(col), "outbox missing column {col}");
         }

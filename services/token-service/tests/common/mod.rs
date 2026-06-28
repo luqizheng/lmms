@@ -6,7 +6,7 @@ use testcontainers::ImageExt;
 use testcontainers_modules::mysql::Mysql;
 use token_service::db::DbPool;
 
-pub const MIGRATION_SQL: &str = include_str!("../../migrations/20260611000001_init.sql");
+pub const MIGRATION_SQL: &str = include_str!("../../migrations/mysql/V001__init.sql");
 
 pub async fn spawn_mysql() -> DbPool {
     // 关闭 InnoDB native AIO，规避宿主 aio-max-nr 不足导致的 io_setup() EAGAIN

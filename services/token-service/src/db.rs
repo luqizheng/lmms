@@ -6,7 +6,7 @@ use tracing::{info, warn};
 
 use crate::config::DatabaseCfg;
 
-pub const INIT_SQL: &str = include_str!("../migrations/20260611000001_init.sql");
+pub const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
 const SCHEMA_MARKER_TABLE: &str = "token_oauth_clients";
 
 #[derive(Clone)]
@@ -44,7 +44,7 @@ pub async fn init_pool(cfg: &DatabaseCfg) -> Result<DbPool> {
     Ok(DbPool::Mysql(pool))
 }
 
-/// 启动时跑 migrations/20260611000001_init.sql；表已存在则忽略，保证重启幂等。
+/// 启动时跑 migrations/mysql/V001__init.sql；表已存在则忽略，保证重启幂等。
 pub async fn init_schema(pool: &DbPool) -> Result<(), sqlx::Error> {
     let p = match pool {
         DbPool::Mysql(p) => p,

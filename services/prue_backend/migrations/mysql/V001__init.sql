@@ -1,9 +1,12 @@
+-- prue_backend 表结构。表前缀 `prue_`。
+
 CREATE TABLE IF NOT EXISTS prue_menu_configs (
     id VARCHAR(64) PRIMARY KEY,
     version BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
     description TEXT NULL,
     routes_json JSON NOT NULL,
+    routes_etag CHAR(64) NOT NULL DEFAULT '',
     status VARCHAR(32) NOT NULL DEFAULT 'draft',
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_by VARCHAR(128) NULL,

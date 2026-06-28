@@ -1,3 +1,5 @@
+-- token-service 表结构。表前缀 `token_`。
+
 -- 1) OAuth 客户端注册表
 CREATE TABLE token_oauth_clients (
   client_id             VARCHAR(64)  PRIMARY KEY,
