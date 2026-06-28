@@ -19,6 +19,7 @@ mod tests {
             sqlx::mysql::MySqlPool::connect_lazy("mysql://root:password@localhost:3306/test").unwrap(),
             cache,
             config.clone(),
+            None,
         );
         assert!(state.config.app.name == config.app.name);
     }

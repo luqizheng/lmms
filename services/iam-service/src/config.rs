@@ -28,6 +28,8 @@ pub struct DatabaseConfig {
 pub struct RedisConfig {
     pub url: String,
     pub ttl_sec: u64,
+    #[serde(default)]
+    pub prefix: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
