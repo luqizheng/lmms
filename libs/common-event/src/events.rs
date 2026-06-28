@@ -66,6 +66,17 @@ impl Event for NotificationAnnouncementPublished {
     fn event_type() -> &'static str { "notification.announcement.published" }
     fn schema_version() -> u32 { 1 }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IamPermissionChanged {
+    pub user_ids: serde_json::Value,
+    pub reason: String,
+    pub actor_id: Option<String>,
+}
+
+impl Event for IamPermissionChanged {
+    fn event_type() -> &'static str { "iam.permission.changed" }
+    fn schema_version() -> u32 { 1 }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event_type", content = "payload", rename_all = "snake_case")]
@@ -79,4 +90,5 @@ pub enum IamEventEnum {
     IamLoginSucceeded(Envelope<IamLoginSucceeded>),
     IamLoginFailed(Envelope<IamLoginFailed>),
     NotificationAnnouncementPublished(Envelope<NotificationAnnouncementPublished>),
+    IamPermissionChanged(Envelope<IamPermissionChanged>),
 }

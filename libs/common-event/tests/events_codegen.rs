@@ -94,3 +94,20 @@ fn notification_announcement_published_codegen_present() {
         user_ids: serde_json::json!(["u1"]),
     };
 }
+
+#[test]
+fn iam_permission_changed_codegen_present() {
+    use common_event::event::Event;
+    use common_event::events::IamPermissionChanged;
+    assert_eq!(IamPermissionChanged::event_type(), "iam.permission.changed");
+    assert_eq!(IamPermissionChanged::schema_version(), 1);
+    assert_eq!(
+        common_event::routing_keys::IAM_PERMISSION_CHANGED,
+        "iam.permission.changed"
+    );
+    let _ = IamPermissionChanged {
+        user_ids: serde_json::json!(["u1"]),
+        reason: "role_deleted".into(),
+        actor_id: None,
+    };
+}

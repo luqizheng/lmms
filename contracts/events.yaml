@@ -54,3 +54,11 @@ events:
       pinned:          { type: bool,   required: true }
       popover:         { type: bool,   required: true }
       user_ids:        { type: json,   required: true }   # Vec<String>
+
+  iam.permission.changed:
+    schema_version: 1
+    description: "用户有效权限变更（角色授权/角色禁删/权限禁删）→ 触发令牌失效"
+    payload:
+      user_ids: { type: json,   required: true }
+      reason:   { type: string, required: true }
+      actor_id: { type: string, required: false }
