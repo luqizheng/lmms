@@ -56,6 +56,7 @@ hyper = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
 bytes = "1"
+dashmap = "6"
 moka = { version = "0.12", features = ["future"] }
 tempfile = "3"
 validator = { version = "0.18", features = ["derive"] }
