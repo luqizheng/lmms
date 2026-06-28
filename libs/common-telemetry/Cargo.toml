@@ -16,3 +16,9 @@ tracing-opentelemetry = { version = "0.25", optional = true }
 [features]
 default = []
 otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
+
+[dev-dependencies]
+# Testing TracerProvider in unit tests needs the `testing` feature flag.
+opentelemetry = { version = "0.24", features = ["trace"] }
+opentelemetry_sdk = { version = "0.24", features = ["rt-tokio", "testing"] }
+tracing-opentelemetry = "0.25"

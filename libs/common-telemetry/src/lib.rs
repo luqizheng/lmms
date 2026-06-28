@@ -92,3 +92,6 @@ pub fn shutdown() {
         opentelemetry::global::shutdown_tracer_provider();
     }
 }
+
+mod trace_id;
+pub use trace_id::current_trace_id;
