@@ -41,8 +41,11 @@ impl PermissionService {
             _ => "api",
         };
 
-        let permission: PermissionRow = sqlx::query_as(
-            "INSERT INTO iam_permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', NOW(), NOW()) RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
+        let mut tx = self.state.db.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO iam_permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', NOW(), NOW())"
         )
         .bind(&permission_id)
         .bind(&req.code)
@@ -52,9 +55,17 @@ impl PermissionService {
         .bind(&req.resource)
         .bind(&req.action)
         .bind(req.sort_order.unwrap_or(0))
-        .fetch_one(&self.state.db)
+        .execute(&mut *tx)
         .await?;
 
+        let permission: PermissionRow = sqlx::query_as(
+            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE id = ?"
+        )
+        .bind(&permission_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
         Ok(self.to_response(&permission))
     }
 

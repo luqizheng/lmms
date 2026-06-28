@@ -67,7 +67,7 @@
   - [ ] **4.4-fu1** 新增 `PUT /iam/users/:id/roles` 写端点并接入失效（当前 user→role 仅在建用户时设，已登录用户改不了角色）。
   - [ ] **4.4-fu2** actor_id 透传：把 Principal 从 routes 传到 role/permission service，使 `iam.permission.changed.actor_id` 非空（当前恒 None）。
   - [ ] **4.4-fu3** gateway perm_epoch 本地内存短缓存，降低每请求 Redis 读频。
-  - [ ] **4.4-fu4** `PermissionService::create` 仍用 MySQL 不支持的 `INSERT ... RETURNING`（与 Task 8 修掉的 update 同模式 bug，create 不在 4.4 触发路径故未改）——统一改为 INSERT + re-SELECT。
+  - [x] **4.4-fu4** `PermissionService::create` 仍用 MySQL 不支持的 `INSERT ... RETURNING`（与 Task 8 修掉的 update 同模式 bug，create 不在 4.4 触发路径故未改）——统一改为 INSERT + re-SELECT。
 
 #### Phase 4 broad review 遗留（cheap fixes 落地，剩下记录在 `.superpowers/sdd/progress.md`）
 
