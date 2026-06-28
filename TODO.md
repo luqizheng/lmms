@@ -76,18 +76,13 @@
 - [x] **I3** `OutboxPublisher::run()` bug-shape（doc 标记为 TEST HELPER ONLY）
 - [ ] **I1** consumer 瞬时错误直接 DLQ（应区分 transient/permanent，retry with TTL） — Phase 5
 - [x] **I2** audit-service 仍有 `create_operation_log`/`create_login_log` 死方法 + `CreateOperationLog`/`CreateLoginLog` 孤儿 schema — 后续清理
-  - [ ] **I2-fu1** `scripts/openapi-codegen.js:90` 硬编码的 `LoginLog` 模板与 Rust `Option<String>` 不匹配：`user_id: string;` 应改为 `user_id?: string;`（OpenAPI spec `services/audit-service/openapi.yaml:287-290` 已正确标 `type: [string, null]` 且不在 `required`，但 codegen 脚本不读 spec，整段 `typesContent` 是写死的字符串模板，仅 `serviceName` 取自 spec）。**风险**：下次 `pnpm sdk:generate:audit` 会静默把 commit `89906cf` 已删的 `CreateOperationLog`/`CreateLoginLog` 重新生成回来（同样问题在 `audit.client.ts` 的 `createOperationLog` / `createLoginLog` 方法，硬编码于同脚本 ~211/226 行）。修复方向：把 `generateTypeScript`/`generateJavaScript` 改为读 spec.components.schemas，按 `required` + nullable 生成字段；或至少先 patch 硬编码模板字段使其与 OpenAPI 一致。发现于 Phase 4 cheap-fixes Task 1 review（commit `89906cf`）。
+  - [ ] **I2-fu1** ~~`scripts/openapi-codegen.js:90` 硬编码~~ 已修复（commit pending）：脚本改为 spec-driven —— 读 `spec.components.schemas` 生成 types（按 `required`/nullable）、读 `spec.paths` 生成 client 方法。下次 `pnpm sdk:generate:audit` 不会再回写 commit `89906cf` 删掉的 `CreateOperationLog`/`CreateLoginLog`；`LoginLog.user_id?: string;` 现在与 Rust `Option<String>` 一致。已用 audit/config/file 三个 spec 验证。
 - [ ] **I4** envelope.trace_id producer 侧未填充（docs 说已填，实际没填） — Phase 6 一起
 - [x] **I5** `MySqlOutboxRepo::new(pool.clone())` per-call — 移到 `AppState` 优化
-  - [ ] **I5-fu1** 补完 `MySqlOutboxRepo::new(pool.clone())` → `state.outbox_repo.clone()` 持有优化（I5 批次遗漏）
-    - 现状：Task 2 仅修了 spec §2.2 列出的 3 处（user_svc.rs:80,306 + db.rs:329）。还有 7 处 per-call：
-      - `services/iam-service/src/service/auth_svc.rs:115` (login_success)
-      - `services/iam-service/src/service/auth_svc.rs:356` (login_failed)
-      - `services/iam-service/src/service/perm_change.rs:39` (helper)
-      - helper 调用方：`role_svc.rs:148,185,220` + `permission_svc.rs:208,253`（5 处）
-    - 优化点：`auth_svc.rs` 两处直接换 `self.state.outbox_repo.clone()`；`perm_change.rs` helper 签名改接受 `&MySqlOutboxRepo`（或 `Arc<MySqlOutboxRepo>`），5 个 caller 改传 `&state.outbox_repo`。
-    - 风险：低，纯内部重构（行为不变）。`permission_svc.rs:253` 已用 `self.state` 上下文，可直接传；其他 4 处需确认 `state` 是否在 scope。
-    - 发现来源：Task 2 review (commit `c96014c..505b0dc`)，reviewer I-1 finding。
+  - [x] **I5-fu1** 已修复（commit pending）：iam 剩余 7 处 `MySqlOutboxRepo::new(pool.clone())` 全部改走 `state.outbox_repo.as_ref()`。
+    - `auth_svc.rs:115/356`（login_success / login_failed）：直接换 `common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), ...)`
+    - `perm_change.rs:39` helper 签名 `db: &MySqlPool` → `repo: &MySqlOutboxRepo`；5 个 caller（`role_svc.rs:148/185/220` + `permission_svc.rs:208/253`）改传 `self.state.outbox_repo.as_ref()`
+    - 回归：`permission_changed_test` 7/7 PASS（testcontainers），workspace build clean
 - [ ] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — Phase 5
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
