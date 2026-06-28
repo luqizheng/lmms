@@ -91,10 +91,10 @@
   - [ ] 服务间通信切换为 mTLS（rustls 已就位）
   - [ ] 淘汰应用层 `require_service_token` 方案
 
-- [ ] **B — 韧性三件套**（spec 已就绪，待 plan + 实现）
-  - [ ] 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
-  - [ ] 本期接 gateway `forward_to_service`：每下游 service 独立 breaker，状态经 `ResilienceObserver` → Prometheus
-  - [ ] 删除并重写未使用的韧性脚手架（axum/benchmarks/rate_limit/middleware/service_discovery/circuit_breaker/retry/config）
+- [ ] **B — 韧性三件套**（spec 已就绪，**核心已完成并合并**，仅剩 B-fu1）
+  - [x] 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
+  - [x] 本期接 gateway `forward_to_service`：每下游 service 独立 breaker，状态经 `ResilienceObserver` → Prometheus
+  - [x] 删除并重写未使用的韧性脚手架（axum/benchmarks/rate_limit/middleware/service_discovery/circuit_breaker/retry/config）
   - [ ] **B-fu1** 韧性三件套扩面到其余服务间直调（token→user、各服务 `common-http::HttpClient` / `common::http::client()` 调用点）。
         当前仅 gateway outbound 受保护；服务间直调仍裸 reqwest。依赖：B 实现完成。起点：grep `common-http::HttpClient` 与 `common/src/http.rs::client()` 调用方。
 
