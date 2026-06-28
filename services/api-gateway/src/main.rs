@@ -19,6 +19,7 @@ use api_gateway::{
     RouteConfig, RouteTable, RouterConfig, ServiceDiscovery,
 };
 use cli::{Cli, Cmd};
+use common_http::{NoopObserver, ResilientClient};
 
 fn find_and_render(
     routes: &[RouteConfig],
@@ -164,9 +165,14 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
 
     let discovery = Arc::new(ServiceDiscovery::new(&cfg.consul_addr));
 
+    let resilient = Arc::new(ResilientClient::new(
+        reqwest::Client::new(),
+        cfg.resilience.clone(),
+        Arc::new(NoopObserver),
+    ));
     let router_cfg = Arc::new(RouterConfig {
         discovery: discovery.clone(),
-        http_client: reqwest::Client::new(),
+        resilient,
     });
 
     let route_table = Arc::new(arc_swap::ArcSwap::from_pointee(table));

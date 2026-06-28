@@ -1,4 +1,5 @@
 use common::config::{RedisConfig, ServerConfig};
+use common_http::ResilienceConfig;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -75,6 +76,9 @@ pub struct GatewayConfig {
     pub perm_epoch_ttl_sec: u64,
 
     #[serde(default)]
+    pub resilience: ResilienceConfig,
+
+    #[serde(default)]
     pub routes: Vec<RouteConfig>,
 }
 
@@ -92,6 +96,7 @@ impl Default for GatewayConfig {
             routes_dir: default_routes_dir(),
             event_bus_url: default_event_bus_url(),
             perm_epoch_ttl_sec: default_perm_epoch_ttl_sec(),
+            resilience: ResilienceConfig::default(),
             routes: Vec::new(),
         }
     }
