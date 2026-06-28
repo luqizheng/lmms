@@ -84,9 +84,9 @@
       - `services/iam-service/src/service/auth_svc.rs:115` (login_success)
       - `services/iam-service/src/service/auth_svc.rs:356` (login_failed)
       - `services/iam-service/src/service/perm_change.rs:39` (helper)
-      - helper 调用方：`role_svc.rs:148,185,220` + `permission_svc.rs:197,242`（5 处）
+      - helper 调用方：`role_svc.rs:148,185,220` + `permission_svc.rs:208,253`（5 处）
     - 优化点：`auth_svc.rs` 两处直接换 `self.state.outbox_repo.clone()`；`perm_change.rs` helper 签名改接受 `&MySqlOutboxRepo`（或 `Arc<MySqlOutboxRepo>`），5 个 caller 改传 `&state.outbox_repo`。
-    - 风险：低，纯内部重构（行为不变）。`permission_svc.rs:242` 已用 `self.state` 上下文，可直接传；其他 4 处需确认 `state` 是否在 scope。
+    - 风险：低，纯内部重构（行为不变）。`permission_svc.rs:253` 已用 `self.state` 上下文，可直接传；其他 4 处需确认 `state` 是否在 scope。
     - 发现来源：Task 2 review (commit `c96014c..505b0dc`)，reviewer I-1 finding。
 - [ ] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — Phase 5
 
