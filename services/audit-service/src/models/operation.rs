@@ -18,19 +18,6 @@ pub struct OperationLog {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CreateOperationLog {
-    pub user_id: String,
-    pub action: String,
-    pub resource: String,
-    pub resource_id: Option<String>,
-    pub before_value: Option<String>,
-    pub after_value: Option<String>,
-    pub request_id: String,
-    pub ip_address: Option<String>,
-    pub user_agent: Option<String>,
-}
-
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct QueryOperationLogs {
     pub user_id: Option<String>,

@@ -15,18 +15,6 @@ export interface OperationLog {
   created_at: string;
 }
 
-export interface CreateOperationLog {
-  user_id: string;
-  action: string;
-  resource: string;
-  resource_id?: string;
-  before_value?: string;
-  after_value?: string;
-  request_id?: string;
-  ip_address?: string;
-  user_agent?: string;
-}
-
 export interface PagedOperationLogs {
   items: OperationLog[];
   total: number;
@@ -36,7 +24,7 @@ export interface PagedOperationLogs {
 
 export interface LoginLog {
   id: number;
-  user_id: string;
+  user_id?: string;
   username: string;
   success: boolean;
   fail_reason?: string;
@@ -44,17 +32,6 @@ export interface LoginLog {
   location?: string;
   user_agent?: string;
   created_at: string;
-}
-
-export interface CreateLoginLog {
-  user_id: string;
-  username: string;
-  success: boolean;
-  fail_reason?: string;
-  ip_address?: string;
-  location?: string;
-  user_agent?: string;
-  request_id?: string;
 }
 
 export interface PagedLoginLogs {

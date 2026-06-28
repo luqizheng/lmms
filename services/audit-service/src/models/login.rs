@@ -17,18 +17,6 @@ pub struct LoginLog {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CreateLoginLog {
-    pub user_id: Option<String>,
-    pub username: String,
-    pub success: bool,
-    pub fail_reason: Option<String>,
-    pub ip_address: String,
-    pub location: Option<String>,
-    pub user_agent: Option<String>,
-    pub request_id: String,
-}
-
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct QueryLoginLogs {
     pub username: Option<String>,

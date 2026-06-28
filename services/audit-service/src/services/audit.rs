@@ -1,5 +1,5 @@
 use crate::error::AppResult;
-use crate::models::{OperationLog, LoginLog, CreateOperationLog, CreateLoginLog, QueryOperationLogs, QueryLoginLogs, PagedOperationLogs, PagedLoginLogs};
+use crate::models::{OperationLog, LoginLog, QueryOperationLogs, QueryLoginLogs, PagedOperationLogs, PagedLoginLogs};
 use sqlx::mysql::MySqlPool;
 
 pub struct AuditService {
@@ -9,49 +9,6 @@ pub struct AuditService {
 impl AuditService {
     pub fn new(pool: &MySqlPool) -> Self {
         Self { pool: pool.clone() }
-    }
-
-    pub async fn create_operation_log(&self, log: CreateOperationLog) -> AppResult<i64> {
-        let result = sqlx::query(
-            r#"
-            INSERT INTO audit_operation_logs (user_id, action, resource, resource_id, before_value, after_value, request_id, ip_address, user_agent)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(log.user_id)
-        .bind(log.action)
-        .bind(log.resource)
-        .bind(log.resource_id)
-        .bind(log.before_value)
-        .bind(log.after_value)
-        .bind(log.request_id)
-        .bind(log.ip_address)
-        .bind(log.user_agent)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(result.last_insert_id() as i64)
-    }
-
-    pub async fn create_login_log(&self, log: CreateLoginLog) -> AppResult<i64> {
-        let result = sqlx::query(
-            r#"
-            INSERT INTO audit_login_logs (user_id, username, success, fail_reason, ip_address, location, user_agent, request_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(log.user_id)
-        .bind(log.username)
-        .bind(log.success)
-        .bind(log.fail_reason)
-        .bind(log.ip_address)
-        .bind(log.location)
-        .bind(log.user_agent)
-        .bind(log.request_id)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(result.last_insert_id() as i64)
     }
 
     pub async fn get_user_operation_logs(&self, user_id: &str, limit: i64) -> AppResult<Vec<OperationLog>> {

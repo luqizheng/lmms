@@ -2,8 +2,8 @@ use utoipa::OpenApi;
 
 use crate::{
     models::{
-        login::{CreateLoginLog, LoginLog, PagedLoginLogs},
-        operation::{CreateOperationLog, OperationLog, PagedOperationLogs},
+        login::{LoginLog, PagedLoginLogs},
+        operation::{OperationLog, PagedOperationLogs},
         retention::{DataStage, RetentionPolicy, RetentionStats},
     },
     routes::{compliance, login, operation, retention},
@@ -25,10 +25,8 @@ use crate::{
         retention::get_data_stage,
     ),
     components(schemas(
-        CreateOperationLog,
         OperationLog,
         PagedOperationLogs,
-        CreateLoginLog,
         LoginLog,
         PagedLoginLogs,
         RetentionPolicy,

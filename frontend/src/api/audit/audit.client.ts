@@ -3,10 +3,8 @@
 
 import type {
   OperationLog,
-  CreateOperationLog,
   PagedOperationLogs,
   LoginLog as _LoginLog,
-  CreateLoginLog,
   PagedLoginLogs,
   RetentionPolicy,
   RetentionStats,
@@ -66,10 +64,6 @@ export class AuditClient {
   }
 
   // Operation Logs
-  async createOperationLog(log: CreateOperationLog): Promise<{ id: number }> {
-    return this.request("POST", "/audit/operation", undefined, log);
-  }
-
   async queryOperationLogs(params?: {
     page?: number;
     size?: number;
@@ -81,10 +75,6 @@ export class AuditClient {
   }
 
   // Login Logs
-  async createLoginLog(log: CreateLoginLog): Promise<void> {
-    return this.request("POST", "/audit/login", undefined, log);
-  }
-
   async queryLoginLogs(params?: {
     page?: number;
     size?: number;
