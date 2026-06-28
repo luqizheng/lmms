@@ -1,9 +1,11 @@
 use iam_service::{config::load_config, db, openapi::ApiDoc, routes, state::AppState};
 use common_telemetry;
 use common_cache::MemoryCache;
+use common_event::MySqlOutboxRepo;
 use consul_registrar::ConsulRegistrar;
 use tracing::{info, warn};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -15,6 +17,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Loaded config: {:?}", config.app.name);
 
     let db_pool = db::connect(&config.database).await?;
+    let outbox_repo = Arc::new(MySqlOutboxRepo::new(db_pool.clone()));
     let cache = MemoryCache::new(10000);
 
     let redis = match redis::Client::open(config.redis.url.clone()) {
@@ -34,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let state = AppState::new(db_pool, cache, config.clone(), redis);
+    let state = AppState::new(db_pool, cache, config.clone(), redis, outbox_repo);
 
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
         .map(|v| v != "false" && v != "0")

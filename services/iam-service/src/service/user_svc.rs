@@ -84,7 +84,7 @@ impl UserService {
                 org_unit_id: None,
             },
         );
-        common_event::MySqlOutboxRepo::new(self.state.db.clone())
+        self.state.outbox_repo.clone()
             .enqueue(&mut tx, &envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
@@ -310,7 +310,7 @@ impl UserService {
                 deleted_by: "system".to_string(),
             },
         );
-        common_event::MySqlOutboxRepo::new(self.state.db.clone())
+        self.state.outbox_repo.clone()
             .enqueue(&mut tx, &envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;

@@ -77,7 +77,7 @@
 - [x] **I2** audit-service 仍有 `create_operation_log`/`create_login_log` 死方法 + `CreateOperationLog`/`CreateLoginLog` 孤儿 schema — 后续清理
   - [ ] **I2-fu1** `scripts/openapi-codegen.js:90` 硬编码的 `LoginLog` 模板与 Rust `Option<String>` 不匹配：`user_id: string;` 应改为 `user_id?: string;`（OpenAPI spec `services/audit-service/openapi.yaml:287-290` 已正确标 `type: [string, null]` 且不在 `required`，但 codegen 脚本不读 spec，整段 `typesContent` 是写死的字符串模板，仅 `serviceName` 取自 spec）。**风险**：下次 `pnpm sdk:generate:audit` 会静默把 commit `89906cf` 已删的 `CreateOperationLog`/`CreateLoginLog` 重新生成回来（同样问题在 `audit.client.ts` 的 `createOperationLog` / `createLoginLog` 方法，硬编码于同脚本 ~211/226 行）。修复方向：把 `generateTypeScript`/`generateJavaScript` 改为读 spec.components.schemas，按 `required` + nullable 生成字段；或至少先 patch 硬编码模板字段使其与 OpenAPI 一致。发现于 Phase 4 cheap-fixes Task 1 review（commit `89906cf`）。
 - [ ] **I4** envelope.trace_id producer 侧未填充（docs 说已填，实际没填） — Phase 6 一起
-- [ ] **I5** `MySqlOutboxRepo::new(pool.clone())` per-call — 移到 `AppState` 优化
+- [x] **I5** `MySqlOutboxRepo::new(pool.clone())` per-call — 移到 `AppState` 优化
 - [ ] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — Phase 5
 
 ### Phase 5 — 服务间安全 & 韧性（P1）

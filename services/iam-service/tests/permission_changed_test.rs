@@ -8,6 +8,7 @@
 //! 注意：多 MySQL 容器并发易 StartupTimeout，用 `--test-threads=1` 串行。
 use common_cache::MemoryCache;
 use common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
+use common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
@@ -15,6 +16,7 @@ use iam_service::db;
 use iam_service::service::{PermissionService, RoleService};
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
+use std::sync::Arc;
 use testcontainers::ImageExt;
 use testcontainers_modules::{
     mysql::Mysql, redis::Redis, testcontainers::runners::AsyncRunner,
@@ -78,7 +80,8 @@ async fn setup() -> Ctx {
     };
 
     let cache = MemoryCache::new(10000);
-    let state = AppState::new(pool, cache, config, Some(mgr.clone()));
+    let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
+    let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo);
     Ctx {
         state,
         redis: mgr,

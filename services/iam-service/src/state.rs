@@ -1,5 +1,6 @@
 use sqlx::mysql::MySqlPool;
 use common_cache::MemoryCache;
+use common_event::MySqlOutboxRepo;
 use std::sync::Arc;
 use crate::config::Config;
 
@@ -11,6 +12,7 @@ pub struct AppState {
     pub redis: Option<redis::aio::ConnectionManager>,
     pub redis_prefix: String,
     pub perm_epoch_ttl_sec: u64,
+    pub outbox_repo: Arc<MySqlOutboxRepo>,
 }
 
 impl AppState {
@@ -19,6 +21,7 @@ impl AppState {
         cache: MemoryCache,
         config: Config,
         redis: Option<redis::aio::ConnectionManager>,
+        outbox_repo: Arc<MySqlOutboxRepo>,
     ) -> Self {
         let redis_prefix = config.redis.prefix.clone();
         let perm_epoch_ttl_sec = config.jwt.access_token_ttl_minutes * 60;
@@ -29,6 +32,7 @@ impl AppState {
             redis,
             redis_prefix,
             perm_epoch_ttl_sec,
+            outbox_repo,
         }
     }
 }
