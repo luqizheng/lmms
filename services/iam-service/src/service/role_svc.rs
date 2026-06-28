@@ -210,7 +210,7 @@ impl RoleService {
             .await?;
         for permission_id in &permission_ids {
             sqlx::query(
-                "INSERT INTO iam_role_permissions (role_id, permission_id) VALUES (?, ?)",
+                "INSERT INTO iam_role_permissions (role_id, permission_id, created_at) VALUES (?, ?, NOW())",
             )
             .bind(role_id)
             .bind(permission_id)

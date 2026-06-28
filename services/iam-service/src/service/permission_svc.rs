@@ -176,13 +176,19 @@ impl PermissionService {
         };
 
         let mut tx = self.state.db.begin().await?;
-        let result: PermissionRow = sqlx::query_as(
-            "UPDATE iam_permissions SET name = ?, description = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? RETURNING id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at",
+        sqlx::query(
+            "UPDATE iam_permissions SET name = ?, description = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ?",
         )
         .bind(&name)
         .bind(&description)
         .bind(sort_order)
         .bind(&status)
+        .bind(permission_id)
+        .execute(&mut *tx)
+        .await?;
+        let result: PermissionRow = sqlx::query_as(
+            "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE id = ?",
+        )
         .bind(permission_id)
         .fetch_one(&mut *tx)
         .await?;
