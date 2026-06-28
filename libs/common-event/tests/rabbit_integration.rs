@@ -114,7 +114,7 @@ async fn outbox_loop_publishes_and_consumer_receives() {
 
     // Enqueue an event into the outbox.
     let repo = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
-    let env = Envelope::new(
+    let mut env = Envelope::new(
         "iam-service",
         IamUserCreated {
             user_id: "u1".to_string(),
@@ -124,7 +124,7 @@ async fn outbox_loop_publishes_and_consumer_receives() {
         },
     );
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut tx, &env).await.unwrap();
+    repo.enqueue(&mut tx, &mut env).await.unwrap();
     tx.commit().await.unwrap();
 
     // Run the outbox publisher once — it should publish the pending row.

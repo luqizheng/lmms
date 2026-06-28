@@ -50,7 +50,7 @@ async fn enqueue_then_claim_then_mark_published_round_trip() {
     let (pool, _container) = make_pool().await;
     let repo = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
 
-    let env = Envelope::new(
+    let mut env = Envelope::new(
         "iam-service",
         IamUserCreated {
             user_id: "u1".to_string(),
@@ -60,7 +60,7 @@ async fn enqueue_then_claim_then_mark_published_round_trip() {
         },
     );
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut tx, &env).await.unwrap();
+    repo.enqueue(&mut tx, &mut env).await.unwrap();
     tx.commit().await.unwrap();
 
     let batch = repo.claim_batch(10).await.unwrap();
@@ -80,7 +80,7 @@ async fn enqueue_is_idempotent_on_duplicate_event_id() {
     let (pool, _container) = make_pool().await;
     let repo = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
 
-    let env = Envelope::new(
+    let mut env = Envelope::new(
         "iam-service",
         IamUserCreated {
             user_id: "u1".to_string(),
@@ -90,12 +90,12 @@ async fn enqueue_is_idempotent_on_duplicate_event_id() {
         },
     );
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut tx, &env).await.unwrap();
+    repo.enqueue(&mut tx, &mut env).await.unwrap();
     tx.commit().await.unwrap();
 
     // Second enqueue with same event_id should be a no-op (UNIQUE key)
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut tx, &env).await.unwrap();
+    repo.enqueue(&mut tx, &mut env).await.unwrap();
     tx.commit().await.unwrap();
 
     let batch = repo.claim_batch(10).await.unwrap();
