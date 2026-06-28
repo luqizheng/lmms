@@ -18,8 +18,9 @@ use api_gateway::{
     blacklist, middleware, router, routes_loader, AppState, GatewayConfig, JwtValidator,
     RouteConfig, RouteTable, RouterConfig, ServiceDiscovery,
 };
+use api_gateway::resilience_metrics::GatewayMetricsObserver;
 use cli::{Cli, Cmd};
-use common_http::{NoopObserver, ResilientClient};
+use common_http::ResilientClient;
 
 fn find_and_render(
     routes: &[RouteConfig],
@@ -168,7 +169,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     let resilient = Arc::new(ResilientClient::new(
         reqwest::Client::new(),
         cfg.resilience.clone(),
-        Arc::new(NoopObserver),
+        Arc::new(GatewayMetricsObserver),
     ));
     let router_cfg = Arc::new(RouterConfig {
         discovery: discovery.clone(),

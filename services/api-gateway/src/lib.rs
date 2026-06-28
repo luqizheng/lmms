@@ -7,6 +7,7 @@ pub mod middleware;
 pub mod openapi;
 pub mod perm_consumer;
 pub mod perm_epoch;
+pub mod resilience_metrics;
 pub mod router;
 pub mod routes_loader;
 pub mod template;
