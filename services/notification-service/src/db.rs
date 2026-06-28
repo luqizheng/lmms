@@ -6,6 +6,7 @@ use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::Row;
 use std::collections::HashSet;
+use std::sync::Arc;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/2026_06_10_init.sql");
@@ -17,6 +18,7 @@ const SCHEMA_MARKER_TABLE: &str = "ntf_announcements";
 #[derive(Clone)]
 pub struct Db {
     pub pool: MySqlPool,
+    pub outbox_repo: Arc<MySqlOutboxRepo>,
 }
 
 impl Db {
@@ -25,7 +27,11 @@ impl Db {
             .max_connections(max)
             .connect(url)
             .await?;
-        Ok(Self { pool })
+        let outbox_repo = Arc::new(MySqlOutboxRepo::with_table(
+            pool.clone(),
+            "ntf_outbox_events",
+        ));
+        Ok(Self { pool, outbox_repo })
     }
 
     pub async fn ensure_schema(&self) -> anyhow::Result<()> {
@@ -320,7 +326,7 @@ impl Db {
                 user_ids: serde_json::json!(user_ids),
             },
         );
-        MySqlOutboxRepo::with_table(self.pool.clone(), "ntf_outbox_events")
+        self.outbox_repo.clone()
             .enqueue(&mut tx, &envelope)
             .await
             .map_err(|e| AppError::from(anyhow::anyhow!("outbox enqueue: {e}")))?;
