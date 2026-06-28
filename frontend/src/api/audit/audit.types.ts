@@ -24,7 +24,7 @@ export interface PagedOperationLogs {
 
 export interface LoginLog {
   id: number;
-  user_id?: string;
+  user_id: string;
   username: string;
   success: boolean;
   fail_reason?: string;
