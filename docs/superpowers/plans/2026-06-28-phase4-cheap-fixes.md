@@ -438,30 +438,65 @@ git commit -m "fix(audit): block-on-disconnect for audit.iam-events durable cons
 
 - [ ] **Step 1: 写失败测试（覆盖 create 路径）**
 
-创建文件 `services/iam-service/tests/permission_create_test.rs`：
+创建文件 `services/iam-service/tests/permission_create_test.rs`（**完整代码**，直接复制使用）：
 
 ```rust
-//! Integration test for `PermissionService::create` — covers the
-//! INSERT...RETURNING MySQL-8.0 incompatibility that 4.4 task 8 missed.
-//! Real MySQL via testcontainers (same pattern as the 4.4 task-8 integration
-//! tests).
+//! Phase 4.4-fu4 integration test: covers `PermissionService::create` —
+//! the INSERT...RETURNING MySQL-8.0 incompatibility that 4.4 task 8 missed.
+//!
+//! Same testcontainer pattern as `permission_changed_test.rs` (4.4 task 8):
+//! real MySQL via testcontainers, apply iam schema, drive
+//! `PermissionService::create`, assert the round-trip succeeds and the
+//! returned row matches.
 
+use iam_service::config::{
+    AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
+};
+use iam_service::db;
 use iam_service::service::permission_svc::{CreatePermissionRequest, PermissionService};
+use iam_service::state::AppState;
+use common_cache::MemoryCache;
 use serial_test::serial;
-use sqlx::mysql::MySqlPool;
+use testcontainers::ImageExt;
+use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
 
-async fn setup_pool() -> MySqlPool {
-    // testcontainers MySQL — see existing iam-service integration tests for
-    // the shared helper (testcontainers is a dev-dependency).
-    todo!("use the same testcontainer fixture as the 4.4 task-8 tests in this crate")
+async fn setup_pool() -> sqlx::MySqlPool {
+    let mysql_c = Mysql::default()
+        .with_cmd(["--innodb-use-native-aio=0"])
+        .start()
+        .await
+        .unwrap();
+    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
+    let my_host = mysql_c.get_host().await.unwrap();
+    let url = format!("mysql://root@{my_host}:{my_port}/test");
+    let pool = common::db::connect(&url, 5).await.unwrap();
+    db::ensure_schema(&pool).await.unwrap();
+    pool
+}
+
+fn make_state(pool: sqlx::MySqlPool) -> AppState {
+    let config = Config {
+        app: AppConfig { name: "iam-service".into(), host: "0.0.0.0".into(), port: 8080 },
+        database: DatabaseConfig { url: "unused".into(), max_connections: 5, min_connections: 1 },
+        redis: RedisConfig { url: "redis://127.0.0.1:6379".into(), ttl_sec: 86400, prefix: "superpowers:".into() },
+        jwt: JwtConfig {
+            private_key_path: "/app/keys/private.pem".into(),
+            public_key_path: "/app/keys/public.pem".into(),
+            access_token_ttl_minutes: 15,
+            refresh_token_ttl_days: 7,
+        },
+        consul: ConsulConfig { host: "consul".into(), port: 8500, service_name: "iam-service".into() },
+    };
+    let cache = MemoryCache::new(10000);
+    // pass `None` for redis mgr — create path doesn't touch perm_epoch.
+    AppState::new(pool, cache, config, None)
 }
 
 #[tokio::test]
 #[serial]
 async fn create_permission_round_trip() {
     let pool = setup_pool().await;
-    // ensure_schema applied by the fixture
-    let state = iam_service::state::AppState::for_test(pool).await;
+    let state = make_state(pool);
     let svc = PermissionService::new(state);
 
     let req = CreatePermissionRequest {
@@ -476,29 +511,29 @@ async fn create_permission_round_trip() {
     };
 
     let resp = svc.create(req).await.expect("create should succeed under MySQL 8.0");
-    assert!(!resp.id.is_empty());
+    assert!(!resp.id.is_empty(), "id must be populated");
     assert_eq!(resp.status, "enabled");
     assert_eq!(resp.name, "Test permission");
+    assert_eq!(resp.code.starts_with("test.perm."), true);
 }
 ```
 
 **说明**：
-- `todo!()` 占位实现待 Step 4 填（与现有 4.4 task 8 测试相同的 testcontainer 共享 fixture；如该 fixture 不可见，本 task 不强求自动化测试落地，仅手动 `cargo build -p iam-service` + 手 POST 验证）。
-- `AppState::for_test` 是为测试而存在的方法，若无则需在该 task 中新增（参考现有 iam-service 测试）。
-- `serial_test` + `#[serial]` 防止 testcontainer 共享状态干扰。
+- 模板复制自 `services/iam-service/tests/permission_changed_test.rs`（4.4 task 8 已落地）
+- 若 `AppState::new` 签名不一致，参考该 file line 81 的实际用法微调（最常见：redis mgr 是 `Option<redis::aio::ConnectionManager>`，create 路径不需要，传 `None`）
+- `serial_test` + `#[serial]` 防止 testcontainer 共享状态干扰（与 4.4 task 8 同款）
+- 若 `cargo test -p iam-service --test permission_create_test` 跑时 `AppState::new` 字段不匹配，按编译错误调整
 
-> **务实 fallback**（推荐）：如果 task 1 grep 后发现没有现成 testcontainer fixture，改为**只跑手测**：注释掉 `setup_pool()` 中的 `todo!()`，把整个 test 函数改为 `#[ignore]` + 手测 doc 注释。本 task 主要目的是**让代码不挂 RETURNING**，测试是 bonus。
-
-- [ ] **Step 2: 运行测试验证失败（前提是 Step 1 用了真 fixture）**
+- [ ] **Step 2: 运行测试验证失败**
 
 Run:
 ```bash
 cd /home/kudi/projects/templates/low-memory-micro-services
 cargo test -p iam-service --test permission_create_test
 ```
-预期（若用了 testcontainer fixture）：**FAIL** with `MySQL error: ... syntax error near "RETURNING"` 或类似 sqlx mysql 不支持 RETURNING 的错误。
+预期：**FAIL** with `MySQL error: ... syntax error near "RETURNING"` 或类似 sqlx mysql 不支持 RETURNING 的错误（因为 Step 3 还没改）。
 
-如果用了 Step 1 的 fallback（`#[ignore]`），跳过本步。
+如果 testcontainer 启动失败 / StartupTimeout（与 4.4 task 8 已知 flake 同类），跑 `cargo test -p iam-service --test permission_create_test -- --test-threads=1` 重试。
 
 - [ ] **Step 3: 实现修复（INSERT + re-SELECT + tx）**
 
@@ -561,9 +596,7 @@ Run:
 cd /home/kudi/projects/templates/low-memory-micro-services
 cargo test -p iam-service --test permission_create_test
 ```
-预期：
-- 若 Step 1 用了 testcontainer fixture：**PASS**
-- 若用了 `#[ignore]` fallback：测试被跳过，0 失败
+预期：**PASS**（testcontainers 启动 + schema apply + INSERT + SELECT + commit 全通，无 RETURNING 错误）。
 
 - [ ] **Step 6: 全量 iam-service 测试**
 
