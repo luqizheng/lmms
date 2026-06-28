@@ -63,6 +63,15 @@ pub async fn auth_middleware(
         return (StatusCode::UNAUTHORIZED, "Token revoked").into_response();
     }
 
+    if crate::perm_epoch::check_revoked(&mut conn, &state.redis_prefix, &claims.sub, claims.iat).await
+    {
+        return (
+            StatusCode::UNAUTHORIZED,
+            "permissions changed, re-authenticate",
+        )
+            .into_response();
+    }
+
     tracing::debug!(
         "authenticated user={} scope={} jti={}",
         claims.sub,
