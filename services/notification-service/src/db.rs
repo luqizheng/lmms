@@ -246,7 +246,7 @@ impl Db {
     ///
     /// ```text
     /// publish_announcement(ann_id)  ── ONE TX ──
-    ///   1. SELECT ... FOR UPDATE 锁行；非未发布状态 → 幂等返回 Ok(vec![])
+    ///   1. SELECT ... FOR UPDATE 锁行；status ∈ {published, revoked} → 幂等返回 Ok(vec![])（draft/scheduled 继续）
     ///   2. SELECT scope_type='user' recipients → user_ids（role/dept 仅 warn 跳过）
     ///   3. INSERT IGNORE deliveries（每 user_id）
     ///   4. UPDATE status='published'

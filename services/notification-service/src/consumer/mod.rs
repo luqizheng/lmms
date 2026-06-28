@@ -63,7 +63,17 @@ pub async fn announcement_run(hub: WsHub, event_bus_url: String) -> anyhow::Resu
     let backoff = Duration::from_secs(5);
     loop {
         match ann_try_subscribe(hub.clone(), &event_bus_url).await {
-            Ok(()) => tokio::time::sleep(Duration::from_secs(30)).await,
+            Ok(consumer) => {
+                // Hold the consumer (and thus its ephemeral queue + connection)
+                // alive, polling connection health. Re-subscribe ONLY on an
+                // actual disconnect — never on a timer — otherwise each cycle
+                // would orphan a fresh server-named exclusive queue (the
+                // auto-delete queue only disappears when its connection drops).
+                while consumer.connection().status().connected() {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+                warn!("announcement consumer connection lost, resubscribing");
+            }
             Err(e) => {
                 warn!(error = %e, "announcement consumer subscribe failed, retry in 5s");
                 tokio::time::sleep(backoff).await;
@@ -72,7 +82,7 @@ pub async fn announcement_run(hub: WsHub, event_bus_url: String) -> anyhow::Resu
     }
 }
 
-async fn ann_try_subscribe(hub: WsHub, event_bus_url: &str) -> anyhow::Result<()> {
+async fn ann_try_subscribe(hub: WsHub, event_bus_url: &str) -> anyhow::Result<RabbitMqConsumer> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
     consumer
         .subscribe_ephemeral::<NotificationAnnouncementPublished, _, _>(
@@ -84,5 +94,5 @@ async fn ann_try_subscribe(hub: WsHub, event_bus_url: &str) -> anyhow::Result<()
         )
         .await?;
     info!("announcement consumer subscribed (ephemeral) to {}", ANN_BINDING);
-    Ok(())
+    Ok(consumer)
 }
