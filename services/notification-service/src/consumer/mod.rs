@@ -25,8 +25,17 @@ pub async fn run(
     let backoff = Duration::from_secs(5);
     loop {
         match try_subscribe(pool.clone(), redis.clone(), hub.clone(), &event_bus_url).await {
-            Ok(()) => {
-                tokio::time::sleep(Duration::from_secs(30)).await;
+            Ok(consumer) => {
+                // Hold the consumer (and thus its durable queue + connection)
+                // alive, polling connection health. Re-subscribe ONLY on an
+                // actual disconnect — never on a timer — otherwise each cycle
+                // would redundantly queue_declare/bind/consume on a healthy
+                // broker (durable queue is idempotent, so no leak, but pure
+                // churn).
+                while consumer.connection().status().connected() {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+                warn!("notification consumer connection lost, resubscribing");
             }
             Err(e) => {
                 warn!(error = %e, "notification consumer subscribe failed, retry in 5s");
@@ -41,7 +50,7 @@ async fn try_subscribe(
     redis: RedisCli,
     hub: WsHub,
     event_bus_url: &str,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<RabbitMqConsumer> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
     consumer
         .subscribe::<IamUserCreated, _, _>(
@@ -56,7 +65,7 @@ async fn try_subscribe(
         )
         .await?;
     info!("notification consumer subscribed to {} ({})", QUEUE_NAME, BINDING);
-    Ok(())
+    Ok(consumer)
 }
 
 pub async fn announcement_run(hub: WsHub, event_bus_url: String) -> anyhow::Result<()> {
