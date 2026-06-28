@@ -1,0 +1,70 @@
+//! gateway 兜底 consumer：订阅 iam.permission.changed，set-if-greater 补写 perm_epoch。
+//! 关闭 iam 直写的 fail-open 窗口。使用 event.occurred_at 作为 epoch 值（与 iam 直写同时间基准）。
+use common_event::events::IamPermissionChanged;
+use common_event::perm_epoch::set_perm_epoch_if_greater;
+use common_event::{Consumer, ConsumeError, Envelope, HandlerError, RabbitMqConsumer};
+use redis::aio::MultiplexedConnection;
+use std::time::Duration;
+use tracing::{info, warn};
+
+const BINDING: &str = "iam.permission.changed";
+
+pub async fn run(
+    conn: MultiplexedConnection,
+    prefix: String,
+    ttl_sec: u64,
+    event_bus_url: String,
+) -> Result<(), ConsumeError> {
+    let backoff = Duration::from_secs(5);
+    loop {
+        match try_subscribe(conn.clone(), prefix.clone(), ttl_sec, &event_bus_url).await {
+            Ok(consumer) => {
+                // Hold the consumer (and thus its ephemeral queue + connection)
+                // alive, polling connection health. Re-subscribe ONLY on an
+                // actual disconnect — never on a timer — otherwise each cycle
+                // would orphan a fresh server-named exclusive queue.
+                while consumer.connection().status().connected() {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+                warn!("perm_epoch consumer connection lost, resubscribing");
+            }
+            Err(e) => {
+                warn!(error = %e, "perm_epoch consumer subscribe failed, retry in 5s");
+                tokio::time::sleep(backoff).await;
+            }
+        }
+    }
+}
+
+async fn try_subscribe(
+    conn: MultiplexedConnection,
+    prefix: String,
+    ttl_sec: u64,
+    url: &str,
+) -> Result<RabbitMqConsumer, ConsumeError> {
+    let consumer = RabbitMqConsumer::new(url).await?;
+    consumer
+        .subscribe_ephemeral::<IamPermissionChanged, _, _>(
+            &[BINDING],
+            move |env: Envelope<IamPermissionChanged>| {
+                let mut conn = conn.clone();
+                let prefix = prefix.clone();
+                async move {
+                    let users: Vec<String> =
+                        serde_json::from_value(env.payload.user_ids.clone()).unwrap_or_default();
+                    let ts = env.occurred_at.timestamp();
+                    for uid in users {
+                        if let Err(e) =
+                            set_perm_epoch_if_greater(&mut conn, &prefix, &uid, ts, ttl_sec).await
+                        {
+                            warn!(error = %e, uid, "perm_epoch backfill failed");
+                        }
+                    }
+                    Ok::<(), HandlerError>(())
+                }
+            },
+        )
+        .await?;
+    info!("perm_epoch consumer subscribed (ephemeral) to {}", BINDING);
+    Ok(consumer)
+}

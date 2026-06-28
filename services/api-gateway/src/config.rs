@@ -41,6 +41,17 @@ fn default_routes_dir() -> String {
     "/app/config/routes".into()
 }
 
+fn default_event_bus_url() -> String {
+    "amqp://guest:guest@localhost:5672/%2f".into()
+}
+
+/// Default perm_epoch TTL in seconds (900 = 15min). MUST align with iam's
+/// `access_token_ttl_minutes` (15) — the epoch only needs to outlive the
+/// longest-lived access token it could invalidate.
+fn default_perm_epoch_ttl_sec() -> u64 {
+    900
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct GatewayConfig {
     #[serde(default)]
@@ -58,6 +69,11 @@ pub struct GatewayConfig {
     #[serde(default = "default_routes_dir")]
     pub routes_dir: String,
 
+    #[serde(default = "default_event_bus_url")]
+    pub event_bus_url: String,
+    #[serde(default = "default_perm_epoch_ttl_sec")]
+    pub perm_epoch_ttl_sec: u64,
+
     #[serde(default)]
     pub routes: Vec<RouteConfig>,
 }
@@ -74,6 +90,8 @@ impl Default for GatewayConfig {
             jwks_url: "http://127.0.0.1:4000/.well-known/jwks.json".into(),
             issuer: "superpowers-token-server".into(),
             routes_dir: default_routes_dir(),
+            event_bus_url: default_event_bus_url(),
+            perm_epoch_ttl_sec: default_perm_epoch_ttl_sec(),
             routes: Vec::new(),
         }
     }

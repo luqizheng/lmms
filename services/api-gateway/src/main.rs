@@ -204,6 +204,20 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         ),
     });
 
+    // Phase 4.4: backfill consumer — subscribe iam.permission.changed and
+    // set-if-greater perm_epoch, closing iam's direct-write fail-open window.
+    {
+        let conn = state.redis_conn.clone();
+        let prefix = cfg.redis.prefix.clone();
+        let ttl = cfg.perm_epoch_ttl_sec;
+        let url = cfg.event_bus_url.clone();
+        tokio::spawn(async move {
+            if let Err(e) = api_gateway::perm_consumer::run(conn, prefix, ttl, url).await {
+                tracing::warn!("perm_epoch consumer exited: {e}");
+            }
+        });
+    }
+
     async fn metrics() -> axum::response::Html<String> {
         let encoder = TextEncoder::new();
         let metric_families = prometheus::gather();
