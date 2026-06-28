@@ -81,16 +81,23 @@
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
-- [ ] **mTLS / 服务网格**
+> **已拆分为两个独立子项目（2026-06-28 brainstorm + plan-review）：**
+> - **A = mTLS / 服务网格**：待 brainstorm，无 spec。重型，涉及基础设施选型（证书分发、部署形态）。
+> - **B = 韧性三件套**：spec 已就绪 + review 结论已 bake，见
+>   `docs/superpowers/specs/2026-06-28-phase5-resilience-triad-design.md`，待 writing-plans。
+
+- [ ] **A — mTLS / 服务网格**（独立子项目，待 brainstorm）
   - [ ] 评估 Consul Connect vs Linkerd2（侧重内存占用与运维复杂度）
   - [ ] 服务间通信切换为 mTLS（rustls 已就位）
   - [ ] 淘汰应用层 `require_service_token` 方案
 
-- [ ] **韧性三件套（在 `libs/common-http` 里以 `tower::Layer` 形式集成）**
-  - [ ] 全局超时（`TimeoutLayer`，默认 3s 可配）
-  - [ ] 幂等方法自动重试（`RetryLayer` + 指数退避 + jitter）
-  - [ ] 熔断器（`failsafe-rs` 或自实现 closed / open / half-open 三态）
-  - [ ] gateway 对每个下游 service 一个独立 breaker，状态通过 metrics 暴露
+- [ ] **B — 韧性三件套**（spec 已就绪，待 plan + 实现）
+  - [ ] 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
+  - [ ] 本期接 gateway `forward_to_service`：每下游 service 独立 breaker，状态经 `ResilienceObserver` → Prometheus
+  - [ ] 删除并重写未使用的韧性脚手架（axum/benchmarks/rate_limit/middleware/service_discovery/circuit_breaker/retry/config）
+  - [ ] **B-fu1** 韧性三件套扩面到其余服务间直调（token→user、各服务 `common-http::HttpClient` / `common::http::client()` 调用点）。
+        当前仅 gateway outbound 受保护；服务间直调仍裸 reqwest。依赖：B 实现完成。起点：grep `common-http::HttpClient` 与 `common/src/http.rs::client()` 调用方。
+
 
 ### Phase 6 — 配置 & 可观测性补齐（P1）
 

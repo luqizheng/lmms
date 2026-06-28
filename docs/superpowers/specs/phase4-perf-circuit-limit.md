@@ -1,5 +1,10 @@
 # Phase 4: 性能压测与熔断限流
 
+> **⚠️ SUPERSEDED（2026-06-28）by `2026-06-28-phase5-resilience-triad-design.md`。**
+> 本文描述的 `common-http` 熔断/限流/重试脚手架从未被任何 service 接入，且 `CircuitBreaker::is_available`
+> 的 Open 态计时有 bug。Phase 5-B 已决定删除并重写为 `ResilientClient`（包 reqwest，gateway outbound）。
+> 本文仅作历史参考，不代表当前实现。
+
 > 完成日期：2026-06-14
 
 ## 熔断器 (Circuit Breaker)
