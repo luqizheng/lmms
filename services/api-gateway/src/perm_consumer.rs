@@ -1,5 +1,8 @@
 //! gateway 兜底 consumer：订阅 iam.permission.changed，set-if-greater 补写 perm_epoch。
 //! 关闭 iam 直写的 fail-open 窗口。使用 event.occurred_at 作为 epoch 值（与 iam 直写同时间基准）。
+//!
+//! Redis SETEX 失败 → HandlerError::Transient：让 broker 重投（bounded 3 次后升 DLQ）。
+//! 之前 swallow 返 Ok 已被 Phase 6-A T3 禁用。
 use common_event::events::IamPermissionChanged;
 use common_event::perm_epoch::set_perm_epoch_if_greater;
 use common_event::{Consumer, ConsumeError, Envelope, HandlerError, RabbitMqConsumer};
@@ -54,11 +57,12 @@ async fn try_subscribe(
                         serde_json::from_value(env.payload.user_ids.clone()).unwrap_or_default();
                     let ts = env.occurred_at.timestamp();
                     for uid in users {
-                        if let Err(e) =
-                            set_perm_epoch_if_greater(&mut conn, &prefix, &uid, ts, ttl_sec).await
-                        {
-                            warn!(error = %e, uid, "perm_epoch backfill failed");
-                        }
+                        set_perm_epoch_if_greater(&mut conn, &prefix, &uid, ts, ttl_sec)
+                            .await
+                            .map_err(|e| {
+                                warn!(error = %e, uid, "perm_epoch backfill failed (will be retried)");
+                                HandlerError::Transient(format!("perm_epoch setex: {e}"))
+                            })?;
                     }
                     Ok::<(), HandlerError>(())
                 }
