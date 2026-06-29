@@ -12,6 +12,7 @@
 | `token-server-user-sdk` | `com.kudi.coder:token-server-user-sdk` | 终端用户登录 + `token-service`（刷新 / 撤销 / 资源令牌） |
 | `token-server-client-sdk` | `com.kudi.coder:token-server-client-sdk` | 服务间 `client_credentials` 调用 `token-service` |
 | `kudi-http-client` | `com.kudi.coder:kudi-http-client` | 轻量 HTTP 客户端，JWT 透传模型，适合无专属 SDK 的下游服务 |
+| `audit-service-sdk` | `com.kudi.coder:audit-service-sdk` | 业务侧 → `audit-service`（上报事件、查日志、列事件类型） |
 
 > artifact ID 沿用历史命名（`user-service` / `token-server`），但实际打通的服务已经是合并后的 `iam-service` 和 `token-service`。后续大版本再考虑 artifact 重命名。
 
