@@ -1,29 +1,8 @@
 {
   "services": [
     {
-      "name": "token-service",
-      "address": "token-service",
-      "port": 8080,
-      "check": {
-        "name": "http",
-        "http": "http://token-service:8080/health",
-        "interval": "10s",
-        "timeout": "5s"
-      }
-    },
-    {
-      "name": "iam-service",
-      "address": "iam-service",
-      "port": 8080,
-      "check": {
-        "name": "http",
-        "http": "http://iam-service:8080/health",
-        "interval": "10s",
-        "timeout": "5s"
-      }
-    },
-    {
       "name": "prue_backend",
+      "id": "prue_backend",
       "address": "prue_backend",
       "port": 8080,
       "check": {
@@ -31,6 +10,34 @@
         "http": "http://prue_backend:8080/health",
         "interval": "10s",
         "timeout": "5s"
+      },
+      "connect": {
+        "sidecar_service": {}
+      }
+    },
+    {
+      "name": "api-gateway",
+      "id": "api-gateway",
+      "address": "api-gateway",
+      "port": 3000,
+      "check": {
+        "name": "http",
+        "http": "http://api-gateway:3000/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "connect": {
+        "sidecar_service": {
+          "proxy": {
+            "upstreams": [
+              { "destination_name": "iam-service",          "local_bind_port": 18001 },
+              { "destination_name": "token-service",        "local_bind_port": 18002 },
+              { "destination_name": "notification-service", "local_bind_port": 18003 },
+              { "destination_name": "audit-service",        "local_bind_port": 18004 },
+              { "destination_name": "prue_backend",         "local_bind_port": 18005 }
+            ]
+          }
+        }
       }
     }
   ]
