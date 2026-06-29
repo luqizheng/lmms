@@ -174,12 +174,25 @@
 - 全部 task 实施 + review Approved
 - 已知 follow-up（T2-fu1~4, T3-fu1~4, T4-fu1~2）已挂 TODO，单独迭代
 
-### Phase 6-B — 配置 & 可观测性补齐（P1，Phase 6-A 后顺接）
+### Phase 6-B — Config-Service 自举（Dogfooding，P1）
 
-- [ ] **config-service 自举（dogfooding）**
-  - [ ] `libs/common-config` 新增 ConfigService Provider，启动拉取 + 长轮询/SSE watch
-  - [ ] 所有服务从读本地 yaml 切到读 config-service（保留本地兜底）
-  - [ ] 敏感配置分离到 Vault / Consul KV + age 加密
+> Spec: `docs/superpowers/specs/2026-06-29-phase6b-config-service-dogfood-design.md`
+> Plan: `docs/superpowers/plans/2026-06-29-phase6b-config-service-dogfood.md`
+> 策略：token-service 作为第一个 dogfood 服务；其余后续。
+
+- [ ] **T1 — `libs/common-config` 加 `ConfigServiceProvider`**
+  - [ ] 新增 `config-service` feature + `ConfigServiceProvider`（HTTP 拉 `/config/export/:ns`）
+  - [ ] wiremock 3 个单元测试（200-ok / 404-err / invalid-json-err）
+
+- [ ] **T2 — `Loader` 集成 provider + 热更新 watch**
+  - [ ] `with_config_service(url, ns)` builder
+  - [ ] `load()` 内：file base → config-service override → env override
+  - [ ] `watch_config()` 后台 30s 轮询 + `serde_json` diff + `HotConfig::update`
+
+- [ ] **T3 — token-service 第一个接入**
+  - [ ] `Cargo.toml` 开 `config-service` feature
+  - [ ] `main.rs` 用 `Loader::new("TOKEN").with_config_service(...).with_file(...).load()` 替代直接 yaml 加载
+  - [ ] `test-case/65-config-service-dogfood.md` 手工验收
 
 ### Phase 7 — 生产级部署（P2）
 
