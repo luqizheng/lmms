@@ -21,7 +21,8 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
     public static final String REQUEST_ID_ATTR = "kudi.requestId";
 
     private static final List<String> WHITELIST = Arrays.asList(
-            "/demo/auth/login",
+            "/demo/auth/jwks",
+            "/demo/auth/me",
             "/demo/perm/public",
             "/error"
     );

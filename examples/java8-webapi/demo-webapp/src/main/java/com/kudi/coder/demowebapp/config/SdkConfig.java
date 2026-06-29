@@ -2,6 +2,8 @@ package com.kudi.coder.demowebapp.config;
 
 import com.kudi.coder.auditsdk.AuditServiceClient;
 import com.kudi.coder.httpclient.KudiHttpClient;
+import com.kudi.coder.sdk.token.TokenServerUserClient;
+import com.kudi.coder.sdk.user.UserServiceUserClient;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +26,22 @@ public class SdkConfig {
         // Gateway base URL lives in KudiCoderProperties.gateway.baseUrl and is composed
         // by callers (controllers) when issuing requests.
         return KudiHttpClient.create();
+    }
+
+    @Bean
+    public UserServiceUserClient userServiceUserClient(KudiCoderProperties p) {
+        return UserServiceUserClient.login(
+                p.getGateway().getBaseUrl(),
+                p.getIam().getUsername(),
+                p.getIam().getPassword());
+    }
+
+    @Bean
+    public TokenServerUserClient tokenServerUserClient(KudiCoderProperties p) {
+        return TokenServerUserClient.login(
+                p.getGateway().getBaseUrl(),
+                p.getIam().getUsername(),
+                p.getIam().getPassword());
     }
 
     @Bean
