@@ -1,0 +1,41 @@
+package com.kudi.coder.demowebapp.config;
+
+import com.kudi.coder.auditsdk.AuditServiceClient;
+import com.kudi.coder.httpclient.KudiHttpClient;
+import org.slf4j.MDC;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.function.Supplier;
+
+@Configuration
+public class SdkConfig {
+
+    @Bean
+    public AuditServiceClient auditClient(KudiCoderProperties p) {
+        Supplier<String> bearer = () -> null;
+        return new AuditServiceClient(p.getGateway().getBaseUrl(), bearer);
+    }
+
+    @Bean
+    public KudiHttpClient kudiHttpClient() {
+        // KudiHttpClient is stateless w.r.t. base URL: each call passes a full URL.
+        // Gateway base URL lives in KudiCoderProperties.gateway.baseUrl and is composed
+        // by callers (controllers) when issuing requests.
+        return KudiHttpClient.create();
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        RestTemplate rt = new RestTemplate();
+        rt.getInterceptors().add((req, body, ex) -> {
+            String rid = MDC.get("requestId");
+            if (rid != null) {
+                req.getHeaders().add("X-Request-Id", rid);
+            }
+            return ex.execute(req, body);
+        });
+        return rt;
+    }
+}
