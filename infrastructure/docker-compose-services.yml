@@ -15,6 +15,8 @@ x-sidecar-env: &sidecar-env
   DP_ENVOY_READY_BIND_ADDR: 0.0.0.0
   DP_ENVOY_READY_BIND_PORT: "20100"
   DP_ENVOY_CONCURRENCY: "1"
+  DP_SERVICE_NODE_NAME: consul-server
+  DP_TLS_DISABLED: "true"
 
 services:
   api-gateway:
@@ -104,13 +106,12 @@ services:
     build:
       context: ..
       dockerfile: services/iam-service/Dockerfile
-    ports:
-      - "6002:8080"
+    network_mode: service:iam-sidecar
     volumes:
       - ../docker-example/secrets:/app/keys:ro
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
-      SERVER_HOST: "0.0.0.0"
+      SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "8080"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
@@ -119,7 +120,6 @@ services:
       DATABASE_NAME: superpowers
       CONSUL_ADDR: "http://consul:8500"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
-      # OTel tracing — enable when observability overlay is up
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mysql:
@@ -128,8 +128,15 @@ services:
         condition: service_healthy
       consul:
         condition: service_healthy
-    networks:
-      - superpowers
+      iam-sidecar:
+        condition: service_started
+
+  iam-sidecar:
+    <<: *sidecar-defaults
+    environment:
+      <<: *sidecar-env
+      DP_PROXY_SERVICE_ID: iam-service-sidecar-proxy
+    ports: ["6002:20000"]
 
   iam-outbox-publisher:
     build:
