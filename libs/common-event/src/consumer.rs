@@ -4,16 +4,75 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use lapin::{
     options::{
-        BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicQosOptions,
-        ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
+        BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions,
+        BasicQosOptions, ConfirmSelectOptions, ExchangeDeclareOptions, QueueBindOptions,
+        QueueDeclareOptions,
     },
-    types::FieldTable,
-    Connection, ConnectionProperties, ExchangeKind,
+    types::{AMQPValue, FieldTable},
+    BasicProperties, Channel, Connection, ConnectionProperties, ExchangeKind,
 };
 
 use crate::envelope::Envelope;
 use crate::error::{ConsumeError, HandlerError};
 use crate::event::Event;
+
+const REDELIVERY_LIMIT: i64 = 3;
+const REDELIVERY_HEADER: &str = "x-redelivery-count";
+
+/// Read the broker header `x-redelivery-count` from a delivery's properties.
+/// Returns 0 if the header is missing or malformed (first delivery).
+#[doc(hidden)]
+pub fn get_redelivery_count(headers: &Option<FieldTable>) -> i64 {
+    headers
+        .as_ref()
+        .and_then(|h| h.inner().get(REDELIVERY_HEADER))
+        .and_then(|v| match v {
+            AMQPValue::LongLongInt(n) => Some(*n),
+            AMQPValue::LongInt(n) => Some(*n as i64),
+            _ => None,
+        })
+        .unwrap_or(0)
+}
+
+/// Republish `body` to the same routing-key on the same exchange, with
+/// `x-redelivery-count` header incremented by 1. Waits for publisher
+/// confirm. Returns `Err` on basic_publish failure, confirm nack, or
+/// confirm timeout — caller MUST NOT ack the original delivery in that case.
+async fn republish_with_incremented_count(
+    channel: &Channel,
+    exchange: &str,
+    routing_key: &str,
+    body: &[u8],
+    old_count: i64,
+    message_id: Option<&str>,
+) -> Result<(), lapin::Error> {
+    let mut headers = FieldTable::default();
+    headers.insert(
+        REDELIVERY_HEADER.into(),
+        AMQPValue::LongLongInt(old_count + 1),
+    );
+    let mut props = BasicProperties::default()
+        .with_content_type("application/json".into())
+        .with_delivery_mode(2) // persistent
+        .with_headers(headers);
+    if let Some(mid) = message_id {
+        props = props.with_message_id(mid.to_string().into());
+    }
+    let confirm = channel
+        .basic_publish(
+            exchange,
+            routing_key,
+            BasicPublishOptions { mandatory: true, ..Default::default() },
+            body,
+            props,
+        )
+        .await?
+        .await?;
+    if confirm.is_nack() {
+        return Err(std::io::Error::other("publisher confirm nack").into());
+    }
+    Ok(())
+}
 
 /// Tuning knobs for how a queue is declared and consumed.
 ///
@@ -106,6 +165,10 @@ impl RabbitMqConsumer {
             .await
             .map_err(|e| ConsumeError::Broker(e.to_string()))?;
         channel
+            .confirm_select(ConfirmSelectOptions::default())
+            .await
+            .map_err(|e| ConsumeError::Broker(e.to_string()))?;
+        channel
             .basic_qos(32, BasicQosOptions::default())
             .await
             .map_err(|e| ConsumeError::Broker(e.to_string()))?;
@@ -169,7 +232,7 @@ impl RabbitMqConsumer {
                 .map_err(|e| ConsumeError::Broker(e.to_string()))?;
         }
 
-        let mut consumer = channel
+        let consumer = channel
             .basic_consume(
                 &queue_name,
                 &opts.consumer_tag,
@@ -180,29 +243,76 @@ impl RabbitMqConsumer {
             .map_err(|e| ConsumeError::SubscribeFailed(e.to_string()))?;
 
         let handler = Arc::new(handler);
+        let exchange_name = self.exchange.clone();
+        let channel_clone = channel.clone();
         tokio::spawn(async move {
+            let mut consumer = consumer;
             while let Some(delivery) = consumer.next().await {
                 match delivery {
                     Ok(d) => match serde_json::from_slice::<Envelope<P>>(&d.data) {
-                        Ok(env) => match handler(env).await {
-                            Ok(_) => {
-                                let _ = d.ack(BasicAckOptions::default()).await;
+                        Ok(env) => {
+                            let count = get_redelivery_count(d.properties.headers());
+                            let routing_key = d.routing_key.as_str().to_string();
+                            let body = d.data.clone();
+                            let mid = d
+                                .properties
+                                .message_id()
+                                .as_ref()
+                                .map(|m| m.to_string());
+                            match handler(env).await {
+                                Ok(_) => {
+                                    let _ = d.ack(BasicAckOptions::default()).await;
+                                }
+                                Err(HandlerError::Permanent(msg)) => {
+                                    tracing::warn!(error = %msg, "handler permanent error → DLQ");
+                                    let _ = d
+                                        .nack(BasicNackOptions { requeue: false, ..Default::default() })
+                                        .await;
+                                }
+                                Err(HandlerError::Transient(msg)) => {
+                                    if count >= REDELIVERY_LIMIT {
+                                        tracing::warn!(
+                                            error = %msg,
+                                            count,
+                                            "transient exceeded redelivery limit → DLQ"
+                                        );
+                                        let _ = d
+                                            .nack(BasicNackOptions { requeue: false, ..Default::default() })
+                                            .await;
+                                    } else {
+                                        match republish_with_incremented_count(
+                                            &channel_clone,
+                                            &exchange_name,
+                                            &routing_key,
+                                            &body,
+                                            count,
+                                            mid.as_deref(),
+                                        )
+                                        .await
+                                        {
+                                            Ok(_) => {
+                                                tracing::info!(
+                                                    error = %msg,
+                                                    count = count + 1,
+                                                    "transient → republished"
+                                                );
+                                                let _ = d.ack(BasicAckOptions::default()).await;
+                                            }
+                                            Err(e) => {
+                                                tracing::error!(
+                                                    error = %e,
+                                                    "republish failed; leaving orig for redelivery"
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            Err(_) => {
-                                let _ = d
-                                    .nack(BasicNackOptions {
-                                        requeue: false,
-                                        ..Default::default()
-                                    })
-                                    .await;
-                            }
-                        },
-                        Err(_) => {
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = %e, "envelope deserialization failed → DLQ");
                             let _ = d
-                                .nack(BasicNackOptions {
-                                    requeue: false,
-                                    ..Default::default()
-                                })
+                                .nack(BasicNackOptions { requeue: false, ..Default::default() })
                                 .await;
                         }
                     },

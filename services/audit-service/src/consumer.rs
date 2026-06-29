@@ -80,7 +80,9 @@ async fn persist(pool: &MySqlPool, env: &Envelope<serde_json::Value>) -> Result<
     .await
     .map_err(|e| {
         warn!(error = %e, event_id = %env.event_id, "audit consumer persist failed");
-        HandlerError::Handler(e.to_string())
+        // 简化：所有 sqlx 错默认 Transient（DB 抖动多见），业务层 unique-violation
+        // 留给 ON DUPLICATE KEY UPDATE 吸收；未来可按 sqlx::Error::is_unique_violation() 拆 Permanent
+        HandlerError::Transient(e.to_string())
     })?;
     info!(event_id = %env.event_id, event_type = %env.event_type, "audit event persisted");
     Ok(())

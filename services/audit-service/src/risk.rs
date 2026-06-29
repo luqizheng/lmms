@@ -1,8 +1,9 @@
 //! 风控 consumer：独立订阅 iam.login.failed，按 username/IP 滑动窗口计数，
 //! 越线时打 WARN 日志 + 递增 Prometheus 计数器。仅计数+告警，不锁号、不通知。
 //!
-//! Redis 出错时照常处理（吞错返回 Ok）——风控是尽力而为，不能因 Redis 抖动
-//! 把消息卡进 DLQ。计数不做 event_id 幂等去重（至少一次投递下偶发偏高可接受）。
+//! Redis 出错时返 HandlerError::Transient 让 broker 重投（bounded redelivery 3 次后
+//! 升级 DLQ），不再 swallow 返 Ok——Phase 6-A T3 起 swallow 已被禁用。计数不做
+//! event_id 幂等去重（至少一次投递下偶发偏高可接受）。
 
 use std::time::Duration;
 
@@ -46,7 +47,7 @@ async fn count_dimension(
     dimension: &str,
     key_value: &str,
     opts: &RiskOptions,
-) {
+) -> Result<(), HandlerError> {
     let key = format!("audit:loginfail:{dimension}:{key_value}");
     match redis.incr_with_window(&key, opts.window_secs).await {
         Ok(n) => {
@@ -62,9 +63,11 @@ async fn count_dimension(
                     c.with_label_values(&[dimension]).inc();
                 }
             }
+            Ok(())
         }
         Err(e) => {
-            warn!(error = %e, dimension, key_value, "risk counter redis error (non-fatal, acking)");
+            warn!(error = %e, dimension, key_value, "risk counter redis error (will be retried)");
+            Err(HandlerError::Transient(format!("redis incr: {e}")))
         }
     }
 }
@@ -72,10 +75,10 @@ async fn count_dimension(
 async fn handle(redis: &RedisCli, env: &Envelope<IamLoginFailed>, opts: &RiskOptions) -> Result<(), HandlerError> {
     let p = &env.payload;
     if !p.username.is_empty() {
-        count_dimension(redis, "user", &p.username, opts).await;
+        count_dimension(redis, "user", &p.username, opts).await?;
     }
     if !p.ip.is_empty() {
-        count_dimension(redis, "ip", &p.ip, opts).await;
+        count_dimension(redis, "ip", &p.ip, opts).await?;
     }
     Ok(())
 }
