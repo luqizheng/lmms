@@ -11,7 +11,6 @@ use redis::aio::MultiplexedConnection;
 use std::sync::Arc;
 
 pub mod rate_limit;
-pub mod tracing_mw;
 
 pub fn is_public_route(routes: &[RouteConfig], path: &str) -> bool {
     routes

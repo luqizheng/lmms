@@ -15,7 +15,7 @@ bytes.workspace = true
 common = { path = "../../libs/common" }
 common-event = { path = "../../libs/common-event" }
 common-http = { path = "../../libs/common-http" }
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
 axum.workspace = true
 tokio.workspace = true
 tower.workspace = true

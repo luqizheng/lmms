@@ -8,6 +8,5 @@ pub mod openapi;
 pub mod routes;
 pub mod service;
 pub mod state;
-pub mod tracing_mw;
 
 pub use config::{load_config, Config};

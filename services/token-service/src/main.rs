@@ -134,7 +134,7 @@ async fn main() {
             axum::routing::post(routes::admin::handle_reset_secret),
         )
         .route_layer(axum::middleware::from_fn(
-            token_service::tracing_mw::trace_request_middleware,
+            common_telemetry::trace_request_middleware,
         ))
         .with_state(state);
 

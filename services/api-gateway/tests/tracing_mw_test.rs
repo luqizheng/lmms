@@ -23,7 +23,7 @@ fn app() -> Router {
     Router::new()
         .route("/test", get(ok))
         .layer(axum_mw::from_fn(
-            api_gateway::middleware::tracing_mw::trace_request_middleware,
+            common_telemetry::trace_request_middleware,
         ))
 }
 
