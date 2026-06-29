@@ -1,3 +1,6 @@
+#[cfg(feature = "config-service")]
+pub mod provider;
+
 use common_error::{AppError, AppResult};
 use config::{Config, Environment, File, FileFormat};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};

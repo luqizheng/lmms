@@ -1234,7 +1234,10 @@ dependencies = [
  "config",
  "reqwest",
  "serde",
+ "serde_json",
  "tokio 1.52.3",
+ "tracing",
+ "wiremock",
 ]
 
 [[package]]
