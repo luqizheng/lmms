@@ -20,6 +20,7 @@ common-error = { path = "../../libs/common-error" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
 anyhow = "1"
 
 [[bin]]

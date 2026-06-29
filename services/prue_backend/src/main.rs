@@ -1,12 +1,12 @@
 use common_db::init_pool;
-use common_log::init_json;
+use common_telemetry::init_tracing;
 use prue_backend::{config::AppConfig, db, routes, state::AppState};
 use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
     let config = AppConfig::from_env();
-    init_json(&config.log_level);
+    init_tracing("prue_backend");
 
     tracing::info!("Starting prue_backend on {}", config.server_addr);
 

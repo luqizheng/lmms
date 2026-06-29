@@ -2,7 +2,7 @@ pub mod namespace;
 pub mod config;
 pub mod watch;
 
-use axum::{Router, routing::get};
+use axum::{Router, middleware as axum_mw, routing::get};
 use std::sync::Arc;
 use crate::services::ConfigService;
 use prometheus::{Encoder, TextEncoder};
@@ -16,6 +16,7 @@ pub fn routes(state: AppState) -> Router {
         .nest("/config", watch::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))
+        .route_layer(axum_mw::from_fn(common_telemetry::trace_request_middleware))
 }
 
 async fn health() -> &'static str {
