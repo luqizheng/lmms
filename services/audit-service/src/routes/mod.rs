@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::services::{AuditService, CleanupService};
 use crate::models::RetentionPolicy;
 use crate::error::AppResult;
-use axum::{Router, routing::get};
+use axum::{Router, middleware as axum_mw, routing::get};
 use sqlx::mysql::MySqlPool;
 use prometheus::{Encoder, TextEncoder};
 
@@ -50,6 +50,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/audit/health", get(health))
         .route("/metrics", get(metrics))
+        .route_layer(axum_mw::from_fn(common_telemetry::trace_request_middleware))
 }
 
 async fn health() -> &'static str {

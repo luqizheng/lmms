@@ -23,6 +23,9 @@ common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
 common = { path = "../../libs/common" }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+opentelemetry = "0.24"
+tracing-opentelemetry = "0.25"
 redis = { workspace = true, features = ["connection-manager"] }
 consul-registrar = { path = "../../libs/consul-registrar" }
 
