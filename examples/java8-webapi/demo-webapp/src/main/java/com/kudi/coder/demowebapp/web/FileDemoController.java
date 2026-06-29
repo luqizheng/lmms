@@ -1,5 +1,6 @@
 package com.kudi.coder.demowebapp.web;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kudi.coder.demo.shared.ApiResponse;
 import com.kudi.coder.demowebapp.config.KudiCoderProperties;
 import com.kudi.coder.httpclient.HttpTransport;
@@ -27,10 +28,14 @@ public class FileDemoController {
 
     private final KudiHttpClient kudiHttpClient;
     private final KudiCoderProperties properties;
+    private final ObjectMapper objectMapper;
 
-    public FileDemoController(KudiHttpClient kudiHttpClient, KudiCoderProperties properties) {
+    public FileDemoController(KudiHttpClient kudiHttpClient,
+                              KudiCoderProperties properties,
+                              ObjectMapper objectMapper) {
         this.kudiHttpClient = kudiHttpClient;
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/upload")
@@ -44,7 +49,7 @@ public class FileDemoController {
                 + "\"content_base64\":\"" + base64 + "\"}";
         String url = properties.getGateway().getBaseUrl() + "/v1/file/files";
         HttpTransport.Response resp = kudiHttpClient.post(url, json, null);
-        String fileId = extractStringField(resp.body, "id");
+        String fileId = objectMapper.readTree(resp.body).path("id").asText("demo");
 
         Map<String, Object> data = new HashMap<>();
         data.put("fileId", fileId);
@@ -67,15 +72,5 @@ public class FileDemoController {
 
     private static String escape(String s) {
         return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
-    private static String extractStringField(String json, String field) {
-        if (json == null) return null;
-        String key = "\"" + field + "\":\"";
-        int idx = json.indexOf(key);
-        if (idx < 0) return null;
-        int start = idx + key.length();
-        int end = json.indexOf('"', start);
-        return end < 0 ? null : json.substring(start, end);
     }
 }
