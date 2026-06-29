@@ -6,6 +6,8 @@ use config::{Config, Environment, File, FileFormat};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(feature = "config-service")]
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
@@ -14,6 +16,10 @@ pub struct Loader {
     file: Option<String>,
     consul_url: Option<String>,
     consul_key: Option<String>,
+    #[cfg(feature = "config-service")]
+    config_service_url: Option<String>,
+    #[cfg(feature = "config-service")]
+    config_service_namespace: Option<String>,
 }
 
 impl Loader {
@@ -23,6 +29,10 @@ impl Loader {
             file: None,
             consul_url: None,
             consul_key: None,
+            #[cfg(feature = "config-service")]
+            config_service_url: None,
+            #[cfg(feature = "config-service")]
+            config_service_namespace: None,
         }
     }
 
@@ -37,11 +47,43 @@ impl Loader {
         self
     }
 
+    #[cfg(feature = "config-service")]
+    pub fn with_config_service(
+        mut self,
+        url: impl Into<String>,
+        namespace: impl Into<String>,
+    ) -> Self {
+        self.config_service_url = Some(url.into());
+        self.config_service_namespace = Some(namespace.into());
+        self
+    }
+
     pub fn load<T: DeserializeOwned>(self) -> AppResult<T> {
         let mut builder = Config::builder();
 
         if let Some(f) = self.file {
             builder = builder.add_source(File::with_name(&f).required(false));
+        }
+
+        #[cfg(feature = "config-service")]
+        if let (Some(url), Some(ns)) = (
+            self.config_service_url.as_ref(),
+            self.config_service_namespace.as_ref(),
+        ) {
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| AppError::internal("CFG_RUNTIME", e.to_string()))?;
+            match rt.block_on(provider::ConfigServiceProvider::new(url, ns).fetch()) {
+                Ok(map) => {
+                    for (k, v) in &map {
+                        builder = builder
+                            .set_override(k.as_str(), v.as_str())
+                            .map_err(|e| AppError::internal("CFG_OVERRIDE", e.to_string()))?;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "config-service fetch failed, using local config");
+                }
+            }
         }
 
         builder = builder.add_source(Environment::with_prefix(&self.prefix).separator("_"));
@@ -64,6 +106,35 @@ impl Loader {
             AppError::internal("CFG_PARSE", e.to_string())
         })
     }
+}
+
+#[cfg(feature = "config-service")]
+pub fn watch_config<T: DeserializeOwned + Serialize + Clone + Send + Sync + 'static>(
+    provider: provider::ConfigServiceProvider,
+    hot: Arc<HotConfig<T>>,
+    interval: Duration,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(interval);
+        loop {
+            tick.tick().await;
+            match provider.fetch().await {
+                Ok(map) => {
+                    let new_value = serde_json::to_value(&map).unwrap_or_default();
+                    let current = serde_json::to_value(hot.get().await).unwrap_or_default();
+                    if new_value != current {
+                        if let Ok(deserialized) = serde_json::from_value::<T>(new_value) {
+                            hot.update(deserialized).await;
+                            tracing::info!("hot config updated via config-service poll");
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "config-service poll failed");
+                }
+            }
+        }
+    })
 }
 
 #[cfg(feature = "consul")]
