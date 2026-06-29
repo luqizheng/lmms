@@ -9,11 +9,9 @@
 
 use std::time::Duration;
 
-use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer};
+use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
 use sqlx::mysql::MySqlPool;
 use tracing::{info, warn, Instrument};
-
-use crate::consumer_span::span_from_envelope_trace_id;
 
 /// Start the audit consumer. Reconnects on broker failure with a fixed 5s
 /// backoff; returns only if a signal asks it to (i.e. essentially never —

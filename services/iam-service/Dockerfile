@@ -11,9 +11,9 @@ COPY . .
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
-    cargo build --release --target x86_64-unknown-linux-musl --bin iam-service --bin outbox-publisher && \
+    cargo build --release --target x86_64-unknown-linux-musl --bin iam-service -p iam-outbox-publisher && \
     cp /app/target/x86_64-unknown-linux-musl/release/iam-service /app/iam-service && \
-    cp /app/target/x86_64-unknown-linux-musl/release/outbox-publisher /app/outbox-publisher
+    cp /app/target/x86_64-unknown-linux-musl/release/iam-outbox-publisher /app/outbox-publisher
 
 FROM alpine:3.21
 

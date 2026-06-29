@@ -16,6 +16,7 @@ pub mod perm_epoch;
 pub mod publisher;
 pub mod publisher_loop;
 pub mod routing_keys;
+pub mod span;
 
 pub use config::EventBusConfig;
 pub use consumer::{Consumer, RabbitMqConsumer};
@@ -27,3 +28,4 @@ pub use outbox::{MySqlOutboxRepo, OutboxRepo, OutboxRow};
 pub use perm_epoch::{get_perm_epoch, perm_epoch_key, set_perm_epoch_if_greater};
 pub use publisher::{Publisher, RabbitMqPublisher};
 pub use publisher_loop::{OutboxPublisher, OutboxPublisherOptions};
+pub use span::span_from_envelope_trace_id;

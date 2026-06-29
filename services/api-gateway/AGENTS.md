@@ -29,6 +29,7 @@
 
 - `auth_middleware` 在 blacklist 检查后比对 `token.iat < {prefix}perm_epoch:{sub}` → 401「permissions changed, re-authenticate」。key miss / Redis 错误 → fail-open 放行。
 - 兜底 consumer：ephemeral 队列订阅 `iam.permission.changed`，用 set-if-greater（单调）补写 perm_epoch（用事件 `occurred_at` 作时间基准），关闭 iam 直写的 fail-open 窗口。
+- **行为变更（Phase 6-A T3）：** Redis SETEX 失败时 consumer 返回 `HandlerError::Transient`（旧版 swallow 返 Ok）。broker 会重投最多 3 次，之后消息进入 DLQ。瞬时 Redis 抖动会触发 bounded redelivery，不会静默丢失。
 
 ## 端点域
 

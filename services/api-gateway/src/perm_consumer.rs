@@ -5,10 +5,10 @@
 //! 之前 swallow 返 Ok 已被 Phase 6-A T3 禁用。
 use common_event::events::IamPermissionChanged;
 use common_event::perm_epoch::set_perm_epoch_if_greater;
-use common_event::{Consumer, ConsumeError, Envelope, HandlerError, RabbitMqConsumer};
+use common_event::{Consumer, ConsumeError, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
 use redis::aio::MultiplexedConnection;
 use std::time::Duration;
-use tracing::{info, warn};
+use tracing::{info, warn, Instrument};
 
 const BINDING: &str = "iam.permission.changed";
 
@@ -52,6 +52,7 @@ async fn try_subscribe(
             move |env: Envelope<IamPermissionChanged>| {
                 let mut conn = conn.clone();
                 let prefix = prefix.clone();
+                let span = span_from_envelope_trace_id(&env, "gateway.perm-epoch");
                 async move {
                     let users: Vec<String> =
                         serde_json::from_value(env.payload.user_ids.clone()).unwrap_or_default();
@@ -66,6 +67,7 @@ async fn try_subscribe(
                     }
                     Ok::<(), HandlerError>(())
                 }
+                .instrument(span)
             },
         )
         .await?;

@@ -303,35 +303,22 @@ tracing-opentelemetry = "0.25"
 rand.workspace = true
 ```
 
-**Step 2**：复制 middleware 模板：
+**Step 2**：添加 `common-telemetry-axum` 依赖（Cargo.toml）：
 
-```bash
-cp services/api-gateway/src/middleware/tracing_mw.rs \
-   services/<your-service>/src/tracing_mw.rs
-# 修改文件内的模块路径：api_gateway::... → <your_service>::...
+```toml
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 ```
 
-**Step 3**：在 `src/lib.rs` 中：
-
-```rust
-pub mod tracing_mw;
-```
-
-**Step 4**：在 `src/main.rs` 中：
+**Step 3**：在 `src/main.rs` 中初始化 tracing 并挂 middleware：
 
 ```rust
 common_telemetry::init_tracing("<your-service>");
+// ...
+.layer(axum::middleware::from_fn(common_telemetry_axum::trace_request_middleware))
 ```
 
-**Step 5**：在 Router 中挂上 middleware：
-
-```rust
-.layer(axum::middleware::from_fn(
-    <your_service>::tracing_mw::trace_request_middleware
-))
-```
-
-**Step 6**：在 `infrastructure/docker-compose.yml` 中：
+**Step 4**：在 `infrastructure/docker-compose.yml` 中：
 
 ```yaml
 <your-service>:

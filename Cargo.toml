@@ -21,6 +21,7 @@ members = [
     "services/api-gateway",
     "services/notification-service",
     "services/iam-service",
+    "services/iam-outbox-publisher",
     "services/audit-service",
     "services/config-service",
     "services/file-service",

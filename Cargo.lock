@@ -1290,6 +1290,7 @@ dependencies = [
  "common-telemetry",
  "futures-util",
  "lapin",
+ "opentelemetry",
  "prometheus 0.13.4",
  "redis",
  "serde",
@@ -1300,6 +1301,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio 1.52.3",
  "tracing",
+ "tracing-opentelemetry",
  "uuid",
 ]
 
@@ -3049,6 +3051,22 @@ dependencies = [
  "pin-project-lite",
  "tokio 1.52.3",
  "tower-service",
+]
+
+[[package]]
+name = "iam-outbox-publisher"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "common-event",
+ "common-telemetry",
+ "prometheus 0.13.4",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sqlx",
+ "tokio 1.52.3",
+ "tracing",
 ]
 
 [[package]]

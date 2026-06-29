@@ -1,9 +1,8 @@
 //! Consumer-side OTel span parent 关联。
 //!
-//! Phase 6-A T2 参考实现：从 envelope.trace_id (T1 已注入) 建一个 trace context
-//! 作为 consumer span 的 parent，让 producer→consumer 跨服务 chain 在 Jaeger 可见。
-//!
-//! 仅 audit 一处使用。notification / gateway perm_consumer 留 T2-fu1 follow-up。
+//! Phase 6-A T2 参考实现（已从 audit-service 搬到 common-event，T2-fu1）：
+//! 从 envelope.trace_id (T1 已注入) 建一个 trace context 作为 consumer span
+//! 的 parent，让 producer→consumer 跨服务 chain 在 Jaeger 可见。
 
 use opentelemetry::{
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
@@ -11,8 +10,8 @@ use opentelemetry::{
 };
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use common_event::Envelope;
-use common_event::event::Event;
+use crate::envelope::Envelope;
+use crate::event::Event;
 
 /// Build a tracing span whose OTel parent points to the producer's trace.
 /// If envelope.trace_id is None or malformed, the span is parentless

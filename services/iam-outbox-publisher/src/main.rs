@@ -15,15 +15,34 @@
 //!   lets the current batch finish (publish + mark) before exit, so a
 //!   published-but-unmarked row is never left behind by our own shutdown.
 
+mod outbox_archive;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
 use common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
-use iam_service::config::load_config;
 use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
+
+/// Minimal config fallback: reads `database.url` from iam-service's
+/// `config/config.yaml` when `DATABASE_URL` env is not set.
+fn load_db_url_from_yaml() -> anyhow::Result<String> {
+    let config_path = std::env::var("CONFIG_PATH")
+        .unwrap_or_else(|_| "config/config.yaml".to_string());
+    let content = std::fs::read_to_string(config_path)?;
+    #[derive(serde::Deserialize)]
+    struct DbConfig {
+        database: DatabaseSection,
+    }
+    #[derive(serde::Deserialize)]
+    struct DatabaseSection {
+        url: String,
+    }
+    let cfg: DbConfig = serde_yaml::from_str(&content)?;
+    Ok(cfg.database.url)
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     // DB url: prefer DATABASE_URL env (compose/CI), else iam-service config.
     let db_url = match std::env::var("DATABASE_URL") {
         Ok(u) => u,
-        Err(_) => load_config().context("load iam config")?.database.url,
+        Err(_) => load_db_url_from_yaml().context("load iam config")?,
     };
     let event_bus_url = std::env::var("EVENT_BUS_URL")
         .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());
@@ -61,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     {
         let archive_pool = pool.clone();
         tokio::spawn(async move {
-            iam_service::outbox_archive::run(archive_pool).await;
+            outbox_archive::run(archive_pool).await;
         });
         info!("outbox archive cron spawned");
     }

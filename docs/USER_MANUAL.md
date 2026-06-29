@@ -357,11 +357,10 @@ Already enabled (4 services): api-gateway, token-service, iam-service, notificat
 
 To enable on another service:
 1. Add `common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }` to Cargo.toml
-2. Add `opentelemetry = "0.24"` + `tracing-opentelemetry = "0.25"` deps
-3. Copy `services/<existing>/src/tracing_mw.rs` to the new service
-4. Add `common_telemetry::init_tracing("service-name")` in main.rs
-5. Add `.route_layer(axum_mw::from_fn(tracing_mw::trace_request_middleware))`
-6. Set `OTEL_EXPORTER_OTLP_ENDPOINT` env var in docker-compose
+2. Add `common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }` for the HTTP middleware
+3. Add `common_telemetry::init_tracing("service-name")` in main.rs
+4. Add `.route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))`
+5. Set `OTEL_EXPORTER_OTLP_ENDPOINT` env var in docker-compose
 
 See `docs/guides/otel-tracing.md` for full details.
 
@@ -662,6 +661,7 @@ The hook runs service-standard / spec / contracts / openapi-drift gates before e
 | Service won't register in Consul | Container not on `superpowers` network | Add `networks: [superpowers]` in compose |
 | Trace not in Jaeger | `OTEL_EXPORTER_OTLP_ENDPOINT` unset | Set in compose or env var |
 | Swagger 404 | `SWAGGER_ENABLED=false` | Set env to `true` |
+| `iam_outbox_events` table growing unbounded | Archive cron runs every 5 min; live rows >24h are moved to `iam_outbox_events_archive`, which is purged after 30 days. Check `iam-outbox-publisher` logs for archive cycle counts. |
 
 ### 10.2 Reset everything
 

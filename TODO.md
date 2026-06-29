@@ -138,10 +138,7 @@
   - [x] audit consumer 用 envelope.trace_id 设 span parent（参考实现，`consumer_span.rs`）
   - [x] README OTel 表 4 个 `—` 改 `✅` + `test-case/62-otel-cross-service-chain.md`（commit `185de1a`）
   - [x] **T2-fix** 拆出 `libs/common-telemetry-axum/` 让 CLI binary 不再透传 axum（commit `e511299`）
-  - [ ] **T2-fu1** 扩面到 notification / gateway perm_consumer 的 span parent（非阻塞 follow-up）
-  - [ ] **T2-fu2** `docs/USER_MANUAL.md` / `docs/ai-context.md` / `docs/guides/observability.md` 删 4 份 `tracing_mw` 旧说明
-  - [ ] **T2-fu3** 把 outbox-publisher 拆为独立 crate 或 feature-gate iam-service 的 axum，让 outbox-publisher binary 真的不带 axum（plan §3 row 5 literal 目标，目前仅做到 common-telemetry 不带 axum）
-  - [ ] **T2-fu4** Prometheus `iam_outbox_archived_total` 等 metric（spec §5.4 标可选，本期未做）
+  - [ ] **T2-fu2** `docs/USER_MANUAL.md` / `docs/ai-context.md` / `docs/guides/observability.md` 删 `tracing_mw` 旧说明（纯文本编辑，无决策）
 
 - [x] **T3 — Consumer transient/permanent 分级 + bounded redelivery**（覆盖 I1）
       spec: `docs/superpowers/specs/2026-06-28-phase6a-t3-consumer-error-classes-design.md`
@@ -152,8 +149,6 @@
   - [x] 7 unit tests + 5 testcontainers 集成测（commits `4ac6741`, `76319af`）
   - [x] 4 个现有 handler 同 PR 审查改造（commit `57c075d`）
   - [x] `test-case/63-consumer-error-classes.md`（commit `18b55af`）
-  - [ ] **T3-fu1** `Basic.Return` 处理：`republish_with_incremented_count` 用 `mandatory:true` 但未订阅 Basic.Return；unroutable 消息会 silent loss（Important follow-up）
-  - [ ] **T3-fu2** 实现 `republish_confirm_nack_does_not_ack_original` 集成测（spec §6.2 follow-up；当前 `todo!()`）。设计核心正确性未实测
   - [ ] **T3-fu3** testcontainers 测的 `sleep(4s)` 改 poll-with-deadline，避免慢 CI flake
   - [ ] **T3-fu4** api-gateway perm_consumer 行为变更发布说明：旧版 swallow→Ok；新版返 Transient 中断整批 1000-uid 处理。瞬时 Redis 抖动会触发 3 次重试
 
@@ -166,7 +161,54 @@
   - [x] `outbox-publisher` binary 起 archive tokio task（commit `80076b2`）
   - [x] testcontainers 7 个 + `test-case/64-outbox-archive.md`（commit `2e27513`）
   - [ ] **T4-fu1** `docs/USER_MANUAL.md` outbox section 加 archive 30d 一行（spec §5.5 要求，plan 未列，implementer acknowledge）
-  - [ ] **T4-fu2** Prometheus `iam_outbox_archived_total` + `iam_outbox_purged_total` counter（spec §5.4 标可选）
+
+### Phase 6-A 后续项（2026-06-29 plan-review 重排序，按优先级）
+
+> 评审结论已 bake：
+> - **T3-fu1** → `libs/common-event/src/consumer.rs` 注册 `Basic.Return` 回调 + oneshot channel，unroutable 时返回 Err（不 ack 原 delivery）
+> - **T3-fu2** → 实现 `republish_confirm_nack_does_not_ack_original` 集成测（`channel.close()` 模拟 republish 失败）
+> - **T2-fu1** → `span_from_envelope_trace_id` 从 `audit-service/src/consumer_span.rs` 搬到 `libs/common-event/src/span.rs`，notification/gateway 统一调用
+> - **T2-fu3** → 新建 `services/iam-outbox-publisher/` 独立 crate（仅依赖 sqlx + common-event + common-telemetry + iam-service lib），不再拖 axum
+> - **T2-fu4 / T4-fu2** → 合并：`outbox_archive.rs` 加 `iam_outbox_archived_total` + `iam_outbox_purged_total` 两个 IntCounter（复用 `OnceLock` 模式）
+
+#### P0 — 正确性修复
+
+- [x] **T3-fu1** `Basic.Return` 静默丢消息（评审 #2，正确性 bug）
+      `libs/common-event/src/consumer.rs` 改用 `wait_for_confirms()` 同时等待 publisher confirm 并收集 `Basic.Return` 消息；unroutable 时返回 Err 让外层不 ack。
+      修复 commit: `consumer.rs` `republish_with_incremented_count` 函数重构。
+
+- [x] **T3-fu2** `republish_confirm_nack_does_not_ack_original` 集成测（评审 #3，核心正确性未实测）
+      新增 `republish_confirm_nack_does_not_ack_original` 集成测：unbind routing-key → handler Transient → republish 遇 Basic.Return → 原 delivery 未 ack → 消费者重连后消息重新可见。
+      新增 `republish_fails_on_nonexistent_exchange` 直接函数测试。
+      `libs/common-event/tests/consumer_redelivery.rs`。
+
+#### P1 — 架构改进
+
+- [x] **T2-fu1** notification / gateway perm_consumer 设 span parent（评审 #1）
+      `span_from_envelope_trace_id` 从 `audit-service/src/consumer_span.rs` 搬到 `libs/common-event/src/span.rs`；
+      notification durable/ephemeral consumer + gateway perm_consumer 三处调用 `.instrument(span)`。
+      删 `services/audit-service/src/consumer_span.rs`。
+
+- [x] **T2-fu3** outbox-publisher 拆为独立 crate（评审 #4）
+      新建 `services/iam-outbox-publisher/` 独立 crate，仅依赖 `sqlx` + `common-event` + `common-telemetry` + `serde_yaml`；
+      内联 `load_config` YAML 解析（不再依赖 `iam-service` 库，避免拖入 axum）。
+      删 `services/iam-service/Cargo.toml` 中 `[[bin]] outbox-publisher` 及旧二进制文件。
+      更新 `services/iam-service/Dockerfile` 构建命令。
+
+#### P2 — 可观测性
+
+- [ ] **指标** `iam_outbox_archived_total` + `iam_outbox_purged_total` IntCounter（合并 T2-fu4 + T4-fu2）
+      **推迟**：outbox-publisher 现为独立 CLI binary，无 `/metrics` HTTP 端点，prometheus counter 注册了也无法被抓取。spec 标注"标可选"。
+      若未来需要，可在 binary 内嵌一个极简 `tokio::net::TcpListener` 暴露 `/metrics`，或把指标挪到 iam-service 的 `/metrics` 端点通过共享 DB 读取。
+
+#### P3 — 杂项
+
+- [x] **T2-fu2** 删 docs 中 `tracing_mw` 旧说明（`USER_MANUAL.md`、`ai-context.md`、`observability.md`）
+- [x] **T3-fu3** testcontainers `sleep()` → poll-with-deadline（`consumer_redelivery.rs` 多处）
+      新增 `poll_dlq()` 辅助函数；原有 `sleep(2s/3s/4s)` 全部替换为轮询或计数器轮询，避免慢 CI flake。
+- [x] **T3-fu4** api-gateway perm_consumer 行为变更发布说明
+      写入 `services/api-gateway/AGENTS.md` "令牌失效 perm_epoch" 段。
+- [x] **T4-fu1** `docs/USER_MANUAL.md` Troubleshooting 表格新增 outbox archive 30d 说明行
 
 ### Phase 6-A 总结
 

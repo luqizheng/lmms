@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -35,10 +36,15 @@ pub fn get_redelivery_count(headers: &Option<FieldTable>) -> i64 {
 }
 
 /// Republish `body` to the same routing-key on the same exchange, with
-/// `x-redelivery-count` header incremented by 1. Waits for publisher
-/// confirm. Returns `Err` on basic_publish failure, confirm nack, or
-/// confirm timeout — caller MUST NOT ack the original delivery in that case.
-async fn republish_with_incremented_count(
+/// `x-redelivery-count` header incremented by 1.
+///
+/// Uses `wait_for_confirms` to both wait for the publisher confirm AND
+/// drain any `Basic.Return` messages (mandatory publish to a missing
+/// exchange or unroutable routing-key). Returns `Err` on publish failure,
+/// confirm nack, or unroutable return — caller MUST NOT ack the original
+/// delivery in that case.
+#[doc(hidden)]
+pub async fn republish_with_incremented_count(
     channel: &Channel,
     exchange: &str,
     routing_key: &str,
@@ -58,7 +64,10 @@ async fn republish_with_incremented_count(
     if let Some(mid) = message_id {
         props = props.with_message_id(mid.to_string().into());
     }
-    let confirm = channel
+
+    // Keep Confirmation alive so the confirm stays registered while
+    // wait_for_confirms polls it. Dropped after wait_for_confirms returns.
+    let _confirmation = channel
         .basic_publish(
             exchange,
             routing_key,
@@ -66,10 +75,31 @@ async fn republish_with_incremented_count(
             body,
             props,
         )
-        .await?
         .await?;
-    if confirm.is_nack() {
-        return Err(std::io::Error::other("publisher confirm nack").into());
+
+    // wait_for_confirms resolves all pending publisher confirms (Err on nack)
+    // and drains Basic.Return messages (unroutable). Single-publish channel
+    // so there is exactly one pending confirm.
+    //
+    // Race: Basic.Return can arrive after the confirm ack but before the
+    // drain inside wait_for_confirms. We poll once more after a short sleep
+    // to catch any stragglers (T3-fu1).
+    let mut returns = channel
+        .wait_for_confirms()
+        .await
+        .map_err(|e| std::io::Error::other(format!("publisher confirm: {e}")))?;
+
+    if returns.is_empty() {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let more = channel
+            .wait_for_confirms()
+            .await
+            .map_err(|e| std::io::Error::other(format!("publisher confirm: {e}")))?;
+        returns.extend(more);
+    }
+
+    if !returns.is_empty() {
+        return Err(std::io::Error::other("message unroutable (Basic.Return received)").into());
     }
     Ok(())
 }

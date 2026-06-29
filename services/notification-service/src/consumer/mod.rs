@@ -5,9 +5,9 @@ pub mod placeholder;
 use std::time::Duration;
 
 use common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
-use common_event::{Consumer, Envelope, RabbitMqConsumer};
+use common_event::{Consumer, Envelope, RabbitMqConsumer, span_from_envelope_trace_id};
 use sqlx::mysql::MySqlPool;
-use tracing::{info, warn};
+use tracing::{info, warn, Instrument};
 
 use crate::redis_cli::RedisCli;
 use crate::ws_hub::WsHub;
@@ -60,7 +60,9 @@ async fn try_subscribe(
                 let pool = pool.clone();
                 let redis = redis.clone();
                 let hub = hub.clone();
+                let span = span_from_envelope_trace_id(&env, "notification.iam-events");
                 async move { iam_events::handle_iam_user_created(&pool, &redis, &hub, &env).await }
+                    .instrument(span)
             },
         )
         .await?;
@@ -98,7 +100,9 @@ async fn ann_try_subscribe(hub: WsHub, event_bus_url: &str) -> anyhow::Result<Ra
             &[ANN_BINDING],
             move |env: Envelope<NotificationAnnouncementPublished>| {
                 let hub = hub.clone();
+                let span = span_from_envelope_trace_id(&env, "notification.announcement-ws");
                 async move { announcement_events::handle(&hub, &env).await }
+                    .instrument(span)
             },
         )
         .await?;

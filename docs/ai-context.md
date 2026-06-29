@@ -34,7 +34,7 @@
 Each Rust service has:
 - `Cargo.toml` with `[[bin]]` for `dump-openapi` (utoipa generator)
 - `src/{lib,main,openapi,error,config}.rs` + `routes/` + `services/` (or `service/`)
-- OTel-enabled services also have `src/tracing_mw.rs`
+- OTel-enabled services use `common-telemetry-axum` for HTTP tracing middleware
 - `migrations/{mysql,sqlite}/V{NNN}__*.sql` (legacy flat `migrations/` for iam / token)
 - `AGENTS.md` declaring service-specific conventions, endpoint domain, env vars, exemptions
 - `tests/*.rs` integration tests
