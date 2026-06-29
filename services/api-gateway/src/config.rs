@@ -80,6 +80,26 @@ pub struct GatewayConfig {
 
     #[serde(default)]
     pub routes: Vec<RouteConfig>,
+
+    #[serde(default = "default_egress_map")]
+    pub egress_map: HashMap<String, EgressTarget>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct EgressTarget {
+    pub host: String,
+    pub port: u16,
+}
+
+fn default_egress_map() -> HashMap<String, EgressTarget> {
+    let mut m = HashMap::new();
+    let local = |p: u16| EgressTarget { host: "127.0.0.1".into(), port: p };
+    m.insert("iam-service".into(),          local(18001));
+    m.insert("token-service".into(),        local(18002));
+    m.insert("notification-service".into(), local(18003));
+    m.insert("audit-service".into(),        local(18004));
+    m.insert("prue_backend".into(),         local(18005));
+    m
 }
 
 impl Default for GatewayConfig {
@@ -98,6 +118,7 @@ impl Default for GatewayConfig {
             perm_epoch_ttl_sec: default_perm_epoch_ttl_sec(),
             resilience: ResilienceConfig::default(),
             routes: Vec::new(),
+            egress_map: default_egress_map(),
         }
     }
 }

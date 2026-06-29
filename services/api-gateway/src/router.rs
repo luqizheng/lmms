@@ -1,36 +1,35 @@
-use crate::discovery::ServiceDiscovery;
+use crate::config::EgressTarget;
 use axum::body::Body;
 use axum::http::Request;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use common_http::{ResilientClient, ResilientError};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct RouterConfig {
-    pub discovery: Arc<ServiceDiscovery>,
     pub resilient: Arc<ResilientClient>,
+    pub egress_map: Arc<HashMap<String, EgressTarget>>,
 }
 
-/// 转发请求到 Consul 发现的后端服务（target_path_query 已由模板渲染好）。
-///
-/// 服务发现在韧性边界之外（决策 9A）：discover 在此完成、不进 ResilientClient、
-/// 不喂 breaker —— breaker 信号只反映下游实例健康，不被 Consul 故障污染。
+/// 通过 sidecar egress 转发：URL 目标取自 `egress_map[service_name]`，
+/// 由 sidecar 完成 mTLS 与对端选择。下游健康由 sidecar 的 EDS 维护，
+/// 连接失败 / 超时透过 `ResilientClient` 喂熔断（决策 9A/14B 适用）。
 pub async fn forward_to_service(
     cfg: Arc<RouterConfig>,
     request: Request<Body>,
     service_name: &str,
     target_path_query: &str,
 ) -> Response {
-    // --- 韧性边界之外：服务发现 ---
-    let instance = match cfg.discovery.discover(service_name).await {
-        Ok(i) => i,
-        Err(status) => return status.into_response(),
+    let Some(egress) = cfg.egress_map.get(service_name) else {
+        tracing::error!("no egress configured for service '{}'", service_name);
+        return StatusCode::BAD_GATEWAY.into_response();
     };
 
     let target_url = format!(
         "http://{}:{}{}",
-        instance.address, instance.port, target_path_query
+        egress.host, egress.port, target_path_query
     );
 
     let (parts, body) = request.into_parts();
@@ -39,7 +38,6 @@ pub async fn forward_to_service(
         Err(_) => return StatusCode::BAD_REQUEST.into_response(),
     };
 
-    // --- 韧性边界之内：超时/重试/熔断 ---
     match cfg
         .resilient
         .call(service_name, parts.method, &target_url, &parts.headers, bytes)
@@ -73,5 +71,32 @@ pub async fn forward_to_service(
             tracing::warn!("forward to {} connect error: {:?}", service_name, e);
             (StatusCode::BAD_GATEWAY, "upstream error").into_response()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use common_http::ResilienceConfig;
+
+    fn mk_cfg(map: HashMap<String, EgressTarget>) -> Arc<RouterConfig> {
+        Arc::new(RouterConfig {
+            resilient: Arc::new(ResilientClient::new(
+                reqwest::Client::new(),
+                ResilienceConfig::default(),
+                Arc::new(common_http::NoopObserver),
+            )),
+            egress_map: Arc::new(map),
+        })
+    }
+
+    #[tokio::test]
+    async fn unknown_service_returns_bad_gateway() {
+        let cfg = mk_cfg(HashMap::new());
+        let req = Request::builder().uri("/x").body(Body::empty()).unwrap();
+        let resp = forward_to_service(cfg, req, "no-such-service", "/x").await;
+        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 }

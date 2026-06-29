@@ -1,6 +1,5 @@
 pub mod blacklist;
 pub mod config;
-pub mod discovery;
 pub mod jwks;
 pub mod jwt;
 pub mod middleware;
@@ -13,7 +12,6 @@ pub mod routes_loader;
 pub mod template;
 
 pub use config::{GatewayConfig, RouteConfig, RouteFile, RouteTable};
-pub use discovery::{ServiceDiscovery, ServiceInstance};
 pub use jwt::{JwtClaims, JwtValidator};
 pub use router::RouterConfig;
 

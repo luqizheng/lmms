@@ -16,7 +16,7 @@ use utoipa::OpenApi;
 use api_gateway::template::Template;
 use api_gateway::{
     blacklist, middleware, router, routes_loader, AppState, GatewayConfig, JwtValidator,
-    RouteConfig, RouteTable, RouterConfig, ServiceDiscovery,
+    RouteConfig, RouteTable, RouterConfig,
 };
 use api_gateway::resilience_metrics::GatewayMetricsObserver;
 use cli::{Cli, Cmd};
@@ -164,16 +164,14 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         .expect("failed to connect to redis");
     tracing::info!("connected to redis at {}", cfg.redis.url);
 
-    let discovery = Arc::new(ServiceDiscovery::new(&cfg.consul_addr));
-
     let resilient = Arc::new(ResilientClient::new(
         reqwest::Client::new(),
         cfg.resilience.clone(),
         Arc::new(GatewayMetricsObserver),
     ));
     let router_cfg = Arc::new(RouterConfig {
-        discovery: discovery.clone(),
         resilient,
+        egress_map: Arc::new(cfg.egress_map.clone()),
     });
 
     let route_table = Arc::new(arc_swap::ArcSwap::from_pointee(table));
