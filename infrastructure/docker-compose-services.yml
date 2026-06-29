@@ -252,10 +252,9 @@ services:
     build:
       context: ..
       dockerfile: services/audit-service/Dockerfile
-    ports:
-      - "6005:8080"
+    network_mode: service:audit-sidecar
     environment:
-      SERVER_HOST: "0.0.0.0"
+      SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "8080"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
@@ -276,8 +275,15 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      - superpowers
+      audit-sidecar:
+        condition: service_started
+
+  audit-sidecar:
+    <<: *sidecar-defaults
+    environment:
+      <<: *sidecar-env
+      DP_PROXY_SERVICE_ID: audit-service-sidecar-proxy
+    ports: ["6005:20000"]
 
   frontend:
     build:
