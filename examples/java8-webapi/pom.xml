@@ -65,4 +65,20 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <id>reposilite-repository-releases</id>
+            <name>Reposilite Repository</name>
+            <url>http://192.168.2.12:18181/releases</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>reposilite-repository-releases</id>
+            <name>Reposilite Repository</name>
+            <url>http://192.168.2.12:18181/releases</url>
+        </pluginRepository>
+    </pluginRepositories>
 </project>
