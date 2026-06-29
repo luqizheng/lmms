@@ -20,3 +20,4 @@ reports/
 docker-example/mysql
 /build-*.log.superpowers/
 .superpowers/
+/.worktrees/
