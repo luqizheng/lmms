@@ -46,7 +46,6 @@ pub mod routes;
 pub mod secret;
 pub mod service;
 pub mod store;
-pub mod tracing_mw;
 
 pub use config::{load_config, Config as TokenServerConfig, DatabaseCfg, DbType};
 pub use consul_registrar::ConsulRegistrar;

@@ -12,6 +12,5 @@ pub mod service;
 pub mod redis_cli;
 pub mod rest;
 pub mod scheduler;
-pub mod tracing_mw;
 pub mod ws;
 pub mod ws_hub;

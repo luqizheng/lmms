@@ -1,6 +1,6 @@
 use audit_service::{config::AppConfig, routes, create_state};
 use common::db::connect;
-use common_log::init_json;
+use common_telemetry::init_tracing;
 use consul_registrar::ConsulRegistrar;
 use std::net::SocketAddr;
 use tracing::{info, warn};
@@ -46,7 +46,7 @@ async fn ensure_schema(pool: &sqlx::mysql::MySqlPool) -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    init_json("info");
+    init_tracing("audit-service");
     audit_service::risk::init_metrics();
 
     let config = AppConfig::from_env();

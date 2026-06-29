@@ -4,6 +4,11 @@
 //! - Default (no `otlp` feature): plain tracing-subscriber (JSON logs to stdout).
 //! - With `otlp` feature + `OTEL_EXPORTER_OTLP_ENDPOINT` env: layer OTel gRPC
 //!   exporter on top of tracing-subscriber. Spans appear in Jaeger / Tempo / OTel collector.
+//!
+//! The axum HTTP request-tracing middleware lives in the sibling crate
+//! `common-telemetry-axum` so that CLI binaries (outbox-publisher etc.) that
+//! only want `init_tracing` don't pull in the full axum / hyper / tower
+//! dependency tree.
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 

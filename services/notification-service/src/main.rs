@@ -84,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .route("/metrics", get(metrics))
         .layer(axum::middleware::from_fn(
-            notification_service::tracing_mw::trace_request_middleware,
+            common_telemetry_axum::trace_request_middleware,
         ));
 
     if swagger_enabled {

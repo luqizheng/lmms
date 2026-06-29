@@ -82,10 +82,10 @@ cargo run                        # 启动
 | token-service        | 6001     | MySQL / Redis / Consul                    | ✅ |
 | iam-service          | 6002     | MySQL / Consul                            | ✅ |
 | notification-service | 6003     | MySQL / Redis / Consul                    | ✅ |
-| prue_backend         | 6004     | SQLite / MySQL / Consul                   | — |
-| audit-service        | 6005     | MySQL / Consul                            | — |
-| config-service       | 6006     | MySQL / Consul                            | — |
-| file-service         | 6007     | MySQL / Consul                            | — |
+| prue_backend         | 6004     | SQLite / MySQL / Consul                   | ✅ |
+| audit-service        | 6005     | MySQL / Consul                            | ✅ |
+| config-service       | 6006     | MySQL / Consul                            | ✅ |
+| file-service         | 6007     | MySQL / Consul                            | ✅ |
 | consul               | 8500     | —                                         | — |
 | redis                | 6379     | —                                         | — |
 | mysql                | 3306     | root / rootpass                           | — |

@@ -1,0 +1,25 @@
+[package]
+name = "common-telemetry-axum"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common-telemetry = { path = "../common-telemetry" }
+axum.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rand = "0.8"
+hex = "0.4"
+
+# OpenTelemetry — opt-in, only enabled when otlp feature is on.
+# Mirrors the `otlp` feature on common-telemetry: when a service enables
+# `otlp` on both crates, the middleware reads from the real OTel span
+# context. Without `otlp`, falls back to a random 128-bit hex id.
+opentelemetry = { version = "0.24", optional = true }
+opentelemetry-otlp = { version = "0.17", optional = true, default-features = false, features = ["grpc-tonic", "trace"] }
+opentelemetry_sdk = { version = "0.24", optional = true, features = ["rt-tokio"] }
+tracing-opentelemetry = { version = "0.25", optional = true }
+
+[features]
+default = []
+otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]

@@ -7,7 +7,10 @@ edition = "2021"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
-# OpenTelemetry — opt-in, only enabled when otlp feature is on
+# OpenTelemetry — opt-in, only enabled when otlp feature is on.
+# The axum HTTP middleware lives in the separate `common-telemetry-axum`
+# crate so that CLI binaries (outbox-publisher etc.) can depend on
+# `common-telemetry` alone without pulling in axum/hyper/tower.
 opentelemetry = { version = "0.24", optional = true }
 opentelemetry-otlp = { version = "0.17", optional = true, default-features = false, features = ["grpc-tonic", "trace"] }
 opentelemetry_sdk = { version = "0.24", optional = true, features = ["rt-tokio"] }

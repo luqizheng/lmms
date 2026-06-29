@@ -1,7 +1,7 @@
 pub mod menu_configs;
 
 use crate::state::AppState;
-use axum::{routing::get, Router};
+use axum::{middleware as axum_mw, routing::get, Router};
 use prometheus::{Encoder, TextEncoder};
 
 pub fn routes(state: AppState) -> Router {
@@ -9,6 +9,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .merge(menu_configs::routes(state))
+        .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
 }
 
 async fn health() -> &'static str {

@@ -1,5 +1,6 @@
 pub mod config;
 pub mod consumer;
+pub mod consumer_span;
 pub mod error;
 pub mod models;
 pub mod openapi;

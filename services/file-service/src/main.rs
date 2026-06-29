@@ -1,12 +1,12 @@
 use file_service::{config::AppConfig, routes::{self, create_state}, storage::LocalStorage};
 use common_db::init_pool;
-use common_log::init_json;
+use common_telemetry::init_tracing;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    init_json("info");
+    init_tracing("file-service");
 
     let config = AppConfig::from_env();
     tracing::info!("Starting file-service on {}", config.server_addr);

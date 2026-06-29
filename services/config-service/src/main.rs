@@ -1,11 +1,11 @@
 use config_service::{config::AppConfig, routes::{self, create_state}};
 use common_db::init_pool;
-use common_log::init_json;
+use common_telemetry::init_tracing;
 use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    init_json("info");
+    init_tracing("config-service");
 
     let config = AppConfig::from_env();
     tracing::info!("Starting config-service on {}", config.server_addr);

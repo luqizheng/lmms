@@ -11,7 +11,9 @@ use std::time::Duration;
 
 use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer};
 use sqlx::mysql::MySqlPool;
-use tracing::{info, warn};
+use tracing::{info, warn, Instrument};
+
+use crate::consumer_span::span_from_envelope_trace_id;
 
 /// Start the audit consumer. Reconnects on broker failure with a fixed 5s
 /// backoff; returns only if a signal asks it to (i.e. essentially never —
@@ -47,7 +49,12 @@ async fn try_subscribe(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<R
             &["iam.#"],
             move |env: Envelope<serde_json::Value>| {
                 let pool = pool.clone();
-                async move { persist(&pool, &env).await }
+                async move {
+                    let span = span_from_envelope_trace_id(&env, "audit.iam-events");
+                    async move { persist(&pool, &env).await }
+                        .instrument(span)
+                        .await
+                }
             },
         )
         .await?;
