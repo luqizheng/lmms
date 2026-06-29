@@ -1,6 +1,7 @@
 package com.kudi.coder.demo.shared;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.UUID;
 
@@ -12,6 +13,8 @@ public class ApiResponse<T> {
     private String code;
     private String message;
     private T data;
+
+    @JsonProperty("request_id")
     private String requestId;
 
     public ApiResponse() {}
