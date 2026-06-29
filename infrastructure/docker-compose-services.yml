@@ -190,8 +190,7 @@ services:
     build:
       context: ..
       dockerfile: services/notification-service/Dockerfile
-    ports:
-      - "6003:8080"
+    network_mode: service:notification-sidecar
     environment:
       EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
       CONSUL_ADDR: "http://consul:8500"
@@ -213,10 +212,17 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      notification-sidecar:
+        condition: service_started
     volumes:
       - ../docker-example/config/notification-service:/app/config:ro
-    networks:
-      - superpowers
+
+  notification-sidecar:
+    <<: *sidecar-defaults
+    environment:
+      <<: *sidecar-env
+      DP_PROXY_SERVICE_ID: notification-service-sidecar-proxy
+    ports: ["6003:20000"]
 
   notification-outbox-publisher:
     build:
