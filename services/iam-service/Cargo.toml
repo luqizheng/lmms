@@ -9,7 +9,8 @@ common = { path = "../../libs/common" }
 common-error = { path = "../../libs/common-error" }
 common-event = { path = "../../libs/common-event" }
 common-log = { path = "../../libs/common-log" }
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 common-config = { path = "../../libs/common-config" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-cache = { path = "../../libs/common-cache" }

@@ -262,7 +262,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
             middleware::rate_limit::rate_limit_middleware,
         ))
         .route_layer(axum_mw::from_fn(
-            common_telemetry::trace_request_middleware,
+            common_telemetry_axum::trace_request_middleware,
         ))
         .without_v07_checks();
 

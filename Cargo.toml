@@ -5,6 +5,7 @@ members = [
     "libs/common-event",
     "libs/common-log",
     "libs/common-telemetry",
+    "libs/common-telemetry-axum",
     "libs/common-ratelimit",
     "libs/common-config",
     "libs/common-db",

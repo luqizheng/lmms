@@ -217,6 +217,7 @@ dependencies = [
  "common-event",
  "common-http",
  "common-telemetry",
+ "common-telemetry-axum",
  "config",
  "dotenvy",
  "glob",
@@ -622,6 +623,7 @@ dependencies = [
  "common-event",
  "common-log",
  "common-telemetry",
+ "common-telemetry-axum",
  "consul-registrar",
  "csv",
  "opentelemetry",
@@ -1365,7 +1367,20 @@ dependencies = [
 name = "common-telemetry"
 version = "0.1.0"
 dependencies = [
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "common-telemetry-axum"
+version = "0.1.0"
+dependencies = [
  "axum 0.8.9",
+ "common-telemetry",
  "hex",
  "opentelemetry",
  "opentelemetry-otlp",
@@ -1424,6 +1439,7 @@ dependencies = [
  "common-error",
  "common-log",
  "common-telemetry",
+ "common-telemetry-axum",
  "prometheus 0.13.4",
  "serde",
  "serde_json",
@@ -2229,6 +2245,7 @@ dependencies = [
  "common-error",
  "common-log",
  "common-telemetry",
+ "common-telemetry-axum",
  "futures 0.3.32",
  "prometheus 0.13.4",
  "serde",
@@ -3051,6 +3068,7 @@ dependencies = [
  "common-event",
  "common-log",
  "common-telemetry",
+ "common-telemetry-axum",
  "common-validator",
  "consul-registrar",
  "hex",
@@ -3861,6 +3879,7 @@ dependencies = [
  "common-event",
  "common-ratelimit",
  "common-telemetry",
+ "common-telemetry-axum",
  "config",
  "consul-registrar",
  "futures 0.3.32",
@@ -4661,6 +4680,7 @@ dependencies = [
  "common-db",
  "common-log",
  "common-telemetry",
+ "common-telemetry-axum",
  "nanoid",
  "prometheus 0.13.4",
  "serde",
@@ -6298,6 +6318,7 @@ dependencies = [
  "chrono",
  "common",
  "common-telemetry",
+ "common-telemetry-axum",
  "consul-registrar",
  "http-body-util",
  "hyper 1.10.1",

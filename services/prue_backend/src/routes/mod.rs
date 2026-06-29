@@ -9,7 +9,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .merge(menu_configs::routes(state))
-        .route_layer(axum_mw::from_fn(common_telemetry::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
 }
 
 async fn health() -> &'static str {

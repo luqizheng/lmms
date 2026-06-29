@@ -23,7 +23,8 @@ common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
 common = { path = "../../libs/common" }
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 redis = { workspace = true, features = ["connection-manager"] }

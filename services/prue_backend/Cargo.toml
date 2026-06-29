@@ -7,7 +7,8 @@ default-run = "prue_backend"
 [dependencies]
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 
 axum.workspace = true
 tokio.workspace = true

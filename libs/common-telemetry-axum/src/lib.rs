@@ -1,23 +1,19 @@
-//! Per-request tracing middleware. Extracted from 4 copy-paste copies in
-//! services/{api-gateway,iam-service,notification-service,token-service}.
+//! common-telemetry-axum: axum request-tracing middleware.
 //!
-//! Module is gated by the `axum` feature — only HTTP-server consumers need it.
-//! CLI binaries (outbox-publisher, etc.) that just want init_tracing leave it off.
+//! Split out from `common-telemetry` so that CLI binaries (outbox-publisher
+//! etc.) that only want `init_tracing` don't drag in the full axum / hyper /
+//! tower / tower-http tree. See plan §3 decision row 5 ("outbox-publisher
+//! binary 不加 axum feature").
 //!
-//! Two implementations:
-//! - `otlp` feature ON  → OTel SDK + tracing-opentelemetry. Trace_id from real
-//!   span context; falls back to a random 128-bit id if no OTel subscriber.
-//! - `otlp` feature OFF → plain tracing root span + random 128-bit fallback id.
+//! Two implementations gated by the `otlp` feature:
+//! - `otlp` ON  → OTel SDK + tracing-opentelemetry. trace_id from real span
+//!   context, falls back to a random 128-bit id if no OTel subscriber.
+//! - `otlp` OFF → plain tracing root span + random 128-bit hex id.
 
-#[cfg(all(feature = "axum", feature = "otlp"))]
-pub use otlp_impl::trace_request_middleware;
-
-#[cfg(all(feature = "axum", not(feature = "otlp")))]
-pub use fallback_impl::trace_request_middleware;
-
-#[cfg(all(feature = "axum", feature = "otlp"))]
+#[cfg(feature = "otlp")]
 mod otlp_impl {
-    //! 与 services/api-gateway/src/middleware/tracing_mw.rs 完全一致的 OTel 实现。
+    //! OTel implementation. Matches the original
+    //! `common-telemetry::middleware::otlp_impl` 1:1.
     use axum::{
         body::Body,
         extract::Request,
@@ -88,9 +84,9 @@ mod otlp_impl {
     }
 }
 
-#[cfg(all(feature = "axum", not(feature = "otlp")))]
+#[cfg(not(feature = "otlp"))]
 mod fallback_impl {
-    //! 无 OTel：仅日志 root span + 随机 X-Trace-Id（不连 OTel collector）。
+    //! No-OTel fallback: root span + random 128-bit hex trace id.
     use axum::{
         body::Body,
         extract::Request,
@@ -123,3 +119,9 @@ mod fallback_impl {
         response
     }
 }
+
+#[cfg(feature = "otlp")]
+pub use otlp_impl::trace_request_middleware;
+
+#[cfg(not(feature = "otlp"))]
+pub use fallback_impl::trace_request_middleware;

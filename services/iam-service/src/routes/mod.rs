@@ -25,7 +25,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(org_units::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(common_telemetry::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
 }
 
 async fn health() -> &'static str {
