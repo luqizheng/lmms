@@ -105,16 +105,81 @@
         当前仅 gateway outbound 受保护；服务间直调仍裸 reqwest。依赖：B 实现完成。起点：grep `common-http::HttpClient` 与 `common/src/http.rs::client()` 调用方。
 
 
-### Phase 6 — 配置 & 可观测性补齐（P1）
+### Phase 6-A — Trace 链闭环 + 事件总线生产化（P0，2026-06-28 锁定，2026-06-29 全部完成并合并）
+
+> 来源：plan review 2026-06-28（SCOPE REDUCTION → Phase 6-A 四件套）。
+> 把 trace 链 + outbox + consumer 错误分级三处 Phase 4 broad-review 遗留 + Phase 6 OTel 全覆盖
+> 收敛为一个冲刺，作为 Phase 5-A mTLS / Phase 7 K3s 化的前置。
+>
+> 五个评审决策已 bake：
+> - 1A bounded redelivery（redelivered flag + republish-and-ack 模式）
+> - 2A enqueue 内自动注入 trace_id（callsite 零改动）
+> - 3A testcontainers 真 broker 集成测试
+> - 4B archive 分批 1000 行/批
+> - 4-Q2A envelope x-redelivery-count header 阈值 3 兜底
+>
+> 0-Q1 A 扩 HandlerError 双分支 · 0-Q2 A 提取 tracing_mw 到 common-telemetry-axum
+
+- [x] **T1 — Envelope.trace_id producer 自动注入**（覆盖 I4）
+      spec: `docs/superpowers/specs/2026-06-28-phase6a-t1-trace-id-injection-design.md`
+      plan: `docs/superpowers/plans/2026-06-28-phase6a-t1-trace-id-injection.md`
+  - [x] `libs/common-telemetry/src/trace_id.rs` + `outbox.rs` 在 enqueue 内自动注入（commits `798683b`, `4a4ff51`）
+  - [x] 6 处 callsite 改 `let mut envelope` + `&mut envelope`（mechanical） + 4 处 common-event tests（commit `5ac963b`）
+  - [x] 单测 3 个（fill / respect / no-span） + integration test + e2e script + `test-case/61-trace-id-injection.md`（commits `3d6e86e`, `b721799`）
+
+- [x] **T2 — OTel 全覆盖 + tracing_mw 提取共用**
+      spec: `docs/superpowers/specs/2026-06-28-phase6a-t2-otel-coverage-design.md`
+      plan: `docs/superpowers/plans/2026-06-28-phase6a-t2-otel-coverage.md`
+      merge commit: `0a832c7`
+  - [x] 提取 4 份 copy `tracing_mw.rs` → `libs/common-telemetry/src/middleware.rs`（commit `ac5b614`）
+  - [x] 删 4 份 copy + 改 4 个服务 import（commit `6e62091`）
+  - [x] audit-service / config-service / file-service / prue_backend 接 `init_tracing` + middleware（commits `6f7cae1`, `5cdc1d8`）
+  - [x] audit consumer 用 envelope.trace_id 设 span parent（参考实现，`consumer_span.rs`）
+  - [x] README OTel 表 4 个 `—` 改 `✅` + `test-case/62-otel-cross-service-chain.md`（commit `185de1a`）
+  - [x] **T2-fix** 拆出 `libs/common-telemetry-axum/` 让 CLI binary 不再透传 axum（commit `e511299`）
+  - [ ] **T2-fu1** 扩面到 notification / gateway perm_consumer 的 span parent（非阻塞 follow-up）
+  - [ ] **T2-fu2** `docs/USER_MANUAL.md` / `docs/ai-context.md` / `docs/guides/observability.md` 删 4 份 `tracing_mw` 旧说明
+  - [ ] **T2-fu3** 把 outbox-publisher 拆为独立 crate 或 feature-gate iam-service 的 axum，让 outbox-publisher binary 真的不带 axum（plan §3 row 5 literal 目标，目前仅做到 common-telemetry 不带 axum）
+  - [ ] **T2-fu4** Prometheus `iam_outbox_archived_total` 等 metric（spec §5.4 标可选，本期未做）
+
+- [x] **T3 — Consumer transient/permanent 分级 + bounded redelivery**（覆盖 I1）
+      spec: `docs/superpowers/specs/2026-06-28-phase6a-t3-consumer-error-classes-design.md`
+      plan: `docs/superpowers/plans/2026-06-28-phase6a-t3-consumer-error-classes.md`
+      merge commit: `10e4b07`
+  - [x] `HandlerError` 扩 `Transient(String)` / `Permanent(String)` 两分支（commit `6467b5a`）
+  - [x] `consumer.rs` delivery 循环按分类决策；transient 走 republish-and-ack + `x-redelivery-count` 阈值 3 + `confirm_select`（commit `49badff`）
+  - [x] 7 unit tests + 5 testcontainers 集成测（commits `4ac6741`, `76319af`）
+  - [x] 4 个现有 handler 同 PR 审查改造（commit `57c075d`）
+  - [x] `test-case/63-consumer-error-classes.md`（commit `18b55af`）
+  - [ ] **T3-fu1** `Basic.Return` 处理：`republish_with_incremented_count` 用 `mandatory:true` 但未订阅 Basic.Return；unroutable 消息会 silent loss（Important follow-up）
+  - [ ] **T3-fu2** 实现 `republish_confirm_nack_does_not_ack_original` 集成测（spec §6.2 follow-up；当前 `todo!()`）。设计核心正确性未实测
+  - [ ] **T3-fu3** testcontainers 测的 `sleep(4s)` 改 poll-with-deadline，避免慢 CI flake
+  - [ ] **T3-fu4** api-gateway perm_consumer 行为变更发布说明：旧版 swallow→Ok；新版返 Transient 中断整批 1000-uid 处理。瞬时 Redis 抖动会触发 3 次重试
+
+- [x] **T4 — Outbox 24h 归档**（覆盖 I6）
+      spec: `docs/superpowers/specs/2026-06-28-phase6a-t4-outbox-archive-design.md`
+      plan: `docs/superpowers/plans/2026-06-28-phase6a-t4-outbox-archive.md`
+      merge commit: `5389b24`
+  - [x] 迁移 V002__outbox_archive.sql 新建 `iam_outbox_events_archive`（commit `471184b`）
+  - [x] `services/iam-service/src/outbox_archive.rs` archive_loop（`BETWEEN min..max` + 二次 WHERE）+ purge_loop（30d）+ `GET_LOCK` 多副本互斥（commit `db0d77c`）
+  - [x] `outbox-publisher` binary 起 archive tokio task（commit `80076b2`）
+  - [x] testcontainers 7 个 + `test-case/64-outbox-archive.md`（commit `2e27513`）
+  - [ ] **T4-fu1** `docs/USER_MANUAL.md` outbox section 加 archive 30d 一行（spec §5.5 要求，plan 未列，implementer acknowledge）
+  - [ ] **T4-fu2** Prometheus `iam_outbox_archived_total` + `iam_outbox_purged_total` counter（spec §5.4 标可选）
+
+### Phase 6-A 总结
+
+- 4 份 spec + 4 份 plan + 4 份进度 ledger（`.superpowers/sdd/progress-phase6a.md`）
+- 21 个 feature commit + 4 个 merge commit 推上 main
+- 全部 task 实施 + review Approved
+- 已知 follow-up（T2-fu1~4, T3-fu1~4, T4-fu1~2）已挂 TODO，单独迭代
+
+### Phase 6-B — 配置 & 可观测性补齐（P1，Phase 6-A 后顺接）
 
 - [ ] **config-service 自举（dogfooding）**
   - [ ] `libs/common-config` 新增 ConfigService Provider，启动拉取 + 长轮询/SSE watch
   - [ ] 所有服务从读本地 yaml 切到读 config-service（保留本地兜底）
   - [ ] 敏感配置分离到 Vault / Consul KV + age 加密
-
-- [ ] **OTel 全覆盖**
-  - [ ] 剩余 4 个服务接入 OpenTelemetry：`audit-service` / `config-service` / `file-service` / `prue_backend`
-  - [ ] 端到端 trace 链验证（gateway → iam → audit 事件链）
 
 ### Phase 7 — 生产级部署（P2）
 
