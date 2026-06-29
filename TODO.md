@@ -43,7 +43,7 @@
 - [x] iam-service 加 `iam_outbox_events` 表 + 业务事务里写 outbox（commits `9f8e06b`, `dc048fa`）
 - [x] iam-service 加 `[[bin]] outbox-publisher`（同镜像切 CMD）（commit `7808a7a`）
 - [x] audit-service 加 `audit_events` 表 + RabbitMQ consumer + 删除旧 HTTP 写入端点（commits `0749893`, `ed2f63a` + minors `1577ed9`, `7852718`）
-- [ ] ~~audit-service 补 OTel 接入（验收要求端到端 trace 链）~~  — **推迟到 Phase 6**；envelope.trace_id 字段已在 producer 侧预留，consumer 侧 OTel wiring 待 Phase 6 统一处理
+- [ ] ~~audit-service 补 OTel 接入（验收要求端到端 trace 链）~~ — **推迟到 Phase 6**；envelope.trace_id 字段已在 producer 侧预留，consumer 侧 OTel wiring 待 Phase 6 统一处理
 - [x] e2e 用例 `scripts/e2e-event-flow.js`（commit `945ff46`）— runner 不支持直接 DB 断言，改 standalone live smoke
 - [x] 验收：RabbitMQ 拔掉/恢复、consumer panic → DLQ、Jaeger 端到端 trace 链
   - ✅ Broker-bounce 恢复实测：停 RabbitMQ → 创建 user → 重启 → publisher 10s 内追上（commit `fab9cd2` 修复 C1）
@@ -88,6 +88,7 @@
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
 > **已拆分为两个独立子项目（2026-06-28 brainstorm + plan-review）：**
+>
 > - **A = mTLS / 服务网格**：待 brainstorm，无 spec。重型，涉及基础设施选型（证书分发、部署形态）。
 > - **B = 韧性三件套**：spec 已就绪 + review 结论已 bake，见
 >   `docs/superpowers/specs/2026-06-28-phase5-resilience-triad-design.md`，待 writing-plans。
@@ -105,7 +106,6 @@
         token-service 的 `fetch_json` 已从裸 hyper 切到 `ResilientClient`（commit `a8cc412`）。
         当前仅 gateway outbound + token-service → iam 两条路径受保护；其余服务间无 HTTP 直调（token/iam/notification/audit 通过事件总线通信，config/file/prue 无出站调用）。
 
-
 ### Phase 6-A — Trace 链闭环 + 事件总线生产化（P0，2026-06-28 锁定，2026-06-29 全部完成并合并）
 
 > 来源：plan review 2026-06-28（SCOPE REDUCTION → Phase 6-A 四件套）。
@@ -113,6 +113,7 @@
 > 收敛为一个冲刺，作为 Phase 5-A mTLS / Phase 7 K3s 化的前置。
 >
 > 五个评审决策已 bake：
+>
 > - 1A bounded redelivery（redelivered flag + republish-and-ack 模式）
 > - 2A enqueue 内自动注入 trace_id（callsite 零改动）
 > - 3A testcontainers 真 broker 集成测试
@@ -156,7 +157,7 @@
       spec: `docs/superpowers/specs/2026-06-28-phase6a-t4-outbox-archive-design.md`
       plan: `docs/superpowers/plans/2026-06-28-phase6a-t4-outbox-archive.md`
       merge commit: `5389b24`
-  - [x] 迁移 V002__outbox_archive.sql 新建 `iam_outbox_events_archive`（commit `471184b`）
+  - [x] 迁移 V002\_\_outbox_archive.sql 新建 `iam_outbox_events_archive`（commit `471184b`）
   - [x] `services/iam-service/src/outbox_archive.rs` archive_loop（`BETWEEN min..max` + 二次 WHERE）+ purge_loop（30d）+ `GET_LOCK` 多副本互斥（commit `db0d77c`）
   - [x] `outbox-publisher` binary 起 archive tokio task（commit `80076b2`）
   - [x] testcontainers 7 个 + `test-case/64-outbox-archive.md`（commit `2e27513`）
@@ -165,6 +166,7 @@
 ### Phase 6-A 后续项（2026-06-29 plan-review 重排序，按优先级）
 
 > 评审结论已 bake：
+>
 > - **T3-fu1** → `libs/common-event/src/consumer.rs` 注册 `Basic.Return` 回调 + oneshot channel，unroutable 时返回 Err（不 ack 原 delivery）
 > - **T3-fu2** → 实现 `republish_confirm_nack_does_not_ack_original` 集成测（`channel.close()` 模拟 republish 失败）
 > - **T2-fu1** → `span_from_envelope_trace_id` 从 `audit-service/src/consumer_span.rs` 搬到 `libs/common-event/src/span.rs`，notification/gateway 统一调用
