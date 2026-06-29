@@ -6321,6 +6321,7 @@ dependencies = [
  "chrono",
  "common",
  "common-config",
+ "common-http",
  "common-telemetry",
  "common-telemetry-axum",
  "consul-registrar",
