@@ -180,19 +180,20 @@
 > Plan: `docs/superpowers/plans/2026-06-29-phase6b-config-service-dogfood.md`
 > 策略：token-service 作为第一个 dogfood 服务；其余后续。
 
-- [ ] **T1 — `libs/common-config` 加 `ConfigServiceProvider`**
-  - [ ] 新增 `config-service` feature + `ConfigServiceProvider`（HTTP 拉 `/config/export/:ns`）
-  - [ ] wiremock 3 个单元测试（200-ok / 404-err / invalid-json-err）
+- [x] **T1 — `libs/common-config` 加 `ConfigServiceProvider`**
+      merge: `9aa2a24`
+  - [x] 新增 `config-service` feature + `ConfigServiceProvider`（HTTP 拉 `/config/export/:ns`）（commit `2d43c6d`）
+  - [x] wiremock 3 个单元测试（200-ok / 404-err / invalid-json-err）
 
-- [ ] **T2 — `Loader` 集成 provider + 热更新 watch**
-  - [ ] `with_config_service(url, ns)` builder
-  - [ ] `load()` 内：file base → config-service override → env override
-  - [ ] `watch_config()` 后台 30s 轮询 + `serde_json` diff + `HotConfig::update`
+- [x] **T2 — `Loader` 集成 provider + 热更新 watch**
+  - [x] `with_config_service(url, ns)` builder（commit `9e5894e`）
+  - [x] `load()` async；file base → config-service override → env override
+  - [x] `watch_config()` 后台 30s 轮询 + `Config::builder` deserialize + diff + `HotConfig::update`
 
-- [ ] **T3 — token-service 第一个接入**
-  - [ ] `Cargo.toml` 开 `config-service` feature
-  - [ ] `main.rs` 用 `Loader::new("TOKEN").with_config_service(...).with_file(...).load()` 替代直接 yaml 加载
-  - [ ] `test-case/65-config-service-dogfood.md` 手工验收
+- [x] **T3 — token-service 第一个接入**
+  - [x] `Cargo.toml` 开 `config-service` feature（commit `900c276`）
+  - [x] `main.rs` 用 `Loader::new("TOKEN").with_config_service(...).with_file(...).load().await` 替代 yaml
+  - [x] `test-case/65-config-service-dogfood.md` 手工验收
 
 ### Phase 7 — 生产级部署（P2）
 
