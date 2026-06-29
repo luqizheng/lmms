@@ -103,22 +103,51 @@ async fn archive_batches_at_1000() {
 #[tokio::test]
 async fn archive_get_lock_prevents_concurrent_runs() {
     let ctx = Arc::new(setup().await);
-    // 直接持锁
+    // 插入一条 25h 前的行，应被归档
+    insert_outbox_row(&ctx.pool, "ev.blocked", Some(Utc::now() - ChronoDuration::hours(25))).await;
+
+    // 另一连接持锁，模拟并发副本
+    let mut held_conn = ctx.pool.acquire().await.unwrap();
     let _held: (i64,) = sqlx::query_as("SELECT GET_LOCK('iam_outbox_archive', 0)")
-        .fetch_one(&ctx.pool)
+        .fetch_one(&mut *held_conn)
         .await
         .unwrap();
 
     // run_once 应观察到 acquired=0 → 跳过
     outbox_archive::run_once(&ctx.pool).await.unwrap();
-    // 验证：lock 仍在持，原表无变化（无任何行可 archive 也算通过）
-    let _ = count(&ctx.pool, "iam_outbox_events").await;
+    // 关键断言：行未被归档（锁阻止了 run_once 进入）
+    assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 1, "row must NOT be archived while lock held");
+    assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 0);
 
-    // 释放
+    // 释放锁
     let _released: (i64,) = sqlx::query_as("SELECT RELEASE_LOCK('iam_outbox_archive')")
+        .fetch_one(&mut *held_conn)
+        .await
+        .unwrap();
+    drop(held_conn);
+}
+
+#[tokio::test]
+async fn run_once_releases_lock_on_completion() {
+    // 回归测：C1 fix — GET_LOCK/RELEASE_LOCK 必须绑同一 connection。
+    // 旧实现 GET_LOCK 一个 conn、RELEASE_LOCK 另一个 conn，session-scoped 锁泄漏 8h。
+    let ctx = setup().await;
+
+    // 前置：锁空闲
+    let (free_before,): (i64,) = sqlx::query_as("SELECT IS_FREE_LOCK('iam_outbox_archive')")
         .fetch_one(&ctx.pool)
         .await
         .unwrap();
+    assert_eq!(free_before, 1, "lock must be free before run_once");
+
+    outbox_archive::run_once(&ctx.pool).await.unwrap();
+
+    // 关键：run_once 返回后，锁必须被释放（同 conn 释放）
+    let (free_after,): (i64,) = sqlx::query_as("SELECT IS_FREE_LOCK('iam_outbox_archive')")
+        .fetch_one(&ctx.pool)
+        .await
+        .unwrap();
+    assert_eq!(free_after, 1, "lock must be released after run_once");
 }
 
 #[tokio::test]

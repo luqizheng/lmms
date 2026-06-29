@@ -10,10 +10,10 @@
 //!   else: log debug "another replica holds the lock", skip this tick
 //! ```
 
-use sqlx::MySqlPool;
+use sqlx::{Acquire, MySqlConnection, MySqlPool};
 use std::time::Duration;
 use tokio::time::interval;
-use tracing::{debug, error, info, warn};
+#[allow(unused_imports)] use tracing::{debug, error, info, warn};
 
 const ARCHIVE_BATCH: i64 = 1000;
 const ARCHIVE_TICK: Duration = Duration::from_secs(300); // 5 min
@@ -43,17 +43,20 @@ pub async fn run(pool: MySqlPool) {
 #[doc(hidden)]
 pub async fn run_once(pool: &MySqlPool) -> sqlx::Result<()> {
     // 进程级互斥（多副本时只有一个跑归档）
+    // 必须用单连接：GET_LOCK/RELEASE_LOCK 是 session-scoped，跨连接会泄漏 8 小时。
+    let mut conn = pool.acquire().await?;
+
     let acquired: (i64,) = sqlx::query_as("SELECT GET_LOCK(?, 0)")
         .bind(ARCHIVE_LOCK_NAME)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await?;
     if acquired.0 != 1 {
         debug!("another replica holds archive lock, skipping");
         return Ok(());
     }
 
-    let archived = archive_loop(pool).await?;
-    let purged = purge_loop(pool).await?;
+    let archived = archive_loop(&mut conn).await?;
+    let purged = purge_loop(&mut conn).await?;
     if archived > 0 || purged > 0 {
         info!(archived, purged, "archive cycle complete");
     } else {
@@ -62,12 +65,12 @@ pub async fn run_once(pool: &MySqlPool) -> sqlx::Result<()> {
 
     let _: (i64,) = sqlx::query_as("SELECT RELEASE_LOCK(?)")
         .bind(ARCHIVE_LOCK_NAME)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await?;
     Ok(())
 }
 
-async fn archive_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
+async fn archive_loop(conn: &mut MySqlConnection) -> sqlx::Result<u64> {
     let mut total = 0u64;
     loop {
         // 1) 拿一个 1000 行的 id 窗口（id 单调递增，BETWEEN 等价 IN 但单 placeholder 对）
@@ -81,7 +84,7 @@ async fn archive_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
         )
         .bind(RETENTION_HOURS)
         .bind(ARCHIVE_BATCH)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await?;
         let (min_id, max_id, cnt) = window;
         if cnt == 0 {
@@ -91,7 +94,7 @@ async fn archive_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
         let max_id = max_id.expect("cnt>0 → max_id is some");
 
         // 2) 范围搬运 + 二次 WHERE 守住语义
-        let mut tx = pool.begin().await?;
+        let mut tx = conn.begin().await?;
         sqlx::query(
             "INSERT INTO iam_outbox_events_archive \
                (id, event_id, event_type, routing_key, envelope_json, created_at, published_at, archived_at) \
@@ -128,7 +131,7 @@ async fn archive_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
     Ok(total)
 }
 
-async fn purge_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
+async fn purge_loop(conn: &mut MySqlConnection) -> sqlx::Result<u64> {
     let mut total = 0u64;
     loop {
         let window: (Option<i64>, Option<i64>, i64) = sqlx::query_as(
@@ -140,7 +143,7 @@ async fn purge_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
         )
         .bind(PURGE_DAYS)
         .bind(ARCHIVE_BATCH)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await?;
         let (min_id, max_id, cnt) = window;
         if cnt == 0 {
@@ -157,7 +160,7 @@ async fn purge_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
         .bind(min_id)
         .bind(max_id)
         .bind(PURGE_DAYS)
-        .execute(pool)
+        .execute(&mut *conn)
         .await?;
         total += res.rows_affected();
         if cnt < ARCHIVE_BATCH {
@@ -165,10 +168,4 @@ async fn purge_loop(pool: &MySqlPool) -> sqlx::Result<u64> {
         }
     }
     Ok(total)
-}
-
-#[allow(dead_code)]
-fn _suppress_unused_warnings() {
-    // 保留 import 占位，后续 metric 化时启用
-    error!("unused error import placeholder");
 }

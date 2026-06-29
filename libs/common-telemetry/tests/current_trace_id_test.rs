@@ -13,6 +13,7 @@ fn run_with_otel_layer<F: FnOnce() -> R, R>(f: F) -> R {
     tracing::subscriber::with_default(subscriber, f)
 }
 
+#[cfg(feature = "otlp")]
 #[test]
 fn returns_trace_id_inside_active_span() {
     run_with_otel_layer(|| {
