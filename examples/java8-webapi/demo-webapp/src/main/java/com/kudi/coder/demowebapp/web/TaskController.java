@@ -39,11 +39,13 @@ public class TaskController {
     }
 
     @GetMapping
+    @RequiresPermission("TASK_VIEW")
     public ApiResponse<List<Task>> list() {
         return ApiResponse.ok(taskService.list());
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("TASK_VIEW")
     public ApiResponse<Task> get(@PathVariable Long id) {
         return ApiResponse.ok(taskService.get(id));
     }

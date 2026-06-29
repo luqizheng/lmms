@@ -9,6 +9,8 @@ import com.kudi.coder.demowebapp.security.PermissionAspect;
 import com.kudi.coder.demowebapp.service.TaskService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -26,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(TaskController.class)
 @Import({JwtAuthInterceptor.class, PermissionAspect.class, WebMvcConfig.class})
+@ImportAutoConfiguration(AopAutoConfiguration.class)
 class TaskControllerTest {
 
     @Autowired private MockMvc mvc;
@@ -58,7 +61,8 @@ class TaskControllerTest {
         when(taskService.get(99L)).thenThrow(new IllegalArgumentException("task 99 not found"));
 
         mvc.perform(get("/demo/tasks/99")
-                        .header("X-User-Id", "alice"))
+                        .header("X-User-Id", "alice")
+                        .header("X-Permissions", "TASK_VIEW"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("DEMO_VALID_4001"));
     }
@@ -72,8 +76,18 @@ class TaskControllerTest {
         when(taskService.list()).thenReturn(Arrays.asList(t));
 
         mvc.perform(get("/demo/tasks")
-                        .header("X-User-Id", "alice"))
+                        .header("X-User-Id", "alice")
+                        .header("X-Permissions", "TASK_VIEW"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].id").value(1));
+    }
+
+    @Test
+    void list_returns_403_when_missing_TASK_VIEW() throws Exception {
+        mvc.perform(get("/demo/tasks")
+                        .header("X-User-Id", "alice")
+                        .header("X-Permissions", "TASK_OTHER"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("DEMO_PERM_2001"));
     }
 }
