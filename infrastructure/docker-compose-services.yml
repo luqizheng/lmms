@@ -1,3 +1,21 @@
+# === Sidecar shared definitions (Phase 5-A mTLS) ===
+# `x-` 前缀的顶层键被 compose spec 忽略，仅用于 YAML anchor 复用。
+x-sidecar-defaults: &sidecar-defaults
+  image: hashicorp/consul-dataplane:1.2
+  mem_limit: 64m
+  depends_on:
+    consul:
+      condition: service_healthy
+  networks:
+    - superpowers
+
+x-sidecar-env: &sidecar-env
+  DP_CONSUL_ADDRESSES: consul
+  DP_CONSUL_GRPC_PORT: "8502"
+  DP_ENVOY_READY_BIND_ADDR: 0.0.0.0
+  DP_ENVOY_READY_BIND_PORT: "20100"
+  DP_ENVOY_CONCURRENCY: "1"
+
 services:
   api-gateway:
     image: zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest
