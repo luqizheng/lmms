@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.1.18.RELEASE</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.kudi.coder.demo</groupId>
+    <artifactId>java8-webapi-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>java8-webapi-parent</name>
+    <description>Spring Boot 2.1 + Java 8 integration demo for coder-micro-services platform</description>
+
+    <modules>
+        <module>demo-shared</module>
+        <module>demo-webapp</module>
+    </modules>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <audit.sdk.version>0.1.0-SNAPSHOT</audit.sdk.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.kudi.coder</groupId>
+                <artifactId>audit-service-sdk</artifactId>
+                <version>${audit.sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.kudi.coder</groupId>
+                <artifactId>user-service-user-sdk</artifactId>
+                <version>0.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.kudi.coder</groupId>
+                <artifactId>user-service-client-sdk</artifactId>
+                <version>0.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.kudi.coder</groupId>
+                <artifactId>token-server-user-sdk</artifactId>
+                <version>0.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.kudi.coder</groupId>
+                <artifactId>token-server-client-sdk</artifactId>
+                <version>0.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.kudi.coder</groupId>
+                <artifactId>kudi-http-client</artifactId>
+                <version>0.2.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>
