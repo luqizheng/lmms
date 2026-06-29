@@ -3,6 +3,7 @@ package com.kudi.coder.demowebapp.config;
 import com.kudi.coder.auditsdk.AuditServiceClient;
 import com.kudi.coder.httpclient.KudiHttpClient;
 import com.kudi.coder.sdk.token.TokenServerUserClient;
+import com.kudi.coder.sdk.user.UserServiceClientClient;
 import com.kudi.coder.sdk.user.UserServiceUserClient;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
@@ -42,6 +43,15 @@ public class SdkConfig {
                 p.getGateway().getBaseUrl(),
                 p.getIam().getUsername(),
                 p.getIam().getPassword());
+    }
+
+    @Bean
+    public UserServiceClientClient userServiceClientClient(KudiCoderProperties p) {
+        return UserServiceClientClient.create(
+                p.getGateway().getBaseUrl(),
+                p.getClient().getApiKey(),
+                p.getClient().getApiSecret(),
+                p.getClient().getCode());
     }
 
     @Bean

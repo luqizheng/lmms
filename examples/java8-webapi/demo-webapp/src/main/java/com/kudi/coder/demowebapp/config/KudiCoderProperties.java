@@ -34,9 +34,12 @@ public class KudiCoderProperties {
     public static class Client {
         private String apiKey;
         private String apiSecret;
+        private String code;
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
         public String getApiSecret() { return apiSecret; }
         public void setApiSecret(String apiSecret) { this.apiSecret = apiSecret; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
     }
 }

@@ -30,6 +30,7 @@ kudi:
   client:
     api-key: ${DEMO_API_KEY:demo-key}
     api-secret: ${DEMO_API_SECRET:demo-secret}
+    code: ${DEMO_API_CODE:demo-code}
 logging:
   level:
     com.kudi.coder.demowebapp: INFO
