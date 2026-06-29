@@ -171,10 +171,9 @@ services:
     build:
       context: ..
       dockerfile: services/prue_backend/Dockerfile
-    ports:
-      - "6004:8080"
+    network_mode: service:prue-sidecar
     environment:
-      SERVER_HOST: "0.0.0.0"
+      SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "8080"
       DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
       RUST_LOG: "info"
@@ -183,8 +182,15 @@ services:
         condition: service_healthy
       consul:
         condition: service_healthy
-    networks:
-      - superpowers
+      prue-sidecar:
+        condition: service_started
+
+  prue-sidecar:
+    <<: *sidecar-defaults
+    environment:
+      <<: *sidecar-env
+      DP_PROXY_SERVICE_ID: prue_backend-sidecar-proxy
+    ports: ["6004:20000"]
 
   notification-service:
     build:
