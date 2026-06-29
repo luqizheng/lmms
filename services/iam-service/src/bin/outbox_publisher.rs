@@ -53,7 +53,18 @@ async fn main() -> anyhow::Result<()> {
         .connect(&db_url)
         .await
         .context("connect mysql")?;
-    let repo = MySqlOutboxRepo::new(pool);
+    let repo = MySqlOutboxRepo::new(pool.clone());
+
+    // Phase 6-A T4: archive cron runs as a sibling tokio task. Uses a clone
+    // of the publisher's pool; multi-replica safety is handled by GET_LOCK
+    // inside outbox_archive::run_once.
+    {
+        let archive_pool = pool.clone();
+        tokio::spawn(async move {
+            iam_service::outbox_archive::run(archive_pool).await;
+        });
+        info!("outbox archive cron spawned");
+    }
 
     // Shutdown flag — flipped by SIGINT or SIGTERM. Checked between batches.
     let shutdown = Arc::new(AtomicBool::new(false));
