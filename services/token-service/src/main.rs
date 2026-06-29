@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use common_config::Loader;
+use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
 use token_service::openapi::ApiDoc;
 use token_service::routes;
 use token_service::service::oauth_client_svc;
@@ -67,12 +68,11 @@ async fn main() {
         issuer_str: cfg.issuer.clone(),
         jwt_public_key: public_key_pem,
         default_resource_ttl_sec: cfg.default_resource_ttl_sec,
-        http_client: {
-            use hyper_util::client::legacy::connect::HttpConnector;
-            use hyper_util::client::legacy::Client;
-            use hyper_util::rt::TokioExecutor;
-            Client::builder(TokioExecutor::new()).build(HttpConnector::new())
-        },
+        http_client: Arc::new(ResilientClient::new(
+            reqwest::Client::new(),
+            ResilienceConfig::default(),
+            Arc::new(NoopObserver),
+        )),
         user_service_url: cfg.user_service_url.clone(),
     };
 

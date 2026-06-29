@@ -1,39 +1,32 @@
 use crate::db::DbPool;
-use bytes::Bytes;
-use http_body_util::{BodyExt, Full};
-use hyper::Request;
-use hyper_util::client::legacy::connect::HttpConnector;
-use hyper_util::client::legacy::Client;
+use common_http::ResilientClient;
+use reqwest::{header::HeaderMap, Method};
+use std::sync::Arc;
 
-pub type TokenHttpClient = Client<HttpConnector, Full<Bytes>>;
-
-pub async fn fetch_json(client: &TokenHttpClient, url: &str) -> Result<serde_json::Value, String> {
-    let req = Request::builder()
-        .method("GET")
-        .uri(url)
-        .body(Full::new(Bytes::new()))
-        .map_err(|e| format!("build request: {}", e))?;
-    let resp = client.request(req).await.map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        return Err(format!("HTTP {}", resp.status()));
-    }
-    let body = resp
-        .into_body()
-        .collect()
+/// Fetch JSON from iam-service via ResilientClient (timeout/retry/breaker).
+pub async fn fetch_json(
+    client: &ResilientClient,
+    service: &str,
+    url: &str,
+) -> Result<serde_json::Value, String> {
+    let resp = client
+        .call(service, Method::GET, url, &HeaderMap::new(), bytes::Bytes::new())
         .await
-        .map_err(|e| e.to_string())?
-        .to_bytes();
-    serde_json::from_slice(&body).map_err(|e| e.to_string())
+        .map_err(|e| format!("{:?}", e))?;
+    if !resp.status.is_success() {
+        return Err(format!("HTTP {}", resp.status));
+    }
+    serde_json::from_slice(&resp.body).map_err(|e| e.to_string())
 }
 
 #[derive(Clone)]
 pub struct TokenServerState {
     pub db: DbPool,
-    pub issuer: std::sync::Arc<crate::issuer::TokenIssuer>,
+    pub issuer: Arc<crate::issuer::TokenIssuer>,
     pub issuer_str: String,
     pub jwt_public_key: String,
     pub default_resource_ttl_sec: i64,
-    pub http_client: TokenHttpClient,
+    pub http_client: Arc<ResilientClient>,
     pub user_service_url: String,
 }
 

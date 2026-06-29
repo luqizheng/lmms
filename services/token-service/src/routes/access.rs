@@ -72,7 +72,7 @@ pub async fn handle_access(
             "{}/internal/users/{}/claims",
             state.user_service_url, user_id
         );
-        let extra_claims: serde_json::Value = match crate::fetch_json(&state.http_client, &claims_url).await {
+        let extra_claims: serde_json::Value = match crate::fetch_json(&state.http_client, "iam-service", &claims_url).await {
             Ok(claims) => claims,
             Err(e) => {
                 tracing::warn!("user-service unreachable at {}: {}, using default claims", claims_url, e);
