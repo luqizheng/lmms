@@ -3,7 +3,9 @@ use crate::config::DatabaseConfig;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
+const V002_SQL: &str = include_str!("../migrations/mysql/V002__outbox_archive.sql");
 const SCHEMA_MARKER_TABLE: &str = "iam_users";
+const V002_MARKER_TABLE: &str = "iam_outbox_events_archive";
 
 pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
     let pool = common::db::connect(&config.url, config.max_connections).await?;
@@ -12,20 +14,36 @@ pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
 }
 
 pub async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
+    if !table_exists(pool, SCHEMA_MARKER_TABLE).await? {
+        info!("iam schema missing, applying initial migration");
+        apply_sql_script(pool, INIT_SQL).await?;
+        info!("iam initial migration applied");
+    } else {
+        info!(marker = SCHEMA_MARKER_TABLE, "iam schema present, skip V001");
+    }
+
+    if !table_exists(pool, V002_MARKER_TABLE).await? {
+        info!("iam outbox archive table missing, applying V002");
+        apply_sql_script(pool, V002_SQL).await?;
+        info!("iam V002 (outbox archive) applied");
+    }
+
+    Ok(())
+}
+
+async fn table_exists(pool: &MySqlPool, table: &str) -> anyhow::Result<bool> {
     let row: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM information_schema.tables \
          WHERE table_schema = DATABASE() AND table_name = ?",
     )
-    .bind(SCHEMA_MARKER_TABLE)
+    .bind(table)
     .fetch_one(pool)
     .await?;
-    if row.0 > 0 {
-        info!(marker = SCHEMA_MARKER_TABLE, "iam schema present, skip migration");
-        return Ok(());
-    }
+    Ok(row.0 > 0)
+}
 
-    info!("iam schema missing, applying initial migration");
-    for stmt in INIT_SQL.split(';') {
+async fn apply_sql_script(pool: &MySqlPool, script: &str) -> anyhow::Result<()> {
+    for stmt in script.split(';') {
         let cleaned: String = stmt
             .lines()
             .filter(|l| !l.trim_start().starts_with("--"))
@@ -44,6 +62,5 @@ pub async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
             return Err(anyhow::anyhow!("apply iam migration: {e}"));
         }
     }
-    info!("iam initial migration applied");
     Ok(())
 }
