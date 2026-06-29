@@ -1,26 +1,32 @@
 package com.kudi.coder.demowebapp.service;
 
+import com.kudi.coder.demowebapp.audit.AuditPublisher;
 import com.kudi.coder.demowebapp.domain.Task;
 import com.kudi.coder.demowebapp.domain.TaskStatus;
 import com.kudi.coder.demowebapp.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class TaskServiceTest {
 
     private TaskRepository repo;
+    private AuditPublisher publisher;
     private TaskService svc;
 
     @BeforeEach
     void setUp() {
         repo = mock(TaskRepository.class);
-        svc = new TaskService(repo);
+        publisher = mock(AuditPublisher.class);
+        svc = new TaskService(repo, publisher);
     }
 
     @Test
@@ -84,5 +90,21 @@ class TaskServiceTest {
         when(repo.existsById(1L)).thenReturn(true);
         svc.delete(1L);
         verify(repo).deleteById(1L);
+    }
+
+    @Test
+    void create_calls_auditPublisher() {
+        when(repo.save(any(Task.class))).thenAnswer(inv -> {
+            Task t = inv.getArgument(0);
+            t.setId(7L);
+            return t;
+        });
+
+        svc.create("title", "desc", "alice");
+
+        ArgumentCaptor<Map<String, Object>> payloadCap = ArgumentCaptor.forClass(Map.class);
+        verify(publisher).publish(eq("alice"), eq("TASK_CREATED"), eq("task"), eq("7"), payloadCap.capture());
+        assertEquals("title", payloadCap.getValue().get("title"));
+        assertEquals("CREATED", payloadCap.getValue().get("status"));
     }
 }

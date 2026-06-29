@@ -1,19 +1,25 @@
 package com.kudi.coder.demowebapp.service;
 
+import com.kudi.coder.demowebapp.audit.AuditPublisher;
 import com.kudi.coder.demowebapp.domain.Task;
 import com.kudi.coder.demowebapp.domain.TaskStatus;
 import com.kudi.coder.demowebapp.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class TaskService {
 
     private final TaskRepository repo;
+    private final AuditPublisher publisher;
 
-    public TaskService(TaskRepository repo) {
+    public TaskService(TaskRepository repo, AuditPublisher publisher) {
         this.repo = repo;
+        this.publisher = publisher;
     }
 
     public Task create(String title, String description, String creatorId) {
@@ -25,7 +31,12 @@ public class TaskService {
         t.setDescription(description);
         t.setStatus(TaskStatus.CREATED);
         t.setAssigneeId(creatorId);
-        return repo.save(t);
+        Task saved = repo.save(t);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("title", saved.getTitle());
+        payload.put("status", saved.getStatus().name());
+        publisher.publish(creatorId, "TASK_CREATED", "task", String.valueOf(saved.getId()), payload);
+        return saved;
     }
 
     public Task get(Long id) {
@@ -45,18 +56,32 @@ public class TaskService {
         if (t.getStatus() == TaskStatus.DONE) {
             throw new IllegalStateException("cannot assign a DONE task");
         }
+        TaskStatus from = t.getStatus();
         t.setAssigneeId(assigneeId);
         if (t.getStatus() == TaskStatus.CREATED) {
             t.setStatus(TaskStatus.ASSIGNED);
         }
-        return repo.save(t);
+        Task saved = repo.save(t);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("from", from.name());
+        payload.put("to", saved.getStatus().name());
+        payload.put("assigneeId", assigneeId);
+        publisher.publish(assigneeId, "TASK_ASSIGNED", "task", String.valueOf(saved.getId()), payload);
+        return saved;
     }
 
     public Task changeStatus(Long id, TaskStatus to) {
         Task t = get(id);
-        validateTransition(t.getStatus(), to);
+        TaskStatus from = t.getStatus();
+        validateTransition(from, to);
         t.setStatus(to);
-        return repo.save(t);
+        Task saved = repo.save(t);
+        // ponytail: actor=null until TaskController passes Principal into service
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("from", from.name());
+        payload.put("to", saved.getStatus().name());
+        publisher.publish(null, "TASK_STATUS_CHANGED", "task", String.valueOf(saved.getId()), payload);
+        return saved;
     }
 
     public void delete(Long id) {
@@ -64,6 +89,8 @@ public class TaskService {
             throw new IllegalArgumentException("task " + id + " not found");
         }
         repo.deleteById(id);
+        // ponytail: actor=null until TaskController passes Principal into service
+        publisher.publish(null, "TASK_DELETED", "task", String.valueOf(id), Collections.<String, Object>emptyMap());
     }
 
     private void validateTransition(TaskStatus from, TaskStatus to) {
