@@ -67,14 +67,13 @@ services:
     build:
       context: ..
       dockerfile: services/token-service/Dockerfile
-    ports:
-      - "6001:8080"
+    network_mode: service:token-sidecar
     volumes:
       - ../docker-example/secrets:/app/keys
       - ../docker-example/config/token-service:/app/config/token-service
       - ../services/token-service/config:/app/config
     environment:
-      SERVER_HOST: "0.0.0.0"
+      SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "8080"
       REDIS_URL: "redis://redis:6379"
       DATABASE_HOST: mysql
@@ -99,8 +98,15 @@ services:
         condition: service_healthy
       mysql:
         condition: service_healthy
-    networks:
-      - superpowers
+      token-sidecar:
+        condition: service_started
+
+  token-sidecar:
+    <<: *sidecar-defaults
+    environment:
+      <<: *sidecar-env
+      DP_PROXY_SERVICE_ID: token-service-sidecar-proxy
+    ports: ["6001:20000"]
 
   iam-service:
     build:
