@@ -1,9 +1,10 @@
 use std::sync::Arc;
+use common_config::Loader;
 use token_service::openapi::ApiDoc;
 use token_service::routes;
 use token_service::service::oauth_client_svc;
 use token_service::{
-    load_config, ConsulRegistrar, TokenIssuer, TokenServerConfig, TokenServerState,
+    ConsulRegistrar, TokenIssuer, TokenServerConfig, TokenServerState,
 };
 use prometheus::{Encoder, TextEncoder};
 use utoipa::OpenApi;
@@ -13,9 +14,15 @@ use utoipa_swagger_ui::SwaggerUi;
 async fn main() {
     common_telemetry::init_tracing("token-service");
 
-    let cfg: TokenServerConfig = load_config("config/config.yaml")
-        .or_else(|_| load_config("config/token-service.yaml"))
-        .expect("failed to load config.yaml");
+    let cfg: TokenServerConfig = Loader::new("TOKEN")
+        .with_file("config/config.yaml")
+        .with_config_service(
+            std::env::var("CONFIG_SERVICE_URL").unwrap_or_else(|_| "http://localhost:6006".into()),
+            std::env::var("CONFIG_SERVICE_NAMESPACE")
+                .unwrap_or_else(|_| "token-service-dev".into()),
+        )
+        .load()
+        .expect("failed to load config (tried config-service + config/config.yaml)");
 
     println!("========== token-service config ==========");
     println!("server.host           : {}", cfg.server.host);
