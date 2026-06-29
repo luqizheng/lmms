@@ -17,6 +17,7 @@ reqwest.workspace = true
 common = { path = "../../libs/common" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+common-config = { path = "../../libs/common-config", features = ["config-service"] }
 consul-registrar = { path = "../../libs/consul-registrar" }
 axum.workspace = true
 tokio.workspace = true
