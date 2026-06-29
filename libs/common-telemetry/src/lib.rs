@@ -95,3 +95,8 @@ pub fn shutdown() {
 
 mod trace_id;
 pub use trace_id::current_trace_id;
+
+#[cfg(feature = "axum")]
+pub mod middleware;
+#[cfg(feature = "axum")]
+pub use middleware::trace_request_middleware;

@@ -7,6 +7,11 @@ edition = "2021"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
+# axum middleware deps — opt-in via `axum` feature
+axum = { workspace = true, optional = true }
+rand = { version = "0.8", optional = true }
+hex = { version = "0.4", optional = true }
+
 # OpenTelemetry — opt-in, only enabled when otlp feature is on
 opentelemetry = { version = "0.24", optional = true }
 opentelemetry-otlp = { version = "0.17", optional = true, default-features = false, features = ["grpc-tonic", "trace"] }
@@ -15,6 +20,7 @@ tracing-opentelemetry = { version = "0.25", optional = true }
 
 [features]
 default = []
+axum = ["dep:axum", "dep:rand", "dep:hex"]
 otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 
 [dev-dependencies]

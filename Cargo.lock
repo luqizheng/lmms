@@ -1362,9 +1362,12 @@ dependencies = [
 name = "common-telemetry"
 version = "0.1.0"
 dependencies = [
+ "axum 0.8.9",
+ "hex",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
+ "rand 0.8.6",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
