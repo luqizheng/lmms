@@ -42,7 +42,7 @@ impl TenantService {
             }
             IamError::from(e)
         })?;
-        let tenant_id = tenant_res.last_insert_id() as i64;
+        let tenant_id = tenant_res.last_insert_id();
 
         let admin_id = Uuid::new_v4().to_string();
         let password_hash =
@@ -92,7 +92,7 @@ impl TenantService {
         tx.commit().await?;
 
         Ok(CreateTenantResponse {
-            tenant_id,
+            tenant_id: tenant_id as i64,
             admin_user_id: admin_id,
         })
     }

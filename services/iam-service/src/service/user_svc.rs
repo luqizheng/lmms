@@ -13,7 +13,7 @@ use sqlx::{FromRow, mysql::MySqlQueryResult};
 #[derive(FromRow)]
 struct UserRow {
     id: String,
-    tenant_id: i64,
+    tenant_id: u64,
     username: String,
     email: Option<String>,
     phone: Option<String>,
@@ -66,7 +66,7 @@ impl UserService {
             "INSERT INTO iam_users (id, tenant_id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
         )
         .bind(&user_id)
-        .bind(1i64)
+        .bind(1u64)
         .bind(&req.username)
         .bind(&password_hash)
         .bind(&salt)
@@ -292,7 +292,7 @@ impl UserService {
 
     pub async fn delete(&self, user_id: &str) -> Result<(), IamError> {
         let mut tx = self.state.db.begin().await?;
-        let tenant: Option<(i64,)> = sqlx::query_as(
+        let tenant: Option<(u64,)> = sqlx::query_as(
             "SELECT tenant_id FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)

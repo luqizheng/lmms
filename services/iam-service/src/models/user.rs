@@ -6,7 +6,7 @@ use std::fmt;
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
-    pub tenant_id: i64,
+    pub tenant_id: u64,
     pub username: String,
     pub email: Option<String>,
     pub phone: Option<String>,
