@@ -25,7 +25,7 @@ impl AuthService {
 
     pub async fn login(&self, req: LoginRequest, ip_address: &str, user_agent: &str) -> Result<LoginResponse, IamError> {
         let user: Option<User> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE username = ? AND deleted_at IS NULL"
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE username = ? AND deleted_at IS NULL"
         )
         .bind(&req.username)
         .fetch_optional(&self.state.db)
@@ -66,7 +66,7 @@ impl AuthService {
         let roles = self.get_user_roles(&user.id).await?;
         let permissions = self.get_user_permissions(&user.id).await?;
         
-        let access_token = token_service.issue_access_token(&user.id, &user.username, roles.clone(), permissions.clone())
+        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id, roles.clone(), permissions.clone())
             .map_err(|e| IamError::Jwt(e.to_string()))?;
 
         // 生成 refresh token
@@ -160,7 +160,7 @@ impl AuthService {
 
         // 获取用户信息
         let user: Option<User> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(&token.user_id)
         .fetch_optional(&self.state.db)
@@ -178,7 +178,7 @@ impl AuthService {
         let roles = self.get_user_roles(&user.id).await?;
         let permissions = self.get_user_permissions(&user.id).await?;
         
-        let access_token = token_service.issue_access_token(&user.id, &user.username, roles.clone(), permissions.clone())
+        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id, roles.clone(), permissions.clone())
             .map_err(|e| IamError::Jwt(e.to_string()))?;
 
         let user_info = UserInfo {
@@ -237,7 +237,7 @@ impl AuthService {
 
     pub async fn change_password(&self, user_id: &str, req: ChangePasswordRequest) -> Result<(), IamError> {
         let user: Option<User> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
