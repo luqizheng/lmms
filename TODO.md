@@ -254,10 +254,47 @@
 
 ### Phase 8 — 多租户基础（P2，按产品形态择机）
 
-- [ ] **tenant_id 全链路贯通**
-  - [ ] `libs/jwt-ctx::Principal` 增加 `tenant_id` 字段
-  - [ ] 业务表 schema 增加 `tenant_id` + 复合索引（迁移分批进行）
-  - [ ] `libs/common-db` 提供 `TenantScopedQuery` helper，extractor 自动注入 WHERE
+> 设计决策（brainstorm 2026-07-01）：共享 MySQL + tenant_id 列 / 一用户一租户 / 自助注册 / JWT `tid` claim 唯一来源 / BIGINT 自增 / permissions 全局 + roles 租户独有。
+> 拆 3 个子 spec：8.1 骨架 / 8.2 表迁移 / 8.3 全面贯通。
+
+#### Phase 8.1 — 骨架（已完成并合并）
+
+> Spec: `docs/superpowers/specs/2026-07-01-phase8.1-multi-tenancy-skeleton-design.md`
+> Plan: `docs/superpowers/plans/2026-07-01-phase8.1-multi-tenancy-skeleton.md`
+
+- [x] V003 迁移：`iam_tenants` 表 + default seed + `iam_users.tenant_id`
+- [x] `libs/jwt-ctx::Principal.tenant_id` + tid claim 解析
+- [x] `libs/jwt-ctx::TenantScope` extractor
+- [x] `libs/common-db::WithTenantScope` helper
+- [x] `services/iam-service::token_svc::issue_access_token` 加 tenant_id 参数 + JWT `tid` claim
+- [x] iam-service 5 处 Envelope::new callsite 注入 tenant_id
+- [x] `contracts/events.yaml` 加 `iam.tenant.created` + codegen
+- [x] `POST /iam/tenants` 注册接口 + 同事务建 admin + 发事件
+- [x] `LoginRequest.tenant_slug` + login tenant-scoped lookup
+- [x] testcontainers 集成测 + 全量 docker 单测回归 + 手工验收 `test-case/81-tenant-registration.md`
+
+#### Phase 8.2 — 业务表 tenant_id 迁移（待 brainstorm）
+
+> 范围：iam_roles / iam_permissions / iam_announcements / iam_outbox_events / audit_* / ntf_* / cfg_* / file_* / prue_* 全部加 tenant_id 列与索引，所有 SELECT/INSERT/UPDATE 改为 tenant-scoped，default tenant backfill。
+> 阻塞条件：8.1 已上线 + 至少 1 个外部租户实际接入或临近接入。
+
+- [ ] brainstorm 8.2 spec：表清单、迁移顺序、索引策略、跨服务 SELECT 修改清单
+- [ ] 迁移 V004（按服务）：每个服务各自 ALTER 业务表加 tenant_id
+- [ ] sqlx 查询点全量改造（参考 `WithTenantScope::and_tenant`）
+- [ ] roles 改为 tenant 内（移除全局 tenant_admin seed，注册流程改为复制角色模板到 tenant）
+- [ ] envelope.tenant_id consumer 侧 `parse::<i64>()` 注入 audit/ntf insert
+
+#### Phase 8.3 — 全面贯通 + 跨租户检测（待 brainstorm）
+
+> 范围：gateway 跨租户访问检测、JWT 缺 tid 收紧为 401、`scripts/check-tenant-scope.js` lint、platform-admin `cross_tenant` flag、e2e 跨租户黑名单。
+> 阻塞条件：8.2 已上线。
+
+- [ ] brainstorm 8.3 spec
+- [ ] gateway 中间件：对比 `Principal.tenant_id` 与请求中可能携带的 tenant_id（URL/Body 路径参数）一致性
+- [ ] `Principal::from_jwt_payload` 缺 `tid` → 401
+- [ ] `scripts/check-tenant-scope.js`：handler 拿 TenantScope 但 SQL 无 tenant_id 时 lint 报警
+- [ ] platform-admin 引入 `cross_tenant: bool` 路径，独立于 default tenant
+- [ ] e2e 跨租户访问黑名单（acme token 访问 globex user → 404）
 
 ### Phase 9 — 小问题清单（P3，零散收尾）
 
