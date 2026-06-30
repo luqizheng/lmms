@@ -21,6 +21,7 @@ use api_gateway::{
 use api_gateway::resilience_metrics::GatewayMetricsObserver;
 use cli::{Cli, Cmd};
 use common_http::ResilientClient;
+use consul_registrar::ConsulRegistrar;
 
 fn find_and_render(
     routes: &[RouteConfig],
@@ -272,6 +273,27 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
     tracing::info!("api-gateway listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+
+    let mut consul_registrar = ConsulRegistrar::new(
+        &cfg.consul_addr,
+        "api-gateway",
+        "/tmp/api-gateway-id",
+    );
+    match consul_registrar
+        .register_discovered(cfg.server.port, "api-gateway")
+        .await
+    {
+        Ok(_) => tracing::info!("api-gateway registered with consul"),
+        Err(e) => tracing::warn!("failed to register with consul: {}", e),
+    }
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to listen for ctrl-c");
+        tracing::info!("received shutdown signal, deregistering from consul");
+        let _ = consul_registrar.deregister().await;
+        std::process::exit(0);
+    });
 
     if admin_port > 0 {
         spawn_admin_server(admin_port, routes_dir.clone(), route_table.clone()).await;

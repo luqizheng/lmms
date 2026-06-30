@@ -9,6 +9,7 @@ common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+consul-registrar = { path = "../../libs/consul-registrar" }
 
 axum.workspace = true
 tokio.workspace = true

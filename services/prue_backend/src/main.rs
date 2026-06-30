@@ -1,5 +1,6 @@
 use common_db::init_pool;
 use common_telemetry::init_tracing;
+use consul_registrar::ConsulRegistrar;
 use prue_backend::{config::AppConfig, db, routes, state::AppState};
 use std::net::SocketAddr;
 
@@ -41,6 +42,29 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("Failed to bind");
+
+    let consul_addr = std::env::var("CONSUL_ADDR")
+        .unwrap_or_else(|_| "http://consul:8500".to_string());
+    let mut consul_registrar = ConsulRegistrar::new(
+        &consul_addr,
+        "prue_backend",
+        "/tmp/prue_backend-id",
+    );
+    match consul_registrar
+        .register_discovered(addr.port(), "prue_backend")
+        .await
+    {
+        Ok(_) => tracing::info!("prue_backend registered with consul"),
+        Err(e) => tracing::warn!("failed to register with consul: {}", e),
+    }
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to listen for ctrl-c");
+        tracing::info!("received shutdown signal, deregistering from consul");
+        let _ = consul_registrar.deregister().await;
+        std::process::exit(0);
+    });
 
     axum::serve(listener, app)
         .await
