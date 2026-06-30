@@ -23,7 +23,6 @@ struct AgentServiceRegistration {
     address: String,
     port: u16,
     check: AgentServiceCheck,
-    connect: ConnectRegistration,
 }
 
 #[derive(Serialize)]
@@ -34,19 +33,6 @@ struct AgentServiceCheck {
     interval: String,
     timeout: String,
     deregister_critical_service_after: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "PascalCase")]
-struct ConnectRegistration {
-    sidecar_service: SidecarService,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "PascalCase")]
-struct SidecarService {
-    id: String,
-    name: String,
 }
 
 /// Consul agent service registrar. Created once at startup, registered against
@@ -261,12 +247,6 @@ impl ConsulRegistrar {
                 interval: "10s".to_string(),
                 timeout: "5s".to_string(),
                 deregister_critical_service_after: "1m".to_string(),
-            },
-            connect: ConnectRegistration {
-                sidecar_service: SidecarService {
-                    id: format!("{}-sidecar-proxy", self.service_name),
-                    name: format!("{}-sidecar-proxy", self.service_name),
-                },
             },
         };
 
@@ -502,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn registration_serializes_connect_sidecar_with_fixed_id() {
+    fn registration_serializes_plain_service() {
         let reg = AgentServiceRegistration {
             id: "audit-service-abc-uuid".into(),
             name: "audit-service".into(),
@@ -514,19 +494,12 @@ mod tests {
                 timeout: "5s".into(),
                 deregister_critical_service_after: "1m".into(),
             },
-            connect: ConnectRegistration {
-                sidecar_service: SidecarService {
-                    id: "audit-service-sidecar-proxy".into(),
-                    name: "audit-service-sidecar-proxy".into(),
-                },
-            },
         };
         let json = serde_json::to_value(&reg).unwrap();
-        assert_eq!(json["Connect"]["SidecarService"]["Id"], "audit-service-sidecar-proxy");
-        assert_eq!(json["Connect"]["SidecarService"]["Name"], "audit-service-sidecar-proxy");
         assert_eq!(json["Check"]["HTTP"], "http://127.0.0.1:8080/health");
         assert_eq!(json["Check"]["DeregisterCriticalServiceAfter"], "1m");
         assert_eq!(json["Id"], "audit-service-abc-uuid");
         assert_eq!(json["Name"], "audit-service");
+        assert!(json.get("Connect").is_none());
     }
 }

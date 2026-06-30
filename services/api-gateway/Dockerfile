@@ -4,6 +4,7 @@ WORKDIR /app
 
 # 阶段1: 只复制依赖文件，构建依赖层（利用 Docker 缓存）
 COPY Cargo.toml Cargo.lock ./
+COPY .cargo .cargo
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk
@@ -11,6 +12,7 @@ COPY sdk ./sdk
 # 预编译依赖（仅当 Cargo.toml/Cargo.lock 变化时重新执行）
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=cargo-target-api-gateway,target=/app/target,sharing=locked \
     cargo build --release --target x86_64-unknown-linux-musl -p api-gateway --jobs 8 && \
     cp /app/target/x86_64-unknown-linux-musl/release/api-gateway /app/api-gateway
 

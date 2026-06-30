@@ -11,6 +11,7 @@ COPY . .
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=cargo-target-iam-service,target=/app/target,sharing=locked \
     cargo build --release --target x86_64-unknown-linux-musl --bin iam-service -p iam-service && \
     cargo build --release --target x86_64-unknown-linux-musl -p iam-outbox-publisher && \
     cp /app/target/x86_64-unknown-linux-musl/release/iam-service /app/iam-service && \

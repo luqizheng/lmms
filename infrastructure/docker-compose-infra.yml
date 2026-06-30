@@ -7,7 +7,7 @@ services:
     volumes:
       - ../docker-example/config/consul/config.docker.json:/consul/config/services.json:ro
       - ./config/consul/connect.hcl:/consul/config/connect.hcl:ro
-    command: agent -dev -config-dir=/consul/config -bind=0.0.0.0 -client=0.0.0.0
+    command: agent -dev -node=consul-server -config-dir=/consul/config -bind=0.0.0.0 -client=0.0.0.0
     healthcheck:
       test: ["CMD-SHELL", "consul members && nc -z 127.0.0.1 8502"]
       interval: 10s

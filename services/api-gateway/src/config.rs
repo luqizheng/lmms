@@ -93,12 +93,12 @@ pub struct EgressTarget {
 
 fn default_egress_map() -> HashMap<String, EgressTarget> {
     let mut m = HashMap::new();
-    let local = |p: u16| EgressTarget { host: "127.0.0.1".into(), port: p };
-    m.insert("iam-service".into(),          local(18001));
-    m.insert("token-service".into(),        local(18002));
-    m.insert("notification-service".into(), local(18003));
-    m.insert("audit-service".into(),        local(18004));
-    m.insert("prue_backend".into(),         local(18005));
+    let svc = |host: &str| EgressTarget { host: host.into(), port: 8080 };
+    m.insert("iam-service".into(),          svc("iam-service"));
+    m.insert("token-service".into(),        svc("token-service"));
+    m.insert("notification-service".into(), svc("notification-service"));
+    m.insert("audit-service".into(),        svc("audit-service"));
+    m.insert("prue_backend".into(),         svc("prue_backend"));
     m
 }
 

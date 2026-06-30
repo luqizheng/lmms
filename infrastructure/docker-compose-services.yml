@@ -1,27 +1,10 @@
-# === Sidecar shared definitions (Phase 5-A mTLS) ===
-# `x-` 前缀的顶层键被 compose spec 忽略，仅用于 YAML anchor 复用。
-x-sidecar-defaults: &sidecar-defaults
-  image: hashicorp/consul-dataplane:1.2
-  mem_limit: 64m
-  depends_on:
-    consul:
-      condition: service_healthy
-  networks:
-    - superpowers
-
-x-sidecar-env: &sidecar-env
-  DP_CONSUL_ADDRESSES: consul
-  DP_CONSUL_GRPC_PORT: "8502"
-  DP_ENVOY_READY_BIND_ADDR: 0.0.0.0
-  DP_ENVOY_READY_BIND_PORT: "20100"
-  DP_ENVOY_CONCURRENCY: "1"
-  DP_SERVICE_NODE_NAME: consul-server
-  DP_TLS_DISABLED: "true"
-
 services:
   api-gateway:
-    image: zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest
-    network_mode: service:gateway-sidecar
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "3000:3000"
     environment:
       RUST_LOG: "api_gateway=trace,info"
       GW_SERVER__HOST: "0.0.0.0"
@@ -29,7 +12,7 @@ services:
       GW_REDIS__URL: "redis://redis:6379"
       GW_REDIS__PREFIX: "superpowers:"
       GW_CONSUL_ADDR: "http://consul:8500"
-      GW_JWKS_URL: "http://127.0.0.1:18002/.well-known/jwks.json"
+      GW_JWKS_URL: "http://token-service:8080/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-service"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
@@ -39,10 +22,10 @@ services:
     command:
       - |
         i=0
-        until wget -q --spider http://127.0.0.1:18002/.well-known/jwks.json; do
+        until wget -q --spider http://token-service:8080/.well-known/jwks.json; do
           i=$$((i+1))
           if [ $$i -ge 60 ]; then echo "token-service jwks not ready, giving up"; exit 1; fi
-          echo "waiting token-service jwks via sidecar... ($$i)"
+          echo "waiting token-service jwks... ($$i)"
           sleep 1
         done
         exec /app/api-gateway serve --routes /app/config/api-gateway/routes
@@ -56,30 +39,23 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      gateway-sidecar:
-        condition: service_started
-
-  gateway-sidecar:
-    <<: *sidecar-defaults
-    environment:
-      <<: *sidecar-env
-      DP_PROXY_SERVICE_ID: api-gateway-sidecar-proxy
-    ports: ["3000:3000"]
+      token-service:
+        condition: service_healthy
     networks:
-      superpowers:
-        aliases: [api-gateway]
+      - superpowers
 
   token-service:
     build:
       context: ..
       dockerfile: services/token-service/Dockerfile
-    network_mode: service:token-sidecar
+    ports:
+      - "6001:8080"
     volumes:
       - ../docker-example/secrets:/app/keys
       - ../docker-example/config/token-service:/app/config/token-service
       - ../services/token-service/config:/app/config
     environment:
-      SERVER_HOST: "127.0.0.1"
+      SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
       REDIS_URL: "redis://redis:6379"
       DATABASE_HOST: mysql
@@ -92,7 +68,6 @@ services:
       TS_CLIENTS_FILE_PATH: "/app/config/clients.json"
       TS_CONSUL_ADDR: "http://consul:8500"
       CONFIG_FILE: "/config/config.yaml"
-      # OTel tracing — enable when observability overlay is up
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     healthcheck:
       test: ["CMD", "busybox", "wget", "-q", "--spider", "http://127.0.0.1:8080/.well-known/jwks.json"]
@@ -104,26 +79,22 @@ services:
         condition: service_healthy
       mysql:
         condition: service_healthy
-      token-sidecar:
-        condition: service_started
-
-  token-sidecar:
-    <<: *sidecar-defaults
-    environment:
-      <<: *sidecar-env
-      DP_PROXY_SERVICE_ID: token-service-sidecar-proxy
-    ports: ["6001:20000"]
+      consul:
+        condition: service_healthy
+    networks:
+      - superpowers
 
   iam-service:
     build:
       context: ..
       dockerfile: services/iam-service/Dockerfile
-    network_mode: service:iam-sidecar
+    ports:
+      - "6002:8080"
     volumes:
       - ../docker-example/secrets:/app/keys:ro
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
-      SERVER_HOST: "127.0.0.1"
+      SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
@@ -140,15 +111,8 @@ services:
         condition: service_healthy
       consul:
         condition: service_healthy
-      iam-sidecar:
-        condition: service_started
-
-  iam-sidecar:
-    <<: *sidecar-defaults
-    environment:
-      <<: *sidecar-env
-      DP_PROXY_SERVICE_ID: iam-service-sidecar-proxy
-    ports: ["6002:20000"]
+    networks:
+      - superpowers
 
   iam-outbox-publisher:
     build:
@@ -177,9 +141,10 @@ services:
     build:
       context: ..
       dockerfile: services/prue_backend/Dockerfile
-    network_mode: service:prue-sidecar
+    ports:
+      - "6004:8080"
     environment:
-      SERVER_HOST: "127.0.0.1"
+      SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
       DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
       RUST_LOG: "info"
@@ -188,21 +153,15 @@ services:
         condition: service_healthy
       consul:
         condition: service_healthy
-      prue-sidecar:
-        condition: service_started
-
-  prue-sidecar:
-    <<: *sidecar-defaults
-    environment:
-      <<: *sidecar-env
-      DP_PROXY_SERVICE_ID: prue_backend-sidecar-proxy
-    ports: ["6004:20000"]
+    networks:
+      - superpowers
 
   notification-service:
     build:
       context: ..
       dockerfile: services/notification-service/Dockerfile
-    network_mode: service:notification-sidecar
+    ports:
+      - "6003:8080"
     environment:
       EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
       CONSUL_ADDR: "http://consul:8500"
@@ -213,7 +172,6 @@ services:
       DATABASE_PASSWORD: rootpass
       DATABASE_NAME: superpowers
       REDIS_URL: "redis://redis:6379"
-      # OTel tracing — enable when observability overlay is up
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mysql:
@@ -224,17 +182,10 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      notification-sidecar:
-        condition: service_started
     volumes:
       - ../docker-example/config/notification-service:/app/config:ro
-
-  notification-sidecar:
-    <<: *sidecar-defaults
-    environment:
-      <<: *sidecar-env
-      DP_PROXY_SERVICE_ID: notification-service-sidecar-proxy
-    ports: ["6003:20000"]
+    networks:
+      - superpowers
 
   notification-outbox-publisher:
     build:
@@ -264,9 +215,10 @@ services:
     build:
       context: ..
       dockerfile: services/audit-service/Dockerfile
-    network_mode: service:audit-sidecar
+    ports:
+      - "6005:8080"
     environment:
-      SERVER_HOST: "127.0.0.1"
+      SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
@@ -287,22 +239,14 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      audit-sidecar:
-        condition: service_started
-
-  audit-sidecar:
-    <<: *sidecar-defaults
-    environment:
-      <<: *sidecar-env
-      DP_PROXY_SERVICE_ID: audit-service-sidecar-proxy
-    ports: ["6005:20000"]
+    networks:
+      - superpowers
 
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        # e2e 测试环境禁用登录图形验证码，便于 Playwright 自动化
         VITE_DISABLE_CAPTCHA: "true"
     ports:
       - "8080:80"
@@ -310,4 +254,3 @@ services:
       - api-gateway
     networks:
       - superpowers
-

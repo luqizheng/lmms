@@ -11,6 +11,7 @@ COPY . .
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=cargo-target-prue-backend,target=/app/target,sharing=locked \
     cargo build --release --target x86_64-unknown-linux-musl --bin prue_backend && \
     cp /app/target/x86_64-unknown-linux-musl/release/prue_backend /app/prue_backend
 

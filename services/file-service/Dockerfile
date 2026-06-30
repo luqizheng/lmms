@@ -3,12 +3,14 @@ USER root
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
+COPY .cargo .cargo
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=cargo-target-file-service,target=/app/target,sharing=locked \
     cargo build --release -p file-service && \
     cp /app/target/release/file-service /app/file-service
 

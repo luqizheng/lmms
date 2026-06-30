@@ -3,6 +3,7 @@ USER root
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
+COPY .cargo .cargo
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk
@@ -13,6 +14,7 @@ ENV SWAGGER_UI_DOWNLOAD_URL=https://gh-proxy.org/https://github.com/swagger-api/
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=cargo-target-token-service,target=/app/target,sharing=locked \
     CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --target x86_64-unknown-linux-musl -p token-service && \
     cp /app/target/x86_64-unknown-linux-musl/release/token-service /app/token-service
 
