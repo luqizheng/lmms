@@ -111,7 +111,8 @@ impl AuthService {
                     user_agent: Some(user_agent.to_string()),
                     method: "password".to_string(),
                 },
-            );
+            )
+            .with_tenant_id(user.tenant_id.to_string());
             common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
                 .await
                 .map_err(|e| IamError::Internal(e.to_string()))?;
@@ -351,7 +352,8 @@ impl AuthService {
                 user_agent: Some(user_agent.to_string()),
                 reason: reason.to_string(),
             },
-        );
+        )
+        .with_tenant_id("1");
         common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;

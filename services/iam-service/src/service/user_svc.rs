@@ -85,7 +85,8 @@ impl UserService {
                 email: req.email.clone(),
                 org_unit_id: None,
             },
-        );
+        )
+        .with_tenant_id(1i64.to_string());
         self.state.outbox_repo.clone()
             .enqueue(&mut tx, &mut envelope)
             .await
@@ -291,6 +292,13 @@ impl UserService {
 
     pub async fn delete(&self, user_id: &str) -> Result<(), IamError> {
         let mut tx = self.state.db.begin().await?;
+        let tenant: Option<(i64,)> = sqlx::query_as(
+            "SELECT tenant_id FROM iam_users WHERE id = ? AND deleted_at IS NULL"
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let tenant_id = tenant.map(|t| t.0).unwrap_or(1);
         let result: MySqlQueryResult = sqlx::query(
             "UPDATE iam_users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
@@ -311,7 +319,8 @@ impl UserService {
                 user_id: user_id.to_string(),
                 deleted_by: "system".to_string(),
             },
-        );
+        )
+        .with_tenant_id(tenant_id.to_string());
         self.state.outbox_repo.clone()
             .enqueue(&mut tx, &mut envelope)
             .await
