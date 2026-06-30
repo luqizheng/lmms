@@ -15,15 +15,16 @@ use utoipa_swagger_ui::SwaggerUi;
 async fn main() {
     common_telemetry::init_tracing("token-service");
 
-    let cfg: TokenServerConfig = Loader::new("TOKEN")
-        .with_file("config/config.yaml")
-        .with_config_service(
-            std::env::var("CONFIG_SERVICE_URL").unwrap_or_else(|_| "http://localhost:6006".into()),
-            std::env::var("CONFIG_SERVICE_NAMESPACE")
-                .unwrap_or_else(|_| "token-service-dev".into()),
-        )
+    let mut loader = Loader::new("TOKEN").with_file("config/config.yaml");
+    if let (Ok(url), Ok(ns)) = (
+        std::env::var("CONFIG_SERVICE_URL"),
+        std::env::var("CONFIG_SERVICE_NAMESPACE"),
+    ) {
+        loader = loader.with_config_service(url, ns);
+    }
+    let cfg: TokenServerConfig = loader
         .load()
-        .expect("failed to load config (tried config-service + config/config.yaml)");
+        .expect("failed to load config (tried config/config.yaml)");
 
     println!("========== token-service config ==========");
     println!("server.host           : {}", cfg.server.host);

@@ -8,8 +8,6 @@ docker compose -f infrastructure/docker-compose-infra.yml up -d
 docker compose -f infrastructure/docker-compose-services.yml up -d
 ```
 
-如启用 observability：再加 `infrastructure/docker-compose-observability.yml`。
-
 ## 步骤
 
 ### 1. 单元测试（无 Docker）

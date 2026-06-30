@@ -28,7 +28,7 @@ pub async fn handle_jwks(
     use rsa::traits::PublicKeyParts;
     let key = rsa::RsaPublicKey::from_pkcs1_pem(public_key_pem)
         .inspect_err(|&e| {
-            tracing::warn!("pkcs1 decode failed: {:?}, trying pkcs8...", e);
+            tracing::debug!("pkcs1 decode failed: {:?}, trying pkcs8...", e);
         })
         .or_else(|_| {
             use rsa::pkcs8::DecodePublicKey;

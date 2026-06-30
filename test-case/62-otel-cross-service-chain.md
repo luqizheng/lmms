@@ -5,17 +5,10 @@
 ```bash
 cd /home/kudi/projects/templates/low-memory-micro-services
 docker compose -f infrastructure/docker-compose-infra.yml up -d
-docker compose -f infrastructure/docker-compose-observability.yml up -d
 # 启动 8 个服务：api-gateway / iam-service / token-service / notification-service /
 #                audit-service / config-service / file-service / prue_backend
 # 注意：4 个新接入服务（audit/config/file/prue_backend）必须按 T2 后的 Cargo.toml 编译
 ```
-
-可观测性 overlay 起好后，端口映射：
-- Prometheus :9090
-- Grafana :3001
-- Jaeger UI :16686
-- OTel collector OTLP gRPC :4317
 
 ## 步骤
 

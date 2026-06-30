@@ -18,9 +18,8 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
 COPY services/api-gateway/src ./services/api-gateway/src
 
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 COPY --from=builder /app/api-gateway /app/api-gateway
-COPY docker-example/config/api-gateway/routes /app/config/routes
 ENV RUST_LOG=api_gateway=debug
 CMD ["/app/api-gateway", "serve", "--routes", "/app/config/routes"]
