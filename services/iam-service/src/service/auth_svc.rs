@@ -24,9 +24,25 @@ impl AuthService {
     }
 
     pub async fn login(&self, req: LoginRequest, ip_address: &str, user_agent: &str) -> Result<LoginResponse, IamError> {
-        let user: Option<User> = sqlx::query_as(
-            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE username = ? AND deleted_at IS NULL"
+        let tenant_slug = req.tenant_slug.as_deref().unwrap_or("default");
+        let tenant: Option<(u64,)> = sqlx::query_as(
+            "SELECT id FROM iam_tenants WHERE slug = ? AND status = 'active'"
         )
+        .bind(tenant_slug)
+        .fetch_optional(&self.state.db)
+        .await?;
+        let tenant_id = match tenant {
+            Some((id,)) => id,
+            None => {
+                self.record_login_failure(&req.username, None, ip_address, user_agent, "tenant_not_found").await?;
+                return Err(IamError::InvalidCredentials);
+            }
+        };
+
+        let user: Option<User> = sqlx::query_as(
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE tenant_id = ? AND username = ? AND deleted_at IS NULL"
+        )
+        .bind(tenant_id)
         .bind(&req.username)
         .fetch_optional(&self.state.db)
         .await?;
