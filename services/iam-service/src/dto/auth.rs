@@ -8,6 +8,8 @@ pub struct LoginRequest {
     pub username: String,
     #[validate(length(min = 6, max = 128))]
     pub password: String,
+    #[validate(length(min = 0, max = 64))]
+    pub tenant_slug: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]

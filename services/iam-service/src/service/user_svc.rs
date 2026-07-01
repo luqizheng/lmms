@@ -13,6 +13,7 @@ use sqlx::{FromRow, mysql::MySqlQueryResult};
 #[derive(FromRow)]
 struct UserRow {
     id: String,
+    tenant_id: u64,
     username: String,
     email: Option<String>,
     phone: Option<String>,
@@ -62,9 +63,10 @@ impl UserService {
         // (transactional outbox — see libs/common-event + iam_outbox_events).
         let mut tx = self.state.db.begin().await?;
         sqlx::query(
-            "INSERT INTO iam_users (id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
+            "INSERT INTO iam_users (id, tenant_id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
         )
         .bind(&user_id)
+        .bind(1u64)
         .bind(&req.username)
         .bind(&password_hash)
         .bind(&salt)
@@ -83,7 +85,8 @@ impl UserService {
                 email: req.email.clone(),
                 org_unit_id: None,
             },
-        );
+        )
+        .with_tenant_id(1i64.to_string());
         self.state.outbox_repo.clone()
             .enqueue(&mut tx, &mut envelope)
             .await
@@ -91,7 +94,7 @@ impl UserService {
         tx.commit().await?;
 
         let user: UserRow = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ?"
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ?"
         )
         .bind(&user_id)
         .fetch_one(&self.state.db)
@@ -195,7 +198,7 @@ impl UserService {
 
     pub async fn get(&self, user_id: &str) -> Result<UserResponse, IamError> {
         let user: Option<UserRow> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
@@ -214,7 +217,7 @@ impl UserService {
         let users: Vec<UserRow> = if let Some(keyword) = &query.keyword {
             let pattern = format!("%{}%", keyword);
             sqlx::query_as(
-                "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE deleted_at IS NULL AND (username LIKE ? OR nickname LIKE ? OR email LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE deleted_at IS NULL AND (username LIKE ? OR nickname LIKE ? OR email LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?"
             )
             .bind(&pattern)
             .bind(&pattern)
@@ -225,7 +228,7 @@ impl UserService {
             .await?
         } else {
             sqlx::query_as(
-                "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?"
             )
             .bind(limit)
             .bind(offset)
@@ -247,7 +250,7 @@ impl UserService {
 
     pub async fn update(&self, user_id: &str, req: UpdateUserRequest) -> Result<UserResponse, IamError> {
         let existing: Option<UserRow> = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
@@ -278,7 +281,7 @@ impl UserService {
         .map(|_| ())?;
 
         let user: UserRow = sqlx::query_as(
-            "SELECT id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
         .bind(user_id)
         .fetch_one(&self.state.db)
@@ -289,6 +292,13 @@ impl UserService {
 
     pub async fn delete(&self, user_id: &str) -> Result<(), IamError> {
         let mut tx = self.state.db.begin().await?;
+        let tenant: Option<(u64,)> = sqlx::query_as(
+            "SELECT tenant_id FROM iam_users WHERE id = ? AND deleted_at IS NULL"
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let tenant_id = tenant.map(|t| t.0).unwrap_or(1);
         let result: MySqlQueryResult = sqlx::query(
             "UPDATE iam_users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
         )
@@ -309,7 +319,8 @@ impl UserService {
                 user_id: user_id.to_string(),
                 deleted_by: "system".to_string(),
             },
-        );
+        )
+        .with_tenant_id(tenant_id.to_string());
         self.state.outbox_repo.clone()
             .enqueue(&mut tx, &mut envelope)
             .await
@@ -377,14 +388,14 @@ impl UserService {
     }
 
     pub async fn get_claims(&self, user_id: &str) -> Result<UserClaimsResponse, IamError> {
-        let user: Option<UserRow> = sqlx::query_as(
+        let user: Option<(String, String, Option<String>, Option<String>, String)> = sqlx::query_as(
             "SELECT id, username, email, phone, nickname FROM iam_users WHERE id = ? AND deleted_at IS NULL AND status = 'active'"
         )
         .bind(user_id)
         .fetch_optional(&self.state.db)
         .await?;
 
-        let user = match user {
+        let (uid, username, email, phone, nickname) = match user {
             Some(u) => u,
             None => return Err(IamError::UserNotFound),
         };
@@ -404,11 +415,11 @@ impl UserService {
         .await?;
 
         Ok(UserClaimsResponse {
-            user_id: user.id,
-            username: user.username,
-            nickname: user.nickname,
-            email: user.email,
-            phone: user.phone,
+            user_id: uid,
+            username,
+            nickname,
+            email,
+            phone,
             roles,
             permissions,
         })

@@ -77,6 +77,18 @@ impl Event for IamPermissionChanged {
     fn event_type() -> &'static str { "iam.permission.changed" }
     fn schema_version() -> u32 { 1 }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IamTenantCreated {
+    pub tenant_id: String,
+    pub slug: String,
+    pub display_name: String,
+    pub admin_user_id: String,
+}
+
+impl Event for IamTenantCreated {
+    fn event_type() -> &'static str { "iam.tenant.created" }
+    fn schema_version() -> u32 { 1 }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event_type", content = "payload", rename_all = "snake_case")]
@@ -91,4 +103,5 @@ pub enum IamEventEnum {
     IamLoginFailed(Envelope<IamLoginFailed>),
     NotificationAnnouncementPublished(Envelope<NotificationAnnouncementPublished>),
     IamPermissionChanged(Envelope<IamPermissionChanged>),
+    IamTenantCreated(Envelope<IamTenantCreated>),
 }

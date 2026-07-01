@@ -8,6 +8,7 @@ use std::collections::HashSet;
 pub struct Principal {
     pub user_id: String,
     pub user_code: String,
+    pub tenant_id: i64,
     pub dept_id: Option<i64>,
     pub roles: Vec<String>,
     pub permissions: HashSet<String>,
@@ -69,6 +70,11 @@ impl Principal {
             .unwrap_or("")
             .to_string();
         
+        let tenant_id = payload
+            .get("tid")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(1);
+        
         let dept_id = payload
             .get("dept_id")
             .and_then(|v| v.as_i64());
@@ -98,6 +104,7 @@ impl Principal {
         Ok(Self {
             user_id,
             user_code,
+            tenant_id,
             dept_id,
             roles,
             permissions,

@@ -1,6 +1,10 @@
 pub mod dialect;
+pub mod scope;
 #[cfg(feature = "test-kit")]
 pub mod test_kit;
+
+#[cfg(feature = "mysql")]
+pub use scope::WithTenantScope;
 
 use common_error::{AppError, AppResult};
 use dialect::DialectKind;

@@ -4,7 +4,7 @@ use utoipa::{
 };
 
 use crate::dto;
-use crate::routes::{auth, users};
+use crate::routes::{auth, tenants, users};
 
 pub struct SecurityAddon;
 
@@ -39,6 +39,7 @@ impl Modify for SecurityAddon {
         users::get_user,
         users::update_user,
         users::delete_user,
+        tenants::register_tenant,
     ),
     components(schemas(
         dto::LoginRequest,
@@ -52,11 +53,14 @@ impl Modify for SecurityAddon {
         dto::UpdateUserRequest,
         dto::UserResponse,
         dto::UserListResponse,
+        dto::CreateTenantRequest,
+        dto::CreateTenantResponse,
     )),
     modifiers(&SecurityAddon),
     tags(
         (name = "auth", description = "Authentication"),
         (name = "users", description = "User management"),
+        (name = "tenants", description = "Tenant registration"),
     )
 )]
 pub struct ApiDoc;

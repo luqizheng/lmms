@@ -4,8 +4,10 @@ use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
 const V002_SQL: &str = include_str!("../migrations/mysql/V002__outbox_archive.sql");
+const V003_SQL: &str = include_str!("../migrations/mysql/V003__tenants.sql");
 const SCHEMA_MARKER_TABLE: &str = "iam_users";
 const V002_MARKER_TABLE: &str = "iam_outbox_events_archive";
+const V003_MARKER_TABLE: &str = "iam_tenants";
 
 pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
     let pool = common::db::connect(&config.url, config.max_connections).await?;
@@ -26,6 +28,12 @@ pub async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
         info!("iam outbox archive table missing, applying V002");
         apply_sql_script(pool, V002_SQL).await?;
         info!("iam V002 (outbox archive) applied");
+    }
+
+    if !table_exists(pool, V003_MARKER_TABLE).await? {
+        info!("iam tenants table missing, applying V003");
+        apply_sql_script(pool, V003_SQL).await?;
+        info!("iam V003 (tenants) applied");
     }
 
     Ok(())

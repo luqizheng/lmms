@@ -1,4 +1,10 @@
 [[route]]
+upstream   = "/v1/iam/tenants"
+downstream = "/iam/tenants"
+service    = "iam-service"
+public     = true
+
+[[route]]
 upstream   = "/v1/iam/org-units/{rest}"
 downstream = "/iam/org-units/{rest}"
 service    = "iam-service"
@@ -20,6 +26,6 @@ service    = "iam-service"
 
 [[route]]
 upstream   = "/v1/iam/health"
-downstream = "/iam/health"
+downstream = "/health"
 service    = "iam-service"
 public     = true

@@ -54,6 +54,9 @@ pub enum IamError {
     #[error("duplicate org unit")]
     DuplicateOrgUnit,
     
+    #[error("tenant slug already exists")]
+    DuplicateTenant,
+    
     #[error("conflict: {0}")]
     Conflict(String),
     
@@ -90,6 +93,7 @@ impl From<IamError> for AppError {
             IamError::DuplicatePermission => AppError::conflict("IAM_PERM_6002", e.to_string()),
             IamError::DuplicateMenu => AppError::conflict("IAM_MENU_7002", e.to_string()),
             IamError::DuplicateOrgUnit => AppError::conflict("IAM_ORG_8002", e.to_string()),
+            IamError::DuplicateTenant => AppError::conflict("IAM_TENANT_9100", e.to_string()),
             IamError::Conflict(msg) => AppError::conflict("IAM_SYS_9000", msg),
             IamError::Database(e) => AppError::internal("IAM_SYS_9001", e.to_string()),
             IamError::Jwt(e) => AppError::internal("IAM_SYS_9003", e.to_string()),

@@ -2,6 +2,7 @@ pub mod auth;
 pub mod org_units;
 pub mod permissions;
 pub mod roles;
+pub mod tenants;
 pub mod users;
 
 use axum::{Router, middleware as axum_mw, routing::get};
@@ -23,6 +24,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(roles::routes(state.clone()))
         .merge(permissions::routes(state.clone()))
         .merge(org_units::routes(state.clone()))
+        .merge(tenants::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))

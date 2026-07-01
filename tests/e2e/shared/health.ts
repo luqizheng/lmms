@@ -10,7 +10,7 @@ interface Probe {
 
 const PROBES: Probe[] = [
   { name: 'api-gateway /health', url: `${config.baseURL}/health` },
-  { name: 'iam via gateway', url: `${config.baseURL}/iam/health`, expectStatus: 200 },
+  { name: 'iam via gateway', url: `${config.baseURL}/v1/iam/health`, expectStatus: 200 },
 ];
 
 export async function preflight(): Promise<void> {

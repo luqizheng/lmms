@@ -219,6 +219,7 @@ dependencies = [
  "common-telemetry",
  "common-telemetry-axum",
  "config",
+ "consul-registrar",
  "dotenvy",
  "glob",
  "governor",
@@ -1264,6 +1265,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "common-error",
+ "jwt-ctx",
  "sqlx",
  "tempfile",
  "tokio 1.52.3",
@@ -1509,6 +1511,7 @@ dependencies = [
  "tokio 1.52.3",
  "tracing",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
@@ -4702,6 +4705,7 @@ dependencies = [
  "common-log",
  "common-telemetry",
  "common-telemetry-axum",
+ "consul-registrar",
  "nanoid",
  "prometheus 0.13.4",
  "serde",

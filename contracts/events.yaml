@@ -62,3 +62,12 @@ events:
       user_ids: { type: json,   required: true }
       reason:   { type: string, required: true }
       actor_id: { type: string, required: false }
+
+  iam.tenant.created:
+    schema_version: 1
+    description: "租户创建（自助注册）"
+    payload:
+      tenant_id:     { type: string, required: true }
+      slug:          { type: string, required: true }
+      display_name:  { type: string, required: true }
+      admin_user_id: { type: string, required: true }

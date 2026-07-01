@@ -35,7 +35,8 @@ pub async fn enqueue_permission_changed(
             reason: reason.to_string(),
             actor_id: actor_id.map(|s| s.to_string()),
         },
-    );
+    )
+    .with_tenant_id("1");
     repo.enqueue(tx, &mut env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))?;

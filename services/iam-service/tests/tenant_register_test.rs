@@ -1,0 +1,175 @@
+//! Phase 8.1 集成测试：`POST /iam/tenants` 自助注册流程。
+//!
+//! 启 MySQL testcontainer（仅依赖 iam-service 自动迁移 V001 → V003），
+//! 通过 `TenantService::register` 驱动业务事务，断言：
+//!   1) 注册成功 → tenant 行 + admin user 行 + outbox iam.tenant.created 行
+//!   2) slug 唯一 → 重复注册 DuplicateTenant
+//!   3) `(tenant_id, username)` unique → 双 tenant admin 同名不冲突
+//!   4) outbox envelope.tenant_id 正确填值（i64.to_string()）
+
+use common_cache::MemoryCache;
+use common_event::MySqlOutboxRepo;
+use iam_service::config::{
+    AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
+};
+use iam_service::db;
+use iam_service::dto::CreateTenantRequest;
+use iam_service::error::IamError;
+use iam_service::service::TenantService;
+use iam_service::state::AppState;
+use std::sync::Arc;
+use testcontainers::ImageExt;
+use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
+
+const PREFIX: &str = "superpowers:";
+
+struct Ctx {
+    state: AppState,
+    _mysql: testcontainers::ContainerAsync<Mysql>,
+}
+
+async fn setup() -> Ctx {
+    let mysql_c = Mysql::default()
+        .with_cmd(["--innodb-use-native-aio=0"])
+        .start()
+        .await
+        .unwrap();
+    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
+    let my_host = mysql_c.get_host().await.unwrap();
+    let url = format!("mysql://root@{my_host}:{my_port}/test");
+    let pool = common::db::connect(&url, 5).await.unwrap();
+    db::ensure_schema(&pool).await.unwrap();
+
+    let config = Config {
+        app: AppConfig {
+            name: "iam-service".into(),
+            host: "0.0.0.0".into(),
+            port: 8080,
+        },
+        database: DatabaseConfig {
+            url: url.clone(),
+            max_connections: 5,
+            min_connections: 1,
+        },
+        redis: RedisConfig {
+            url: "redis://127.0.0.1:0".into(),
+            ttl_sec: 86400,
+            prefix: PREFIX.into(),
+        },
+        jwt: JwtConfig {
+            private_key_path: "/app/keys/private.pem".into(),
+            public_key_path: "/app/keys/public.pem".into(),
+            access_token_ttl_minutes: 15,
+            refresh_token_ttl_days: 7,
+        },
+        consul: ConsulConfig {
+            host: "consul".into(),
+            port: 8500,
+            service_name: "iam-service".into(),
+        },
+    };
+
+    let cache = MemoryCache::new(10000);
+    let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
+    let state = AppState::new(pool, cache, config, None, outbox_repo);
+    Ctx {
+        state,
+        _mysql: mysql_c,
+    }
+}
+
+fn sample_req(slug: &str, admin_username: &str) -> CreateTenantRequest {
+    CreateTenantRequest {
+        tenant_slug: slug.to_string(),
+        display_name: format!("{slug} display"),
+        admin_username: admin_username.to_string(),
+        admin_password: "secret-strong-pw-123".to_string(),
+        admin_email: None,
+    }
+}
+
+#[tokio::test]
+async fn register_tenant_creates_tenant_and_admin_and_outbox() {
+    let ctx = setup().await;
+    let svc = TenantService::new(ctx.state.clone());
+
+    let resp = svc.register(sample_req("acme", "admin")).await.unwrap();
+    assert!(resp.tenant_id > 1, "tenant_id must be > 1 (default=1 reserved)");
+    assert!(!resp.admin_user_id.is_empty());
+
+    // tenant row
+    let (slug,): (String,) = sqlx::query_as("SELECT slug FROM iam_tenants WHERE id = ?")
+        .bind(resp.tenant_id as u64)
+        .fetch_one(&ctx.state.db)
+        .await
+        .unwrap();
+    assert_eq!(slug, "acme");
+
+    // admin user row with tenant_id
+    let (tid, username): (u64, String) = sqlx::query_as(
+        "SELECT tenant_id, username FROM iam_users WHERE id = ?",
+    )
+    .bind(&resp.admin_user_id)
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(tid as i64, resp.tenant_id);
+    assert_eq!(username, "admin");
+
+    // outbox row
+    let (n,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM iam_outbox_events WHERE event_type = 'iam.tenant.created'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(n, 1);
+
+    // envelope.tenant_id = tenant_id.to_string()
+    let (env_tenant,): (String,) = sqlx::query_as(
+        "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.tenant_id')) AS CHAR) \
+         FROM iam_outbox_events WHERE event_type = 'iam.tenant.created'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(env_tenant, resp.tenant_id.to_string());
+}
+
+#[tokio::test]
+async fn register_tenant_duplicate_slug_returns_conflict() {
+    let ctx = setup().await;
+    let svc = TenantService::new(ctx.state.clone());
+
+    svc.register(sample_req("acme", "admin")).await.unwrap();
+
+    let err = svc
+        .register(sample_req("acme", "another"))
+        .await
+        .expect_err("duplicate slug must error");
+    assert!(matches!(err, IamError::DuplicateTenant), "got: {err:?}");
+}
+
+#[tokio::test]
+async fn two_tenants_can_have_same_admin_username() {
+    let ctx = setup().await;
+    let svc = TenantService::new(ctx.state.clone());
+
+    let acme = svc.register(sample_req("acme", "admin")).await.unwrap();
+    let globex = svc.register(sample_req("globex", "admin")).await.unwrap();
+
+    assert_ne!(acme.tenant_id, globex.tenant_id);
+    assert_ne!(acme.admin_user_id, globex.admin_user_id);
+
+    // Both admin rows exist with same username but different tenant_id.
+    let admins: Vec<(String, u64, String)> = sqlx::query_as(
+        "SELECT id, tenant_id, username FROM iam_users WHERE username = 'admin' ORDER BY tenant_id ASC",
+    )
+    .fetch_all(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(admins.len(), 2);
+    assert_eq!(admins[0].2, "admin");
+    assert_eq!(admins[1].2, "admin");
+    assert!(admins[0].1 < admins[1].1);
+}

@@ -9,3 +9,4 @@ pub const IAM_LOGIN_SUCCEEDED: &str = "iam.login.succeeded";
 pub const IAM_LOGIN_FAILED: &str = "iam.login.failed";
 pub const NOTIFICATION_ANNOUNCEMENT_PUBLISHED: &str = "notification.announcement.published";
 pub const IAM_PERMISSION_CHANGED: &str = "iam.permission.changed";
+pub const IAM_TENANT_CREATED: &str = "iam.tenant.created";
