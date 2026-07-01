@@ -6,6 +6,7 @@ use crate::{
 use chrono::Utc;
 use nanoid::nanoid;
 use sqlx::{FromRow, mysql::MySqlQueryResult};
+use std::collections::{BTreeSet, HashSet};
 
 pub struct RoleService {
     state: AppState,
@@ -229,6 +230,99 @@ impl RoleService {
 
         crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
         Ok(())
+    }
+
+    /// Full-replace a user's role set. Empty `role_ids` is legal (clears).
+    /// Duplicate ids in `role_ids` are deduped. Returns the resulting canonical
+    /// role_ids (sorted). No-op (new == old after dedup) → returns Ok without
+    /// touching the DB, enqueuing an event, or stamping perm_epoch.
+    ///
+    /// Errors:
+    /// - `IamError::UserNotFound` — user_id absent or soft-deleted
+    /// - `IamError::InvalidRoleIds(v)` — v lists role_ids not found as active
+    pub async fn assign_user_roles(
+        &self,
+        user_id: &str,
+        role_ids: Vec<String>,
+        actor_id: Option<&str>,
+    ) -> Result<Vec<String>, IamError> {
+        let mut tx = self.state.db.begin().await?;
+
+        // 1) user existence + row lock
+        let exists: Option<(String,)> = sqlx::query_as(
+            "SELECT id FROM iam_users WHERE id = ? AND deleted_at IS NULL FOR UPDATE",
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if exists.is_none() {
+            return Err(IamError::UserNotFound);
+        }
+
+        // 2) dedup + pre-check role_ids (active + not soft-deleted)
+        let dedup: Vec<String> = {
+            let s: BTreeSet<String> = role_ids.into_iter().collect();
+            s.into_iter().collect()
+        };
+        if !dedup.is_empty() {
+            let placeholders = std::iter::repeat("?").take(dedup.len()).collect::<Vec<_>>().join(",");
+            let sql = format!(
+                "SELECT id FROM iam_roles WHERE id IN ({}) AND status='active' AND deleted_at IS NULL",
+                placeholders
+            );
+            let mut q = sqlx::query_as::<_, (String,)>(&sql);
+            for id in &dedup {
+                q = q.bind(id);
+            }
+            let found: Vec<(String,)> = q.fetch_all(&mut *tx).await?;
+            let found_set: HashSet<&str> = found.iter().map(|(s,)| s.as_str()).collect();
+            let invalid: Vec<String> = dedup
+                .iter()
+                .filter(|id| !found_set.contains(id.as_str()))
+                .cloned()
+                .collect();
+            if !invalid.is_empty() {
+                return Err(IamError::InvalidRoleIds(invalid));
+            }
+        }
+
+        // 3) read old set → diff-skip
+        let old: Vec<(String,)> = sqlx::query_as(
+            "SELECT role_id FROM iam_user_roles WHERE user_id = ?",
+        )
+        .bind(user_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        let old_set: BTreeSet<String> = old.into_iter().map(|(r,)| r).collect();
+        let new_set: BTreeSet<String> = dedup.iter().cloned().collect();
+        if old_set == new_set {
+            tx.commit().await?;
+            return Ok(new_set.into_iter().collect());
+        }
+
+        // 4) full replace
+        sqlx::query("DELETE FROM iam_user_roles WHERE user_id = ?")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        crate::service::user_roles::set_user_roles_in_tx(&mut tx, user_id, &dedup).await?;
+
+        // 5) same-tx outbox event
+        crate::service::perm_change::enqueue_permission_changed(
+            &mut tx,
+            self.state.outbox_repo.as_ref(),
+            &[user_id.to_string()],
+            "user_roles_changed",
+            actor_id,
+        )
+        .await?;
+
+        tx.commit().await?;
+
+        // 6) post-commit best-effort Redis stamp
+        crate::service::perm_change::stamp_perm_epochs(&self.state, &[user_id.to_string()]).await;
+
+        Ok(new_set.into_iter().collect())
     }
 
     fn to_response(&self, role: &RoleRow) -> RoleResponse {
