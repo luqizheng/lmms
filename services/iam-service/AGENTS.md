@@ -29,7 +29,7 @@
 
 | 事件 | 触发 | 机制 |
 |------|------|------|
-| `iam.permission.changed` | assign_permissions / role 禁用·删除 / permission 禁用·删除 | 同事务展开受影响 `user_ids` + 写 `iam_outbox_events`（outbox）；commit 后直写 Redis `{prefix}perm_epoch:{user_id}=now`（best-effort，失败由 gateway consumer 兜底）|
+| `iam.permission.changed` | assign_permissions / assign_user_roles / role 禁用·删除 / permission 禁用·删除 | 同事务展开受影响 `user_ids` + 写 `iam_outbox_events`（outbox）；commit 后直写 Redis `{prefix}perm_epoch:{user_id}=now`（best-effort，失败由 gateway consumer 兜底）|
 
 - perm_epoch TTL = `jwt.access_token_ttl_minutes * 60`。gateway 比对 `token.iat < perm_epoch` → 401 强制重认证。
 - iam Redis 连接为 `Option`：Redis 不可用时 iam 仍启动，直写降级为 no-op。
@@ -56,6 +56,7 @@
 | /iam/users/:id | GET | 获取用户详情 |
 | /iam/users/:id | PUT | 更新用户 |
 | /iam/users/:id | DELETE | 删除用户 |
+| /iam/users/:id/roles | PUT | 全量替换用户角色，触发 iam.permission.changed（Phase 4.4-fu1）|
 
 ### 角色 /iam/roles/*
 
