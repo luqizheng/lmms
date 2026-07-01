@@ -60,7 +60,7 @@
 - [x] **4.2** 落地 `iam.login.failed` + 简易风控消费者（commits `492abd8`..`01f7723`；spec: `2026-06-27-phase4.2-login-failed-risk-design.md`，plan: `2026-06-27-phase4.2-login-failed-risk-plan.md`）。手工验收：`test-case/42-login-failed-risk.md`。
 - [x] **4.3** 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动（commits `c5f423e`..`d9961d0`；spec: `2026-06-27-phase4.3-announcement-published-ws-design.md`，plan: `2026-06-27-phase4.3-announcement-published-ws-plan.md`；本期仅 user-scope）。手工验收：`test-case/43-announcement-ws.md`。
   - [ ] **4.3-fu1** 大规模扇出时 `publish_announcement` 的 delivery 写入改批量多值 INSERT（当前逐条 INSERT IGNORE，复用 `db.rs:insert_deliveries` 模式；user-scope 规模小不成问题，role/dept 扇出落地后才需要）。依赖：4.3-fu2。
-  - [x] **4.3-fu2** role/dept 接收人解析落地（spec: docs/superpowers/specs/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver-design.md, plan: docs/superpowers/plans/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver.md）
+  - [x] **4.3-fu2** role/dept 接收人解析落地（spec: docs/superpowers/specs/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver-design.md, plan: docs/superpowers/plans/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver.md）。Post-merge 修复：commit `05b3c22` 将 `IamMemberClient::by_role/by_dept` 的 URL 追加 `?size=1000`（消除 >100 人角色/部门名单静默截断）。
   - [ ] **4.3-fu3** 4.1 welcome 路径（`announcement_service.rs:ensure_welcome_for_user`）多副本化：改走事件驱动 WS 推送而非进程内 `hub.publish`（消除最后一处进程内直推；delivery 已落库故 reload 可见，影响小）。依赖：4.3 的 ephemeral consumer 基建。
   - [x] **4.3-fu4** consumer `run()` block-on-disconnect 修复：审计/通知两个 durable-queue consumer 的 30s 重订阅循环换为持 `RabbitMqConsumer` + `while consumer.connection().status().connected() { sleep(5s) }`（复用 4.3 `announcement_run` 模式）；durable 队列在 broker 侧保留，未 ack 消息断线重订阅后 broker 重投。每 30s queue_declare/bind/basic_consume churn 消除。`services/audit-service/src/consumer.rs::run()` + `services/notification-service/src/consumer/mod.rs::run()`（spec `2026-06-28-phase4-cheap-fixes-design.md` §2.3）。
 - [x] **4.4** `iam.permission.changed` 事件 + perm-epoch 令牌失效（双写）（commits `512b389`..`4230b06`，最终对齐 prefix 修复见 4.4 分支末尾 commit；spec: `2026-06-27-phase4.4-permission-changed-design.md`，plan: `2026-06-27-phase4.4-permission-changed-plan.md`）。iam 在 assign_permissions / role 禁删 / permission 禁删 同事务展开 user_ids + 发事件 + 直写 Redis `perm_epoch:{uid}`；gateway 比对 `iat < perm_epoch` → 401，并消费事件用 set-if-greater 兜底补写。无服务端权限缓存可失效，故走令牌失效（架构评审已否决「token 落库反查拉黑」方案）。手工验收：`test-case/44-permission-epoch.md`。
@@ -76,10 +76,10 @@
 - [x] **I3** `OutboxPublisher::run()` bug-shape（doc 标记为 TEST HELPER ONLY）
 - [ ] **I1** consumer 瞬时错误直接 DLQ（应区分 transient/permanent，retry with TTL） — Phase 5
 - [x] **I2** audit-service 仍有 `create_operation_log`/`create_login_log` 死方法 + `CreateOperationLog`/`CreateLoginLog` 孤儿 schema — 后续清理
-  - [ ] **I2-fu1** ~~`scripts/openapi-codegen.js:90` 硬编码~~ 已修复（commit pending）：脚本改为 spec-driven —— 读 `spec.components.schemas` 生成 types（按 `required`/nullable）、读 `spec.paths` 生成 client 方法。下次 `pnpm sdk:generate:audit` 不会再回写 commit `89906cf` 删掉的 `CreateOperationLog`/`CreateLoginLog`；`LoginLog.user_id?: string;` 现在与 Rust `Option<String>` 一致。已用 audit/config/file 三个 spec 验证。
+  - [x] **I2-fu1** ~~`scripts/openapi-codegen.js:90` 硬编码~~ 已修复（commit `0412751`）：脚本改为 spec-driven —— 读 `spec.components.schemas` 生成 types（按 `required`/nullable）、读 `spec.paths` 生成 client 方法。下次 `pnpm sdk:generate:audit` 不会再回写 commit `89906cf` 删掉的 `CreateOperationLog`/`CreateLoginLog`；`LoginLog.user_id?: string;` 现在与 Rust `Option<String>` 一致。已用 audit/config/file 三个 spec 验证。
 - [ ] **I4** envelope.trace_id producer 侧未填充（docs 说已填，实际没填） — Phase 6 一起
 - [x] **I5** `MySqlOutboxRepo::new(pool.clone())` per-call — 移到 `AppState` 优化
-  - [x] **I5-fu1** 已修复（commit pending）：iam 剩余 7 处 `MySqlOutboxRepo::new(pool.clone())` 全部改走 `state.outbox_repo.as_ref()`。
+  - [x] **I5-fu1** 已修复（commit `5bfb2da` + 行号修正 `e78aad8`）：iam 剩余 7 处 `MySqlOutboxRepo::new(pool.clone())` 全部改走 `state.outbox_repo.as_ref()`。
     - `auth_svc.rs:115/356`（login_success / login_failed）：直接换 `common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), ...)`
     - `perm_change.rs:39` helper 签名 `db: &MySqlPool` → `repo: &MySqlOutboxRepo`；5 个 caller（`role_svc.rs:148/185/220` + `permission_svc.rs:208/253`）改传 `self.state.outbox_repo.as_ref()`
     - 回归：`permission_changed_test` 7/7 PASS（testcontainers），workspace build clean
@@ -305,6 +305,7 @@
 - [ ] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key）
 - [ ] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
+- [ ] **OpenAPI registration sweep**：跨 4.4/4.4-fu1/4.4-fu2 等多个 utoipa-annotated handler 未在 `services/iam-service/src/openapi.rs::paths(...)` 注册（assign_permissions、PUT /iam/users/:id/roles、GET /iam/internal/users/by-{role,dept}）。一次性 sweep 补齐，半天工作量。来源：4.4-fu1 / 4.4-fu2 / 4.3-fu2 final review 同类提示。
 
 ---
 
