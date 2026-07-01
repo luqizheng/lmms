@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod internal_users;
 pub mod org_units;
 pub mod permissions;
 pub mod roles;
