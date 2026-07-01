@@ -10,8 +10,15 @@ consul_addr = "http://consul:8500"
 jwks_url = "http://token-server:8080/.well-known/jwks.json"
 issuer = "superpowers-token-server"
 
-# 覆盖 config.rs default_egress_map 的 8080 默认值。
-# file-service / config-service 实际端口分别为 8082 / 8081。
+# egress_map: route.service 名 → 后端 host:port。
+# 注意：#[serde(default = "default_egress_map")] 在 TOML 含 [egress_map] 时不会触发，
+# TOML 的值会**整体替换**默认 map。改动时必须列出所有 7 个服务（含 5 个默认）。
+# 默认列表见 services/api-gateway/src/config.rs:94-103。
 [egress_map]
-"file-service"    = { host = "file-service",    port = 8082 }
-"config-service"  = { host = "config-service",  port = 8081 }
+"iam-service"          = { host = "iam-service",          port = 8080 }
+"token-service"        = { host = "token-service",        port = 8080 }
+"notification-service" = { host = "notification-service", port = 8080 }
+"audit-service"        = { host = "audit-service",        port = 8080 }
+"prue_backend"         = { host = "prue_backend",         port = 8080 }
+"file-service"         = { host = "file-service",         port = 8082 }
+"config-service"       = { host = "config-service",       port = 8081 }
