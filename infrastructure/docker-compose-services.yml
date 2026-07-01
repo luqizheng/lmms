@@ -1,4 +1,32 @@
 services:
+  file-service:
+    build:
+      context: ..
+      dockerfile: services/file-service/Dockerfile
+    ports:
+      - "6006:8082"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_ADDR: "0.0.0.0:8082"
+      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      STORAGE_PATH: "/var/lib/file-service/storage"
+      RUST_LOG: "info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    volumes:
+      - file-storage:/var/lib/file-service/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "busybox", "wget", "-q", "--spider", "http://127.0.0.1:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
   api-gateway:
     build:
       context: ..
@@ -40,6 +68,8 @@ services:
       rabbitmq:
         condition: service_healthy
       token-service:
+        condition: service_healthy
+      file-service:
         condition: service_healthy
     networks:
       - superpowers
@@ -254,3 +284,6 @@ services:
       - api-gateway
     networks:
       - superpowers
+
+volumes:
+  file-storage:
