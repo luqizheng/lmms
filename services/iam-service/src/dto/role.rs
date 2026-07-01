@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 use chrono::DateTime;
+use utoipa::ToSchema;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateRoleRequest {
@@ -54,4 +55,15 @@ pub struct RoleListResponse {
 #[derive(Debug, Deserialize)]
 pub struct AssignPermissionsRequest {
     pub permission_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct AssignUserRolesRequest {
+    pub role_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AssignUserRolesResponse {
+    pub user_id: String,
+    pub role_ids: Vec<String>,
 }
