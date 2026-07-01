@@ -59,8 +59,23 @@ impl UserService {
         let user_id = nanoid!();
         let salt = nanoid!(32);
 
-        // Insert the user and enqueue the creation event in one transaction
-        // (transactional outbox — see libs/common-event + iam_outbox_events).
+        // Compute pre-tx state.
+        let user_count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
+        )
+        .fetch_one(&self.state.db)
+        .await?;
+        let mut role_ids = req.role_ids.clone().unwrap_or_default();
+        if user_count.0 == 0 {
+            // First user in the system → auto-grant admin. Note: user_count is
+            // read before insert, so 0 means "this insert creates user #1".
+            let admin_role_id = self.ensure_admin_role().await?;
+            role_ids.push(admin_role_id);
+        }
+
+        // Insert the user, enqueue the creation event, and write role rows in
+        // one transaction (transactional outbox — see libs/common-event +
+        // iam_outbox_events).
         let mut tx = self.state.db.begin().await?;
         sqlx::query(
             "INSERT INTO iam_users (id, tenant_id, username, password_hash, salt, nickname, email, phone, avatar, status, email_verified, phone_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', false, false, NOW(), NOW())"
@@ -91,6 +106,9 @@ impl UserService {
             .enqueue(&mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
+
+        crate::service::user_roles::set_user_roles_in_tx(&mut tx, &user_id, &role_ids).await?;
+
         tx.commit().await?;
 
         let user: UserRow = sqlx::query_as(
@@ -99,29 +117,6 @@ impl UserService {
         .bind(&user_id)
         .fetch_one(&self.state.db)
         .await?;
-
-        let user_count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
-        )
-        .fetch_one(&self.state.db)
-        .await?;
-
-        let mut role_ids = req.role_ids.clone().unwrap_or_default();
-        
-        if user_count.0 == 1 {
-            let admin_role_id = self.ensure_admin_role().await?;
-            role_ids.push(admin_role_id);
-        }
-
-        for role_id in &role_ids {
-            sqlx::query(
-                "INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())"
-            )
-            .bind(&user_id)
-            .bind(role_id)
-            .execute(&self.state.db)
-            .await?;
-        }
 
         Ok(self.to_response(&user))
     }
