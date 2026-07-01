@@ -45,12 +45,12 @@ impl IamMemberClient {
     }
 
     pub async fn by_role(&self, role_id: &str, _tenant_id: i64) -> Result<Vec<String>, AppError> {
-        let url = format!("{}/iam/internal/users/by-role/{}", self.base_url, role_id);
+        let url = format!("{}/iam/internal/users/by-role/{}?size=1000", self.base_url, role_id);
         self.fetch_items(&url).await
     }
 
     pub async fn by_dept(&self, dept_id: &str, _tenant_id: i64) -> Result<Vec<String>, AppError> {
-        let url = format!("{}/iam/internal/users/by-dept/{}", self.base_url, dept_id);
+        let url = format!("{}/iam/internal/users/by-dept/{}?size=1000", self.base_url, dept_id);
         self.fetch_items(&url).await
     }
 
