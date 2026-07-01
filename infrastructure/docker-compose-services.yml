@@ -84,6 +84,7 @@ services:
         exec /app/api-gateway serve --routes /app/config/api-gateway/routes
     volumes:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
+      - ./config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
       - ../docker-example/secrets:/app/keys:ro
     depends_on:
       consul:
