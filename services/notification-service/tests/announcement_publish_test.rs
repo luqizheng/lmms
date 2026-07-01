@@ -1,8 +1,21 @@
 //! Phase 4.3 集成测试。每个用例起 MySQL testcontainer，建 ntf schema，
 //! 用 publish_announcement 驱动，断言 outbox/delivery/status/幂等/空集/reload。
+use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
 use notification_service::db::Db;
+use notification_service::iam_client::IamMemberClient;
+use std::sync::Arc;
 use testcontainers::ImageExt;
 use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
+
+fn stub_iam_client() -> Arc<IamMemberClient> {
+    let inner = reqwest::Client::new();
+    let rc = Arc::new(ResilientClient::new(
+        inner,
+        ResilienceConfig::default(),
+        Arc::new(NoopObserver),
+    ));
+    Arc::new(IamMemberClient::new(rc, "http://unused".into(), "stub".into()))
+}
 
 async fn setup_db() -> (Db, impl Sized) {
     // 关闭 InnoDB native AIO，规避宿主 aio-max-nr 不足导致的 io_setup() EAGAIN
@@ -49,7 +62,8 @@ async fn outbox_count(db: &Db, ann_id: u64) -> i64 {
 async fn publish_inserts_deliveries_status_and_outbox() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1"), ("user", "u2")]).await;
-    let users = db.publish_announcement(id).await.unwrap();
+    let client = stub_iam_client();
+    let users = db.publish_announcement(id, &client, 1).await.unwrap();
     assert_eq!(users.len(), 2);
     // status
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
@@ -68,30 +82,36 @@ async fn publish_inserts_deliveries_status_and_outbox() {
 async fn publish_is_idempotent_no_duplicate_outbox() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1")]).await;
-    db.publish_announcement(id).await.unwrap();
-    let again = db.publish_announcement(id).await.unwrap();
+    let client = stub_iam_client();
+    db.publish_announcement(id, &client, 1).await.unwrap();
+    let again = db.publish_announcement(id, &client, 1).await.unwrap();
     assert!(again.is_empty(), "second publish should be no-op");
     assert_eq!(outbox_count(&db, id).await, 1, "no duplicate outbox row");
 }
 
-// D: role/dept 跳过
+// D: role/dept resolved via expand_scopes (phase 4.3-fu2). Stub IAM => 502 on role/dept.
+// This test covers user-only scopes; role/dept resolution is tested in Task 9.
 #[tokio::test]
-async fn publish_skips_role_and_dept_scopes() {
+async fn publish_with_mixed_scopes_user_only() {
     let (db, _c) = setup_db().await;
-    let id = seed_announcement(&db, &[("user", "u1"), ("role", "r1"), ("dept", "d1")]).await;
-    let users = db.publish_announcement(id).await.unwrap();
-    assert_eq!(users, vec!["u1"]);
+    let id = seed_announcement(&db, &[("user", "u1"), ("user", "u2")]).await;
+    let client = stub_iam_client();
+    let users = db.publish_announcement(id, &client, 1).await.unwrap();
+    assert_eq!(users.len(), 2);
     let (d,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
         .bind(id).fetch_one(&db.pool).await.unwrap();
-    assert_eq!(d, 1);
+    assert_eq!(d, 2);
 }
 
 // E: 无 user-scope 接收人 — 仍 published，enqueue 空 user_ids
+// NOTE: role-only scopes trigger IAM call which fails with stub client — this test covers empty user-scope case.
 #[tokio::test]
-async fn publish_with_no_user_recipients_still_publishes_empty() {
+async fn publish_with_no_user_scopes_does_nothing() {
     let (db, _c) = setup_db().await;
-    let id = seed_announcement(&db, &[("role", "r1")]).await;
-    let users = db.publish_announcement(id).await.unwrap();
+    // Only role/dept scopes would 502 with stub; test user-only empty case instead
+    let id = seed_announcement(&db, &[]).await;
+    let client = stub_iam_client();
+    let users = db.publish_announcement(id, &client, 1).await.unwrap();
     assert!(users.is_empty());
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
         .bind(id).fetch_one(&db.pool).await.unwrap();
@@ -104,7 +124,8 @@ async fn publish_with_no_user_recipients_still_publishes_empty() {
 async fn published_announcement_visible_on_reload_without_ws() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1")]).await;
-    db.publish_announcement(id).await.unwrap();
+    let client = stub_iam_client();
+    db.publish_announcement(id, &client, 1).await.unwrap();
     // 模拟用户重连后拉取（无任何 WS 推送参与）
     let list = db.list_for_user("u1".to_string()).await.unwrap();
     assert!(list.iter().any(|a| a.id == id), "announcement must be visible on reload via deliveries");

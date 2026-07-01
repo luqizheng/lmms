@@ -1,6 +1,7 @@
 use crate::auth::{AdminCheck, Identity};
 use crate::db::Db;
 use crate::error::{AppError, AppResult};
+use crate::iam_client::IamMemberClient;
 use crate::models::*;
 use crate::redis_cli::RedisCli;
 use axum::extract::{Path, Query, State};
@@ -9,12 +10,14 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use common_ratelimit::{Limit, RateLimiter, rate_limit_middleware};
 use serde::Deserialize;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct RestState {
     pub db: Db,
     pub redis: RedisCli,
     pub rate_limiter: RateLimiter,
+    pub iam_client: Arc<IamMemberClient>,
 }
 
 /// Route-key constants for rate limit table.
@@ -99,8 +102,8 @@ pub async fn publish(
     if !me.is_admin() {
         return Err(AppError::Forbidden);
     }
-    let _user_ids = s.db.publish_announcement(id).await?;
-    Ok(Json(serde_json::json!({ "id": id, "status": "published" })))
+    let user_ids = s.db.publish_announcement(id, &s.iam_client, me.tenant_id).await?;
+    Ok(Json(serde_json::json!({ "id": id, "status": "published", "user_count": user_ids.len() })))
 }
 
 #[utoipa::path(

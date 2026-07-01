@@ -69,6 +69,12 @@ pub struct AppConfig {
     pub consul: ConsulCfg,
     #[serde(default)]
     pub event_bus: EventBusCfg,
+    #[serde(default = "default_iam_base_url")]
+    pub iam_base_url: String,
+}
+
+fn default_iam_base_url() -> String {
+    "http://iam-service:8080".to_string()
 }
 
 impl AppConfig {

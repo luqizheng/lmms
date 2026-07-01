@@ -1,4 +1,5 @@
 use crate::error::{AppError, AppResult};
+use crate::iam_client::IamMemberClient;
 use crate::models::*;
 use chrono::{DateTime, Utc};
 use common_event::events::NotificationAnnouncementPublished;
@@ -194,74 +195,84 @@ impl Db {
         Ok(res.rows_affected() == 1)
     }
 
-    /// 公告发布的统一事务管线（REST publish + scheduler 共用）。
+    /// 公告发布事务（spec §4.3）：tx1 锁行 → tx-out IAM 解析 scopes → tx2 幂等再锁 + deliveries + enqueue。
     ///
     /// ```text
-    /// publish_announcement(ann_id)  ── ONE TX ──
-    ///   1. SELECT ... FOR UPDATE 锁行；status ∈ {published, revoked} → 幂等返回 Ok(vec![])（draft/scheduled 继续）
-    ///   2. SELECT scope_type='user' recipients → user_ids（role/dept 仅 warn 跳过）
-    ///   3. INSERT IGNORE deliveries（每 user_id）
-    ///   4. UPDATE status='published'
-    ///   5. enqueue NotificationAnnouncementPublished → ntf_outbox_events
+    /// tx1
+    ///   SELECT FOR UPDATE → status guard
+    ///   COMMIT    （释放锁后再跨服务）
+    /// tx-out
+    ///   iam_client.expand_scopes(...) → HashSet<user_id>
+    /// tx2
+    ///   SELECT status FOR UPDATE → 再次 guard（处理并发 publish）
+    ///   INSERT IGNORE deliveries（每 user_id，inline 在 tx 中）
+    ///   UPDATE status='published'
+    ///   enqueue NotificationAnnouncementPublished → ntf_outbox_events
     ///   COMMIT
     /// ```
     /// 不在此处 hub.publish —— 推送统一由 announcement consumer 完成（避免双推）。
-    pub async fn publish_announcement(&self, ann_id: u64) -> AppResult<Vec<String>> {
-        let mut tx = self.pool.begin().await?;
-
-        // 1. 锁行 + 状态守卫
-        let row: Option<(String, String, i8, i8)> = sqlx::query_as(
-            "SELECT title, status, pinned, popover FROM ntf_announcements WHERE id=? FOR UPDATE",
-        )
-        .bind(ann_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-        let (title, status, pinned, popover) = match row {
-            Some(r) => r,
-            None => {
-                tx.commit().await?;
-                return Ok(vec![]);
+    pub async fn publish_announcement(
+        &self,
+        ann_id: u64,
+        iam_client: &IamMemberClient,
+        tenant_id: i64,
+    ) -> AppResult<Vec<String>> {
+        let (title, pinned, popover) = {
+            let mut tx = self.pool.begin().await?;
+            let row: Option<(String, String, i8, i8)> = sqlx::query_as(
+                "SELECT title, status, pinned, popover FROM ntf_announcements WHERE id=? FOR UPDATE",
+            )
+            .bind(ann_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+            match row {
+                Some((title, status, pinned, popover)) => {
+                    if status == "published" || status == "revoked" {
+                        tx.commit().await?;
+                        return Ok(vec![]);
+                    }
+                    tx.commit().await?;
+                    (title, pinned, popover)
+                }
+                None => {
+                    tx.commit().await?;
+                    return Ok(vec![]);
+                }
             }
         };
-        if status == "published" || status == "revoked" {
-            tx.commit().await?;
-            return Ok(vec![]);
-        }
 
-        // 2. user-scope 接收人（role/dept 跳过 — follow-up 4.3-fu2）
-        let scope_rows: Vec<(String, String)> = sqlx::query_as(
-            "SELECT scope_type, scope_id FROM ntf_announcement_recipients WHERE announcement_id=?",
+        let scopes = self.list_recipient_scopes(ann_id).await?;
+        let user_ids: HashSet<String> = if scopes.is_empty() {
+            HashSet::new()
+        } else {
+            iam_client.expand_scopes(&scopes, tenant_id).await?
+        };
+
+        let user_ids_vec: Vec<String> = user_ids.iter().cloned().collect();
+        let mut tx = self.pool.begin().await?;
+        let (status_again,): (String,) = sqlx::query_as(
+            "SELECT status FROM ntf_announcements WHERE id=? FOR UPDATE",
         )
         .bind(ann_id)
-        .fetch_all(&mut *tx)
+        .fetch_one(&mut *tx)
         .await?;
-        let (user_ids, skipped_non_user) = filter_user_scope(&scope_rows);
-        if skipped_non_user > 0 {
-            warn!(
-                ann_id,
-                skipped_non_user,
-                "role/dept recipient scopes skipped (user-scope only; see 4.3-fu2)"
-            );
+        if status_again == "published" || status_again == "revoked" {
+            return Ok(user_ids_vec);
         }
-
-        // 3. deliveries
         for uid in &user_ids {
             sqlx::query(
-                "INSERT IGNORE INTO ntf_announcement_deliveries (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())",
+                "INSERT IGNORE INTO ntf_announcement_deliveries \
+                 (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())",
             )
             .bind(ann_id)
             .bind(uid)
             .execute(&mut *tx)
             .await?;
         }
-
-        // 4. status
         sqlx::query("UPDATE ntf_announcements SET status='published' WHERE id=?")
             .bind(ann_id)
             .execute(&mut *tx)
             .await?;
-
-        // 5. enqueue
         let mut envelope = Envelope::new(
             "notification-service",
             NotificationAnnouncementPublished {
@@ -272,28 +283,14 @@ impl Db {
                 user_ids: serde_json::json!(user_ids),
             },
         );
-        self.outbox_repo.clone()
+        self.outbox_repo
+            .clone()
             .enqueue(&mut tx, &mut envelope)
             .await
             .map_err(|e| AppError::from(anyhow::anyhow!("outbox enqueue: {e}")))?;
-
         tx.commit().await?;
-        Ok(user_ids)
+        Ok(user_ids_vec)
     }
-}
-
-/// 从接收人 scope 行中筛出 user-scope 目标，返回 (user_ids, 被跳过的 role/dept 数)。
-pub(crate) fn filter_user_scope(rows: &[(String, String)]) -> (Vec<String>, usize) {
-    let mut users = Vec::new();
-    let mut skipped = 0;
-    for (st, sid) in rows {
-        if st == "user" {
-            users.push(sid.clone());
-        } else {
-            skipped += 1;
-        }
-    }
-    (users, skipped)
 }
 
 fn first_line(s: &str) -> String {
@@ -340,19 +337,6 @@ mod tests {
         let upper = INIT_SQL.to_uppercase();
         assert!(upper.contains("INSERT INTO NTF_TEMPLATES"));
         assert!(INIT_SQL.contains("'welcome'"));
-    }
-
-    #[test]
-    fn filter_user_scope_keeps_users_and_counts_others() {
-        let rows = vec![
-            ("user".to_string(), "u1".to_string()),
-            ("role".to_string(), "r1".to_string()),
-            ("user".to_string(), "u2".to_string()),
-            ("dept".to_string(), "d1".to_string()),
-        ];
-        let (users, skipped) = filter_user_scope(&rows);
-        assert_eq!(users, vec!["u1", "u2"]);
-        assert_eq!(skipped, 2);
     }
 
     #[test]

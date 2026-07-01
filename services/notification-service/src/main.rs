@@ -5,6 +5,7 @@ mod config;
 mod consumer;
 mod db;
 mod error;
+mod iam_client;
 mod models;
 mod recipient_resolver;
 mod service;
@@ -16,12 +17,15 @@ mod ws_hub;
 
 use axum::routing::get;
 use axum::Router;
+use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
 use config::AppConfig;
 use consul_registrar::ConsulRegistrar;
 use db::Db;
+use iam_client::IamMemberClient;
 use redis_cli::RedisCli;
 use ws_hub::WsHub;
 use prometheus::{Encoder, TextEncoder};
+use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -49,6 +53,19 @@ async fn main() -> anyhow::Result<()> {
     let redis = RedisCli::connect(&cfg.redis.url).await?;
     let hub = WsHub::new();
 
+    let resilient = Arc::new(ResilientClient::new(
+        reqwest::Client::new(),
+        ResilienceConfig::default(),
+        Arc::new(NoopObserver),
+    ));
+    let initial_token = std::env::var("NOTIF_SERVICE_TOKEN_INITIAL")
+        .unwrap_or_else(|_| "stub".to_string());
+    let iam_client = Arc::new(IamMemberClient::new(
+        resilient,
+        cfg.iam_base_url.clone(),
+        initial_token,
+    ));
+
     let rest_state = rest::RestState {
         db: db.clone(),
         redis: redis.clone(),
@@ -56,6 +73,7 @@ async fn main() -> anyhow::Result<()> {
             redis.conn.clone(),
             rest::default_limits(),
         ),
+        iam_client: iam_client.clone(),
     };
     let ws_state = ws::WsState { hub: hub.clone() };
 
@@ -96,9 +114,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let db_for_sched = db.clone();
+    let iam_for_sched = iam_client.clone();
     let tick = cfg.scheduler.tick_secs;
     tokio::spawn(async move {
-        scheduler::run(db_for_sched, tick).await;
+        scheduler::run(db_for_sched, iam_for_sched, tick).await;
     });
 
     let db_for_consumer = db.clone();
