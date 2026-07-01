@@ -63,6 +63,29 @@ fn load_global_config() -> GatewayConfig {
         .unwrap()
 }
 
+/// Load per-route rate-limit overrides from `config/api-gateway/rate-limits.toml`.
+/// Falls back to `RateLimitConfig::default()` (100 rps / 200 burst) if the file
+/// is missing or malformed — keeps startup non-fatal in dev / single-file deploys.
+fn load_rate_limit_config() -> middleware::rate_limit::RateLimitConfig {
+    const PATH: &str = "config/api-gateway/rate-limits.toml";
+    match std::fs::read_to_string(PATH) {
+        Ok(s) => match toml::from_str::<middleware::rate_limit::RateLimitConfig>(&s) {
+            Ok(cfg) => {
+                tracing::info!(
+                    paths = cfg.routes.len(),
+                    "loaded rate-limit overrides from {PATH}"
+                );
+                cfg
+            }
+            Err(e) => {
+                tracing::warn!("{PATH} malformed ({e}); using defaults");
+                middleware::rate_limit::RateLimitConfig::default()
+            }
+        },
+        Err(_) => middleware::rate_limit::RateLimitConfig::default(),
+    }
+}
+
 fn print_routes(table: &RouteTable) {
     println!("routes:");
     for r in &table.routes {
@@ -206,7 +229,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         router_cfg: router_cfg.clone(),
         route_table: route_table.clone(),
         route_limiters: middleware::rate_limit::RouteLimiterSet::from_config(
-            &middleware::rate_limit::RateLimitConfig::default(),
+            &load_rate_limit_config(),
         ),
     });
 
