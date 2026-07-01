@@ -6,9 +6,9 @@ pub fn routes(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/namespace", axum::routing::post(create_namespace))
         .route("/namespace", axum::routing::get(query_namespaces))
-        .route("/namespace/:id", axum::routing::get(get_namespace))
-        .route("/namespace/:id", axum::routing::put(update_namespace))
-        .route("/namespace/:id", axum::routing::delete(delete_namespace))
+        .route("/namespace/{id}", axum::routing::get(get_namespace))
+        .route("/namespace/{id}", axum::routing::put(update_namespace))
+        .route("/namespace/{id}", axum::routing::delete(delete_namespace))
         .with_state(state)
 }
 

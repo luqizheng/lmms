@@ -7,9 +7,9 @@ pub fn routes(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/upload", axum::routing::post(upload_file))
         .route("/list", axum::routing::get(query_files))
-        .route("/:id", axum::routing::get(download_file))
-        .route("/:id", axum::routing::delete(delete_file))
-        .route("/:id/info", axum::routing::get(get_file_info))
+        .route("/{id}", axum::routing::get(download_file))
+        .route("/{id}", axum::routing::delete(delete_file))
+        .route("/{id}/info", axum::routing::get(get_file_info))
         .with_state(state)
 }
 
