@@ -23,6 +23,9 @@ thiserror = { workspace = true }
 anyhow = "1"
 async-trait = "0.1"
 jwt-ctx = { path = "../../libs/jwt-ctx" }
+common-http = { path = "../../libs/common-http" }
+reqwest.workspace = true
+bytes = "1"
 common-event = { path = "../../libs/common-event" }
 uuid = { version = "1", features = ["v7", "serde"] }
 futures = "0.3"

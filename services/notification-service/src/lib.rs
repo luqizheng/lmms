@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod config;
 pub mod consumer;
+pub mod iam_client;
 pub mod db;
 pub mod error;
 pub mod models;

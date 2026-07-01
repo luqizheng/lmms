@@ -17,19 +17,36 @@ pub enum AppError {
     Db(#[from] sqlx::Error),
     #[error("redis: {0}")]
     Redis(#[from] redis::RedisError),
+    #[error("upstream [{code}]: {message}")]
+    External {
+        code: String,
+        message: String,
+    },
+}
+
+impl AppError {
+    pub fn external(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::External {
+            code: code.into(),
+            message: message.into(),
+        }
+    }
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, msg) = match &self {
-            AppError::NotFound => (StatusCode::NOT_FOUND, "not_found".to_string()),
-            AppError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".to_string()),
-            AppError::BadRequest(m) => (StatusCode::BAD_REQUEST, m.clone()),
-            AppError::Db(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("db: {e}")),
-            AppError::Redis(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("redis: {e}")),
-            AppError::Internal(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")),
-        };
-        (status, Json(json!({ "error": msg }))).into_response()
+        match &self {
+            AppError::NotFound => (StatusCode::NOT_FOUND, Json(json!({ "error": "not_found" }))).into_response(),
+            AppError::Forbidden => (StatusCode::FORBIDDEN, Json(json!({ "error": "forbidden" }))).into_response(),
+            AppError::BadRequest(m) => (StatusCode::BAD_REQUEST, Json(json!({ "error": m }))).into_response(),
+            AppError::Db(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": format!("db: {e}") }))).into_response(),
+            AppError::Redis(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": format!("redis: {e}") }))).into_response(),
+            AppError::Internal(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": format!("{e}") }))).into_response(),
+            AppError::External { code, message } => (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({ "error": "upstream", "code": code, "message": message })),
+            ).into_response(),
+        }
     }
 }
 
