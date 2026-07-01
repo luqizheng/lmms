@@ -27,6 +27,31 @@ services:
     networks:
       - superpowers
 
+  config-service:
+    build:
+      context: ..
+      dockerfile: services/config-service/Dockerfile
+    ports:
+      - "6007:8081"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_ADDR: "0.0.0.0:8081"
+      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      RUST_LOG: "info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "busybox", "wget", "-q", "--spider", "http://127.0.0.1:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
   api-gateway:
     build:
       context: ..
@@ -70,6 +95,8 @@ services:
       token-service:
         condition: service_healthy
       file-service:
+        condition: service_healthy
+      config-service:
         condition: service_healthy
     networks:
       - superpowers
