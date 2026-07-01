@@ -100,7 +100,12 @@ impl RoleService {
         })
     }
 
-    pub async fn update(&self, role_id: &str, req: UpdateRoleRequest) -> Result<RoleResponse, IamError> {
+    pub async fn update(
+        &self,
+        role_id: &str,
+        req: UpdateRoleRequest,
+        actor_id: Option<&str>,
+    ) -> Result<RoleResponse, IamError> {
         let role: Option<RoleRow> = sqlx::query_as(
             "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND deleted_at IS NULL",
         )
@@ -151,7 +156,7 @@ impl RoleService {
                 self.state.outbox_repo.as_ref(),
                 &user_ids,
                 "role_disabled",
-                None,
+                actor_id,
             )
             .await?;
         }
@@ -164,7 +169,7 @@ impl RoleService {
         self.get(role_id).await
     }
 
-    pub async fn delete(&self, role_id: &str) -> Result<(), IamError> {
+    pub async fn delete(&self, role_id: &str, actor_id: Option<&str>) -> Result<(), IamError> {
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
                 .bind(role_id)
@@ -188,7 +193,7 @@ impl RoleService {
             self.state.outbox_repo.as_ref(),
             &user_ids,
             "role_deleted",
-            None,
+            actor_id,
         )
         .await?;
         tx.commit().await?;
@@ -197,7 +202,12 @@ impl RoleService {
         Ok(())
     }
 
-    pub async fn assign_permissions(&self, role_id: &str, permission_ids: Vec<String>) -> Result<(), IamError> {
+    pub async fn assign_permissions(
+        &self,
+        role_id: &str,
+        permission_ids: Vec<String>,
+        actor_id: Option<&str>,
+    ) -> Result<(), IamError> {
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
                 .bind(role_id)
@@ -223,7 +233,7 @@ impl RoleService {
             self.state.outbox_repo.as_ref(),
             &user_ids,
             "role_permissions_changed",
-            None,
+            actor_id,
         )
         .await?;
         tx.commit().await?;

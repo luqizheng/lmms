@@ -230,7 +230,7 @@ async fn assign_permissions_emits_event_and_stamps_epochs() {
 
     let before = chrono::Utc::now().timestamp();
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p2".into()])
+        .assign_permissions("r1", vec!["p1".into(), "p2".into()], None)
         .await
         .unwrap();
 
@@ -250,7 +250,7 @@ async fn role_delete_emits_role_deleted() {
     assign_user_to_role(&ctx.state, "u1", "r1").await;
 
     let before = chrono::Utc::now().timestamp();
-    RoleService::new(ctx.state.clone()).delete("r1").await.unwrap();
+    RoleService::new(ctx.state.clone()).delete("r1", None).await.unwrap();
 
     let (reason, users) = single_outbox_reason_and_users(&ctx.state).await;
     assert_eq!(reason, "role_deleted");
@@ -274,7 +274,7 @@ async fn role_disable_emits_role_disabled() {
         status: Some("disabled".into()),
     };
     RoleService::new(ctx.state.clone())
-        .update("r1", req)
+        .update("r1", req, None)
         .await
         .unwrap();
 
@@ -298,7 +298,7 @@ async fn permission_delete_emits_permission_deleted() {
 
     let before = chrono::Utc::now().timestamp();
     PermissionService::new(ctx.state.clone())
-        .delete("p1")
+        .delete("p1", None)
         .await
         .unwrap();
 
@@ -327,7 +327,7 @@ async fn permission_disable_emits_permission_disabled() {
         status: Some("disabled".into()),
     };
     PermissionService::new(ctx.state.clone())
-        .update("p1", req)
+        .update("p1", req, None)
         .await
         .unwrap();
 
@@ -345,7 +345,7 @@ async fn assign_permissions_with_no_users_emits_nothing() {
     seed_permission(&ctx.state, "p1").await;
 
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into()])
+        .assign_permissions("r1", vec!["p1".into()], None)
         .await
         .unwrap();
 
@@ -374,7 +374,7 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
 
     // duplicate p1 → second INSERT hits PK (role_id, permission_id)
     let res = RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p1".into()])
+        .assign_permissions("r1", vec!["p1".into(), "p1".into()], None)
         .await;
     assert!(res.is_err(), "duplicate permission_id must fail the tx");
 
@@ -391,4 +391,48 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
     );
     assert_eq!(outbox_count(&ctx.state).await, 0, "no outbox row on rollback");
     assert_no_epoch(&mut ctx, "u1").await;
+}
+
+// ---- 4.4-fu2 ----
+
+#[tokio::test]
+async fn permission_changed_event_carries_actor_id() {
+    let mut ctx = setup().await;
+    // Seed: admin + role + a target user under that role.
+    // The admin user_id = "admin_actor".
+    seed_user(&ctx.state, "admin_actor").await;
+    seed_user(&ctx.state, "target").await;
+    seed_role(&ctx.state, "r1").await;
+    assign_user_to_role(&ctx.state, "target", "r1").await;
+    seed_permission(&ctx.state, "p1").await;
+
+    // act: assign p1 to r1 (this is the path that emits iam.permission.changed)
+    RoleService::new(ctx.state.clone())
+        .assign_permissions(
+            "r1",
+            vec!["p1".into()],
+            Some("admin_actor"), // <-- actor_id
+        )
+        .await
+        .unwrap();
+
+    // assert: exactly one outbox row, with actor_id set in payload.
+    assert_eq!(outbox_count(&ctx.state).await, 1);
+    let (actor,): (Option<String>,) = sqlx::query_as(
+        "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.payload.actor_id')) AS CHAR) \
+         FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    // mysql JSON_UNQUOTE on JSON null returns the string "null"; distinguish via the raw SELECT.
+    let raw: (serde_json::Value,) = sqlx::query_as(
+        "SELECT JSON_EXTRACT(envelope_json, '$.payload.actor_id') \
+         FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    let _ = actor; // suppress unused warning if first call returns "null"
+    assert_eq!(raw.0, serde_json::json!("admin_actor"));
 }

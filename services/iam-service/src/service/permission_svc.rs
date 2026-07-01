@@ -32,7 +32,11 @@ impl PermissionService {
         Self { state }
     }
 
-    pub async fn create(&self, req: CreatePermissionRequest) -> Result<PermissionResponse, IamError> {
+    pub async fn create(
+        &self,
+        req: CreatePermissionRequest,
+        _actor_id: Option<&str>,
+    ) -> Result<PermissionResponse, IamError> {
         let permission_id = nanoid!();
         let category = match req.category {
             0 => "menu",
@@ -154,7 +158,12 @@ impl PermissionService {
         })
     }
 
-    pub async fn update(&self, permission_id: &str, req: UpdatePermissionRequest) -> Result<PermissionResponse, IamError> {
+    pub async fn update(
+        &self,
+        permission_id: &str,
+        req: UpdatePermissionRequest,
+        actor_id: Option<&str>,
+    ) -> Result<PermissionResponse, IamError> {
         let permission: Option<PermissionRow> = sqlx::query_as(
             "SELECT id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at, deleted_at FROM iam_permissions WHERE id = ? AND deleted_at IS NULL",
         )
@@ -210,7 +219,7 @@ impl PermissionService {
                 self.state.outbox_repo.as_ref(),
                 &user_ids,
                 "permission_disabled",
-                None,
+                actor_id,
             )
             .await?;
         }
@@ -223,7 +232,7 @@ impl PermissionService {
         Ok(self.to_response(&result))
     }
 
-    pub async fn delete(&self, permission_id: &str) -> Result<(), IamError> {
+    pub async fn delete(&self, permission_id: &str, actor_id: Option<&str>) -> Result<(), IamError> {
         // Expand affected users via the join BEFORE we delete the
         // iam_role_permissions rows we are joining on.
         let user_ids: Vec<String> = sqlx::query_scalar(
@@ -255,7 +264,7 @@ impl PermissionService {
             self.state.outbox_repo.as_ref(),
             &user_ids,
             "permission_deleted",
-            None,
+            actor_id,
         )
         .await?;
         tx.commit().await?;

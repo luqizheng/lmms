@@ -1,4 +1,5 @@
 use axum::{Router, routing::get, extract::{Json, Path, Query, State}};
+use jwt_ctx::Principal;
 use crate::{state::AppState, dto::{CreatePermissionRequest, UpdatePermissionRequest, PermissionQuery, PermissionResponse, PermissionListResponse}, service::PermissionService};
 
 pub fn routes(state: AppState) -> Router {
@@ -19,10 +20,11 @@ async fn list_permissions(
 
 async fn create_permission(
     State(state): State<AppState>,
+    Principal { user_id: p, .. }: Principal,
     Json(req): Json<CreatePermissionRequest>,
 ) -> Result<Json<PermissionResponse>, (axum::http::StatusCode, &'static str)> {
     let service = PermissionService::new(state);
-    let response = service.create(req).await.map_err(|e| {
+    let response = service.create(req, Some(p.as_str())).await.map_err(|e| {
         match e {
             crate::error::IamError::DuplicatePermission => (axum::http::StatusCode::CONFLICT, "duplicate permission"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -48,10 +50,11 @@ async fn get_permission(
 async fn update_permission(
     State(state): State<AppState>,
     Path(permission_id): Path<String>,
+    Principal { user_id: p, .. }: Principal,
     Json(req): Json<UpdatePermissionRequest>,
 ) -> Result<Json<PermissionResponse>, (axum::http::StatusCode, &'static str)> {
     let service = PermissionService::new(state);
-    let response = service.update(&permission_id, req).await.map_err(|e| {
+    let response = service.update(&permission_id, req, Some(p.as_str())).await.map_err(|e| {
         match e {
             crate::error::IamError::PermissionNotFound => (axum::http::StatusCode::NOT_FOUND, "permission not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -63,9 +66,10 @@ async fn update_permission(
 async fn delete_permission(
     State(state): State<AppState>,
     Path(permission_id): Path<String>,
+    Principal { user_id: p, .. }: Principal,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = PermissionService::new(state);
-    service.delete(&permission_id).await.map_err(|e| {
+    service.delete(&permission_id, Some(p.as_str())).await.map_err(|e| {
         match e {
             crate::error::IamError::PermissionNotFound => (axum::http::StatusCode::NOT_FOUND, "permission not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),

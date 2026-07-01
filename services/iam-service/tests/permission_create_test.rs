@@ -98,7 +98,7 @@ async fn create_permission_round_trip() {
         sort_order: Some(0),
     };
 
-    let resp = svc.create(req).await.expect("create should succeed under MySQL 8.0");
+    let resp = svc.create(req, None).await.expect("create should succeed under MySQL 8.0");
     assert!(!resp.id.is_empty(), "id must be populated");
     assert_eq!(resp.status, "enabled");
     assert_eq!(resp.name, "Test permission");
