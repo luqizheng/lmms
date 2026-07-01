@@ -9,3 +9,9 @@ prefix = "superpowers:"
 consul_addr = "http://consul:8500"
 jwks_url = "http://token-server:8080/.well-known/jwks.json"
 issuer = "superpowers-token-server"
+
+# 覆盖 config.rs default_egress_map 的 8080 默认值。
+# file-service / config-service 实际端口分别为 8082 / 8081。
+[egress_map]
+"file-service"    = { host = "file-service",    port = 8082 }
+"config-service"  = { host = "config-service",  port = 8081 }
