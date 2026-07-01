@@ -30,6 +30,9 @@ pub enum IamError {
     #[error("role not found")]
     RoleNotFound,
     
+    #[error("invalid role ids: {0:?}")]
+    InvalidRoleIds(Vec<String>),
+    
     #[error("permission not found")]
     PermissionNotFound,
     
@@ -85,6 +88,7 @@ impl From<IamError> for AppError {
             IamError::InvalidToken => AppError::unauthorized("IAM_TOKEN_3003", e.to_string()),
             IamError::PermissionDenied => AppError::forbidden("IAM_AUTHZ_4001", e.to_string()),
             IamError::RoleNotFound => AppError::not_found("IAM_ROLE_5001", e.to_string()),
+            IamError::InvalidRoleIds(_) => AppError::bad_request("IAM_ROLE_5003", e.to_string()),
             IamError::PermissionNotFound => AppError::not_found("IAM_PERM_6001", e.to_string()),
             IamError::MenuNotFound => AppError::not_found("IAM_MENU_7001", e.to_string()),
             IamError::OrgUnitNotFound => AppError::not_found("IAM_ORG_8001", e.to_string()),
