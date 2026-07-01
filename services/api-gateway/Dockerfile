@@ -1,3 +1,5 @@
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+
 FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
 USER root
 WORKDIR /app
@@ -19,7 +21,8 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
 # 阶段2: 复制源代码并编译
 COPY services/api-gateway/src ./services/api-gateway/src
 
-FROM alpine:3.21
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/alpine:3.21
 RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 COPY --from=builder /app/api-gateway /app/api-gateway

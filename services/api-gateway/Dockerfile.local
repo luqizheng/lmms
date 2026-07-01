@@ -1,4 +1,5 @@
-FROM alpine:3.21
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/alpine:3.21
 WORKDIR /app
 COPY target/release/api-gateway /app/api-gateway
 COPY docker-example/config/api-gateway/routes /app/config/routes

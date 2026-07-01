@@ -7,6 +7,7 @@ stages:
 variables:
   DOCKER_REGISTRY: zhcoder-docker-registry.com:8000
   DOCKER_REPO: micro-server
+  BASE_REGISTRY: zhcoder-docker-registry.com:8000/official
   DEPLOY_SERVER: 192.168.2.128
   DEPLOY_USER: kudi
   DEPLOY_PASSWORD: Ewq321#@!
@@ -23,7 +24,7 @@ rust_test:
   stage: test
   tags:
     - docker
-  image: zhcoder-docker-registry.com:8000/official/rust:1.96-slim
+  image: $BASE_REGISTRY/rust:1.96-slim
   variables:
     REDIS_URL: redis://192.168.2.130:6379
   before_script:
@@ -36,28 +37,28 @@ rust_test:
 service_standard_check:
   stage: test
   tags: [docker]
-  image: node:20
+  image: $BASE_REGISTRY/node:20
   script:
     - node scripts/check-service-standard.js
 
 spec_check:
   stage: test
   tags: [docker]
-  image: node:20
+  image: $BASE_REGISTRY/node:20
   script:
     - node scripts/check-spec.js
 
 contracts_check:
   stage: test
   tags: [docker]
-  image: node:20
+  image: $BASE_REGISTRY/node:20
   script:
     - node scripts/contracts-gen.js --check
 
 spec_generate:
   stage: test
   tags: [docker]
-  image: zhcoder-docker-registry.com:8000/official/rust:1.96-slim
+  image: $BASE_REGISTRY/rust:1.96-slim
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
@@ -72,7 +73,7 @@ spec_generate:
 e2e_api_test:
   stage: test
   tags: [docker]
-  image: node:20
+  image: $BASE_REGISTRY/node:20
   before_script:
     - cd tests/e2e && npm install
     - npm install -g pnpm && pnpm install
@@ -82,7 +83,7 @@ e2e_api_test:
 e2e_ui_test:
   stage: test
   tags: [docker]
-  image: mcr.microsoft.com/playwright:v1.48.0-jammy
+  image: $BASE_REGISTRY/playwright:v1.48.0-jammy
   before_script:
     - cd tests/e2e && npm install
     - npm install -g pnpm && pnpm install
@@ -146,7 +147,7 @@ deploy:
 java_sdk_test:
   stage: test
   tags: [docker]
-  image: maven:3.9-eclipse-temurin-21
+  image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   script:
     - cd sdk/java && mvn -B verify
   rules:
@@ -156,7 +157,7 @@ java_sdk_test:
 dotnet_sdk_test:
   stage: test
   tags: [docker]
-  image: mcr.microsoft.com/dotnet/sdk:10.0
+  image: $BASE_REGISTRY/dotnet-sdk:10.0
   script:
     - cd sdk/dotnet && dotnet test --nologo --verbosity minimal
   rules:
@@ -166,7 +167,7 @@ dotnet_sdk_test:
 sdk_publish:
   stage: publish
   tags: [docker]
-  image: maven:3.9-eclipse-temurin-21
+  image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   script:
     - cd sdk/java && mvn -B deploy -DskipTests
       -DaltDeploymentRepository=kudi-maven::default::${MAVEN_REPO_URL}
@@ -178,7 +179,7 @@ sdk_publish:
 sdk_publish_dotnet:
   stage: publish
   tags: [docker]
-  image: mcr.microsoft.com/dotnet/sdk:10.0
+  image: $BASE_REGISTRY/dotnet-sdk:10.0
   script:
     - cd sdk/dotnet
     - dotnet nuget push "**/*.nupkg" -s ${NUGET_REPO_URL} -k ${NUGET_API_KEY} --skip-duplicate
