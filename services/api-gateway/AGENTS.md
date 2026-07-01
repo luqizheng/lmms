@@ -40,6 +40,16 @@
 | /__admin/reload | POST | 热加载路由配置 |
 | /api/v1/* | * | 业务路由代理（按 routes/*.router.toml 转发）|
 
+## 业务服务注册（egress_map）
+
+`GatewayConfig.egress_map` 决定 `route.service` 名 → 后端 host:port 的映射。
+
+- 默认 closure（`src/config.rs:94`）全部 hardcode `port: 8080`。
+- 当业务服务端口**非 8080** 时，必须在 `infrastructure/config/api-gateway/api-gateway.toml` 用 `[egress_map]` 子表显式 override。
+- 现状：`file-service:8082`、`config-service:8081` 已在 override 列表中；其余五服务使用默认 8080。
+- **Docker 部署必读**：`api-gateway` 服务的 volumes 必须 bind-mount 该 toml 到容器内 `/app/config/api-gateway.toml`（二进制从 `config/api-gateway` 加载），否则 override 不会生效，`router` 会打 ERROR `no egress configured for service 'xxx'`。
+- 新增非 8080 服务时：写 `.router.toml` + 在 `api-gateway.toml` 加 override 行 + 在 `docker-compose-services.yml` 的 `api-gateway.volumes` 加 toml bind-mount + 跑 `cargo run -p api-gateway -- validate`。
+
 ## 豁免
 
 - migrations/ 目录
