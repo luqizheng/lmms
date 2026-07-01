@@ -6,11 +6,11 @@ pub fn routes(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/item", axum::routing::post(create_config_item))
         .route("/item", axum::routing::get(query_config_items))
-        .route("/item/:id", axum::routing::get(get_config_item))
-        .route("/item/:id", axum::routing::put(update_config_item))
-        .route("/item/:id", axum::routing::delete(delete_config_item))
-        .route("/export/:namespace_id", axum::routing::get(export_config))
-        .route("/import/:namespace_id", axum::routing::post(import_config))
+        .route("/item/{id}", axum::routing::get(get_config_item))
+        .route("/item/{id}", axum::routing::put(update_config_item))
+        .route("/item/{id}", axum::routing::delete(delete_config_item))
+        .route("/export/{namespace_id}", axum::routing::get(export_config))
+        .route("/import/{namespace_id}", axum::routing::post(import_config))
         .with_state(state)
 }
 

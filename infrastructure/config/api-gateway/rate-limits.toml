@@ -47,3 +47,21 @@ burst = 40
 [routes."/v1/file/upload"]
 requests_per_second = 10
 burst = 20
+
+# Config reads — moderate
+[routes."/v1/config/item"]
+requests_per_second = 20
+burst = 40
+
+[routes."/v1/config/namespace"]
+requests_per_second = 10
+burst = 20
+
+# Config writes — stricter
+[routes."/v1/config/export"]
+requests_per_second = 5
+burst = 10
+
+[routes."/v1/config/import"]
+requests_per_second = 5
+burst = 10

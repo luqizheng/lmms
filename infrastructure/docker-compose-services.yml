@@ -1,4 +1,57 @@
 services:
+  file-service:
+    build:
+      context: ..
+      dockerfile: services/file-service/Dockerfile
+    ports:
+      - "6006:8082"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_ADDR: "0.0.0.0:8082"
+      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      STORAGE_PATH: "/var/lib/file-service/storage"
+      RUST_LOG: "info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    volumes:
+      - file-storage:/var/lib/file-service/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "busybox", "wget", "-q", "--spider", "http://127.0.0.1:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  config-service:
+    build:
+      context: ..
+      dockerfile: services/config-service/Dockerfile
+    ports:
+      - "6007:8081"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_ADDR: "0.0.0.0:8081"
+      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      RUST_LOG: "info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "busybox", "wget", "-q", "--spider", "http://127.0.0.1:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
   api-gateway:
     build:
       context: ..
@@ -31,6 +84,8 @@ services:
         exec /app/api-gateway serve --routes /app/config/api-gateway/routes
     volumes:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
+      - ./config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
+      - ./config/api-gateway/rate-limits.toml:/app/config/api-gateway/rate-limits.toml:ro
       - ../docker-example/secrets:/app/keys:ro
     depends_on:
       consul:
@@ -40,6 +95,10 @@ services:
       rabbitmq:
         condition: service_healthy
       token-service:
+        condition: service_healthy
+      file-service:
+        condition: service_healthy
+      config-service:
         condition: service_healthy
     networks:
       - superpowers
@@ -254,3 +313,6 @@ services:
       - api-gateway
     networks:
       - superpowers
+
+volumes:
+  file-storage:
