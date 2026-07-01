@@ -26,12 +26,25 @@
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /config/namespaces | GET / POST | 命名空间管理 |
-| /config/items | GET / POST / PUT / DELETE | 配置项 CRUD |
+| /config/namespace | GET / POST | 命名空间 CRUD |
+| /config/namespace/:id | GET / PUT / DELETE | 命名空间单操作 |
+| /config/item | GET / POST | 配置项查询 / 创建（body 含 `is_secret` 字段） |
+| /config/item/:id | GET / PUT / DELETE | 配置项单操作 |
+| /config/export/:namespace_id | GET | 整 namespace 导出 JSON（含所有明文）|
+| /config/import/:namespace_id | POST | 整 namespace 导入（强制 `is_secret=false`，调用方需自行设置）|
 | /config/watch | GET (SSE) | 配置变更订阅 |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|
+
+## 已知缺口 — 敏感字段掩码
+
+`ConfigItem.is_secret` 字段已存在（`models/config_item.rs:13`），但当前 `get_config_item` / `query_config_items` / `export_config` 全部返回明文，未对 `CFG_CONFIG_REVEAL` 权限做强校验。**前端掩码仅为 UX**，调用方仍有 API 路径可读明文。后端需补：
+
+- `get_config_item`：`is_secret=true` 时若 caller 无 `CFG_CONFIG_REVEAL`，返回 `value=""` + `value_masked=true` 字段；
+- `query_config_items`：同上策略，列表场景；
+- `export_config`：默认导出调用方无 reveal 时全部 mask，否则全明文。
+
 
 ## 豁免
 

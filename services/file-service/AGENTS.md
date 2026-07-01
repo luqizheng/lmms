@@ -27,9 +27,12 @@
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /file/upload | POST | 文件上传 |
-| /file/download/:id | GET | 文件下载 |
-| /file/presign | POST | 预签名 URL |
+| /file/upload | POST | 文件上传（硬限 100MB，配置见 `src/config.rs`） |
+| /file/list | GET | 文件列表查询（分页 + tenant 隔离） |
+| /file/:id | GET | 下载文件内容 |
+| /file/:id | DELETE | 删除文件 |
+| /file/:id/info | GET | 文件元信息 |
+| /file/presign | POST | 预签名上传 URL |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|

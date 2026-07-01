@@ -10,3 +10,6 @@ pub const IAM_LOGIN_FAILED: &str = "iam.login.failed";
 pub const NOTIFICATION_ANNOUNCEMENT_PUBLISHED: &str = "notification.announcement.published";
 pub const IAM_PERMISSION_CHANGED: &str = "iam.permission.changed";
 pub const IAM_TENANT_CREATED: &str = "iam.tenant.created";
+pub const FILE_UPLOADED: &str = "file.uploaded";
+pub const FILE_DELETED: &str = "file.deleted";
+pub const CONFIG_ITEM_CHANGED: &str = "config.item.changed";

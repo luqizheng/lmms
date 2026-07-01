@@ -40,7 +40,11 @@
 
 待补充：
 
-- **新建** `frontend/src/api/file.ts`：6 个函数 + 6 个 DTO 接口。
+- **新建** `frontend/src/api/file/`：**脚本生成**（禁止手写 `api/file.ts`）。
+  ```bash
+  node scripts/openapi-codegen.js services/file-service/openapi.yaml frontend/src/api/file
+  ```
+  参考 `frontend/src/api/audit/` 范式（三文件：`file.client.ts` + `file.types.ts` + `index.ts`，2026-07-01 已生成）。
 - **新建** `frontend/src/views/file/index.vue`：列表（按大小/类型/上传时间/上传者筛选、删除确认）。
 - **上传抽屉**：合并到 `index.vue` 的 `<el-upload>` 抽屉，或单列 `upload.vue`。
 - **可选** `frontend/src/views/file/presign.vue`：外部上传凭证生成页。
@@ -64,7 +68,11 @@
 
 待补充：
 
-- **新建** `frontend/src/api/config.ts`：13 个函数 + namespace/config item 接口。
+- **新建** `frontend/src/api/config/`：**脚本生成**（禁止手写 `api/config.ts`）。
+  ```bash
+  node scripts/openapi-codegen.js services/config-service/openapi.yaml frontend/src/api/config
+  ```
+  2026-07-01 已生成 `config.client.ts` + `config.types.ts` + `index.ts`。
 - **新建** `frontend/src/views/config/namespace/index.vue`：命名空间 CRUD。
 - **新建** `frontend/src/views/config/item/index.vue`：配置项列表（按 namespace tab 切换，支持 key/value/type/分组筛选）。
 - **可选** `frontend/src/views/config/item/diff.vue`：导入前 JSON diff 预览。
@@ -132,7 +140,7 @@
 | GET `/v1/audit/export/compliance/login/csv` | `export_login_csv` | P1 | 登录日志合规导出 |
 | GET `/v1/audit/retention/stage/{created_at}` | `get_data_stage` | P2 | 阶段水位查询，前端通常不展示 |
 
-> 网关当前 `audit.router.toml` 有 `/v1/audit/export/{rest}` 单段 `{rest}`，能否匹配 `compliance/operation/csv` 多段路径需实测确认；不匹配则需补 `{rest:.*}` 或拆多段路由。
+> 网关当前 `audit.router.toml` 有 `/v1/audit/export/{rest}` 单段 `{rest}`，能否匹配 `compliance/operation/csv` 多段路径需实测确认；不匹配则需补 `{rest:.*}` 或拆多段路由。**实测确认（2026-07-01）**：`{rest}` 模板语法（`services/api-gateway/src/template.rs:106-119`）在 var 后无 literal 时抓取到 input 末尾，可吞 `compliance/operation/csv`、`compliance/operation/json`、`compliance/login/csv`、`retention/stage/<date>` 等多段路径。`scripts/check-audit-routes.js` 6/6 验证通过，router.toml 无需改动。
 
 待补充：
 
@@ -214,6 +222,50 @@
    - §2.2 user_jwt / resource 探针 UI
    - §2.3 retention stage 可视化
    - inbox 已读/未读 tab 改进
+
+---
+
+## 7. 补充缺口盘点（2026-07-01 第二轮）
+
+基于 §1–§4 的盲点扫描，按 P0/P1/P2 复列。
+
+### 7.1 P0 — 没就会卡
+
+**permission matrix 落点未定** → **✓ 已落地（2026-07-01）**：`contracts/permissions.yaml` 增 8 码（`FILE_READ` + `CFG_CONFIG_REVEAL` + `CFG_NAMESPACE_{CREATE,READ,UPDATE,DELETE,EXPORT,IMPORT}`），`scripts/contracts-gen.js` 跑通，`libs/authz/src/perms.rs` 已重新生成；admin 种子策略沿用现有 `ensure_admin_default_permissions`（仅 `notification.admin`），其余需 `POST /iam/permissions` 入库后通过权限管理页分配。doc §1.1/§1.2/P2 UI 按钮的 `v-perms` 引用按新增码声明。
+
+**DTO 来源未定** → **✓ 已落地（2026-07-01）**：走 `scripts/openapi-codegen.js`，禁止手写 `api/file.ts` / `api/config.ts`。已生成 `frontend/src/api/file/` 与 `frontend/src/api/config/` 三文件。详见 §1.1 / §1.2 头部已更新的注释。
+
+**前端测试硬性章节** → **✓ 已落地（2026-07-01）**：`frontend/package.json` 加 `test:unit`（跑全量 vitest）+ `test:unit:watch`；`frontend/AGENTS.md` 加「测试规范」段，要求每新 view ≥ 1 happy-path 单测，就近放 `<name>.test.ts`。E2E 引用既有 `scripts/run-e2e-local.js`（后端 happy-path），浏览器级 E2E 列为立项可选，不在本规范强制范围。
+
+**file 上传边界条件**（强化 §1.1）→ **✓ 已落地（2026-07-01）**：从 `services/file-service/src/config.rs:33-34` 提取 max_file_size = 100MB，写入 `frontend/src/api/file/limits.ts`（导出 `FILE_MAX_SIZE_BYTES` / `checkFileSize` / `checkFileExtension` / `FILE_BLOCKED_EXTENSIONS`），由 `file/index.ts` 统一 re-export。`services/file-service/AGENTS.md` 端点表补齐 `/file/list` `/file/:id(GET/DELETE)` `/file/:id/info`。view 上传 view 写完后 `:before-upload` 调用 `checkFileSize` + `checkFileExtension`，超出阻止；后端不强制 MIME / 文件名清理 / 配额。
+
+**config 敏感字段**（强化 §1.2）→ **决策（2026-07-01）**：
+
+- 后端 `ConfigItem.is_secret: bool` 已存在（`services/config-service/src/models/config_item.rs:13`，DB 列 `cfg_config_items.is_secret TINYINT(1) DEFAULT 0`），**但** `get_config_item` / `query_config_items` / `export_config` 当前全部返回明文，未挂钩 `CFG_CONFIG_REVEAL` 权限（`§7.1.1` 新增）。
+- 前端补 UI 掩码：`frontend/src/api/config/masking.ts` 提供 `maskSecretValue` / `isMaskedDisplay` / `shouldMaskInList` / `reveal` / `hide` / `toDisplayValue`，view 中调用 `toDisplayValue(id, raw, item.is_secret)` 显示，"显示明文"按钮挂 `v-perms="['CFG_CONFIG_REVEAL']"`。**仅 UX**：后端 API 仍返明文，需后续补 reveal 端点检查。
+- 后端缺口（高优，跟 §7.1.5 拆开立项）：在 `get_config_item`/`query_config_items`/`export_config` 三个 handler 加 reveal-aware 路径 —— 详见 `services/config-service/AGENTS.md` 「已知缺口 — 敏感字段掩码」段。
+
+### 7.2 P1 — 闭环残留
+
+| 项 | 落点 | 动作 |
+| --- | --- | --- |
+| 错误码 i18n 落地表 | `frontend/src/contracts/error-codes.zh-CN.ts` | 镜像 `libs/common-error/src/codes.rs`（数字 → 文案）；启用 `gen-ts.js` 已在 `frontend/src/contracts/`；helper `translateError()` 在 `frontend/src/utils/error-translate.ts`；`frontend/AGENTS.md` 已加使用规范 |
+| 写操作事件盘点 | `contracts/events.yaml` | ✓ 已落地（2026-07-01）：补 `file.uploaded` / `file.deleted` / `config.item.changed`，gen 重生成 `libs/common-event/src/{routing_keys,events}.rs`（10 事件）。`iam.user.roles_assigned` 沿用现有 `iam.permission.changed`（详见 `events.yaml` 注释 + AGENTS.md Phase 4.4 段），未重复造事件 |
+| sidebar 注册校验 | `scripts/check-router-modules.js` | ✓ 已落地（2026-07-01）：新增 `scripts/check-router-modules.js` 静态校验 `router/modules/*.ts` 每文件至少一条 `path:`。Sidebar 数据由 `prue_backend/get-async-routes` 从 `prue_menu_configs` 读出，模块文件 ↔ 菜单配置项一一对应（路径前缀一致）。新视图上线流程：1) 写 view → 2) 写 `router/modules/<svc>.ts` → 3) 通过菜单配置 UI 创建并 publish 菜单项 → 4) sidebar 自动出现 |
+| audit gateway 多段路径 | `audit.router.toml` | ✓ 已落地（2026-07-01）：`{rest}` **能**吞多段（`/v1/audit/export/{rest}` 吞 `compliance/operation/csv`；`/v1/audit/retention/{rest}` 吞 `stage/<date>`）。镜像 `services/api-gateway/src/template.rs:106-119` 的 TplPart::Var 抓取到 input 末尾或下个 literal 处。新增 `scripts/check-audit-routes.js` 跑测试，6/6 全过。无须改 router.toml |
+
+### 7.3 P2 — 锦上添花
+
+| 项 | 落点 | 动作 |
+| --- | --- | --- |
+| inbox 已读/未读 tab | `frontend/src/views/notification/inbox/index.vue` | ✓ 已落地（2026-07-01）：`useInbox` 加 `activeTab` + `useInboxReadState`（localStorage 持久化），`index.vue` 加 `<el-tabs>` 三 tab（全部/未读/已读），计数随列表变化；测试 `read-state.test.ts` 5/5 通过 |
+| SSE 占位 | `frontend/src/api/config/sse.ts` | ✓ 已落地（2026-07-01）：新增 `watchConfig()` 占位 stub（不连 EventSource），注释里钉 `?token=` 用法 + gateway SSE feature gap 备注；gateway SSE 上线后取消注释即可 |
+| WS 重连策略 | `frontend/src/utils/notification-socket.ts:17` | ✓ **追溯已落地**：`RETRY_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000]` 指数退避（封顶 30s），`onclose → scheduleReconnect()`，`retry<5` 后停止；AGENTS.md 加「WebSocket 重连」段说明策略 + 调用约定 |
+
+### 7.4 隔壁建议（不属于对接清单）
+
+- **user-roles redis 缓存**：§2.1 P0 联通后需确认 PUT 是否进 redis，否则频繁切角色拖慢（`redis.keys` + `authz` lookup 应同步）。
+- **docker 网络可达性回归**：§3「前端在服务起来后可直连」缺命令，补 `docker compose -f docker-compose-services.yml ps file-service config-service` 验证容器健康。
 
 ---
 
