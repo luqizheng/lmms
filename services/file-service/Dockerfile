@@ -2,6 +2,8 @@ FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
 USER root
 WORKDIR /app
 
+ENV SWAGGER_UI_DOWNLOAD_URL=https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip
+
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo .cargo
 COPY libs ./libs
