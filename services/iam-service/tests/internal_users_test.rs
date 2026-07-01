@@ -68,7 +68,7 @@ fn mint_service_token(tid: i64) -> String {
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use base64::Engine;
     let header = URL_SAFE_NO_PAD.encode(b"{\"alg\":\"none\",\"typ\":\"JWT\"}");
-    let payload = format!(r#"{{"aud":"service","tid":{tid}}}"#);
+    let payload = format!(r#"{{"aud":"service","tid":{tid},"sub":"svc"}}"#);
     let body = URL_SAFE_NO_PAD.encode(payload.as_bytes());
     format!("{header}.{body}.signature")
 }
@@ -80,6 +80,16 @@ fn mint_user_token(sub: &str, tid: i64) -> String {
     let payload = format!(r#"{{"sub":"{sub}","tid":{tid},"roles":["admin"]}}"#);
     let body = URL_SAFE_NO_PAD.encode(payload.as_bytes());
     format!("{header}.{body}.signature")
+}
+
+async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
+    sqlx::query(
+        "INSERT INTO iam_tenants (id, slug, display_name, status, created_at, updated_at) \
+         VALUES (?, ?, ?, 'active', NOW(), NOW()) \
+         ON DUPLICATE KEY UPDATE id = id",
+    )
+    .bind(id).bind(slug).bind(slug)
+    .execute(&state.db).await.unwrap();
 }
 
 async fn seed_tenant_user(state: &AppState, tenant: i64, uid: &str) {
@@ -179,6 +189,7 @@ async fn internal_users_by_dept_returns_member_user_ids() {
 #[tokio::test]
 async fn internal_users_tenant_isolation() {
     let ctx = setup().await;
+    seed_tenant(&ctx.state, 2, "t2").await;
     seed_role(&ctx.state, "r1").await;
     seed_tenant_user(&ctx.state, 1, "u1").await;
     seed_tenant_user(&ctx.state, 2, "u2").await;

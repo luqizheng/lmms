@@ -26,6 +26,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(permissions::routes(state.clone()))
         .merge(org_units::routes(state.clone()))
         .merge(tenants::routes(state.clone()))
+        .merge(internal_users::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
