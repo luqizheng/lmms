@@ -29,7 +29,7 @@
 
 | 事件 | 触发 | 机制 |
 |------|------|------|
-| `iam.permission.changed` | assign_permissions / assign_user_roles / role 禁用·删除 / permission 禁用·删除 | 同事务展开受影响 `user_ids` + 写 `iam_outbox_events`（outbox）；commit 后直写 Redis `{prefix}perm_epoch:{user_id}=now`（best-effort，失败由 gateway consumer 兜底）|
+| `iam.permission.changed` | assign_permissions / assign_user_roles / role 禁用·删除 / permission 禁用·删除（actor_id 来自 Principal.user_id） | 同事务展开受影响 `user_ids` + 写 `iam_outbox_events`（outbox）；commit 后直写 Redis `{prefix}perm_epoch:{user_id}=now`（best-effort，失败由 gateway consumer 兜底）|
 
 - perm_epoch TTL = `jwt.access_token_ttl_minutes * 60`。gateway 比对 `token.iat < perm_epoch` → 401 强制重认证。
 - iam Redis 连接为 `Option`：Redis 不可用时 iam 仍启动，直写降级为 no-op。
@@ -104,6 +104,17 @@
 ## 表命名约定
 
 所有表必须以 `iam_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+
+## 内部服务调用 /iam/internal/*
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| /iam/internal/users/by-role/:role_id | GET | 按角色查 user_id（service-jwt only，tenant-isolated）|
+| /iam/internal/users/by-dept/:dept_id | GET | 按部门查 user_id（service-jwt only，tenant-isolated）|
+
+- service-jwt 必须有 `aud` 含 `service` + `tid` claim
+- `page >= 1`, `size ∈ [1, 1000]`；超 1000 截断
+- 用于 notification-service 等下游跨服务成员查询
 
 ## 豁免
 

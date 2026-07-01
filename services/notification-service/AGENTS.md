@@ -41,6 +41,8 @@
 | `notification.announcement.published` | **生产** | `publish_announcement` 同事务写 `ntf_outbox_events` → ntf-outbox-publisher |
 | `notification.announcement.published` | 消费 | **每副本 ephemeral 队列**（fanout）→ 本副本 WS 推送 |
 
+`publish_announcement` 现在通过 `IamMemberClient` 调用 `/iam/internal/users/by-{role,dept}` 解析 role/dept scope 为具体 user_id 列表后写入 delivery 表。
+
 ## 端点域
 
 | 端点 | 方法 | 说明 |
