@@ -382,6 +382,89 @@ impl UserService {
         }
     }
 
+    pub async fn list_by_role(
+        &self,
+        role_id: &str,
+        page: u32,
+        size: u32,
+        tenant_id: i64,
+    ) -> Result<(Vec<String>, i64, bool), IamError> {
+        let size = size.clamp(1, 1000);
+        let page = page.max(1);
+        let offset = ((page - 1) * size) as i64;
+        let limit = size as i64;
+        let tid = tenant_id as u64;
+
+        let items: Vec<String> = sqlx::query_scalar(
+            "SELECT u.id FROM iam_users u \
+             JOIN iam_user_roles ur ON ur.user_id = u.id \
+             WHERE ur.role_id = ? AND u.deleted_at IS NULL AND u.tenant_id = ? \
+             ORDER BY u.id LIMIT ? OFFSET ?",
+        )
+        .bind(role_id)
+        .bind(tid)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(DISTINCT u.id) FROM iam_users u \
+             JOIN iam_user_roles ur ON ur.user_id = u.id \
+             WHERE ur.role_id = ? AND u.deleted_at IS NULL AND u.tenant_id = ?",
+        )
+        .bind(role_id)
+        .bind(tid)
+        .fetch_one(&self.state.db)
+        .await?;
+
+        let truncated = items.len() as u32 == 1000;
+        Ok((items, total.0, truncated))
+    }
+
+    pub async fn list_by_dept(
+        &self,
+        dept_id: &str,
+        page: u32,
+        size: u32,
+        tenant_id: i64,
+    ) -> Result<(Vec<String>, i64, bool), IamError> {
+        let size = size.clamp(1, 1000);
+        let page = page.max(1);
+        let offset = ((page - 1) * size) as i64;
+        let limit = size as i64;
+        let tid = tenant_id as u64;
+
+        // Schema amendment (2026-07-01): iam uses many-to-many
+        // iam_user_org_units(user_id, org_unit_id, is_primary). Loosest semantics
+        // chosen: return users with ANY membership in the dept.
+        let items: Vec<String> = sqlx::query_scalar(
+            "SELECT u.id FROM iam_users u \
+             JOIN iam_user_org_units uox ON uox.user_id = u.id \
+             WHERE uox.org_unit_id = ? AND u.deleted_at IS NULL AND u.tenant_id = ? \
+             GROUP BY u.id ORDER BY u.id LIMIT ? OFFSET ?",
+        )
+        .bind(dept_id)
+        .bind(tid)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(DISTINCT u.id) FROM iam_users u \
+             JOIN iam_user_org_units uox ON uox.user_id = u.id \
+             WHERE uox.org_unit_id = ? AND u.deleted_at IS NULL AND u.tenant_id = ?",
+        )
+        .bind(dept_id)
+        .bind(tid)
+        .fetch_one(&self.state.db)
+        .await?;
+
+        let truncated = items.len() as u32 == 1000;
+        Ok((items, total.0, truncated))
+    }
+
     pub async fn get_claims(&self, user_id: &str) -> Result<UserClaimsResponse, IamError> {
         let user: Option<(String, String, Option<String>, Option<String>, String)> = sqlx::query_as(
             "SELECT id, username, email, phone, nickname FROM iam_users WHERE id = ? AND deleted_at IS NULL AND status = 'active'"
