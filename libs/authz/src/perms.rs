@@ -43,6 +43,8 @@ pub mod perms {
     pub const IAM_ORG_UPDATE: &str = "IAM_ORG_UPDATE";
     /// 删除部门
     pub const IAM_ORG_DELETE: &str = "IAM_ORG_DELETE";
+    /// 注册租户
+    pub const IAM_TENANT_CREATE: &str = "IAM_TENANT_CREATE";
     /// 创建配置项
     pub const CFG_CONFIG_CREATE: &str = "CFG_CONFIG_CREATE";
     /// 查看配置项
@@ -135,6 +137,8 @@ pub fn is_valid(perm: &str) -> bool {
         "IAM_ORG_UPDATE"
         |
         "IAM_ORG_DELETE"
+        |
+        "IAM_TENANT_CREATE"
         |
         "CFG_CONFIG_CREATE"
         |

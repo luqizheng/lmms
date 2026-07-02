@@ -54,6 +54,10 @@ permissions:
   IAM_ORG_DELETE:
     description: "删除部门"
 
+  # === 租户管理 ===
+  IAM_TENANT_CREATE:
+    description: "注册租户"
+
   # === 配置管理 ===
   CFG_CONFIG_CREATE:
     description: "创建配置项"
