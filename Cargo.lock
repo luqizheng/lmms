@@ -734,6 +734,7 @@ dependencies = [
  "matchit 0.8.4",
  "memchr",
  "mime",
+ "multer",
  "percent-encoding",
  "pin-project-lite",
  "serde_core",
@@ -1447,6 +1448,7 @@ dependencies = [
  "common-log",
  "common-telemetry",
  "common-telemetry-axum",
+ "jwt-ctx",
  "prometheus 0.13.4",
  "serde",
  "serde_json",
@@ -3848,6 +3850,23 @@ dependencies = [
  "smallvec 1.15.2",
  "tagptr",
  "uuid",
+]
+
+[[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes 1.11.1",
+ "encoding_rs",
+ "futures-util",
+ "http 1.4.2",
+ "httparse",
+ "memchr",
+ "mime",
+ "spin 0.9.8",
+ "version_check",
 ]
 
 [[package]]

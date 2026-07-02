@@ -22,6 +22,7 @@ common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+jwt-ctx = { path = "../../libs/jwt-ctx" }
 anyhow = "1"
 
 [[bin]]

@@ -1,4 +1,8 @@
-use axum::{extract::State, Json, extract::Path, extract::Query, http::StatusCode};
+use axum::{
+    extract::{Multipart, Path, Query, State},
+    http::StatusCode,
+    Json,
+};
 use crate::models::file_info::{FileInfo, PagedFiles, QueryFiles, UploadFileMeta};
 use crate::routes::AppState;
 use bytes::Bytes;
@@ -13,21 +17,68 @@ pub fn routes(state: AppState) -> axum::Router {
         .with_state(state)
 }
 
+/// Multipart upload:
+///   - `metadata` 字段：JSON 字符串，类型 UploadFileMeta
+///   - `file` 字段：原始字节（大小受 services/file-service/src/config.rs:max_file_size 限制）
 #[utoipa::path(
     post,
     path = "/file/upload",
-    request_body = UploadFileMeta,
+    request_body(content = String, content_type = "multipart/form-data",
+        description = "multipart: 'metadata' (json UploadFileMeta) + 'file' (bytes)"),
     responses(
         (status = 200, description = "Uploaded file metadata", body = FileInfo),
+        (status = 413, description = "Payload too large"),
+        (status = 400, description = "Invalid multipart body or metadata"),
     ),
     tag = "file"
 )]
 pub async fn upload_file(
     State(state): State<AppState>,
-    Json(meta): Json<UploadFileMeta>,
+    mut multipart: Multipart,
 ) -> Result<Json<FileInfo>, (StatusCode, &'static str)> {
-    let data = Bytes::new();
-    let info = state.upload(data, meta).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "upload failed"))?;
+    let mut meta: Option<UploadFileMeta> = None;
+    let mut data: Option<Bytes> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|_| (StatusCode::BAD_REQUEST, "invalid multipart body"))?
+    {
+        match field.name() {
+            Some("metadata") => {
+                let text = field
+                    .text()
+                    .await
+                    .map_err(|_| (StatusCode::BAD_REQUEST, "metadata read failed"))?;
+                meta = Some(
+                    serde_json::from_str::<UploadFileMeta>(&text)
+                        .map_err(|_| (StatusCode::BAD_REQUEST, "invalid metadata json"))?,
+                );
+            }
+            Some("file") => {
+                data = Some(
+                    field
+                        .bytes()
+                        .await
+                        .map_err(|_| (StatusCode::BAD_REQUEST, "file read failed"))?,
+                );
+            }
+            _ => {
+                // 忽略其他字段
+            }
+        }
+    }
+
+    let meta = meta.ok_or((StatusCode::BAD_REQUEST, "missing metadata field"))?;
+    let data = data.ok_or((StatusCode::BAD_REQUEST, "missing file field"))?;
+
+    let info = state.upload(data, meta).await.map_err(|e| {
+        if e.code() == "FILE_UPLOAD_2002" {
+            (StatusCode::PAYLOAD_TOO_LARGE, "file too large")
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, "upload failed")
+        }
+    })?;
     Ok(Json(info))
 }
 

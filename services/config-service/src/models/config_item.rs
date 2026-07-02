@@ -14,6 +14,11 @@ pub struct ConfigItem {
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// 服务端在 is_secret=true 且调用者无 CFG_CONFIG_REVEAL 时填 true，
+    /// 同时把 value 置空。客户端据此决定是否走「显示明文」按钮。
+    /// DB SELECT 总是返回 false（手动在 routes 里覆盖）。
+    #[serde(default)]
+    pub value_masked: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

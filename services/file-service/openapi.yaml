@@ -84,12 +84,17 @@ paths:
     post:
       tags:
       - file
+      summary: |-
+        Multipart upload:
+          - `metadata` 字段：JSON 字符串，类型 UploadFileMeta
+          - `file` 字段：原始字节（大小受 services/file-service/src/config.rs:max_file_size 限制）
       operationId: upload_file
       requestBody:
+        description: 'multipart: ''metadata'' (json UploadFileMeta) + ''file'' (bytes)'
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/UploadFileMeta'
+              type: string
         required: true
       responses:
         '200':
@@ -98,6 +103,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileInfo'
+        '400':
+          description: Invalid multipart body or metadata
+        '413':
+          description: Payload too large
   /file/{id}:
     get:
       tags:

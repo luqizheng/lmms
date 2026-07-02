@@ -214,6 +214,7 @@ impl ConfigService {
             description: item.description,
             created_at: now,
             updated_at: now,
+            value_masked: false,
         })
     }
 
