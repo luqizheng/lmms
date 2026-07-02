@@ -11,15 +11,15 @@
 
 | 服务 | 后端 | api-gateway 注册 | 前端 API | 前端视图 | 评级 |
 | --- | --- | --- | --- | --- | --- |
-| iam-service | ✅ | ✅ `iam.router.toml` | ✅ `api/iam.ts` `api/auth.ts` `api/role.ts` | ✅ `views/system/{user,role,permission,menu,dept}` | **部分**（sessions/tenants/register 缺） |
-| token-service | ✅ | ✅ `token.router.toml` | ✅ `api/token.ts` | ✅ `views/system/token-client` | **部分**（API key 列表缺） |
-| audit-service | ✅ | ✅ `audit.router.toml` | ✅ `api/audit.ts` `api/audit/*` | ✅ `views/monitor/{login-log,operation-log,online,retention,logs}` | **部分**（合规导出按钮缺） |
-| notification-service | ✅ | ✅ `notification.router.toml` | ✅ `api/notification.ts` | ✅ `views/notification/{inbox,admin,detail}` | **基本完整** |
-| prue_backend | ✅ | ✅ `prue_backend.router.toml` | ✅ `api/menu-config.ts` | ✅ `views/system/menu/` | **已完整**（1430 行） |
-| file-service | ✅ | ✅ `file.router.toml` | ❌ | ❌ | **视图/API 待补**（gateway 已通） |
-| config-service | ✅ | ✅ `config.router.toml` | ❌ | ❌ | **视图/API 待补**（gateway 已通，SSE 除外） |
+| iam-service | ✅ | ✅ `iam.router.toml` | ✅ `api/iam.ts` `api/auth.ts` `api/role.ts` | ✅ `views/system/{user,role,permission,menu,dept,tenant,session}` | ✅ **已完整** |
+| token-service | ✅ | ✅ `token.router.toml` | ✅ `api/token.ts`（含 listApiKeys） | ✅ `views/system/token-client`（含 api-keys / resource-probe） | ✅ **已完整** |
+| audit-service | ✅ | ✅ `audit.router.toml` | ✅ `api/audit.ts`（含导出 / stage） | ✅ `views/monitor/{login-log,operation-log,online,retention,logs}`（含导出按钮） | ✅ **已完整** |
+| notification-service | ✅ | ✅ `notification.router.toml` | ✅ `api/notification.ts` | ✅ `views/notification/{inbox（tabs）,admin,detail}` | ✅ **已完整** |
+| prue_backend | ✅ | ✅ `prue_backend.router.toml` | ✅ `api/menu-config.ts` | ✅ `views/system/menu/` | ✅ **已完整**（1430 行） |
+| file-service | ✅ multipart | ✅ `file.router.toml` | ✅ `api/file.ts`（multipart + limits） | ✅ `views/file/{index,upload,presign}` | ✅ **已完整** |
+| config-service | ✅ reveal-aware | ✅ `config.router.toml` + SSE ws=true | ✅ `api/config.ts`（含 masking / sse） | ✅ `views/config/{namespace,item}` | ✅ **已完整**（SSE 激活） |
 
-**已解锁（2026-07-01）**：file-service 与 config-service 已注册到 api-gateway（`[egress_map]` override + `file.router.toml` + `config.router.toml`，详见 §3「已落地」）。仅剩 SSE `/v1/config/watch` 暂缓（gateway 自身 feature gap）。
+**全部对接完成（2026-07-02）**：7 个服务全部接入端到端。后端 4 个 gap（multipart upload、is_secret reveal、api-key list、gateway SSE streaming）已分别在 `fix/backend-integration-gaps` 与 `feat/sse-gateway-streaming` 分支修复并 push。SSE `/v1/config/watch` 已激活，前端 `api/config/sse.ts` `EventSource` 实打开。
 
 ---
 
