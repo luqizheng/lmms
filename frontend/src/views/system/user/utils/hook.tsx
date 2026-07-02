@@ -17,6 +17,7 @@ import {
   deleteIamUser,
   listIamRoles,
   listIamOrgUnits,
+  assignUserRoles,
   type IamUser,
   type IamOrgUnit
 } from "@/api/iam";
@@ -356,6 +357,7 @@ export function useUser(tableRef: Ref, _treeRef: Ref) {
       title: `分配 ${row.username} 用户的角色`,
       props: {
         formInline: {
+          userId: row.id,
           username: row?.username ?? "",
           nickname: row?.nickname ?? "",
           roleOptions: roleOptions.value ?? [],
@@ -368,11 +370,17 @@ export function useUser(tableRef: Ref, _treeRef: Ref) {
       fullscreenIcon: true,
       closeOnClickModal: false,
       contentRenderer: () => h(roleForm),
-      beforeSure: (done, { options }) => {
-        const curData = options.props.formInline as RoleFormItemProps;
-        console.log("selected role ids", curData.ids);
-        message("已记录所选角色 id（接口暂未提供）", { type: "warning" });
-        done();
+      beforeSure: async (done, { options }) => {
+        const curData = options.props.formInline as RoleFormItemProps & {
+          userId: string;
+        };
+        try {
+          await assignUserRoles(curData.userId, curData.ids ?? []);
+          message("角色已更新", { type: "success" });
+          done();
+        } catch (e: any) {
+          message(`更新失败：${e?.message ?? e}`, { type: "error" });
+        }
       }
     });
   }
