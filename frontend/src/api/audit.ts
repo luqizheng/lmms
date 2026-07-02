@@ -65,6 +65,20 @@ export function listLoginLogs(params?: LoginLogQuery) {
   return http.request<PagedLoginLogs>("get", "/v1/audit/login", { params });
 }
 
+// ============== 合规导出 ==============
+// 返回 raw 字符串（CSV / JSON），调用方负责触发下载。
+export function exportOperationLogsCsv() {
+  return http.request<string>("get", "/v1/audit/export/compliance/operation/csv");
+}
+
+export function exportOperationLogsJson() {
+  return http.request<string>("get", "/v1/audit/export/compliance/operation/json");
+}
+
+export function exportLoginLogsCsv() {
+  return http.request<string>("get", "/v1/audit/export/compliance/login/csv");
+}
+
 // ============== 数据保留 ==============
 export interface RetentionPolicy {
   hot_days: number;
@@ -101,4 +115,17 @@ export function updateRetentionPolicy(data: RetentionPolicy) {
 
 export function triggerRetentionCleanup() {
   return http.request<CleanupResult>("post", "/v1/audit/retention/cleanup");
+}
+
+export interface DataStageResult {
+  created_at: string;
+  stage: "Hot" | "Warm" | "Cold" | "Expired";
+  policy: RetentionPolicy;
+}
+
+export function getDataStage(createdAtIso: string) {
+  return http.request<DataStageResult>(
+    "get",
+    `/v1/audit/retention/stage/${encodeURIComponent(createdAtIso)}`
+  );
 }

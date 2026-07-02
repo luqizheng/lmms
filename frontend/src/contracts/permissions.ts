@@ -22,6 +22,7 @@ export type PermissionCode =
   | 'IAM_ORG_READ'
   | 'IAM_ORG_UPDATE'
   | 'IAM_ORG_DELETE'
+  | 'IAM_TENANT_CREATE'
   | 'CFG_CONFIG_CREATE'
   | 'CFG_CONFIG_READ'
   | 'CFG_CONFIG_UPDATE'
@@ -69,6 +70,7 @@ export const PermissionDescriptions: Record<PermissionCode, string> = {
   'IAM_ORG_READ': '查看部门',
   'IAM_ORG_UPDATE': '编辑部门',
   'IAM_ORG_DELETE': '删除部门',
+  'IAM_TENANT_CREATE': '注册租户',
   'CFG_CONFIG_CREATE': '创建配置项',
   'CFG_CONFIG_READ': '查看配置项',
   'CFG_CONFIG_UPDATE': '编辑配置项',

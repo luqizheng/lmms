@@ -388,3 +388,60 @@ export function deleteIamOrgUnit(id: string) {
     `/v1/iam/org-units/${encodeURIComponent(id)}`
   );
 }
+
+// ============== 用户角色指派（Phase 4.4-fu1）==============
+// PUT /v1/iam/users/{user_id}/roles — 全量替换用户角色，触发 iam.permission.changed
+export function assignUserRoles(userId: string, roleIds: string[]) {
+  return http.request<{ user_id: string; role_ids: string[] }>(
+    "put",
+    `/v1/iam/users/${encodeURIComponent(userId)}/roles`,
+    { data: { role_ids: roleIds } }
+  );
+}
+
+// ============== 租户注册（Phase 4.4 起开放）==============
+export interface CreateIamTenantRequest {
+  tenant_slug: string;
+  display_name: string;
+  admin_username: string;
+  admin_password: string;
+}
+
+export function registerIamTenant(data: CreateIamTenantRequest) {
+  return http.request<{ tenant_id: number; admin_user_id: string }>(
+    "post",
+    "/v1/iam/tenants",
+    { data }
+  );
+}
+
+// ============== 会话管理（Phase 4.4）==============
+export interface IamSession {
+  id: string;
+  user_id: string;
+  client_ip: string;
+  user_agent?: string;
+  created_at: string;
+  expires_at: string;
+  is_current: boolean;
+}
+
+export function listIamSessions() {
+  return http.request<IamSession[]>("get", "/v1/iam/auth/sessions");
+}
+
+export function revokeIamSession(sessionId: string) {
+  return http.request<void>(
+    "delete",
+    `/v1/iam/auth/sessions/${encodeURIComponent(sessionId)}`
+  );
+}
+
+// ============== 组织单元成员指派 ==============
+export function assignOrgUnitUsers(orgUnitId: string, userIds: string[]) {
+  return http.request<void>(
+    "put",
+    `/v1/iam/org-units/${encodeURIComponent(orgUnitId)}/users`,
+    { data: { user_ids: userIds } }
+  );
+}
