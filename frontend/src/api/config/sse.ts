@@ -1,17 +1,14 @@
-// SSE 占位：/v1/config/watch 配置变更订阅
+// SSE 订阅：/v1/config/watch 配置变更推送
 //
-// 状态（2026-07-01）：gateway 暂未把 /v1/config/watch 加入 config.router.toml。
-// 原因：当前 api-gateway `forward_to_service` 全量 buffer 响应 +
-//   RouteConfig.ws 字段无消费者 — SSE 端到端是 gateway 自身 feature gap，
-//   需独立 plan 落地。前端本文件先把 EventSource + ?token= 用法钉下，
-//   待 gateway 端修复后再激活。
+// 2026-07-02 激活：api-gateway 现支持 ws=true 路由的流式转发 + ?token= query
+//   鉴权（详见 docs/superpowers/specs/2026-07-02-sse-gateway-streaming-design.md）。
 //
-// EventSource 限制（SPEC § API limitations）：
+// EventSource 限制（spec 限制）：
 //   - 不能自定义 header（Authorization Bearer 不能塞 header）
 //   - token 必须走 query: ?token=<jwt>
-//   - api-gateway 当前 JWT middleware 仅检查 header，需扩 query-token 路径。
+//   - api-gateway auth_middleware 现已支持 header 优先 / ?token= fallback。
 //
-// 用法（占位，组件层暂不调用）：
+// 用法：
 //   import { watchConfig } from "@/api/config/sse";
 //   const stop = watchConfig({
 //     namespaceId: "global",
@@ -37,27 +34,35 @@ function wsBaseURL(): string {
 }
 
 export function watchConfig(opts: WatchConfigOptions): () => void {
-  // ponytail: 占位 — gateway SSE 未发布前不调用 EventSource.open()。
-  // 当 gateway /v1/config/watch 上线后，下方注释代码取消注释。
-  //
-  // const token = storageLocal().getItem<string>(TokenKey);
-  // const url = `${wsBaseURL()}/v1/config/${opts.namespaceId}/watch?token=${encodeURIComponent(formatToken(token ?? "") ?? "")}`;
-  // const es = new EventSource(url);
-  // es.addEventListener("config.item.changed", ev => {
-  //   try { opts.onEvent(JSON.parse((ev as MessageEvent).data)); } catch (e) { opts.onError?.(e); }
-  // });
-  // es.onerror = ev => { opts.onError?.(ev); };
-  // return () => { es.close(); };
-
-  // 当前 stub：no-op，记录调用以便排查
-  if (typeof console !== "undefined") {
-    console.warn(
-      "[config/sse] watchConfig() called but disabled — gateway SSE not yet wired (see §3 frontend_todo.md)"
-    );
+  if (typeof window === "undefined") {
+    return () => undefined;
   }
-  return () => undefined;
+  const rawToken = storageLocal().getItem<string>(TokenKey);
+  const tokenStr = formatToken(rawToken ?? "") ?? "";
+  const url = `${wsBaseURL()}/v1/config/watch?namespace_id=${encodeURIComponent(
+    opts.namespaceId
+  )}&token=${encodeURIComponent(tokenStr)}`;
+
+  const es = new EventSource(url);
+
+  es.addEventListener("config.item.changed", ev => {
+    try {
+      const data = JSON.parse((ev as MessageEvent).data);
+      opts.onEvent(data);
+    } catch (e) {
+      opts.onError?.(e);
+    }
+  });
+
+  es.onerror = ev => {
+    opts.onError?.(ev);
+  };
+
+  return () => {
+    es.close();
+  };
 }
 
 export function isSseReady(): boolean {
-  return false;
+  return true;
 }
