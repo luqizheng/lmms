@@ -50,6 +50,26 @@ export function createApiKey(data: { name: string; scopes?: string[] }) {
   );
 }
 
+// ============== API Key 全量列表（后端 GET /v1/api-keys）==============
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  permissions: string[];
+  status: string;
+  created_at: string;
+}
+
+export interface PagedApiKeys {
+  items: ApiKeySummary[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export function listApiKeys(params?: { keyword?: string; page?: number; size?: number }) {
+  return http.request<PagedApiKeys>("get", "/v1/api-keys", { params });
+}
+
 // ========== OAuth 客户端管理 ==========
 
 export interface OAuthClient {

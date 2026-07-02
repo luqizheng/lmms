@@ -24,7 +24,7 @@ async fn main() {
     let storage = Arc::new(LocalStorage::new(&config.storage_path));
     let base_url = format!("http://localhost:8082/file/");
 
-    let state = create_state(pool, storage, base_url);
+    let state = create_state(pool, storage, base_url, config.max_file_size);
 
     let app = routes::routes(state);
 

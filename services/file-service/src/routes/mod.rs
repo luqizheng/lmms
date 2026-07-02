@@ -29,6 +29,11 @@ async fn health() -> &'static str {
     "OK"
 }
 
-pub fn create_state(pool: common_db::DbPool, storage: Arc<crate::storage::local::LocalStorage>, base_url: String) -> AppState {
-    Arc::new(FileService::new(pool, storage, base_url))
+pub fn create_state(
+    pool: common_db::DbPool,
+    storage: Arc<crate::storage::local::LocalStorage>,
+    base_url: String,
+    max_file_size: u64,
+) -> AppState {
+    Arc::new(FileService::new(pool, storage, base_url, max_file_size))
 }

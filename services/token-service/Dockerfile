@@ -1,3 +1,5 @@
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+
 FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
 USER root
 WORKDIR /app
@@ -18,7 +20,8 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --target x86_64-unknown-linux-musl -p token-service && \
     cp /app/target/x86_64-unknown-linux-musl/release/token-service /app/token-service
 
-FROM alpine:3.21
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/alpine:3.21
 RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/token-service /app/token-service

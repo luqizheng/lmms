@@ -89,6 +89,42 @@ impl Event for IamTenantCreated {
     fn event_type() -> &'static str { "iam.tenant.created" }
     fn schema_version() -> u32 { 1 }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FileUploaded {
+    pub file_id: String,
+    pub filename: String,
+    pub content_type: Option<String>,
+    pub size: i64,
+    pub uploader_user_id: String,
+}
+
+impl Event for FileUploaded {
+    fn event_type() -> &'static str { "file.uploaded" }
+    fn schema_version() -> u32 { 1 }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FileDeleted {
+    pub file_id: String,
+    pub deleted_by: String,
+}
+
+impl Event for FileDeleted {
+    fn event_type() -> &'static str { "file.deleted" }
+    fn schema_version() -> u32 { 1 }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ConfigItemChanged {
+    pub namespace_id: String,
+    pub item_id: String,
+    pub key: String,
+    pub action: String,
+    pub actor_id: Option<String>,
+}
+
+impl Event for ConfigItemChanged {
+    fn event_type() -> &'static str { "config.item.changed" }
+    fn schema_version() -> u32 { 1 }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event_type", content = "payload", rename_all = "snake_case")]
@@ -104,4 +140,7 @@ pub enum IamEventEnum {
     NotificationAnnouncementPublished(Envelope<NotificationAnnouncementPublished>),
     IamPermissionChanged(Envelope<IamPermissionChanged>),
     IamTenantCreated(Envelope<IamTenantCreated>),
+    FileUploaded(Envelope<FileUploaded>),
+    FileDeleted(Envelope<FileDeleted>),
+    ConfigItemChanged(Envelope<ConfigItemChanged>),
 }

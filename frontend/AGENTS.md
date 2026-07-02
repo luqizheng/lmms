@@ -58,16 +58,28 @@
 
 ## API 客户端
 
-前端通过 `src/utils/http/index.ts` 统一调用后端服务，所有接口遵循 `/api/v1/<service>/<resource>` 格式。
+前端通过 `src/utils/http/index.ts` 统一调用后端服务。axios `baseURL` 取自 `VITE_API_BASE`（默认 `/api`），
+
+**调用约定**：在 `http.request()` 的 URL 参数里写 `/v1/<service>/<resource>`（**不要**写 `/api/v1/...`），
+
+`baseURL` 已含 `/api` 前缀，由 nginx 转发到 api-gateway。完整示例：
+
+```ts
+http.request("get", "/v1/iam/users", { params: { page: 1, size: 20 } });
+// 实际请求：GET /api/v1/iam/users?page=1&size=20
+// nginx rewrite: /api/(.*) → /$1 → api-gateway /v1/iam/users → iam-service /iam/users
+```
 
 ### 已集成服务
 
-| 服务 | 路径前缀 | API 文件 |
-|------|----------|----------|
-| iam-service | /api/v1/iam | src/api/iam.ts |
-| token-service | /api/v1/token | src/api/token.ts |
-| audit-service | /api/v1/audit | src/api/audit.ts |
-| notification-service | /api/v1/notification | src/api/notification.ts |
+| 服务 | 调用 URL 前缀 | API 文件 |
+|------|---------------|----------|
+| iam-service | `/v1/iam/...` | src/api/iam.ts |
+| token-service | `/v1/token/...` 或 `/v1/admin/...`（OAuth 客户端） | src/api/token.ts |
+| audit-service | `/v1/audit/...` | src/api/audit.ts |
+| notification-service | `/v1/notification/...` | src/api/notification.ts |
+| file-service | `/v1/file/...` | src/api/file.ts（codegen types + 手写 http） |
+| config-service | `/v1/config/...` | src/api/config.ts（codegen types + 手写 http） |
 
 ## 状态管理
 
@@ -102,6 +114,37 @@
 | pnpm run build:staging | 预发布构建 |
 | pnpm run lint | ESLint 检查 |
 | pnpm run typecheck | TypeScript 检查 |
+| pnpm run test:unit | 跑全量 vitest 单测（`*.test.ts`） |
+| pnpm run test:unit:watch | vitest watch 模式（开发态） |
+
+## 测试规范
+
+### 单元测试（vitest）
+
+- 测试文件**就近放置**：与被测文件同目录，命名 `<name>.test.ts`。
+- 任一新增 `src/views/**` view，**至少**交付一条 happy-path 单测（验证路由渲染、表单校验、关键 reducer / util 等）。
+- 跨页通用 util、formatter、menu-adapter 之类的纯函数模块改动，**必须**伴随单测更新。
+- 跑测：`pnpm run test:unit`。
+
+### 错误码 i18n
+
+- 后端错误码契约：`libs/common-error/src/codes.rs`（来自 `contracts/error-codes.yaml`）。
+- 前端契约：`frontend/src/contracts/error-codes.ts`（自动生成的 `ErrorCode` 类型 + 默认英文 `ErrorMessages`）。
+- 中文翻译：`frontend/src/contracts/error-codes.zh-CN.ts`（手维护，便于文案评审）。
+- 使用：`import { translateError } from "@/utils/error-translate";` 然后 `message(translateError(err.code))`。
+- 新增错误码：`contracts/error-codes.yaml` 加条目后跑 `node scripts/contracts-gen.js`，再在 `zh-CN.ts` 镜像补中文。
+
+### WebSocket 重连
+
+- 现有实现：`frontend/src/utils/notification-socket.ts` 的 `RETRY_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000]`（指数退避，封顶 30s）。`socket.onclose → scheduleReconnect()`，超过上限（`retry < 5`）后停止重连。
+- 全局仅一个 socket 实例，`connect()` 幂等，shared `handlers` Map 支持多订阅者。
+- 鉴权走 onopen 后的 token 帧（WebSocket 协议允许首帧发 token；与 SSE 不同）。
+- 调用方：在 `main.ts` 启动后 `connect()`，路由切换无需 `disconnect()`。
+
+### E2E / 前后端联动
+
+- 完整前后端流程回归走根目录 `scripts/run-e2e-local.js`（该脚本覆盖后端 happy-path）。
+- 前端单独的浏览器级 E2E（playwright/cypress）按需立项，不在本规范强制范围内。
 
 ## 环境变量
 

@@ -43,6 +43,8 @@ pub mod perms {
     pub const IAM_ORG_UPDATE: &str = "IAM_ORG_UPDATE";
     /// 删除部门
     pub const IAM_ORG_DELETE: &str = "IAM_ORG_DELETE";
+    /// 注册租户
+    pub const IAM_TENANT_CREATE: &str = "IAM_TENANT_CREATE";
     /// 创建配置项
     pub const CFG_CONFIG_CREATE: &str = "CFG_CONFIG_CREATE";
     /// 查看配置项
@@ -51,6 +53,20 @@ pub mod perms {
     pub const CFG_CONFIG_UPDATE: &str = "CFG_CONFIG_UPDATE";
     /// 删除配置项
     pub const CFG_CONFIG_DELETE: &str = "CFG_CONFIG_DELETE";
+    /// 查看敏感配置项明文
+    pub const CFG_CONFIG_REVEAL: &str = "CFG_CONFIG_REVEAL";
+    /// 创建配置命名空间
+    pub const CFG_NAMESPACE_CREATE: &str = "CFG_NAMESPACE_CREATE";
+    /// 查看配置命名空间
+    pub const CFG_NAMESPACE_READ: &str = "CFG_NAMESPACE_READ";
+    /// 编辑配置命名空间
+    pub const CFG_NAMESPACE_UPDATE: &str = "CFG_NAMESPACE_UPDATE";
+    /// 删除配置命名空间
+    pub const CFG_NAMESPACE_DELETE: &str = "CFG_NAMESPACE_DELETE";
+    /// 导出命名空间配置
+    pub const CFG_NAMESPACE_EXPORT: &str = "CFG_NAMESPACE_EXPORT";
+    /// 导入命名空间配置
+    pub const CFG_NAMESPACE_IMPORT: &str = "CFG_NAMESPACE_IMPORT";
     /// 查看审计日志
     pub const AUD_LOG_READ: &str = "AUD_LOG_READ";
     /// 导出审计日志
@@ -71,6 +87,8 @@ pub mod perms {
     pub const FILE_DOWNLOAD: &str = "FILE_DOWNLOAD";
     /// 删除文件
     pub const FILE_DELETE: &str = "FILE_DELETE";
+    /// 查看文件列表与详情
+    pub const FILE_READ: &str = "FILE_READ";
     /// 查看系统设置
     pub const SYS_SETTING_READ: &str = "SYS_SETTING_READ";
     /// 编辑系统设置
@@ -120,6 +138,8 @@ pub fn is_valid(perm: &str) -> bool {
         |
         "IAM_ORG_DELETE"
         |
+        "IAM_TENANT_CREATE"
+        |
         "CFG_CONFIG_CREATE"
         |
         "CFG_CONFIG_READ"
@@ -127,6 +147,20 @@ pub fn is_valid(perm: &str) -> bool {
         "CFG_CONFIG_UPDATE"
         |
         "CFG_CONFIG_DELETE"
+        |
+        "CFG_CONFIG_REVEAL"
+        |
+        "CFG_NAMESPACE_CREATE"
+        |
+        "CFG_NAMESPACE_READ"
+        |
+        "CFG_NAMESPACE_UPDATE"
+        |
+        "CFG_NAMESPACE_DELETE"
+        |
+        "CFG_NAMESPACE_EXPORT"
+        |
+        "CFG_NAMESPACE_IMPORT"
         |
         "AUD_LOG_READ"
         |
@@ -147,6 +181,8 @@ pub fn is_valid(perm: &str) -> bool {
         "FILE_DOWNLOAD"
         |
         "FILE_DELETE"
+        |
+        "FILE_READ"
         |
         "SYS_SETTING_READ"
         |

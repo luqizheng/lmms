@@ -121,7 +121,8 @@ async fn main() {
         )
         .route(
             "/api-keys",
-            axum::routing::post(routes::api_key::handle_create_api_key),
+            axum::routing::post(routes::api_key::handle_create_api_key)
+                .get(routes::api_key::handle_list_api_keys),
         )
         .route(
             "/tokens/user-jwt",

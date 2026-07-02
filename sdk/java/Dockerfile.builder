@@ -16,7 +16,8 @@
 #
 # 用法见 scripts/build-java-sdk-docker.js。
 
-FROM maven:3.9-eclipse-temurin-21
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/maven:3.9-eclipse-temurin-21
 
 USER root
 WORKDIR /workspace

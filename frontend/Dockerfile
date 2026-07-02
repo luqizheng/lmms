@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22-alpine AS builder
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -21,7 +22,8 @@ ENV VITE_DISABLE_CAPTCHA=$VITE_DISABLE_CAPTCHA
 
 RUN pnpm build
 
-FROM nginx:1.27-alpine
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/nginx:1.27-alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

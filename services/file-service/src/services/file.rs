@@ -12,14 +12,27 @@ pub struct FileService {
     pool: DbPool,
     storage: Arc<LocalStorage>,
     base_url: String,
+    max_file_size: u64,
 }
 
 impl FileService {
-    pub fn new(pool: DbPool, storage: Arc<LocalStorage>, base_url: String) -> Self {
-        Self { pool, storage, base_url }
+    pub fn new(pool: DbPool, storage: Arc<LocalStorage>, base_url: String, max_file_size: u64) -> Self {
+        Self {
+            pool,
+            storage,
+            base_url,
+            max_file_size,
+        }
     }
 
     pub async fn upload(&self, data: Bytes, meta: UploadFileMeta) -> AppResult<FileInfo> {
+        if (data.len() as u64) > self.max_file_size {
+            return Err(AppError::file_too_large(format!(
+                "file too large: {} > {} bytes",
+                data.len(),
+                self.max_file_size
+            )));
+        }
         let id = Uuid::new_v4().to_string();
         let storage_path = format!("{}-{}", id, meta.filename);
         let now = chrono::Utc::now();

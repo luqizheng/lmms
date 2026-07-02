@@ -54,6 +54,10 @@ permissions:
   IAM_ORG_DELETE:
     description: "删除部门"
 
+  # === 租户管理 ===
+  IAM_TENANT_CREATE:
+    description: "注册租户"
+
   # === 配置管理 ===
   CFG_CONFIG_CREATE:
     description: "创建配置项"
@@ -63,6 +67,24 @@ permissions:
     description: "编辑配置项"
   CFG_CONFIG_DELETE:
     description: "删除配置项"
+  CFG_CONFIG_REVEAL:
+    description: "查看敏感配置项明文"
+
+  # === 配置管理 - 命名空间 ===
+  CFG_NAMESPACE_CREATE:
+    description: "创建配置命名空间"
+  CFG_NAMESPACE_READ:
+    description: "查看配置命名空间"
+  CFG_NAMESPACE_UPDATE:
+    description: "编辑配置命名空间"
+  CFG_NAMESPACE_DELETE:
+    description: "删除配置命名空间"
+
+  # === 配置管理 - 导入导出 ===
+  CFG_NAMESPACE_EXPORT:
+    description: "导出命名空间配置"
+  CFG_NAMESPACE_IMPORT:
+    description: "导入命名空间配置"
 
   # === 审计日志 ===
   AUD_LOG_READ:
@@ -89,6 +111,8 @@ permissions:
     description: "下载文件"
   FILE_DELETE:
     description: "删除文件"
+  FILE_READ:
+    description: "查看文件列表与详情"
 
   # === 系统管理 ===
   SYS_SETTING_READ:

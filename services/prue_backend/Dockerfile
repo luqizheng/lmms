@@ -1,3 +1,5 @@
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+
 FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
 
 USER root
@@ -15,7 +17,8 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     cargo build --release --target x86_64-unknown-linux-musl --bin prue_backend && \
     cp /app/target/x86_64-unknown-linux-musl/release/prue_backend /app/prue_backend
 
-FROM alpine:3.21
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/alpine:3.21
 
 RUN apk add --no-cache ca-certificates
 

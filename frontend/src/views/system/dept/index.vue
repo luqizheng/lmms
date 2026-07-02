@@ -8,6 +8,7 @@ import Delete from "~icons/ep/delete";
 import EditPen from "~icons/ep/edit-pen";
 import Refresh from "~icons/ep/refresh";
 import AddFill from "~icons/ri/add-circle-line";
+import User from "~icons/ep/user";
 
 defineOptions({
   name: "SystemDept"
@@ -24,6 +25,7 @@ const {
   resetForm,
   openDialog,
   handleDelete,
+  handleAssignUsers,
   handleSelectionChange
 } = useDept();
 
@@ -121,6 +123,16 @@ function onFullscreen() {
               @click="openDialog('修改', row)"
             >
               修改
+            </el-button>
+            <el-button
+              class="reset-margin"
+              link
+              type="primary"
+              :size="size"
+              :icon="useRenderIcon(User)"
+              @click="handleAssignUsers(row)"
+            >
+              分配成员
             </el-button>
             <el-button
               class="reset-margin"

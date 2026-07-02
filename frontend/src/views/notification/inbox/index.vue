@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useInbox } from "./utils/hook";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
@@ -8,12 +8,19 @@ import Search from "~icons/ri/search-line";
 
 defineOptions({ name: "NotificationInbox" });
 const formRef = ref();
-const { form, loading, columns, dataList, onSearch, openDetail } = useInbox();
+const { form, loading, columns, dataList, activeTab, unreadCount, onSearch, onTabChange, openDetail } =
+  useInbox();
 
 function reset() {
   formRef.value?.resetFields();
   onSearch();
 }
+
+const tabCounts = computed(() => ({
+  all: dataList.value.length,
+  unread: unreadCount.value,
+  read: dataList.value.length - unreadCount.value
+}));
 </script>
 
 <template>
@@ -48,6 +55,15 @@ function reset() {
     </el-form>
     <PureTableBar title="通知收件箱" @refresh="onSearch">
       <template v-slot="{ size, dynamicColumns }">
+        <el-tabs
+          v-model="activeTab"
+          class="ml-4"
+          @tab-change="onTabChange"
+        >
+          <el-tab-pane :name="'all'" label="全部" />
+          <el-tab-pane :name="'unread'" :label="`未读 (${tabCounts.unread})`" />
+          <el-tab-pane :name="'read'" :label="`已读 (${tabCounts.read})`" />
+        </el-tabs>
         <pure-table
           align-whole="center"
           :loading="loading"

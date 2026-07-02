@@ -3,7 +3,7 @@ use utoipa::{
     Modify, OpenApi,
 };
 
-use crate::routes::{access, admin, refresh, revoke, user_jwt};
+use crate::routes::{access, admin, api_key, refresh, revoke, user_jwt};
 
 pub struct SecurityAddon;
 
@@ -37,6 +37,8 @@ impl Modify for SecurityAddon {
         admin::handle_update,
         admin::handle_delete,
         admin::handle_reset_secret,
+        api_key::handle_create_api_key,
+        api_key::handle_list_api_keys,
     ),
     components(schemas(
         access::AccessRequest,
@@ -53,11 +55,16 @@ impl Modify for SecurityAddon {
         admin::CreateResponse,
         admin::UpdateRequest,
         admin::ResetSecretResponse,
+        api_key::ApiKeyCreated,
+        api_key::CreateApiKeyRequest,
+        api_key::ListApiKeysResponse,
+        api_key::ApiKeySummary,
     )),
     modifiers(&SecurityAddon),
     tags(
         (name = "tokens", description = "Token issuance"),
         (name = "admin", description = "OAuth client admin"),
+        (name = "api-key", description = "Long-lived API key (client_credentials only)"),
     )
 )]
 pub struct ApiDoc;

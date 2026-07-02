@@ -7,6 +7,7 @@ import {
   getRetentionStats,
   triggerRetentionCleanup,
   updateRetentionPolicy,
+  getDataStage,
   type RetentionPolicy,
   type RetentionStats
 } from "@/api/audit";
@@ -99,6 +100,51 @@ async function onCleanup() {
 }
 
 onMounted(load);
+
+// ============== Stage 探针 ==============
+const probeInput = ref<string>(
+  new Date(Date.now() - 100 * 24 * 3600 * 1000)
+    .toISOString()
+    .replace(/\.\d+Z$/, "Z")
+);
+const probeResult = ref<{ stage: string; policy: RetentionPolicy } | null>(
+  null
+);
+const probeLoading = ref(false);
+
+async function onProbe() {
+  if (!probeInput.value) {
+    message("请输入 RFC3339 时间戳", { type: "warning" });
+    return;
+  }
+  probeLoading.value = true;
+  try {
+    const res = await getDataStage(probeInput.value);
+    probeResult.value = { stage: res.stage, policy: res.policy };
+  } catch (e: any) {
+    message(`查询失败：${e?.message || e}`, { type: "error" });
+    probeResult.value = null;
+  } finally {
+    probeLoading.value = false;
+  }
+}
+
+function stageTagType(
+  stage: string
+): "success" | "warning" | "info" | "danger" {
+  switch (stage) {
+    case "Hot":
+      return "success";
+    case "Warm":
+      return "warning";
+    case "Cold":
+      return "info";
+    case "Expired":
+      return "danger";
+    default:
+      return "info";
+  }
+}
 </script>
 
 <template>
@@ -184,6 +230,25 @@ onMounted(load);
         </el-form-item>
         <el-form-item label="启用清理">
           <el-switch v-model="policy.purge_enabled" />
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card class="mt-4" shadow="never">
+      <template #header>
+        <span>Stage 探针（输入 created_at 看落点）</span>
+      </template>
+      <el-form label-width="160px" class="max-w-3xl">
+        <el-form-item label="RFC3339 时间">
+          <el-input v-model="probeInput" placeholder="2024-01-01T00:00:00Z" />
+        </el-form-item>
+        <el-form-item>
+          <el-button :loading="probeLoading" type="primary" @click="onProbe">查询</el-button>
+        </el-form-item>
+        <el-form-item v-if="probeResult" label="结果">
+          <el-tag :type="stageTagType(probeResult.stage)" size="large">
+            {{ probeResult.stage }}
+          </el-tag>
         </el-form-item>
       </el-form>
     </el-card>

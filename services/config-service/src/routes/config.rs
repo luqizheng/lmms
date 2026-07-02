@@ -1,6 +1,21 @@
 use axum::{extract::State, Json, extract::Path, extract::Query, http::StatusCode};
+use jwt_ctx::Principal;
 use crate::models::config_item::{ConfigItem, CreateConfigItem, PagedConfigItems, QueryConfigItems, UpdateConfigItem};
 use crate::routes::AppState;
+
+/// 掩码的常量 —— 与前端 `api/config/masking.ts` `MASK` 保持一致
+const MASK: &str = "********";
+
+const REVEAL_PERM: &str = "CFG_CONFIG_REVEAL";
+
+/// is_secret 标记为 true 且 caller 不持有 CFG_CONFIG_REVEAL 时，
+/// 把 value 置为掩码并标 value_masked=true。
+fn apply_reveal_policy(item: &mut ConfigItem, principal: &Principal) {
+    if item.is_secret && !principal.has_permission(REVEAL_PERM) {
+        item.value = MASK.to_string();
+        item.value_masked = true;
+    }
+}
 
 pub fn routes(state: AppState) -> axum::Router {
     axum::Router::new()
@@ -25,9 +40,11 @@ pub fn routes(state: AppState) -> axum::Router {
 )]
 pub async fn create_config_item(
     State(state): State<AppState>,
+    principal: Principal,
     Json(item): Json<CreateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let result = state.create_config_item(item).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
+    let mut result = state.create_config_item(item).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
+    apply_reveal_policy(&mut result, &principal);
     Ok(Json(result))
 }
 
@@ -43,8 +60,12 @@ pub async fn create_config_item(
 pub async fn query_config_items(
     State(state): State<AppState>,
     Query(query): Query<QueryConfigItems>,
+    principal: Principal,
 ) -> Result<Json<PagedConfigItems>, (StatusCode, &'static str)> {
-    let result = state.query_config_items(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    let mut result = state.query_config_items(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    for item in result.items.iter_mut() {
+        apply_reveal_policy(item, &principal);
+    }
     Ok(Json(result))
 }
 
@@ -61,10 +82,12 @@ pub async fn query_config_items(
 pub async fn get_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    principal: Principal,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let result = state.get_config_item(&id).await.map_err(|e| {
+    let mut result = state.get_config_item(&id).await.map_err(|e| {
         if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get failed") }
     })?;
+    apply_reveal_policy(&mut result, &principal);
     Ok(Json(result))
 }
 
@@ -82,11 +105,13 @@ pub async fn get_config_item(
 pub async fn update_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    principal: Principal,
     Json(update): Json<UpdateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let result = state.update_config_item(&id, update).await.map_err(|e| {
+    let mut result = state.update_config_item(&id, update).await.map_err(|e| {
         if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "update failed") }
     })?;
+    apply_reveal_policy(&mut result, &principal);
     Ok(Json(result))
 }
 
@@ -122,6 +147,7 @@ pub async fn delete_config_item(
 pub async fn export_config(
     State(state): State<AppState>,
     Path(namespace_id): Path<String>,
+    principal: Principal,
 ) -> Result<String, (StatusCode, &'static str)> {
     let query = QueryConfigItems {
         namespace_id: Some(namespace_id),
@@ -129,11 +155,12 @@ pub async fn export_config(
         size: Some(10000),
         key: None,
     };
-    let result = state.query_config_items(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "export failed"))?;
+    let mut result = state.query_config_items(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "export failed"))?;
     
     let mut data = std::collections::HashMap::new();
-    for item in result.items {
-        data.insert(item.key, item.value);
+    for item in result.items.iter_mut() {
+        apply_reveal_policy(item, &principal);
+        data.insert(item.key.clone(), item.value.clone());
     }
     
     Ok(serde_json::to_string_pretty(&data).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "serialize failed"))?)

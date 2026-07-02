@@ -54,6 +54,39 @@ export default {
       }
     },
     {
+      path: "/system/token-client/api-keys",
+      name: "SystemTokenApiKey",
+      component: () => import("@/views/system/token-client/api-keys.vue"),
+      meta: {
+        title: "API Key 管理",
+        showLink: false,
+        keepAlive: true,
+        auths: ["SYS_SETTING_READ"]
+      }
+    },
+    {
+      path: "/system/session",
+      name: "SystemSession",
+      component: () => import("@/views/system/session/index.vue"),
+      meta: {
+        title: "在线会话",
+        showLink: false,
+        keepAlive: true,
+        auths: ["IAM_AUTH_READ"]
+      }
+    },
+    {
+      path: "/system/token-client/resource-probe",
+      name: "SystemTokenResourceProbe",
+      component: () => import("@/views/system/token-client/resource-probe.vue"),
+      meta: {
+        title: "Token 资源探针",
+        showLink: false,
+        keepAlive: false,
+        auths: ["SYS_SETTING_READ"]
+      }
+    },
+    {
       path: "/system/dept",
       name: "SystemDept",
       component: () => import("@/views/system/dept/index.vue"),

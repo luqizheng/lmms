@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import editForm from "../form.vue";
+import assignUsersForm from "../form/assign-users.vue";
 import { message } from "@/utils/message";
 import { addDialog } from "@/components/ReDialog";
 import { reactive, ref, onMounted, h } from "vue";
@@ -204,6 +205,17 @@ export function useDept() {
     }
   }
 
+  async function handleAssignUsers(row: IamOrgUnit) {
+    addDialog({
+      title: `分配成员 - ${row.name}`,
+      width: "720px",
+      draggable: true,
+      closeOnClickModal: false,
+      props: { orgUnitId: row.id, orgUnitName: row.name },
+      contentRenderer: () => h(assignUsersForm)
+    });
+  }
+
   onMounted(() => {
     onSearch();
   });
@@ -221,6 +233,8 @@ export function useDept() {
     openDialog,
     /** 删除部门 */
     handleDelete,
+    /** 分配成员 */
+    handleAssignUsers,
     handleSelectionChange
   };
 }

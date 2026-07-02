@@ -71,3 +71,35 @@ events:
       slug:          { type: string, required: true }
       display_name:  { type: string, required: true }
       admin_user_id: { type: string, required: true }
+
+  # === 文件事件（file-service 产出，2026-07-01 补） ===
+  # 注：iam.user.roles_assigned 不新增 — 该场景沿用
+  # iam.permission.changed（services/iam-service/src/service/perm_change.rs:21，
+  # assign_permissions / assign_user_roles 共用同一事件）。
+  file.uploaded:
+    schema_version: 1
+    description: "文件上传完成"
+    payload:
+      file_id:           { type: string, required: true }
+      filename:          { type: string, required: true }
+      content_type:      { type: string, required: false }
+      size:              { type: int,    required: true }
+      uploader_user_id:  { type: string, required: true }
+
+  file.deleted:
+    schema_version: 1
+    description: "文件删除"
+    payload:
+      file_id:        { type: string, required: true }
+      deleted_by:     { type: string, required: true }
+
+  # === 配置事件（config-service 产出，2026-07-01 补） ===
+  config.item.changed:
+    schema_version: 1
+    description: "配置项变更（创建/更新/删除），下游 SSE 订阅"
+    payload:
+      namespace_id:  { type: string, required: true }
+      item_id:       { type: string, required: true }
+      key:           { type: string, required: true }
+      action:        { type: string, required: true }   # created | updated | deleted
+      actor_id:      { type: string, required: false }
