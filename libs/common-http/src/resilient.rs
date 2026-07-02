@@ -19,6 +19,18 @@ pub struct UpstreamResponse {
     pub body: Bytes,
 }
 
+/// 流式上游响应：SSE / WebSocket 场景。
+///
+/// 仅记录 status / headers 后即返回，未消费 body。调用方负责把
+/// `body.bytes_stream()` 接到 axum Body / WebSocket upgrade。
+#[derive(Debug)]
+pub struct UpstreamStream {
+    pub status: StatusCode,
+    pub headers: HeaderMap,
+    /// 未消费 body 的 live reqwest::Response —— 调用方独占消费。
+    pub body: reqwest::Response,
+}
+
 /// 仅表达「没拿到响应」的传输层失败（决策 5A）。
 /// 5xx/429 不是 Err —— 它们作为 Ok(UpstreamResponse) 返回。
 #[derive(Debug)]
@@ -177,6 +189,106 @@ impl ResilientClient {
                     return Err(err);
                 }
                 // 单次超时
+                Err(_) => {
+                    let st = breaker.state();
+                    breaker.record_failure();
+                    self.note_state(service, st, &breaker);
+                    let err = ResilientError::Timeout;
+                    if self.retry.should_retry_err(attempt, &err, &method)
+                        && deadline.elapsed() < self.cfg.overall_timeout()
+                    {
+                        self.observer.on_retry(service);
+                        tokio::time::sleep(self.retry.delay_for(attempt)).await;
+                        continue;
+                    }
+                    self.observer.on_outcome(service, Outcome::Timeout);
+                    return Err(err);
+                }
+            }
+        }
+    }
+
+    /// 流式版本：复用 breaker / connect-timeout 重试，但**不读 body**、
+    /// 不做 status-based retry（SSE / WS 一旦开始流不可 replay）。
+    /// 调用方拿到 Ok 后立刻消费 `body.bytes_stream()`。
+    pub async fn call_streaming(
+        &self,
+        service: &str,
+        method: Method,
+        url: &str,
+        headers: &HeaderMap,
+        body: Bytes,
+    ) -> Result<UpstreamStream, ResilientError> {
+        let deadline = Instant::now();
+        let breaker = self.breaker_for(service);
+        let mut attempt = 0u32;
+
+        loop {
+            attempt += 1;
+
+            if deadline.elapsed() >= self.cfg.overall_timeout() {
+                self.observer.on_outcome(service, Outcome::Timeout);
+                return Err(ResilientError::Timeout);
+            }
+
+            let st_before = breaker.state();
+            if !breaker.is_available() {
+                self.note_state(service, st_before, &breaker);
+                self.observer.on_outcome(service, Outcome::CircuitOpen);
+                return Err(ResilientError::CircuitOpen);
+            }
+            self.note_state(service, st_before, &breaker);
+
+            let req = self
+                .inner
+                .request(method.clone(), url)
+                .headers(headers.clone())
+                .body(body.clone());
+
+            let result = timeout(self.cfg.timeout(), req.send()).await;
+
+            match result {
+                Ok(Ok(resp)) => {
+                    let status = resp.status();
+                    let resp_headers = resp.headers().clone();
+
+                    // 5xx / 429 / 5xx-then-ok 都计入 breaker
+                    let is_failure = matches!(status.as_u16(), 502 | 503 | 429);
+                    let st = breaker.state();
+                    if is_failure {
+                        breaker.record_failure();
+                    } else {
+                        breaker.record_success();
+                    }
+                    self.note_state(service, st, &breaker);
+
+                    // 流式不重试 status —— 已订立的流不可 replay
+                    self.observer.on_outcome(
+                        service,
+                        if is_failure { Outcome::UpstreamError } else { Outcome::Success },
+                    );
+
+                    return Ok(UpstreamStream {
+                        status,
+                        headers: resp_headers,
+                        body: resp,
+                    });
+                }
+                Ok(Err(e)) => {
+                    let st = breaker.state();
+                    breaker.record_failure();
+                    self.note_state(service, st, &breaker);
+                    let err = ResilientError::Connect(e);
+                    if self.retry.should_retry_err(attempt, &err, &method)
+                        && deadline.elapsed() < self.cfg.overall_timeout()
+                    {
+                        self.observer.on_retry(service);
+                        tokio::time::sleep(self.retry.delay_for(attempt)).await;
+                        continue;
+                    }
+                    self.observer.on_outcome(service, Outcome::ConnectError);
+                    return Err(err);
+                }
                 Err(_) => {
                     let st = breaker.state();
                     breaker.record_failure();
