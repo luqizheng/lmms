@@ -10,6 +10,7 @@ export interface ConfigItem {
   namespace_id: string;
   updated_at: string;
   value: string;
+  value_masked?: boolean;
   value_type: string;
 }
 

@@ -39,10 +39,10 @@ async function onSubmit() {
   let fail = 0;
   try {
     for (const f of fileList.value) {
+      if (!f.raw) continue;
       try {
-        await uploadFile({
-          filename: f.name,
-          content_type: f.raw?.type ?? "application/octet-stream",
+        await uploadFile(f.raw, {
+          content_type: f.raw.type || "application/octet-stream",
           is_temporary: isTemporary.value,
           expires_in_seconds: expiresIn.value
         });

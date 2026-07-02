@@ -26,8 +26,17 @@ export function listFiles(params?: QueryFilesParams) {
   return http.request<PagedFiles>("get", "/v1/file/list", { params });
 }
 
-export function uploadFile(body: UploadFileMeta) {
-  return http.request<FileInfo>("post", "/v1/file/upload", { data: body });
+export function uploadFile(file: File, meta: Omit<UploadFileMeta, "filename"> & { filename?: string }) {
+  const fd = new FormData();
+  fd.append(
+    "metadata",
+    JSON.stringify({ filename: file.name, ...meta })
+  );
+  fd.append("file", file);
+  return http.request<FileInfo>("post", "/v1/file/upload", {
+    data: fd,
+    headers: { "Content-Type": "multipart/form-data" }
+  });
 }
 
 export function downloadFile(id: string) {

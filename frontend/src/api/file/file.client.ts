@@ -5,8 +5,7 @@ import type {
   CreatePresignUrl,
   FileInfo,
   PagedFiles,
-  PresignUrlResponse,
-  UploadFileMeta
+  PresignUrlResponse
 } from "./file.types";
 
 export interface ClientConfig {
@@ -69,8 +68,8 @@ export class FileClient {
     return this.request("POST", "/file/presign", undefined, body);
   }
 
-  async uploadFile(body: UploadFileMeta): Promise<FileInfo> {
-    return this.request("POST", "/file/upload", undefined, body);
+  async uploadFile(): Promise<FileInfo> {
+    return this.request("POST", "/file/upload", undefined, undefined);
   }
 
   async downloadFile(id: string): Promise<string> {
