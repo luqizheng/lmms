@@ -26,6 +26,48 @@ fn upstream_matches(upstream: &str, path: &str) -> bool {
     tpl.extract(path).is_ok()
 }
 
+/// 从 URI query string 提 `token=<jwt>`，用于 EventSource / WebSocket
+/// 等无法设自定义 header 的客户端。Header 优先，本函数仅作 fallback。
+fn extract_token_from_query(uri: &axum::http::Uri) -> Option<String> {
+    uri.query().and_then(|q| {
+        q.split('&').find_map(|kv| {
+            let mut parts = kv.splitn(2, '=');
+            let k = parts.next()?;
+            let v = parts.next()?;
+            if k == "token" && !v.is_empty() {
+                url_decode(v)
+            } else {
+                None
+            }
+        })
+    })
+}
+
+fn url_decode(s: &str) -> Option<String> {
+    // 极简 percent-decode：处理 %XX 与 +
+    let mut out = Vec::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'%' if i + 2 < bytes.len() => {
+                let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok()?;
+                out.push(u8::from_str_radix(hex, 16).ok()?);
+                i += 3;
+            }
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
 pub async fn auth_middleware(
     State(state): State<Arc<AppState>>,
     request: Request<Body>,
@@ -44,9 +86,20 @@ pub async fn auth_middleware(
         .and_then(|v| v.strip_prefix("Bearer "))
         .map(|v| v.to_string());
 
-    let token = match auth_header {
+    let query_token = extract_token_from_query(request.uri());
+    let token = match (auth_header, query_token) {
+        (Some(h), _) => Some(h),
+        (None, Some(q)) => Some(q),
+        (None, None) => None,
+    };
+
+    let token = match token {
         Some(t) => t,
-        None => return (StatusCode::UNAUTHORIZED, "Missing Authorization header").into_response(),
+        None => return (
+            StatusCode::UNAUTHORIZED,
+            "Missing Authorization header or ?token= query",
+        )
+            .into_response(),
     };
 
     let claims = match state.jwt_validator.validate(&token) {
