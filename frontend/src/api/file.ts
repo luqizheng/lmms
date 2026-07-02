@@ -12,7 +12,13 @@ import type {
   UploadFileMeta
 } from "./file/file.types";
 
-export type { FileInfo, PagedFiles, CreatePresignUrl, PresignUrlResponse, UploadFileMeta };
+export type {
+  FileInfo,
+  PagedFiles,
+  CreatePresignUrl,
+  PresignUrlResponse,
+  UploadFileMeta
+};
 
 export interface QueryFilesParams {
   tenant_id?: string;
@@ -26,12 +32,12 @@ export function listFiles(params?: QueryFilesParams) {
   return http.request<PagedFiles>("get", "/v1/file/list", { params });
 }
 
-export function uploadFile(file: File, meta: Omit<UploadFileMeta, "filename"> & { filename?: string }) {
+export function uploadFile(
+  file: File,
+  meta: Omit<UploadFileMeta, "filename"> & { filename?: string }
+) {
   const fd = new FormData();
-  fd.append(
-    "metadata",
-    JSON.stringify({ filename: file.name, ...meta })
-  );
+  fd.append("metadata", JSON.stringify({ filename: file.name, ...meta }));
   fd.append("file", file);
   return http.request<FileInfo>("post", "/v1/file/upload", {
     data: fd,
@@ -48,9 +54,14 @@ export function deleteFile(id: string) {
 }
 
 export function getFileInfo(id: string) {
-  return http.request<FileInfo>("get", `/v1/file/${encodeURIComponent(id)}/info`);
+  return http.request<FileInfo>(
+    "get",
+    `/v1/file/${encodeURIComponent(id)}/info`
+  );
 }
 
 export function createPresign(body: CreatePresignUrl) {
-  return http.request<PresignUrlResponse>("post", "/v1/file/presign", { data: body });
+  return http.request<PresignUrlResponse>("post", "/v1/file/presign", {
+    data: body
+  });
 }

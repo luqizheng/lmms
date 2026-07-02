@@ -65,14 +65,29 @@ export class ConfigClient {
   }
 
   async exportConfig(namespace_id: string): Promise<string> {
-    return this.request("GET", `/config/export/${encodeURIComponent(namespace_id)}`, undefined, undefined);
+    return this.request(
+      "GET",
+      `/config/export/${encodeURIComponent(namespace_id)}`,
+      undefined,
+      undefined
+    );
   }
 
   async importConfig(namespace_id: string): Promise<any> {
-    return this.request("POST", `/config/import/${encodeURIComponent(namespace_id)}`, undefined, undefined);
+    return this.request(
+      "POST",
+      `/config/import/${encodeURIComponent(namespace_id)}`,
+      undefined,
+      undefined
+    );
   }
 
-  async queryConfigItems(params?: { namespace_id?: string; key?: string; page?: number; size?: number }): Promise<PagedConfigItems> {
+  async queryConfigItems(params?: {
+    namespace_id?: string;
+    key?: string;
+    page?: number;
+    size?: number;
+  }): Promise<PagedConfigItems> {
     return this.request("GET", "/config/item", params, undefined);
   }
 
@@ -81,18 +96,41 @@ export class ConfigClient {
   }
 
   async getConfigItem(id: string): Promise<ConfigItem> {
-    return this.request("GET", `/config/item/${encodeURIComponent(id)}`, undefined, undefined);
+    return this.request(
+      "GET",
+      `/config/item/${encodeURIComponent(id)}`,
+      undefined,
+      undefined
+    );
   }
 
-  async updateConfigItem(id: string, body: UpdateConfigItem): Promise<ConfigItem> {
-    return this.request("PUT", `/config/item/${encodeURIComponent(id)}`, undefined, body);
+  async updateConfigItem(
+    id: string,
+    body: UpdateConfigItem
+  ): Promise<ConfigItem> {
+    return this.request(
+      "PUT",
+      `/config/item/${encodeURIComponent(id)}`,
+      undefined,
+      body
+    );
   }
 
   async deleteConfigItem(id: string): Promise<any> {
-    return this.request("DELETE", `/config/item/${encodeURIComponent(id)}`, undefined, undefined);
+    return this.request(
+      "DELETE",
+      `/config/item/${encodeURIComponent(id)}`,
+      undefined,
+      undefined
+    );
   }
 
-  async queryNamespaces(params?: { app?: string; env?: string; page?: number; size?: number }): Promise<PagedNamespaces> {
+  async queryNamespaces(params?: {
+    app?: string;
+    env?: string;
+    page?: number;
+    size?: number;
+  }): Promise<PagedNamespaces> {
     return this.request("GET", "/config/namespace", params, undefined);
   }
 
@@ -101,18 +139,36 @@ export class ConfigClient {
   }
 
   async getNamespace(id: string): Promise<Namespace> {
-    return this.request("GET", `/config/namespace/${encodeURIComponent(id)}`, undefined, undefined);
+    return this.request(
+      "GET",
+      `/config/namespace/${encodeURIComponent(id)}`,
+      undefined,
+      undefined
+    );
   }
 
   async updateNamespace(id: string, body: UpdateNamespace): Promise<Namespace> {
-    return this.request("PUT", `/config/namespace/${encodeURIComponent(id)}`, undefined, body);
+    return this.request(
+      "PUT",
+      `/config/namespace/${encodeURIComponent(id)}`,
+      undefined,
+      body
+    );
   }
 
   async deleteNamespace(id: string): Promise<any> {
-    return this.request("DELETE", `/config/namespace/${encodeURIComponent(id)}`, undefined, undefined);
+    return this.request(
+      "DELETE",
+      `/config/namespace/${encodeURIComponent(id)}`,
+      undefined,
+      undefined
+    );
   }
 
-  async watchConfig(params?: { namespace_id?: string; timeout?: number }): Promise<any> {
+  async watchConfig(params?: {
+    namespace_id?: string;
+    timeout?: number;
+  }): Promise<any> {
     return this.request("GET", "/config/watch", params, undefined);
   }
 

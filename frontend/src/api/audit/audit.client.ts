@@ -61,27 +61,62 @@ export class AuditClient {
   }
 
   async exportLoginCsv(): Promise<string> {
-    return this.request("GET", "/audit/export/compliance/login/csv", undefined, undefined);
+    return this.request(
+      "GET",
+      "/audit/export/compliance/login/csv",
+      undefined,
+      undefined
+    );
   }
 
   async exportOperationCsv(): Promise<string> {
-    return this.request("GET", "/audit/export/compliance/operation/csv", undefined, undefined);
+    return this.request(
+      "GET",
+      "/audit/export/compliance/operation/csv",
+      undefined,
+      undefined
+    );
   }
 
   async exportOperationJson(): Promise<string> {
-    return this.request("GET", "/audit/export/compliance/operation/json", undefined, undefined);
+    return this.request(
+      "GET",
+      "/audit/export/compliance/operation/json",
+      undefined,
+      undefined
+    );
   }
 
-  async queryLoginLogs(params?: { username?: string; success?: boolean; start_time?: string; end_time?: string; page?: number; size?: number }): Promise<PagedLoginLogs> {
+  async queryLoginLogs(params?: {
+    username?: string;
+    success?: boolean;
+    start_time?: string;
+    end_time?: string;
+    page?: number;
+    size?: number;
+  }): Promise<PagedLoginLogs> {
     return this.request("GET", "/audit/login", params, undefined);
   }
 
-  async queryOperationLogs(params?: { user_id?: string; action?: string; resource?: string; start_time?: string; end_time?: string; page?: number; size?: number }): Promise<PagedOperationLogs> {
+  async queryOperationLogs(params?: {
+    user_id?: string;
+    action?: string;
+    resource?: string;
+    start_time?: string;
+    end_time?: string;
+    page?: number;
+    size?: number;
+  }): Promise<PagedOperationLogs> {
     return this.request("GET", "/audit/operation", params, undefined);
   }
 
   async triggerCleanup(): Promise<any> {
-    return this.request("POST", "/audit/retention/cleanup", undefined, undefined);
+    return this.request(
+      "POST",
+      "/audit/retention/cleanup",
+      undefined,
+      undefined
+    );
   }
 
   async getRetentionPolicy(): Promise<RetentionPolicy> {
@@ -93,7 +128,12 @@ export class AuditClient {
   }
 
   async getDataStage(created_at: string): Promise<any> {
-    return this.request("GET", `/audit/retention/stage/${encodeURIComponent(created_at)}`, undefined, undefined);
+    return this.request(
+      "GET",
+      `/audit/retention/stage/${encodeURIComponent(created_at)}`,
+      undefined,
+      undefined
+    );
   }
 
   async getRetentionStats(): Promise<RetentionStats> {

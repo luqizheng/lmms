@@ -28,15 +28,14 @@ async function onProbe() {
   <div>
     <el-button :loading="loading" @click="onProbe">资源探针</el-button>
     <div v-if="resources.length" class="mt-3 flex flex-wrap gap-2">
-      <el-tag
-        v-for="r in resources"
-        :key="r"
-        type="info"
-        effect="plain"
-      >
+      <el-tag v-for="r in resources" :key="r" type="info" effect="plain">
         {{ r }}
       </el-tag>
     </div>
-    <el-empty v-else description="点击「资源探针」拉取后端可用资源标识" :image-size="60" />
+    <el-empty
+      v-else
+      description="点击「资源探针」拉取后端可用资源标识"
+      :image-size="60"
+    />
   </div>
 </template>

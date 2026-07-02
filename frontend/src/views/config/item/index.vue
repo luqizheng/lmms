@@ -143,22 +143,47 @@ async function onDelete(row: ConfigItem) {
   <div class="main">
     <el-form inline :model="form" class="search-form pl-8 pt-3">
       <el-form-item label="命名空间：">
-        <el-select v-model="selectedNs" placeholder="选择" @change="onSearch" class="w-50!">
-          <el-option v-for="n in namespaces" :key="n.id" :label="n.name" :value="n.id" />
+        <el-select
+          v-model="selectedNs"
+          placeholder="选择"
+          class="w-50!"
+          @change="onSearch"
+        >
+          <el-option
+            v-for="n in namespaces"
+            :key="n.id"
+            :label="n.name"
+            :value="n.id"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="Key：">
-        <el-input v-model="form.keyword" placeholder="按 key 筛选" clearable class="w-50!" @change="onSearch" />
+        <el-input
+          v-model="form.keyword"
+          placeholder="按 key 筛选"
+          clearable
+          class="w-50!"
+          @change="onSearch"
+        />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" :icon="useRenderIcon(Search)" :loading="loading" @click="onSearch">搜索</el-button>
-        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch">刷新</el-button>
+        <el-button
+          type="primary"
+          :icon="useRenderIcon(Search)"
+          :loading="loading"
+          @click="onSearch"
+          >搜索</el-button
+        >
+        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch"
+          >刷新</el-button
+        >
         <el-button
           v-if="hasPerms(['CFG_CONFIG_CREATE'])"
           type="primary"
           :icon="useRenderIcon(AddFill)"
           @click="onCreate"
-        >新建</el-button>
+          >新建</el-button
+        >
       </el-form-item>
     </el-form>
     <PureTableBar title="配置项" @refresh="onSearch">

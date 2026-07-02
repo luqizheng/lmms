@@ -66,7 +66,11 @@ export interface PagedApiKeys {
   size: number;
 }
 
-export function listApiKeys(params?: { keyword?: string; page?: number; size?: number }) {
+export function listApiKeys(params?: {
+  keyword?: string;
+  page?: number;
+  size?: number;
+}) {
   return http.request<PagedApiKeys>("get", "/v1/api-keys", { params });
 }
 

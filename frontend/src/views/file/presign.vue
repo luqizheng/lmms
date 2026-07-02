@@ -63,15 +63,27 @@ function copyUrl() {
         </el-radio-group>
       </el-form-item>
       <el-form-item label="过期秒数">
-        <el-input-number v-model="form.expires_in_seconds" :min="60" :max="86400" />
+        <el-input-number
+          v-model="form.expires_in_seconds"
+          :min="60"
+          :max="86400"
+        />
       </el-form-item>
       <el-form-item>
-        <el-button v-if="hasPerms(['FILE_UPLOAD'])" type="primary" :loading="loading" @click="onSubmit">生成 URL</el-button>
+        <el-button
+          v-if="hasPerms(['FILE_UPLOAD'])"
+          type="primary"
+          :loading="loading"
+          @click="onSubmit"
+          >生成 URL</el-button
+        >
       </el-form-item>
     </el-form>
     <el-card v-if="presigned" class="mt-4">
       <template #header>预签名结果</template>
-      <p class="break-all">URL: <code>{{ presigned.url }}</code></p>
+      <p class="break-all">
+        URL: <code>{{ presigned.url }}</code>
+      </p>
       <p>过期: {{ presigned.expires_at }}</p>
       <el-button @click="copyUrl">复制 URL</el-button>
     </el-card>

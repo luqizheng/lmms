@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import {
-  listIamSessions,
-  revokeIamSession,
-  type IamSession
-} from "@/api/iam";
+import { listIamSessions, revokeIamSession, type IamSession } from "@/api/iam";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
@@ -81,7 +77,13 @@ onMounted(refresh);
   <div class="main">
     <el-form inline class="search-form pl-8 pt-3">
       <el-form-item>
-        <el-button type="primary" :icon="useRenderIcon(Refresh)" :loading="loading" @click="refresh">刷新</el-button>
+        <el-button
+          type="primary"
+          :icon="useRenderIcon(Refresh)"
+          :loading="loading"
+          @click="refresh"
+          >刷新</el-button
+        >
       </el-form-item>
     </el-form>
     <PureTableBar title="在线会话" @refresh="refresh">

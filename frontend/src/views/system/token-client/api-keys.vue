@@ -66,7 +66,10 @@ async function onCreate() {
     return;
   }
   const scopes = form.value.scopes
-    ? form.value.scopes.split(",").map(s => s.trim()).filter(Boolean)
+    ? form.value.scopes
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean)
     : [];
   loading.value = true;
   try {
@@ -92,7 +95,9 @@ function onCopy(row: CachedApiKey) {
   // 列表来自后端，secret 不在表里 → 仅当本地缓存有此 id 时能复制
   const cached = listCachedApiKeys().find(c => c.id === row.id);
   if (!cached) {
-    message("本浏览器未缓存该 key 的 secret；后端不返回明文", { type: "warning" });
+    message("本浏览器未缓存该 key 的 secret；后端不返回明文", {
+      type: "warning"
+    });
     return;
   }
   navigator.clipboard.writeText(cached.api_key);
@@ -112,14 +117,33 @@ onMounted(refresh);
   <div class="main">
     <el-form inline :model="form" class="search-form pl-8 pt-3">
       <el-form-item label="名称：">
-        <el-input v-model="form.name" placeholder="API Key 名称" clearable class="w-40!" />
+        <el-input
+          v-model="form.name"
+          placeholder="API Key 名称"
+          clearable
+          class="w-40!"
+        />
       </el-form-item>
       <el-form-item label="Scopes：">
-        <el-input v-model="form.scopes" placeholder="逗号分隔" clearable class="w-40!" />
+        <el-input
+          v-model="form.scopes"
+          placeholder="逗号分隔"
+          clearable
+          class="w-40!"
+        />
       </el-form-item>
       <el-form-item>
-        <el-button v-if="hasPerms(['SYS_SETTING_UPDATE'])" type="primary" :icon="useRenderIcon(AddFill)" :loading="loading" @click="onCreate">新建</el-button>
-        <el-button :icon="useRenderIcon(Refresh)" @click="refresh">刷新</el-button>
+        <el-button
+          v-if="hasPerms(['SYS_SETTING_UPDATE'])"
+          type="primary"
+          :icon="useRenderIcon(AddFill)"
+          :loading="loading"
+          @click="onCreate"
+          >新建</el-button
+        >
+        <el-button :icon="useRenderIcon(Refresh)" @click="refresh"
+          >刷新</el-button
+        >
       </el-form-item>
     </el-form>
     <el-alert
@@ -127,7 +151,7 @@ onMounted(refresh);
       type="info"
       show-icon
       :closable="false"
-      class="ml-8 mr-8"
+      class="mx-8"
     />
     <PureTableBar title="API Key 管理" @refresh="refresh">
       <template v-slot="{ size: ts, dynamicColumns }">
@@ -139,8 +163,21 @@ onMounted(refresh);
           :columns="dynamicColumns"
         >
           <template #operation="{ row }">
-            <el-button v-if="hasPerms(['SYS_SETTING_READ'])" link type="primary" :icon="useRenderIcon(CopyDocument)" @click="onCopy(row)">复制</el-button>
-            <el-button v-if="hasPerms(['SYS_SETTING_UPDATE'])" link type="danger" @click="onDelete(row)">清除缓存</el-button>
+            <el-button
+              v-if="hasPerms(['SYS_SETTING_READ'])"
+              link
+              type="primary"
+              :icon="useRenderIcon(CopyDocument)"
+              @click="onCopy(row)"
+              >复制</el-button
+            >
+            <el-button
+              v-if="hasPerms(['SYS_SETTING_UPDATE'])"
+              link
+              type="danger"
+              @click="onDelete(row)"
+              >清除缓存</el-button
+            >
           </template>
         </pure-table>
       </template>

@@ -95,28 +95,28 @@ export function useAdmin() {
       if (!cur) return;
       try {
         let id = cur.id;
-          if (!isEdit) {
-            const recipients = (cur.recipients || [])
-              .filter((r: any) => r?.scope_id != null && r.scope_id !== "")
-              .map((r: any) => ({
-                scope_type: r.scope_type,
-                scope_id: r.scope_id
-              }));
-            if (recipients.length === 0) {
-              ElMessage.error("请至少选择一个有效的接收人");
-              return;
-            }
-            const created = await createAnnouncement({
-              title: cur.title,
-              body: cur.body,
-              publish_at: cur.publish_at,
-              expire_at: cur.expire_at,
-              pinned: cur.pinned,
-              popover: cur.popover,
-              recipients
-            });
-            id = (created as any)?.id ?? id;
+        if (!isEdit) {
+          const recipients = (cur.recipients || [])
+            .filter((r: any) => r?.scope_id != null && r.scope_id !== "")
+            .map((r: any) => ({
+              scope_type: r.scope_type,
+              scope_id: r.scope_id
+            }));
+          if (recipients.length === 0) {
+            ElMessage.error("请至少选择一个有效的接收人");
+            return;
           }
+          const created = await createAnnouncement({
+            title: cur.title,
+            body: cur.body,
+            publish_at: cur.publish_at,
+            expire_at: cur.expire_at,
+            pinned: cur.pinned,
+            popover: cur.popover,
+            recipients
+          });
+          id = (created as any)?.id ?? id;
+        }
         if (!id) {
           ElMessage.error("缺少公告 ID，无法发布");
           return;

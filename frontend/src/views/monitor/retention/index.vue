@@ -243,7 +243,9 @@ function stageTagType(
           <el-input v-model="probeInput" placeholder="2024-01-01T00:00:00Z" />
         </el-form-item>
         <el-form-item>
-          <el-button :loading="probeLoading" type="primary" @click="onProbe">查询</el-button>
+          <el-button :loading="probeLoading" type="primary" @click="onProbe"
+            >查询</el-button
+          >
         </el-form-item>
         <el-form-item v-if="probeResult" label="结果">
           <el-tag :type="stageTagType(probeResult.stage)" size="large">

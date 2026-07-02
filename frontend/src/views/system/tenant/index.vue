@@ -77,8 +77,20 @@ async function onCreate() {
   <div class="main">
     <el-form inline class="search-form pl-8 pt-3">
       <el-form-item>
-        <el-button type="primary" :icon="useRenderIcon(Refresh)" :loading="loading" @click="onSearch">刷新</el-button>
-        <el-button v-if="hasPerms(['IAM_TENANT_CREATE'])" type="success" :icon="useRenderIcon(AddFill)" @click="onCreate">新建租户</el-button>
+        <el-button
+          type="primary"
+          :icon="useRenderIcon(Refresh)"
+          :loading="loading"
+          @click="onSearch"
+          >刷新</el-button
+        >
+        <el-button
+          v-if="hasPerms(['IAM_TENANT_CREATE'])"
+          type="success"
+          :icon="useRenderIcon(AddFill)"
+          @click="onCreate"
+          >新建租户</el-button
+        >
       </el-form-item>
     </el-form>
     <PureTableBar title="租户管理" @refresh="onSearch">

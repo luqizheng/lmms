@@ -77,15 +77,32 @@ export class TokenClient {
     return this.request("POST", "/admin/oauth-clients", undefined, body);
   }
 
-  async handleUpdate(client_id: string, body: UpdateRequest): Promise<ClientDto> {
-    return this.request("PUT", `/admin/oauth-clients/${encodeURIComponent(client_id)}`, undefined, body);
+  async handleUpdate(
+    client_id: string,
+    body: UpdateRequest
+  ): Promise<ClientDto> {
+    return this.request(
+      "PUT",
+      `/admin/oauth-clients/${encodeURIComponent(client_id)}`,
+      undefined,
+      body
+    );
   }
 
   async handleResetSecret(client_id: string): Promise<ResetSecretResponse> {
-    return this.request("POST", `/admin/oauth-clients/${encodeURIComponent(client_id)}/reset-secret`, undefined, undefined);
+    return this.request(
+      "POST",
+      `/admin/oauth-clients/${encodeURIComponent(client_id)}/reset-secret`,
+      undefined,
+      undefined
+    );
   }
 
-  async handleListApiKeys(params?: { keyword?: string; page?: number; size?: number }): Promise<ListApiKeysResponse> {
+  async handleListApiKeys(params?: {
+    keyword?: string;
+    page?: number;
+    size?: number;
+  }): Promise<ListApiKeysResponse> {
     return this.request("GET", "/api-keys", params, undefined);
   }
 
@@ -93,12 +110,27 @@ export class TokenClient {
     return this.request("POST", "/api-keys", undefined, body);
   }
 
-  async handleList(params?: { keyword?: string; status?: string; page?: number; size?: number }): Promise<ListResponse> {
-    return this.request("GET", "/api/v1/admin/oauth-clients", params, undefined);
+  async handleList(params?: {
+    keyword?: string;
+    status?: string;
+    page?: number;
+    size?: number;
+  }): Promise<ListResponse> {
+    return this.request(
+      "GET",
+      "/api/v1/admin/oauth-clients",
+      params,
+      undefined
+    );
   }
 
   async handleDelete(client_id: string): Promise<void> {
-    return this.request("DELETE", `/api/v1/admin/oauth-clients/${encodeURIComponent(client_id)}`, undefined, undefined);
+    return this.request(
+      "DELETE",
+      `/api/v1/admin/oauth-clients/${encodeURIComponent(client_id)}`,
+      undefined,
+      undefined
+    );
   }
 
   async handleAccess(body: AccessRequest): Promise<AccessResponse> {

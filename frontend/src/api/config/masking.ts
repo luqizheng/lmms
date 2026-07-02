@@ -17,7 +17,9 @@ export function isMaskedDisplay(item: { is_secret?: boolean | null }): boolean {
   return Boolean(item.is_secret);
 }
 
-export function shouldMaskInList(item: { is_secret?: boolean | null }): boolean {
+export function shouldMaskInList(item: {
+  is_secret?: boolean | null;
+}): boolean {
   return isMaskedDisplay(item);
 }
 

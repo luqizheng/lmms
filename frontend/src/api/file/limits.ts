@@ -7,8 +7,7 @@ export const FILE_MAX_SIZE_BYTES = 100 * 1024 * 1024;
 
 export const FILE_MAX_SIZE_MB = 100;
 
-export const FILE_SIZE_LIMIT_ERROR =
-  `文件大小超过 ${FILE_MAX_SIZE_MB}MB 上限`;
+export const FILE_SIZE_LIMIT_ERROR = `文件大小超过 ${FILE_MAX_SIZE_MB}MB 上限`;
 
 // High-risk executable extensions to block client-side.
 // 后端不拒绝，但浏览器侧阻止降低误传。
@@ -27,7 +26,7 @@ export const FILE_BLOCKED_EXTENSIONS = [
 
 export function checkFileExtension(name: string): boolean {
   const lower = name.toLowerCase();
-  return !FILE_BLOCKED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  return !FILE_BLOCKED_EXTENSIONS.some(ext => lower.endsWith(ext));
 }
 
 export function checkFileSize(bytes: number): boolean {

@@ -75,7 +75,8 @@ export function importConfig(namespaceId: string, body: string) {
 
 // ============== 命名空间 ==============
 export interface QueryNamespacesParams {
-  keyword?: string;
+  app?: string;
+  env?: string;
   page?: number;
   size?: number;
 }
@@ -96,7 +97,9 @@ export function getNamespace(id: string) {
 }
 
 export function createNamespace(body: CreateNamespace) {
-  return http.request<Namespace>("post", "/v1/config/namespace", { data: body });
+  return http.request<Namespace>("post", "/v1/config/namespace", {
+    data: body
+  });
 }
 
 export function updateNamespace(id: string, body: UpdateNamespace) {

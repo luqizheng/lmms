@@ -68,11 +68,17 @@ export function listLoginLogs(params?: LoginLogQuery) {
 // ============== 合规导出 ==============
 // 返回 raw 字符串（CSV / JSON），调用方负责触发下载。
 export function exportOperationLogsCsv() {
-  return http.request<string>("get", "/v1/audit/export/compliance/operation/csv");
+  return http.request<string>(
+    "get",
+    "/v1/audit/export/compliance/operation/csv"
+  );
 }
 
 export function exportOperationLogsJson() {
-  return http.request<string>("get", "/v1/audit/export/compliance/operation/json");
+  return http.request<string>(
+    "get",
+    "/v1/audit/export/compliance/operation/json"
+  );
 }
 
 export function exportLoginLogsCsv() {

@@ -31,7 +31,9 @@ const filtered = (kw: string) =>
   !kw
     ? users.value
     : users.value.filter(u =>
-        (u.username + (u.nickname ?? "")).toLowerCase().includes(kw.toLowerCase())
+        (u.username + (u.nickname ?? ""))
+          .toLowerCase()
+          .includes(kw.toLowerCase())
       );
 
 async function onSubmit() {
@@ -54,7 +56,12 @@ watch(() => props.orgUnitId, load, { immediate: true });
     width="640px"
     @close="emit('close')"
   >
-    <el-input v-model="searchKeyword" placeholder="按 username/nickname 过滤" clearable class="mb-3" />
+    <el-input
+      v-model="searchKeyword"
+      placeholder="按 username/nickname 过滤"
+      clearable
+      class="mb-3"
+    />
     <el-checkbox-group v-model="selected" v-loading="loading">
       <el-table :data="filtered(searchKeyword)" max-height="380" border>
         <el-table-column width="56" label="选">
@@ -69,7 +76,12 @@ watch(() => props.orgUnitId, load, { immediate: true });
     </el-checkbox-group>
     <template #footer>
       <el-button @click="emit('close')">取消</el-button>
-      <el-button v-if="hasPerms(['IAM_ORG_UPDATE'])" type="primary" @click="onSubmit">保存</el-button>
+      <el-button
+        v-if="hasPerms(['IAM_ORG_UPDATE'])"
+        type="primary"
+        @click="onSubmit"
+        >保存</el-button
+      >
     </template>
   </el-dialog>
 </template>

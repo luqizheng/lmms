@@ -78,7 +78,9 @@ async function onSubmit() {
           drag
           multiple
         >
-          <el-icon style="font-size: 48px"><i-ep-upload-filled /></el-icon>
+          <el-icon style="font-size: 48px"
+            ><IconifyIconOffline icon="ep:upload-filled"
+          /></el-icon>
           <div class="el-upload__text">拖入或点击选择文件</div>
         </el-upload>
       </el-form-item>
@@ -86,10 +88,21 @@ async function onSubmit() {
         <el-switch v-model="isTemporary" />
       </el-form-item>
       <el-form-item label="过期秒数">
-        <el-input-number v-model="expiresIn" :min="60" :max="86400" placeholder="可选" />
+        <el-input-number
+          v-model="expiresIn"
+          :min="60"
+          :max="86400"
+          placeholder="可选"
+        />
       </el-form-item>
       <el-form-item>
-        <el-button v-if="hasPerms(['FILE_UPLOAD'])" type="primary" :loading="submitting" @click="onSubmit">提交上传</el-button>
+        <el-button
+          v-if="hasPerms(['FILE_UPLOAD'])"
+          type="primary"
+          :loading="submitting"
+          @click="onSubmit"
+          >提交上传</el-button
+        >
       </el-form-item>
     </el-form>
   </div>

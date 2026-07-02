@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useOperationLog } from "./utils/hook";
-import {
-  exportOperationLogsCsv,
-  exportOperationLogsJson
-} from "@/api/audit";
+import { exportOperationLogsCsv, exportOperationLogsJson } from "@/api/audit";
 import { downloadRaw, timestampedFilename } from "@/utils/download";
 import { message } from "@/utils/message";
 import { translateError } from "@/utils/error-translate";

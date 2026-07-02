@@ -8,8 +8,17 @@ import Search from "~icons/ri/search-line";
 
 defineOptions({ name: "NotificationInbox" });
 const formRef = ref();
-const { form, loading, columns, dataList, activeTab, unreadCount, onSearch, onTabChange, openDetail } =
-  useInbox();
+const {
+  form,
+  loading,
+  columns,
+  dataList,
+  activeTab,
+  unreadCount,
+  onSearch,
+  onTabChange,
+  openDetail
+} = useInbox();
 
 function reset() {
   formRef.value?.resetFields();
@@ -55,11 +64,7 @@ const tabCounts = computed(() => ({
     </el-form>
     <PureTableBar title="通知收件箱" @refresh="onSearch">
       <template v-slot="{ size, dynamicColumns }">
-        <el-tabs
-          v-model="activeTab"
-          class="ml-4"
-          @tab-change="onTabChange"
-        >
+        <el-tabs v-model="activeTab" class="ml-4" @tab-change="onTabChange">
           <el-tab-pane :name="'all'" label="全部" />
           <el-tab-pane :name="'unread'" :label="`未读 (${tabCounts.unread})`" />
           <el-tab-pane :name="'read'" :label="`已读 (${tabCounts.read})`" />

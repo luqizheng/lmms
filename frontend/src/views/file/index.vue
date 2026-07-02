@@ -30,7 +30,8 @@ const columns = [
     label: "大小",
     prop: "size",
     width: 100,
-    formatter: ({ size }: any) => (size ? `${(size / 1024).toFixed(1)} KB` : "-")
+    formatter: ({ size }: any) =>
+      size ? `${(size / 1024).toFixed(1)} KB` : "-"
   },
   { label: "上传时间", prop: "created_at", width: 170 },
   {
@@ -93,13 +94,25 @@ function onBeforeUpload(file: File) {
   <div class="main">
     <el-form inline :model="form" class="search-form pl-8 pt-3">
       <el-form-item label="文件名：">
-        <el-input v-model="form.keyword" placeholder="按文件名筛选" clearable class="w-50!" />
+        <el-input
+          v-model="form.keyword"
+          placeholder="按文件名筛选"
+          clearable
+          class="w-50!"
+        />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" :icon="useRenderIcon(Search)" :loading="loading" @click="onSearch">
+        <el-button
+          type="primary"
+          :icon="useRenderIcon(Search)"
+          :loading="loading"
+          @click="onSearch"
+        >
           搜索
         </el-button>
-        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch">刷新</el-button>
+        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch"
+          >刷新</el-button
+        >
         <el-button
           v-if="hasPerms(['FILE_UPLOAD'])"
           type="success"
