@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useOperationLog } from "./utils/hook";
+import {
+  exportOperationLogsCsv,
+  exportOperationLogsJson
+} from "@/api/audit";
+import { downloadRaw, timestampedFilename } from "@/utils/download";
+import { message } from "@/utils/message";
+import { translateError } from "@/utils/error-translate";
+import { hasPerms } from "@/utils/auth";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 
 import View from "~icons/ep/view";
 import Refresh from "~icons/ep/refresh";
+import Download from "~icons/ep/download";
 
 defineOptions({
   name: "MonitorOperationLog"
@@ -26,6 +35,42 @@ const {
   handleCurrentChange,
   handleSelectionChange
 } = useOperationLog();
+
+const exporting = ref(false);
+
+async function onExportCsv() {
+  exporting.value = true;
+  try {
+    const content = await exportOperationLogsCsv();
+    downloadRaw(
+      content,
+      timestampedFilename("operation_log", "csv"),
+      "text/csv;charset=utf-8"
+    );
+    message("已下载 CSV", { type: "success" });
+  } catch (e: any) {
+    message(translateError(e?.code ?? "导出失败"), { type: "error" });
+  } finally {
+    exporting.value = false;
+  }
+}
+
+async function onExportJson() {
+  exporting.value = true;
+  try {
+    const content = await exportOperationLogsJson();
+    downloadRaw(
+      content,
+      timestampedFilename("operation_log", "json"),
+      "application/json;charset=utf-8"
+    );
+    message("已下载 JSON", { type: "success" });
+  } catch (e: any) {
+    message(translateError(e?.code ?? "导出失败"), { type: "error" });
+  } finally {
+    exporting.value = false;
+  }
+}
 </script>
 
 <template>
@@ -71,6 +116,24 @@ const {
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="resetForm(formRef)">
           重置
+        </el-button>
+        <el-button
+          v-if="hasPerms(['AUD_LOG_EXPORT'])"
+          type="success"
+          :icon="useRenderIcon(Download)"
+          :loading="exporting"
+          @click="onExportCsv"
+        >
+          合规导出 CSV
+        </el-button>
+        <el-button
+          v-if="hasPerms(['AUD_LOG_EXPORT'])"
+          type="warning"
+          :icon="useRenderIcon(Download)"
+          :loading="exporting"
+          @click="onExportJson"
+        >
+          合规导出 JSON
         </el-button>
       </el-form-item>
     </el-form>
