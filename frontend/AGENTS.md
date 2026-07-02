@@ -58,16 +58,28 @@
 
 ## API 客户端
 
-前端通过 `src/utils/http/index.ts` 统一调用后端服务，所有接口遵循 `/api/v1/<service>/<resource>` 格式。
+前端通过 `src/utils/http/index.ts` 统一调用后端服务。axios `baseURL` 取自 `VITE_API_BASE`（默认 `/api`），
+
+**调用约定**：在 `http.request()` 的 URL 参数里写 `/v1/<service>/<resource>`（**不要**写 `/api/v1/...`），
+
+`baseURL` 已含 `/api` 前缀，由 nginx 转发到 api-gateway。完整示例：
+
+```ts
+http.request("get", "/v1/iam/users", { params: { page: 1, size: 20 } });
+// 实际请求：GET /api/v1/iam/users?page=1&size=20
+// nginx rewrite: /api/(.*) → /$1 → api-gateway /v1/iam/users → iam-service /iam/users
+```
 
 ### 已集成服务
 
-| 服务 | 路径前缀 | API 文件 |
-|------|----------|----------|
-| iam-service | /api/v1/iam | src/api/iam.ts |
-| token-service | /api/v1/token | src/api/token.ts |
-| audit-service | /api/v1/audit | src/api/audit.ts |
-| notification-service | /api/v1/notification | src/api/notification.ts |
+| 服务 | 调用 URL 前缀 | API 文件 |
+|------|---------------|----------|
+| iam-service | `/v1/iam/...` | src/api/iam.ts |
+| token-service | `/v1/token/...` 或 `/v1/admin/...`（OAuth 客户端） | src/api/token.ts |
+| audit-service | `/v1/audit/...` | src/api/audit.ts |
+| notification-service | `/v1/notification/...` | src/api/notification.ts |
+| file-service | `/v1/file/...` | src/api/file.ts（codegen types + 手写 http） |
+| config-service | `/v1/config/...` | src/api/config.ts（codegen types + 手写 http） |
 
 ## 状态管理
 
