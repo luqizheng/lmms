@@ -12,7 +12,13 @@ AI agents MUST load this file on first file touch in this repo.
 
 ## 1. Mandatory Rules (Always On)
 
-### 1.1 Commit & Branch Policy
+### 1.1 语言与文档
+
+- AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码注释、commit message、技术术语保持英文。
+- 新写或重写的文档、spec、设计说明默认中文；既有英文文档（如 `docs/ai-context.md`）下次大改时一并转中文。
+- 本规则对 `.trae/rules/*` 下所有规则文件统一生效。
+
+### 1.2 Commit & Branch Policy
 
 - **Work directly on `main`.** Do NOT create feature branches.
 - **One task per commit.** Don't bundle unrelated changes.
@@ -22,19 +28,19 @@ AI agents MUST load this file on first file touch in this repo.
   - Conventional tags: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - **No secrets in commits.** `.env`, `*.pem`, `keys/`, `**/secret*` are git-ignored.
 
-### 1.2 Spec Discipline
+### 1.3 Spec Discipline
 
 - Every code change MUST reference a spec file in `docs/superpowers/specs/`.
 - Spec must be created BEFORE code (in the same commit or a prior commit).
 - Spec docs follow the convention `YYYY-MM-DD-<topic>-design.md`.
 
-### 1.3 Code Style
+### 1.4 Code Style
 
 - Each Rust service has its own `AGENTS.md` declaring its conventions. **Read it before editing.**
 - Each Rust service has a Dockerfile. Docker base image lives at `infrastructure/docker/base-images/<svc>/Dockerfile`.
 - Migrations go in `services/{svc}/migrations/{mysql,sqlite}/` (or `services/{svc}/migrations/` for legacy flat layout).
 
-### 1.4 CI Gates (must pass before push)
+### 1.5 CI Gates (must pass before push)
 
 | Gate | Script | Triggers |
 |------|--------|----------|
