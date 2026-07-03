@@ -351,6 +351,26 @@ git commit -m "feat(consul-registrar): add Connect sidecar + upstreams support f
 
 改动点：取消注释 `volumes` 里的 `connect.hcl` 挂载行（删除 `services.json` 那行注释）。
 
+在同一个 `docker-compose-infra.yml` 中，consul 服务定义后加 `consul-init` one-shot 容器（review 决策 5A — dev 模式无持久化，每次 up 自动重建 CA + 意图）：
+
+```yaml
+  consul-init:
+    image: consul:1.15
+    depends_on:
+      consul:
+        condition: service_healthy
+    volumes:
+      - ../scripts/consul-intentions.sh:/consul-intentions.sh:ro
+    command: >
+      sh -c "consul connect ca init
+      && sh /consul-intentions.sh
+      && echo 'consul-init complete'"
+    network_mode: "service:consul"
+    restart: "no"
+```
+
+此容器在 Consul healthy 后自动初始化 CA + 应用意图。`docker-compose down` 后重启自动重建。幂等（`ca init` + `intention create -replace`）。
+
 - [ ] **Step 2: 创建意图脚本**
 
 创建 `scripts/consul-intentions.sh`：
@@ -433,7 +453,7 @@ git commit -m "infra(consul): enable Connect + intention matrix script"
 - Consumes: `ConsulRegistrar::with_upstreams` + `Upstream::new` (Task 1)
 - Produces: 全栈 mesh 网络 — app 仅 localhost 可达，sidecar 做 mTLS
 
-**Sidecar 容器模板**（每个服务相同模式，替换 `<svc>` / `<port>`）：
+**Sidecar 容器模板**（每个服务相同模式，替换 `<svc>` / `<port>`；review 决策 4A — timeout 120 兜底 + restart）：
 
 ```yaml
   <svc>-sidecar:
@@ -442,10 +462,11 @@ git commit -m "infra(consul): enable Connect + intention matrix script"
       - "<host-port>:<svc-port>"
     command: >
       sh -c "until consul catalog services 2>/dev/null | grep -q <svc>; do echo 'waiting for <svc> registration...'; sleep 1; done
-      && consul connect envoy -sidecar-for <svc> -grpc-addr=consul:8502 -admin-bind=0.0.0.0:19000"
+      && timeout 120 consul connect envoy -sidecar-for <svc> -grpc-addr=consul:8502 -admin-bind=0.0.0.0:19000"
     depends_on:
       consul:
         condition: service_healthy
+    restart: unless-stopped
     networks:
       - superpowers
 
@@ -461,6 +482,18 @@ git commit -m "infra(consul): enable Connect + intention matrix script"
         condition: service_started
 ```
 
+> **timeout 120（review 4A）：** app 启动失败时 sidecar 不会永久卡在等待循环，120s 超时后退出，`restart: unless-stopped` 触发重试。
+>
+> **gateway sidecar 特殊配置（review 1A）：** api-gateway 面向外部客户端（浏览器/e2e），入站流量非 mTLS。gateway sidecar 需配 `allow_untlsed_inbound`，在 Consul 注册时通过 sidecar proxy config 设置：
+> ```json
+> "connect": { "sidecar_service": { "proxy": { "config": { "allow_untlsed_inbound": true } } } }
+> ```
+> 这需要在 `ConsulRegistrar` 的 gateway 实例上加一个 builder 方法或配置项。实施时确认 Consul 1.15 的 `allow_untlsed_inbound` 配置方式（可能通过 `proxy.config` 字段或 Consul config entry）。
+>
+> **healthcheck 地址更新（obvious fix）：** app healthcheck 从 `http://127.0.0.1:8080/health` 改为 `http://127.0.0.1:18080/health`（app 绑定端口变了）。
+>
+> **gateway entrypoint JWKS 等待地址（obvious fix）：** gateway entrypoint 从 `http://token-service:8080/.well-known/jwks.json` 改为 `http://127.0.0.1:9082/.well-known/jwks.json`（token-service 不再直接网络可达，走本地 sidecar upstream）。
+
 - [ ] **Step 1: 改 docker-compose-services.yml — iam-service + sidecar**
 
 将 iam-service 服务定义改为：
@@ -472,10 +505,11 @@ git commit -m "infra(consul): enable Connect + intention matrix script"
       - "6002:8080"
     command: >
       sh -c "until consul catalog services 2>/dev/null | grep -q iam-service; do echo 'waiting for iam-service registration...'; sleep 1; done
-      && consul connect envoy -sidecar-for iam-service -grpc-addr=consul:8502 -admin-bind=0.0.0.0:19000"
+      && timeout 120 consul connect envoy -sidecar-for iam-service -grpc-addr=consul:8502 -admin-bind=0.0.0.0:19000"
     depends_on:
       consul:
         condition: service_healthy
+    restart: unless-stopped
     networks:
       - superpowers
 
@@ -652,32 +686,101 @@ git commit -m "feat(mesh): service sidecar containers + localhost binding + upst
 
 ---
 
-### Task 4: service-token 移除
+### Task 4: service-token 移除 + internal 端点 tenant_id 改 query param + IamMemberClient 改造
+
+> Review 决策 3A：iam internal 端点从 `?tenant_id=X` query param 取 tenant_id，移除 Principal extractor（mesh 意图保证调用方身份）。
+> Review 决策 OF1：IamMemberClient 移除 token 机制（不再需要 JWT 传 tid），改为传 `?tenant_id=X` query param。
+> Review 决策 7A：IamMemberClient 加 wiremock 单测。
+> Review 决策 8A：iam internal 加 3 个边缘测试。
+> Review 决策 OF2/OF3：更新 utoipa 注解 + 补齐 OpenAPI 注册。
 
 **Files:**
 - Delete: `services/iam-service/src/middleware/service_jwt.rs`
 - Modify: `services/iam-service/src/middleware/mod.rs`
 - Modify: `services/iam-service/src/routes/internal_users.rs`
+- Modify: `services/iam-service/src/openapi.rs`
 - Modify: `services/iam-service/tests/internal_users_test.rs`
+- Modify: `services/notification-service/src/iam_client.rs`
+- Modify: `services/notification-service/src/main.rs`
+- Create: `services/notification-service/tests/iam_client_test.rs`
 
 **Interfaces:**
-- `/iam/internal/*` 端点不再挂 `require_service_jwt` 中间件
-- handler 仍用 `Principal` extractor（含 `tenant_id`），确保 tenant 隔离
+- `/iam/internal/*` 端点不再挂 `require_service_jwt` 中间件，不再用 `Principal` extractor
+- tenant_id 从 `?tenant_id=X` query param 取（`i64`，必填，缺失 axum 自动 400）
 - mesh 意图替代服务身份认证（token-service / notification-service allow，其余 deny）
-- `IamMemberClient` 保留 token 机制（仍需传 JWT 携带 `tid`，但不再要求 `aud: "service"`）
+- `IamMemberClient` 移除 `token` 字段、`set_token()`、Authorization header、`NOTIF_SERVICE_TOKEN_INITIAL` 环境变量
+- `IamMemberClient::by_role/by_dept` 传 `?tenant_id=X` query param
 
-- [ ] **Step 1: 改 internal_users.rs — 移除中间件挂载**
+- [ ] **Step 1: 改 internal_users.rs — 移除中间件 + 移除 Principal + 加 tenant_id query param（review 3A）**
 
 在 `services/iam-service/src/routes/internal_users.rs` 中：
 
-删除 import 行：
+1a. 删除 import 行：
 ```rust
     middleware::service_jwt::require_service_jwt,
 ```
+删除 `use axum::middleware;`（如果只有这一处用）。删除 `use jwt_ctx::Principal;`。
 
-删除 `use axum::middleware;`（如果只有这一处用）。
+1b. 加 `TenantIdQuery` 结构（从 query param 取 tenant_id）：
 
-把 `routes()` 函数改为：
+```rust
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct TenantIdQuery {
+    pub tenant_id: i64,
+}
+```
+
+1c. 把两个 handler 的签名从 `principal: Principal` 改为 `Query(tq): Query<TenantIdQuery>`，用 `tq.tenant_id` 替代 `principal.tenant_id`：
+
+```rust
+pub async fn list_users_by_role(
+    State(state): State<AppState>,
+    Path(role_id): Path<String>,
+    Query(q): Query<UserListQuery>,
+    Query(tq): Query<TenantIdQuery>,
+) -> Result<Json<UserIdListResponse>, (axum::http::StatusCode, String)> {
+    let svc = UserService::new(state);
+    let (items, total, truncated) = svc
+        .list_by_role(&role_id, q.page, q.size, tq.tenant_id)
+        .await
+        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string()))?;
+    Ok(Json(UserIdListResponse {
+        items,
+        page: q.page,
+        size: q.size.min(1000),
+        total,
+        truncated,
+    }))
+}
+```
+
+对 `list_users_by_dept` 做同样改动（`principal.tenant_id` → `tq.tenant_id`）。
+
+1d. 更新 utoipa 注解（review OF2）— 401 description 从 "service token required" 改为 "mesh intention denied"：
+
+```rust
+#[utoipa::path(
+    get,
+    path = "/iam/internal/users/by-role/{role_id}",
+    params(
+        ("role_id" = String, Path,),
+        UserListQuery,
+        ("tenant_id" = i64, Query, "tenant id (required)"),
+    ),
+    responses(
+        (status = 200, body = UserIdListResponse),
+        (status = 400, description = "missing or invalid tenant_id"),
+        (status = 401, description = "mesh intention denied"),
+    ),
+    tag = "internal",
+)]
+```
+
+对 `list_users_by_dept` 做同样改动。
+
+1e. 把 `routes()` 函数改为：
 ```rust
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -702,49 +805,231 @@ pub fn routes(state: AppState) -> Router {
 
 Run: `rm services/iam-service/src/middleware/service_jwt.rs`
 
-- [ ] **Step 4: 改 internal_users_test.rs — 测试 fixture**
+- [ ] **Step 4: 改 internal_users_test.rs — 移除 JWT fixture + 加边缘测试（review 3A + 8A）**
 
-在 `services/iam-service/tests/internal_users_test.rs` 中：
+review 3A 移除了 Principal extractor，handler 从 `?tenant_id=X` query param 取 tenant_id。测试不再需要 mint JWT token——直接传 query param。
 
-4a. `mint_service_token` 不再需要 `aud: "service"`，改为只带 `tid` 的 token。将函数改为：
+4a. 删除 `mint_service_token` / `mint_internal_token` 函数和 `Ctx` 里的 `service_token_t1` / `service_token_t2` / `user_token` 字段。测试调用改为传 `?tenant_id=X` query param（不需要 Authorization header）。
+
+4b. 更新现有测试用例——`call()` helper 不再传 Authorization header，改为 URL 带 `?tenant_id=X`：
 
 ```rust
-fn mint_internal_token(tid: i64) -> String {
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use base64::Engine;
-    let header = URL_SAFE_NO_PAD.encode(b"{\"alg\":\"none\",\"typ\":\"JWT\"}");
-    let payload = format!(r#"{{"tid":{tid},"sub":"svc"}}"#);
-    let body = URL_SAFE_NO_PAD.encode(payload.as_bytes());
-    format!("{header}.{body}.signature")
+async fn call(app: axum::Router, path: &str, tenant_id: i64) -> (StatusCode, bytes::Bytes) {
+    let uri = format!("{}?tenant_id={}", path, tenant_id);
+    let resp = app
+        .oneshot(Request::builder().uri(&uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let status = resp.status();
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
+    (status, body)
 }
 ```
 
-4b. 将所有 `mint_service_token` 调用改为 `mint_internal_token`。在 `setup()` 中：
+4c. 加 3 个边缘测试（review 8A）：
 
 ```rust
-    let service_token_t1 = mint_internal_token(1);
-    let service_token_t2 = mint_internal_token(2);
-```
+#[tokio::test]
+async fn missing_tenant_id_returns_400() {
+    let ctx = setup().await;
+    // 不传 ?tenant_id= → axum Query 解析 i64 失败 → 400
+    let resp = ctx.app
+        .clone()
+        .oneshot(Request::builder().uri("/iam/internal/users/by-role/r1").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
 
-4c. `Ctx` struct 的字段名可保留 `service_token_t1` / `service_token_t2`（避免大面积改名），或统一改为 `internal_token_t1` / `internal_token_t2`（preferred）。
+#[tokio::test]
+async fn non_numeric_tenant_id_returns_400() {
+    let ctx = setup().await;
+    let resp = ctx.app
+        .clone()
+        .oneshot(Request::builder().uri("/iam/internal/users/by-role/r1?tenant_id=abc").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn valid_tenant_id_returns_200() {
+    let ctx = setup().await;
+    let (status, _) = call(ctx.app.clone(), "/iam/internal/users/by-role/r1", 1).await;
+    assert_eq!(status, StatusCode::OK);
+}
+```
 
 4d. 更新文件头部注释：
 ```rust
 //! Phase 4.4-fu2 + 4.3-fu2: tests for /iam/internal/users/by-{role,dept} endpoints.
 //! Mesh intentions enforce service identity (Phase 5-A);
-//! Principal extractor enforces tenant_id; cross-tenant reads forbidden.
+//! tenant_id from query param; cross-tenant reads forbidden.
 ```
 
-- [ ] **Step 5: 运行测试**
+- [ ] **Step 5: 改 IamMemberClient — 移除 token 机制 + 传 tenant_id query param（review OF1）**
 
-Run: `node scripts/run-tests-docker.js iam-service`
-Expected: 所有测试 PASS。`internal_users_test` 的 testcases 应全部通过——handler 仍用 `Principal` extractor 解析 `tid`，token 不再检查 `aud`。
+在 `services/notification-service/src/iam_client.rs` 中：
 
-- [ ] **Step 6: Commit**
+5a. 移除 `token` 字段、`set_token()` 方法、`Arc<RwLock<String>>` import：
+
+```rust
+#[derive(Clone)]
+pub struct IamMemberClient {
+    http: Arc<ResilientClient>,
+    base_url: String,
+}
+
+impl IamMemberClient {
+    pub fn new(http: Arc<ResilientClient>, base_url: String) -> Self {
+        Self { http, base_url }
+    }
+```
+
+删除 `use tokio::sync::RwLock;`。
+
+5b. `by_role` / `by_dept` 的 `_tenant_id` 参数改为实际使用，拼入 URL query：
+
+```rust
+    pub async fn by_role(&self, role_id: &str, tenant_id: i64) -> Result<Vec<String>, AppError> {
+        let url = format!(
+            "{}/iam/internal/users/by-role/{}?size=1000&tenant_id={}",
+            self.base_url, role_id, tenant_id
+        );
+        self.fetch_items(&url).await
+    }
+
+    pub async fn by_dept(&self, dept_id: &str, tenant_id: i64) -> Result<Vec<String>, AppError> {
+        let url = format!(
+            "{}/iam/internal/users/by-dept/{}?size=1000&tenant_id={}",
+            self.base_url, dept_id, tenant_id
+        );
+        self.fetch_items(&url).await
+    }
+```
+
+5c. `fetch_items` 移除 Authorization header（不再需要 JWT）：
+
+```rust
+    async fn fetch_items(&self, url: &str) -> Result<Vec<String>, AppError> {
+        let resp = self
+            .http
+            .call(IAM_SERVICE, Method::GET, url, &HeaderMap::new(), Bytes::new())
+            .await
+            .map_err(|e: ResilientError| {
+                AppError::external("IAM_FAIL", format!("upstream call failed: {:?}", e))
+            })?;
+```
+
+删除 `let token = self.token.read().await.clone();` 和 `headers.insert(AUTHORIZATION, ...)` 逻辑。
+
+5d. 在 `services/notification-service/src/main.rs` 中，移除 `NOTIF_SERVICE_TOKEN_INITIAL` 环境变量读取和 `initial_token` 传参：
+
+```rust
+    let iam_client = Arc::new(IamMemberClient::new(
+        resilient,
+        cfg.iam_base_url.clone(),
+    ));
+```
+
+删除 `let initial_token = std::env::var("NOTIF_SERVICE_TOKEN_INITIAL")...` 行。
+
+- [ ] **Step 6: 加 IamMemberClient wiremock 单测（review 7A）**
+
+创建 `services/notification-service/tests/iam_client_test.rs`：
+
+```rust
+use common_http::{ResilientClient, ResilienceConfig};
+use notification_service::iam_client::IamMemberClient;
+use std::sync::Arc;
+use wiremock::matchers::{method, path, query_param};
+use wiremock::{Mock, MockServer, ResponseTemplate};
+
+fn client(base_url: String) -> IamMemberClient {
+    let http = Arc::new(ResilientClient::new(
+        reqwest::Client::new(),
+        ResilienceConfig::default(),
+        Arc::new(common_http::NoopObserver),
+    ));
+    IamMemberClient::new(http, base_url)
+}
+
+#[tokio::test]
+async fn by_role_passes_tenant_id_in_query() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/iam/internal/users/by-role/admin"))
+        .and(query_param("tenant_id", "2"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            serde_json::json!({"items": ["u1", "u2"], "page": 1, "size": 1000, "total": 2, "truncated": false}),
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let c = client(server.uri());
+    let result = c.by_role("admin", 2).await.unwrap();
+    assert_eq!(result, vec!["u1", "u2"]);
+}
+
+#[tokio::test]
+async fn by_dept_passes_tenant_id_in_query() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/iam/internal/users/by-dept/o1"))
+        .and(query_param("tenant_id", "3"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            serde_json::json!({"items": ["u3"], "page": 1, "size": 1000, "total": 1, "truncated": false}),
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let c = client(server.uri());
+    let result = c.by_dept("o1", 3).await.unwrap();
+    assert_eq!(result, vec!["u3"]);
+}
+
+#[tokio::test]
+async fn fetch_items_returns_error_on_500() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+
+    let c = client(server.uri());
+    let result = c.by_role("admin", 1).await;
+    assert!(result.is_err());
+}
+```
+
+验证 wiremock 在 notification-service 的 `Cargo.toml` `[dev-dependencies]` 中（如缺则加）。
+
+- [ ] **Step 7: 补齐 OpenAPI 注册（review OF3）**
+
+在 `services/iam-service/src/openapi.rs` 的 `paths(...)` 方法中，注册两个 internal handler：
+
+```rust
+    .paths(routes::internal_users::list_users_by_role)
+    .paths(routes::internal_users::list_users_by_dept)
+```
+
+（TODO.md Phase 9 已知项 — "GET /iam/internal/users/by-{role,dept}" 未注册。一并补齐。）
+
+- [ ] **Step 8: 运行测试**
+
+Run: `node scripts/run-tests-docker.js iam-service notification-service`
+Expected: 所有测试 PASS。
+- `internal_users_test`：边缘测试（无 tenant_id → 400、非数字 → 400、有效 → 200）+ 现有用例（改 query param 后通过）
+- `iam_client_test`：3 个 wiremock 单测全过
+- workspace 编译通过
+
+- [ ] **Step 9: Commit**
 
 ```bash
-git add services/iam-service/src/middleware/ services/iam-service/src/routes/internal_users.rs services/iam-service/tests/internal_users_test.rs
-git commit -m "refactor(iam): remove require_service_jwt — mesh intentions replace service-token auth"
+git add services/iam-service/src/middleware/ services/iam-service/src/routes/internal_users.rs services/iam-service/src/openapi.rs services/iam-service/tests/internal_users_test.rs services/notification-service/src/iam_client.rs services/notification-service/src/main.rs services/notification-service/tests/iam_client_test.rs services/notification-service/Cargo.toml
+git commit -m "refactor(iam,notification): remove service-token + Principal → mesh intentions + tenant_id query param"
 ```
 
 ---
@@ -769,13 +1054,35 @@ docker-compose -f docker-compose-infra.yml -f docker-compose-services.yml ps | g
 ```
 所有 sidecar 容器应为 `running` 状态。
 
-- [ ] **Step 2: 应用意图**
+- [ ] **Step 2: 验证 consul-init 已完成（意图 + CA 自动应用）**
+
+consul-init 容器在 `docker-compose up` 时自动跑 `ca init` + `consul-intentions.sh`。验证：
 
 Run:
 ```bash
-bash scripts/consul-intentions.sh
+docker-compose -f docker-compose-infra.yml -f docker-compose-services.yml logs consul-init | tail -5
 ```
-Expected: 输出 `Intentions applied successfully.` + `consul intention list` 列出全部 allow + deny 规则。
+Expected: 输出 `consul-init complete`。
+
+验证意图：
+```bash
+docker exec infrastructure-consul-1 consul intention list
+```
+Expected: 列出全部 allow + deny 规则（9 条 allow + 1 条 `* → * deny`）。
+
+- [ ] **Step 2b: 改 check-dev-env.js 走 gateway（review Issue 2 obvious fix）**
+
+修改 `scripts/check-dev-env.js`，所有服务检查 URL 改为通过 gateway：
+
+```javascript
+  { name: 'API Gateway',          url: 'http://localhost:3000/health', type: 'http' },
+  { name: 'Token Service',        url: 'http://localhost:3000/.well-known/jwks.json', type: 'http' },
+  { name: 'IAM Service',          url: 'http://localhost:3000/v1/iam/health', type: 'http' },
+  { name: 'Notification Service', url: 'http://localhost:3000/v1/notification/health', type: 'http' },
+  { name: 'Prue Backend',         url: 'http://localhost:3000/v1/pure/health', type: 'http' },
+```
+
+（gateway permissive sidecar 接受非 mTLS，这些 URL 可直接访问。）
 
 - [ ] **Step 3: e2e 回归**
 
@@ -879,6 +1186,28 @@ git commit -m "docs(test-case): Phase 5-A mTLS mesh acceptance checklist"
 
 **已知风险（实施时注意）:**
 1. `network_mode: "service:X"` 下 app 容器不能用 `ports`/`networks` — 已在 Step 说明
-2. sidecar entrypoint 的 `until consul catalog services | grep` 等待循环 — 如果 app 注册失败，sidecar 永久等待（开发环境可接受，加 `timeout 120` 兜底）
+2. ~~sidecar 等待循环永久卡死~~ — **已解决**（review 4A：timeout 120 + restart: unless-stopped）
 3. config-service / file-service 端口从 8081/8082 统一到 18080 — sidecar 网络端口也统一到 8080，原有 host port 映射不变
-4. `IamMemberClient` 保留 token 机制 — spec 说"删 NOTIF_SERVICE_TOKEN_INITIAL"，但实际仍需 JWT 传 tid；plan 保留 token 机制，只是不再要求 `aud: "service"`
+4. ~~IamMemberClient 保留 token 机制~~ — **已解决**（review 3A + OF1：移除 token 机制，改为 `?tenant_id=X` query param）
+5. gateway 入站 mTLS 拒绝非 mesh 流量 — **已解决**（review 1A：gateway sidecar 配 `allow_untlsed_inbound`）
+6. Consul dev 模式 CA/意图丢失 — **已解决**（review 5A：consul-init one-shot 容器自动重建）
+7. gateway JWKS 等待地址不可达 — **已解决**（改 `http://127.0.0.1:9082/...`）
+8. `allow_untlsed_inbound` 的具体配置方式需实施时确认 Consul 1.15 文档（可能通过 proxy config 或 config entry）
+
+---
+
+## Eng-Review 决策汇总（2026-07-03 plan-eng-review）
+
+| # | 决策 | 影响 Task |
+|---|------|-----------|
+| 1A | gateway sidecar 配 `allow_untlsed_inbound`，内部 strict | Task 3 |
+| 2 | check-dev-env.js 改走 gateway URL | Task 5 Step 2b |
+| 3A | iam internal 端点从 `?tenant_id=X` query param 取，移除 Principal | Task 4 Step 1 |
+| 4A | sidecar entrypoint 加 `timeout 120` + `restart: unless-stopped` | Task 3 模板 |
+| 5A | 加 `consul-init` one-shot 容器自动跑 CA init + 意图 | Task 2 Step 1 |
+| 6B | 接受 sidecar YAML 重复（不抽象） | 无改动 |
+| 7A | IamMemberClient 加 wiremock 单测（3 个） | Task 4 Step 6 |
+| 8A | iam internal 加 3 个边缘测试（无 tid→400 / 非数字→400 / 有效→200） | Task 4 Step 4 |
+| OF1 | IamMemberClient 移除 token 机制 + `NOTIF_SERVICE_TOKEN_INITIAL` | Task 4 Step 5 |
+| OF2 | utoipa 注解更新（401 description + tenant_id param） | Task 4 Step 1d |
+| OF3 | OpenAPI 注册补齐 `/iam/internal/users/by-{role,dept}` | Task 4 Step 7 |
