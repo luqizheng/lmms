@@ -19,7 +19,7 @@ use axum::routing::get;
 use axum::Router;
 use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
 use config::AppConfig;
-use consul_registrar::ConsulRegistrar;
+use consul_registrar::{ConsulRegistrar, Upstream};
 use db::Db;
 use iam_client::IamMemberClient;
 use redis_cli::RedisCli;
@@ -150,7 +150,8 @@ async fn main() -> anyhow::Result<()> {
         &cfg.consul.addr,
         &cfg.consul.service_name,
         &cfg.consul.service_id_file,
-    );
+    )
+    .with_upstreams(vec![Upstream::new("iam-service", 9081)]);
     match consul_registrar
         .register_discovered(port, &cfg.consul.service_name)
         .await

@@ -4,6 +4,7 @@ use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
 use token_service::openapi::ApiDoc;
 use token_service::routes;
 use token_service::service::oauth_client_svc;
+use consul_registrar::Upstream;
 use token_service::{
     ConsulRegistrar, TokenIssuer, TokenServerConfig, TokenServerState,
 };
@@ -159,7 +160,8 @@ async fn main() {
         &cfg.consul.addr,
         &cfg.consul.service_name,
         &cfg.consul.service_id_file,
-    );
+    )
+    .with_upstreams(vec![Upstream::new("iam-service", 9081)]);
     let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 

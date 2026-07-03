@@ -21,7 +21,7 @@ use api_gateway::{
 use api_gateway::resilience_metrics::GatewayMetricsObserver;
 use cli::{Cli, Cmd};
 use common_http::ResilientClient;
-use consul_registrar::ConsulRegistrar;
+use consul_registrar::{ConsulRegistrar, Upstream};
 
 fn find_and_render(
     routes: &[RouteConfig],
@@ -301,7 +301,17 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         &cfg.consul_addr,
         "api-gateway",
         "/tmp/api-gateway-id",
-    );
+    )
+    .with_upstreams(vec![
+        Upstream::new("iam-service", 9081),
+        Upstream::new("token-service", 9082),
+        Upstream::new("notification-service", 9083),
+        Upstream::new("audit-service", 9084),
+        Upstream::new("config-service", 9085),
+        Upstream::new("file-service", 9086),
+        Upstream::new("prue_backend", 9087),
+    ])
+    .with_sidecar_config("allow_untlsed_inbound", serde_json::json!(true));
     match consul_registrar
         .register_discovered(cfg.server.port, "api-gateway")
         .await

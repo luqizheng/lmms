@@ -73,7 +73,7 @@ impl Default for Config {
             default_access_ttl_sec: 3600,
             default_refresh_ttl_sec: 2592000,
             default_resource_ttl_sec: 300,
-            user_service_url: "http://user-service:8080".into(),
+            user_service_url: "http://127.0.0.1:9081".into(),
         }
     }
 }

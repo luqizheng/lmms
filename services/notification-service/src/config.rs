@@ -74,7 +74,7 @@ pub struct AppConfig {
 }
 
 fn default_iam_base_url() -> String {
-    "http://iam-service:8080".to_string()
+    "http://127.0.0.1:9081".to_string()
 }
 
 impl AppConfig {
