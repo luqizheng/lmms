@@ -20,6 +20,14 @@
 
 默认使用 WSL / macOS / Linux，所有脚本、命令、路径示例均基于类 Unix 环境。Windows 用户必须在 WSL 中执行，禁止使用原生 PowerShell / CMD。
 
+## 项目阶段
+
+项目当前处于**开发阶段，从未发布过生产环境**。因此：
+
+- **无遗留数据**，数据库迁移可直接修改或重建，无需保留历史迁移版本
+- **不考虑向后兼容**，可大胆重构、删除废弃代码，无需兼容层或双写过渡
+- **无在线流量**，变更可直接上线，无需灰度回滚预案
+
 ## 身份认证规则
 
 微服务身份传递必须遵循 [.trae/rules/auth-rules.md](.trae/rules/auth-rules.md)：
@@ -27,6 +35,10 @@
 - **禁止使用 X-User-\* headers**，下游服务必须从 `Authorization: Bearer <jwt>` 解析 JWT payload
 - 使用 `libs/jwt-ctx` 库的 `Principal` extractor 提取用户身份
 - 下游服务不验证 JWT 签名，仅解码 payload
+
+## 语言偏好
+
+AI 回复与思考过程**必须使用中文**。代码注释、commit message、技术术语保持英文不变；文档与设计 spec 默认中文。
 
 ## 服务规范规则系统
 
