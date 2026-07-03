@@ -23,6 +23,7 @@ struct AgentServiceRegistration {
     address: String,
     port: u16,
     check: AgentServiceCheck,
+    connect: ConnectConfig,
 }
 
 #[derive(Serialize)]
@@ -33,6 +34,41 @@ struct AgentServiceCheck {
     interval: String,
     timeout: String,
     deregister_critical_service_after: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct ConnectConfig {
+    sidecar_service: SidecarConfig,
+}
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "PascalCase")]
+struct SidecarConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proxy: Option<ProxyConfig>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct ProxyConfig {
+    upstreams: Vec<Upstream>,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct Upstream {
+    destination_name: String,
+    local_bind_port: u16,
+}
+
+impl Upstream {
+    pub fn new(destination_name: &str, local_bind_port: u16) -> Self {
+        Self {
+            destination_name: destination_name.to_string(),
+            local_bind_port,
+        }
+    }
 }
 
 /// Consul agent service registrar. Created once at startup, registered against
@@ -53,6 +89,7 @@ pub struct ConsulRegistrar {
     service_id: String,
     service_id_file: String,
     persisted: bool,
+    upstreams: Vec<Upstream>,
 }
 
 impl ConsulRegistrar {
@@ -148,7 +185,13 @@ impl ConsulRegistrar {
             service_id,
             service_id_file: service_id_file.to_string(),
             persisted,
+            upstreams: Vec::new(),
         }
+    }
+
+    pub fn with_upstreams(mut self, upstreams: Vec<Upstream>) -> Self {
+        self.upstreams = upstreams;
+        self
     }
 
     /// Returns `(service_id, persisted)`. `persisted = true` means the value was read
@@ -247,6 +290,17 @@ impl ConsulRegistrar {
                 interval: "10s".to_string(),
                 timeout: "5s".to_string(),
                 deregister_critical_service_after: "1m".to_string(),
+            },
+            connect: ConnectConfig {
+                sidecar_service: SidecarConfig {
+                    proxy: if self.upstreams.is_empty() {
+                        None
+                    } else {
+                        Some(ProxyConfig {
+                            upstreams: self.upstreams.clone(),
+                        })
+                    },
+                },
             },
         };
 
@@ -494,12 +548,78 @@ mod tests {
                 timeout: "5s".into(),
                 deregister_critical_service_after: "1m".into(),
             },
+            connect: ConnectConfig {
+                sidecar_service: SidecarConfig { proxy: None },
+            },
         };
         let json = serde_json::to_value(&reg).unwrap();
         assert_eq!(json["Check"]["HTTP"], "http://127.0.0.1:8080/health");
         assert_eq!(json["Check"]["DeregisterCriticalServiceAfter"], "1m");
         assert_eq!(json["Id"], "audit-service-abc-uuid");
         assert_eq!(json["Name"], "audit-service");
-        assert!(json.get("Connect").is_none());
+        assert_eq!(json["Connect"]["SidecarService"], serde_json::json!({}));
+    }
+
+    #[test]
+    fn registration_serializes_connect_sidecar_without_upstreams() {
+        let reg = AgentServiceRegistration {
+            id: "iam-service-uuid".into(),
+            name: "iam-service".into(),
+            address: "127.0.0.1".into(),
+            port: 18080,
+            check: AgentServiceCheck {
+                http: "http://127.0.0.1:18080/health".into(),
+                interval: "10s".into(),
+                timeout: "5s".into(),
+                deregister_critical_service_after: "1m".into(),
+            },
+            connect: ConnectConfig {
+                sidecar_service: SidecarConfig { proxy: None },
+            },
+        };
+        let json = serde_json::to_value(&reg).unwrap();
+        assert_eq!(json["Connect"]["SidecarService"], serde_json::json!({}));
+    }
+
+    #[test]
+    fn registration_serializes_connect_sidecar_with_upstreams() {
+        let reg = AgentServiceRegistration {
+            id: "api-gateway-uuid".into(),
+            name: "api-gateway".into(),
+            address: "127.0.0.1".into(),
+            port: 18080,
+            check: AgentServiceCheck {
+                http: "http://127.0.0.1:18080/health".into(),
+                interval: "10s".into(),
+                timeout: "5s".into(),
+                deregister_critical_service_after: "1m".into(),
+            },
+            connect: ConnectConfig {
+                sidecar_service: SidecarConfig {
+                    proxy: Some(ProxyConfig {
+                        upstreams: vec![Upstream {
+                            destination_name: "iam-service".into(),
+                            local_bind_port: 9081,
+                        }],
+                    }),
+                },
+            },
+        };
+        let json = serde_json::to_value(&reg).unwrap();
+        assert_eq!(json["Connect"]["SidecarService"]["Proxy"]["Upstreams"][0]["DestinationName"], "iam-service");
+        assert_eq!(json["Connect"]["SidecarService"]["Proxy"]["Upstreams"][0]["LocalBindPort"], 9081);
+    }
+
+    #[test]
+    fn with_upstreams_stores_upstreams_for_registration() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("svc-id");
+        let r = ConsulRegistrar::new("http://consul:8500", "api-gateway", path.to_str().unwrap())
+            .with_upstreams(vec![Upstream {
+                destination_name: "iam-service".into(),
+                local_bind_port: 9081,
+            }]);
+        assert_eq!(r.upstreams.len(), 1);
+        assert_eq!(r.upstreams[0].destination_name, "iam-service");
     }
 }
