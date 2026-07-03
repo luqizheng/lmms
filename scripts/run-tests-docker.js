@@ -22,6 +22,8 @@ const SERVICES = [
   'prue_backend',
 ];
 
+const CONCURRENCY = 5;
+
 function pickTargets(args) {
   const filtered = args.filter(s => SERVICES.includes(s));
   return filtered.length > 0 ? filtered : SERVICES;
@@ -94,8 +96,12 @@ function main() {
 
   const failed = [];
   try {
-    for (const svc of targets) {
-      if (!runTests(svc)) { failed.push(`${svc} (test)`); }
+    for (let i = 0; i < targets.length; i += CONCURRENCY) {
+      const batch = targets.slice(i, i + CONCURRENCY);
+      const results = batch.map(svc => ({ svc, ok: runTests(svc) }));
+      for (const { svc, ok } of results) {
+        if (!ok) failed.push(`${svc} (test)`);
+      }
     }
   } finally {
     doCleanup();

@@ -4,10 +4,10 @@ const { execSync } = require('child_process');
 const services = [
   { name: 'Frontend Dev Server', url: 'http://localhost:8849', type: 'http' },
   { name: 'API Gateway', url: 'http://localhost:3000/health', type: 'http' },
-  { name: 'Token Service', url: 'http://localhost:6001/.well-known/jwks.json', type: 'http' },
-  { name: 'IAM Service', url: 'http://localhost:6002/health', type: 'http' },
-  { name: 'Notification Service', url: 'http://localhost:6003/health', type: 'http' },
-  { name: 'Prue Backend', url: 'http://localhost:6004/health', type: 'http' },
+  { name: 'Token Service', url: 'http://localhost:3000/.well-known/jwks.json', type: 'http' },
+  { name: 'IAM Service', url: 'http://localhost:3000/v1/iam/health', type: 'http' },
+  { name: 'Notification Service', url: 'http://localhost:3000/v1/notification/health', type: 'http' },
+  { name: 'Prue Backend', url: 'http://localhost:3000/v1/pure/health', type: 'http' },
   { name: 'Consul', url: 'http://localhost:8500/v1/health/node/consul', type: 'http' },
 ];
 
