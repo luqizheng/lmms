@@ -53,6 +53,8 @@ struct SidecarConfig {
 #[serde(rename_all = "PascalCase")]
 struct ProxyConfig {
     upstreams: Vec<Upstream>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 #[derive(Serialize, Clone)]
@@ -90,6 +92,7 @@ pub struct ConsulRegistrar {
     service_id_file: String,
     persisted: bool,
     upstreams: Vec<Upstream>,
+    sidecar_config: serde_json::Map<String, serde_json::Value>,
 }
 
 impl ConsulRegistrar {
@@ -186,11 +189,17 @@ impl ConsulRegistrar {
             service_id_file: service_id_file.to_string(),
             persisted,
             upstreams: Vec::new(),
+            sidecar_config: serde_json::Map::new(),
         }
     }
 
     pub fn with_upstreams(mut self, upstreams: Vec<Upstream>) -> Self {
         self.upstreams = upstreams;
+        self
+    }
+
+    pub fn with_sidecar_config(mut self, key: &str, value: serde_json::Value) -> Self {
+        self.sidecar_config.insert(key.to_string(), value);
         self
     }
 
@@ -293,11 +302,16 @@ impl ConsulRegistrar {
             },
             connect: ConnectConfig {
                 sidecar_service: SidecarConfig {
-                    proxy: if self.upstreams.is_empty() {
+                    proxy: if self.upstreams.is_empty() && self.sidecar_config.is_empty() {
                         None
                     } else {
                         Some(ProxyConfig {
                             upstreams: self.upstreams.clone(),
+                            config: if self.sidecar_config.is_empty() {
+                                None
+                            } else {
+                                Some(self.sidecar_config.clone())
+                            },
                         })
                     },
                 },
@@ -601,6 +615,7 @@ mod tests {
                             destination_name: "iam-service".into(),
                             local_bind_port: 9081,
                         }],
+                        config: None,
                     }),
                 },
             },
