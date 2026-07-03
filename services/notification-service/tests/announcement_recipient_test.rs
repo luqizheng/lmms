@@ -26,7 +26,7 @@ fn build_client(base_url: String) -> Arc<IamMemberClient> {
     let inner = reqwest::Client::new();
     let cfg = ResilienceConfig::default();
     let rc = Arc::new(ResilientClient::new(inner, cfg, Arc::new(NoopObserver)));
-    Arc::new(IamMemberClient::new(rc, base_url, "stub.service.token".into()))
+    Arc::new(IamMemberClient::new(rc, base_url))
 }
 
 async fn seed_ann(db: &Db, recipients: &[(&str, &str)]) -> u64 {

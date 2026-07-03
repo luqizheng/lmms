@@ -14,7 +14,7 @@ fn stub_iam_client() -> Arc<IamMemberClient> {
         ResilienceConfig::default(),
         Arc::new(NoopObserver),
     ));
-    Arc::new(IamMemberClient::new(rc, "http://unused".into(), "stub".into()))
+    Arc::new(IamMemberClient::new(rc, "http://unused".into()))
 }
 
 async fn setup_db() -> (Db, impl Sized) {

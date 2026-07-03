@@ -1,6 +1,6 @@
 //! Phase 4.4-fu2 + 4.3-fu2: tests for /iam/internal/users/by-{role,dept} endpoints.
-//! Service-jwt required (aud contains "service"); user-jwt rejected;
-//! cross-tenant reads forbidden.
+//! Mesh intentions enforce service identity (Phase 5-A);
+//! tenant_id from query param; cross-tenant reads forbidden.
 
 use axum::{
     body::{to_bytes, Body},
@@ -23,9 +23,6 @@ struct Ctx {
     app: axum::Router,
     state: AppState,
     _mysql: testcontainers::ContainerAsync<Mysql>,
-    service_token_t1: String,
-    service_token_t2: String,
-    user_token: String,
 }
 
 async fn setup() -> Ctx {
@@ -56,30 +53,8 @@ async fn setup() -> Ctx {
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
     let state = AppState::new(pool, cache, config, None, outbox_repo);
 
-    let service_token_t1 = mint_service_token(1);
-    let service_token_t2 = mint_service_token(2);
-    let user_token = mint_user_token("u1", 1);
-
     let app = build_router(state.clone());
-    Ctx { app, state, _mysql: mysql_c, service_token_t1, service_token_t2, user_token }
-}
-
-fn mint_service_token(tid: i64) -> String {
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use base64::Engine;
-    let header = URL_SAFE_NO_PAD.encode(b"{\"alg\":\"none\",\"typ\":\"JWT\"}");
-    let payload = format!(r#"{{"aud":"service","tid":{tid},"sub":"svc"}}"#);
-    let body = URL_SAFE_NO_PAD.encode(payload.as_bytes());
-    format!("{header}.{body}.signature")
-}
-
-fn mint_user_token(sub: &str, tid: i64) -> String {
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use base64::Engine;
-    let header = URL_SAFE_NO_PAD.encode(b"{\"alg\":\"none\",\"typ\":\"JWT\"}");
-    let payload = format!(r#"{{"sub":"{sub}","tid":{tid},"roles":["admin"]}}"#);
-    let body = URL_SAFE_NO_PAD.encode(payload.as_bytes());
-    format!("{header}.{body}.signature")
+    Ctx { app, state, _mysql: mysql_c }
 }
 
 async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
@@ -134,13 +109,12 @@ async fn bind_user_to_org(state: &AppState, uid: &str, oid: &str) {
     .execute(&state.db).await.unwrap();
 }
 
-async fn call(app: axum::Router, uri: &str, auth: &str) -> (StatusCode, serde_json::Value) {
-    let req = Request::builder()
-        .uri(uri)
-        .header("Authorization", format!("Bearer {auth}"))
-        .body(Body::empty())
+async fn call(app: axum::Router, path: &str, tenant_id: i64) -> (StatusCode, serde_json::Value) {
+    let uri = format!("{}?tenant_id={}", path, tenant_id);
+    let resp = app
+        .oneshot(Request::builder().uri(&uri).body(Body::empty()).unwrap())
+        .await
         .unwrap();
-    let resp = app.oneshot(req).await.unwrap();
     let status = resp.status();
     let body_bytes = to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
     let json: serde_json::Value = if body_bytes.is_empty() {
@@ -160,7 +134,7 @@ async fn internal_users_by_role_returns_member_user_ids() {
     bind_user_to_role(&ctx.state, "u1", "r1").await;
     bind_user_to_role(&ctx.state, "u2", "r1").await;
 
-    let (status, body) = call(ctx.app, "/iam/internal/users/by-role/r1", &ctx.service_token_t1).await;
+    let (status, body) = call(ctx.app, "/iam/internal/users/by-role/r1", 1).await;
     assert_eq!(status, StatusCode::OK);
     let mut items: Vec<String> = body["items"]
         .as_array().unwrap()
@@ -180,7 +154,7 @@ async fn internal_users_by_dept_returns_member_user_ids() {
     bind_user_to_org(&ctx.state, "u1", "o1").await;
     bind_user_to_org(&ctx.state, "u2", "o1").await;
 
-    let (status, body) = call(ctx.app, "/iam/internal/users/by-dept/o1", &ctx.service_token_t1).await;
+    let (status, body) = call(ctx.app, "/iam/internal/users/by-dept/o1", 1).await;
     assert_eq!(status, StatusCode::OK);
     let count = body["items"].as_array().unwrap().len();
     assert_eq!(count, 2);
@@ -196,7 +170,7 @@ async fn internal_users_tenant_isolation() {
     bind_user_to_role(&ctx.state, "u1", "r1").await;
     bind_user_to_role(&ctx.state, "u2", "r1").await;
 
-    let (status, body) = call(ctx.app, "/iam/internal/users/by-role/r1", &ctx.service_token_t2).await;
+    let (status, body) = call(ctx.app, "/iam/internal/users/by-role/r1", 2).await;
     assert_eq!(status, StatusCode::OK);
     let items: Vec<String> = body["items"]
         .as_array().unwrap()
@@ -207,9 +181,30 @@ async fn internal_users_tenant_isolation() {
 }
 
 #[tokio::test]
-async fn internal_users_rejects_user_jwt() {
+async fn missing_tenant_id_returns_400() {
     let ctx = setup().await;
-    seed_role(&ctx.state, "r1").await;
-    let (status, _) = call(ctx.app, "/iam/internal/users/by-role/r1", &ctx.user_token).await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let resp = ctx.app
+        .clone()
+        .oneshot(Request::builder().uri("/iam/internal/users/by-role/r1").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn non_numeric_tenant_id_returns_400() {
+    let ctx = setup().await;
+    let resp = ctx.app
+        .clone()
+        .oneshot(Request::builder().uri("/iam/internal/users/by-role/r1?tenant_id=abc").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn valid_tenant_id_returns_200() {
+    let ctx = setup().await;
+    let (status, _) = call(ctx.app.clone(), "/iam/internal/users/by-role/r1", 1).await;
+    assert_eq!(status, StatusCode::OK);
 }

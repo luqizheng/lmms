@@ -58,12 +58,9 @@ async fn main() -> anyhow::Result<()> {
         ResilienceConfig::default(),
         Arc::new(NoopObserver),
     ));
-    let initial_token = std::env::var("NOTIF_SERVICE_TOKEN_INITIAL")
-        .unwrap_or_else(|_| "stub".to_string());
     let iam_client = Arc::new(IamMemberClient::new(
         resilient,
         cfg.iam_base_url.clone(),
-        initial_token,
     ));
 
     let rest_state = rest::RestState {
