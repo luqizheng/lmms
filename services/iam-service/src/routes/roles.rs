@@ -21,19 +21,23 @@ pub fn routes(state: AppState) -> Router {
 
 async fn list_roles(
     State(state): State<AppState>,
+    principal: Principal,
     Query(query): Query<RoleQuery>,
 ) -> Result<Json<RoleListResponse>, (axum::http::StatusCode, &'static str)> {
+    let tenant_id = principal.tenant_id;
     let service = RoleService::new(state);
-    let response = service.list(query).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    let response = service.list(query, tenant_id).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(Json(response))
 }
 
 async fn create_role(
     State(state): State<AppState>,
+    principal: Principal,
     Json(req): Json<CreateRoleRequest>,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
+    let tenant_id = principal.tenant_id;
     let service = RoleService::new(state);
-    let response = service.create(req).await.map_err(|e| {
+    let response = service.create(req, tenant_id).await.map_err(|e| {
         match e {
             crate::error::IamError::DuplicateRole => (axum::http::StatusCode::CONFLICT, "duplicate role"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -45,9 +49,10 @@ async fn create_role(
 async fn get_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
+    Principal { tenant_id, .. }: Principal,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.get(&role_id).await.map_err(|e| {
+    let response = service.get(&role_id, tenant_id).await.map_err(|e| {
         match e {
             crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -59,11 +64,11 @@ async fn get_role(
 async fn update_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
-    Principal { user_id: p, .. }: Principal,
+    Principal { user_id: p, tenant_id, .. }: Principal,
     Json(req): Json<UpdateRoleRequest>,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.update(&role_id, req, Some(p.as_str())).await.map_err(|e| {
+    let response = service.update(&role_id, req, Some(p.as_str()), tenant_id).await.map_err(|e| {
         match e {
             crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -75,10 +80,10 @@ async fn update_role(
 async fn delete_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
-    Principal { user_id: p, .. }: Principal,
+    Principal { user_id: p, tenant_id, .. }: Principal,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    service.delete(&role_id, Some(p.as_str())).await.map_err(|e| {
+    service.delete(&role_id, Some(p.as_str()), tenant_id).await.map_err(|e| {
         match e {
             crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -90,11 +95,11 @@ async fn delete_role(
 async fn assign_permissions(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
-    Principal { user_id: p, .. }: Principal,
+    Principal { user_id: p, tenant_id, .. }: Principal,
     Json(req): Json<AssignPermissionsRequest>,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    service.assign_permissions(&role_id, req.permission_ids, Some(p.as_str())).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    service.assign_permissions(&role_id, req.permission_ids, Some(p.as_str()), tenant_id).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
@@ -114,11 +119,11 @@ async fn assign_permissions(
 async fn assign_user_roles(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
-    Principal { user_id: p, .. }: Principal,
+    Principal { user_id: p, tenant_id, .. }: Principal,
     Json(req): Json<AssignUserRolesRequest>,
 ) -> Result<Json<AssignUserRolesResponse>, (axum::http::StatusCode, String)> {
     let svc = RoleService::new(state);
-    let role_ids = svc.assign_user_roles(&user_id, req.role_ids, Some(p.as_str())).await.map_err(|e| match e {
+    let role_ids = svc.assign_user_roles(&user_id, req.role_ids, Some(p.as_str()), tenant_id).await.map_err(|e| match e {
         IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found".to_string()),
         IamError::InvalidRoleIds(v) => (
             axum::http::StatusCode::BAD_REQUEST,

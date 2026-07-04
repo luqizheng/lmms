@@ -19,7 +19,7 @@ prometheus = "0.13"
 redis = { workspace = true }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
-common-telemetry = { path = "../common-telemetry", default-features = false, features = ["otlp"] }
+common-telemetry = { path = "../common-telemetry", default-features = false }
 
 [dev-dependencies]
 testcontainers = "0.20"

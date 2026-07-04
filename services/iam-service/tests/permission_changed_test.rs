@@ -230,7 +230,7 @@ async fn assign_permissions_emits_event_and_stamps_epochs() {
 
     let before = chrono::Utc::now().timestamp();
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p2".into()], None)
+        .assign_permissions("r1", vec!["p1".into(), "p2".into()], None, 1i64)
         .await
         .unwrap();
 
@@ -250,7 +250,7 @@ async fn role_delete_emits_role_deleted() {
     assign_user_to_role(&ctx.state, "u1", "r1").await;
 
     let before = chrono::Utc::now().timestamp();
-    RoleService::new(ctx.state.clone()).delete("r1", None).await.unwrap();
+    RoleService::new(ctx.state.clone()).delete("r1", None, 1i64).await.unwrap();
 
     let (reason, users) = single_outbox_reason_and_users(&ctx.state).await;
     assert_eq!(reason, "role_deleted");
@@ -274,7 +274,7 @@ async fn role_disable_emits_role_disabled() {
         status: Some("disabled".into()),
     };
     RoleService::new(ctx.state.clone())
-        .update("r1", req, None)
+        .update("r1", req, None, 1i64)
         .await
         .unwrap();
 
@@ -345,7 +345,7 @@ async fn assign_permissions_with_no_users_emits_nothing() {
     seed_permission(&ctx.state, "p1").await;
 
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into()], None)
+        .assign_permissions("r1", vec!["p1".into()], None, 1i64)
         .await
         .unwrap();
 
@@ -374,7 +374,7 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
 
     // duplicate p1 → second INSERT hits PK (role_id, permission_id)
     let res = RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p1".into()], None)
+        .assign_permissions("r1", vec!["p1".into(), "p1".into()], None, 1i64)
         .await;
     assert!(res.is_err(), "duplicate permission_id must fail the tx");
 
@@ -411,7 +411,8 @@ async fn permission_changed_event_carries_actor_id() {
         .assign_permissions(
             "r1",
             vec!["p1".into()],
-            Some("admin_actor"), // <-- actor_id
+            Some("admin_actor"),
+            1i64,
         )
         .await
         .unwrap();

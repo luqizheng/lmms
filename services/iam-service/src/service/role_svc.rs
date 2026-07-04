@@ -30,15 +30,16 @@ impl RoleService {
         Self { state }
     }
 
-    pub async fn create(&self, req: CreateRoleRequest) -> Result<RoleResponse, IamError> {
+    pub async fn create(&self, req: CreateRoleRequest, tenant_id: i64) -> Result<RoleResponse, IamError> {
         let role_id = nanoid!();
         let data_scope_str = data_scope_to_str(req.data_scope);
 
         sqlx::query(
-            r#"INSERT INTO iam_roles (id, name, code, description, data_scope, status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())"#,
+            r#"INSERT INTO iam_roles (id, tenant_id, name, code, description, data_scope, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())"#,
         )
         .bind(&role_id)
+        .bind(tenant_id)
         .bind(&req.name)
         .bind(&req.code)
         .bind(&req.description)
@@ -46,14 +47,15 @@ impl RoleService {
         .execute(&self.state.db)
         .await?;
 
-        self.get(&role_id).await
+        self.get(&role_id, tenant_id).await
     }
 
-    pub async fn get(&self, role_id: &str) -> Result<RoleResponse, IamError> {
+    pub async fn get(&self, role_id: &str, tenant_id: i64) -> Result<RoleResponse, IamError> {
         let role: Option<RoleRow> = sqlx::query_as(
-            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND deleted_at IS NULL",
+            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)
+        .bind(tenant_id)
         .fetch_optional(&self.state.db)
         .await?;
 
@@ -63,15 +65,16 @@ impl RoleService {
         }
     }
 
-    pub async fn list(&self, query: RoleQuery) -> Result<RoleListResponse, IamError> {
+    pub async fn list(&self, query: RoleQuery, tenant_id: i64) -> Result<RoleListResponse, IamError> {
         let offset = ((query.page - 1) * query.size) as i64;
         let limit = query.size as i64;
 
         let roles: Vec<RoleRow> = if let Some(keyword) = &query.keyword {
             let pattern = format!("%{}%", keyword);
             sqlx::query_as(
-                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL AND (name LIKE ? OR code LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ? AND (name LIKE ? OR code LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?",
             )
+            .bind(tenant_id)
             .bind(&pattern)
             .bind(&pattern)
             .bind(limit)
@@ -80,15 +83,17 @@ impl RoleService {
             .await?
         } else {
             sqlx::query_as(
-                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
             )
+            .bind(tenant_id)
             .bind(limit)
             .bind(offset)
             .fetch_all(&self.state.db)
             .await?
         };
 
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_roles WHERE deleted_at IS NULL")
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ?")
+            .bind(tenant_id)
             .fetch_one(&self.state.db)
             .await?;
 
@@ -105,11 +110,13 @@ impl RoleService {
         role_id: &str,
         req: UpdateRoleRequest,
         actor_id: Option<&str>,
+        tenant_id: i64,
     ) -> Result<RoleResponse, IamError> {
         let role: Option<RoleRow> = sqlx::query_as(
-            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND deleted_at IS NULL",
+            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)
+        .bind(tenant_id)
         .fetch_optional(&self.state.db)
         .await?;
 
@@ -126,8 +133,6 @@ impl RoleService {
         };
         let status = req.status.unwrap_or(role.status.clone());
 
-        // Fire iam.permission.changed only on a non-disabled → disabled
-        // status transition (not on rename / other updates).
         let now_disabled = status == "disabled" && role.status != "disabled";
         let user_ids: Vec<String> = if now_disabled {
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
@@ -140,13 +145,14 @@ impl RoleService {
 
         let mut tx = self.state.db.begin().await?;
         sqlx::query(
-            "UPDATE iam_roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ?",
+            "UPDATE iam_roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ? AND tenant_id = ?",
         )
         .bind(&name)
         .bind(&description)
         .bind(&data_scope_str)
         .bind(&status)
         .bind(role_id)
+        .bind(tenant_id)
         .execute(&mut *tx)
         .await?;
 
@@ -166,10 +172,10 @@ impl RoleService {
             crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
         }
 
-        self.get(role_id).await
+        self.get(role_id, tenant_id).await
     }
 
-    pub async fn delete(&self, role_id: &str, actor_id: Option<&str>) -> Result<(), IamError> {
+    pub async fn delete(&self, role_id: &str, actor_id: Option<&str>, tenant_id: i64) -> Result<(), IamError> {
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
                 .bind(role_id)
@@ -178,9 +184,10 @@ impl RoleService {
 
         let mut tx = self.state.db.begin().await?;
         let result: MySqlQueryResult = sqlx::query(
-            "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
+            "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
         )
         .bind(role_id)
+        .bind(tenant_id)
         .execute(&mut *tx)
         .await?;
 
@@ -207,7 +214,10 @@ impl RoleService {
         role_id: &str,
         permission_ids: Vec<String>,
         actor_id: Option<&str>,
+        tenant_id: i64,
     ) -> Result<(), IamError> {
+        self.get(role_id, tenant_id).await?;
+
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
                 .bind(role_id)
@@ -255,21 +265,23 @@ impl RoleService {
         user_id: &str,
         role_ids: Vec<String>,
         actor_id: Option<&str>,
+        tenant_id: i64,
     ) -> Result<Vec<String>, IamError> {
         let mut tx = self.state.db.begin().await?;
 
         // 1) user existence + row lock
         let exists: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM iam_users WHERE id = ? AND deleted_at IS NULL FOR UPDATE",
+            "SELECT id FROM iam_users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL FOR UPDATE",
         )
         .bind(user_id)
+        .bind(tenant_id)
         .fetch_optional(&mut *tx)
         .await?;
         if exists.is_none() {
             return Err(IamError::UserNotFound);
         }
 
-        // 2) dedup + pre-check role_ids (active + not soft-deleted)
+        // 2) dedup + pre-check role_ids (active + not soft-deleted + tenant match)
         let dedup: Vec<String> = {
             let s: BTreeSet<String> = role_ids.into_iter().collect();
             s.into_iter().collect()
@@ -277,13 +289,14 @@ impl RoleService {
         if !dedup.is_empty() {
             let placeholders = std::iter::repeat("?").take(dedup.len()).collect::<Vec<_>>().join(",");
             let sql = format!(
-                "SELECT id FROM iam_roles WHERE id IN ({}) AND status='active' AND deleted_at IS NULL",
+                "SELECT id FROM iam_roles WHERE id IN ({}) AND tenant_id = ? AND status='active' AND deleted_at IS NULL",
                 placeholders
             );
             let mut q = sqlx::query_as::<_, (String,)>(&sql);
             for id in &dedup {
                 q = q.bind(id);
             }
+            q = q.bind(tenant_id);
             let found: Vec<(String,)> = q.fetch_all(&mut *tx).await?;
             let found_set: HashSet<&str> = found.iter().map(|(s,)| s.as_str()).collect();
             let invalid: Vec<String> = dedup

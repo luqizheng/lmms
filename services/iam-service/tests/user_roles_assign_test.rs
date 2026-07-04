@@ -150,7 +150,7 @@ async fn assign_user_roles_replaces_and_emits_event() {
 
     let before = chrono::Utc::now().timestamp();
     let ret = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None)
+        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, 1i64)
         .await
         .unwrap();
 
@@ -175,7 +175,7 @@ async fn assign_user_roles_empty_clears_and_emits() {
 
     let before = chrono::Utc::now().timestamp();
     RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec![], None)
+        .assign_user_roles("u1", vec![], None, 1i64)
         .await
         .unwrap();
 
@@ -197,7 +197,7 @@ async fn assign_user_roles_no_change_skips_write() {
 
     // Reorder input; result should be identical set.
     RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r2".into(), "r1".into()], None)
+        .assign_user_roles("u1", vec!["r2".into(), "r1".into()], None, 1i64)
         .await
         .unwrap();
 
@@ -214,7 +214,7 @@ async fn assign_user_roles_rejects_invalid_role_id() {
     assign_user_to_role(&ctx.state, "u1", "r1").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r_ghost".into()], None)
+        .assign_user_roles("u1", vec!["r1".into(), "r_ghost".into()], None, 1i64)
         .await
         .unwrap_err();
     match err {
@@ -235,7 +235,7 @@ async fn assign_user_roles_rejects_disabled_role() {
     seed_disabled_role(&ctx.state, "r2").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None)
+        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, 1i64)
         .await
         .unwrap_err();
     match err {
@@ -253,7 +253,7 @@ async fn assign_user_roles_user_not_found() {
     seed_role(&ctx.state, "r1").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("ghost", vec!["r1".into()], None)
+        .assign_user_roles("ghost", vec!["r1".into()], None, 1i64)
         .await
         .unwrap_err();
     assert!(matches!(err, IamError::UserNotFound), "got {err:?}");
@@ -270,7 +270,7 @@ async fn assign_user_roles_dedups_input() {
 
     let before = chrono::Utc::now().timestamp();
     let ret = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r1".into(), "r2".into()], None)
+        .assign_user_roles("u1", vec!["r1".into(), "r1".into(), "r2".into()], None, 1i64)
         .await
         .unwrap();
 
