@@ -282,16 +282,18 @@
 - [x] `LoginRequest.tenant_slug` + login tenant-scoped lookup
 - [x] testcontainers 集成测 + 全量 docker 单测回归 + 手工验收 `test-case/81-tenant-registration.md`
 
-#### Phase 8.2 — 业务表 tenant_id 迁移（待 brainstorm）
+#### Phase 8.2 — 业务表 tenant_id 迁移（**已完成并合并**）
 
 > 范围：iam_roles / iam_permissions / iam_announcements / iam_outbox_events / audit_* / ntf_* / cfg_* / file_* / prue_* 全部加 tenant_id 列与索引，所有 SELECT/INSERT/UPDATE 改为 tenant-scoped，default tenant backfill。
 > 阻塞条件：8.1 已上线 + 至少 1 个外部租户实际接入或临近接入。
+> Plan: `docs/superpowers/plans/2026-07-03-phase8.2-iam-tenant-business-tables-plan.md`
 
-- [ ] brainstorm 8.2 spec：表清单、迁移顺序、索引策略、跨服务 SELECT 修改清单
-- [ ] 迁移 V004（按服务）：每个服务各自 ALTER 业务表加 tenant_id
-- [ ] sqlx 查询点全量改造（参考 `WithTenantScope::and_tenant`）
-- [ ] roles 改为 tenant 内（移除全局 tenant_admin seed，注册流程改为复制角色模板到 tenant）
-- [ ] envelope.tenant_id consumer 侧 `parse::<i64>()` 注入 audit/ntf insert
+- [x] brainstorm 8.2 spec：表清单、迁移顺序、索引策略、跨服务 SELECT 修改清单
+- [x] 迁移 V004（按服务）：每个服务各自 ALTER 业务表加 tenant_id
+- [x] sqlx 查询点全量改造（参考 `WithTenantScope::and_tenant`）
+- [x] roles 改为 tenant 内（移除全局 tenant_admin seed，注册流程改为复制角色模板到 tenant）
+- [x] envelope.tenant_id consumer 侧 `parse::<i64>()` 注入 audit/ntf insert
+- [x] Task 7: 回归 + 手工验收 + TODO 勾选（commit `1c4b4c4` + 本次 commit）
 
 #### Phase 8.3 — 全面贯通 + 跨租户检测（待 brainstorm）
 
