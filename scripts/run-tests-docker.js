@@ -3,7 +3,7 @@
 // 用法：
 //   node scripts/run-tests-docker.js                 # 跑全部 services
 //   node scripts/run-tests-docker.js iam-service     # 跑指定 service（可多个）
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
@@ -22,16 +22,11 @@ const SERVICES = [
   'prue_backend',
 ];
 
-const CONCURRENCY = 5;
+const CONCURRENCY = 2;
 
 function pickTargets(args) {
   const filtered = args.filter(s => SERVICES.includes(s));
   return filtered.length > 0 ? filtered : SERVICES;
-}
-
-function run(cmd, args, opts = {}) {
-  const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, ...opts });
-  return res.status === 0;
 }
 
 // 列出当前所有 mysql:* / testcontainers ryuk 的容器 id（运行中 + 已退出）。
@@ -65,21 +60,45 @@ function cleanupNewContainers(beforeIds) {
 
 function runTests(svc) {
   console.log(`\n[test] ${svc}`);
-  return run('docker', [
-    'run', '--rm',
-    '--network', 'host',
-    '-v', `${ROOT}:/app`,
-    '-v', 'coder-cargo-registry:/usr/local/cargo/registry',
-    '-v', 'coder-cargo-git:/usr/local/cargo/git',
-    '-v', 'coder-cargo-target:/app/target',
-    '-v', '/var/run/docker.sock:/var/run/docker.sock',
-    '-w', '/app',
-    IMAGE,
-    'cargo', 'test', '--target', TARGET, '-p', svc, '--', '--nocapture',
-  ]);
+  return new Promise((resolve) => {
+    const child = spawn('docker', [
+      'run', '--rm',
+      '--network', 'host',
+      '-v', `${ROOT}:/app`,
+      '-v', 'coder-cargo-registry:/usr/local/cargo/registry',
+      '-v', 'coder-cargo-git:/usr/local/cargo/git',
+      '-v', 'coder-cargo-target:/app/target',
+      '-v', '/var/run/docker.sock:/var/run/docker.sock',
+      '-w', '/app',
+      IMAGE,
+      'cargo', 'test', '--target', TARGET, '-p', svc, '--', '--nocapture', '--test-threads=1',
+    ], { stdio: 'inherit', cwd: ROOT });
+    child.on('error', (err) => {
+      console.error(`[test] ${svc} spawn error:`, err);
+      resolve(false);
+    });
+    child.on('exit', (code) => resolve(code === 0));
+  });
 }
 
-function main() {
+// 池化调度：固定 CONCURRENCY 个槽，任一完成立即补下一个，直到全部跑完
+async function runPool(targets, concurrency) {
+  const failed = [];
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, targets.length) }, async () => {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= targets.length) return;
+      const svc = targets[idx];
+      const ok = await runTests(svc);
+      if (!ok) failed.push(`${svc} (test)`);
+    }
+  });
+  await Promise.all(workers);
+  return failed;
+}
+
+async function main() {
   const targets = pickTargets(process.argv.slice(2));
   const before = listTestContainerIds();
 
@@ -96,13 +115,7 @@ function main() {
 
   const failed = [];
   try {
-    for (let i = 0; i < targets.length; i += CONCURRENCY) {
-      const batch = targets.slice(i, i + CONCURRENCY);
-      const results = batch.map(svc => ({ svc, ok: runTests(svc) }));
-      for (const { svc, ok } of results) {
-        if (!ok) failed.push(`${svc} (test)`);
-      }
-    }
+    failed.push(...await runPool(targets, CONCURRENCY));
   } finally {
     doCleanup();
   }
