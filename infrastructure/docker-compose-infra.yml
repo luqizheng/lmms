@@ -23,8 +23,7 @@ services:
     volumes:
       - ../scripts/consul-intentions.sh:/consul-intentions.sh:ro
     command: >
-      sh -c "consul connect ca init
-      && sh /consul-intentions.sh
+      sh -c "sh /consul-intentions.sh
       && echo 'consul-init complete'"
     network_mode: "service:consul"
     restart: "no"
@@ -86,6 +85,4 @@ volumes:
 
 networks:
   superpowers:
-    name: superpowers
-    driver: bridge
 

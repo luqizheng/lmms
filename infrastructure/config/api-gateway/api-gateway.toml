@@ -16,10 +16,10 @@ issuer = "superpowers-token-server"
 # 默认列表见 services/api-gateway/src/config.rs:94-103。
 # Phase 5-A: all backends now use localhost sidecar upstream ports.
 [egress_map]
-"iam-service"          = { host = "127.0.0.1", port = 9081 }
-"token-service"        = { host = "127.0.0.1", port = 9082 }
-"notification-service" = { host = "127.0.0.1", port = 9083 }
-"audit-service"        = { host = "127.0.0.1", port = 9084 }
-"prue_backend"         = { host = "127.0.0.1", port = 9087 }
-"file-service"         = { host = "127.0.0.1", port = 9086 }
-"config-service"       = { host = "127.0.0.1", port = 9085 }
+"iam-service"           = { host = "iam-service",           port = 9081 }
+"token-service"         = { host = "token-service",         port = 9082 }
+"notification-service"  = { host = "notification-service",  port = 9083 }
+"audit-service"        = { host = "audit-service",         port = 9084 }
+"prue_backend"          = { host = "prue_backend",          port = 9087 }
+"file-service"          = { host = "file-service",          port = 8082 }
+"config-service"        = { host = "config-service",        port = 8081 }

@@ -1,7 +1,7 @@
 app:
   name: iam-service
   host: 0.0.0.0
-  port: 8080
+  port: 9081
 
 database:
   url: mysql://root:rootpass@mysql:3306/superpowers?ssl-mode=DISABLED
