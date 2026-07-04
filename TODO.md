@@ -304,6 +304,7 @@
 - [ ] `scripts/check-tenant-scope.js`：handler 拿 TenantScope 但 SQL 无 tenant_id 时 lint 报警
 - [ ] platform-admin 引入 `cross_tenant: bool` 路径，独立于 default tenant
 - [ ] e2e 跨租户访问黑名单（acme token 访问 globex user → 404）
+- [ ] `UserService::get_claims`（`/iam/internal/users/:id/claims`）加 tenant_id 过滤 —— 当前 internal 端点按 user_id 直查 iam_roles/iam_permissions JOIN，未按 tenant 过滤。mesh intentions 鉴权可信但缺防御性深度：若 service 调用方传错 user_id 会跨租户泄露角色/权限。加 `Query<TenantIdQuery>`（与 internal_users 同模式）+ JOIN 加 `AND tenant_id = ?`。
 
 ### Phase 9 — 小问题清单（P3，零散收尾）
 
