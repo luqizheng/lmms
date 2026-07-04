@@ -50,7 +50,7 @@ services:
     environment:
       CONSUL_HTTP_ADDR: "http://consul:8500"
     command: >
-      sh -c "until consul connect proxy -service api-gateway -service-addr 127.0.0.1:18000 -listen ':3000'
+      sh -c "until consul connect proxy -register -service api-gateway -service-addr 127.0.0.1:18000 -listen ':3000'
       -upstream iam-service:9081 -upstream token-service:9082 -upstream notification-service:9083
       -upstream audit-service:9084 -upstream prue_backend:9087 -upstream file-service:8082 -upstream config-service:8081; do sleep 2; done"
     depends_on:
@@ -101,7 +101,7 @@ services:
     environment:
       CONSUL_HTTP_ADDR: "http://consul:8500"
     command: >
-      sh -c "until consul connect proxy -service token-service -service-addr 127.0.0.1:18082 -listen ':9082'
+      sh -c "until consul connect proxy -register -service token-service -service-addr 127.0.0.1:18082 -listen ':9082'
       -upstream iam-service:9081; do sleep 2; done"
     depends_on:
       consul:
@@ -152,7 +152,7 @@ services:
     environment:
       CONSUL_HTTP_ADDR: "http://consul:8500"
     command: >
-      sh -c "until consul connect proxy -service iam-service -service-addr 127.0.0.1:18081 -listen ':9081'; do sleep 2; done"
+      sh -c "until consul connect proxy -register -service iam-service -service-addr 127.0.0.1:18081 -listen ':9081'; do sleep 2; done"
     depends_on:
       consul:
         condition: service_healthy
@@ -220,7 +220,7 @@ services:
     environment:
       CONSUL_HTTP_ADDR: "http://consul:8500"
     command: >
-      sh -c "until consul connect proxy -service prue_backend -service-addr 127.0.0.1:18087 -listen ':9087'; do sleep 2; done"
+      sh -c "until consul connect proxy -register -service prue_backend -service-addr 127.0.0.1:18087 -listen ':9087'; do sleep 2; done"
     depends_on:
       consul:
         condition: service_healthy
@@ -254,7 +254,7 @@ services:
     environment:
       CONSUL_HTTP_ADDR: "http://consul:8500"
     command: >
-      sh -c "until consul connect proxy -service notification-service -service-addr 127.0.0.1:18083 -listen ':9083' -upstream iam-service:9081; do sleep 2; done"
+      sh -c "until consul connect proxy -register -service notification-service -service-addr 127.0.0.1:18083 -listen ':9083' -upstream iam-service:9081; do sleep 2; done"
     depends_on:
       consul:
         condition: service_healthy
@@ -324,7 +324,7 @@ services:
     environment:
       CONSUL_HTTP_ADDR: "http://consul:8500"
     command: >
-      sh -c "until consul connect proxy -service audit-service -service-addr 127.0.0.1:18084 -listen ':9084'; do sleep 2; done"
+      sh -c "until consul connect proxy -register -service audit-service -service-addr 127.0.0.1:18084 -listen ':9084'; do sleep 2; done"
     depends_on:
       consul:
         condition: service_healthy
