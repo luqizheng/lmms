@@ -42,24 +42,41 @@ services:
     networks:
       - superpowers
 
+  # ─────────── api-gateway + sidecar ───────────
+  api-gateway-sidecar:
+    image: consul:1.15
+    ports:
+      - "3000:3000"
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    command: >
+      sh -c "until consul connect proxy -service api-gateway -service-addr 127.0.0.1:18000 -listen ':3000'
+      -upstream iam-service:9081 -upstream token-service:9082 -upstream notification-service:9083
+      -upstream audit-service:9084 -upstream prue_backend:9087 -upstream file-service:8082 -upstream config-service:8081; do sleep 2; done"
+    depends_on:
+      consul:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - superpowers
+
   api-gateway:
     build:
       context: ..
       dockerfile: services/api-gateway/Dockerfile
-    ports:
-      - "3000:3000"
+    network_mode: "service:api-gateway-sidecar"
     environment:
       RUST_LOG: "api_gateway=trace,info"
-      GW_SERVER__HOST: "0.0.0.0"
-      GW_SERVER__PORT: "3000"
+      GW_SERVER__HOST: "127.0.0.1"
+      GW_SERVER__PORT: "18000"
       GW_REDIS__URL: "redis://redis:6379"
       GW_REDIS__PREFIX: "superpowers:"
       GW_CONSUL_ADDR: "http://consul:8500"
-      GW_JWKS_URL: "http://token-service:9082/.well-known/jwks.json"
+      GW_JWKS_URL: "http://token-service-sidecar:18082/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-service"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
-      GW_EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f/"
+      GW_EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     volumes:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
@@ -67,14 +84,29 @@ services:
       - ./config/api-gateway/rate-limits.toml:/app/config/api-gateway/rate-limits.toml:ro
       - ../docker-example/secrets:/app/keys:ro
     depends_on:
+      api-gateway-sidecar:
+        condition: service_started
       consul:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      token-service:
-        condition: service_started
+
+  # ─────────── token-service + sidecar ───────────
+  token-service-sidecar:
+    image: consul:1.15
+    ports:
+      - "9082:9082"
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    command: >
+      sh -c "until consul connect proxy -service token-service -service-addr 127.0.0.1:18082 -listen ':9082'
+      -upstream iam-service:9081; do sleep 2; done"
+    depends_on:
+      consul:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - superpowers
 
@@ -82,15 +114,14 @@ services:
     build:
       context: ..
       dockerfile: services/token-service/Dockerfile
-    ports:
-      - "9082:9082"
+    network_mode: "service:token-service-sidecar"
     volumes:
       - ../docker-example/secrets:/app/keys
       - ../docker-example/config/token-service:/app/config/token-service
       - ../services/token-service/config:/app/config
     environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "9082"
+      SERVER_HOST: "127.0.0.1"
+      SERVER_PORT: "18082"
       REDIS_URL: "redis://redis:6379"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
@@ -104,12 +135,28 @@ services:
       CONFIG_FILE: "/config/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
+      token-service-sidecar:
+        condition: service_started
       redis:
         condition: service_healthy
       mysql:
         condition: service_healthy
       consul:
         condition: service_healthy
+
+  # ─────────── iam-service + sidecar ───────────
+  iam-service-sidecar:
+    image: consul:1.15
+    ports:
+      - "9081:9081"
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    command: >
+      sh -c "until consul connect proxy -service iam-service -service-addr 127.0.0.1:18081 -listen ':9081'; do sleep 2; done"
+    depends_on:
+      consul:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - superpowers
 
@@ -117,14 +164,13 @@ services:
     build:
       context: ..
       dockerfile: services/iam-service/Dockerfile
-    ports:
-      - "9081:9081"
+    network_mode: "service:iam-service-sidecar"
     volumes:
       - ../docker-example/secrets:/app/keys:ro
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "9081"
+      SERVER_HOST: "127.0.0.1"
+      SERVER_PORT: "18081"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
       DATABASE_USER: root
@@ -134,14 +180,14 @@ services:
       CONFIG_PATH: "/etc/iam-service/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
+      iam-service-sidecar:
+        condition: service_started
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       consul:
         condition: service_healthy
-    networks:
-      - superpowers
 
   iam-outbox-publisher:
     build:
@@ -153,7 +199,7 @@ services:
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
       DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f/"
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
@@ -166,22 +212,53 @@ services:
     networks:
       - superpowers
 
+  # ─────────── prue_backend + sidecar ───────────
+  prue_backend-sidecar:
+    image: consul:1.15
+    ports:
+      - "9087:9087"
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    command: >
+      sh -c "until consul connect proxy -service prue_backend -service-addr 127.0.0.1:18087 -listen ':9087'; do sleep 2; done"
+    depends_on:
+      consul:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - superpowers
+
   prue_backend:
     build:
       context: ..
       dockerfile: services/prue_backend/Dockerfile
-    ports:
-      - "9087:9087"
+    network_mode: "service:prue_backend-sidecar"
     environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "9087"
+      SERVER_HOST: "127.0.0.1"
+      SERVER_PORT: "18087"
       DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
       RUST_LOG: "info"
     depends_on:
+      prue_backend-sidecar:
+        condition: service_started
       mysql:
         condition: service_healthy
       consul:
         condition: service_healthy
+
+  # ─────────── notification-service + sidecar ───────────
+  notification-service-sidecar:
+    image: consul:1.15
+    ports:
+      - "9083:9083"
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    command: >
+      sh -c "until consul connect proxy -service notification-service -service-addr 127.0.0.1:18083 -listen ':9083' -upstream iam-service:9081; do sleep 2; done"
+    depends_on:
+      consul:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - superpowers
 
@@ -189,12 +266,11 @@ services:
     build:
       context: ..
       dockerfile: services/notification-service/Dockerfile
-    ports:
-      - "9083:9083"
+    network_mode: "service:notification-service-sidecar"
     environment:
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f/"
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
       CONSUL_ADDR: "http://consul:8500"
-      SERVER_PORT: "9083"
+      SERVER_PORT: "18083"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
       DATABASE_USER: root
@@ -203,6 +279,8 @@ services:
       REDIS_URL: "redis://redis:6379"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
+      notification-service-sidecar:
+        condition: service_started
       mysql:
         condition: service_healthy
       redis:
@@ -213,8 +291,6 @@ services:
         condition: service_healthy
     volumes:
       - ../docker-example/config/notification-service:/app/config:ro
-    networks:
-      - superpowers
 
   notification-outbox-publisher:
     build:
@@ -228,7 +304,7 @@ services:
       DATABASE_USER: root
       DATABASE_PASSWORD: rootpass
       DATABASE_NAME: superpowers
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f/"
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
@@ -240,15 +316,30 @@ services:
     networks:
       - superpowers
 
+  # ─────────── audit-service + sidecar ───────────
+  audit-service-sidecar:
+    image: consul:1.15
+    ports:
+      - "9084:9084"
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    command: >
+      sh -c "until consul connect proxy -service audit-service -service-addr 127.0.0.1:18084 -listen ':9084'; do sleep 2; done"
+    depends_on:
+      consul:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - superpowers
+
   audit-service:
     build:
       context: ..
       dockerfile: services/audit-service/Dockerfile
-    ports:
-      - "9084:9084"
+    network_mode: "service:audit-service-sidecar"
     environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "9084"
+      SERVER_HOST: "127.0.0.1"
+      SERVER_PORT: "18084"
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
       DATABASE_USER: root
@@ -256,10 +347,12 @@ services:
       DATABASE_NAME: superpowers
       CONSUL_ADDR: "http://consul:8500"
       CONSUL_SERVICE_NAME: "audit-service"
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f/"
+      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
       REDIS_URL: "redis://redis:6379"
       RUST_LOG: "info"
     depends_on:
+      audit-service-sidecar:
+        condition: service_started
       mysql:
         condition: service_healthy
       redis:
@@ -268,8 +361,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      - superpowers
 
   frontend:
     build:
@@ -289,3 +380,4 @@ volumes:
 
 networks:
   superpowers:
+
