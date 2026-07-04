@@ -22,7 +22,8 @@ struct AgentServiceRegistration {
     name: String,
     address: String,
     port: u16,
-    check: AgentServiceCheck,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    check: Option<AgentServiceCheck>,
     connect: ConnectConfig,
 }
 
@@ -294,12 +295,7 @@ impl ConsulRegistrar {
             name: self.service_name.clone(),
             address: address.clone(),
             port,
-            check: AgentServiceCheck {
-                http: format!("http://{}:{}/health", address, port),
-                interval: "10s".to_string(),
-                timeout: "5s".to_string(),
-                deregister_critical_service_after: "1m".to_string(),
-            },
+            check: None,
             connect: ConnectConfig {
                 sidecar_service: SidecarConfig {
                     proxy: if self.upstreams.is_empty() && self.sidecar_config.is_empty() {
@@ -556,22 +552,16 @@ mod tests {
             name: "audit-service".into(),
             address: "127.0.0.1".into(),
             port: 8080,
-            check: AgentServiceCheck {
-                http: "http://127.0.0.1:8080/health".into(),
-                interval: "10s".into(),
-                timeout: "5s".into(),
-                deregister_critical_service_after: "1m".into(),
-            },
+            check: None,
             connect: ConnectConfig {
                 sidecar_service: SidecarConfig { proxy: None },
             },
         };
         let json = serde_json::to_value(&reg).unwrap();
-        assert_eq!(json["Check"]["HTTP"], "http://127.0.0.1:8080/health");
-        assert_eq!(json["Check"]["DeregisterCriticalServiceAfter"], "1m");
         assert_eq!(json["Id"], "audit-service-abc-uuid");
         assert_eq!(json["Name"], "audit-service");
         assert_eq!(json["Connect"]["SidecarService"], serde_json::json!({}));
+        assert!(json.get("Check").is_none());
     }
 
     #[test]
@@ -581,12 +571,7 @@ mod tests {
             name: "iam-service".into(),
             address: "127.0.0.1".into(),
             port: 18080,
-            check: AgentServiceCheck {
-                http: "http://127.0.0.1:18080/health".into(),
-                interval: "10s".into(),
-                timeout: "5s".into(),
-                deregister_critical_service_after: "1m".into(),
-            },
+            check: None,
             connect: ConnectConfig {
                 sidecar_service: SidecarConfig { proxy: None },
             },
@@ -602,12 +587,7 @@ mod tests {
             name: "api-gateway".into(),
             address: "127.0.0.1".into(),
             port: 18080,
-            check: AgentServiceCheck {
-                http: "http://127.0.0.1:18080/health".into(),
-                interval: "10s".into(),
-                timeout: "5s".into(),
-                deregister_critical_service_after: "1m".into(),
-            },
+            check: None,
             connect: ConnectConfig {
                 sidecar_service: SidecarConfig {
                     proxy: Some(ProxyConfig {
