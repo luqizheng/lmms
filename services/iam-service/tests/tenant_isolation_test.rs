@@ -1,6 +1,6 @@
 //! Phase 8.2: cross-tenant isolation for iam business tables (roles / orgs / users).
-use iam_service::service::{RoleService, OrgService};
-use iam_service::dto::{CreateRoleRequest, RoleQuery, CreateOrgUnitRequest};
+use iam_service::service::{RoleService, OrgService, UserService};
+use iam_service::dto::{CreateRoleRequest, RoleQuery, CreateOrgUnitRequest, CreateUserRequest, UserQuery};
 use common_cache::MemoryCache;
 use common_event::MySqlOutboxRepo;
 use iam_service::config::{
@@ -120,4 +120,55 @@ async fn org_units_are_tenant_isolated() {
 
     let err = svc.get(&created.id, 3).await.unwrap_err();
     assert!(matches!(err, iam_service::error::IamError::OrgUnitNotFound));
+}
+
+#[tokio::test]
+async fn users_are_tenant_isolated() {
+    let ctx = setup().await;
+    let svc = UserService::new(ctx.state.clone());
+
+    seed_tenant(&ctx.state, 2, "tenant-2").await;
+    seed_tenant(&ctx.state, 3, "tenant-3").await;
+
+    let created = svc
+        .create(
+            CreateUserRequest {
+                username: "u-t2".into(),
+                password: "P@ssw0rd!".into(),
+                nickname: "U2".into(),
+                email: None,
+                phone: None,
+                avatar: None,
+                role_ids: None,
+            },
+            2,
+        )
+        .await
+        .unwrap();
+
+    let l2 = svc.list(UserQuery { page: 1, size: 50, keyword: None, status: None, org_unit_id: None }, 2).await.unwrap();
+    assert!(l2.items.iter().any(|u| u.id == created.id));
+    let l3 = svc.list(UserQuery { page: 1, size: 50, keyword: None, status: None, org_unit_id: None }, 3).await.unwrap();
+    assert!(!l3.items.iter().any(|u| u.id == created.id), "cross-tenant user leak in /iam/users");
+
+    let err = svc.get(&created.id, 3).await.unwrap_err();
+    assert!(matches!(err, iam_service::error::IamError::UserNotFound));
+
+    let dup = svc
+        .create(
+            CreateUserRequest {
+                username: "u-t2".into(),
+                password: "P@ssw0rd!".into(),
+                nickname: "U3-dup".into(),
+                email: None,
+                phone: None,
+                avatar: None,
+                role_ids: None,
+            },
+            3,
+        )
+        .await
+        .unwrap();
+    assert_eq!(dup.username, "u-t2");
+    assert_ne!(dup.id, created.id, "same username in different tenants must succeed");
 }

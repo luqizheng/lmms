@@ -204,7 +204,7 @@ async fn register(
 
     let service = crate::service::UserService::new(state);
     let response = service
-        .create(req)
+        .create(req, 1i64)
         .await
         .map_err(|e| {
             tracing::error!("create user failed: {:?}", e);
