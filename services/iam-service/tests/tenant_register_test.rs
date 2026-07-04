@@ -253,3 +253,50 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
     .unwrap();
     assert_eq!(old_code_cnt, 0, "old single-column 'code' unique index must be dropped");
 }
+
+#[tokio::test]
+async fn register_creates_per_tenant_admin_role_with_permissions() {
+    let ctx = setup().await;
+    let svc = TenantService::new(ctx.state.clone());
+    let resp = svc
+        .register(sample_req("acme", "admin"))
+        .await
+        .unwrap();
+
+    // per-tenant tenant_admin role exists
+    let (role_id, tid): (String, i64) = sqlx::query_as(
+        "SELECT id, CAST(tenant_id AS SIGNED) FROM iam_roles WHERE tenant_id = ? AND code = 'tenant_admin'",
+    )
+    .bind(resp.tenant_id as u64)
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(tid, resp.tenant_id);
+
+    // role has all enabled global permissions
+    let (pn,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM iam_role_permissions WHERE role_id = ?",
+    )
+    .bind(&role_id)
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    let (total,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM iam_permissions WHERE status = 'enabled' AND deleted_at IS NULL",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(pn, total, "per-tenant tenant_admin must have all enabled perms");
+
+    // admin user bound to the per-tenant role
+    let (bound,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM iam_user_roles WHERE user_id = ? AND role_id = ?",
+    )
+    .bind(&resp.admin_user_id)
+    .bind(&role_id)
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(bound, 1, "admin must be bound to per-tenant tenant_admin role");
+}

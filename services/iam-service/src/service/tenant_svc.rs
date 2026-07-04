@@ -65,11 +65,31 @@ impl TenantService {
         .execute(&mut *tx)
         .await?;
 
+        let role_id = nanoid::nanoid!();
         sqlx::query(
-            "INSERT INTO iam_user_roles (user_id, role_id, created_at) \
-             SELECT ?, id, NOW() FROM iam_roles WHERE code = 'tenant_admin' LIMIT 1",
+            "INSERT INTO iam_roles (id, tenant_id, name, code, description, data_scope, status, created_at, updated_at) \
+             VALUES (?, ?, '租户管理员', 'tenant_admin', '租户管理员（注册自动创建）', 'all', 'active', ?, ?)",
+        )
+        .bind(&role_id)
+        .bind(tenant_id)
+        .bind(now)
+        .bind(now)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO iam_role_permissions (role_id, permission_id, created_at) \
+             SELECT ?, id, NOW() FROM iam_permissions WHERE status = 'enabled' AND deleted_at IS NULL",
+        )
+        .bind(&role_id)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())",
         )
         .bind(&admin_id)
+        .bind(&role_id)
         .execute(&mut *tx)
         .await?;
 
