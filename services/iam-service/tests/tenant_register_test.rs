@@ -173,3 +173,83 @@ async fn two_tenants_can_have_same_admin_username() {
     assert_eq!(admins[1].2, "admin");
     assert!(admins[0].1 < admins[1].1);
 }
+
+#[tokio::test]
+async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
+    let ctx = setup().await;
+    // iam_roles.tenant_id column exists
+    let (cnt,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM information_schema.columns \
+         WHERE table_schema = DATABASE() AND table_name = 'iam_roles' AND column_name = 'tenant_id'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(cnt, 1, "iam_roles.tenant_id must exist after V004");
+
+    // iam_org_units.tenant_id column exists
+    let (cnt,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM information_schema.columns \
+         WHERE table_schema = DATABASE() AND table_name = 'iam_org_units' AND column_name = 'tenant_id'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(cnt, 1, "iam_org_units.tenant_id must exist after V004");
+
+    // iam_login_logs.tenant_id column exists
+    let (cnt,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM information_schema.columns \
+         WHERE table_schema = DATABASE() AND table_name = 'iam_login_logs' AND column_name = 'tenant_id'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(cnt, 1, "iam_login_logs.tenant_id must exist after V004");
+
+    // seed tenant_admin role scoped to default tenant
+    let (tid,): (i64,) = sqlx::query_as(
+        "SELECT CAST(tenant_id AS SIGNED) FROM iam_roles WHERE code = 'tenant_admin'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(tid, 1, "seed tenant_admin must be scoped to default tenant");
+
+    // seed role got all enabled permissions
+    let (pn,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM iam_role_permissions rp \
+         JOIN iam_permissions p ON p.id = rp.permission_id \
+         WHERE rp.role_id = 'role-tenant-admin-seed' \
+         AND p.status = 'enabled' AND p.deleted_at IS NULL",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    let (total,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM iam_permissions WHERE status = 'enabled' AND deleted_at IS NULL",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(pn, total, "seed tenant_admin must have all enabled permissions");
+
+    // unique key rebuilt: uk_tenant_role_code (tenant_id, code) present, old code index gone
+    let (uk_cnt,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM information_schema.statistics \
+         WHERE table_schema = DATABASE() AND table_name = 'iam_roles' AND index_name = 'uk_tenant_role_code'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(uk_cnt, 2, "uk_tenant_role_code must be a composite (tenant_id, code) index");
+
+    let (old_code_cnt,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM information_schema.statistics \
+         WHERE table_schema = DATABASE() AND table_name = 'iam_roles' AND index_name = 'code'",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(old_code_cnt, 0, "old single-column 'code' unique index must be dropped");
+}
