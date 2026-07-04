@@ -28,6 +28,34 @@ pub async fn enqueue_permission_changed(
     if user_ids.is_empty() {
         return Ok(());
     }
+    let distinct_tids: Vec<i64> = if user_ids.len() == 1 {
+        let row: Option<(u64,)> = sqlx::query_as(
+            "SELECT tenant_id FROM iam_users WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(&user_ids[0])
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(|e| IamError::Internal(e.to_string()))?;
+        row.map(|(t,)| t as i64).into_iter().collect()
+    } else {
+        let placeholders: Vec<String> = std::iter::repeat("?".to_string()).take(user_ids.len()).collect();
+        let sql = format!(
+            "SELECT DISTINCT tenant_id FROM iam_users WHERE id IN ({}) AND deleted_at IS NULL",
+            placeholders.join(",")
+        );
+        let mut q = sqlx::query_as::<_, (u64,)>(&sql);
+        for uid in user_ids {
+            q = q.bind(uid);
+        }
+        let rows: Vec<(u64,)> = q.fetch_all(&mut **tx).await
+            .map_err(|e| IamError::Internal(e.to_string()))?;
+        rows.into_iter().map(|(t,)| t as i64).collect()
+    };
+    debug_assert!(distinct_tids.len() <= 1, "perm_change across tenants: users={:?}", user_ids);
+    if distinct_tids.len() > 1 {
+        tracing::warn!(users = ?user_ids, tids = ?distinct_tids, "perm_change event spans multiple tenants; using first tenant for envelope");
+    }
+    let tenant_id = distinct_tids.first().copied().unwrap_or(1);
     let mut env = Envelope::new(
         "iam-service",
         IamPermissionChanged {
@@ -36,7 +64,7 @@ pub async fn enqueue_permission_changed(
             actor_id: actor_id.map(|s| s.to_string()),
         },
     )
-    .with_tenant_id("1");
+    .with_tenant_id(tenant_id.to_string());
     repo.enqueue(tx, &mut env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))?;

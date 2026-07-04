@@ -7,13 +7,15 @@
 //!
 //! 注意：多 MySQL 容器并发易 StartupTimeout，用 `--test-threads=1` 串行。
 use common_cache::MemoryCache;
+use common_crypto::password::hash as hash_password;
 use common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
 use common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
 use iam_service::db;
-use iam_service::service::{PermissionService, RoleService};
+use iam_service::dto::LoginRequest;
+use iam_service::service::{AuthService, PermissionService, RoleService};
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -118,6 +120,17 @@ async fn seed_role(state: &AppState, id: &str) {
     .unwrap();
 }
 
+async fn seed_tenant_role(state: &AppState, tenant: i64, id: &str) {
+    sqlx::query(
+        "INSERT INTO iam_roles (id, tenant_id, name, code, data_scope, status, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, 'self', 'active', NOW(), NOW())",
+    )
+    .bind(id).bind(tenant).bind(id).bind(id)
+    .execute(&state.db)
+    .await
+    .unwrap();
+}
+
 async fn seed_permission(state: &AppState, id: &str) {
     sqlx::query(
         "INSERT INTO iam_permissions (id, code, name, category, status, created_at, updated_at) \
@@ -138,6 +151,25 @@ async fn assign_user_to_role(state: &AppState, user_id: &str, role_id: &str) {
         .execute(&state.db)
         .await
         .unwrap();
+}
+
+async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
+    sqlx::query(
+        "INSERT INTO iam_tenants (id, slug, display_name, status, created_at, updated_at) \
+         VALUES (?, ?, ?, 'active', NOW(), NOW()) \
+         ON DUPLICATE KEY UPDATE id = id",
+    )
+    .bind(id).bind(slug).bind(slug)
+    .execute(&state.db).await.unwrap();
+}
+
+async fn seed_tenant_user(state: &AppState, tenant: i64, uid: &str, password_hash: &str) {
+    sqlx::query(
+        "INSERT INTO iam_users (id, tenant_id, username, password_hash, salt, nickname, status, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, 's', ?, 'active', NOW(), NOW())",
+    )
+    .bind(uid).bind(tenant).bind(uid).bind(password_hash).bind(uid)
+    .execute(&state.db).await.unwrap();
 }
 
 async fn bind_permission_to_role(state: &AppState, role_id: &str, permission_id: &str) {
@@ -436,4 +468,57 @@ async fn permission_changed_event_carries_actor_id() {
     .unwrap();
     let _ = actor; // suppress unused warning if first call returns "null"
     assert_eq!(raw.0, serde_json::json!("admin_actor"));
+}
+
+#[tokio::test]
+async fn permission_changed_event_carries_real_tenant_id() {
+    let mut ctx = setup().await;
+    seed_tenant(&ctx.state, 2, "tenant-2").await;
+    let hash = hash_password("password").unwrap();
+    seed_tenant_user(&ctx.state, 2, "u_tenant2", &hash).await;
+    seed_tenant_role(&ctx.state, 2, "r1").await;
+    assign_user_to_role(&ctx.state, "u_tenant2", "r1").await;
+    seed_permission(&ctx.state, "p1").await;
+
+    RoleService::new(ctx.state.clone())
+        .assign_permissions("r1", vec!["p1".into()], None, 2i64)
+        .await
+        .unwrap();
+
+    assert_eq!(outbox_count(&ctx.state).await, 1);
+    let (env_tenant,): (String,) = sqlx::query_as(
+        "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.tenant_id')) AS CHAR) \
+         FROM iam_outbox_events WHERE event_type = 'iam.permission.changed' ORDER BY id DESC LIMIT 1",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(env_tenant, "2", "permission.changed envelope must carry real tenant_id");
+}
+
+#[tokio::test]
+async fn login_succeeded_event_carries_real_tenant_id() {
+    let mut ctx = setup().await;
+    seed_tenant(&ctx.state, 2, "tenant-2").await;
+    let hash = hash_password("password").unwrap();
+    seed_tenant_user(&ctx.state, 2, "u_tenant2", &hash).await;
+
+    let auth = AuthService::new(ctx.state.clone());
+    let req = LoginRequest {
+        username: "u_tenant2".into(),
+        password: "password".into(),
+        tenant_slug: Some("tenant-2".into()),
+    };
+    auth.login(req, "127.0.0.1", "test-agent")
+        .await
+        .unwrap();
+
+    let (env_tenant,): (String,) = sqlx::query_as(
+        "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.tenant_id')) AS CHAR) \
+         FROM iam_outbox_events WHERE event_type = 'iam.login.succeeded' ORDER BY id DESC LIMIT 1",
+    )
+    .fetch_one(&ctx.state.db)
+    .await
+    .unwrap();
+    assert_eq!(env_tenant, "2", "login.succeeded envelope must carry real tenant_id");
 }
