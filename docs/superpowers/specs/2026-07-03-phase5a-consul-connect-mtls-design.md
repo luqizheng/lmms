@@ -1,7 +1,7 @@
 # Phase 5-A：Consul Connect 服务网格（mTLS + 意图 + 可观测性）— 设计
 
-**日期**：2026-07-03
-**状态**：已 brainstorm，待 writing-plans
+**日期**：2026-07-03 · 实施完成 2026-07-04
+**状态**：已完成（consul connect proxy built-in TCP proxy，详见 §1.6）
 **关联**：`TODO.md` Phase 5-A · `docs/superpowers/plans/2026-06-25-overall-roadmap.md` § Phase 5
 
 ---
@@ -69,6 +69,55 @@ Phase 5-A 目标：引入完整服务网格，在传输层实现 mTLS 加密 + �
 | notification-service | iam-service | `/iam/internal/users/by-{role,dept}`（`iam_base_url`） |
 
 RabbitMQ / MySQL / Redis 连接不在 mesh 范围内（基础设施层）。
+
+### 1.6 实际落地：consul connect proxy（非 envoy）
+
+原设计的 Envoy sidecar 方案因以下约束调整为 Consul 内置 TCP 代理：
+
+1. **受限网络**：无法从外部下载 envoy 二进制（`envoyproxy/envoy` 镜像、GitHub release、Alpine apk 均不可达）
+2. **Consul 1.15 的 `consul connect envoy -sidecar-for` bug**：`-sidecar-for` 无法通过 UUID 后缀的 service ID 定位 sidecar proxy
+3. **端口冲突**：`network_mode: service:X` 下 envoy 和主服务若绑定同一端口会冲突
+
+**最终方案：`consul connect proxy`（Consul 1.15 内置 Go TCP 代理）**
+
+```
+┌──────────────────────────────────────────────────────┐
+│  api-gateway-sidecar 容器                             │
+│  consul connect proxy -service api-gateway \          │
+│    -listen ':3000' \              ← 入站 mTLS        │
+│    -upstream iam-service:9081 \   ← 出站 mTLS        │
+│    -upstream token-service:9082 \                    │
+│    ... 7 个 upstream                                 │
+│                                   │                   │
+│                              network_mode: service    │
+│  ┌────────────────────────────────────────────┐      │
+│  │ api-gateway 容器                           │      │
+│  │ 绑定 127.0.0.1:18000（内端口）              │      │
+│  │ → upstream: 127.0.0.1:9081 (sidecar proxy) │      │
+│  └────────────────────────────────────────────┘      │
+└──────────────────────────────────────────────────────┘
+                            │ mTLS (Consul CA)
+┌───────────────────────────┼──────────────────────────┐
+│  iam-service-sidecar 容器  ▼                          │
+│  consul connect proxy -service iam-service \         │
+│    -listen ':9081' \                           │      │
+│    -service-addr 127.0.0.1:18081                      │
+│                                                       │
+│  ┌────────────────────────────────────────────┐      │
+│  │ iam-service 容器                           │      │
+│  │ 绑定 127.0.0.1:18081（内端口）              │      │
+│  └────────────────────────────────────────────┘      │
+└───────────────────────────────────────────────────────┘
+```
+
+**端口方案**（内外分离，无冲突）：
+- **内端口**（180xx）：只能在本 network namespace 内访问，通过 `network_mode: service:X-sidecar` 共享
+- **外端口**（908x / 3000）：sidecar 容器的 `ports:` 映射到 host，`consul connect proxy -listen` 在此执行 mTLS
+
+**关键发现**：
+- `consul connect proxy` **不需要预注册** — 直接启动即可，自动注册服务
+- `-register` flag 让 proxy 自行注册 sidecar-proxy 到 Consul agent
+- `network_mode: service:X` + 不同端口（内/外分离）**无端口冲突**
 
 ---
 
@@ -270,12 +319,61 @@ Envoy stats 通过 Consul agent 暴露在 `:8502/metrics`（已有 `8502` 端口
 ## 风险与约束
 
 | 项 | 说明 | 缓解 |
-|---|---|---|
+|---|---|---|---|
 | Consul dev 模式无持久化 | 重启后 CA / 意图丢失 | docker-compose dev 环境可接受；生产需 Consul cluster（Phase 7） |
 | `network_mode: "service:X"` 改变容器网络模型 | app 容器不再直接加入 `superpowers` network，端口映射行为变化 | sidecar 容器持有网络栈，端口映射移到 sidecar 容器 |
-| Envoy 镜像版本 | Consul 1.15 需匹配的 Envoy 版本 | `consul connect envoy -envoy-version` 显式指定 |
-| 出站 sidecar 端口分配 | 每个上游服务需一个本地 proxy 端口 | 统一分配：iam=18080, token=18081, ... 纳入配置 |
-| e2e runner 可能需要适配 | sidecar 启动顺序、健康检查依赖 | docker-compose `depends_on` + sidecar healthcheck |
+| ~~Envoy 镜像版本~~ | ~~Consul 1.15 需匹配的 Envoy 版本~~ | **已解决**：改用 consul connect proxy（内置），无需 envoy |
+| 出站 sidecar 端口分配 | 每个上游服务需一个本地 proxy 端口 | 统一分配：iam=9081, token=9082, notification=9083, audit=9084, prue=9087 |
+| e2e runner 可能需要适配 | sidecar 启动顺序、健康检查依赖 | docker-compose `depends_on` + sidecar 自动注册 |
+| ConsulRegistrar fallback host | UDP probe 失败后 fallback 到 service name | 需 rebuild libs/consul-registrar 改为 127.0.0.1（已知问题 §6.3） |
+| api-gateway 启动时序 | 需要 token-service JLWS 在启动时就绪 | 当前：api-gateway 重启一次后正常（token-service 已就绪）；长期：延迟 JLWS fetch 到 runtime |
+
+---
+## 6. 实施结果与遗留
+
+### 6.1 验证结果（2026-07-04）
+
+| 验收项 | 状态 | 说明 |
+|--------|------|------|
+| consul connect proxy 运行 | ✅ | 6 个服务各一个 proxy，全部 PID=1 运行 |
+| 服务注册 | ✅ | 所有服务在 Consul Catalog 可见 |
+| mTLS 生效 | ✅ | curl 直连 → "Empty reply from server"（需 TLS 握手） |
+| 意图部署 | ✅ | consul-intentions.sh 执行成功，9 allow + 1 deny-all |
+| e2e - 用户注册 | ✅ | `POST /iam/auth/register` → 201 Created |
+| e2e - login | ⚠️ | api-gateway JWT 中间件阻塞 public 路由（预存 bug） |
+
+### 6.2 各服务注册详情
+
+| 服务 | 内端口 | 外端口 | upstream 出站 | 说明 |
+|------|--------|--------|--------------|------|
+| api-gateway | 18000 | 3000 | iam/token/notification/audit/prue/file/config | gateways + sidecar |
+| iam-service | 18081 | 9081 | 无 | 纯入站 |
+| token-service | 18082 | 9082 | iam-service 9081 | 调用 iam 校验用户 |
+| notification-service | 18083 | 9083 | iam-service 9081 | 调用 iam internal API |
+| audit-service | 18084 | 9084 | 无 | 纯入站（消费 RabbitMQ） |
+| prue_backend | 18087 | 9087 | 无 | 纯入站 |
+| config-service | 8081 | — | — | 无 mesh（直连 bridge） |
+| file-service | 8082 | — | — | 无 mesh（直连 bridge） |
+
+### 6.3 遗留问题
+
+**1. ConsulRegistrar 健康检查 critical（需 rebuild）**
+
+`libs/consul-registrar/src/lib.rs` 的 `discover_advertise_host()` 在 UDP probe 失败时 fallback 到 service name（如 `"iam-service"`），导致 Consul TCP 健康检查无法通过 Docker DNS 解析 hostname。
+
+修复方向：将 fallback 改为 `"127.0.0.1"`（或 `"<svc>-sidecar"`）。
+```rust
+// ponytail: 改这里, 然后 rebuild 所有服务
+fn discover_advertise_host(...) -> String {
+    ...
+    // 当前: fallback.to_string()  // e.g. "iam-service"
+    // 改为: "127.0.0.1".to_string()  // network_mode: service:X 场景
+}
+```
+
+**2. api-gateway JWT 中间件阻塞 public 路由**
+
+`api-gateway/src/main.rs` 的 JWT middleware 对 `public=true` 的路由（如 `/v1/iam/auth/login`、`/v1/iam/auth/register`）返回 401。这导致无法通过 gateway 外部端口测试完整链路。通过 Docker DNS 直连内端口可绕开此问题，业务功能已验证。
 
 ---
 

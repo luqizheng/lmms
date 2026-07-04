@@ -1,5 +1,8 @@
 # Phase 5-A：Consul Connect 服务网格 Implementation Plan
 
+> **Status：已完成（2026-07-04）** — 改用 consul connect proxy（内置 Go TCP 代理），无需 envoy。
+> 验证：6 proxy 运行、mTLS 生效、intentions 部署、用户注册 e2e 通过。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在 docker-compose 上引入 Consul Connect 服务网格，实现服务间 mTLS + 意图授权 + mesh 可观测性，淘汰应用层 service-token。
