@@ -30,11 +30,12 @@ impl OrgService {
         Self { state }
     }
 
-    pub async fn create(&self, req: CreateOrgUnitRequest) -> Result<OrgUnitResponse, IamError> {
+    pub async fn create(&self, req: CreateOrgUnitRequest, tenant_id: i64) -> Result<OrgUnitResponse, IamError> {
         let exists: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM iam_org_units WHERE code = ? AND deleted_at IS NULL"
+            "SELECT id FROM iam_org_units WHERE code = ? AND tenant_id = ? AND deleted_at IS NULL"
         )
         .bind(&req.code)
+        .bind(tenant_id)
         .fetch_optional(&self.state.db)
         .await?;
 
@@ -44,9 +45,10 @@ impl OrgService {
 
         let level = if let Some(parent_id) = &req.parent_id {
             let parent: Option<OrgUnitRow> = sqlx::query_as(
-                "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = ? AND deleted_at IS NULL"
+                "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL"
             )
             .bind(parent_id)
+            .bind(tenant_id)
             .fetch_optional(&self.state.db)
             .await?;
 
@@ -59,7 +61,7 @@ impl OrgService {
         let org_unit_id = nanoid!();
 
         sqlx::query(
-            "INSERT INTO iam_org_units (id, parent_id, name, code, level, sort_order, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())"
+            "INSERT INTO iam_org_units (id, parent_id, name, code, level, sort_order, status, tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())"
         )
         .bind(&org_unit_id)
         .bind(&req.parent_id)
@@ -67,6 +69,7 @@ impl OrgService {
         .bind(&req.code)
         .bind(level)
         .bind(req.sort_order.unwrap_or(0))
+        .bind(tenant_id)
         .execute(&self.state.db)
         .await?;
 
@@ -80,49 +83,52 @@ impl OrgService {
         Ok(self.to_response(&org_unit, vec![]))
     }
 
-    pub async fn get(&self, org_unit_id: &str) -> Result<OrgUnitResponse, IamError> {
+    pub async fn get(&self, org_unit_id: &str, tenant_id: i64) -> Result<OrgUnitResponse, IamError> {
         let org_unit: Option<OrgUnitRow> = sqlx::query_as(
-            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL"
         )
         .bind(org_unit_id)
+        .bind(tenant_id)
         .fetch_optional(&self.state.db)
         .await?;
 
         let org_unit = org_unit.ok_or(IamError::OrgUnitNotFound)?;
 
-        let children = self.get_children(&org_unit_id).await?;
+        let children = self.get_children(&org_unit_id, tenant_id).await?;
 
         Ok(self.to_response(&org_unit, children))
     }
 
-    pub async fn list(&self) -> Result<Vec<OrgUnitResponse>, IamError> {
+    pub async fn list(&self, tenant_id: i64) -> Result<Vec<OrgUnitResponse>, IamError> {
         let org_units: Vec<OrgUnitRow> = sqlx::query_as(
-            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY sort_order"
+            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE parent_id IS NULL AND tenant_id = ? AND deleted_at IS NULL ORDER BY sort_order"
         )
+        .bind(tenant_id)
         .fetch_all(&self.state.db)
         .await?;
 
         let mut result = Vec::new();
         for org_unit in org_units {
-            let children = self.get_children(&org_unit.id).await?;
+            let children = self.get_children(&org_unit.id, tenant_id).await?;
             result.push(self.to_response(&org_unit, children));
         }
 
         Ok(result)
     }
 
-    fn get_children<'a>(&'a self, parent_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<OrgUnitResponse>, IamError>> + Send + 'a>> {
+    fn get_children<'a>(&'a self, parent_id: &'a str, tenant_id: i64) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<OrgUnitResponse>, IamError>> + Send + 'a>> {
         Box::pin(async move {
             let children: Vec<OrgUnitRow> = sqlx::query_as(
-                "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE parent_id = ? AND deleted_at IS NULL ORDER BY sort_order"
+                "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE parent_id = ? AND tenant_id = ? AND deleted_at IS NULL ORDER BY sort_order"
             )
             .bind(parent_id)
+            .bind(tenant_id)
             .fetch_all(&self.state.db)
             .await?;
 
             let mut result = Vec::new();
             for child in children {
-                let grandchildren = self.get_children(&child.id).await?;
+                let grandchildren = self.get_children(&child.id, tenant_id).await?;
                 result.push(self.to_response(&child, grandchildren));
             }
 
@@ -130,11 +136,12 @@ impl OrgService {
         })
     }
 
-    pub async fn update(&self, org_unit_id: &str, req: UpdateOrgUnitRequest) -> Result<OrgUnitResponse, IamError> {
+    pub async fn update(&self, org_unit_id: &str, req: UpdateOrgUnitRequest, tenant_id: i64) -> Result<OrgUnitResponse, IamError> {
         let existing: Option<OrgUnitRow> = sqlx::query_as(
-            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = ? AND deleted_at IS NULL"
+            "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL"
         )
         .bind(org_unit_id)
+        .bind(tenant_id)
         .fetch_optional(&self.state.db)
         .await?;
 
@@ -147,7 +154,7 @@ impl OrgService {
         let status = req.status.unwrap_or(existing.status);
 
         sqlx::query(
-            "UPDATE iam_org_units SET parent_id = ?, name = ?, code = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
+            "UPDATE iam_org_units SET parent_id = ?, name = ?, code = ?, sort_order = ?, status = ?, updated_at = NOW() WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL"
         )
         .bind(&parent_id)
         .bind(&name)
@@ -155,6 +162,7 @@ impl OrgService {
         .bind(sort_order)
         .bind(&status)
         .bind(org_unit_id)
+        .bind(tenant_id)
         .execute(&self.state.db)
         .await?;
 
@@ -168,11 +176,12 @@ impl OrgService {
         Ok(self.to_response(&org_unit, vec![]))
     }
 
-    pub async fn delete(&self, org_unit_id: &str) -> Result<(), IamError> {
+    pub async fn delete(&self, org_unit_id: &str, tenant_id: i64) -> Result<(), IamError> {
         let has_children: (i32,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM iam_org_units WHERE parent_id = ? AND deleted_at IS NULL"
+            "SELECT COUNT(*) FROM iam_org_units WHERE parent_id = ? AND tenant_id = ? AND deleted_at IS NULL"
         )
         .bind(org_unit_id)
+        .bind(tenant_id)
         .fetch_one(&self.state.db)
         .await?;
 
@@ -181,9 +190,10 @@ impl OrgService {
         }
 
         let result: MySqlQueryResult = sqlx::query(
-            "UPDATE iam_org_units SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL"
+            "UPDATE iam_org_units SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL"
         )
         .bind(org_unit_id)
+        .bind(tenant_id)
         .execute(&self.state.db)
         .await?;
 
@@ -201,7 +211,9 @@ impl OrgService {
         Ok(())
     }
 
-    pub async fn assign_users(&self, org_unit_id: &str, req: AssignUsersRequest) -> Result<(), IamError> {
+    pub async fn assign_users(&self, org_unit_id: &str, req: AssignUsersRequest, tenant_id: i64) -> Result<(), IamError> {
+        self.get(org_unit_id, tenant_id).await?;
+
         sqlx::query(
             "DELETE FROM iam_user_org_units WHERE org_unit_id = ?"
         )

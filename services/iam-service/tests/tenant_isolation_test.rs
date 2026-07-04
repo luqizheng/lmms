@@ -1,6 +1,6 @@
 //! Phase 8.2: cross-tenant isolation for iam business tables (roles / orgs / users).
-use iam_service::service::RoleService;
-use iam_service::dto::{CreateRoleRequest, RoleQuery};
+use iam_service::service::{RoleService, OrgService};
+use iam_service::dto::{CreateRoleRequest, RoleQuery, CreateOrgUnitRequest};
 use common_cache::MemoryCache;
 use common_event::MySqlOutboxRepo;
 use iam_service::config::{
@@ -91,4 +91,33 @@ async fn roles_are_tenant_isolated() {
     // tenant 3 get by id -> RoleNotFound
     let err = svc.get(&created.id, 3).await.unwrap_err();
     assert!(matches!(err, iam_service::error::IamError::RoleNotFound));
+}
+
+#[tokio::test]
+async fn org_units_are_tenant_isolated() {
+    let ctx = setup().await;
+    let svc = OrgService::new(ctx.state.clone());
+
+    seed_tenant(&ctx.state, 2, "tenant-2").await;
+
+    let created = svc
+        .create(
+            CreateOrgUnitRequest {
+                parent_id: None,
+                name: "Acme HQ".into(),
+                code: "acme-hq".into(),
+                sort_order: Some(0),
+            },
+            2,
+        )
+        .await
+        .unwrap();
+
+    let tree_t2 = svc.list(2).await.unwrap();
+    assert!(tree_t2.iter().any(|o| o.id == created.id));
+    let tree_t3 = svc.list(3).await.unwrap();
+    assert!(!tree_t3.iter().any(|o| o.id == created.id), "cross-tenant org leak");
+
+    let err = svc.get(&created.id, 3).await.unwrap_err();
+    assert!(matches!(err, iam_service::error::IamError::OrgUnitNotFound));
 }
