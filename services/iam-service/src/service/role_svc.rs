@@ -277,7 +277,7 @@ impl RoleService {
         let mut tx = self.state.db.begin().await?;
 
         // 1) user existence + row lock
-        let mut qb = QueryBuilder::new("SELECT id FROM iam_users WHERE");
+        let mut qb = QueryBuilder::new("SELECT id FROM iam_users");
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL FOR UPDATE");
