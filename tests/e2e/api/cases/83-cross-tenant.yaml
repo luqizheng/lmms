@@ -1,0 +1,115 @@
+group: cross-tenant
+cases:
+  - caseId: CT-001
+    desc: 查admin用户id
+    method: GET
+    path: /v1/iam/users?keyword=e2eadmin&size=1
+    expectStatus: 200
+    expect:
+      - $.items.0.id exists
+
+  - caseId: CT-002
+    desc: 给admin分配platform_admin角色
+    method: PUT
+    path: /v1/iam/users/${CT-001.items.0.id}/roles
+    body:
+      role_ids: ["role-platform-admin-seed"]
+    expectStatus: 200
+
+  - caseId: CT-003
+    desc: admin重新登录获取platform_admin token
+    method: POST
+    path: /v1/iam/auth/login
+    auth: false
+    body:
+      username: e2eadmin
+      password: P@ssw0rd!
+    expectStatus: 200
+    expect:
+      - $.access_token exists
+
+  - caseId: CT-004
+    desc: 注册acme租户
+    method: POST
+    path: /v1/iam/tenants
+    auth: false
+    body:
+      tenant_slug: acme-cross-tenant
+      display_name: Acme CrossTenant Corp
+      admin_username: acme_admin
+      admin_password: "P@ssw0rd!8"
+    expectStatus: [200, 201, 409]
+
+  - caseId: CT-005
+    desc: 注册globex租户
+    method: POST
+    path: /v1/iam/tenants
+    auth: false
+    body:
+      tenant_slug: globex-cross-tenant
+      display_name: Globex CrossTenant Inc
+      admin_username: globex_admin
+      admin_password: "P@ssw0rd!8"
+    expectStatus: [200, 201, 409]
+
+  - caseId: CT-006
+    desc: acme管理员登录
+    method: POST
+    path: /v1/iam/auth/login
+    auth: false
+    body:
+      username: acme_admin
+      password: "P@ssw0rd!8"
+      tenant_slug: acme-cross-tenant
+    expectStatus: 200
+    expect:
+      - $.access_token exists
+
+  - caseId: CT-007
+    desc: globex管理员登录
+    method: POST
+    path: /v1/iam/auth/login
+    auth: false
+    body:
+      username: globex_admin
+      password: "P@ssw0rd!8"
+      tenant_slug: globex-cross-tenant
+    expectStatus: 200
+    expect:
+      - $.access_token exists
+
+  - caseId: CT-008
+    desc: acme建角色
+    method: POST
+    path: /v1/iam/roles
+    headers:
+      Authorization: Bearer ${CT-006.access_token}
+    auth: false
+    body:
+      name: Acme Ops Role
+      code: acme-ops-e2e
+      data_scope: 3
+    expectStatus: 200
+    expect:
+      - $.id exists
+
+  - caseId: CT-009
+    desc: globex token访问acme角色应404
+    method: GET
+    path: /v1/iam/roles/${CT-008.id}
+    headers:
+      Authorization: Bearer ${CT-007.access_token}
+    auth: false
+    expectStatus: 404
+
+  - caseId: CT-010
+    desc: platform_admin跨租户查看所有用户
+    method: GET
+    path: /v1/iam/users
+    headers:
+      Authorization: Bearer ${CT-003.access_token}
+    auth: false
+    expectStatus: 200
+    expect:
+      - $.items is array
+      - $.total exists
