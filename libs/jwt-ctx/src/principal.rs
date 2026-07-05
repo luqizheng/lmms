@@ -9,6 +9,7 @@ pub struct Principal {
     pub user_id: String,
     pub user_code: String,
     pub tenant_id: i64,
+    pub cross_tenant: bool,
     pub dept_id: Option<i64>,
     pub roles: Vec<String>,
     pub permissions: HashSet<String>,
@@ -28,6 +29,8 @@ pub enum PrincipalError {
     InvalidJson,
     #[error("missing sub claim")]
     MissingSub,
+    #[error("missing tid claim")]
+    MissingTenantId,
 }
 
 impl Principal {
@@ -73,8 +76,13 @@ impl Principal {
         let tenant_id = payload
             .get("tid")
             .and_then(|v| v.as_i64())
-            .unwrap_or(1);
-        
+            .ok_or(PrincipalError::MissingTenantId)?;
+
+        let cross_tenant = payload
+            .get("ct")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
         let dept_id = payload
             .get("dept_id")
             .and_then(|v| v.as_i64());
@@ -105,6 +113,7 @@ impl Principal {
             user_id,
             user_code,
             tenant_id,
+            cross_tenant,
             dept_id,
             roles,
             permissions,

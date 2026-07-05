@@ -1,4 +1,4 @@
-use jwt_ctx::Principal;
+use jwt_ctx::{Principal, PrincipalError};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 
@@ -16,15 +16,15 @@ fn parses_tid_claim_as_i64() {
 }
 
 #[test]
-fn missing_tid_defaults_to_one() {
+fn missing_tid_returns_error() {
     let token = make_token(serde_json::json!({"sub":"u1"}));
-    let p = Principal::from_jwt_payload(&token).expect("parses");
-    assert_eq!(p.tenant_id, 1);
+    let result = Principal::from_jwt_payload(&token);
+    assert!(matches!(result, Err(PrincipalError::MissingTenantId)));
 }
 
 #[test]
-fn non_integer_tid_defaults_to_one() {
+fn non_integer_tid_returns_error() {
     let token = make_token(serde_json::json!({"sub":"u1","tid":"7"}));
-    let p = Principal::from_jwt_payload(&token).expect("parses");
-    assert_eq!(p.tenant_id, 1);
+    let result = Principal::from_jwt_payload(&token);
+    assert!(matches!(result, Err(PrincipalError::MissingTenantId)));
 }

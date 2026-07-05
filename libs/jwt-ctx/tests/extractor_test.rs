@@ -19,7 +19,7 @@ fn create_test_jwt(payload: &str) -> String {
 
 #[tokio::test]
 async fn extractor_returns_principal() {
-    let payload = r#"{"sub":"u","user_code":"aB3xY9zQ"}"#;
+    let payload = r#"{"sub":"u","user_code":"aB3xY9zQ","tid":1}"#;
     let token = create_test_jwt(payload);
     
     let app = Router::new().route("/", get(who));

@@ -8,6 +8,7 @@ fn make_principal(perms: &[&str]) -> Principal {
         user_id: "u1".into(),
         user_code: "u1".into(),
         tenant_id: 1,
+        cross_tenant: false,
         dept_id: None,
         roles: vec!["admin".into()],
         permissions: perms.iter().map(|s| s.to_string()).collect::<HashSet<_>>(),
