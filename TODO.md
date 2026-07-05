@@ -293,7 +293,8 @@
 - [x] sqlx 查询点全量改造（参考 `WithTenantScope::and_tenant`）
 - [x] roles 改为 tenant 内（移除全局 tenant_admin seed，注册流程改为复制角色模板到 tenant）
 - [x] envelope.tenant_id consumer 侧 `parse::<i64>()` 注入 audit/ntf insert
-- [x] Task 7: 回归 + 手工验收 + TODO 勾选（commit `1c4b4c4` + 本次 commit）
+- [x] Task 7: 回归 + 手工验收 + TODO 勾选（commit `4dc2046`）
+- [x] `get_claims` tenant 过滤补完（Phase 8.3 scope，commit `59b76a7`）
 
 #### Phase 8.3 — 全面贯通 + 跨租户检测（已完成并合并）
 
@@ -306,7 +307,7 @@
 - [x] `scripts/check-tenant-scope.js`：handler 拿 TenantScope 但 SQL 无 tenant_id 时 lint 报警
 - [x] platform-admin 引入 `cross_tenant: bool` 路径，独立于 default tenant（V005 migration + `token_svc::issue_access_token` `ct` claim）
 - [x] e2e 跨租户访问黑名单（`tests/e2e/api/cases/83-cross-tenant.yaml` + `test-case/83-cross-tenant.md`）
-- [x] `UserService::get_claims`（`/iam/internal/users/:id/claims`）加 tenant_id 过滤（`user_svc.rs:416` `AND tenant_id = ?`）
+- [x] `UserService::get_claims`（`/iam/internal/users/:id/claims`）加 tenant_id 过滤（`user_svc.rs:416` `AND tenant_id = ?`，commit `59b76a7`）
 
 ### Phase 9 — 小问题清单（P3，零散收尾）
 
