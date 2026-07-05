@@ -295,18 +295,18 @@
 - [x] envelope.tenant_id consumer 侧 `parse::<i64>()` 注入 audit/ntf insert
 - [x] Task 7: 回归 + 手工验收 + TODO 勾选（commit `1c4b4c4` + 本次 commit）
 
-#### Phase 8.3 — 全面贯通 + 跨租户检测（待 brainstorm）
+#### Phase 8.3 — 全面贯通 + 跨租户检测（已完成并合并）
 
 > 范围：gateway 跨租户访问检测、JWT 缺 tid 收紧为 401、`scripts/check-tenant-scope.js` lint、platform-admin `cross_tenant` flag、e2e 跨租户黑名单。
 > 阻塞条件：8.2 已上线。
 
-- [ ] brainstorm 8.3 spec
-- [ ] gateway 中间件：对比 `Principal.tenant_id` 与请求中可能携带的 tenant_id（URL/Body 路径参数）一致性
-- [ ] `Principal::from_jwt_payload` 缺 `tid` → 401
-- [ ] `scripts/check-tenant-scope.js`：handler 拿 TenantScope 但 SQL 无 tenant_id 时 lint 报警
-- [ ] platform-admin 引入 `cross_tenant: bool` 路径，独立于 default tenant
-- [ ] e2e 跨租户访问黑名单（acme token 访问 globex user → 404）
-- [ ] `UserService::get_claims`（`/iam/internal/users/:id/claims`）加 tenant_id 过滤 —— 当前 internal 端点按 user_id 直查 iam_roles/iam_permissions JOIN，未按 tenant 过滤。mesh intentions 鉴权可信但缺防御性深度：若 service 调用方传错 user_id 会跨租户泄露角色/权限。加 `Query<TenantIdQuery>`（与 internal_users 同模式）+ JOIN 加 `AND tenant_id = ?`。
+- [x] brainstorm 8.3 spec（见 `docs/superpowers/specs/2026-07-01-phase8.1-multi-tenancy-skeleton-design.md` §3.6）
+- [x] gateway 中间件：对比 `Principal.tenant_id` 与请求中可能携带的 tenant_id（URL/Body 路径参数）一致性（`check-tenant-scope.js` + TenantScope extractor）
+- [x] `Principal::from_jwt_payload` 缺 `tid` → 401（`MissingTenantId` error in `libs/jwt-ctx/src/principal.rs:33`）
+- [x] `scripts/check-tenant-scope.js`：handler 拿 TenantScope 但 SQL 无 tenant_id 时 lint 报警
+- [x] platform-admin 引入 `cross_tenant: bool` 路径，独立于 default tenant（V005 migration + `token_svc::issue_access_token` `ct` claim）
+- [x] e2e 跨租户访问黑名单（`tests/e2e/api/cases/83-cross-tenant.yaml` + `test-case/83-cross-tenant.md`）
+- [x] `UserService::get_claims`（`/iam/internal/users/:id/claims`）加 tenant_id 过滤（`user_svc.rs:416` `AND tenant_id = ?`）
 
 ### Phase 9 — 小问题清单（P3，零散收尾）
 

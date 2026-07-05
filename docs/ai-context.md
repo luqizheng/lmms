@@ -22,7 +22,7 @@
 |---------|------|----|----|------|------|
 | `api-gateway` | 3000 | — | Axum | JWT 验签、Redis 黑名单、路由到下游 + 限流 + tracing 中间件 | ✅ |
 | `token-service` | 6001 | MySQL | Axum | 签发 / 刷新 / 吊销 JWT | ✅ |
-| `iam-service` | 6002 | MySQL | Axum | 用户、角色、权限、部门、认证。**事件生产者**（iam_outbox_events → 经 `iam-outbox-publisher` bin 发往 RabbitMQ） | ✅ |
+| `iam-service` | 6002 | MySQL | Axum | 用户、角色、权限、部门、认证、租户注册、跨租户（platform_admin `cross_tenant` flag via Phase 8.3）。**事件生产者**（iam_outbox_events → 经 `iam-outbox-publisher` bin 发往 RabbitMQ） | ✅ |
 | `iam-outbox-publisher` | — | MySQL | bin（与 iam-service 同镜像） | 独立进程：轮询 iam_outbox_events，发布到 RabbitMQ events exchange，标记已发布。用 `SELECT … FOR UPDATE SKIP LOCKED` 保证多副本安全。 | — |
 | `notification-service` | 6003 | MySQL | Axum | 公告 CRUD + WebSocket 推送 | ✅ |
 | `prue_backend` | 6004 | SQLite/MySQL | Axum | pure-admin 菜单配置 + 动态路由 | — |
@@ -263,4 +263,4 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 
 ---
 
-_最后更新：2026-06-26（P4.0 收尾）。新增 service / skill / ADR 时，请同步更新此处对应章节。_
+_最后更新：2026-07-05（Phase 8.3 跨租户平台管理员完成）。新增 service / skill / ADR 时，请同步更新此处对应章节。_
