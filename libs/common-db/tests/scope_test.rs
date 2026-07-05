@@ -22,3 +22,11 @@ fn and_tenant_cross_tenant_is_noop() {
     let sql = qb.sql();
     assert!(!sql.contains("tenant_id"), "got: {}", sql);
 }
+
+#[test]
+fn where_id_appends_where_id_clause() {
+    let mut qb: QueryBuilder<'_, MySql> = QueryBuilder::new("SELECT id FROM foo");
+    qb.where_id("u_123");
+    let sql = qb.sql();
+    assert!(sql.contains("WHERE id ="), "got: {}", sql);
+}

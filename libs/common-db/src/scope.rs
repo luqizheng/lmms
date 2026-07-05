@@ -5,11 +5,15 @@
 //! `TenantScope::CrossTenant` is a no-op (cross-tenant queries skip the filter).
 
 use jwt_ctx::TenantScope;
-use sqlx::QueryBuilder;
+use sqlx::{Encode, QueryBuilder, Type};
 
 #[cfg(feature = "mysql")]
 pub trait WithTenantScope<'a> {
     fn and_tenant(&mut self, scope: &TenantScope) -> &mut Self;
+    fn where_id(
+        &mut self,
+        id: impl Encode<'a, sqlx::MySql> + Type<sqlx::MySql> + Send + 'a,
+    ) -> &mut Self;
 }
 
 #[cfg(feature = "mysql")]
@@ -21,6 +25,14 @@ impl<'a> WithTenantScope<'a> for QueryBuilder<'a, sqlx::MySql> {
             }
             TenantScope::CrossTenant => {}
         }
+        self
+    }
+
+    fn where_id(
+        &mut self,
+        id: impl Encode<'a, sqlx::MySql> + Type<sqlx::MySql> + Send + 'a,
+    ) -> &mut Self {
+        self.push(" WHERE id = ").push_bind(id);
         self
     }
 }
