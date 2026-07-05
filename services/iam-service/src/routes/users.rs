@@ -1,7 +1,6 @@
 use axum::{Router, routing::{get, post}, extract::{Json, Path, Query, State}};
 use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleListResponse, UserClaimsResponse}, service::UserService};
-use jwt_ctx::Principal;
-use super::internal_users::TenantIdQuery;
+use jwt_ctx::TenantScope;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -22,11 +21,11 @@ pub fn routes(state: AppState) -> Router {
 )]
 pub async fn list_users(
     State(state): State<AppState>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
     Query(query): Query<UserQuery>,
 ) -> Result<Json<UserListResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.list(query, tenant_id).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    let response = service.list(query, &scope).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(Json(response))
 }
 
@@ -43,11 +42,11 @@ pub async fn list_users(
 )]
 pub async fn create_user(
     State(state): State<AppState>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
     Json(req): Json<CreateUserRequest>,
 ) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.create(req, tenant_id).await.map_err(|e| {
+    let response = service.create(req, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::DuplicateUser => (axum::http::StatusCode::CONFLICT, "duplicate user"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -70,10 +69,10 @@ pub async fn create_user(
 pub async fn get_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
 ) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.get(&user_id, tenant_id).await.map_err(|e| {
+    let response = service.get(&user_id, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -97,11 +96,11 @@ pub async fn get_user(
 pub async fn update_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
     Json(req): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.update(&user_id, req, tenant_id).await.map_err(|e| {
+    let response = service.update(&user_id, req, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -124,10 +123,10 @@ pub async fn update_user(
 pub async fn delete_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    service.delete(&user_id, tenant_id).await.map_err(|e| {
+    service.delete(&user_id, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -146,21 +145,21 @@ pub async fn delete_user(
 )]
 pub async fn list_users_simple(
     State(state): State<AppState>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
     Query(query): Query<UserSimpleQuery>,
 ) -> Result<Json<UserSimpleListResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.list_simple(query, tenant_id).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    let response = service.list_simple(query, &scope).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(Json(response))
 }
 
 pub async fn get_user_claims(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
-    Query(tq): Query<TenantIdQuery>,
+    scope: TenantScope,
 ) -> Result<Json<UserClaimsResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.get_claims(&user_id, tq.tenant_id).await.map_err(|e| {
+    let response = service.get_claims(&user_id, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),

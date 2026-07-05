@@ -1,5 +1,5 @@
 use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, State}};
-use jwt_ctx::Principal;
+use jwt_ctx::TenantScope;
 use crate::{state::AppState, dto::{CreateOrgUnitRequest, UpdateOrgUnitRequest, OrgUnitResponse, AssignUsersRequest}, service::OrgService};
 
 pub fn routes(state: AppState) -> Router {
@@ -12,21 +12,21 @@ pub fn routes(state: AppState) -> Router {
 
 async fn list_org_units(
     State(state): State<AppState>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
 ) -> Result<Json<Vec<OrgUnitResponse>>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    let response = service.list(tenant_id).await
+    let response = service.list(&scope).await
         .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(Json(response))
 }
 
 async fn create_org_unit(
     State(state): State<AppState>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
     Json(req): Json<CreateOrgUnitRequest>,
 ) -> Result<Json<OrgUnitResponse>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    let response = service.create(req, tenant_id).await.map_err(|e| {
+    let response = service.create(req, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::DuplicateOrgUnit => (axum::http::StatusCode::CONFLICT, "duplicate org unit"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -38,10 +38,10 @@ async fn create_org_unit(
 async fn get_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
 ) -> Result<Json<OrgUnitResponse>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    let response = service.get(&org_unit_id, tenant_id).await.map_err(|e| {
+    let response = service.get(&org_unit_id, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::OrgUnitNotFound => (axum::http::StatusCode::NOT_FOUND, "org unit not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -53,11 +53,11 @@ async fn get_org_unit(
 async fn update_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
     Json(req): Json<UpdateOrgUnitRequest>,
 ) -> Result<Json<OrgUnitResponse>, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    let response = service.update(&org_unit_id, req, tenant_id).await.map_err(|e| {
+    let response = service.update(&org_unit_id, req, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::OrgUnitNotFound => (axum::http::StatusCode::NOT_FOUND, "org unit not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -69,10 +69,10 @@ async fn update_org_unit(
 async fn delete_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    service.delete(&org_unit_id, tenant_id).await.map_err(|e| {
+    service.delete(&org_unit_id, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::OrgUnitNotFound => (axum::http::StatusCode::NOT_FOUND, "org unit not found"),
             crate::error::IamError::Conflict(_) => (axum::http::StatusCode::CONFLICT, "conflict"),
@@ -85,11 +85,11 @@ async fn delete_org_unit(
 async fn assign_users(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
     Json(req): Json<AssignUsersRequest>,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = OrgService::new(state);
-    service.assign_users(&org_unit_id, req, tenant_id).await
+    service.assign_users(&org_unit_id, req, &scope).await
         .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
