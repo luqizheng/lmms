@@ -222,6 +222,7 @@ impl OrgService {
         Ok(())
     }
 
+    // check-tenant-scope: delegated
     pub async fn assign_users(&self, org_unit_id: &str, req: AssignUsersRequest, scope: &TenantScope) -> Result<(), IamError> {
         self.get(org_unit_id, scope).await?;
 

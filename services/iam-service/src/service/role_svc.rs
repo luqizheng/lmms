@@ -216,6 +216,7 @@ impl RoleService {
         Ok(())
     }
 
+    // check-tenant-scope: delegated
     pub async fn assign_permissions(
         &self,
         role_id: &str,

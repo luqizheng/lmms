@@ -19,6 +19,7 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+// check-tenant-scope: delegated
 async fn list_roles(
     State(state): State<AppState>,
     scope: TenantScope,
@@ -29,6 +30,7 @@ async fn list_roles(
     Ok(Json(response))
 }
 
+// check-tenant-scope: delegated
 async fn create_role(
     State(state): State<AppState>,
     scope: TenantScope,
@@ -44,6 +46,7 @@ async fn create_role(
     Ok(Json(response))
 }
 
+// check-tenant-scope: delegated
 async fn get_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,

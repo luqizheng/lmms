@@ -10,6 +10,7 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+// check-tenant-scope: delegated
 async fn list_org_units(
     State(state): State<AppState>,
     scope: TenantScope,
@@ -20,6 +21,7 @@ async fn list_org_units(
     Ok(Json(response))
 }
 
+// check-tenant-scope: delegated
 async fn create_org_unit(
     State(state): State<AppState>,
     scope: TenantScope,
@@ -35,6 +37,7 @@ async fn create_org_unit(
     Ok(Json(response))
 }
 
+// check-tenant-scope: delegated
 async fn get_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
@@ -50,6 +53,7 @@ async fn get_org_unit(
     Ok(Json(response))
 }
 
+// check-tenant-scope: delegated
 async fn update_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
@@ -66,6 +70,7 @@ async fn update_org_unit(
     Ok(Json(response))
 }
 
+// check-tenant-scope: delegated
 async fn delete_org_unit(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,
@@ -82,6 +87,7 @@ async fn delete_org_unit(
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
+// check-tenant-scope: delegated
 async fn assign_users(
     State(state): State<AppState>,
     Path(org_unit_id): Path<String>,

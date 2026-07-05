@@ -19,6 +19,7 @@ pub fn routes(state: AppState) -> Router {
     security(("bearer_auth" = [])),
     tag = "users"
 )]
+// check-tenant-scope: delegated
 pub async fn list_users(
     State(state): State<AppState>,
     scope: TenantScope,
@@ -40,6 +41,7 @@ pub async fn list_users(
     security(("bearer_auth" = [])),
     tag = "users"
 )]
+// check-tenant-scope: delegated
 pub async fn create_user(
     State(state): State<AppState>,
     scope: TenantScope,
@@ -66,6 +68,7 @@ pub async fn create_user(
     security(("bearer_auth" = [])),
     tag = "users"
 )]
+// check-tenant-scope: delegated
 pub async fn get_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
@@ -93,6 +96,7 @@ pub async fn get_user(
     security(("bearer_auth" = [])),
     tag = "users"
 )]
+// check-tenant-scope: delegated
 pub async fn update_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
@@ -120,6 +124,7 @@ pub async fn update_user(
     security(("bearer_auth" = [])),
     tag = "users"
 )]
+// check-tenant-scope: delegated
 pub async fn delete_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
@@ -143,6 +148,7 @@ pub async fn delete_user(
     security(("bearer_auth" = [])),
     tag = "users"
 )]
+// check-tenant-scope: delegated
 pub async fn list_users_simple(
     State(state): State<AppState>,
     scope: TenantScope,
@@ -153,6 +159,7 @@ pub async fn list_users_simple(
     Ok(Json(response))
 }
 
+// check-tenant-scope: delegated
 pub async fn get_user_claims(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
