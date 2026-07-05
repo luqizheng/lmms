@@ -32,16 +32,17 @@ impl RoleService {
         Self { state }
     }
 
-    pub async fn create(&self, req: CreateRoleRequest, tenant_id: i64) -> Result<RoleResponse, IamError> {
+    pub async fn create(&self, req: CreateRoleRequest, scope: &TenantScope) -> Result<RoleResponse, IamError> {
         let role_id = nanoid!();
         let data_scope_str = data_scope_to_str(req.data_scope);
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
 
         sqlx::query(
             r#"INSERT INTO iam_roles (id, tenant_id, name, code, description, data_scope, status, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())"#,
         )
         .bind(&role_id)
-        .bind(tenant_id)
+        .bind(tid)
         .bind(&req.name)
         .bind(&req.code)
         .bind(&req.description)
@@ -49,7 +50,7 @@ impl RoleService {
         .execute(&self.state.db)
         .await?;
 
-        self.get(&role_id, &TenantScope::Single(tenant_id)).await
+        self.get(&role_id, scope).await
     }
 
     pub async fn get(&self, role_id: &str, scope: &TenantScope) -> Result<RoleResponse, IamError> {
@@ -67,16 +68,17 @@ impl RoleService {
         }
     }
 
-    pub async fn list(&self, query: RoleQuery, tenant_id: i64) -> Result<RoleListResponse, IamError> {
+    pub async fn list(&self, query: RoleQuery, scope: &TenantScope) -> Result<RoleListResponse, IamError> {
         let offset = ((query.page - 1) * query.size) as i64;
         let limit = query.size as i64;
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
 
         let roles: Vec<RoleRow> = if let Some(keyword) = &query.keyword {
             let pattern = format!("%{}%", keyword);
             sqlx::query_as(
                 "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ? AND (name LIKE ? OR code LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?",
             )
-            .bind(tenant_id)
+            .bind(tid)
             .bind(&pattern)
             .bind(&pattern)
             .bind(limit)
@@ -87,7 +89,7 @@ impl RoleService {
             sqlx::query_as(
                 "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
             )
-            .bind(tenant_id)
+            .bind(tid)
             .bind(limit)
             .bind(offset)
             .fetch_all(&self.state.db)
@@ -95,7 +97,7 @@ impl RoleService {
         };
 
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ?")
-            .bind(tenant_id)
+            .bind(tid)
             .fetch_one(&self.state.db)
             .await?;
 
@@ -180,7 +182,7 @@ impl RoleService {
         self.get(role_id, scope).await
     }
 
-    pub async fn delete(&self, role_id: &str, actor_id: Option<&str>, tenant_id: i64) -> Result<(), IamError> {
+    pub async fn delete(&self, role_id: &str, actor_id: Option<&str>, scope: &TenantScope) -> Result<(), IamError> {
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
                 .bind(role_id)
@@ -188,13 +190,13 @@ impl RoleService {
                 .await?;
 
         let mut tx = self.state.db.begin().await?;
-        let result: MySqlQueryResult = sqlx::query(
-            "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
-        )
-        .bind(role_id)
-        .bind(tenant_id)
-        .execute(&mut *tx)
-        .await?;
+        let mut qb = QueryBuilder::new(
+            "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW()",
+        );
+        qb.where_id(role_id);
+        qb.and_tenant(scope);
+        qb.push(" AND deleted_at IS NULL");
+        let result: MySqlQueryResult = qb.build().execute(&mut *tx).await?;
 
         if result.rows_affected() == 0 {
             return Err(IamError::RoleNotFound);
@@ -219,9 +221,9 @@ impl RoleService {
         role_id: &str,
         permission_ids: Vec<String>,
         actor_id: Option<&str>,
-        tenant_id: i64,
+        scope: &TenantScope,
     ) -> Result<(), IamError> {
-        self.get(role_id, &TenantScope::Single(tenant_id)).await?;
+        self.get(role_id, scope).await?;
 
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
@@ -270,18 +272,16 @@ impl RoleService {
         user_id: &str,
         role_ids: Vec<String>,
         actor_id: Option<&str>,
-        tenant_id: i64,
+        scope: &TenantScope,
     ) -> Result<Vec<String>, IamError> {
         let mut tx = self.state.db.begin().await?;
 
         // 1) user existence + row lock
-        let exists: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM iam_users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL FOR UPDATE",
-        )
-        .bind(user_id)
-        .bind(tenant_id)
-        .fetch_optional(&mut *tx)
-        .await?;
+        let mut qb = QueryBuilder::new("SELECT id FROM iam_users WHERE");
+        qb.where_id(user_id);
+        qb.and_tenant(scope);
+        qb.push(" AND deleted_at IS NULL FOR UPDATE");
+        let exists: Option<(String,)> = qb.build_query_as::<(String,)>().fetch_optional(&mut *tx).await?;
         if exists.is_none() {
             return Err(IamError::UserNotFound);
         }
@@ -292,17 +292,18 @@ impl RoleService {
             s.into_iter().collect()
         };
         if !dedup.is_empty() {
-            let placeholders = std::iter::repeat("?").take(dedup.len()).collect::<Vec<_>>().join(",");
-            let sql = format!(
-                "SELECT id FROM iam_roles WHERE id IN ({}) AND tenant_id = ? AND status='active' AND deleted_at IS NULL",
-                placeholders
-            );
-            let mut q = sqlx::query_as::<_, (String,)>(&sql);
+            let mut qb = QueryBuilder::new("SELECT id FROM iam_roles WHERE id IN (");
+            let mut first = true;
             for id in &dedup {
-                q = q.bind(id);
+                if !first {
+                    qb.push(", ");
+                }
+                qb.push_bind(id);
+                first = false;
             }
-            q = q.bind(tenant_id);
-            let found: Vec<(String,)> = q.fetch_all(&mut *tx).await?;
+            qb.push(") AND status='active' AND deleted_at IS NULL");
+            qb.and_tenant(scope);
+            let found: Vec<(String,)> = qb.build_query_as::<(String,)>().fetch_all(&mut *tx).await?;
             let found_set: HashSet<&str> = found.iter().map(|(s,)| s.as_str()).collect();
             let invalid: Vec<String> = dedup
                 .iter()
