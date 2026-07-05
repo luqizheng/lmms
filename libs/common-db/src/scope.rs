@@ -2,6 +2,7 @@
 //!
 //! Append `AND tenant_id = ?` to a sqlx `QueryBuilder` so handlers that take
 //! `jwt_ctx::TenantScope` can append a tenant filter without hand-binding.
+//! `TenantScope::CrossTenant` is a no-op (cross-tenant queries skip the filter).
 
 use jwt_ctx::TenantScope;
 use sqlx::QueryBuilder;
@@ -14,7 +15,12 @@ pub trait WithTenantScope<'a> {
 #[cfg(feature = "mysql")]
 impl<'a> WithTenantScope<'a> for QueryBuilder<'a, sqlx::MySql> {
     fn and_tenant(&mut self, scope: &TenantScope) -> &mut Self {
-        self.push(" AND tenant_id = ").push_bind(scope.0);
+        match scope {
+            TenantScope::Single(tid) => {
+                self.push(" AND tenant_id = ").push_bind(*tid);
+            }
+            TenantScope::CrossTenant => {}
+        }
         self
     }
 }
