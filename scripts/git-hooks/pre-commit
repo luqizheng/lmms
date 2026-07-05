@@ -30,6 +30,7 @@ run_check() {
 
 run_check "service-standard" '^services/' node scripts/check-service-standard.js
 run_check "spec" '^services/.*/openapi\.yaml$' node scripts/check-spec.js
+run_check "tenant-scope" '^services/.*\.rs$' node scripts/check-tenant-scope.js
 run_check "contracts" '^contracts/' node scripts/contracts-gen.js --check
 
 if echo "$STAGED" | grep -qE '^services/.*(Cargo\.toml|src/routes/.*\.rs|src/openapi\.rs)$'; then

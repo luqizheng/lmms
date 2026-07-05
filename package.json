@@ -61,7 +61,8 @@
     "check:env": "node scripts/check-dev-env.js",
     "ai:review": "node scripts/ai-code-review.js",
     "ai:gen-e2e": "node scripts/gen-e2e-from-openapi.js",
-    "check:spec": "node scripts/check-spec.js"
+    "check:spec": "node scripts/check-spec.js",
+    "check:tenant-scope": "node scripts/check-tenant-scope.js"
   },
   "dependencies": {
     "argon2": "^0.44.0"
