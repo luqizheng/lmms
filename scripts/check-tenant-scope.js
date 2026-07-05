@@ -52,8 +52,9 @@ function extractFunctions(code) {
 
     // capture leading comments (lines directly above, separated only by whitespace)
     const before = code.slice(0, sigStart);
-    const commentMatch = before.match(/((?:\/\/[^\n]*\n)+)\s*$/);
-    const comment = commentMatch ? commentMatch[1] : '';
+    const beforeComments = before.match(/((?:\/\/[^\n]*\n)+)\s*$/);
+    const matchedComments = matchedText.match(/^((?:\/\/[^\n]*\n)+)/);
+    const comment = (beforeComments ? beforeComments[1] : '') + (matchedComments ? matchedComments[1] : '');
 
     // find opening brace
     let bracePos = sigEnd;
