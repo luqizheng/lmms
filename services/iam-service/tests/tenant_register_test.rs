@@ -7,38 +7,30 @@
 //!   3) `(tenant_id, username)` unique → 双 tenant admin 同名不冲突
 //!   4) outbox envelope.tenant_id 正确填值（i64.to_string()）
 
+mod common;
+
 use common_cache::MemoryCache;
 use common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::db;
 use iam_service::dto::CreateTenantRequest;
 use iam_service::error::IamError;
 use iam_service::service::TenantService;
 use iam_service::state::AppState;
 use std::sync::Arc;
-use testcontainers::ImageExt;
-use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
 
 const PREFIX: &str = "superpowers:";
 
 struct Ctx {
     state: AppState,
-    _mysql: testcontainers::ContainerAsync<Mysql>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"])
-        .start()
-        .await
-        .unwrap();
-    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
-    let my_host = mysql_c.get_host().await.unwrap();
-    let url = format!("mysql://root@{my_host}:{my_port}/test");
-    let pool = common::db::connect(&url, 5).await.unwrap();
-    db::ensure_schema(&pool).await.unwrap();
+    let mysql_h = common::spawn_mysql().await;
+    let pool = mysql_h.pool;
+    let url = mysql_h.url;
 
     let config = Config {
         app: AppConfig {
@@ -74,7 +66,7 @@ async fn setup() -> Ctx {
     let state = AppState::new(pool, cache, config, None, outbox_repo);
     Ctx {
         state,
-        _mysql: mysql_c,
+        _mysql: mysql_h.container,
     }
 }
 

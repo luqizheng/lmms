@@ -1,24 +1,17 @@
 //! Phase 4.3-fu2: notification publish_announcement resolves role/dept scopes
 //! via the iam internal endpoints (mocked by wiremock).
+mod common;
 
 use notification_service::db::Db;
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
-use testcontainers::ImageExt;
-use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
 use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path_regex};
 
-async fn setup() -> (Db, MockServer, impl Sized) {
-    let mysql_c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"]).start().await.unwrap();
-    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
-    let my_host = mysql_c.get_host().await.unwrap();
-    let url = format!("mysql://root@{my_host}:{my_port}/test");
-    let db = Db::connect(&url, 5).await.unwrap();
-    db.ensure_schema().await.unwrap();
+async fn setup() -> (Db, MockServer, Option<common::MysqlContainer>) {
+    let h = common::spawn_db().await;
     let server = MockServer::start().await;
-    (db, server, mysql_c)
+    (h.db, server, h.container)
 }
 
 fn build_client(base_url: String) -> Arc<IamMemberClient> {

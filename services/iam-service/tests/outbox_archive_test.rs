@@ -6,32 +6,23 @@
 //! Ponytail: 不重复造 V002 schema——`db::ensure_schema` 已经会建好
 //! `iam_outbox_events_archive`;测试 setup 只确保 schema 在,不再手工拼 SQL。
 
+mod common;
+
 use chrono::{Duration as ChronoDuration, Utc};
 use iam_service::outbox_archive;
 use sqlx::Row;
 use std::sync::Arc;
-use testcontainers::ImageExt;
-use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
 
 struct Ctx {
     pool: sqlx::MySqlPool,
-    _mysql: testcontainers::ContainerAsync<Mysql>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"])
-        .start()
-        .await
-        .unwrap();
-    let port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
-    let host = mysql_c.get_host().await.unwrap();
-    let url = format!("mysql://root@{host}:{port}/test");
-    let pool = common::db::connect(&url, 5).await.unwrap();
-    iam_service::db::ensure_schema(&pool).await.unwrap();
+    let mysql_h = common::spawn_mysql().await;
     Ctx {
-        pool,
-        _mysql: mysql_c,
+        pool: mysql_h.pool,
+        _mysql: mysql_h.container,
     }
 }
 

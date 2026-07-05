@@ -6,6 +6,8 @@
 //! 与 Redis perm_epoch（值≈now、TTL>0）。
 //!
 //! 注意：多 MySQL 容器并发易 StartupTimeout，用 `--test-threads=1` 串行。
+mod common;
+
 use common_cache::MemoryCache;
 use common_crypto::password::hash as hash_password;
 use common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
@@ -13,7 +15,6 @@ use common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::db;
 use iam_service::dto::LoginRequest;
 use iam_service::service::{AuthService, PermissionService, RoleService};
 use jwt_ctx::TenantScope;
@@ -21,31 +22,21 @@ use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use testcontainers::ImageExt;
-use testcontainers_modules::{
-    mysql::Mysql, redis::Redis, testcontainers::runners::AsyncRunner,
-};
+use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
 
 const PREFIX: &str = "superpowers:";
 
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
-    _mysql: testcontainers::ContainerAsync<Mysql>,
+    _mysql: Option<common::MysqlContainer>,
     _redis: testcontainers::ContainerAsync<Redis>,
 }
 
 async fn setup() -> Ctx {
-    // 关闭 InnoDB native AIO，规避宿主 aio-max-nr 不足导致的 io_setup() EAGAIN
-    let mysql_c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"])
-        .start()
-        .await
-        .unwrap();
-    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
-    let my_host = mysql_c.get_host().await.unwrap();
-    let url = format!("mysql://root@{my_host}:{my_port}/test");
-    let pool = common::db::connect(&url, 5).await.unwrap();
-    db::ensure_schema(&pool).await.unwrap();
+    let mysql_h = common::spawn_mysql().await;
+    let pool = mysql_h.pool;
+    let url = mysql_h.url;
 
     let redis_c = Redis::default().start().await.unwrap();
     let r_port = redis_c.get_host_port_ipv4(6379).await.unwrap();
@@ -88,7 +79,7 @@ async fn setup() -> Ctx {
     Ctx {
         state,
         redis: mgr,
-        _mysql: mysql_c,
+        _mysql: mysql_h.container,
         _redis: redis_c,
     }
 }
@@ -263,7 +254,7 @@ async fn assign_permissions_emits_event_and_stamps_epochs() {
 
     let before = chrono::Utc::now().timestamp();
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p2".into()], None, 1i64)
+        .assign_permissions("r1", vec!["p1".into(), "p2".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap();
 
@@ -283,7 +274,7 @@ async fn role_delete_emits_role_deleted() {
     assign_user_to_role(&ctx.state, "u1", "r1").await;
 
     let before = chrono::Utc::now().timestamp();
-    RoleService::new(ctx.state.clone()).delete("r1", None, 1i64).await.unwrap();
+    RoleService::new(ctx.state.clone()).delete("r1", None, &TenantScope::Single(1i64)).await.unwrap();
 
     let (reason, users) = single_outbox_reason_and_users(&ctx.state).await;
     assert_eq!(reason, "role_deleted");
@@ -378,7 +369,7 @@ async fn assign_permissions_with_no_users_emits_nothing() {
     seed_permission(&ctx.state, "p1").await;
 
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into()], None, 1i64)
+        .assign_permissions("r1", vec!["p1".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap();
 
@@ -407,7 +398,7 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
 
     // duplicate p1 → second INSERT hits PK (role_id, permission_id)
     let res = RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p1".into()], None, 1i64)
+        .assign_permissions("r1", vec!["p1".into(), "p1".into()], None, &TenantScope::Single(1i64))
         .await;
     assert!(res.is_err(), "duplicate permission_id must fail the tx");
 
@@ -445,7 +436,7 @@ async fn permission_changed_event_carries_actor_id() {
             "r1",
             vec!["p1".into()],
             Some("admin_actor"),
-            1i64,
+            &TenantScope::Single(1i64),
         )
         .await
         .unwrap();
@@ -482,7 +473,7 @@ async fn permission_changed_event_carries_real_tenant_id() {
     seed_permission(&ctx.state, "p1").await;
 
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into()], None, 2i64)
+        .assign_permissions("r1", vec!["p1".into()], None, &TenantScope::Single(2i64))
         .await
         .unwrap();
 

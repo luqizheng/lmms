@@ -1,11 +1,11 @@
 //! Phase 4.3 集成测试。每个用例起 MySQL testcontainer，建 ntf schema，
 //! 用 publish_announcement 驱动，断言 outbox/delivery/status/幂等/空集/reload。
+mod common;
+
 use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
 use notification_service::db::Db;
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
-use testcontainers::ImageExt;
-use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
 
 fn stub_iam_client() -> Arc<IamMemberClient> {
     let inner = reqwest::Client::new();
@@ -17,20 +17,9 @@ fn stub_iam_client() -> Arc<IamMemberClient> {
     Arc::new(IamMemberClient::new(rc, "http://unused".into()))
 }
 
-async fn setup_db() -> (Db, impl Sized) {
-    // 关闭 InnoDB native AIO，规避宿主 aio-max-nr 不足导致的 io_setup() EAGAIN
-    let c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"])
-        .start()
-        .await
-        .unwrap();
-    let port = c.get_host_port_ipv4(3306).await.unwrap();
-    let host = c.get_host().await.unwrap();
-    // testcontainers-modules Mysql 默认建库 `test`，root 无密码
-    let url = format!("mysql://root@{host}:{port}/test");
-    let db = Db::connect(&url, 5).await.unwrap();
-    db.ensure_schema().await.unwrap();
-    (db, c)
+async fn setup_db() -> (Db, Option<common::MysqlContainer>) {
+    let h = common::spawn_db().await;
+    (h.db, h.container)
 }
 
 async fn seed_announcement(db: &Db, scopes: &[(&str, &str)]) -> u64 {

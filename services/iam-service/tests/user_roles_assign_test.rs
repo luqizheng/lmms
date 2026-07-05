@@ -5,43 +5,36 @@
 //! perm_epoch. Serial execution via --test-threads=1 (see Cargo.toml or
 //! run-tests-docker.js).
 
+mod common;
+
 use common_cache::MemoryCache;
 use common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
 use common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::db;
 use iam_service::error::IamError;
 use iam_service::service::RoleService;
 use iam_service::state::AppState;
+use jwt_ctx::TenantScope;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use testcontainers::ImageExt;
-use testcontainers_modules::{
-    mysql::Mysql, redis::Redis, testcontainers::runners::AsyncRunner,
-};
+use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
 
 const PREFIX: &str = "superpowers:";
 
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
-    _mysql: testcontainers::ContainerAsync<Mysql>,
+    _mysql: Option<common::MysqlContainer>,
     _redis: testcontainers::ContainerAsync<Redis>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"])
-        .start()
-        .await
-        .unwrap();
-    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
-    let my_host = mysql_c.get_host().await.unwrap();
-    let url = format!("mysql://root@{my_host}:{my_port}/test");
-    let pool = common::db::connect(&url, 5).await.unwrap();
-    db::ensure_schema(&pool).await.unwrap();
+    let mysql_h = common::spawn_mysql().await;
+    let pool = mysql_h.pool;
+    let url = mysql_h.url;
 
     let redis_c = Redis::default().start().await.unwrap();
     let r_port = redis_c.get_host_port_ipv4(6379).await.unwrap();
@@ -60,7 +53,7 @@ async fn setup() -> Ctx {
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
     let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo);
-    Ctx { state, redis: mgr, _mysql: mysql_c, _redis: redis_c }
+    Ctx { state, redis: mgr, _mysql: mysql_h.container, _redis: redis_c }
 }
 
 // ---- seed helpers (copied from permission_changed_test.rs) ----
@@ -150,7 +143,7 @@ async fn assign_user_roles_replaces_and_emits_event() {
 
     let before = chrono::Utc::now().timestamp();
     let ret = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, 1i64)
+        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap();
 
@@ -175,7 +168,7 @@ async fn assign_user_roles_empty_clears_and_emits() {
 
     let before = chrono::Utc::now().timestamp();
     RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec![], None, 1i64)
+        .assign_user_roles("u1", vec![], None, &TenantScope::Single(1i64))
         .await
         .unwrap();
 
@@ -197,7 +190,7 @@ async fn assign_user_roles_no_change_skips_write() {
 
     // Reorder input; result should be identical set.
     RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r2".into(), "r1".into()], None, 1i64)
+        .assign_user_roles("u1", vec!["r2".into(), "r1".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap();
 
@@ -214,7 +207,7 @@ async fn assign_user_roles_rejects_invalid_role_id() {
     assign_user_to_role(&ctx.state, "u1", "r1").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r_ghost".into()], None, 1i64)
+        .assign_user_roles("u1", vec!["r1".into(), "r_ghost".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap_err();
     match err {
@@ -235,7 +228,7 @@ async fn assign_user_roles_rejects_disabled_role() {
     seed_disabled_role(&ctx.state, "r2").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, 1i64)
+        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap_err();
     match err {
@@ -253,7 +246,7 @@ async fn assign_user_roles_user_not_found() {
     seed_role(&ctx.state, "r1").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("ghost", vec!["r1".into()], None, 1i64)
+        .assign_user_roles("ghost", vec!["r1".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap_err();
     assert!(matches!(err, IamError::UserNotFound), "got {err:?}");
@@ -270,7 +263,7 @@ async fn assign_user_roles_dedups_input() {
 
     let before = chrono::Utc::now().timestamp();
     let ret = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r1".into(), "r2".into()], None, 1i64)
+        .assign_user_roles("u1", vec!["r1".into(), "r1".into(), "r2".into()], None, &TenantScope::Single(1i64))
         .await
         .unwrap();
 

@@ -2,6 +2,8 @@
 //! Mesh intentions enforce service identity (Phase 5-A);
 //! tenant_id from query param; cross-tenant reads forbidden.
 
+mod common;
+
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -11,31 +13,21 @@ use common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::db;
 use iam_service::routes::build_router;
 use iam_service::state::AppState;
 use std::sync::Arc;
-use testcontainers::ImageExt;
-use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
 use tower::ServiceExt;
 
 struct Ctx {
     app: axum::Router,
     state: AppState,
-    _mysql: testcontainers::ContainerAsync<Mysql>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"])
-        .start()
-        .await
-        .unwrap();
-    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
-    let my_host = mysql_c.get_host().await.unwrap();
-    let url = format!("mysql://root@{my_host}:{my_port}/test");
-    let pool = common::db::connect(&url, 5).await.unwrap();
-    db::ensure_schema(&pool).await.unwrap();
+    let mysql_h = common::spawn_mysql().await;
+    let pool = mysql_h.pool;
+    let url = mysql_h.url;
 
     let config = Config {
         app: AppConfig { name: "iam-service".into(), host: "0.0.0.0".into(), port: 8080 },
@@ -54,7 +46,7 @@ async fn setup() -> Ctx {
     let state = AppState::new(pool, cache, config, None, outbox_repo);
 
     let app = build_router(state.clone());
-    Ctx { app, state, _mysql: mysql_c }
+    Ctx { app, state, _mysql: mysql_h.container }
 }
 
 async fn seed_tenant(state: &AppState, id: i64, slug: &str) {

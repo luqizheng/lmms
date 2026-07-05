@@ -1,5 +1,7 @@
 //! Phase 8.3: tenant hardening — JWT tid enforcement, cross_tenant flag,
 //! TenantScope resolution, and get_claims tenant scoping.
+mod common;
+
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use common_cache::MemoryCache;
@@ -7,7 +9,6 @@ use common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::db;
 use iam_service::dto::{CreateUserRequest, LoginRequest};
 use iam_service::error::IamError;
 use iam_service::service::{AuthService, TenantService, UserService};
@@ -16,28 +17,19 @@ use jwt_ctx::{Principal, TenantScope};
 use jwt_simple::prelude::*;
 use std::io::Write;
 use std::sync::Arc;
-use testcontainers::ImageExt;
-use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
 
 const PREFIX: &str = "superpowers:";
 
 struct Ctx {
     state: AppState,
-    _mysql: testcontainers::ContainerAsync<Mysql>,
+    _mysql: Option<common::MysqlContainer>,
     _key_file: tempfile::NamedTempFile,
 }
 
 async fn setup() -> Ctx {
-    let mysql_c = Mysql::default()
-        .with_cmd(["--innodb-use-native-aio=0"])
-        .start()
-        .await
-        .unwrap();
-    let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
-    let my_host = mysql_c.get_host().await.unwrap();
-    let url = format!("mysql://root@{my_host}:{my_port}/test");
-    let pool = common::db::connect(&url, 5).await.unwrap();
-    db::ensure_schema(&pool).await.unwrap();
+    let mysql_h = common::spawn_mysql().await;
+    let pool = mysql_h.pool;
+    let url = mysql_h.url;
 
     let key_pair = RS256KeyPair::generate(2048).unwrap();
     let pem = key_pair.to_pem().unwrap();
@@ -79,7 +71,7 @@ async fn setup() -> Ctx {
     let state = AppState::new(pool, cache, config, None, outbox_repo);
     Ctx {
         state,
-        _mysql: mysql_c,
+        _mysql: mysql_h.container,
         _key_file: key_file,
     }
 }
@@ -136,7 +128,7 @@ async fn cross_tenant_and_get_claims() {
                 avatar: None,
                 role_ids: None,
             },
-            1,
+            &TenantScope::Single(1),
         )
         .await
         .unwrap();
@@ -213,13 +205,13 @@ async fn cross_tenant_and_get_claims() {
                 avatar: None,
                 role_ids: None,
             },
-            acme_tid,
+            &TenantScope::Single(acme_tid),
         )
         .await
         .unwrap();
 
     let err = user_svc
-        .get_claims(&acme_user.id, globex_tid)
+        .get_claims(&acme_user.id, &TenantScope::Single(globex_tid))
         .await
         .unwrap_err();
     assert!(
@@ -228,7 +220,7 @@ async fn cross_tenant_and_get_claims() {
     );
 
     let claims = user_svc
-        .get_claims(&acme_user.id, acme_tid)
+        .get_claims(&acme_user.id, &TenantScope::Single(acme_tid))
         .await
         .unwrap();
     assert_eq!(claims.user_id, acme_user.id);
