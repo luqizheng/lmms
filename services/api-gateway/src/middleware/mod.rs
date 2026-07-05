@@ -107,6 +107,11 @@ pub async fn auth_middleware(
         Err(status) => return (status, "Invalid or expired token").into_response(),
     };
 
+    // Phase 8.3: fail-fast on missing tid claim
+    if !claims.custom.contains_key("tid") {
+        return (StatusCode::UNAUTHORIZED, "missing tenant claim").into_response();
+    }
+
     let mut conn: MultiplexedConnection = state.redis_conn.clone();
     let blacklisted = crate::blacklist::is_blacklisted(&mut conn, &state.redis_prefix, &claims.jti)
         .await
