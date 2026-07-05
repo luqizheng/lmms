@@ -103,6 +103,10 @@ pub struct UserClaimsResponse {
     pub phone: Option<String>,
     pub roles: Vec<String>,
     pub permissions: Vec<String>,
+    #[serde(rename = "tid")]
+    pub tenant_id: i64,
+    #[serde(rename = "ct")]
+    pub cross_tenant: bool,
 }
 
 fn default_page() -> u32 { 1 }

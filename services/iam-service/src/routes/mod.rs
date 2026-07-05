@@ -6,6 +6,8 @@ pub mod roles;
 pub mod tenants;
 pub mod users;
 
+pub use internal_users::TenantIdQuery;
+
 use axum::{Router, middleware as axum_mw, routing::get};
 use crate::state::AppState;
 use prometheus::{Encoder, TextEncoder};

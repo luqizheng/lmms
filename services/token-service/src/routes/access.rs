@@ -68,6 +68,10 @@ pub async fn handle_access(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?
         .ok_or((StatusCode::BAD_REQUEST, "invalid or expired code"))?;
 
+    // TODO(8.3-fu1): auth code flow lacks tenant context — get_claims requires ?tenant_id=.
+    // The auth code table doesn't carry tenant_id, and we can't know it before calling
+    // get_claims (chicken-and-egg). The call will 400 and fall through to default claims
+    // below. Proper fix: propagate tenant_id through auth_code_svc or a dedicated lookup.
     let claims_url = format!(
             "{}/internal/users/{}/claims",
             state.user_service_url, user_id

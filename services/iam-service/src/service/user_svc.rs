@@ -441,6 +441,8 @@ impl UserService {
         .fetch_all(&self.state.db)
         .await?;
 
+        let cross_tenant = roles.iter().any(|r| r == "platform_admin");
+
         Ok(UserClaimsResponse {
             user_id: uid,
             username,
@@ -449,6 +451,8 @@ impl UserService {
             phone,
             roles,
             permissions,
+            tenant_id,
+            cross_tenant,
         })
     }
 }

@@ -29,6 +29,7 @@ struct RefreshTokenInfo {
     jti: String,
     exp: i64,
     iat: i64,
+    tid: i64,
 }
 
 fn decode_refresh_token(
@@ -53,8 +54,13 @@ fn decode_refresh_token(
     let jti = claims.jwt_id.clone().unwrap_or_default();
     let iat = claims.issued_at.map(|d| d.as_secs() as i64).unwrap_or(0);
     let exp = claims.expires_at.map(|d| d.as_secs() as i64).unwrap_or(0);
+    let tid = claims
+        .custom
+        .get("tid")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(1);
 
-    Ok(RefreshTokenInfo { sub, jti, exp, iat })
+    Ok(RefreshTokenInfo { sub, jti, exp, iat, tid })
 }
 
 #[utoipa::path(
@@ -102,8 +108,8 @@ pub async fn handle_refresh(
     let _ = refresh_svc::mark(&state.db, &info.jti, ttl.max(0)).await;
 
     let claims_url = format!(
-        "{}/internal/users/{}/claims",
-        state.user_service_url, info.sub
+        "{}/internal/users/{}/claims?tenant_id={}",
+        state.user_service_url, info.sub, info.tid
     );
     let extra_claims: serde_json::Value =
         match crate::fetch_json(&state.http_client, "iam-service", &claims_url).await {
