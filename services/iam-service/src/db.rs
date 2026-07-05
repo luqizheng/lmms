@@ -6,10 +6,12 @@ const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
 const V002_SQL: &str = include_str!("../migrations/mysql/V002__outbox_archive.sql");
 const V003_SQL: &str = include_str!("../migrations/mysql/V003__tenants.sql");
 const V004_SQL: &str = include_str!("../migrations/mysql/V004__tenant_business_tables.sql");
+const V005_SQL: &str = include_str!("../migrations/mysql/V005__platform_admin_role.sql");
 const SCHEMA_MARKER_TABLE: &str = "iam_users";
 const V002_MARKER_TABLE: &str = "iam_outbox_events_archive";
 const V003_MARKER_TABLE: &str = "iam_tenants";
 const V004_MARKER_TABLE: &str = "iam_migration_v004_applied";
+const V005_MARKER_TABLE: &str = "iam_migration_v005_applied";
 
 pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
     let pool = common::db::connect(&config.url, config.max_connections).await?;
@@ -47,6 +49,17 @@ pub async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
         .execute(pool)
         .await?;
         info!("iam V004 (tenant business tables) applied");
+    }
+
+    if !table_exists(pool, V005_MARKER_TABLE).await? {
+        info!("iam V005 marker missing, applying V005");
+        apply_sql_script(pool, V005_SQL).await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS iam_migration_v005_applied (applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        )
+        .execute(pool)
+        .await?;
+        info!("iam V005 (platform_admin role) applied");
     }
 
     Ok(())
