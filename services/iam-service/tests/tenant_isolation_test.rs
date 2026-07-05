@@ -1,4 +1,6 @@
 //! Phase 8.2: cross-tenant isolation for iam business tables (roles / orgs / users).
+use common_db::WithTenantScope;
+use jwt_ctx::TenantScope;
 use iam_service::service::{RoleService, OrgService, UserService};
 use iam_service::dto::{CreateRoleRequest, RoleQuery, CreateOrgUnitRequest, CreateUserRequest, UserQuery};
 use common_cache::MemoryCache;
@@ -89,7 +91,7 @@ async fn roles_are_tenant_isolated() {
     assert!(!list_t3.items.iter().any(|r| r.id == created.id), "cross-tenant role leak");
 
     // tenant 3 get by id -> RoleNotFound
-    let err = svc.get(&created.id, 3).await.unwrap_err();
+    let err = svc.get(&created.id, &TenantScope::Single(3)).await.unwrap_err();
     assert!(matches!(err, iam_service::error::IamError::RoleNotFound));
 }
 

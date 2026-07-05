@@ -4,8 +4,10 @@ use crate::{
     dto::{CreateRoleRequest, UpdateRoleRequest, RoleQuery, RoleResponse, RoleListResponse},
 };
 use chrono::Utc;
+use common_db::WithTenantScope;
+use jwt_ctx::TenantScope;
 use nanoid::nanoid;
-use sqlx::{FromRow, mysql::MySqlQueryResult};
+use sqlx::{FromRow, QueryBuilder, mysql::MySqlQueryResult};
 use std::collections::{BTreeSet, HashSet};
 
 pub struct RoleService {
@@ -47,17 +49,17 @@ impl RoleService {
         .execute(&self.state.db)
         .await?;
 
-        self.get(&role_id, tenant_id).await
+        self.get(&role_id, &TenantScope::Single(tenant_id)).await
     }
 
-    pub async fn get(&self, role_id: &str, tenant_id: i64) -> Result<RoleResponse, IamError> {
-        let role: Option<RoleRow> = sqlx::query_as(
-            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
-        )
-        .bind(role_id)
-        .bind(tenant_id)
-        .fetch_optional(&self.state.db)
-        .await?;
+    pub async fn get(&self, role_id: &str, scope: &TenantScope) -> Result<RoleResponse, IamError> {
+        let mut qb = QueryBuilder::new(
+            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = "
+        );
+        qb.push_bind(role_id);
+        qb.and_tenant(scope);
+        qb.push(" AND deleted_at IS NULL");
+        let role: Option<RoleRow> = qb.build_query_as::<RoleRow>().fetch_optional(&self.state.db).await?;
 
         match role {
             Some(r) => Ok(self.to_response(&r)),
@@ -110,15 +112,15 @@ impl RoleService {
         role_id: &str,
         req: UpdateRoleRequest,
         actor_id: Option<&str>,
-        tenant_id: i64,
+        scope: &TenantScope,
     ) -> Result<RoleResponse, IamError> {
-        let role: Option<RoleRow> = sqlx::query_as(
-            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
-        )
-        .bind(role_id)
-        .bind(tenant_id)
-        .fetch_optional(&self.state.db)
-        .await?;
+        let mut qb = QueryBuilder::new(
+            "SELECT id, name, code, description, data_scope, status, created_at, updated_at, deleted_at FROM iam_roles WHERE id = "
+        );
+        qb.push_bind(role_id);
+        qb.and_tenant(scope);
+        qb.push(" AND deleted_at IS NULL");
+        let role: Option<RoleRow> = qb.build_query_as::<RoleRow>().fetch_optional(&self.state.db).await?;
 
         let role = match role {
             Some(r) => r,
@@ -144,17 +146,20 @@ impl RoleService {
         };
 
         let mut tx = self.state.db.begin().await?;
-        sqlx::query(
-            "UPDATE iam_roles SET name = ?, description = ?, data_scope = ?, status = ?, updated_at = NOW() WHERE id = ? AND tenant_id = ?",
-        )
-        .bind(&name)
-        .bind(&description)
-        .bind(&data_scope_str)
-        .bind(&status)
-        .bind(role_id)
-        .bind(tenant_id)
-        .execute(&mut *tx)
-        .await?;
+        let mut qb = QueryBuilder::new(
+            "UPDATE iam_roles SET name = "
+        );
+        qb.push_bind(&name);
+        qb.push(", description = ");
+        qb.push_bind(&description);
+        qb.push(", data_scope = ");
+        qb.push_bind(&data_scope_str);
+        qb.push(", status = ");
+        qb.push_bind(&status);
+        qb.push(", updated_at = NOW() WHERE id = ");
+        qb.push_bind(role_id);
+        qb.and_tenant(scope);
+        qb.build().execute(&mut *tx).await?;
 
         if now_disabled {
             crate::service::perm_change::enqueue_permission_changed(
@@ -172,7 +177,7 @@ impl RoleService {
             crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
         }
 
-        self.get(role_id, tenant_id).await
+        self.get(role_id, scope).await
     }
 
     pub async fn delete(&self, role_id: &str, actor_id: Option<&str>, tenant_id: i64) -> Result<(), IamError> {
@@ -216,7 +221,7 @@ impl RoleService {
         actor_id: Option<&str>,
         tenant_id: i64,
     ) -> Result<(), IamError> {
-        self.get(role_id, tenant_id).await?;
+        self.get(role_id, &TenantScope::Single(tenant_id)).await?;
 
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")

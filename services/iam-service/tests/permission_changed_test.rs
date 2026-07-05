@@ -16,6 +16,7 @@ use iam_service::config::{
 use iam_service::db;
 use iam_service::dto::LoginRequest;
 use iam_service::service::{AuthService, PermissionService, RoleService};
+use jwt_ctx::TenantScope;
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -306,7 +307,7 @@ async fn role_disable_emits_role_disabled() {
         status: Some("disabled".into()),
     };
     RoleService::new(ctx.state.clone())
-        .update("r1", req, None, 1i64)
+        .update("r1", req, None, &TenantScope::Single(1i64))
         .await
         .unwrap();
 

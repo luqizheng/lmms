@@ -64,6 +64,7 @@ path = "src/bin/dump-openapi.rs"
 [dev-dependencies]
 testcontainers = "0.20"
 testcontainers-modules = { version = "0.8", features = ["mysql", "redis"] }
+tempfile = "3"
 reqwest.workspace = true
 mockall = "0.13"
 

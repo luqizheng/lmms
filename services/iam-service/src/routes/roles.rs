@@ -1,5 +1,5 @@
 use axum::{Router, routing::{get, put}, extract::{Json, Path, Query, State}};
-use jwt_ctx::Principal;
+use jwt_ctx::{Principal, TenantScope};
 use crate::{
     state::AppState,
     dto::{
@@ -49,10 +49,10 @@ async fn create_role(
 async fn get_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
-    Principal { tenant_id, .. }: Principal,
+    scope: TenantScope,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.get(&role_id, tenant_id).await.map_err(|e| {
+    let response = service.get(&role_id, &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
@@ -64,11 +64,12 @@ async fn get_role(
 async fn update_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
-    Principal { user_id: p, tenant_id, .. }: Principal,
+    Principal { user_id: p, .. }: Principal,
+    scope: TenantScope,
     Json(req): Json<UpdateRoleRequest>,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.update(&role_id, req, Some(p.as_str()), tenant_id).await.map_err(|e| {
+    let response = service.update(&role_id, req, Some(p.as_str()), &scope).await.map_err(|e| {
         match e {
             crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
