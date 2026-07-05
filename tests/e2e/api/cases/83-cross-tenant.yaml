@@ -113,3 +113,15 @@ cases:
     expect:
       - $.items is array
       - $.total exists
+
+  - caseId: CT-011
+    desc: cross_tenant_point_query_200 — platform_admin跨租户按id点查acme用户
+    method: GET
+    path: /v1/iam/users/${CT-004.admin_user_id}
+    headers:
+      Authorization: Bearer ${CT-003.access_token}
+    auth: false
+    expectStatus: 200
+    expect:
+      - $.id equals ${CT-004.admin_user_id}
+      - $.username equals acme_admin

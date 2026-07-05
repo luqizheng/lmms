@@ -309,6 +309,31 @@
 - [x] e2e 跨租户访问黑名单（`tests/e2e/api/cases/83-cross-tenant.yaml` + `test-case/83-cross-tenant.md`）
 - [x] `UserService::get_claims`（`/iam/internal/users/:id/claims`）加 tenant_id 过滤（`user_svc.rs:416` `AND tenant_id = ?`，commit `59b76a7`）
 
+#### Phase 8.3-fu1 — iam-service 点查询 TenantScope 迁移（已完成并合并）
+
+> Plan: `docs/superpowers/plans/2026-07-04-phase8.3-fu1-iam-point-query-migration.md`
+> Spec: `docs/superpowers/specs/2026-07-04-phase8.3-fu1-iam-point-query-migration-design.md`
+
+- [x] `libs/common-db::WithTenantScope` 加 `where_id(id)` helper（commits `697db59`）
+- [x] `user_svc.rs` 9 方法签名 + 11 SQL 迁 `scope: &TenantScope` + QueryBuilder + `and_tenant`/`where_id`（commit `8d0fdd6`）
+- [x] `role_svc.rs` 7 方法 + 7 SQL 同上（commit `b177040`）
+- [x] `org_svc.rs` 8 方法 + 7 SQL 同上（commit `2e8739d`）
+- [x] `routes/users.rs` 8 handler 签名改 `TenantScope` extractor（commit `47bc4cb`）
+- [x] `routes/roles.rs` 7 handler 同上（同 commit）
+- [x] `routes/org_units.rs` 6 handler 同上（同 commit）
+- [x] 集成测试 `platform_admin_point_query_cross_tenant`：HTTP GET `/iam/users/{acme_user_id}` with platform_admin JWT → 200 + body 命中 acme user（commit follow-up）
+- [x] e2e YAML `cross_tenant_point_query_200`（CT-011）纳入 83-cross-tenant.yaml（同 commit）
+- [x] 已知 lint 误报：`scripts/check-tenant-scope.js` 仍把 handler 报为「SQL 无 tenant_id 过滤」——脚本不会跟随 service 调用，加 `delegated` 豁免即可，跟踪在 8.3-fu2 工具链一并升级
+
+#### Phase 8.3-fu2 — ntf / cfg / file 点查询迁移 + check-tenant-scope 启发式升级（待办）
+
+> 阻塞：8.3-fu1 已上线，且至少一个外部租户实际接入 ntf / cfg / file。
+
+- [ ] notification-service：8 处 point queries（announcement / role / dept）迁 `scope: &TenantScope` + `and_tenant`/`where_id`
+- [ ] config-service：5 处 point queries（config_item / namespace）同上
+- [ ] file-service：8 处 point queries（file_object / permission）同上
+- [ ] `scripts/check-tenant-scope.js` 启发式升级：从 per-handler body 关键字匹配 → 跟随 `service.method(..., scope)` 引用进入 service 方法体匹配，消除 8.3-fu1 已修 handler 的误报
+
 ### Phase 9 — 小问题清单（P3，零散收尾）
 
 - [ ] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式）
