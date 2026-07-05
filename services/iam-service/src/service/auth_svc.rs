@@ -82,7 +82,8 @@ impl AuthService {
         let roles = self.get_user_roles(&user.id).await?;
         let permissions = self.get_user_permissions(&user.id).await?;
         
-        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id as i64, roles.clone(), permissions.clone())
+        let cross_tenant = roles.iter().any(|r| r == "platform_admin");
+        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id as i64, cross_tenant, roles.clone(), permissions.clone())
             .map_err(|e| IamError::Jwt(e.to_string()))?;
 
         // 生成 refresh token
@@ -195,7 +196,8 @@ impl AuthService {
         let roles = self.get_user_roles(&user.id).await?;
         let permissions = self.get_user_permissions(&user.id).await?;
         
-        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id as i64, roles.clone(), permissions.clone())
+        let cross_tenant = roles.iter().any(|r| r == "platform_admin");
+        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id as i64, cross_tenant, roles.clone(), permissions.clone())
             .map_err(|e| IamError::Jwt(e.to_string()))?;
 
         let user_info = UserInfo {

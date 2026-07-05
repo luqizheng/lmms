@@ -37,9 +37,9 @@ impl TokenService {
         Duration::from_secs(now)
     }
 
-    pub fn issue_access_token(&self, user_id: &str, username: &str, tenant_id: i64, roles: Vec<String>, permissions: Vec<String>) -> Result<String, IamError> {
+    pub fn issue_access_token(&self, user_id: &str, username: &str, tenant_id: i64, cross_tenant: bool, roles: Vec<String>, permissions: Vec<String>) -> Result<String, IamError> {
         let ttl_sec = self.state.config.jwt.access_token_ttl_minutes * 60;
-        
+
         let now = Self::now();
         let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
         claims.subject = Some(user_id.to_string());
@@ -51,6 +51,9 @@ impl TokenService {
         let mut custom = HashMap::new();
         custom.insert("username".to_string(), serde_json::Value::String(username.to_string()));
         custom.insert("tid".to_string(), serde_json::Value::Number(serde_json::Number::from(tenant_id)));
+        if cross_tenant {
+            custom.insert("ct".to_string(), serde_json::Value::Bool(true));
+        }
         custom.insert("roles".to_string(), serde_json::Value::Array(roles.into_iter().map(|r| serde_json::Value::String(r)).collect()));
         custom.insert("permissions".to_string(), serde_json::Value::Array(permissions.into_iter().map(|p| serde_json::Value::String(p)).collect()));
         claims.custom = custom;
