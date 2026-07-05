@@ -1,6 +1,7 @@
 use axum::{Router, routing::{get, post}, extract::{Json, Path, Query, State}};
 use crate::{state::AppState, dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleListResponse, UserClaimsResponse}, service::UserService};
 use jwt_ctx::Principal;
+use super::internal_users::TenantIdQuery;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -156,9 +157,10 @@ pub async fn list_users_simple(
 pub async fn get_user_claims(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
+    Query(tq): Query<TenantIdQuery>,
 ) -> Result<Json<UserClaimsResponse>, (axum::http::StatusCode, &'static str)> {
     let service = UserService::new(state);
-    let response = service.get_claims(&user_id).await.map_err(|e| {
+    let response = service.get_claims(&user_id, tq.tenant_id).await.map_err(|e| {
         match e {
             crate::error::IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found"),
             _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),

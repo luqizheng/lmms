@@ -410,11 +410,13 @@ impl UserService {
         Ok((items, total.0, truncated))
     }
 
-    pub async fn get_claims(&self, user_id: &str) -> Result<UserClaimsResponse, IamError> {
+    pub async fn get_claims(&self, user_id: &str, tenant_id: i64) -> Result<UserClaimsResponse, IamError> {
+        let tid = tenant_id as u64;
         let user: Option<(String, String, Option<String>, Option<String>, String)> = sqlx::query_as(
-            "SELECT id, username, email, phone, nickname FROM iam_users WHERE id = ? AND deleted_at IS NULL AND status = 'active'"
+            "SELECT id, username, email, phone, nickname FROM iam_users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL AND status = 'active'"
         )
         .bind(user_id)
+        .bind(tid)
         .fetch_optional(&self.state.db)
         .await?;
 
@@ -424,16 +426,18 @@ impl UserService {
         };
 
         let roles: Vec<String> = sqlx::query_scalar(
-            "SELECT r.code FROM iam_roles r JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.deleted_at IS NULL"
+            "SELECT r.code FROM iam_roles r JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.tenant_id = ? AND r.deleted_at IS NULL"
         )
         .bind(user_id)
+        .bind(tid)
         .fetch_all(&self.state.db)
         .await?;
 
         let permissions: Vec<String> = sqlx::query_scalar(
-            "SELECT p.code FROM iam_permissions p JOIN iam_role_permissions rp ON p.id = rp.permission_id JOIN iam_user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.deleted_at IS NULL"
+            "SELECT p.code FROM iam_permissions p JOIN iam_role_permissions rp ON p.id = rp.permission_id JOIN iam_user_roles ur ON rp.role_id = ur.role_id JOIN iam_roles r ON ur.role_id = r.id WHERE ur.user_id = ? AND r.tenant_id = ? AND p.deleted_at IS NULL"
         )
         .bind(user_id)
+        .bind(tid)
         .fetch_all(&self.state.db)
         .await?;
 
