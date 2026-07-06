@@ -1,5 +1,5 @@
 use file_service::models::{
-    UploadFileMeta, 
+    UploadFileMeta,
     QueryFiles,
     CreatePresignUrl,
 };
@@ -9,7 +9,7 @@ fn upload_file_meta_serialization() {
     let meta = UploadFileMeta {
         filename: "test.txt".to_string(),
         content_type: Some("text/plain".to_string()),
-        tenant_id: Some("tenant-123".to_string()),
+        tenant_id: Some(123),
         user_id: Some("user-456".to_string()),
         is_temporary: Some(false),
         expires_in_seconds: None,
@@ -52,14 +52,14 @@ fn query_files_defaults() {
 #[test]
 fn query_files_with_filters() {
     let query = QueryFiles {
-        tenant_id: Some("tenant-123".to_string()),
+        tenant_id: Some("123".to_string()),
         user_id: Some("user-456".to_string()),
         filename: Some("report".to_string()),
         page: Some(1),
         size: Some(10),
     };
 
-    assert_eq!(query.tenant_id, Some("tenant-123".to_string()));
+    assert_eq!(query.tenant_id, Some("123".to_string()));
     assert_eq!(query.size, Some(10));
 }
 

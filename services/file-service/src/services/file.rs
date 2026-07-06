@@ -64,6 +64,7 @@ impl FileService {
         Ok(info)
     }
 
+    // check-tenant-scope: delegated (and_tenant applied inside get_file_info)
     pub async fn download(&self, id: &str, scope: &TenantScope) -> AppResult<Bytes> {
         let info = self.get_file_info(id, scope).await?;
 
@@ -76,6 +77,7 @@ impl FileService {
         ObjectStore::get(&*self.storage, &info.storage_path).await
     }
 
+    // check-tenant-scope: delegated (and_tenant applied inside delete_file_info)
     pub async fn delete(&self, id: &str, scope: &TenantScope) -> AppResult<()> {
         let info = self.get_file_info(id, scope).await?;
 
@@ -85,6 +87,7 @@ impl FileService {
         Ok(())
     }
 
+    // check-tenant-scope: delegated (and_tenant applied inside get_file_info)
     pub async fn create_presign_url(&self, req: CreatePresignUrl, scope: &TenantScope) -> AppResult<PresignUrlResponse> {
         let _info = self.get_file_info(&req.file_id, scope).await?;
 

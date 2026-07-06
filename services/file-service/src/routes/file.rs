@@ -6,6 +6,7 @@ use axum::{
 use crate::models::file_info::{FileInfo, PagedFiles, QueryFiles, UploadFileMeta};
 use crate::routes::AppState;
 use bytes::Bytes;
+use jwt_ctx::TenantScope;
 
 pub fn routes(state: AppState) -> axum::Router {
     axum::Router::new()
@@ -32,8 +33,10 @@ pub fn routes(state: AppState) -> axum::Router {
     ),
     tag = "file"
 )]
+// check-tenant-scope: delegated (tenant_id from scope applied by service::upload)
 pub async fn upload_file(
     State(state): State<AppState>,
+    scope: TenantScope,
     mut multipart: Multipart,
 ) -> Result<Json<FileInfo>, (StatusCode, &'static str)> {
     let mut meta: Option<UploadFileMeta> = None;
@@ -72,7 +75,7 @@ pub async fn upload_file(
     let meta = meta.ok_or((StatusCode::BAD_REQUEST, "missing metadata field"))?;
     let data = data.ok_or((StatusCode::BAD_REQUEST, "missing file field"))?;
 
-    let info = state.upload(data, meta).await.map_err(|e| {
+    let info = state.upload(data, meta, &scope).await.map_err(|e| {
         if e.code() == "FILE_UPLOAD_2002" {
             (StatusCode::PAYLOAD_TOO_LARGE, "file too large")
         } else {
@@ -91,11 +94,13 @@ pub async fn upload_file(
     ),
     tag = "file"
 )]
+// check-tenant-scope: delegated (TenantScope applied by service::query_files)
 pub async fn query_files(
     State(state): State<AppState>,
     Query(query): Query<QueryFiles>,
+    scope: TenantScope,
 ) -> Result<Json<PagedFiles>, (StatusCode, &'static str)> {
-    let result = state.query_files(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    let result = state.query_files(query, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
     Ok(Json(result))
 }
 
@@ -109,23 +114,25 @@ pub async fn query_files(
     ),
     tag = "file"
 )]
+// check-tenant-scope: delegated (TenantScope applied by service::download)
 pub async fn download_file(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    scope: TenantScope,
 ) -> Result<(axum::http::HeaderMap, Vec<u8>), (StatusCode, &'static str)> {
-    let data = state.download(&id).await.map_err(|e| {
+    let data = state.download(&id, &scope).await.map_err(|e| {
         if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "download failed") }
     })?;
-    
-    let info = state.get_file_info(&id).await.map_err(|e| {
+
+    let info = state.get_file_info(&id, &scope).await.map_err(|e| {
         if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get file info failed") }
     })?;
-    
+
     let content_type = info.content_type.clone().unwrap_or_else(|| "application/octet-stream".to_string());
-    
+
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(axum::http::header::CONTENT_TYPE, content_type.parse().unwrap());
-    
+
     Ok((headers, data.to_vec()))
 }
 
@@ -139,11 +146,13 @@ pub async fn download_file(
     ),
     tag = "file"
 )]
+// check-tenant-scope: delegated (TenantScope applied by service::delete)
 pub async fn delete_file(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    scope: TenantScope,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
-    state.delete(&id).await.map_err(|e| {
+    state.delete(&id, &scope).await.map_err(|e| {
         if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "delete failed") }
     })?;
     Ok(Json(serde_json::json!({ "success": true })))
@@ -159,11 +168,13 @@ pub async fn delete_file(
     ),
     tag = "file"
 )]
+// check-tenant-scope: delegated (TenantScope applied by service::get_file_info)
 pub async fn get_file_info(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    scope: TenantScope,
 ) -> Result<Json<FileInfo>, (StatusCode, &'static str)> {
-    let info = state.get_file_info(&id).await.map_err(|e| {
+    let info = state.get_file_info(&id, &scope).await.map_err(|e| {
         if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get file info failed") }
     })?;
     Ok(Json(info))
