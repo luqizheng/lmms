@@ -6,7 +6,7 @@ use axum::{
     Json as AxumJson,
 };
 use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse, CreateUserRequest, UserResponse}, service::AuthService, error::IamError};
-use jwt_ctx::Principal;
+use jwt_ctx::{Principal, TenantScope};
 use sqlx;
 use serde_json;
 
@@ -203,8 +203,9 @@ async fn register(
     }
 
     let service = crate::service::UserService::new(state);
+    let scope = TenantScope::Single(1);
     let response = service
-        .create(req, 1i64)
+        .create(req, &scope)
         .await
         .map_err(|e| {
             tracing::error!("create user failed: {:?}", e);

@@ -11,6 +11,7 @@ use crate::{
     service::UserService,
     state::AppState,
 };
+use jwt_ctx::TenantScope;
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct TenantIdQuery {
@@ -39,8 +40,9 @@ pub async fn list_users_by_role(
     Query(tq): Query<TenantIdQuery>,
 ) -> Result<Json<UserIdListResponse>, (axum::http::StatusCode, String)> {
     let svc = UserService::new(state);
+    let scope = TenantScope::Single(tq.tenant_id);
     let (items, total, truncated) = svc
-        .list_by_role(&role_id, q.page, q.size, tq.tenant_id)
+        .list_by_role(&role_id, q.page, q.size, &scope)
         .await
         .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string()))?;
     Ok(Json(UserIdListResponse {
@@ -74,8 +76,9 @@ pub async fn list_users_by_dept(
     Query(tq): Query<TenantIdQuery>,
 ) -> Result<Json<UserIdListResponse>, (axum::http::StatusCode, String)> {
     let svc = UserService::new(state);
+    let scope = TenantScope::Single(tq.tenant_id);
     let (items, total, truncated) = svc
-        .list_by_dept(&dept_id, q.page, q.size, tq.tenant_id)
+        .list_by_dept(&dept_id, q.page, q.size, &scope)
         .await
         .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string()))?;
     Ok(Json(UserIdListResponse {
