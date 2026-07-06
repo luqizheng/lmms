@@ -1,0 +1,99 @@
+# 01. 快速上手
+
+> **目标**：15 分钟内把基础设施 + 至少一个服务跑起来。
+> 新人 / 新 AI 实例**从这里开始**。
+
+---
+
+## 1.1 前置依赖
+
+| 工具 | 版本 | 用途 |
+|------|------|------|
+| Docker Desktop | 24+ | 跑 MySQL / Redis / Consul / 可观测性栈 |
+| Rust toolchain | 1.96+（`rustup`） | 编译所有 Rust 服务 |
+| Node.js | 18+ | 跑 CI 门禁脚本与 E2E 驱动 |
+| pnpm | 8+ | 管理 E2E workspace |
+
+> **关于本地 `cargo` 编译**：本机可能缺 `cc` 链接器或 musl target。Rust 测试统一走容器 `node scripts/run-tests-docker.js <svc>`，避免折腾本地 toolchain。
+
+---
+
+## 1.2 首次环境准备
+
+```bash
+# 1. 克隆并安装 workspace 依赖
+git clone <repo-url> coder-micro-services
+cd coder-micro-services
+pnpm install
+
+# 2. 启动基础设施（MySQL / Redis / Consul）
+docker compose -f infrastructure/docker-compose.yml up -d
+
+# 3. （可选）启动可观测性 overlay
+scripts/start-observability.sh
+
+# 4. 校验基础设施健康
+docker ps --filter "network=superpowers"
+# 应看到：8 个业务服务 + consul + redis + mysql 全部 UP
+```
+
+---
+
+## 1.3 跑一个服务
+
+**两种方式**：
+
+### A. 本地 `cargo run`（最常用，调试友好）
+
+```bash
+cd services/iam-service
+
+# 跑 cargo 测试（用 docker，无需本地 cc 链接器）
+node scripts/run-tests-docker.js iam-service
+
+# 启动服务
+cargo run --bin iam-service
+# 监听 0.0.0.0:8080（`SERVER_PORT` 默认值）
+# Swagger UI：http://localhost:8080/swagger-ui（需 SWAGGER_ENABLED=true）
+```
+
+### B. docker compose 全栈跑（接近生产）
+
+```bash
+docker compose -f infrastructure/docker-compose-infra.yml up -d
+docker compose -f infrastructure/docker-compose-services.yml up -d
+
+# 服务在 mesh 里：内端口 :180xx + sidecar 外端口 :908x
+# 浏览器走 api-gateway：http://localhost:3000/v1/iam/health
+# Swagger UI 直连各服务，端口见 [02 §2.5](./02-architecture.md#25-swagger-ui-覆盖)
+```
+
+---
+
+## 1.4 跑端到端测试
+
+```bash
+# 冒烟子集 — 2 分钟
+cd tests/e2e
+pnpm install
+pnpm test:smoke
+
+# 全量 API 测试 — 约 5 分钟
+pnpm test:api
+
+# 全量 UI 测试 — 约 10 分钟（需要 frontend 容器）
+docker compose -f infrastructure/docker-compose.yml up -d frontend
+pnpm test:ui
+```
+
+---
+
+## 1.5 下一步
+
+| 想做什么 | 跳到 |
+|---------|------|
+| 理解服务怎么串起来 | [02 架构总览](./02-architecture.md) |
+| 本地开发日常工作流 | [03 本地开发](./03-local-development.md) |
+| 写测试 | [04 测试](./04-testing.md) |
+| 看 AI Agent 怎么协作 | [09 AI 协作工作流](./09-ai-workflows.md) |
+| 跑挂了怎么查 | [10 故障排查](./10-troubleshooting.md) |

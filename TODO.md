@@ -349,7 +349,42 @@
 
 **Phase 8 = ✅ CLOSED**
 
-### Phase 9 — 小问题清单（P3，零散收尾）
+### Phase 9 — Java 8 集成示例 + Audit SDK（P3，独立交付，**已完成并合并**）
+
+> Spec: `docs/superpowers/specs/2026-06-29-java8-webapi-demo-design.md`（Status: **Approved**）
+> Plan: `docs/superpowers/plans/2026-06-29-java8-webapi-demo-plan.md`
+> 范围：`sdk/java/audit-service-sdk`（手写 SDK 补缺位）+ `examples/java8-webapi/`（Spring Boot 2.1.18.RELEASE + Java 8 Demo，覆盖 6 类能力 + 1 业务工单示例）。
+> 完成：17 个 commit（2026-06-29 ~ 2026-06-30），30 个 unit/MockMvc 测试全过（audit-service-sdk 4 + demo-shared 4 + demo-webapp 22），`mvn -Pjava8 install` 成功。
+
+- [x] `sdk/java/audit-service-sdk` 骨架 + 模型 + 异常 + 入口（commit `bc82917`）
+- [x] `examples/java8-webapi` 父 POM + 目录骨架（commit `1850518`）
+- [x] `examples/java8-webapi` 配置内部 Maven 仓库 Reposilite（commit `a1f402b`）
+- [x] `demo-shared` 模块 ApiResponse/ErrorCode/PageReq（commit `b32ee1c`，`request_id` snake_case 修复 `e9de036`）
+- [x] `demo-webapp` 基础（POM + 启动 + 配置 + Bean + 全局异常）（commit `c74ecde`）
+- [x] Task 实体 + TaskStatus 枚举 + TaskRepository（commit `bbb24b8`）
+- [x] TaskService 业务主轴（CRUD + 状态机）（commit `a5d7066`）
+- [x] JwtAuthInterceptor + @RequiresPermission AOP（commit `36294c8`）
+- [x] TaskController + 3 MockMvc tests（commit `a153977`）
+- [x] AuthDemoController (me/jwks/refresh/revoke) + 2 tests（commit `c51b03d`）
+- [x] PermissionDemoController (public/internal/resource 3 场景) + 3 tests（commit `b0fd7fb`）
+- [x] AuditPublisher + AuditDemoController (3 端点) + 2 tests（commit `005c209`，TaskService 接入 `187f8c1`）
+- [x] ConfigPoller 5s 轮询 + ConfigDemoController (2 端点) + 1 test（commit `5cfb75d`）
+- [x] NotificationDemoController (task-done) + 1 test（commit `ac2039b`，ObjectMapper 化 `73b8c49`）
+- [x] FileDemoController (upload/download) + 2 tests（commit `0ee5623`，ObjectMapper 化 `73b8c49`）
+- [x] TaskService + AuditPublisher 接入（commit `187f8c1`）
+- [x] Task read endpoints 强制 TASK_VIEW 权限 + 1 test（commit `72261ba`）
+- [x] `scripts/demo.sh`（15 个 curl）+ README 跑通教程（commit `0c9fde7`）
+- [x] spec 状态从 Draft → Review 推到 Approved，TODO.md 收尾条目（commit `本次`）
+
+后续（spec §10 显式排除项，本次未做）：
+- audit-service-sdk 发布到内网 Maven 仓库（当前仅 install 到 `~/.m2`）
+- demo-webapp 加 Docker 镜像
+- token 自动刷新拦截器
+- 配置中心改 push / long-poll
+- audit 上报改异步队列
+- demo 集成 e2e（`tests/e2e` 加 java8-webapi 跑通套件）
+
+### Phase 10 — 小问题清单（P3，零散收尾）
 
 - [ ] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式）
 - [ ] `events.yaml` — **Phase 4 已落地**（`docs/superpowers/specs/2026-06-26-phase4-event-bus-design.md` + `contracts/codegen/gen-rust-events.js`），首批三事件 `iam.user.created`/`iam.user.deleted`/`iam.login.succeeded` 已 codegen + producer/consumer 闭环验证 live

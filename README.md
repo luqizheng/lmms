@@ -6,7 +6,7 @@
 
 A microservices architecture for coder platform, built with Rust.
 
-**Full documentation**: [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting.
+**Full documentation**: [`docs/user-manual/`](docs/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 
 **AI entry point**: [`docs/ai-context.md`](docs/ai-context.md) — service map, known pitfalls, common commands (read first when starting work in this repo).
 
@@ -135,7 +135,7 @@ requests_per_second = 5     # auth 端点严格
 burst = 10
 ```
 
-限流时返回 HTTP 429 + `Retry-After: 1`。详见 `docs/USER_MANUAL.md#7-rate-limiting`。
+限流时返回 HTTP 429 + `Retry-After: 1`。详见 [`docs/user-manual/07-rate-limiting.md`](docs/user-manual/07-rate-limiting.md)。
 
 ### 灰度发布
 
@@ -473,7 +473,7 @@ pnpm run docker:build
 
 | 场景 | 文档 |
 |------|------|
-| 我是新人 / 新 AI 实例 | [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) |
+| 我是新人 / 新 AI 实例 | [`docs/user-manual/`](docs/user-manual/) |
 | AI 协作者读取入口 | [`docs/ai-context.md`](docs/ai-context.md) |
 | 加路由 / 加迁移 / 新建 service | [`.agents/skills/`](.agents/skills/) |
 | E2E 测试 (smoke / data-driven) | [`docs/guides/testing.md`](docs/guides/testing.md) |

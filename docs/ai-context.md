@@ -164,7 +164,7 @@
 
 13. **网关限流返回 429 带 `Retry-After`** — 查 `infrastructure/config/api-gateway/rate-limits.toml` 看按路由的覆盖配置。默认 100 rps / 200 burst；auth 端点更严（`/v1/iam/auth/login` 5 rps / 10 burst）。要加新路由限流，往那个 TOML 追加并重启网关。
 
-13. **服务侧限流经 `common-ratelimit` 开启** — Redis 滑动窗口，跨副本共享。opt-in 模式见 `services/notification-service/src/rest.rs`。Redis 出错时 fail-open。与网关限流（P3.2 内存）不同。见 `libs/common-ratelimit/` 与 `docs/USER_MANUAL.md#7-rate-limiting`。
+13. **服务侧限流经 `common-ratelimit` 开启** — Redis 滑动窗口，跨副本共享。opt-in 模式见 `services/notification-service/src/rest.rs`。Redis 出错时 fail-open。与网关限流（P3.2 内存）不同。见 `libs/common-ratelimit/` 与 `docs/user-manual/07-rate-limiting.md`。
 
 14. **灰度通过 Consul 里的 `canary` tag** — Consul 中打了 `canary` tag 的实例经 Nginx `split_clients` 承接约 10% 流量。用 `?canary=1` query 参数或 `X-Canary: true` header 强制走 canary 测试。见 `docs/guides/canary-rollout.md`。
 
@@ -248,7 +248,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 
 - **要加路由？** → `.agents/skills/coder-add-route/SKILL.md`
 - **要加迁移？** → `.agents/skills/coder-migrate-db/SKILL.md`
-- **要新建服务？** → `.agents/skills/coder-new-service/SKILL.md`
+- **要新建服务？** → [`docs/guides/add-new-service.md`](guides/add-new-service.md)（端到端）+ `.agents/skills/coder-new-service/SKILL.md`（AI 脚手架细节）
 - **要改契约？** → 编辑 `contracts/*.yaml`，跑 `scripts/contracts-gen.js`
 - **要评审 plan？** → `.trae/skills/plan-eng-review/SKILL.md`
 - **要审计服务？** → `.trae/skills/coder-service-audit/SKILL.md`
@@ -256,9 +256,9 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 - **要某服务的约定？** → `services/<svc>/AGENTS.md`
 - **要调试请求链路？** → `docs/guides/otel-tracing.md` (Jaeger)
 - **要做灰度发布？** → `docs/guides/canary-rollout.md`
-- **要搭可观测性？** → `scripts/start-observability.sh` + `docs/USER_MANUAL.md#observability`
+- **要搭可观测性？** → `scripts/start-observability.sh` + `docs/user-manual/05-observability.md`
 - **要写/跑测试？** → `docs/guides/testing.md`
-- **要全局概览？** → `docs/USER_MANUAL.md` 或 `docs/ai-context.md`
+- **要全局概览？** → `docs/user-manual/` 或 `docs/ai-context.md`
 - **要知道接下来做什么？** → `docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 
 ---

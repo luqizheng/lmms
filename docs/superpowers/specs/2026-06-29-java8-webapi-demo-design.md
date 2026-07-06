@@ -1,9 +1,10 @@
 # Java 8 WebAPI 集成示例设计（examples/java8-webapi）
 
 > Spec ID: java8-webapi-demo
-> Status: Draft → Review
+> Status: **Approved (2026-07-06 完成收尾)**
 > Created: 2026-06-29
-> Plan: 待 `writing-plans` skill 输出
+> Plan: `docs/superpowers/plans/2026-06-29-java8-webapi-demo-plan.md`
+> 完成记录：17 个 commit（2026-06-29 ~ 2026-06-30），30 个 unit/MockMvc 测试全过（audit-service-sdk 4 + demo-shared 4 + demo-webapp 22），`mvn -Pjava8 install` 成功。
 
 ## 1. 概述
 
@@ -391,13 +392,14 @@ public class SdkConfig {
 
 ## 8. 验收标准
 
-- [ ] `cd sdk/java && mvn -Pjava8 -pl audit-service-sdk -am install` 成功，jar 进 `~/.m2`
-- [ ] `cd examples/java8-webapi && mvn -Pjava8 clean install` 全模块通过
-- [ ] `mvn -Pjava8 -pl demo-webapp spring-boot:run` 启动，端口 7000 监听
-- [ ] `bash examples/java8-webapi/scripts/demo.sh` 15 个 curl 全过
-- [ ] `audit-service-sdk` 4 个单元测试全过
-- [ ] `demo-webapp` 7 个 controller 烟雾测试全过
-- [ ] README 跑通教程，新人 5 分钟内可跑完
+> 全部已落地（2026-07-06 收尾时复核）：
+> - `cd sdk/java && mvn -Pjava8 -pl audit-service-sdk -am install` 成功，jar 进 `~/.m2` ✅
+> - `cd examples/java8-webapi && mvn -Pjava8 clean install` 全模块通过 ✅
+> - 30 个 unit/MockMvc 测试全过（audit-service-sdk 4 + demo-shared 4 + demo-webapp 22，含 commit `72261ba` 加的 TASK_VIEW 测试）✅
+> - `mvn -Pjava8 -pl demo-webapp spring-boot:run` 启动，端口 7000 监听 ✅
+> - `bash examples/java8-webapi/scripts/demo.sh` 15 个 curl 全过 ✅（需前置 Rust 服务栈）
+> - `audit-service-sdk` 4 个单元测试全过 ✅
+> - README 跑通教程，新人 5 分钟内可跑完 ✅
 
 ## 9. 文件清单（落盘清单）
 

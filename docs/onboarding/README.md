@@ -30,7 +30,7 @@
 
 | 主题 | 文档 |
 |------|------|
-| 全功能参考手册（英文） | [`docs/USER_MANUAL.md`](../USER_MANUAL.md) |
+| 全功能参考手册（中文，按章节拆分） | [`docs/user-manual/`](../user-manual/) |
 | API Gateway 路由配置 | [`docs/guides/api-gateway-routing.md`](../guides/api-gateway-routing.md) |
 | OpenTelemetry 跨服务追踪 | [`docs/guides/otel-tracing.md`](../guides/otel-tracing.md) |
 | 可观测性（Prometheus + Grafana + Jaeger） | [`docs/guides/observability.md`](../guides/observability.md) |

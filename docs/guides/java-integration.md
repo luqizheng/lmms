@@ -93,7 +93,7 @@
 ### 2.5 公共响应约定
 
 - 鉴权失败：`401`，body `{"code": "...", "message": "..."}`
-- 限流：`429` + `Retry-After: 1`（详见 `docs/USER_MANUAL.md` § 7）
+- 限流：`429` + `Retry-After: 1`（详见 `docs/user-manual/07-rate-limiting.md`）
 - 校验失败：`400` / `422`
 - 服务内部错误：`5xx`
 - 所有响应都会带 `X-Trace-Id: <32-hex>`，排障时把它放到 Jaeger UI 直接搜
@@ -295,7 +295,7 @@ if (resp.statusCode() == 429) {
 }
 ```
 
-详见 `docs/USER_MANUAL.md` § 7。
+详见 `docs/user-manual/07-rate-limiting.md`。
 
 ---
 
@@ -524,7 +524,7 @@ agent 会自动给 `java.net.http.HttpClient` / OkHttp / RestTemplate / WebClien
 | 登录 `415 Unsupported Media Type` | Content-Type 不是 `application/json` | 改成 JSON body，不要用 form-urlencoded |
 | 登录 `404 Not Found` | URL 用了旧的 `/api/v1/auth/login` 或 `/api/auth/login` | 改成 `/v1/iam/auth/login` |
 | 调业务接口 `401 Unauthorized` | token 未带 / 已过期 / 格式错 | 确保 `Authorization: Bearer <token>`；过期就 `/v1/iam/auth/refresh` |
-| `429 Too Many Requests` | 命中网关限流 | 看 `Retry-After`，退避后重试；详见 `docs/USER_MANUAL.md` § 7 |
+| `429 Too Many Requests` | 命中网关限流 | 看 `Retry-After`，退避后重试；详见 `docs/user-manual/07-rate-limiting.md` |
 | 调用偶发 `502 / 504` | 下游服务被 Consul 暂时摘除 | 加重试（指数退避，2–3 次） |
 | 想看完整调用链路 | — | 拿响应里的 `X-Trace-Id`，到 Jaeger UI（http://localhost:16686）搜 |
 | 想本地起完整平台联调 | — | `docker compose -f infrastructure/docker-compose.yml up -d`，详见 `README.md` 「快速开始」 |
@@ -591,7 +591,7 @@ node scripts/build-java-sdk-docker.js test -- -pl user-service-user-sdk -am
 ## 10. 参考
 
 - `README.md` — 平台总览与本地开发
-- `docs/USER_MANUAL.md` — 完整用户手册（§ 7 限流）
+- `docs/user-manual/` — 完整用户手册（含 § 07 限流）
 - `docs/guides/api-gateway-routing.md` — 网关路由配置详解
 - `docs/guides/observability.md` — 可观测性
 - `docs/guides/otel-tracing.md` — Java 应用接入 OTel 跨服务串联

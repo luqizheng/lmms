@@ -407,7 +407,7 @@ OTEL_BSP_MAX_BATCH_SIZE=500     # 单次最多 500 个 span
 
 - `docs/guides/otel-tracing.md` — OTel 详细配置
 - `docs/guides/canary-rollout.md` — 灰度发布 runbook
-- `docs/USER_MANUAL.md` § 5 — 速查参考
+- `docs/user-manual/05-observability.md` — 速查参考
 - `infrastructure/config/prometheus/prometheus.yml` — Prometheus 采集配置
 - `infrastructure/config/otel/collector.yaml` — OTel collector pipeline
 - `infrastructure/config/grafana/dashboards/gateway.json` — 看板 JSON
