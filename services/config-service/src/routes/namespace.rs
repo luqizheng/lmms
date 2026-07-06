@@ -1,4 +1,5 @@
 use axum::{extract::State, Json, extract::Path, extract::Query, http::StatusCode};
+use jwt_ctx::{Principal, TenantScope};
 use crate::models::namespace::{CreateNamespace, Namespace, PagedNamespaces, QueryNamespaces, UpdateNamespace};
 use crate::routes::AppState;
 
@@ -21,11 +22,14 @@ pub fn routes(state: AppState) -> axum::Router {
     ),
     tag = "namespace"
 )]
+// check-tenant-scope: delegated (tenant_id from scope applied by service::create_namespace)
 pub async fn create_namespace(
     State(state): State<AppState>,
+    _principal: Principal,
+    scope: TenantScope,
     Json(ns): Json<CreateNamespace>,
 ) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
-    let result = state.create_namespace(ns).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
+    let result = state.create_namespace(ns, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
     Ok(Json(result))
 }
 
@@ -38,11 +42,13 @@ pub async fn create_namespace(
     ),
     tag = "namespace"
 )]
+// check-tenant-scope: delegated (and_tenant applied by service::query_namespaces)
 pub async fn query_namespaces(
     State(state): State<AppState>,
     Query(query): Query<QueryNamespaces>,
+    scope: TenantScope,
 ) -> Result<Json<PagedNamespaces>, (StatusCode, &'static str)> {
-    let result = state.query_namespaces(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    let result = state.query_namespaces(query, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
     Ok(Json(result))
 }
 
@@ -56,11 +62,13 @@ pub async fn query_namespaces(
     ),
     tag = "namespace"
 )]
+// check-tenant-scope: delegated (where_id + and_tenant applied by service::get_namespace)
 pub async fn get_namespace(
     State(state): State<AppState>,
+    scope: TenantScope,
     Path(id): Path<String>,
 ) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
-    let result = state.get_namespace(&id).await.map_err(|e| {
+    let result = state.get_namespace(&id, &scope).await.map_err(|e| {
         if e.code() == "CFG_NS_2001" { (StatusCode::NOT_FOUND, "namespace not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get failed") }
     })?;
     Ok(Json(result))
@@ -77,12 +85,15 @@ pub async fn get_namespace(
     ),
     tag = "namespace"
 )]
+// check-tenant-scope: delegated (where_id + and_tenant applied by service::update_namespace)
 pub async fn update_namespace(
     State(state): State<AppState>,
+    _principal: Principal,
+    scope: TenantScope,
     Path(id): Path<String>,
     Json(update): Json<UpdateNamespace>,
 ) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
-    let result = state.update_namespace(&id, update).await.map_err(|e| {
+    let result = state.update_namespace(&id, update, &scope).await.map_err(|e| {
         if e.code() == "CFG_NS_2001" { (StatusCode::NOT_FOUND, "namespace not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "update failed") }
     })?;
     Ok(Json(result))
@@ -98,11 +109,13 @@ pub async fn update_namespace(
     ),
     tag = "namespace"
 )]
+// check-tenant-scope: delegated (where_id + and_tenant applied by service::delete_namespace)
 pub async fn delete_namespace(
     State(state): State<AppState>,
+    scope: TenantScope,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
-    state.delete_namespace(&id).await.map_err(|e| {
+    state.delete_namespace(&id, &scope).await.map_err(|e| {
         if e.code() == "CFG_NS_2001" { (StatusCode::NOT_FOUND, "namespace not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "delete failed") }
     })?;
     Ok(Json(serde_json::json!({ "success": true })))

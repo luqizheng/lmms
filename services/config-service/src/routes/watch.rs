@@ -1,4 +1,5 @@
 use axum::{extract::State, extract::Query, http::StatusCode};
+use jwt_ctx::TenantScope;
 use crate::routes::AppState;
 use serde::Deserialize;
 use std::time::Duration;
@@ -25,15 +26,17 @@ pub struct WatchParams {
     ),
     tag = "watch"
 )]
+// check-tenant-scope: delegated (long-poll stub, no DB query — auth enforced via TenantScope extractor only)
 pub async fn watch_config(
     State(_state): State<AppState>,
     Query(params): Query<WatchParams>,
+    _scope: TenantScope,
 ) -> Result<axum::response::Json<serde_json::Value>, (StatusCode, &'static str)> {
     let namespace_id = params.namespace_id.unwrap_or_default();
     let timeout = params.timeout.unwrap_or(30);
-    
+
     tokio::time::sleep(Duration::from_secs(timeout)).await;
-    
+
     Ok(axum::response::Json(serde_json::json!({
         "namespace_id": namespace_id,
         "changed": false,

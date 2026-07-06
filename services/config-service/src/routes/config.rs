@@ -1,5 +1,5 @@
 use axum::{extract::State, Json, extract::Path, extract::Query, http::StatusCode};
-use jwt_ctx::Principal;
+use jwt_ctx::{Principal, TenantScope};
 use crate::models::config_item::{ConfigItem, CreateConfigItem, PagedConfigItems, QueryConfigItems, UpdateConfigItem};
 use crate::routes::AppState;
 
@@ -38,12 +38,14 @@ pub fn routes(state: AppState) -> axum::Router {
     ),
     tag = "config-item"
 )]
+// check-tenant-scope: delegated (namespace ownership enforced by service::create_config_item via where_id+and_tenant)
 pub async fn create_config_item(
     State(state): State<AppState>,
     principal: Principal,
+    scope: TenantScope,
     Json(item): Json<CreateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let mut result = state.create_config_item(item).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
+    let mut result = state.create_config_item(item, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
     apply_reveal_policy(&mut result, &principal);
     Ok(Json(result))
 }
@@ -57,12 +59,14 @@ pub async fn create_config_item(
     ),
     tag = "config-item"
 )]
+// check-tenant-scope: delegated (JOIN cfg_namespaces tenant filter applied by service::query_config_items)
 pub async fn query_config_items(
     State(state): State<AppState>,
     Query(query): Query<QueryConfigItems>,
     principal: Principal,
+    scope: TenantScope,
 ) -> Result<Json<PagedConfigItems>, (StatusCode, &'static str)> {
-    let mut result = state.query_config_items(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    let mut result = state.query_config_items(query, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
     for item in result.items.iter_mut() {
         apply_reveal_policy(item, &principal);
     }
@@ -79,12 +83,14 @@ pub async fn query_config_items(
     ),
     tag = "config-item"
 )]
+// check-tenant-scope: delegated (JOIN cfg_namespaces tenant filter applied by service::get_config_item)
 pub async fn get_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
     principal: Principal,
+    scope: TenantScope,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let mut result = state.get_config_item(&id).await.map_err(|e| {
+    let mut result = state.get_config_item(&id, &scope).await.map_err(|e| {
         if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get failed") }
     })?;
     apply_reveal_policy(&mut result, &principal);
@@ -102,13 +108,15 @@ pub async fn get_config_item(
     ),
     tag = "config-item"
 )]
+// check-tenant-scope: delegated (JOIN cfg_namespaces tenant filter applied by service::update_config_item)
 pub async fn update_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
     principal: Principal,
+    scope: TenantScope,
     Json(update): Json<UpdateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let mut result = state.update_config_item(&id, update).await.map_err(|e| {
+    let mut result = state.update_config_item(&id, update, &scope).await.map_err(|e| {
         if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "update failed") }
     })?;
     apply_reveal_policy(&mut result, &principal);
@@ -125,11 +133,13 @@ pub async fn update_config_item(
     ),
     tag = "config-item"
 )]
+// check-tenant-scope: delegated (JOIN cfg_namespaces tenant filter applied by service::delete_config_item)
 pub async fn delete_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    scope: TenantScope,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
-    state.delete_config_item(&id).await.map_err(|e| {
+    state.delete_config_item(&id, &scope).await.map_err(|e| {
         if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "delete failed") }
     })?;
     Ok(Json(serde_json::json!({ "success": true })))
@@ -144,10 +154,12 @@ pub async fn delete_config_item(
     ),
     tag = "config-item"
 )]
+// check-tenant-scope: delegated (JOIN cfg_namespaces tenant filter applied by service::query_config_items)
 pub async fn export_config(
     State(state): State<AppState>,
     Path(namespace_id): Path<String>,
     principal: Principal,
+    scope: TenantScope,
 ) -> Result<String, (StatusCode, &'static str)> {
     let query = QueryConfigItems {
         namespace_id: Some(namespace_id),
@@ -155,14 +167,14 @@ pub async fn export_config(
         size: Some(10000),
         key: None,
     };
-    let mut result = state.query_config_items(query).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "export failed"))?;
-    
+    let mut result = state.query_config_items(query, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "export failed"))?;
+
     let mut data = std::collections::HashMap::new();
     for item in result.items.iter_mut() {
         apply_reveal_policy(item, &principal);
         data.insert(item.key.clone(), item.value.clone());
     }
-    
+
     Ok(serde_json::to_string_pretty(&data).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "serialize failed"))?)
 }
 
@@ -177,14 +189,17 @@ pub async fn export_config(
     ),
     tag = "config-item"
 )]
+// check-tenant-scope: delegated (namespace ownership enforced by service::create_config_item via where_id+and_tenant)
 pub async fn import_config(
     State(state): State<AppState>,
+    _principal: Principal,
+    scope: TenantScope,
     Path(namespace_id): Path<String>,
     body: String,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
     let configs: std::collections::HashMap<String, String> = serde_json::from_str(&body).map_err(|_| (StatusCode::BAD_REQUEST, "invalid json"))?;
     let count = configs.len();
-    
+
     for (key, value) in configs {
         let item = CreateConfigItem {
             namespace_id: namespace_id.clone(),
@@ -194,8 +209,8 @@ pub async fn import_config(
             is_secret: false,
             description: None,
         };
-        let _ = state.create_config_item(item).await;
+        let _ = state.create_config_item(item, &scope).await;
     }
-    
+
     Ok(Json(serde_json::json!({ "success": true, "count": count })))
 }
