@@ -420,6 +420,7 @@ components:
       type: object
       required:
       - id
+      - tenant_id
       - app
       - env
       - created_at
@@ -442,6 +443,10 @@ components:
           type:
           - string
           - 'null'
+        tenant_id:
+          type: integer
+          format: int64
+          minimum: 0
         updated_at:
           type: string
           format: date-time
