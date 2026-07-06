@@ -131,7 +131,7 @@ impl UserService {
         );
         qb.where_id(&user_id);
         qb.and_tenant(scope);
-        let user: UserRow = qb.build_query_as::<User>().fetch_one(&self.state.db).await?;
+        let user: UserRow = qb.build_query_as::<UserRow>().fetch_one(&self.state.db).await?;
 
         Ok(self.to_response(&user))
     }
