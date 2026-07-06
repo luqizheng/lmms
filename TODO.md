@@ -93,12 +93,12 @@
 > - **B = 韧性三件套**：spec 已就绪 + review 结论已 bake，见
 >   `docs/superpowers/specs/2026-06-28-phase5-resilience-triad-design.md`，待 writing-plans。
 
-- [ ] **A — mTLS / 服务网格**（spec + plan + eng-review 已就绪，待实施）
+- [x] **A — mTLS / 服务网格**（spec + plan + eng-review 已就绪，**已完成**）
   > Spec: `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md`
   > Plan: `docs/superpowers/plans/2026-07-03-phase5a-consul-connect-mtls.md`
   > 选型：Consul Connect（复用现有 Consul 1.15，完整 mesh：mTLS + 意图 + 可观测性）
   > Review 决策：1A gateway permissive / 3A internal 端点 query param tenant_id / 4A sidecar 超时兜底 / 5A consul-init 容器
-  - [ ] 实施 Phase 5-A plan（5 个 Task）
+  - [x] 实施 Phase 5-A plan（5 个 Task，commits `f5887b1` / `6847007` / `947759f` / `89294b2` / `fa17c14` / `90289a2` / `1f06dd5` / `d8da3bf`）
   - [ ] **5A-fu1** mesh metrics Grafana 面板：建面板展示 `envoy.cluster.upstream_cx_connect_fail`（mTLS 握手失败）、`consul.connect.intention_deny`（意图拒绝）、`envoy.server.live`（sidecar 存活）、`envoy.process.virtual_memory`（sidecar 内存）。数据已在 Prometheus（consul_sd 自动采集 sidecar），缺可视化。可导入 Consul 官方 Grafana dashboard 模板裁剪。~半天工作量。依赖：Phase 5-A 完成。
 
 - [ ] **B — 韧性三件套**（spec 已就绪，**核心已完成并合并**，仅剩 B-fu1）
