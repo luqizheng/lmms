@@ -9,6 +9,7 @@
 
 use bytes::Bytes;
 use common_http::{ResilientClient, ResilientError};
+use jwt_ctx::TenantScope;
 use reqwest::{header::HeaderMap, Method};
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -49,8 +50,9 @@ impl IamMemberClient {
     pub async fn expand_scopes(
         &self,
         scopes: &[(ScopeType, String)],
-        tenant_id: i64,
+        scope: &TenantScope,
     ) -> Result<HashSet<String>, AppError> {
+        let tenant_id = scope.tenant_id().unwrap_or(1);
         let mut out: HashSet<String> = HashSet::new();
         for (t, id) in scopes {
             match t {
