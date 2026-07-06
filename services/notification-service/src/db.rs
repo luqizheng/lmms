@@ -2,10 +2,12 @@ use crate::error::{AppError, AppResult};
 use crate::iam_client::IamMemberClient;
 use crate::models::*;
 use chrono::{DateTime, Utc};
+use common_db::WithTenantScope;
 use common_event::events::NotificationAnnouncementPublished;
 use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use jwt_ctx::TenantScope;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
-use sqlx::Row;
+use sqlx::{QueryBuilder, Row};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -199,10 +201,10 @@ impl Db {
     ///
     /// ```text
     /// tx1
-    ///   SELECT FOR UPDATE → status guard
+    ///   SELECT FOR UPDATE → status guard  (QueryBuilder + where_id + and_tenant)
     ///   COMMIT    （释放锁后再跨服务）
     /// tx-out
-    ///   iam_client.expand_scopes(...) → HashSet<user_id>
+    ///   iam_client.expand_scopes(..., scope) → HashSet<user_id>
     /// tx2
     ///   SELECT status FOR UPDATE → 再次 guard（处理并发 publish）
     ///   INSERT IGNORE deliveries（每 user_id，inline 在 tx 中）
@@ -211,20 +213,25 @@ impl Db {
     ///   COMMIT
     /// ```
     /// 不在此处 hub.publish —— 推送统一由 announcement consumer 完成（避免双推）。
+    /// 点查询 TenantScope 过滤（Phase 8.3-fu2）：CrossTenant 时 and_tenant no-op（运维跨租户支持）。
     pub async fn publish_announcement(
         &self,
         ann_id: u64,
         iam_client: &IamMemberClient,
-        tenant_id: i64,
+        scope: &TenantScope,
     ) -> AppResult<Vec<String>> {
         let (title, pinned, popover) = {
             let mut tx = self.pool.begin().await?;
-            let row: Option<(String, String, i8, i8)> = sqlx::query_as(
-                "SELECT title, status, pinned, popover FROM ntf_announcements WHERE id=? FOR UPDATE",
-            )
-            .bind(ann_id)
-            .fetch_optional(&mut *tx)
-            .await?;
+            let mut qb = QueryBuilder::new(
+                "SELECT title, status, pinned, popover FROM ntf_announcements",
+            );
+            qb.where_id(ann_id);
+            qb.and_tenant(scope);
+            qb.push(" FOR UPDATE");
+            let row: Option<(String, String, i8, i8)> =
+                qb.build_query_as::<(String, String, i8, i8)>()
+                    .fetch_optional(&mut *tx)
+                    .await?;
             match row {
                 Some((title, status, pinned, popover)) => {
                     if status == "published" || status == "revoked" {
@@ -245,17 +252,19 @@ impl Db {
         let user_ids: HashSet<String> = if scopes.is_empty() {
             HashSet::new()
         } else {
-            iam_client.expand_scopes(&scopes, tenant_id).await?
+            iam_client.expand_scopes(&scopes, scope).await?
         };
 
         let user_ids_vec: Vec<String> = user_ids.iter().cloned().collect();
         let mut tx = self.pool.begin().await?;
-        let (status_again,): (String,) = sqlx::query_as(
-            "SELECT status FROM ntf_announcements WHERE id=? FOR UPDATE",
-        )
-        .bind(ann_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        let mut qb = QueryBuilder::new("SELECT status FROM ntf_announcements");
+        qb.where_id(ann_id);
+        qb.and_tenant(scope);
+        qb.push(" FOR UPDATE");
+        let (status_again,): (String,) = qb
+            .build_query_as::<(String,)>()
+            .fetch_one(&mut *tx)
+            .await?;
         if status_again == "published" || status_again == "revoked" {
             return Ok(user_ids_vec);
         }
@@ -269,8 +278,10 @@ impl Db {
             .execute(&mut *tx)
             .await?;
         }
-        sqlx::query("UPDATE ntf_announcements SET status='published' WHERE id=?")
-            .bind(ann_id)
+        let mut qb = QueryBuilder::new("UPDATE ntf_announcements SET status='published'");
+        qb.where_id(ann_id);
+        qb.and_tenant(scope);
+        qb.build()
             .execute(&mut *tx)
             .await?;
         let mut envelope = Envelope::new(
