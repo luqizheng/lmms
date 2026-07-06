@@ -95,6 +95,7 @@ pub async fn create(
     ),
     tag = "announcements"
 )]
+// check-tenant-scope: delegated
 pub async fn publish(
     State(s): State<RestState>,
     me: Identity,
