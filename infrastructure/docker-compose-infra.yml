@@ -3,7 +3,8 @@
 # and resource limits are applied via override/prod compose files.
 services:
   consul:
-    image: consul:1.15
+    image: hashicorp/consul:2.0.1
+    hostname: consul
     ports:
       - "8500:8500"
       - "8502:8502"
@@ -18,7 +19,7 @@ services:
     networks:
       - superpowers
   consul-init:
-    image: consul:1.15
+    image: hashicorp/consul:2.0.1
     depends_on:
       consul:
         condition: service_healthy
@@ -32,6 +33,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    hostname: ${REDIS_HOST}
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_PORT: ${REDIS_PORT}
@@ -48,6 +50,7 @@ services:
 
   mysql:
     image: mysql:8.0
+    hostname: ${MYSQL_HOST}
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}

@@ -15,12 +15,9 @@ async fn main() -> anyhow::Result<()> {
     info!("ntf-outbox-publisher starting");
 
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        let host = std::env::var("DATABASE_HOST").unwrap_or_else(|_| "127.0.0.1".into());
-        let port = std::env::var("DATABASE_PORT").unwrap_or_else(|_| "3306".into());
-        let user = std::env::var("DATABASE_USER").unwrap_or_else(|_| "root".into());
-        let pass = std::env::var("DATABASE_PASSWORD").unwrap_or_else(|_| "rootpass".into());
-        let name = std::env::var("DATABASE_NAME").unwrap_or_else(|_| "superpowers".into());
-        format!("mysql://{user}:{pass}@{host}:{port}/{name}")
+        // ponytail: dev convenience only — compose + AGENTS.md require DATABASE_URL.
+        // ponytail: 移除旧的 DATABASE_HOST/PORT/USER/PASSWORD/NAME fallback,统一用 DATABASE_URL
+        "mysql://root:rootpass@127.0.0.1:3306/superpowers".to_string()
     });
     let event_bus_url = std::env::var("EVENT_BUS_URL")
         .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());

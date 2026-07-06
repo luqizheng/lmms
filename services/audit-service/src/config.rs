@@ -22,12 +22,9 @@ pub struct AppConfig {
 
 fn default_database_url() -> String {
     std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        let host = std::env::var("DATABASE_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-        let port = std::env::var("DATABASE_PORT").unwrap_or_else(|_| "3306".to_string());
-        let user = std::env::var("DATABASE_USER").unwrap_or_else(|_| "root".to_string());
-        let password = std::env::var("DATABASE_PASSWORD").unwrap_or_else(|_| "rootpass".to_string());
-        let name = std::env::var("DATABASE_NAME").unwrap_or_else(|_| "superpowers".to_string());
-        format!("mysql://{user}:{password}@{host}:{port}/{name}")
+        // ponytail: dev convenience only — compose + AGENTS.md require DATABASE_URL.
+        // ponytail: 移除旧的 DATABASE_HOST/PORT/USER/PASSWORD/NAME fallback,统一用 DATABASE_URL
+        "mysql://root:rootpass@127.0.0.1:3306/superpowers".to_string()
     })
 }
 

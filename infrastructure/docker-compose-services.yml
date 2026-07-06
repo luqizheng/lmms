@@ -95,14 +95,16 @@ services:
 
   # ─────────── token-service + sidecar ───────────
   token-service-sidecar:
-    image: consul:1.15
+    image: hashicorp/consul-dataplane:2.0.1
     ports:
       - "9082:9082"
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
-    command: >
-      sh -c "until consul connect proxy -register -service token-service -service-addr 127.0.0.1:18082 -listen ':9082'
-      -upstream iam-service:9081; do sleep 2; done"
+      DP_CONSUL_ADDRESSES: "${CONSUL_HOST}:${CONSUL_GRPC_PORT}"
+      DP_SERVICE_NODE_NAME: "token-service-sidecar"
+      DP_PROXY_SERVICE_ID: "token-service-1"
+    # command: >
+    #   sh -c "until consul connect proxy -register -service token-service -service-addr 127.0.0.1:18082 -listen ':9082'
+    #   -upstream iam-service:9081; do sleep 2; done"
     depends_on:
       consul:
         condition: service_healthy
@@ -115,24 +117,13 @@ services:
       context: ..
       dockerfile: services/token-service/Dockerfile
     network_mode: "service:token-service-sidecar"
-    volumes:
-      - ../docker-example/secrets:/app/keys
-      - ../docker-example/config/token-service:/app/config/token-service
-      - ../services/token-service/config:/app/config
+    # NOTE: services/token-service/Dockerfile already bakes
+    #   /app/keys/{private,public}.pem and /app/config/config.yaml
+    # into the image. Do NOT mount over them — empty binds shadow them.
+    # Env overrides go through prefix TOKEN (see common-config Loader,
+    # main.rs: Loader::new("TOKEN").separator("_")).
     environment:
-      SERVER_HOST: "127.0.0.1"
-      SERVER_PORT: "18082"
-      REDIS_URL: "redis://redis:6379"
-      DATABASE_HOST: ${MYSQL_HOST}
-      DATABASE_PORT: ${MYSQL_PORT}
-      DATABASE_USER: ${MYSQL_USER}
-      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
-      DATABASE_NAME: ${MYSQL_DATABASE}
-      TS_JWT_PRIVATE_KEY_PATH: "/app/keys/private.pem"
-      TS_JWT_PUBLIC_KEY_PATH: "/app/keys/public.pem"
-      TS_CLIENTS_FILE_PATH: "/app/config/clients.json"
-      TS_CONSUL_ADDR: "http://consul:8500"
-      CONFIG_FILE: "/config/config.yaml"
+      SWAGGER_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       token-service-sidecar:
@@ -171,11 +162,7 @@ services:
     environment:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18081"
-      DATABASE_HOST: ${MYSQL_HOST}
-      DATABASE_PORT: ${MYSQL_PORT}
-      DATABASE_USER: ${MYSQL_USER}
-      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
-      DATABASE_NAME: ${MYSQL_DATABASE}
+      DATABASE_URL: "${DATABASE_URL}"
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -271,11 +258,7 @@ services:
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       SERVER_PORT: "18083"
-      DATABASE_HOST: "${MYSQL_HOST}"
-      DATABASE_PORT: "${MYSQL_PORT}"
-      DATABASE_USER: "${MYSQL_USER}"
-      DATABASE_PASSWORD: "${MYSQL_PASSWORD}"
-      DATABASE_NAME: "${MYSQL_DATABASE}"
+      DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
@@ -299,11 +282,7 @@ services:
     command: ["ntf-outbox-publisher"]
     restart: unless-stopped
     environment:
-      DATABASE_HOST: "${MYSQL_HOST}"
-      DATABASE_PORT: "${MYSQL_PORT}"
-      DATABASE_USER: "${MYSQL_USER}"
-      DATABASE_PASSWORD: "${MYSQL_PASSWORD}"
-      DATABASE_NAME: "${MYSQL_DATABASE}"
+      DATABASE_URL: "${DATABASE_URL}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
@@ -340,11 +319,7 @@ services:
     environment:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18084"
-      DATABASE_HOST: "${MYSQL_HOST}"
-      DATABASE_PORT: "${MYSQL_PORT}"
-      DATABASE_USER: "${MYSQL_USER}"
-      DATABASE_PASSWORD: "${MYSQL_PASSWORD}"
-      DATABASE_NAME: "${MYSQL_DATABASE}"
+      DATABASE_URL: "${DATABASE_URL}"
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       CONSUL_SERVICE_NAME: "audit-service"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
