@@ -13,7 +13,9 @@ use std::sync::Arc;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
+const V002_SQL: &str = include_str!("../migrations/mysql/V002__ntf_tenant.sql");
 const SCHEMA_MARKER_TABLE: &str = "ntf_announcements";
+const V002_MARKER_TABLE: &str = "ntf_migration_v002_applied";
 
 #[derive(Clone)]
 pub struct Db {
@@ -43,38 +45,63 @@ impl Db {
         .fetch_one(&self.pool)
         .await?;
         let exists: i64 = row.try_get("c").unwrap_or(0);
-        if exists > 0 {
+        if exists == 0 {
             info!(
                 marker = SCHEMA_MARKER_TABLE,
-                "schema already present, skip migration"
+                "schema missing, applying initial migration"
             );
-            return Ok(());
+            for stmt in INIT_SQL.split(';') {
+                let cleaned: String = stmt
+                    .lines()
+                    .filter(|l| !l.trim_start().starts_with("--"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let s = cleaned.trim();
+                if s.is_empty() {
+                    continue;
+                }
+                let upper = s.to_ascii_uppercase();
+                if upper.starts_with("CREATE DATABASE") || upper.starts_with("USE ") {
+                    continue;
+                }
+                if let Err(e) = sqlx::query(s).execute(&self.pool).await {
+                    warn!(statement = %first_line(s), error = %e, "migration statement failed");
+                    return Err(anyhow::anyhow!("apply migration ({}): {e}", first_line(s)));
+                }
+            }
+            info!("initial migration applied");
+        } else {
+            info!(
+                marker = SCHEMA_MARKER_TABLE,
+                "schema already present, skip V001"
+            );
         }
 
-        info!(
-            marker = SCHEMA_MARKER_TABLE,
-            "schema missing, applying initial migration"
-        );
-        for stmt in INIT_SQL.split(';') {
-            let cleaned: String = stmt
-                .lines()
-                .filter(|l| !l.trim_start().starts_with("--"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            let s = cleaned.trim();
-            if s.is_empty() {
-                continue;
+        if !table_exists(&self.pool, V002_MARKER_TABLE).await? {
+            info!(marker = V002_MARKER_TABLE, "applying V002");
+            for stmt in V002_SQL.split(';') {
+                let cleaned: String = stmt
+                    .lines()
+                    .filter(|l| !l.trim_start().starts_with("--"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let s = cleaned.trim();
+                if s.is_empty() {
+                    continue;
+                }
+                if let Err(e) = sqlx::query(s).execute(&self.pool).await {
+                    warn!(statement = %first_line(s), error = %e, "V002 statement failed");
+                    return Err(anyhow::anyhow!("apply V002 ({}): {e}", first_line(s)));
+                }
             }
-            let upper = s.to_ascii_uppercase();
-            if upper.starts_with("CREATE DATABASE") || upper.starts_with("USE ") {
-                continue;
-            }
-            if let Err(e) = sqlx::query(s).execute(&self.pool).await {
-                warn!(statement = %first_line(s), error = %e, "migration statement failed");
-                return Err(anyhow::anyhow!("apply migration ({}): {e}", first_line(s)));
-            }
+            sqlx::query(
+                "CREATE TABLE IF NOT EXISTS ntf_migration_v002_applied \
+                 (applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            )
+            .execute(&self.pool)
+            .await?;
+            info!("V002 applied");
         }
-        info!("initial migration applied");
 
         Ok(())
     }
@@ -309,6 +336,17 @@ fn first_line(s: &str) -> String {
         .find(|l| !l.trim().is_empty() && !l.trim().starts_with("--"))
         .map(|l| l.trim().to_string())
         .unwrap_or_else(|| "<empty>".to_string())
+}
+
+async fn table_exists(pool: &MySqlPool, table: &str) -> anyhow::Result<bool> {
+    let row: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM information_schema.tables \
+         WHERE table_schema = DATABASE() AND table_name = ?",
+    )
+    .bind(table)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0 > 0)
 }
 
 #[cfg(test)]

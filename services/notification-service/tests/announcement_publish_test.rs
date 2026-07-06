@@ -3,6 +3,7 @@
 mod common;
 
 use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
+use jwt_ctx::TenantScope;
 use notification_service::db::Db;
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
@@ -52,7 +53,7 @@ async fn publish_inserts_deliveries_status_and_outbox() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1"), ("user", "u2")]).await;
     let client = stub_iam_client();
-    let users = db.publish_announcement(id, &client, 1).await.unwrap();
+    let users = db.publish_announcement(id, &client, &TenantScope::Single(1)).await.unwrap();
     assert_eq!(users.len(), 2);
     // status
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
@@ -72,8 +73,8 @@ async fn publish_is_idempotent_no_duplicate_outbox() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1")]).await;
     let client = stub_iam_client();
-    db.publish_announcement(id, &client, 1).await.unwrap();
-    let again = db.publish_announcement(id, &client, 1).await.unwrap();
+    db.publish_announcement(id, &client, &TenantScope::Single(1)).await.unwrap();
+    let again = db.publish_announcement(id, &client, &TenantScope::Single(1)).await.unwrap();
     assert!(again.is_empty(), "second publish should be no-op");
     assert_eq!(outbox_count(&db, id).await, 1, "no duplicate outbox row");
 }
@@ -85,7 +86,7 @@ async fn publish_with_mixed_scopes_user_only() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1"), ("user", "u2")]).await;
     let client = stub_iam_client();
-    let users = db.publish_announcement(id, &client, 1).await.unwrap();
+    let users = db.publish_announcement(id, &client, &TenantScope::Single(1)).await.unwrap();
     assert_eq!(users.len(), 2);
     let (d,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
         .bind(id).fetch_one(&db.pool).await.unwrap();
@@ -100,7 +101,7 @@ async fn publish_with_no_user_scopes_does_nothing() {
     // Only role/dept scopes would 502 with stub; test user-only empty case instead
     let id = seed_announcement(&db, &[]).await;
     let client = stub_iam_client();
-    let users = db.publish_announcement(id, &client, 1).await.unwrap();
+    let users = db.publish_announcement(id, &client, &TenantScope::Single(1)).await.unwrap();
     assert!(users.is_empty());
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
         .bind(id).fetch_one(&db.pool).await.unwrap();
@@ -114,7 +115,7 @@ async fn published_announcement_visible_on_reload_without_ws() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1")]).await;
     let client = stub_iam_client();
-    db.publish_announcement(id, &client, 1).await.unwrap();
+    db.publish_announcement(id, &client, &TenantScope::Single(1)).await.unwrap();
     // 模拟用户重连后拉取（无任何 WS 推送参与）
     let list = db.list_for_user("u1".to_string()).await.unwrap();
     assert!(list.iter().any(|a| a.id == id), "announcement must be visible on reload via deliveries");

@@ -2,6 +2,7 @@
 //! via the iam internal endpoints (mocked by wiremock).
 mod common;
 
+use jwt_ctx::TenantScope;
 use notification_service::db::Db;
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
@@ -56,7 +57,7 @@ async fn publish_announcement_role_scope_resolves_via_iam() {
         .mount(&mock).await;
     let ann_id = seed_ann(&db, &[("role", "r1")]).await;
     let client = build_client(mock.uri());
-    db.publish_announcement(ann_id, &client, 1).await.unwrap();
+    db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
     v.sort();
     assert_eq!(v, vec!["u1", "u2", "u3"]);
@@ -74,7 +75,7 @@ async fn publish_announcement_dept_scope_resolves_via_iam() {
         .mount(&mock).await;
     let ann_id = seed_ann(&db, &[("dept", "d1")]).await;
     let client = build_client(mock.uri());
-    db.publish_announcement(ann_id, &client, 1).await.unwrap();
+    db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
     v.sort();
     assert_eq!(v, vec!["u10", "u11"]);
@@ -95,7 +96,7 @@ async fn publish_announcement_mixed_scopes_dedup() {
         }))).mount(&mock).await;
     let ann_id = seed_ann(&db, &[("role", "r1"), ("dept", "d1")]).await;
     let client = build_client(mock.uri());
-    db.publish_announcement(ann_id, &client, 1).await.unwrap();
+    db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
     v.sort();
     assert_eq!(v, vec!["u1", "u2", "u3"]);
@@ -110,7 +111,7 @@ async fn publish_announcement_iam_unavailable_fails_publish() {
         .mount(&mock).await;
     let ann_id = seed_ann(&db, &[("role", "r1")]).await;
     let client = build_client(mock.uri());
-    let err = db.publish_announcement(ann_id, &client, 1).await.unwrap_err();
+    let err = db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap_err();
     assert!(err.to_string().contains("iam") || err.to_string().contains("503"));
     let (status,): (String,) = sqlx::query_as(
         "SELECT status FROM ntf_announcements WHERE id=?",
