@@ -4,7 +4,9 @@ use crate::models::presign_url::{CreatePresignUrl, PresignUrl, PresignUrlRespons
 use crate::storage::local::LocalStorage;
 use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
-use sqlx::MySqlPool;
+use common_db::WithTenantScope;
+use jwt_ctx::TenantScope;
+use sqlx::{MySqlPool, QueryBuilder};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -25,7 +27,7 @@ impl FileService {
         }
     }
 
-    pub async fn upload(&self, data: Bytes, meta: UploadFileMeta) -> AppResult<FileInfo> {
+    pub async fn upload(&self, data: Bytes, meta: UploadFileMeta, scope: &TenantScope) -> AppResult<FileInfo> {
         if (data.len() as u64) > self.max_file_size {
             return Err(AppError::file_too_large(format!(
                 "file too large: {} > {} bytes",
@@ -37,6 +39,7 @@ impl FileService {
         let storage_path = format!("{}-{}", id, meta.filename);
         let now = chrono::Utc::now();
         let data_len = data.len();
+        let tenant_id = scope.tenant_id().unwrap_or(1);
 
         let expires_at = meta.expires_in_seconds.map(|secs| now + chrono::Duration::seconds(secs));
 
@@ -47,7 +50,7 @@ impl FileService {
             size: data_len as i64,
             hash: None,
             storage_path: storage_path.clone(),
-            tenant_id: meta.tenant_id,
+            tenant_id,
             user_id: meta.user_id,
             is_temporary: meta.is_temporary.unwrap_or(false),
             expires_at,
@@ -61,8 +64,8 @@ impl FileService {
         Ok(info)
     }
 
-    pub async fn download(&self, id: &str) -> AppResult<Bytes> {
-        let info = self.get_file_info(id).await?;
+    pub async fn download(&self, id: &str, scope: &TenantScope) -> AppResult<Bytes> {
+        let info = self.get_file_info(id, scope).await?;
 
         if let Some(expires_at) = info.expires_at {
             if expires_at < chrono::Utc::now() {
@@ -73,17 +76,17 @@ impl FileService {
         ObjectStore::get(&*self.storage, &info.storage_path).await
     }
 
-    pub async fn delete(&self, id: &str) -> AppResult<()> {
-        let info = self.get_file_info(id).await?;
+    pub async fn delete(&self, id: &str, scope: &TenantScope) -> AppResult<()> {
+        let info = self.get_file_info(id, scope).await?;
 
         ObjectStore::delete(&*self.storage, &info.storage_path).await?;
-        self.delete_file_info(id).await?;
+        self.delete_file_info(id, scope).await?;
 
         Ok(())
     }
 
-    pub async fn create_presign_url(&self, req: CreatePresignUrl) -> AppResult<PresignUrlResponse> {
-        let _info = self.get_file_info(&req.file_id).await?;
+    pub async fn create_presign_url(&self, req: CreatePresignUrl, scope: &TenantScope) -> AppResult<PresignUrlResponse> {
+        let _info = self.get_file_info(&req.file_id, scope).await?;
 
         let expires_in = req.expires_in_seconds.unwrap_or(3600);
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
@@ -115,30 +118,30 @@ impl FileService {
         })
     }
 
-    pub async fn query_files(&self, query: QueryFiles) -> AppResult<PagedFiles> {
+    pub async fn query_files(&self, query: QueryFiles, scope: &TenantScope) -> AppResult<PagedFiles> {
         let page = query.page.unwrap_or(1).max(1);
         let size = query.size.unwrap_or(20).min(100);
         let offset = (page - 1) * size;
 
-        let files: Vec<FileInfo> = sqlx::query_as::<_, FileInfo>(
-            "SELECT * FROM file_files ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        )
-        .bind(size)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let mut qb = QueryBuilder::new("SELECT * FROM file_files");
+        qb.and_tenant(scope);
+        qb.push(" ORDER BY created_at DESC LIMIT ");
+        qb.push_bind(size);
+        qb.push(" OFFSET ");
+        qb.push_bind(offset);
 
+        let files: Vec<FileInfo> = qb.build_query_as::<FileInfo>().fetch_all(&self.pool).await?;
         let total = files.len() as i64;
 
         Ok(PagedFiles { items: files, total, page, size })
     }
 
-    pub async fn get_file_info(&self, id: &str) -> AppResult<FileInfo> {
-        let info: Option<FileInfo> =
-            sqlx::query_as::<_, FileInfo>("SELECT * FROM file_files WHERE id = ?")
-                .bind(id)
-                .fetch_optional(&self.pool)
-                .await?;
+    pub async fn get_file_info(&self, id: &str, scope: &TenantScope) -> AppResult<FileInfo> {
+        let mut qb = QueryBuilder::new("SELECT * FROM file_files");
+        qb.where_id(id);
+        qb.and_tenant(scope);
+
+        let info: Option<FileInfo> = qb.build_query_as::<FileInfo>().fetch_optional(&self.pool).await?;
 
         info.ok_or_else(|| AppError::file_not_found(id))
     }
@@ -155,7 +158,7 @@ impl FileService {
         .bind(info.size)
         .bind(&info.hash)
         .bind(&info.storage_path)
-        .bind(&info.tenant_id)
+        .bind(info.tenant_id)
         .bind(&info.user_id)
         .bind(info.is_temporary)
         .bind(info.expires_at)
@@ -166,11 +169,11 @@ impl FileService {
         Ok(())
     }
 
-    async fn delete_file_info(&self, id: &str) -> AppResult<()> {
-        sqlx::query("DELETE FROM file_files WHERE id = ?")
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
+    async fn delete_file_info(&self, id: &str, scope: &TenantScope) -> AppResult<()> {
+        let mut qb = QueryBuilder::new("DELETE FROM file_files");
+        qb.where_id(id);
+        qb.and_tenant(scope);
+        qb.build().execute(&self.pool).await?;
         Ok(())
     }
 

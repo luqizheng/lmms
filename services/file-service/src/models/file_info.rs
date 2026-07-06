@@ -11,7 +11,7 @@ pub struct FileInfo {
     pub size: i64,
     pub hash: Option<String>,
     pub storage_path: String,
-    pub tenant_id: Option<String>,
+    pub tenant_id: i64,
     pub user_id: Option<String>,
     pub is_temporary: bool,
     pub expires_at: Option<DateTime<Utc>>,
@@ -23,7 +23,7 @@ pub struct FileInfo {
 pub struct UploadFileMeta {
     pub filename: String,
     pub content_type: Option<String>,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<i64>,
     pub user_id: Option<String>,
     pub is_temporary: Option<bool>,
     pub expires_in_seconds: Option<i64>,
