@@ -36,6 +36,7 @@ const CONCURRENCY_COMPILE = 4;
 const CONCURRENCY_RUN = 2;
 
 const MYSQL_CONTAINER_NAME = 'coder-test-mysql';
+const MYSQL_PORT = 33306;
 const MYSQL_IMAGE = 'mysql:8.0';
 // cargo-nextest 二进制 bind mount 到这个 volume，下次复用。
 const NEXTEST_BIN_VOLUME = 'coder-cargo-nextest-bin';
@@ -112,12 +113,22 @@ function ensureNextest() {
   if (install.status !== 0) throw new Error('install cargo-nextest failed');
 }
 
-// 启动一个共享 MySQL 容器（host network + 高位端口），返回 { port }。
-// 等 mysqladmin ping 通过才算就绪（≤60s）。
+// 启动一个共享 MySQL 容器（host network + 固定端口），返回 { port }。
+// 已存在且 ping 健康则直接复用，跳过 ~10s 容器冷启。
+// 不健康才 rm + 重建；mysqladmin ping 通过才算就绪（≤60s）。
 function startSharedMysql() {
+  const inspect = spawnSync('docker', ['inspect', '--type=container', MYSQL_CONTAINER_NAME], { encoding: 'utf8' });
+  if (inspect.status === 0) {
+    const ping = spawnSync('docker', [
+      'exec', MYSQL_CONTAINER_NAME, 'mysqladmin', 'ping', '-uroot', `--port=${MYSQL_PORT}`,
+    ], { encoding: 'utf8' });
+    if (ping.status === 0 && /mysqld is alive/.test(ping.stdout || '')) {
+      console.log(`[mysql] reusing ${MYSQL_CONTAINER_NAME} on host port ${MYSQL_PORT}`);
+      return { port: MYSQL_PORT };
+    }
+  }
   spawnSync('docker', ['rm', '-f', MYSQL_CONTAINER_NAME], { stdio: 'ignore' });
-  const port = 33000 + Math.floor(Math.random() * 1000);
-  console.log(`[mysql] starting shared ${MYSQL_IMAGE} on host port ${port}...`);
+  console.log(`[mysql] starting shared ${MYSQL_IMAGE} on host port ${MYSQL_PORT}...`);
   const run = spawnSync('docker', [
     'run', '-d',
     '--name', MYSQL_CONTAINER_NAME,
@@ -125,7 +136,7 @@ function startSharedMysql() {
     '-e', 'MYSQL_ROOT_PASSWORD=',
     '-e', 'MYSQL_ALLOW_EMPTY_PASSWORD=yes',
     MYSQL_IMAGE,
-    '--port=' + port,
+    '--port=' + MYSQL_PORT,
     '--innodb-use-native-aio=0',
     '--max-connections=500',
     '--skip-log-bin',
@@ -134,16 +145,15 @@ function startSharedMysql() {
     console.error('[mysql] docker run failed:', run.stderr);
     throw new Error('start shared mysql failed');
   }
-  // 轮询 mysqladmin ping（root 空密码）
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     const ping = spawnSync('docker', [
       'exec', MYSQL_CONTAINER_NAME,
-      'mysqladmin', 'ping', '-uroot', `--port=${port}`,
+      'mysqladmin', 'ping', '-uroot', `--port=${MYSQL_PORT}`,
     ], { encoding: 'utf8' });
     if (ping.status === 0 && /mysqld is alive/.test(ping.stdout || '')) {
-      console.log(`[mysql] ready on 127.0.0.1:${port}`);
-      return { port };
+      console.log(`[mysql] ready on 127.0.0.1:${MYSQL_PORT}`);
+      return { port: MYSQL_PORT };
     }
     spawnSync('sleep', ['1']);
   }
@@ -151,7 +161,8 @@ function startSharedMysql() {
 }
 
 function stopSharedMysql() {
-  spawnSync('docker', ['rm', '-f', MYSQL_CONTAINER_NAME], { stdio: 'ignore' });
+  // ponytail: 保留容器，下一次 run 走 reuse 路径省 ~10s 冷启。
+  // ponytail: 想要强制重建就手动 `docker rm -f coder-test-mysql`。
 }
 
 // 列出当前所有 mysql:* / testcontainers ryuk 的容器 id（运行中 + 已退出）。
