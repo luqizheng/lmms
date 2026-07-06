@@ -8,7 +8,7 @@ services:
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_ADDR: "0.0.0.0:8081"
-      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      DATABASE_URL: "${DATABASE_URL}"
       RUST_LOG: "info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
@@ -28,7 +28,7 @@ services:
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_ADDR: "0.0.0.0:8082"
-      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      DATABASE_URL: "${DATABASE_URL}"
       STORAGE_PATH: "/var/lib/file-service/storage"
       RUST_LOG: "info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -123,11 +123,11 @@ services:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18082"
       REDIS_URL: "redis://redis:6379"
-      DATABASE_HOST: mysql
-      DATABASE_PORT: "3306"
-      DATABASE_USER: root
-      DATABASE_PASSWORD: rootpass
-      DATABASE_NAME: superpowers
+      DATABASE_HOST: ${MYSQL_HOST}
+      DATABASE_PORT: ${MYSQL_PORT}
+      DATABASE_USER: ${MYSQL_USER}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
+      DATABASE_NAME: ${MYSQL_DATABASE}
       TS_JWT_PRIVATE_KEY_PATH: "/app/keys/private.pem"
       TS_JWT_PUBLIC_KEY_PATH: "/app/keys/public.pem"
       TS_CLIENTS_FILE_PATH: "/app/config/clients.json"
@@ -150,7 +150,7 @@ services:
     ports:
       - "9081:9081"
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
+      CONSUL_HTTP_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
     command: >
       sh -c "until consul connect proxy -register -service iam-service -service-addr 127.0.0.1:18081 -listen ':9081'; do sleep 2; done"
     depends_on:
@@ -171,12 +171,12 @@ services:
     environment:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18081"
-      DATABASE_HOST: mysql
-      DATABASE_PORT: "3306"
-      DATABASE_USER: root
-      DATABASE_PASSWORD: rootpass
-      DATABASE_NAME: superpowers
-      CONSUL_ADDR: "http://consul:8500"
+      DATABASE_HOST: ${MYSQL_HOST}
+      DATABASE_PORT: ${MYSQL_PORT}
+      DATABASE_USER: ${MYSQL_USER}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
+      DATABASE_NAME: ${MYSQL_DATABASE}
+      CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
@@ -198,8 +198,8 @@ services:
     volumes:
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
-      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
+      DATABASE_URL: "${DATABASE_URL}"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
@@ -218,7 +218,7 @@ services:
     ports:
       - "9087:9087"
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
+      CONSUL_HTTP_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
     command: >
       sh -c "until consul connect proxy -register -service prue_backend -service-addr 127.0.0.1:18087 -listen ':9087'; do sleep 2; done"
     depends_on:
@@ -236,7 +236,7 @@ services:
     environment:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18087"
-      DATABASE_URL: "mysql://root:rootpass@mysql:3306/superpowers"
+      DATABASE_URL: "${DATABASE_URL}"
       RUST_LOG: "info"
     depends_on:
       prue_backend-sidecar:
@@ -268,15 +268,15 @@ services:
       dockerfile: services/notification-service/Dockerfile
     network_mode: "service:notification-service-sidecar"
     environment:
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
-      CONSUL_ADDR: "http://consul:8500"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
+      CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       SERVER_PORT: "18083"
-      DATABASE_HOST: mysql
-      DATABASE_PORT: "3306"
-      DATABASE_USER: root
-      DATABASE_PASSWORD: rootpass
-      DATABASE_NAME: superpowers
-      REDIS_URL: "redis://redis:6379"
+      DATABASE_HOST: "${MYSQL_HOST}"
+      DATABASE_PORT: "${MYSQL_PORT}"
+      DATABASE_USER: "${MYSQL_USER}"
+      DATABASE_PASSWORD: "${MYSQL_PASSWORD}"
+      DATABASE_NAME: "${MYSQL_DATABASE}"
+      REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       notification-service-sidecar:
@@ -299,12 +299,12 @@ services:
     command: ["ntf-outbox-publisher"]
     restart: unless-stopped
     environment:
-      DATABASE_HOST: mysql
-      DATABASE_PORT: "3306"
-      DATABASE_USER: root
-      DATABASE_PASSWORD: rootpass
-      DATABASE_NAME: superpowers
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
+      DATABASE_HOST: "${MYSQL_HOST}"
+      DATABASE_PORT: "${MYSQL_PORT}"
+      DATABASE_USER: "${MYSQL_USER}"
+      DATABASE_PASSWORD: "${MYSQL_PASSWORD}"
+      DATABASE_NAME: "${MYSQL_DATABASE}"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
@@ -322,7 +322,7 @@ services:
     ports:
       - "9084:9084"
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
+      CONSUL_HTTP_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
     command: >
       sh -c "until consul connect proxy -register -service audit-service -service-addr 127.0.0.1:18084 -listen ':9084'; do sleep 2; done"
     depends_on:
@@ -340,15 +340,15 @@ services:
     environment:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18084"
-      DATABASE_HOST: mysql
-      DATABASE_PORT: "3306"
-      DATABASE_USER: root
-      DATABASE_PASSWORD: rootpass
-      DATABASE_NAME: superpowers
-      CONSUL_ADDR: "http://consul:8500"
+      DATABASE_HOST: "${MYSQL_HOST}"
+      DATABASE_PORT: "${MYSQL_PORT}"
+      DATABASE_USER: "${MYSQL_USER}"
+      DATABASE_PASSWORD: "${MYSQL_PASSWORD}"
+      DATABASE_NAME: "${MYSQL_DATABASE}"
+      CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       CONSUL_SERVICE_NAME: "audit-service"
-      EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
-      REDIS_URL: "redis://redis:6379"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
+      REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       RUST_LOG: "info"
     depends_on:
       audit-service-sidecar:
