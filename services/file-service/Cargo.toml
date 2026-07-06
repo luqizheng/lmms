@@ -8,7 +8,7 @@ axum.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-sqlx.workspace = true
+sqlx = { workspace = true, features = ["mysql", "chrono", "macros"] }
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
@@ -21,7 +21,6 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tokio-util = { version = "0.7", features = ["io"] }
 async-trait = "0.1"
 common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }

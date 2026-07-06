@@ -2253,7 +2253,6 @@ dependencies = [
  "bytes 1.11.1",
  "chrono",
  "common-cache",
- "common-db",
  "common-error",
  "common-log",
  "common-telemetry",

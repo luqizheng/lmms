@@ -30,7 +30,7 @@ async fn health() -> &'static str {
 }
 
 pub fn create_state(
-    pool: common_db::DbPool,
+    pool: sqlx::MySqlPool,
     storage: Arc<crate::storage::local::LocalStorage>,
     base_url: String,
     max_file_size: u64,

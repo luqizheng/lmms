@@ -15,7 +15,9 @@ pub struct AppConfig {
 }
 
 fn default_database_url() -> String {
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite::memory:".to_string())
+    std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "mysql://root:root@127.0.0.1:3306/superpowers?charset=utf8mb4".to_string()
+    })
 }
 
 fn default_server_addr() -> String {
