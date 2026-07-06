@@ -9,7 +9,7 @@ AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码�
 
 ## 开发环境
 
-- 类 Unix（WSL / macOS / Linux）。Windows 必须 WSL2，禁止原生 PowerShell / CMD。
+<!-- - 类 Unix（WSL / macOS / Linux）。Windows 必须 WSL2，禁止原生 PowerShell / CMD。 -->
 - **本地 `cargo` 通常编译不过**（缺 `cc` 链接器、musl target）。跑 Rust 测试统一用容器：
   ```bash
   node scripts/run-tests-docker.js                 # 全部服务
