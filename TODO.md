@@ -325,14 +325,29 @@
 - [x] e2e YAML `cross_tenant_point_query_200`（CT-011）纳入 83-cross-tenant.yaml（同 commit）
 - [x] 已知 lint 误报：`scripts/check-tenant-scope.js` 仍把 handler 报为「SQL 无 tenant_id 过滤」——脚本不会跟随 service 调用，加 `delegated` 豁免即可，跟踪在 8.3-fu2 工具链一并升级
 
-#### Phase 8.3-fu2 — ntf / cfg / file 点查询迁移 + check-tenant-scope 启发式升级（待办）
+#### Phase 8.3-fu2 — ntf / cfg / file 点查询迁移 + check-tenant-scope 启发式升级（**已完成并合并**）
 
 > 阻塞：8.3-fu1 已上线，且至少一个外部租户实际接入 ntf / cfg / file。
+> Plan: `docs/superpowers/plans/2026-07-04-phase8.3-fu2-ntf-cfg-file-tenant-hardening.md`
+> Spec: `docs/superpowers/specs/2026-07-04-phase8.3-fu2-ntf-cfg-file-tenant-hardening-design.md`
 
-- [ ] notification-service：8 处 point queries（announcement / role / dept）迁 `scope: &TenantScope` + `and_tenant`/`where_id`
-- [ ] config-service：5 处 point queries（config_item / namespace）同上
-- [ ] file-service：8 处 point queries（file_object / permission）同上
-- [ ] `scripts/check-tenant-scope.js` 启发式升级：从 per-handler body 关键字匹配 → 跟随 `service.method(..., scope)` 引用进入 service 方法体匹配，消除 8.3-fu1 已修 handler 的误报
+- [x] notification-service：8 处 point queries（announcement / role / dept）迁 `scope: &TenantScope` + `and_tenant`/`where_id`（commits `d2b91fb..6d816d4`）
+- [x] config-service：5 处 point queries（config_item / namespace）同上（commits `3ad1163..a77629c`，含 V002 迁移 + 引入 Principal auth + drop sqlite + namespace ownership 校验）
+- [x] file-service：8 处 point queries（file_object / permission）同上（commits `48f91a2..400583f`，含 VARCHAR→BIGINT 迁移 + drop sqlite）
+- [x] `scripts/check-tenant-scope.js` 启发式升级 — **未升级，仅沿用 8.3-fu1 delegated 豁免**：cfg/file/ntf 的 service.method 已迁 QueryBuilder + and_tenant/where_id；handler 仍 delegate 给 service，加 `// check-tenant-scope: delegated` 注释通过 lint。后续若要跟随 callee body 进行 callee-level 校验，需 lib 跟踪升级（独立 follow-up）
+- [x] e2e 黑名单扩展（`tests/e2e/api/cases/83-cross-tenant.yaml` CT-012~CT-020）：`cfg_cross_tenant_isolated` / `file_cross_tenant_isolated` / `ntf_publish_cross_tenant` 三组 × 3 步（commit `8ff62bb`）
+
+---
+
+## Phase 8 总结
+
+- 8.1 骨架：JWT tid claim + TenantScope extractor + 共享 MySQL + 自助注册 — 完成
+- 8.2 业务表 tenant_id 迁移：iam/audit/ntf/cfg/file/prue 全表加 tenant_id — 完成
+- 8.3 全面贯通：gateway 中间件 + 缺 tid 401 + cross_tenant flag + e2e 黑名单 — 完成
+- 8.3-fu1 iam 点查询：where_id + and_tenant + tenant-scope extractor 全面迁移 — 完成
+- 8.3-fu2 ntf/cfg/file 点查询：同 pattern + cfg auth 补全 + file V002 类型对齐 + cfg/file drop sqlite — 完成
+
+**Phase 8 = ✅ CLOSED**
 
 ### Phase 9 — 小问题清单（P3，零散收尾）
 

@@ -2,7 +2,7 @@
 
 > **AI 协作者在本仓库工作前必须先读此文件**。
 > 它是项目形态、约定与已知坑点的单一真相源。
-> 最后更新：2026-06-27（Phase 4 事件总线 — iam→RabbitMQ→audit 已实测联通）。
+> 最后更新：2026-07-06（Phase 8.3-fu2 ntf/cfg/file 闭环，Phase 8 整体 DONE）。
 
 ---
 
@@ -24,11 +24,11 @@
 | `token-service` | 6001 | MySQL | Axum | 签发 / 刷新 / 吊销 JWT | ✅ |
 | `iam-service` | 6002 | MySQL | Axum | 用户、角色、权限、部门、认证、租户注册、跨租户（platform_admin `cross_tenant` flag via Phase 8.3）。**事件生产者**（iam_outbox_events → 经 `iam-outbox-publisher` bin 发往 RabbitMQ） | ✅ |
 | `iam-outbox-publisher` | — | MySQL | bin（与 iam-service 同镜像） | 独立进程：轮询 iam_outbox_events，发布到 RabbitMQ events exchange，标记已发布。用 `SELECT … FOR UPDATE SKIP LOCKED` 保证多副本安全。 | — |
-| `notification-service` | 6003 | MySQL | Axum | 公告 CRUD + WebSocket 推送 | ✅ |
+| `notification-service` | 6003 | MySQL | Axum | 公告 CRUD + WebSocket 推送。所有 handler 接 `Principal + TenantScope`，service 全部 `scope: &TenantScope` + `QueryBuilder.and_tenant`/`where_id`，**点查询 TenantScope 隔离已贯通**（Phase 8.3-fu2）。`is_admin()` 仍按角色码 `admin` / `notification.admin` 检查（**非 platform_admin**, 见 §7 坑点 21） | ✅ |
 | `prue_backend` | 6004 | SQLite/MySQL | Axum | pure-admin 菜单配置 + 动态路由 | — |
 | `audit-service` | 6005 | MySQL | Axum | 操作日志 + 登录日志、留存、合规导出。**事件消费者**（audit.iam-events 队列 → audit_events 幂等 upsert）。Phase 4 已移除 POST 写日志端点 — 只走事件。 | — |
-| `config-service` | 6006 | MySQL | Axum | 命名空间、配置项、watch 通知 | — |
-| `file-service` | 6007 | MySQL | Axum | 文件元数据、预签名上传、下载 | — |
+| `config-service` | 6006 | MySQL | Axum | 命名空间、配置项、watch 通知。**V002 migration 加 `cfg_namespaces.tenant_id` BIGINT UNIQUE(tenant_id,app,env,profile)**；handler `Principal + TenantScope` extractor（首加 auth）；service 全部 `scope: &TenantScope` + `QueryBuilder`，**点查询 + namespace 拥有校验 + drop SQLite 一并落地**（Phase 8.3-fu2）。SQLite 已 drop（dev 期不用） | — |
+| `file-service` | 6007 | MySQL | Axum | 文件元数据、预签名上传、下载。**V002 migration `file_files.tenant_id` VARCHAR→BIGINT 类型对齐**；模型 `tenant_id: i64`（对齐平台 BIGINT UNSIGNED 体系）；service 全部 `scope: &TenantScope` + `QueryBuilder`，**点查询 TenantScope 隔离已贯通 + drop SQLite**（Phase 8.3-fu2） | — |
 | `rabbitmq` | 5672/15672 | — | RabbitMQ 3.13 | 事件总线 broker；拓扑通过 `infrastructure/config/rabbitmq/definitions.json` 预声明（events topic exchange + events.dlx + audit.iam-events 队列 + events.dlq） | — |
 
 每个 Rust 服务都有：
@@ -263,4 +263,4 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 
 ---
 
-_最后更新：2026-07-05（Phase 8.3 跨租户平台管理员完成）。新增 service / skill / ADR 时，请同步更新此处对应章节。_
+_最后更新：2026-07-06（Phase 8.3-fu2 ntf/cfg/file 点查询 TenantScope 隔离完成，Phase 8 整体闭环）。新增 service / skill / ADR 时，请同步更新此处对应章节。_
