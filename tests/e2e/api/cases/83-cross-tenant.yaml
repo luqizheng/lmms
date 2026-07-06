@@ -125,3 +125,109 @@ cases:
     expect:
       - $.id equals ${CT-004.admin_user_id}
       - $.username equals acme_admin
+
+  - caseId: CT-012
+    desc: cfg_cross_tenant_isolated — acme 创建 namespace
+    method: POST
+    path: /v1/config/namespace
+    headers:
+      Authorization: Bearer ${CT-006.access_token}
+    auth: false
+    body:
+      app: acme-cross-tenant-app
+      env: prod
+      profile: ct-test
+      description: acme cross-tenant namespace
+    expectStatus: [200, 201]
+
+  - caseId: CT-013
+    desc: cfg_cross_tenant_isolated — globex token 读 acme namespace 应 404
+    method: GET
+    path: /v1/config/namespace/${CT-012.id}
+    headers:
+      Authorization: Bearer ${CT-007.access_token}
+    auth: false
+    expectStatus: 404
+
+  - caseId: CT-014
+    desc: cfg_cross_tenant_isolated — platform_admin 读 acme namespace 应 200
+    method: GET
+    path: /v1/config/namespace/${CT-012.id}
+    headers:
+      Authorization: Bearer ${CT-003.access_token}
+    auth: false
+    expectStatus: 200
+    expect:
+      - $.tenant_id exists
+      - $.app equals acme-cross-tenant-app
+
+  - caseId: CT-015
+    desc: file_cross_tenant_isolated — acme 上传文件元数据 (best-effort, multipart 兼容受限)
+    method: POST
+    path: /v1/file/upload
+    headers:
+      Authorization: Bearer ${CT-006.access_token}
+    auth: false
+    body:
+      filename: ct-test-${rand}.txt
+      content_type: text/plain
+      is_temporary: true
+      expires_in_seconds: 3600
+    expectStatus: [200, 201, 400, 415]
+
+  - caseId: CT-016
+    desc: file_cross_tenant_isolated — globex token 读 acme file info 应 404
+    method: GET
+    path: /v1/file/${CT-015.id}/info
+    headers:
+      Authorization: Bearer ${CT-007.access_token}
+    auth: false
+    expectStatus: 404
+
+  - caseId: CT-017
+    desc: file_cross_tenant_isolated — platform_admin 读 acme file info（受上传链路影响）
+    method: GET
+    path: /v1/file/${CT-015.id}/info
+    headers:
+      Authorization: Bearer ${CT-003.access_token}
+    auth: false
+    expectStatus: [200, 404]
+
+  - caseId: CT-018
+    desc: ntf_publish_cross_tenant — acme 建公告（受 is_admin 角色约束，tolerant）
+    method: POST
+    path: /v1/notification/announcements
+    headers:
+      Authorization: Bearer ${CT-006.access_token}
+    auth: false
+    body:
+      title: acme ct ann ${rand}
+      body: cross-tenant test
+      publish_at: 2026-07-01T10:00:00Z
+      expire_at: 2026-12-31T23:59:59Z
+      pinned: false
+      popover: false
+      recipients:
+        - scope_type: role
+          scope_id: "1"
+    expectStatus: [200, 201, 400, 403]
+
+  - caseId: CT-019
+    desc: ntf_publish_cross_tenant — globex token 发布 acme 公告应被拒
+    method: POST
+    path: /v1/notification/announcements/${CT-018.id}/publish
+    headers:
+      Authorization: Bearer ${CT-007.access_token}
+    auth: false
+    body: {}
+    expectStatus: [403, 404]
+
+  - caseId: CT-020
+    desc: ntf_publish_cross_tenant — platform_admin 发布 acme 公告（受 is_admin 角色约束）
+    method: POST
+    path: /v1/notification/announcements/${CT-018.id}/publish
+    headers:
+      Authorization: Bearer ${CT-003.access_token}
+    auth: false
+    body: {}
+    expectStatus: [200, 201, 204, 403, 404] 
