@@ -31,6 +31,6 @@ async fn metrics() -> axum::response::Html<String> {
     axum::response::Html(String::from_utf8(buffer).unwrap())
 }
 
-pub fn create_state(pool: common_db::DbPool) -> AppState {
+pub fn create_state(pool: sqlx::MySqlPool) -> AppState {
     Arc::new(ConfigService::new(pool))
 }

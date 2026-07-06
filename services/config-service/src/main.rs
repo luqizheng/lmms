@@ -1,5 +1,4 @@
-use config_service::{config::AppConfig, routes::{self, create_state}};
-use common_db::init_pool;
+use config_service::{config::AppConfig, db::{ensure_schema, init_pool}, routes::{self, create_state}};
 use common_telemetry::init_tracing;
 use std::net::SocketAddr;
 
@@ -14,7 +13,7 @@ async fn main() {
         .await
         .expect("Failed to initialize database pool");
 
-    config_service::db::ensure_schema(&pool)
+    ensure_schema(&pool)
         .await
         .expect("ensure_schema failed");
 
@@ -39,7 +38,7 @@ async fn main() {
 
     let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");
 
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");
+    let listener = tokio::net::TcpListener::bind(&addr).await.expect("Failed to bind");
     tracing::info!("config-service listening on {}", addr);
 
     axum::serve(listener, app).await.expect("Server error");

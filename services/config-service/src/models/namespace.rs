@@ -6,6 +6,7 @@ use utoipa::{IntoParams, ToSchema};
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Namespace {
     pub id: String,
+    pub tenant_id: u64,
     pub app: String,
     pub env: String,
     pub profile: Option<String>,

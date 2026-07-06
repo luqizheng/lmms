@@ -13,11 +13,8 @@
 ## 快速开始
 
 ```bash
-# SQLite 测试
-DATABASE_URL=sqlite::memory: cargo run
-
-# MySQL
-DATABASE_URL=mysql://user:pwd@localhost/config cargo run
+# MySQL（已移除 SQLite 支持）
+DATABASE_URL=mysql://user:pwd@localhost/superpowers cargo run
 ```
 
 ## API
