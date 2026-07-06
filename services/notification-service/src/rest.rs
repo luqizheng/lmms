@@ -9,6 +9,7 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use common_ratelimit::{Limit, RateLimiter, rate_limit_middleware};
+use jwt_ctx::TenantScope;
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -97,12 +98,13 @@ pub async fn create(
 pub async fn publish(
     State(s): State<RestState>,
     me: Identity,
+    scope: TenantScope,
     Path(id): Path<u64>,
 ) -> AppResult<Json<serde_json::Value>> {
     if !me.is_admin() {
         return Err(AppError::Forbidden);
     }
-    let user_ids = s.db.publish_announcement(id, &s.iam_client, me.tenant_id).await?;
+    let user_ids = s.db.publish_announcement(id, &s.iam_client, &scope).await?;
     Ok(Json(serde_json::json!({ "id": id, "status": "published", "user_count": user_ids.len() })))
 }
 

@@ -1,6 +1,7 @@
 use crate::db::Db;
 use crate::iam_client::IamMemberClient;
 use chrono::Utc;
+use jwt_ctx::TenantScope;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
@@ -32,6 +33,7 @@ pub async fn publish_one(db: &Db, iam_client: &IamMemberClient, ann_id: u64) -> 
     .bind(ann_id)
     .fetch_one(&db.pool)
     .await?;
-    db.publish_announcement(ann_id, iam_client, tenant_id).await?;
+    let scope = TenantScope::Single(tenant_id);
+    db.publish_announcement(ann_id, iam_client, &scope).await?;
     Ok(())
 }
