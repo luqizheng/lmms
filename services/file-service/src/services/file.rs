@@ -39,7 +39,7 @@ impl FileService {
         let storage_path = format!("{}-{}", id, meta.filename);
         let now = chrono::Utc::now();
         let data_len = data.len();
-        let tenant_id = scope.tenant_id().unwrap_or(1);
+        let tenant_id = scope.tenant_id().unwrap_or(1) as u64;
 
         let expires_at = meta.expires_in_seconds.map(|secs| now + chrono::Duration::seconds(secs));
 

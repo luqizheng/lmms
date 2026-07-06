@@ -175,7 +175,11 @@ pub async fn get_file_info(
     scope: TenantScope,
 ) -> Result<Json<FileInfo>, (StatusCode, &'static str)> {
     let info = state.get_file_info(&id, &scope).await.map_err(|e| {
-        if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get file info failed") }
+        if e.code() == "FILE_ITEM_1001" {
+            (StatusCode::NOT_FOUND, "file not found")
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, "get file info failed")
+        }
     })?;
     Ok(Json(info))
 }

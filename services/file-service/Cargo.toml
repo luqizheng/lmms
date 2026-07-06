@@ -35,3 +35,11 @@ path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+testcontainers = "0.20"
+testcontainers-modules = { version = "0.8", features = ["mysql"] }
+tower = { workspace = true }
+http-body-util = "0.1"
+axum = { workspace = true, features = ["multipart"] }
+jwt-simple.workspace = true
+tempfile = "3"
+bytes.workspace = true
