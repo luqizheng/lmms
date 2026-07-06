@@ -170,6 +170,17 @@ pub async fn list_sessions(
     Ok(AxumJson(session_infos))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/iam/auth/sessions/{session_id}",
+    params(("session_id" = String, Path,)),
+    responses(
+        (status = 204, description = "session revoked"),
+        (status = 404, description = "session not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
 async fn revoke_session(
     State(state): State<AppState>,
     principal: Principal,
@@ -184,6 +195,17 @@ async fn revoke_session(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/iam/auth/register",
+    request_body = CreateUserRequest,
+    responses(
+        (status = 201, body = UserResponse),
+        (status = 403, description = "registration closed (users already exist)"),
+        (status = 409, description = "username already exists"),
+    ),
+    tag = "auth"
+)]
 async fn register(
     State(state): State<AppState>,
     Json(req): Json<CreateUserRequest>,
@@ -217,6 +239,12 @@ async fn register(
     Ok((StatusCode::CREATED, AxumJson(response)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/iam/auth/setup-status",
+    responses((status = 200, description = "{ setup_required: bool, user_count: i64 }")),
+    tag = "auth"
+)]
 async fn setup_status(
     State(state): State<AppState>,
 ) -> Result<AxumJson<serde_json::Value>, (StatusCode, &'static str)> {

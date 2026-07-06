@@ -19,6 +19,14 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+#[utoipa::path(
+    get,
+    path = "/iam/roles",
+    params(RoleQuery),
+    responses((status = 200, body = RoleListResponse)),
+    security(("bearer_auth" = [])),
+    tag = "roles"
+)]
 // check-tenant-scope: delegated
 async fn list_roles(
     State(state): State<AppState>,
@@ -30,6 +38,17 @@ async fn list_roles(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    post,
+    path = "/iam/roles",
+    request_body = CreateRoleRequest,
+    responses(
+        (status = 200, body = RoleResponse),
+        (status = 409, description = "duplicate role"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "roles"
+)]
 // check-tenant-scope: delegated
 async fn create_role(
     State(state): State<AppState>,
@@ -46,6 +65,17 @@ async fn create_role(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/iam/roles/{role_id}",
+    params(("role_id" = String, Path,)),
+    responses(
+        (status = 200, body = RoleResponse),
+        (status = 404, description = "role not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "roles"
+)]
 // check-tenant-scope: delegated
 async fn get_role(
     State(state): State<AppState>,
@@ -62,6 +92,18 @@ async fn get_role(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    put,
+    path = "/iam/roles/{role_id}",
+    params(("role_id" = String, Path,)),
+    request_body = UpdateRoleRequest,
+    responses(
+        (status = 200, body = RoleResponse),
+        (status = 404, description = "role not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "roles"
+)]
 async fn update_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
@@ -79,6 +121,17 @@ async fn update_role(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/iam/roles/{role_id}",
+    params(("role_id" = String, Path,)),
+    responses(
+        (status = 204, description = "deleted"),
+        (status = 404, description = "role not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "roles"
+)]
 async fn delete_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,
@@ -95,6 +148,18 @@ async fn delete_role(
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    put,
+    path = "/iam/roles/{role_id}/permissions",
+    params(("role_id" = String, Path,)),
+    request_body = AssignPermissionsRequest,
+    responses(
+        (status = 204, description = "permissions assigned"),
+        (status = 404, description = "role not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "roles"
+)]
 async fn assign_permissions(
     State(state): State<AppState>,
     Path(role_id): Path<String>,

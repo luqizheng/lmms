@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 use chrono::DateTime;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateRoleRequest {
     #[validate(length(min = 1, max = 100))]
     pub name: String,
@@ -14,7 +14,7 @@ pub struct CreateRoleRequest {
     pub data_scope: i32,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateRoleRequest {
     #[validate(length(min = 1, max = 100))]
     pub name: Option<String>,
@@ -24,7 +24,7 @@ pub struct UpdateRoleRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct RoleQuery {
     pub keyword: Option<String>,
     pub status: Option<String>,
@@ -32,7 +32,7 @@ pub struct RoleQuery {
     pub size: u32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RoleResponse {
     pub id: String,
     pub name: String,
@@ -44,7 +44,7 @@ pub struct RoleResponse {
     pub updated_at: DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RoleListResponse {
     pub items: Vec<RoleResponse>,
     pub total: u64,
@@ -52,7 +52,7 @@ pub struct RoleListResponse {
     pub size: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct AssignPermissionsRequest {
     pub permission_ids: Vec<String>,
 }

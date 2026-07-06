@@ -159,6 +159,17 @@ pub async fn list_users_simple(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/internal/users/{user_id}/claims",
+    params(("user_id" = String, Path,)),
+    responses(
+        (status = 200, body = UserClaimsResponse),
+        (status = 404, description = "user not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "internal"
+)]
 // check-tenant-scope: delegated
 pub async fn get_user_claims(
     State(state): State<AppState>,

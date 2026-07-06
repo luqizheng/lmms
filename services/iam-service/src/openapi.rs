@@ -4,7 +4,7 @@ use utoipa::{
 };
 
 use crate::dto;
-use crate::routes::{auth, internal_users, tenants, users};
+use crate::routes::{auth, internal_users, roles, tenants, users};
 
 pub struct SecurityAddon;
 
@@ -34,11 +34,23 @@ impl Modify for SecurityAddon {
         auth::logout,
         auth::change_password,
         auth::list_sessions,
+        auth::revoke_session,
+        auth::register,
+        auth::setup_status,
         users::list_users,
         users::create_user,
         users::get_user,
         users::update_user,
         users::delete_user,
+        users::list_users_simple,
+        users::get_user_claims,
+        roles::assign_user_roles,
+        roles::list_roles,
+        roles::create_role,
+        roles::get_role,
+        roles::update_role,
+        roles::delete_role,
+        roles::assign_permissions,
         tenants::register_tenant,
         internal_users::list_users_by_role,
         internal_users::list_users_by_dept,
@@ -49,12 +61,24 @@ impl Modify for SecurityAddon {
         dto::RefreshRequest,
         dto::RefreshResponse,
         dto::ChangePasswordRequest,
+        dto::ResetPasswordRequest,
         dto::UserInfo,
         dto::SessionInfo,
         dto::CreateUserRequest,
         dto::UpdateUserRequest,
         dto::UserResponse,
         dto::UserListResponse,
+        dto::UserSimpleResponse,
+        dto::UserSimpleListResponse,
+        dto::UserClaimsResponse,
+        dto::BatchImportUsersRequest,
+        dto::CreateRoleRequest,
+        dto::UpdateRoleRequest,
+        dto::RoleResponse,
+        dto::RoleListResponse,
+        dto::AssignPermissionsRequest,
+        dto::AssignUserRolesRequest,
+        dto::AssignUserRolesResponse,
         dto::CreateTenantRequest,
         dto::CreateTenantResponse,
         dto::UserIdListResponse,
@@ -63,6 +87,7 @@ impl Modify for SecurityAddon {
     tags(
         (name = "auth", description = "Authentication"),
         (name = "users", description = "User management"),
+        (name = "roles", description = "Role management"),
         (name = "tenants", description = "Tenant registration"),
         (name = "internal", description = "Internal service-to-service endpoints"),
     )
