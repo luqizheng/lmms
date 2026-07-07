@@ -148,6 +148,7 @@ impl RoleService {
         };
 
         let mut tx = self.state.db.begin().await?;
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
         let mut qb = QueryBuilder::new(
             "UPDATE iam_roles SET name = "
         );
@@ -172,6 +173,19 @@ impl RoleService {
                 actor_id,
             )
             .await?;
+            let ts = Utc::now().timestamp();
+            for uid in &user_ids {
+                crate::service::membership_event::enqueue_role_unassigned(
+                    &mut tx,
+                    self.state.outbox_repo.as_ref(),
+                    uid,
+                    role_id,
+                    tid as i64,
+                    actor_id,
+                    ts,
+                )
+                .await?;
+            }
         }
         tx.commit().await?;
 
@@ -190,6 +204,7 @@ impl RoleService {
                 .await?;
 
         let mut tx = self.state.db.begin().await?;
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
         let mut qb = QueryBuilder::new(
             "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW()",
         );
@@ -210,6 +225,19 @@ impl RoleService {
             actor_id,
         )
         .await?;
+        let ts = Utc::now().timestamp();
+        for uid in &user_ids {
+            crate::service::membership_event::enqueue_role_unassigned(
+                &mut tx,
+                self.state.outbox_repo.as_ref(),
+                uid,
+                role_id,
+                tid as i64,
+                actor_id,
+                ts,
+            )
+            .await?;
+        }
         tx.commit().await?;
 
         crate::service::perm_change::stamp_perm_epochs(&self.state, &user_ids).await;
@@ -233,6 +261,7 @@ impl RoleService {
                 .await?;
 
         let mut tx = self.state.db.begin().await?;
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
         sqlx::query("DELETE FROM iam_role_permissions WHERE role_id = ?")
             .bind(role_id)
             .execute(&mut *tx)
@@ -276,6 +305,7 @@ impl RoleService {
         scope: &TenantScope,
     ) -> Result<Vec<String>, IamError> {
         let mut tx = self.state.db.begin().await?;
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
 
         // 1) user existence + row lock
         let mut qb = QueryBuilder::new("SELECT id FROM iam_users");
@@ -330,12 +360,39 @@ impl RoleService {
             return Ok(new_set.into_iter().collect());
         }
 
-        // 4) full replace
+        // 4) full replace — emit membership events for diff BEFORE destructive ops
+        let to_remove: Vec<String> = old_set.difference(&new_set).cloned().collect();
+        let to_add: Vec<String> = new_set.difference(&old_set).cloned().collect();
+        let ts = Utc::now().timestamp();
+        for rid in &to_remove {
+            crate::service::membership_event::enqueue_role_unassigned(
+                &mut tx,
+                self.state.outbox_repo.as_ref(),
+                user_id,
+                rid,
+                tid as i64,
+                actor_id,
+                ts,
+            )
+            .await?;
+        }
         sqlx::query("DELETE FROM iam_user_roles WHERE user_id = ?")
             .bind(user_id)
             .execute(&mut *tx)
             .await?;
         crate::service::user_roles::set_user_roles_in_tx(&mut tx, user_id, &dedup).await?;
+        for rid in &to_add {
+            crate::service::membership_event::enqueue_role_assigned(
+                &mut tx,
+                self.state.outbox_repo.as_ref(),
+                user_id,
+                rid,
+                tid as i64,
+                actor_id,
+                ts,
+            )
+            .await?;
+        }
 
         // 5) same-tx outbox event
         crate::service::perm_change::enqueue_permission_changed(

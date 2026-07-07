@@ -93,6 +93,17 @@ impl TenantService {
         .execute(&mut *tx)
         .await?;
 
+        crate::service::membership_event::enqueue_role_assigned(
+            &mut tx,
+            self.state.outbox_repo.as_ref(),
+            &admin_id,
+            &role_id,
+            tenant_id as i64,
+            None,
+            now.timestamp(),
+        )
+        .await?;
+
         let mut envelope = Envelope::new(
             "iam-service",
             IamTenantCreated {

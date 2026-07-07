@@ -7,6 +7,7 @@ use common_db::WithTenantScope;
 use jwt_ctx::TenantScope;
 use nanoid::nanoid;
 use sqlx::{FromRow, QueryBuilder, mysql::MySqlQueryResult};
+use chrono::Utc;
 
 #[derive(FromRow)]
 struct OrgUnitRow {
@@ -200,24 +201,48 @@ impl OrgService {
             return Err(IamError::Conflict("Cannot delete org unit with children".to_string()));
         }
 
+        let mut tx = self.state.db.begin().await?;
         let mut qb = QueryBuilder::new(
             "UPDATE iam_org_units SET deleted_at = NOW(), updated_at = NOW()",
         );
         qb.where_id(org_unit_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let result: MySqlQueryResult = qb.build().execute(&self.state.db).await?;
+        let result: MySqlQueryResult = qb.build().execute(&mut *tx).await?;
 
         if result.rows_affected() == 0 {
             return Err(IamError::OrgUnitNotFound);
         }
 
+        let affected_user_ids: Vec<String> = sqlx::query_scalar(
+            "SELECT user_id FROM iam_user_org_units WHERE org_unit_id = ?",
+        )
+        .bind(org_unit_id)
+        .fetch_all(&mut *tx)
+        .await?;
+
         sqlx::query(
             "DELETE FROM iam_user_org_units WHERE org_unit_id = ?"
         )
         .bind(org_unit_id)
-        .execute(&self.state.db)
+        .execute(&mut *tx)
         .await?;
+
+        let ts = Utc::now().timestamp();
+        for uid in &affected_user_ids {
+            crate::service::membership_event::enqueue_dept_changed(
+                &mut tx,
+                self.state.outbox_repo.as_ref(),
+                uid,
+                None,
+                tid as i64,
+                None,
+                ts,
+            )
+            .await?;
+        }
+
+        tx.commit().await?;
 
         Ok(())
     }
@@ -225,14 +250,17 @@ impl OrgService {
     // check-tenant-scope: delegated
     pub async fn assign_users(&self, org_unit_id: &str, req: AssignUsersRequest, scope: &TenantScope) -> Result<(), IamError> {
         self.get(org_unit_id, scope).await?;
+        let tid = scope.tenant_id().unwrap_or(1) as i64;
 
+        let mut tx = self.state.db.begin().await?;
         sqlx::query(
             "DELETE FROM iam_user_org_units WHERE org_unit_id = ?"
         )
         .bind(org_unit_id)
-        .execute(&self.state.db)
+        .execute(&mut *tx)
         .await?;
 
+        let ts = Utc::now().timestamp();
         for user_id in &req.user_ids {
             sqlx::query(
                 "INSERT INTO iam_user_org_units (user_id, org_unit_id, is_primary, created_at) VALUES (?, ?, ?, NOW())"
@@ -240,9 +268,21 @@ impl OrgService {
             .bind(user_id)
             .bind(org_unit_id)
             .bind(false)
-            .execute(&self.state.db)
+            .execute(&mut *tx)
+            .await?;
+            crate::service::membership_event::enqueue_dept_changed(
+                &mut tx,
+                self.state.outbox_repo.as_ref(),
+                user_id,
+                Some(org_unit_id),
+                tid,
+                None,
+                ts,
+            )
             .await?;
         }
+
+        tx.commit().await?;
 
         Ok(())
     }

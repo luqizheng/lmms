@@ -123,6 +123,19 @@ impl UserService {
             .map_err(|e| IamError::Internal(e.to_string()))?;
 
         crate::service::user_roles::set_user_roles_in_tx(&mut tx, &user_id, &role_ids).await?;
+        let ts = Utc::now().timestamp();
+        for role_id in &role_ids {
+            crate::service::membership_event::enqueue_role_assigned(
+                &mut tx,
+                self.state.outbox_repo.as_ref(),
+                &user_id,
+                role_id,
+                tenant_id,
+                None,
+                ts,
+            )
+            .await?;
+        }
 
         tx.commit().await?;
 
