@@ -1,7 +1,7 @@
 use crate::db::DbPool;
 use common_http::ResilientClient;
 use reqwest::{
-    header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION},
+    header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Method,
 };
 use std::sync::Arc;
@@ -41,6 +41,13 @@ pub struct TokenServerState {
     pub default_resource_ttl_sec: i64,
     pub http_client: Arc<ResilientClient>,
     pub user_service_url: String,
+    /// Phase 5-B: PEM-encoded private key for signing service-jwts
+    /// (separate from `issuer` to keep user-jwt signing path stable).
+    pub private_key_pem: String,
+    /// Phase 5-B: pre-shared bootstrap tokens accepted by
+    /// `POST /tokens/service-jwt`. Each business service has its own
+    /// 32-byte random token; rotate by editing this list and restarting.
+    pub bootstrap_tokens: Vec<String>,
 }
 
 pub mod config;
@@ -55,3 +62,6 @@ pub mod store;
 
 pub use config::{load_config, Config as TokenServerConfig, DatabaseCfg, DbType};
 pub use issuer::TokenIssuer;
+pub use routes::service_jwt::{
+    handle_service_jwt, routes as service_jwt_routes, ServiceJwtRequest, ServiceJwtResponse,
+};

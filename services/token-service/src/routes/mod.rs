@@ -5,4 +5,5 @@ pub mod jwks;
 pub mod refresh;
 pub mod resource;
 pub mod revoke;
+pub mod service_jwt;
 pub mod user_jwt;

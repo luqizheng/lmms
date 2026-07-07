@@ -78,7 +78,17 @@ async fn main() {
             Arc::new(NoopObserver),
         )),
         user_service_url: cfg.user_service_url.clone(),
+        private_key_pem: private_key_pem.clone(),
+        bootstrap_tokens: std::env::var("SERVICE_BOOTSTRAP_TOKENS")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
     };
+    if state.bootstrap_tokens.is_empty() {
+        tracing::warn!("SERVICE_BOOTSTRAP_TOKENS not set; POST /tokens/service-jwt will reject all callers");
+    }
 
     async fn metrics() -> axum::response::Html<String> {
         let encoder = TextEncoder::new();
@@ -148,7 +158,7 @@ async fn main() {
         .route_layer(axum::middleware::from_fn(
             common_telemetry_axum::trace_request_middleware,
         ))
-        .with_state(state);
+        .with_state(state.clone());
 
     if swagger_enabled {
         app = app.merge(
@@ -157,6 +167,9 @@ async fn main() {
         );
         tracing::info!("swagger ui enabled at /swagger-ui");
     }
+
+    // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
+    app = app.merge(token_service::service_jwt_routes(state.clone()));
 
     
     tokio::spawn(async move {
