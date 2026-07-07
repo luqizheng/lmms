@@ -7,17 +7,18 @@ url = "redis://redis:6379"
 prefix = "superpowers:"
 
 consul_addr = "http://consul:8500"
-jwks_url = "http://token-service-sidecar:18082/.well-known/jwks.json"
+jwks_url = "http://token-service:8082/.well-known/jwks.json"
 issuer = "superpowers-token-server"
 
 # egress_map: route.service 名 → 后端 host:port。
-# Phase 5-A: api-gateway 通过 sidecar 的 upstream proxy 出站 (mTLS)。
-# upstream listener 绑定在 127.0.0.1:<port>，对应下游服务的侧车外端口。
+# Phase 5-A-2: 服务直连 (dephase consul connect)，api-gateway 通过 docker DNS
+# 直接访问 superpowers 网络内的服务。所有端口回 808x 默认（port 8080
+# 默认值在 src/config.rs:94 关闭）；下表只为非 8080 服务显式 override。
 [egress_map]
-"iam-service"           = { host = "127.0.0.1", port = 9081 }
-"token-service"         = { host = "127.0.0.1", port = 9082 }
-"notification-service"  = { host = "127.0.0.1", port = 9083 }
-"audit-service"        = { host = "127.0.0.1", port = 9084 }
-"prue_backend"          = { host = "127.0.0.1", port = 9087 }
-"file-service"          = { host = "127.0.0.1", port = 8082 }
-"config-service"        = { host = "127.0.0.1", port = 8081 }
+"iam-service"           = { host = "iam-service",          port = 8081 }
+"token-service"         = { host = "token-service",        port = 8082 }
+"notification-service"  = { host = "notification-service", port = 8083 }
+"audit-service"         = { host = "audit-service",        port = 8084 }
+"prue_backend"          = { host = "prue_backend",         port = 8087 }
+"file-service"          = { host = "file-service",         port = 8082 }
+"config-service"        = { host = "config-service",       port = 8081 }

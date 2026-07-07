@@ -1,6 +1,6 @@
 server:
   host: "0.0.0.0"
-  port: 18082
+  port: 8082
 database:
   db_type: mysql
   url: "mysql://root:rootpass@mysql:3306/superpowers"
@@ -15,4 +15,4 @@ issuer: "superpowers-token-service"
 default_access_ttl_sec: 3600
 default_refresh_ttl_sec: 2592000
 default_resource_ttl_sec: 300
-user_service_url: "http://127.0.0.1:9081"
+user_service_url: "http://iam-service:8081"
