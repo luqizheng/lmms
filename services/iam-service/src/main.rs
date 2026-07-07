@@ -2,9 +2,11 @@ use iam_service::{config::load_config, db, openapi::ApiDoc, routes, state::AppSt
 use common_telemetry;
 use common_cache::MemoryCache;
 use common_event::MySqlOutboxRepo;
+use common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
 use tracing::{info, warn};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -36,7 +38,48 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let state = AppState::new(db_pool, cache, config.clone(), redis, outbox_repo);
+    // Phase 5-B: JWKS cache + service-jwt cache.
+    let http_for_jwt = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+    let jwks = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: std::env::var("JWKS_URL")
+                .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
+            refresh_interval: Duration::from_secs(3600),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt.clone(),
+    ));
+    jwks.refresh().await
+        .expect("JWKS refresh failed at startup; token-service must be reachable");
+    let service_jwt = Arc::new(ServiceJwtCache::new(
+        ServiceJwtConfig {
+            token_service_url: std::env::var("TOKEN_SERVICE_URL")
+                .unwrap_or_else(|_| "http://token-service:8082".into()),
+            bootstrap_token: std::env::var("SERVICE_BOOTSTRAP_TOKEN")
+                .expect("SERVICE_BOOTSTRAP_TOKEN required"),
+            caller_service_name: "iam-service".into(),
+            caller_tenant: std::env::var("TENANT_ID")
+                .ok().and_then(|s| s.parse().ok()).unwrap_or(1i64),
+            refresh_skew: Duration::from_secs(60),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt,
+        std::env::var("IAM_PRIVATE_KEY_PEM_PATH")
+            .ok()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .unwrap_or_default(),  // not used for self-mint
+    ));
+    let state = AppState::new(
+        db_pool,
+        cache,
+        config.clone(),
+        redis,
+        outbox_repo,
+        jwks,
+        service_jwt,
+    );
 
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
         .map(|v| v != "false" && v != "0")

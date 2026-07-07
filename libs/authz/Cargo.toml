@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 axum.workspace = true
 jwt-ctx = { path = "../jwt-ctx" }
+common-jwt = { path = "../common-jwt" }
 tower = "0.5"
 thiserror.workspace = true
 futures = "0.3"
@@ -16,3 +17,4 @@ serde_json.workspace = true
 [dev-dependencies]
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
+common-jwt = { path = "../common-jwt" }

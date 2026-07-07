@@ -1,4 +1,5 @@
-pub mod require_role;
 pub mod perms;
 
-pub use require_role::require_role;
+pub mod verify_aud;
+
+pub use verify_aud::verify_aud_principal_middleware;
