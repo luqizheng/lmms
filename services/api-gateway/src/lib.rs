@@ -1,8 +1,7 @@
 pub mod blacklist;
 pub mod config;
-pub mod jwks;
-pub mod jwt;
 pub mod middleware;
+pub mod perm_epoch_cache;
 pub mod openapi;
 pub mod perm_consumer;
 pub mod perm_epoch;
@@ -12,7 +11,7 @@ pub mod routes_loader;
 pub mod template;
 
 pub use config::{GatewayConfig, RouteConfig, RouteFile, RouteTable};
-pub use jwt::{JwtClaims, JwtValidator};
+pub use middleware::JwtClaims;
 pub use router::RouterConfig;
 
 use axum::{routing::get, Router};
@@ -20,7 +19,8 @@ use redis::aio::MultiplexedConnection;
 use std::sync::Arc;
 
 pub struct AppState {
-    pub jwt_validator: Arc<JwtValidator>,
+    pub jwks_cache: Arc<common_jwt::JWKSCache>,
+    pub perm_epoch_cache: perm_epoch_cache::PermEpochCache,
     pub redis_conn: MultiplexedConnection,
     pub redis_prefix: String,
     pub router_cfg: Arc<RouterConfig>,

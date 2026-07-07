@@ -148,7 +148,7 @@ pub async fn rate_limit_middleware(
 
 fn extract_identity_key(request: &Request<Body>) -> String {
     // Prefer the user_id set by auth_middleware in extensions.
-    if let Some(claims) = request.extensions().get::<crate::JwtClaims>() {
+    if let Some(claims) = request.extensions().get::<super::JwtClaims>() {
         return format!("user:{}", claims.sub);
     }
     // Fall back to X-Real-IP set by nginx.

@@ -7,8 +7,55 @@ use axum::http::StatusCode;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use common_jwt;
 use redis::aio::MultiplexedConnection;
+use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::Arc;
+
+#[derive(Debug, Clone, Default)]
+pub struct JwtClaims {
+    pub sub: String,
+    pub jti: String,
+    pub iss: String,
+    pub iat: i64,
+    pub exp: i64,
+    pub scope: String,
+    pub client_id: String,
+    pub permissions: Vec<String>,
+    pub roles: Vec<String>,
+    pub custom: HashMap<String, Value>,
+}
+
+fn extract_claims_from_value(claims: &Value) -> JwtClaims {
+    let sub = claims["sub"].as_str().unwrap_or("").to_string();
+    let jti = claims["jti"].as_str().unwrap_or("").to_string();
+    let iss = claims["iss"].as_str().unwrap_or("").to_string();
+    let iat = claims["iat"].as_i64().unwrap_or(0);
+    let exp = claims["exp"].as_i64().unwrap_or(0);
+    let scope = claims["scope"].as_str().unwrap_or("").to_string();
+    let client_id = claims["client_id"].as_str().unwrap_or("").to_string();
+    let permissions: Vec<String> = claims["permissions"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let roles: Vec<String> = claims["roles"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let custom: HashMap<String, Value> = claims
+        .as_object()
+        .map(|obj| {
+            obj.iter()
+                .filter(|(k, _)| {
+                    !matches!(k.as_str(), "sub" | "jti" | "iss" | "iat" | "exp" | "scope" | "client_id" | "permissions" | "roles")
+                })
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+    JwtClaims { sub, jti, iss, iat, exp, scope, client_id, permissions, roles, custom }
+}
 
 pub mod rate_limit;
 
@@ -102,10 +149,14 @@ pub async fn auth_middleware(
             .into_response(),
     };
 
-    let claims = match state.jwt_validator.validate(&token) {
-        Ok(c) => c,
-        Err(status) => return (status, "Invalid or expired token").into_response(),
+    let claims_value = match common_jwt::verify_token(&token, &state.jwks_cache, None).await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(error = %e, "jwt verification failed");
+            return (StatusCode::UNAUTHORIZED, "Invalid or expired token").into_response();
+        }
     };
+    let claims = extract_claims_from_value(&claims_value);
 
     // Phase 8.3: fail-fast on missing tid claim
     if !claims.custom.contains_key("tid") {
@@ -120,13 +171,17 @@ pub async fn auth_middleware(
         return (StatusCode::UNAUTHORIZED, "Token revoked").into_response();
     }
 
-    if crate::perm_epoch::check_revoked(&mut conn, &state.redis_prefix, &claims.sub, claims.iat).await
-    {
-        return (
-            StatusCode::UNAUTHORIZED,
-            "permissions changed, re-authenticate",
-        )
-            .into_response();
+    let sub_parsed: u64 = claims.sub.parse().unwrap_or(0u64);
+    let (cached_epoch, hit) = state.perm_epoch_cache.get(sub_parsed);
+    let epoch = if hit {
+        cached_epoch
+    } else {
+        let epoch = common_event::perm_epoch::get_perm_epoch(&mut conn, &state.redis_prefix, &claims.sub).await.ok().flatten();
+        state.perm_epoch_cache.set(sub_parsed, epoch);
+        epoch
+    };
+    if crate::perm_epoch::is_revoked(epoch, claims.iat) {
+        return (StatusCode::UNAUTHORIZED, "permissions changed, re-authenticate").into_response();
     }
 
     tracing::debug!(

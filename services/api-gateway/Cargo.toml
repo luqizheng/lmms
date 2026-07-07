@@ -27,13 +27,12 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-jwt-simple.workspace = true
+common-jwt = { path = "../../libs/common-jwt" }
+common-ratelimit = { path = "../../libs/common-ratelimit" }
 redis.workspace = true
 reqwest.workspace = true
 rustls.workspace = true
 thiserror.workspace = true
-base64.workspace = true
-rsa.workspace = true
 config.workspace = true
 dotenvy.workspace = true
 arc-swap = "1"

@@ -15,7 +15,7 @@ use utoipa::OpenApi;
 
 use api_gateway::template::Template;
 use api_gateway::{
-    blacklist, middleware, router, routes_loader, AppState, GatewayConfig, JwtValidator,
+    blacklist, middleware, router, routes_loader, AppState, GatewayConfig,
     RouteConfig, RouteTable, RouterConfig,
 };
 use api_gateway::resilience_metrics::GatewayMetricsObserver;
@@ -175,12 +175,17 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     println!("========================================");
 
     let http_client = reqwest::Client::new();
-    let public_key = api_gateway::jwks::fetch_rs256_key(&http_client, &cfg.jwks_url)
-        .await
-        .expect("failed to fetch JWKS public key");
+    use common_jwt::{JwksConfig, JWKSCache};
 
-    let jwt_validator =
-        JwtValidator::from_key(public_key, &cfg.issuer).expect("failed to create JWT validator");
+    let jwks_cache = JWKSCache::new(JwksConfig {
+        url: cfg.jwks_url.clone(),
+        ..Default::default()
+    }, http_client.clone());
+    jwks_cache.refresh().await.expect("failed to fetch initial JWKS");
+    let jwks_cache = Arc::new(jwks_cache);
+
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    common_jwt::JWKSCache::spawn_refresh_loop(Arc::clone(&jwks_cache), shutdown_rx);
 
     let redis_conn = blacklist::connect(&cfg.redis.url)
         .await
@@ -222,7 +227,8 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     }
 
     let state = Arc::new(AppState {
-        jwt_validator: Arc::new(jwt_validator),
+        jwks_cache,
+        perm_epoch_cache: api_gateway::perm_epoch_cache::PermEpochCache::new(std::time::Duration::from_secs(5)),
         redis_conn,
         redis_prefix: cfg.redis.prefix.clone(),
         router_cfg: router_cfg.clone(),
@@ -297,10 +303,9 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
         tokio::spawn(async move {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to listen for ctrl-c");
-        tracing::info!("received shutdown signal, deregistering from consul");
+        tokio::signal::ctrl_c().await.expect("failed to listen for ctrl-c");
+        tracing::info!("received shutdown signal");
+        let _ = shutdown_tx.send(true);
         std::process::exit(0);
     });
 
