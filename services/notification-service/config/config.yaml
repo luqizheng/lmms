@@ -15,3 +15,4 @@ consul:
   service_id_file: "/tmp/notification-service-id"
 event_bus:
   url: "amqp://guest:guest@rabbitmq:5672/%2f"
+iam_base_url: "http://iam-service:8081"

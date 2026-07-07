@@ -172,11 +172,11 @@ services:
     ports:
       - "8082:8082"
     labels: *svc-reg-labels-token
-    # NOTE: services/token-service/Dockerfile already bakes
-    #   /app/keys/{private,public}.pem and /app/config/config.yaml
-    # into the image. Do NOT mount over them — empty binds shadow them.
-    # Env overrides go through prefix TOKEN (see common-config Loader,
-    # main.rs: Loader::new("TOKEN").separator("_")).
+    # Phase 5-A-2 dephase: token-service's baked config.yaml
+    # had port 18082 (mesh internal). Override at runtime with the
+    # post-dephase config so the service binds 8082 without rebuild.
+    volumes:
+      - ../services/token-service/config:/app/config:ro
     environment:
       SWAGGER_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -282,6 +282,12 @@ services:
     ports:
       - "8083:8083"
     labels: *svc-reg-labels-notify
+    # Phase 5-A-2 dephase: notification-service's baked config.yaml
+    # had http_addr 127.0.0.1:18083 (mesh internal). Override at runtime
+    # with the post-dephase config so the service binds 0.0.0.0:8083
+    # without rebuild.
+    volumes:
+      - ../services/notification-service/config:/app/config:ro
     environment:
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
@@ -302,8 +308,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    volumes:
-      - ../docker-example/config/notification-service:/app/config:ro
+    networks:
+      - superpowers
 
   notification-outbox-publisher:
     build:
