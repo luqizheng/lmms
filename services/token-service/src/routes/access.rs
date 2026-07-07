@@ -2,7 +2,7 @@ use crate::service::{auth_code_svc, oauth_client_svc};
 use crate::TokenServerState;
 use argon2::{PasswordHash, PasswordVerifier};
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -36,6 +36,7 @@ pub struct AccessResponse {
 )]
 pub async fn handle_access(
     State(state): State<TokenServerState>,
+    headers: HeaderMap,
     Json(req): Json<AccessRequest>,
 ) -> Result<Json<AccessResponse>, (StatusCode, &'static str)> {
     if req.grant_type != "authorization_code" {
@@ -76,7 +77,11 @@ pub async fn handle_access(
             "{}/internal/users/{}/claims",
             state.user_service_url, user_id
         );
-        let extra_claims: serde_json::Value = match crate::fetch_json(&state.http_client, "iam-service", &claims_url, None).await {
+        let user_jwt = headers
+            .get("Authorization")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "));
+        let extra_claims: serde_json::Value = match crate::fetch_json(&state.http_client, "iam-service", &claims_url, user_jwt).await {
             Ok(claims) => claims,
             Err(e) => {
                 tracing::warn!("user-service unreachable at {}: {}, using default claims", claims_url, e);

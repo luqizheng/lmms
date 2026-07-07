@@ -85,6 +85,24 @@ async fn main() {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect(),
+        jwks: {
+            let http = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .build()
+                .expect("reqwest client");
+            let cache = common_jwt::JWKSCache::new(
+                common_jwt::JwksConfig {
+                    url: std::env::var("JWKS_URL")
+                        .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
+                    refresh_interval: std::time::Duration::from_secs(3600),
+                    request_timeout: std::time::Duration::from_secs(5),
+                },
+                http,
+            );
+            cache.refresh().await
+                .expect("JWKS refresh failed at startup; loopback or token-service must be reachable");
+            std::sync::Arc::new(cache)
+        },
     };
     if state.bootstrap_tokens.is_empty() {
         tracing::warn!("SERVICE_BOOTSTRAP_TOKENS not set; POST /tokens/service-jwt will reject all callers");

@@ -1,5 +1,6 @@
 use crate::db::DbPool;
 use common_http::ResilientClient;
+use common_jwt::JWKSCache;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Method,
@@ -48,6 +49,8 @@ pub struct TokenServerState {
     /// `POST /tokens/service-jwt`. Each business service has its own
     /// 32-byte random token; rotate by editing this list and restarting.
     pub bootstrap_tokens: Vec<String>,
+    /// Phase 5-B: JWKS cache for verifying inbound tokens.
+    pub jwks: Arc<common_jwt::JWKSCache>,
 }
 
 pub mod config;
@@ -65,3 +68,4 @@ pub use issuer::TokenIssuer;
 pub use routes::service_jwt::{
     handle_service_jwt, routes as service_jwt_routes, ServiceJwtRequest, ServiceJwtResponse,
 };
+pub use common_jwt;
