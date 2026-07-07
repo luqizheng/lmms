@@ -2,13 +2,40 @@ use axum::extract::FromRequestParts;
 use axum::http::{HeaderValue, Request};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use jwt_ctx::TenantScope;
+use common_jwt::{sign_token, JWKSCache};
+use jwt_ctx::{PrincipalStateProvider, TenantScope};
+use std::sync::Arc;
+use std::time::Duration;
+
+const TEST_PRIVATE_PEM: &str =
+    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str =
+    include_str!("../../common-jwt/tests/fixtures/test_public.pem");
+
+#[derive(Clone)]
+struct State {
+    jwks: Arc<JWKSCache>,
+}
+
+impl PrincipalStateProvider for State {
+    fn jwks(&self) -> Arc<JWKSCache> {
+        self.jwks.clone()
+    }
+}
+
+fn make_state() -> State {
+    State {
+        jwks: Arc::new(JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap()),
+    }
+}
 
 fn req_with_tid(tid: i64) -> Request<()> {
-    let header_b64 = URL_SAFE_NO_PAD.encode(br#"{"alg":"RS256","typ":"JWT"}"#);
-    let payload_b64 = URL_SAFE_NO_PAD
-        .encode(serde_json::to_vec(&serde_json::json!({"sub":"u","tid":tid})).unwrap());
-    let token = format!("{}.{}.sig", header_b64, payload_b64);
+    let token = sign_token(
+        TEST_PRIVATE_PEM,
+        &serde_json::json!({"sub":"u","tid":tid}),
+        Duration::from_secs(60),
+    )
+    .unwrap();
     let mut req = Request::new(());
     req.headers_mut().insert(
         "Authorization",
@@ -18,10 +45,12 @@ fn req_with_tid(tid: i64) -> Request<()> {
 }
 
 fn req_with_cross_tenant() -> Request<()> {
-    let header_b64 = URL_SAFE_NO_PAD.encode(br#"{"alg":"RS256","typ":"JWT"}"#);
-    let payload_b64 = URL_SAFE_NO_PAD
-        .encode(serde_json::to_vec(&serde_json::json!({"sub":"u","tid":42,"ct":true})).unwrap());
-    let token = format!("{}.{}.sig", header_b64, payload_b64);
+    let token = sign_token(
+        TEST_PRIVATE_PEM,
+        &serde_json::json!({"sub":"u","tid":42,"ct":true}),
+        Duration::from_secs(60),
+    )
+    .unwrap();
     let mut req = Request::new(());
     req.headers_mut().insert(
         "Authorization",
@@ -44,9 +73,10 @@ fn cross_tenant_id_is_none() {
 
 #[tokio::test]
 async fn extracts_tenant_scope_from_jwt() {
+    let state = make_state();
     let req = req_with_tid(42);
     let (mut parts, _) = req.into_parts();
-    let scope = TenantScope::from_request_parts(&mut parts, &())
+    let scope = TenantScope::from_request_parts(&mut parts, &state)
         .await
         .expect("extracts");
     assert_eq!(scope, TenantScope::Single(42));
@@ -54,9 +84,10 @@ async fn extracts_tenant_scope_from_jwt() {
 
 #[tokio::test]
 async fn extracts_cross_tenant_when_ct_true() {
+    let state = make_state();
     let req = req_with_cross_tenant();
     let (mut parts, _) = req.into_parts();
-    let scope = TenantScope::from_request_parts(&mut parts, &())
+    let scope = TenantScope::from_request_parts(&mut parts, &state)
         .await
         .expect("extracts");
     assert_eq!(scope, TenantScope::CrossTenant);
@@ -65,8 +96,9 @@ async fn extracts_cross_tenant_when_ct_true() {
 
 #[tokio::test]
 async fn missing_auth_returns_unauthorized() {
+    let state = make_state();
     let req: Request<()> = Request::new(());
     let (mut parts, _) = req.into_parts();
-    let result = TenantScope::from_request_parts(&mut parts, &()).await;
+    let result = TenantScope::from_request_parts(&mut parts, &state).await;
     assert_eq!(result.unwrap_err(), axum::http::StatusCode::UNAUTHORIZED);
 }

@@ -2,27 +2,52 @@ use axum::body::Body;
 use axum::http::{header, Request};
 use axum::routing::get;
 use axum::Router;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
-use jwt_ctx::Principal;
+use common_jwt::{sign_token, JWKSCache};
+use jwt_ctx::{Principal, PrincipalStateProvider};
+use std::sync::Arc;
+use std::time::Duration;
 use tower::ServiceExt;
+
+const TEST_PRIVATE_PEM: &str =
+    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str =
+    include_str!("../../common-jwt/tests/fixtures/test_public.pem");
 
 async fn who(me: Principal) -> String {
     format!("u{}", me.user_code)
 }
 
-fn create_test_jwt(payload: &str) -> String {
-    let header = URL_SAFE_NO_PAD.encode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-    let payload_b64 = URL_SAFE_NO_PAD.encode(payload);
-    format!("{}.{}.signature", header, payload_b64)
+#[derive(Clone)]
+struct State {
+    jwks: Arc<JWKSCache>,
+}
+
+impl PrincipalStateProvider for State {
+    fn jwks(&self) -> Arc<JWKSCache> {
+        self.jwks.clone()
+    }
+}
+
+fn make_state() -> State {
+    State {
+        jwks: Arc::new(JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap()),
+    }
+}
+
+fn make_token(payload: serde_json::Value) -> String {
+    sign_token(TEST_PRIVATE_PEM, &payload, Duration::from_secs(60)).unwrap()
 }
 
 #[tokio::test]
 async fn extractor_returns_principal() {
-    let payload = r#"{"sub":"u","user_code":"aB3xY9zQ","tid":1}"#;
-    let token = create_test_jwt(payload);
-    
-    let app = Router::new().route("/", get(who));
+    let state = make_state();
+    let token = make_token(serde_json::json!({
+        "sub": "u",
+        "user_code": "aB3xY9zQ",
+        "tid": 1,
+    }));
+
+    let app = Router::new().route("/", get(who)).with_state(state);
     let req = Request::builder()
         .uri("/")
         .header(header::AUTHORIZATION, format!("Bearer {}", token))
@@ -36,8 +61,28 @@ async fn extractor_returns_principal() {
 
 #[tokio::test]
 async fn missing_header_returns_401() {
-    let app = Router::new().route("/", get(who));
+    let state = make_state();
+    let app = Router::new().route("/", get(who)).with_state(state);
     let req = Request::builder().uri("/").body(Body::empty()).unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
+async fn bad_signature_returns_401() {
+    let state = make_state();
+    let mut token = make_token(serde_json::json!({"sub":"u","tid":1}));
+    // Tamper with the signature
+    let parts: Vec<&str> = token.split('.').collect();
+    let new_sig = format!("A{}", &parts[2][1..]);
+    token = format!("{}.{}.{}", parts[0], parts[1], new_sig);
+
+    let app = Router::new().route("/", get(who)).with_state(state);
+    let req = Request::builder()
+        .uri("/")
+        .header(header::AUTHORIZATION, format!("Bearer {}", token))
+        .body(Body::empty())
+        .unwrap();
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), 401);
 }
