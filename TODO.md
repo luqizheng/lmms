@@ -421,6 +421,7 @@
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
 - [ ] **OpenAPI registration sweep**：跨 4.4/4.4-fu1/4.4-fu2 等多个 utoipa-annotated handler 未在 `services/iam-service/src/openapi.rs::paths(...)` 注册（assign_permissions、PUT /iam/users/:id/roles、GET /iam/internal/users/by-{role,dept}）。一次性 sweep 补齐，半天工作量。来源：4.4-fu1 / 4.4-fu2 / 4.3-fu2 final review 同类提示。
+  - [x] 2026-07-07 补齐：`org_units::*`（6 handler）+ `permissions::*`（5 handler）+ `OrgUnitResponse` 递归 schema；DTO 加 `ToSchema`/`IntoParams`；openapi.rs paths/components/tags 注册；openapi.yaml 手工补齐（dump-openapi binary 因 utoipa 递归序列化递归 schema 栈溢出，pre-existing bug）
 
 ---
 

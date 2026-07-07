@@ -10,6 +10,13 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+#[utoipa::path(
+    get,
+    path = "/iam/org-units",
+    responses((status = 200, body = Vec<OrgUnitResponse>)),
+    security(("bearer_auth" = [])),
+    tag = "org_units"
+)]
 // check-tenant-scope: delegated
 async fn list_org_units(
     State(state): State<AppState>,
@@ -21,6 +28,17 @@ async fn list_org_units(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    post,
+    path = "/iam/org-units",
+    request_body = CreateOrgUnitRequest,
+    responses(
+        (status = 200, body = OrgUnitResponse),
+        (status = 409, description = "duplicate org unit"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "org_units"
+)]
 // check-tenant-scope: delegated
 async fn create_org_unit(
     State(state): State<AppState>,
@@ -37,6 +55,17 @@ async fn create_org_unit(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/iam/org-units/{org_unit_id}",
+    params(("org_unit_id" = String, Path, description = "Org unit ID")),
+    responses(
+        (status = 200, body = OrgUnitResponse),
+        (status = 404, description = "org unit not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "org_units"
+)]
 // check-tenant-scope: delegated
 async fn get_org_unit(
     State(state): State<AppState>,
@@ -53,6 +82,18 @@ async fn get_org_unit(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    put,
+    path = "/iam/org-units/{org_unit_id}",
+    params(("org_unit_id" = String, Path, description = "Org unit ID")),
+    request_body = UpdateOrgUnitRequest,
+    responses(
+        (status = 200, body = OrgUnitResponse),
+        (status = 404, description = "org unit not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "org_units"
+)]
 // check-tenant-scope: delegated
 async fn update_org_unit(
     State(state): State<AppState>,
@@ -70,6 +111,18 @@ async fn update_org_unit(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/iam/org-units/{org_unit_id}",
+    params(("org_unit_id" = String, Path, description = "Org unit ID")),
+    responses(
+        (status = 204, description = "org unit deleted"),
+        (status = 404, description = "org unit not found"),
+        (status = 409, description = "conflict"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "org_units"
+)]
 // check-tenant-scope: delegated
 async fn delete_org_unit(
     State(state): State<AppState>,
@@ -87,6 +140,15 @@ async fn delete_org_unit(
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    put,
+    path = "/iam/org-units/{org_unit_id}/users",
+    params(("org_unit_id" = String, Path, description = "Org unit ID")),
+    request_body = AssignUsersRequest,
+    responses((status = 204, description = "users assigned")),
+    security(("bearer_auth" = [])),
+    tag = "org_units"
+)]
 // check-tenant-scope: delegated
 async fn assign_users(
     State(state): State<AppState>,

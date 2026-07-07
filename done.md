@@ -189,3 +189,4 @@
 - [x] **4.4-fu3** gateway perm_epoch 5s 本地内存短缓存（commit `0f14e1a`）
 - [x] gateway 限流从 governor 迁 Redis 滑动窗口（多实例共享；commit `ddf44a0`）
 - [x] common-ratelimit ZADD member bug 修复（`format!("{}:{}", identity, now_ms)`；commit `ac28dfa`）
+- [x] **OpenAPI registration sweep**：iam-service `org_units::*` 6 handler + `permissions::*` 5 handler + 9 DTO ToSchema/IntoParams + openapi.rs paths/components/tags + openapi.yaml 手工补齐（dump-openapi binary 因 utoipa 递归序列化栈溢出 pre-existing，本地无法运行）

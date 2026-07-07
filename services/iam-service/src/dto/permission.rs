@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 use chrono::DateTime;
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreatePermissionRequest {
     #[validate(length(min = 1, max = 100))]
     pub code: String,
@@ -16,7 +17,7 @@ pub struct CreatePermissionRequest {
     pub sort_order: Option<i32>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdatePermissionRequest {
     #[validate(length(min = 1, max = 100))]
     pub name: Option<String>,
@@ -25,7 +26,7 @@ pub struct UpdatePermissionRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
 pub struct PermissionQuery {
     pub keyword: Option<String>,
     pub category: Option<i32>,
@@ -33,7 +34,7 @@ pub struct PermissionQuery {
     pub size: u32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PermissionResponse {
     pub id: String,
     pub code: String,
@@ -48,7 +49,7 @@ pub struct PermissionResponse {
     pub updated_at: DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PermissionListResponse {
     pub items: Vec<PermissionResponse>,
     pub total: u64,

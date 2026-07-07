@@ -9,6 +9,14 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+#[utoipa::path(
+    get,
+    path = "/iam/permissions",
+    params(PermissionQuery),
+    responses((status = 200, body = PermissionListResponse)),
+    security(("bearer_auth" = [])),
+    tag = "permissions"
+)]
 async fn list_permissions(
     State(state): State<AppState>,
     Query(query): Query<PermissionQuery>,
@@ -18,6 +26,17 @@ async fn list_permissions(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    post,
+    path = "/iam/permissions",
+    request_body = CreatePermissionRequest,
+    responses(
+        (status = 200, body = PermissionResponse),
+        (status = 409, description = "duplicate permission"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "permissions"
+)]
 async fn create_permission(
     State(state): State<AppState>,
     Principal { user_id: p, .. }: Principal,
@@ -33,6 +52,17 @@ async fn create_permission(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/iam/permissions/{permission_id}",
+    params(("permission_id" = String, Path, description = "Permission ID")),
+    responses(
+        (status = 200, body = PermissionResponse),
+        (status = 404, description = "permission not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "permissions"
+)]
 async fn get_permission(
     State(state): State<AppState>,
     Path(permission_id): Path<String>,
@@ -47,6 +77,18 @@ async fn get_permission(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    put,
+    path = "/iam/permissions/{permission_id}",
+    params(("permission_id" = String, Path, description = "Permission ID")),
+    request_body = UpdatePermissionRequest,
+    responses(
+        (status = 200, body = PermissionResponse),
+        (status = 404, description = "permission not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "permissions"
+)]
 async fn update_permission(
     State(state): State<AppState>,
     Path(permission_id): Path<String>,
@@ -63,6 +105,17 @@ async fn update_permission(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/iam/permissions/{permission_id}",
+    params(("permission_id" = String, Path, description = "Permission ID")),
+    responses(
+        (status = 204, description = "permission deleted"),
+        (status = 404, description = "permission not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "permissions"
+)]
 async fn delete_permission(
     State(state): State<AppState>,
     Path(permission_id): Path<String>,

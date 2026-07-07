@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use validator::Validate;
 use chrono::DateTime;
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateOrgUnitRequest {
     pub parent_id: Option<String>,
     #[validate(length(min = 1, max = 100))]
@@ -12,7 +13,7 @@ pub struct CreateOrgUnitRequest {
     pub sort_order: Option<i32>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateOrgUnitRequest {
     pub parent_id: Option<String>,
     #[validate(length(min = 1, max = 100))]
@@ -23,7 +24,7 @@ pub struct UpdateOrgUnitRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub struct OrgUnitResponse {
     pub id: String,
     pub parent_id: Option<String>,
@@ -37,7 +38,7 @@ pub struct OrgUnitResponse {
     pub children: Vec<OrgUnitResponse>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct AssignUsersRequest {
     pub user_ids: Vec<String>,
 }

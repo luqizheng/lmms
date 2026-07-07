@@ -4,7 +4,7 @@ use utoipa::{
 };
 
 use crate::dto;
-use crate::routes::{auth, internal_users, roles, tenants, users};
+use crate::routes::{auth, internal_users, org_units, permissions, roles, tenants, users};
 
 pub struct SecurityAddon;
 
@@ -51,6 +51,17 @@ impl Modify for SecurityAddon {
         roles::update_role,
         roles::delete_role,
         roles::assign_permissions,
+        permissions::list_permissions,
+        permissions::create_permission,
+        permissions::get_permission,
+        permissions::update_permission,
+        permissions::delete_permission,
+        org_units::list_org_units,
+        org_units::create_org_unit,
+        org_units::get_org_unit,
+        org_units::update_org_unit,
+        org_units::delete_org_unit,
+        org_units::assign_users,
         tenants::register_tenant,
         internal_users::list_users_by_role,
         internal_users::list_users_by_dept,
@@ -82,12 +93,23 @@ impl Modify for SecurityAddon {
         dto::CreateTenantRequest,
         dto::CreateTenantResponse,
         dto::UserIdListResponse,
+        dto::OrgUnitResponse,
+        dto::CreateOrgUnitRequest,
+        dto::UpdateOrgUnitRequest,
+        dto::AssignUsersRequest,
+        dto::PermissionResponse,
+        dto::PermissionListResponse,
+        dto::CreatePermissionRequest,
+        dto::UpdatePermissionRequest,
+        dto::PermissionQuery,
     )),
     modifiers(&SecurityAddon),
     tags(
         (name = "auth", description = "Authentication"),
         (name = "users", description = "User management"),
         (name = "roles", description = "Role management"),
+        (name = "permissions", description = "Permission management"),
+        (name = "org_units", description = "Organization unit management"),
         (name = "tenants", description = "Tenant registration"),
         (name = "internal", description = "Internal service-to-service endpoints"),
     )
