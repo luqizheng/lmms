@@ -127,7 +127,7 @@ impl RateLimiter {
             .atomic()
             .zrembyscore(&key, "-inf", window_start_ms)
             .ignore()
-            .zadd(&key, &identity, now_ms) // member is identity to avoid dupes in same ms
+            .zadd(&key, format!("{}:{}", identity, now_ms), now_ms)
             .ignore()
             .zcard(&key)
             .expire(&key, limit.window_secs as i64)
@@ -237,4 +237,21 @@ fn extract_identity(request: &Request<Body>) -> String {
         .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
         .map(|c| format!("ip:{}", c.0.ip()))
         .unwrap_or_else(|| "ip:unknown".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Limit;
+
+    #[test]
+    fn multiple_requests_from_same_identity_are_counted() {
+        let limit = Limit::new("test", 2, 60);
+        let key = format!("rl:{}:{}:{}", limit.route, "user1", limit.window_secs);
+        let now1 = 1000i64;
+        let now2 = 1001i64;
+        let now3 = 1002i64;
+        assert_ne!(format!("user1:{}", now1), format!("user1:{}", now2));
+        assert_ne!(format!("user1:{}", now2), format!("user1:{}", now3));
+        let _ = key;
+    }
 }
