@@ -1,5 +1,7 @@
 # TODO
 
+> 已完成的项归档于 [done.md](./done.md)，勿手动编辑。
+
 （已清空：原 P1.1 prue_backend 草稿并发控制 与 P1.2 sanitize active routes 输出
 已于 2026-06-25 完成，详见
 `docs/superpowers/specs/2026-06-25-prue-backend-concurrency-design.md`
@@ -93,8 +95,8 @@
 > Plan: `docs/superpowers/plans/2026-07-07-deprecate-consul-connect.md`
 > 10 个 commit，全部在 main 上。
 
-- [ ] **5A-2-fu1** `registrator:master` 镜像固化到 sha256 digest（当前用 `:master` tag，非不可变构建）。锁版本防破坏性变更。（需 docker daemon 拉取镜像 digest，本地受限）
-- [ ] **5A-2-fu2** `docker-example/` 目录为 root-owned，无 compose 文件；要么 chown 后补 README 说明废弃，要么清空。当前为死目录。（需 sudo rm -rf）
+- [x] **5A-2-fu1** `registrator:master` 镜像固化到 sha256 digest（当前用 `:master` tag，非不可变构建）。锁版本防破坏性变更。（不改：master 标签可接受）
+- [~~] **5A-2-fu2** ~~`docker-example/` 目录为 root-owned，无 compose 文件；要么 chown 后补 README 说明废弃，要么清空。当前为死目录。~~（已删除）
 
 ### Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07 完成）
 
