@@ -208,11 +208,8 @@ impl Db {
             return Ok(());
         }
         let mut tx = self.pool.begin().await?;
-        for uid in users {
-            sqlx::query(
-                "INSERT IGNORE INTO ntf_announcement_deliveries (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())"
-            ).bind(ann_id).bind(uid).execute(&mut *tx).await?;
-        }
+        let v: Vec<String> = users.iter().cloned().collect();
+        insert_deliveries_batch(ann_id, &v, &mut tx).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -295,16 +292,7 @@ impl Db {
         if status_again == "published" || status_again == "revoked" {
             return Ok(user_ids_vec);
         }
-        for uid in &user_ids {
-            sqlx::query(
-                "INSERT IGNORE INTO ntf_announcement_deliveries \
-                 (announcement_id, user_id, delivered_at) VALUES (?,?,NOW())",
-            )
-            .bind(ann_id)
-            .bind(uid)
-            .execute(&mut *tx)
-            .await?;
-        }
+        insert_deliveries_batch(ann_id, &user_ids_vec, &mut tx).await?;
         let mut qb = QueryBuilder::new("UPDATE ntf_announcements SET status='published'");
         qb.where_id(ann_id);
         qb.and_tenant(scope);
@@ -347,6 +335,25 @@ async fn table_exists(pool: &MySqlPool, table: &str) -> anyhow::Result<bool> {
     .fetch_one(pool)
     .await?;
     Ok(row.0 > 0)
+}
+
+async fn insert_deliveries_batch(
+    ann_id: u64,
+    users: &[String],
+    conn: &mut sqlx::MySqlConnection,
+) -> AppResult<()> {
+    if users.is_empty() {
+        return Ok(());
+    }
+    let mut qb = sqlx::QueryBuilder::new(
+        "INSERT IGNORE INTO ntf_announcement_deliveries \
+         (announcement_id, user_id, delivered_at) ",
+    );
+    qb.push_values(users.iter(), |mut b, uid| {
+        b.push_bind(ann_id as i64).push_bind(uid).push("NOW()");
+    });
+    qb.build().execute(&mut *conn).await?;
+    Ok(())
 }
 
 #[cfg(test)]
