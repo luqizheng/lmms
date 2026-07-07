@@ -83,7 +83,32 @@
     - `auth_svc.rs:115/356`（login_success / login_failed）：直接换 `common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), ...)`
     - `perm_change.rs:39` helper 签名 `db: &MySqlPool` → `repo: &MySqlOutboxRepo`；5 个 caller（`role_svc.rs:148/185/220` + `permission_svc.rs:208/253`）改传 `self.state.outbox_repo.as_ref()`
     - 回归：`permission_changed_test` 7/7 PASS（testcontainers），workspace build clean
-- [ ] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — Phase 5
+- [ ] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — Phase 5 (done as T4)
+
+### Phase 5-A-2 — 放弃 Consul Connect, 改用 registrator（2026-07-07 完成）
+
+> 本 session 落地。撤 Consul Connect（sidecar / intentions / connect proxy / consul-dataplane），
+> 用 `gliderlabs/registrator` 项目级注册 + 服务间直连 HTTP + `Authorization: Bearer <jwt>` 透传。
+> Spec: `docs/superpowers/specs/2026-07-07-deprecate-consul-connect-use-registrator-design.md`
+> Plan: `docs/superpowers/plans/2026-07-07-deprecate-consul-connect.md`
+> 10 个 commit，全部在 main 上。
+
+- [ ] **5A-2-fu1** `registrator:master` 镜像固化到 sha256 digest（当前用 `:master` tag，非不可变构建）。锁版本防破坏性变更。
+- [ ] **5A-2-fu2** `docker-example/` 目录为 root-owned，无 compose 文件；要么 chown 后补 README 说明废弃，要么清空。当前为死目录。
+
+### Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07 完成）
+
+> 本 session 落地。`libs/common-jwt` + `Principal::from_token` async 验签（RS256 via JWKS）+ `POST /tokens/service-jwt` + 8 服务接入 JWKSCache + `PrincipalStateProvider` trait。
+> Spec: `docs/superpowers/specs/2026-07-07-phase5b-jwt-signature-and-service-jwt-design.md`
+> Plan: `docs/superpowers/plans/2026-07-07-phase5b-jwt-signature-and-service-jwt.md`
+> 14 个 commit，`iam-service` 51 tests 全过。
+
+- [ ] **5B-fu1** `Principal::from_jwt_payload`（无验签路径）加 `#[deprecated]`。当前保留为测试用，生产应走 `from_token`。小改。
+- [ ] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。
+- [ ] **5B-fu3** `notification → iam` 事件化（去掉同步 `/iam/internal/users/by-{role,dept}` HTTP 调用，改 RabbitMQ 事件驱动本地投影）。对应 spec §0.5.6 #2 的 `phase5b-event-sync`。
+- [ ] **5B-fu4** TLS termination（生产路径：服务间 dev 仍 HTTP，生产需 alb/nginx 终结 TLS）。对应 spec §11 的 `phase5b-tls-termination.md`。
+- [ ] **5B-fu5** `cargo test --workspace --lib` 全量在 CI 跑（本机 tmpfs 6.4G 不够）。CI pipeline 需验证。
+- [ ] **5B-fu6** principal extractor 在 `from_token` 失败时可能泄露 jwt 错误细节到响应（当前统一 401）。生产应在日志中记录原因，响应只返回通用消息。
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
