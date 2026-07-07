@@ -1,7 +1,6 @@
 use audit_service::{config::AppConfig, routes, create_state};
 use common::db::connect;
 use common_telemetry::init_tracing;
-use consul_registrar::ConsulRegistrar;
 use std::net::SocketAddr;
 use tracing::{info, warn};
 
@@ -115,28 +114,12 @@ async fn main() -> anyhow::Result<()> {
         app
     };
 
-    let mut consul_registrar = ConsulRegistrar::new(
-        &config.consul_addr,
-        &config.consul_service_name,
-        "/tmp/audit-service-id",
-    );
-    match consul_registrar
-        .register_discovered(addr.port(), &config.consul_service_name)
-        .await
-    {
-        Ok(_) => info!(
-            "audit-service registered with consul (fallback {})",
-            config.consul_service_name
-        ),
-        Err(e) => warn!("failed to register with consul: {}", e),
-    }
-
+    
     tokio::spawn(async move {
         tokio::signal::ctrl_c()
             .await
             .expect("failed to listen for ctrl-c");
         info!("received shutdown signal, deregistering from consul");
-        let _ = consul_registrar.deregister().await;
         std::process::exit(0);
     });
 

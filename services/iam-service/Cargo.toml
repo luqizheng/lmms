@@ -18,7 +18,6 @@ common-crypto = { path = "../../libs/common-crypto" }
 common-validator = { path = "../../libs/common-validator" }
 jwt-ctx = { path = "../../libs/jwt-ctx" }
 authz = { path = "../../libs/authz" }
-consul-registrar = { path = "../../libs/consul-registrar" }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 

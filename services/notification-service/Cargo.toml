@@ -4,7 +4,6 @@ version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
-consul-registrar = { path = "../../libs/consul-registrar" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 common-ratelimit = { path = "../../libs/common-ratelimit" }

@@ -28,7 +28,6 @@ common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = 
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 redis = { workspace = true, features = ["connection-manager"] }
-consul-registrar = { path = "../../libs/consul-registrar" }
 
 [[bin]]
 name = "dump-openapi"

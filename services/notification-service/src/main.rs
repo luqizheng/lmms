@@ -17,9 +17,8 @@ mod ws_hub;
 
 use axum::routing::get;
 use axum::Router;
-use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
+use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
 use config::AppConfig;
-use consul_registrar::{ConsulRegistrar, Upstream};
 use db::Db;
 use iam_client::IamMemberClient;
 use redis_cli::RedisCli;
@@ -142,27 +141,11 @@ async fn main() -> anyhow::Result<()> {
         .next()
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
-
-    let mut consul_registrar = ConsulRegistrar::new(
-        &cfg.consul.addr,
-        &cfg.consul.service_name,
-        &cfg.consul.service_id_file,
-    )
-    .with_upstreams(vec![Upstream::new("iam-service", 9081)]);
-    match consul_registrar
-        .register_discovered(port, &cfg.consul.service_name)
-        .await
-    {
-        Ok(_) => tracing::info!("notification-service registered with consul"),
-        Err(e) => tracing::warn!("failed to register with consul: {}", e),
-    }
-    let consul_for_shutdown = consul_registrar;
     tokio::spawn(async move {
         tokio::signal::ctrl_c()
             .await
             .expect("failed to listen for ctrl-c");
-        tracing::info!("received shutdown signal, deregistering from consul");
-        let _ = consul_for_shutdown.deregister().await;
+        tracing::info!("received shutdown signal");
         std::process::exit(0);
     });
 

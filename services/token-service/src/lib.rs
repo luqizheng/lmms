@@ -54,5 +54,4 @@ pub mod service;
 pub mod store;
 
 pub use config::{load_config, Config as TokenServerConfig, DatabaseCfg, DbType};
-pub use consul_registrar::ConsulRegistrar;
 pub use issuer::TokenIssuer;

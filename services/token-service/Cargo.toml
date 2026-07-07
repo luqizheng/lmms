@@ -20,7 +20,6 @@ common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = 
 common-config = { path = "../../libs/common-config", features = ["config-service"] }
 common-http = { path = "../../libs/common-http" }
 reqwest.workspace = true
-consul-registrar = { path = "../../libs/consul-registrar" }
 axum.workspace = true
 tokio.workspace = true
 tower.workspace = true

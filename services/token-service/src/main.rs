@@ -4,9 +4,8 @@ use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
 use token_service::openapi::ApiDoc;
 use token_service::routes;
 use token_service::service::oauth_client_svc;
-use consul_registrar::Upstream;
 use token_service::{
-    ConsulRegistrar, TokenIssuer, TokenServerConfig, TokenServerState,
+    TokenIssuer, TokenServerConfig, TokenServerState,
 };
 use prometheus::{Encoder, TextEncoder};
 use utoipa::OpenApi;
@@ -63,6 +62,9 @@ async fn main() {
     let issuer = Arc::new(
         TokenIssuer::new(&private_key_pem, &cfg.issuer).expect("failed to create token issuer"),
     );
+
+    let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
     let state = TokenServerState {
         db: db.clone(),
@@ -156,29 +158,12 @@ async fn main() {
         tracing::info!("swagger ui enabled at /swagger-ui");
     }
 
-    let mut consul_registrar = ConsulRegistrar::new(
-        &cfg.consul.addr,
-        &cfg.consul.service_name,
-        &cfg.consul.service_id_file,
-    )
-    .with_upstreams(vec![Upstream::new("iam-service", 9081)]);
-    let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-
-    match consul_registrar
-        .register_discovered(cfg.server.port, &cfg.consul.service_name)
-        .await
-    {
-        Ok(_) => tracing::info!("token-service registered with consul"),
-        Err(e) => tracing::warn!("failed to register with consul: {}", e),
-    }
-
+    
     tokio::spawn(async move {
         tokio::signal::ctrl_c()
             .await
             .expect("failed to listen for ctrl-c");
         tracing::info!("received shutdown signal, deregistering from consul");
-        let _ = consul_registrar.deregister().await;
         std::process::exit(0);
     });
 
