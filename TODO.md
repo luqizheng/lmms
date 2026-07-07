@@ -93,8 +93,8 @@
 > Plan: `docs/superpowers/plans/2026-07-07-deprecate-consul-connect.md`
 > 10 个 commit，全部在 main 上。
 
-- [ ] **5A-2-fu1** `registrator:master` 镜像固化到 sha256 digest（当前用 `:master` tag，非不可变构建）。锁版本防破坏性变更。
-- [ ] **5A-2-fu2** `docker-example/` 目录为 root-owned，无 compose 文件；要么 chown 后补 README 说明废弃，要么清空。当前为死目录。
+- [ ] **5A-2-fu1** `registrator:master` 镜像固化到 sha256 digest（当前用 `:master` tag，非不可变构建）。锁版本防破坏性变更。（需 docker daemon 拉取镜像 digest，本地受限）
+- [ ] **5A-2-fu2** `docker-example/` 目录为 root-owned，无 compose 文件；要么 chown 后补 README 说明废弃，要么清空。当前为死目录。（需 sudo rm -rf）
 
 ### Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07 完成）
 
