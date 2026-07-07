@@ -76,9 +76,9 @@
 
 **各层职责**：
 - **gateway**：JWT RS256 验签、黑名单检查、过期检查、下游路由。无业务逻辑。
-- **token-service**：只做签发/刷新/吊销。产出 `access_token` + `refresh_token`。
-- **iam-service**：身份 + RBAC + 部门树。通过 `libs/jwt-ctx` 提供 `Principal` extractor。
-- **业务服务**：各自拥有自己的限界上下文。彼此不直接调用 — 一律走网关。
+- **token-service**：只做签发/刷新/吊销。产出 `access_token` + `refresh_token`。Phase 5-B 新增 `POST /tokens/service-jwt`（bootstrap-token auth，签发 1h service-jwt）。
+- **iam-service**：身份 + RBAC + 部门树。通过 `libs/jwt-ctx` 提供 `Principal` extractor（Phase 5-B 起验签）。`/iam/internal/*` 端点要求 `aud="iam-service"`（`verify_aud_principal_middleware`）。
+- **业务服务**：各自拥有自己的限限上下文。Phase 5-B 起所有 inbound JWT 通过 `libs/common-jwt::JWKSCache` 验签（RS256），outbound 内部调用携带 `Authorization: Bearer <service-jwt>`。
 
 ---
 

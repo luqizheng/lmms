@@ -79,6 +79,10 @@ services:
       - "8085:8081"
     labels: *svc-reg-labels-config
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${CONFIG_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       SERVER_HOST: "0.0.0.0"
       SERVER_ADDR: "0.0.0.0:8081"
       DATABASE_URL: "${DATABASE_URL}"
@@ -104,6 +108,10 @@ services:
       - "8086:8082"
     labels: *svc-reg-labels-file
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${FILE_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       SERVER_HOST: "0.0.0.0"
       SERVER_ADDR: "0.0.0.0:8082"
       DATABASE_URL: "${DATABASE_URL}"
@@ -133,6 +141,10 @@ services:
       - "3000:3000"
     labels: *svc-reg-labels-gateway
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${GATEWAY_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       RUST_LOG: "api_gateway=trace,info"
       GW_SERVER__HOST: "0.0.0.0"
       GW_SERVER__PORT: "3000"
@@ -178,6 +190,8 @@ services:
     volumes:
       - ../services/token-service/config:/app/config:ro
     environment:
+      SERVICE_BOOTSTRAP_TOKENS: "${SERVICE_BOOTSTRAP_TOKENS}"
+      TENANT_ID: "${TENANT_ID}"
       SWAGGER_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "token-service"
@@ -206,6 +220,10 @@ services:
       - ../docker-example/secrets:/app/keys:ro
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${IAM_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8081"
       DATABASE_URL: "${DATABASE_URL}"
@@ -258,6 +276,10 @@ services:
       - "8087:8087"
     labels: *svc-reg-labels-prue
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${PRUE_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8087"
       DATABASE_URL: "${DATABASE_URL}"
@@ -289,6 +311,10 @@ services:
     volumes:
       - ../services/notification-service/config:/app/config:ro
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${NOTIFICATION_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       SERVER_PORT: "8083"
@@ -340,6 +366,10 @@ services:
       - "8084:8084"
     labels: *svc-reg-labels-audit
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${AUDIT_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8084"
       DATABASE_URL: "${DATABASE_URL}"
