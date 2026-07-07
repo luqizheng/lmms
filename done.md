@@ -185,3 +185,7 @@
 - [x] **5B-fu6** principal extractor JWT 验签失败 warn 日志（`libs/jwt-ctx/src/principal.rs`）
 - [x] **5A-2-fu1** `registrator:master` 保持不变（确认无需固化 digest）
 - [x] **5A-2-fu2** `docker-example/` 已删除
+- [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（删 jwt-simple/rsa/base64；commits `0f14e1a` … `d295987`）
+- [x] **4.4-fu3** gateway perm_epoch 5s 本地内存短缓存（commit `0f14e1a`）
+- [x] gateway 限流从 governor 迁 Redis 滑动窗口（多实例共享；commit `ddf44a0`）
+- [x] common-ratelimit ZADD member bug 修复（`format!("{}:{}", identity, now_ms)`；commit `ac28dfa`）

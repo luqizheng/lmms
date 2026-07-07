@@ -66,9 +66,9 @@
   - [ ] **4.3-fu3** 4.1 welcome 路径（`announcement_service.rs:ensure_welcome_for_user`）多副本化：改走事件驱动 WS 推送而非进程内 `hub.publish`（消除最后一处进程内直推；delivery 已落库故 reload 可见，影响小）。依赖：4.3 的 ephemeral consumer 基建。
   - [x] **4.3-fu4** consumer `run()` block-on-disconnect 修复：审计/通知两个 durable-queue consumer 的 30s 重订阅循环换为持 `RabbitMqConsumer` + `while consumer.connection().status().connected() { sleep(5s) }`（复用 4.3 `announcement_run` 模式）；durable 队列在 broker 侧保留，未 ack 消息断线重订阅后 broker 重投。每 30s queue_declare/bind/basic_consume churn 消除。`services/audit-service/src/consumer.rs::run()` + `services/notification-service/src/consumer/mod.rs::run()`（spec `2026-06-28-phase4-cheap-fixes-design.md` §2.3）。
 - [x] **4.4** `iam.permission.changed` 事件 + perm-epoch 令牌失效（双写）（commits `512b389`..`4230b06`，最终对齐 prefix 修复见 4.4 分支末尾 commit；spec: `2026-06-27-phase4.4-permission-changed-design.md`，plan: `2026-06-27-phase4.4-permission-changed-plan.md`）。iam 在 assign_permissions / role 禁删 / permission 禁删 同事务展开 user_ids + 发事件 + 直写 Redis `perm_epoch:{uid}`；gateway 比对 `iat < perm_epoch` → 401，并消费事件用 set-if-greater 兜底补写。无服务端权限缓存可失效，故走令牌失效（架构评审已否决「token 落库反查拉黑」方案）。手工验收：`test-case/44-permission-epoch.md`。
-  - [x] **4.4-fu1** 新增 `PUT /iam/users/:id/roles` 写端点并接入失效（当前 user→role 仅在建用户时设，已登录用户改不了角色）。spec: docs/superpowers/specs/2026-07-01-phase4.4-fu1-user-roles-assign-design.md, plan: docs/superpowers/plans/2026-07-01-phase4.4-fu1-user-roles-assign.md
-  - [x] **4.4-fu2** actor_id 透传（spec: docs/superpowers/specs/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver-design.md, plan: docs/superpowers/plans/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver.md）
-  - [ ] **4.4-fu3** gateway perm_epoch 本地内存短缓存，降低每请求 Redis 读频。
+- [x] **4.4-fu1** 新增 `PUT /iam/users/:id/roles` 写端点并接入失效（当前 user→role 仅在建用户时设，已登录用户改不了角色）。spec: docs/superpowers/specs/2026-07-01-phase4.4-fu1-user-roles-assign-design.md, plan: docs/superpowers/plans/2026-07-01-phase4.4-fu1-user-roles-assign.md
+- [x] **4.4-fu2** actor_id 透传（spec: docs/superpowers/specs/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver-design.md, plan: docs/superpowers/plans/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver.md）
+- [x] **4.4-fu3** gateway perm_epoch 本地内存短缓存，降低每请求 Redis 读频。（commit `0f14e1a`）
   - [x] **4.4-fu4** `PermissionService::create` 仍用 MySQL 不支持的 `INSERT ... RETURNING`（与 Task 8 修掉的 update 同模式 bug，create 不在 4.4 触发路径故未改）——统一改为 INSERT + re-SELECT。
 
 #### Phase 4 broad review 遗留（cheap fixes 落地，剩下记录在 `.superpowers/sdd/progress.md`）
@@ -106,7 +106,7 @@
 > 14 个 commit，`iam-service` 51 tests 全过。
 
 - [x] **5B-fu1** `Principal::from_jwt_payload`（无验签路径）加 `#[deprecated]`。当前保留为测试用，生产应走 `from_token`。小改。
-- [ ] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。
+- [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。（commits `0f14e1a` … `d295987`）
 - [ ] **5B-fu3** `notification → iam` 事件化（去掉同步 `/iam/internal/users/by-{role,dept}` HTTP 调用，改 RabbitMQ 事件驱动本地投影）。对应 spec §0.5.6 #2 的 `phase5b-event-sync`。
 - [ ] **5B-fu4** TLS termination（生产路径：服务间 dev 仍 HTTP，生产需 alb/nginx 终结 TLS）。对应 spec §11 的 `phase5b-tls-termination.md`。
 - [ ] **5B-fu5** `cargo test --workspace --lib` 全量在 CI 跑（本机 tmpfs 6.4G 不够）。CI pipeline 需验证。
@@ -418,7 +418,7 @@
 - [ ] 健康检查补齐三级探针（目前仅 liveness）
 - [ ] 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`）
 - [ ] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key）
-- [ ] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑
+- [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
 - [ ] **OpenAPI registration sweep**：跨 4.4/4.4-fu1/4.4-fu2 等多个 utoipa-annotated handler 未在 `services/iam-service/src/openapi.rs::paths(...)` 注册（assign_permissions、PUT /iam/users/:id/roles、GET /iam/internal/users/by-{role,dept}）。一次性 sweep 补齐，半天工作量。来源：4.4-fu1 / 4.4-fu2 / 4.3-fu2 final review 同类提示。
 
