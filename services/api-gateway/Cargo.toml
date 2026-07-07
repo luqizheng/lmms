@@ -19,7 +19,6 @@ futures.workspace = true
 bytes.workspace = true
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
-consul-registrar = { path = "../../libs/consul-registrar" }
 axum.workspace = true
 tokio.workspace = true
 tower.workspace = true

@@ -219,7 +219,6 @@ dependencies = [
  "common-telemetry",
  "common-telemetry-axum",
  "config",
- "consul-registrar",
  "dotenvy",
  "futures 0.3.32",
  "glob",
@@ -626,7 +625,6 @@ dependencies = [
  "common-log",
  "common-telemetry",
  "common-telemetry-axum",
- "consul-registrar",
  "csv",
  "opentelemetry",
  "prometheus 0.13.4",
@@ -1505,23 +1503,6 @@ name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
-
-[[package]]
-name = "consul-registrar"
-version = "0.1.0"
-dependencies = [
- "bytes 1.11.1",
- "http-body-util",
- "hyper 1.10.1",
- "hyper-util",
- "serde",
- "serde_json",
- "tempfile",
- "tokio 1.52.3",
- "tracing",
- "uuid",
- "wiremock",
-]
 
 [[package]]
 name = "convert_case"
@@ -3110,7 +3091,6 @@ dependencies = [
  "common-telemetry",
  "common-telemetry-axum",
  "common-validator",
- "consul-registrar",
  "hex",
  "http-body-util",
  "hyper 1.10.1",
@@ -3942,7 +3922,6 @@ dependencies = [
  "common-telemetry",
  "common-telemetry-axum",
  "config",
- "consul-registrar",
  "futures 0.3.32",
  "jwt-ctx",
  "opentelemetry",
@@ -4744,7 +4723,6 @@ dependencies = [
  "common-log",
  "common-telemetry",
  "common-telemetry-axum",
- "consul-registrar",
  "nanoid",
  "prometheus 0.13.4",
  "serde",
@@ -6388,7 +6366,6 @@ dependencies = [
  "common-http",
  "common-telemetry",
  "common-telemetry-axum",
- "consul-registrar",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-util",

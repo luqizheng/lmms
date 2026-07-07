@@ -15,7 +15,6 @@ members = [
     "libs/common-validator",
     "libs/jwt-ctx",
     "libs/authz",
-    "libs/consul-registrar",
     "libs/common-health",
     "services/token-service",
     "services/api-gateway",
