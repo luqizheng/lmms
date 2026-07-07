@@ -3,7 +3,7 @@ use jwt_ctx::{Principal, TenantScope};
 use crate::models::namespace::{CreateNamespace, Namespace, PagedNamespaces, QueryNamespaces, UpdateNamespace};
 use crate::routes::AppState;
 
-pub fn routes(state: AppState) -> axum::Router {
+pub fn routes(state: AppState) -> axum::Router<AppState> {
     axum::Router::new()
         .route("/namespace", axum::routing::post(create_namespace))
         .route("/namespace", axum::routing::get(query_namespaces))

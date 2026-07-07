@@ -1,6 +1,9 @@
 use config_service::{config::AppConfig, db::{ensure_schema, init_pool}, routes::{self, create_state}};
+use common_jwt::{JWKSCache, JwksConfig};
 use common_telemetry::init_tracing;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +20,24 @@ async fn main() {
         .await
         .expect("ensure_schema failed");
 
-    let state = create_state(pool);
+    // Phase 5-B: JWKS cache.
+    let http_for_jwt = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("reqwest");
+    let jwks = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: std::env::var("JWKS_URL")
+                .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
+            refresh_interval: Duration::from_secs(3600),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt,
+    ));
+    jwks.refresh().await
+        .expect("JWKS refresh failed at startup; token-service must be reachable");
+
+    let state = create_state(pool, jwks);
 
     let app = routes::routes(state);
 

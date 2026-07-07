@@ -2,11 +2,19 @@ pub mod file;
 pub mod presign;
 
 use axum::{Router, middleware as axum_mw, routing::get};
+use common_jwt::JWKSCache;
+use jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 use crate::services::FileService;
 use prometheus::{Encoder, TextEncoder};
 
-pub type AppState = Arc<FileService>;
+pub type AppState = FileService;
+
+impl PrincipalStateProvider for FileService {
+    fn jwks(&self) -> Arc<JWKSCache> {
+        self.jwks.clone()
+    }
+}
 
 pub fn routes(state: AppState) -> Router {
     async fn metrics() -> axum::response::Html<String> {
@@ -23,10 +31,19 @@ pub fn routes(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
+        .with_state(state)
 }
 
 async fn health() -> &'static str {
     "OK"
+}
+
+async fn metrics() -> axum::response::Html<String> {
+    let encoder = TextEncoder::new();
+    let metric_families = prometheus::gather();
+    let mut buffer = Vec::new();
+    encoder.encode(&metric_families, &mut buffer).unwrap();
+    axum::response::Html(String::from_utf8(buffer).unwrap())
 }
 
 pub fn create_state(
@@ -34,6 +51,7 @@ pub fn create_state(
     storage: Arc<crate::storage::local::LocalStorage>,
     base_url: String,
     max_file_size: u64,
+    jwks: Arc<JWKSCache>,
 ) -> AppState {
-    Arc::new(FileService::new(pool, storage, base_url, max_file_size))
+    FileService::new(pool, storage, base_url, max_file_size, jwks)
 }

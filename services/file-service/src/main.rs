@@ -4,9 +4,11 @@ use file_service::{
     routes::{self, create_state},
     storage::LocalStorage,
 };
+use common_jwt::{JWKSCache, JwksConfig};
 use common_telemetry::init_tracing;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
@@ -28,7 +30,24 @@ async fn main() {
     let storage = Arc::new(LocalStorage::new(&config.storage_path));
     let base_url = format!("http://localhost:8082/file/");
 
-    let state = create_state(pool, storage, base_url, config.max_file_size);
+    // Phase 5-B: JWKS cache.
+    let http_for_jwt = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("reqwest");
+    let jwks = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: std::env::var("JWKS_URL")
+                .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
+            refresh_interval: Duration::from_secs(3600),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt,
+    ));
+    jwks.refresh().await
+        .expect("JWKS refresh failed at startup; token-service must be reachable");
+
+    let state = create_state(pool, storage, base_url, config.max_file_size, jwks);
 
     let app = routes::routes(state);
 

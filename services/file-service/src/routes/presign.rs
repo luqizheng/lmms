@@ -3,7 +3,7 @@ use crate::models::presign_url::{CreatePresignUrl, PresignUrlResponse};
 use crate::routes::AppState;
 use jwt_ctx::TenantScope;
 
-pub fn routes(state: AppState) -> axum::Router {
+pub fn routes(state: AppState) -> axum::Router<AppState> {
     axum::Router::new()
         .route("/presign", axum::routing::post(create_presign))
         .with_state(state)

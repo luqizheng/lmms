@@ -3,17 +3,22 @@ use crate::models::config_item::{ConfigItem, CreateConfigItem, PagedConfigItems,
 use crate::models::namespace::{CreateNamespace, Namespace, PagedNamespaces, QueryNamespaces, UpdateNamespace};
 use crate::models::version::{ConfigVersion, PagedVersions, QueryVersions};
 use common_db::WithTenantScope;
+use common_jwt::JWKSCache;
 use jwt_ctx::TenantScope;
 use sqlx::{MySqlPool, QueryBuilder};
+use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct ConfigService {
     pool: MySqlPool,
+    /// Phase 5-B: JWKS cache for verifying inbound user-jwt.
+    pub jwks: Arc<JWKSCache>,
 }
 
 impl ConfigService {
-    pub fn new(pool: MySqlPool) -> Self {
-        Self { pool }
+    pub fn new(pool: MySqlPool, jwks: Arc<JWKSCache>) -> Self {
+        Self { pool, jwks }
     }
 
     pub async fn create_namespace(&self, ns: CreateNamespace, scope: &TenantScope) -> AppResult<Namespace> {

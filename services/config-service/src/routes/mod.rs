@@ -3,11 +3,19 @@ pub mod config;
 pub mod watch;
 
 use axum::{Router, middleware as axum_mw, routing::get};
+use common_jwt::JWKSCache;
+use jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 use crate::services::ConfigService;
 use prometheus::{Encoder, TextEncoder};
 
-pub type AppState = Arc<ConfigService>;
+pub type AppState = ConfigService;
+
+impl PrincipalStateProvider for ConfigService {
+    fn jwks(&self) -> Arc<JWKSCache> {
+        self.jwks.clone()
+    }
+}
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -17,6 +25,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
+        .with_state(state)
 }
 
 async fn health() -> &'static str {
@@ -31,6 +40,6 @@ async fn metrics() -> axum::response::Html<String> {
     axum::response::Html(String::from_utf8(buffer).unwrap())
 }
 
-pub fn create_state(pool: sqlx::MySqlPool) -> AppState {
-    Arc::new(ConfigService::new(pool))
+pub fn create_state(pool: sqlx::MySqlPool, jwks: Arc<JWKSCache>) -> AppState {
+    ConfigService::new(pool, jwks)
 }

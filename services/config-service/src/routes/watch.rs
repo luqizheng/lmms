@@ -5,7 +5,7 @@ use serde::Deserialize;
 use std::time::Duration;
 use utoipa::IntoParams;
 
-pub fn routes(state: AppState) -> axum::Router {
+pub fn routes(state: AppState) -> axum::Router<AppState> {
     axum::Router::new()
         .route("/watch", axum::routing::get(watch_config))
         .with_state(state)

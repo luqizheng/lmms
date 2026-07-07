@@ -5,25 +5,36 @@ use crate::storage::local::LocalStorage;
 use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
 use common_db::WithTenantScope;
+use common_jwt::JWKSCache;
 use jwt_ctx::TenantScope;
 use sqlx::{MySqlPool, QueryBuilder};
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct FileService {
     pool: MySqlPool,
     storage: Arc<LocalStorage>,
     base_url: String,
     max_file_size: u64,
+    /// Phase 5-B: JWKS cache for verifying inbound user-jwt.
+    pub jwks: Arc<common_jwt::JWKSCache>,
 }
 
 impl FileService {
-    pub fn new(pool: MySqlPool, storage: Arc<LocalStorage>, base_url: String, max_file_size: u64) -> Self {
+    pub fn new(
+        pool: MySqlPool,
+        storage: Arc<LocalStorage>,
+        base_url: String,
+        max_file_size: u64,
+        jwks: Arc<common_jwt::JWKSCache>,
+    ) -> Self {
         Self {
             pool,
             storage,
             base_url,
             max_file_size,
+            jwks,
         }
     }
 

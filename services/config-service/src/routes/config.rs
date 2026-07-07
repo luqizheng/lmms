@@ -17,7 +17,7 @@ fn apply_reveal_policy(item: &mut ConfigItem, principal: &Principal) {
     }
 }
 
-pub fn routes(state: AppState) -> axum::Router {
+pub fn routes(state: AppState) -> axum::Router<AppState> {
     axum::Router::new()
         .route("/item", axum::routing::post(create_config_item))
         .route("/item", axum::routing::get(query_config_items))

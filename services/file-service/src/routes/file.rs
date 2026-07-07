@@ -8,7 +8,7 @@ use crate::routes::AppState;
 use bytes::Bytes;
 use jwt_ctx::TenantScope;
 
-pub fn routes(state: AppState) -> axum::Router {
+pub fn routes(state: AppState) -> axum::Router<AppState> {
     axum::Router::new()
         .route("/upload", axum::routing::post(upload_file))
         .route("/list", axum::routing::get(query_files))
