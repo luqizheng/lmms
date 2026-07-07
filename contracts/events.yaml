@@ -26,6 +26,37 @@ events:
       user_id:    { type: string, required: true }
       deleted_by: { type: string, required: true }   # 操作者 user_id
 
+  # Phase 5B-fu3: membership 事件（替代 notification → iam 同步 HTTP）
+  iam.user.role.assigned:
+    schema_version: 1
+    description: "用户被授予角色（覆盖：创建用户 role seed、assign_user_roles、tenant admin seed、role 重启用 iam_user_roles 重建）"
+    payload:
+      user_id:   { type: string, required: true }
+      role_id:   { type: string, required: true }
+      tenant_id: { type: int,    required: true }
+      actor_id:  { type: string, required: false }
+      ts:        { type: int,    required: true }   # Unix 秒，server-side（用于 out-of-order 兜底）
+
+  iam.user.role.unassigned:
+    schema_version: 1
+    description: "用户被撤销角色（覆盖：assign_user_roles 替换、role 禁删 cascades DELETE、tenant 注销）"
+    payload:
+      user_id:   { type: string, required: true }
+      role_id:   { type: string, required: true }
+      tenant_id: { type: int,    required: true }
+      actor_id:  { type: string, required: false }
+      ts:        { type: int,    required: true }
+
+  iam.user.dept.changed:
+    schema_version: 1
+    description: "用户所属组织单元变更（PUT /iam/org-units/:id 或 create user 改 org_unit_id）"
+    payload:
+      user_id:   { type: string, required: true }
+      dept_id:   { type: string, required: false }   # null = 移除
+      tenant_id: { type: int,    required: true }
+      actor_id:  { type: string, required: false }
+      ts:        { type: int,    required: true }
+
   iam.login.succeeded:
     schema_version: 1
     description: "登录成功"

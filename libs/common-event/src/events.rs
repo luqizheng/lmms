@@ -29,6 +29,45 @@ impl Event for IamUserDeleted {
     fn schema_version() -> u32 { 1 }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IamUserRoleAssigned {
+    pub user_id: String,
+    pub role_id: String,
+    pub tenant_id: i64,
+    pub actor_id: Option<String>,
+    pub ts: i64,
+}
+
+impl Event for IamUserRoleAssigned {
+    fn event_type() -> &'static str { "iam.user.role.assigned" }
+    fn schema_version() -> u32 { 1 }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IamUserRoleUnassigned {
+    pub user_id: String,
+    pub role_id: String,
+    pub tenant_id: i64,
+    pub actor_id: Option<String>,
+    pub ts: i64,
+}
+
+impl Event for IamUserRoleUnassigned {
+    fn event_type() -> &'static str { "iam.user.role.unassigned" }
+    fn schema_version() -> u32 { 1 }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IamUserDeptChanged {
+    pub user_id: String,
+    pub dept_id: Option<String>,
+    pub tenant_id: i64,
+    pub actor_id: Option<String>,
+    pub ts: i64,
+}
+
+impl Event for IamUserDeptChanged {
+    fn event_type() -> &'static str { "iam.user.dept.changed" }
+    fn schema_version() -> u32 { 1 }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamLoginSucceeded {
     pub user_id: String,
     pub ip: String,
@@ -135,6 +174,9 @@ pub enum IamEventEnum {
     },
     IamUserCreated(Envelope<IamUserCreated>),
     IamUserDeleted(Envelope<IamUserDeleted>),
+    IamUserRoleAssigned(Envelope<IamUserRoleAssigned>),
+    IamUserRoleUnassigned(Envelope<IamUserRoleUnassigned>),
+    IamUserDeptChanged(Envelope<IamUserDeptChanged>),
     IamLoginSucceeded(Envelope<IamLoginSucceeded>),
     IamLoginFailed(Envelope<IamLoginFailed>),
     NotificationAnnouncementPublished(Envelope<NotificationAnnouncementPublished>),
