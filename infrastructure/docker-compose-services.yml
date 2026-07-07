@@ -48,7 +48,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
+      CONSUL_HTTP_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
     command: >
       sh -c "until consul connect proxy -register -service api-gateway -service-addr 127.0.0.1:18000 -listen ':3000'
       -upstream iam-service:9081 -upstream token-service:9082 -upstream notification-service:9083
@@ -95,16 +95,14 @@ services:
 
   # ─────────── token-service + sidecar ───────────
   token-service-sidecar:
-    image: hashicorp/consul-dataplane:2.0.1
+    image: consul:1.15
     ports:
       - "9082:9082"
     environment:
-      DP_CONSUL_ADDRESSES: "${CONSUL_HOST}:${CONSUL_GRPC_PORT}"
-      DP_SERVICE_NODE_NAME: "token-service-sidecar"
-      DP_PROXY_SERVICE_ID: "token-service-1"
-    # command: >
-    #   sh -c "until consul connect proxy -register -service token-service -service-addr 127.0.0.1:18082 -listen ':9082'
-    #   -upstream iam-service:9081; do sleep 2; done"
+      CONSUL_HTTP_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
+    command: >
+      sh -c "until consul connect proxy -register -service token-service -service-addr 127.0.0.1:18082 -listen ':9082'
+      -upstream iam-service:9081; do sleep 2; done"
     depends_on:
       consul:
         condition: service_healthy

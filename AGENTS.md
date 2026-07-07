@@ -10,12 +10,24 @@ AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码�
 ## 开发环境
 
 <!-- - 类 Unix（WSL / macOS / Linux）。Windows 必须 WSL2，禁止原生 PowerShell / CMD。 -->
-- **本地 `cargo` 通常编译不过**（缺 `cc` 链接器、musl target）。跑 Rust 测试统一用容器：
+- **集成测试（含 MySQL / testcontainers）跑容器**——CI 与本地缺依赖的 dev 唯一可靠路径：
   ```bash
   node scripts/run-tests-docker.js                 # 全部服务
   node scripts/run-tests-docker.js iam-service     # 单个/多个服务
   ```
   基础镜像 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`，target `x86_64-unknown-linux-musl`，源码 bind mount、`registry`/`git`/`target` 命名 volume 复用增量编译。TLS 统一 `reqwest 0.12 + rustls`，禁用 native-tls。
+- **纯单元测试可以脱离容器跑**（前提：本机有 `cc`/`gcc` + `rustup target add x86_64-unknown-linux-gnu`，与 docker 共用的 `target/` 是 root-owned 时用独立 dir 绕开）：
+  ```bash
+  # 单 service 的纯单测（src/ 下的 #[test] / #[tokio::test]），不依赖 MySQL
+  CARGO_TARGET_DIR=/tmp/<svc>-target \
+    SWAGGER_UI_DOWNLOAD_URL=https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip \
+    cargo test -p <svc> --lib
+
+  # 集成测试（tests/ 下、用 testcontainers 起 MySQL）仍需 docker daemon 起容器
+  ```
+  两个常见坑：
+  - `utoipa-swagger-ui` build.rs 默认直连 GitHub 拉 zip，本机 SSL 拦截 → 复刻 Dockerfile 设 `SWAGGER_UI_DOWNLOAD_URL` 过 `gh-proxy.org`。
+  - 不要 `sudo chown` repo 根目录的 `target/`——会被 docker volume `coder-cargo-target` 抢回去。用 `CARGO_TARGET_DIR` 指向用户-writable 目录。
 - crates.io 已在 `.cargo/config` 替换为 `rsproxy.cn` 镜像；CI 走内网 `crates.kudi.repos`。
 - 起本地开发：`pnpm run dev:infra`（Consul/Redis/MySQL）→ `pnpm run dev`。`pnpm run check:env` 检查环境。
 
