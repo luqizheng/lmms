@@ -193,3 +193,4 @@
 - [x] **4.3-fu1** announcement delivery 批量 INSERT（`notification-service/src/db.rs` `insert_deliveries_batch` QueryBuilder helper + 2 处调用点改走 + 100-user 回归测试；commit `f5373be`）
 - [x] **service-jwt test helper**：`common-jwt::ServiceJwtCache::prime_cache` + 3 个 notification-service 集成测试改 3-arg IamMemberClient + `tests/fixtures/test_private.pem` 测试 RSA 私钥（commit `5481ab6`）
 - [x] TODO.md 清理 stale 项：`I1`/`I4`/`I6`/`T2-fu2`/`T3-fu3`/`T3-fu4`/`5A-fu1` 早已完成移入 done.md，标 `[x]` 并加 commit 索引
+- [x] 2026-07-07 决策：1.0 内不增加安全相关功能，**Phase 5-C 基础设施 TLS** + **5B-fu4 TLS termination** 归入 TODO.md 新增「Roadmap 2.0」区（R2.1 + R2.2），待 1.0 落地 + 真实合规需求时再 brainstorm

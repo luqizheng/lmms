@@ -108,7 +108,7 @@
 - [x] **5B-fu1** `Principal::from_jwt_payload`（无验签路径）加 `#[deprecated]`。当前保留为测试用，生产应走 `from_token`。小改。
 - [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。（commits `0f14e1a` … `d295987`）
 - [ ] **5B-fu3** `notification → iam` 事件化（去掉同步 `/iam/internal/users/by-{role,dept}` HTTP 调用，改 RabbitMQ 事件驱动本地投影）。对应 spec §0.5.6 #2 的 `phase5b-event-sync`。
-- [ ] **5B-fu4** TLS termination（生产路径：服务间 dev 仍 HTTP，生产需 alb/nginx 终结 TLS）。对应 spec §11 的 `phase5b-tls-termination.md`。
+- [x] ~~**5B-fu4** TLS termination~~ — **延后至 Roadmap 2.0**（1.0 内不增加安全相关功能）
 - [ ] **5B-fu5** `cargo test --workspace --lib` 全量在 CI 跑（本机 tmpfs 6.4G 不够）。CI pipeline 需验证。
 - [x] **5B-fu6** principal extractor 在 `from_token` 失败时可能泄露 jwt 错误细节到响应（当前统一 401）。生产应在日志中记录原因，响应只返回通用消息。
 
@@ -136,11 +136,7 @@
         token-service 的 `fetch_json` 已从裸 hyper 切到 `ResilientClient`（commit `a8cc412`）。
         当前仅 gateway outbound + token-service → iam 两条路径受保护；其余服务间无 HTTP 直调（token/iam/notification/audit 通过事件总线通信，config/file/prue 无出站调用）。
 
-- [ ] **C — 基础设施层 TLS**（独立子项目，待 brainstorm）
-  > 范围：RabbitMQ AMQP / MySQL / Redis 连接启用 TLS，与 HTTP mesh mTLS 形成全链路加密。
-  > 当前状态：Phase 5-A 只覆盖服务间 HTTP 流量 mTLS；AMQP/MySQL/Redis 仍为 docker network 明文。
-  > 涉及：RabbitMQ/MySQL/Redis 服务端 TLS 证书配置 + 8 个服务连接串改 `amqps://` / `mysql://?tls=1` / `rediss://` + 证书分发。
-  > 阻塞条件：无，可与 Phase 5-A 并行但建议 5-A 完成后单独做。
+- [x] ~~**C — 基础设施层 TLS**~~ — **延后至 Roadmap 2.0**（1.0 内不增加安全相关功能；范围：RabbitMQ AMQP / MySQL / Redis 连接启用 TLS，与 HTTP mesh mTLS 形成全链路加密。当前状态：Phase 5-A 只覆盖服务间 HTTP 流量 mTLS；AMQP/MySQL/Redis 仍为 docker network 明文）
 
 ### Phase 6-A — Trace 链闭环 + 事件总线生产化（P0，2026-06-28 锁定，2026-06-29 全部完成并合并）
 
@@ -422,6 +418,27 @@
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
 - [ ] **OpenAPI registration sweep**：跨 4.4/4.4-fu1/4.4-fu2 等多个 utoipa-annotated handler 未在 `services/iam-service/src/openapi.rs::paths(...)` 注册（assign_permissions、PUT /iam/users/:id/roles、GET /iam/internal/users/by-{role,dept}）。一次性 sweep 补齐，半天工作量。来源：4.4-fu1 / 4.4-fu2 / 4.3-fu2 final review 同类提示。
   - [x] 2026-07-07 补齐：`org_units::*`（6 handler）+ `permissions::*`（5 handler）+ `OrgUnitResponse` 递归 schema；DTO 加 `ToSchema`/`IntoParams`；openapi.rs paths/components/tags 注册；openapi.yaml 手工补齐（dump-openapi binary 因 utoipa 递归序列化递归 schema 栈溢出，pre-existing bug）
+
+---
+
+## Roadmap 2.0 — 1.0 之后的延后项
+
+> 决策时间：2026-07-07。本项目 1.0 阶段原则上不增加新的安全相关功能，
+> 等 1.0 落地、跑稳一段时间（拿到真实流量和合规要求）后再统一规划。
+> 以下两项从 Phase 5 拆出，归入 2.0：
+
+### R2.1 — 基础设施层 TLS（Phase 5-C）
+
+- 范围：RabbitMQ AMQP / MySQL / Redis 连接启用 TLS，与 HTTP mesh mTLS 形成全链路加密
+- 当前状态：Phase 5-A mTLS 只覆盖服务间 HTTP 流量；AMQP/MySQL/Redis 仍为 docker network 明文
+- 涉及：RabbitMQ/MySQL/Redis 服务端 TLS 证书配置 + 8 个服务连接串改 `amqps://` / `mysql://?tls=1` / `rediss://` + 证书分发
+- 阻塞条件：1.0 落地 + 至少 1 个外部租户实际接入并提出合规需求
+
+### R2.2 — TLS termination（Phase 5B-fu4）
+
+- 范围：生产路径需 alb/nginx 终结 TLS（服务间 dev 仍 HTTP）
+- spec：`docs/superpowers/specs/2026-07-07-phase5b-jwt-signature-and-service-jwt-design.md` §11（`phase5b-tls-termination.md` 拆分）
+- 阻塞条件：同 R2.1
 
 ---
 
