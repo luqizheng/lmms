@@ -16,6 +16,7 @@ const TEST_PUBLIC_PEM: &str = include_str!("../../../libs/common-jwt/tests/fixtu
 
 fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServerState {
     let pool = sqlx::mysql::MySqlPool::connect_lazy("mysql://placeholder").unwrap();
+    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap());
     token_service::TokenServerState {
         db: token_service::db::DbPool::Mysql(pool),
         issuer: std::sync::Arc::new(
@@ -35,6 +36,7 @@ fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServer
         user_service_url: "http://iam-service:8081".into(),
         private_key_pem: TEST_PRIVATE_PEM.into(),
         bootstrap_tokens,
+        jwks,
     }
 }
 
