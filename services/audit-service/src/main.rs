@@ -1,7 +1,10 @@
 use audit_service::{config::AppConfig, routes, create_state};
 use common::db::connect;
+use common_jwt::{JWKSCache, JwksConfig};
 use common_telemetry::init_tracing;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
@@ -91,7 +94,23 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    let state = create_state(pool);
+    // Phase 5-B: JWKS cache.
+    let http_for_jwt = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+    let jwks = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: std::env::var("JWKS_URL")
+                .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
+            refresh_interval: Duration::from_secs(3600),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt,
+    ));
+    jwks.refresh().await
+        .expect("JWKS refresh failed at startup; token-service must be reachable");
+
+    let state = create_state(pool, jwks);
 
     let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");
     let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");

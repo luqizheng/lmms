@@ -8,6 +8,8 @@ use crate::services::{AuditService, CleanupService};
 use crate::models::RetentionPolicy;
 use crate::error::AppResult;
 use axum::{Router, middleware as axum_mw, routing::get};
+use common_jwt::JWKSCache;
+use jwt_ctx::PrincipalStateProvider;
 use sqlx::mysql::MySqlPool;
 use prometheus::{Encoder, TextEncoder};
 
@@ -16,15 +18,17 @@ pub type AppState = Arc<AppServices>;
 pub struct AppServices {
     pub audit: AuditService,
     pub cleanup: CleanupService,
+    /// Phase 5-B: JWKS cache for verifying inbound user-jwt.
+    pub jwks: Arc<JWKSCache>,
 }
 
 impl AppServices {
-    pub async fn new(pool: MySqlPool) -> AppResult<Self> {
+    pub async fn new(pool: MySqlPool, jwks: Arc<JWKSCache>) -> AppResult<Self> {
         let policy = RetentionPolicy::default();
         let audit = AuditService::new(&pool);
         let cleanup = CleanupService::new(&pool, policy);
 
-        Ok(Self { audit, cleanup })
+        Ok(Self { audit, cleanup, jwks })
     }
 
     pub async fn get_operation_logs_by_filter(
@@ -38,6 +42,12 @@ impl AppServices {
         self.audit
             .query_logs(user_id, action, resource, start_date, end_date, 10000, 0)
             .await
+    }
+}
+
+impl PrincipalStateProvider for AppServices {
+    fn jwks(&self) -> Arc<JWKSCache> {
+        self.jwks.clone()
     }
 }
 
@@ -65,9 +75,10 @@ async fn metrics() -> axum::response::Html<String> {
     axum::response::Html(String::from_utf8(buffer).unwrap())
 }
 
-pub fn create_state(pool: MySqlPool) -> AppState {
+pub fn create_state(pool: MySqlPool, jwks: Arc<JWKSCache>) -> AppState {
     Arc::new(AppServices {
         audit: AuditService::new(&pool),
         cleanup: CleanupService::new(&pool, RetentionPolicy::default()),
+        jwks,
     })
 }

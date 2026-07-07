@@ -25,6 +25,9 @@ common-cache = { path = "../../libs/common-cache" }
 common = { path = "../../libs/common" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+common-jwt = { path = "../../libs/common-jwt" }
+jwt-ctx = { path = "../../libs/jwt-ctx" }
+reqwest.workspace = true
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 redis = { workspace = true, features = ["connection-manager"] }
