@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans 实施本计划。Steps use checkbox (`- [ ]`) 语法跟踪。
 
+> ⚠️ **Superseded by** [`docs/superpowers/plans/2026-07-07-deprecate-consul-connect.md`](2026-07-07-deprecate-consul-connect.md) (2026-07-07). The consul-dataplane sidecar approach described here was rolled back. Retained for historical reference only.
+
 **Goal:** 为 docker-compose 下每个业务服务接入 Consul Connect mTLS sidecar（consul-dataplane），并删除应用层 `require_service_token` 中间件。
 
 **Architecture:** Consul 1.15 启用内置 Connect CA → 服务注册时声明 `connect.sidecar_service` → 每个业务容器配 `hashicorp/consul-dataplane:1.2` 伴生容器，业务容器通过 `network_mode: service:<svc>-sidecar` 共享网络命名空间；sidecar ingress 在 :20000 终止上游 mTLS 转发到业务进程，egress 为**每个上游分配独立的 `local_bind_port`**，gateway 按服务名映射本机端口建立连接。

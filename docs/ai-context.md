@@ -18,18 +18,25 @@
 
 ## 2. 服务地图
 
-| Service | Port | DB | Tech | Role | OTel |
-|---------|------|----|----|------|------|
-| `api-gateway` | 3000 | — | Axum | JWT 验签、Redis 黑名单、路由到下游 + 限流 + tracing 中间件 | ✅ |
-| `token-service` | 6001 | MySQL | Axum | 签发 / 刷新 / 吊销 JWT | ✅ |
-| `iam-service` | 6002 | MySQL | Axum | 用户、角色、权限、部门、认证、租户注册、跨租户（platform_admin `cross_tenant` flag via Phase 8.3）。**事件生产者**（iam_outbox_events → 经 `iam-outbox-publisher` bin 发往 RabbitMQ） | ✅ |
-| `iam-outbox-publisher` | — | MySQL | bin（与 iam-service 同镜像） | 独立进程：轮询 iam_outbox_events，发布到 RabbitMQ events exchange，标记已发布。用 `SELECT … FOR UPDATE SKIP LOCKED` 保证多副本安全。 | — |
-| `notification-service` | 6003 | MySQL | Axum | 公告 CRUD + WebSocket 推送。所有 handler 接 `Principal + TenantScope`，service 全部 `scope: &TenantScope` + `QueryBuilder.and_tenant`/`where_id`，**点查询 TenantScope 隔离已贯通**（Phase 8.3-fu2）。`is_admin()` 仍按角色码 `admin` / `notification.admin` 检查（**非 platform_admin**, 见 §7 坑点 21） | ✅ |
-| `prue_backend` | 6004 | SQLite/MySQL | Axum | pure-admin 菜单配置 + 动态路由 | — |
-| `audit-service` | 6005 | MySQL | Axum | 操作日志 + 登录日志、留存、合规导出。**事件消费者**（audit.iam-events 队列 → audit_events 幂等 upsert）。Phase 4 已移除 POST 写日志端点 — 只走事件。 | — |
-| `config-service` | 6006 | MySQL | Axum | 命名空间、配置项、watch 通知。**V002 migration 加 `cfg_namespaces.tenant_id` BIGINT UNIQUE(tenant_id,app,env,profile)**；handler `Principal + TenantScope` extractor（首加 auth）；service 全部 `scope: &TenantScope` + `QueryBuilder`，**点查询 + namespace 拥有校验 + drop SQLite 一并落地**（Phase 8.3-fu2）。SQLite 已 drop（dev 期不用） | — |
-| `file-service` | 6007 | MySQL | Axum | 文件元数据、预签名上传、下载。**V002 migration `file_files.tenant_id` VARCHAR→BIGINT 类型对齐**；模型 `tenant_id: i64`（对齐平台 BIGINT UNSIGNED 体系）；service 全部 `scope: &TenantScope` + `QueryBuilder`，**点查询 TenantScope 隔离已贯通 + drop SQLite**（Phase 8.3-fu2） | — |
-| `rabbitmq` | 5672/15672 | — | RabbitMQ 3.13 | 事件总线 broker；拓扑通过 `infrastructure/config/rabbitmq/definitions.json` 预声明（events topic exchange + events.dlx + audit.iam-events 队列 + events.dlq） | — |
+| Service | 容器端口 | 外部端口 | DB | Tech | Role | OTel |
+|---------|---------|---------|----|----|------|------|
+| `api-gateway` | 3000 | 3000 | — | Axum | JWT 验签、Redis 黑名单、路由到下游 + 限流 + tracing 中间件 | ✅ |
+| `token-service` | 8082 | 8082 | MySQL | Axum | 签发 / 刷新 / 吊销 JWT；内部调 iam 通过 `Authorization: Bearer <user-jwt>` 透传（phase5a-2） | ✅ |
+| `iam-service` | 8081 | 9081 | MySQL | Axum | 用户、角色、权限、部门、认证、租户注册、跨租户。**事件生产者**（iam_outbox_events → 经 `iam-outbox-publisher` 发往 RabbitMQ）| ✅ |
+| `iam-outbox-publisher` | — | — | MySQL | bin（与 iam-service 同镜像） | 独立进程：轮询 iam_outbox_events，发布到 RabbitMQ | — |
+| `notification-service` | 8083 | 8083 | MySQL | Axum | 公告 CRUD + WebSocket 推送 | ✅ |
+| `prue_backend` | 8087 | 8087 | SQLite/MySQL | Axum | pure-admin 菜单配置 + 动态路由 | — |
+| `audit-service` | 8084 | 8084 | MySQL | Axum | 操作日志 + 登录日志、留存、合规导出。**事件消费者** | — |
+| `config-service` | 8081 | 8085 | MySQL | Axum | 命名空间、配置项、watch 通知 | — |
+| `file-service` | 8082 | 8086 | MySQL | Axum | 文件元数据、预签名上传、下载 | — |
+| `rabbitmq` | 5672/15672 | 5672/15672 | — | RabbitMQ 3.13 | 事件总线 broker；拓扑通过 `infrastructure/config/rabbitmq/definitions.json` 预声明 | — |
+| `registrator` | — | — | — | gliderlabs/registrator:master | 项目级服务注册：监听 `/var/run/docker.sock`，读容器 `SERVICE_*` label → PUT `/v1/agent/service/register`（**phase5a-2 替代了 6 个 sidecar + `consul connect proxy -register`）** | — |
+
+> **phase5a-2（2026-07-07 落地）**：
+> - 服务端口从 180xx 切到 808x，**无 Consul Connect 网格**
+> - 服务发现靠 registrator（替代 sidecar / intentions / consul-dataplane）
+> - 内部调用 `Authorization: Bearer <user-jwt>` 透传（替代 mTLS SPIFFE identity）
+> - 详见 `docs/superpowers/specs/2026-07-07-deprecate-consul-connect-use-registrator-design.md`
 
 每个 Rust 服务都有：
 - `Cargo.toml`，含 `[[bin]]` `dump-openapi`（utoipa 生成器）

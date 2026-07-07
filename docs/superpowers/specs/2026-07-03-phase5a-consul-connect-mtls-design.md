@@ -1,7 +1,9 @@
 # Phase 5-A：Consul Connect 服务网格（mTLS + 意图 + 可观测性）— 设计
 
-**日期**：2026-07-03 · 实施完成 2026-07-04
-**状态**：已完成（consul connect proxy built-in TCP proxy，详见 §1.6）
+> ⚠️ **Superseded by** [`docs/superpowers/specs/2026-07-07-deprecate-consul-connect-use-registrator-design.md`](2026-07-07-deprecate-consul-connect-use-registrator-design.md) (2026-07-07). The Consul Connect / mTLS / sidecar approach described here was rolled back in favor of direct HTTP + JWT passthrough and `gliderlabs/registrator` for service discovery. Retained for historical reference only; do not follow this document for new work.
+
+**日期**：2026-07-03 · 实施完成 2026-07-04 · **被 phase5a-2 弃用 2026-07-07**
+**状态**：已被 phase5a-2 取代（弃用原因：内存成本 / 操作摩擦 / 替代方案足够）
 **关联**：`TODO.md` Phase 5-A · `docs/superpowers/plans/2026-06-25-overall-roadmap.md` § Phase 5
 
 ---
