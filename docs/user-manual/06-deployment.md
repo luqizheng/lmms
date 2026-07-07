@@ -31,7 +31,7 @@ pnpm run docker:build:iam-service
 | `spec_check` | `node scripts/check-spec.js` |
 | `contracts_check` | `node scripts/contracts-gen.js --check` |
 | `spec_generate` | `scripts/dump-openapi-specs.sh`（产出 yaml 给 drift 检测） |
-| `rust_test` | `cargo test --workspace`（容器内） |
+| `rust_test` | `cargo test --workspace --lib`（容器内；集成测由本地 `scripts/run-tests-docker.js` 覆盖） |
 | `e2e_api_test` | `pnpm -C tests/e2e test:api` |
 | `e2e_ui_test` | `pnpm -C tests/e2e test:ui` |
 

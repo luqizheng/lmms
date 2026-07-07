@@ -381,7 +381,7 @@ python3 -c "import openpyxl; wb = openpyxl.load_workbook('tests/e2e/shared/repor
 
 | Job | Stage | 用途 |
 |-----|-------|------|
-| `rust_test` | test | `cargo test --workspace --all-targets` |
+| `rust_test` | test | `cargo test --workspace --lib` |
 | `e2e_api_test` | test | `pnpm -C tests/e2e run test:api` |
 | `e2e_ui_test` | test | `pnpm -C tests/e2e run test:ui`（需前端） |
 | `service_standard_check` | test | 服务规范门禁 |

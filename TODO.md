@@ -109,7 +109,7 @@
 - [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。（commits `0f14e1a` … `d295987`）
 - [ ] **5B-fu3** `notification → iam` 事件化（去掉同步 `/iam/internal/users/by-{role,dept}` HTTP 调用，改 RabbitMQ 事件驱动本地投影）。对应 spec §0.5.6 #2 的 `phase5b-event-sync`。
 - [x] ~~**5B-fu4** TLS termination~~ — **延后至 Roadmap 2.0**（1.0 内不增加安全相关功能）
-- [ ] **5B-fu5** `cargo test --workspace --lib` 全量在 CI 跑（本机 tmpfs 6.4G 不够）。CI pipeline 需验证。
+- [x] **5B-fu5** CI 对齐 5B spec §7.2：`cargo test --workspace --lib`（commit `<current>`；本地实测 74 passed / 0 failed，需 `CARGO_TARGET_DIR` 指向非 tmpfs 大目录）。附 token-service `RS256KeyPair::set_key_id` → `with_key_id`（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未实现 `set_key_id`，之前 CI 跑 `--all-targets` 隐藏了 lib 编译错；改 `--lib` 后暴露）。
 - [x] **5B-fu6** principal extractor 在 `from_token` 失败时可能泄露 jwt 错误细节到响应（当前统一 401）。生产应在日志中记录原因，响应只返回通用消息。
 
 ### Phase 5 — 服务间安全 & 韧性（P1）

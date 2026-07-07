@@ -14,9 +14,11 @@ pub struct TokenIssuer {
 
 impl TokenIssuer {
     pub fn new(private_key_pem: &str, issuer: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut key_pair = RS256KeyPair::from_pem(private_key_pem)?;
         // Phase 5-B: set kid so verifiers can locate the JWKSCache key.
-        key_pair.set_key_id(JWT_KEY_ID.to_string());
+        // jwt-simple 0.12.16's RSAKeyPairLike trait does not implement
+        // `set_key_id` for RS256KeyPair (only RS256PublicKey). Use the
+        // inherent builder `with_key_id` instead.
+        let key_pair = RS256KeyPair::from_pem(private_key_pem)?.with_key_id(JWT_KEY_ID);
         Ok(Self {
             key_pair,
             issuer: issuer.to_string(),
