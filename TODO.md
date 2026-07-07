@@ -61,7 +61,7 @@
 - [x] **4.1** notification-service 订阅 `iam.user.created` → 站内信欢迎（commits `94593df`..`38a5267`；plan: `2026-06-27-phase4.1-notification-welcome-template-plan.md`）。手工验收：`test-case/41-notification-welcome.md`。
 - [x] **4.2** 落地 `iam.login.failed` + 简易风控消费者（commits `492abd8`..`01f7723`；spec: `2026-06-27-phase4.2-login-failed-risk-design.md`，plan: `2026-06-27-phase4.2-login-failed-risk-plan.md`）。手工验收：`test-case/42-login-failed-risk.md`。
 - [x] **4.3** 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动（commits `c5f423e`..`d9961d0`；spec: `2026-06-27-phase4.3-announcement-published-ws-design.md`，plan: `2026-06-27-phase4.3-announcement-published-ws-plan.md`；本期仅 user-scope）。手工验收：`test-case/43-announcement-ws.md`。
-  - [ ] **4.3-fu1** 大规模扇出时 `publish_announcement` 的 delivery 写入改批量多值 INSERT（当前逐条 INSERT IGNORE，复用 `db.rs:insert_deliveries` 模式；user-scope 规模小不成问题，role/dept 扇出落地后才需要）。依赖：4.3-fu2。
+  - [x] **4.3-fu1** 大规模扇出时 `publish_announcement` 的 delivery 写入改批量多值 INSERT（QueryBuilder::push_values + insert_deliveries_batch helper；2 处调用点改走 helper；announcement_recipient_test 加 100-user 回归）
   - [x] **4.3-fu2** role/dept 接收人解析落地（spec: docs/superpowers/specs/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver-design.md, plan: docs/superpowers/plans/2026-07-01-phase4.4-fu2-actor-id-phase4.3-fu2-recipient-resolver.md）。Post-merge 修复：commit `05b3c22` 将 `IamMemberClient::by_role/by_dept` 的 URL 追加 `?size=1000`（消除 >100 人角色/部门名单静默截断）。
   - [ ] **4.3-fu3** 4.1 welcome 路径（`announcement_service.rs:ensure_welcome_for_user`）多副本化：改走事件驱动 WS 推送而非进程内 `hub.publish`（消除最后一处进程内直推；delivery 已落库故 reload 可见，影响小）。依赖：4.3 的 ephemeral consumer 基建。
   - [x] **4.3-fu4** consumer `run()` block-on-disconnect 修复：审计/通知两个 durable-queue consumer 的 30s 重订阅循环换为持 `RabbitMqConsumer` + `while consumer.connection().status().connected() { sleep(5s) }`（复用 4.3 `announcement_run` 模式）；durable 队列在 broker 侧保留，未 ack 消息断线重订阅后 broker 重投。每 30s queue_declare/bind/basic_consume churn 消除。`services/audit-service/src/consumer.rs::run()` + `services/notification-service/src/consumer/mod.rs::run()`（spec `2026-06-28-phase4-cheap-fixes-design.md` §2.3）。
@@ -76,16 +76,16 @@
 - [x] **C1** publisher 无 RabbitMQ reconnect（修复于 `fab9cd2`，已 live verified）
 - [x] **C2** ctrl_c 不捕 SIGTERM（修复于 `fab9cd2`，现双捕）
 - [x] **I3** `OutboxPublisher::run()` bug-shape（doc 标记为 TEST HELPER ONLY）
-- [ ] **I1** consumer 瞬时错误直接 DLQ（应区分 transient/permanent，retry with TTL） — Phase 5
+- [x] **I1** consumer 瞬时错误直接 DLQ（修复于 Phase 6-A T3：HandlerError 扩 Transient/Permanent 分支 + republish-and-ack 阈值 3；commit `10e4b07`）
 - [x] **I2** audit-service 仍有 `create_operation_log`/`create_login_log` 死方法 + `CreateOperationLog`/`CreateLoginLog` 孤儿 schema — 后续清理
   - [x] **I2-fu1** ~~`scripts/openapi-codegen.js:90` 硬编码~~ 已修复（commit `0412751`）：脚本改为 spec-driven —— 读 `spec.components.schemas` 生成 types（按 `required`/nullable）、读 `spec.paths` 生成 client 方法。下次 `pnpm sdk:generate:audit` 不会再回写 commit `89906cf` 删掉的 `CreateOperationLog`/`CreateLoginLog`；`LoginLog.user_id?: string;` 现在与 Rust `Option<String>` 一致。已用 audit/config/file 三个 spec 验证。
-- [ ] **I4** envelope.trace_id producer 侧未填充（docs 说已填，实际没填） — Phase 6 一起
+- [x] **I4** envelope.trace_id producer 侧未填充（修复于 Phase 6-A T1：`libs/common-telemetry/src/outbox.rs` 在 enqueue 内自动注入；commits `798683b`, `4a4ff51`）
 - [x] **I5** `MySqlOutboxRepo::new(pool.clone())` per-call — 移到 `AppState` 优化
   - [x] **I5-fu1** 已修复（commit `5bfb2da` + 行号修正 `e78aad8`）：iam 剩余 7 处 `MySqlOutboxRepo::new(pool.clone())` 全部改走 `state.outbox_repo.as_ref()`。
     - `auth_svc.rs:115/356`（login_success / login_failed）：直接换 `common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), ...)`
     - `perm_change.rs:39` helper 签名 `db: &MySqlPool` → `repo: &MySqlOutboxRepo`；5 个 caller（`role_svc.rs:148/185/220` + `permission_svc.rs:208/253`）改传 `self.state.outbox_repo.as_ref()`
     - 回归：`permission_changed_test` 7/7 PASS（testcontainers），workspace build clean
-- [ ] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — Phase 5 (done as T4)
+- [x] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — 修复于 Phase 6-A T4：archive_loop + purge_loop + `iam_outbox_events_archive` 表（commit `5389b24`）
 
 ### Phase 5-A-2 — 放弃 Consul Connect, 改用 registrator（2026-07-07 完成）
 
@@ -126,7 +126,7 @@
   > 选型：Consul Connect（复用现有 Consul 1.15，完整 mesh：mTLS + 意图 + 可观测性）
   > Review 决策：1A gateway permissive / 3A internal 端点 query param tenant_id / 4A sidecar 超时兜底 / 5A consul-init 容器
   - [x] 实施 Phase 5-A plan（5 个 Task，commits `f5887b1` / `6847007` / `947759f` / `89294b2` / `fa17c14` / `90289a2` / `1f06dd5` / `d8da3bf`）
-  - [ ] **5A-fu1** mesh metrics Grafana 面板：建面板展示 `envoy.cluster.upstream_cx_connect_fail`（mTLS 握手失败）、`consul.connect.intention_deny`（意图拒绝）、`envoy.server.live`（sidecar 存活）、`envoy.process.virtual_memory`（sidecar 内存）。数据已在 Prometheus（consul_sd 自动采集 sidecar），缺可视化。可导入 Consul 官方 Grafana dashboard 模板裁剪。~半天工作量。依赖：Phase 5-A 完成。
+  - [x] ~~**5A-fu1** mesh metrics Grafana 面板~~ — **已撤销**（Phase 5-A-2 撤 Consul Connect，无 sidecar/Consul Dataplane，metrics 源不存在）
 
 - [ ] **B — 韧性三件套**（spec 已就绪，**核心已完成并合并**，仅剩 B-fu1）
   - [x] 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
@@ -175,7 +175,7 @@
   - [x] audit consumer 用 envelope.trace_id 设 span parent（参考实现，`consumer_span.rs`）
   - [x] README OTel 表 4 个 `—` 改 `✅` + `test-case/62-otel-cross-service-chain.md`（commit `185de1a`）
   - [x] **T2-fix** 拆出 `libs/common-telemetry-axum/` 让 CLI binary 不再透传 axum（commit `e511299`）
-  - [ ] **T2-fu2** `docs/USER_MANUAL.md` / `docs/ai-context.md` / `docs/guides/observability.md` 删 `tracing_mw` 旧说明（纯文本编辑，无决策）
+  - [x] **T2-fu2** `docs/USER_MANUAL.md` / `docs/ai-context.md` / `docs/guides/observability.md` 删 `tracing_mw` 旧说明
 
 - [x] **T3 — Consumer transient/permanent 分级 + bounded redelivery**（覆盖 I1）
       spec: `docs/superpowers/specs/2026-06-28-phase6a-t3-consumer-error-classes-design.md`
@@ -186,8 +186,8 @@
   - [x] 7 unit tests + 5 testcontainers 集成测（commits `4ac6741`, `76319af`）
   - [x] 4 个现有 handler 同 PR 审查改造（commit `57c075d`）
   - [x] `test-case/63-consumer-error-classes.md`（commit `18b55af`）
-  - [ ] **T3-fu3** testcontainers 测的 `sleep(4s)` 改 poll-with-deadline，避免慢 CI flake
-  - [ ] **T3-fu4** api-gateway perm_consumer 行为变更发布说明：旧版 swallow→Ok；新版返 Transient 中断整批 1000-uid 处理。瞬时 Redis 抖动会触发 3 次重试
+  - [x] **T3-fu3** testcontainers 测的 `sleep(4s)` 改 poll-with-deadline（commit `consumer_redelivery.rs` poll_dlq helper）
+  - [x] **T3-fu4** api-gateway perm_consumer 行为变更发布说明（写入 `services/api-gateway/AGENTS.md`）
 
 - [x] **T4 — Outbox 24h 归档**（覆盖 I6）
       spec: `docs/superpowers/specs/2026-06-28-phase6a-t4-outbox-archive-design.md`
