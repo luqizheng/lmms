@@ -118,6 +118,23 @@ impl ServiceJwtCache {
         Ok(parsed.access_token)
     }
 
+    /// Pre-fill cache with a locally-signed service-jwt so subsequent
+    /// `get(target)` calls return without HTTP. Test-only; production
+    /// always goes through `refresh()`.
+    #[doc(hidden)]
+    pub async fn prime_cache(
+        &self,
+        target: &str,
+        ttl: Duration,
+    ) -> Result<String, crate::SignError> {
+        let tok = self.sign_local(target, ttl)?;
+        let exp = Instant::now() + ttl;
+        let mut g = self.inner.write().await;
+        g.tokens.insert(target.to_string(), tok.clone());
+        g.expires_at.insert(target.to_string(), exp);
+        Ok(tok)
+    }
+
     /// Sign a local service-jwt using the same private key as token-service.
     /// Used for testing; in production, always go through the HTTP path.
     #[doc(hidden)]

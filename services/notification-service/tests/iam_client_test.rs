@@ -1,16 +1,36 @@
 use common_http::{ResilientClient, ResilienceConfig};
+use common_jwt::{ServiceJwtCache, ServiceJwtConfig};
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
+use std::time::Duration;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-fn client(base_url: String) -> IamMemberClient {
+const TEST_PRIVATE_PEM: &str = include_str!("fixtures/test_private.pem");
+
+async fn client(base_url: String) -> IamMemberClient {
     let http = Arc::new(ResilientClient::new(
         reqwest::Client::new(),
         ResilienceConfig::default(),
         Arc::new(common_http::NoopObserver),
     ));
-    IamMemberClient::new(http, base_url)
+    let service_jwt = Arc::new(ServiceJwtCache::new(
+        ServiceJwtConfig {
+            token_service_url: "http://localhost:0".into(),
+            bootstrap_token: "test-bt".into(),
+            caller_service_name: "notification-service".into(),
+            caller_tenant: 1,
+            refresh_skew: Duration::from_secs(60),
+            request_timeout: Duration::from_secs(5),
+        },
+        reqwest::Client::new(),
+        TEST_PRIVATE_PEM.to_string(),
+    ));
+    service_jwt
+        .prime_cache("iam-service", Duration::from_secs(300))
+        .await
+        .unwrap();
+    IamMemberClient::new(http, base_url, service_jwt)
 }
 
 #[tokio::test]
@@ -26,7 +46,7 @@ async fn by_role_passes_tenant_id_in_query() {
         .mount(&server)
         .await;
 
-    let c = client(server.uri());
+    let c = client(server.uri()).await;
     let result = c.by_role("admin", 2).await.unwrap();
     assert_eq!(result, vec!["u1", "u2"]);
 }
@@ -44,7 +64,7 @@ async fn by_dept_passes_tenant_id_in_query() {
         .mount(&server)
         .await;
 
-    let c = client(server.uri());
+    let c = client(server.uri()).await;
     let result = c.by_dept("o1", 3).await.unwrap();
     assert_eq!(result, vec!["u3"]);
 }
@@ -57,7 +77,7 @@ async fn fetch_items_returns_error_on_500() {
         .mount(&server)
         .await;
 
-    let c = client(server.uri());
+    let c = client(server.uri()).await;
     let result = c.by_role("admin", 1).await;
     assert!(result.is_err());
 }

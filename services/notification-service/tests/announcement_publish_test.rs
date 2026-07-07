@@ -9,13 +9,27 @@ use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
 
 fn stub_iam_client() -> Arc<IamMemberClient> {
+    use common_jwt::{ServiceJwtCache, ServiceJwtConfig};
+    use std::time::Duration;
     let inner = reqwest::Client::new();
     let rc = Arc::new(ResilientClient::new(
         inner,
         ResilienceConfig::default(),
         Arc::new(NoopObserver),
     ));
-    Arc::new(IamMemberClient::new(rc, "http://unused".into()))
+    let service_jwt = Arc::new(ServiceJwtCache::new(
+        ServiceJwtConfig {
+            token_service_url: "http://localhost:0".into(),
+            bootstrap_token: "test-bt".into(),
+            caller_service_name: "notification-service".into(),
+            caller_tenant: 1,
+            refresh_skew: Duration::from_secs(60),
+            request_timeout: Duration::from_secs(5),
+        },
+        reqwest::Client::new(),
+        String::new(),
+    ));
+    Arc::new(IamMemberClient::new(rc, "http://unused".into(), service_jwt))
 }
 
 async fn setup_db() -> (Db, Option<common::MysqlContainer>) {
