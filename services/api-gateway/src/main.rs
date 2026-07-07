@@ -233,9 +233,17 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         redis_prefix: cfg.redis.prefix.clone(),
         router_cfg: router_cfg.clone(),
         route_table: route_table.clone(),
-        route_limiters: middleware::rate_limit::RouteLimiterSet::from_config(
-            &load_rate_limit_config(),
-        ),
+        route_limiters: {
+            let rate_limit_cfg = load_rate_limit_config();
+            let redis_client = redis::Client::open(cfg.redis.url.as_str()).expect("invalid redis url");
+            let rate_limit_conn = redis::aio::ConnectionManager::new(redis_client)
+                .await
+                .expect("failed to create redis connection manager for rate limiter");
+            middleware::rate_limit::RouteLimiterSet::new(
+                rate_limit_conn,
+                &rate_limit_cfg,
+            )
+        },
     });
 
     // Phase 4.4: backfill consumer — subscribe iam.permission.changed and

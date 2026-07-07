@@ -42,7 +42,7 @@ glob = "0.3"
 prometheus = "0.13"
 prometheus_exporter = "0.1"
 utoipa = { version = "5", features = ["axum_extras", "yaml"] }
-governor = "0.6"
+
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 rand.workspace = true

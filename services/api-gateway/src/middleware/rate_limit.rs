@@ -1,21 +1,14 @@
 use crate::AppState;
 use axum::body::Body;
 use axum::extract::{Request, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use governor::{
-    clock::DefaultClock,
-    state::{InMemoryState, NotKeyed},
-    Quota, RateLimiter,
-};
 use prometheus::IntCounterVec;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::num::NonZeroU32;
 use std::sync::{Arc, OnceLock};
 
-/// Prometheus counter for rate-limited requests.
 pub static RATE_LIMITED_TOTAL: OnceLock<IntCounterVec> = OnceLock::new();
 
 pub fn init_metrics() {
@@ -72,7 +65,6 @@ impl RateLimitConfig {
 }
 
 fn path_matches(pattern: &str, path: &str) -> bool {
-    // Pattern can be a literal path or a prefix ending with '*'
     if let Some(prefix) = pattern.strip_suffix('*') {
         path.starts_with(prefix)
     } else {
@@ -80,41 +72,50 @@ fn path_matches(pattern: &str, path: &str) -> bool {
     }
 }
 
-/// Per-route-token-bucket limiter keyed by (route, identity).
-type Limiter = RateLimiter<NotKeyed, InMemoryState, DefaultClock>;
-
 #[derive(Clone)]
 pub struct RouteLimiterSet {
-    limiters: Arc<HashMap<String, Arc<Limiter>>>,
-    default: Arc<Limiter>,
+    limiter: common_ratelimit::RateLimiter,
+    // ponytail: Box::leak at startup for static route strings — < 20 routes, acceptable.
+    limits: Arc<HashMap<String, common_ratelimit::Limit>>,
+    default: common_ratelimit::Limit,
 }
 
 impl RouteLimiterSet {
-    pub fn from_config(cfg: &RateLimitConfig) -> Self {
-        let mut limiters = HashMap::new();
+    pub fn new(
+        conn: redis::aio::ConnectionManager,
+        cfg: &RateLimitConfig,
+    ) -> Self {
+        use common_ratelimit::Limit;
+        let mut limits: HashMap<String, Limit> = HashMap::new();
         for (pattern, rule) in &cfg.routes {
-            let quota = Quota::per_second(NonZeroU32::new(rule.requests_per_second).unwrap())
-                .allow_burst(NonZeroU32::new(rule.burst).unwrap());
-            limiters.insert(pattern.clone(), Arc::new(RateLimiter::direct(quota)));
+            let route: &'static str = Box::leak(
+                format!("gateway:{}", pattern).into_boxed_str()
+            );
+            limits.insert(pattern.clone(), Limit {
+                route,
+                max: rule.burst,
+                window_secs: 1,
+            });
         }
-        let default_q = Quota::per_second(
-            NonZeroU32::new(cfg.defaults.requests_per_second).unwrap(),
-        )
-        .allow_burst(NonZeroU32::new(cfg.defaults.burst).unwrap());
+        let default_route: &'static str = Box::leak("gateway:default".to_string().into_boxed_str());
         Self {
-            limiters: Arc::new(limiters),
-            default: Arc::new(RateLimiter::direct(default_q)),
+            limiter: common_ratelimit::RateLimiter::new(conn, vec![]),
+            limits: Arc::new(limits),
+            default: Limit {
+                route: default_route,
+                max: cfg.defaults.burst,
+                window_secs: 1,
+            },
         }
     }
 
-    pub fn check(&self, route_pattern: &str, _key: &str) -> Result<(), ()> {
-        let limiter = self
-            .limiters
+    pub async fn check(&self, path: &str, identity: &str) -> Result<(), ()> {
+        let limit = self.limits
             .iter()
-            .find(|(p, _)| path_matches(p, route_pattern))
-            .map(|(_, l)| l.clone())
-            .unwrap_or_else(|| self.default.clone());
-        limiter.check().map_err(|_| ())
+            .find(|(p, _)| path_matches(p, path))
+            .map(|(_, l)| l)
+            .unwrap_or(&self.default);
+        self.limiter.check(identity, limit).await
     }
 }
 
@@ -126,7 +127,7 @@ pub async fn rate_limit_middleware(
     let path = request.uri().path().to_string();
     let identity_key = extract_identity_key(&request);
 
-    if state.route_limiters.check(&path, &identity_key).is_err() {
+    if state.route_limiters.check(&path, &identity_key).await.is_err() {
         if let Some(counter) = RATE_LIMITED_TOTAL.get() {
             counter.with_label_values(&[&path]).inc();
         }
@@ -139,7 +140,7 @@ pub async fn rate_limit_middleware(
         let mut response = (StatusCode::TOO_MANY_REQUESTS, axum::Json(body)).into_response();
         response.headers_mut().insert(
             "Retry-After",
-            axum::http::HeaderValue::from_static("1"),
+            HeaderValue::from_static("1"),
         );
         return response;
     }
@@ -147,11 +148,6 @@ pub async fn rate_limit_middleware(
 }
 
 fn extract_identity_key(request: &Request<Body>) -> String {
-    // Prefer the user_id set by auth_middleware in extensions.
-    if let Some(claims) = request.extensions().get::<super::JwtClaims>() {
-        return format!("user:{}", claims.sub);
-    }
-    // Fall back to X-Real-IP set by nginx.
     if let Some(ip) = request
         .headers()
         .get("X-Real-IP")
@@ -159,7 +155,6 @@ fn extract_identity_key(request: &Request<Body>) -> String {
     {
         return format!("ip:{}", ip);
     }
-    // Last resort: peer address.
     request
         .extensions()
         .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
