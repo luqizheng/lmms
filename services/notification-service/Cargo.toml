@@ -22,6 +22,7 @@ thiserror = { workspace = true }
 anyhow = "1"
 async-trait = "0.1"
 jwt-ctx = { path = "../../libs/jwt-ctx" }
+common-jwt = { path = "../../libs/common-jwt" }
 common-http = { path = "../../libs/common-http" }
 reqwest.workspace = true
 bytes = "1"

@@ -8,8 +8,9 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use common_jwt::JWKSCache;
 use common_ratelimit::{Limit, RateLimiter, rate_limit_middleware};
-use jwt_ctx::TenantScope;
+use jwt_ctx::{PrincipalStateProvider, TenantScope};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -19,6 +20,14 @@ pub struct RestState {
     pub redis: RedisCli,
     pub rate_limiter: RateLimiter,
     pub iam_client: Arc<IamMemberClient>,
+    /// Phase 5-B: JWKS cache for verifying inbound user-jwt.
+    pub jwks: Arc<JWKSCache>,
+}
+
+impl PrincipalStateProvider for RestState {
+    fn jwks(&self) -> Arc<JWKSCache> {
+        self.jwks.clone()
+    }
 }
 
 /// Route-key constants for rate limit table.
@@ -105,7 +114,7 @@ pub async fn publish(
     if !me.is_admin() {
         return Err(AppError::Forbidden);
     }
-    let user_ids = s.db.publish_announcement(id, &s.iam_client, &scope, None).await?;
+    let user_ids = s.db.publish_announcement(id, &s.iam_client, &scope).await?;
     Ok(Json(serde_json::json!({ "id": id, "status": "published", "user_count": user_ids.len() })))
 }
 

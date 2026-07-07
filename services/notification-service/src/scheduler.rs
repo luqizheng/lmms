@@ -34,6 +34,6 @@ pub async fn publish_one(db: &Db, iam_client: &IamMemberClient, ann_id: u64) -> 
     .fetch_one(&db.pool)
     .await?;
     let scope = TenantScope::Single(tenant_id);
-    db.publish_announcement(ann_id, iam_client, &scope, None).await?;
+    db.publish_announcement(ann_id, iam_client, &scope).await?;
     Ok(())
 }

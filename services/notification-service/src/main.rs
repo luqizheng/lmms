@@ -18,6 +18,7 @@ mod ws_hub;
 use axum::routing::get;
 use axum::Router;
 use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
+use common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
 use config::AppConfig;
 use db::Db;
 use iam_client::IamMemberClient;
@@ -25,6 +26,7 @@ use redis_cli::RedisCli;
 use ws_hub::WsHub;
 use prometheus::{Encoder, TextEncoder};
 use std::sync::Arc;
+use std::time::Duration;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -52,6 +54,37 @@ async fn main() -> anyhow::Result<()> {
     let redis = RedisCli::connect(&cfg.redis.url).await?;
     let hub = WsHub::new();
 
+    // Phase 5-B: JWKS cache + service-jwt cache.
+    let http_for_jwt = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+    let jwks = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: std::env::var("JWKS_URL")
+                .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
+            refresh_interval: Duration::from_secs(3600),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt.clone(),
+    ));
+    jwks.refresh().await
+        .expect("JWKS refresh failed at startup; token-service must be reachable");
+    let service_jwt = Arc::new(ServiceJwtCache::new(
+        ServiceJwtConfig {
+            token_service_url: std::env::var("TOKEN_SERVICE_URL")
+                .unwrap_or_else(|_| "http://token-service:8082".into()),
+            bootstrap_token: std::env::var("SERVICE_BOOTSTRAP_TOKEN")
+                .expect("SERVICE_BOOTSTRAP_TOKEN required"),
+            caller_service_name: "notification-service".into(),
+            caller_tenant: std::env::var("TENANT_ID")
+                .ok().and_then(|s| s.parse().ok()).unwrap_or(1i64),
+            refresh_skew: Duration::from_secs(60),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt,
+        String::new(),
+    ));
+
     let resilient = Arc::new(ResilientClient::new(
         reqwest::Client::new(),
         ResilienceConfig::default(),
@@ -60,6 +93,7 @@ async fn main() -> anyhow::Result<()> {
     let iam_client = Arc::new(IamMemberClient::new(
         resilient,
         cfg.iam_base_url.clone(),
+        service_jwt.clone(),
     ));
 
     let rest_state = rest::RestState {
@@ -70,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
             rest::default_limits(),
         ),
         iam_client: iam_client.clone(),
+        jwks: jwks.clone(),
     };
     let ws_state = ws::WsState { hub: hub.clone() };
 
