@@ -11,7 +11,7 @@ use crate::{
     service::UserService,
     state::AppState,
 };
-use jwt_ctx::TenantScope;
+use jwt_ctx::{Principal, TenantScope};
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct TenantIdQuery {
@@ -35,6 +35,7 @@ pub struct TenantIdQuery {
 )]
 pub async fn list_users_by_role(
     State(state): State<AppState>,
+    _principal: Principal,
     Path(role_id): Path<String>,
     Query(q): Query<UserListQuery>,
     Query(tq): Query<TenantIdQuery>,
@@ -71,6 +72,7 @@ pub async fn list_users_by_role(
 )]
 pub async fn list_users_by_dept(
     State(state): State<AppState>,
+    _principal: Principal,
     Path(dept_id): Path<String>,
     Query(q): Query<UserListQuery>,
     Query(tq): Query<TenantIdQuery>,

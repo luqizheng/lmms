@@ -112,7 +112,7 @@ pub async fn handle_refresh(
         state.user_service_url, info.sub, info.tid
     );
     let extra_claims: serde_json::Value =
-        match crate::fetch_json(&state.http_client, "iam-service", &claims_url).await {
+        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, None).await {
             Ok(v) => v,
             Err(e) => {
                 tracing::warn!("refresh: user-service unreachable: {}", e);

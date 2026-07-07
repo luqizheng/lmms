@@ -1,16 +1,29 @@
 use crate::db::DbPool;
 use common_http::ResilientClient;
-use reqwest::{header::HeaderMap, Method};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION},
+    Method,
+};
 use std::sync::Arc;
 
 /// Fetch JSON from iam-service via ResilientClient (timeout/retry/breaker).
+/// `user_jwt` is the original `Authorization: Bearer <jwt>` value from the
+/// inbound request (if any). Phase 5-A-2 dephase: forwarded as-is to the
+/// upstream, replacing the previous sidecar mTLS service-identity.
 pub async fn fetch_json(
     client: &ResilientClient,
     service: &str,
     url: &str,
+    user_jwt: Option<&str>,
 ) -> Result<serde_json::Value, String> {
+    let mut headers = HeaderMap::new();
+    if let Some(bearer) = user_jwt {
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {bearer}")) {
+            headers.insert(AUTHORIZATION, v);
+        }
+    }
     let resp = client
-        .call(service, Method::GET, url, &HeaderMap::new(), bytes::Bytes::new())
+        .call(service, Method::GET, url, &headers, bytes::Bytes::new())
         .await
         .map_err(|e| format!("{:?}", e))?;
     if !resp.status.is_success() {
