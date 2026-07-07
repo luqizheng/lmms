@@ -246,6 +246,7 @@ impl Db {
         ann_id: u64,
         iam_client: &IamMemberClient,
         scope: &TenantScope,
+        user_jwt: Option<&str>,
     ) -> AppResult<Vec<String>> {
         let (title, pinned, popover) = {
             let mut tx = self.pool.begin().await?;
@@ -279,7 +280,7 @@ impl Db {
         let user_ids: HashSet<String> = if scopes.is_empty() {
             HashSet::new()
         } else {
-            iam_client.expand_scopes(&scopes, scope).await?
+            iam_client.expand_scopes(&scopes, scope, user_jwt).await?
         };
 
         let user_ids_vec: Vec<String> = user_ids.iter().cloned().collect();

@@ -10,7 +10,10 @@
 use bytes::Bytes;
 use common_http::{ResilientClient, ResilientError};
 use jwt_ctx::TenantScope;
-use reqwest::{header::HeaderMap, Method};
+use reqwest::{
+    header::{HeaderMap, HeaderValue, AUTHORIZATION},
+    Method,
+};
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -31,26 +34,37 @@ impl IamMemberClient {
         Self { http, base_url }
     }
 
-    pub async fn by_role(&self, role_id: &str, tenant_id: i64) -> Result<Vec<String>, AppError> {
+    pub async fn by_role(
+        &self,
+        role_id: &str,
+        tenant_id: i64,
+        user_jwt: Option<&str>,
+    ) -> Result<Vec<String>, AppError> {
         let url = format!(
             "{}/iam/internal/users/by-role/{}?size=1000&tenant_id={}",
             self.base_url, role_id, tenant_id
         );
-        self.fetch_items(&url).await
+        self.fetch_items(&url, user_jwt).await
     }
 
-    pub async fn by_dept(&self, dept_id: &str, tenant_id: i64) -> Result<Vec<String>, AppError> {
+    pub async fn by_dept(
+        &self,
+        dept_id: &str,
+        tenant_id: i64,
+        user_jwt: Option<&str>,
+    ) -> Result<Vec<String>, AppError> {
         let url = format!(
             "{}/iam/internal/users/by-dept/{}?size=1000&tenant_id={}",
             self.base_url, dept_id, tenant_id
         );
-        self.fetch_items(&url).await
+        self.fetch_items(&url, user_jwt).await
     }
 
     pub async fn expand_scopes(
         &self,
         scopes: &[(ScopeType, String)],
         scope: &TenantScope,
+        user_jwt: Option<&str>,
     ) -> Result<HashSet<String>, AppError> {
         let tenant_id = scope.tenant_id().unwrap_or(1);
         let mut out: HashSet<String> = HashSet::new();
@@ -60,20 +74,26 @@ impl IamMemberClient {
                     out.insert(id.clone());
                 }
                 ScopeType::Role => {
-                    out.extend(self.by_role(id, tenant_id).await?);
+                    out.extend(self.by_role(id, tenant_id, user_jwt).await?);
                 }
                 ScopeType::Dept => {
-                    out.extend(self.by_dept(id, tenant_id).await?);
+                    out.extend(self.by_dept(id, tenant_id, user_jwt).await?);
                 }
             }
         }
         Ok(out)
     }
 
-    async fn fetch_items(&self, url: &str) -> Result<Vec<String>, AppError> {
+    async fn fetch_items(&self, url: &str, user_jwt: Option<&str>) -> Result<Vec<String>, AppError> {
+        let mut headers = HeaderMap::new();
+        if let Some(bearer) = user_jwt {
+            if let Ok(v) = HeaderValue::from_str(&format!("Bearer {bearer}")) {
+                headers.insert(AUTHORIZATION, v);
+            }
+        }
         let resp = self
             .http
-            .call(IAM_SERVICE, Method::GET, url, &HeaderMap::new(), Bytes::new())
+            .call(IAM_SERVICE, Method::GET, url, &headers, Bytes::new())
             .await
             .map_err(|e: ResilientError| {
                 AppError::external("IAM_FAIL", format!("upstream call failed: {:?}", e))
