@@ -103,12 +103,12 @@
 > Plan: `docs/superpowers/plans/2026-07-07-phase5b-jwt-signature-and-service-jwt.md`
 > 14 个 commit，`iam-service` 51 tests 全过。
 
-- [ ] **5B-fu1** `Principal::from_jwt_payload`（无验签路径）加 `#[deprecated]`。当前保留为测试用，生产应走 `from_token`。小改。
+- [x] **5B-fu1** `Principal::from_jwt_payload`（无验签路径）加 `#[deprecated]`。当前保留为测试用，生产应走 `from_token`。小改。
 - [ ] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。
 - [ ] **5B-fu3** `notification → iam` 事件化（去掉同步 `/iam/internal/users/by-{role,dept}` HTTP 调用，改 RabbitMQ 事件驱动本地投影）。对应 spec §0.5.6 #2 的 `phase5b-event-sync`。
 - [ ] **5B-fu4** TLS termination（生产路径：服务间 dev 仍 HTTP，生产需 alb/nginx 终结 TLS）。对应 spec §11 的 `phase5b-tls-termination.md`。
 - [ ] **5B-fu5** `cargo test --workspace --lib` 全量在 CI 跑（本机 tmpfs 6.4G 不够）。CI pipeline 需验证。
-- [ ] **5B-fu6** principal extractor 在 `from_token` 失败时可能泄露 jwt 错误细节到响应（当前统一 401）。生产应在日志中记录原因，响应只返回通用消息。
+- [x] **5B-fu6** principal extractor 在 `from_token` 失败时可能泄露 jwt 错误细节到响应（当前统一 401）。生产应在日志中记录原因，响应只返回通用消息。
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
@@ -195,7 +195,7 @@
   - [x] `services/iam-service/src/outbox_archive.rs` archive_loop（`BETWEEN min..max` + 二次 WHERE）+ purge_loop（30d）+ `GET_LOCK` 多副本互斥（commit `db0d77c`）
   - [x] `outbox-publisher` binary 起 archive tokio task（commit `80076b2`）
   - [x] testcontainers 7 个 + `test-case/64-outbox-archive.md`（commit `2e27513`）
-  - [ ] **T4-fu1** `docs/USER_MANUAL.md` outbox section 加 archive 30d 一行（spec §5.5 要求，plan 未列，implementer acknowledge）
+  - [x] **T4-fu1** `docs/USER_MANUAL.md` outbox section 加 archive 30d 一行（spec §5.5 要求，plan 未列，implementer acknowledge）
 
 ### Phase 6-A 后续项（2026-06-29 plan-review 重排序，按优先级）
 

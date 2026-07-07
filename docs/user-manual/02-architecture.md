@@ -252,6 +252,8 @@ consul intention create -deny '*' '*'                # 默认拒绝（必须放�
 | `iam-outbox-publisher` | `iam_outbox_events` 表 | RabbitMQ exchange `events` | poll interval 1s, batch 100 |
 | `notification-outbox-publisher` | `ntf_outbox_events` 表 | RabbitMQ exchange `events` | poll interval 1s, batch 100 |
 
+> **归档**：活行 >24h 未投递 → 移入 `*_outbox_events_archive`；30 天后 purge。
+
 **为什么需要 outbox**：跨服务事件要在**同一个 DB 事务**里投递，避免「业务写入成功但消息丢了」或「消息发了业务没写」。模式详见 [`docs/ai-context.md` §7 pitfall 19](../ai-context.md)。
 
 这些 worker **不暴露 HTTP**，不参与 mesh，只是单进程循环。

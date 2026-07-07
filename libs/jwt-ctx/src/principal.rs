@@ -53,6 +53,7 @@ impl Principal {
     /// Phase 5-A-2 path: pure decode, no signature verification.
     /// Kept for unit tests / mock contexts where the test owns the
     /// private key. Production code should use `from_token`.
+    #[deprecated(since = "0.1.0", note = "use `from_token` for production; this function performs no signature verification")]
     pub fn from_jwt_payload(token: &str) -> Result<Self, PrincipalError> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
@@ -190,6 +191,9 @@ where
         let cache = state.jwks();
         Self::from_token(token, &cache, None)
             .await
-            .map_err(|_| axum::http::StatusCode::UNAUTHORIZED)
+            .map_err(|err| {
+                tracing::warn!(error = %err, "jwt verification failed, returning 401");
+                axum::http::StatusCode::UNAUTHORIZED
+            })
     }
 }
