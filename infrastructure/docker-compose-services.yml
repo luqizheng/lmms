@@ -1,3 +1,75 @@
+x-svc-registrator-labels-config: &svc-reg-labels-config
+  - "SERVICE_NAME=config-service"
+  - "SERVICE_ID=config-service"
+  - "SERVICE_PORT=8081"
+  - "SERVICE_TAGS=backend,config-service"
+  - "SERVICE_8081_CHECK_HTTP=/health"
+  - "SERVICE_8081_CHECK_INTERVAL=15s"
+  - "SERVICE_8081_CHECK_TIMEOUT=3s"
+
+x-svc-registrator-labels-file: &svc-reg-labels-file
+  - "SERVICE_NAME=file-service"
+  - "SERVICE_ID=file-service"
+  - "SERVICE_PORT=8082"
+  - "SERVICE_TAGS=backend,file-service"
+  - "SERVICE_8082_CHECK_HTTP=/health"
+  - "SERVICE_8082_CHECK_INTERVAL=15s"
+  - "SERVICE_8082_CHECK_TIMEOUT=3s"
+
+x-svc-registrator-labels-gateway: &svc-reg-labels-gateway
+  - "SERVICE_NAME=api-gateway"
+  - "SERVICE_ID=api-gateway"
+  - "SERVICE_PORT=3000"
+  - "SERVICE_TAGS=backend,api-gateway"
+  - "SERVICE_3000_CHECK_HTTP=/health"
+  - "SERVICE_3000_CHECK_INTERVAL=15s"
+  - "SERVICE_3000_CHECK_TIMEOUT=3s"
+
+x-svc-registrator-labels-token: &svc-reg-labels-token
+  - "SERVICE_NAME=token-service"
+  - "SERVICE_ID=token-service"
+  - "SERVICE_PORT=8082"
+  - "SERVICE_TAGS=backend,token-service"
+  - "SERVICE_8082_CHECK_HTTP=/health"
+  - "SERVICE_8082_CHECK_INTERVAL=15s"
+  - "SERVICE_8082_CHECK_TIMEOUT=3s"
+
+x-svc-registrator-labels-iam: &svc-reg-labels-iam
+  - "SERVICE_NAME=iam-service"
+  - "SERVICE_ID=iam-service"
+  - "SERVICE_PORT=8081"
+  - "SERVICE_TAGS=backend,iam-service"
+  - "SERVICE_8081_CHECK_HTTP=/health"
+  - "SERVICE_8081_CHECK_INTERVAL=15s"
+  - "SERVICE_8081_CHECK_TIMEOUT=3s"
+
+x-svc-registrator-labels-prue: &svc-reg-labels-prue
+  - "SERVICE_NAME=prue_backend"
+  - "SERVICE_ID=prue_backend"
+  - "SERVICE_PORT=8087"
+  - "SERVICE_TAGS=backend,prue_backend"
+  - "SERVICE_8087_CHECK_HTTP=/health"
+  - "SERVICE_8087_CHECK_INTERVAL=15s"
+  - "SERVICE_8087_CHECK_TIMEOUT=3s"
+
+x-svc-registrator-labels-notify: &svc-reg-labels-notify
+  - "SERVICE_NAME=notification-service"
+  - "SERVICE_ID=notification-service"
+  - "SERVICE_PORT=8083"
+  - "SERVICE_TAGS=backend,notification-service"
+  - "SERVICE_8083_CHECK_HTTP=/health"
+  - "SERVICE_8083_CHECK_INTERVAL=30s"
+  - "SERVICE_8083_CHECK_TIMEOUT=3s"
+
+x-svc-registrator-labels-audit: &svc-reg-labels-audit
+  - "SERVICE_NAME=audit-service"
+  - "SERVICE_ID=audit-service"
+  - "SERVICE_PORT=8084"
+  - "SERVICE_TAGS=backend,audit-service"
+  - "SERVICE_8084_CHECK_HTTP=/health"
+  - "SERVICE_8084_CHECK_INTERVAL=30s"
+  - "SERVICE_8084_CHECK_TIMEOUT=3s"
+
 services:
   config-service:
     build:
@@ -5,12 +77,17 @@ services:
       dockerfile: services/config-service/Dockerfile
     ports:
       - "8081:8081"
+    labels: *svc-reg-labels-config
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_ADDR: "0.0.0.0:8081"
       DATABASE_URL: "${DATABASE_URL}"
       RUST_LOG: "info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      SERVICE_NAME: "config-service"
+      SERVICE_ID: "config-service"
+      SERVICE_PORT: "8081"
+      SERVICE_HEALTH_PATH: "/health"
     depends_on:
       mysql:
         condition: service_healthy
@@ -25,6 +102,7 @@ services:
       dockerfile: services/file-service/Dockerfile
     ports:
       - "8082:8082"
+    labels: *svc-reg-labels-file
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_ADDR: "0.0.0.0:8082"
@@ -32,6 +110,10 @@ services:
       STORAGE_PATH: "/var/lib/file-service/storage"
       RUST_LOG: "info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      SERVICE_NAME: "file-service"
+      SERVICE_ID: "file-service"
+      SERVICE_PORT: "8082"
+      SERVICE_HEALTH_PATH: "/health"
     volumes:
       - file-storage:/var/lib/file-service/storage
     depends_on:
@@ -65,6 +147,7 @@ services:
       context: ..
       dockerfile: services/api-gateway/Dockerfile
     network_mode: "service:api-gateway-sidecar"
+    labels: *svc-reg-labels-gateway
     environment:
       RUST_LOG: "api_gateway=trace,info"
       GW_SERVER__HOST: "127.0.0.1"
@@ -78,6 +161,10 @@ services:
       GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
       GW_EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      SERVICE_NAME: "api-gateway"
+      SERVICE_ID: "api-gateway"
+      SERVICE_PORT: "3000"
+      SERVICE_HEALTH_PATH: "/health"
     volumes:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
       - ./config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
@@ -115,6 +202,7 @@ services:
       context: ..
       dockerfile: services/token-service/Dockerfile
     network_mode: "service:token-service-sidecar"
+    labels: *svc-reg-labels-token
     # NOTE: services/token-service/Dockerfile already bakes
     #   /app/keys/{private,public}.pem and /app/config/config.yaml
     # into the image. Do NOT mount over them — empty binds shadow them.
@@ -123,6 +211,10 @@ services:
     environment:
       SWAGGER_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      SERVICE_NAME: "token-service"
+      SERVICE_ID: "token-service"
+      SERVICE_PORT: "8082"
+      SERVICE_HEALTH_PATH: "/health"
     depends_on:
       token-service-sidecar:
         condition: service_started
@@ -154,6 +246,7 @@ services:
       context: ..
       dockerfile: services/iam-service/Dockerfile
     network_mode: "service:iam-service-sidecar"
+    labels: *svc-reg-labels-iam
     volumes:
       - ../docker-example/secrets:/app/keys:ro
       - ../services/iam-service/config:/etc/iam-service:ro
@@ -164,6 +257,10 @@ services:
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      SERVICE_NAME: "iam-service"
+      SERVICE_ID: "iam-service"
+      SERVICE_PORT: "8081"
+      SERVICE_HEALTH_PATH: "/health"
     depends_on:
       iam-service-sidecar:
         condition: service_started
@@ -218,11 +315,16 @@ services:
       context: ..
       dockerfile: services/prue_backend/Dockerfile
     network_mode: "service:prue_backend-sidecar"
+    labels: *svc-reg-labels-prue
     environment:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18087"
       DATABASE_URL: "${DATABASE_URL}"
       RUST_LOG: "info"
+      SERVICE_NAME: "prue_backend"
+      SERVICE_ID: "prue_backend"
+      SERVICE_PORT: "8087"
+      SERVICE_HEALTH_PATH: "/health"
     depends_on:
       prue_backend-sidecar:
         condition: service_started
@@ -237,7 +339,7 @@ services:
     ports:
       - "9083:9083"
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
+      CONSUL_HTTP_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
     command: >
       sh -c "until consul connect proxy -register -service notification-service -service-addr 127.0.0.1:18083 -listen ':9083' -upstream iam-service:9081; do sleep 2; done"
     depends_on:
@@ -252,6 +354,7 @@ services:
       context: ..
       dockerfile: services/notification-service/Dockerfile
     network_mode: "service:notification-service-sidecar"
+    labels: *svc-reg-labels-notify
     environment:
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
@@ -259,6 +362,10 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      SERVICE_NAME: "notification-service"
+      SERVICE_ID: "notification-service"
+      SERVICE_PORT: "8083"
+      SERVICE_HEALTH_PATH: "/health"
     depends_on:
       notification-service-sidecar:
         condition: service_started
@@ -314,6 +421,7 @@ services:
       context: ..
       dockerfile: services/audit-service/Dockerfile
     network_mode: "service:audit-service-sidecar"
+    labels: *svc-reg-labels-audit
     environment:
       SERVER_HOST: "127.0.0.1"
       SERVER_PORT: "18084"
@@ -323,6 +431,10 @@ services:
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       RUST_LOG: "info"
+      SERVICE_NAME: "audit-service"
+      SERVICE_ID: "audit-service"
+      SERVICE_PORT: "8084"
+      SERVICE_HEALTH_PATH: "/health"
     depends_on:
       audit-service-sidecar:
         condition: service_started
