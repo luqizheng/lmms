@@ -3,6 +3,10 @@ use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
+/// Phase 5-B: the `kid` JWT header field. Must match the key id in
+/// the JWKSCache on the verifier side (see `common_jwt::JWKSCache::from_pem`).
+const JWT_KEY_ID: &str = "default";
+
 pub struct TokenIssuer {
     key_pair: RS256KeyPair,
     issuer: String,
@@ -10,7 +14,9 @@ pub struct TokenIssuer {
 
 impl TokenIssuer {
     pub fn new(private_key_pem: &str, issuer: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let key_pair = RS256KeyPair::from_pem(private_key_pem)?;
+        let mut key_pair = RS256KeyPair::from_pem(private_key_pem)?;
+        // Phase 5-B: set kid so verifiers can locate the JWKSCache key.
+        key_pair.set_key_id(JWT_KEY_ID.to_string());
         Ok(Self {
             key_pair,
             issuer: issuer.to_string(),

@@ -38,6 +38,7 @@ async fn setup() -> Ctx {
 
     let key_pair = RS256KeyPair::generate(2048).unwrap();
     let pem = key_pair.to_pem().unwrap();
+    let public_pem = key_pair.public_key().to_pem().unwrap();
     let mut key_file = tempfile::NamedTempFile::new().unwrap();
     key_file.write_all(pem.as_bytes()).unwrap();
     key_file.flush().unwrap();
@@ -56,7 +57,20 @@ async fn setup() -> Ctx {
     };
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo);
+    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::from_pem(&public_pem)
+        .expect("test public key must parse"));
+    let service_jwt = std::sync::Arc::new(common_jwt::ServiceJwtCache::new(
+        common_jwt::ServiceJwtConfig {
+            token_service_url: "http://localhost:0".into(),
+            bootstrap_token: "test-bt".into(),
+            caller_service_name: "iam-service".into(),
+            caller_tenant: 1,
+            refresh_skew: std::time::Duration::from_secs(60),
+            request_timeout: std::time::Duration::from_secs(5),
+        },
+        reqwest::Client::new(),
+        String::new(),
+    ));    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
     let app = build_router(state.clone());
 
     Ctx { state, app, _mysql: mysql_h.container, _key_file: key_file }

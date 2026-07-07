@@ -10,13 +10,19 @@ use axum::{
 };
 use common_cache::MemoryCache;
 use common_event::MySqlOutboxRepo;
+use common_jwt::{sign_token, JWKSCache};
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
 use iam_service::routes::build_router;
 use iam_service::state::AppState;
 use std::sync::Arc;
+use std::time::Duration;
 use tower::ServiceExt;
+
+// Test fixture: matches the production token-service private key (regenerated
+// for tests; production uses the baked-in PEM).
+const TEST_TOKEN_PRIVATE_PEM: &str = include_str!("../../token-service/tests/fixtures/test_token_private.pem");
 
 struct Ctx {
     app: axum::Router,
@@ -43,7 +49,21 @@ async fn setup() -> Ctx {
     };
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo);
+    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::from_pem(
+        include_str!("../../token-service/tests/fixtures/test_token_public.pem"),
+    ).expect("test public key must parse"));
+    let service_jwt = std::sync::Arc::new(common_jwt::ServiceJwtCache::new(
+        common_jwt::ServiceJwtConfig {
+            token_service_url: "http://localhost:0".into(),
+            bootstrap_token: "test-bt".into(),
+            caller_service_name: "iam-service".into(),
+            caller_tenant: 1,
+            refresh_skew: std::time::Duration::from_secs(60),
+            request_timeout: std::time::Duration::from_secs(5),
+        },
+        reqwest::Client::new(),
+        String::new(),
+    ));    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
 
     let app = build_router(state.clone());
     Ctx { app, state, _mysql: mysql_h.container }
@@ -103,8 +123,29 @@ async fn bind_user_to_org(state: &AppState, uid: &str, oid: &str) {
 
 async fn call(app: axum::Router, path: &str, tenant_id: i64) -> (StatusCode, serde_json::Value) {
     let uri = format!("{}?tenant_id={}", path, tenant_id);
+    // Phase 5-B: /iam/internal/* requires service-jwt with aud=iam-service.
+    // Mint one using the test fixture private key.
+    let now = chrono::Utc::now().timestamp();
+    let claims = serde_json::json!({
+        "iss": "token-service",
+        "sub": "test-caller",
+        "aud": "iam-service",
+        "tid": 1i64,  // JWT must always have valid i64; the path's tid
+                       // (which may be "abc" or missing) is tested separately
+        "iat": now,
+        "exp": now + 3600,
+        "roles": ["service"],
+    });
+    let service_jwt = sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600))
+        .expect("sign service-jwt");
     let resp = app
-        .oneshot(Request::builder().uri(&uri).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(&uri)
+                .header("Authorization", format!("Bearer {}", service_jwt))
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     let status = resp.status();
@@ -175,9 +216,23 @@ async fn internal_users_tenant_isolation() {
 #[tokio::test]
 async fn missing_tenant_id_returns_400() {
     let ctx = setup().await;
+    // Phase 5-B: /iam/internal/* requires service-jwt. Mint one with tid=1,
+    // but the query string is intentionally missing tenant_id to test
+    // the handler's 400 response (not the middleware's 401).
+    let now = chrono::Utc::now().timestamp();
+    let claims = serde_json::json!({
+        "iss": "token-service", "sub": "test-caller", "aud": "iam-service",
+        "tid": 1i64, "iat": now, "exp": now + 3600, "roles": ["service"],
+    });
+    let service_jwt = sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600)).unwrap();
     let resp = ctx.app
         .clone()
-        .oneshot(Request::builder().uri("/iam/internal/users/by-role/r1").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/iam/internal/users/by-role/r1")
+                .header("Authorization", format!("Bearer {}", service_jwt))
+                .body(Body::empty()).unwrap()
+        )
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
@@ -186,9 +241,21 @@ async fn missing_tenant_id_returns_400() {
 #[tokio::test]
 async fn non_numeric_tenant_id_returns_400() {
     let ctx = setup().await;
+    // Phase 5-B: service-jwt with valid tid=1; query has tenant_id=abc
+    let now = chrono::Utc::now().timestamp();
+    let claims = serde_json::json!({
+        "iss": "token-service", "sub": "test-caller", "aud": "iam-service",
+        "tid": 1i64, "iat": now, "exp": now + 3600, "roles": ["service"],
+    });
+    let service_jwt = sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600)).unwrap();
     let resp = ctx.app
         .clone()
-        .oneshot(Request::builder().uri("/iam/internal/users/by-role/r1?tenant_id=abc").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/iam/internal/users/by-role/r1?tenant_id=abc")
+                .header("Authorization", format!("Bearer {}", service_jwt))
+                .body(Body::empty()).unwrap()
+        )
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
