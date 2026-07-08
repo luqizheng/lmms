@@ -114,7 +114,7 @@ pub async fn publish(
     if !me.is_admin() {
         return Err(AppError::Forbidden);
     }
-    let user_ids = s.db.publish_announcement(id, &s.iam_client, &scope).await?;
+    let user_ids = s.db.publish_announcement(id, &scope).await?;
     Ok(Json(serde_json::json!({ "id": id, "status": "published", "user_count": user_ids.len() })))
 }
 

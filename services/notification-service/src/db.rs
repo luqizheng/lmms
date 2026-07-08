@@ -1,5 +1,4 @@
 use crate::error::{AppError, AppResult};
-use crate::iam_client::IamMemberClient;
 use crate::models::*;
 use chrono::{DateTime, Utc};
 use common_db::WithTenantScope;
@@ -249,27 +248,28 @@ impl Db {
         Ok(res.rows_affected() == 1)
     }
 
-    /// 公告发布事务（spec §4.3）：tx1 锁行 → tx-out IAM 解析 scopes → tx2 幂等再锁 + deliveries + enqueue。
+    /// 公告发布事务（spec §4.3）：tx1 锁行 → tx-out 本地投影 resolve scopes → tx2 幂等再锁 + deliveries + enqueue。
     ///
     /// ```text
     /// tx1
     ///   SELECT FOR UPDATE → status guard  (QueryBuilder + where_id + and_tenant)
-    ///   COMMIT    （释放锁后再跨服务）
+    ///   COMMIT    （释放锁）
     /// tx-out
-    ///   iam_client.expand_scopes(..., scope) → HashSet<user_id>
+    ///   db.resolve_users_by_scopes(...) → HashSet<user_id>  (Phase 5B-fu3 本地 ntf_user_projection)
     /// tx2
     ///   SELECT status FOR UPDATE → 再次 guard（处理并发 publish）
-    ///   INSERT IGNORE deliveries（每 user_id，inline 在 tx 中）
+    ///   batch INSERT IGNORE deliveries（Phase 4.3-fu1）
     ///   UPDATE status='published'
     ///   enqueue NotificationAnnouncementPublished → ntf_outbox_events
     ///   COMMIT
     /// ```
     /// 不在此处 hub.publish —— 推送统一由 announcement consumer 完成（避免双推）。
     /// 点查询 TenantScope 过滤（Phase 8.3-fu2）：CrossTenant 时 and_tenant no-op（运维跨租户支持）。
+    /// Phase 5B-fu3：替换 `iam_client.expand_scopes` 为 `db.resolve_users_by_scopes`
+    /// 本地投影查询 — 消除跨服务 HTTP 调用；投影由 startup bootstrap + 持续事件增量维护。
     pub async fn publish_announcement(
         &self,
         ann_id: u64,
-        iam_client: &IamMemberClient,
         scope: &TenantScope,
     ) -> AppResult<Vec<String>> {
         let (title, pinned, popover) = {
@@ -304,7 +304,7 @@ impl Db {
         let user_ids: HashSet<String> = if scopes.is_empty() {
             HashSet::new()
         } else {
-            iam_client.expand_scopes(&scopes, scope).await?
+            self.resolve_users_by_scopes(&scopes, scope).await?
         };
 
         let user_ids_vec: Vec<String> = user_ids.iter().cloned().collect();

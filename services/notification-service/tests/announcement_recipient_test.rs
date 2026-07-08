@@ -1,46 +1,15 @@
-//! Phase 4.3-fu2: notification publish_announcement resolves role/dept scopes
-//! via the iam internal endpoints (mocked by wiremock).
+//! Phase 5B-fu3: publish_announcement resolves role/dept scopes via local
+//! ntf_user_projection (replaces 4.3-fu2 wiremock-iam path).
+//! Membership event apply / bootstrap / out-of-order covered in
+//! membership_projection_test.rs (T8).
 mod common;
 
 use jwt_ctx::TenantScope;
 use notification_service::db::Db;
-use notification_service::iam_client::IamMemberClient;
-use std::sync::Arc;
-use std::time::Duration;
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path_regex};
 
-const TEST_PRIVATE_PEM: &str = include_str!("fixtures/test_private.pem");
-
-async fn setup() -> (Db, MockServer, Option<common::MysqlContainer>) {
+async fn setup() -> (Db, Option<common::MysqlContainer>) {
     let h = common::spawn_db().await;
-    let server = MockServer::start().await;
-    (h.db, server, h.container)
-}
-
-async fn build_client(base_url: String) -> Arc<IamMemberClient> {
-    use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
-    use common_jwt::{ServiceJwtCache, ServiceJwtConfig};
-    let inner = reqwest::Client::new();
-    let cfg = ResilienceConfig::default();
-    let rc = Arc::new(ResilientClient::new(inner, cfg, Arc::new(NoopObserver)));
-    let service_jwt = Arc::new(ServiceJwtCache::new(
-        ServiceJwtConfig {
-            token_service_url: "http://localhost:0".into(),
-            bootstrap_token: "test-bt".into(),
-            caller_service_name: "notification-service".into(),
-            caller_tenant: 1,
-            refresh_skew: Duration::from_secs(60),
-            request_timeout: Duration::from_secs(5),
-        },
-        reqwest::Client::new(),
-        TEST_PRIVATE_PEM.to_string(),
-    ));
-    service_jwt
-        .prime_cache("iam-service", Duration::from_secs(300))
-        .await
-        .unwrap();
-    Arc::new(IamMemberClient::new(rc, base_url, service_jwt))
+    (h.db, h.container)
 }
 
 async fn seed_ann(db: &Db, recipients: &[(&str, &str)]) -> u64 {
@@ -65,37 +34,48 @@ async fn deliveries(db: &Db, ann_id: u64) -> Vec<String> {
     rows.into_iter().map(|(s,)| s).collect()
 }
 
+async fn seed_projection_role(db: &Db, role_id: &str, users: &[&str]) {
+    let role_json = serde_json::to_string(&vec![role_id]).unwrap();
+    for u in users {
+        sqlx::query(
+            "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
+             VALUES (?, 1, CAST(? AS JSON), NULL, 0)",
+        )
+        .bind(u)
+        .bind(&role_json)
+        .execute(&db.pool).await.unwrap();
+    }
+}
+
+async fn seed_projection_dept(db: &Db, dept_id: &str, users: &[&str]) {
+    for u in users {
+        sqlx::query(
+            "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
+             VALUES (?, 1, JSON_ARRAY(), ?, 0)",
+        )
+        .bind(u)
+        .bind(dept_id)
+        .execute(&db.pool).await.unwrap();
+    }
+}
+
 #[tokio::test]
-async fn publish_announcement_role_scope_resolves_via_iam() {
-    let (db, mock, _c) = setup().await;
-    Mock::given(method("GET"))
-        .and(path_regex(r"/iam/internal/users/by-role/r1.*"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "items": ["u1", "u2", "u3"],
-            "page": 1, "size": 100, "total": 3, "truncated": false
-        })))
-        .mount(&mock).await;
+async fn publish_announcement_role_scope_resolves_via_local_projection() {
+    let (db, _c) = setup().await;
+    seed_projection_role(&db, "r1", &["u1", "u2", "u3"]).await;
     let ann_id = seed_ann(&db, &[("role", "r1")]).await;
-    let client = build_client(mock.uri()).await;
-    db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap();
+    db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
     v.sort();
     assert_eq!(v, vec!["u1", "u2", "u3"]);
 }
 
 #[tokio::test]
-async fn publish_announcement_dept_scope_resolves_via_iam() {
-    let (db, mock, _c) = setup().await;
-    Mock::given(method("GET"))
-        .and(path_regex(r"/iam/internal/users/by-dept/d1.*"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "items": ["u10", "u11"],
-            "page": 1, "size": 100, "total": 2, "truncated": false
-        })))
-        .mount(&mock).await;
+async fn publish_announcement_dept_scope_resolves_via_local_projection() {
+    let (db, _c) = setup().await;
+    seed_projection_dept(&db, "d1", &["u10", "u11"]).await;
     let ann_id = seed_ann(&db, &[("dept", "d1")]).await;
-    let client = build_client(mock.uri()).await;
-    db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap();
+    db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
     v.sort();
     assert_eq!(v, vec!["u10", "u11"]);
@@ -103,59 +83,41 @@ async fn publish_announcement_dept_scope_resolves_via_iam() {
 
 #[tokio::test]
 async fn publish_announcement_mixed_scopes_dedup() {
-    let (db, mock, _c) = setup().await;
-    Mock::given(method("GET"))
-        .and(path_regex(r"/iam/internal/users/by-role/r1.*"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "items": ["u1", "u2"], "page": 1, "size": 100, "total": 2, "truncated": false
-        }))).mount(&mock).await;
-    Mock::given(method("GET"))
-        .and(path_regex(r"/iam/internal/users/by-dept/d1.*"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "items": ["u2", "u3"], "page": 1, "size": 100, "total": 2, "truncated": false
-        }))).mount(&mock).await;
+    let (db, _c) = setup().await;
+    seed_projection_role(&db, "r1", &["u1", "u2"]).await;
+    seed_projection_dept(&db, "d1", &["u2", "u3"]).await;
     let ann_id = seed_ann(&db, &[("role", "r1"), ("dept", "d1")]).await;
-    let client = build_client(mock.uri()).await;
-    db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap();
+    db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
     v.sort();
     assert_eq!(v, vec!["u1", "u2", "u3"]);
 }
 
 #[tokio::test]
-async fn publish_announcement_iam_unavailable_fails_publish() {
-    let (db, mock, _c) = setup().await;
-    Mock::given(method("GET"))
-        .and(path_regex(r"/iam/internal/users/by-role/r1.*"))
-        .respond_with(ResponseTemplate::new(503))
-        .mount(&mock).await;
-    let ann_id = seed_ann(&db, &[("role", "r1")]).await;
-    let client = build_client(mock.uri()).await;
-    let err = db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap_err();
-    assert!(err.to_string().contains("iam") || err.to_string().contains("503"));
+async fn publish_announcement_role_scope_unknown_role_writes_no_deliveries() {
+    // Phase 5B-fu3: role scope 查本地 projection, 找不到 role 不报错 (返回空)
+    let (db, _c) = setup().await;
+    seed_projection_role(&db, "r1", &["u1"]).await;
+    let ann_id = seed_ann(&db, &[("role", "r_unknown")]).await;
+    let users = db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
+    assert!(users.is_empty(), "unknown role → no users (no HTTP error)");
+    assert!(deliveries(&db, ann_id).await.is_empty());
     let (status,): (String,) = sqlx::query_as(
         "SELECT status FROM ntf_announcements WHERE id=?",
     ).bind(ann_id).fetch_one(&db.pool).await.unwrap();
-    assert_eq!(status, "draft");
-    assert!(deliveries(&db, ann_id).await.is_empty());
+    assert_eq!(status, "published", "announcement still marked published even with 0 deliveries");
 }
 
-// Phase 4.3-fu1: batch INSERT IGNORE path covers role-scope fanout beyond a
-// handful of users. Per-row loop would also pass this, but asserts the batch
-// path keeps every row written.
+// Phase 4.3-fu1: large fanout path stays — no HTTP involved now, just batch INSERT.
 #[tokio::test]
 async fn publish_announcement_large_role_fanout_writes_all_deliveries() {
-    let (db, mock, _c) = setup().await;
+    let (db, _c) = setup().await;
     let users: Vec<String> = (0..100).map(|i| format!("u{i:03}")).collect();
-    Mock::given(method("GET"))
-        .and(path_regex(r"/iam/internal/users/by-role/big.*"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "items": users, "page": 1, "size": 1000, "total": 100, "truncated": false
-        })))
-        .mount(&mock).await;
+    let user_refs: Vec<&str> = users.iter().map(|s| s.as_str()).collect();
+    seed_projection_role(&db, "big", &user_refs).await;
+
     let ann_id = seed_ann(&db, &[("role", "big")]).await;
-    let client = build_client(mock.uri()).await;
-    db.publish_announcement(ann_id, &client, &TenantScope::Single(1)).await.unwrap();
+    db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     let (n,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?",
     ).bind(ann_id).fetch_one(&db.pool).await.unwrap();
