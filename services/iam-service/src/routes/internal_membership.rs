@@ -13,7 +13,7 @@
 //! - role_ids: GROUP_CONCAT(ur.role_id)；无角色 → 空 Vec
 //! - deleted_at IS NULL 的 user 才返回
 
-use axum::{extract::State, Extension, Json};
+use axum::{extract::State, Json};
 use jwt_ctx::Principal;
 use serde::Serialize;
 use sqlx::Row;
@@ -45,7 +45,7 @@ pub struct UserMembership {
 )]
 pub async fn membership_bootstrap(
     State(state): State<AppState>,
-    Extension(principal): Extension<Principal>,
+    principal: Principal,
 ) -> Result<Json<MembershipBootstrap>, (axum::http::StatusCode, String)> {
     let tenant_id = principal.tenant_id;
 
