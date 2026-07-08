@@ -11,6 +11,7 @@ import {
 } from "@/api/notification";
 import editForm from "../form.vue";
 import type { FormItemProps } from "../utils/types";
+import { getStatusInfo, STATUS_LABEL_MAP } from "./status";
 
 export function useAdmin() {
   const loading = ref(true);
@@ -23,18 +24,6 @@ export function useAdmin() {
   });
   const form = reactive({ keyword: "", status: "" });
 
-  const statusMap: Record<
-    string,
-    {
-      label: string;
-      type: "primary" | "success" | "warning" | "info" | "danger";
-    }
-  > = {
-    draft: { label: "草稿", type: "info" },
-    published: { label: "已发布", type: "success" },
-    revoked: { label: "已撤销", type: "danger" }
-  };
-
   const columns: TableColumnList = [
     { label: "ID", prop: "id", width: 60 },
     { label: "标题", prop: "title", minWidth: 200 },
@@ -43,10 +32,7 @@ export function useAdmin() {
       prop: "status",
       width: 100,
       cellRenderer: ({ row }: any) => {
-        const status = statusMap[row.status] || {
-          label: row.status,
-          type: "info"
-        };
+        const status = getStatusInfo(row.status);
         return <el-tag type={status.type}>{status.label}</el-tag>;
       }
     },
