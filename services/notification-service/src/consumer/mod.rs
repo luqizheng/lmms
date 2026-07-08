@@ -1,5 +1,6 @@
 pub mod announcement_events;
 pub mod iam_events;
+pub mod membership;
 pub mod placeholder;
 
 use std::time::Duration;

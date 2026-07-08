@@ -169,6 +169,15 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
+    // Phase 5B-fu3: membership event consumer (notification.membership-events)
+    let db_for_membership = db.clone();
+    let membership_event_bus_url = std::env::var("EVENT_BUS_URL").unwrap_or(cfg.event_bus.url.clone());
+    tokio::spawn(async move {
+        if let Err(e) = consumer::membership::run(db_for_membership, membership_event_bus_url).await {
+            tracing::warn!("membership consumer exited: {}", e);
+        }
+    });
+
     let port: u16 = cfg
         .server
         .http_addr
