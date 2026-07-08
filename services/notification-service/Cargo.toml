@@ -41,7 +41,7 @@ rand.workspace = true
 
 [dev-dependencies]
 testcontainers = "0.20"
-testcontainers-modules = { version = "0.8", features = ["mysql"] }
+testcontainers-modules = { version = "0.8", features = ["mysql", "redis"] }
 wiremock = "0.6"
 
 [[bin]]

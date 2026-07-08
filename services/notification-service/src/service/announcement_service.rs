@@ -1,8 +1,8 @@
 use crate::consumer::placeholder::render_template;
 use crate::redis_cli::RedisCli;
-use crate::ws_hub::{WsHub, WsOut};
 use chrono::{DateTime, Utc};
-use common_event::events::IamUserCreated;
+use common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
+use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::mysql::MySqlPool;
 use sqlx::Row;
 use std::collections::HashMap;
@@ -52,7 +52,7 @@ pub async fn load_welcome_template(pool: &MySqlPool) -> WelcomeTemplate {
 pub async fn ensure_welcome_for_user(
     pool: &MySqlPool,
     redis: &RedisCli,
-    hub: &WsHub,
+    outbox_repo: &MySqlOutboxRepo,
     event_id: Uuid,
     user_id: &str,
     payload: &IamUserCreated,
@@ -132,21 +132,26 @@ pub async fn ensure_welcome_for_user(
     .execute(&mut *tx)
     .await?;
 
+    let mut envelope = Envelope::new(
+        "notification-service",
+        NotificationAnnouncementPublished {
+            announcement_id: ann_id as i64,
+            title,
+            pinned: false,
+            popover: false,
+            user_ids: serde_json::json!([user_id]),
+        },
+    );
+    outbox_repo
+        .enqueue(&mut tx, &mut envelope)
+        .await
+        .map_err(|e| anyhow::anyhow!("outbox enqueue: {e}"))?;
+
     tx.commit().await?;
 
     if let Err(e) = redis.incr_unread(user_id.to_string(), 1).await {
         warn!(error = %e, user_id = %user_id, "incr_unread failed (non-fatal)");
     }
-    hub.publish(
-        user_id.to_string(),
-        WsOut::New(serde_json::json!({
-            "id": ann_id,
-            "title": title,
-            "pinned": false,
-            "popover": false,
-        })),
-    )
-    .await;
 
     info!(event_id = %event_id, user_id = %user_id, ann_id, "welcome announcement created");
     Ok(true)

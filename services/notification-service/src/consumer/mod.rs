@@ -6,8 +6,9 @@ pub mod placeholder;
 use std::time::Duration;
 
 use common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
-use common_event::{Consumer, Envelope, RabbitMqConsumer, span_from_envelope_trace_id};
+use common_event::{Consumer, Envelope, MySqlOutboxRepo, RabbitMqConsumer, span_from_envelope_trace_id};
 use sqlx::mysql::MySqlPool;
+use std::sync::Arc;
 use tracing::{info, warn, Instrument};
 
 use crate::redis_cli::RedisCli;
@@ -20,12 +21,12 @@ const ANN_BINDING: &str = "notification.announcement.published";
 pub async fn run(
     pool: MySqlPool,
     redis: RedisCli,
-    hub: WsHub,
+    outbox_repo: Arc<MySqlOutboxRepo>,
     event_bus_url: String,
 ) -> anyhow::Result<()> {
     let backoff = Duration::from_secs(5);
     loop {
-        match try_subscribe(pool.clone(), redis.clone(), hub.clone(), &event_bus_url).await {
+        match try_subscribe(pool.clone(), redis.clone(), outbox_repo.clone(), &event_bus_url).await {
             Ok(consumer) => {
                 // Hold the consumer (and thus its durable queue + connection)
                 // alive, polling connection health. Re-subscribe ONLY on an
@@ -49,7 +50,7 @@ pub async fn run(
 async fn try_subscribe(
     pool: MySqlPool,
     redis: RedisCli,
-    hub: WsHub,
+    outbox_repo: Arc<MySqlOutboxRepo>,
     event_bus_url: &str,
 ) -> anyhow::Result<RabbitMqConsumer> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
@@ -60,10 +61,18 @@ async fn try_subscribe(
             move |env: Envelope<IamUserCreated>| {
                 let pool = pool.clone();
                 let redis = redis.clone();
-                let hub = hub.clone();
+                let outbox_repo = outbox_repo.clone();
                 let span = span_from_envelope_trace_id(&env, "notification.iam-events");
-                async move { iam_events::handle_iam_user_created(&pool, &redis, &hub, &env).await }
-                    .instrument(span)
+                async move {
+                    iam_events::handle_iam_user_created(
+                        &pool,
+                        &redis,
+                        outbox_repo.as_ref(),
+                        &env,
+                    )
+                    .await
+                }
+                .instrument(span)
             },
         )
         .await?;

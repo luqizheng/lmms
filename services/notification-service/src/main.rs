@@ -164,10 +164,17 @@ async fn main() -> anyhow::Result<()> {
 
     let db_for_consumer = db.clone();
     let redis_for_consumer = redis.clone();
-    let hub_for_consumer = hub.clone();
+    let outbox_repo_for_consumer = db.outbox_repo.clone();
     let event_bus_url = std::env::var("EVENT_BUS_URL").unwrap_or(cfg.event_bus.url.clone());
     tokio::spawn(async move {
-        if let Err(e) = consumer::run(db_for_consumer.pool.clone(), redis_for_consumer, hub_for_consumer, event_bus_url).await {
+        if let Err(e) = consumer::run(
+            db_for_consumer.pool.clone(),
+            redis_for_consumer,
+            outbox_repo_for_consumer,
+            event_bus_url,
+        )
+        .await
+        {
             tracing::warn!("notification consumer exited: {}", e);
         }
     });

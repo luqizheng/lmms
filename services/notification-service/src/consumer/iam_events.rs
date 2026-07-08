@@ -1,16 +1,15 @@
 use common_event::events::IamUserCreated;
-use common_event::{Envelope, HandlerError};
+use common_event::{Envelope, HandlerError, MySqlOutboxRepo};
 use sqlx::mysql::MySqlPool;
 use tracing::warn;
 
 use crate::redis_cli::RedisCli;
 use crate::service::announcement_service::ensure_welcome_for_user;
-use crate::ws_hub::WsHub;
 
 pub async fn handle_iam_user_created(
     pool: &MySqlPool,
     redis: &RedisCli,
-    hub: &WsHub,
+    outbox_repo: &MySqlOutboxRepo,
     env: &Envelope<IamUserCreated>,
 ) -> Result<(), HandlerError> {
     // ensure_welcome_for_user 已内部用 INSERT IGNORE / ON DUPLICATE KEY 吸收幂等冲突；
@@ -18,7 +17,7 @@ pub async fn handle_iam_user_created(
     ensure_welcome_for_user(
         pool,
         redis,
-        hub,
+        outbox_repo,
         env.event_id,
         &env.payload.user_id,
         &env.payload,
