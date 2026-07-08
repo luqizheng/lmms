@@ -41,7 +41,7 @@ const TID = parseInt(process.env.TID || '1', 10);
 const TIMEOUT_MS = 10_000;
 
 const SERVICES = [
-  { name: 'iam',    path: '/iam/internal/migrations/state',   port: 8081, migrations: 5, dialect: 'mysql' },
+  { name: 'iam',    path: '/iam/internal/migrations/state',   port: 9081, migrations: 5, dialect: 'mysql' },
   { name: 'ntf',    path: '/ntf/internal/migrations/state',   port: 8083, migrations: 3, dialect: 'mysql' },
   { name: 'token',  path: '/token/internal/migrations/state', port: 8082, migrations: 1, dialect: 'mysql' },
   { name: 'audit',  path: '/audit/internal/migrations/state', port: 8084, migrations: 1, dialect: 'mysql' },
