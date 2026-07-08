@@ -34,35 +34,25 @@ async fn deliveries(db: &Db, ann_id: u64) -> Vec<String> {
     rows.into_iter().map(|(s,)| s).collect()
 }
 
-async fn seed_projection_role(db: &Db, role_id: &str, users: &[&str]) {
-    let role_json = serde_json::to_string(&vec![role_id]).unwrap();
-    for u in users {
-        sqlx::query(
-            "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
-             VALUES (?, 1, CAST(? AS JSON), NULL, 0)",
-        )
-        .bind(u)
-        .bind(&role_json)
-        .execute(&db.pool).await.unwrap();
-    }
-}
-
-async fn seed_projection_dept(db: &Db, dept_id: &str, users: &[&str]) {
-    for u in users {
-        sqlx::query(
-            "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
-             VALUES (?, 1, JSON_ARRAY(), ?, 0)",
-        )
-        .bind(u)
-        .bind(dept_id)
-        .execute(&db.pool).await.unwrap();
-    }
+async fn seed_projection(db: &Db, user_id: &str, tenant_id: i64, role_ids: &[&str], dept_id: Option<&str>) {
+    let role_json = serde_json::to_string(role_ids).unwrap();
+    sqlx::query(
+        "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
+         VALUES (?, ?, CAST(? AS JSON), ?, 0)",
+    )
+    .bind(user_id)
+    .bind(tenant_id)
+    .bind(&role_json)
+    .bind(dept_id)
+    .execute(&db.pool).await.unwrap();
 }
 
 #[tokio::test]
 async fn publish_announcement_role_scope_resolves_via_local_projection() {
     let (db, _c) = setup().await;
-    seed_projection_role(&db, "r1", &["u1", "u2", "u3"]).await;
+    seed_projection(&db, "u1", 1, &["r1"], None).await;
+    seed_projection(&db, "u2", 1, &["r1"], None).await;
+    seed_projection(&db, "u3", 1, &["r1"], None).await;
     let ann_id = seed_ann(&db, &[("role", "r1")]).await;
     db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
@@ -73,7 +63,8 @@ async fn publish_announcement_role_scope_resolves_via_local_projection() {
 #[tokio::test]
 async fn publish_announcement_dept_scope_resolves_via_local_projection() {
     let (db, _c) = setup().await;
-    seed_projection_dept(&db, "d1", &["u10", "u11"]).await;
+    seed_projection(&db, "u10", 1, &[], Some("d1")).await;
+    seed_projection(&db, "u11", 1, &[], Some("d1")).await;
     let ann_id = seed_ann(&db, &[("dept", "d1")]).await;
     db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
@@ -84,8 +75,9 @@ async fn publish_announcement_dept_scope_resolves_via_local_projection() {
 #[tokio::test]
 async fn publish_announcement_mixed_scopes_dedup() {
     let (db, _c) = setup().await;
-    seed_projection_role(&db, "r1", &["u1", "u2"]).await;
-    seed_projection_dept(&db, "d1", &["u2", "u3"]).await;
+    seed_projection(&db, "u1", 1, &["r1"], None).await;
+    seed_projection(&db, "u2", 1, &["r1"], Some("d1")).await;
+    seed_projection(&db, "u3", 1, &[], Some("d1")).await;
     let ann_id = seed_ann(&db, &[("role", "r1"), ("dept", "d1")]).await;
     db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     let mut v = deliveries(&db, ann_id).await;
@@ -97,7 +89,7 @@ async fn publish_announcement_mixed_scopes_dedup() {
 async fn publish_announcement_role_scope_unknown_role_writes_no_deliveries() {
     // Phase 5B-fu3: role scope 查本地 projection, 找不到 role 不报错 (返回空)
     let (db, _c) = setup().await;
-    seed_projection_role(&db, "r1", &["u1"]).await;
+    seed_projection(&db, "u1", 1, &["r1"], None).await;
     let ann_id = seed_ann(&db, &[("role", "r_unknown")]).await;
     let users = db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
     assert!(users.is_empty(), "unknown role → no users (no HTTP error)");
@@ -114,7 +106,9 @@ async fn publish_announcement_large_role_fanout_writes_all_deliveries() {
     let (db, _c) = setup().await;
     let users: Vec<String> = (0..100).map(|i| format!("u{i:03}")).collect();
     let user_refs: Vec<&str> = users.iter().map(|s| s.as_str()).collect();
-    seed_projection_role(&db, "big", &user_refs).await;
+    for u in &user_refs {
+        seed_projection(&db, u, 1, &["big"], None).await;
+    }
 
     let ann_id = seed_ann(&db, &[("role", "big")]).await;
     db.publish_announcement(ann_id, &TenantScope::Single(1)).await.unwrap();
