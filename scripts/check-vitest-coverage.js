@@ -27,6 +27,28 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 const VIEWS_DIR = "frontend/src/views";
 const TEST_GLOB = /\.test\.(ts|tsx)$/;
 
+const PURE_ADMIN_DEMO_DIRS = [
+  "about",
+  "able",
+  "empty",
+  "error",
+  "guide",
+  "list",
+  "menuoverflow",
+  "nested",
+  "result",
+  "table",
+  "tabs"
+];
+
+function isPureAdminDemo(relPath) {
+  const rel = relPath.startsWith(VIEWS_DIR + "/")
+    ? relPath.slice(VIEWS_DIR.length + 1)
+    : relPath;
+  const first = rel.split(path.sep)[0];
+  return PURE_ADMIN_DEMO_DIRS.includes(first);
+}
+
 function getBaseRef() {
   const arg = process.argv[2];
   if (arg) return arg;
@@ -86,7 +108,10 @@ const newFiles = gitNewFiles(base);
 if (newFiles === null) process.exit(1);
 
 const newViews = newFiles.filter(
-  f => f.startsWith(VIEWS_DIR + "/") && f.endsWith(".vue")
+  f =>
+    f.startsWith(VIEWS_DIR + "/") &&
+    f.endsWith(".vue") &&
+    !isPureAdminDemo(f)
 );
 
 const missing = [];
