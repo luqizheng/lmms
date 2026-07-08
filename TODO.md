@@ -98,12 +98,12 @@
 - [x] **5A-2-fu1** `registrator:master` 镜像固化到 sha256 digest（当前用 `:master` tag，非不可变构建）。锁版本防破坏性变更。（不改：master 标签可接受）
 - [~~] **5A-2-fu2** ~~`docker-example/` 目录为 root-owned，无 compose 文件；要么 chown 后补 README 说明废弃，要么清空。当前为死目录。~~（已删除）
 
-### Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07 完成）
-
-> 本 session 落地。`libs/common-jwt` + `Principal::from_token` async 验签（RS256 via JWKS）+ `POST /tokens/service-jwt` + 8 服务接入 JWKSCache + `PrincipalStateProvider` trait。
+### Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07 主体完成，2026-07-08 5B-fu3/fu5 追加）
+ 
+> 14 个 commit（主体）+ 13 个 commit（5B-fu3 事件化）+ 1 个 commit（5B-fu5 CI）。
+> 本 section 保留 fu1~fu6 状态快照；其余已移交 done.md。
 > Spec: `docs/superpowers/specs/2026-07-07-phase5b-jwt-signature-and-service-jwt-design.md`
 > Plan: `docs/superpowers/plans/2026-07-07-phase5b-jwt-signature-and-service-jwt.md`
-> 14 个 commit，`iam-service` 51 tests 全过。
 
 - [x] **5B-fu1** `Principal::from_jwt_payload`（无验签路径）加 `#[deprecated]`。当前保留为测试用，生产应走 `from_token`。小改。
 - [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。（commits `0f14e1a` … `d295987`）
@@ -137,6 +137,8 @@
         当前仅 gateway outbound + token-service → iam 两条路径受保护；其余服务间无 HTTP 直调（token/iam/notification/audit 通过事件总线通信，config/file/prue 无出站调用）。
 
 - [x] ~~**C — 基础设施层 TLS**~~ — **延后至 Roadmap 2.0**（1.0 内不增加安全相关功能；范围：RabbitMQ AMQP / MySQL / Redis 连接启用 TLS，与 HTTP mesh mTLS 形成全链路加密。当前状态：Phase 5-A 只覆盖服务间 HTTP 流量 mTLS；AMQP/MySQL/Redis 仍为 docker network 明文）
+ 
+**Phase 5 = ✅ CLOSED**（5-A mTLS 撤并至 registrator + 5-B JWT 验签 + service-jwt + 通知事件化；5-C TLS 推 R2.0）
 
 ### Phase 6-A — Trace 链闭环 + 事件总线生产化（P0，2026-06-28 锁定，2026-06-29 全部完成并合并）
 
@@ -410,14 +412,13 @@
 ### Phase 10 — 小问题清单（P3，零散收尾）
 
 - [ ] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式）
-- [ ] `events.yaml` — **Phase 4 已落地**（`docs/superpowers/specs/2026-06-26-phase4-event-bus-design.md` + `contracts/codegen/gen-rust-events.js`），首批三事件 `iam.user.created`/`iam.user.deleted`/`iam.login.succeeded` 已 codegen + producer/consumer 闭环验证 live
+- [x] `events.yaml` — **Phase 4 已落地**（首批三事件 + Phase 5B-fu3 三事件 `iam.user.role.{assigned,unassigned}` + `iam.user.dept.changed` 已 codegen + producer/consumer 闭环）
 - [ ] 健康检查补齐三级探针（目前仅 liveness）
 - [ ] 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`）
 - [ ] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key）
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
-- [ ] **OpenAPI registration sweep**：跨 4.4/4.4-fu1/4.4-fu2 等多个 utoipa-annotated handler 未在 `services/iam-service/src/openapi.rs::paths(...)` 注册（assign_permissions、PUT /iam/users/:id/roles、GET /iam/internal/users/by-{role,dept}）。一次性 sweep 补齐，半天工作量。来源：4.4-fu1 / 4.4-fu2 / 4.3-fu2 final review 同类提示。
-  - [x] 2026-07-07 补齐：`org_units::*`（6 handler）+ `permissions::*`（5 handler）+ `OrgUnitResponse` 递归 schema；DTO 加 `ToSchema`/`IntoParams`；openapi.rs paths/components/tags 注册；openapi.yaml 手工补齐（dump-openapi binary 因 utoipa 递归序列化递归 schema 栈溢出，pre-existing bug）
+- [x] **OpenAPI registration sweep** — 2026-07-07 补齐（commit `a2cd626`：`org_units::*` 6 handler + `permissions::*` 5 handler + DTO ToSchema/IntoParams + openapi.yml 手工补齐；dump-openapi binary stack overflow pre-existing）
 
 ---
 
