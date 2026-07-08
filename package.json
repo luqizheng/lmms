@@ -2,7 +2,6 @@
   "name": "coder-micro-services",
   "private": true,
   "scripts": {
-    "setup": "node tools/setup.js",
     "build": "cargo build --release --manifest-path services/api-gateway/Cargo.toml && cargo build --release --manifest-path services/token-service/Cargo.toml",
     "dev": "docker compose -f infrastructure/docker-compose.yml up -d && pnpm -r --parallel run dev",
     "dev:infra": "docker compose -f infrastructure/docker-compose.yml up -d",
@@ -38,6 +37,7 @@
     "docker:build:frontend": "node scripts/build-docker.js frontend",
     "docker:build": "node scripts/build-docker.js",
     "docker:build:clean": "node scripts/build-docker.js prune",
+    "release:push": "node scripts/release-push.js",
     "sdk:test:java": "cd sdk/java && mvn -B test",
     "sdk:test:java:8": "cd sdk/java && mvn -B test -P java8",
     "sdk:test:java:17": "cd sdk/java && mvn -B test -P java17",
