@@ -11,6 +11,8 @@ impl AuditService {
         Self { pool: pool.clone() }
     }
 
+    pub fn pool(&self) -> &MySqlPool { &self.pool }
+
     pub async fn get_user_operation_logs(&self, user_id: &str, limit: i64) -> AppResult<Vec<OperationLog>> {
         let logs = sqlx::query_as::<_, OperationLog>(
             r#"

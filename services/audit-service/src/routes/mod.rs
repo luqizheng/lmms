@@ -1,6 +1,7 @@
 pub mod compliance;
 pub mod operation;
 pub mod login;
+pub mod migration_state;
 pub mod retention;
 
 use std::sync::Arc;
@@ -57,6 +58,7 @@ pub fn routes(state: AppState) -> Router {
         .nest("/audit", login::routes(state.clone()))
         .nest("/audit", compliance::routes(state.clone()))
         .nest("/audit", retention::routes(state.clone()))
+        .merge(migration_state::routes(state.clone()))
         .route("/health", get(health))
         .route("/audit/health", get(health))
         .route("/metrics", get(metrics))
