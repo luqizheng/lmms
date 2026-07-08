@@ -9,6 +9,7 @@ mysql = ["sqlx/mysql"]
 dameng = ["sqlx/mysql"]
 sqlite = ["sqlx/sqlite"]
 test-kit = ["sqlite", "dep:tempfile"]
+openapi = ["dep:utoipa"]
 
 [dependencies]
 sqlx = { workspace = true, features = ["macros", "chrono", "tls-rustls"] }
@@ -20,6 +21,7 @@ common-error = { path = "../common-error" }
 jwt-ctx = { path = "../jwt-ctx" }
 async-trait.workspace = true
 tempfile = { workspace = true, optional = true }
+utoipa = { version = "5", optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

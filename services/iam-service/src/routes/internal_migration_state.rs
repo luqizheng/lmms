@@ -10,6 +10,7 @@ use common_db::migration_state::{
 };
 use serde_json::json;
 use sqlx::MySqlPool;
+use utoipa::path as to_path;
 
 use crate::state::AppState;
 
@@ -40,6 +41,17 @@ async fn probe_applied_mysql(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Erro
     Ok(applied)
 }
 
+#[to_path(
+    get,
+    path = "/iam/internal/migrations/state",
+    responses(
+        (status = 200, body = MigrationStateResponse, description = "schema state"),
+        (status = 401, description = "missing or invalid service-jwt"),
+        (status = 503, description = "db_unreachable"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "internal",
+)]
 pub async fn migration_state_handler(
     State(state): State<AppState>,
 ) -> impl IntoResponse {

@@ -12,7 +12,7 @@ common-log = { path = "../../libs/common-log" }
 common-telemetry = { path = "../../libs/common-telemetry" }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum" }
 common-config = { path = "../../libs/common-config" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
+common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
 common-cache = { path = "../../libs/common-cache" }
 common-crypto = { path = "../../libs/common-crypto" }
 common-validator = { path = "../../libs/common-validator" }

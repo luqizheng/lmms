@@ -81,6 +81,7 @@ pub async fn probe_marker_sqlite(
 ///
 /// 字段语义见 spec §2.1。
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct MigrationStateResponse {
     pub service: &'static str,
     pub dialect: &'static str,
@@ -94,6 +95,7 @@ pub struct MigrationStateResponse {
 
 /// JSON 内 `available` 数组元素的形态。
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct MigrationInfo {
     pub version: &'static str,
     pub name: &'static str,
