@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod internal_membership;
 pub mod internal_users;
 pub mod org_units;
 pub mod permissions;
@@ -31,6 +32,12 @@ pub fn build_router(state: AppState) -> Router {
             verify_aud_principal_middleware::<AppState>("iam-service"),
         ));
 
+    let internal_membership = internal_membership::routes(state.clone())
+        .layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            verify_aud_principal_middleware::<AppState>("iam-service"),
+        ));
+
     Router::new()
         .merge(auth::routes(state.clone()))
         .merge(users::routes(state.clone()))
@@ -39,6 +46,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(org_units::routes(state.clone()))
         .merge(tenants::routes(state.clone()))
         .merge(internal_users)
+        .merge(internal_membership)
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))

@@ -236,6 +236,20 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OrgUnitResponse'
+  /iam/internal/membership-bootstrap:
+    get:
+      tags:
+      - internal
+      operationId: membership_bootstrap
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipBootstrap'
+        '401':
+          description: missing or invalid service-jwt
       security:
       - bearer_auth: []
     post:
@@ -1515,6 +1529,38 @@ components:
         size:
           type: integer
           format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+        truncated:
+          type: boolean
+    MembershipBootstrap:
+      type: object
+      required:
+      - tenant_id
+      - mappings
+      properties:
+        tenant_id:
+          type: integer
+          format: int64
+        mappings:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/UserMembership'
+    UserMembership:
+      type: object
+      required:
+      - role_ids
+      - dept_id
+      properties:
+        role_ids:
+          type: array
+          items:
+            type: string
+        dept_id:
+          type: string
+          nullable: true
           minimum: 0
         total:
           type: integer
