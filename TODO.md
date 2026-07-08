@@ -98,9 +98,9 @@
 - [x] **5A-2-fu1** `registrator:master` 镜像固化到 sha256 digest（当前用 `:master` tag，非不可变构建）。锁版本防破坏性变更。（不改：master 标签可接受）
 - [~~] **5A-2-fu2** ~~`docker-example/` 目录为 root-owned，无 compose 文件；要么 chown 后补 README 说明废弃，要么清空。当前为死目录。~~（已删除）
 
-### Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07 主体完成，2026-07-08 5B-fu3/fu5 追加）
- 
-> 14 个 commit（主体）+ 13 个 commit（5B-fu3 事件化）+ 1 个 commit（5B-fu5 CI）。
+### Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07 主体完成，2026-07-08 5B-fu3/fu5/fu6 追加）
+
+> 14 个 commit（主体）+ 13 个 commit（5B-fu3 事件化）+ 1 个 commit（5B-fu5 CI）+ 2 个 commit（5B-fu6 回归测试 + TODO 归档）。
 > 本 section 保留 fu1~fu6 状态快照；其余已移交 done.md。
 > Spec: `docs/superpowers/specs/2026-07-07-phase5b-jwt-signature-and-service-jwt-design.md`
 > Plan: `docs/superpowers/plans/2026-07-07-phase5b-jwt-signature-and-service-jwt.md`
@@ -109,16 +109,16 @@
 - [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。（commits `0f14e1a` … `d295987`）
 - [x] **5B-fu3** `notification → iam` 事件化 — 完整落地：spec + plan + T1-T10 全部 commit（`a284e4e`…`d070914`）。notification→iam 同步 HTTP 已消除（publish_announcement 走 `resolve_users_by_scopes` 本地 SQL）；iam 7 emit 点同事务 outbox；V003 ntf_user_projection 单表 projection + bootstrap 端点 + durable consumer `notification.membership-events`（3 typed subscriber）；`IamMemberClient::{by_role,by_dept,expand_scopes}` 标 `#[deprecated]` + warn log。integration tests: notification 45/45 pass; iam 38/39 (1 pre-existing SIGABRT dump-openapi)。
 - [x] ~~**5B-fu4** TLS termination~~ — **延后至 Roadmap 2.0**（1.0 内不增加安全相关功能）
-- [x] **5B-fu5** CI 对齐 5B spec §7.2：`cargo test --workspace --lib`（commit `<current>`；本地实测 74 passed / 0 failed，需 `CARGO_TARGET_DIR` 指向非 tmpfs 大目录）。附 token-service `RS256KeyPair::set_key_id` → `with_key_id`（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未实现 `set_key_id`，之前 CI 跑 `--all-targets` 隐藏了 lib 编译错；改 `--lib` 后暴露）。
-- [x] **5B-fu6** Principal extractor 响应 body 不泄露 JWT 内部错误（commits `b54de25` + `1f357c9`；前置 `99fc5f9` 加 warn 日志）。6 类错误路径回归测试守住 body 为空。详见 `done.md` Phase 5-B 段。
+- [x] **5B-fu5** CI 对齐 5B spec §7.2：`cargo test --workspace --lib`（commit `4e1c73c`；本地实测 74 passed / 0 failed，需 `CARGO_TARGET_DIR` 指向非 tmpfs 大目录）。附 token-service `RS256KeyPair::set_key_id` → `with_key_id`（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未实现 `set_key_id`，之前 CI 跑 `--all-targets` 隐藏了 lib 编译错；改 `--lib` 后暴露）。
+- [x] **5B-fu6** Principal extractor 响应 body 不泄露 JWT 内部错误（commits `b54de25` + `1f357c9` + `196817f` + `0fc05d6`；前置 `99fc5f9` 加 warn 日志）。6 类错误路径回归测试守住 body 为空。详见 `done.md` Phase 5-B 段。Spec: `docs/superpowers/specs/2026-07-08-5b-fu6-jwt-error-leak-design.md` / Plan: `docs/superpowers/plans/2026-07-08-5b-fu6-jwt-error-leak.md`。
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
-> **已拆分为两个独立子项目（2026-06-28 brainstorm + plan-review）：**
+> **已拆分为两个独立子项目（2026-06-28 brainstorm + plan-review，均已 CLOSED）：**
 >
-> - **A = mTLS / 服务网格**：待 brainstorm，无 spec。重型，涉及基础设施选型（证书分发、部署形态）。
-> - **B = 韧性三件套**：spec 已就绪 + review 结论已 bake，见
->   `docs/superpowers/specs/2026-06-28-phase5-resilience-triad-design.md`，待 writing-plans。
+> - **A = mTLS / 服务网格**：见 Phase 5-A / 5-A-2 spec。
+> - **B = 韧性三件套**：见
+>   `docs/superpowers/specs/2026-06-28-phase5-resilience-triad-design.md`。
 
 - [x] **A — mTLS / 服务网格**（spec + plan + eng-review 已就绪，**已完成**）
   > Spec: `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md`
@@ -128,7 +128,7 @@
   - [x] 实施 Phase 5-A plan（5 个 Task，commits `f5887b1` / `6847007` / `947759f` / `89294b2` / `fa17c14` / `90289a2` / `1f06dd5` / `d8da3bf`）
   - [x] ~~**5A-fu1** mesh metrics Grafana 面板~~ — **已撤销**（Phase 5-A-2 撤 Consul Connect，无 sidecar/Consul Dataplane，metrics 源不存在）
 
-- [ ] **B — 韧性三件套**（spec 已就绪，**核心已完成并合并**，仅剩 B-fu1）
+- [x] **B — 韧性三件套**（**已完成并合并** — 核心 ResilientClient + 扩面 B-fu1）
   - [x] 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
   - [x] 本期接 gateway `forward_to_service`：每下游 service 独立 breaker，状态经 `ResilienceObserver` → Prometheus
   - [x] 删除并重写未使用的韧性脚手架（axum/benchmarks/rate_limit/middleware/service_discovery/circuit_breaker/retry/config）
