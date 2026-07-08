@@ -76,6 +76,7 @@
 | **token-service + sidecar** | 签发 / 刷新 / 吊销 JWT；通过 sidecar 调用 iam | 用户 CRUD |
 | **iam-service + sidecar** | 身份 + RBAC + 部门树（纯入站 mesh） | 直接发 token |
 | **notification-service + sidecar** | 公告 + WebSocket 推送；通过 sidecar 调用 iam | 鉴权 |
+| | （Phase 5B-fu3：role/dept 接收人解析改本地 `ntf_user_projection` 投影 + RabbitMQ 事件，零同步 HTTP） | |
 | **audit-service + sidecar** | 审计事件写入 + RabbitMQ 消费（纯入站 mesh） | 调业务服务 |
 | **prue_backend + sidecar** | 菜单配置（纯入站 mesh） | 任何业务调用 |
 | **file-service**（明文） | 文件存储 / 下载 | — |

@@ -24,7 +24,7 @@
 | `token-service` | 8082 | 8082 | MySQL | Axum | 签发 / 刷新 / 吊销 JWT；内部调 iam 通过 `Authorization: Bearer <user-jwt>` 透传（phase5a-2） | ✅ |
 | `iam-service` | 8081 | 9081 | MySQL | Axum | 用户、角色、权限、部门、认证、租户注册、跨租户。**事件生产者**（iam_outbox_events → 经 `iam-outbox-publisher` 发往 RabbitMQ）| ✅ |
 | `iam-outbox-publisher` | — | — | MySQL | bin（与 iam-service 同镜像） | 独立进程：轮询 iam_outbox_events，发布到 RabbitMQ | — |
-| `notification-service` | 8083 | 8083 | MySQL | Axum | 公告 CRUD + WebSocket 推送 | ✅ |
+| `notification-service` | 8083 | 8083 | MySQL | Axum | 公告 CRUD + WebSocket 推送 + **本地 user membership 投影（Phase 5B-fu3）** | ✅ |
 | `prue_backend` | 8087 | 8087 | SQLite/MySQL | Axum | pure-admin 菜单配置 + 动态路由 | — |
 | `audit-service` | 8084 | 8084 | MySQL | Axum | 操作日志 + 登录日志、留存、合规导出。**事件消费者** | — |
 | `config-service` | 8081 | 8085 | MySQL | Axum | 命名空间、配置项、watch 通知 | — |
