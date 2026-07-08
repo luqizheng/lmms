@@ -6,6 +6,7 @@ mod consumer;
 mod db;
 mod error;
 mod iam_client;
+mod migration_state_route;
 mod models;
 mod recipient_resolver;
 mod service;
@@ -134,7 +135,8 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(true);
 
     let mut app = Router::new()
-        .nest("/notification", rest::router(rest_state))
+        .nest("/notification", rest::router(rest_state.clone()))
+        .merge(migration_state_route::routes(rest_state.clone()))
         .route(
             "/notification/ws",
             get(ws::upgrade).with_state(ws_state),
