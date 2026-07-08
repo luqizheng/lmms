@@ -1,4 +1,5 @@
 pub mod dialect;
+pub mod migration_state;
 pub mod scope;
 #[cfg(feature = "test-kit")]
 pub mod test_kit;

@@ -14,6 +14,8 @@ test-kit = ["sqlite", "dep:tempfile"]
 sqlx = { workspace = true, features = ["macros", "chrono", "tls-rustls"] }
 tokio = { workspace = true }
 chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 common-error = { path = "../common-error" }
 jwt-ctx = { path = "../jwt-ctx" }
 async-trait.workspace = true
