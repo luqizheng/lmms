@@ -38,8 +38,7 @@ const EXEMPT_DIRS = [
   "home",
   "able",
   "account-settings",
-  "result",
-  "logs" // monitor/logs/* 是 legacy 副本（含 useRole 误用），未修复
+  "result"
 ];
 
 function* walk(dir) {
