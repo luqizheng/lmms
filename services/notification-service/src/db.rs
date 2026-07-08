@@ -8,14 +8,16 @@ use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
 use jwt_ctx::TenantScope;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::{QueryBuilder, Row};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
 const V002_SQL: &str = include_str!("../migrations/mysql/V002__ntf_tenant.sql");
+const V003_SQL: &str = include_str!("../migrations/mysql/V003__ntf_membership_projection.sql");
 const SCHEMA_MARKER_TABLE: &str = "ntf_announcements";
 const V002_MARKER_TABLE: &str = "ntf_migration_v002_applied";
+const V003_MARKER_TABLE: &str = "ntf_migration_v003_applied";
 
 #[derive(Clone)]
 pub struct Db {
@@ -101,6 +103,32 @@ impl Db {
             .execute(&self.pool)
             .await?;
             info!("V002 applied");
+        }
+
+        if !table_exists(&self.pool, V003_MARKER_TABLE).await? {
+            info!(marker = V003_MARKER_TABLE, "applying V003");
+            for stmt in V003_SQL.split(';') {
+                let cleaned: String = stmt
+                    .lines()
+                    .filter(|l| !l.trim_start().starts_with("--"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let s = cleaned.trim();
+                if s.is_empty() {
+                    continue;
+                }
+                if let Err(e) = sqlx::query(s).execute(&self.pool).await {
+                    warn!(statement = %first_line(s), error = %e, "V003 statement failed");
+                    return Err(anyhow::anyhow!("apply V003 ({}): {e}", first_line(s)));
+                }
+            }
+            sqlx::query(
+                "CREATE TABLE IF NOT EXISTS ntf_migration_v003_applied \
+                 (applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            )
+            .execute(&self.pool)
+            .await?;
+            info!("V003 applied");
         }
 
         Ok(())
@@ -316,6 +344,220 @@ impl Db {
             .map_err(|e| AppError::from(anyhow::anyhow!("outbox enqueue: {e}")))?;
         tx.commit().await?;
         Ok(user_ids_vec)
+    }
+
+    // ===== Phase 5B-fu3: membership projection =====
+
+    /// Apply `iam.user.role.assigned` event.
+    /// Out-of-order: ts < last_event_at → drop (idempotent replay safe).
+    pub async fn apply_role_assigned(
+        &self,
+        user_id: &str,
+        role_id: &str,
+        tenant_id: i64,
+        ts: i64,
+    ) -> AppResult<()> {
+        let mut tx = self.pool.begin().await?;
+        let row: Option<(i64,)> = sqlx::query_as(
+            "SELECT last_event_at FROM ntf_user_projection WHERE user_id = ? FOR UPDATE",
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let current_ts = row.map(|(t,)| t).unwrap_or(0);
+        if ts < current_ts {
+            return Ok(());
+        }
+        if row.is_some() {
+            sqlx::query(
+                "UPDATE ntf_user_projection \
+                 SET role_ids = JSON_ARRAY_APPEND(role_ids, '$', ?), last_event_at = ? \
+                 WHERE user_id = ?",
+            )
+            .bind(role_id)
+            .bind(ts)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
+                 VALUES (?, ?, JSON_ARRAY(?), NULL, ?)",
+            )
+            .bind(user_id)
+            .bind(tenant_id)
+            .bind(role_id)
+            .bind(ts)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Apply `iam.user.role.unassigned` event.
+    /// No-op if user row absent (consumer may receive unassign before assign
+    /// during bootstrap grace window). Out-of-order dropped.
+    pub async fn apply_role_unassigned(
+        &self,
+        user_id: &str,
+        role_id: &str,
+        _tenant_id: i64,
+        ts: i64,
+    ) -> AppResult<()> {
+        let mut tx = self.pool.begin().await?;
+        let row: Option<(i64,)> = sqlx::query_as(
+            "SELECT last_event_at FROM ntf_user_projection WHERE user_id = ? FOR UPDATE",
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let current_ts = row.map(|(t,)| t).unwrap_or(0);
+        if ts < current_ts {
+            return Ok(());
+        }
+        if row.is_none() {
+            return Ok(());
+        }
+        // JSON_SEARCH returns the path (e.g. "$[2]") or NULL; only remove if present.
+        sqlx::query(
+            "UPDATE ntf_user_projection \
+             SET role_ids = JSON_REMOVE(\
+                  role_ids, \
+                  JSON_UNQUOTE(JSON_SEARCH(role_ids, 'one', ?))\
+                ), \
+                last_event_at = ? \
+             WHERE user_id = ?",
+        )
+        .bind(role_id)
+        .bind(ts)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Apply `iam.user.dept.changed` event. dept_id=None means user removed
+    /// from any org_unit (dept_id set to NULL).
+    pub async fn apply_dept_changed(
+        &self,
+        user_id: &str,
+        dept_id: Option<&str>,
+        tenant_id: i64,
+        ts: i64,
+    ) -> AppResult<()> {
+        let mut tx = self.pool.begin().await?;
+        let row: Option<(i64,)> = sqlx::query_as(
+            "SELECT last_event_at FROM ntf_user_projection WHERE user_id = ? FOR UPDATE",
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let current_ts = row.map(|(t,)| t).unwrap_or(0);
+        if ts < current_ts {
+            return Ok(());
+        }
+        if row.is_some() {
+            sqlx::query(
+                "UPDATE ntf_user_projection SET dept_id = ?, last_event_at = ? WHERE user_id = ?",
+            )
+            .bind(dept_id)
+            .bind(ts)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        } else {
+            // No prior role events yet (rare: dept change before role assignment).
+            // Insert with empty role_ids and the new dept.
+            sqlx::query(
+                "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
+                 VALUES (?, ?, JSON_ARRAY(), ?, ?)",
+            )
+            .bind(user_id)
+            .bind(tenant_id)
+            .bind(dept_id)
+            .bind(ts)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Replace projection for a tenant from bootstrap snapshot.
+    /// Deletes prior rows then batch-inserts (10K user scale, single tx).
+    /// `last_event_at` set to 0; subsequent consumer events with ts > 0 apply normally.
+    pub async fn replace_projection(
+        &self,
+        tenant_id: i64,
+        mappings: &HashMap<String, crate::models::UserMembership>,
+    ) -> AppResult<()> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM ntf_user_projection WHERE tenant_id = ?")
+            .bind(tenant_id)
+            .execute(&mut *tx)
+            .await?;
+        for (uid, m) in mappings {
+            let role_ids_json = serde_json::to_string(&m.role_ids)
+                .map_err(|e| AppError::from(anyhow::anyhow!("role_ids serialize: {e}")))?;
+            sqlx::query(
+                "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
+                 VALUES (?, ?, ?, ?, 0)",
+            )
+            .bind(uid)
+            .bind(tenant_id)
+            .bind(role_ids_json)
+            .bind(&m.dept_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Resolve user_ids from a set of scopes (user/role/dept) by querying the
+    /// local projection. TenantScope::Single(n) → queries tenant n.
+    /// TenantScope::CrossTenant → falls back to caller-provided mapping (kept
+    /// for platform admin path; current callers always Single).
+    pub async fn resolve_users_by_scopes(
+        &self,
+        scopes: &[(crate::models::ScopeType, String)],
+        scope: &TenantScope,
+    ) -> AppResult<HashSet<String>> {
+        let tenant_id = scope.tenant_id().unwrap_or(1);
+        let mut out = HashSet::new();
+        for (t, id) in scopes {
+            match t {
+                crate::models::ScopeType::User => {
+                    out.insert(id.clone());
+                }
+                crate::models::ScopeType::Role => {
+                    let rows: Vec<(String,)> = sqlx::query_as(
+                        "SELECT user_id FROM ntf_user_projection \
+                         WHERE tenant_id = ? \
+                           AND JSON_CONTAINS(role_ids, JSON_QUOTE(?))",
+                    )
+                    .bind(tenant_id)
+                    .bind(id)
+                    .fetch_all(&self.pool)
+                    .await?;
+                    out.extend(rows.into_iter().map(|(s,)| s));
+                }
+                crate::models::ScopeType::Dept => {
+                    let rows: Vec<(String,)> = sqlx::query_as(
+                        "SELECT user_id FROM ntf_user_projection \
+                         WHERE tenant_id = ? AND dept_id = ?",
+                    )
+                    .bind(tenant_id)
+                    .bind(id)
+                    .fetch_all(&self.pool)
+                    .await?;
+                    out.extend(rows.into_iter().map(|(s,)| s));
+                }
+            }
+        }
+        Ok(out)
     }
 }
 

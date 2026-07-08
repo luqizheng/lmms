@@ -103,3 +103,11 @@ pub struct CreateAnnouncement {
     pub popover: bool,
     pub recipients: Vec<ScopeInput>,
 }
+
+/// Phase 5B-fu3: bootstrap snapshot payload row (per-user membership).
+/// Mirrors `iam-service::routes::internal_membership::UserMembership`.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct UserMembership {
+    pub role_ids: Vec<String>,
+    pub dept_id: Option<String>,
+}
