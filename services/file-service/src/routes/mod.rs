@@ -1,4 +1,5 @@
 pub mod file;
+pub mod migration_state;
 pub mod presign;
 
 use axum::{Router, middleware as axum_mw, routing::get};
@@ -28,6 +29,7 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         .nest("/file", file::routes(state.clone()))
         .nest("/file", presign::routes(state.clone()))
+        .merge(migration_state::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))

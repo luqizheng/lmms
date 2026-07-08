@@ -21,6 +21,8 @@ impl ConfigService {
         Self { pool, jwks }
     }
 
+    pub fn pool_ref(&self) -> &MySqlPool { &self.pool }
+
     pub async fn create_namespace(&self, ns: CreateNamespace, scope: &TenantScope) -> AppResult<Namespace> {
         let tenant_id = scope.tenant_id().unwrap_or(1) as u64;
         let id = Uuid::new_v4().to_string();

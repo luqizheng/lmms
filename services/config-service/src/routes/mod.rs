@@ -1,5 +1,6 @@
 pub mod namespace;
 pub mod config;
+pub mod migration_state;
 pub mod watch;
 
 use axum::{Router, middleware as axum_mw, routing::get};
@@ -22,6 +23,7 @@ pub fn routes(state: AppState) -> Router {
         .nest("/config", namespace::routes(state.clone()))
         .nest("/config", config::routes(state.clone()))
         .nest("/config", watch::routes(state.clone()))
+        .merge(migration_state::routes(state.clone()))
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))

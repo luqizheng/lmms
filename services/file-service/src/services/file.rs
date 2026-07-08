@@ -29,14 +29,10 @@ impl FileService {
         max_file_size: u64,
         jwks: Arc<common_jwt::JWKSCache>,
     ) -> Self {
-        Self {
-            pool,
-            storage,
-            base_url,
-            max_file_size,
-            jwks,
-        }
+        Self { pool, storage, base_url, max_file_size, jwks }
     }
+
+    pub fn pool_ref(&self) -> &MySqlPool { &self.pool }
 
     pub async fn upload(&self, data: Bytes, meta: UploadFileMeta, scope: &TenantScope) -> AppResult<FileInfo> {
         if (data.len() as u64) > self.max_file_size {
