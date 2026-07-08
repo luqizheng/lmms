@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod internal_membership;
+pub mod internal_migration_state;
 pub mod internal_users;
 pub mod org_units;
 pub mod permissions;
@@ -23,9 +24,6 @@ pub fn build_router(state: AppState) -> Router {
         axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
-    // Phase 5-B: gate /iam/internal/* on a valid service-jwt with
-    // aud="iam-service". Other routes (auth, users, etc.) still use
-    // Principal::from_token without aud check (gateway user-jwt).
     let internal_users = internal_users::routes(state.clone())
         .layer(axum_mw::from_fn_with_state(
             state.clone(),
@@ -33,6 +31,12 @@ pub fn build_router(state: AppState) -> Router {
         ));
 
     let internal_membership = internal_membership::routes(state.clone())
+        .layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            verify_aud_principal_middleware::<AppState>("iam-service"),
+        ));
+
+    let internal_migration_state = internal_migration_state::routes(state.clone())
         .layer(axum_mw::from_fn_with_state(
             state.clone(),
             verify_aud_principal_middleware::<AppState>("iam-service"),
@@ -47,6 +51,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(tenants::routes(state.clone()))
         .merge(internal_users)
         .merge(internal_membership)
+        .merge(internal_migration_state)
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
