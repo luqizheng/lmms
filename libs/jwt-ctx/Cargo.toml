@@ -18,3 +18,5 @@ tracing.workspace = true
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
 base64.workspace = true
+jsonwebtoken.workspace = true # 5B-fu6: 构造 exp-in-past 的 token
+chrono.workspace = true       # 5B-fu6: 取 now() 时间戳
