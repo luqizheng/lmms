@@ -217,3 +217,16 @@
 - [x] **5B-fu6 完整落地**（commits `b54de25` / `1f357c9` / `196817f` / `0fc05d6` / `6a8a9bc`）：Principal extractor 响应 body 不泄露 JWT 内部错误；6 类错误路径回归测试 + helper `assert_401_empty_body` + 2 个现有 401 测试加固 + 配套 dev-dep `jsonwebtoken` / `chrono` + PEM fixture。`cargo test -p jwt-ctx` 34/34 pass。brainstorm → spec → plan → 3 task implementer + per-task reviewer + final whole-branch review 全过；外加 done.md/TODO.md docs sweep。Spec: `docs/superpowers/specs/2026-07-08-5b-fu6-jwt-error-leak-design.md` / Plan: `docs/superpowers/plans/2026-07-08-5b-fu6-jwt-error-leak.md` / progress: `.superpowers/sdd/progress-5b-fu6.md`。
 - [x] **TODO.md 收口 sweep**（commit `6a8a9bc`，本 session 续）：Phase 5-B heading / commit count / 5B-fu5 `commit <current>` → `4e1c73c` / 5B-fu6 commit list 补全 + spec/plan 链接 / Phase 5 — 服务间安全 & 韧性 intro "待 brainstorm" / "待 writing-plans" → "均已 CLOSED" / Phase 5-B 韧性三件套 `[ ]` → `[x]` 收口（与 L141 "Phase 5 CLOSED" 一致）。
 - [x] **4.3-fu3 welcome 路径多副本化**（commit `547e8c0`，spec `docs/superpowers/specs/2026-07-08-phase4.3-fu3-welcome-fanout-design.md`）：消除最后一处进程内 `hub.publish` 直推。`ensure_welcome_for_user` 在同一事务内 outbox enqueue `NotificationAnnouncementPublished{user_ids:[user_id]}`，与 `Db::publish_announcement` 同事件同产线；WS 推送由 4.3 既有 per-replica ephemeral queue + `announcement_events::handle` 扇出，多副本下用户 WS 连哪个副本都能收到。`handle_iam_user_created` / `consumer::run` / `main.rs` 透传 `db.outbox_repo: Arc<MySqlOutboxRepo>`（drop `&WsHub` 参数）。测试改造：原 `#[ignore]` AppConfig 路径（DNS 绑 mysql/redis hostname，run-tests-docker.js 下永远跑不起来）换成 testcontainers MySQL+Redis + `OnceCell<RedisFixture>` 共享单容器；3 case 覆盖幂等 / outbox 行（`NotificationAnnouncementPublished` 同事务写入）/ 重投不入双份。`Cargo.toml` 给 `testcontainers-modules` 加 `redis` feature。验证：`scripts/run-tests-docker.js notification-service` 48/48 passed（17.8s）；`scripts/check-service-standard.js` / `scripts/check-db-naming.js` / `scripts/contracts-gen.js --check` 全 clean。
+
+### Deferred（本 session 决策，标可选未实施）
+
+- [ ] **`iam_outbox_archived_total` + `iam_outbox_purged_total` IntCounter**（TODO.md §Phase 6-A P2）
+      推迟原因：outbox-publisher 现为独立 CLI binary（`services/iam-outbox-publisher/`，Phase 6-A T2-fu3 拆出），无 `/metrics` HTTP 端点；prometheus counter 注册了也抓不到。
+      后续触发条件（任一即重开）：
+      1. 生产侧出现 outbox 表膨胀告警，需要 archive/purge 速率监控
+      2. 出现 SLO/SLI 需求（如 "archive lag < 30min"）
+      3. outbox-publisher binary 重构为带 HTTP 健康/指标端点的常驻服务
+      触发后实施方案二选一：
+      - **D1** outbox-publisher 内嵌 `tokio::net::TcpListener` 暴露 `/metrics`（半天工作量）
+      - **D2** 指标挪到 iam-service `/metrics`，周期 SELECT `COUNT(*)` from `iam_outbox_events_archive`（半天，DB 查询开销）
+      本次不实施，仅留 TODO + 触发条件记录。
