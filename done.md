@@ -224,6 +224,8 @@
   - iam (5 migrations) + notification (3) + token (1) + audit (1) + config (2) + file (2) + prue_backend (1×2 dialects) = **15 migration 探测位统一暴露**
   - 跨服务模式：marker-table 探测（不复用 sqlx 内置 _sqlx_migrations）+ service-jwt 鉴权（iam only）+ Extension<MySqlPool> 注入（其他服务，简化版）
   - 集成测试 + docs 同步（operations.md + 各服务 AGENTS.md）推下个 session
+- [x] **G3 service-jwt 鉴权扩面**（commit `ec57c76`）：6 个服务从"无鉴权层（仅网络隔离）"补到与 iam 一致的 `verify_aud_principal_middleware::<AppState>("<svc-name>")` 模式。libs/jwt-ctx 加 `impl<T> PrincipalStateProvider for Arc<T>` blanket impl（audit AppState = Arc<AppServices> 需此）。prue_backend 全套基础设施从 0 加（common-jwt + jwt-ctx + authz 依赖 + JWKSCache 初始化 + state 加 jwks 字段）。7/7 端点鉴权完整闭环。
+- [x] **G3 docs 更新反映鉴权扩面**（本 commit）：6 服务 AGENTS.md 把"当前无鉴权层"改为"鉴权 service-jwt aud=<svc-name>"；migrations-state.md §6 整段重写为"7/7 都接 service-jwt"。
 
 ### Deferred（本 session 决策，标可选未实施）
 

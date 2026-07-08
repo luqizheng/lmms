@@ -144,27 +144,29 @@ curl -fsS http://prue-backend:8087/prue/internal/migrations/state | jq '{service
 
 ## 6. 鉴权
 
-### 6.1 当前实现（Phase 10 G3 现状）
+### 6.1 当前实现（Phase 10 G3 service-jwt 扩面完成）
 
-| 服务 | 鉴权层 |
-|------|--------|
-| iam-service | service-jwt `aud=iam-service`（已接 `verify_aud_principal_middleware`）|
-| 其他 6 服务 | **无鉴权层**（依赖内网 / 网络层隔离）|
+7 个服务**全部**接 service-jwt `aud=<svc-name>` 鉴权层（`verify_aud_principal_middleware`）。
 
-### 6.2 风险与缓解
+| 服务 | 鉴权 aud |
+|------|----------|
+| iam-service | `aud=iam-service` |
+| notification-service | `aud=notification-service` |
+| token-service | `aud=token-service` |
+| audit-service | `aud=audit-service` |
+| config-service | `aud=config-service` |
+| file-service | `aud=file-service` |
+| prue_backend | `aud=prue_backend` |
 
-无鉴权意味着任何能访问到端点 URL 的内部服务/人都能读 schema 状态。schema 状态本身不含敏感数据（表名 + 版本号），但仍是内部信息。
+调用方需持有 token-service 签发的 service-jwt，aud 必须匹配目标服务名。user-jwt 不被接受。
 
-**生产部署前必须补的**：
-1. 在 6 个服务接入 service-jwt 鉴权（每个服务 ~半天，与 Phase 5-B 跨面扩面合并做）
-2. 或：网络层隔离（仅运维子网可达）
+### 6.2 失败响应
 
-### 6.3 触发条件
+无 service-jwt / aud 不匹配 / 签名错 / 过期 → `401 Unauthorized` + `unauthorized`（plain text）。
 
-任一即重开鉴权扩面工作：
-- 真实生产部署
-- 安全审计 / 等保合规需求
-- 内部网络隔离失效（flat network）
+### 6.3 已知 follow-up
+
+`verify_aud_principal_middleware`（`libs/authz/src/verify_aud.rs`）的 401 响应是 plain text `"unauthorized"`，与 Phase 5-B-fu6 的"响应 body 必空"约定不完全一致（fu6 改的是 Principal extractor，middleware 仍是旧格式）。建议 follow-up：middleware 也改成空 body 401。
 
 ---
 
