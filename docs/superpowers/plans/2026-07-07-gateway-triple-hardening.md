@@ -27,7 +27,7 @@
 - Consumes: nothing (pre-requisite, no dependencies)
 - Produces: `RateLimiter::check()` now correctly counts multiple requests from same identity
 
-- [ ] **Step 1: 修改 ZADD member 为唯一值**
+- [x] **Step 1: 修改 ZADD member 为唯一值**
 
 ```rust
 // libs/common-ratelimit/src/lib.rs:130
@@ -37,7 +37,7 @@
 .zadd(&key, format!("{}:{}", identity, now_ms), now_ms)
 ```
 
-- [ ] **Step 2: 加单元测试验证多次请求计数**
+- [x] **Step 2: 加单元测试验证多次请求计数**
 
 在 `libs/common-ratelimit/src/lib.rs` 的 `#[cfg(test)] mod tests` 末尾加：
 
@@ -59,7 +59,7 @@ fn multiple_requests_from_same_identity_are_counted() {
 }
 ```
 
-- [ ] **Step 3: 编译 + 测试**
+- [x] **Step 3: 编译 + 测试**
 
 ```bash
 cargo build -p common-ratelimit
@@ -68,7 +68,7 @@ cargo test -p common-ratelimit --lib
 
 Expected: all tests pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add libs/common-ratelimit/src/lib.rs
@@ -91,7 +91,7 @@ git commit -m "fix(common-ratelimit): ZADD member must be unique per request, no
 - Consumes: nothing (independent of Task 1)
 - Produces: `AppState.jwks_cache: Arc<JWKSCache>` replaces `jwt_validator: Arc<JwtValidator>`
 
-- [ ] **Step 1: 更新 Cargo.toml 依赖**
+- [x] **Step 1: 更新 Cargo.toml 依赖**
 
 ```toml
 # services/api-gateway/Cargo.toml
@@ -105,14 +105,14 @@ common-jwt = { path = "../../libs/common-jwt" }
 common-ratelimit = { path = "../../libs/common-ratelimit" }
 ```
 
-- [ ] **Step 2: 删除 jwt.rs 和 jwks.rs**
+- [x] **Step 2: 删除 jwt.rs 和 jwks.rs**
 
 ```bash
 rm services/api-gateway/src/jwt.rs
 rm services/api-gateway/src/jwks.rs
 ```
 
-- [ ] **Step 3: 更新 lib.rs 导出**
+- [x] **Step 3: 更新 lib.rs 导出**
 
 ```rust
 // services/api-gateway/src/lib.rs
@@ -134,7 +134,7 @@ pub jwks_cache: Arc<common_jwt::JWKSCache>,
 pub perm_epoch_cache: perm_epoch_cache::PermEpochCache,
 ```
 
-- [ ] **Step 4: 将 JwtClaims 和 extract 逻辑内联到 middleware/mod.rs**
+- [x] **Step 4: 将 JwtClaims 和 extract 逻辑内联到 middleware/mod.rs**
 
 在 `services/api-gateway/src/middleware/mod.rs` 顶部加 `JwtClaims` 结构体和提取函数：
 
@@ -188,7 +188,7 @@ fn extract_claims_from_value(claims: &Value) -> JwtClaims {
 }
 ```
 
-- [ ] **Step 5: 修改 auth_middleware 用 verify_token**
+- [x] **Step 5: 修改 auth_middleware 用 verify_token**
 
 ```rust
 // services/api-gateway/src/middleware/mod.rs
@@ -238,7 +238,7 @@ if crate::perm_epoch::is_revoked(epoch, claims.iat) {
 use common_jwt;
 ```
 
-- [ ] **Step 6: 修改 main.rs 初始化**
+- [x] **Step 6: 修改 main.rs 初始化**
 
 ```rust
 // services/api-gateway/src/main.rs
@@ -287,7 +287,7 @@ tokio::spawn(async move {
 });
 ```
 
-- [ ] **Step 7: 创建 perm_epoch_cache.rs**
+- [x] **Step 7: 创建 perm_epoch_cache.rs**
 
 ```rust
 // services/api-gateway/src/perm_epoch_cache.rs
@@ -327,7 +327,7 @@ impl PermEpochCache {
 }
 ```
 
-- [ ] **Step 8: 更新 middleware 的 JwtClaims 类型引用**
+- [x] **Step 8: 更新 middleware 的 JwtClaims 类型引用**
 
 在全仓库搜索 `crate::JwtClaims` 或 `api_gateway::JwtClaims` 的引用，改为从 middleware 引用：
 
@@ -338,7 +338,7 @@ impl PermEpochCache {
 // 在 perm_consumer.rs, proxy_handler 等处如有引用，同步修改
 ```
 
-- [ ] **Step 9: 编译 + 测试**
+- [x] **Step 9: 编译 + 测试**
 
 ```bash
 cargo build -p api-gateway
@@ -347,7 +347,7 @@ cargo test -p api-gateway --lib
 
 Expected: build passes, all unit tests pass.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add services/api-gateway/
@@ -371,7 +371,7 @@ git commit -m "dephase(gateway): migrate JWKSCache from jwt-simple to common-jwt
 
 Note: Task 2 already implemented the perm_epoch cache code alongside the JWKSCache migration because both touch the same auth middleware path. This task adds the unit test.
 
-- [ ] **Step 1: 加 PermEpochCache 单元测试**
+- [x] **Step 1: 加 PermEpochCache 单元测试**
 
 ```rust
 // services/api-gateway/src/perm_epoch_cache.rs 末尾加 #[cfg(test)] mod tests:
@@ -418,7 +418,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 测试**
+- [x] **Step 2: 测试**
 
 ```bash
 cargo test -p api-gateway --lib
@@ -426,7 +426,7 @@ cargo test -p api-gateway --lib
 
 Expected: 4 new tests pass plus all existing tests.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add services/api-gateway/src/perm_epoch_cache.rs
@@ -446,7 +446,7 @@ git commit -m "dephase(gateway): add perm_epoch cache unit tests"
 - Consumes: Task 1 (common-ratelimit bug fix), Task 2 (new AppState fields)
 - Produces: `RouteLimiterSet` backed by Redis sliding window, per-IP identity
 
-- [ ] **Step 1: 更新 Cargo.toml**
+- [x] **Step 1: 更新 Cargo.toml**
 
 ```toml
 # services/api-gateway/Cargo.toml
@@ -457,7 +457,7 @@ governor = "0.6"
 common-ratelimit = { path = "../../libs/common-ratelimit" }
 ```
 
-- [ ] **Step 2: 重写 rate_limit.rs**
+- [x] **Step 2: 重写 rate_limit.rs**
 
 完整替换 `services/api-gateway/src/middleware/rate_limit.rs`：
 
@@ -627,7 +627,7 @@ fn extract_identity_key(request: &Request<Body>) -> String {
 }
 ```
 
-- [ ] **Step 3: 修改 main.rs 限流初始化**
+- [x] **Step 3: 修改 main.rs 限流初始化**
 
 ```rust
 // services/api-gateway/src/main.rs
@@ -651,7 +651,7 @@ route_limiters: middleware::rate_limit::RouteLimiterSet::new(
 ),
 ```
 
-- [ ] **Step 4: 编译**
+- [x] **Step 4: 编译**
 
 ```bash
 cargo build -p api-gateway
@@ -659,7 +659,7 @@ cargo build -p api-gateway
 
 Expected: build passes. Fix any compilation errors.
 
-- [ ] **Step 5: 测试**
+- [x] **Step 5: 测试**
 
 ```bash
 cargo test -p api-gateway --lib
@@ -668,7 +668,7 @@ cargo test -p common-ratelimit --lib
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add services/api-gateway/Cargo.toml services/api-gateway/src/middleware/rate_limit.rs services/api-gateway/src/main.rs
@@ -687,7 +687,7 @@ git commit -m "dephase(gateway): migrate rate limiting from governor to common-r
 - Consumes: Tasks 1-4
 - Produces: clean build, all tests pass, CI gates pass
 
-- [ ] **Step 1: 全量编译**
+- [x] **Step 1: 全量编译**
 
 ```bash
 cargo build --workspace
@@ -695,7 +695,7 @@ cargo build --workspace
 
 Expected: no errors.
 
-- [ ] **Step 2: 运行所有 gateway 和 lib 测试**
+- [x] **Step 2: 运行所有 gateway 和 lib 测试**
 
 ```bash
 cargo test -p api-gateway --lib
@@ -705,7 +705,7 @@ cargo test -p common-jwt --lib
 
 Expected: all tests pass.
 
-- [ ] **Step 3: CI 门禁检查**
+- [x] **Step 3: CI 门禁检查**
 
 ```bash
 node scripts/check-service-standard.js
@@ -713,7 +713,7 @@ node scripts/check-service-standard.js
 
 Expected: gateway passes (no regressions).
 
-- [ ] **Step 4: 确认 git status 无遗漏**
+- [x] **Step 4: 确认 git status 无遗漏**
 
 ```bash
 git status
@@ -721,7 +721,7 @@ git status
 
 确认删除的文件（jwt.rs, jwks.rs）已 staged。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
