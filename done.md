@@ -68,11 +68,14 @@
   - 前置：commit `99fc5f9` 在 `Principal::from_request_parts` 加 `tracing::warn!(error = %err, ...)` → bare `StatusCode::UNAUTHORIZED`，让 body 自然为空
   - Task 1（commit `b54de25`）：加 `assert_401_empty_body` helper + 加固 2 个现有 401 测试（`missing_header_returns_401` / `bad_signature_returns_401`）各加 `body.is_empty()` 断言
   - Task 2（commit `1f357c9`）：6 类错误路径独立回归测试 `bad_signature_body_is_empty` / `expired_token_body_is_empty` / `missing_sub_claim_body_is_empty` / `missing_tid_claim_body_is_empty` / `wrong_signing_key_body_is_empty` / `malformed_token_body_is_empty`
+  - Task 3 docs（commit `196817f` + self-fix `0fc05d6`）：TODO.md 5B-fu6 描述更新 + done.md 本条目新增；测试名/exp 描述修正
   - `libs/jwt-ctx/Cargo.toml` 新增 dev-dep `jsonwebtoken` + `chrono`（用于「已过期 token」case 用 `jsonwebtoken::encode` 直接构造 `exp = now - 3600`）
   - 新增 fixture `libs/jwt-ctx/tests/fixtures/other_{private,public}.pem`（RSA 2048 测试用，「错误签发 key」case 用 `other_private.pem` 签、`TEST_PUBLIC_PEM` 验）
   - 验证：`cargo test -p jwt-ctx` 34/34 pass（extractor_test 9 / from_token_test 3 / principal_tenant_test 3 / principal_test 14 / scope_test 5），输出干净；`cargo build --workspace` 无 warning（仅 pre-existing `from_jwt_payload` deprecated 提示）
   - 范围明确：**仅 `libs/jwt-ctx`**，不动 `services/api-gateway/src/middleware/mod.rs` 的 `auth_middleware`（其 4 条具体错误消息独立 follow-up，留 Roadmap 2.0 清理 phase）
   - Spec: `docs/superpowers/specs/2026-07-08-5b-fu6-jwt-error-leak-design.md`
+  - Plan: `docs/superpowers/plans/2026-07-08-5b-fu6-jwt-error-leak.md`
+  - 后续 sweep（commit `6a8a9bc`）：TODO.md 5B-fu6 commit 列表补全、5B-fu5 `commit <current>` 占位符 → `4e1c73c`、Phase 5 — 服务间安全 & 韧性 intro 改 "已 CLOSED"、Phase 5-B 韧性三件套 `[ ]` → `[x]` 收口
 
 ---
 
@@ -205,3 +208,10 @@
 - [x] **5B-fu5** CI 对齐 5B spec：`cargo test --workspace --all-targets` → `--lib`（spec §7.2 早定 --lib，但 CI 漏改）。同步 `docs/guides/testing.md` + `docs/user-manual/06-deployment.md`。本地实测 74 unit tests 全过。附 token-service 编译修复（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未为 `RS256KeyPair` 实现 `set_key_id`，用 inherent `with_key_id` 替）
 - [x] **5B-fu3** spec + plan + T1 events：spec (`docs/superpowers/specs/2026-07-08-phase5b-fu3-notification-iam-event-sync-design.md`) + plan (`docs/superpowers/plans/2026-07-08-phase5b-fu3-notification-iam-event-sync.md`, 10 task) + T1 `contracts/events.yaml` 新增 3 事件 `iam.user.role.{assigned,unassigned}` + `iam.user.dept.changed`，codegen 自动生成 `IamUserRoleAssigned/Unassigned/IamUserDeptChanged` struct + routing-key 常量（commits `a284e4e` + `239653d`）。T2-T10 待下 session 跨多 commit 执行。
 - [x] **5B-fu3 T2-T10 全量落地**：iam 6 emit 点 + membership_event helper (`1d6c95f` · `21cb6d4` fix Extension→Principal) · GET /iam/internal/membership-bootstrap 端点 + 7 case 集成测全过 (`3092b29`) · notification V003 `ntf_user_projection` + apply/resolve/replace 5 helper (`d88eb7f`) · `notification.membership-events` durable consumer + 3 typed subscribers + definitions.json bindings (`cd77a79`) · bootstrap startup wiring + 标 `#[deprecated]` IamMemberClient::{by_role/by_dept/expand_scopes} (`69cc97b`) · publish_announcement 改走本地 SQL + 改 9 测试 (`0740463` · `d070914` fix PK冲突 seed) · 8 case membership_projection_test + test-case/5b-fu3-event-sync.md live e2e (`b290ecc`) · docs sync architecture + ai-context (`fabd0c5`)。集成测: notification 45/45 passed; iam 38/39 (1 pre-existing SIGABRT)。`cargo test --workspace --lib`: 74 passed。CrossTenant（platform admin）路径暂仍走 deprecated HTTP 端点；删除归 Roadmap 2.0 清理 phase。
+
+---
+
+## 本 session 完成（2026-07-08）
+
+- [x] **5B-fu6 完整落地**（commits `b54de25` / `1f357c9` / `196817f` / `0fc05d6` / `6a8a9bc`）：Principal extractor 响应 body 不泄露 JWT 内部错误；6 类错误路径回归测试 + helper `assert_401_empty_body` + 2 个现有 401 测试加固 + 配套 dev-dep `jsonwebtoken` / `chrono` + PEM fixture。`cargo test -p jwt-ctx` 34/34 pass。brainstorm → spec → plan → 3 task implementer + per-task reviewer + final whole-branch review 全过；外加 done.md/TODO.md docs sweep。Spec: `docs/superpowers/specs/2026-07-08-5b-fu6-jwt-error-leak-design.md` / Plan: `docs/superpowers/plans/2026-07-08-5b-fu6-jwt-error-leak.md` / progress: `.superpowers/sdd/progress-5b-fu6.md`。
+- [x] **TODO.md 收口 sweep**（commit `6a8a9bc`，本 session 续）：Phase 5-B heading / commit count / 5B-fu5 `commit <current>` → `4e1c73c` / 5B-fu6 commit list 补全 + spec/plan 链接 / Phase 5 — 服务间安全 & 韧性 intro "待 brainstorm" / "待 writing-plans" → "均已 CLOSED" / Phase 5-B 韧性三件套 `[ ]` → `[x]` 收口（与 L141 "Phase 5 CLOSED" 一致）。

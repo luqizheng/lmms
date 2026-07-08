@@ -45,13 +45,13 @@
 - [x] iam-service 加 `iam_outbox_events` 表 + 业务事务里写 outbox（commits `9f8e06b`, `dc048fa`）
 - [x] iam-service 加 `[[bin]] outbox-publisher`（同镜像切 CMD）（commit `7808a7a`）
 - [x] audit-service 加 `audit_events` 表 + RabbitMQ consumer + 删除旧 HTTP 写入端点（commits `0749893`, `ed2f63a` + minors `1577ed9`, `7852718`）
-- [ ] ~~audit-service 补 OTel 接入（验收要求端到端 trace 链）~~ — **推迟到 Phase 6**；envelope.trace_id 字段已在 producer 侧预留，consumer 侧 OTel wiring 待 Phase 6 统一处理
+- [x] ~~audit-service 补 OTel 接入（验收要求端到端 trace 链）~~ — **由 Phase 6-A T2 覆盖**（commits `6f7cae1`, `5cdc1d8`）：audit consumer 用 envelope.trace_id 设 span parent（`consumer_span.rs`）+ `init_tracing` + middleware 接入。
 - [x] e2e 用例 `scripts/e2e-event-flow.js`（commit `945ff46`）— runner 不支持直接 DB 断言，改 standalone live smoke
 - [x] 验收：RabbitMQ 拔掉/恢复、consumer panic → DLQ、Jaeger 端到端 trace 链
   - ✅ Broker-bounce 恢复实测：停 RabbitMQ → 创建 user → 重启 → publisher 10s 内追上（commit `fab9cd2` 修复 C1）
   - ✅ SIGTERM/SIGINT 双处理：docker stop 走 SIGTERM，现在能正确触发 "finish current batch then exit"（commit `fab9cd2` 修复 C2）
   - ⚠️ DLQ replay / shovel：未实测；Topology 已就绪（`x-dead-letter-exchange: events.dlx`），手动 shovel 验证留给 Phase 5
-  - ⚠️ Jaeger 端到端：依赖 audit-service OTel（Phase 6）
+  - ⚠️ Jaeger 端到端：audit consumer OTel 已接（Phase 6-A T2），但 live Jaeger 端到端 trace 链未实测（独立 follow-up）
 
 #### Phase 4 后续（**Phase 4.x 小迭代，每个子任务一个 spec —— 4.1~4.4 已全部完成并合并**）
 
