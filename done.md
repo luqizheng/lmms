@@ -64,7 +64,15 @@
 ## Phase 5-B — JWT 签名验证 + service-jwt 机制（2026-07-07）
 
 - [x] **5B-fu1** `Principal::from_jwt_payload` 加 `#[deprecated]`（commit `99fc5f9`）
-- [x] **5B-fu6** principal extractor JWT 验签失败时 warn 日志（commit `99fc5f9`）
+- [x] **5B-fu6** Principal extractor 响应 body 不泄露 JWT 内部错误
+  - 前置：commit `99fc5f9` 在 `Principal::from_request_parts` 加 `tracing::warn!(error = %err, ...)` → bare `StatusCode::UNAUTHORIZED`，让 body 自然为空
+  - Task 1（commit `b54de25`）：加 `assert_401_empty_body` helper + 加固 2 个现有 401 测试（`missing_header_returns_401` / `bad_signature_returns_401`）各加 `body.is_empty()` 断言
+  - Task 2（commit `1f357c9`）：6 类错误路径独立回归测试 `bad_signature_returns_empty_401` / `expired_token_returns_empty_401` / `missing_sub_returns_empty_401` / `missing_tid_returns_empty_401` / `wrong_signing_key_returns_empty_401` / `malformed_token_returns_empty_401`
+  - `libs/jwt-ctx/Cargo.toml` 新增 dev-dep `jsonwebtoken` + `chrono`（用于「已过期 token」case 直接构造 `exp: 1` claims）
+  - 新增 fixture `libs/jwt-ctx/tests/fixtures/other_{private,public}.pem`（RSA 2048 测试用，「错误签发 key」case 用 `other_private.pem` 签、`TEST_PUBLIC_PEM` 验）
+  - 验证：`cargo test -p jwt-ctx` 34/34 pass（extractor_test 9 / from_token_test 3 / principal_tenant_test 3 / principal_test 14 / scope_test 5），输出干净；`cargo build --workspace` 无 warning（仅 pre-existing `from_jwt_payload` deprecated 提示）
+  - 范围明确：**仅 `libs/jwt-ctx`**，不动 `services/api-gateway/src/middleware/mod.rs` 的 `auth_middleware`（其 4 条具体错误消息独立 follow-up，留 Roadmap 2.0 清理 phase）
+  - Spec: `docs/superpowers/specs/2026-07-08-5b-fu6-jwt-error-leak-design.md`
 
 ---
 

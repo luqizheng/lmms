@@ -110,7 +110,7 @@
 - [x] **5B-fu3** `notification → iam` 事件化 — 完整落地：spec + plan + T1-T10 全部 commit（`a284e4e`…`d070914`）。notification→iam 同步 HTTP 已消除（publish_announcement 走 `resolve_users_by_scopes` 本地 SQL）；iam 7 emit 点同事务 outbox；V003 ntf_user_projection 单表 projection + bootstrap 端点 + durable consumer `notification.membership-events`（3 typed subscriber）；`IamMemberClient::{by_role,by_dept,expand_scopes}` 标 `#[deprecated]` + warn log。integration tests: notification 45/45 pass; iam 38/39 (1 pre-existing SIGABRT dump-openapi)。
 - [x] ~~**5B-fu4** TLS termination~~ — **延后至 Roadmap 2.0**（1.0 内不增加安全相关功能）
 - [x] **5B-fu5** CI 对齐 5B spec §7.2：`cargo test --workspace --lib`（commit `<current>`；本地实测 74 passed / 0 failed，需 `CARGO_TARGET_DIR` 指向非 tmpfs 大目录）。附 token-service `RS256KeyPair::set_key_id` → `with_key_id`（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未实现 `set_key_id`，之前 CI 跑 `--all-targets` 隐藏了 lib 编译错；改 `--lib` 后暴露）。
-- [x] **5B-fu6** principal extractor 在 `from_token` 失败时可能泄露 jwt 错误细节到响应（当前统一 401）。生产应在日志中记录原因，响应只返回通用消息。
+- [x] **5B-fu6** Principal extractor 响应 body 不泄露 JWT 内部错误（commits `b54de25` + `1f357c9`；前置 `99fc5f9` 加 warn 日志）。6 类错误路径回归测试守住 body 为空。详见 `done.md` Phase 5-B 段。
 
 ### Phase 5 — 服务间安全 & 韧性（P1）
 
