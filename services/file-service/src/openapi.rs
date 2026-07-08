@@ -5,7 +5,7 @@ use crate::{
         file_info::{FileInfo, PagedFiles, UploadFileMeta},
         presign_url::{CreatePresignUrl, PresignUrlResponse},
     },
-    routes::{file as file_route, presign},
+    routes::{file as file_route, migration_state, presign},
 };
 
 #[derive(OpenApi)]
@@ -18,6 +18,7 @@ use crate::{
         file_route::delete_file,
         file_route::get_file_info,
         presign::create_presign,
+        migration_state::handler,
     ),
     components(schemas(
         FileInfo,
@@ -25,6 +26,8 @@ use crate::{
         PagedFiles,
         CreatePresignUrl,
         PresignUrlResponse,
+        common_db::migration_state::MigrationStateResponse,
+        common_db::migration_state::MigrationInfo,
     )),
     tags(
         (name = "file", description = "File upload / download / info"),

@@ -4,6 +4,7 @@ use axum::{extract::Extension, http::StatusCode, response::IntoResponse, Json, R
 use common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
 use serde_json::json;
 use sqlx::MySqlPool;
+use utoipa::path as to_path;
 
 use crate::services::ConfigService;
 
@@ -31,6 +32,17 @@ async fn probe_applied(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
     Ok(applied)
 }
 
+#[to_path(
+    get,
+    path = "/cfg/internal/migrations/state",
+    responses(
+        (status = 200, body = MigrationStateResponse, description = "schema state"),
+        (status = 401, description = "missing or invalid service-jwt"),
+        (status = 503, description = "db_unreachable"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "internal",
+)]
 pub async fn handler(Extension(pool): Extension<MySqlPool>) -> impl IntoResponse {
     match probe_applied(&pool).await {
         Ok(applied) => {

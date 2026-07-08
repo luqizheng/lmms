@@ -21,7 +21,7 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tokio-util = { version = "0.7", features = ["io"] }
 async-trait = "0.1"
 common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql"] }
+common-db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
 authz = { path = "../../libs/authz" }
 common-log = { path = "../../libs/common-log" }
 jwt-ctx = { path = "../../libs/jwt-ctx" }

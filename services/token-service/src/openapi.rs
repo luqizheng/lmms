@@ -3,7 +3,7 @@ use utoipa::{
     Modify, OpenApi,
 };
 
-use crate::routes::{access, admin, api_key, refresh, revoke, user_jwt};
+use crate::routes::{access, admin, api_key, migration_state, refresh, revoke, user_jwt};
 
 pub struct SecurityAddon;
 
@@ -32,6 +32,7 @@ impl Modify for SecurityAddon {
         refresh::handle_refresh,
         revoke::handle_revoke,
         user_jwt::handle_user_jwt,
+        migration_state::handler,
         admin::handle_list,
         admin::handle_create,
         admin::handle_update,
@@ -49,6 +50,8 @@ impl Modify for SecurityAddon {
         revoke::RevokeResponse,
         user_jwt::UserJwtRequest,
         user_jwt::UserJwtResponse,
+        common_db::migration_state::MigrationStateResponse,
+        common_db::migration_state::MigrationInfo,
         admin::ListResponse,
         admin::ClientDto,
         admin::CreateRequest,

@@ -6,6 +6,24 @@ info:
     name: ''
   version: 0.1.0
 paths:
+  /cfg/internal/migrations/state:
+    get:
+      tags:
+      - internal
+      operationId: handler
+      responses:
+        '200':
+          description: schema state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationStateResponse'
+        '401':
+          description: missing or invalid service-jwt
+        '503':
+          description: db_unreachable
+      security:
+      - bearer_auth: []
   /config/export/{namespace_id}:
     get:
       tags:
@@ -416,6 +434,58 @@ components:
           type:
           - string
           - 'null'
+    MigrationInfo:
+      type: object
+      description: JSON 内 `available` 数组元素的形态。
+      required:
+      - version
+      - name
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+    MigrationStateResponse:
+      type: object
+      description: |-
+        端点返回 JSON 的序列化结构。
+
+        字段语义见 spec §2.1。
+      required:
+      - service
+      - dialect
+      - available
+      - applied
+      - in_sync
+      - missing
+      - extra
+      properties:
+        applied:
+          type: array
+          items:
+            type: string
+        available:
+          type: array
+          items:
+            $ref: '#/components/schemas/MigrationInfo'
+        current_version:
+          type:
+          - string
+          - 'null'
+        dialect:
+          type: string
+        extra:
+          type: array
+          items:
+            type: string
+        in_sync:
+          type: boolean
+        missing:
+          type: array
+          items:
+            type: string
+        service:
+          type: string
     Namespace:
       type: object
       required:

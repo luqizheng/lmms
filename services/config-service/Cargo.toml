@@ -17,7 +17,7 @@ prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql"] }
+common-db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
 authz = { path = "../../libs/authz" }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }

@@ -6,7 +6,7 @@ use crate::{
         operation::{OperationLog, PagedOperationLogs},
         retention::{DataStage, RetentionPolicy, RetentionStats},
     },
-    routes::{compliance, login, operation, retention},
+    routes::{compliance, login, migration_state, operation, retention},
 };
 
 #[derive(OpenApi)]
@@ -23,6 +23,7 @@ use crate::{
         retention::update_retention_policy,
         retention::trigger_cleanup,
         retention::get_data_stage,
+        migration_state::handler,
     ),
     components(schemas(
         OperationLog,
@@ -31,6 +32,8 @@ use crate::{
         PagedLoginLogs,
         RetentionPolicy,
         RetentionStats,
+        common_db::migration_state::MigrationStateResponse,
+        common_db::migration_state::MigrationInfo,
         DataStage,
     )),
     tags(

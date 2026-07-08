@@ -1274,6 +1274,7 @@ dependencies = [
  "sqlx",
  "tempfile",
  "tokio 1.52.3",
+ "utoipa",
 ]
 
 [[package]]

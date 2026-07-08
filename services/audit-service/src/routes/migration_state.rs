@@ -5,6 +5,7 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
 use common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
 use serde_json::json;
+use utoipa::path as to_path;
 
 use super::AppServices;
 
@@ -18,6 +19,17 @@ impl MigrationState for AuditMigrationState {
     }
 }
 
+#[to_path(
+    get,
+    path = "/audit/internal/migrations/state",
+    responses(
+        (status = 200, body = MigrationStateResponse, description = "schema state"),
+        (status = 401, description = "missing or invalid service-jwt"),
+        (status = 503, description = "db_unreachable"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "internal",
+)]
 pub async fn handler(State(state): State<super::AppState>) -> impl IntoResponse {
     let pool = state.audit.pool();
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =

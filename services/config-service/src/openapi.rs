@@ -9,7 +9,7 @@ use crate::{
             CreateNamespace, Namespace, PagedNamespaces, UpdateNamespace,
         },
     },
-    routes::{config as cfg_route, namespace as ns_route, watch},
+    routes::{config as cfg_route, migration_state, namespace as ns_route, watch},
 };
 
 #[derive(OpenApi)]
@@ -28,6 +28,7 @@ use crate::{
         cfg_route::delete_config_item,
         cfg_route::export_config,
         cfg_route::import_config,
+        migration_state::handler,
         watch::watch_config,
     ),
     components(schemas(
@@ -37,7 +38,9 @@ use crate::{
         PagedNamespaces,
         ConfigItem,
         CreateConfigItem,
-        UpdateConfigItem,
+UpdateConfigItem,
+        common_db::migration_state::MigrationStateResponse,
+        common_db::migration_state::MigrationInfo,
         PagedConfigItems,
     )),
     tags(

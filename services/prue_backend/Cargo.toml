@@ -5,7 +5,7 @@ edition = "2021"
 default-run = "prue_backend"
 
 [dependencies]
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
+common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
 common-jwt = { path = "../../libs/common-jwt" }
 common-log = { path = "../../libs/common-log" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }

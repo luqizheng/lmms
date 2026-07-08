@@ -18,7 +18,7 @@ common = { path = "../../libs/common" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 common-config = { path = "../../libs/common-config", features = ["config-service"] }
-common-db = { path = "../../libs/common-db", features = ["mysql"] }
+common-db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
 common-http = { path = "../../libs/common-http" }
 common-jwt = { path = "../../libs/common-jwt" }
 jwt-ctx = { path = "../../libs/jwt-ctx" }
