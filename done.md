@@ -37,6 +37,7 @@
 - [x] **4.2** 落地 `iam.login.failed` + 简易风控消费者（commits `492abd8`..`01f7723`）
 - [x] **4.3** 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动（commits `c5f423e`..`d9961d0`）
 - [x] **4.3-fu2** role/dept 接收人解析落地
+- [x] **4.3-fu3** 4.1 welcome 路径多副本化（commit `547e8c0`，spec `2026-07-08-phase4.3-fu3-welcome-fanout-design.md`）— 详见本文件末「本 session 完成（2026-07-08）」段
 - [x] **4.3-fu4** consumer `run()` block-on-disconnect 修复
 - [x] **4.4** `iam.permission.changed` 事件 + perm-epoch 令牌失效（commits `512b389`..`4230b06`）
 - [x] **4.4-fu1** 新增 `PUT /iam/users/:id/roles` 写端点并接入失效
@@ -215,3 +216,4 @@
 
 - [x] **5B-fu6 完整落地**（commits `b54de25` / `1f357c9` / `196817f` / `0fc05d6` / `6a8a9bc`）：Principal extractor 响应 body 不泄露 JWT 内部错误；6 类错误路径回归测试 + helper `assert_401_empty_body` + 2 个现有 401 测试加固 + 配套 dev-dep `jsonwebtoken` / `chrono` + PEM fixture。`cargo test -p jwt-ctx` 34/34 pass。brainstorm → spec → plan → 3 task implementer + per-task reviewer + final whole-branch review 全过；外加 done.md/TODO.md docs sweep。Spec: `docs/superpowers/specs/2026-07-08-5b-fu6-jwt-error-leak-design.md` / Plan: `docs/superpowers/plans/2026-07-08-5b-fu6-jwt-error-leak.md` / progress: `.superpowers/sdd/progress-5b-fu6.md`。
 - [x] **TODO.md 收口 sweep**（commit `6a8a9bc`，本 session 续）：Phase 5-B heading / commit count / 5B-fu5 `commit <current>` → `4e1c73c` / 5B-fu6 commit list 补全 + spec/plan 链接 / Phase 5 — 服务间安全 & 韧性 intro "待 brainstorm" / "待 writing-plans" → "均已 CLOSED" / Phase 5-B 韧性三件套 `[ ]` → `[x]` 收口（与 L141 "Phase 5 CLOSED" 一致）。
+- [x] **4.3-fu3 welcome 路径多副本化**（commit `547e8c0`，spec `docs/superpowers/specs/2026-07-08-phase4.3-fu3-welcome-fanout-design.md`）：消除最后一处进程内 `hub.publish` 直推。`ensure_welcome_for_user` 在同一事务内 outbox enqueue `NotificationAnnouncementPublished{user_ids:[user_id]}`，与 `Db::publish_announcement` 同事件同产线；WS 推送由 4.3 既有 per-replica ephemeral queue + `announcement_events::handle` 扇出，多副本下用户 WS 连哪个副本都能收到。`handle_iam_user_created` / `consumer::run` / `main.rs` 透传 `db.outbox_repo: Arc<MySqlOutboxRepo>`（drop `&WsHub` 参数）。测试改造：原 `#[ignore]` AppConfig 路径（DNS 绑 mysql/redis hostname，run-tests-docker.js 下永远跑不起来）换成 testcontainers MySQL+Redis + `OnceCell<RedisFixture>` 共享单容器；3 case 覆盖幂等 / outbox 行（`NotificationAnnouncementPublished` 同事务写入）/ 重投不入双份。`Cargo.toml` 给 `testcontainers-modules` 加 `redis` feature。验证：`scripts/run-tests-docker.js notification-service` 48/48 passed（17.8s）；`scripts/check-service-standard.js` / `scripts/check-db-naming.js` / `scripts/contracts-gen.js --check` 全 clean。
