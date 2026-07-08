@@ -252,6 +252,24 @@ paths:
           description: missing or invalid service-jwt
       security:
       - bearer_auth: []
+  /iam/internal/migrations/state:
+    get:
+      tags:
+      - internal
+      operationId: migration_state_handler
+      responses:
+        '200':
+          description: schema state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationStateResponse'
+        '401':
+          description: missing or invalid service-jwt
+        '503':
+          description: db_unreachable
+      security:
+      - bearer_auth: []
     post:
       tags:
       - org_units
@@ -1567,6 +1585,52 @@ components:
           format: int64
         truncated:
           type: boolean
+    MigrationStateResponse:
+      type: object
+      required:
+      - service
+      - dialect
+      - available
+      - applied
+      - in_sync
+      - missing
+      - extra
+      properties:
+        service:
+          type: string
+        dialect:
+          type: string
+        available:
+          type: array
+          items:
+            $ref: '#/components/schemas/MigrationInfo'
+        applied:
+          type: array
+          items:
+            type: string
+        current_version:
+          type: string
+          nullable: true
+        in_sync:
+          type: boolean
+        missing:
+          type: array
+          items:
+            type: string
+        extra:
+          type: array
+          items:
+            type: string
+    MigrationInfo:
+      type: object
+      required:
+      - version
+      - name
+      properties:
+        version:
+          type: string
+        name:
+          type: string
     UserInfo:
       type: object
       required:

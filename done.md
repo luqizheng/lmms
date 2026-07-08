@@ -226,6 +226,10 @@
   - 集成测试 + docs 同步（operations.md + 各服务 AGENTS.md）推下个 session
 - [x] **G3 service-jwt 鉴权扩面**（commit `ec57c76`）：6 个服务从"无鉴权层（仅网络隔离）"补到与 iam 一致的 `verify_aud_principal_middleware::<AppState>("<svc-name>")` 模式。libs/jwt-ctx 加 `impl<T> PrincipalStateProvider for Arc<T>` blanket impl（audit AppState = Arc<AppServices> 需此）。prue_backend 全套基础设施从 0 加（common-jwt + jwt-ctx + authz 依赖 + JWKSCache 初始化 + state 加 jwks 字段）。7/7 端点鉴权完整闭环。
 - [x] **G3 docs 更新反映鉴权扩面**（本 commit）：6 服务 AGENTS.md 把"当前无鉴权层"改为"鉴权 service-jwt aud=<svc-name>"；migrations-state.md §6 整段重写为"7/7 都接 service-jwt"。
+- [x] **G3 端点 utoipa 注解**（commits `bb17b24` `c48ca8d` `dfd2f0a`）：common-db 加 optional `openapi` feature（utoipa 依赖 + MigrationStateResponse/MigrationInfo derive ToSchema）。7 服务 utoipa 注解 + openapi.yaml 重新生成（dump-openapi binary）：
+  - notification / token / audit / config / file / prue_backend: dump-openapi 跑通
+  - iam: dump-openapi binary 已知 stack overflow pre-existing (commit a2cd626)；手工 patch openapi.yaml 加 `/iam/internal/migrations/state` 端点 + 2 个 schema
+- [x] **G3 service-jwt 鉴权扩面**（commit `ec57c76`）：6 个服务从"无鉴权层（仅网络隔离）"补到与 iam 一致的 `verify_aud_principal_middleware::<AppState>("<svc-name>")` 模式。libs/jwt-ctx 加 `impl<T> PrincipalStateProvider for Arc<T>` blanket impl（audit AppState = Arc<AppServices> 需此）。prue_backend 全套基础设施从 0 加（common-jwt + jwt-ctx + authz 依赖 + JWKSCache 初始化 + state 加 jwks 字段）。7/7 端点鉴权完整闭环。
 
 ### Deferred（本 session 决策，标可选未实施）
 
