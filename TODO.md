@@ -411,11 +411,11 @@
 
 ### Phase 10 — 小问题清单（P3，零散收尾）
 
-- [ ] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式）
+- [x] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式） — **决策：保留 SQLite**（spec `2026-07-08-prue-backend-sqlite-decision-design.md`）。仅 1 个 migration，翻译成本可接受；dev/CI 零依赖启动价值更高。配套加 `scripts/check-prue-migrations-parity.sh` CI gate 防 drift。
 - [x] `events.yaml` — **Phase 4 已落地**（首批三事件 + Phase 5B-fu3 三事件 `iam.user.role.{assigned,unassigned}` + `iam.user.dept.changed` 已 codegen + producer/consumer 闭环）
 - [ ] 健康检查补齐三级探针（目前仅 liveness）
 - [ ] 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`）
-- [ ] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key）
+- [x] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key） — runbook `docs/runbooks/secret-rotation.md`。覆盖：① JWT 私钥（含 kid + JWKS 路线图），② MySQL root 密码，③ Redis 密码；含手动 SOP 命令与未来自动化路线。
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
 - [x] **OpenAPI registration sweep** — 2026-07-07 补齐（commit `a2cd626`：`org_units::*` 6 handler + `permissions::*` 5 handler + DTO ToSchema/IntoParams + openapi.yml 手工补齐；dump-openapi binary stack overflow pre-existing）
