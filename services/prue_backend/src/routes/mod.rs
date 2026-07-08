@@ -1,4 +1,5 @@
 pub mod menu_configs;
+pub mod migration_state;
 
 use crate::state::AppState;
 use axum::{middleware as axum_mw, routing::get, Router};
@@ -8,7 +9,8 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .merge(menu_configs::routes(state))
+        .merge(menu_configs::routes(state.clone()))
+        .merge(migration_state::routes(state))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
 }
 
