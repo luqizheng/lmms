@@ -54,10 +54,7 @@ async fn main() {
         tracing::info!("seeded {} default oauth clients", seeded);
     }
 
-    let private_key_pem =
-        std::fs::read_to_string(&cfg.jwt_private_key_path).expect("failed to read private key");
-    let public_key_pem =
-        std::fs::read_to_string(&cfg.jwt_public_key_path).expect("failed to read public key");
+    let (private_key_pem, public_key_pem) = load_or_generate_keys(&cfg.jwt_private_key_path, &cfg.jwt_public_key_path);
 
     let issuer = Arc::new(
         TokenIssuer::new(&private_key_pem, &cfg.issuer).expect("failed to create token issuer"),
@@ -205,6 +202,33 @@ async fn main() {
         tracing::info!("received shutdown signal, deregistering from consul");
         std::process::exit(0);
     });
+
+    fn load_or_generate_keys(private_key_path: &str, public_key_path: &str) -> (String, String) {
+        match (std::fs::read_to_string(private_key_path), std::fs::read_to_string(public_key_path)) {
+            (Ok(private), Ok(public)) => {
+                tracing::info!("loaded existing JWT keys from files");
+                (private, public)
+            }
+            _ => {
+                tracing::warn!("JWT keys not found, generating new key pair");
+                let key_pair = jwt_simple::prelude::RS256KeyPair::generate(2048)
+                    .expect("failed to generate RSA key pair");
+                let private_pem = key_pair.to_pem().expect("failed to encode private key");
+                let public_key = key_pair.public_key();
+                let public_pem = public_key.to_pem().expect("failed to encode public key");
+
+                if let Some(parent) = std::path::Path::new(private_key_path).parent() {
+                    std::fs::create_dir_all(parent).expect("failed to create keys directory");
+                }
+                std::fs::write(private_key_path, &private_pem)
+                    .expect("failed to write private key");
+                std::fs::write(public_key_path, &public_pem)
+                    .expect("failed to write public key");
+                tracing::info!("generated new JWT keys and saved to files");
+                (private_pem, public_pem)
+            }
+        }
+    }
 
     tracing::info!("token-service listening on {}", addr);
     axum::serve(listener, app).await.unwrap();

@@ -9,8 +9,6 @@ COPY .cargo .cargo
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk
-COPY docker-example/config/token-service docker-example/config/token-service
-COPY docker-example/secrets docker-example/secrets
 
 ENV SWAGGER_UI_DOWNLOAD_URL=https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip
 
@@ -25,9 +23,7 @@ FROM ${BASE_REGISTRY}/alpine:3.21
 RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/token-service /app/token-service
-COPY --from=builder /app/docker-example/config/token-service/clients.json /app/clients.json
-COPY --from=builder /app/docker-example/secrets/private.pem /app/keys/private.pem
-COPY --from=builder /app/docker-example/secrets/public.pem /app/keys/public.pem
 COPY --from=builder /app/services/token-service/config /app/config
+RUN mkdir -p /app/keys
 ENV RUST_LOG=token_service=debug
 CMD ["/app/token-service"]
