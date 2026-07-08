@@ -1,6 +1,6 @@
 use utoipa::OpenApi;
 
-use crate::{models, rest};
+use crate::{migration_state_route, models, rest};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -17,6 +17,7 @@ use crate::{models, rest};
         rest::list_mine,
         rest::read_one,
         rest::unread_count,
+        migration_state_route::handler,
     ),
     components(
         schemas(
@@ -26,11 +27,14 @@ use crate::{models, rest};
             models::Status,
             models::ScopeType,
             rest::ListQuery,
+            common_db::migration_state::MigrationStateResponse,
+            common_db::migration_state::MigrationInfo,
         )
     ),
     tags(
         (name = "announcements", description = "公告管理"),
         (name = "notifications", description = "通知管理"),
+        (name = "internal", description = "Internal service-to-service endpoints (service-jwt)"),
     )
 )]
 pub struct ApiDoc;

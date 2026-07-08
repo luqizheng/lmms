@@ -6,6 +6,7 @@ pub mod consumer;
 pub mod iam_client;
 pub mod db;
 pub mod error;
+pub mod migration_state_route;
 pub mod models;
 pub mod openapi;
 pub mod recipient_resolver;
