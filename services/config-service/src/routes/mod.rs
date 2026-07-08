@@ -19,11 +19,16 @@ impl PrincipalStateProvider for ConfigService {
 }
 
 pub fn routes(state: AppState) -> Router {
+    let migration_state_with_authz = migration_state::routes(state.clone())
+        .layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            authz::verify_aud_principal_middleware::<AppState>("config-service"),
+        ));
     Router::new()
         .nest("/config", namespace::routes(state.clone()))
         .nest("/config", config::routes(state.clone()))
         .nest("/config", watch::routes(state.clone()))
-        .merge(migration_state::routes(state.clone()))
+        .merge(migration_state_with_authz)
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))

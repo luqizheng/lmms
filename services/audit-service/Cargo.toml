@@ -20,6 +20,7 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 common-error = { path = "../../libs/common-error" }
 common-event = { path = "../../libs/common-event" }
 common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
+authz = { path = "../../libs/authz" }
 common-log = { path = "../../libs/common-log" }
 common-cache = { path = "../../libs/common-cache" }
 common = { path = "../../libs/common" }

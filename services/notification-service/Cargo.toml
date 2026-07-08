@@ -28,6 +28,7 @@ reqwest.workspace = true
 bytes = "1"
 common-event = { path = "../../libs/common-event" }
 common-db = { path = "../../libs/common-db", features = ["mysql"] }
+authz = { path = "../../libs/authz" }
 uuid = { version = "1", features = ["v7", "serde"] }
 futures = "0.3"
 config = { workspace = true }

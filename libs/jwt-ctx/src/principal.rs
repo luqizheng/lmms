@@ -173,6 +173,12 @@ pub trait PrincipalStateProvider: Send + Sync {
     fn jwks(&self) -> Arc<JWKSCache>;
 }
 
+impl<T: PrincipalStateProvider> PrincipalStateProvider for Arc<T> {
+    fn jwks(&self) -> Arc<JWKSCache> {
+        (**self).jwks()
+    }
+}
+
 /// Phase 5-B: FromRequestParts becomes async and uses JWKSCache for verify.
 /// `expected_aud` is `None` here — gateway path accepts any valid token
 /// and the per-route middleware (in `authz`) enforces aud when needed.

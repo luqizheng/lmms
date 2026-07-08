@@ -21,6 +21,7 @@ common-config = { path = "../../libs/common-config", features = ["config-service
 common-db = { path = "../../libs/common-db", features = ["mysql"] }
 common-http = { path = "../../libs/common-http" }
 common-jwt = { path = "../../libs/common-jwt" }
+jwt-ctx = { path = "../../libs/jwt-ctx" }
 reqwest.workspace = true
 axum.workspace = true
 tokio.workspace = true

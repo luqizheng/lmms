@@ -53,12 +53,17 @@ impl PrincipalStateProvider for AppServices {
 }
 
 pub fn routes(state: AppState) -> Router {
+    let migration_state_with_authz = migration_state::routes(state.clone())
+        .layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            authz::verify_aud_principal_middleware::<AppState>("audit-service"),
+        ));
     Router::new()
         .nest("/audit", operation::routes(state.clone()))
         .nest("/audit", login::routes(state.clone()))
         .nest("/audit", compliance::routes(state.clone()))
         .nest("/audit", retention::routes(state.clone()))
-        .merge(migration_state::routes(state.clone()))
+        .merge(migration_state_with_authz)
         .route("/health", get(health))
         .route("/audit/health", get(health))
         .route("/metrics", get(metrics))

@@ -136,7 +136,13 @@ async fn main() -> anyhow::Result<()> {
 
     let mut app = Router::new()
         .nest("/notification", rest::router(rest_state.clone()))
-        .merge(migration_state_route::routes(rest_state.clone()))
+        .merge(
+            migration_state_route::routes(rest_state.clone())
+                .layer(axum::middleware::from_fn_with_state(
+                    rest_state.clone(),
+                    authz::verify_aud_principal_middleware::<rest::RestState>("notification-service"),
+                )),
+        )
         .route(
             "/notification/ws",
             get(ws::upgrade).with_state(ws_state),

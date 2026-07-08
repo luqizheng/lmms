@@ -1,7 +1,10 @@
 use common_db::init_pool;
+use common_jwt::{JWKSCache, JwksConfig};
 use common_telemetry::init_tracing;
 use prue_backend::{config::AppConfig, db, routes, state::AppState};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +21,23 @@ async fn main() {
         tracing::warn!(error = %e, "prue_backend schema initialization skipped");
     }
 
-    let state = AppState::new(pool);
+    let http_for_jwt = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("failed to build reqwest client for JWKS");
+    let jwks = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: std::env::var("JWKS_URL")
+                .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
+            refresh_interval: Duration::from_secs(3600),
+            request_timeout: Duration::from_secs(5),
+        },
+        http_for_jwt,
+    ));
+    jwks.refresh().await
+        .expect("JWKS refresh failed at startup; token-service must be reachable");
+
+    let state = AppState::new(pool, jwks);
 
     let app = routes::routes(state);
 

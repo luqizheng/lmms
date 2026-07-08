@@ -53,6 +53,12 @@ pub struct TokenServerState {
     pub jwks: Arc<common_jwt::JWKSCache>,
 }
 
+impl jwt_ctx::PrincipalStateProvider for TokenServerState {
+    fn jwks(&self) -> Arc<common_jwt::JWKSCache> {
+        self.jwks.clone()
+    }
+}
+
 pub mod config;
 pub mod db;
 pub mod issuer;

@@ -6,11 +6,16 @@ use axum::{middleware as axum_mw, routing::get, Router};
 use prometheus::{Encoder, TextEncoder};
 
 pub fn routes(state: AppState) -> Router {
+    let migration_state_with_authz = migration_state::routes(state.clone())
+        .layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            authz::verify_aud_principal_middleware::<AppState>("prue_backend"),
+        ));
     Router::new()
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .merge(menu_configs::routes(state.clone()))
-        .merge(migration_state::routes(state))
+        .merge(migration_state_with_authz)
         .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
 }
 
