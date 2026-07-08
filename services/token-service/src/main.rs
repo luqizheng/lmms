@@ -189,6 +189,8 @@ async fn main() {
     // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
     app = app.merge(token_service::service_jwt_routes(state.clone()));
 
+    app = app.merge(token_service::routes::migration_state::routes(state.clone()));
+
     
     tokio::spawn(async move {
         tokio::signal::ctrl_c()

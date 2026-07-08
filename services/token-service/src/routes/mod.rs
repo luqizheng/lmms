@@ -2,6 +2,7 @@ pub mod access;
 pub mod admin;
 pub mod api_key;
 pub mod jwks;
+pub mod migration_state;
 pub mod refresh;
 pub mod resource;
 pub mod revoke;
