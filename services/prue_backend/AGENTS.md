@@ -51,6 +51,17 @@
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|
 
+## 内部端点 /prue/internal/*
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| /prue/internal/migrations/state | GET | schema 状态查询（Phase 10 G3，双 dialect）|
+
+- 返回 1 个 V001 migration × 2 dialects（mysql + sqlite）的 marker-table 探测结果
+- `dialect` 字段返回 `"mysql+sqlite"`
+- 当前无鉴权层（运维仅限内网访问，生产部署需走 service-jwt 扩面）
+- 详见 `docs/guides/migrations-state.md`
+
 ## 豁免
 
 （无）

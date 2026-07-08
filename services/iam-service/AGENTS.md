@@ -111,10 +111,12 @@
 |------|------|------|
 | /iam/internal/users/by-role/:role_id | GET | 按角色查 user_id（service-jwt only，tenant-isolated）|
 | /iam/internal/users/by-dept/:dept_id | GET | 按部门查 user_id（service-jwt only，tenant-isolated）|
+| /iam/internal/migrations/state | GET | schema 状态查询（service-jwt only，Phase 10 G3）|
 
 - service-jwt 必须有 `aud` 含 `service` + `tid` claim
 - `page >= 1`, `size ∈ [1, 1000]`；超 1000 截断
 - 用于 notification-service 等下游跨服务成员查询
+- `/iam/internal/migrations/state` 返回 5 个 V001-V005 migration 的 marker-table 探测结果；鉴权 service-jwt `aud=iam-service`。详见 `docs/guides/migrations-state.md`。
 
 ## 豁免
 
