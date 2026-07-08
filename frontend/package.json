@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "preview:build": "pnpm build && vite preview",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
+    "check:vitest-coverage": "node ../scripts/check-vitest-coverage.js",
     "test:unit": "vitest run --reporter=verbose",
     "test:unit:watch": "vitest",
     "test:unit:menu": "vitest run src/views/system/menu/utils/menu-adapter.test.ts",
