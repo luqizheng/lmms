@@ -96,6 +96,18 @@ async fn main() -> anyhow::Result<()> {
         service_jwt.clone(),
     ));
 
+    // Phase 5B-fu3: bootstrap local user membership projection from iam.
+    // Must happen BEFORE the membership consumer starts, so the consumer
+    // doesn't see a half-empty projection on its first events.
+    if let Err(e) = service::projection::bootstrap(&db, &iam_client).await {
+        tracing::error!(error = %e, "membership bootstrap failed — projection empty; consumer will heal as events flow");
+        // Fail-fast alternative: return Err(e). For now, log + continue
+        // (consumer will eventually fill the projection via events; readiness
+        // probe should reflect degraded state separately).
+    } else {
+        tracing::info!("membership bootstrap complete");
+    }
+
     let rest_state = rest::RestState {
         db: db.clone(),
         redis: redis.clone(),

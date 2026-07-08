@@ -32,16 +32,28 @@
 
 | 组件 | 说明 |
 |------|------|
-| `notification-service`（主） | HTTP + WS + scheduler + 两个事件 consumer |
+| `notification-service`（主） | HTTP + WS + scheduler + 三个事件 consumer |
 | `ntf-outbox-publisher`（同镜像切 CMD） | 轮询 `ntf_outbox_events` 发布到 `events` exchange |
-
+ 
 | 事件 | 方向 | 机制 |
 |------|------|------|
 | `iam.user.created` | 消费 | 队列 `notification.iam-events` → 欢迎站内信（Phase 4.1） |
+| `iam.user.role.assigned` / `iam.user.role.unassigned` / `iam.user.dept.changed` | 消费 | 队列 `notification.membership-events`（durable, DLX=events.dlx）→ 更新本地 `ntf_user_projection`（Phase 5B-fu3） |
 | `notification.announcement.published` | **生产** | `publish_announcement` 同事务写 `ntf_outbox_events` → ntf-outbox-publisher |
 | `notification.announcement.published` | 消费 | **每副本 ephemeral 队列**（fanout）→ 本副本 WS 推送 |
+ 
+## Phase 5B-fu3 — 本地 user membership 投影
 
-`publish_announcement` 现在通过 `IamMemberClient` 调用 `/iam/internal/users/by-{role,dept}` 解析 role/dept scope 为具体 user_id 列表后写入 delivery 表。
+- 启动时一次性 `GET /iam/internal/membership-bootstrap`（service-jwt aud=iam-service,
+  tenant_id 来自 JWT tid claim）拉全量 user→{role_ids, dept_id} 写入
+  `ntf_user_projection`。失败记 error log + 继续（consumer 后续会按事件增量填）。
+- 持续消费 `notification.membership-events` 维护投影（apply_role_assigned/
+  unassigned/apply_dept_changed 三方法，ts 单调非减 out-of-order 兜底）。
+- `publish_announcement` 解析 role/dept scope 改走 `db.resolve_users_by_scopes`
+  本地 SQL（`JSON_CONTAINS` by role / `WHERE dept_id=?` by dept）。
+- `IamMemberClient::{by_role, by_dept, expand_scopes}` **DEPRECATED**
+  （#[deprecated] 注解 + warn log；删除在 Roadmap 2.0 清理 phase）。
+  CrossTenant（platform admin）路径仍走旧 HTTP（本地投影只覆盖当前 tenant）。
 
 ## 端点域
 
