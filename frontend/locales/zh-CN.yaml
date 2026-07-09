@@ -112,6 +112,14 @@ menus:
   monitorLoginLog: 登录日志
   monitorRetention: 数据保留
   pureAbnormal: 异常页面
+  pureDashboard: 服务监控面板
+  dashboardRefresh: 刷新
+  dashboardStatusOk: 正常
+  dashboardStatusDown: 不可达
+  dashboardStatusUnknown: 未知
+  dashboardLastCheck: 最近检测
+  dashboardUpCount: 在线
+  dashboardDownCount: 离线
   purePageNotFound: "404"
   pureAccessDenied: "403"
   pureServerError: "500"

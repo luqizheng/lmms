@@ -95,7 +95,15 @@ menus:
   monitorOperationLog: Operation Log
   monitorLoginLog: Login Log
   monitorRetention: Data Retention
-  pureAbnormal: Abnormal Page
+  pureAbnormal: Abnormal
+  pureDashboard: Service Dashboard
+  dashboardRefresh: Refresh
+  dashboardStatusOk: Healthy
+  dashboardStatusDown: Down
+  dashboardStatusUnknown: Unknown
+  dashboardLastCheck: Last Check
+  dashboardUpCount: Up
+  dashboardDownCount: Down Page
   purePageNotFound: "404"
   pureAccessDenied: "403"
   pureServerError: "500"

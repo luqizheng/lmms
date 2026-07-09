@@ -29,6 +29,47 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
           target: "http://127.0.0.1:3000",
           changeOrigin: true,
           rewrite: (p: string) => p.replace(/^\/api/, "")
+        },
+        // 直连后端服务的 health/metrics 探测（绕开 api-gateway 的 JWT 鉴权），仅 dev 模式生效
+        "/probe/api-gateway": {
+          target: "http://127.0.0.1:3000",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/api-gateway/, "")
+        },
+        "/probe/token-service": {
+          target: "http://127.0.0.1:8082",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/token-service/, "")
+        },
+        "/probe/iam-service": {
+          target: "http://127.0.0.1:9081",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/iam-service/, "")
+        },
+        "/probe/notification-service": {
+          target: "http://127.0.0.1:8083",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/notification-service/, "")
+        },
+        "/probe/audit-service": {
+          target: "http://127.0.0.1:8084",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/audit-service/, "")
+        },
+        "/probe/file-service": {
+          target: "http://127.0.0.1:8086",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/file-service/, "")
+        },
+        "/probe/config-service": {
+          target: "http://127.0.0.1:8085",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/config-service/, "")
+        },
+        "/probe/prue-backend": {
+          target: "http://127.0.0.1:8087",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/prue-backend/, "")
         }
       },
       // 预热文件以提前转换和缓存结果，降低启动期间的初始页面加载时长并防止转换瀑布
