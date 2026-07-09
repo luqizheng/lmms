@@ -309,7 +309,7 @@ ssh kudi@192.168.2.128
 cd /opt/coder-micro-services
 
 # Pull latest changes
-git pull origin master
+git pull origin main
 
 # Stop existing containers
 docker-compose -f infrastructure/docker-compose.yml down

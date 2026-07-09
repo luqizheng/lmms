@@ -232,7 +232,7 @@ CI 的 `deploy` job（`.gitlab-ci.yml`）只在 `master` 分支触发，在 `192
 ```bash
 ssh kudi@192.168.2.128
 cd /opt/coder-micro-services
-git pull origin master                 # 拉最新代码
+git pull origin main                   # 拉最新代码
 docker-compose down && docker-compose pull && docker-compose up -d
 ```
 

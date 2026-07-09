@@ -142,7 +142,7 @@ deploy:
     - sudo /bin/docker-compose -f docker-compose.yml pull
     - sudo /bin/docker-compose -f docker-compose.yml up -d
   only:
-    - master
+    - main
 
 java_sdk_test:
   stage: test
