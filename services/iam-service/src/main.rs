@@ -51,8 +51,12 @@ async fn main() -> anyhow::Result<()> {
         },
         http_for_jwt.clone(),
     ));
-    jwks.refresh().await
-        .expect("JWKS refresh failed at startup; token-service must be reachable");
+    // 降级为 warn：token-service 可能还在起；首个 service-jwt verify 时 JWKSCache 会自动 retry。
+    if let Err(e) = jwks.refresh().await {
+        tracing::warn!(
+            "JWKS initial refresh failed (will retry on first verify): {e}; token-service must be reachable"
+        );
+    }
     let service_jwt = Arc::new(ServiceJwtCache::new(
         ServiceJwtConfig {
             token_service_url: std::env::var("TOKEN_SERVICE_URL")

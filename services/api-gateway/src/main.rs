@@ -181,7 +181,12 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         url: cfg.jwks_url.clone(),
         ..Default::default()
     }, http_client.clone());
-    jwks_cache.refresh().await.expect("failed to fetch initial JWKS");
+    // 降级为 warn：token-service 可能还在起；首个 JWT 验证时 JWKSCache 会自动 retry。
+    if let Err(e) = jwks_cache.refresh().await {
+        tracing::warn!(
+            "JWKS initial refresh failed (will retry on first verify): {e}; token-service must be reachable"
+        );
+    }
     let jwks_cache = Arc::new(jwks_cache);
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);

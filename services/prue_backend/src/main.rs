@@ -34,8 +34,12 @@ async fn main() {
         },
         http_for_jwt,
     ));
-    jwks.refresh().await
-        .expect("JWKS refresh failed at startup; token-service must be reachable");
+    // 降级为 warn：token-service 可能还在起；首个 service-jwt verify 时 JWKSCache 会自动 retry。
+    if let Err(e) = jwks.refresh().await {
+        tracing::warn!(
+            "JWKS initial refresh failed (will retry on first verify): {e}; token-service must be reachable"
+        );
+    }
 
     let state = AppState::new(pool, jwks);
 
