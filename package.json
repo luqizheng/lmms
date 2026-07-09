@@ -64,7 +64,8 @@
     "ai:review": "node scripts/ai-code-review.js",
     "ai:gen-e2e": "node scripts/gen-e2e-from-openapi.js",
     "check:spec": "node scripts/check-spec.js",
-    "check:tenant-scope": "node scripts/check-tenant-scope.js"
+    "check:tenant-scope": "node scripts/check-tenant-scope.js",
+    "check:frontend-dead-code": "node scripts/check-frontend-dead-code.js"
   },
   "dependencies": {
     "argon2": "^0.44.0"
