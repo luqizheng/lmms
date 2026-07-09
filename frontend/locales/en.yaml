@@ -85,6 +85,22 @@ menus:
   notificationInbox: Inbox
   notificationAdmin: Announcement Manage
   notificationDetail: Announcement Detail
+  notificationUnread: Unread
+  notificationRead: Read
+  notificationDraft: Draft
+  notificationPublished: Published
+  notificationRevoked: Revoked
+  notificationMarkRead: Mark as Read
+  notificationMarkAllRead: Mark All as Read
+  notificationRefresh: Refresh
+  announcement: Announcement
+  announcementTitle: Title
+  announcementContent: Content
+  announcementPublishTime: Publish Time
+  announcementExpireTime: Expire Time
+  announcementPinned: Pinned
+  announcementPopover: Popover
+  announcementRecipients: Recipients
   pureSystemMenu: Menu Manage
   pureDept: Dept Manage
   pureSysMonitor: System Monitor
