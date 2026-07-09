@@ -65,7 +65,9 @@
     "ai:gen-e2e": "node scripts/gen-e2e-from-openapi.js",
     "check:spec": "node scripts/check-spec.js",
     "check:tenant-scope": "node scripts/check-tenant-scope.js",
-    "check:frontend-dead-code": "node scripts/check-frontend-dead-code.js"
+    "check:frontend-dead-code": "node scripts/check-frontend-dead-code.js",
+    "check:vitest-coverage": "node scripts/check-vitest-coverage.js",
+    "check:vitest-coverage:report": "node scripts/check-vitest-coverage.js --all"
   },
   "dependencies": {
     "argon2": "^0.44.0"
