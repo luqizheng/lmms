@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-09T02:54:37.471Z",
+  "generatedAt": "2026-07-09T03:47:05.517Z",
   "images": [
     {
       "ref": "gliderlabs/registrator:master",
@@ -25,6 +25,16 @@
     {
       "ref": "jaegertracing/all-in-one:1.55",
       "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "mcr.microsoft.com/dotnet/sdk:10.0",
+      "source": ".gitlab-ci.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "mcr.microsoft.com/playwright:v1.48.0-jammy",
+      "source": ".gitlab-ci.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
@@ -63,11 +73,6 @@
       "mirror": null
     },
     {
-      "ref": "zhcoder-docker-registry.com:8000/official/dotnet-sdk:10.0",
-      "source": ".gitlab-ci.yml",
-      "mirror": null
-    },
-    {
       "ref": "zhcoder-docker-registry.com:8000/official/maven:3.9-eclipse-temurin-21",
       "source": "sdk/java/Dockerfile.builder",
       "mirror": null
@@ -85,11 +90,6 @@
     {
       "ref": "zhcoder-docker-registry.com:8000/official/node:22-alpine",
       "source": "frontend/Dockerfile",
-      "mirror": null
-    },
-    {
-      "ref": "zhcoder-docker-registry.com:8000/official/playwright:v1.48.0-jammy",
-      "source": ".gitlab-ci.yml",
       "mirror": null
     },
     {

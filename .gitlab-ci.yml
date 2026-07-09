@@ -83,7 +83,7 @@ e2e_api_test:
 e2e_ui_test:
   stage: test
   tags: [docker]
-  image: $BASE_REGISTRY/playwright:v1.48.0-jammy
+  image: mcr.microsoft.com/playwright:v1.48.0-jammy
   before_script:
     - cd tests/e2e && npm install
     - npm install -g pnpm && pnpm install
@@ -157,7 +157,7 @@ java_sdk_test:
 dotnet_sdk_test:
   stage: test
   tags: [docker]
-  image: $BASE_REGISTRY/dotnet-sdk:10.0
+  image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - cd sdk/dotnet && dotnet test --nologo --verbosity minimal
   rules:
@@ -179,7 +179,7 @@ sdk_publish:
 sdk_publish_dotnet:
   stage: publish
   tags: [docker]
-  image: $BASE_REGISTRY/dotnet-sdk:10.0
+  image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - cd sdk/dotnet
     - dotnet nuget push "**/*.nupkg" -s ${NUGET_REPO_URL} -k ${NUGET_API_KEY} --skip-duplicate

@@ -2,7 +2,7 @@
 // 共享工具：颜色、路径、文件 IO
 const path = require('node:path');
 
-const ROOT = process.env.CODER_ROOT || 'd:\\projects\\coder-micro-services';
+const ROOT = process.env.CODER_ROOT || path.resolve(__dirname, '..', '..');
 
 const COLORS = {
   reset: '\x1b[0m',
