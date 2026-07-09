@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# 删 `# syntax=docker/dockerfile:1.7`：内网 registry 无 docker.io 镜像可拉，BuildKit 默认前端（1.24）已够本文件用到的 1.4+ 特性。
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 FROM ${BASE_REGISTRY}/node:22-alpine AS builder
 
