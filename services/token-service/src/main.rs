@@ -96,9 +96,7 @@ async fn main() {
                 },
                 http,
             );
-            // 启动期 JWKS refresh 失败只 warn，不 panic —— server 尚未监听，自拉 loopback 必超时；
-            // 起 server 后首个 service-jwt 验证会再触发 refresh。重复 build / docker compose 启动
-            // 场景下旧 bin 会因这条 expect 在 server 起来前挂掉，依赖 token-service 的服务随之连环崩。
+            // 降级为 warn：server 尚未监听、自拉 loopback 必超时；首个 service-jwt verify 时 JWKSCache 会自动 retry。
             if let Err(e) = cache.refresh().await {
                 tracing::warn!(
                     "JWKS initial refresh failed (will retry on first verify): {e}; \
