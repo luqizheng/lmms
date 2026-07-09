@@ -1,50 +1,100 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-26T13:00:00.000Z",
+  "generatedAt": "2026-07-09T02:54:37.471Z",
   "images": [
     {
-      "ref": "alpine:3.21",
-      "source": "services\\api-gateway\\Dockerfile",
-      "mirror": null
+      "ref": "gliderlabs/registrator:master",
+      "source": "infrastructure/docker-compose-infra.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "consul:1.15",
-      "source": "infrastructure\\docker-compose.yml",
-      "mirror": null
+      "ref": "grafana/grafana:10.4.0",
+      "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "debian:bookworm-slim",
-      "source": "services\\audit-service\\Dockerfile",
-      "mirror": null
+      "ref": "hashicorp/consul-template:0.32.0",
+      "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "maven:3.9-eclipse-temurin-21",
-      "source": "sdk\\java\\Dockerfile.builder",
-      "mirror": null
+      "ref": "hashicorp/consul:2.0.1",
+      "source": "infrastructure/docker-compose-infra.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "jaegertracing/all-in-one:1.55",
+      "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
       "ref": "mysql:8.0",
-      "source": "infrastructure\\docker-compose.yml",
-      "mirror": null
+      "source": "infrastructure/docker-compose-infra.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "otel/opentelemetry-collector-contrib:0.96.0",
+      "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "prom/prometheus:v2.51.0",
+      "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "rabbitmq:3.13-management-alpine",
+      "source": "infrastructure/docker-compose-infra.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
       "ref": "redis:7-alpine",
-      "source": "infrastructure\\docker-compose.yml",
-      "mirror": null
-    },
-    {
-      "ref": "zhcoder-docker-registry.com:8000/builder/java-sdk:0.2.0",
-      "source": "sdk\\java\\Dockerfile.builder",
-      "mirror": null
+      "source": "infrastructure/docker-compose-infra.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
       "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl",
-      "source": "services\\api-gateway\\Dockerfile",
+      "source": "services/api-gateway/Dockerfile",
       "mirror": null
     },
     {
-      "ref": "zhcoder-docker-registry.com:8000/micro-server/api-gateway:latest",
-      "source": "infrastructure\\docker-compose.yml",
+      "ref": "zhcoder-docker-registry.com:8000/official/alpine:3.21",
+      "source": "services/api-gateway/Dockerfile",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/official/dotnet-sdk:10.0",
+      "source": ".gitlab-ci.yml",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/official/maven:3.9-eclipse-temurin-21",
+      "source": "sdk/java/Dockerfile.builder",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/official/nginx:1.27-alpine",
+      "source": "frontend/Dockerfile",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/official/node:20",
+      "source": ".gitlab-ci.yml",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/official/node:22-alpine",
+      "source": "frontend/Dockerfile",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/official/playwright:v1.48.0-jammy",
+      "source": ".gitlab-ci.yml",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/official/rust:1.96-slim",
+      "source": ".gitlab-ci.yml",
       "mirror": null
     }
   ]

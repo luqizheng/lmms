@@ -4,8 +4,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const VERSION = 1;
+const DEFAULT_REGISTRY = 'zhcoder-docker-registry.com:8000/official';
 
-function mergeMirror(scanned, old) {
+function mergeMirror(scanned, old, registry) {
+  const reg = registry || DEFAULT_REGISTRY;
   const oldByRef = new Map();
   if (old && Array.isArray(old.images)) {
     for (const img of old.images) {
@@ -13,12 +15,20 @@ function mergeMirror(scanned, old) {
     }
   }
   return scanned.map((img) => {
-    const oldMirror = oldByRef.get(img.ref);
-    return {
-      ref: img.ref,
-      source: img.source,
-      mirror: img.mirror != null ? img.mirror : (oldMirror != null ? oldMirror : null),
-    };
+    let mirror;
+    if (img.mirror != null) {
+      mirror = img.mirror;
+    } else {
+      const oldMirror = oldByRef.get(img.ref);
+      if (oldMirror != null) {
+        mirror = oldMirror;
+      } else if (img.ref.startsWith('zhcoder-docker-registry.com:8000/')) {
+        mirror = null;
+      } else {
+        mirror = reg;
+      }
+    }
+    return { ref: img.ref, source: img.source, mirror };
   });
 }
 
@@ -32,4 +42,4 @@ function writeManifest(outPath, images) {
   fs.writeFileSync(outPath, JSON.stringify(data, null, 2) + '\n');
 }
 
-module.exports = { mergeMirror, writeManifest };
+module.exports = { mergeMirror, writeManifest, DEFAULT_REGISTRY };
