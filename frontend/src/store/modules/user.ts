@@ -37,7 +37,9 @@ export const useUserStore = defineStore("pure-user", {
     // 是否勾选了登录页的免登录
     isRemembered: false,
     // 登录页的免登录存储几天，默认7天
-    loginDay: 7
+    loginDay: 7,
+    // 当前租户 id（从 JWT `tid` claim 解出，登录时持久化）
+    tenantId: storageLocal().getItem<DataInfo<number>>(userKey)?.tenantId ?? 0
   }),
   actions: {
     /** 存储头像 */
@@ -75,6 +77,10 @@ export const useUserStore = defineStore("pure-user", {
     /** 设置登录页的免登录存储几天 */
     SET_LOGINDAY(value: number) {
       this.loginDay = Number(value);
+    },
+    /** 存储当前租户 id（来自 JWT `tid` claim） */
+    SET_TENANT_ID(tenantId: number) {
+      this.tenantId = tenantId;
     },
     /** 登入 */
     async loginByUsername(data) {

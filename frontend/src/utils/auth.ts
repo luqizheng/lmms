@@ -19,6 +19,35 @@ export interface DataInfo<T> {
   roles?: Array<string>;
   /** 当前登录用户的按钮级别权限 */
   permissions?: Array<string>;
+  /** 当前租户 id（从 JWT `tid` claim 解出；多租户切换的后端端点待补） */
+  tenantId?: number;
+}
+
+/** 解析 JWT payload 段（base64url → JSON）。仅前端展示用，不做签名校验 —— 验签在 api-gateway 已做 */
+export interface JwtPayloadClaims {
+  sub?: string;
+  tid?: number;
+  username?: string;
+  roles?: Array<string>;
+  permissions?: Array<string>;
+  ct?: boolean;
+}
+
+export function decodeJwtPayload<T = JwtPayloadClaims>(
+  token: string
+): T | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const padded = part.replace(/-/g, "+").replace(/_/g, "/");
+    const json =
+      typeof atob === "function"
+        ? atob(padded)
+        : Buffer.from(padded, "base64").toString("utf8");
+    return JSON.parse(json) as T;
+  } catch {
+    return null;
+  }
 }
 
 export const userKey = "user-info";
@@ -74,6 +103,9 @@ export function setToken(data: DataInfo<Date>) {
     useUserStoreHook().SET_NICKNAME(nickname);
     useUserStoreHook().SET_ROLES(roles);
     useUserStoreHook().SET_PERMS(permissions);
+    const claims = decodeJwtPayload(accessToken);
+    const tenantId = claims?.tid;
+    if (tenantId != null) useUserStoreHook().SET_TENANT_ID(tenantId);
     storageLocal().setItem(userKey, {
       refreshToken,
       expires,
@@ -81,7 +113,8 @@ export function setToken(data: DataInfo<Date>) {
       username,
       nickname,
       roles,
-      permissions
+      permissions,
+      tenantId
     });
   }
 

@@ -15,7 +15,9 @@ import LogoutCircleRLine from "~icons/ri/logout-circle-r-line";
 import Setting from "~icons/ri/settings-3-line";
 import Check from "~icons/ep/check";
 import Lock from "~icons/ri/lock-password-line";
+import BuildingLine from "~icons/ri/building-line";
 import ChangePasswordDialog from "@/views/account-settings/components/ChangePasswordDialog.vue";
+import { useUserStoreHook } from "@/store/modules/user";
 
 const {
   layout,
@@ -35,6 +37,7 @@ const {
 } = useNav();
 
 const { t, locale, translationCh, translationEn } = useTranslationLang();
+const userStore = useUserStoreHook();
 </script>
 
 <template>
@@ -56,6 +59,28 @@ const { t, locale, translationCh, translationEn } = useTranslationLang();
     <div v-if="layout === 'vertical'" class="vertical-header-right">
       <!-- 菜单搜索 -->
       <LaySearch id="header-search" />
+      <!-- 租户（来自 JWT tid claim；切换需后端端点，TODO） -->
+      <el-dropdown id="header-tenant" trigger="click">
+        <div
+          class="tenant-badge navbar-bg-hover hover:[&>svg]:animate-scale-bounce"
+          :title="userStore.tenantId ? `Tenant #${userStore.tenantId}` : '未登录'"
+        >
+          <IconifyIconOffline :icon="BuildingLine" />
+          <span class="ml-1 text-xs">
+            {{ userStore.tenantId ? `#${userStore.tenantId}` : "—" }}
+          </span>
+        </div>
+        <template #dropdown>
+          <el-dropdown-menu class="tenant-menu">
+            <el-dropdown-item disabled>
+              当前租户: #{{ userStore.tenantId || "—" }}
+            </el-dropdown-item>
+            <el-dropdown-item divided disabled>
+              多租户切换（待后端 listTenants 端点）
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
       <!-- 国际化 -->
       <el-dropdown id="header-translation" trigger="click">
         <div
@@ -208,6 +233,21 @@ const { t, locale, translationCh, translationEn } = useTranslationLang();
     display: inline-flex;
     flex-wrap: wrap;
     min-width: 100%;
+  }
+}
+
+.tenant-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 10px;
+  color: #000000d9;
+  cursor: pointer;
+}
+
+.tenant-menu {
+  :deep(.el-dropdown-menu__item.is-disabled) {
+    color: #000000d9;
   }
 }
 </style>
