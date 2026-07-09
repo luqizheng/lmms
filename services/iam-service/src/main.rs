@@ -91,13 +91,16 @@ async fn main() -> anyhow::Result<()> {
 
     let mut app = routes::build_router(state);
     if swagger_enabled {
+        // TODO(iam/swagger-segfault): 25 端点 + 1797 行 spec 触发 utoipa-swagger-ui v9 SIGSEGV 139（其他服务正常，疑似 schemas 循环引用）。Box 化未解决，临时禁 swagger。
+        tracing::warn!("iam swagger ui DISABLED (SIGSEGV 139 in utoipa-swagger-ui merge); see TODO(iam/swagger-segfault)");
+    } else {
         app = app.merge(
             SwaggerUi::new("/swagger-ui")
                 .url("/api-docs/openapi.json", ApiDoc::openapi()),
         );
         info!("swagger ui enabled at /swagger-ui");
     }
-    
+
     let addr: SocketAddr = format!("{}:{}", config.app.host, config.app.port).parse()?;
     info!("Starting iam-service on {}", addr);
     
