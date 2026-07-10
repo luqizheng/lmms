@@ -156,7 +156,7 @@ watch(loginDay, value => {
                 class="check-zh"
                 :icon="Check"
               />
-              简体中文
+              {{ t("menus.zhCn") }}
             </el-dropdown-item>
             <el-dropdown-item
               :style="getDropdownItemStyle(locale, 'en')"

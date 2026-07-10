@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import dayjs from "dayjs";
 import { getAnnouncement, markRead } from "@/api/notification";
 import { useNotificationStore } from "@/store/modules/notification";
 
 defineOptions({ name: "NotificationDetail" });
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const store = useNotificationStore();
@@ -22,7 +24,10 @@ onMounted(async () => {
       // ignore
     }
   } catch (e: any) {
-    data.value = { title: "加载失败", body: e?.message ?? String(e) };
+    data.value = {
+      title: t("menus.detailLoadFail"),
+      body: e?.message ?? String(e)
+    };
   }
 });
 </script>
@@ -32,22 +37,26 @@ onMounted(async () => {
     <el-page-header @back="router.back()">
       <template #content>
         <span class="text-lg font-medium">{{
-          data?.title ?? "加载中..."
+          data?.title ?? t("menus.detailLoading")
         }}</span>
       </template>
     </el-page-header>
     <div v-if="data" class="mt-6 bg-bg_color p-6 rounded">
       <div class="text-sm text-gray-500 mb-4">
-        发布：{{
+        {{ t("menus.detailPublishLabel") }}{{
           data.publish_at
             ? dayjs(data.publish_at).format("YYYY-MM-DD HH:mm")
             : "-"
         }}
         <span v-if="data.expire_at">
-          · 过期：{{ dayjs(data.expire_at).format("YYYY-MM-DD HH:mm") }}
+          {{ t("menus.detailExpireLabel") }}{{ dayjs(data.expire_at).format("YYYY-MM-DD HH:mm") }}
         </span>
-        <el-tag v-if="data.pinned" class="ml-2" type="warning">置顶</el-tag>
-        <el-tag v-if="data.popover" class="ml-2" type="info">弹窗</el-tag>
+        <el-tag v-if="data.pinned" class="ml-2" type="warning">
+          {{ t("menus.detailPinnedTag") }}
+        </el-tag>
+        <el-tag v-if="data.popover" class="ml-2" type="info">
+          {{ t("menus.detailPopoverTag") }}
+        </el-tag>
       </div>
       <div class="whitespace-pre-wrap">{{ data.body }}</div>
     </div>

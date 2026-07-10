@@ -321,6 +321,38 @@ buttons:
   apiKeyCreateFailFallback: Create failed
   apiKeyNotice: "List from backend GET /v1/api-keys; secret only returned once at creation, cached locally for re-copy."
   apiKeyNameRequired: Please enter name
+  zhCn: 简体中文
+  loginMonitorLog: Login Log
+  detailLoadFail: Load failed
+  detailLoading: Loading...
+  detailPublishLabel: "Published: "
+  detailExpireLabel: "· Expires: "
+  detailPinnedTag: Pinned
+  detailPopoverTag: Popover
+  welcomeWeekLast: Last week
+  welcomeWeekThis: This week
+  welcomeCardOverview: Analysis Overview
+  welcomeCardResolution: Resolution Rate
+  welcomeCardDataStats: Data Statistics
+  welcomeCardLatest: Latest News
+  welcomeNewProblemsTemplate: "Added {n} new questions, {m} resolved"
+  permsDemoTitle1: Component permission check
+  permsDemoTitle2: Function permission check
+  permsDemoTitle3: Directive permission check
+  permsDemoTitle3Note: "(cannot dynamically update permissions)"
+  permsDemoCodeLine: "Code location {path}"
+  permsDemoHaveCode: "Has code: {code} can see"
+  permsDemoHasCodes: "Has codes: {codes} can see"
+  permsDemoCodeList1: permission:btn:add
+  permsDemoCodeList2: permission:btn:edit
+  permsDemoCodeList3Delete: permission:btn:delete
+  permsDemoCurrentAuths: Current owned code list
+  permsDemoRoleAdmin: Admin role
+  permsDemoRoleUser: Normal role
+  permsDemoRoleSimulate: Simulate backend returning different routes per role. Watch left menu change (admin sees System Management, normal user does not)
+  permsDemoCurrentRole: "Current role: {name}"
+  dialogActionEdit: Edit
+  dialogActionCreate: Create
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

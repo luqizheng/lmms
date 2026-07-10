@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, markRaw } from "vue";
+import { useI18n } from "vue-i18n";
 import ReCol from "@/components/ReCol";
 import { useDark, randomGradient } from "./utils";
 import WelcomeTable from "./components/table/index.vue";
@@ -14,14 +15,15 @@ defineOptions({
 });
 
 const { isDark } = useDark();
+const { t } = useI18n();
 
-let curWeek = ref(1); // 0上周、1本周
+let curWeek = ref(1); // 0 上周、1 本周
 const optionsBasis: Array<OptionsType> = [
   {
-    label: "上周"
+    label: t("menus.welcomeWeekLast")
   },
   {
-    label: "本周"
+    label: t("menus.welcomeWeekThis")
   }
 ];
 </script>
@@ -109,7 +111,7 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card class="bar-card" shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">分析概览</span>
+            <span class="text-md font-medium">{{ t("menus.welcomeCardOverview") }}</span>
             <Segmented v-model="curWeek" :options="optionsBasis" />
           </div>
           <div class="flex justify-between items-start mt-3">
@@ -140,7 +142,7 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">解决概率</span>
+            <span class="text-md font-medium">{{ t("menus.welcomeCardResolution") }}</span>
           </div>
           <div
             v-for="(item, index) in progressData"
@@ -187,7 +189,7 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">数据统计</span>
+            <span class="text-md font-medium">{{ t("menus.welcomeCardDataStats") }}</span>
           </div>
           <el-scrollbar max-height="504" class="mt-3">
             <WelcomeTable />
@@ -214,7 +216,7 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">最新动态</span>
+            <span class="text-md font-medium">{{ t("menus.welcomeCardLatest") }}</span>
           </div>
           <el-scrollbar max-height="504" class="mt-3">
             <el-timeline>
@@ -236,7 +238,10 @@ const optionsBasis: Array<OptionsType> = [
               >
                 <p class="text-text_color_regular text-sm">
                   {{
-                    `新增 ${item.requiredNumber} 条问题，${item.resolveNumber} 条已解决`
+                    t("menus.welcomeNewProblemsTemplate", {
+                      n: item.requiredNumber,
+                      m: item.resolveNumber
+                    })
                   }}
                 </p>
               </el-timeline-item>

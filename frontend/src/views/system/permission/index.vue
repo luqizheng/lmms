@@ -113,7 +113,7 @@ const {
               type="primary"
               :size="size"
               :icon="useRenderIcon(EditPen)"
-              @click="openDialog('修改', row)"
+              @click="openDialog(t('menus.dialogActionEdit'), row)"
             >
               {{ t("menus.userEdit") }}
             </el-button>

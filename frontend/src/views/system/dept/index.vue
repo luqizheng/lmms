@@ -121,7 +121,7 @@ function onFullscreen() {
               type="primary"
               :size="size"
               :icon="useRenderIcon(EditPen)"
-              @click="openDialog('修改', row)"
+              @click="openDialog(t('menus.dialogActionEdit'), row)"
             >
               {{ t("menus.userEdit") }}
             </el-button>
@@ -141,7 +141,7 @@ function onFullscreen() {
               type="primary"
               :size="size"
               :icon="useRenderIcon(AddFill)"
-              @click="openDialog('新增', { parentId: row.id } as any)"
+              @click="openDialog(t('menus.dialogActionCreate'), { parentId: row.id } as any)"
             >
               {{ t("menus.notificationNew") }}
             </el-button>

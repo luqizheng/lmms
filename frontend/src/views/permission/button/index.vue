@@ -1,47 +1,58 @@
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import { hasAuth, getAuths } from "@/router/utils";
 
 defineOptions({
   name: "PermissionButtonRouter"
 });
+const { t } = useI18n();
 </script>
 
 <template>
   <div>
-    <p class="mb-2!">当前拥有的code列表：{{ getAuths() }}</p>
+    <p class="mb-2!">
+      {{ t("menus.permsDemoCurrentAuths") }}：{{ getAuths() }}
+    </p>
 
     <el-card shadow="never" class="mb-2">
       <template #header>
-        <div class="card-header">组件方式判断权限</div>
+        <div class="card-header">{{ t("menus.permsDemoTitle1") }}</div>
         <el-link
           class="mt-2"
           href="https://github.com/pure-admin/vue-pure-admin/blob/main/src/views/permission/button/index.vue"
           target="_blank"
         >
-          代码位置 src/views/permission/button/index.vue
+          {{ t("menus.permsDemoCodeLine", { path: "src/views/permission/button/index.vue" }) }}
         </el-link>
       </template>
       <el-space wrap>
-        <Auth value="permission:btn:add">
+        <Auth :value="t('menus.permsDemoCodeList1')">
           <el-button plain type="warning">
-            拥有code：'permission:btn:add' 权限可见
+            {{ t("menus.permsDemoHaveCode", { code: t("menus.permsDemoCodeList1") }) }}
           </el-button>
         </Auth>
-        <Auth :value="['permission:btn:edit']">
+        <Auth :value="[t('menus.permsDemoCodeList2')]">
           <el-button plain type="primary">
-            拥有code：['permission:btn:edit'] 权限可见
+            {{
+              t("menus.permsDemoHaveCode", {
+                code: `[${t("menus.permsDemoCodeList2")}]`
+              })
+            }}
           </el-button>
         </Auth>
         <Auth
           :value="[
-            'permission:btn:add',
-            'permission:btn:edit',
-            'permission:btn:delete'
+            t('menus.permsDemoCodeList1'),
+            t('menus.permsDemoCodeList2'),
+            t('menus.permsDemoCodeList3Delete')
           ]"
         >
           <el-button plain type="danger">
-            拥有code：['permission:btn:add', 'permission:btn:edit',
-            'permission:btn:delete'] 权限可见
+            {{
+              t("menus.permsDemoHasCodes", {
+                codes: `['${t("menus.permsDemoCodeList1")}', '${t("menus.permsDemoCodeList2")}', '${t("menus.permsDemoCodeList3Delete")}']`
+              })
+            }}
           </el-button>
         </Auth>
       </el-space>
@@ -49,28 +60,35 @@ defineOptions({
 
     <el-card shadow="never" class="mb-2">
       <template #header>
-        <div class="card-header">函数方式判断权限</div>
+        <div class="card-header">{{ t("menus.permsDemoTitle2") }}</div>
       </template>
       <el-space wrap>
-        <el-button v-if="hasAuth('permission:btn:add')" plain type="warning">
-          拥有code：'permission:btn:add' 权限可见
+        <el-button v-if="hasAuth(t('menus.permsDemoCodeList1'))" plain type="warning">
+          {{ t("menus.permsDemoHaveCode", { code: t("menus.permsDemoCodeList1") }) }}
         </el-button>
-        <el-button v-if="hasAuth(['permission:btn:edit'])" plain type="primary">
-          拥有code：['permission:btn:edit'] 权限可见
+        <el-button v-if="hasAuth([t('menus.permsDemoCodeList2')])" plain type="primary">
+          {{
+            t("menus.permsDemoHaveCode", {
+              code: `[${t("menus.permsDemoCodeList2")}]`
+            })
+          }}
         </el-button>
         <el-button
           v-if="
             hasAuth([
-              'permission:btn:add',
-              'permission:btn:edit',
-              'permission:btn:delete'
+              t('menus.permsDemoCodeList1'),
+              t('menus.permsDemoCodeList2'),
+              t('menus.permsDemoCodeList3Delete')
             ])
           "
           plain
           type="danger"
         >
-          拥有code：['permission:btn:add', 'permission:btn:edit',
-          'permission:btn:delete'] 权限可见
+          {{
+            t("menus.permsDemoHasCodes", {
+              codes: `['${t("menus.permsDemoCodeList1")}', '${t("menus.permsDemoCodeList2")}', '${t("menus.permsDemoCodeList3Delete")}']`
+            })
+          }}
         </el-button>
       </el-space>
     </el-card>
@@ -78,27 +96,34 @@ defineOptions({
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          指令方式判断权限（该方式不能动态修改权限）
+          {{ t("menus.permsDemoTitle3") + t("menus.permsDemoTitle3Note") }}
         </div>
       </template>
       <el-space wrap>
-        <el-button v-auth="'permission:btn:add'" plain type="warning">
-          拥有code：'permission:btn:add' 权限可见
+        <el-button v-auth="t('menus.permsDemoCodeList1')" plain type="warning">
+          {{ t("menus.permsDemoHaveCode", { code: t("menus.permsDemoCodeList1") }) }}
         </el-button>
-        <el-button v-auth="['permission:btn:edit']" plain type="primary">
-          拥有code：['permission:btn:edit'] 权限可见
+        <el-button v-auth="[t('menus.permsDemoCodeList2')]" plain type="primary">
+          {{
+            t("menus.permsDemoHaveCode", {
+              code: `[${t("menus.permsDemoCodeList2")}]`
+            })
+          }}
         </el-button>
         <el-button
           v-auth="[
-            'permission:btn:add',
-            'permission:btn:edit',
-            'permission:btn:delete'
+            t('menus.permsDemoCodeList1'),
+            t('menus.permsDemoCodeList2'),
+            t('menus.permsDemoCodeList3Delete')
           ]"
           plain
           type="danger"
         >
-          拥有code：['permission:btn:add', 'permission:btn:edit',
-          'permission:btn:delete'] 权限可见
+          {{
+            t("menus.permsDemoHasCodes", {
+              codes: `['${t("menus.permsDemoCodeList1")}', '${t("menus.permsDemoCodeList2")}', '${t("menus.permsDemoCodeList3Delete")}']`
+            })
+          }}
         </el-button>
       </el-space>
     </el-card>

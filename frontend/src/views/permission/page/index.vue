@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { message } from "@/utils/message";
+import { useI18n } from "vue-i18n";
 import { initRouter } from "@/router/utils";
 import { storageLocal } from "@pureadmin/utils";
 import { type CSSProperties, ref, computed } from "vue";
@@ -9,6 +10,7 @@ import { usePermissionStoreHook } from "@/store/modules/permission";
 defineOptions({
   name: "PermissionPage"
 });
+const { t } = useI18n();
 
 const elStyle = computed((): CSSProperties => {
   return {
@@ -19,16 +21,10 @@ const elStyle = computed((): CSSProperties => {
 
 const username = ref(useUserStoreHook()?.username);
 
-const options = [
-  {
-    value: "admin",
-    label: "管理员角色"
-  },
-  {
-    value: "common",
-    label: "普通角色"
-  }
-];
+const options = computed(() => [
+  { value: "admin", label: t("menus.permsDemoRoleAdmin") },
+  { value: "common", label: t("menus.permsDemoRoleUser") }
+]);
 
 function onChange() {
   useUserStoreHook()
@@ -46,20 +42,18 @@ function onChange() {
 
 <template>
   <div>
-    <p class="mb-2!">
-      模拟后台根据不同角色返回对应路由，观察左侧菜单变化（管理员角色可查看系统管理菜单、普通角色不可查看系统管理菜单）
-    </p>
+    <p class="mb-2!">{{ t("menus.permsDemoRoleSimulate") }}</p>
     <el-card shadow="never" :style="elStyle">
       <template #header>
         <div class="card-header">
-          <span>当前角色：{{ username }}</span>
+          <span>{{ t("menus.permsDemoCurrentRole", { name: username }) }}</span>
         </div>
         <el-link
           class="mt-2"
           href="https://github.com/pure-admin/vue-pure-admin/blob/main/src/views/permission/page/index.vue"
           target="_blank"
         >
-          代码位置 src/views/permission/page/index.vue
+          {{ t("menus.permsDemoCodeLine", { path: "src/views/permission/page/index.vue" }) }}
         </el-link>
       </template>
       <el-select v-model="username" class="w-40!" @change="onChange">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useLoginLog } from "./utils/hook";
 import { exportLoginLogsCsv } from "@/api/audit";
 import { downloadRaw, timestampedFilename } from "@/utils/download";
@@ -13,6 +14,7 @@ import Download from "~icons/ep/download";
 defineOptions({
   name: "MonitorLoginLog"
 });
+const { t } = useI18n();
 
 const exporting = ref(false);
 
@@ -36,9 +38,11 @@ async function onExportCsv() {
       timestampedFilename("login_log", "csv"),
       "text/csv;charset=utf-8"
     );
-    message("已下载 CSV", { type: "success" });
+    message(t("menus.monitorExportSuccess"), { type: "success" });
   } catch (e: any) {
-    message(translateError(e?.code ?? "导出失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.monitorExportFailFallback")), {
+      type: "error"
+    });
   } finally {
     exporting.value = false;
   }
@@ -55,10 +59,10 @@ async function onExportCsv() {
         :loading="exporting"
         @click="onExportCsv"
       >
-        合规导出 CSV
+        {{ t("menus.monitorExportCsv") }}
       </el-button>
     </div>
-    <PureTableBar title="登录日志" :columns="columns" @refresh="onSearch">
+    <PureTableBar :title="t('menus.loginMonitorLog')" :columns="columns" @refresh="onSearch">
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           align-whole="center"
