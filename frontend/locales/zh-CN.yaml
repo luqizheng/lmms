@@ -353,6 +353,16 @@ buttons:
   permsDemoCurrentRole: "当前角色：{name}"
   dialogActionEdit: 修改
   dialogActionCreate: 新增
+  dashboardRecentActivity: 最近活动
+  dashboardRecentActivityEmpty: 暂无最近活动
+  dashboardUserCount: 用户数
+  dashboardRoleCount: 角色数
+  dashboardSessionCount: 活跃会话
+  dashboardOperationCount: 操作日志
+  dashboardColAction: 操作
+  dashboardColResource: 资源
+  dashboardColUser: 用户
+  dashboardColTime: 时间
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

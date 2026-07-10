@@ -4,10 +4,40 @@ import { mount, flushPromises } from "@vue/test-utils";
 import DashboardIndex from "./index.vue";
 
 const mockFetch = vi.fn();
+const { listIamUsers, listIamRoles, listIamSessions, listOperationLogs } =
+  vi.hoisted(() => ({
+    listIamUsers: vi.fn(),
+    listIamRoles: vi.fn(),
+    listIamSessions: vi.fn(),
+    listOperationLogs: vi.fn()
+  }));
+
+vi.mock("@/api/iam", () => ({
+  listIamUsers,
+  listIamRoles,
+  listIamSessions
+}));
+vi.mock("@/api/audit", () => ({
+  listOperationLogs
+}));
+vi.mock("vue-i18n", () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, unknown>) =>
+      params ? `${k}|${JSON.stringify(params)}` : k
+  })
+}));
 
 beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch);
   mockFetch.mockReset();
+  listIamUsers.mockReset();
+  listIamRoles.mockReset();
+  listIamSessions.mockReset();
+  listOperationLogs.mockReset();
+  listIamUsers.mockResolvedValue({ items: [], total: 0 });
+  listIamRoles.mockResolvedValue({ items: [], total: 0 });
+  listIamSessions.mockResolvedValue([]);
+  listOperationLogs.mockResolvedValue({ items: [] });
 });
 
 afterEach(() => {
@@ -26,7 +56,9 @@ function mountDashboard() {
           template: "<span class=\"el-tag\"><slot /></span>",
           props: ["type", "size", "effect"]
         },
-        ElButton: { template: "<button><slot /></button>" }
+        ElButton: { template: "<button><slot /></button>" },
+        ElTable: { template: "<div><slot /></div>" },
+        ElTableColumn: { template: "<div><slot /></div>" }
       }
     }
   });

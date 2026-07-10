@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from "vue";
-import { $t } from "@/plugins/i18n";
+import { useI18n } from "vue-i18n";
+import {
+  listIamUsers,
+  listIamRoles,
+  listIamSessions
+} from "@/api/iam";
+import {
+  listOperationLogs,
+  type OperationLog
+} from "@/api/audit";
 
 defineOptions({
   name: "DashboardIndex"
 });
+
+const { t } = useI18n();
 
 interface ServiceStatus {
   name: string;
@@ -67,8 +78,8 @@ const upCount = computed(() => statuses.value.filter(s => s.status === "ok").len
 const downCount = computed(() => statuses.value.filter(s => s.status === "down").length);
 const lastRefreshAt = ref<number | null>(null);
 
-function fmtTime(ts: number | null) {
-  if (ts === null) return "—";
+function fmtTime(ts: number | null | string): string {
+  if (ts === null || ts === undefined) return "—";
   const d = new Date(ts);
   return d.toLocaleTimeString();
 }
@@ -79,19 +90,44 @@ function statusTag(status: ServiceStatus["status"]): {
 } {
   switch (status) {
     case "ok":
-      return { type: "success", label: $t("menus.dashboardStatusOk") };
+      return { type: "success", label: t("menus.dashboardStatusOk") };
     case "down":
-      return { type: "danger", label: $t("menus.dashboardStatusDown") };
+      return { type: "danger", label: t("menus.dashboardStatusDown") };
     default:
-      return { type: "info", label: $t("menus.dashboardStatusUnknown") };
+      return { type: "info", label: t("menus.dashboardStatusUnknown") };
+  }
+}
+
+// =========== Stat cards（从真实 API 取 count） ===========
+const userCount = ref(0);
+const roleCount = ref(0);
+const sessionCount = ref(0);
+const recentOps = ref<OperationLog[]>([]);
+const statsLoading = ref(false);
+
+async function refreshStats() {
+  statsLoading.value = true;
+  try {
+    const [users, roles, sessions, ops] = await Promise.all([
+      listIamUsers({ page: 1, size: 1 }).catch(() => ({ items: [], total: 0 })),
+      listIamRoles({ page: 1, size: 1 }).catch(() => ({ items: [], total: 0 })),
+      listIamSessions().catch(() => []),
+      listOperationLogs({ page: 1, size: 5 }).catch(() => ({ items: [] }))
+    ]);
+    userCount.value = users.total || 0;
+    roleCount.value = roles.total || 0;
+    sessionCount.value = Array.isArray(sessions) ? sessions.length : 0;
+    recentOps.value = ops.items || [];
+  } finally {
+    statsLoading.value = false;
   }
 }
 
 onMounted(async () => {
-  await refreshAll();
+  await Promise.all([refreshAll(), refreshStats()]);
   lastRefreshAt.value = Date.now();
   timer = setInterval(async () => {
-    await refreshAll();
+    await Promise.all([refreshAll(), refreshStats()]);
     lastRefreshAt.value = Date.now();
   }, POLL_MS);
 });
@@ -104,12 +140,65 @@ onUnmounted(() => {
 <template>
   <div class="dashboard p-4">
     <el-row :gutter="16" class="mb-4">
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="never" v-loading="statsLoading">
+          <div class="text-center">
+            <div class="text-3xl font-bold">{{ userCount }}</div>
+            <div class="text-sm text-gray-500">
+              {{ t("menus.dashboardUserCount") }}
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="never" v-loading="statsLoading">
+          <div class="text-center">
+            <div class="text-3xl font-bold">{{ roleCount }}</div>
+            <div class="text-sm text-gray-500">
+              {{ t("menus.dashboardRoleCount") }}
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="never" v-loading="statsLoading">
+          <div class="text-center">
+            <div class="text-3xl font-bold">{{ sessionCount }}</div>
+            <div class="text-sm text-gray-500">
+              {{ t("menus.dashboardSessionCount") }}
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="never">
+          <div class="text-center">
+            <div class="text-sm text-gray-500">
+              {{ t("menus.dashboardOperationCount") }}
+            </div>
+            <div class="text-3xl font-bold text-blue-500">
+              {{ recentOps.length > 0 ? "✓" : "—" }}
+            </div>
+            <el-button
+              type="primary"
+              size="small"
+              class="mt-2"
+              @click="refreshAll"
+            >
+              {{ t("menus.dashboardRefresh") }}
+            </el-button>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="16" class="mb-4">
       <el-col :xs="24" :sm="8">
         <el-card shadow="never">
           <div class="text-center">
             <div class="text-3xl font-bold text-green-500">{{ upCount }}</div>
             <div class="text-sm text-gray-500">
-              {{ $t("menus.dashboardUpCount") }} / {{ statuses.length }}
+              {{ t("menus.dashboardUpCount") }} / {{ statuses.length }}
             </div>
           </div>
         </el-card>
@@ -118,7 +207,9 @@ onUnmounted(() => {
         <el-card shadow="never">
           <div class="text-center">
             <div class="text-3xl font-bold text-red-500">{{ downCount }}</div>
-            <div class="text-sm text-gray-500">{{ $t("menus.dashboardDownCount") }}</div>
+            <div class="text-sm text-gray-500">
+              {{ t("menus.dashboardDownCount") }}
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -126,7 +217,7 @@ onUnmounted(() => {
         <el-card shadow="never">
           <div class="text-center">
             <div class="text-sm text-gray-500">
-              {{ $t("menus.dashboardLastCheck") }}
+              {{ t("menus.dashboardLastCheck") }}
             </div>
             <div class="text-lg">{{ fmtTime(lastRefreshAt) }}</div>
             <el-button
@@ -135,7 +226,7 @@ onUnmounted(() => {
               class="mt-2"
               @click="refreshAll"
             >
-              {{ $t("menus.dashboardRefresh") }}
+              {{ t("menus.dashboardRefresh") }}
             </el-button>
           </div>
         </el-card>
@@ -170,7 +261,7 @@ onUnmounted(() => {
           </div>
           <div class="mt-3 flex items-end justify-between text-xs text-gray-500">
             <span>
-              {{ $t("menus.dashboardLastCheck") }}: {{ fmtTime(s.lastCheckedAt) }}
+              {{ t("menus.dashboardLastCheck") }}: {{ fmtTime(s.lastCheckedAt) }}
             </span>
             <span v-if="s.latencyMs !== null">
               {{ s.latencyMs }} ms
@@ -179,5 +270,51 @@ onUnmounted(() => {
         </el-card>
       </el-col>
     </el-row>
+
+    <el-card shadow="never" class="mt-2">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <span class="font-semibold">{{ t("menus.dashboardRecentActivity") }}</span>
+          <el-button
+            link
+            type="primary"
+            size="small"
+            @click="refreshStats"
+          >
+            {{ t("menus.dashboardRefresh") }}
+          </el-button>
+        </div>
+      </template>
+      <div
+        v-if="recentOps.length === 0"
+        class="text-center text-gray-400 py-6 text-sm"
+      >
+        {{ t("menus.dashboardRecentActivityEmpty") }}
+      </div>
+      <el-table v-else :data="recentOps" size="small" stripe>
+        <el-table-column
+          :label="t('menus.dashboardColUser')"
+          prop="user_id"
+          width="160"
+        />
+        <el-table-column
+          :label="t('menus.dashboardColAction')"
+          prop="action"
+          width="120"
+        />
+        <el-table-column
+          :label="t('menus.dashboardColResource')"
+          prop="resource"
+        />
+        <el-table-column
+          :label="t('menus.dashboardColTime')"
+          width="180"
+        >
+          <template #default="{ row }">
+            {{ fmtTime(row.operating_time || row.created_at || row.occurred_at) }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>

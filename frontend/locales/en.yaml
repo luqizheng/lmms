@@ -353,6 +353,16 @@ buttons:
   permsDemoCurrentRole: "Current role: {name}"
   dialogActionEdit: Edit
   dialogActionCreate: Create
+  dashboardRecentActivity: Recent Activity
+  dashboardRecentActivityEmpty: No recent activity
+  dashboardUserCount: Users
+  dashboardRoleCount: Roles
+  dashboardSessionCount: Active Sessions
+  dashboardOperationCount: Operations
+  dashboardColAction: Action
+  dashboardColResource: Resource
+  dashboardColUser: User
+  dashboardColTime: Time
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login
