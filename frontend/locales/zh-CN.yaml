@@ -367,6 +367,9 @@ buttons:
   fileBulkDelete: 批量删除
   fileDropHint: 拖入此处上传
   fileImagePreview: 预览
+  inboxMarkRead: 标为已读
+  inboxDetailClose: 关闭
+  notificationPermissionDenied: 浏览器通知权限被拒
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

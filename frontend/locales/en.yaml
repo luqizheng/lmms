@@ -367,6 +367,9 @@ buttons:
   fileBulkDelete: Delete Selected
   fileDropHint: Drop files here to upload
   fileImagePreview: Preview
+  inboxMarkRead: Mark as Read
+  inboxDetailClose: Close
+  notificationPermissionDenied: Browser notification permission denied
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

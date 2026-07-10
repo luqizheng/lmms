@@ -6,11 +6,19 @@ vi.hoisted(() => {
   process.env.VITE_ROUTER_HISTORY = "hash";
 });
 
-const { useInbox } = vi.hoisted(() => ({
-  useInbox: vi.fn()
+const { useInbox, markRead } = vi.hoisted(() => ({
+  useInbox: vi.fn(),
+  markRead: vi.fn()
 }));
 
 vi.mock("./utils/hook", () => ({ useInbox }));
+vi.mock("@/api/notification", () => ({ markRead }));
+vi.mock("@/store/modules/notification", () => ({
+  useNotificationStore: () => ({
+    readOne: vi.fn(),
+    readAll: vi.fn().mockResolvedValue(undefined)
+  })
+}));
 vi.mock("@/utils/sso", () => ({}));
 vi.mock("@/router", () => ({}));
 vi.mock("@/components/RePureTableBar", () => ({
@@ -27,7 +35,9 @@ vi.mock("vue-i18n", () => ({
   useI18n: () => ({
     t: (k: string, params?: Record<string, unknown>) =>
       params ? `${k}|${JSON.stringify(params)}` : k
-  })
+  }),
+  createI18n: () => ({}),
+  default: {}
 }));
 
 import NotificationInbox from "./index.vue";
@@ -44,7 +54,9 @@ const elStubs: Record<string, any> = {
   ElTabPane: {
     props: ["label"],
     template: "<div class=\"el-tab-pane-stub\">{{ label }}<slot /></div>"
-  }
+  },
+  ElDrawer: { template: "<div class=\"el-drawer-stub\"><slot /></div>" },
+  ElTag: { template: "<span class=\"el-tag\"><slot /></span>" }
 };
 
 function defaultInboxApi() {
@@ -98,6 +110,25 @@ it("renders 搜索 and 重置 buttons via i18n key", () => {
     expect(
       labels.some((t: string) => t.includes("menus.notificationMarkAllRead"))
     ).toBe(false);
+  });
+
+  it("opens detail drawer on row-click and auto-marks read", async () => {
+    useInbox.mockReturnValue({
+      ...defaultInboxApi(),
+      dataList: {
+        value: [
+          { id: 42, title: "测试公告", body: "正文", pinned: false, popover: false }
+        ]
+      }
+    });
+    const wrapper = mountInbox();
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      openDrawer: (row: unknown) => Promise<void>;
+    };
+    await vm.openDrawer({ id: 42, title: "测试公告", body: "正文" });
+    await flushPromises();
+    expect(markRead).toHaveBeenCalledWith(42);
   });
 
   it("calls useInbox hook on mount", () => {
