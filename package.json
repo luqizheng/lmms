@@ -68,6 +68,8 @@
     "check:frontend-dead-code": "node scripts/check-frontend-dead-code.js",
     "check:vitest-coverage": "node scripts/check-vitest-coverage.js",
     "check:vitest-coverage:report": "node scripts/check-vitest-coverage.js --all",
+    "check:frontend-i18n": "node scripts/check-i18n-hardcode.js",
+    "check:frontend-i18n:report": "node scripts/check-i18n-hardcode.js --all",
     "check:frontend-v-perms": "node scripts/check-v-perms.js"
   },
   "dependencies": {
