@@ -78,12 +78,28 @@ tsconfig.json 当前配置：
 
 每次只开一个子项 + 修一个区域：
 
-1. `noImplicitAny: true` — 从 `src/api/` `src/store/` `src/utils/` 开始修（项目自写代码）
+1. `noImplicitAny: true` — 从 `src/api/` `src/store/` `src/utils/` 起步修
 2. `strictNullChecks: true` — 同上，逐一处理
 3. `strictFunctionTypes: true`
 4. `alwaysStrict: true`（最终汇总开 `strict: true`）
 
 每 phase 一个 commit，逐 review。
+
+### Phase 2 状态（2026-07-09 实测）
+
+**发现 vue-tsc 0.x 限制**：
+- `tsconfig.exclude` 对 pure-admin 上游组件（`src/components/Re*` / `src/layout/components/lay-*` 等）**不生效**。`--showConfig` 显示 exclude 正确加载但 `--listFiles` 仍包含这些文件。
+- 试过 `!` 前缀否定 include glob + 无 `/**` 后缀版本，结果都让 `tsconfig.json` 自身被解析为 include 目标（`vue-tsc 6.0.3` 的 `**` 收尾限制 `TS5010`），且 pure-admin 文件仍未排除。
+- 实测基线 873 错误几乎全在 pure-admin 上游（包含 exclude 仍出现 299）。
+
+**临时方案（commit `xxx`）**：
+- 仅 Phase 1 exclude 11 个 pure-admin demo dir（11 个 `src/views/<demo>/` 目录，与 check-vitest-coverage 同白名单）
+- 保持 `strict: false`（baseline 0 errors）
+- 未来 Phase 2 需换工具（直接 `tsc` 不用 vue-tsc）或在 vue-tsc 修复 exclude 行为后继续
+
+**未做（vue-tsc 限制）**：
+- 渐进开 strict 子项（需换工具或等 vue-tsc 修复）
+- 修项目自写代码里的真实 implicit any（`src/views/system/user/{tree,utils/hook}` + 9 个文件 hooks/utils，需逐个 commit 修）
 
 ### Phase 3: 处理 pure-admin 上游组件
 
