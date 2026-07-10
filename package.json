@@ -67,7 +67,8 @@
     "check:tenant-scope": "node scripts/check-tenant-scope.js",
     "check:frontend-dead-code": "node scripts/check-frontend-dead-code.js",
     "check:vitest-coverage": "node scripts/check-vitest-coverage.js",
-    "check:vitest-coverage:report": "node scripts/check-vitest-coverage.js --all"
+    "check:vitest-coverage:report": "node scripts/check-vitest-coverage.js --all",
+    "check:frontend-v-perms": "node scripts/check-v-perms.js"
   },
   "dependencies": {
     "argon2": "^0.44.0"
