@@ -25,12 +25,22 @@ vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
 vi.mock("@/components/RePureTableBar", () => ({
   PureTableBar: {
     name: "PureTableBar",
-    template: '<div class="pure-table-bar-stub"><slot /></div>',
+    template:
+      '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
     props: ["title"]
   }
 }));
 vi.mock("@/components/ReIcon/src/hooks", () => ({
   useRenderIcon: () => undefined
+}));
+vi.mock("vue-i18n", () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, unknown>) =>
+      params ? `${k}|${JSON.stringify(params)}` : k
+  })
+}));
+vi.mock("@/utils/error-translate", () => ({
+  translateError: (code: unknown) => `error:${code}`
 }));
 
 import ConfigNamespace from "./index.vue";
@@ -58,26 +68,27 @@ describe("ConfigNamespace mount", () => {
     expect(wrapper.exists()).toBe(true);
   });
 
-  it("renders title '配置命名空间' via PureTableBar", () => {
+  it("renders title via PureTableBar i18n key", () => {
     const wrapper = mountNamespace();
-    expect(wrapper.find(".pure-table-bar-stub").exists()).toBe(true);
+    const bar = wrapper.find(".pure-table-bar-stub");
+    expect(bar.attributes("title")).toBe("menus.configColumnApp");
   });
 
-  it("renders 搜索 / 刷新 / 新建 buttons", () => {
+  it("renders buttons via i18n keys", () => {
     const wrapper = mountNamespace();
     const labels = wrapper
       .findAll("button")
       .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("搜索"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("刷新"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("新建"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.notificationSearch"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.configNamespaceCreate"))).toBe(true);
   });
 
   it("on 搜索 click calls listNamespaces", async () => {
     const wrapper = mountNamespace();
     const searchBtn = wrapper
       .findAll("button")
-      .find((b: any) => b.text().includes("搜索"));
+      .find((b: any) => b.text().includes("menus.notificationSearch"));
     await searchBtn.trigger("click");
     await flushPromises();
     expect(listNamespaces).toHaveBeenCalled();

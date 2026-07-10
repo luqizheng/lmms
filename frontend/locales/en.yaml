@@ -143,6 +143,38 @@ buttons:
   roleFormDataScopeDept: Department
   roleFormDataScopeDeptAndBelow: Department and Below
   roleFormDataScopeAll: All
+  configColumnId: ID
+  configColumnApp: App
+  configColumnEnv: Env
+  configColumnKey: Key
+  configColumnValue: Value
+  configColumnType: Type
+  configColumnSecret: Secret
+  configSearchName: Name
+  configSearchKey: Key
+  configSearchNamespace: Namespace
+  configPlaceholderName: Filter by name
+  configPlaceholderKey: Filter by key
+  configPlaceholderNamespace: Select
+  configNamespaceCreate: New
+  configNamespaceConfirmDelete: "Confirm delete namespace {app}?"
+  configNamespacePromptApp: App name
+  configNamespacePromptEnv: 'Env (e.g. dev/staging/prod)'
+  configItemCreate: New
+  configItemConfirmDelete: "Delete {key}?"
+  configItemPromptKey: Config Key
+  configItemPromptValue: Config Value
+  configItemSecretConfirm: Mark as secret (default UI mask)?
+  configItemShowValue: Show
+  configItemHideValue: Hide
+  configItemSelectNsFirst: Select namespace first
+  configItemSecretYes: Yes
+  configItemSecretNo: No
+  configCreated: Created
+  configDeleted: Deleted
+  configCreateFailFallback: Create failed
+  configDeleteFailFallback: Delete failed
+  configLoadFailPrefix: "Load failed: {error}"
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

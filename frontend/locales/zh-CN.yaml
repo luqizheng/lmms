@@ -143,6 +143,38 @@ buttons:
   roleFormDataScopeDept: 本部门
   roleFormDataScopeDeptAndBelow: 本部门及以下
   roleFormDataScopeAll: 全部
+  configColumnId: ID
+  configColumnApp: App
+  configColumnEnv: Env
+  configColumnKey: Key
+  configColumnValue: Value
+  configColumnType: 类型
+  configColumnSecret: 敏感
+  configSearchName: 名称
+  configSearchKey: Key
+  configSearchNamespace: 命名空间
+  configPlaceholderName: 按名称筛选
+  configPlaceholderKey: 按 key 筛选
+  configPlaceholderNamespace: 选择
+  configNamespaceCreate: 新建
+  configNamespaceConfirmDelete: "确认删除命名空间 {app}？"
+  configNamespacePromptApp: App 名称
+  configNamespacePromptEnv: "Env（如 dev/staging/prod）"
+  configItemCreate: 新建
+  configItemConfirmDelete: "删除 {key}？"
+  configItemPromptKey: 配置 Key
+  configItemPromptValue: 配置 Value
+  configItemSecretConfirm: 标记为敏感（敏感值默认 UI 掩码）？
+  configItemShowValue: 显示
+  configItemHideValue: 隐藏
+  configItemSelectNsFirst: 先选命名空间
+  configItemSecretYes: 是
+  configItemSecretNo: 否
+  configCreated: 已创建
+  configDeleted: 已删除
+  configCreateFailFallback: 创建失败
+  configDeleteFailFallback: 删除失败
+  configLoadFailPrefix: "加载失败：{error}"
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

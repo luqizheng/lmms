@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, h } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   listConfigItems,
   listNamespaces,
@@ -14,12 +15,12 @@ import { message } from "@/utils/message";
 import { translateError } from "@/utils/error-translate";
 import { hasPerms } from "@/utils/auth";
 import { ElButton, ElTag } from "element-plus";
-import { h } from "vue";
 import Refresh from "~icons/ep/refresh";
 import Search from "~icons/ri/search-line";
 import AddFill from "~icons/ri/add-circle-line";
 
 defineOptions({ name: "ConfigItem" });
+const { t } = useI18n();
 const loading = ref(false);
 const dataList = ref<ConfigItem[]>([]);
 const namespaces = ref<any[]>([]);
@@ -27,10 +28,10 @@ const selectedNs = ref<string>("");
 const form = ref({ keyword: "" });
 
 const columns = computed(() => [
-  { label: "ID", prop: "id", minWidth: 100 },
-  { label: "Key", prop: "key", minWidth: 160 },
+  { label: t("menus.configColumnId"), prop: "id", minWidth: 100 },
+  { label: t("menus.configColumnKey"), prop: "key", minWidth: 160 },
   {
-    label: "Value",
+    label: t("menus.configColumnValue"),
     prop: "value",
     minWidth: 220,
     cellRenderer: ({ row }: any) =>
@@ -45,30 +46,35 @@ const columns = computed(() => [
                 onClick: () =>
                   isRevealed(row.id) ? hide(row.id) : reveal(row.id)
               },
-              () => (isRevealed(row.id) ? "隐藏" : "显示")
+              () =>
+                isRevealed(row.id)
+                  ? t("menus.configItemHideValue")
+                  : t("menus.configItemShowValue")
             )
           : null
       ])
   },
-  { label: "类型", prop: "value_type", width: 80 },
+  { label: t("menus.configColumnType"), prop: "value_type", width: 80 },
   {
-    label: "敏感",
+    label: t("menus.configColumnSecret"),
     prop: "is_secret",
     width: 70,
     cellRenderer: ({ row }: any) =>
       h(ElTag, { type: row.is_secret ? "warning" : "info" }, () =>
-        row.is_secret ? "是" : "否"
+        row.is_secret
+          ? t("menus.configItemSecretYes")
+          : t("menus.configItemSecretNo")
       )
   },
   {
-    label: "操作",
+    label: t("menus.userDelete"),
     width: 100,
     cellRenderer: ({ row }: any) =>
       row.id && hasPerms(["CFG_CONFIG_DELETE"])
         ? h(
             ElButton,
             { type: "danger", link: true, onClick: () => onDelete(row) },
-            () => "删除"
+            () => t("menus.userDelete")
           )
         : null
   }
@@ -95,7 +101,12 @@ async function onSearch() {
     });
     dataList.value = res.items || [];
   } catch (e: any) {
-    message(`加载失败：${translateError(e?.code ?? "")}`, { type: "error" });
+    message(
+      t("menus.configLoadFailPrefix", {
+        error: translateError(e?.code ?? "")
+      }),
+      { type: "error" }
+    );
   } finally {
     loading.value = false;
   }
@@ -103,14 +114,14 @@ async function onSearch() {
 
 async function onCreate() {
   if (!selectedNs.value) {
-    message("先选命名空间", { type: "warning" });
+    message(t("menus.configItemSelectNsFirst"), { type: "warning" });
     return;
   }
-  const key = window.prompt("配置 Key");
+  const key = window.prompt(t("menus.configItemPromptKey"));
   if (!key) return;
-  const value = window.prompt("配置 Value");
+  const value = window.prompt(t("menus.configItemPromptValue"));
   if (value === null) return;
-  const isSecret = confirm("标记为敏感（敏感值默认 UI 掩码）?");
+  const isSecret = confirm(t("menus.configItemSecretConfirm"));
   try {
     await createConfigItem({
       namespace_id: selectedNs.value,
@@ -120,21 +131,25 @@ async function onCreate() {
       is_secret: isSecret,
       description: null
     });
-    message("已创建", { type: "success" });
+    message(t("menus.configCreated"), { type: "success" });
     onSearch();
   } catch (e: any) {
-    message(translateError(e?.code ?? "创建失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.configCreateFailFallback")), {
+      type: "error"
+    });
   }
 }
 
 async function onDelete(row: ConfigItem) {
-  if (!confirm(`删除 ${row.key}?`)) return;
+  if (!confirm(t("menus.configItemConfirmDelete", { key: row.key }))) return;
   try {
     await deleteConfigItem(row.id);
-    message("已删除", { type: "success" });
+    message(t("menus.configDeleted"), { type: "success" });
     onSearch();
   } catch (e: any) {
-    message(translateError(e?.code ?? "删除失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.configDeleteFailFallback")), {
+      type: "error"
+    });
   }
 }
 </script>
@@ -142,10 +157,10 @@ async function onDelete(row: ConfigItem) {
 <template>
   <div class="main">
     <el-form inline :model="form" class="search-form pl-8 pt-3">
-      <el-form-item label="命名空间：">
+      <el-form-item :label="`${t('menus.configSearchNamespace')}：`">
         <el-select
           v-model="selectedNs"
-          placeholder="选择"
+          :placeholder="t('menus.configPlaceholderNamespace')"
           class="w-50!"
           @change="onSearch"
         >
@@ -157,10 +172,10 @@ async function onDelete(row: ConfigItem) {
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="Key：">
+      <el-form-item :label="`${t('menus.configSearchKey')}：`">
         <el-input
           v-model="form.keyword"
-          placeholder="按 key 筛选"
+          :placeholder="t('menus.configPlaceholderKey')"
           clearable
           class="w-50!"
           @change="onSearch"
@@ -172,21 +187,21 @@ async function onDelete(row: ConfigItem) {
           :icon="useRenderIcon(Search)"
           :loading="loading"
           @click="onSearch"
-          >搜索</el-button
+          >{{ t("menus.notificationSearch") }}</el-button
         >
         <el-button :icon="useRenderIcon(Refresh)" @click="onSearch"
-          >刷新</el-button
+          >{{ t("menus.tenantRefresh") }}</el-button
         >
         <el-button
           v-if="hasPerms(['CFG_CONFIG_CREATE'])"
           type="primary"
           :icon="useRenderIcon(AddFill)"
           @click="onCreate"
-          >新建</el-button
+          >{{ t("menus.configItemCreate") }}</el-button
         >
       </el-form-item>
     </el-form>
-    <PureTableBar title="配置项" @refresh="onSearch">
+    <PureTableBar :title="t('menus.configColumnValue')" @refresh="onSearch">
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
           align-whole="center"
