@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import ReCol from "@/components/ReCol";
 import { formRules } from "../utils/rule";
 import { FormProps } from "../utils/types";
 import { usePublicHooks } from "../../hooks";
 
+const { t } = useI18n();
 const props = withDefaults(defineProps<FormProps>(), {
   formInline: () => ({
     title: "新增",
@@ -16,22 +18,15 @@ const props = withDefaults(defineProps<FormProps>(), {
     phone: "",
     email: "",
     sex: "",
-    // iam 用户状态：active / disabled
     status: "active",
     remark: ""
   })
 });
 
-const sexOptions = [
-  {
-    value: 0,
-    label: "男"
-  },
-  {
-    value: 1,
-    label: "女"
-  }
-];
+const sexOptions = computed(() => [
+  { value: 0, label: t("menus.userFormSexMale") },
+  { value: 1, label: t("menus.userFormSexFemale") }
+]);
 const ruleFormRef = ref();
 const { switchStyle } = usePublicHooks();
 const newFormInline = ref(props.formInline);
@@ -52,20 +47,26 @@ defineExpose({ getRef });
   >
     <el-row :gutter="30">
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="用户昵称" prop="nickname">
+        <el-form-item
+          :label="t('menus.userFormLabelNickname')"
+          prop="nickname"
+        >
           <el-input
             v-model="newFormInline.nickname"
             clearable
-            placeholder="请输入用户昵称"
+            :placeholder="t('menus.userFormPlaceholderNickname')"
           />
         </el-form-item>
       </re-col>
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="用户名称" prop="username">
+        <el-form-item
+          :label="t('menus.userFormLabelUsername')"
+          prop="username"
+        >
           <el-input
             v-model="newFormInline.username"
             clearable
-            placeholder="请输入用户名称"
+            :placeholder="t('menus.userFormPlaceholderUsername')"
           />
         </el-form-item>
       </re-col>
@@ -76,38 +77,41 @@ defineExpose({ getRef });
         :xs="24"
         :sm="24"
       >
-        <el-form-item label="用户密码" prop="password">
+        <el-form-item
+          :label="t('menus.userFormLabelPassword')"
+          prop="password"
+        >
           <el-input
             v-model="newFormInline.password"
             clearable
-            placeholder="请输入用户密码"
+            :placeholder="t('menus.userFormPlaceholderPassword')"
           />
         </el-form-item>
       </re-col>
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="手机号" prop="phone">
+        <el-form-item :label="t('menus.userFormLabelPhone')" prop="phone">
           <el-input
             v-model="newFormInline.phone"
             clearable
-            placeholder="请输入手机号"
+            :placeholder="t('menus.userFormPlaceholderPhone')"
           />
         </el-form-item>
       </re-col>
 
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="邮箱" prop="email">
+        <el-form-item :label="t('menus.userFormLabelEmail')" prop="email">
           <el-input
             v-model="newFormInline.email"
             clearable
-            placeholder="请输入邮箱"
+            :placeholder="t('menus.userFormPlaceholderEmail')"
           />
         </el-form-item>
       </re-col>
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="用户性别">
+        <el-form-item :label="t('menus.userFormLabelSex')">
           <el-select
             v-model="newFormInline.sex"
-            placeholder="请选择用户性别"
+            :placeholder="t('menus.userFormPlaceholderSex')"
             class="w-full"
             clearable
           >
@@ -122,7 +126,7 @@ defineExpose({ getRef });
       </re-col>
 
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="归属部门">
+        <el-form-item :label="t('menus.userFormLabelDept')">
           <el-cascader
             v-model="newFormInline.parentId"
             class="w-full"
@@ -135,7 +139,7 @@ defineExpose({ getRef });
             }"
             clearable
             filterable
-            placeholder="请选择归属部门"
+            :placeholder="t('menus.userFormPlaceholderDept')"
           >
             <template #default="{ node, data }">
               <span>{{ data.name }}</span>
@@ -150,24 +154,24 @@ defineExpose({ getRef });
         :xs="24"
         :sm="24"
       >
-        <el-form-item label="用户状态">
+        <el-form-item :label="t('menus.userFormLabelStatus')">
           <el-switch
             v-model="newFormInline.status"
             inline-prompt
             active-value="active"
             inactive-value="disabled"
-            active-text="启用"
-            inactive-text="停用"
+            :active-text="t('menus.userFormStatusActive')"
+            :inactive-text="t('menus.userFormStatusInactive')"
             :style="switchStyle"
           />
         </el-form-item>
       </re-col>
 
       <re-col>
-        <el-form-item label="备注">
+        <el-form-item :label="t('menus.userFormLabelRemark')">
           <el-input
             v-model="newFormInline.remark"
-            placeholder="请输入备注信息"
+            :placeholder="t('menus.userFormPlaceholderRemark')"
             type="textarea"
           />
         </el-form-item>

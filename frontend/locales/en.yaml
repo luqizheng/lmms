@@ -278,6 +278,49 @@ buttons:
   menuFormPlaceholderActive: Enter menu to activate
   menuFormPlaceholderAuths: Enter permission code
   menuFormPlaceholderFrameSrc: Enter iframe URL
+  userFormLabelNickname: Nickname
+  userFormLabelUsername: Username
+  userFormLabelPassword: Password
+  userFormLabelPhone: Phone
+  userFormLabelEmail: Email
+  userFormLabelSex: Sex
+  userFormLabelDept: Department
+  userFormLabelStatus: Status
+  userFormLabelRemark: Remark
+  userFormPlaceholderNickname: Enter nickname
+  userFormPlaceholderUsername: Enter username
+  userFormPlaceholderPassword: Enter password
+  userFormPlaceholderPhone: Enter phone number
+  userFormPlaceholderEmail: Enter email
+  userFormPlaceholderSex: Select sex
+  userFormPlaceholderDept: Select department
+  userFormPlaceholderRemark: Enter remark
+  userFormSexMale: Male
+  userFormSexFemale: Female
+  userFormStatusActive: Active
+  userFormStatusInactive: Inactive
+  apiKeyColumnId: ID
+  apiKeyColumnName: Name
+  apiKeyColumnScopes: Scopes
+  apiKeyColumnStatus: Status
+  apiKeyColumnCreatedAt: Created At
+  apiKeyColumnOperation: Operation
+  apiKeySearchName: Name
+  apiKeySearchScopes: Scopes
+  apiKeyPlaceholderName: API Key name
+  apiKeyPlaceholderScopes: Comma separated
+  apiKeyCreate: New
+  apiKeyCopy: Copy
+  apiKeyClearCache: Clear Cache
+  apiKeyCreatedHint: Created (secret saved to local cache)
+  apiKeySecretNotCached: Secret not cached in this browser; backend does not return plaintext
+  apiKeyCopiedFull: Copied full key
+  apiKeyCacheCleared: Cache cleared (backend record unchanged)
+  apiKeyConfirmClearCache: "Clear local cache for {name}?"
+  apiKeyListLoadFailFallback: List load failed
+  apiKeyCreateFailFallback: Create failed
+  apiKeyNotice: "List from backend GET /v1/api-keys; secret only returned once at creation, cached locally for re-copy."
+  apiKeyNameRequired: Please enter name
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

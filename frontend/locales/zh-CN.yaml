@@ -278,6 +278,49 @@ buttons:
   menuFormPlaceholderActive: 请输入需要激活的菜单
   menuFormPlaceholderAuths: 请输入权限标识
   menuFormPlaceholderFrameSrc: 请输入 iframe 链接地址
+  userFormLabelNickname: 用户昵称
+  userFormLabelUsername: 用户名称
+  userFormLabelPassword: 用户密码
+  userFormLabelPhone: 手机号
+  userFormLabelEmail: 邮箱
+  userFormLabelSex: 用户性别
+  userFormLabelDept: 归属部门
+  userFormLabelStatus: 用户状态
+  userFormLabelRemark: 备注
+  userFormPlaceholderNickname: 请输入用户昵称
+  userFormPlaceholderUsername: 请输入用户名称
+  userFormPlaceholderPassword: 请输入用户密码
+  userFormPlaceholderPhone: 请输入手机号
+  userFormPlaceholderEmail: 请输入邮箱
+  userFormPlaceholderSex: 请选择用户性别
+  userFormPlaceholderDept: 请选择归属部门
+  userFormPlaceholderRemark: 请输入备注信息
+  userFormSexMale: 男
+  userFormSexFemale: 女
+  userFormStatusActive: 启用
+  userFormStatusInactive: 停用
+  apiKeyColumnId: ID
+  apiKeyColumnName: 名称
+  apiKeyColumnScopes: Scopes
+  apiKeyColumnStatus: 状态
+  apiKeyColumnCreatedAt: 创建时间
+  apiKeyColumnOperation: 操作
+  apiKeySearchName: 名称
+  apiKeySearchScopes: Scopes
+  apiKeyPlaceholderName: API Key 名称
+  apiKeyPlaceholderScopes: 逗号分隔
+  apiKeyCreate: 新建
+  apiKeyCopy: 复制
+  apiKeyClearCache: 清除缓存
+  apiKeyCreatedHint: "已创建（secret 已保存到本地缓存）"
+  apiKeySecretNotCached: 本浏览器未缓存该 key 的 secret；后端不返回明文
+  apiKeyCopiedFull: 已复制完整 key
+  apiKeyCacheCleared: "缓存已清除（后端记录未变）"
+  apiKeyConfirmClearCache: "从本地缓存删除 {name}？"
+  apiKeyListLoadFailFallback: 列表加载失败
+  apiKeyCreateFailFallback: 创建失败
+  apiKeyNotice: "列表来自后端 GET /v1/api-keys；secret 仅创建时返回一次，本地缓存保存以便复制。"
+  apiKeyNameRequired: 请输入名称
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

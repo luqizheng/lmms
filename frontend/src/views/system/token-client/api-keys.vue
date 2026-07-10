@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
@@ -17,31 +18,32 @@ import AddFill from "~icons/ri/add-circle-line";
 import CopyDocument from "~icons/ep/copy-document";
 
 defineOptions({ name: "SystemTokenApiKey" });
+const { t } = useI18n();
 const loading = ref(false);
 const dataList = ref<ApiKeySummary[]>([]);
 
 const form = ref({ name: "", scopes: "" });
 
 const columns = [
-  { label: "ID", prop: "id", minWidth: 100 },
-  { label: "名称", prop: "name", minWidth: 160 },
+  { label: t("menus.apiKeyColumnId"), prop: "id", minWidth: 100 },
+  { label: t("menus.apiKeyColumnName"), prop: "name", minWidth: 160 },
   {
-    label: "Scopes",
+    label: t("menus.apiKeyColumnScopes"),
     prop: "permissions",
     minWidth: 180,
     formatter: ({ permissions }: ApiKeySummary) =>
       permissions?.length ? permissions.join(", ") : "-"
   },
-  { label: "状态", prop: "status", minWidth: 100 },
+  { label: t("menus.apiKeyColumnStatus"), prop: "status", minWidth: 100 },
   {
-    label: "创建时间",
+    label: t("menus.apiKeyColumnCreatedAt"),
     prop: "created_at",
     minWidth: 170,
     formatter: ({ created_at }: ApiKeySummary) =>
       created_at ? new Date(created_at).toLocaleString() : "-"
   },
   {
-    label: "操作",
+    label: t("menus.apiKeyColumnOperation"),
     width: 100,
     slot: "operation"
   }
@@ -53,7 +55,9 @@ async function refresh() {
     const res = await listApiKeys({ page: 1, size: 100 });
     dataList.value = res.items || [];
   } catch (e: any) {
-    message(translateError(e?.code ?? "列表加载失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.apiKeyListLoadFailFallback")), {
+      type: "error"
+    });
     dataList.value = [];
   } finally {
     loading.value = false;
@@ -62,7 +66,7 @@ async function refresh() {
 
 async function onCreate() {
   if (!form.value.name) {
-    message("请输入名称", { type: "warning" });
+    message(t("menus.apiKeyNameRequired"), { type: "warning" });
     return;
   }
   const scopes = form.value.scopes
@@ -81,33 +85,32 @@ async function onCreate() {
       scopes,
       created_at: Date.now()
     });
-    message("已创建（secret 已保存到本地缓存）", { type: "success" });
+    message(t("menus.apiKeyCreatedHint"), { type: "success" });
     form.value = { name: "", scopes: "" };
     refresh();
   } catch (e: any) {
-    message(translateError(e?.code ?? "创建失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.apiKeyCreateFailFallback")), {
+      type: "error"
+    });
   } finally {
     loading.value = false;
   }
 }
 
 function onCopy(row: CachedApiKey) {
-  // 列表来自后端，secret 不在表里 → 仅当本地缓存有此 id 时能复制
   const cached = listCachedApiKeys().find(c => c.id === row.id);
   if (!cached) {
-    message("本浏览器未缓存该 key 的 secret；后端不返回明文", {
-      type: "warning"
-    });
+    message(t("menus.apiKeySecretNotCached"), { type: "warning" });
     return;
   }
   navigator.clipboard.writeText(cached.api_key);
-  message("已复制完整 key", { type: "success" });
+  message(t("menus.apiKeyCopiedFull"), { type: "success" });
 }
 
 function onDelete(row: ApiKeySummary) {
-  if (!confirm(`从本地缓存删除 ${row.name}?`)) return;
+  if (!confirm(t("menus.apiKeyConfirmClearCache", { name: row.name }))) return;
   removeCachedApiKey(row.id);
-  message("缓存已清除（后端记录未变）", { type: "success" });
+  message(t("menus.apiKeyCacheCleared"), { type: "success" });
 }
 
 onMounted(refresh);
@@ -116,18 +119,18 @@ onMounted(refresh);
 <template>
   <div class="main">
     <el-form inline :model="form" class="search-form pl-8 pt-3">
-      <el-form-item label="名称：">
+      <el-form-item :label="`${t('menus.apiKeySearchName')}：`">
         <el-input
           v-model="form.name"
-          placeholder="API Key 名称"
+          :placeholder="t('menus.apiKeyPlaceholderName')"
           clearable
           class="w-40!"
         />
       </el-form-item>
-      <el-form-item label="Scopes：">
+      <el-form-item :label="`${t('menus.apiKeySearchScopes')}：`">
         <el-input
           v-model="form.scopes"
-          placeholder="逗号分隔"
+          :placeholder="t('menus.apiKeyPlaceholderScopes')"
           clearable
           class="w-40!"
         />
@@ -139,21 +142,21 @@ onMounted(refresh);
           :icon="useRenderIcon(AddFill)"
           :loading="loading"
           @click="onCreate"
-          >新建</el-button
+          >{{ t("menus.apiKeyCreate") }}</el-button
         >
         <el-button :icon="useRenderIcon(Refresh)" @click="refresh"
-          >刷新</el-button
+          >{{ t("menus.tenantRefresh") }}</el-button
         >
       </el-form-item>
     </el-form>
     <el-alert
-      title="列表来自后端 GET /v1/api-keys；secret 仅创建时返回一次，本地缓存保存以便复制。"
+      :title="t('menus.apiKeyNotice')"
       type="info"
       show-icon
       :closable="false"
       class="mx-8"
     />
-    <PureTableBar title="API Key 管理" @refresh="refresh">
+    <PureTableBar :title="t('menus.apiKeyColumnName')" @refresh="refresh">
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
           align-whole="center"
@@ -169,14 +172,14 @@ onMounted(refresh);
               type="primary"
               :icon="useRenderIcon(CopyDocument)"
               @click="onCopy(row)"
-              >复制</el-button
+              >{{ t("menus.apiKeyCopy") }}</el-button
             >
             <el-button
               v-if="hasPerms(['SYS_SETTING_UPDATE'])"
               link
               type="danger"
               @click="onDelete(row)"
-              >清除缓存</el-button
+              >{{ t("menus.apiKeyClearCache") }}</el-button
             >
           </template>
         </pure-table>
