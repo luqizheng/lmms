@@ -189,6 +189,7 @@ services:
     # post-dephase config so the service binds 8082 without rebuild.
     volumes:
       - ../services/token-service/config:/app/config:ro
+      - ../docker-example/secrets:/app/keys:ro
     environment:
       SERVICE_BOOTSTRAP_TOKENS: "${SERVICE_BOOTSTRAP_TOKENS}"
       TENANT_ID: "${TENANT_ID}"

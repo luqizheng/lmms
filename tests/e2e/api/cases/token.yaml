@@ -1,0 +1,116 @@
+group: token-service
+cases:
+  # ──── JWKS（public endpoint） ────
+  - caseId: TOKEN-JWKS-001
+    desc: JWKS endpoint 返回公钥
+    smoke: true
+    method: GET
+    path: /.well-known/jwks.json
+    auth: false
+    expectStatus: 200
+    expect:
+      - $.keys exists
+      - $.keys is array
+
+  # ──── Admin OAuth Client CRUD ────
+  - caseId: TOKEN-ADMIN-CLIENT-001
+    desc: 创建 admin OAuth client
+    method: POST
+    path: /v1/admin/oauth-clients
+    body:
+      name: e2e_client_${rand}
+      grant_types:
+        - client_credentials
+      permissions:
+        - read
+        - write
+      access_token_ttl_sec: 3600
+      refresh_token_ttl_sec: 86400
+    expectStatus: [200, 201]
+    expect:
+      - $.client_id exists
+      - $.client_secret exists
+
+  - caseId: TOKEN-ADMIN-CLIENT-003
+    desc: 更新 OAuth client
+    method: PUT
+    path: /v1/admin/oauth-clients/${TOKEN-ADMIN-CLIENT-001.client_id}
+    body:
+      name: e2e_client_upd_${rand}
+    expectStatus: [200, 204]
+
+  - caseId: TOKEN-ADMIN-CLIENT-004
+    desc: 重置 client secret
+    method: POST
+    path: /v1/admin/oauth-clients/${TOKEN-ADMIN-CLIENT-001.client_id}/reset-secret
+    expectStatus: 200
+    expect:
+      - $.client_secret exists
+
+  - caseId: TOKEN-ADMIN-CLIENT-005
+    desc: 列出 admin OAuth clients
+    method: GET
+    path: /v1/admin/oauth-clients?page=1&size=20
+    expectStatus: 200
+    expect:
+      - $.list exists
+      - $.list is array
+      - $.total exists
+
+  - caseId: TOKEN-ADMIN-CLIENT-006
+    desc: 删除 admin OAuth client
+    method: DELETE
+    path: /v1/admin/oauth-clients/${TOKEN-ADMIN-CLIENT-001.client_id}
+    expectStatus: [200, 204]
+
+  # ──── API Key ────
+  - caseId: TOKEN-APIKEY-001
+    desc: 创建 API Key（client_credentials）
+    method: POST
+    path: /v1/api-keys
+    body:
+      name: e2e_apikey_${rand}
+      permissions:
+        - read
+      grant_types:
+        - client_credentials
+    expectStatus: [200, 201]
+    expect:
+      - $.api_key_id exists
+      - $.api_key_secret exists
+
+  - caseId: TOKEN-APIKEY-002
+    desc: 列出 API Keys
+    method: GET
+    path: /v1/api-keys
+    expectStatus: 200
+    expect:
+      - $.items exists
+      - $.items is array
+
+  # ──── Token Revoke（public endpoint） ────
+  - caseId: TOKEN-REVOKE-001
+    desc: 撤销 token（dummy jti，public）
+    method: POST
+    path: /v1/tokens/revoke
+    auth: false
+    body:
+      token_jti: e2e-test-dummy-jti-${rand}
+      expires_in: 0
+    expectStatus: 200
+    expect:
+      - $.success exists
+
+  # ──── User JWT ────
+  - caseId: TOKEN-USER-JWT-001
+    desc: 签发 user JWT
+    method: POST
+    path: /v1/tokens/user-jwt
+    body:
+      user_id: e2e-test-admin
+      user_code: e2eadmin
+      ttl_secs: 300
+    expectStatus: 200
+    expect:
+      - $.access_token exists
+      - $.expires_in exists

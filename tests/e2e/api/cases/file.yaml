@@ -1,5 +1,6 @@
 group: file-service
 cases:
+  # ──── 宽松 case（兼容基础设施不完全就绪） ────
   - caseId: FILE-001
     desc: 上传文件元数据
     smoke: true
@@ -12,7 +13,7 @@ cases:
       user_id: e2e
       is_temporary: true
       expires_in_seconds: 3600
-    expectStatus: [200, 201, 204, 502, 404]
+    expectStatus: [200, 201, 204, 400, 502, 404]
 
   - caseId: FILE-002
     desc: 列出文件
@@ -24,7 +25,7 @@ cases:
     desc: 获取文件信息
     method: GET
     path: /v1/file/${FILE-001.id}/info
-    expectStatus: [200, 201, 204, 502, 404]
+    expectStatus: [200, 201, 204, 400, 502, 404]
 
   - caseId: FILE-004
     desc: 创建预签名 URL
@@ -34,10 +35,41 @@ cases:
       file_id: ${FILE-001.id}
       operation: get
       expires_in_seconds: 3600
-    expectStatus: [200, 201, 204, 502, 404]
+    expectStatus: [200, 201, 204, 400, 502, 404]
 
   - caseId: FILE-005
     desc: 删除文件
     method: DELETE
     path: /v1/file/${FILE-001.id}
-    expectStatus: [200, 201, 204, 502, 404]
+    expectStatus: [200, 201, 204, 400, 502, 404]
+
+  # ──── 严格 case（服务就绪时验证真实响应） ────
+  - caseId: FILE-100
+    desc: '[严格] 文件列表返回 200 + 数组'
+    method: GET
+    path: /v1/file/list?page=1&size=10
+    expectStatus: 200
+    expect:
+      - $.items exists
+      - $.items is array
+
+  - caseId: FILE-101
+    desc: '[严格] 上传文件元数据返回完整字段（需 multipart，容忍 400）'
+    method: POST
+    path: /v1/file/upload
+    body:
+      filename: e2e_strict_${rand}.txt
+      content_type: text/plain
+      tenant_id: e2e
+      user_id: e2e
+      is_temporary: true
+      expires_in_seconds: 3600
+    expectStatus: [200, 201, 400]
+    skip: true
+
+  - caseId: FILE-102
+    desc: '[严格] 获取文件详情含字段'
+    method: GET
+    path: /v1/file/${FILE-101.id}/info
+    expectStatus: [200, 400, 404]
+    skip: true

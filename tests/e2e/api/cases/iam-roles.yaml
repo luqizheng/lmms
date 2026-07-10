@@ -1,0 +1,72 @@
+group: iam-roles
+cases:
+  - caseId: IAM-ROLE-001
+    desc: 创建角色
+    smoke: true
+    method: POST
+    path: /v1/iam/roles
+    body:
+      name: e2e_role_${rand}
+      code: ROLE_E2E_${rand}
+      description: E2E test role
+      data_scope: 2
+    expectStatus: 200
+    expect:
+      - $.id exists
+      - $.code exists
+      - $.status==active
+
+  - caseId: IAM-ROLE-002
+    desc: 获取角色详情
+    method: GET
+    path: /v1/iam/roles/${IAM-ROLE-001.id}
+    expectStatus: 200
+    expect:
+      - $.id==${IAM-ROLE-001.id}
+      - $.code exists
+      - $.status exists
+
+  - caseId: IAM-ROLE-003
+    desc: 列出角色
+    method: GET
+    path: /v1/iam/roles?page=1&size=20
+    expectStatus: 200
+    expect:
+      - $.items exists
+      - $.items is array
+      - $.total exists
+
+  - caseId: IAM-ROLE-004
+    desc: 更新角色（改名 + 停用）
+    method: PUT
+    path: /v1/iam/roles/${IAM-ROLE-001.id}
+    body:
+      name: e2e_role_upd_${rand}
+      status: disabled
+    expectStatus: 200
+    expect:
+      - $.id==${IAM-ROLE-001.id}
+      - $.name exists
+      - $.status==disabled
+
+  - caseId: IAM-ROLE-005
+    desc: 删除角色
+    method: DELETE
+    path: /v1/iam/roles/${IAM-ROLE-001.id}
+    expectStatus: [200, 204]
+
+  - caseId: IAM-ROLE-006
+    desc: 删除后查询返回 404
+    method: GET
+    path: /v1/iam/roles/${IAM-ROLE-001.id}
+    expectStatus: 404
+
+  - caseId: IAM-ROLE-101
+    desc: 拒绝重复 code
+    method: POST
+    path: /v1/iam/roles
+    body:
+      name: e2e_role_dup
+      code: ${IAM-ROLE-001.code}
+      data_scope: 2
+    expectStatus: [409, 500]

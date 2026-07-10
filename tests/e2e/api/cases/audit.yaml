@@ -4,6 +4,8 @@ cases:
   # endpoints are gone — operation and login logs now flow through the event
   # bus (iam-service publishes → audit-service consumer writes audit_events).
   # See: docs/superpowers/specs/2026-06-26-phase4-event-bus-design.md §9.2.
+
+  # ──── 宽松 case（兼容基础设施不完全就绪） ────
   - caseId: AUDIT-002
     desc: 分页查询操作日志
     method: GET
@@ -46,3 +48,43 @@ cases:
     path: /v1/audit/retention/cleanup
     body: {}
     expectStatus: [200, 201, 204, 502, 503, 404]
+
+  # ──── 严格 case（服务就绪时验证真实响应） ────
+  - caseId: AUDIT-100
+    desc: '[严格] 操作日志分页返回 200 + 数组结构'
+    method: GET
+    path: /v1/audit/operation?page=1&size=10
+    expectStatus: 200
+    expect:
+      - $.items exists
+      - $.items is array
+
+  - caseId: AUDIT-101
+    desc: '[严格] 登录日志分页返回 200 + 数组结构'
+    method: GET
+    path: /v1/audit/login?page=1&size=10
+    expectStatus: 200
+    expect:
+      - $.items exists
+      - $.items is array
+
+  - caseId: AUDIT-102
+    desc: '[严格] 保留策略返回完整字段'
+    method: GET
+    path: /v1/audit/retention/policy
+    expectStatus: 200
+    expect:
+      - $.hot_days exists
+      - $.warm_days exists
+      - $.cold_days exists
+
+  - caseId: AUDIT-103
+    desc: '[严格] 保留统计返回计数'
+    method: GET
+    path: /v1/audit/retention/stats
+    expectStatus: 200
+    expect:
+      - $.total_size_bytes exists
+      - $.hot_count exists
+      - $.warm_count exists
+      - $.expired_count exists
