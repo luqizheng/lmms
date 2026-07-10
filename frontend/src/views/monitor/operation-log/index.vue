@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useOperationLog } from "./utils/hook";
 import { exportOperationLogsCsv, exportOperationLogsJson } from "@/api/audit";
 import { downloadRaw, timestampedFilename } from "@/utils/download";
@@ -17,6 +18,7 @@ defineOptions({
   name: "MonitorOperationLog"
 });
 
+const { t } = useI18n();
 const formRef = ref();
 
 const {
@@ -44,9 +46,11 @@ async function onExportCsv() {
       timestampedFilename("operation_log", "csv"),
       "text/csv;charset=utf-8"
     );
-    message("已下载 CSV", { type: "success" });
+    message(t("menus.monitorExportSuccess"), { type: "success" });
   } catch (e: any) {
-    message(translateError(e?.code ?? "导出失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.monitorExportFailFallback")), {
+      type: "error"
+    });
   } finally {
     exporting.value = false;
   }
@@ -61,9 +65,11 @@ async function onExportJson() {
       timestampedFilename("operation_log", "json"),
       "application/json;charset=utf-8"
     );
-    message("已下载 JSON", { type: "success" });
+    message(t("menus.monitorExportSuccessJson"), { type: "success" });
   } catch (e: any) {
-    message(translateError(e?.code ?? "导出失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.monitorExportFailFallback")), {
+      type: "error"
+    });
   } finally {
     exporting.value = false;
   }
@@ -78,7 +84,7 @@ async function onExportJson() {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="用户ID：" prop="user_id">
+      <el-form-item :label="`${t('menus.monitorOperationUserId')}：`" prop="user_id">
         <el-input
           v-model="form.user_id"
           placeholder="user_id"
@@ -86,7 +92,7 @@ async function onExportJson() {
           class="w-50!"
         />
       </el-form-item>
-      <el-form-item label="操作：" prop="action">
+      <el-form-item :label="`${t('menus.monitorOperationAction')}：`" prop="action">
         <el-input
           v-model="form.action"
           placeholder="action"
@@ -94,7 +100,7 @@ async function onExportJson() {
           class="w-40!"
         />
       </el-form-item>
-      <el-form-item label="资源：" prop="resource">
+      <el-form-item :label="`${t('menus.monitorOperationResource')}：`" prop="resource">
         <el-input
           v-model="form.resource"
           placeholder="resource"
@@ -109,10 +115,10 @@ async function onExportJson() {
           :loading="loading"
           @click="onSearch"
         >
-          搜索
+          {{ t("menus.notificationSearch") }}
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="resetForm(formRef)">
-          重置
+          {{ t("menus.notificationReset") }}
         </el-button>
         <el-button
           v-if="hasPerms(['AUD_LOG_EXPORT'])"
@@ -121,7 +127,7 @@ async function onExportJson() {
           :loading="exporting"
           @click="onExportCsv"
         >
-          合规导出 CSV
+          {{ t("menus.monitorExportCsv") }}
         </el-button>
         <el-button
           v-if="hasPerms(['AUD_LOG_EXPORT'])"
@@ -130,12 +136,12 @@ async function onExportJson() {
           :loading="exporting"
           @click="onExportJson"
         >
-          合规导出 JSON
+          {{ t("menus.monitorExportJson") }}
         </el-button>
       </el-form-item>
     </el-form>
 
-    <PureTableBar title="操作日志" :columns="columns" @refresh="onSearch">
+    <PureTableBar :title="t('menus.monitorOperationLog')" :columns="columns" @refresh="onSearch">
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           align-whole="center"
@@ -165,7 +171,7 @@ async function onExportJson() {
               :icon="useRenderIcon(View)"
               @click="showDetail(row)"
             >
-              详情
+              {{ t("menus.monitorOperationDetail") }}
             </el-button>
           </template>
         </pure-table>

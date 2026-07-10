@@ -200,6 +200,43 @@ buttons:
   presignGenerateFailFallback: Generation failed
   presignInputFileIdFirst: Please enter file_id
   presignCopied: URL copied
+  retentionCardHot: Hot Data
+  retentionCardWarm: Warm Data
+  retentionCardCold: Cold Data
+  retentionCardExpired: Expired Data
+  retentionCardTotalSize: Total Size
+  retentionPolicyTitle: Retention Policy
+  retentionCleanupBtn: Cleanup Now
+  retentionSaveBtn: Save Policy
+  retentionLabelHotDays: "Hot data retention (days)"
+  retentionLabelWarmDays: "Warm data retention (days)"
+  retentionLabelColdDays: "Cold data retention (days)"
+  retentionLabelArchive: Enable Archive
+  retentionLabelPurge: Enable Cleanup
+  retentionProbeTitle: "Stage Probe (enter created_at to see placement)"
+  retentionProbeLabel: RFC3339 Timestamp
+  retentionProbePlaceholder: 2024-01-01T00:00:00Z
+  retentionProbeBtn: Query
+  retentionProbeResult: Result
+  retentionLoadFailPrefix: "Load failed: {error}"
+  retentionSaveSuccess: Saved
+  retentionSaveFailPrefix: "Save failed: {error}"
+  retentionCleanupConfirm: Trigger cleanup will delete expired data per current policy. Continue?
+  retentionCleanupConfirmTitle: System Prompt
+  retentionCleanupDone: "Cleanup done, deleted {count} records"
+  retentionCleanupDonePartial: " (partial failure)"
+  retentionCleanupFailPrefix: "Cleanup failed: {error}"
+  retentionProbeWarnNoTs: Please enter RFC3339 timestamp
+  retentionProbeFailPrefix: "Query failed: {error}"
+  monitorOperationUserId: User ID
+  monitorOperationAction: Action
+  monitorOperationResource: Resource
+  monitorExportCsv: Compliance Export CSV
+  monitorExportJson: Compliance Export JSON
+  monitorOperationDetail: Detail
+  monitorExportSuccess: Downloaded CSV
+  monitorExportSuccessJson: Downloaded JSON
+  monitorExportFailFallback: Export failed
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

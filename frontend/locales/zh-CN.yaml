@@ -200,6 +200,43 @@ buttons:
   presignGenerateFailFallback: 生成失败
   presignInputFileIdFirst: 请输入 file_id
   presignCopied: URL 已复制
+  retentionCardHot: 热数据
+  retentionCardWarm: 温数据
+  retentionCardCold: 冷数据
+  retentionCardExpired: 过期数据
+  retentionCardTotalSize: 总大小
+  retentionPolicyTitle: 保留策略
+  retentionCleanupBtn: 立即清理
+  retentionSaveBtn: 保存策略
+  retentionLabelHotDays: "热数据保留(天)"
+  retentionLabelWarmDays: "温数据保留(天)"
+  retentionLabelColdDays: "冷数据保留(天)"
+  retentionLabelArchive: 启用归档
+  retentionLabelPurge: 启用清理
+  retentionProbeTitle: "Stage 探针（输入 created_at 看落点）"
+  retentionProbeLabel: RFC3339 时间
+  retentionProbePlaceholder: 2024-01-01T00:00:00Z
+  retentionProbeBtn: 查询
+  retentionProbeResult: 结果
+  retentionLoadFailPrefix: "加载失败：{error}"
+  retentionSaveSuccess: 保存成功
+  retentionSaveFailPrefix: "保存失败：{error}"
+  retentionCleanupConfirm: 立即触发清理将根据当前策略删除过期数据，确认继续？
+  retentionCleanupConfirmTitle: 系统提示
+  retentionCleanupDone: "清理完成，删除 {count} 条"
+  retentionCleanupDonePartial: "（部分失败）"
+  retentionCleanupFailPrefix: "清理失败：{error}"
+  retentionProbeWarnNoTs: 请输入 RFC3339 时间戳
+  retentionProbeFailPrefix: "查询失败：{error}"
+  monitorOperationUserId: 用户ID
+  monitorOperationAction: 操作
+  monitorOperationResource: 资源
+  monitorExportCsv: 合规导出 CSV
+  monitorExportJson: 合规导出 JSON
+  monitorOperationDetail: 详情
+  monitorExportSuccess: 已下载 CSV
+  monitorExportSuccessJson: 已下载 JSON
+  monitorExportFailFallback: 导出失败
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录
