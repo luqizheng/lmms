@@ -375,6 +375,9 @@ buttons:
   fileBulkDeleteConfirm: "Confirm delete {n} file(s)?"
   fileBulkDeleteSuccess: "Deleted {n} file(s)"
   fileBulkDeletePartial: "Deleted {ok}, {fail} failed"
+  dashboardAvgLatency: Avg Latency
+  dashboardUptime: Uptime
+  dashboardLatencyTrend: "Latency trend (last {n} polls)"
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

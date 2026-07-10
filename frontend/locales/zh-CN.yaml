@@ -375,6 +375,9 @@ buttons:
   fileBulkDeleteConfirm: "确认删除 {n} 个文件？"
   fileBulkDeleteSuccess: "已删除 {n} 个文件"
   fileBulkDeletePartial: "已删除 {ok} 个，{fail} 个失败"
+  dashboardAvgLatency: 平均延迟
+  dashboardUptime: 可用率
+  dashboardLatencyTrend: "延迟趋势（最近 {n} 次）"
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

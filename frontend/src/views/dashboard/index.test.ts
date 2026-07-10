@@ -110,4 +110,17 @@ describe("DashboardIndex mount", () => {
     expect(text).toContain("menus.dashboardDownCount");
     wrapper.unmount();
   });
+
+  it("renders latency history sparkline after multiple polls", async () => {
+    vi.useFakeTimers();
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    const wrapper = mountDashboard();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(5000);
+    const paths = wrapper.findAll("svg path");
+    expect(paths.length).toBeGreaterThan(0);
+    vi.useRealTimers();
+    wrapper.unmount();
+  });
 });

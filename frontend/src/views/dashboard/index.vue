@@ -25,9 +25,14 @@ interface ServiceStatus {
   status: "ok" | "down" | "unknown";
   latencyMs: number | null;
   lastCheckedAt: number | null;
+  latencyHistory: number[];
+  uptimeUp: number;
+  uptimeTotal: number;
 }
 
-const SERVICES: Array<Omit<ServiceStatus, "status" | "latencyMs" | "lastCheckedAt">> = [
+const LATENCY_HISTORY_LEN = 20;
+
+const SERVICES: Array<Omit<ServiceStatus, "status" | "latencyMs" | "lastCheckedAt" | "latencyHistory" | "uptimeUp" | "uptimeTotal">> = [
   { name: "API Gateway", slug: "api-gateway", probePath: "/probe/api-gateway", port: 3000 },
   { name: "Token Service", slug: "token-service", probePath: "/probe/token-service", port: 8082 },
   { name: "IAM Service", slug: "iam-service", probePath: "/probe/iam-service", port: 9081 },
@@ -39,7 +44,15 @@ const SERVICES: Array<Omit<ServiceStatus, "status" | "latencyMs" | "lastCheckedA
 ];
 
 const statuses = ref<ServiceStatus[]>(
-  SERVICES.map(s => ({ ...s, status: "unknown", latencyMs: null, lastCheckedAt: null }))
+  SERVICES.map(s => ({
+    ...s,
+    status: "unknown",
+    latencyMs: null,
+    lastCheckedAt: null,
+    latencyHistory: [],
+    uptimeUp: 0,
+    uptimeTotal: 0
+  }))
 );
 
 const POLL_MS = 5000;
@@ -47,26 +60,28 @@ let timer: ReturnType<typeof setInterval> | null = null;
 
 async function probeOne(s: ServiceStatus): Promise<ServiceStatus> {
   const t0 = performance.now();
+  let ok = false;
+  let latency: number | null = null;
   try {
     const resp = await fetch(`${s.probePath}/health`, {
       method: "GET",
       cache: "no-store"
     });
-    const latencyMs = Math.round(performance.now() - t0);
-    return {
-      ...s,
-      status: resp.ok ? "ok" : "down",
-      latencyMs,
-      lastCheckedAt: Date.now()
-    };
+    latency = Math.round(performance.now() - t0);
+    ok = resp.ok;
   } catch {
-    return {
-      ...s,
-      status: "down",
-      latencyMs: null,
-      lastCheckedAt: Date.now()
-    };
+    ok = false;
   }
+  const history = [...s.latencyHistory, latency ?? -1].slice(-LATENCY_HISTORY_LEN);
+  return {
+    ...s,
+    status: ok ? "ok" : "down",
+    latencyMs: latency,
+    lastCheckedAt: Date.now(),
+    latencyHistory: history,
+    uptimeUp: s.uptimeUp + (ok ? 1 : 0),
+    uptimeTotal: s.uptimeTotal + 1
+  };
 }
 
 async function refreshAll() {
@@ -96,6 +111,41 @@ function statusTag(status: ServiceStatus["status"]): {
     default:
       return { type: "info", label: t("menus.dashboardStatusUnknown") };
   }
+}
+
+function uptimePct(s: ServiceStatus): string {
+  if (s.uptimeTotal === 0) return "—";
+  return ((s.uptimeUp / s.uptimeTotal) * 100).toFixed(1) + "%";
+}
+
+function avgLatency(s: ServiceStatus): number | null {
+  const valid = s.latencyHistory.filter(v => v >= 0);
+  if (valid.length === 0) return null;
+  return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
+}
+
+function sparklinePath(history: number[], width = 80, height = 24): string {
+  const valid = history.filter(v => v >= 0);
+  if (valid.length < 2) return "";
+  const max = Math.max(...valid, 1);
+  const min = Math.min(...valid, 0);
+  const range = max - min || 1;
+  const stepX = width / (LATENCY_HISTORY_LEN - 1);
+  return valid
+    .map((v, i) => {
+      const x = i * stepX;
+      const y = height - ((v - min) / range) * height;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+function sparklineColor(s: ServiceStatus): string {
+  const avg = avgLatency(s);
+  if (avg === null) return "#909399";
+  if (avg < 50) return "#67c23a";
+  if (avg < 200) return "#e6a23c";
+  return "#f56c6c";
 }
 
 // =========== Stat cards（从真实 API 取 count） ===========
@@ -244,7 +294,7 @@ onUnmounted(() => {
         class="mb-4"
       >
         <el-card shadow="hover">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between mb-2">
             <div>
               <div class="text-base font-semibold">{{ s.name }}</div>
               <div class="text-xs text-gray-400">
@@ -259,7 +309,48 @@ onUnmounted(() => {
               {{ statusTag(s.status).label }}
             </el-tag>
           </div>
-          <div class="mt-3 flex items-end justify-between text-xs text-gray-500">
+
+          <div class="grid grid-cols-2 gap-3 text-xs mt-2">
+            <div>
+              <div class="text-gray-400">
+                {{ t("menus.dashboardAvgLatency") }}
+              </div>
+              <div class="font-mono text-base">
+                {{ avgLatency(s) !== null ? avgLatency(s) + " ms" : "—" }}
+              </div>
+            </div>
+            <div>
+              <div class="text-gray-400">
+                {{ t("menus.dashboardUptime") }}
+              </div>
+              <div class="font-mono text-base">{{ uptimePct(s) }}</div>
+            </div>
+          </div>
+
+          <div
+            v-if="s.latencyHistory.length >= 1"
+            class="mt-2"
+            :title="
+              t('menus.dashboardLatencyTrend', { n: s.latencyHistory.length })
+            "
+          >
+            <svg
+              :width="80"
+              :height="24"
+              :viewBox="`0 0 80 24`"
+              preserveAspectRatio="none"
+              style="width: 100%; height: 24px"
+            >
+              <path
+                :d="sparklinePath(s.latencyHistory)"
+                fill="none"
+                :stroke="sparklineColor(s)"
+                stroke-width="1.5"
+              />
+            </svg>
+          </div>
+
+          <div class="mt-2 flex items-end justify-between text-xs text-gray-500">
             <span>
               {{ t("menus.dashboardLastCheck") }}: {{ fmtTime(s.lastCheckedAt) }}
             </span>
