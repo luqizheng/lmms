@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import ReCol from "@/components/ReCol";
 import { formRules } from "./utils/rule";
 import { FormProps } from "./utils/types";
 
+const { t } = useI18n();
 const props = withDefaults(defineProps<FormProps>(), {
   formInline: () => ({
     higherDeptOptions: [],
@@ -35,7 +37,7 @@ defineExpose({ getRef });
   >
     <el-row :gutter="30">
       <re-col>
-        <el-form-item label="上级部门">
+        <el-form-item :label="t('menus.deptFormLabelParent')">
           <el-cascader
             v-model="newFormInline.parentId"
             class="w-full"
@@ -48,7 +50,7 @@ defineExpose({ getRef });
             }"
             clearable
             filterable
-            placeholder="请选择上级部门"
+            :placeholder="t('menus.deptFormPlaceholderParent')"
           >
             <template #default="{ node, data }">
               <span>{{ data.name }}</span>
@@ -61,26 +63,26 @@ defineExpose({ getRef });
       </re-col>
 
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="部门名称" prop="name">
+        <el-form-item :label="t('menus.deptFormLabelName')" prop="name">
           <el-input
             v-model="newFormInline.name"
             clearable
-            placeholder="请输入部门名称"
+            :placeholder="t('menus.deptFormPlaceholderName')"
           />
         </el-form-item>
       </re-col>
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="部门编码" prop="code">
+        <el-form-item :label="t('menus.deptFormLabelCode')" prop="code">
           <el-input
             v-model="newFormInline.code"
             clearable
-            placeholder="请输入部门编码"
+            :placeholder="t('menus.deptFormPlaceholderCode')"
           />
         </el-form-item>
       </re-col>
 
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item label="排序">
+        <el-form-item :label="t('menus.deptFormLabelSort')">
           <el-input-number
             v-model="newFormInline.sortOrder"
             class="w-full!"
@@ -91,10 +93,13 @@ defineExpose({ getRef });
         </el-form-item>
       </re-col>
       <re-col v-if="newFormInline.id" :value="12" :xs="24" :sm="24">
-        <el-form-item label="状态">
+        <el-form-item :label="t('menus.deptFormLabelStatus')">
           <el-select v-model="newFormInline.status" class="w-full">
-            <el-option label="启用" value="active" />
-            <el-option label="停用" value="inactive" />
+            <el-option :label="t('menus.deptStatusActive')" value="active" />
+            <el-option
+              :label="t('menus.deptStatusInactive')"
+              value="inactive"
+            />
           </el-select>
         </el-form-item>
       </re-col>

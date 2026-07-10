@@ -237,6 +237,47 @@ buttons:
   monitorExportSuccess: 已下载 CSV
   monitorExportSuccessJson: 已下载 JSON
   monitorExportFailFallback: 导出失败
+  deptFormLabelParent: 上级部门
+  deptFormLabelName: 部门名称
+  deptFormLabelCode: 部门编码
+  deptFormLabelSort: 排序
+  deptFormLabelStatus: 状态
+  deptFormPlaceholderParent: 请选择上级部门
+  deptFormPlaceholderName: 请输入部门名称
+  deptFormPlaceholderCode: 请输入部门编码
+  menuFormLabelType: 菜单类型
+  menuFormLabelParent: 上级菜单
+  menuFormLabelTitle: 菜单名称
+  menuFormLabelRouteName: 路由名称
+  menuFormLabelPath: 路由路径
+  menuFormLabelComponent: 组件路径
+  menuFormLabelRank: 菜单排序
+  menuFormLabelRedirect: 路由重定向
+  menuFormLabelIcon: 菜单图标
+  menuFormLabelExtraIcon: 右侧图标
+  menuFormLabelEnter: 进场动画
+  menuFormLabelLeave: 离场动画
+  menuFormLabelActive: 菜单激活
+  menuFormLabelAuths: 权限标识
+  menuFormLabelFrameSrc: 链接地址
+  menuFormLabelFrameLoading: 加载动画
+  menuFormLabelShowLink: 菜单
+  menuFormLabelShowParent: 父级菜单
+  menuFormLabelKeepAlive: 缓存页面
+  menuFormLabelHiddenTag: 标签页
+  menuFormLabelFixedTag: 固定标签页
+  menuFormPlaceholderParent: 请选择上级菜单
+  menuFormPlaceholderTitle: 请输入菜单名称
+  menuFormPlaceholderRouteName: 请输入路由名称
+  menuFormPlaceholderPath: 请输入路由路径
+  menuFormPlaceholderComponent: 请输入组件路径
+  menuFormPlaceholderRedirect: 请输入默认跳转地址
+  menuFormPlaceholderExtraIcon: 菜单名称右侧的额外图标
+  menuFormPlaceholderEnter: 请选择页面进场加载动画
+  menuFormPlaceholderLeave: 请选择页面离场加载动画
+  menuFormPlaceholderActive: 请输入需要激活的菜单
+  menuFormPlaceholderAuths: 请输入权限标识
+  menuFormPlaceholderFrameSrc: 请输入 iframe 链接地址
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

@@ -237,6 +237,47 @@ buttons:
   monitorExportSuccess: Downloaded CSV
   monitorExportSuccessJson: Downloaded JSON
   monitorExportFailFallback: Export failed
+  deptFormLabelParent: Parent Department
+  deptFormLabelName: Department Name
+  deptFormLabelCode: Department Code
+  deptFormLabelSort: Sort Order
+  deptFormLabelStatus: Status
+  deptFormPlaceholderParent: Select parent department
+  deptFormPlaceholderName: Enter department name
+  deptFormPlaceholderCode: Enter department code
+  menuFormLabelType: Menu Type
+  menuFormLabelParent: Parent Menu
+  menuFormLabelTitle: Menu Name
+  menuFormLabelRouteName: Route Name
+  menuFormLabelPath: Route Path
+  menuFormLabelComponent: Component Path
+  menuFormLabelRank: Menu Sort
+  menuFormLabelRedirect: Route Redirect
+  menuFormLabelIcon: Menu Icon
+  menuFormLabelExtraIcon: Extra Icon
+  menuFormLabelEnter: Enter Transition
+  menuFormLabelLeave: Leave Transition
+  menuFormLabelActive: Menu Activation
+  menuFormLabelAuths: Permission Code
+  menuFormLabelFrameSrc: Frame URL
+  menuFormLabelFrameLoading: Loading Animation
+  menuFormLabelShowLink: Show Menu
+  menuFormLabelShowParent: Parent Menu Visible
+  menuFormLabelKeepAlive: Cache Page
+  menuFormLabelHiddenTag: Hide Tab
+  menuFormLabelFixedTag: Fixed Tab
+  menuFormPlaceholderParent: Select parent menu
+  menuFormPlaceholderTitle: Enter menu name
+  menuFormPlaceholderRouteName: Enter route name
+  menuFormPlaceholderPath: Enter route path
+  menuFormPlaceholderComponent: Enter component path
+  menuFormPlaceholderRedirect: Enter default redirect
+  menuFormPlaceholderExtraIcon: Extra icon to right of menu name
+  menuFormPlaceholderEnter: Select page enter transition
+  menuFormPlaceholderLeave: Select page leave transition
+  menuFormPlaceholderActive: Enter menu to activate
+  menuFormPlaceholderAuths: Enter permission code
+  menuFormPlaceholderFrameSrc: Enter iframe URL
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login
