@@ -1,3 +1,4 @@
 include:
   - docker-compose-infra.yml
   - docker-compose-services.yml
+  - docker-compose-observability.yml

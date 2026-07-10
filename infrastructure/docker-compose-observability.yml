@@ -1,11 +1,11 @@
-# Observability overlay — bring up alongside main docker-compose.yml.
-# Usage:
+# Observability stack — included into docker-compose.yml; do not run standalone.
+# Bring everything up with:
 #   docker compose -f infrastructure/docker-compose.yml up -d
-#   docker compose -f infrastructure/docker-compose-observability.yml up -d
 #
 # Then access:
 #   Prometheus:  http://localhost:9090
 #   Grafana:     http://localhost:3001  (admin / admin, change after first login)
+#   Jaeger:      http://localhost:16686
 
 services:
   prometheus:
@@ -113,5 +113,3 @@ volumes:
 
 networks:
   superpowers:
-    external: true
-    name: superpowers

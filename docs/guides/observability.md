@@ -51,14 +51,11 @@
 ### 2.1 一键启动
 
 ```bash
-# 1. 启动主基础设施
+# 启动主基础设施 + 可观测性（observability 已 include 进主 compose）
 docker compose -f infrastructure/docker-compose.yml up -d
-
-# 2. 启动可观测性 overlay
-scripts/start-observability.sh
 ```
 
-脚本会打印各组件 URL，并校验 superpowers 网络是否存在。
+启动后会拉起 Prometheus、Grafana、Jaeger、OTel collector、consul-template 五个可观测性容器。
 
 ### 2.2 访问地址
 

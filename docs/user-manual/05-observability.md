@@ -28,13 +28,10 @@
 ## 5.2 启动可观测性
 
 ```bash
-# 1. 起基础设施 + 业务服务
+# 起基础设施 + 业务服务 + 可观测性（observability 已 include 进主 compose）
 docker compose -f infrastructure/docker-compose.yml up -d
 
-# 2. 起 observability overlay（Prometheus + Grafana + OTel collector + Jaeger）
-scripts/start-observability.sh
-
-# 3. 打开 UI
+# 打开 UI
 #    Prometheus  :9090      — 指标查询
 #    Grafana     :3001      — 仪表盘（admin/admin）
 #    Jaeger      :16686     — 链路 UI

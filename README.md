@@ -26,8 +26,9 @@ A microservices architecture for coder platform, built with Rust.
 # 1. 启动基础设施 + 服务（infrastructure/docker-compose.yml）
 docker compose -f infrastructure/docker-compose.yml up -d
 
-# 2. （可选）启动可观测性 overlay（Prometheus + Grafana + Jaeger + OTel collector）
-scripts/start-observability.sh
+# 2. （可选）启动可观测性 overlay（Prometheus + Grafana + Jaeger + OTel collector，
+#    已 include 进 docker-compose.yml；想跳过此步可用 `docker compose -f infrastructure/docker-compose-infra.yml up -d`）
+docker compose -f infrastructure/docker-compose.yml up -d
 # → Prometheus :9090  Grafana :3001  Jaeger :16686
 
 # 3. 安装 e2e 依赖（独立 workspace）
@@ -98,7 +99,7 @@ cargo run                        # 启动
 详见 [`docs/guides/observability.md`](docs/guides/observability.md)。
 
 ```bash
-scripts/start-observability.sh
+docker compose -f infrastructure/docker-compose.yml up -d
 # Prometheus :9090  (metrics scraping, Consul SD)
 # Grafana    :3001  (admin/admin, 预置 Gateway Overview dashboard)
 # Jaeger     :16686 (traces UI, 4 OTel-enabled services)
@@ -379,7 +380,7 @@ pnpm run setup
 | `pnpm run check:service-standard`             | 检查服务规范合规性                                |
 | `pnpm run check:spec`                         | 检查契约规范（权限码、错误码、OpenAPI）           |
 | `node scripts/dump-openapi-specs.sh`          | 重新生成 4 个 service 的 openapi.yaml            |
-| `scripts/start-observability.sh`              | 启动可观测性 overlay（Prometheus + Grafana + Jaeger + OTel collector） |
+| `docker compose -f infrastructure/docker-compose.yml up -d` | 启动全部基础设施 + 业务 + 可观测性（observability 已 include 进主 compose） |
 
 ### AI 辅助工具
 

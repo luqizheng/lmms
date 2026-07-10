@@ -24,7 +24,6 @@
 
 ```bash
 docker compose -f infrastructure/docker-compose.yml up -d
-scripts/start-observability.sh
 ```
 
 这会拉起：
@@ -109,7 +108,7 @@ api-gateway         POST /v1/auth/login
 
 在 Jaeger 中用 `service.api-gateway` 搜索就能看到完整链路。
 
-`docker-compose.yml` 已经给这 4 个服务都设置了 `OTEL_EXPORTER_OTLP_ENDPOINT`，所以只要可观测性 overlay 在跑（`scripts/start-observability.sh`），它们就会把 span 导到同一个 collector → Jaeger。
+`docker-compose.yml` 已经给这 4 个服务都设置了 `OTEL_EXPORTER_OTLP_ENDPOINT`，所以只要 `docker compose -f infrastructure/docker-compose.yml up -d` 在跑，它们就会把 span 导到同一个 collector → Jaeger。
 
 ## 常见问题
 

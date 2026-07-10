@@ -211,9 +211,8 @@ pnpm -C tests/e2e test:ui           # 全量 UI（需前端在跑）
 # 构建镜像
 node scripts/base-images-sync.js --check
 
-# 可观测性 overlay（Prometheus + Grafana + OTel Collector + Jaeger）
+# 可观测性（已 include 进 docker-compose.yml）
 docker compose -f infrastructure/docker-compose.yml up -d
-scripts/start-observability.sh
 # 然后访问：
 #   Prometheus :9090  (metrics)
 #   Grafana    :3001  (admin/admin) — dashboards 自动加载
@@ -263,7 +262,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 - **要某服务的约定？** → `services/<svc>/AGENTS.md`
 - **要调试请求链路？** → `docs/guides/otel-tracing.md` (Jaeger)
 - **要做灰度发布？** → `docs/guides/canary-rollout.md`
-- **要搭可观测性？** → `scripts/start-observability.sh` + `docs/user-manual/05-observability.md`
+- **要搭可观测性？** → `docker compose -f infrastructure/docker-compose.yml up -d` + `docs/user-manual/05-observability.md`
 - **要写/跑测试？** → `docs/guides/testing.md`
 - **要全局概览？** → `docs/user-manual/` 或 `docs/ai-context.md`
 - **要知道接下来做什么？** → `docs/superpowers/plans/2026-06-25-overall-roadmap.md`

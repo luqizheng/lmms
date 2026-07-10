@@ -66,8 +66,7 @@ coder-micro-services/
 │   ├── check-spec.js
 │   ├── contracts-gen.js
 │   ├── run-tests-docker.js
-│   ├── dump-openapi-specs.sh
-│   └── start-observability.sh
+│   └── dump-openapi-specs.sh
 ├── .agents/skills/                 ← AI Skill（项目）
 └── .trae/                          ← AI 规则 + 平台 Skill
 ```
@@ -82,7 +81,7 @@ coder-micro-services/
 alias cms-ci='node scripts/check-service-standard.js && node scripts/check-spec.js && node scripts/contracts-gen.js --check'
 alias cms-openapi='scripts/dump-openapi-specs.sh'
 alias cms-test='node scripts/run-tests-docker.js'
-alias cms-obs='scripts/start-observability.sh'
+alias cms-obs='docker compose -f infrastructure/docker-compose.yml up -d'
 alias cms-e2e='cd tests/e2e && pnpm test:smoke'
 ```
 

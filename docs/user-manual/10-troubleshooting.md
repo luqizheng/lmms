@@ -25,12 +25,10 @@
 ```bash
 # 拆掉所有 infra + observability（带 -v 删卷）
 docker compose -f infrastructure/docker-compose.yml down -v
-docker compose -f infrastructure/docker-compose-observability.yml down -v
 docker network rm superpowers 2>/dev/null
 
 # 重新起
 docker compose -f infrastructure/docker-compose.yml up -d
-scripts/start-observability.sh
 ```
 
 > 这会**清掉所有本地数据**。生产禁止。

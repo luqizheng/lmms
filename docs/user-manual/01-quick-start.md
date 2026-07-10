@@ -26,13 +26,10 @@ git clone <repo-url> coder-micro-services
 cd coder-micro-services
 pnpm install
 
-# 2. 启动基础设施（MySQL / Redis / Consul）
+# 2. 启动基础设施（MySQL / Redis / Consul / 业务服务 / 可观测性）
 docker compose -f infrastructure/docker-compose.yml up -d
 
-# 3. （可选）启动可观测性 overlay
-scripts/start-observability.sh
-
-# 4. 校验基础设施健康
+# 3. 校验基础设施健康
 docker ps --filter "network=superpowers"
 # 应看到：8 个业务服务 + consul + redis + mysql 全部 UP
 ```
