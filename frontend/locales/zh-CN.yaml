@@ -372,6 +372,9 @@ buttons:
   notificationPermissionDenied: 浏览器通知权限被拒
   notificationDesktopTitle: 新通知
   notificationDesktopBody: "{title} — 点击查看"
+  fileBulkDeleteConfirm: "确认删除 {n} 个文件？"
+  fileBulkDeleteSuccess: "已删除 {n} 个文件"
+  fileBulkDeletePartial: "已删除 {ok} 个，{fail} 个失败"
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

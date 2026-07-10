@@ -372,6 +372,9 @@ buttons:
   notificationPermissionDenied: Browser notification permission denied
   notificationDesktopTitle: New Notification
   notificationDesktopBody: "{title} — click to view"
+  fileBulkDeleteConfirm: "Confirm delete {n} file(s)?"
+  fileBulkDeleteSuccess: "Deleted {n} file(s)"
+  fileBulkDeletePartial: "Deleted {ok}, {fail} failed"
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

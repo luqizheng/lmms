@@ -131,7 +131,7 @@ async function bulkDelete() {
   if (selectedCount.value === 0) return;
   if (
     !confirm(
-      `确认删除 ${selectedCount.value} 个文件?`
+      t("menus.fileBulkDeleteConfirm", { n: selectedCount.value })
     )
   )
     return;
@@ -145,13 +145,11 @@ async function bulkDelete() {
       fail++;
     }
   }
-  message(
-    t("menus.configCreated", { ok, fail }).replace(
-      /已创建/,
-      fail > 0 ? `删除完成 ${ok} 成功 ${fail} 失败` : `已删除 ${ok}`
-    ),
-    { type: fail > 0 ? "warning" : "success" }
-  );
+  const summary =
+    fail > 0
+      ? t("menus.fileBulkDeletePartial", { ok, fail })
+      : t("menus.fileBulkDeleteSuccess", { n: ok });
+  message(summary, { type: fail > 0 ? "warning" : "success" });
   selectedRows.value = [];
   await onSearch();
 }
