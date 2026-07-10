@@ -363,6 +363,10 @@ buttons:
   dashboardColResource: 资源
   dashboardColUser: 用户
   dashboardColTime: 时间
+  fileSelected: "已选 {n} 项"
+  fileBulkDelete: 批量删除
+  fileDropHint: 拖入此处上传
+  fileImagePreview: 预览
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

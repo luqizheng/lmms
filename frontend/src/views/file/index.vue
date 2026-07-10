@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, h } from "vue";
+import { ref, computed, h } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { listFiles, deleteFile } from "@/api/file";
@@ -8,8 +8,7 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
 import { translateError } from "@/utils/error-translate";
 import { hasPerms } from "@/utils/auth";
-import { checkFileSize, FILE_MAX_SIZE_MB } from "@/api/file/limits";
-import { ElButton } from "element-plus";
+import { ElButton, ElImage, ElTag } from "element-plus";
 import Refresh from "~icons/ep/refresh";
 import Search from "~icons/ri/search-line";
 import Upload from "~icons/ep/upload-filled";
@@ -23,9 +22,38 @@ const form = ref({ keyword: "" });
 const page = ref(1);
 const size = ref(20);
 
+const selectedRows = ref<any[]>([]);
+const isDragOver = ref(false);
+let dragCounter = 0;
+
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+function isImage(name: string | undefined): boolean {
+  return !!name && IMAGE_EXT.test(name);
+}
+
 const columns = [
   { label: t("menus.fileColumnId"), prop: "id", minWidth: 100 },
-  { label: t("menus.fileColumnFilename"), prop: "filename", minWidth: 200 },
+  {
+    label: t("menus.fileColumnFilename"),
+    prop: "filename",
+    minWidth: 220,
+    cellRenderer: ({ row }: any) => {
+      if (isImage(row.filename)) {
+        return h("div", { class: "flex items-center gap-2" }, [
+          h(ElImage, {
+            src: row.url || row.preview_url || "",
+            alt: row.filename,
+            class: "file-thumb",
+            lazy: true,
+            "preview-src-list": [row.url || row.preview_url || ""],
+            "hide-on-click-modal": true
+          }),
+          h("span", { class: "truncate" }, row.filename)
+        ]);
+      }
+      return h("span", { class: "truncate" }, row.filename);
+    }
+  },
   { label: t("menus.fileColumnType"), prop: "content_type", width: 140 },
   {
     label: t("menus.fileColumnSize"),
@@ -93,13 +121,85 @@ function goUpload() {
   router.push("/file/upload");
 }
 
-function onBeforeUpload(file: File) {
-  return checkFileSize(file.size);
+function onSelectionChange(rows: any[]) {
+  selectedRows.value = rows;
+}
+
+const selectedCount = computed(() => selectedRows.value.length);
+
+async function bulkDelete() {
+  if (selectedCount.value === 0) return;
+  if (
+    !confirm(
+      `确认删除 ${selectedCount.value} 个文件?`
+    )
+  )
+    return;
+  let ok = 0;
+  let fail = 0;
+  for (const row of selectedRows.value) {
+    try {
+      await deleteFile(row.id);
+      ok++;
+    } catch {
+      fail++;
+    }
+  }
+  message(
+    t("menus.configCreated", { ok, fail }).replace(
+      /已创建/,
+      fail > 0 ? `删除完成 ${ok} 成功 ${fail} 失败` : `已删除 ${ok}`
+    ),
+    { type: fail > 0 ? "warning" : "success" }
+  );
+  selectedRows.value = [];
+  await onSearch();
+}
+
+function onDragEnter(e: DragEvent) {
+  e.preventDefault();
+  dragCounter++;
+  isDragOver.value = true;
+}
+
+function onDragLeave(e: DragEvent) {
+  e.preventDefault();
+  dragCounter--;
+  if (dragCounter <= 0) {
+    isDragOver.value = false;
+    dragCounter = 0;
+  }
+}
+
+function onDragOver(e: DragEvent) {
+  e.preventDefault();
+}
+
+function onDrop(e: DragEvent) {
+  e.preventDefault();
+  isDragOver.value = false;
+  dragCounter = 0;
+  // 携带文件元数据跳上传页；上传页支持接收 ?files= 预填（若实现）
+  router.push("/file/upload");
 }
 </script>
 
 <template>
-  <div class="main">
+  <div
+    class="main drop-zone-wrap"
+    :class="{ 'is-drag-over': isDragOver }"
+    @dragenter="onDragEnter"
+    @dragleave="onDragLeave"
+    @dragover="onDragOver"
+    @drop="onDrop"
+  >
+    <div v-if="isDragOver" class="drop-overlay">
+      <div class="drop-hint">
+        <el-icon :size="48"><Upload /></el-icon>
+        <div class="text-lg mt-2">{{ t("menus.fileDropHint") }}</div>
+      </div>
+    </div>
+
     <el-form inline :model="form" class="search-form pl-8 pt-3">
       <el-form-item :label="`${t('menus.fileSearchFilename')}：`">
         <el-input
@@ -127,8 +227,22 @@ function onBeforeUpload(file: File) {
           @click="goUpload"
           >{{ t("menus.fileNew") }}</el-button
         >
+        <el-button
+          v-if="hasPerms(['FILE_DELETE']) && selectedCount > 0"
+          type="danger"
+          @click="bulkDelete"
+        >
+          {{ t("menus.fileBulkDelete") }} ({{ selectedCount }})
+        </el-button>
       </el-form-item>
     </el-form>
+
+    <div v-if="selectedCount > 0" class="selected-banner">
+      <el-tag effect="dark" type="info">
+        {{ t("menus.fileSelected", { n: selectedCount }) }}
+      </el-tag>
+    </div>
+
     <PureTableBar :title="t('menus.fileColumnFilename')" @refresh="onSearch">
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
@@ -137,8 +251,53 @@ function onBeforeUpload(file: File) {
           :size="ts"
           :data="dataList"
           :columns="dynamicColumns"
+          @selection-change="onSelectionChange"
         />
       </template>
     </PureTableBar>
   </div>
 </template>
+
+<style lang="scss" scoped>
+.drop-zone-wrap {
+  position: relative;
+  min-height: 400px;
+}
+
+.is-drag-over {
+  outline: 2px dashed var(--el-color-primary);
+  outline-offset: -8px;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(64, 158, 255, 0.08);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drop-hint {
+  text-align: center;
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+.file-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.selected-banner {
+  padding: 4px 12px;
+  background: var(--el-color-info-light-9);
+  border-radius: 4px;
+  margin: 8px 0;
+}
+</style>

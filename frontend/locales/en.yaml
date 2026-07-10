@@ -363,6 +363,10 @@ buttons:
   dashboardColResource: Resource
   dashboardColUser: User
   dashboardColTime: Time
+  fileSelected: "{n} selected"
+  fileBulkDelete: Delete Selected
+  fileDropHint: Drop files here to upload
+  fileImagePreview: Preview
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

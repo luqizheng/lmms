@@ -51,7 +51,9 @@ const elStubs: Record<string, any> = {
   ElButton: { template: "<button><slot /></button>" },
   ElForm: { template: "<form><slot /></form>" },
   ElFormItem: { template: "<div><slot /></div>" },
-  ElInput: { template: "<input />" }
+  ElInput: { template: "<input />" },
+  ElTag: { template: "<span class=\"el-tag\"><slot /></span>" },
+  ElImage: { template: "<img class=\"el-image-stub\" />" }
 };
 
 function mountFile() {
@@ -102,5 +104,21 @@ describe("FileList mount", () => {
       .find((b: any) => b.text().includes("menus.fileNew"));
     await uploadBtn.trigger("click");
     expect(routerPush).toHaveBeenCalledWith("/file/upload");
+  });
+
+  it("hides 批量删除 button when no rows selected", () => {
+    const wrapper = mountFile();
+    const labels = wrapper
+      .findAll("button")
+      .map((b: any) => b.text());
+    expect(
+      labels.some((t: string) => t.includes("menus.fileBulkDelete"))
+    ).toBe(false);
+  });
+
+  it("renders drop zone overlay (hidden by default)", () => {
+    const wrapper = mountFile();
+    expect(wrapper.find(".drop-zone-wrap").exists()).toBe(true);
+    expect(wrapper.find(".is-drag-over").exists()).toBe(false);
   });
 });
