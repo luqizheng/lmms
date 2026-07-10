@@ -10,6 +10,7 @@ import Search from "~icons/ri/search-line";
 defineOptions({ name: "NotificationInbox" });
 const { t } = useI18n();
 const formRef = ref();
+const marking = ref(false);
 const {
   form,
   loading,
@@ -25,6 +26,21 @@ const {
 function reset() {
   formRef.value?.resetFields();
   onSearch();
+}
+
+async function markAllRead() {
+  if (!unreadCount.value) return;
+  marking.value = true;
+  try {
+    // 复用 store.readAll（按 popoverQueue 全量 mark read + 清空）
+    const { useNotificationStore } = await import(
+      "@/store/modules/notification"
+    );
+    await useNotificationStore().readAll();
+    await onSearch();
+  } finally {
+    marking.value = false;
+  }
 }
 
 const tabCounts = computed(() => ({
@@ -61,6 +77,14 @@ const tabCounts = computed(() => ({
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="reset">
           {{ t("menus.notificationReset") }}
+        </el-button>
+        <el-button
+          v-if="unreadCount > 0"
+          type="primary"
+          :loading="marking"
+          @click="markAllRead"
+        >
+          {{ t("menus.notificationMarkAllRead") }}
         </el-button>
       </el-form-item>
     </el-form>

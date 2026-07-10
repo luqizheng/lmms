@@ -90,6 +90,16 @@ it("renders 搜索 and 重置 buttons via i18n key", () => {
     expect(labels.some((t: string) => t.includes("menus.notificationReset"))).toBe(true);
   });
 
+  it("hides 全部标为已读 button when unreadCount is 0", () => {
+    const wrapper = mountInbox();
+    const labels = wrapper
+      .findAll("button")
+      .map((b: any) => b.text());
+    expect(
+      labels.some((t: string) => t.includes("menus.notificationMarkAllRead"))
+    ).toBe(false);
+  });
+
   it("calls useInbox hook on mount", () => {
     mountInbox();
     expect(useInbox).toHaveBeenCalledTimes(1);

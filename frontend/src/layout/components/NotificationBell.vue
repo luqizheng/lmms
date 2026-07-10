@@ -83,6 +83,12 @@ async function markOneRead(item: NotificationItem) {
   await store.readOne(item.id);
 }
 
+async function openItem(item: NotificationItem) {
+  // mark read + navigate to detail page
+  await store.readOne(item.id);
+  router.push(`/notification/detail/${item.id}`);
+}
+
 function goInbox() {
   router.push("/notification/inbox");
 }
@@ -132,7 +138,15 @@ function goInbox() {
           :key="item.id"
           class="notification-item"
         >
-          <div class="notification-title">{{ item.title }}</div>
+          <div
+            class="notification-title"
+            role="button"
+            tabindex="0"
+            @click="openItem(item)"
+            @keydown.enter="openItem(item)"
+          >
+            {{ item.title }}
+          </div>
           <div class="flex items-center justify-between mt-1">
             <span class="notification-time">
               {{ fmtRelative(item.received_at) }}
@@ -141,7 +155,7 @@ function goInbox() {
               link
               type="primary"
               size="small"
-              @click="markOneRead(item)"
+              @click.stop="markOneRead(item)"
             >
               {{ t("menus.notificationMarkRead") }}
             </el-button>
@@ -206,6 +220,9 @@ function goInbox() {
   &:last-child {
     border-bottom: none;
   }
+  &:hover {
+    background: var(--el-fill-color-light);
+  }
 }
 
 .notification-title {
@@ -216,6 +233,10 @@ function goInbox() {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  cursor: pointer;
+  &:hover {
+    color: var(--el-color-primary);
+  }
 }
 
 .notification-time {
