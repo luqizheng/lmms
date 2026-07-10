@@ -378,6 +378,10 @@ buttons:
   dashboardAvgLatency: Avg Latency
   dashboardUptime: Uptime
   dashboardLatencyTrend: "Latency trend (last {n} polls)"
+  dashboardP50: p50
+  dashboardP95: p95
+  dashboardP99: p99
+  dashboardErrorRate: Error Rate
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

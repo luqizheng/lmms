@@ -124,6 +124,41 @@ function avgLatency(s: ServiceStatus): number | null {
   return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
 }
 
+function percentile(values: number[], p: number): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.ceil((p / 100) * sorted.length) - 1)
+  );
+  return sorted[idx];
+}
+
+function p50(s: ServiceStatus): number | null {
+  return percentile(
+    s.latencyHistory.filter(v => v >= 0),
+    50
+  );
+}
+function p95(s: ServiceStatus): number | null {
+  return percentile(
+    s.latencyHistory.filter(v => v >= 0),
+    95
+  );
+}
+function p99(s: ServiceStatus): number | null {
+  return percentile(
+    s.latencyHistory.filter(v => v >= 0),
+    99
+  );
+}
+
+function errorRate(s: ServiceStatus): string {
+  if (s.uptimeTotal === 0) return "—";
+  const fail = s.uptimeTotal - s.uptimeUp;
+  return ((fail / s.uptimeTotal) * 100).toFixed(1) + "%";
+}
+
 function sparklinePath(history: number[], width = 80, height = 24): string {
   const valid = history.filter(v => v >= 0);
   if (valid.length < 2) return "";
@@ -310,7 +345,7 @@ onUnmounted(() => {
             </el-tag>
           </div>
 
-          <div class="grid grid-cols-2 gap-3 text-xs mt-2">
+          <div class="grid grid-cols-3 gap-2 text-xs mt-2">
             <div>
               <div class="text-gray-400">
                 {{ t("menus.dashboardAvgLatency") }}
@@ -321,9 +356,25 @@ onUnmounted(() => {
             </div>
             <div>
               <div class="text-gray-400">
-                {{ t("menus.dashboardUptime") }}
+                {{ t("menus.dashboardP95") }}
               </div>
-              <div class="font-mono text-base">{{ uptimePct(s) }}</div>
+              <div class="font-mono text-base">
+                {{ p95(s) !== null ? p95(s) + " ms" : "—" }}
+              </div>
+            </div>
+            <div>
+              <div class="text-gray-400">
+                {{ t("menus.dashboardErrorRate") }}
+              </div>
+              <div
+                class="font-mono text-base"
+                :class="{
+                  'text-red-500': errorRate(s) !== '—' &&
+                    parseFloat(errorRate(s)) > 0
+                }"
+              >
+                {{ errorRate(s) }}
+              </div>
             </div>
           </div>
 

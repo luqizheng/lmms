@@ -378,6 +378,10 @@ buttons:
   dashboardAvgLatency: 平均延迟
   dashboardUptime: 可用率
   dashboardLatencyTrend: "延迟趋势（最近 {n} 次）"
+  dashboardP50: p50
+  dashboardP95: p95
+  dashboardP99: p99
+  dashboardErrorRate: 错误率
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录
