@@ -49,6 +49,7 @@
     "docker:build:frontend": "node scripts/build-docker.js frontend",
     "docker:build": "node scripts/build-docker.js",
     "docker:build:clean": "node scripts/build-docker.js prune",
+    "docker:demo:data": "node scripts/demo-data.js",
     "release:push": "node scripts/release-push.js",
     "sdk:test:java": "cd sdk/java && mvn -B test",
     "sdk:test:java:8": "cd sdk/java && mvn -B test -P java8",
@@ -86,6 +87,7 @@
     "argon2": "^0.44.0"
   },
   "devDependencies": {
-    "js-yaml": "^5.2.1"
+    "js-yaml": "^5.2.1",
+    "mysql2": "^3.22.6"
   }
 }
