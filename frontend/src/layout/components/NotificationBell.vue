@@ -1,19 +1,33 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue";
+import { computed, ref, watch, onBeforeUnmount, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Bell } from "@element-plus/icons-vue";
-import { useNotificationStore } from "@/store/modules/notification";
+import { useI18n } from "vue-i18n";
+import {
+  useNotificationStore,
+  type NotificationItem
+} from "@/store/modules/notification";
 import { connect, disconnect, on } from "@/utils/notification-socket";
 
 const router = useRouter();
 const store = useNotificationStore();
+const { t } = useI18n();
 
 let offAnnouncement: (() => void) | undefined;
 let offCount: (() => void) | undefined;
 
+const POPOVER_LIMIT = 5;
+const POPOVER_RECENT_FETCH = 20;
+
+const pulse = ref(false);
+let pulseTimer: ReturnType<typeof setTimeout> | null = null;
+const lastQueueLen = ref(0);
+
 onMounted(() => {
   store.refreshUnread().catch(() => undefined);
+  store.refreshInbox().catch(() => undefined);
   connect();
+  lastQueueLen.value = store.popoverQueue.length;
   offAnnouncement = on("announcement", (msg: any) => {
     if (typeof msg.id === "number" && typeof msg.title === "string") {
       store.pushFromSocket({ id: msg.id, title: msg.title });
@@ -28,7 +42,46 @@ onBeforeUnmount(() => {
   offAnnouncement?.();
   offCount?.();
   disconnect();
+  if (pulseTimer) clearTimeout(pulseTimer);
 });
+
+watch(
+  () => store.popoverQueue.length,
+  (newLen, oldLen) => {
+    if (newLen > oldLen) {
+      pulse.value = true;
+      if (pulseTimer) clearTimeout(pulseTimer);
+      pulseTimer = setTimeout(() => {
+        pulse.value = false;
+      }, 1500);
+    }
+    lastQueueLen.value = newLen;
+  }
+);
+
+const recentItems = computed<NotificationItem[]>(() => {
+  const list = store.inboxList.length > 0 ? store.inboxList : store.popoverQueue;
+  return list.slice(0, POPOVER_LIMIT);
+});
+
+function fmtRelative(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return t("menus.notificationJustNow");
+  if (min < 60) return t("menus.notificationMinutesAgo", { n: min });
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return t("menus.notificationHoursAgo", { n: hr });
+  const day = Math.floor(hr / 24);
+  return t("menus.notificationDaysAgo", { n: day });
+}
+
+async function markAllRead() {
+  await store.readAll();
+}
+
+async function markOneRead(item: NotificationItem) {
+  await store.readOne(item.id);
+}
 
 function goInbox() {
   router.push("/notification/inbox");
@@ -36,11 +89,137 @@ function goInbox() {
 </script>
 
 <template>
-  <el-badge
-    :value="store.unreadCount"
-    :hidden="store.unreadCount === 0"
-    :max="99"
-  >
-    <el-button text :icon="Bell" @click="goInbox" />
-  </el-badge>
+  <el-popover trigger="click" :width="380" placement="bottom-end">
+    <template #reference>
+      <el-badge
+        :value="store.unreadCount"
+        :hidden="store.unreadCount === 0"
+        :max="99"
+      >
+        <el-button
+          text
+          :icon="Bell"
+          :class="['bell-trigger', { 'bell-pulse': pulse }]"
+        />
+      </el-badge>
+    </template>
+    <div class="notification-popover">
+      <div class="flex items-center justify-between px-1 mb-2">
+        <span class="text-sm font-semibold">
+          {{ t("menus.notificationBellTitle") }}
+        </span>
+        <el-button
+          v-if="store.unreadCount > 0"
+          link
+          type="primary"
+          size="small"
+          @click="markAllRead"
+        >
+          {{ t("menus.notificationMarkAllRead") }}
+        </el-button>
+      </div>
+
+      <div
+        v-if="recentItems.length === 0"
+        class="text-center text-gray-400 py-6 text-sm"
+      >
+        {{ t("menus.notificationEmpty") }}
+      </div>
+
+      <ul v-else class="notification-list">
+        <li
+          v-for="item in recentItems"
+          :key="item.id"
+          class="notification-item"
+        >
+          <div class="notification-title">{{ item.title }}</div>
+          <div class="flex items-center justify-between mt-1">
+            <span class="notification-time">
+              {{ fmtRelative(item.received_at) }}
+            </span>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="markOneRead(item)"
+            >
+              {{ t("menus.notificationMarkRead") }}
+            </el-button>
+          </div>
+        </li>
+      </ul>
+
+      <div class="text-center pt-2 border-t border-gray-100 mt-2">
+        <el-button link type="primary" size="small" @click="goInbox">
+          {{ t("menus.notificationViewAll") }}
+        </el-button>
+      </div>
+    </div>
+  </el-popover>
 </template>
+
+<style lang="scss" scoped>
+.bell-trigger {
+  font-size: 18px;
+}
+
+.bell-pulse :deep(svg) {
+  animation: bell-ring 1.5s ease-in-out;
+  color: var(--el-color-primary);
+}
+
+@keyframes bell-ring {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: rotate(8deg);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: rotate(-8deg);
+  }
+}
+
+.notification-popover {
+  max-height: 460px;
+}
+
+.notification-list {
+  max-height: 320px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notification-item {
+  padding: 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.notification-title {
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+</style>

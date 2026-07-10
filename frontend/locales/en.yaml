@@ -93,6 +93,13 @@ menus:
   notificationMarkRead: Mark as Read
   notificationMarkAllRead: Mark All as Read
   notificationRefresh: Refresh
+  notificationBellTitle: Notifications
+  notificationEmpty: No new notifications
+  notificationViewAll: View all
+  notificationJustNow: Just now
+  notificationMinutesAgo: "{n}m ago"
+  notificationHoursAgo: "{n}h ago"
+  notificationDaysAgo: "{n}d ago"
   announcement: Announcement
   announcementTitle: Title
   announcementContent: Content

@@ -93,6 +93,13 @@ menus:
   notificationMarkRead: 标为已读
   notificationMarkAllRead: 全部标为已读
   notificationRefresh: 刷新通知
+  notificationBellTitle: 通知中心
+  notificationEmpty: 暂无新通知
+  notificationViewAll: 查看全部
+  notificationJustNow: 刚刚
+  notificationMinutesAgo: "{n} 分钟前"
+  notificationHoursAgo: "{n} 小时前"
+  notificationDaysAgo: "{n} 天前"
   announcement: 公告
   announcementTitle: 公告标题
   announcementContent: 公告内容
