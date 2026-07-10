@@ -27,6 +27,25 @@ buttons:
   securityLogOs: Operating System
   securityLogBrowser: Browser Type
   securityLogTime: Time
+  profileNicknameRequired: Nickname is required
+  profileUpdateAvatarSuccess: Avatar updated
+  profileUpdateAvatarFail: Avatar update failed
+  profileUpdateAvatarError: "Submit error: {error}"
+  profileUpdateInfoSuccess: Profile updated
+  profileAvatar: Avatar
+  profileUpdateAvatarBtn: Update Avatar
+  profileNickname: Nickname
+  profileNicknamePlaceholder: Enter nickname
+  profileEmail: Email
+  profileEmailPlaceholder: Enter email
+  profilePhone: Phone
+  profilePhonePlaceholder: Enter phone
+  profileDescription: Bio
+  profileDescriptionPlaceholder: Enter bio
+  profileUpdateInfo: Update profile
+  profileEditAvatarTitle: Edit Avatar
+  profileCancel: Cancel
+  profileConfirm: Confirm
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

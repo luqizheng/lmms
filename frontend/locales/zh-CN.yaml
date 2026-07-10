@@ -27,6 +27,25 @@ buttons:
   securityLogOs: 操作系统
   securityLogBrowser: 浏览器类型
   securityLogTime: 时间
+  profileNicknameRequired: 昵称必填
+  profileUpdateAvatarSuccess: 更新头像成功
+  profileUpdateAvatarFail: 更新头像失败
+  profileUpdateAvatarError: "提交异常 {error}"
+  profileUpdateInfoSuccess: 更新信息成功
+  profileAvatar: 头像
+  profileUpdateAvatarBtn: 更新头像
+  profileNickname: 昵称
+  profileNicknamePlaceholder: 请输入昵称
+  profileEmail: 邮箱
+  profileEmailPlaceholder: 请输入邮箱
+  profilePhone: 联系电话
+  profilePhonePlaceholder: 请输入联系电话
+  profileDescription: 简介
+  profileDescriptionPlaceholder: 请输入简介
+  profileUpdateInfo: 更新信息
+  profileEditAvatarTitle: 编辑头像
+  profileCancel: 取消
+  profileConfirm: 确定
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录
