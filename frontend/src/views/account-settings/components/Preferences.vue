@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { message } from "@/utils/message";
 import { deviceDetection } from "@pureadmin/utils";
 
@@ -7,33 +8,37 @@ defineOptions({
   name: "Preferences"
 });
 
+const { t } = useI18n();
+
 const list = ref([
   {
-    title: "账户密码",
-    illustrate: "其他用户的消息将以站内信的形式通知",
+    title: t("menus.accountCardTitlePassword"),
+    illustrate: t("menus.accountCardIllustratePassword"),
     checked: true
   },
   {
-    title: "系统消息",
-    illustrate: "系统消息将以站内信的形式通知",
+    title: t("menus.accountCardTitleSystemMessage"),
+    illustrate: t("menus.accountCardIllustrateSystemMessage"),
     checked: true
   },
   {
-    title: "待办任务",
-    illustrate: "待办任务将以站内信的形式通知",
+    title: t("menus.accountCardTitleTodoTask"),
+    illustrate: t("menus.accountCardIllustrateTodoTask"),
     checked: true
   }
 ]);
 
 function onChange(val, item) {
   console.log("onChange", val);
-  message(`${item.title}设置成功`, { type: "success" });
+  message(t("menus.accountCardSetSuccess", { title: item.title }), {
+    type: "success"
+  });
 }
 </script>
 
 <template>
   <div :class="['min-w-45', deviceDetection() ? 'max-w-full' : 'max-w-[70%]']">
-    <h3 class="my-8!">偏好设置</h3>
+    <h3 class="my-8!">{{ t("menus.purePreferences") }}</h3>
     <div v-for="(item, index) in list" :key="index">
       <div class="flex items-center">
         <div class="flex-1">
@@ -47,8 +52,8 @@ function onChange(val, item) {
         <el-switch
           v-model="item.checked"
           inline-prompt
-          active-text="是"
-          inactive-text="否"
+          :active-text="t('menus.accountCardSwitchActive')"
+          :inactive-text="t('menus.accountCardSwitchInactive')"
           @change="val => onChange(val, item)"
         />
       </div>

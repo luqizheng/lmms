@@ -4,6 +4,29 @@ buttons:
   purePreferences: 偏好设置
   pureSecurityLog: 安全日志
   pureAccountManagement: 账户管理
+  accountCardTitlePassword: 账户密码
+  accountCardIllustratePassword: 其他用户的消息将以站内信的形式通知
+  accountCardTitleSystemMessage: 系统消息
+  accountCardIllustrateSystemMessage: 系统消息将以站内信的形式通知
+  accountCardTitleTodoTask: 待办任务
+  accountCardIllustrateTodoTask: 待办任务将以站内信的形式通知
+  accountCardTitleBoundPhone: 密保手机
+  accountCardIllustrateBoundPhone: '已经绑定手机：{phone}'
+  accountCardTitleBoundEmail: 备用邮箱
+  accountCardIllustrateBoundEmail: '已绑定邮箱：{email}'
+  accountCardTitleSecurityQuestion: 密保问题
+  accountCardIllustrateSecurityQuestion: 未设置密保问题，密保问题可有效保护账户安全
+  accountCardTitlePasswordStrength: 当前密码强度：{level}
+  accountCardButtonModify: 修改
+  accountCardSwitchActive: 是
+  accountCardSwitchInactive: 否
+  accountCardSetSuccess: '{title}设置成功'
+  securityLogDetail: 详情
+  securityLogIp: IP 地址
+  securityLogLocation: 地点
+  securityLogOs: 操作系统
+  securityLogBrowser: 浏览器类型
+  securityLogTime: 时间
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

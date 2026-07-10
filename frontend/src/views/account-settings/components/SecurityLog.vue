@@ -2,12 +2,15 @@
 import dayjs from "dayjs";
 import { getMineLogs } from "@/api/user";
 import { reactive, ref, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 import { deviceDetection } from "@pureadmin/utils";
 import type { PaginationProps } from "@pureadmin/table";
 
 defineOptions({
   name: "SecurityLog"
 });
+
+const { t } = useI18n();
 
 const loading = ref(true);
 const dataList = ref([]);
@@ -20,32 +23,32 @@ const pagination = reactive<PaginationProps>({
 });
 const columns: TableColumnList = [
   {
-    label: "详情",
+    label: t("menus.securityLogDetail"),
     prop: "summary",
     minWidth: 140
   },
   {
-    label: "IP 地址",
+    label: t("menus.securityLogIp"),
     prop: "ip",
     minWidth: 100
   },
   {
-    label: "地点",
+    label: t("menus.securityLogLocation"),
     prop: "address",
     minWidth: 140
   },
   {
-    label: "操作系统",
+    label: t("menus.securityLogOs"),
     prop: "system",
     minWidth: 100
   },
   {
-    label: "浏览器类型",
+    label: t("menus.securityLogBrowser"),
     prop: "browser",
     minWidth: 100
   },
   {
-    label: "时间",
+    label: t("menus.securityLogTime"),
     prop: "operatingTime",
     minWidth: 180,
     formatter: ({ operatingTime }) =>
@@ -75,7 +78,7 @@ onMounted(() => {
 
 <template>
   <div :class="['min-w-45', deviceDetection() ? 'max-w-full' : 'max-w-[70%]']">
-    <h3 class="my-8!">安全日志</h3>
+    <h3 class="my-8!">{{ t("menus.pureSecurityLog") }}</h3>
     <pure-table
       row-key="id"
       table-layout="auto"

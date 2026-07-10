@@ -4,6 +4,29 @@ buttons:
   purePreferences: Preferences
   pureSecurityLog: Security Log
   pureAccountManagement: Account Management
+  accountCardTitlePassword: Account Password
+  accountCardIllustratePassword: Other users' messages will be sent as in-app notifications
+  accountCardTitleSystemMessage: System Messages
+  accountCardIllustrateSystemMessage: System messages will be sent as in-app notifications
+  accountCardTitleTodoTask: Todo Tasks
+  accountCardIllustrateTodoTask: Todo tasks will be sent as in-app notifications
+  accountCardTitleBoundPhone: Bound Phone
+  accountCardIllustrateBoundPhone: 'Bound phone: {phone}'
+  accountCardTitleBoundEmail: Backup Email
+  accountCardIllustrateBoundEmail: 'Bound email: {email}'
+  accountCardTitleSecurityQuestion: Security Questions
+  accountCardIllustrateSecurityQuestion: Not set. Security questions protect your account.
+  accountCardTitlePasswordStrength: "Current password strength: {level}"
+  accountCardButtonModify: Modify
+  accountCardSwitchActive: On
+  accountCardSwitchInactive: Off
+  accountCardSetSuccess: '{title} updated'
+  securityLogDetail: Detail
+  securityLogIp: IP Address
+  securityLogLocation: Location
+  securityLogOs: Operating System
+  securityLogBrowser: Browser Type
+  securityLogTime: Time
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login
