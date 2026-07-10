@@ -27,4 +27,4 @@ RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 COPY --from=builder /app/api-gateway /app/api-gateway
 ENV RUST_LOG=api_gateway=debug
-CMD ["/app/api-gateway", "serve", "--routes", "/app/config/routes"]
+CMD ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]
