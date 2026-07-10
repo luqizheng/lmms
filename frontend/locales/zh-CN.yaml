@@ -100,6 +100,18 @@ menus:
   notificationMinutesAgo: "{n} 分钟前"
   notificationHoursAgo: "{n} 小时前"
   notificationDaysAgo: "{n} 天前"
+  fileUploadTitle: 上传文件
+  fileUploadBackendNotice: 后端 /file/upload 当前仅接 metadata，不接受二进制内容。前端先发文件名+content-type 占位，待后端补 multipart 后自动生效。客户端已校验大小 ≤ 100MB + 黑名单扩展名。
+  fileLabel: 文件
+  fileLabelTemporary: 临时文件
+  fileLabelExpires: 过期秒数
+  fileExpiresOptional: 可选
+  fileUploadSubmit: 提交上传
+  fileUploadSelectFirst: 请先选文件
+  fileUploadResultSummary: "成功 {ok}，失败 {fail}"
+  fileTooLarge: "{name} 超过 {limit}MB"
+  fileExtensionBlocked: "{name} 是禁止的可执行扩展名"
+  fileDragOrClick: 拖入或点击选择文件
   announcement: 公告
   announcementTitle: 公告标题
   announcementContent: 公告内容

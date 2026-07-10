@@ -100,6 +100,18 @@ menus:
   notificationMinutesAgo: "{n}m ago"
   notificationHoursAgo: "{n}h ago"
   notificationDaysAgo: "{n}d ago"
+  fileUploadTitle: Upload Files
+  fileUploadBackendNotice: "Backend /file/upload currently only accepts metadata; binary upload requires backend multipart support. Client validates size <= 100MB + blocked extensions."
+  fileLabel: File
+  fileLabelTemporary: Temporary
+  fileLabelExpires: Expires (seconds)
+  fileExpiresOptional: Optional
+  fileUploadSubmit: Submit
+  fileUploadSelectFirst: Please select files first
+  fileUploadResultSummary: "Success {ok}, Failed {fail}"
+  fileTooLarge: "{name} exceeds {limit}MB limit"
+  fileExtensionBlocked: "{name} has a blocked executable extension"
+  fileDragOrClick: Drop or click to select files
   announcement: Announcement
   announcementTitle: Title
   announcementContent: Content
