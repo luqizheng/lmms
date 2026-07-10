@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 /// Phase 5-B: the `kid` JWT header field. Must match the key id in
 /// the JWKSCache on the verifier side (see `common_jwt::JWKSCache::from_pem`).
-const JWT_KEY_ID: &str = "default";
+pub const JWT_KEY_ID: &str = "default";
 
 pub struct TokenIssuer {
     key_pair: RS256KeyPair,

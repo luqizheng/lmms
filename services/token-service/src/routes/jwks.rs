@@ -44,7 +44,9 @@ pub async fn handle_jwks(
     let e_components = key.e().to_bytes_be();
     let e_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&e_components);
 
-    let kid = uuid::Uuid::new_v4().to_string();
+    // kid 必须与 issuer.rs 中 JWT_KEY_ID 一致("default")，否则 verifier 拿着
+    // kid:"default" 去 JWKS 里找不到同一个 kid 会报 "unknown kid"。
+    let kid = crate::issuer::JWT_KEY_ID.to_string();
 
     Ok(Json(JwksResponse {
         keys: vec![Jwk {
