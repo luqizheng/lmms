@@ -99,6 +99,25 @@ menus:
   notificationFilterTitle: 按标题筛选
   notificationFilterAll: 全部
   notificationAll: 全部
+  userSearchUsername: 用户名称
+  userPlaceholderUsername: 请输入用户名称
+  userPhone: 手机号码
+  userPlaceholderPhone: 请输入手机号码
+  userStatus: 状态
+  userStatusActive: 已开启
+  userStatusInactive: 已关闭
+  purePlaceholderSelect: 请选择
+  userNew: 新增用户
+  userEdit: 修改
+  userDelete: 删除
+  userUploadAvatar: 上传头像
+  userResetPassword: 重置密码
+  userAssignRole: 分配角色
+  userBatchDelete: 批量删除
+  userSelected: "已选 {n} 项"
+  userCancelSelection: 取消选择
+  userConfirmDelete: 是否确认删除？
+  userConfirmDeleteUser: "是否确认删除用户编号为 {id} 的这条数据？"
   notificationSearch: 搜索
   notificationReset: 重置
   notificationNew: 新建公告

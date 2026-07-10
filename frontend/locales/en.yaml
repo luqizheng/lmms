@@ -98,6 +98,25 @@ menus:
   notificationFilterTitle: Filter by title
   notificationFilterAll: All
   notificationAll: All
+  userSearchUsername: Username
+  userPlaceholderUsername: Enter username
+  userPhone: Phone
+  userPlaceholderPhone: Enter phone
+  userStatus: Status
+  userStatusActive: Active
+  userStatusInactive: Inactive
+  purePlaceholderSelect: Please select
+  userNew: New User
+  userEdit: Edit
+  userDelete: Delete
+  userUploadAvatar: Upload Avatar
+  userResetPassword: Reset Password
+  userAssignRole: Assign Role
+  userBatchDelete: Batch Delete
+  userSelected: "{n} selected"
+  userCancelSelection: Cancel selection
+  userConfirmDelete: Confirm deletion?
+  userConfirmDeleteUser: Confirm delete user #{id}?
   notificationSearch: Search
   notificationReset: Reset
   notificationNew: New Announcement
