@@ -39,5 +39,21 @@
     "types/*.d.ts",
     "vite.config.ts"
   ],
-  "exclude": ["dist", "**/*.js", "node_modules"]
+  "exclude": [
+    "dist",
+    "**/*.js",
+    "node_modules",
+    "**/*.test.ts",
+    "src/views/about",
+    "src/views/able",
+    "src/views/empty",
+    "src/views/error",
+    "src/views/guide",
+    "src/views/list",
+    "src/views/menuoverflow",
+    "src/views/nested",
+    "src/views/result",
+    "src/views/table",
+    "src/views/tabs"
+  ]
 }

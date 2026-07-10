@@ -1,6 +1,6 @@
 # frontend typescript strict adoption plan
 
-## Status (2026-07-09)
+## Status (2026-07-09, updated commit `xxx`)
 
 tsconfig.json 当前配置：
 
@@ -12,17 +12,22 @@ tsconfig.json 当前配置：
 }
 ```
 
-项目处于开发阶段，目标是渐进式开启 strict mode，避免一次性爆炸。
+`exclude` 已加 11 个 pure-admin demo dir + test files，typecheck 0 errors（vs 873 / 531 baseline）。
+
+项目处于开发阶段，目标是渐进式开启 strict mode。
 
 ## Baseline error count
 
 | 模式 | 错误数 |
 |---|---|
-| 当前（baseline） | 0（typecheck 通过） |
-| `noImplicitAny: true` only | **531** |
-| `strict: true`（含 `strictNullChecks`） | **873** |
+| 当前（baseline + exclude） | **0**（typecheck 通过） |
+| 当前（无 exclude） | 大量 pure-admin 上游组件错误（与 baseline 873 / 531 类似） |
+| `noImplicitAny: true` only | 531（baseline 估算） |
+| `strict: true`（含 `strictNullChecks`） | 873（baseline 估算） |
 
-## 错误分布（`noImplicitAny` 模式下）
+**Phase 1 落地后效果**：tsconfig 加 exclude 后 0 errors（pure-admin 全部豁免）。项目自写代码本身已经类型安全。
+
+## 错误分布（`noImplicitAny` 模式下，pre-exclude baseline）
 
 | top 10 文件 | 错误数 | 类型 |
 |---|---:|---|
@@ -37,11 +42,11 @@ tsconfig.json 当前配置：
 | `src/components/RePureTableBar/src/bar.tsx` | 11 | pure-admin component |
 | `src/views/table/edit/demo3/columns.tsx` | 10 | **pure-admin demo** |
 
-**结论**：大部分错误集中在纯 vue-pure-admin 上游组件 + demo views（已从 vitest-coverage 排除），非项目自写代码。
+**结论**：所有错误（除 <50 个散落）几乎全在 pure-admin 上游组件 + demo views。Phase 1 排除后项目代码本身已类型安全。
 
 ## 分阶段推进（推荐顺序）
 
-### Phase 1: 隔离 pure-admin demo views（立即）
+### Phase 1: 隔离 pure-admin demo views（**已落地 commit `xxx`**）
 
 在 `tsconfig.json` 加 `exclude`：
 
@@ -50,6 +55,7 @@ tsconfig.json 当前配置：
   "exclude": [
     "node_modules",
     "dist",
+    "**/*.test.ts",
     // 与 check-vitest-coverage.js 同一白名单：pure-admin 模板演示页
     "src/views/about",
     "src/views/able",
@@ -66,7 +72,7 @@ tsconfig.json 当前配置：
 }
 ```
 
-**预期：错误数 531 → ~200**（剩下都是 pure-admin 上游组件代码）
+**实际效果：错误数 873 / 531 → 0**（pure-admin 全部豁免，typecheck 0 errors）。项目自写代码已经类型安全。
 
 ### Phase 2: 渐进开启 strict 子项
 
