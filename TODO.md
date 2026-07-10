@@ -429,6 +429,13 @@
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
 - [x] **OpenAPI registration sweep** — 2026-07-07 补齐（commit `a2cd626`：`org_units::*` 6 handler + `permissions::*` 5 handler + DTO ToSchema/IntoParams + openapi.yml 手工补齐；dump-openapi binary stack overflow pre-existing）
+- [ ] **i18n 命名空间修复后续**（commit `20488c2` 把 359 keys 从 `buttons:` 迁到 `menus:` namespace，修复 422 处原始 key 暴露；但扫到 3 处**真正**没翻译的 key 缺失，不是 namespace 错位）：
+  - `frontend/src/router/modules/account.ts` 用 `t('menus.accountProfile')` / `t('menus.accountSecurity')` / `t('menus.accountSettings')`，但 yaml 中**只**有 `pureProfile` / `pureSecurityLog` / `pureAccountSettings`（带 `pure` 前缀，在 `menus:` line 229/301/2）—— key 命名不一致，fallback 显示原始字符串。
+  - **修复方案**（二选一，本 session 不动）：
+    - (A) 在 `menus:` namespace 下新增 3 个 alias key：`accountProfile: 个人信息`、`accountSecurity: 安全日志`、`accountSettings: 账户设置`（zero call-site 改动）
+    - (B) 改 `account.ts` 用 `pureProfile` / `pureSecurityLog` / `pureAccountSettings`（zero yaml 改动，但语义稍变：profile 是「个人信息」不是「账户 Profile」）
+  - **关联**：本 commit `20488c2` + plan `docs/superpowers/plans/2026-07-10-frontend-i18n-namespace-fix-plan.md` §6「不在范围」。修方案 A 需 spec（新增 i18n key 是 contract 改动），修方案 B 改 router title（影响导航文案）。
+  - **已知误报**（无需修）：`t('tableBar.pureCollapse')` / `t('tableBar.pureList')` 在 `RePureTableBar/src/bar.tsx` / `ReVxeTableBar/src/bar.tsx` 用 `tableBar:` 前缀，key 在 `tableBar:` 下**也**有定义（line 710/715）—— 工作正常，仅 namespace 用法略不规范。
 
 ---
 
