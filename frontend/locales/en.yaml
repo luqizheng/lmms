@@ -130,6 +130,19 @@ buttons:
   menuNewMenu: New Menu
   menuConfirmDelete: "Confirm delete menu {name}?"
   menuChildrenNote: 'Note: sub-menus will be deleted too. Proceed with caution.'
+  roleFormLabelName: Role Name
+  roleFormLabelCode: Role Code
+  roleFormLabelDataScope: Data Scope
+  roleFormLabelStatus: Status
+  roleFormLabelDescription: Description
+  roleFormPlaceholderName: Enter role name
+  roleFormPlaceholderCode: Enter role code
+  roleFormPlaceholderDataScope: Select data scope
+  roleFormPlaceholderDescription: Enter description
+  roleFormDataScopeSelf: Self Only
+  roleFormDataScopeDept: Department
+  roleFormDataScopeDeptAndBelow: Department and Below
+  roleFormDataScopeAll: All
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

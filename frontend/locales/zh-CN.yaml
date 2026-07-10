@@ -130,6 +130,19 @@ buttons:
   menuNewMenu: 新增菜单
   menuConfirmDelete: "是否确认删除菜单名称为 {name} 的这条数据？"
   menuChildrenNote: 注意下级菜单也会一并删除，请谨慎操作
+  roleFormLabelName: 角色名称
+  roleFormLabelCode: 角色标识
+  roleFormLabelDataScope: 数据范围
+  roleFormLabelStatus: 状态
+  roleFormLabelDescription: 描述
+  roleFormPlaceholderName: 请输入角色名称
+  roleFormPlaceholderCode: 请输入角色标识
+  roleFormPlaceholderDataScope: 请选择数据范围
+  roleFormPlaceholderDescription: 请输入描述信息
+  roleFormDataScopeSelf: 仅本人
+  roleFormDataScopeDept: 本部门
+  roleFormDataScopeDeptAndBelow: 本部门及以下
+  roleFormDataScopeAll: 全部
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录
