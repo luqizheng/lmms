@@ -51,6 +51,7 @@ impl FileService {
         let expires_at = meta.expires_in_seconds.map(|secs| now + chrono::Duration::seconds(secs));
 
         let info = FileInfo {
+            url: String::new(),
             id: id.clone(),
             filename: meta.filename,
             content_type: meta.content_type,

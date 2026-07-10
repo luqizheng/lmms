@@ -19,6 +19,7 @@ export interface FileInfo {
   storage_path: string;
   tenant_id?: string;
   updated_at: string;
+  url?: string;
   user_id?: string;
 }
 

@@ -17,6 +17,17 @@ pub struct FileInfo {
     pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// 客户端可渲染的下载 URL（相对路径，前端 axios baseURL /api + 此值）。
+    /// 由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
+    #[serde(default)]
+    #[sqlx(skip)]
+    pub url: String,
+}
+
+/// 构造带可渲染 URL 的 FileInfo（用于 API 响应）
+pub fn with_url(mut info: FileInfo) -> FileInfo {
+    info.url = format!("/v1/file/{}", info.id);
+    info
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

@@ -3,7 +3,9 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use crate::models::file_info::{FileInfo, PagedFiles, QueryFiles, UploadFileMeta};
+use crate::models::file_info::{
+    with_url, FileInfo, PagedFiles, QueryFiles, UploadFileMeta,
+};
 use crate::routes::AppState;
 use bytes::Bytes;
 use jwt_ctx::TenantScope;
@@ -82,7 +84,7 @@ pub async fn upload_file(
             (StatusCode::INTERNAL_SERVER_ERROR, "upload failed")
         }
     })?;
-    Ok(Json(info))
+    Ok(Json(with_url(info)))
 }
 
 #[utoipa::path(
@@ -100,7 +102,13 @@ pub async fn query_files(
     Query(query): Query<QueryFiles>,
     scope: TenantScope,
 ) -> Result<Json<PagedFiles>, (StatusCode, &'static str)> {
-    let result = state.query_files(query, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    let mut result = state
+        .query_files(query, &scope)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    for item in result.items.iter_mut() {
+        item.url = format!("/v1/file/{}", item.id);
+    }
     Ok(Json(result))
 }
 
@@ -181,5 +189,5 @@ pub async fn get_file_info(
             (StatusCode::INTERNAL_SERVER_ERROR, "get file info failed")
         }
     })?;
-    Ok(Json(info))
+    Ok(Json(with_url(info)))
 }

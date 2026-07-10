@@ -98,6 +98,8 @@ async function handleSubmitImage() {
       is_temporary: false
     });
     if (res?.id) {
+      // 优先用后端返回的 url（相对路径，前端 axios baseURL /api 自动拼接）
+      if (res.url) userInfos.avatar = res.url;
       message(t("menus.profileUpdateAvatarSuccess"), { type: "success" });
       handleClose();
     } else {
