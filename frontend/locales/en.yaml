@@ -1,5 +1,9 @@
 buttons:
   pureAccountSettings: Account
+  pureProfile: Profile
+  purePreferences: Preferences
+  pureSecurityLog: Security Log
+  pureAccountManagement: Account Management
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

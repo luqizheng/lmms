@@ -1,5 +1,9 @@
 buttons:
   pureAccountSettings: 账户设置
+  pureProfile: 个人信息
+  purePreferences: 偏好设置
+  pureSecurityLog: 安全日志
+  pureAccountManagement: 账户管理
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

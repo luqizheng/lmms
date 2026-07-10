@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { getMine } from "@/api/user";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { ReText } from "@/components/ReText";
 import Profile from "./components/Profile.vue";
 import { ref, onMounted, onBeforeMount } from "vue";
@@ -9,7 +10,7 @@ import SecurityLog from "./components/SecurityLog.vue";
 import { useGlobal, deviceDetection } from "@pureadmin/utils";
 import AccountManagement from "./components/AccountManagement.vue";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
-import LaySidebarTopCollapse from "@/layout/components/lay-sidebar/components/SidebarTopCollapse.vue";
+import LaySidebarTopCollapse from "@/layout/components/lay-sidebar/components/LaySidebarTopCollapse.vue";
 
 import leftLine from "~icons/ri/arrow-left-s-line";
 import ProfileIcon from "~icons/ri/user-3-line";
@@ -21,6 +22,7 @@ defineOptions({
   name: "AccountSettings"
 });
 
+const { t } = useI18n();
 const router = useRouter();
 const isOpen = ref(deviceDetection() ? false : true);
 const { $storage } = useGlobal<GlobalPropertiesApi>();
@@ -36,25 +38,25 @@ const userInfo = ref({
 const panes = [
   {
     key: "profile",
-    label: "个人信息",
+    label: t("menus.pureProfile"),
     icon: ProfileIcon,
     component: Profile
   },
   {
     key: "preferences",
-    label: "偏好设置",
+    label: t("menus.purePreferences"),
     icon: PreferencesIcon,
     component: Preferences
   },
   {
     key: "securityLog",
-    label: "安全日志",
+    label: t("menus.pureSecurityLog"),
     icon: SecurityLogIcon,
     component: SecurityLog
   },
   {
     key: "accountManagement",
-    label: "账户管理",
+    label: t("menus.pureAccountManagement"),
     icon: AccountManagementIcon,
     component: AccountManagement
   }
@@ -85,7 +87,7 @@ onMounted(async () => {
             class="h-full flex items-center px-(--el-menu-base-level-padding)"
           >
             <IconifyIconOffline :icon="leftLine" />
-            <span class="ml-2">返回</span>
+            <span class="ml-2">{{ t("menus.pureBack") }}</span>
           </div>
         </div>
         <div class="flex items-center ml-8 my-4">
