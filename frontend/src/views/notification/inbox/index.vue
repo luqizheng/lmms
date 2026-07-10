@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useInbox } from "./utils/hook";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
@@ -7,6 +8,7 @@ import Refresh from "~icons/ep/refresh";
 import Search from "~icons/ri/search-line";
 
 defineOptions({ name: "NotificationInbox" });
+const { t } = useI18n();
 const formRef = ref();
 const {
   form,
@@ -40,10 +42,10 @@ const tabCounts = computed(() => ({
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="标题：" prop="keyword">
+      <el-form-item :label="`${t('menus.notificationTitle')}：`" prop="keyword">
         <el-input
           v-model="form.keyword"
-          placeholder="按标题筛选"
+          :placeholder="t('menus.notificationFilterTitle')"
           clearable
           class="w-50!"
         />
@@ -55,19 +57,25 @@ const tabCounts = computed(() => ({
           :loading="loading"
           @click="onSearch"
         >
-          搜索
+          {{ t("menus.notificationSearch") }}
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="reset">
-          重置
+          {{ t("menus.notificationReset") }}
         </el-button>
       </el-form-item>
     </el-form>
-    <PureTableBar title="通知收件箱" @refresh="onSearch">
+    <PureTableBar :title="t('menus.notificationInbox')" @refresh="onSearch">
       <template v-slot="{ size, dynamicColumns }">
         <el-tabs v-model="activeTab" class="ml-4" @tab-change="onTabChange">
-          <el-tab-pane :name="'all'" label="全部" />
-          <el-tab-pane :name="'unread'" :label="`未读 (${tabCounts.unread})`" />
-          <el-tab-pane :name="'read'" :label="`已读 (${tabCounts.read})`" />
+          <el-tab-pane :name="'all'" :label="t('menus.notificationAll')" />
+          <el-tab-pane
+            :name="'unread'"
+            :label="`${t('menus.notificationUnread')} (${tabCounts.unread})`"
+          />
+          <el-tab-pane
+            :name="'read'"
+            :label="`${t('menus.notificationRead')} (${tabCounts.read})`"
+          />
         </el-tabs>
         <pure-table
           align-whole="center"

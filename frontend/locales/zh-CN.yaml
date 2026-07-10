@@ -98,6 +98,7 @@ menus:
   notificationStatus: 状态
   notificationFilterTitle: 按标题筛选
   notificationFilterAll: 全部
+  notificationAll: 全部
   notificationSearch: 搜索
   notificationReset: 重置
   notificationNew: 新建公告

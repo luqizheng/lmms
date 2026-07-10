@@ -23,16 +23,28 @@ vi.mock("@/components/RePureTableBar", () => ({
 vi.mock("@/components/ReIcon/src/hooks", () => ({
   useRenderIcon: () => undefined
 }));
+vi.mock("vue-i18n", () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, unknown>) =>
+      params ? `${k}|${JSON.stringify(params)}` : k
+  })
+}));
 
 import NotificationInbox from "./index.vue";
 
 const elStubs: Record<string, any> = {
   ElButton: { template: "<button><slot /></button>" },
   ElForm: { template: "<form><slot /></form>" },
-  ElFormItem: { template: "<div><slot /></div>" },
+  ElFormItem: {
+    props: ["label"],
+    template: "<div><span class=\"el-form-item__label\">{{ label }}</span><slot /></div>"
+  },
   ElInput: { template: "<input />" },
   ElTabs: { template: "<div><slot /></div>" },
-  ElTabPane: { template: "<div><slot /></div>" }
+  ElTabPane: {
+    props: ["label"],
+    template: "<div class=\"el-tab-pane-stub\">{{ label }}<slot /></div>"
+  }
 };
 
 function defaultInboxApi() {
@@ -69,13 +81,13 @@ describe("NotificationInbox mount", () => {
     expect(wrapper.find(".pure-table-bar-stub").exists()).toBe(true);
   });
 
-  it("renders 搜索 and 重置 buttons", () => {
+it("renders 搜索 and 重置 buttons via i18n key", () => {
     const wrapper = mountInbox();
     const labels = wrapper
       .findAll("button")
       .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("搜索"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("重置"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.notificationSearch"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.notificationReset"))).toBe(true);
   });
 
   it("calls useInbox hook on mount", () => {

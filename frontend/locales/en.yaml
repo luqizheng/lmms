@@ -97,6 +97,7 @@ menus:
   notificationStatus: Status
   notificationFilterTitle: Filter by title
   notificationFilterAll: All
+  notificationAll: All
   notificationSearch: Search
   notificationReset: Reset
   notificationNew: New Announcement
