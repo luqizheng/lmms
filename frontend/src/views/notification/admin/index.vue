@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useAdmin } from "./utils/hook";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
@@ -19,6 +20,7 @@ const {
   handlePublish,
   handleRevoke
 } = useAdmin();
+const { t } = useI18n();
 const formRef = ref();
 
 function reset() {
@@ -35,24 +37,24 @@ function reset() {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="标题：" prop="keyword">
+      <el-form-item :label="`${t('menus.notificationTitle')}：`" prop="keyword">
         <el-input
           v-model="form.keyword"
-          placeholder="按标题筛选"
+          :placeholder="t('menus.notificationFilterTitle')"
           clearable
           class="w-50!"
         />
       </el-form-item>
-      <el-form-item label="状态：" prop="status">
+      <el-form-item :label="`${t('menus.notificationStatus')}：`" prop="status">
         <el-select
           v-model="form.status"
-          placeholder="全部"
+          :placeholder="t('menus.notificationFilterAll')"
           clearable
           class="w-40!"
         >
-          <el-option label="草稿" value="draft" />
-          <el-option label="已发布" value="published" />
-          <el-option label="已撤销" value="revoked" />
+          <el-option :label="t('menus.notificationDraft')" value="draft" />
+          <el-option :label="t('menus.notificationPublished')" value="published" />
+          <el-option :label="t('menus.notificationRevoked')" value="revoked" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -62,22 +64,22 @@ function reset() {
           :loading="loading"
           @click="onSearch"
         >
-          搜索
+          {{ t("menus.notificationSearch") }}
         </el-button>
-        <el-button :icon="useRenderIcon(Refresh)" @click="reset"
-          >重置</el-button
-        >
+        <el-button :icon="useRenderIcon(Refresh)" @click="reset">
+          {{ t("menus.notificationReset") }}
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <PureTableBar title="公告管理" @refresh="onSearch">
+    <PureTableBar :title="t('menus.notificationAdmin')" @refresh="onSearch">
       <template #buttons>
         <el-button
           type="primary"
           :icon="useRenderIcon(AddFill)"
           @click="openDialog()"
         >
-          新建公告
+          {{ t("menus.notificationNew") }}
         </el-button>
       </template>
       <template v-slot="{ size, dynamicColumns }">
@@ -95,7 +97,7 @@ function reset() {
               :icon="useRenderIcon(EditPen)"
               @click="openDialog(row)"
             >
-              编辑
+              {{ t("menus.notificationEdit") }}
             </el-button>
             <el-button
               link
@@ -103,10 +105,10 @@ function reset() {
               :icon="useRenderIcon(VideoPlay)"
               @click="handlePublish(row)"
             >
-              发布
+              {{ t("menus.notificationPublish") }}
             </el-button>
             <el-button link type="danger" @click="handleRevoke(row)">
-              撤销
+              {{ t("menus.notificationRevoke") }}
             </el-button>
           </template>
         </pure-table>

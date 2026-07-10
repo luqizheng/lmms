@@ -93,6 +93,17 @@ menus:
   notificationMarkRead: Mark as Read
   notificationMarkAllRead: Mark All as Read
   notificationRefresh: Refresh
+  notificationTitle: Title
+  notificationStatus: Status
+  notificationFilterTitle: Filter by title
+  notificationFilterAll: All
+  notificationSearch: Search
+  notificationReset: Reset
+  notificationNew: New Announcement
+  notificationEdit: Edit
+  notificationPublish: Publish
+  notificationRevoke: Revoke
+  notificationPlaceholderRecipients: Please select recipients
   notificationBellTitle: Notifications
   notificationEmpty: No new notifications
   notificationViewAll: View all

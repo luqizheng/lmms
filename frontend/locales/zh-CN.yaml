@@ -93,6 +93,17 @@ menus:
   notificationMarkRead: 标为已读
   notificationMarkAllRead: 全部标为已读
   notificationRefresh: 刷新通知
+  notificationTitle: 标题
+  notificationEdit: 编辑
+  notificationStatus: 状态
+  notificationFilterTitle: 按标题筛选
+  notificationFilterAll: 全部
+  notificationSearch: 搜索
+  notificationReset: 重置
+  notificationNew: 新建公告
+  notificationPublish: 发布
+  notificationRevoke: 撤销
+  notificationPlaceholderRecipients: 请选择接收人
   notificationBellTitle: 通知中心
   notificationEmpty: 暂无新通知
   notificationViewAll: 查看全部
