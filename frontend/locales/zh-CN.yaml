@@ -46,6 +46,30 @@ buttons:
   profileEditAvatarTitle: 编辑头像
   profileCancel: 取消
   profileConfirm: 确定
+  systemDept: 部门管理
+  systemRole: 角色管理
+  deptSearchName: 部门名称
+  deptPlaceholderName: 请输入部门名称
+  deptStatusActive: 启用
+  deptStatusInactive: 停用
+  deptPlaceholderStatus: 请选择状态
+  deptNew: 新增部门
+  deptAssignUsers: 分配成员
+  deptConfirmDelete: "是否确认删除部门名称为 {name} 的这条数据？"
+  roleSearchName: 角色名称
+  roleSearchCode: 角色标识
+  rolePlaceholderName: 请输入角色名称
+  rolePlaceholderCode: 请输入角色标识
+  roleStatusActive: 已启用
+  roleStatusInactive: 已停用
+  rolePlaceholderStatus: 请选择状态
+  roleNew: 新增角色
+  roleConfirmDelete: "是否确认删除角色名称为 {name} 的这条数据？"
+  rolePermissionBtn: 权限
+  roleAssignPermissionTitle: "分配权限（{name}）"
+  roleAssignPermissionTitleEmpty: 分配权限
+  roleNoPermission: 暂无权限数据
+  roleCancel: 取消
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

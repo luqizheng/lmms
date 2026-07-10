@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRole } from "./utils/hook";
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { deviceDetection } from "@pureadmin/utils";
@@ -14,6 +15,8 @@ import AddFill from "~icons/ri/add-circle-line";
 defineOptions({
   name: "SystemRole"
 });
+
+const { t } = useI18n();
 
 const _iconClass = computed(() => {
   return [
@@ -61,31 +64,31 @@ const {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="角色名称：" prop="name">
+      <el-form-item :label="`${t('menus.roleSearchName')}：`" prop="name">
         <el-input
           v-model="form.name"
-          placeholder="请输入角色名称"
+          :placeholder="t('menus.rolePlaceholderName')"
           clearable
           class="w-45!"
         />
       </el-form-item>
-      <el-form-item label="角色标识：" prop="code">
+      <el-form-item :label="`${t('menus.roleSearchCode')}：`" prop="code">
         <el-input
           v-model="form.code"
-          placeholder="请输入角色标识"
+          :placeholder="t('menus.rolePlaceholderCode')"
           clearable
           class="w-45!"
         />
       </el-form-item>
-      <el-form-item label="状态：" prop="status">
+      <el-form-item :label="`${t('menus.userStatus')}：`" prop="status">
         <el-select
           v-model="form.status"
-          placeholder="请选择状态"
+          :placeholder="t('menus.rolePlaceholderStatus')"
           clearable
           class="w-45!"
         >
-          <el-option label="已启用" value="active" />
-          <el-option label="已停用" value="disabled" />
+          <el-option :label="t('menus.roleStatusActive')" value="active" />
+          <el-option :label="t('menus.roleStatusInactive')" value="disabled" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -95,22 +98,22 @@ const {
           :loading="loading"
           @click="onSearch"
         >
-          搜索
+          {{ t("menus.notificationSearch") }}
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="resetForm(formRef)">
-          重置
+          {{ t("menus.notificationReset") }}
         </el-button>
       </el-form-item>
     </el-form>
 
-    <PureTableBar title="角色管理" :columns="columns" @refresh="onSearch">
+    <PureTableBar :title="t('menus.systemRole')" :columns="columns" @refresh="onSearch">
       <template #buttons>
         <el-button
           type="primary"
           :icon="useRenderIcon(AddFill)"
           @click="openDialog()"
         >
-          新增角色
+          {{ t("menus.roleNew") }}
         </el-button>
       </template>
       <template v-slot="{ size, dynamicColumns }">
@@ -143,10 +146,10 @@ const {
               :icon="useRenderIcon(EditPen)"
               @click="openDialog('修改', row)"
             >
-              修改
+              {{ t("menus.userEdit") }}
             </el-button>
             <el-popconfirm
-              :title="`是否确认删除角色名称为${row.name}的这条数据`"
+              :title="t('menus.roleConfirmDelete', { name: row.name })"
               @confirm="handleDelete(row)"
             >
               <template #reference>
@@ -157,7 +160,7 @@ const {
                   :size="size"
                   :icon="useRenderIcon(Delete)"
                 >
-                  删除
+                  {{ t("menus.userDelete") }}
                 </el-button>
               </template>
             </el-popconfirm>
@@ -169,17 +172,20 @@ const {
               :icon="useRenderIcon(Menu)"
               @click="handleMenu(row)"
             >
-              权限
+              {{ t("menus.rolePermissionBtn") }}
             </el-button>
           </template>
         </pure-table>
       </template>
     </PureTableBar>
 
-    <!-- 权限分配弹窗 -->
     <el-dialog
       v-model="permissionDialogVisible"
-      :title="`分配权限 ${curRow?.name ? '（' + curRow.name + '）' : ''}`"
+      :title="
+        curRow?.name
+          ? t('menus.roleAssignPermissionTitle', { name: curRow.name })
+          : t('menus.roleAssignPermissionTitleEmpty')
+      "
       width="600px"
       :fullscreen="deviceDetection()"
       :close-on-click-modal="false"
@@ -188,7 +194,7 @@ const {
       <div class="permission-wrap">
         <el-empty
           v-if="Object.keys(groupedPermissions).length === 0"
-          description="暂无权限数据"
+          :description="t('menus.roleNoPermission')"
         />
         <div
           v-for="(items, category) in groupedPermissions"
@@ -211,8 +217,12 @@ const {
         </div>
       </div>
       <template #footer>
-        <el-button @click="closePermissionDialog">取消</el-button>
-        <el-button type="primary" @click="handleSave">确定</el-button>
+        <el-button @click="closePermissionDialog">
+          {{ t("menus.roleCancel") }}
+        </el-button>
+        <el-button type="primary" @click="handleSave">
+          {{ t("menus.profileConfirm") }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

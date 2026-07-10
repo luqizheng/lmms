@@ -46,6 +46,30 @@ buttons:
   profileEditAvatarTitle: Edit Avatar
   profileCancel: Cancel
   profileConfirm: Confirm
+  systemDept: Department Manage
+  systemRole: Role Manage
+  deptSearchName: Department Name
+  deptPlaceholderName: Enter department name
+  deptStatusActive: Active
+  deptStatusInactive: Inactive
+  deptPlaceholderStatus: Select status
+  deptNew: New Department
+  deptAssignUsers: Assign Members
+  deptConfirmDelete: "Confirm delete department {name}?"
+  roleSearchName: Role Name
+  roleSearchCode: Role Code
+  rolePlaceholderName: Enter role name
+  rolePlaceholderCode: Enter role code
+  roleStatusActive: Active
+  roleStatusInactive: Inactive
+  rolePlaceholderStatus: Select status
+  roleNew: New Role
+  roleConfirmDelete: "Confirm delete role {name}?"
+  rolePermissionBtn: Permissions
+  roleAssignPermissionTitle: "Assign Permissions ({name})"
+  roleAssignPermissionTitleEmpty: Assign Permissions
+  roleNoPermission: No permission data
+  roleCancel: Cancel
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login
