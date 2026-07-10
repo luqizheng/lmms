@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
@@ -10,6 +11,7 @@ import Refresh from "~icons/ep/refresh";
 import AddFill from "~icons/ri/add-circle-line";
 
 defineOptions({ name: "SystemTenant" });
+const { t } = useI18n();
 const loading = ref(false);
 const dataList = ref<any[]>([]);
 
@@ -22,11 +24,23 @@ interface Tenant {
 }
 
 const columns = [
-  { label: "ID", prop: "id", minWidth: 100 },
-  { label: "Slug", prop: "slug", minWidth: 160 },
-  { label: "显示名", prop: "display_name", minWidth: 160 },
-  { label: "管理员", prop: "admin_user_id", minWidth: 160 },
-  { label: "创建时间", prop: "created_at", minWidth: 170 }
+  { label: t("menus.tenantColumnId"), prop: "id", minWidth: 100 },
+  { label: t("menus.tenantColumnSlug"), prop: "slug", minWidth: 160 },
+  {
+    label: t("menus.tenantColumnDisplayName"),
+    prop: "display_name",
+    minWidth: 160
+  },
+  {
+    label: t("menus.tenantColumnAdmin"),
+    prop: "admin_user_id",
+    minWidth: 160
+  },
+  {
+    label: t("menus.tenantColumnCreatedAt"),
+    prop: "created_at",
+    minWidth: 170
+  }
 ];
 
 async function onSearch() {
@@ -35,8 +49,10 @@ async function onSearch() {
     const res = await http.request<Tenant[]>("get", "/v1/iam/tenants");
     dataList.value = res || [];
   } catch (e: any) {
-    // 列表接口可能不存在；fallback 到空 + 仅提示
-    message(translateError(e?.code ?? "列表接口待实现"), { type: "warning" });
+    message(
+      translateError(e?.code ?? t("menus.tenantListPending")),
+      { type: "warning" }
+    );
     dataList.value = [];
   } finally {
     loading.value = false;
@@ -44,13 +60,13 @@ async function onSearch() {
 }
 
 async function onCreate() {
-  const slug = window.prompt("租户 slug（小写字母数字下划线，长度 2-64）");
+  const slug = window.prompt(t("menus.tenantSlugPrompt"));
   if (!slug) return;
-  const displayName = window.prompt("显示名");
+  const displayName = window.prompt(t("menus.tenantDisplayNamePrompt"));
   if (!displayName) return;
-  const adminUsername = window.prompt("管理员用户名");
+  const adminUsername = window.prompt(t("menus.tenantAdminUsernamePrompt"));
   if (!adminUsername) return;
-  const adminPassword = window.prompt("管理员密码（≥8 位）");
+  const adminPassword = window.prompt(t("menus.tenantPasswordPrompt"));
   if (!adminPassword) return;
   try {
     await http.request<{ tenant_id: string; admin_user_id: string }>(
@@ -65,10 +81,12 @@ async function onCreate() {
         }
       }
     );
-    message("已创建租户", { type: "success" });
+    message(t("menus.tenantCreateSuccess"), { type: "success" });
     onSearch();
   } catch (e: any) {
-    message(translateError(e?.code ?? "创建失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.tenantCreateFail")), {
+      type: "error"
+    });
   }
 }
 </script>
@@ -82,18 +100,18 @@ async function onCreate() {
           :icon="useRenderIcon(Refresh)"
           :loading="loading"
           @click="onSearch"
-          >刷新</el-button
+          >{{ t("menus.tenantRefresh") }}</el-button
         >
         <el-button
           v-if="hasPerms(['IAM_TENANT_CREATE'])"
           type="success"
           :icon="useRenderIcon(AddFill)"
           @click="onCreate"
-          >新建租户</el-button
+          >{{ t("menus.tenantCreate") }}</el-button
         >
       </el-form-item>
     </el-form>
-    <PureTableBar title="租户管理" @refresh="onSearch">
+    <PureTableBar :title="t('menus.systemTenant')" @refresh="onSearch">
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
           align-whole="center"

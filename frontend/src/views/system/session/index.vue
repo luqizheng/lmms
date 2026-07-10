@@ -1,36 +1,54 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, h } from "vue";
+import { useI18n } from "vue-i18n";
 import { listIamSessions, revokeIamSession, type IamSession } from "@/api/iam";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
 import { translateError } from "@/utils/error-translate";
 import { ElButton, ElTag } from "element-plus";
-import { h } from "vue";
 import Refresh from "~icons/ep/refresh";
 import Delete from "~icons/ep/delete";
 
 defineOptions({ name: "SystemSession" });
+const { t } = useI18n();
 const loading = ref(false);
 const dataList = ref<IamSession[]>([]);
 
 const columns = [
-  { label: "Session ID", prop: "id", minWidth: 220 },
-  { label: "用户", prop: "user_id", minWidth: 120 },
-  { label: "IP", prop: "client_ip", minWidth: 140 },
-  { label: "UA", prop: "user_agent", minWidth: 200 },
-  { label: "创建时间", prop: "created_at", minWidth: 170 },
-  { label: "过期时间", prop: "expires_at", minWidth: 170 },
   {
-    label: "状态",
+    label: t("menus.sessionColumnId"),
+    prop: "id",
+    minWidth: 220
+  },
+  { label: t("menus.sessionColumnUser"), prop: "user_id", minWidth: 120 },
+  { label: t("menus.sessionColumnIp"), prop: "client_ip", minWidth: 140 },
+  { label: t("menus.sessionColumnUa"), prop: "user_agent", minWidth: 200 },
+  {
+    label: t("menus.sessionColumnCreatedAt"),
+    prop: "created_at",
+    minWidth: 170
+  },
+  {
+    label: t("menus.sessionColumnExpiresAt"),
+    prop: "expires_at",
+    minWidth: 170
+  },
+  {
+    label: t("menus.sessionColumnStatus"),
     width: 90,
     cellRenderer: ({ row }: { row: IamSession }) =>
-      h(ElTag, { type: row.is_current ? "success" : "info" }, () =>
-        row.is_current ? "当前" : "活跃"
+      h(
+        ElTag,
+        { type: row.is_current ? "success" : "info" },
+        () =>
+          row.is_current
+            ? t("menus.sessionStatusCurrent")
+            : t("menus.sessionStatusActive")
       )
   },
   {
-    label: "操作",
+    label: t("menus.sessionColumnOperation"),
     width: 100,
     cellRenderer: ({ row }: { row: IamSession }) =>
       row.is_current
@@ -42,7 +60,7 @@ const columns = [
               link: true,
               onClick: () => onRevoke(row)
             },
-            () => "踢下线"
+            () => t("menus.sessionRevoke")
           )
   }
 ];
@@ -53,20 +71,24 @@ async function refresh() {
     const res = await listIamSessions();
     dataList.value = res || [];
   } catch (e: any) {
-    message(translateError(e?.code ?? "加载失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.sessionLoadFail")), {
+      type: "error"
+    });
   } finally {
     loading.value = false;
   }
 }
 
 async function onRevoke(row: IamSession) {
-  if (!confirm(`确认踢下线 session ${row.id}?`)) return;
+  if (!confirm(t("menus.sessionConfirmRevoke", { id: row.id }))) return;
   try {
     await revokeIamSession(row.id);
-    message("已踢下线", { type: "success" });
+    message(t("menus.sessionRevokeSuccess"), { type: "success" });
     refresh();
   } catch (e: any) {
-    message(translateError(e?.code ?? "操作失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.sessionActionFail")), {
+      type: "error"
+    });
   }
 }
 
@@ -82,11 +104,11 @@ onMounted(refresh);
           :icon="useRenderIcon(Refresh)"
           :loading="loading"
           @click="refresh"
-          >刷新</el-button
+          >{{ t("menus.tenantRefresh") }}</el-button
         >
       </el-form-item>
     </el-form>
-    <PureTableBar title="在线会话" @refresh="refresh">
+    <PureTableBar :title="t('menus.systemSession')" @refresh="refresh">
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
           align-whole="center"

@@ -86,6 +86,50 @@ buttons:
   tokenClientDisable: Disable
   tokenClientResetSecret: Reset Secret
   tokenClientConfirmDelete: "Confirm delete {clientId}?"
+  systemTenant: Tenant Manage
+  systemSession: Session Manage
+  systemMenu: Menu Manage
+  tenantRefresh: Refresh
+  tenantCreate: New Tenant
+  tenantColumnId: ID
+  tenantColumnSlug: Slug
+  tenantColumnDisplayName: Display Name
+  tenantColumnAdmin: Admin
+  tenantColumnCreatedAt: Created At
+  tenantListPending: Tenant list endpoint pending
+  tenantCreateSuccess: Tenant created
+  tenantCreateFail: Create failed
+  tenantSlugPrompt: Tenant slug (lowercase alphanumeric + underscore, length 2-64)
+  tenantDisplayNamePrompt: Display name
+  tenantAdminUsernamePrompt: Admin username
+  tenantPasswordPrompt: Admin password (>= 8 chars)
+  sessionColumnId: Session ID
+  sessionColumnUser: User
+  sessionColumnIp: IP
+  sessionColumnUa: UA
+  sessionColumnCreatedAt: Created At
+  sessionColumnExpiresAt: Expires At
+  sessionColumnStatus: Status
+  sessionColumnOperation: Operation
+  sessionStatusCurrent: Current
+  sessionStatusActive: Active
+  sessionRevoke: Kick Offline
+  sessionConfirmRevoke: "Confirm kick offline session {id}?"
+  sessionRevokeSuccess: Kicked offline
+  sessionLoadFail: Load failed
+  sessionActionFail: Operation failed
+  menuColumnTitle: Menu Name
+  menuColumnVersion: Version
+  menuPlaceholderTitle: Enter menu name
+  menuPlaceholderVersion: Select menu version
+  menuVersionOptionFormat: "v{version} - {name} - {status}{active}"
+  menuVersionActive: " - active"
+  menuVersionNotActive: ""
+  menuNewDraft: New Draft
+  menuPublishVersion: Publish Current Version
+  menuNewMenu: New Menu
+  menuConfirmDelete: "Confirm delete menu {name}?"
+  menuChildrenNote: 'Note: sub-menus will be deleted too. Proceed with caution.'
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

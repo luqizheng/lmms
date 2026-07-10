@@ -19,12 +19,22 @@ vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
 vi.mock("@/components/RePureTableBar", () => ({
   PureTableBar: {
     name: "PureTableBar",
-    template: '<div class="pure-table-bar-stub"><slot /></div>',
+    template:
+      '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
     props: ["title"]
   }
 }));
 vi.mock("@/components/ReIcon/src/hooks", () => ({
   useRenderIcon: () => undefined
+}));
+vi.mock("vue-i18n", () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, unknown>) =>
+      params ? `${k}|${JSON.stringify(params)}` : k
+  })
+}));
+vi.mock("@/utils/error-translate", () => ({
+  translateError: (code: unknown) => `error:${code}`
 }));
 
 import SystemTenant from "./index.vue";
@@ -58,24 +68,25 @@ describe("SystemTenant mount", () => {
     expect(wrapper.exists()).toBe(true);
   });
 
-  it("renders title '租户管理' via PureTableBar", () => {
+  it("renders title via PureTableBar i18n key", () => {
     const wrapper = mountTenant();
-    expect(wrapper.find(".pure-table-bar-stub").exists()).toBe(true);
+    const bar = wrapper.find(".pure-table-bar-stub");
+    expect(bar.attributes("title")).toBe("menus.systemTenant");
   });
 
-  it("renders 刷新 and 新建租户 buttons", () => {
+  it("renders buttons via i18n keys", () => {
     const wrapper = mountTenant();
     const buttons = wrapper.findAll("button");
     const labels = buttons.map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("刷新"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("新建租户"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.tenantCreate"))).toBe(true);
   });
 
   it("onSearch calls http.request with /v1/iam/tenants", async () => {
     const wrapper = mountTenant();
     const refreshBtn = wrapper
       .findAll("button")
-      .find((b: any) => b.text().includes("刷新"));
+      .find((b: any) => b.text().includes("menus.tenantRefresh"));
     await refreshBtn.trigger("click");
     await flushPromises();
     expect(http.request).toHaveBeenCalledWith("get", "/v1/iam/tenants");
@@ -86,7 +97,7 @@ describe("SystemTenant mount", () => {
     const wrapper = mountTenant();
     const refreshBtn = wrapper
       .findAll("button")
-      .find((b: any) => b.text().includes("刷新"));
+      .find((b: any) => b.text().includes("menus.tenantRefresh"));
     await refreshBtn.trigger("click");
     await flushPromises();
     expect(wrapper.exists()).toBe(true);

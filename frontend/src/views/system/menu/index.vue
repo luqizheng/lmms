@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useMenu } from "./utils/hook";
 import { transformI18n } from "@/plugins/i18n";
 import { PureTableBar } from "@/components/RePureTableBar";
@@ -13,6 +14,8 @@ import AddFill from "~icons/ri/add-circle-line";
 defineOptions({
   name: "SystemMenu"
 });
+
+const { t } = useI18n();
 
 const formRef = ref();
 const tableRef = ref();
@@ -36,7 +39,6 @@ const {
 } = useMenu();
 
 function onFullscreen() {
-  // 重置表格高度
   tableRef.value.setAdaptive();
 }
 </script>
@@ -49,25 +51,30 @@ function onFullscreen() {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="菜单名称：" prop="title">
+      <el-form-item :label="`${t('menus.menuColumnTitle')}：`" prop="title">
         <el-input
           v-model="form.title"
-          placeholder="请输入菜单名称"
+          :placeholder="t('menus.menuPlaceholderTitle')"
           clearable
           class="w-45!"
         />
       </el-form-item>
-      <el-form-item label="菜单版本：">
+      <el-form-item :label="`${t('menus.menuColumnVersion')}：`">
         <el-select
           v-model="selectedConfigId"
           class="w-70!"
-          placeholder="请选择菜单版本"
+          :placeholder="t('menus.menuPlaceholderVersion')"
           @change="loadSelectedConfig"
         >
           <el-option
             v-for="item in menuConfigs"
             :key="item.id"
-            :label="`v${item.version} - ${item.name} - ${item.status}${item.is_active ? ' - active' : ''}`"
+            :label="t('menus.menuVersionOptionFormat', {
+              version: item.version,
+              name: item.name,
+              status: item.status,
+              active: item.is_active ? t('menus.menuVersionActive') : t('menus.menuVersionNotActive')
+            })"
             :value="item.id"
           />
         </el-select>
@@ -79,16 +86,18 @@ function onFullscreen() {
           :loading="loading"
           @click="onSearch"
         >
-          搜索
+          {{ t("menus.notificationSearch") }}
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="resetForm(formRef)">
-          重置
+          {{ t("menus.notificationReset") }}
         </el-button>
       </el-form-item>
     </el-form>
 
     <PureTableBar
-      :title="`菜单管理${currentConfig ? `（v${currentConfig.version} ${currentConfig.status}）` : ''}`"
+      :title="currentConfig
+        ? `${t('menus.systemMenu')}（v${currentConfig.version} ${currentConfig.status}）`
+        : t('menus.systemMenu')"
       :columns="columns"
       :isExpandAll="false"
       :tableRef="tableRef?.getTableRef()"
@@ -97,7 +106,7 @@ function onFullscreen() {
     >
       <template #buttons>
         <el-button :loading="loading" @click="createDraftFromCurrent">
-          新建草稿
+          {{ t("menus.menuNewDraft") }}
         </el-button>
         <el-button
           v-if="isEditable"
@@ -105,7 +114,7 @@ function onFullscreen() {
           :loading="loading"
           @click="publishCurrentConfig"
         >
-          发布当前版本
+          {{ t("menus.menuPublishVersion") }}
         </el-button>
         <el-button
           type="primary"
@@ -113,7 +122,7 @@ function onFullscreen() {
           :disabled="!isEditable"
           @click="openDialog()"
         >
-          新增菜单
+          {{ t("menus.menuNewMenu") }}
         </el-button>
       </template>
       <template v-slot="{ size, dynamicColumns }">
@@ -145,7 +154,7 @@ function onFullscreen() {
               :disabled="!isEditable"
               @click="openDialog('修改', row)"
             >
-              修改
+              {{ t("menus.userEdit") }}
             </el-button>
             <el-button
               v-show="row.menuType !== 3"
@@ -157,10 +166,10 @@ function onFullscreen() {
               :disabled="!isEditable"
               @click="openDialog('新增', { parentId: row.id } as any)"
             >
-              新增
+              {{ t("menus.notificationNew") }}
             </el-button>
             <el-popconfirm
-              :title="`是否确认删除菜单名称为${transformI18n(row.title)}的这条数据${row?.children?.length > 0 ? '。注意下级菜单也会一并删除，请谨慎操作' : ''}`"
+              :title="t('menus.menuConfirmDelete', { name: transformI18n(row.title) }) + (row?.children?.length > 0 ? '。' + t('menus.menuChildrenNote') : '')"
               @confirm="handleDelete(row)"
             >
               <template #reference>
@@ -172,7 +181,7 @@ function onFullscreen() {
                   :icon="useRenderIcon(Delete)"
                   :disabled="!isEditable"
                 >
-                  删除
+                  {{ t("menus.userDelete") }}
                 </el-button>
               </template>
             </el-popconfirm>

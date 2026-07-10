@@ -86,6 +86,50 @@ buttons:
   tokenClientDisable: 禁用
   tokenClientResetSecret: 重置 Secret
   tokenClientConfirmDelete: "确认删除 {clientId} ？"
+  systemTenant: 租户管理
+  systemSession: 会话管理
+  systemMenu: 菜单管理
+  tenantRefresh: 刷新
+  tenantCreate: 新建租户
+  tenantColumnId: ID
+  tenantColumnSlug: Slug
+  tenantColumnDisplayName: 显示名
+  tenantColumnAdmin: 管理员
+  tenantColumnCreatedAt: 创建时间
+  tenantListPending: 列表接口待实现
+  tenantCreateSuccess: 已创建租户
+  tenantCreateFail: 创建失败
+  tenantSlugPrompt: "租户 slug（小写字母数字下划线，长度 2-64）"
+  tenantDisplayNamePrompt: 显示名
+  tenantAdminUsernamePrompt: 管理员用户名
+  tenantPasswordPrompt: "管理员密码（≥8 位）"
+  sessionColumnId: Session ID
+  sessionColumnUser: 用户
+  sessionColumnIp: IP
+  sessionColumnUa: UA
+  sessionColumnCreatedAt: 创建时间
+  sessionColumnExpiresAt: 过期时间
+  sessionColumnStatus: 状态
+  sessionColumnOperation: 操作
+  sessionStatusCurrent: 当前
+  sessionStatusActive: 活跃
+  sessionRevoke: 踢下线
+  sessionConfirmRevoke: "确认踢下线 session {id}？"
+  sessionRevokeSuccess: 已踢下线
+  sessionLoadFail: 加载失败
+  sessionActionFail: 操作失败
+  menuColumnTitle: 菜单名称
+  menuColumnVersion: 菜单版本
+  menuPlaceholderTitle: 请输入菜单名称
+  menuPlaceholderVersion: 请选择菜单版本
+  menuVersionOptionFormat: "v{version} - {name} - {status}{active}"
+  menuVersionActive: " - active"
+  menuVersionNotActive: ""
+  menuNewDraft: 新建草稿
+  menuPublishVersion: 发布当前版本
+  menuNewMenu: 新增菜单
+  menuConfirmDelete: "是否确认删除菜单名称为 {name} 的这条数据？"
+  menuChildrenNote: 注意下级菜单也会一并删除，请谨慎操作
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

@@ -20,12 +20,22 @@ vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
 vi.mock("@/components/RePureTableBar", () => ({
   PureTableBar: {
     name: "PureTableBar",
-    template: '<div class="pure-table-bar-stub"><slot /></div>',
+    template:
+      '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
     props: ["title"]
   }
 }));
 vi.mock("@/components/ReIcon/src/hooks", () => ({
   useRenderIcon: () => undefined
+}));
+vi.mock("vue-i18n", () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, unknown>) =>
+      params ? `${k}|${JSON.stringify(params)}` : k
+  })
+}));
+vi.mock("@/utils/error-translate", () => ({
+  translateError: (code: unknown) => `error:${code}`
 }));
 
 import SystemSession from "./index.vue";
@@ -52,18 +62,18 @@ describe("SystemSession mount", () => {
     expect(wrapper.exists()).toBe(true);
   });
 
-  it("renders title '在线会话' via PureTableBar", () => {
+  it("renders title via PureTableBar i18n key", () => {
     const wrapper = mountSession();
     const bar = wrapper.find(".pure-table-bar-stub");
-    expect(bar.exists()).toBe(true);
+    expect(bar.attributes("title")).toBe("menus.systemSession");
   });
 
-  it("renders 刷新 button", () => {
+  it("renders 刷新 button via i18n key", () => {
     const wrapper = mountSession();
     const labels = wrapper
       .findAll("button")
       .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("刷新"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(true);
   });
 
   it("on mount calls listIamSessions", async () => {
