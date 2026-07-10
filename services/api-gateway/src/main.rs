@@ -108,6 +108,16 @@ fn do_reload(
     Ok(n)
 }
 
+/// Resolve the routes directory. `GW_ROUTES_DIR` (env) overrides any
+/// value passed via the CLI / clap default. The override lets operators
+/// re-point the gateway at a new config dir (k8s ConfigMap rollout,
+/// VM operator change, etc.) without rebuilding the image.
+fn resolve_routes_dir(cli_routes: PathBuf) -> PathBuf {
+    std::env::var_os("GW_ROUTES_DIR")
+        .map(PathBuf::from)
+        .unwrap_or(cli_routes)
+}
+
 #[tokio::main]
 async fn main() {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
@@ -135,6 +145,7 @@ async fn main() {
 }
 
 async fn serve(routes_dir: PathBuf, admin_port: u16) {
+    let routes_dir = resolve_routes_dir(routes_dir);
     let cfg = load_global_config();
 
     println!("========== api-gateway config ==========");
@@ -423,4 +434,42 @@ async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request)
     });
 
     router::forward_to_service(state.router_cfg.clone(), request, &route.service, &target, route.ws).await
+}
+
+#[cfg(test)]
+mod resolve_routes_dir_tests {
+    //! These tests mutate process-global env vars. `cargo test` runs each
+    //! integration test binary on a single thread by default; if you ever
+    //! parallelise them, serialise env mutations via a Mutex.
+    use super::resolve_routes_dir;
+    use std::path::PathBuf;
+
+    #[test]
+    fn env_overrides_cli() {
+        // SAFETY (test context): single-thread, env var scoped to this process.
+        std::env::set_var("GW_ROUTES_DIR", "/env/override");
+        let got = resolve_routes_dir(PathBuf::from("/cli/path"));
+        std::env::remove_var("GW_ROUTES_DIR");
+        assert_eq!(got, PathBuf::from("/env/override"));
+    }
+
+    #[test]
+    fn cli_used_when_env_unset() {
+        std::env::remove_var("GW_ROUTES_DIR");
+        let got = resolve_routes_dir(PathBuf::from("/cli/path"));
+        assert_eq!(got, PathBuf::from("/cli/path"));
+    }
+
+    #[test]
+    fn empty_env_value_does_not_fall_back_to_cli() {
+        std::env::set_var("GW_ROUTES_DIR", "");
+        let got = resolve_routes_dir(PathBuf::from("/cli/path"));
+        std::env::remove_var("GW_ROUTES_DIR");
+        // var_os("") is Some("") → PathBuf::from("") → empty PathBuf.
+        // Empty env var does NOT fall back; the gateway then fails to load
+        // routes at "" and prints "failed to load routes" / falls back to an
+        // empty RouteTable. Documented (not masked) so future operators
+        // don't accidentally crash a deploy with `GW_ROUTES_DIR=`.
+        assert_eq!(got, PathBuf::new());
+    }
 }
