@@ -1,5 +1,301 @@
 buttons:
   pureAccountSettings: Account
+  accountCardTitleBoundPhone: Bound Phone
+  accountCardIllustrateBoundPhone: 'Bound phone: {phone}'
+  accountCardTitleBoundEmail: Backup Email
+  accountCardIllustrateBoundEmail: 'Bound email: {email}'
+  accountCardTitleSecurityQuestion: Security Questions
+  accountCardIllustrateSecurityQuestion: Not set. Security questions protect your account.
+  accountCardTitlePasswordStrength: "Current password strength: {level}"
+  accountCardButtonModify: Modify
+  systemRole: Role Manage
+  permsDemoTitle1: Component permission check
+  permsDemoTitle2: Function permission check
+  permsDemoTitle3: Directive permission check
+  permsDemoTitle3Note: "(cannot dynamically update permissions)"
+  permsDemoCodeList1: permission:btn:add
+  permsDemoCodeList2: permission:btn:edit
+  permsDemoCodeList3Delete: permission:btn:delete
+  fileImagePreview: Preview
+  notificationPermissionDenied: Browser notification permission denied
+  dashboardUptime: Uptime
+  dashboardP50: p50
+  dashboardP95: p95
+  dashboardP99: p99
+  pureChangePassword: Change Password
+  pureLoginOut: LoginOut
+  pureLogin: Login
+  pureOpenSystemSet: Open System Configs
+  pureReload: Reload
+  pureCloseCurrentTab: Close CurrentTab
+  pureCloseLeftTabs: Close LeftTabs
+  pureCloseRightTabs: Close RightTabs
+  pureCloseOtherTabs: Close OtherTabs
+  pureCloseAllTabs: Close AllTabs
+  pureContentFullScreen: Content FullScreen
+  pureContentExitFullScreen: Content ExitFullScreen
+  pureClickCollapse: Collapse
+  pureClickExpand: Expand
+  pureConfirm: Confirm
+  pureSwitch: Switch
+  pureClose: Close
+  pureBackTop: BackTop
+  pureOpenText: Open
+  pureCloseText: Close
+  pureWatchMore: Watch More
+  pureMarkAsRead: Mark As Read
+search:
+  pureTotal: Total
+  pureHistory: History
+  pureCollect: Collect
+  pureDragSort: （Drag Sort）
+  pureEmpty: Empty
+  purePlaceholder: Search Menu
+panel:
+  pureSystemSet: System Configs
+  pureCloseSystemSet: Close System Configs
+  pureClearCacheAndToLogin: Clear cache and return to login page
+  pureClearCache: Clear Cache
+  pureThemeMode: Theme Mode
+  pureThemeModeLight: Light
+  pureThemeModeLightTip: Set sail freshly and light up the comfortable work interface
+  pureThemeModeDark: Dark
+  pureThemeModeDarkTip: Moonlight Overture, indulge in the tranquility and elegance of the night
+  pureThemeModeSystem: Auto
+  pureThemeModeSystemTip: Synchronize time, the interface naturally responds to morning and dusk
+  pureThemeColor: Theme Color
+  pureMenuLayout: Menu Layout
+  pureVerticalTip: The menu on the left is familiar and friendly
+  pureHorizontalTip: Top menu, concise overview
+  pureMixTip: Mixed menu, flexible
+  pureStretch: Stretch Page
+  pureStretchFixed: Fixed
+  pureStretchFixedTip: Compact pages make it easy to find the information you need
+  pureStretchCustom: Custom
+  pureStretchCustomTip: Minimum 1280, maximum 1600
+  pureTagsStyle: Tags Style
+  pureTagsStyleSmart: Smart
+  pureTagsStyleSmartTip: Smart tags add fun and brilliance
+  pureTagsStyleCard: Card
+  pureTagsStyleCardTip: Card tags for efficient browsing
+  pureTagsStyleChrome: Chrome
+  pureTagsStyleChromeTip: Chrome style is classic and elegant
+  pureFullScreenWatermark: FullScreen Watermark
+  pureEnableWatermark: Watermark
+  pureWatermarkText: Text
+  pureWatermarkTextPlaceholder: Please enter text
+  pureInterfaceDisplay: Interface Display
+  pureGreyModel: Grey Model
+  pureWeakModel: Weak Model
+  pureHiddenTags: Hidden Tags
+  pureHiddenFooter: Hidden Footer
+  pureMultiTagsCache: MultiTags Cache
+menus:
+  pureHome: Home
+  pureLogin: Login
+  pureEmpty: Empty Page
+  pureTable: Table
+  pureSysManagement: System Manage
+  pureUser: User Manage
+  pureRole: Role Manage
+  system: System Manage
+  systemUser: User Manage
+  systemRole: Role Manage
+  systemTokenClient: Token Client
+  systemPermission: Permission Manage
+  notification: Notification
+  notificationInbox: Inbox
+  notificationAdmin: Announcement Manage
+  notificationDetail: Announcement Detail
+  notificationUnread: Unread
+  notificationRead: Read
+  notificationDraft: Draft
+  notificationPublished: Published
+  notificationRevoked: Revoked
+  notificationMarkRead: Mark as Read
+  notificationMarkAllRead: Mark All as Read
+  notificationRefresh: Refresh
+  notificationTitle: Title
+  notificationStatus: Status
+  notificationFilterTitle: Filter by title
+  notificationFilterAll: All
+  notificationAll: All
+  userSearchUsername: Username
+  userPlaceholderUsername: Enter username
+  userPhone: Phone
+  userPlaceholderPhone: Enter phone
+  userStatus: Status
+  userStatusActive: Active
+  userStatusInactive: Inactive
+  purePlaceholderSelect: Please select
+  userNew: New User
+  userEdit: Edit
+  userDelete: Delete
+  userUploadAvatar: Upload Avatar
+  userResetPassword: Reset Password
+  userAssignRole: Assign Role
+  userBatchDelete: Batch Delete
+  userSelected: "{n} selected"
+  userCancelSelection: Cancel selection
+  userConfirmDelete: Confirm deletion?
+  userConfirmDeleteUser: Confirm delete user #{id}?
+  notificationSearch: Search
+  notificationReset: Reset
+  notificationNew: New Announcement
+  notificationEdit: Edit
+  notificationPublish: Publish
+  notificationRevoke: Revoke
+  notificationPlaceholderRecipients: Please select recipients
+  notificationBellTitle: Notifications
+  notificationEmpty: No new notifications
+  notificationViewAll: View all
+  notificationJustNow: Just now
+  notificationMinutesAgo: "{n}m ago"
+  notificationHoursAgo: "{n}h ago"
+  notificationDaysAgo: "{n}d ago"
+  fileUploadTitle: Upload Files
+  fileUploadBackendNotice: "Backend /file/upload currently only accepts metadata; binary upload requires backend multipart support. Client validates size <= 100MB + blocked extensions."
+  fileLabel: File
+  fileLabelTemporary: Temporary
+  fileLabelExpires: Expires (seconds)
+  fileSearchFilename: File Name
+  fileExpiresOptional: Optional
+  fileUploadSubmit: Submit
+  fileUploadSelectFirst: Please select files first
+  fileUploadResultSummary: "Success {ok}, Failed {fail}"
+  fileTooLarge: "{name} exceeds {limit}MB limit"
+  fileExtensionBlocked: "{name} has a blocked executable extension"
+  fileDragOrClick: Drop or click to select files
+  announcement: Announcement
+  announcementTitle: Title
+  announcementContent: Content
+  announcementPublishTime: Publish Time
+  announcementExpireTime: Expire Time
+  announcementPinned: Pinned
+  announcementPopover: Popover
+  announcementRecipients: Recipients
+  pureSystemMenu: Menu Manage
+  pureDept: Dept Manage
+  pureSysMonitor: System Monitor
+  pureOnlineUser: Online User
+  pureLoginLog: Login Log
+  pureOperationLog: Operation Log
+  pureSystemLog: System Log
+  monitorOperationLog: Operation Log
+  monitorLoginLog: Login Log
+  monitorRetention: Data Retention
+  pureAbnormal: Abnormal
+  pureDashboard: Service Dashboard
+  dashboardRefresh: Refresh
+  dashboardStatusOk: Healthy
+  dashboardStatusDown: Down
+  dashboardStatusUnknown: Unknown
+  dashboardLastCheck: Last Check
+  dashboardUpCount: Up
+  dashboardDownCount: Down Page
+  purePageNotFound: "404"
+  pureAccessDenied: "403"
+  pureServerError: "500"
+  pureComponents: Components
+  pureDialog: Dialog
+  pureDrawer: Drawer
+  pureMessage: Message Tips
+  pureVideo: Video
+  pureSegmented: Segmented
+  pureWaterfall: Waterfall
+  pureMap: Map
+  pureDraggable: Draggable
+  pureSplitPane: Split Pane
+  pureText: Text Ellipsis
+  pureSlider: Slider
+  pureElButton: Button
+  pureButton: Button Animation
+  pureCheckButton: Check Button
+  pureCropping: Picture Cropping
+  pureAnimatecss: AnimateCss Selector
+  pureCountTo: Digital Animation
+  pureSelector: Scope Selector
+  pureSeamless: Seamless Scroll
+  pureContextmenu: Context Menu
+  pureTypeit: Typeit
+  pureJsonEditor: JSON Editor
+  pureColorPicker: Color Picker
+  pureColorPickerPanel: Color PickerPanel
+  pureDatePicker: Date Picker
+  pureDateTimePicker: DateTimePicker
+  pureTimePicker: TimePicker
+  pureTag: Tag
+  pureStatistic: Statistic
+  pureCollapse: Collapse
+  pureProgress: Progress
+  pureUpload: File Upload
+  pureCheckCard: CheckCard
+  pureMenus: MultiLevel Menu
+  pureMenu1: Menu1
+  pureMenu1-1: Menu1-1
+  pureMenu1-2: Menu1-2
+  pureMenu1-2-1: Menu1-2-1
+  pureMenu1-2-2: Menu1-2-2
+  pureMenu1-3: Menu1-3
+  pureMenu2: Menu2
+  purePermission: Permission Manage
+  purePermissionPage: Page Permission
+  purePermissionButton: Button Permission
+  purePermissionButtonRouter: Route return button permission
+  purePermissionButtonLogin: Login interface return button permission
+  pureTabs: Tabs Operate
+  pureGuide: Guide
+  pureAble: Able
+  pureMenuTree: Menu Tree
+  pureVideoFrame: Video Frame Capture
+  pureWavesurfer: Audio Visualization
+  pureRipple: Ripple
+  pureMqtt: Mqtt Client
+  pureOptimize: Debounce、Throttle、Copy、Longpress Directives
+  pureVerify: Captcha
+  pureWatermark: Water Mark
+  purePrint: Print
+  pureDownload: Download
+  pureExternalPage: External Page
+  pureExternalDoc: Docs External
+  pureEmbeddedDoc: Docs Embedded
+  pureExternalLink: Vue-Pure-Admin
+  pureUtilsLink: Pure-Admin-Utils
+  pureColorHuntDoc: ColorHunt
+  pureUiGradients: UiGradients
+  pureEpDoc: Element-Plus
+  pureTailwindcssDoc: Tailwindcss
+  pureVueDoc: Vue3
+  pureViteDoc: Vite
+  purePiniaDoc: Pinia
+  pureRouterDoc: Vue-Router
+  pureAbout: About
+  pureResult: Result Page
+  pureSuccess: Success Page
+  pureFail: Fail Page
+  pureIconSelect: Icon Select
+  pureTimeline: Time Line
+  pureLineTree: LineTree
+  pureList: List Page
+  pureCardList: Card List Page
+  pureDebounce: Debounce & Throttle
+  pureBarcode: Barcode
+  pureQrcode: Qrcode
+  pureCascader: Area Cascader
+  pureSwiper: Swiper Plugin
+  pureVirtualList: Virtual List
+  purePdf: PDF Preview
+  pureExcel: Export Excel
+  pureInfiniteScroll: Table Infinite Scroll
+  pureSensitive: Sensitive Filter
+  purePinyin: PinYin
+  pureDanmaku: Danmaku
+  pureTableBase: Base Usage
+  pureTableHigh: High Usage
+  pureTableEdit: Edit Usage
+  pureVxeTable: Virtual Usage
+  pureMenuOverflow: Menu Overflow Show Tooltip Text
+  pureChildMenuOverflow: Child Menu Overflow Show Tooltip Text
   pureProfile: Profile
   purePreferences: Preferences
   pureSecurityLog: Security Log
@@ -10,14 +306,6 @@ buttons:
   accountCardIllustrateSystemMessage: System messages will be sent as in-app notifications
   accountCardTitleTodoTask: Todo Tasks
   accountCardIllustrateTodoTask: Todo tasks will be sent as in-app notifications
-  accountCardTitleBoundPhone: Bound Phone
-  accountCardIllustrateBoundPhone: 'Bound phone: {phone}'
-  accountCardTitleBoundEmail: Backup Email
-  accountCardIllustrateBoundEmail: 'Bound email: {email}'
-  accountCardTitleSecurityQuestion: Security Questions
-  accountCardIllustrateSecurityQuestion: Not set. Security questions protect your account.
-  accountCardTitlePasswordStrength: "Current password strength: {level}"
-  accountCardButtonModify: Modify
   accountCardSwitchActive: On
   accountCardSwitchInactive: Off
   accountCardSetSuccess: '{title} updated'
@@ -47,7 +335,6 @@ buttons:
   profileCancel: Cancel
   profileConfirm: Confirm
   systemDept: Department Manage
-  systemRole: Role Manage
   deptSearchName: Department Name
   deptPlaceholderName: Enter department name
   deptStatusActive: Active
@@ -180,7 +467,6 @@ buttons:
   fileColumnType: Type
   fileColumnSize: Size
   fileColumnUploadedAt: Uploaded At
-  fileSearchFilename: Filename
   filePlaceholderFilename: Filter by filename
   fileNew: Upload
   presignTitle: Presigned URL
@@ -336,16 +622,9 @@ buttons:
   welcomeCardDataStats: Data Statistics
   welcomeCardLatest: Latest News
   welcomeNewProblemsTemplate: "Added {n} new questions, {m} resolved"
-  permsDemoTitle1: Component permission check
-  permsDemoTitle2: Function permission check
-  permsDemoTitle3: Directive permission check
-  permsDemoTitle3Note: "(cannot dynamically update permissions)"
   permsDemoCodeLine: "Code location {path}"
   permsDemoHaveCode: "Has code: {code} can see"
   permsDemoHasCodes: "Has codes: {codes} can see"
-  permsDemoCodeList1: permission:btn:add
-  permsDemoCodeList2: permission:btn:edit
-  permsDemoCodeList3Delete: permission:btn:delete
   permsDemoCurrentAuths: Current owned code list
   permsDemoRoleAdmin: Admin role
   permsDemoRoleUser: Normal role
@@ -366,295 +645,16 @@ buttons:
   fileSelected: "{n} selected"
   fileBulkDelete: Delete Selected
   fileDropHint: Drop files here to upload
-  fileImagePreview: Preview
   inboxMarkRead: Mark as Read
   inboxDetailClose: Close
-  notificationPermissionDenied: Browser notification permission denied
   notificationDesktopTitle: New Notification
   notificationDesktopBody: "{title} — click to view"
   fileBulkDeleteConfirm: "Confirm delete {n} file(s)?"
   fileBulkDeleteSuccess: "Deleted {n} file(s)"
   fileBulkDeletePartial: "Deleted {ok}, {fail} failed"
   dashboardAvgLatency: Avg Latency
-  dashboardUptime: Uptime
   dashboardLatencyTrend: "Latency trend (last {n} polls)"
-  dashboardP50: p50
-  dashboardP95: p95
-  dashboardP99: p99
   dashboardErrorRate: Error Rate
-  pureChangePassword: Change Password
-  pureLoginOut: LoginOut
-  pureLogin: Login
-  pureOpenSystemSet: Open System Configs
-  pureReload: Reload
-  pureCloseCurrentTab: Close CurrentTab
-  pureCloseLeftTabs: Close LeftTabs
-  pureCloseRightTabs: Close RightTabs
-  pureCloseOtherTabs: Close OtherTabs
-  pureCloseAllTabs: Close AllTabs
-  pureContentFullScreen: Content FullScreen
-  pureContentExitFullScreen: Content ExitFullScreen
-  pureClickCollapse: Collapse
-  pureClickExpand: Expand
-  pureConfirm: Confirm
-  pureSwitch: Switch
-  pureClose: Close
-  pureBackTop: BackTop
-  pureOpenText: Open
-  pureCloseText: Close
-  pureWatchMore: Watch More
-  pureMarkAsRead: Mark As Read
-search:
-  pureTotal: Total
-  pureHistory: History
-  pureCollect: Collect
-  pureDragSort: （Drag Sort）
-  pureEmpty: Empty
-  purePlaceholder: Search Menu
-panel:
-  pureSystemSet: System Configs
-  pureCloseSystemSet: Close System Configs
-  pureClearCacheAndToLogin: Clear cache and return to login page
-  pureClearCache: Clear Cache
-  pureThemeMode: Theme Mode
-  pureThemeModeLight: Light
-  pureThemeModeLightTip: Set sail freshly and light up the comfortable work interface
-  pureThemeModeDark: Dark
-  pureThemeModeDarkTip: Moonlight Overture, indulge in the tranquility and elegance of the night
-  pureThemeModeSystem: Auto
-  pureThemeModeSystemTip: Synchronize time, the interface naturally responds to morning and dusk
-  pureThemeColor: Theme Color
-  pureMenuLayout: Menu Layout
-  pureVerticalTip: The menu on the left is familiar and friendly
-  pureHorizontalTip: Top menu, concise overview
-  pureMixTip: Mixed menu, flexible
-  pureStretch: Stretch Page
-  pureStretchFixed: Fixed
-  pureStretchFixedTip: Compact pages make it easy to find the information you need
-  pureStretchCustom: Custom
-  pureStretchCustomTip: Minimum 1280, maximum 1600
-  pureTagsStyle: Tags Style
-  pureTagsStyleSmart: Smart
-  pureTagsStyleSmartTip: Smart tags add fun and brilliance
-  pureTagsStyleCard: Card
-  pureTagsStyleCardTip: Card tags for efficient browsing
-  pureTagsStyleChrome: Chrome
-  pureTagsStyleChromeTip: Chrome style is classic and elegant
-  pureFullScreenWatermark: FullScreen Watermark
-  pureEnableWatermark: Watermark
-  pureWatermarkText: Text
-  pureWatermarkTextPlaceholder: Please enter text
-  pureInterfaceDisplay: Interface Display
-  pureGreyModel: Grey Model
-  pureWeakModel: Weak Model
-  pureHiddenTags: Hidden Tags
-  pureHiddenFooter: Hidden Footer
-  pureMultiTagsCache: MultiTags Cache
-menus:
-  pureHome: Home
-  pureLogin: Login
-  pureEmpty: Empty Page
-  pureTable: Table
-  pureSysManagement: System Manage
-  pureUser: User Manage
-  pureRole: Role Manage
-  system: System Manage
-  systemUser: User Manage
-  systemRole: Role Manage
-  systemTokenClient: Token Client
-  systemPermission: Permission Manage
-  notification: Notification
-  notificationInbox: Inbox
-  notificationAdmin: Announcement Manage
-  notificationDetail: Announcement Detail
-  notificationUnread: Unread
-  notificationRead: Read
-  notificationDraft: Draft
-  notificationPublished: Published
-  notificationRevoked: Revoked
-  notificationMarkRead: Mark as Read
-  notificationMarkAllRead: Mark All as Read
-  notificationRefresh: Refresh
-  notificationTitle: Title
-  notificationStatus: Status
-  notificationFilterTitle: Filter by title
-  notificationFilterAll: All
-  notificationAll: All
-  userSearchUsername: Username
-  userPlaceholderUsername: Enter username
-  userPhone: Phone
-  userPlaceholderPhone: Enter phone
-  userStatus: Status
-  userStatusActive: Active
-  userStatusInactive: Inactive
-  purePlaceholderSelect: Please select
-  userNew: New User
-  userEdit: Edit
-  userDelete: Delete
-  userUploadAvatar: Upload Avatar
-  userResetPassword: Reset Password
-  userAssignRole: Assign Role
-  userBatchDelete: Batch Delete
-  userSelected: "{n} selected"
-  userCancelSelection: Cancel selection
-  userConfirmDelete: Confirm deletion?
-  userConfirmDeleteUser: Confirm delete user #{id}?
-  notificationSearch: Search
-  notificationReset: Reset
-  notificationNew: New Announcement
-  notificationEdit: Edit
-  notificationPublish: Publish
-  notificationRevoke: Revoke
-  notificationPlaceholderRecipients: Please select recipients
-  notificationBellTitle: Notifications
-  notificationEmpty: No new notifications
-  notificationViewAll: View all
-  notificationJustNow: Just now
-  notificationMinutesAgo: "{n}m ago"
-  notificationHoursAgo: "{n}h ago"
-  notificationDaysAgo: "{n}d ago"
-  fileUploadTitle: Upload Files
-  fileUploadBackendNotice: "Backend /file/upload currently only accepts metadata; binary upload requires backend multipart support. Client validates size <= 100MB + blocked extensions."
-  fileLabel: File
-  fileLabelTemporary: Temporary
-  fileLabelExpires: Expires (seconds)
-  fileExpiresOptional: Optional
-  fileUploadSubmit: Submit
-  fileUploadSelectFirst: Please select files first
-  fileUploadResultSummary: "Success {ok}, Failed {fail}"
-  fileTooLarge: "{name} exceeds {limit}MB limit"
-  fileExtensionBlocked: "{name} has a blocked executable extension"
-  fileDragOrClick: Drop or click to select files
-  announcement: Announcement
-  announcementTitle: Title
-  announcementContent: Content
-  announcementPublishTime: Publish Time
-  announcementExpireTime: Expire Time
-  announcementPinned: Pinned
-  announcementPopover: Popover
-  announcementRecipients: Recipients
-  pureSystemMenu: Menu Manage
-  pureDept: Dept Manage
-  pureSysMonitor: System Monitor
-  pureOnlineUser: Online User
-  pureLoginLog: Login Log
-  pureOperationLog: Operation Log
-  pureSystemLog: System Log
-  monitorOperationLog: Operation Log
-  monitorLoginLog: Login Log
-  monitorRetention: Data Retention
-  pureAbnormal: Abnormal
-  pureDashboard: Service Dashboard
-  dashboardRefresh: Refresh
-  dashboardStatusOk: Healthy
-  dashboardStatusDown: Down
-  dashboardStatusUnknown: Unknown
-  dashboardLastCheck: Last Check
-  dashboardUpCount: Up
-  dashboardDownCount: Down Page
-  purePageNotFound: "404"
-  pureAccessDenied: "403"
-  pureServerError: "500"
-  pureComponents: Components
-  pureDialog: Dialog
-  pureDrawer: Drawer
-  pureMessage: Message Tips
-  pureVideo: Video
-  pureSegmented: Segmented
-  pureWaterfall: Waterfall
-  pureMap: Map
-  pureDraggable: Draggable
-  pureSplitPane: Split Pane
-  pureText: Text Ellipsis
-  pureSlider: Slider
-  pureElButton: Button
-  pureButton: Button Animation
-  pureCheckButton: Check Button
-  pureCropping: Picture Cropping
-  pureAnimatecss: AnimateCss Selector
-  pureCountTo: Digital Animation
-  pureSelector: Scope Selector
-  pureSeamless: Seamless Scroll
-  pureContextmenu: Context Menu
-  pureTypeit: Typeit
-  pureJsonEditor: JSON Editor
-  pureColorPicker: Color Picker
-  pureColorPickerPanel: Color PickerPanel
-  pureDatePicker: Date Picker
-  pureDateTimePicker: DateTimePicker
-  pureTimePicker: TimePicker
-  pureTag: Tag
-  pureStatistic: Statistic
-  pureCollapse: Collapse
-  pureProgress: Progress
-  pureUpload: File Upload
-  pureCheckCard: CheckCard
-  pureMenus: MultiLevel Menu
-  pureMenu1: Menu1
-  pureMenu1-1: Menu1-1
-  pureMenu1-2: Menu1-2
-  pureMenu1-2-1: Menu1-2-1
-  pureMenu1-2-2: Menu1-2-2
-  pureMenu1-3: Menu1-3
-  pureMenu2: Menu2
-  purePermission: Permission Manage
-  purePermissionPage: Page Permission
-  purePermissionButton: Button Permission
-  purePermissionButtonRouter: Route return button permission
-  purePermissionButtonLogin: Login interface return button permission
-  pureTabs: Tabs Operate
-  pureGuide: Guide
-  pureAble: Able
-  pureMenuTree: Menu Tree
-  pureVideoFrame: Video Frame Capture
-  pureWavesurfer: Audio Visualization
-  pureRipple: Ripple
-  pureMqtt: Mqtt Client
-  pureOptimize: Debounce、Throttle、Copy、Longpress Directives
-  pureVerify: Captcha
-  pureWatermark: Water Mark
-  purePrint: Print
-  pureDownload: Download
-  pureExternalPage: External Page
-  pureExternalDoc: Docs External
-  pureEmbeddedDoc: Docs Embedded
-  pureExternalLink: Vue-Pure-Admin
-  pureUtilsLink: Pure-Admin-Utils
-  pureColorHuntDoc: ColorHunt
-  pureUiGradients: UiGradients
-  pureEpDoc: Element-Plus
-  pureTailwindcssDoc: Tailwindcss
-  pureVueDoc: Vue3
-  pureViteDoc: Vite
-  purePiniaDoc: Pinia
-  pureRouterDoc: Vue-Router
-  pureAbout: About
-  pureResult: Result Page
-  pureSuccess: Success Page
-  pureFail: Fail Page
-  pureIconSelect: Icon Select
-  pureTimeline: Time Line
-  pureLineTree: LineTree
-  pureList: List Page
-  pureCardList: Card List Page
-  pureDebounce: Debounce & Throttle
-  pureBarcode: Barcode
-  pureQrcode: Qrcode
-  pureCascader: Area Cascader
-  pureSwiper: Swiper Plugin
-  pureVirtualList: Virtual List
-  purePdf: PDF Preview
-  pureExcel: Export Excel
-  pureInfiniteScroll: Table Infinite Scroll
-  pureSensitive: Sensitive Filter
-  purePinyin: PinYin
-  pureDanmaku: Danmaku
-  pureTableBase: Base Usage
-  pureTableHigh: High Usage
-  pureTableEdit: Edit Usage
-  pureVxeTable: Virtual Usage
-  pureMenuOverflow: Menu Overflow Show Tooltip Text
-  pureChildMenuOverflow: Child Menu Overflow Show Tooltip Text
 status:
   pureLoad: Loading...
   pureMessage: Message

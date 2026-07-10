@@ -1,5 +1,301 @@
 buttons:
   pureAccountSettings: 账户设置
+  accountCardTitleBoundPhone: 密保手机
+  accountCardIllustrateBoundPhone: '已经绑定手机：{phone}'
+  accountCardTitleBoundEmail: 备用邮箱
+  accountCardIllustrateBoundEmail: '已绑定邮箱：{email}'
+  accountCardTitleSecurityQuestion: 密保问题
+  accountCardIllustrateSecurityQuestion: 未设置密保问题，密保问题可有效保护账户安全
+  accountCardTitlePasswordStrength: 当前密码强度：{level}
+  accountCardButtonModify: 修改
+  systemRole: 角色管理
+  permsDemoTitle1: 组件方式判断权限
+  permsDemoTitle2: 函数方式判断权限
+  permsDemoTitle3: 指令方式判断权限
+  permsDemoTitle3Note: "（该方式不能动态修改权限）"
+  permsDemoCodeList1: permission:btn:add
+  permsDemoCodeList2: permission:btn:edit
+  permsDemoCodeList3Delete: permission:btn:delete
+  fileImagePreview: 预览
+  notificationPermissionDenied: 浏览器通知权限被拒
+  dashboardUptime: 可用率
+  dashboardP50: p50
+  dashboardP95: p95
+  dashboardP99: p99
+  pureChangePassword: 修改密码
+  pureLoginOut: 退出系统
+  pureLogin: 登录
+  pureOpenSystemSet: 打开系统配置
+  pureReload: 重新加载
+  pureCloseCurrentTab: 关闭当前标签页
+  pureCloseLeftTabs: 关闭左侧标签页
+  pureCloseRightTabs: 关闭右侧标签页
+  pureCloseOtherTabs: 关闭其他标签页
+  pureCloseAllTabs: 关闭全部标签页
+  pureContentFullScreen: 内容区全屏
+  pureContentExitFullScreen: 内容区退出全屏
+  pureClickCollapse: 点击折叠
+  pureClickExpand: 点击展开
+  pureConfirm: 确认
+  pureSwitch: 切换
+  pureClose: 关闭
+  pureBackTop: 回到顶部
+  pureOpenText: 开
+  pureCloseText: 关
+  pureWatchMore: 查看更多
+  pureMarkAsRead: 标为已读
+search:
+  pureTotal: 共
+  pureHistory: 搜索历史
+  pureCollect: 收藏
+  pureDragSort: （可拖拽排序）
+  pureEmpty: 暂无搜索结果
+  purePlaceholder: 搜索菜单（支持拼音搜索）
+panel:
+  pureSystemSet: 系统配置
+  pureCloseSystemSet: 关闭配置
+  pureClearCacheAndToLogin: 清空缓存并返回登录页
+  pureClearCache: 清空缓存
+  pureThemeMode: 主题模式
+  pureThemeModeLight: 浅色
+  pureThemeModeLightTip: 清新启航，点亮舒适的工作界面
+  pureThemeModeDark: 深色
+  pureThemeModeDarkTip: 月光序曲，沉醉于夜的静谧雅致
+  pureThemeModeSystem: 自动
+  pureThemeModeSystemTip: 同步时光，界面随晨昏自然呼应
+  pureThemeColor: 主题色
+  pureMenuLayout: 菜单布局
+  pureVerticalTip: 左侧菜单，亲切熟悉
+  pureHorizontalTip: 顶部菜单，简洁概览
+  pureMixTip: 混合菜单，灵活多变
+  pureStretch: 页宽
+  pureStretchFixed: 固定
+  pureStretchFixedTip: 紧凑页面，轻松找到所需信息
+  pureStretchCustom: 自定义
+  pureStretchCustomTip: 最小1280、最大1600
+  pureTagsStyle: 页签风格
+  pureTagsStyleSmart: 灵动
+  pureTagsStyleSmartTip: 灵动标签，添趣生辉
+  pureTagsStyleCard: 卡片
+  pureTagsStyleCardTip: 卡片标签，高效浏览
+  pureTagsStyleChrome: 谷歌
+  pureTagsStyleChromeTip: 谷歌风格，经典美观
+  pureFullScreenWatermark: 全屏水印
+  pureEnableWatermark: 水印
+  pureWatermarkText: 文本
+  pureWatermarkTextPlaceholder: 请输入水印文本
+  pureInterfaceDisplay: 界面显示
+  pureGreyModel: 灰色模式
+  pureWeakModel: 色弱模式
+  pureHiddenTags: 隐藏标签页
+  pureHiddenFooter: 隐藏页脚
+  pureMultiTagsCache: 页签持久化
+menus:
+  pureHome: 首页
+  pureLogin: 登录
+  pureEmpty: 无Layout页
+  pureTable: 表格
+  pureSysManagement: 系统管理
+  pureUser: 用户管理
+  pureRole: 角色管理
+  system: 系统管理
+  systemUser: 用户管理
+  systemRole: 角色管理
+  systemTokenClient: 令牌客户端
+  systemPermission: 权限管理
+  notification: 通知中心
+  notificationInbox: 收件箱
+  notificationAdmin: 公告管理
+  notificationDetail: 公告详情
+  notificationUnread: 未读
+  notificationRead: 已读
+  notificationDraft: 草稿
+  notificationPublished: 已发布
+  notificationRevoked: 已撤销
+  notificationMarkRead: 标为已读
+  notificationMarkAllRead: 全部标为已读
+  notificationRefresh: 刷新通知
+  notificationTitle: 标题
+  notificationEdit: 编辑
+  notificationStatus: 状态
+  notificationFilterTitle: 按标题筛选
+  notificationFilterAll: 全部
+  notificationAll: 全部
+  userSearchUsername: 用户名称
+  userPlaceholderUsername: 请输入用户名称
+  userPhone: 手机号码
+  userPlaceholderPhone: 请输入手机号码
+  userStatus: 状态
+  userStatusActive: 已开启
+  userStatusInactive: 已关闭
+  purePlaceholderSelect: 请选择
+  userNew: 新增用户
+  userEdit: 修改
+  userDelete: 删除
+  userUploadAvatar: 上传头像
+  userResetPassword: 重置密码
+  userAssignRole: 分配角色
+  userBatchDelete: 批量删除
+  userSelected: "已选 {n} 项"
+  userCancelSelection: 取消选择
+  userConfirmDelete: 是否确认删除？
+  userConfirmDeleteUser: "是否确认删除用户编号为 {id} 的这条数据？"
+  notificationSearch: 搜索
+  notificationReset: 重置
+  notificationNew: 新建公告
+  notificationPublish: 发布
+  notificationRevoke: 撤销
+  notificationPlaceholderRecipients: 请选择接收人
+  notificationBellTitle: 通知中心
+  notificationEmpty: 暂无新通知
+  notificationViewAll: 查看全部
+  notificationJustNow: 刚刚
+  notificationMinutesAgo: "{n} 分钟前"
+  notificationHoursAgo: "{n} 小时前"
+  notificationDaysAgo: "{n} 天前"
+  fileUploadTitle: 上传文件
+  fileUploadBackendNotice: 后端 /file/upload 当前仅接 metadata，不接受二进制内容。前端先发文件名+content-type 占位，待后端补 multipart 后自动生效。客户端已校验大小 ≤ 100MB + 黑名单扩展名。
+  fileLabel: 文件
+  fileLabelTemporary: 临时文件
+  fileLabelExpires: 过期秒数
+  fileSearchFilename: 文件名
+  fileExpiresOptional: 可选
+  fileUploadSubmit: 提交上传
+  fileUploadSelectFirst: 请先选文件
+  fileUploadResultSummary: "成功 {ok}，失败 {fail}"
+  fileTooLarge: "{name} 超过 {limit}MB"
+  fileExtensionBlocked: "{name} 是禁止的可执行扩展名"
+  fileDragOrClick: 拖入或点击选择文件
+  announcement: 公告
+  announcementTitle: 公告标题
+  announcementContent: 公告内容
+  announcementPublishTime: 发布时间
+  announcementExpireTime: 过期时间
+  announcementPinned: 置顶
+  announcementPopover: 弹窗提示
+  announcementRecipients: 接收人
+  pureSystemMenu: 菜单管理
+  pureDept: 部门管理
+  pureSysMonitor: 系统监控
+  pureOnlineUser: 在线用户
+  pureLoginLog: 登录日志
+  pureOperationLog: 操作日志
+  pureSystemLog: 系统日志
+  monitorOperationLog: 操作日志
+  monitorLoginLog: 登录日志
+  monitorRetention: 数据保留
+  pureAbnormal: 异常页面
+  pureDashboard: 服务监控面板
+  dashboardRefresh: 刷新
+  dashboardStatusOk: 正常
+  dashboardStatusDown: 不可达
+  dashboardStatusUnknown: 未知
+  dashboardLastCheck: 最近检测
+  dashboardUpCount: 在线
+  dashboardDownCount: 离线
+  purePageNotFound: "404"
+  pureAccessDenied: "403"
+  pureServerError: "500"
+  pureComponents: 组件
+  pureDialog: 函数式弹框
+  pureDrawer: 函数式抽屉
+  pureMessage: 消息提示
+  pureVideo: 视频
+  pureSegmented: 分段控制器
+  pureWaterfall: 瀑布流无限滚动
+  pureMap: 地图
+  pureDraggable: 拖拽
+  pureSplitPane: 切割面板
+  pureText: 文本省略
+  pureSlider: 滑块
+  pureElButton: 按钮
+  pureCheckButton: 可选按钮
+  pureButton: 按钮动效
+  pureCropping: 图片裁剪
+  pureAnimatecss: animate.css选择器
+  pureCountTo: 数字动画
+  pureSelector: 范围选择器
+  pureSeamless: 无缝滚动
+  pureContextmenu: 右键菜单
+  pureTypeit: 打字机
+  pureJsonEditor: JSON编辑器
+  pureColorPicker: 颜色选择器
+  pureColorPickerPanel: 颜色选择器面板
+  pureDatePicker: 日期选择器
+  pureDateTimePicker: 日期时间选择器
+  pureTimePicker: 时间选择器
+  pureTag: 标签
+  pureStatistic: 统计组件
+  pureCollapse: 折叠面板
+  pureProgress: 进度条
+  pureUpload: 文件上传
+  pureCheckCard: 多选卡片
+  pureMenus: 多级菜单
+  pureMenu1: 菜单1
+  pureMenu1-1: 菜单1-1
+  pureMenu1-2: 菜单1-2
+  pureMenu1-2-1: 菜单1-2-1
+  pureMenu1-2-2: 菜单1-2-2
+  pureMenu1-3: 菜单1-3
+  pureMenu2: 菜单二
+  purePermission: 权限管理
+  purePermissionPage: 页面权限
+  purePermissionButton: 按钮权限
+  purePermissionButtonRouter: 路由返回按钮权限
+  purePermissionButtonLogin: 登录接口返回按钮权限
+  pureTabs: 标签页操作
+  pureGuide: 引导页
+  pureAble: 功能
+  pureMenuTree: 菜单树结构
+  pureVideoFrame: 视频帧截取-wasm版
+  pureWavesurfer: 音频可视化
+  pureRipple: 波纹(Ripple)
+  pureMqtt: MQTT客户端(mqtt)
+  pureOptimize: 防抖、截流、复制、长按指令
+  pureVerify: 图形验证码
+  pureWatermark: 水印
+  purePrint: 打印
+  pureDownload: 下载
+  pureExternalPage: 外部页面
+  pureExternalDoc: 文档外链
+  pureEmbeddedDoc: 文档内嵌
+  pureExternalLink: vue-pure-admin
+  pureUtilsLink: pure-admin-utils
+  pureColorHuntDoc: 调色板
+  pureUiGradients: 渐变色
+  pureEpDoc: element-plus
+  pureTailwindcssDoc: tailwindcss
+  pureVueDoc: vue3
+  pureViteDoc: vite
+  purePiniaDoc: pinia
+  pureRouterDoc: vue-router
+  pureAbout: 关于
+  pureResult: 结果页面
+  pureSuccess: 成功页面
+  pureFail: 失败页面
+  pureIconSelect: 图标选择器
+  pureTimeline: 时间线
+  pureLineTree: 树形连接线
+  pureList: 列表页面
+  pureCardList: 卡片列表页
+  pureDebounce: 防抖节流
+  pureBarcode: 条形码
+  pureQrcode: 二维码
+  pureCascader: 区域级联选择器
+  pureSwiper: Swiper插件
+  pureVirtualList: 虚拟列表
+  purePdf: PDF预览
+  pureExcel: 导出Excel
+  pureInfiniteScroll: 表格无限滚动
+  pureSensitive: 敏感词过滤
+  purePinyin: 汉语拼音
+  pureDanmaku: 弹幕
+  pureTableBase: 基础用法
+  pureTableHigh: 高级用法
+  pureTableEdit: 可编辑用法
+  pureVxeTable: 虚拟滚动
+  pureMenuOverflow: 目录超出显示 Tooltip 文字提示
+  pureChildMenuOverflow: 菜单超出显示 Tooltip 文字提示
   pureProfile: 个人信息
   purePreferences: 偏好设置
   pureSecurityLog: 安全日志
@@ -10,14 +306,6 @@ buttons:
   accountCardIllustrateSystemMessage: 系统消息将以站内信的形式通知
   accountCardTitleTodoTask: 待办任务
   accountCardIllustrateTodoTask: 待办任务将以站内信的形式通知
-  accountCardTitleBoundPhone: 密保手机
-  accountCardIllustrateBoundPhone: '已经绑定手机：{phone}'
-  accountCardTitleBoundEmail: 备用邮箱
-  accountCardIllustrateBoundEmail: '已绑定邮箱：{email}'
-  accountCardTitleSecurityQuestion: 密保问题
-  accountCardIllustrateSecurityQuestion: 未设置密保问题，密保问题可有效保护账户安全
-  accountCardTitlePasswordStrength: 当前密码强度：{level}
-  accountCardButtonModify: 修改
   accountCardSwitchActive: 是
   accountCardSwitchInactive: 否
   accountCardSetSuccess: '{title}设置成功'
@@ -47,7 +335,6 @@ buttons:
   profileCancel: 取消
   profileConfirm: 确定
   systemDept: 部门管理
-  systemRole: 角色管理
   deptSearchName: 部门名称
   deptPlaceholderName: 请输入部门名称
   deptStatusActive: 启用
@@ -180,7 +467,6 @@ buttons:
   fileColumnType: 类型
   fileColumnSize: 大小
   fileColumnUploadedAt: 上传时间
-  fileSearchFilename: 文件名
   filePlaceholderFilename: 按文件名筛选
   fileNew: 上传
   presignTitle: 预签名 URL
@@ -336,16 +622,9 @@ buttons:
   welcomeCardDataStats: 数据统计
   welcomeCardLatest: 最新动态
   welcomeNewProblemsTemplate: "新增 {n} 条问题，{m} 条已解决"
-  permsDemoTitle1: 组件方式判断权限
-  permsDemoTitle2: 函数方式判断权限
-  permsDemoTitle3: 指令方式判断权限
-  permsDemoTitle3Note: "（该方式不能动态修改权限）"
   permsDemoCodeLine: "代码位置 {path}"
   permsDemoHaveCode: "拥有 code：{code} 权限可见"
   permsDemoHasCodes: "拥有 code：{codes} 权限可见"
-  permsDemoCodeList1: permission:btn:add
-  permsDemoCodeList2: permission:btn:edit
-  permsDemoCodeList3Delete: permission:btn:delete
   permsDemoCurrentAuths: 当前拥有的 code 列表
   permsDemoRoleAdmin: 管理员角色
   permsDemoRoleUser: 普通角色
@@ -366,295 +645,16 @@ buttons:
   fileSelected: "已选 {n} 项"
   fileBulkDelete: 批量删除
   fileDropHint: 拖入此处上传
-  fileImagePreview: 预览
   inboxMarkRead: 标为已读
   inboxDetailClose: 关闭
-  notificationPermissionDenied: 浏览器通知权限被拒
   notificationDesktopTitle: 新通知
   notificationDesktopBody: "{title} — 点击查看"
   fileBulkDeleteConfirm: "确认删除 {n} 个文件？"
   fileBulkDeleteSuccess: "已删除 {n} 个文件"
   fileBulkDeletePartial: "已删除 {ok} 个，{fail} 个失败"
   dashboardAvgLatency: 平均延迟
-  dashboardUptime: 可用率
   dashboardLatencyTrend: "延迟趋势（最近 {n} 次）"
-  dashboardP50: p50
-  dashboardP95: p95
-  dashboardP99: p99
   dashboardErrorRate: 错误率
-  pureChangePassword: 修改密码
-  pureLoginOut: 退出系统
-  pureLogin: 登录
-  pureOpenSystemSet: 打开系统配置
-  pureReload: 重新加载
-  pureCloseCurrentTab: 关闭当前标签页
-  pureCloseLeftTabs: 关闭左侧标签页
-  pureCloseRightTabs: 关闭右侧标签页
-  pureCloseOtherTabs: 关闭其他标签页
-  pureCloseAllTabs: 关闭全部标签页
-  pureContentFullScreen: 内容区全屏
-  pureContentExitFullScreen: 内容区退出全屏
-  pureClickCollapse: 点击折叠
-  pureClickExpand: 点击展开
-  pureConfirm: 确认
-  pureSwitch: 切换
-  pureClose: 关闭
-  pureBackTop: 回到顶部
-  pureOpenText: 开
-  pureCloseText: 关
-  pureWatchMore: 查看更多
-  pureMarkAsRead: 标为已读
-search:
-  pureTotal: 共
-  pureHistory: 搜索历史
-  pureCollect: 收藏
-  pureDragSort: （可拖拽排序）
-  pureEmpty: 暂无搜索结果
-  purePlaceholder: 搜索菜单（支持拼音搜索）
-panel:
-  pureSystemSet: 系统配置
-  pureCloseSystemSet: 关闭配置
-  pureClearCacheAndToLogin: 清空缓存并返回登录页
-  pureClearCache: 清空缓存
-  pureThemeMode: 主题模式
-  pureThemeModeLight: 浅色
-  pureThemeModeLightTip: 清新启航，点亮舒适的工作界面
-  pureThemeModeDark: 深色
-  pureThemeModeDarkTip: 月光序曲，沉醉于夜的静谧雅致
-  pureThemeModeSystem: 自动
-  pureThemeModeSystemTip: 同步时光，界面随晨昏自然呼应
-  pureThemeColor: 主题色
-  pureMenuLayout: 菜单布局
-  pureVerticalTip: 左侧菜单，亲切熟悉
-  pureHorizontalTip: 顶部菜单，简洁概览
-  pureMixTip: 混合菜单，灵活多变
-  pureStretch: 页宽
-  pureStretchFixed: 固定
-  pureStretchFixedTip: 紧凑页面，轻松找到所需信息
-  pureStretchCustom: 自定义
-  pureStretchCustomTip: 最小1280、最大1600
-  pureTagsStyle: 页签风格
-  pureTagsStyleSmart: 灵动
-  pureTagsStyleSmartTip: 灵动标签，添趣生辉
-  pureTagsStyleCard: 卡片
-  pureTagsStyleCardTip: 卡片标签，高效浏览
-  pureTagsStyleChrome: 谷歌
-  pureTagsStyleChromeTip: 谷歌风格，经典美观
-  pureFullScreenWatermark: 全屏水印
-  pureEnableWatermark: 水印
-  pureWatermarkText: 文本
-  pureWatermarkTextPlaceholder: 请输入水印文本
-  pureInterfaceDisplay: 界面显示
-  pureGreyModel: 灰色模式
-  pureWeakModel: 色弱模式
-  pureHiddenTags: 隐藏标签页
-  pureHiddenFooter: 隐藏页脚
-  pureMultiTagsCache: 页签持久化
-menus:
-  pureHome: 首页
-  pureLogin: 登录
-  pureEmpty: 无Layout页
-  pureTable: 表格
-  pureSysManagement: 系统管理
-  pureUser: 用户管理
-  pureRole: 角色管理
-  system: 系统管理
-  systemUser: 用户管理
-  systemRole: 角色管理
-  systemTokenClient: 令牌客户端
-  systemPermission: 权限管理
-  notification: 通知中心
-  notificationInbox: 收件箱
-  notificationAdmin: 公告管理
-  notificationDetail: 公告详情
-  notificationUnread: 未读
-  notificationRead: 已读
-  notificationDraft: 草稿
-  notificationPublished: 已发布
-  notificationRevoked: 已撤销
-  notificationMarkRead: 标为已读
-  notificationMarkAllRead: 全部标为已读
-  notificationRefresh: 刷新通知
-  notificationTitle: 标题
-  notificationEdit: 编辑
-  notificationStatus: 状态
-  notificationFilterTitle: 按标题筛选
-  notificationFilterAll: 全部
-  notificationAll: 全部
-  userSearchUsername: 用户名称
-  userPlaceholderUsername: 请输入用户名称
-  userPhone: 手机号码
-  userPlaceholderPhone: 请输入手机号码
-  userStatus: 状态
-  userStatusActive: 已开启
-  userStatusInactive: 已关闭
-  purePlaceholderSelect: 请选择
-  userNew: 新增用户
-  userEdit: 修改
-  userDelete: 删除
-  userUploadAvatar: 上传头像
-  userResetPassword: 重置密码
-  userAssignRole: 分配角色
-  userBatchDelete: 批量删除
-  userSelected: "已选 {n} 项"
-  userCancelSelection: 取消选择
-  userConfirmDelete: 是否确认删除？
-  userConfirmDeleteUser: "是否确认删除用户编号为 {id} 的这条数据？"
-  notificationSearch: 搜索
-  notificationReset: 重置
-  notificationNew: 新建公告
-  notificationPublish: 发布
-  notificationRevoke: 撤销
-  notificationPlaceholderRecipients: 请选择接收人
-  notificationBellTitle: 通知中心
-  notificationEmpty: 暂无新通知
-  notificationViewAll: 查看全部
-  notificationJustNow: 刚刚
-  notificationMinutesAgo: "{n} 分钟前"
-  notificationHoursAgo: "{n} 小时前"
-  notificationDaysAgo: "{n} 天前"
-  fileUploadTitle: 上传文件
-  fileUploadBackendNotice: 后端 /file/upload 当前仅接 metadata，不接受二进制内容。前端先发文件名+content-type 占位，待后端补 multipart 后自动生效。客户端已校验大小 ≤ 100MB + 黑名单扩展名。
-  fileLabel: 文件
-  fileLabelTemporary: 临时文件
-  fileLabelExpires: 过期秒数
-  fileExpiresOptional: 可选
-  fileUploadSubmit: 提交上传
-  fileUploadSelectFirst: 请先选文件
-  fileUploadResultSummary: "成功 {ok}，失败 {fail}"
-  fileTooLarge: "{name} 超过 {limit}MB"
-  fileExtensionBlocked: "{name} 是禁止的可执行扩展名"
-  fileDragOrClick: 拖入或点击选择文件
-  announcement: 公告
-  announcementTitle: 公告标题
-  announcementContent: 公告内容
-  announcementPublishTime: 发布时间
-  announcementExpireTime: 过期时间
-  announcementPinned: 置顶
-  announcementPopover: 弹窗提示
-  announcementRecipients: 接收人
-  pureSystemMenu: 菜单管理
-  pureDept: 部门管理
-  pureSysMonitor: 系统监控
-  pureOnlineUser: 在线用户
-  pureLoginLog: 登录日志
-  pureOperationLog: 操作日志
-  pureSystemLog: 系统日志
-  monitorOperationLog: 操作日志
-  monitorLoginLog: 登录日志
-  monitorRetention: 数据保留
-  pureAbnormal: 异常页面
-  pureDashboard: 服务监控面板
-  dashboardRefresh: 刷新
-  dashboardStatusOk: 正常
-  dashboardStatusDown: 不可达
-  dashboardStatusUnknown: 未知
-  dashboardLastCheck: 最近检测
-  dashboardUpCount: 在线
-  dashboardDownCount: 离线
-  purePageNotFound: "404"
-  pureAccessDenied: "403"
-  pureServerError: "500"
-  pureComponents: 组件
-  pureDialog: 函数式弹框
-  pureDrawer: 函数式抽屉
-  pureMessage: 消息提示
-  pureVideo: 视频
-  pureSegmented: 分段控制器
-  pureWaterfall: 瀑布流无限滚动
-  pureMap: 地图
-  pureDraggable: 拖拽
-  pureSplitPane: 切割面板
-  pureText: 文本省略
-  pureSlider: 滑块
-  pureElButton: 按钮
-  pureCheckButton: 可选按钮
-  pureButton: 按钮动效
-  pureCropping: 图片裁剪
-  pureAnimatecss: animate.css选择器
-  pureCountTo: 数字动画
-  pureSelector: 范围选择器
-  pureSeamless: 无缝滚动
-  pureContextmenu: 右键菜单
-  pureTypeit: 打字机
-  pureJsonEditor: JSON编辑器
-  pureColorPicker: 颜色选择器
-  pureColorPickerPanel: 颜色选择器面板
-  pureDatePicker: 日期选择器
-  pureDateTimePicker: 日期时间选择器
-  pureTimePicker: 时间选择器
-  pureTag: 标签
-  pureStatistic: 统计组件
-  pureCollapse: 折叠面板
-  pureProgress: 进度条
-  pureUpload: 文件上传
-  pureCheckCard: 多选卡片
-  pureMenus: 多级菜单
-  pureMenu1: 菜单1
-  pureMenu1-1: 菜单1-1
-  pureMenu1-2: 菜单1-2
-  pureMenu1-2-1: 菜单1-2-1
-  pureMenu1-2-2: 菜单1-2-2
-  pureMenu1-3: 菜单1-3
-  pureMenu2: 菜单二
-  purePermission: 权限管理
-  purePermissionPage: 页面权限
-  purePermissionButton: 按钮权限
-  purePermissionButtonRouter: 路由返回按钮权限
-  purePermissionButtonLogin: 登录接口返回按钮权限
-  pureTabs: 标签页操作
-  pureGuide: 引导页
-  pureAble: 功能
-  pureMenuTree: 菜单树结构
-  pureVideoFrame: 视频帧截取-wasm版
-  pureWavesurfer: 音频可视化
-  pureRipple: 波纹(Ripple)
-  pureMqtt: MQTT客户端(mqtt)
-  pureOptimize: 防抖、截流、复制、长按指令
-  pureVerify: 图形验证码
-  pureWatermark: 水印
-  purePrint: 打印
-  pureDownload: 下载
-  pureExternalPage: 外部页面
-  pureExternalDoc: 文档外链
-  pureEmbeddedDoc: 文档内嵌
-  pureExternalLink: vue-pure-admin
-  pureUtilsLink: pure-admin-utils
-  pureColorHuntDoc: 调色板
-  pureUiGradients: 渐变色
-  pureEpDoc: element-plus
-  pureTailwindcssDoc: tailwindcss
-  pureVueDoc: vue3
-  pureViteDoc: vite
-  purePiniaDoc: pinia
-  pureRouterDoc: vue-router
-  pureAbout: 关于
-  pureResult: 结果页面
-  pureSuccess: 成功页面
-  pureFail: 失败页面
-  pureIconSelect: 图标选择器
-  pureTimeline: 时间线
-  pureLineTree: 树形连接线
-  pureList: 列表页面
-  pureCardList: 卡片列表页
-  pureDebounce: 防抖节流
-  pureBarcode: 条形码
-  pureQrcode: 二维码
-  pureCascader: 区域级联选择器
-  pureSwiper: Swiper插件
-  pureVirtualList: 虚拟列表
-  purePdf: PDF预览
-  pureExcel: 导出Excel
-  pureInfiniteScroll: 表格无限滚动
-  pureSensitive: 敏感词过滤
-  purePinyin: 汉语拼音
-  pureDanmaku: 弹幕
-  pureTableBase: 基础用法
-  pureTableHigh: 高级用法
-  pureTableEdit: 可编辑用法
-  pureVxeTable: 虚拟滚动
-  pureMenuOverflow: 目录超出显示 Tooltip 文字提示
-  pureChildMenuOverflow: 菜单超出显示 Tooltip 文字提示
 status:
   pureLoad: 加载中...
   pureMessage: 消息
