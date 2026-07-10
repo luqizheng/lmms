@@ -9,17 +9,21 @@ services/api-gateway/
 ├── Cargo.toml
 ├── Dockerfile
 ├── src/
-│   ├── main.rs           # 入口、CLI、proxy_handler、SIGHUP/admin reload
+│   ├── main.rs           # 入口、CLI（validate/serve）、proxy_handler、SIGHUP/admin reload
 │   ├── lib.rs            # 模块聚合、AppState、create_app
-│   ├── cli.rs            # clap 子命令：validate / serve
-│   ├── config.rs         # GatewayConfig / RouteConfig / RewriteSpec
-│   ├── routes_loader.rs  # 加载 *.router.toml
-│   ├── router.rs         # 转发到后端服务
-│   ├── discovery.rs      # Consul 服务发现
-│   ├── jwt.rs / jwks.rs  # JWT 校验、JWKS 拉取
-│   ├── blacklist.rs      # Redis 黑名单
-│   ├── middleware/       # auth_middleware 等
-│   └── rewrite.rs        # rewrite 链
+│   ├── cli.rs            # clap 子命令
+│   ├── config.rs         # GatewayConfig / RouteConfig / EgressTarget
+│   ├── routes_loader.rs  # 扫描 *.router.toml，校验 upstream/downstream 模板变量集对齐
+│   ├── template.rs       # upstream/downstream 路径模板解析（{var} 占位符）
+│   ├── router.rs         # 转发到下游服务（用 cfg.egress_map 解析 host:port）
+│   ├── blacklist.rs      # Redis 黑名单（jti / sub 检查）
+│   ├── perm_epoch.rs     # 权限 epoch 校验（iat < perm_epoch → 401）
+│   ├── perm_epoch_cache.rs # perm_epoch 进程内缓存 + Redis 兜底
+│   ├── perm_consumer.rs  # iam.permission.changed RabbitMQ 兜底消费者
+│   ├── resilience_metrics.rs # ResilientClient 指标导出
+│   ├── openapi.rs        # utoipa OpenAPI schema 注册
+│   ├── bin/              # 额外二进制入口
+│   └── middleware/       # auth_middleware、rate_limit
 └── tests/                # 集成测试
 ```
 
@@ -63,8 +67,8 @@ cargo run -p api-gateway -- serve `
 | `GW_REDIS__URL` | `redis.url` | `redis://127.0.0.1:6379` |
 | `GW_REDIS__PREFIX` | `redis.prefix` | `superpowers:` |
 | `GW_CONSUL_ADDR` | `consul_addr` | `http://127.0.0.1:8500` |
-| `GW_JWKS_URL` | `jwks_url` | `http://127.0.0.1:4000/.well-known/jwks.json` |
-| `GW_ISSUER` | `issuer` | `superpowers-token-server` |
+| `GW_JWKS_URL` | `jwks_url` | `http://127.0.0.1:4000/.well-known/jwks.json` (代码默认；部署时 docker-compose 覆盖为 `http://token-service:8082/.well-known/jwks.json`) |
+| `GW_ISSUER` | `issuer` | `superpowers-token-service` |
 | `GW_ROUTES` | `routes` | （由 `--routes` 参数覆盖） |
 
 其他常用环境变量：
@@ -87,8 +91,8 @@ url = "redis://localhost:6379"
 prefix = "superpowers_"
 
 consul_addr = "http://localhost:8500"
-jwks_url = "http://localhost:4000/.well-known/jwks.json"
-issuer = "superpowers-token-server"
+jwks_url = "http://localhost:8082/.well-known/jwks.json"
+issuer = "superpowers-token-service"
 ```
 
 ## 路由文件
@@ -108,37 +112,37 @@ issuer = "superpowers-token-server"
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `match` | string | 是 | URL 模式，匹配 `/api<match>`，`**` 表示前缀通配 |
-| `service` | string | 是 | Consul 注册的服务名 |
+| `upstream` | string | 是 | 上游 URL 模板，匹配 `GET/POST /api<upstream>`；用 `{name}` 占位符，如 `/v1/iam/users/{rest}` |
+| `downstream` | string | 是 | 下游 URL 模板；占位符变量集必须与 `upstream` 完全一致，如 `/iam/users/{rest}` |
+| `service` | string | 是 | 下游服务名（对应 `cfg.egress_map` 的 key） |
 | `public` | bool | 否 | `true` 跳过 JWT 校验，默认 `false` |
-| `rewrite` | array | 否 | rewrite 链，按顺序执行 |
-
-### Rewrite 类型
-
-| `type` | 字段 | 用途 |
-|---|---|---|
-| `strip_prefix` | `prefix` | 去掉请求路径前缀 |
-| `redirect` | `status`, `to` | 重定向 |
-| `header_set` | `name`, `value` | 覆盖请求头 |
-| `header_add` | `name`, `value` | 追加请求头 |
-| `path_param` | `from`, `to` | 路径段改写 |
+| `ws` | bool | 否 | `true` 标记 WebSocket 路由，开启协议升级透传 |
+| `headers` | table | 否 | 透传时注入的额外 header（key/value 都是字符串） |
 
 ### 路由示例
 
 ```toml
+# upstream → downstream 一一对应，占位符变量集必须一致
 [[route]]
-match = "/api/v1/users/**"
-service = "user-service"
-public = false
+upstream   = "/v1/iam/users/{rest}"
+downstream = "/iam/users/{rest}"
+service    = "iam-service"
+public     = false
 
+# WebSocket 路由示例
 [[route]]
-match = "/api/v1/auth/logout"
-service = "auth-service"
-public = true
-rewrite = [
-  { type = "header_set", name = "X-Auth-Audit", value = "logout" },
-  { type = "strip_prefix", prefix = "/api" },
-]
+upstream   = "/v1/notification/ws"
+downstream = "/notification/ws"
+service    = "notification-service"
+ws         = true
+
+# 注入额外 header（e.g. 灰度 / 审计标记）
+[[route]]
+upstream   = "/v1/iam/auth/logout"
+downstream = "/iam/auth/logout"
+service    = "iam-service"
+public     = true
+headers    = { X-Auth-Audit = "logout" }
 ```
 
 ## 热重载
@@ -190,8 +194,8 @@ services:
       GW_REDIS__URL: "redis://redis:6379"
       GW_REDIS__PREFIX: "superpowers_"
       GW_CONSUL_ADDR: "http://consul:8500"
-      GW_JWKS_URL: "http://token-service:4000/.well-known/jwks.json"
-      GW_ISSUER: "superpowers-token-server"
+      GW_JWKS_URL: "http://token-service:8082/.well-known/jwks.json"
+      GW_ISSUER: "superpowers-token-service"
       RUST_LOG: "api_gateway=debug,info"
     command:
       - "serve"
@@ -216,10 +220,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SERVER__PORT: "4000"
+      SERVER__PORT: "8082"
       REDIS__URL: "redis://redis:6379"
     ports:
-      - "4000:4000"
+      - "8082:8082"
     networks:
       - superpowers
 ```

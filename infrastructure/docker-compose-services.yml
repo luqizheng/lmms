@@ -154,7 +154,6 @@ services:
       GW_JWKS_URL: "http://token-service:8082/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-service"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
-      GW_JWKS_PUBLIC_KEY_PATH: "/app/keys/public.pem"
       GW_EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "api-gateway"

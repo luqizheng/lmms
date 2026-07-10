@@ -8,7 +8,7 @@ prefix = "superpowers:"
 
 consul_addr = "http://consul:8500"
 jwks_url = "http://token-service:8082/.well-known/jwks.json"
-issuer = "superpowers-token-server"
+issuer = "superpowers-token-service"
 
 # egress_map: route.service 名 → 后端 host:port。
 # Phase 5-A-2: 服务直连 (dephase consul connect)，api-gateway 通过 docker DNS

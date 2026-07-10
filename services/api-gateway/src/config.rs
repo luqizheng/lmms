@@ -35,7 +35,7 @@ fn default_jwks_url() -> String {
 }
 
 fn default_issuer() -> String {
-    "superpowers-token-server".into()
+    "superpowers-token-service".into()
 }
 
 fn default_routes_dir() -> String {
@@ -112,7 +112,7 @@ impl Default for GatewayConfig {
             redis: RedisConfig::default(),
             consul_addr: "http://127.0.0.1:8500".into(),
             jwks_url: "http://127.0.0.1:4000/.well-known/jwks.json".into(),
-            issuer: "superpowers-token-server".into(),
+            issuer: "superpowers-token-service".into(),
             routes_dir: default_routes_dir(),
             event_bus_url: default_event_bus_url(),
             perm_epoch_ttl_sec: default_perm_epoch_ttl_sec(),

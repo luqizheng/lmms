@@ -23,18 +23,29 @@
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
+| JWT_PRIVATE_KEY_PATH | keys/private.pem | JWT 私钥路径（RS256 签发用） |
+| JWT_PUBLIC_KEY_PATH | keys/public.pem | JWT 公钥路径（JWKS endpoint 暴露） |
+| SERVICE_BOOTSTRAP_TOKENS | （空） | 各业务服务的逗号分隔 bootstrap token；未设置则 POST /tokens/service-jwt 拒绝所有调用方 |
 
 ## 端点域
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /token/issue | POST | 签发 token |
-| /token/refresh | POST | 刷新 token |
-| /token/revoke | POST | 撤销 token |
-| /token/jwks | GET | JWKS 公钥 |
+| /tokens/access | POST | 签发 access_token + refresh_token（OAuth 2.0 client_credentials / authorization_code） |
+| /tokens/refresh | POST | 刷新 token（refresh_token 单次使用，防重放） |
+| /tokens/revoke | POST | 撤销 token（写入 Redis 黑名单） |
+| /tokens/resource | POST | 签发受限资源令牌（自定义 TTL 与 scope） |
+| /tokens/user-jwt | POST | 签发用户身份 JWT |
+| /tokens/service-jwt | POST | 签发 1h 服务间 JWT（Authorization: Bearer <SERVICE_BOOTSTRAP_TOKENS> 准入） |
+| /tokens/.well-known/jwks.json | GET | JWKS 公钥（kid="default"，RS256） |
+| /.well-known/jwks.json | GET | JWKS 别名 |
+| /api-keys | POST / GET | API Key 创建 / 列表 |
+| /admin/oauth-clients | POST / GET | OAuth 客户端创建（响应中一次性返回明文 client_secret） |
+| /admin/oauth-clients/{client_id} | PUT / DELETE | 更新 / 删除 |
+| /admin/oauth-clients/{client_id}/reset-secret | POST | 重置并返回新明文 client_secret |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
-| /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|
+| /swagger-ui | GET | OpenAPI UI（仅 SWAGGER_ENABLED=true 时暴露） |
 
 ## 内部端点 /token/internal/*
 
