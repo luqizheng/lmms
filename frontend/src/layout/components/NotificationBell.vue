@@ -23,15 +23,98 @@ const pulse = ref(false);
 let pulseTimer: ReturnType<typeof setTimeout> | null = null;
 const lastQueueLen = ref(0);
 
+// ============ 桌面通知 + audio cue ============
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (audioCtx) return audioCtx;
+  const Ctor =
+    (window as any).AudioContext || (window as any).webkitAudioContext;
+  if (!Ctor) return null;
+  try {
+    audioCtx = new Ctor();
+  } catch {
+    return null;
+  }
+  return audioCtx;
+}
+
+function playBeep() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  // 浏览器策略要求用户首次交互后才能 resume 音频 context
+  if (ctx.state === "suspended") {
+    ctx.resume().catch(() => undefined);
+  }
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = 880;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {
+    // 忽略音频播放失败
+  }
+}
+
+let lastDesktopNotif: Notification | null = null;
+
+function fireDesktopNotification(title: string) {
+  if (
+    typeof window === "undefined" ||
+    typeof Notification === "undefined"
+  ) {
+    return;
+  }
+  if (Notification.permission !== "granted") return;
+  try {
+    if (lastDesktopNotif) lastDesktopNotif.close();
+    lastDesktopNotif = new Notification(
+      t("menus.notificationDesktopTitle"),
+      {
+        body: t("menus.notificationDesktopBody", { title }),
+        tag: "notification-bell",
+        silent: false
+      }
+    );
+    lastDesktopNotif.onclick = () => {
+      window.focus();
+      router.push("/notification/inbox");
+      lastDesktopNotif?.close();
+      lastDesktopNotif = null;
+    };
+    setTimeout(() => {
+      lastDesktopNotif?.close();
+      lastDesktopNotif = null;
+    }, 8000);
+  } catch {
+    // 忽略
+  }
+}
+
 onMounted(() => {
   store.refreshUnread().catch(() => undefined);
   store.refreshInbox().catch(() => undefined);
   connect();
   lastQueueLen.value = store.popoverQueue.length;
+  // 首次进入时请求浏览器通知权限（弹桌面通知前需 granted）
+  if (
+    typeof Notification !== "undefined" &&
+    Notification.permission === "default"
+  ) {
+    Notification.requestPermission().catch(() => undefined);
+  }
   offAnnouncement = on("announcement", (msg: any) => {
-    if (typeof msg.id === "number" && typeof msg.title === "string") {
-      store.pushFromSocket({ id: msg.id, title: msg.title });
-    }
+    if (typeof msg.id !== "number" || typeof msg.title !== "string") return;
+    store.pushFromSocket({ id: msg.id, title: msg.title });
+    // WS 推送触发：弹桌面通知 + audio cue
+    fireDesktopNotification(msg.title);
+    playBeep();
   });
   offCount = on("unread_count", (msg: any) => {
     if (typeof msg.count === "number") store.unreadCount = msg.count;

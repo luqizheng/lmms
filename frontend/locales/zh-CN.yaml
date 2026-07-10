@@ -370,6 +370,8 @@ buttons:
   inboxMarkRead: 标为已读
   inboxDetailClose: 关闭
   notificationPermissionDenied: 浏览器通知权限被拒
+  notificationDesktopTitle: 新通知
+  notificationDesktopBody: "{title} — 点击查看"
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录

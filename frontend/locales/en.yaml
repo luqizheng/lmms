@@ -370,6 +370,8 @@ buttons:
   inboxMarkRead: Mark as Read
   inboxDetailClose: Close
   notificationPermissionDenied: Browser notification permission denied
+  notificationDesktopTitle: New Notification
+  notificationDesktopBody: "{title} — click to view"
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login
