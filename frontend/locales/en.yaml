@@ -175,6 +175,31 @@ buttons:
   configCreateFailFallback: Create failed
   configDeleteFailFallback: Delete failed
   configLoadFailPrefix: "Load failed: {error}"
+  fileColumnId: ID
+  fileColumnFilename: Filename
+  fileColumnType: Type
+  fileColumnSize: Size
+  fileColumnUploadedAt: Uploaded At
+  fileSearchFilename: Filename
+  filePlaceholderFilename: Filter by filename
+  fileNew: Upload
+  presignTitle: Presigned URL
+  presignNotice: Generate temporary GET/PUT URL for an existing file_id. For direct upload, use /file/upload.
+  presignFileId: File ID
+  presignFileIdPlaceholder: file id
+  presignOperation: Operation
+  presignOperationGet: GET (Download)
+  presignOperationPut: PUT (Overwrite)
+  presignExpires: Expires (seconds)
+  presignGenerateBtn: Generate URL
+  presignResultHeader: Presigned Result
+  presignUrlLabel: URL
+  presignExpiresLabel: Expires
+  presignCopyUrl: Copy URL
+  presignGenerated: Generated
+  presignGenerateFailFallback: Generation failed
+  presignInputFileIdFirst: Please enter file_id
+  presignCopied: URL copied
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

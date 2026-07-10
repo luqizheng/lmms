@@ -16,6 +16,15 @@ vi.mock("@/utils/message", () => ({ message }));
 vi.mock("@/utils/sso", () => ({}));
 vi.mock("@/router", () => ({}));
 vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
+vi.mock("vue-i18n", () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, unknown>) =>
+      params ? `${k}|${JSON.stringify(params)}` : k
+  })
+}));
+vi.mock("@/utils/error-translate", () => ({
+  translateError: (code: unknown) => `error:${code}`
+}));
 
 import FilePresign from "./presign.vue";
 
@@ -49,28 +58,28 @@ describe("FilePresign mount", () => {
     expect(wrapper.exists()).toBe(true);
   });
 
-  it("renders heading '预签名 URL'", () => {
+  it("renders heading via i18n key", () => {
     const wrapper = mountPresign();
-    expect(wrapper.text()).toContain("预签名 URL");
+    expect(wrapper.text()).toContain("menus.presignTitle");
   });
 
-  it("renders 生成 URL button", () => {
+  it("renders 生成 URL button via i18n key", () => {
     const wrapper = mountPresign();
     const labels = wrapper
       .findAll("button")
       .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("生成 URL"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.presignGenerateBtn"))).toBe(true);
   });
 
   it("click 生成 URL with empty file_id shows message warning", async () => {
     const wrapper = mountPresign();
     const btn = wrapper
       .findAll("button")
-      .find((b: any) => b.text().includes("生成 URL"));
+      .find((b: any) => b.text().includes("menus.presignGenerateBtn"));
     await btn.trigger("click");
     await flushPromises();
     expect(message).toHaveBeenCalledWith(
-      "请输入 file_id",
+      "menus.presignInputFileIdFirst",
       expect.objectContaining({ type: "warning" })
     );
     expect(createPresign).not.toHaveBeenCalled();

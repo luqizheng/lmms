@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { createPresign } from "@/api/file";
 import { message } from "@/utils/message";
 import { translateError } from "@/utils/error-translate";
 import { hasPerms } from "@/utils/auth";
 
 defineOptions({ name: "FilePresign" });
+const { t } = useI18n();
 const form = ref({
   file_id: "",
   operation: "get" as "get" | "put",
@@ -16,7 +18,7 @@ const presigned = ref<{ url: string; expires_at: string } | null>(null);
 
 async function onSubmit() {
   if (!form.value.file_id) {
-    message("请输入 file_id", { type: "warning" });
+    message(t("menus.presignInputFileIdFirst"), { type: "warning" });
     return;
   }
   loading.value = true;
@@ -27,9 +29,11 @@ async function onSubmit() {
       expires_in_seconds: form.value.expires_in_seconds
     });
     presigned.value = { url: res.url, expires_at: res.expires_at };
-    message("已生成", { type: "success" });
+    message(t("menus.presignGenerated"), { type: "success" });
   } catch (e: any) {
-    message(translateError(e?.code ?? "生成失败"), { type: "error" });
+    message(translateError(e?.code ?? t("menus.presignGenerateFailFallback")), {
+      type: "error"
+    });
   } finally {
     loading.value = false;
   }
@@ -38,31 +42,34 @@ async function onSubmit() {
 function copyUrl() {
   if (!presigned.value) return;
   navigator.clipboard.writeText(presigned.value.url);
-  message("URL 已复制", { type: "success" });
+  message(t("menus.presignCopied"), { type: "success" });
 }
 </script>
 
 <template>
   <div class="main p-6">
-    <h3 class="mb-4">预签名 URL</h3>
+    <h3 class="mb-4">{{ t("menus.presignTitle") }}</h3>
     <el-alert
-      title="对已存在的 file_id 生成 GET/PUT 临时 URL。直传请用 /file/upload。"
+      :title="t('menus.presignNotice')"
       type="info"
       show-icon
       :closable="false"
       class="mb-4"
     />
     <el-form :model="form" label-width="160px" class="w-150">
-      <el-form-item label="File ID">
-        <el-input v-model="form.file_id" placeholder="file id" />
+      <el-form-item :label="t('menus.presignFileId')">
+        <el-input
+          v-model="form.file_id"
+          :placeholder="t('menus.presignFileIdPlaceholder')"
+        />
       </el-form-item>
-      <el-form-item label="操作">
+      <el-form-item :label="t('menus.presignOperation')">
         <el-radio-group v-model="form.operation">
-          <el-radio value="get">GET（下载）</el-radio>
-          <el-radio value="put">PUT（覆盖）</el-radio>
+          <el-radio value="get">{{ t("menus.presignOperationGet") }}</el-radio>
+          <el-radio value="put">{{ t("menus.presignOperationPut") }}</el-radio>
         </el-radio-group>
       </el-form-item>
-      <el-form-item label="过期秒数">
+      <el-form-item :label="t('menus.presignExpires')">
         <el-input-number
           v-model="form.expires_in_seconds"
           :min="60"
@@ -75,17 +82,17 @@ function copyUrl() {
           type="primary"
           :loading="loading"
           @click="onSubmit"
-          >生成 URL</el-button
+          >{{ t("menus.presignGenerateBtn") }}</el-button
         >
       </el-form-item>
     </el-form>
     <el-card v-if="presigned" class="mt-4">
-      <template #header>预签名结果</template>
+      <template #header>{{ t("menus.presignResultHeader") }}</template>
       <p class="break-all">
-        URL: <code>{{ presigned.url }}</code>
+        {{ t("menus.presignUrlLabel") }}: <code>{{ presigned.url }}</code>
       </p>
-      <p>过期: {{ presigned.expires_at }}</p>
-      <el-button @click="copyUrl">复制 URL</el-button>
+      <p>{{ t("menus.presignExpiresLabel") }}: {{ presigned.expires_at }}</p>
+      <el-button @click="copyUrl">{{ t("menus.presignCopyUrl") }}</el-button>
     </el-card>
   </div>
 </template>
