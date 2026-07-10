@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { usePermission } from "./utils/hook";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
@@ -13,6 +14,7 @@ defineOptions({
   name: "SystemPermission"
 });
 
+const { t } = useI18n();
 const formRef = ref();
 
 const {
@@ -39,24 +41,24 @@ const {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="关键字：" prop="keyword">
+      <el-form-item :label="`${t('menus.permissionSearchKeyword')}：`" prop="keyword">
         <el-input
           v-model="form.keyword"
-          placeholder="code / name"
+          :placeholder="t('menus.permissionPlaceholderKeyword')"
           clearable
           class="w-50!"
         />
       </el-form-item>
-      <el-form-item label="类别：" prop="category">
+      <el-form-item :label="`${t('menus.permissionCategory')}：`" prop="category">
         <el-select
           v-model="form.category"
-          placeholder="全部"
+          :placeholder="t('menus.notificationFilterAll')"
           clearable
           class="w-40!"
         >
-          <el-option label="菜单" :value="0" />
-          <el-option label="按钮" :value="1" />
-          <el-option label="API" :value="2" />
+          <el-option :label="t('menus.permissionCategoryMenu')" :value="0" />
+          <el-option :label="t('menus.permissionCategoryButton')" :value="1" />
+          <el-option :label="t('menus.permissionCategoryApi')" :value="2" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -66,22 +68,22 @@ const {
           :loading="loading"
           @click="onSearch"
         >
-          搜索
+          {{ t("menus.notificationSearch") }}
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="resetForm(formRef)">
-          重置
+          {{ t("menus.notificationReset") }}
         </el-button>
       </el-form-item>
     </el-form>
 
-    <PureTableBar title="权限管理" :columns="columns" @refresh="onSearch">
+    <PureTableBar :title="t('menus.systemPermission')" :columns="columns" @refresh="onSearch">
       <template #buttons>
         <el-button
           type="primary"
           :icon="useRenderIcon(AddFill)"
           @click="openDialog()"
         >
-          新增权限
+          {{ t("menus.permissionNew") }}
         </el-button>
       </template>
       <template v-slot="{ size, dynamicColumns }">
@@ -113,10 +115,10 @@ const {
               :icon="useRenderIcon(EditPen)"
               @click="openDialog('修改', row)"
             >
-              修改
+              {{ t("menus.userEdit") }}
             </el-button>
             <el-popconfirm
-              :title="`确认删除 ${row.code} ?`"
+              :title="t('menus.permissionConfirmDelete', { code: row.code })"
               @confirm="handleDelete(row)"
             >
               <template #reference>
@@ -127,7 +129,7 @@ const {
                   :size="size"
                   :icon="useRenderIcon(Delete)"
                 >
-                  删除
+                  {{ t("menus.userDelete") }}
                 </el-button>
               </template>
             </el-popconfirm>

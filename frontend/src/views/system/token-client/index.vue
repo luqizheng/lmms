@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useTokenClient } from "./utils/hook";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
@@ -14,6 +15,7 @@ defineOptions({
   name: "SystemTokenClient"
 });
 
+const { t } = useI18n();
 const formRef = ref();
 
 const {
@@ -42,23 +44,23 @@ const {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item label="关键字：" prop="keyword">
+      <el-form-item :label="`${t('menus.tokenClientSearchKeyword')}：`" prop="keyword">
         <el-input
           v-model="form.keyword"
-          placeholder="Client ID / 名称"
+          :placeholder="t('menus.tokenClientPlaceholderKeyword')"
           clearable
           class="w-50!"
         />
       </el-form-item>
-      <el-form-item label="状态：" prop="status">
+      <el-form-item :label="`${t('menus.userStatus')}：`" prop="status">
         <el-select
           v-model="form.status"
-          placeholder="全部"
+          :placeholder="t('menus.notificationFilterAll')"
           clearable
           class="w-40!"
         >
-          <el-option label="启用" value="active" />
-          <el-option label="禁用" value="disabled" />
+          <el-option :label="t('menus.deptStatusActive')" value="active" />
+          <el-option :label="t('menus.tokenClientStatusDisabled')" value="disabled" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -68,22 +70,22 @@ const {
           :loading="loading"
           @click="onSearch"
         >
-          搜索
+          {{ t("menus.notificationSearch") }}
         </el-button>
         <el-button :icon="useRenderIcon(Refresh)" @click="resetForm(formRef)">
-          重置
+          {{ t("menus.notificationReset") }}
         </el-button>
       </el-form-item>
     </el-form>
 
-    <PureTableBar title="令牌客户端管理" :columns="columns" @refresh="onSearch">
+    <PureTableBar :title="t('menus.systemTokenClient')" :columns="columns" @refresh="onSearch">
       <template #buttons>
         <el-button
           type="primary"
           :icon="useRenderIcon(AddFill)"
           @click="openDialog()"
         >
-          新增客户端
+          {{ t("menus.tokenClientNew") }}
         </el-button>
       </template>
       <template v-slot="{ size, dynamicColumns }">
@@ -115,7 +117,7 @@ const {
               :icon="useRenderIcon(EditPen)"
               @click="openDialog('修改', row)"
             >
-              修改
+              {{ t("menus.userEdit") }}
             </el-button>
             <el-button
               class="reset-margin"
@@ -124,7 +126,11 @@ const {
               :size="size"
               @click="handleToggleStatus(row)"
             >
-              {{ row.status === "active" ? "禁用" : "启用" }}
+              {{
+                row.status === "active"
+                  ? t("menus.tokenClientDisable")
+                  : t("menus.tokenClientEnable")
+              }}
             </el-button>
             <el-button
               class="reset-margin"
@@ -134,10 +140,10 @@ const {
               :icon="useRenderIcon(Key)"
               @click="handleResetSecret(row)"
             >
-              重置Secret
+              {{ t("menus.tokenClientResetSecret") }}
             </el-button>
             <el-popconfirm
-              :title="`确认删除 ${row.client_id} ?`"
+              :title="t('menus.tokenClientConfirmDelete', { clientId: row.client_id })"
               @confirm="handleDelete(row)"
             >
               <template #reference>
@@ -148,7 +154,7 @@ const {
                   :size="size"
                   :icon="useRenderIcon(Delete)"
                 >
-                  删除
+                  {{ t("menus.userDelete") }}
                 </el-button>
               </template>
             </el-popconfirm>

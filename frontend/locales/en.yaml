@@ -70,6 +70,22 @@ buttons:
   roleAssignPermissionTitleEmpty: Assign Permissions
   roleNoPermission: No permission data
   roleCancel: Cancel
+  permissionSearchKeyword: Keyword
+  permissionPlaceholderKeyword: code / name
+  permissionCategory: Category
+  permissionCategoryMenu: Menu
+  permissionCategoryButton: Button
+  permissionCategoryApi: API
+  permissionNew: New Permission
+  permissionConfirmDelete: "Confirm delete {code}?"
+  tokenClientSearchKeyword: Keyword
+  tokenClientPlaceholderKeyword: Client ID / Name
+  tokenClientNew: New Client
+  tokenClientStatusDisabled: Disabled
+  tokenClientEnable: Enable
+  tokenClientDisable: Disable
+  tokenClientResetSecret: Reset Secret
+  tokenClientConfirmDelete: "Confirm delete {clientId}?"
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
   pureLogin: Login

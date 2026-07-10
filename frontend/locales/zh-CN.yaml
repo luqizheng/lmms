@@ -70,6 +70,22 @@ buttons:
   roleAssignPermissionTitleEmpty: 分配权限
   roleNoPermission: 暂无权限数据
   roleCancel: 取消
+  permissionSearchKeyword: 关键字
+  permissionPlaceholderKeyword: code / name
+  permissionCategory: 类别
+  permissionCategoryMenu: 菜单
+  permissionCategoryButton: 按钮
+  permissionCategoryApi: API
+  permissionNew: 新增权限
+  permissionConfirmDelete: "确认删除 {code} ？"
+  tokenClientSearchKeyword: 关键字
+  tokenClientPlaceholderKeyword: Client ID / 名称
+  tokenClientNew: 新增客户端
+  tokenClientStatusDisabled: 禁用
+  tokenClientEnable: 启用
+  tokenClientDisable: 禁用
+  tokenClientResetSecret: 重置 Secret
+  tokenClientConfirmDelete: "确认删除 {clientId} ？"
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
   pureLogin: 登录
