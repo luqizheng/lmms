@@ -61,7 +61,7 @@ impl ConfigService {
         let size = query.size.unwrap_or(20).min(100);
         let offset = (page - 1) * size;
 
-        let mut qb = QueryBuilder::new("SELECT * FROM cfg_namespaces");
+        let mut qb = QueryBuilder::new("SELECT * FROM cfg_namespaces WHERE 1=1");
         qb.and_tenant(scope);
         qb.push(" ORDER BY created_at DESC LIMIT ");
         qb.push_bind(size);

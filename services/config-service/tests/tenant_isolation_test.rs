@@ -9,10 +9,12 @@ use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
+use common_jwt::JWKSCache;
 use config_service::routes::{self, create_state};
 use jwt_ctx::Principal;
 use jwt_simple::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, OnceLock};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -28,8 +30,21 @@ async fn setup() -> Ctx {
     Ctx { app, pool }
 }
 
+fn signing_key() -> &'static RS256KeyPair {
+    static KEY: OnceLock<RS256KeyPair> = OnceLock::new();
+    KEY.get_or_init(|| RS256KeyPair::generate(2048).unwrap())
+}
+
+fn test_public_pem() -> &'static str {
+    static PEM: OnceLock<String> = OnceLock::new();
+    PEM.get_or_init(|| signing_key().public_key().to_pem().unwrap())
+}
+
 fn build_app(pool: sqlx::MySqlPool) -> axum::Router {
-    let state = create_state(pool);
+    let jwks = Arc::new(
+        JWKSCache::from_pem(test_public_pem()).expect("test public PEM must parse"),
+    );
+    let state = create_state(pool, jwks);
     routes::routes(state)
 }
 
@@ -54,7 +69,6 @@ async fn seed_namespace(pool: &sqlx::MySqlPool, tenant_id: u64, app: &str) -> St
 
 /// Build a JWT with the given tenant_id and cross_tenant flag.
 fn make_token(user_id: &str, tenant_id: i64, cross_tenant: bool) -> String {
-    let key_pair = RS256KeyPair::generate(2048).unwrap();
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -70,7 +84,7 @@ fn make_token(user_id: &str, tenant_id: i64, cross_tenant: bool) -> String {
     claims.expires_at = Some(Duration::from_secs(now + 3600));
     claims.custom = custom;
 
-    key_pair.sign(claims).unwrap()
+    signing_key().sign(claims).unwrap()
 }
 
 /// Verify the JWT roundtrips through Principal correctly (sanity check on test setup).
@@ -223,5 +237,143 @@ async fn platform_admin_cross_tenant_namespace() {
         resp.status(),
         StatusCode::UNAUTHORIZED,
         "missing Authorization must 401"
+    );
+}
+
+/// Regression for the `query_namespaces` SQL-assembly bug (`WHERE 1=1` was
+/// missing, so tenant-scoped callers got HTTP 500 "query failed").
+#[tokio::test]
+async fn tenant_scoped_list_filters_cross_tenant() {
+    let ctx = setup().await;
+
+    let t1_a = seed_namespace(&ctx.pool, 1, "list-t1-app-a").await;
+    let t1_b = seed_namespace(&ctx.pool, 1, "list-t1-app-b").await;
+    let t2_a = seed_namespace(&ctx.pool, 2, "list-t2-app").await;
+
+    let t1_token = make_token("list-user-1", 1, false);
+    let resp = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/config/namespace?page=1&size=100")
+                .header("Authorization", format!("Bearer {}", t1_token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let st = resp.status();
+    let body = to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let info: serde_json::Value = serde_json::from_slice(&body).unwrap_or_else(|_| {
+        panic!(
+            "tenant-1 list status={} body={:?}",
+            st,
+            String::from_utf8_lossy(&body)
+        )
+    });
+    assert_eq!(
+        st,
+        StatusCode::OK,
+        "tenant-1 list must return 200 (was 500 before WHERE 1=1 fix): body={:?}",
+        info
+    );
+    let items = info["items"]
+        .as_array()
+        .expect("items array")
+        .clone();
+    assert!(
+        !items.is_empty(),
+        "tenant-1 list must include own seeded namespaces"
+    );
+    for ns in &items {
+        assert_eq!(
+            ns["tenant_id"].as_u64().unwrap(),
+            1,
+            "tenant-1 list must NOT include tenant-2 namespaces: {:?}",
+            ns
+        );
+    }
+    let ids: HashSet<String> = items
+        .iter()
+        .map(|ns| ns["id"].as_str().unwrap().to_string())
+        .collect();
+    assert!(
+        ids.contains(&t1_a),
+        "tenant-1 must see own seed a ({} in {:?})",
+        t1_a,
+        ids
+    );
+    assert!(
+        ids.contains(&t1_b),
+        "tenant-1 must see own seed b ({} in {:?})",
+        t1_b,
+        ids
+    );
+    assert!(
+        !ids.contains(&t2_a),
+        "tenant-1 must NOT see tenant-2 seed ({} should be absent from {:?})",
+        t2_a,
+        ids
+    );
+
+    let t2_token = make_token("list-user-2", 2, false);
+    let resp = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/config/namespace?page=1&size=100")
+                .header("Authorization", format!("Bearer {}", t2_token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let st = resp.status();
+    let body = to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let info: serde_json::Value = serde_json::from_slice(&body).unwrap_or_else(|_| {
+        panic!(
+            "tenant-2 list status={} body={:?}",
+            st,
+            String::from_utf8_lossy(&body)
+        )
+    });
+    assert_eq!(
+        st,
+        StatusCode::OK,
+        "tenant-2 list must return 200: body={:?}",
+        info
+    );
+    let items = info["items"]
+        .as_array()
+        .expect("items array")
+        .clone();
+    assert!(
+        !items.is_empty(),
+        "tenant-2 list must include own seeded namespace"
+    );
+    for ns in &items {
+        assert_eq!(
+            ns["tenant_id"].as_u64().unwrap(),
+            2,
+            "tenant-2 list must NOT include tenant-1 namespaces: {:?}",
+            ns
+        );
+    }
+    let ids: HashSet<String> = items
+        .iter()
+        .map(|ns| ns["id"].as_str().unwrap().to_string())
+        .collect();
+    assert!(
+        ids.contains(&t2_a),
+        "tenant-2 must see own seed ({} in {:?})",
+        t2_a,
+        ids
+    );
+    assert!(
+        !ids.contains(&t1_a) && !ids.contains(&t1_b),
+        "tenant-2 must NOT see tenant-1 seeds (got {:?})",
+        ids
     );
 }
