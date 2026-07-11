@@ -75,6 +75,19 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Phase 9: parallel consumer for the pmd.* routing-key subspace
+    // (audit.pmd-events queue, pmd.# binding). Same persist() handler;
+    // independent top-level reconnect loop in the consumer module.
+    {
+        let pool = pool.clone();
+        let event_bus_url = event_bus_url.clone();
+        tokio::spawn(async move {
+            if let Err(e) = audit_service::consumer::run_pmd(pool, event_bus_url).await {
+                warn!("pmd audit consumer failed to start: {}", e);
+            }
+        });
+    }
+
     // 风控 consumer（独立队列 audit.login-risk）
     {
         let opts = audit_service::risk::RiskOptions {

@@ -1,7 +1,14 @@
-//! RabbitMQ consumer: ingests iam.* domain events and stores them idempotently
-//! in `audit_events`. Replaces the old synchronous HTTP write endpoints.
+//! RabbitMQ consumer: ingests iam.* and pmd.* domain events and stores them
+//! idempotently in `audit_events`. Replaces the old synchronous HTTP write
+//! endpoints.
 //!
-//! Resilience: a top-level reconnect loop wraps the subscribe call so a
+//! Two subscriptions, two top-level reconnect loops, ONE persist handler:
+//! - iam routing-key subspace → queue `audit.iam-events`, routing_keys `iam.#`
+//! - pmd routing-key subspace → queue `audit.pmd-events`, routing_keys `pmd.#`
+//! Adding a new subdomain = new queue + new `run_*` + new spawn in main.rs;
+//! `persist()` is unchanged.
+//!
+//! Resilience: each top-level reconnect loop wraps its subscribe call so a
 //! broker bounce (channel closed, connection drop) is handled by reconnecting
 //! after a short backoff. Events that were unacked at the time of the drop
 //! get redelivered by RabbitMQ on the new connection; the idempotency key
@@ -13,13 +20,31 @@ use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from
 use sqlx::mysql::MySqlPool;
 use tracing::{info, warn, Instrument};
 
-/// Start the audit consumer. Reconnects on broker failure with a fixed 5s
-/// backoff; returns only if a signal asks it to (i.e. essentially never —
-/// the caller spawns it as a tokio task at startup).
+/// Start the audit consumer for the iam.* subspace (`audit.iam-events` queue).
+/// Reconnects on broker failure with a fixed 5s backoff; returns only if a
+/// signal asks it to (i.e. essentially never — the caller spawns it as a
+/// tokio task at startup).
 pub async fn run(pool: MySqlPool, event_bus_url: String) -> anyhow::Result<()> {
+    subscribe_loop(pool, event_bus_url, "audit.iam-events", &["iam.#"]).await
+}
+
+/// Phase 9 addition: pmd.* subspace consumer. Same persist handler as iam —
+/// the queue + binding separation is purely for ops isolation (per-queue
+/// DLQ counts, per-queue consumer counts in Prometheus). The on-disk row
+/// shape is identical (audit_events.event_type = the routing-key suffix).
+pub async fn run_pmd(pool: MySqlPool, event_bus_url: String) -> anyhow::Result<()> {
+    subscribe_loop(pool, event_bus_url, "audit.pmd-events", &["pmd.#"]).await
+}
+
+async fn subscribe_loop(
+    pool: MySqlPool,
+    event_bus_url: String,
+    queue_name: &'static str,
+    routing_keys: &'static [&'static str],
+) -> anyhow::Result<()> {
     let backoff = Duration::from_secs(5);
     loop {
-        match try_subscribe(pool.clone(), &event_bus_url).await {
+        match try_subscribe(&pool, &event_bus_url, queue_name, routing_keys).await {
             Ok(consumer) => {
                 // Hold the consumer alive, polling connection health.
                 // Re-subscribe ONLY on actual disconnect — durable queue is
@@ -29,26 +54,34 @@ pub async fn run(pool: MySqlPool, event_bus_url: String) -> anyhow::Result<()> {
                 while consumer.connection().status().connected() {
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
-                warn!("audit consumer connection lost, resubscribing");
+                warn!(queue = queue_name, "audit consumer connection lost, resubscribing");
             }
             Err(e) => {
-                warn!(error = %e, "audit consumer subscribe failed, retry in 5s");
+                warn!(error = %e, queue = queue_name, "audit consumer subscribe failed, retry in 5s");
                 tokio::time::sleep(backoff).await;
             }
         }
     }
 }
 
-async fn try_subscribe(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<RabbitMqConsumer> {
+async fn try_subscribe(
+    pool: &MySqlPool,
+    event_bus_url: &str,
+    queue_name: &str,
+    routing_keys: &[&str],
+) -> anyhow::Result<RabbitMqConsumer> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
+    let pool_clone = pool.clone();
+    let queue_name_owned = queue_name.to_string();
     consumer
         .subscribe::<serde_json::Value, _, _>(
-            "audit.iam-events",
-            &["iam.#"],
+            queue_name,
+            routing_keys,
             move |env: Envelope<serde_json::Value>| {
-                let pool = pool.clone();
+                let pool = pool_clone.clone();
+                let queue_for_span = queue_name_owned.clone();
                 async move {
-                    let span = span_from_envelope_trace_id(&env, "audit.iam-events");
+                    let span = span_from_envelope_trace_id(&env, &queue_for_span);
                     async move { persist(&pool, &env).await }
                         .instrument(span)
                         .await
@@ -56,7 +89,7 @@ async fn try_subscribe(pool: MySqlPool, event_bus_url: &str) -> anyhow::Result<R
             },
         )
         .await?;
-    info!("audit consumer subscribed to audit.iam-events (iam.#)");
+    info!(queue = queue_name, ?routing_keys, "audit consumer subscribed");
     Ok(consumer)
 }
 
