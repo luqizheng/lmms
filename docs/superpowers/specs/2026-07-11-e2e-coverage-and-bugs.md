@@ -43,20 +43,23 @@
 | `a816634` | test(e2e): 补 P1 RBAC 关键路径 + audit 合规导出/留存 |
 | `90b4693` | test(e2e): 补 P2 config/menu 端点 + session revoke |
 | `7a72dfa` | test(e2e): 加网关限流 e2e 脚本（rl-auth-login + rl-default） |
+| `fb9e72f` | **fix(ratelimit): Bug #4 已修** — pipeline → Lua 脚本（详见 §2 Bug #4） |
 
 ---
 
 ## 2. 揭示的 4 个 Service Bug（按严重度排序）
 
-### 🔴 严重：Bug #4 — 网关限流完全失效（fail-open）
+### ✅ 已修：Bug #4 — 网关限流完全失效（fail-open）
 
 **位置**：`libs/common-ratelimit/src/lib.rs::check`
 
-**复现**：
+**修复 commit**：`fb9e72f` `fix(ratelimit): Bug #4 网关限流失效 — pipeline → Lua 脚本`
+
+**复现**（修复前）：
 ```bash
 node scripts/e2e-rate-limit.js
 # 期望：15 次 login 中 5 个返回 429
-# 实际：15 个全部 200，触发 fail open
+# 实际（修复前）：15 个全部 200，触发 fail open
 ```
 
 **根因**：Redis pipeline 解析 ZCARD 返回失败
@@ -74,23 +77,51 @@ let res: Result<i64, redis::RedisError> = redis::pipe()
 
 **生产影响**：DDoS 防护、暴力破解防护、突发流量保护全部不起作用。auth 端点 5 rps / 10 burst 配置形同虚设。
 
-**修复方向**：
+**修复**（最终方案：Lua 脚本）：
 ```rust
-// 方案 A：取 ZCARD 的具体位置
-let res: Vec<i64> = redis::pipe()
-    .atomic()
-    .zrembyscore(...).ignore()
-    .zadd(...).ignore()
-    .zcard(&key)
-    .expire(...).ignore()
-    .query_async(&mut conn)
-    .await?;
-let count = res[2]; // ZCARD 是 pipeline 第 3 个命令（索引 2）
+const SCRIPT: &str = r"
+    redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+    local count = redis.call('ZCARD', KEYS[1])
+    if count < tonumber(ARGV[2]) then
+        redis.call('ZADD', KEYS[1], ARGV[3], ARGV[4])
+        redis.call('EXPIRE', KEYS[1], ARGV[5])
+        return count + 1
+    end
+    return -1
+";
 
-// 方案 B：用 Lua 脚本一次返回 count
+let count: Result<i64, redis::RedisError> = redis::Script::new(SCRIPT)
+    .key(&key)
+    .arg(window_start_ms)
+    .arg(limit.max as i64)
+    .arg(now_ms)             // ARGV[3] = ZADD score
+    .arg(member)             // ARGV[4] = ZADD member
+    .arg(limit.window_secs)  // ARGV[5] = EXPIRE seconds
+    .invoke_async(&mut conn)
+    .await;
+
+match count {
+    Ok(c) if c < 0 => Err(()),   // -1 = rejected
+    Ok(_) => Ok(()),
+    Err(e) => {
+        tracing::warn!(target: "ratelimit", route = %limit.route, error = %e,
+            "redis check failed, failing open");
+        Ok(())
+    }
+}
 ```
 
-**优先级**：P0 — 平台级安全漏洞
+**为什么用 Lua 不用 Vec 索引**：spec 最初建议的 `Vec<i64>` + 索引方案实测有歧义——`v.pop()` 取到的是 EXPIRE 返回值（0/1），不是 ZCARD；`v.get(2)` 在 `.ignore()` 命令存在时也取错位置。Lua 脚本返回值是单一 i64，**无索引歧义**。
+
+**修复后验证**：
+- `cargo test -p common-ratelimit` — 1/1 pass
+- `node scripts/e2e-rate-limit.js` — exit 0
+  - `rl-auth-login-001`：9 通过 / 6 reject / 全部带 Retry-After
+  - `rl-default-001`：220 通过（受 EXPIRE 1s 窗口 + curl/gateway 调度影响，ZCARD 在 1s 窗口内涨不到 200——测试环境约束，auth-login-001 已独立证明 Lua 修复正确）
+- 网关日志无 `redis check failed, failing open`
+- redis-cli 直接 EVAL Lua（max=2）：iter 3/4/5 返回 -1
+
+**详细 spec**：`docs/superpowers/specs/2026-07-11-fix-ratelimit-pipeline-design.md`
 
 ---
 
@@ -239,7 +270,7 @@ prue_backend           ███████████████████
 
 ### 立即（本周）
 
-1. **修 Bug #4**（限流失效）—— P0 平台安全
+1. ✅ **修 Bug #4**（限流失效）—— **已完成**（commit `fb9e72f`，详见 §2）
 2. **修 Bug #1**（refresh 失效）—— P0 核心 auth 流
 3. **修 Bug #2**（logout 黑名单）—— P1（需先决定方案 A 或 B）
 4. **修 Bug #3**（audit export）—— P1 合规
@@ -249,7 +280,7 @@ prue_backend           ███████████████████
 
 6. 把 `e2e-rate-limit.js` 接入 GitLab CI test 阶段（exit code 1 自动阻断 merge）
 7. 修 CONFIG-002 UNIQUE 撞约束，复活 3 个 skip case
-8. 把所有 6 个 skip case 改回正常 case（依赖上述 bug 修复）
+8. 把所有 6 个 skip case 改回正常 case（依赖 Bug #1/2/3 修复）
 
 ### 中期（覆盖率到 95%+）
 
@@ -257,7 +288,7 @@ prue_backend           ███████████████████
    - JWKS 黑名单验证（依赖 Bug #2 修复）
    - WS 推送（`/v1/notification/ws`，需 ws 客户端）
    - canary 路由（需 consul 注册 canary 实例）
-   - 服务侧限流（`common-ratelimit`，依赖 Bug #4 修复）
+   - 服务侧限流（`common-ratelimit`）—— ✅ Bug #4 修复后路径已通，需补 e2e case
    - 幂等性（outbox 事件 at-least-once 重放）
 
 10. 重新跑覆盖率 diff 验证 90%+
