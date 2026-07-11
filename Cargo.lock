@@ -4498,6 +4498,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
+name = "pmd-outbox-publisher"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "common-event",
+ "common-telemetry",
+ "prometheus 0.13.4",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sqlx",
+ "tokio 1.52.3",
+ "tracing",
+]
+
+[[package]]
 name = "polling"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
