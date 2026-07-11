@@ -14,6 +14,7 @@
     { "name": "notification.iam-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
     { "name": "notification.membership-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
     { "name": "audit.login-risk", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
+    { "name": "audit.pmd-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
     { "name": "events.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} }
   ],
   "bindings": [
@@ -23,6 +24,7 @@
     { "source": "events", "vhost": "/", "destination": "notification.membership-events", "destination_type": "queue", "routing_key": "iam.user.role.unassigned", "arguments": {} },
     { "source": "events", "vhost": "/", "destination": "notification.membership-events", "destination_type": "queue", "routing_key": "iam.user.dept.changed", "arguments": {} },
     { "source": "events", "vhost": "/", "destination": "audit.login-risk", "destination_type": "queue", "routing_key": "iam.login.failed", "arguments": {} },
+    { "source": "events", "vhost": "/", "destination": "audit.pmd-events", "destination_type": "queue", "routing_key": "pmd.#", "arguments": {} },
     { "source": "events.dlx", "vhost": "/", "destination": "events.dlq", "destination_type": "queue", "routing_key": "", "arguments": {} }
   ]
 }
