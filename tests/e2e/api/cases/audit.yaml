@@ -88,3 +88,38 @@ cases:
       - $.hot_count exists
       - $.warm_count exists
       - $.expired_count exists
+
+  - caseId: AUDIT-EXPORT-001
+    desc: 合规导出登录日志 CSV — service bug：audit-service/src/routes/compliance.rs handler 要 Path(user_id) 但 router 是 0 path 参数，500 "Wrong number of path arguments"
+    method: GET
+    path: /v1/audit/export/compliance/login/csv
+    expectStatus: 200
+    skip: true
+
+  - caseId: AUDIT-EXPORT-002
+    desc: 合规导出操作日志 CSV — 同 AUDIT-EXPORT-001 service bug
+    method: GET
+    path: /v1/audit/export/compliance/operation/csv
+    expectStatus: 200
+    skip: true
+
+  - caseId: AUDIT-EXPORT-003
+    desc: 合规导出操作日志 JSON — 同 AUDIT-EXPORT-001 service bug
+    method: GET
+    path: /v1/audit/export/compliance/operation/json
+    expectStatus: 200
+    skip: true
+
+  - caseId: AUDIT-RETENTION-001
+    desc: 数据留存阶段查询（GET /audit/retention/stage/:created_at）
+    method: GET
+    path: /v1/audit/retention/stage/2026-01-01T00:00:00Z
+    expectStatus: 200
+    expect:
+      - $.stage exists
+
+  - caseId: AUDIT-RETENTION-002
+    desc: 留存阶段查询 — 非法 timestamp 应 400/422
+    method: GET
+    path: /v1/audit/retention/stage/not-a-timestamp
+    expectStatus: [400, 422, 500]

@@ -76,3 +76,38 @@ cases:
     method: GET
     path: /v1/iam/org-units/${ORG-002.id}
     expectStatus: [404, 500, 502]
+
+  - caseId: ORG-BIND-PREP
+    desc: 为组织绑用户前先创建专用 org-unit（自包含，不与 ORG-002 删除流程冲突）
+    method: POST
+    path: /v1/iam/org-units
+    body:
+      name: org_bind_${rand}
+      code: ORG_BIND_${rand}
+      sort_order: 0
+    expectStatus: [200, 201, 204]
+    expect:
+      - $.id exists
+
+  - caseId: ORG-BIND-USER-PREP
+    desc: 为组织绑用户前先创建用户（自包含）
+    method: POST
+    path: /v1/iam/users
+    body:
+      username: orgu_${rand}
+      password: P@ssw0rd!
+      email: orgu_${rand}@t.local
+      nickname: orgu
+    expectStatus: 200
+    expect:
+      - $.id exists
+
+  - caseId: ORG-BIND-USER-001
+    desc: 组织绑用户（PUT /iam/org-units/:id/users）
+    smoke: true
+    method: PUT
+    path: /v1/iam/org-units/${ORG-BIND-PREP.id}/users
+    body:
+      user_ids:
+        - ${ORG-BIND-USER-PREP.id}
+    expectStatus: 204

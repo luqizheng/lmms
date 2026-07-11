@@ -49,6 +49,29 @@ cases:
       - $.name exists
       - $.status==disabled
 
+  - caseId: ROLE-PERM-CREATE-001
+    desc: 为角色绑权限前先创建 permission（自包含，避免跨文件引用）
+    method: POST
+    path: /v1/iam/permissions
+    body:
+      code: PERM_RB_${rand}
+      name: rbac perm
+      category: 0
+      action: read
+    expectStatus: 200
+    expect:
+      - $.id exists
+
+  - caseId: ROLE-BIND-PERM-001
+    desc: 角色绑权限（PUT /iam/roles/:id/permissions，触发 iam.permission.changed 事件；必须在角色删除前）
+    smoke: true
+    method: PUT
+    path: /v1/iam/roles/${IAM-ROLE-001.id}/permissions
+    body:
+      permission_ids:
+        - ${ROLE-PERM-CREATE-001.id}
+    expectStatus: 204
+
   - caseId: IAM-ROLE-005
     desc: 删除角色
     method: DELETE

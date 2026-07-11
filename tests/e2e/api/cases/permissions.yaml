@@ -8,3 +8,29 @@ cases:
     expect:
       - $.items exists
       - $.items is array
+
+  - caseId: PERM-CREATE-001
+    desc: 创建权限
+    smoke: true
+    method: POST
+    path: /v1/iam/permissions
+    body:
+      code: PERM_E2E_${rand}
+      name: e2e permission ${rand}
+      category: 0
+      action: read
+    expectStatus: 200
+    expect:
+      - $.id exists
+      - $.code exists
+
+  - caseId: PERM-DETAIL-001
+    desc: 权限详情查询（GET /iam/permissions/:id）
+    method: GET
+    path: /v1/iam/permissions/${PERM-CREATE-001.id}
+    expectStatus: 200
+    expect:
+      - $.id==${PERM-CREATE-001.id}
+      - $.code exists
+      - $.category exists
+      - $.status exists
