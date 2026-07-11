@@ -18,15 +18,19 @@ AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码�
   基础镜像 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`，target `x86_64-unknown-linux-musl`，源码 bind mount、`registry`/`git`/`target` 命名 volume 复用增量编译。TLS 统一 `reqwest 0.12 + rustls`，禁用 native-tls。
 - **纯单元测试可以脱离容器跑**（前提：本机有 `cc`/`gcc` + `rustup target add x86_64-unknown-linux-gnu`，与 docker 共用的 `target/` 是 root-owned 时用独立 dir 绕开）：
   ```bash
+  # 一次性：把 swagger-ui zip 预下载到 infrastructure/vendor/，避免 build.rs 触发网络
+  pnpm run assets:download
+
   # 单 service 的纯单测（src/ 下的 #[test] / #[tokio::test]），不依赖 MySQL
   CARGO_TARGET_DIR=/tmp/<svc>-target \
-    SWAGGER_UI_DOWNLOAD_URL=https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip \
+    SWAGGER_UI_DOWNLOAD_URL=file://$(pwd)/infrastructure/vendor/swagger-ui-v5.17.14.zip \
     cargo test -p <svc> --lib
 
-  # 集成测试（tests/ 下、用 testcontainers 起 MySQL）仍需 docker daemon 起容器
+  # 集成测试（tests/ 下、用 testcontainers 起 MySQL）仍需 docker daemon 起容器；
+  # run-tests-docker.js 已自动挂载 vendor zip，无需手设 ENV
   ```
   两个常见坑：
-  - `utoipa-swagger-ui` build.rs 默认直连 GitHub 拉 zip，本机 SSL 拦截 → 复刻 Dockerfile 设 `SWAGGER_UI_DOWNLOAD_URL` 过 `gh-proxy.org`。
+  - `utoipa-swagger-ui` build.rs 默认直连 GitHub 拉 zip，本机 SSL 拦截 → 先跑 `pnpm run assets:download`，再设 `SWAGGER_UI_DOWNLOAD_URL=file://...`；`scripts/run-tests-docker.js` 在容器模式下会自动挂载并注入。
   - 不要 `sudo chown` repo 根目录的 `target/`——会被 docker volume `coder-cargo-target` 抢回去。用 `CARGO_TARGET_DIR` 指向用户-writable 目录。
 - crates.io 已在 `.cargo/config` 替换为 `rsproxy.cn` 镜像；CI 走内网 `crates.kudi.repos`。
 - 起本地开发：`pnpm run dev:infra`（Consul/Redis/MySQL）→ `pnpm run dev`。`pnpm run check:env` 检查环境。

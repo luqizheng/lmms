@@ -9,8 +9,10 @@
 //   node scripts/run-tests-docker.js                       # 跑全部 services（共享 mysql）
 //   node scripts/run-tests-docker.js iam-service           # 跑指定 service（可多个）
 //   node scripts/run-tests-docker.js --no-shared-mysql     # 关闭共享 mysql（回归 / 调试）
+//   node scripts/run-tests-docker.js --no-swagger-vendor   # 不挂载 vendor swagger-ui zip（回归）
 //   node scripts/run-tests-docker.js --incremental         # 只跑改动文件涉及的 service
 //   node scripts/run-tests-docker.js iam-service --incremental   # 单 service 也可叠加
+const fs = require('node:fs');
 const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 
@@ -41,6 +43,12 @@ const MYSQL_IMAGE = 'mysql:8.0';
 // cargo-nextest 二进制 bind mount 到这个 volume，下次复用。
 const NEXTEST_BIN_VOLUME = 'coder-cargo-nextest-bin';
 
+// utoipa-swagger-ui build.rs 需要的 vendor zip；缺失时回退到直连 github.com（常被 SSL 拦截）。
+// 维护命令：`pnpm run assets:download`。
+const SWAGGER_UI_ZIP_HOST = path.join(ROOT, 'infrastructure', 'vendor', 'swagger-ui-v5.17.14.zip');
+const SWAGGER_UI_ZIP_CONTAINER = '/tmp/swagger-ui.zip';
+const SWAGGER_UI_ENV_KEY = 'SWAGGER_UI_DOWNLOAD_URL';
+
 function pickTargets(args) {
   const filtered = args.filter(s => SERVICES.includes(s));
   return filtered.length > 0 ? filtered : SERVICES;
@@ -48,6 +56,12 @@ function pickTargets(args) {
 
 function pickSharedMysql(args) {
   return !args.includes('--no-shared-mysql');
+}
+
+// 默认自动注入 vendor swagger-ui zip；用 --no-swagger-vendor 关闭。
+// zip 不存在时即便打开也跳过注入并打 warning（不阻塞测试）。
+function pickSwaggerVendor(args) {
+  return !args.includes('--no-swagger-vendor');
 }
 
 // 顶层 Cargo.toml / Cargo.lock / libs/ / scripts/ 改动 → 全部 service。
@@ -226,6 +240,10 @@ function dockerRun(svc, sharedEnv, ...cmd) {
     args.push('-e', `TEST_MYSQL_HOST=127.0.0.1`);
     args.push('-e', `TEST_MYSQL_PORT=${sharedEnv.port}`);
   }
+  if (process.env[SWAGGER_UI_ENV_KEY] === undefined && fs.existsSync(SWAGGER_UI_ZIP_HOST)) {
+    args.push('-v', `${SWAGGER_UI_ZIP_HOST}:${SWAGGER_UI_ZIP_CONTAINER}:ro`);
+    args.push('-e', `${SWAGGER_UI_ENV_KEY}=file://${SWAGGER_UI_ZIP_CONTAINER}`);
+  }
   args.push('-w', '/app', IMAGE, ...cmd);
   return new Promise((resolve) => {
     const child = spawn('docker', args, { stdio: 'inherit', cwd: ROOT });
@@ -284,6 +302,18 @@ async function main() {
     process.exit(0);
   }
   const sharedMode = pickSharedMysql(rawArgs);
+  const swaggerVendor = pickSwaggerVendor(rawArgs);
+  if (swaggerVendor && !process.env[SWAGGER_UI_ENV_KEY]) {
+    if (fs.existsSync(SWAGGER_UI_ZIP_HOST)) {
+      console.log(`[swagger-vendor] using ${path.relative(ROOT, SWAGGER_UI_ZIP_HOST)} (${SWAGGER_UI_ENV_KEY}=file://${SWAGGER_UI_ZIP_CONTAINER})`);
+    } else {
+      console.warn(`[swagger-vendor] zip not found at ${SWAGGER_UI_ZIP_HOST}`);
+      console.warn(`[swagger-vendor]   build.rs will fall back to github.com (often blocked by SSL interception)`);
+      console.warn(`[swagger-vendor]   run \`pnpm run assets:download\` to fetch it`);
+    }
+  } else if (process.env[SWAGGER_UI_ENV_KEY]) {
+    console.log(`[swagger-vendor] using caller-provided ${SWAGGER_UI_ENV_KEY}=${process.env[SWAGGER_UI_ENV_KEY]}`);
+  }
 
   const before = sharedMode ? null : listTestContainerIds();
   let sharedEnv = null;
