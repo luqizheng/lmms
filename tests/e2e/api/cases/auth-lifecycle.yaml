@@ -99,3 +99,12 @@ cases:
       Authorization: Bearer ${AUTH-LIFE-002.access_token}
     expectStatus: 200
     skip: true
+
+  - caseId: AUTH-LIFE-008
+    desc: 撤销特定会话（DELETE /iam/auth/sessions/:id，session_id 来自 sessions 列表）
+    smoke: true
+    method: DELETE
+    path: /v1/iam/auth/sessions/${AUTH-LIFE-005.0.id}
+    headers:
+      Authorization: Bearer ${AUTH-LIFE-002.access_token}
+    expectStatus: 204

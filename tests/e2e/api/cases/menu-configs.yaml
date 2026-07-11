@@ -83,3 +83,14 @@ cases:
       - $.code==0
       - $.data is array
       - $.data contains E2E 菜单已更新
+
+  - caseId: MENU-CLONE-001
+    desc: 菜单克隆（POST /pure/menu-configs/:id/clone，生成新 draft）
+    smoke: true
+    method: POST
+    path: /v1/pure/menu-configs/${MENU-002.data.id}/clone
+    expectStatus: 200
+    expect:
+      - $.code==0
+      - $.data.id exists
+      - $.data.status==draft

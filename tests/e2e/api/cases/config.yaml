@@ -39,6 +39,13 @@ cases:
       description: e2e config
     expectStatus: [200, 201, 204, 500, 502, 404]
 
+  - caseId: CONFIG-ITEM-DETAIL-001
+    desc: 单条配置项详情查询（GET /config/item/:id）— 依赖 CONFIG-004 成功，但 CONFIG-004 受 CONFIG-002 ns UNIQUE(profile=default) 撞约束影响（多次跑后失效）
+    method: GET
+    path: /v1/config/item/${CONFIG-004.id}
+    expectStatus: [200, 404, 500, 502]
+    skip: true
+
   - caseId: CONFIG-005
     desc: 列出配置项
     method: GET
@@ -65,6 +72,22 @@ cases:
     method: DELETE
     path: /v1/config/item/${CONFIG-004.id}
     expectStatus: [200, 201, 204, 500, 502, 404]
+
+  - caseId: CONFIG-EXPORT-001
+    desc: 导出配置（GET /config/export/:namespace_id）— 依赖 CONFIG-002 ns 存活，受 UNIQUE(profile=default) 撞约束影响
+    method: GET
+    path: /v1/config/export/${CONFIG-002.id}
+    expectStatus: [200, 404, 500, 502]
+    skip: true
+
+  - caseId: CONFIG-IMPORT-001
+    desc: 导入配置（POST /config/import/:namespace_id，body 为 text/plain JSON 字符串）— 依赖 CONFIG-002 ns + 复杂 text/plain body
+    method: POST
+    path: /v1/config/import/${CONFIG-002.id}
+    body: |
+      [{"key":"e2e_import_${rand}","value":"imported","value_type":"string"}]
+    expectStatus: [200, 400, 404, 500]
+    skip: true
 
   - caseId: CONFIG-009
     desc: 删除命名空间
