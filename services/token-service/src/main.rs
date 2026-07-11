@@ -63,6 +63,13 @@ async fn main() {
     let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
+// We are the JWKS source. Self-loopback via refresh() would race with
+    // axum::serve binding (the listener isn't accepting yet) and leave the
+    // cache empty on every restart, breaking inbound service-jwt verify.
+    let jwks_cache: std::sync::Arc<common_jwt::JWKSCache> =
+        std::sync::Arc::new(common_jwt::JWKSCache::from_pem(&public_key_pem)
+            .expect("JWKSCache::from_pem"));
+
     let state = TokenServerState {
         db: db.clone(),
         issuer,
@@ -82,29 +89,7 @@ async fn main() {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect(),
-        jwks: {
-            let http = reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(5))
-                .build()
-                .expect("reqwest client");
-            let cache = common_jwt::JWKSCache::new(
-                common_jwt::JwksConfig {
-                    url: std::env::var("JWKS_URL")
-                        .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
-                    refresh_interval: std::time::Duration::from_secs(3600),
-                    request_timeout: std::time::Duration::from_secs(5),
-                },
-                http,
-            );
-            // 降级为 warn：server 尚未监听、自拉 loopback 必超时；首个 service-jwt verify 时 JWKSCache 会自动 retry。
-            if let Err(e) = cache.refresh().await {
-                tracing::warn!(
-                    "JWKS initial refresh failed (will retry on first verify): {e}; \
-                     loopback or token-service must be reachable"
-                );
-            }
-            std::sync::Arc::new(cache)
-        },
+        jwks: jwks_cache,
     };
     if state.bootstrap_tokens.is_empty() {
         tracing::warn!("SERVICE_BOOTSTRAP_TOKENS not set; POST /tokens/service-jwt will reject all callers");
@@ -158,10 +143,6 @@ async fn main() {
                 .get(routes::api_key::handle_list_api_keys),
         )
         .route(
-            "/tokens/user-jwt",
-            axum::routing::post(routes::user_jwt::handle_user_jwt),
-        )
-        .route(
             "/admin/oauth-clients",
             axum::routing::get(routes::admin::handle_list)
                 .post(routes::admin::handle_create),
@@ -190,6 +171,22 @@ async fn main() {
 
     // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
     app = app.merge(token_service::service_jwt_routes(state.clone()));
+
+    // /tokens/user-jwt is service-internal only — must require service-jwt
+    // with aud=token-service, otherwise anyone on the network could mint
+    // user JWTs signed by this service.
+    app = app.merge(
+        axum::Router::new()
+            .route(
+                "/tokens/user-jwt",
+                axum::routing::post(routes::user_jwt::handle_user_jwt),
+            )
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                authz::verify_aud_principal_middleware::<token_service::TokenServerState>("token-service"),
+            ))
+            .with_state(state.clone()),
+    );
 
     app = app.merge(
         token_service::routes::migration_state::routes(state.clone())

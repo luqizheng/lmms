@@ -1,4 +1,4 @@
-use iam_service::{config::load_config, db, openapi::ApiDoc, routes, state::AppState};
+use iam_service::{config::load_config, db, openapi::ApiDoc, routes, service::TokenForwardClient, state::AppState};
 use common_telemetry;
 use common_cache::MemoryCache;
 use common_event::MySqlOutboxRepo;
@@ -51,12 +51,13 @@ async fn main() -> anyhow::Result<()> {
         },
         http_for_jwt.clone(),
     ));
-    // 降级为 warn：token-service 可能还在起；首个 service-jwt verify 时 JWKSCache 会自动 retry。
-    if let Err(e) = jwks.refresh().await {
-        tracing::warn!(
-            "JWKS initial refresh failed (will retry on first verify): {e}; token-service must be reachable"
-        );
-    }
+    // Block up to 30s on startup retry + spawn periodic refresh loop.
+    // Fixes docker-compose boot race: token-service may not be listening yet
+    // when iam-service comes up; previously a single failed `refresh()` was
+    // warn-ignored and the cache stayed empty forever (401 on every verify).
+    let jwks_shutdown = Arc::clone(&jwks)
+        .init_with_refresh_loop(Duration::from_secs(30))
+        .await;
     let service_jwt = Arc::new(ServiceJwtCache::new(
         ServiceJwtConfig {
             token_service_url: std::env::var("TOKEN_SERVICE_URL")
@@ -75,6 +76,11 @@ async fn main() -> anyhow::Result<()> {
             .and_then(|p| std::fs::read_to_string(p).ok())
             .unwrap_or_default(),  // not used for self-mint
     ));
+    let token_forward = Arc::new(TokenForwardClient::new(
+        service_jwt.clone(),
+        std::env::var("TOKEN_SERVICE_URL")
+            .unwrap_or_else(|_| "http://token-service:8082".into()),
+    ));
     let state = AppState::new(
         db_pool,
         cache,
@@ -83,6 +89,7 @@ async fn main() -> anyhow::Result<()> {
         outbox_repo,
         jwks,
         service_jwt,
+        token_forward,
     );
 
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
@@ -112,6 +119,7 @@ async fn main() -> anyhow::Result<()> {
             .await
             .expect("failed to listen for ctrl-c");
         info!("received shutdown signal, deregistering from consul");
+        let _ = jwks_shutdown.send(true);
         std::process::exit(0);
     });
     

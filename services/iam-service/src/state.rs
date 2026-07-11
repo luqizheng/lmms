@@ -5,6 +5,7 @@ use common_jwt::{JWKSCache, ServiceJwtCache};
 use jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 use crate::config::Config;
+use crate::service::TokenForwardClient;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -20,6 +21,8 @@ pub struct AppState {
     pub jwks: Arc<JWKSCache>,
     /// Phase 5-B: service-jwt cache for outbound calls (none today; future).
     pub service_jwt: Arc<ServiceJwtCache>,
+    /// Forwards user-JWT issuance to token-service (single source of signing keys).
+    pub token_forward: Arc<TokenForwardClient>,
 }
 
 impl AppState {
@@ -32,6 +35,7 @@ impl AppState {
         outbox_repo: Arc<MySqlOutboxRepo>,
         jwks: Arc<JWKSCache>,
         service_jwt: Arc<ServiceJwtCache>,
+        token_forward: Arc<TokenForwardClient>,
     ) -> Self {
         let redis_prefix = config.redis.prefix.clone();
         let perm_epoch_ttl_sec = config.jwt.access_token_ttl_minutes * 60;
@@ -45,6 +49,7 @@ impl AppState {
             outbox_repo,
             jwks,
             service_jwt,
+            token_forward,
         }
     }
 }

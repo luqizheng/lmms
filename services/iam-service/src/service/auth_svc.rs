@@ -5,7 +5,6 @@ use crate::{
     models::RefreshToken,
     state::AppState,
     dto::{LoginRequest, LoginResponse, ChangePasswordRequest, UserInfo},
-    service::TokenService,
 };
 use common_crypto::password::{hash, verify};
 use common_event::events::{IamLoginSucceeded, IamLoginFailed};
@@ -75,15 +74,24 @@ impl AuthService {
             return Err(IamError::InvalidCredentials);
         }
 
-        let token_service = TokenService::new(self.state.clone())
-            .map_err(|e| IamError::Jwt(e.to_string()))?;
-        
         // 获取用户角色和权限
         let roles = self.get_user_roles(&user.id).await?;
         let permissions = self.get_user_permissions(&user.id).await?;
-        
+
         let cross_tenant = roles.iter().any(|r| r == "platform_admin");
-        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id as i64, cross_tenant, roles.clone(), permissions.clone())
+        let ttl_secs = (self.state.config.jwt.access_token_ttl_minutes * 60) as u64;
+        let claims = serde_json::json!({
+            "tid": user.tenant_id as i64,
+            "ct": cross_tenant,
+            "username": user.username,
+            "roles": roles,
+            "permissions": permissions,
+        });
+        let access_token = self
+            .state
+            .token_forward
+            .issue_user_jwt(&user.id, &user.username, claims, ttl_secs)
+            .await
             .map_err(|e| IamError::Jwt(e.to_string()))?;
 
         // 生成 refresh token
@@ -190,14 +198,23 @@ impl AuthService {
             return Err(IamError::UserDisabled);
         }
 
-        let token_service = TokenService::new(self.state.clone())
-            .map_err(|e| IamError::Jwt(e.to_string()))?;
-        
         let roles = self.get_user_roles(&user.id).await?;
         let permissions = self.get_user_permissions(&user.id).await?;
-        
+
         let cross_tenant = roles.iter().any(|r| r == "platform_admin");
-        let access_token = token_service.issue_access_token(&user.id, &user.username, user.tenant_id as i64, cross_tenant, roles.clone(), permissions.clone())
+        let ttl_secs = (self.state.config.jwt.access_token_ttl_minutes * 60) as u64;
+        let claims = serde_json::json!({
+            "tid": user.tenant_id as i64,
+            "ct": cross_tenant,
+            "username": user.username,
+            "roles": roles,
+            "permissions": permissions,
+        });
+        let access_token = self
+            .state
+            .token_forward
+            .issue_user_jwt(&user.id, &user.username, claims, ttl_secs)
+            .await
             .map_err(|e| IamError::Jwt(e.to_string()))?;
 
         let user_info = UserInfo {
