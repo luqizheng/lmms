@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 fn make_principal(perms: &[&str]) -> Principal {
     Principal {
+        jti: "test".into(),
         user_id: "u1".into(),
         user_code: "u1".into(),
         tenant_id: 1,

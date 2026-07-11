@@ -11,6 +11,7 @@ use common_event::events::{IamLoginSucceeded, IamLoginFailed};
 use common_event::{Envelope, OutboxRepo};
 use chrono::{Utc, Duration};
 use nanoid::nanoid;
+use redis::AsyncCommands;
 use sha2::{Sha256, Digest};
 
 pub struct AuthService {
@@ -237,14 +238,24 @@ impl AuthService {
         })
     }
 
-    pub async fn logout(&self, user_id: &str) -> Result<(), IamError> {
-        // 撤销用户的所有 refresh tokens
+    pub async fn logout(&self, user_id: &str, jti: &str) -> Result<(), IamError> {
         sqlx::query(
             "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE user_id = ? AND revoked = FALSE"
         )
         .bind(user_id)
         .execute(&self.state.db)
         .await?;
+
+        if let Some(conn) = self.state.redis.as_ref() {
+            if !jti.is_empty() {
+                let mut conn = conn.clone();
+                let key = format!("{}blacklist:{}", self.state.redis_prefix, jti);
+                let ttl_sec = self.state.config.jwt.access_token_ttl_minutes * 60;
+                if let Err(e) = conn.set_ex::<_, _, ()>(&key, "1", ttl_sec).await {
+                    tracing::warn!(error = %e, jti, "iam logout blacklist write failed");
+                }
+            }
+        }
 
         Ok(())
     }

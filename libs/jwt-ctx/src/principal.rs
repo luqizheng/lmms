@@ -8,6 +8,7 @@ use thiserror::Error;
 
 #[derive(Debug, Clone)]
 pub struct Principal {
+    pub jti: String,
     pub user_id: String,
     pub user_code: String,
     pub tenant_id: i64,
@@ -100,6 +101,12 @@ impl Principal {
     }
 
     fn from_claims(payload: Value) -> Result<Self, PrincipalError> {
+        let jti = payload
+            .get("jti")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
         let user_id = payload
             .get("sub")
             .and_then(|v| v.as_str())
@@ -147,6 +154,7 @@ impl Principal {
             .unwrap_or_default();
 
         Ok(Self {
+            jti,
             user_id,
             user_code,
             tenant_id,

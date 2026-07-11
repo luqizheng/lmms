@@ -83,6 +83,15 @@ cases:
     expect:
       - $. is array
 
+  - caseId: AUTH-LIFE-008
+    desc: 撤销特定会话（DELETE /iam/auth/sessions/:id，session_id 来自 sessions 列表）
+    smoke: true
+    method: DELETE
+    path: /v1/iam/auth/sessions/${AUTH-LIFE-005.0.id}
+    headers:
+      Authorization: Bearer ${AUTH-LIFE-002.access_token}
+    expectStatus: 204
+
   - caseId: AUTH-LIFE-006
     desc: 临时用户登出
     method: POST
@@ -92,19 +101,10 @@ cases:
     expectStatus: 204
 
   - caseId: AUTH-LIFE-007
-    desc: 登出后临时 token 调 sessions — 已知设计：iam logout 不联动 gateway 黑名单，access_token 在 TTL 内仍 200
+    desc: 登出后临时 token 调 sessions — 验证 blacklist 生效（应 401）
+    smoke: true
     method: GET
     path: /v1/iam/auth/sessions
     headers:
       Authorization: Bearer ${AUTH-LIFE-002.access_token}
-    expectStatus: 200
-    skip: true
-
-  - caseId: AUTH-LIFE-008
-    desc: 撤销特定会话（DELETE /iam/auth/sessions/:id，session_id 来自 sessions 列表）
-    smoke: true
-    method: DELETE
-    path: /v1/iam/auth/sessions/${AUTH-LIFE-005.0.id}
-    headers:
-      Authorization: Bearer ${AUTH-LIFE-002.access_token}
-    expectStatus: 204
+    expectStatus: 401

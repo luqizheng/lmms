@@ -102,7 +102,7 @@ pub async fn logout(
 ) -> Result<StatusCode, (StatusCode, &'static str)> {
     let service = AuthService::new(state);
     service
-        .logout(&principal.user_id)
+        .logout(&principal.user_id, &principal.jti)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     Ok(StatusCode::NO_CONTENT)
