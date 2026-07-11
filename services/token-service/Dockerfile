@@ -9,8 +9,9 @@ COPY .cargo .cargo
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk
+COPY infrastructure/vendor/swagger-ui-v5.17.14.zip /tmp/swagger-ui.zip
 
-ENV SWAGGER_UI_DOWNLOAD_URL=https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip
+ENV SWAGGER_UI_DOWNLOAD_URL=file:///tmp/swagger-ui.zip
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \

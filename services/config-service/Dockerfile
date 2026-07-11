@@ -6,7 +6,8 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y libssl-dev pkg-config && rm -rf /var/lib/apt/lists/*
 
-ENV SWAGGER_UI_DOWNLOAD_URL=https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip
+COPY infrastructure/vendor/swagger-ui-v5.17.14.zip /tmp/swagger-ui.zip
+ENV SWAGGER_UI_DOWNLOAD_URL=file:///tmp/swagger-ui.zip
 
 COPY . .
 
