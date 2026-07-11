@@ -168,7 +168,7 @@ impl AuthService {
         let token_hash = Self::hash_token(refresh_token);
         
         let token: Option<RefreshToken> = sqlx::query_as(
-            "SELECT id, user_id, token_hash, expires_at, revoked, created_at FROM iam_refresh_tokens WHERE token_hash = ?"
+            "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE token_hash = ?"
         )
         .bind(&token_hash)
         .fetch_optional(&self.state.db)

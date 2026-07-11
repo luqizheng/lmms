@@ -13,7 +13,8 @@ cases:
       - $.refresh_token exists
 
   - caseId: AUTH-REFRESH-001
-    desc: admin 用 refresh_token 换发新 token — 揭示 iam refresh 端点 SQL 漏字段 bug：SELECT 6 字段 vs RefreshToken struct 10 字段，sqlx FromRow 默认填充 DateTime<Utc>→1970 → 永远 expires_at < now。需修 iam-service/src/service/auth_svc.rs:171 SQL
+    desc: admin 用 refresh_token 换发新 token
+    smoke: true
     method: POST
     path: /v1/iam/auth/refresh
     auth: false
@@ -24,7 +25,6 @@ cases:
       - $.access_token exists
       - $.refresh_token exists
       - $.token_type==Bearer
-    skip: true
 
   - caseId: AUTH-LIFE-001
     desc: admin 创建临时用户（用于密码/会话/登出测试）
