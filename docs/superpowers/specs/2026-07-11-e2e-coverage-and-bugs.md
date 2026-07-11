@@ -46,6 +46,7 @@
 | `fb9e72f` | **fix(ratelimit): Bug #4 已修** — pipeline → Lua 脚本（详见 §2 Bug #4） |
 | `c621022` | **fix(iam): Bug #1 已修** — refresh SQL 补齐 10 字段（详见 §2 Bug #1） |
 | `6ac48b1` | **fix(iam): Bug #2 已修** — logout 写 Redis blacklist（详见 §2 Bug #2） |
+| `8067949` | **fix(audit): Bug #3 已修** — export 端点加 /{user_id}（详见 §2 Bug #3） |
 
 ---
 
@@ -250,39 +251,60 @@ TTL 选择 access_token 完整 TTL（key 寿命与 token 寿命同步自动过�
 
 ---
 
-### 🟡 中：Bug #3 — audit 合规导出路径参数不一致
+### ✅ 已修：Bug #3 — audit 合规导出路径参数不一致
 
-**位置**：`services/audit-service/src/routes/compliance.rs:28, 63, 85`
+**位置**：`services/audit-service/src/routes/compliance.rs:10-16`（router）+ 3 个 handler
 
-**复现**：
+**修复 commit**：`8067949` `fix(audit): Bug #3 export 端点路径参数不一致 → 500`
+
+**复现**（修复前）：
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" \
   -H "Authorization: Bearer $TOKEN" \
   http://localhost:3000/v1/audit/export/compliance/login/csv
-# 期望：200 + CSV 内容
-# 实际：500 "Wrong number of path arguments for `Path`. Expected 1 but got 0"
+# 期望（修复后）：200 + CSV 内容
+# 实际（修复前）：500 "Wrong number of path arguments for `Path`. Expected 1 but got 0"
+# 实际（修复后）：200 + CSV header "id,user_id,username,success,..."
 ```
 
 **根因**：
 ```rust
-// compliance.rs::routes():
-.route("/export/compliance/login/csv", get(export_login_csv))   // 0 path 参数
-// handler:
+// compliance.rs::routes()（修复前）—— 0 path 参数
+.route("/export/compliance/login/csv", get(export_login_csv))
+.route("/export/compliance/operation/csv", get(export_operation_csv))
+.route("/export/compliance/operation/json", get(export_operation_json))
+
+// handler（不变）—— 期望 1 个 path 参数
 pub async fn export_login_csv(
-    Path(user_id): Path<String>,  // 期望 1 个 path 参数
-    ...
-)
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+) -> AppResult<...> { ... }
 ```
 
-OpenAPI schema 也写的是 0 path 参数——schema 与实现完全脱节。
+axum 0.8 严格检查：router 注册 0 path 参数但 handler 声明 1 个 → 500。OpenAPI schema 也写 0 path 参数（与 router 一致），三方完全脱节只在于 handler 签名。
 
 **生产影响**：合规导出（CSV / JSON）整个功能不可用。外部审计、合规留存受影响。
 
-**修复方向**：
-- 方案 A：router 加 `/{user_id}` 后缀（按 user 范围导出），openapi 同步加
-- 方案 B：handler 改成无 path 参数（全局导出 + 用 query 参数过滤）
+**修复**（采用方案 A：router 加 `/{user_id}` 后缀）：
 
-**优先级**：P1 — 合规功能不可用
+理由：handler 已有 `Path(user_id)` 接收参数，逻辑（`get_user_operation_logs(user_id, 10000)`）per-user 合理；router / handler / openapi 三方统一；API 语义清晰（每用户数据独立导出）。
+
+4 处改动：
+
+1. `services/audit-service/src/routes/compliance.rs::routes()`：3 个 route 全部加 `/{user_id}` 后缀
+2. 3 个 `#[utoipa::path]` 注解同步加 `params(("user_id" = String, Path, ...))`
+3. `openapi.yaml` 自动重生成（dump-openapi-specs.sh）：3 个 path + parameters
+4. `tests/e2e/api/cases/audit.yaml`：
+   - 新增 `AUDIT-EXPORT-LOGIN`（self-contained admin login 拿 user_id，避免跨文件占位符）
+   - `AUDIT-EXPORT-001/002/003` 路径加 `/{user_id}`、取消 skip
+
+**修复后验证**：
+- `cargo test -p audit-service --lib` — 4/4 pass
+- 直接 curl 3 个端点：3/3 返 200（login CSV header / operation CSV header / operation JSON `[]`）
+- e2e `AUDIT-EXPORT-LOGIN` + `001/002/003` — 4/4 pass
+- openapi.yaml 与 router + handler 一致
+
+**详细 spec**：`docs/superpowers/specs/2026-07-11-fix-audit-export-design.md`
 
 ---
 
@@ -332,7 +354,7 @@ prue_backend           ███████████████████
 1. ✅ **修 Bug #4**（限流失效）—— **已完成**（commit `fb9e72f`，详见 §2）
 2. ✅ **修 Bug #1**（refresh 失效）—— **已完成**（commit `c621022`，详见 §2）
 3. ✅ **修 Bug #2**（logout 黑名单）—— **已完成**（commit `6ac48b1`，详见 §2）
-4. **修 Bug #3**（audit export）—— P1 合规
+4. ✅ **修 Bug #3**（audit export）—— **已完成**（commit `8067949`，详见 §2）
 5. **补 `/v1/tokens/service-jwt` 网关路由** —— 解锁 service-jwt 链路 e2e
 
 ### 短期（修完 bug 后）
