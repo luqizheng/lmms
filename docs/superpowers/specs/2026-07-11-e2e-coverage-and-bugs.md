@@ -45,6 +45,7 @@
 | `7a72dfa` | test(e2e): 加网关限流 e2e 脚本（rl-auth-login + rl-default） |
 | `fb9e72f` | **fix(ratelimit): Bug #4 已修** — pipeline → Lua 脚本（详见 §2 Bug #4） |
 | `c621022` | **fix(iam): Bug #1 已修** — refresh SQL 补齐 10 字段（详见 §2 Bug #1） |
+| `6ac48b1` | **fix(iam): Bug #2 已修** — logout 写 Redis blacklist（详见 §2 Bug #2） |
 
 ---
 
@@ -177,19 +178,23 @@ curl -X POST http://localhost:3000/v1/iam/auth/refresh \
 
 ---
 
-### 🟡 中：Bug #2 — iam logout 不联动 gateway 黑名单
+### ✅ 已修：Bug #2 — iam logout 不联动 gateway 黑名单
 
 **位置**：`services/iam-service/src/routes/auth.rs::logout`
 
-**复现**：
+**修复 commit**：`6ac48b1` `fix(iam): Bug #2 logout 不联动 gateway 黑名单`
+
+**复现**（修复前）：
 ```bash
 # 临时用户登录 → logout → 用同样 token 调 sessions
 # 期望：401（黑名单生效）
-# 实际：200（access_token TTL 内仍能过网关验签）
+# 实际（修复前）：200（access_token TTL 内仍能过网关验签）
+# 实际（修复后）：401 "Token revoked"
 ```
 
 **根因**：
 ```rust
+// 修复前：logout 只撤销 refresh_token，不写 Redis blacklist
 pub async fn logout(State(state): State<AppState>, principal: Principal) -> Result<StatusCode, (StatusCode, &'static str)> {
     let service = AuthService::new(state);
     service.logout(&principal.user_id).await...  // ← 只清服务端 session 状态
@@ -197,13 +202,51 @@ pub async fn logout(State(state): State<AppState>, principal: Principal) -> Resu
 }
 ```
 
+Gateway 端 `services/api-gateway/src/blacklist.rs:13` 已有检查机制：
+```rust
+let key = format!("{}blacklist:{}", prefix, jti);
+conn.exists(&key).await
+```
+
 **生产影响**：用户"登出"实际只清服务端 session 状态，access_token 在 TTL 内仍能被持有者使用直到过期。安全预期被打破。
 
-**修复方向**：
-- 方案 A：logout 时调 gateway 黑名单 API（同 IAM 服务同进程的 Redis 直写，参考 perm_epoch 直写模式）
-- 方案 B：改用户预期文档（"logout 只是建议性操作，access_token 仍有效到过期"）
+**修复**（最终采用方案 A：Redis 直写）：
 
-**优先级**：P1 — 安全预期差异
+3 处改动：
+
+1. `libs/jwt-ctx/src/principal.rs`：Principal struct 新增 `jti: String` 字段，`from_claims` 从 JWT payload 提取
+2. `services/iam-service/src/service/auth_svc.rs::logout`：接收 jti 参数，`set_ex` 写 Redis blacklist key
+   ```rust
+   // 修复后
+   pub async fn logout(&self, user_id: &str, jti: &str) -> Result<(), IamError> {
+       // 1. 撤销 refresh tokens（原有）
+       sqlx::query("UPDATE iam_refresh_tokens SET revoked=TRUE WHERE user_id=? AND revoked=FALSE")
+           .bind(user_id).execute(&self.state.db).await?;
+       
+       // 2. 写 Redis blacklist（新增）
+       if let Some(conn) = self.state.redis.as_ref() {
+           if !jti.is_empty() {
+               let key = format!("{}blacklist:{}", self.state.redis_prefix, jti);
+               let ttl_sec = self.state.config.jwt.access_token_ttl_minutes * 60;
+               conn.set_ex::<_, _, ()>(&key, "1", ttl_sec).await?;
+           }
+       }
+       Ok(())
+   }
+   ```
+3. `services/iam-service/src/routes/auth.rs::logout`：传 `principal.jti` 给 service
+
+TTL 选择 access_token 完整 TTL（key 寿命与 token 寿命同步自动过期），fail open（Redis 不可用时仅依赖 DB refresh_token 撤销）。
+
+**修复后验证**：
+- `cargo test -p iam-service --lib` — 1/1 pass
+- `cargo test -p jwt-ctx` — pass
+- 直接 curl 复现：logout 后 token 返 401 "Token revoked"；`EXISTS superpowers:blacklist:{jti} = 1, TTL = 900`
+- e2e `AUTH-LIFE-001..008` — 8/8 pass
+- e2e `AUTH-LIFE-007` 取消 skip + `smoke: true`（之前 skip 揭示 bug）
+- e2e `AUTH-LIFE-008` 移到 `AUTH-LIFE-006` 之前（006 logout 后 token 被 blacklist，008 用同一 token 会 401）
+
+**详细 spec**：`docs/superpowers/specs/2026-07-11-fix-iam-logout-blacklist-design.md`
 
 ---
 
@@ -288,7 +331,7 @@ prue_backend           ███████████████████
 
 1. ✅ **修 Bug #4**（限流失效）—— **已完成**（commit `fb9e72f`，详见 §2）
 2. ✅ **修 Bug #1**（refresh 失效）—— **已完成**（commit `c621022`，详见 §2）
-3. **修 Bug #2**（logout 黑名单）—— P1（需先决定方案 A 或 B）
+3. ✅ **修 Bug #2**（logout 黑名单）—— **已完成**（commit `6ac48b1`，详见 §2）
 4. **修 Bug #3**（audit export）—— P1 合规
 5. **补 `/v1/tokens/service-jwt` 网关路由** —— 解锁 service-jwt 链路 e2e
 
