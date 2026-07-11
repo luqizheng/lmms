@@ -33,7 +33,46 @@ function readSafe(p) {
   return fileExists(p) ? fs.readFileSync(p, 'utf-8') : '';
 }
 
-function hasRoute(serviceDir, route) {
+function detectLanguage(serviceDir) {
+  const hasCargo = fileExists(path.join(serviceDir, 'Cargo.toml'));
+  const hasPom = fileExists(path.join(serviceDir, 'pom.xml'));
+  if (hasPom && !hasCargo) return 'java';
+  if (hasCargo && !hasPom) return 'rust';
+  if (hasCargo && hasPom) return 'mixed';
+  return 'unknown';
+}
+
+function walkSrcJava(serviceDir) {
+  const root = path.join(serviceDir, 'src/main/java');
+  const files = [];
+  if (!fileExists(root)) return files;
+  function recurse(p) {
+    for (const e of fs.readdirSync(p, { withFileTypes: true })) {
+      const f = path.join(p, e.name);
+      if (e.isDirectory()) recurse(f);
+      else if (e.isFile() && f.endsWith('.java')) files.push(f);
+    }
+  }
+  recurse(root);
+  return files;
+}
+
+function walkTestJava(serviceDir) {
+  const root = path.join(serviceDir, 'src/test/java');
+  const files = [];
+  if (!fileExists(root)) return files;
+  function recurse(p) {
+    for (const e of fs.readdirSync(p, { withFileTypes: true })) {
+      const f = path.join(p, e.name);
+      if (e.isDirectory()) recurse(f);
+      else if (e.isFile() && f.endsWith('.java')) files.push(f);
+    }
+  }
+  recurse(root);
+  return files;
+}
+
+function hasRouteRust(serviceDir, route) {
   const candidates = [
     path.join(serviceDir, 'src/main.rs'),
     path.join(serviceDir, 'src/routes/mod.rs'),
@@ -43,11 +82,59 @@ function hasRoute(serviceDir, route) {
   return candidates.some(p => regex.test(readSafe(p)));
 }
 
-function hasSwagger(serviceDir) {
+function hasRouteJava(serviceDir, route) {
+  // Spring Boot Actuator exposes /actuator/health + /actuator/prometheus by
+  // default when starter-actuator is on the classpath, and the gateway strips
+  // /v1/project — so /project/health and /project/metrics are served even
+  // without an explicit @GetMapping. We assert the actuator presence + the
+  // YAML multiline `management: → ... → include:` exposure block.
+  const pom = readSafe(path.join(serviceDir, 'pom.xml'));
+  if (!/<artifactId>spring-boot-starter-actuator<\/artifactId>/.test(pom)) return false;
+  const exposedSrc = [
+    readSafe(path.join(serviceDir, 'src/main/resources/application.yml')),
+    readSafe(path.join(serviceDir, 'config/config.yaml')),
+  ].join('\n');
+  const exposesActuator = /management\s*:[\s\S]*?include\s*:/.test(exposedSrc);
+  const exposesTarget = /exposure\s*:[\s\S]*?(health|metrics|prometheus)/.test(exposedSrc);
+  if (!exposesActuator || !exposesTarget) return false;
+  if (route === '/health') return true;
+  if (route === '/metrics') {
+    return /<artifactId>(micrometer-registry-prometheus|spring-boot-starter-actuator)<\/artifactId>/.test(pom);
+  }
+  return false;
+}
+
+function hasRoute(serviceDir, route) {
+  return hasRouteRust(serviceDir, route) || hasRouteJava(serviceDir, route);
+}
+
+function hasSwaggerRust(serviceDir) {
   const cargo = readSafe(path.join(serviceDir, 'Cargo.toml'));
   if (!/utoipa-swagger-ui/.test(cargo)) return false;
   const main = readSafe(path.join(serviceDir, 'src/main.rs'));
   return /SWAGGER_ENABLED/.test(main);
+}
+
+function hasSwaggerJava(serviceDir) {
+  const pom = readSafe(path.join(serviceDir, 'pom.xml'));
+  if (!/<artifactId>springdoc-openapi-starter-webmvc-ui<\/artifactId>/.test(pom)) return false;
+  const yml = readSafe(path.join(serviceDir, 'src/main/resources/application.yml'));
+  return /springdoc:\s*\n[\s\S]*?api-docs:[\s\S]*?path:\s*\//.test(yml);
+}
+
+function hasSwagger(serviceDir) {
+  return hasSwaggerRust(serviceDir) || hasSwaggerJava(serviceDir);
+}
+
+function hasTests(serviceDir) {
+  const lang = detectLanguage(serviceDir);
+  if (lang === 'java' || lang === 'mixed') {
+    return walkTestJava(serviceDir).length > 0;
+  }
+  if (fileExists(path.join(serviceDir, 'tests'))) {
+    return fs.readdirSync(path.join(serviceDir, 'tests')).some(f => f.endsWith('.rs'));
+  }
+  return false;
 }
 
 function checkComponent(serviceDir, component) {
@@ -59,10 +146,7 @@ function checkComponent(serviceDir, component) {
     case 'README.md':
       return fileExists(path.join(serviceDir, 'README.md'));
     case 'tests/ 目录':
-      return (
-        fileExists(path.join(serviceDir, 'tests')) &&
-        fs.readdirSync(path.join(serviceDir, 'tests')).some(f => f.endsWith('.rs'))
-      );
+      return hasTests(serviceDir);
     case '/health 端点':
       return hasRoute(serviceDir, '/health');
     case '/metrics 端点':
@@ -88,7 +172,8 @@ function main() {
   for (const svc of services) {
     const svcDir = path.join(SERVICES_DIR, svc);
     const agentsPath = path.join(svcDir, 'AGENTS.md');
-    console.log(`\n## ${svc}`);
+    const lang = detectLanguage(svcDir);
+    console.log(`\n## ${svc} [lang=${lang}]`);
 
     if (!fileExists(agentsPath)) {
       console.log('⚠️  缺失规则文件: AGENTS.md');
