@@ -119,35 +119,37 @@ impl RateLimiter {
         let now_ms = chrono::Utc::now().timestamp_millis();
         let window_start_ms = now_ms - (limit.window_secs as i64) * 1000;
         let key = format!("rl:{}:{}:{}", limit.route, identity, limit.window_secs);
+        let member = format!("{}:{}", identity, now_ms);
+        const SCRIPT: &str = r"
+            redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+            local count = redis.call('ZCARD', KEYS[1])
+            if count < tonumber(ARGV[2]) then
+                redis.call('ZADD', KEYS[1], ARGV[3], ARGV[4])
+                redis.call('EXPIRE', KEYS[1], ARGV[5])
+                return count + 1
+            end
+            return -1
+        ";
 
-        // Use the connection. Operations: ZREMRANGEBYSCORE, ZADD, ZCARD, EXPIRE.
-        // Done as a pipeline for atomicity within Redis.
         let mut conn = self.conn.clone();
-        let res: Result<i64, redis::RedisError> = redis::pipe()
-            .atomic()
-            .zrembyscore(&key, "-inf", window_start_ms)
-            .ignore()
-            .zadd(&key, format!("{}:{}", identity, now_ms), now_ms)
-            .ignore()
-            .zcard(&key)
-            .expire(&key, limit.window_secs as i64)
-            .ignore()
-            .query_async(&mut conn)
+        let count: Result<i64, redis::RedisError> = redis::Script::new(SCRIPT)
+            .key(&key)
+            .arg(window_start_ms)
+            .arg(limit.max as i64)
+            .arg(now_ms)
+            .arg(member)
+            .arg(limit.window_secs as i64)
+            .invoke_async(&mut conn)
             .await;
 
-        let count = match res {
-            Ok(c) => c,
+        match count {
+            Ok(c) if c < 0 => Err(()),
+            Ok(_) => Ok(()),
             Err(e) => {
                 tracing::warn!(target: "ratelimit", route = %limit.route, error = %e,
                     "redis check failed, failing open");
-                return Ok(());
+                Ok(())
             }
-        };
-
-        if count > limit.max as i64 {
-            Err(())
-        } else {
-            Ok(())
         }
     }
 }
