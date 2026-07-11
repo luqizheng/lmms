@@ -165,9 +165,9 @@ async function onDelete(row: any) {
           @click="onSearch"
           >{{ t("menus.notificationSearch") }}</el-button
         >
-        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch"
-          >{{ t("menus.tenantRefresh") }}</el-button
-        >
+        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch">{{
+          t("menus.tenantRefresh")
+        }}</el-button>
         <el-button
           v-if="hasPerms(['CFG_NAMESPACE_CREATE'])"
           type="primary"

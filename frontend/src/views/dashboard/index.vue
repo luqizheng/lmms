@@ -1,15 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useI18n } from "vue-i18n";
-import {
-  listIamUsers,
-  listIamRoles,
-  listIamSessions
-} from "@/api/iam";
-import {
-  listOperationLogs,
-  type OperationLog
-} from "@/api/audit";
+import { listIamUsers, listIamRoles, listIamSessions } from "@/api/iam";
+import { listOperationLogs, type OperationLog } from "@/api/audit";
 
 defineOptions({
   name: "DashboardIndex"
@@ -32,15 +25,65 @@ interface ServiceStatus {
 
 const LATENCY_HISTORY_LEN = 20;
 
-const SERVICES: Array<Omit<ServiceStatus, "status" | "latencyMs" | "lastCheckedAt" | "latencyHistory" | "uptimeUp" | "uptimeTotal">> = [
-  { name: "API Gateway", slug: "api-gateway", probePath: "/probe/api-gateway", port: 3000 },
-  { name: "Token Service", slug: "token-service", probePath: "/probe/token-service", port: 8082 },
-  { name: "IAM Service", slug: "iam-service", probePath: "/probe/iam-service", port: 9081 },
-  { name: "Notification", slug: "notification-service", probePath: "/probe/notification-service", port: 8083 },
-  { name: "Audit Service", slug: "audit-service", probePath: "/probe/audit-service", port: 8084 },
-  { name: "File Service", slug: "file-service", probePath: "/probe/file-service", port: 8086 },
-  { name: "Config Service", slug: "config-service", probePath: "/probe/config-service", port: 8085 },
-  { name: "Prue Backend", slug: "prue-backend", probePath: "/probe/prue-backend", port: 8087 }
+const SERVICES: Array<
+  Omit<
+    ServiceStatus,
+    | "status"
+    | "latencyMs"
+    | "lastCheckedAt"
+    | "latencyHistory"
+    | "uptimeUp"
+    | "uptimeTotal"
+  >
+> = [
+  {
+    name: "API Gateway",
+    slug: "api-gateway",
+    probePath: "/probe/api-gateway",
+    port: 3000
+  },
+  {
+    name: "Token Service",
+    slug: "token-service",
+    probePath: "/probe/token-service",
+    port: 8082
+  },
+  {
+    name: "IAM Service",
+    slug: "iam-service",
+    probePath: "/probe/iam-service",
+    port: 9081
+  },
+  {
+    name: "Notification",
+    slug: "notification-service",
+    probePath: "/probe/notification-service",
+    port: 8083
+  },
+  {
+    name: "Audit Service",
+    slug: "audit-service",
+    probePath: "/probe/audit-service",
+    port: 8084
+  },
+  {
+    name: "File Service",
+    slug: "file-service",
+    probePath: "/probe/file-service",
+    port: 8086
+  },
+  {
+    name: "Config Service",
+    slug: "config-service",
+    probePath: "/probe/config-service",
+    port: 8085
+  },
+  {
+    name: "Prue Backend",
+    slug: "prue-backend",
+    probePath: "/probe/prue-backend",
+    port: 8087
+  }
 ];
 
 const statuses = ref<ServiceStatus[]>(
@@ -72,7 +115,9 @@ async function probeOne(s: ServiceStatus): Promise<ServiceStatus> {
   } catch {
     ok = false;
   }
-  const history = [...s.latencyHistory, latency ?? -1].slice(-LATENCY_HISTORY_LEN);
+  const history = [...s.latencyHistory, latency ?? -1].slice(
+    -LATENCY_HISTORY_LEN
+  );
   return {
     ...s,
     status: ok ? "ok" : "down",
@@ -89,8 +134,12 @@ async function refreshAll() {
   statuses.value = results;
 }
 
-const upCount = computed(() => statuses.value.filter(s => s.status === "ok").length);
-const downCount = computed(() => statuses.value.filter(s => s.status === "down").length);
+const upCount = computed(
+  () => statuses.value.filter(s => s.status === "ok").length
+);
+const downCount = computed(
+  () => statuses.value.filter(s => s.status === "down").length
+);
 const lastRefreshAt = ref<number | null>(null);
 
 function fmtTime(ts: number | null | string): string {
@@ -226,7 +275,7 @@ onUnmounted(() => {
   <div class="dashboard p-4">
     <el-row :gutter="16" class="mb-4">
       <el-col :xs="12" :sm="6">
-        <el-card shadow="never" v-loading="statsLoading">
+        <el-card v-loading="statsLoading" shadow="never">
           <div class="text-center">
             <div class="text-3xl font-bold">{{ userCount }}</div>
             <div class="text-sm text-gray-500">
@@ -236,7 +285,7 @@ onUnmounted(() => {
         </el-card>
       </el-col>
       <el-col :xs="12" :sm="6">
-        <el-card shadow="never" v-loading="statsLoading">
+        <el-card v-loading="statsLoading" shadow="never">
           <div class="text-center">
             <div class="text-3xl font-bold">{{ roleCount }}</div>
             <div class="text-sm text-gray-500">
@@ -246,7 +295,7 @@ onUnmounted(() => {
         </el-card>
       </el-col>
       <el-col :xs="12" :sm="6">
-        <el-card shadow="never" v-loading="statsLoading">
+        <el-card v-loading="statsLoading" shadow="never">
           <div class="text-center">
             <div class="text-3xl font-bold">{{ sessionCount }}</div>
             <div class="text-sm text-gray-500">
@@ -329,18 +378,14 @@ onUnmounted(() => {
         class="mb-4"
       >
         <el-card shadow="hover">
-          <div class="flex items-center justify-between mb-2">
+          <div class="flex-bc mb-2">
             <div>
               <div class="text-base font-semibold">{{ s.name }}</div>
               <div class="text-xs text-gray-400">
                 :{{ s.port }} · {{ s.slug }}
               </div>
             </div>
-            <el-tag
-              :type="statusTag(s.status).type"
-              size="small"
-              effect="dark"
-            >
+            <el-tag :type="statusTag(s.status).type" size="small" effect="dark">
               {{ statusTag(s.status).label }}
             </el-tag>
           </div>
@@ -369,8 +414,8 @@ onUnmounted(() => {
               <div
                 class="font-mono text-base"
                 :class="{
-                  'text-red-500': errorRate(s) !== '—' &&
-                    parseFloat(errorRate(s)) > 0
+                  'text-red-500':
+                    errorRate(s) !== '—' && parseFloat(errorRate(s)) > 0
                 }"
               >
                 {{ errorRate(s) }}
@@ -401,13 +446,14 @@ onUnmounted(() => {
             </svg>
           </div>
 
-          <div class="mt-2 flex items-end justify-between text-xs text-gray-500">
+          <div
+            class="mt-2 flex items-end justify-between text-xs text-gray-500"
+          >
             <span>
-              {{ t("menus.dashboardLastCheck") }}: {{ fmtTime(s.lastCheckedAt) }}
+              {{ t("menus.dashboardLastCheck") }}:
+              {{ fmtTime(s.lastCheckedAt) }}
             </span>
-            <span v-if="s.latencyMs !== null">
-              {{ s.latencyMs }} ms
-            </span>
+            <span v-if="s.latencyMs !== null"> {{ s.latencyMs }} ms </span>
           </div>
         </el-card>
       </el-col>
@@ -415,14 +461,11 @@ onUnmounted(() => {
 
     <el-card shadow="never" class="mt-2">
       <template #header>
-        <div class="flex items-center justify-between">
-          <span class="font-semibold">{{ t("menus.dashboardRecentActivity") }}</span>
-          <el-button
-            link
-            type="primary"
-            size="small"
-            @click="refreshStats"
-          >
+        <div class="flex-bc">
+          <span class="font-semibold">{{
+            t("menus.dashboardRecentActivity")
+          }}</span>
+          <el-button link type="primary" size="small" @click="refreshStats">
             {{ t("menus.dashboardRefresh") }}
           </el-button>
         </div>
@@ -448,12 +491,11 @@ onUnmounted(() => {
           :label="t('menus.dashboardColResource')"
           prop="resource"
         />
-        <el-table-column
-          :label="t('menus.dashboardColTime')"
-          width="180"
-        >
+        <el-table-column :label="t('menus.dashboardColTime')" width="180">
           <template #default="{ row }">
-            {{ fmtTime(row.operating_time || row.created_at || row.occurred_at) }}
+            {{
+              fmtTime(row.operating_time || row.created_at || row.occurred_at)
+            }}
           </template>
         </el-table-column>
       </el-table>

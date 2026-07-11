@@ -49,10 +49,9 @@ async function onSearch() {
     const res = await http.request<Tenant[]>("get", "/v1/iam/tenants");
     dataList.value = res || [];
   } catch (e: any) {
-    message(
-      translateError(e?.code ?? t("menus.tenantListPending")),
-      { type: "warning" }
-    );
+    message(translateError(e?.code ?? t("menus.tenantListPending")), {
+      type: "warning"
+    });
     dataList.value = [];
   } finally {
     loading.value = false;

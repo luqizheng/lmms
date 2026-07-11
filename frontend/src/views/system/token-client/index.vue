@@ -44,7 +44,10 @@ const {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item :label="`${t('menus.tokenClientSearchKeyword')}：`" prop="keyword">
+      <el-form-item
+        :label="`${t('menus.tokenClientSearchKeyword')}：`"
+        prop="keyword"
+      >
         <el-input
           v-model="form.keyword"
           :placeholder="t('menus.tokenClientPlaceholderKeyword')"
@@ -60,7 +63,10 @@ const {
           class="w-40!"
         >
           <el-option :label="t('menus.deptStatusActive')" value="active" />
-          <el-option :label="t('menus.tokenClientStatusDisabled')" value="disabled" />
+          <el-option
+            :label="t('menus.tokenClientStatusDisabled')"
+            value="disabled"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -78,7 +84,11 @@ const {
       </el-form-item>
     </el-form>
 
-    <PureTableBar :title="t('menus.systemTokenClient')" :columns="columns" @refresh="onSearch">
+    <PureTableBar
+      :title="t('menus.systemTokenClient')"
+      :columns="columns"
+      @refresh="onSearch"
+    >
       <template #buttons>
         <el-button
           type="primary"
@@ -143,7 +153,9 @@ const {
               {{ t("menus.tokenClientResetSecret") }}
             </el-button>
             <el-popconfirm
-              :title="t('menus.tokenClientConfirmDelete', { clientId: row.client_id })"
+              :title="
+                t('menus.tokenClientConfirmDelete', { clientId: row.client_id })
+              "
               @confirm="handleDelete(row)"
             >
               <template #reference>

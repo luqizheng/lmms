@@ -141,7 +141,11 @@ function onFullscreen() {
               type="primary"
               :size="size"
               :icon="useRenderIcon(AddFill)"
-              @click="openDialog(t('menus.dialogActionCreate'), { parentId: row.id } as any)"
+              @click="
+                openDialog(t('menus.dialogActionCreate'), {
+                  parentId: row.id
+                } as any)
+              "
             >
               {{ t("menus.notificationNew") }}
             </el-button>

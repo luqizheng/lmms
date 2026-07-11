@@ -65,23 +65,17 @@ function playBeep() {
 let lastDesktopNotif: Notification | null = null;
 
 function fireDesktopNotification(title: string) {
-  if (
-    typeof window === "undefined" ||
-    typeof Notification === "undefined"
-  ) {
+  if (typeof window === "undefined" || typeof Notification === "undefined") {
     return;
   }
   if (Notification.permission !== "granted") return;
   try {
     if (lastDesktopNotif) lastDesktopNotif.close();
-    lastDesktopNotif = new Notification(
-      t("menus.notificationDesktopTitle"),
-      {
-        body: t("menus.notificationDesktopBody", { title }),
-        tag: "notification-bell",
-        silent: false
-      }
-    );
+    lastDesktopNotif = new Notification(t("menus.notificationDesktopTitle"), {
+      body: t("menus.notificationDesktopBody", { title }),
+      tag: "notification-bell",
+      silent: false
+    });
     lastDesktopNotif.onclick = () => {
       window.focus();
       router.push("/notification/inbox");
@@ -143,7 +137,8 @@ watch(
 );
 
 const recentItems = computed<NotificationItem[]>(() => {
-  const list = store.inboxList.length > 0 ? store.inboxList : store.popoverQueue;
+  const list =
+    store.inboxList.length > 0 ? store.inboxList : store.popoverQueue;
   return list.slice(0, POPOVER_LIMIT);
 });
 
@@ -193,7 +188,7 @@ function goInbox() {
       </el-badge>
     </template>
     <div class="notification-popover">
-      <div class="flex items-center justify-between px-1 mb-2">
+      <div class="flex-bc px-1 mb-2">
         <span class="text-sm font-semibold">
           {{ t("menus.notificationBellTitle") }}
         </span>
@@ -230,7 +225,7 @@ function goInbox() {
           >
             {{ item.title }}
           </div>
-          <div class="flex items-center justify-between mt-1">
+          <div class="flex-bc mt-1">
             <span class="notification-time">
               {{ fmtRelative(item.received_at) }}
             </span>

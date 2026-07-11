@@ -11,7 +11,5 @@ export const STATUS_LABEL_MAP: Record<
 };
 
 export function getStatusInfo(s: string) {
-  return (
-    STATUS_LABEL_MAP[s] || { label: s, type: "info" as const }
-  );
+  return STATUS_LABEL_MAP[s] || { label: s, type: "info" as const };
 }

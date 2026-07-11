@@ -189,9 +189,9 @@ async function onDelete(row: ConfigItem) {
           @click="onSearch"
           >{{ t("menus.notificationSearch") }}</el-button
         >
-        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch"
-          >{{ t("menus.tenantRefresh") }}</el-button
-        >
+        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch">{{
+          t("menus.tenantRefresh")
+        }}</el-button>
         <el-button
           v-if="hasPerms(['CFG_CONFIG_CREATE'])"
           type="primary"

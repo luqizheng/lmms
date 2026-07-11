@@ -283,7 +283,10 @@ function stageTagType(
             {{ t("menus.retentionProbeBtn") }}
           </el-button>
         </el-form-item>
-        <el-form-item v-if="probeResult" :label="t('menus.retentionProbeResult')">
+        <el-form-item
+          v-if="probeResult"
+          :label="t('menus.retentionProbeResult')"
+        >
           <el-tag :type="stageTagType(probeResult.stage)" size="large">
             {{ probeResult.stage }}
           </el-tag>

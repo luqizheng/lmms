@@ -113,9 +113,7 @@ describe("useUser onSearch", () => {
 
   it("calls listIamUsers with keyword+status+page+size and populates dataList", async () => {
     listIamUsers.mockResolvedValue({
-      items: [
-        { id: 1, username: "alice", status: "active" }
-      ],
+      items: [{ id: 1, username: "alice", status: "active" }],
       total: 1,
       page: 1,
       size: 10

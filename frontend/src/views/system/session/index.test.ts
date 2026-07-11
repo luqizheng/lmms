@@ -20,8 +20,7 @@ vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
 vi.mock("@/components/RePureTableBar", () => ({
   PureTableBar: {
     name: "PureTableBar",
-    template:
-      '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
+    template: '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
     props: ["title"]
   }
 }));
@@ -70,10 +69,10 @@ describe("SystemSession mount", () => {
 
   it("renders 刷新 button via i18n key", () => {
     const wrapper = mountSession();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(true);
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
+    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(
+      true
+    );
   });
 
   it("on mount calls listIamSessions", async () => {

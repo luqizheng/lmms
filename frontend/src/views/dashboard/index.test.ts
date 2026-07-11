@@ -49,11 +49,11 @@ function mountDashboard() {
     global: {
       mocks: { $t: (k: string) => k },
       components: {
-        ElCard: { template: "<div class=\"el-card\"><slot /></div>" },
-        ElRow: { template: "<div class=\"el-row\"><slot /></div>" },
-        ElCol: { template: "<div class=\"el-col\"><slot /></div>" },
+        ElCard: { template: '<div class="el-card"><slot /></div>' },
+        ElRow: { template: '<div class="el-row"><slot /></div>' },
+        ElCol: { template: '<div class="el-col"><slot /></div>' },
         ElTag: {
-          template: "<span class=\"el-tag\"><slot /></span>",
+          template: '<span class="el-tag"><slot /></span>',
           props: ["type", "size", "effect"]
         },
         ElButton: { template: "<button><slot /></button>" },

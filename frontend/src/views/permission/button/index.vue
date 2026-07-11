@@ -22,13 +22,21 @@ const { t } = useI18n();
           href="https://github.com/pure-admin/vue-pure-admin/blob/main/src/views/permission/button/index.vue"
           target="_blank"
         >
-          {{ t("menus.permsDemoCodeLine", { path: "src/views/permission/button/index.vue" }) }}
+          {{
+            t("menus.permsDemoCodeLine", {
+              path: "src/views/permission/button/index.vue"
+            })
+          }}
         </el-link>
       </template>
       <el-space wrap>
         <Auth :value="t('menus.permsDemoCodeList1')">
           <el-button plain type="warning">
-            {{ t("menus.permsDemoHaveCode", { code: t("menus.permsDemoCodeList1") }) }}
+            {{
+              t("menus.permsDemoHaveCode", {
+                code: t("menus.permsDemoCodeList1")
+              })
+            }}
           </el-button>
         </Auth>
         <Auth :value="[t('menus.permsDemoCodeList2')]">
@@ -63,10 +71,22 @@ const { t } = useI18n();
         <div class="card-header">{{ t("menus.permsDemoTitle2") }}</div>
       </template>
       <el-space wrap>
-        <el-button v-if="hasAuth(t('menus.permsDemoCodeList1'))" plain type="warning">
-          {{ t("menus.permsDemoHaveCode", { code: t("menus.permsDemoCodeList1") }) }}
+        <el-button
+          v-if="hasAuth(t('menus.permsDemoCodeList1'))"
+          plain
+          type="warning"
+        >
+          {{
+            t("menus.permsDemoHaveCode", {
+              code: t("menus.permsDemoCodeList1")
+            })
+          }}
         </el-button>
-        <el-button v-if="hasAuth([t('menus.permsDemoCodeList2')])" plain type="primary">
+        <el-button
+          v-if="hasAuth([t('menus.permsDemoCodeList2')])"
+          plain
+          type="primary"
+        >
           {{
             t("menus.permsDemoHaveCode", {
               code: `[${t("menus.permsDemoCodeList2")}]`
@@ -101,9 +121,17 @@ const { t } = useI18n();
       </template>
       <el-space wrap>
         <el-button v-auth="t('menus.permsDemoCodeList1')" plain type="warning">
-          {{ t("menus.permsDemoHaveCode", { code: t("menus.permsDemoCodeList1") }) }}
+          {{
+            t("menus.permsDemoHaveCode", {
+              code: t("menus.permsDemoCodeList1")
+            })
+          }}
         </el-button>
-        <el-button v-auth="[t('menus.permsDemoCodeList2')]" plain type="primary">
+        <el-button
+          v-auth="[t('menus.permsDemoCodeList2')]"
+          plain
+          type="primary"
+        >
           {{
             t("menus.permsDemoHaveCode", {
               code: `[${t("menus.permsDemoCodeList2")}]`

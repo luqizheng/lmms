@@ -65,9 +65,8 @@ async function markAllRead() {
   if (!unreadCount.value) return;
   marking.value = true;
   try {
-    const { useNotificationStore } = await import(
-      "@/store/modules/notification"
-    );
+    const { useNotificationStore } =
+      await import("@/store/modules/notification");
     await useNotificationStore().readAll();
     await onSearch();
   } finally {
@@ -179,14 +178,15 @@ onMounted(() => {
               {{ t("menus.detailPopoverTag") }}
             </el-tag>
             <span class="text-gray-400 text-xs ml-2">
-              {{ t("menus.detailPublishLabel") }}{{
-                fmtDateTime(drawerItem.publish_at)
-              }}
+              {{ t("menus.detailPublishLabel")
+              }}{{ fmtDateTime(drawerItem.publish_at) }}
             </span>
-            <span v-if="drawerItem.expire_at" class="text-gray-400 text-xs ml-2">
-              {{ t("menus.detailExpireLabel") }}{{
-                fmtDateTime(drawerItem.expire_at)
-              }}
+            <span
+              v-if="drawerItem.expire_at"
+              class="text-gray-400 text-xs ml-2"
+            >
+              {{ t("menus.detailExpireLabel")
+              }}{{ fmtDateTime(drawerItem.expire_at) }}
             </span>
           </div>
         </div>

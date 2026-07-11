@@ -84,7 +84,10 @@ async function onExportJson() {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item :label="`${t('menus.monitorOperationUserId')}：`" prop="user_id">
+      <el-form-item
+        :label="`${t('menus.monitorOperationUserId')}：`"
+        prop="user_id"
+      >
         <el-input
           v-model="form.user_id"
           placeholder="user_id"
@@ -92,7 +95,10 @@ async function onExportJson() {
           class="w-50!"
         />
       </el-form-item>
-      <el-form-item :label="`${t('menus.monitorOperationAction')}：`" prop="action">
+      <el-form-item
+        :label="`${t('menus.monitorOperationAction')}：`"
+        prop="action"
+      >
         <el-input
           v-model="form.action"
           placeholder="action"
@@ -100,7 +106,10 @@ async function onExportJson() {
           class="w-40!"
         />
       </el-form-item>
-      <el-form-item :label="`${t('menus.monitorOperationResource')}：`" prop="resource">
+      <el-form-item
+        :label="`${t('menus.monitorOperationResource')}：`"
+        prop="resource"
+      >
         <el-input
           v-model="form.resource"
           placeholder="resource"
@@ -141,7 +150,11 @@ async function onExportJson() {
       </el-form-item>
     </el-form>
 
-    <PureTableBar :title="t('menus.monitorOperationLog')" :columns="columns" @refresh="onSearch">
+    <PureTableBar
+      :title="t('menus.monitorOperationLog')"
+      :columns="columns"
+      @refresh="onSearch"
+    >
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           align-whole="center"

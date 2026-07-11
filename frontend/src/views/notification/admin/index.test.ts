@@ -48,7 +48,8 @@ const elStubs: Record<string, any> = {
   ElForm: { template: "<form><slot /></form>" },
   ElFormItem: {
     props: ["label"],
-    template: "<div><span class=\"el-form-item__label\">{{ label }}</span><slot /></div>"
+    template:
+      '<div><span class="el-form-item__label">{{ label }}</span><slot /></div>'
   },
   ElInput: { template: "<input />" },
   ElSelect: { template: "<select><slot /></slot>" },

@@ -18,7 +18,8 @@ const elStubs: Record<string, any> = {
   ElForm: { template: "<form><slot /></form>" },
   ElFormItem: {
     props: ["label"],
-    template: "<div><span class=\"el-form-item__label\">{{ label }}</span><slot /></div>"
+    template:
+      '<div><span class="el-form-item__label">{{ label }}</span><slot /></div>'
   },
   ElInput: { template: "<input />" },
   ElDatePicker: { template: '<input type="datetime" />' },
@@ -77,12 +78,12 @@ describe("NotificationForm mount", () => {
         expire_at: null,
         pinned: false,
         popover: false,
-        recipients: [
-          { scope_type: "user", scope_id: "u1", name: "alice" }
-        ]
+        recipients: [{ scope_type: "user", scope_id: "u1", name: "alice" }]
       }
     });
-    const vm = wrapper.vm as unknown as { newFormInline: { recipients: unknown[] } };
+    const vm = wrapper.vm as unknown as {
+      newFormInline: { recipients: unknown[] };
+    };
     expect(vm.newFormInline.recipients).toHaveLength(1);
   });
 

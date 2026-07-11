@@ -36,7 +36,9 @@ function isImage(name: string): boolean {
 
 function onBefore(raw: UploadRawFile): boolean {
   if (!checkFileSize(raw.size)) {
-    ElMessage.error(t("menus.fileTooLarge", { name: raw.name, limit: FILE_MAX_SIZE_MB }));
+    ElMessage.error(
+      t("menus.fileTooLarge", { name: raw.name, limit: FILE_MAX_SIZE_MB })
+    );
     return false;
   }
   if (!checkFileExtension(raw.name)) {
@@ -86,9 +88,7 @@ async function onSubmit() {
         results.value.push({ name: f.name, status: "fail", message: msg });
       }
     }
-    ElMessage.success(
-      t("menus.fileUploadResultSummary", { ok, fail })
-    );
+    ElMessage.success(t("menus.fileUploadResultSummary", { ok, fail }));
     if (fail === 0) fileList.value = [];
   } finally {
     submitting.value = false;
@@ -156,7 +156,9 @@ async function onSubmit() {
             {{ r.status === "ok" ? "✓" : "✗" }}
           </el-tag>
           <span class="ml-2">{{ r.name }}</span>
-          <span v-if="r.message" class="ml-2 text-gray-400">{{ r.message }}</span>
+          <span v-if="r.message" class="ml-2 text-gray-400">{{
+            r.message
+          }}</span>
         </li>
       </ul>
     </div>

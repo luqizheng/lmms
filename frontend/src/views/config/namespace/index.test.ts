@@ -6,12 +6,13 @@ vi.hoisted(() => {
   process.env.VITE_ROUTER_HISTORY = "hash";
 });
 
-const { listNamespaces, createNamespace, deleteNamespace, message } = vi.hoisted(() => ({
-  listNamespaces: vi.fn(),
-  createNamespace: vi.fn(),
-  deleteNamespace: vi.fn(),
-  message: vi.fn()
-}));
+const { listNamespaces, createNamespace, deleteNamespace, message } =
+  vi.hoisted(() => ({
+    listNamespaces: vi.fn(),
+    createNamespace: vi.fn(),
+    deleteNamespace: vi.fn(),
+    message: vi.fn()
+  }));
 
 vi.mock("@/api/config", () => ({
   listNamespaces,
@@ -25,8 +26,7 @@ vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
 vi.mock("@/components/RePureTableBar", () => ({
   PureTableBar: {
     name: "PureTableBar",
-    template:
-      '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
+    template: '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
     props: ["title"]
   }
 }));
@@ -76,12 +76,16 @@ describe("ConfigNamespace mount", () => {
 
   it("renders buttons via i18n keys", () => {
     const wrapper = mountNamespace();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("menus.notificationSearch"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("menus.configNamespaceCreate"))).toBe(true);
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
+    expect(
+      labels.some((t: string) => t.includes("menus.notificationSearch"))
+    ).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(
+      true
+    );
+    expect(
+      labels.some((t: string) => t.includes("menus.configNamespaceCreate"))
+    ).toBe(true);
   });
 
   it("on 搜索 click calls listNamespaces", async () => {

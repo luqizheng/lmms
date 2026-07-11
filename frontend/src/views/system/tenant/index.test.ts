@@ -19,8 +19,7 @@ vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
 vi.mock("@/components/RePureTableBar", () => ({
   PureTableBar: {
     name: "PureTableBar",
-    template:
-      '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
+    template: '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
     props: ["title"]
   }
 }));
@@ -78,8 +77,12 @@ describe("SystemTenant mount", () => {
     const wrapper = mountTenant();
     const buttons = wrapper.findAll("button");
     const labels = buttons.map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("menus.tenantCreate"))).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(
+      true
+    );
+    expect(labels.some((t: string) => t.includes("menus.tenantCreate"))).toBe(
+      true
+    );
   });
 
   it("onSearch calls http.request with /v1/iam/tenants", async () => {

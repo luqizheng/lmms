@@ -53,7 +53,11 @@ function onChange() {
           href="https://github.com/pure-admin/vue-pure-admin/blob/main/src/views/permission/page/index.vue"
           target="_blank"
         >
-          {{ t("menus.permsDemoCodeLine", { path: "src/views/permission/page/index.vue" }) }}
+          {{
+            t("menus.permsDemoCodeLine", {
+              path: "src/views/permission/page/index.vue"
+            })
+          }}
         </el-link>
       </template>
       <el-select v-model="username" class="w-40!" @change="onChange">

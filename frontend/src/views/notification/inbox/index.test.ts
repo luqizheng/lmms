@@ -47,16 +47,17 @@ const elStubs: Record<string, any> = {
   ElForm: { template: "<form><slot /></form>" },
   ElFormItem: {
     props: ["label"],
-    template: "<div><span class=\"el-form-item__label\">{{ label }}</span><slot /></div>"
+    template:
+      '<div><span class="el-form-item__label">{{ label }}</span><slot /></div>'
   },
   ElInput: { template: "<input />" },
   ElTabs: { template: "<div><slot /></div>" },
   ElTabPane: {
     props: ["label"],
-    template: "<div class=\"el-tab-pane-stub\">{{ label }}<slot /></div>"
+    template: '<div class="el-tab-pane-stub">{{ label }}<slot /></div>'
   },
-  ElDrawer: { template: "<div class=\"el-drawer-stub\"><slot /></div>" },
-  ElTag: { template: "<span class=\"el-tag\"><slot /></span>" }
+  ElDrawer: { template: '<div class="el-drawer-stub"><slot /></div>' },
+  ElTag: { template: '<span class="el-tag"><slot /></span>' }
 };
 
 function defaultInboxApi() {
@@ -93,20 +94,20 @@ describe("NotificationInbox mount", () => {
     expect(wrapper.find(".pure-table-bar-stub").exists()).toBe(true);
   });
 
-it("renders 搜索 and 重置 buttons via i18n key", () => {
+  it("renders 搜索 and 重置 buttons via i18n key", () => {
     const wrapper = mountInbox();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("menus.notificationSearch"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("menus.notificationReset"))).toBe(true);
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
+    expect(
+      labels.some((t: string) => t.includes("menus.notificationSearch"))
+    ).toBe(true);
+    expect(
+      labels.some((t: string) => t.includes("menus.notificationReset"))
+    ).toBe(true);
   });
 
   it("hides 全部标为已读 button when unreadCount is 0", () => {
     const wrapper = mountInbox();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
     expect(
       labels.some((t: string) => t.includes("menus.notificationMarkAllRead"))
     ).toBe(false);
@@ -117,7 +118,13 @@ it("renders 搜索 and 重置 buttons via i18n key", () => {
       ...defaultInboxApi(),
       dataList: {
         value: [
-          { id: 42, title: "测试公告", body: "正文", pinned: false, popover: false }
+          {
+            id: 42,
+            title: "测试公告",
+            body: "正文",
+            pinned: false,
+            popover: false
+          }
         ]
       }
     });

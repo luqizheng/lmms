@@ -144,9 +144,9 @@ onMounted(refresh);
           @click="onCreate"
           >{{ t("menus.apiKeyCreate") }}</el-button
         >
-        <el-button :icon="useRenderIcon(Refresh)" @click="refresh"
-          >{{ t("menus.tenantRefresh") }}</el-button
-        >
+        <el-button :icon="useRenderIcon(Refresh)" @click="refresh">{{
+          t("menus.tenantRefresh")
+        }}</el-button>
       </el-form-item>
     </el-form>
     <el-alert

@@ -106,7 +106,11 @@ const {
       </el-form-item>
     </el-form>
 
-    <PureTableBar :title="t('menus.systemRole')" :columns="columns" @refresh="onSearch">
+    <PureTableBar
+      :title="t('menus.systemRole')"
+      :columns="columns"
+      @refresh="onSearch"
+    >
       <template #buttons>
         <el-button
           type="primary"

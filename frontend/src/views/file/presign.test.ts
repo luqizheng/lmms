@@ -65,10 +65,10 @@ describe("FilePresign mount", () => {
 
   it("renders 生成 URL button via i18n key", () => {
     const wrapper = mountPresign();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("menus.presignGenerateBtn"))).toBe(true);
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
+    expect(
+      labels.some((t: string) => t.includes("menus.presignGenerateBtn"))
+    ).toBe(true);
   });
 
   it("click 生成 URL with empty file_id shows message warning", async () => {

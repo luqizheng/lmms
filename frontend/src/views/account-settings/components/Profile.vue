@@ -41,7 +41,10 @@ const rules = reactive<FormRules<UserInfo>>({
   ]
 });
 
-function queryEmail(queryString: string, callback: (results: unknown[]) => void) {
+function queryEmail(
+  queryString: string,
+  callback: (results: unknown[]) => void
+) {
   const emailList = [
     { value: "@qq.com" },
     { value: "@126.com" },

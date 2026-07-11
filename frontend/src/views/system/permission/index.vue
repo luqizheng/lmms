@@ -41,7 +41,10 @@ const {
       :model="form"
       class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
     >
-      <el-form-item :label="`${t('menus.permissionSearchKeyword')}：`" prop="keyword">
+      <el-form-item
+        :label="`${t('menus.permissionSearchKeyword')}：`"
+        prop="keyword"
+      >
         <el-input
           v-model="form.keyword"
           :placeholder="t('menus.permissionPlaceholderKeyword')"
@@ -49,7 +52,10 @@ const {
           class="w-50!"
         />
       </el-form-item>
-      <el-form-item :label="`${t('menus.permissionCategory')}：`" prop="category">
+      <el-form-item
+        :label="`${t('menus.permissionCategory')}：`"
+        prop="category"
+      >
         <el-select
           v-model="form.category"
           :placeholder="t('menus.notificationFilterAll')"
@@ -76,7 +82,11 @@ const {
       </el-form-item>
     </el-form>
 
-    <PureTableBar :title="t('menus.systemPermission')" :columns="columns" @refresh="onSearch">
+    <PureTableBar
+      :title="t('menus.systemPermission')"
+      :columns="columns"
+      @refresh="onSearch"
+    >
       <template #buttons>
         <el-button
           type="primary"

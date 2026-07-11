@@ -63,7 +63,9 @@ const userStore = useUserStoreHook();
       <el-dropdown id="header-tenant" trigger="click">
         <div
           class="tenant-badge navbar-bg-hover hover:[&>svg]:animate-scale-bounce"
-          :title="userStore.tenantId ? `Tenant #${userStore.tenantId}` : '未登录'"
+          :title="
+            userStore.tenantId ? `Tenant #${userStore.tenantId}` : '未登录'
+          "
         >
           <IconifyIconOffline :icon="BuildingLine" />
           <span class="ml-1 text-xs">

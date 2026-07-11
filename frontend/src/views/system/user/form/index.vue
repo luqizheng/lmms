@@ -47,10 +47,7 @@ defineExpose({ getRef });
   >
     <el-row :gutter="30">
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item
-          :label="t('menus.userFormLabelNickname')"
-          prop="nickname"
-        >
+        <el-form-item :label="t('menus.userFormLabelNickname')" prop="nickname">
           <el-input
             v-model="newFormInline.nickname"
             clearable
@@ -59,10 +56,7 @@ defineExpose({ getRef });
         </el-form-item>
       </re-col>
       <re-col :value="12" :xs="24" :sm="24">
-        <el-form-item
-          :label="t('menus.userFormLabelUsername')"
-          prop="username"
-        >
+        <el-form-item :label="t('menus.userFormLabelUsername')" prop="username">
           <el-input
             v-model="newFormInline.username"
             clearable
@@ -77,10 +71,7 @@ defineExpose({ getRef });
         :xs="24"
         :sm="24"
       >
-        <el-form-item
-          :label="t('menus.userFormLabelPassword')"
-          prop="password"
-        >
+        <el-form-item :label="t('menus.userFormLabelPassword')" prop="password">
           <el-input
             v-model="newFormInline.password"
             clearable

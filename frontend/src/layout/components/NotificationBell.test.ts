@@ -75,12 +75,10 @@ beforeEach(() => {
   useNotificationStore.mockReturnValue(mockStore);
   mockNotification.mockClear();
   announceHandler = undefined;
-  (on as any).mockImplementation(
-    (evt: string, cb: any) => {
-      if (evt === "announcement") announceHandler = cb;
-      return () => {};
-    }
-  );
+  (on as any).mockImplementation((evt: string, cb: any) => {
+    if (evt === "announcement") announceHandler = cb;
+    return () => {};
+  });
   setupMockNotification();
 });
 

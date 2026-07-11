@@ -71,7 +71,10 @@ const {
         :model="form"
         class="search-form bg-bg_color w-full pl-8 pt-3 overflow-auto"
       >
-        <el-form-item :label="`${t('menus.userSearchUsername')}：`" prop="username">
+        <el-form-item
+          :label="`${t('menus.userSearchUsername')}：`"
+          prop="username"
+        >
           <el-input
             v-model="form.username"
             :placeholder="t('menus.userPlaceholderUsername')"

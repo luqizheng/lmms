@@ -5,7 +5,13 @@ describe("user-form-rule", () => {
   it("declares 5 expected fields", () => {
     const keys = Object.keys(formRules);
     expect(keys).toEqual(
-      expect.arrayContaining(["nickname", "username", "password", "phone", "email"])
+      expect.arrayContaining([
+        "nickname",
+        "username",
+        "password",
+        "phone",
+        "email"
+      ])
     );
     expect(keys).toHaveLength(5);
   });

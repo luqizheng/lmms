@@ -69,12 +69,16 @@ function onFullscreen() {
           <el-option
             v-for="item in menuConfigs"
             :key="item.id"
-            :label="t('menus.menuVersionOptionFormat', {
-              version: item.version,
-              name: item.name,
-              status: item.status,
-              active: item.is_active ? t('menus.menuVersionActive') : t('menus.menuVersionNotActive')
-            })"
+            :label="
+              t('menus.menuVersionOptionFormat', {
+                version: item.version,
+                name: item.name,
+                status: item.status,
+                active: item.is_active
+                  ? t('menus.menuVersionActive')
+                  : t('menus.menuVersionNotActive')
+              })
+            "
             :value="item.id"
           />
         </el-select>
@@ -95,9 +99,11 @@ function onFullscreen() {
     </el-form>
 
     <PureTableBar
-      :title="currentConfig
-        ? `${t('menus.systemMenu')}（v${currentConfig.version} ${currentConfig.status}）`
-        : t('menus.systemMenu')"
+      :title="
+        currentConfig
+          ? `${t('menus.systemMenu')}（v${currentConfig.version} ${currentConfig.status}）`
+          : t('menus.systemMenu')
+      "
       :columns="columns"
       :isExpandAll="false"
       :tableRef="tableRef?.getTableRef()"
@@ -164,12 +170,23 @@ function onFullscreen() {
               :size="size"
               :icon="useRenderIcon(AddFill)"
               :disabled="!isEditable"
-              @click="openDialog(t('menus.dialogActionCreate'), { parentId: row.id } as any)"
+              @click="
+                openDialog(t('menus.dialogActionCreate'), {
+                  parentId: row.id
+                } as any)
+              "
             >
               {{ t("menus.notificationNew") }}
             </el-button>
             <el-popconfirm
-              :title="t('menus.menuConfirmDelete', { name: transformI18n(row.title) }) + (row?.children?.length > 0 ? '。' + t('menus.menuChildrenNote') : '')"
+              :title="
+                t('menus.menuConfirmDelete', {
+                  name: transformI18n(row.title)
+                }) +
+                (row?.children?.length > 0
+                  ? '。' + t('menus.menuChildrenNote')
+                  : '')
+              "
               @confirm="handleDelete(row)"
             >
               <template #reference>

@@ -111,7 +111,9 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card class="bar-card" shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">{{ t("menus.welcomeCardOverview") }}</span>
+            <span class="text-md font-medium">{{
+              t("menus.welcomeCardOverview")
+            }}</span>
             <Segmented v-model="curWeek" :options="optionsBasis" />
           </div>
           <div class="flex justify-between items-start mt-3">
@@ -142,7 +144,9 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">{{ t("menus.welcomeCardResolution") }}</span>
+            <span class="text-md font-medium">{{
+              t("menus.welcomeCardResolution")
+            }}</span>
           </div>
           <div
             v-for="(item, index) in progressData"
@@ -189,7 +193,9 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">{{ t("menus.welcomeCardDataStats") }}</span>
+            <span class="text-md font-medium">{{
+              t("menus.welcomeCardDataStats")
+            }}</span>
           </div>
           <el-scrollbar max-height="504" class="mt-3">
             <WelcomeTable />
@@ -216,7 +222,9 @@ const optionsBasis: Array<OptionsType> = [
       >
         <el-card shadow="never">
           <div class="flex justify-between">
-            <span class="text-md font-medium">{{ t("menus.welcomeCardLatest") }}</span>
+            <span class="text-md font-medium">{{
+              t("menus.welcomeCardLatest")
+            }}</span>
           </div>
           <el-scrollbar max-height="504" class="mt-3">
             <el-timeline>

@@ -4,7 +4,9 @@ import { formRules } from "./rule";
 describe("notification-admin-form-rule", () => {
   it("declares title / body / publish_at", () => {
     const keys = Object.keys(formRules);
-    expect(keys).toEqual(expect.arrayContaining(["title", "body", "publish_at"]));
+    expect(keys).toEqual(
+      expect.arrayContaining(["title", "body", "publish_at"])
+    );
     expect(keys).toHaveLength(3);
   });
 

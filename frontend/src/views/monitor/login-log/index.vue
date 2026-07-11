@@ -62,7 +62,11 @@ async function onExportCsv() {
         {{ t("menus.monitorExportCsv") }}
       </el-button>
     </div>
-    <PureTableBar :title="t('menus.loginMonitorLog')" :columns="columns" @refresh="onSearch">
+    <PureTableBar
+      :title="t('menus.loginMonitorLog')"
+      :columns="columns"
+      @refresh="onSearch"
+    >
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           align-whole="center"

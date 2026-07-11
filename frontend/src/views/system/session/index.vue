@@ -38,13 +38,10 @@ const columns = [
     label: t("menus.sessionColumnStatus"),
     width: 90,
     cellRenderer: ({ row }: { row: IamSession }) =>
-      h(
-        ElTag,
-        { type: row.is_current ? "success" : "info" },
-        () =>
-          row.is_current
-            ? t("menus.sessionStatusCurrent")
-            : t("menus.sessionStatusActive")
+      h(ElTag, { type: row.is_current ? "success" : "info" }, () =>
+        row.is_current
+          ? t("menus.sessionStatusCurrent")
+          : t("menus.sessionStatusActive")
       )
   },
   {

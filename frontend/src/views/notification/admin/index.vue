@@ -53,7 +53,10 @@ function reset() {
           class="w-40!"
         >
           <el-option :label="t('menus.notificationDraft')" value="draft" />
-          <el-option :label="t('menus.notificationPublished')" value="published" />
+          <el-option
+            :label="t('menus.notificationPublished')"
+            value="published"
+          />
           <el-option :label="t('menus.notificationRevoked')" value="revoked" />
         </el-select>
       </el-form-item>

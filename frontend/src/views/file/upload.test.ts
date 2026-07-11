@@ -6,12 +6,13 @@ vi.hoisted(() => {
   process.env.VITE_ROUTER_HISTORY = "hash";
 });
 
-const { uploadFile, elMessageError, elMessageWarning, elMessageSuccess } = vi.hoisted(() => ({
-  uploadFile: vi.fn(),
-  elMessageError: vi.fn(),
-  elMessageWarning: vi.fn(),
-  elMessageSuccess: vi.fn()
-}));
+const { uploadFile, elMessageError, elMessageWarning, elMessageSuccess } =
+  vi.hoisted(() => ({
+    uploadFile: vi.fn(),
+    elMessageError: vi.fn(),
+    elMessageWarning: vi.fn(),
+    elMessageSuccess: vi.fn()
+  }));
 
 vi.mock("@/api/file", () => ({ uploadFile }));
 vi.mock("@/api/file/limits", () => ({
@@ -73,9 +74,7 @@ describe("FileUpload mount", () => {
 
   it("renders 提交上传 button (i18n key)", () => {
     const wrapper = mountUpload();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
     expect(
       labels.some((t: string) => t.includes("menus.fileUploadSubmit"))
     ).toBe(true);
@@ -88,7 +87,9 @@ describe("FileUpload mount", () => {
       .find((b: any) => b.text().includes("menus.fileUploadSubmit"));
     await btn.trigger("click");
     await flushPromises();
-    expect(elMessageWarning).toHaveBeenCalledWith("menus.fileUploadSelectFirst");
+    expect(elMessageWarning).toHaveBeenCalledWith(
+      "menus.fileUploadSelectFirst"
+    );
     expect(uploadFile).not.toHaveBeenCalled();
   });
 

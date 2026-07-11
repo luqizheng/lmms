@@ -28,7 +28,7 @@ vi.mock("@pureadmin/utils", () => ({
 vi.mock("@/components/ReCropperPreview", () => ({
   default: {
     name: "ReCropperPreview",
-    template: "<div class=\"re-cropper\"></div>",
+    template: '<div class="re-cropper"></div>',
     methods: { hidePopover: vi.fn() }
   }
 }));
@@ -44,7 +44,7 @@ const elStubs: Record<string, any> = {
   ElInput: { template: "<input />" },
   ElButton: { template: "<button><slot /></button>" },
   ElAutocomplete: { template: "<input />" },
-  ElAvatar: { template: "<div class=\"el-avatar\"></div>" },
+  ElAvatar: { template: '<div class="el-avatar"></div>' },
   ElUpload: { template: "<div><slot /></div>" },
   ElDialog: { template: "<div><slot /></div>" },
   ElTextarea: { template: "<textarea />" }
