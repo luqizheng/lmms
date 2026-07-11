@@ -447,6 +447,14 @@ menus:
   configNamespaceConfirmDelete: "Confirm delete namespace {app}?"
   configNamespacePromptApp: App name
   configNamespacePromptEnv: 'Env (e.g. dev/staging/prod)'
+  configNamespaceSelectEnv: Select
+  configNamespaceDialogTitle: New Namespace
+  configNamespaceFieldProfile: Profile
+  configNamespacePlaceholderProfile: "e.g. default (optional)"
+  configNamespaceFieldDescription: Description
+  configNamespacePlaceholderDescription: "Enter description (optional)"
+  configNamespaceCancel: Cancel
+  configNamespaceConfirm: Confirm
   configItemCreate: New
   configItemConfirmDelete: "Delete {key}?"
   configItemPromptKey: Config Key

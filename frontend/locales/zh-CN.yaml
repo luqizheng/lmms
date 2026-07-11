@@ -447,6 +447,14 @@ menus:
   configNamespaceConfirmDelete: "确认删除命名空间 {app}？"
   configNamespacePromptApp: App 名称
   configNamespacePromptEnv: "Env（如 dev/staging/prod）"
+  configNamespaceSelectEnv: 请选择
+  configNamespaceDialogTitle: 新建命名空间
+  configNamespaceFieldProfile: Profile
+  configNamespacePlaceholderProfile: "如 default（可选）"
+  configNamespaceFieldDescription: 描述
+  configNamespacePlaceholderDescription: "请输入描述（可选）"
+  configNamespaceCancel: 取消
+  configNamespaceConfirm: 确定
   configItemCreate: 新建
   configItemConfirmDelete: "删除 {key}？"
   configItemPromptKey: 配置 Key

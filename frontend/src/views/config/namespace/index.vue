@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, h, computed } from "vue";
+import { ref, h, computed, reactive } from "vue";
 import { useI18n } from "vue-i18n";
 import { listNamespaces, createNamespace, deleteNamespace } from "@/api/config";
 import { PureTableBar } from "@/components/RePureTableBar";
@@ -7,7 +7,8 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
 import { translateError } from "@/utils/error-translate";
 import { hasPerms } from "@/utils/auth";
-import { ElButton, ElTag } from "element-plus";
+import { ElButton, ElTag, ElSelect, ElOption } from "element-plus";
+import type { FormInstance, FormRules } from "element-plus";
 import Refresh from "~icons/ep/refresh";
 import Search from "~icons/ri/search-line";
 import AddFill from "~icons/ri/add-circle-line";
@@ -20,6 +21,50 @@ const total = ref(0);
 const form = ref({ keyword: "" });
 const page = ref(1);
 const size = ref(20);
+
+const createDialogVisible = ref(false);
+const createSubmitting = ref(false);
+const createFormRef = ref<FormInstance>();
+const createForm = reactive({
+  app: "",
+  env: "",
+  profile: "",
+  description: ""
+});
+const envOptions = [
+  { value: "dev", label: "dev" },
+  { value: "staging", label: "staging" },
+  { value: "prod", label: "prod" }
+];
+const createRules: FormRules = {
+  app: [
+    {
+      required: true,
+      message: t("menus.configNamespacePromptApp"),
+      trigger: "blur"
+    }
+  ],
+  env: [
+    {
+      required: true,
+      message: t("menus.configNamespacePromptEnv"),
+      trigger: "change"
+    }
+  ]
+};
+
+function resetCreateForm() {
+  createForm.app = "";
+  createForm.env = "";
+  createForm.profile = "";
+  createForm.description = "";
+  createFormRef.value?.clearValidate();
+}
+
+function openCreateDialog() {
+  resetCreateForm();
+  createDialogVisible.value = true;
+}
 
 const columns = computed(() => [
   { label: t("menus.configColumnId"), prop: "id", minWidth: 100 },
@@ -62,19 +107,28 @@ async function onSearch() {
 }
 
 async function onCreate() {
-  const app = window.prompt(t("menus.configNamespacePromptApp"));
-  if (!app) return;
-  const env = window.prompt(t("menus.configNamespacePromptEnv"));
-  if (!env) return;
-  try {
-    await createNamespace({ app, env } as any);
-    message(t("menus.configCreated"), { type: "success" });
-    onSearch();
-  } catch (e: any) {
-    message(translateError(e?.code ?? t("menus.configCreateFailFallback")), {
-      type: "error"
-    });
-  }
+  if (!createFormRef.value) return;
+  await createFormRef.value.validate(async valid => {
+    if (!valid) return;
+    createSubmitting.value = true;
+    try {
+      await createNamespace({
+        app: createForm.app,
+        env: createForm.env,
+        profile: createForm.profile || undefined,
+        description: createForm.description || undefined
+      } as any);
+      message(t("menus.configCreated"), { type: "success" });
+      createDialogVisible.value = false;
+      onSearch();
+    } catch (e: any) {
+      message(translateError(e?.code ?? t("menus.configCreateFailFallback")), {
+        type: "error"
+      });
+    } finally {
+      createSubmitting.value = false;
+    }
+  });
 }
 
 async function onDelete(row: any) {
@@ -118,7 +172,7 @@ async function onDelete(row: any) {
           v-if="hasPerms(['CFG_NAMESPACE_CREATE'])"
           type="primary"
           :icon="useRenderIcon(AddFill)"
-          @click="onCreate"
+          @click="openCreateDialog"
           >{{ t("menus.configNamespaceCreate") }}</el-button
         >
       </el-form-item>
@@ -134,5 +188,69 @@ async function onDelete(row: any) {
         />
       </template>
     </PureTableBar>
+
+    <el-dialog
+      v-model="createDialogVisible"
+      :title="t('menus.configNamespaceDialogTitle')"
+      width="480px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        label-width="90px"
+      >
+        <el-form-item :label="t('menus.configColumnApp')" prop="app">
+          <el-input
+            v-model="createForm.app"
+            :placeholder="t('menus.configNamespacePromptApp')"
+          />
+        </el-form-item>
+        <el-form-item :label="t('menus.configColumnEnv')" prop="env">
+          <el-select
+            v-model="createForm.env"
+            :placeholder="t('menus.configNamespaceSelectEnv')"
+          >
+            <el-option
+              v-for="opt in envOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          :label="t('menus.configNamespaceFieldProfile')"
+          prop="profile"
+        >
+          <el-input
+            v-model="createForm.profile"
+            :placeholder="t('menus.configNamespacePlaceholderProfile')"
+          />
+        </el-form-item>
+        <el-form-item
+          :label="t('menus.configNamespaceFieldDescription')"
+          prop="description"
+        >
+          <el-input
+            v-model="createForm.description"
+            type="textarea"
+            :placeholder="t('menus.configNamespacePlaceholderDescription')"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">{{
+          t("menus.configNamespaceCancel")
+        }}</el-button>
+        <el-button
+          type="primary"
+          :loading="createSubmitting"
+          @click="onCreate"
+          >{{ t("menus.configNamespaceConfirm") }}</el-button
+        >
+      </template>
+    </el-dialog>
   </div>
 </template>
