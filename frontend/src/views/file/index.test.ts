@@ -13,7 +13,22 @@ const { listFiles, deleteFile, message, routerPush } = vi.hoisted(() => ({
   routerPush: vi.fn()
 }));
 
-vi.mock("@/api/file", () => ({ listFiles, deleteFile }));
+vi.mock("@/api/file", () => ({
+  listFiles,
+  deleteFile,
+  // 与 src/api/file/file-url.ts 同步改,两边保持一致
+  fileUrl: (path?: string | null): string => {
+    if (!path) return "";
+    const trimmed = path.trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    const base =
+      (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api";
+    const prefix = base.endsWith("/") ? base.slice(0, -1) : base;
+    const suffix = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    return `${prefix}${suffix}`;
+  }
+}));
 vi.mock("@/api/file/limits", () => ({
   checkFileSize: () => true,
   FILE_MAX_SIZE_MB: 100
@@ -27,8 +42,7 @@ vi.mock("@/utils/auth", () => ({ hasPerms: () => true }));
 vi.mock("@/components/RePureTableBar", () => ({
   PureTableBar: {
     name: "PureTableBar",
-    template:
-      '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
+    template: '<div class="pure-table-bar-stub" :title="title"><slot /></div>',
     props: ["title"]
   }
 }));
@@ -52,8 +66,8 @@ const elStubs: Record<string, any> = {
   ElForm: { template: "<form><slot /></form>" },
   ElFormItem: { template: "<div><slot /></div>" },
   ElInput: { template: "<input />" },
-  ElTag: { template: "<span class=\"el-tag\"><slot /></span>" },
-  ElImage: { template: "<img class=\"el-image-stub\" />" }
+  ElTag: { template: '<span class="el-tag"><slot /></span>' },
+  ElImage: { template: '<img class="el-image-stub" />' }
 };
 
 function mountFile() {
@@ -79,11 +93,13 @@ describe("FileList mount", () => {
 
   it("renders buttons via i18n keys", () => {
     const wrapper = mountFile();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
-    expect(labels.some((t: string) => t.includes("menus.notificationSearch"))).toBe(true);
-    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(true);
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
+    expect(
+      labels.some((t: string) => t.includes("menus.notificationSearch"))
+    ).toBe(true);
+    expect(labels.some((t: string) => t.includes("menus.tenantRefresh"))).toBe(
+      true
+    );
     expect(labels.some((t: string) => t.includes("menus.fileNew"))).toBe(true);
   });
 
@@ -108,12 +124,10 @@ describe("FileList mount", () => {
 
   it("hides 批量删除 button when no rows selected", () => {
     const wrapper = mountFile();
-    const labels = wrapper
-      .findAll("button")
-      .map((b: any) => b.text());
-    expect(
-      labels.some((t: string) => t.includes("menus.fileBulkDelete"))
-    ).toBe(false);
+    const labels = wrapper.findAll("button").map((b: any) => b.text());
+    expect(labels.some((t: string) => t.includes("menus.fileBulkDelete"))).toBe(
+      false
+    );
   });
 
   it("renders drop zone overlay (hidden by default)", () => {

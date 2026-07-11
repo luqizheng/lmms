@@ -2,7 +2,7 @@
 import { ref, computed, h } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { listFiles, deleteFile } from "@/api/file";
+import { listFiles, deleteFile, fileUrl } from "@/api/file";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
@@ -39,13 +39,14 @@ const columns = [
     minWidth: 220,
     cellRenderer: ({ row }: any) => {
       if (isImage(row.filename)) {
+        const imgSrc = fileUrl(row.url || row.preview_url);
         return h("div", { class: "flex items-center gap-2" }, [
           h(ElImage, {
-            src: row.url || row.preview_url || "",
+            src: imgSrc,
             alt: row.filename,
             class: "file-thumb",
             lazy: true,
-            "preview-src-list": [row.url || row.preview_url || ""],
+            "preview-src-list": imgSrc ? [imgSrc] : [],
             "hide-on-click-modal": true
           }),
           h("span", { class: "truncate" }, row.filename)
@@ -129,11 +130,7 @@ const selectedCount = computed(() => selectedRows.value.length);
 
 async function bulkDelete() {
   if (selectedCount.value === 0) return;
-  if (
-    !confirm(
-      t("menus.fileBulkDeleteConfirm", { n: selectedCount.value })
-    )
-  )
+  if (!confirm(t("menus.fileBulkDeleteConfirm", { n: selectedCount.value })))
     return;
   let ok = 0;
   let fail = 0;
@@ -215,9 +212,9 @@ function onDrop(e: DragEvent) {
           @click="onSearch"
           >{{ t("menus.notificationSearch") }}</el-button
         >
-        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch"
-          >{{ t("menus.tenantRefresh") }}</el-button
-        >
+        <el-button :icon="useRenderIcon(Refresh)" @click="onSearch">{{
+          t("menus.tenantRefresh")
+        }}</el-button>
         <el-button
           v-if="hasPerms(['FILE_UPLOAD'])"
           type="success"

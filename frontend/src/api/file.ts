@@ -65,3 +65,5 @@ export function createPresign(body: CreatePresignUrl) {
     data: body
   });
 }
+
+export { fileUrl } from "./file/file-url";
