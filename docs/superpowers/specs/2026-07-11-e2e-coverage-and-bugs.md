@@ -44,6 +44,7 @@
 | `90b4693` | test(e2e): 补 P2 config/menu 端点 + session revoke |
 | `7a72dfa` | test(e2e): 加网关限流 e2e 脚本（rl-auth-login + rl-default） |
 | `fb9e72f` | **fix(ratelimit): Bug #4 已修** — pipeline → Lua 脚本（详见 §2 Bug #4） |
+| `c621022` | **fix(iam): Bug #1 已修** — refresh SQL 补齐 10 字段（详见 §2 Bug #1） |
 
 ---
 
@@ -125,11 +126,13 @@ match count {
 
 ---
 
-### 🔴 高：Bug #1 — iam refresh 端点 SQL 漏字段
+### ✅ 已修：Bug #1 — iam refresh 端点 SQL 漏字段
 
 **位置**：`services/iam-service/src/service/auth_svc.rs:171`
 
-**复现**：
+**修复 commit**：`c621022` `fix(iam): Bug #1 refresh 端点 SQL 漏字段 → 永远 401`
+
+**复现**（修复前）：
 ```bash
 # admin login → 拿 refresh_token → 立即 refresh
 RT=$(curl -s -X POST http://localhost:3000/v1/iam/auth/login \
@@ -140,12 +143,13 @@ curl -X POST http://localhost:3000/v1/iam/auth/refresh \
   -H 'Content-Type: application/json' \
   -d "{\"refresh_token\":\"$RT\"}"
 # 期望：200 + 新 token
-# 实际：401 "token expired"
+# 实际（修复前）：401 "token expired"
+# 实际（修复后）：200 + 新 access_token + 新 refresh_token
 ```
 
 **根因**：
 ```rust
-// line 171: SELECT 只 6 字段
+// line 171（修复前）: SELECT 只 6 字段
 "SELECT id, user_id, token_hash, expires_at, revoked, created_at FROM iam_refresh_tokens WHERE token_hash = ?"
 // 但 RefreshToken struct 有 10 字段：
 //   pub struct RefreshToken { id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at }
@@ -155,9 +159,21 @@ curl -X POST http://localhost:3000/v1/iam/auth/refresh \
 
 **生产影响**：refresh_token 流程完全失效（不仅是 e2e，任何 SDK 走 OAuth refresh 都会失败）
 
-**修复**：line 171 SQL 补齐为完整 10 字段（参考同文件 line 277 list_sessions 的 SQL）
+**修复**（最小修改，SQL 字段补齐）：
+```rust
+// line 171（修复后）: 完整 10 字段
+"SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE token_hash = ?"
+```
 
-**优先级**：P0 — 核心 auth 流断
+字段顺序与 `RefreshToken` struct 严格对应（sqlx `FromRow` derive 按声明顺序填充）。同文件 line 265（`list_sessions`）的 SQL 早已是完整 10 字段，本次修复与之一致。
+
+**修复后验证**：
+- `cargo test -p iam-service --lib` — 1/1 pass
+- 直接 curl 复现：refresh 返回 200 + 新 access_token
+- e2e `AUTH-REFRESH-LOGIN` + `AUTH-REFRESH-001` — 2/2 pass（修复前 1 skip + 1 fail）
+- e2e `AUTH-REFRESH-001` 取消 skip + `smoke: true`（之前标 skip 揭示 bug）
+
+**详细 spec**：`docs/superpowers/specs/2026-07-11-fix-iam-refresh-sql-design.md`
 
 ---
 
@@ -271,7 +287,7 @@ prue_backend           ███████████████████
 ### 立即（本周）
 
 1. ✅ **修 Bug #4**（限流失效）—— **已完成**（commit `fb9e72f`，详见 §2）
-2. **修 Bug #1**（refresh 失效）—— P0 核心 auth 流
+2. ✅ **修 Bug #1**（refresh 失效）—— **已完成**（commit `c621022`，详见 §2）
 3. **修 Bug #2**（logout 黑名单）—— P1（需先决定方案 A 或 B）
 4. **修 Bug #3**（audit export）—— P1 合规
 5. **补 `/v1/tokens/service-jwt` 网关路由** —— 解锁 service-jwt 链路 e2e
