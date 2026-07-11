@@ -9,15 +9,18 @@ use crate::routes::AppState;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
-        .route("/export/compliance/operation/csv", axum::routing::get(export_operation_csv))
-        .route("/export/compliance/operation/json", axum::routing::get(export_operation_json))
-        .route("/export/compliance/login/csv", axum::routing::get(export_login_csv))
+        .route("/export/compliance/operation/csv/{user_id}", axum::routing::get(export_operation_csv))
+        .route("/export/compliance/operation/json/{user_id}", axum::routing::get(export_operation_json))
+        .route("/export/compliance/login/csv/{user_id}", axum::routing::get(export_login_csv))
         .with_state(state)
 }
 
 #[utoipa::path(
     get,
-    path = "/audit/export/compliance/operation/csv",
+    path = "/audit/export/compliance/operation/csv/{user_id}",
+    params(
+        ("user_id" = String, Path, description = "User id to export operation logs for"),
+    ),
     responses(
         (status = 200, description = "CSV export of operation logs", body = String),
     ),
@@ -52,7 +55,10 @@ pub async fn export_operation_csv(
 
 #[utoipa::path(
     get,
-    path = "/audit/export/compliance/operation/json",
+    path = "/audit/export/compliance/operation/json/{user_id}",
+    params(
+        ("user_id" = String, Path, description = "User id to export operation logs for"),
+    ),
     responses(
         (status = 200, description = "JSON export of operation logs", body = String),
     ),
@@ -74,7 +80,10 @@ pub async fn export_operation_json(
 
 #[utoipa::path(
     get,
-    path = "/audit/export/compliance/login/csv",
+    path = "/audit/export/compliance/login/csv/{user_id}",
+    params(
+        ("user_id" = String, Path, description = "User id to export login logs for"),
+    ),
     responses(
         (status = 200, description = "CSV export of login logs", body = String),
     ),

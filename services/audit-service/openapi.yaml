@@ -6,11 +6,18 @@ info:
     name: ''
   version: 0.1.0
 paths:
-  /audit/export/compliance/login/csv:
+  /audit/export/compliance/login/csv/{user_id}:
     get:
       tags:
       - compliance
       operationId: export_login_csv
+      parameters:
+      - name: user_id
+        in: path
+        description: User id to export login logs for
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: CSV export of login logs
@@ -18,11 +25,18 @@ paths:
             text/plain:
               schema:
                 type: string
-  /audit/export/compliance/operation/csv:
+  /audit/export/compliance/operation/csv/{user_id}:
     get:
       tags:
       - compliance
       operationId: export_operation_csv
+      parameters:
+      - name: user_id
+        in: path
+        description: User id to export operation logs for
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: CSV export of operation logs
@@ -30,11 +44,18 @@ paths:
             text/plain:
               schema:
                 type: string
-  /audit/export/compliance/operation/json:
+  /audit/export/compliance/operation/json/{user_id}:
     get:
       tags:
       - compliance
       operationId: export_operation_json
+      parameters:
+      - name: user_id
+        in: path
+        description: User id to export operation logs for
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: JSON export of operation logs
