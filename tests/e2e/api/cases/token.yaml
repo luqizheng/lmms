@@ -103,7 +103,7 @@ cases:
 
   # ──── User JWT ────
   - caseId: TOKEN-USER-JWT-001
-    desc: 签发 user JWT
+    desc: 签发 user JWT（service-jwt 鉴权，user-jwt 直调会被拒）
     method: POST
     path: /v1/tokens/user-jwt
     body:
@@ -114,3 +114,38 @@ cases:
     expect:
       - $.access_token exists
       - $.expires_in exists
+    skip: true
+
+  # ──── service-jwt 签发（bootstrap-token flow） ────
+  - caseId: TOKEN-SERVICE-JWT-001
+    desc: bootstrap-token 签发 service-jwt (aud=iam-service) — 替代 /tokens/access（authorization_code grant 走浏览器流程，e2e 不可达）；待基础设施补 /v1/tokens/service-jwt 路由
+    method: POST
+    path: /v1/tokens/service-jwt
+    auth: false
+    headers:
+      Authorization: Bearer dev-bt-iam-service
+    body:
+      aud: iam-service
+      tid: 1
+    expectStatus: 200
+    expect:
+      - $.access_token exists
+      - $.expires_in exists
+    skip: true
+
+  # ──── 用 service-jwt 调 user-jwt（完整 service 间调用链） ────
+  - caseId: TOKEN-USER-JWT-002
+    desc: 带 service-jwt 调 /tokens/user-jwt 签发 user JWT（完整服务间调用链）— 依赖 SERVICE-JWT-001
+    method: POST
+    path: /v1/tokens/user-jwt
+    headers:
+      Authorization: Bearer ${TOKEN-SERVICE-JWT-001.access_token}
+    body:
+      user_id: e2e-test-admin
+      user_code: e2eadmin
+      ttl_secs: 300
+    expectStatus: 200
+    expect:
+      - $.access_token exists
+      - $.expires_in exists
+    skip: true
