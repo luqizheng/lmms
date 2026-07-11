@@ -37,7 +37,7 @@ AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码�
 
 ## Git 与提交规范
 
-- **直接在 `main` 上工作**，不开 feature 分支；**一个任务一个 commit**；**禁止 amend / force-push**。
+- **任务分支优先**：新阶段功能 / 验证工作从 `main` 新建描述性分支（如 `validation/software-project-management`、`feat/<scope>`）；**一个任务一个 commit**；**禁止 amend / force-push**。
 - Commit message：`<Phase>:<summary>` 或 `feat(scope): <summary>`（如 `docs(plan): ...`、`fix: ...`）。
 - **改代码前先有 spec**：`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`，同提交周期内创建。
 
