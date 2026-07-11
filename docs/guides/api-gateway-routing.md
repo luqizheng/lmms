@@ -17,10 +17,15 @@ infrastructure/config/api-gateway/
     ├── iam.router.toml
     ├── notification.router.toml
     ├── permissions.router.toml
+    ├── project.router.toml
     ├── prue_backend.router.toml
     ├── roles.router.toml
     ├── token.router.toml
     └── user.router.toml
+```
+
+> Phase 9: `project.router.toml` is the Spring Boot service route — see
+> services/project-service/openapi.yaml for the matching upstream paths.
 ```
 
 - `routes/` 下所有匹配 `*.router.toml` 的文件会被加载

@@ -29,6 +29,7 @@
 | `audit-service` | 8084 | 8084 | MySQL | Axum | 操作日志 + 登录日志、留存、合规导出。**事件消费者** | — |
 | `config-service` | 8081 | 8085 | MySQL | Axum | 命名空间、配置项、watch 通知 | — |
 | `file-service` | 8082 | 8086 | MySQL | Axum | 文件元数据、预签名上传、下载 | — |
+| `project-service` | 8080 | 6008 | MySQL | Spring Boot 3 + Java 25 + JPA | 软件项目管理系统 PMD（项目 / 里程碑 / 任务 / sprint / LLM 细化 / 多租户）。**事件生产者**（Java `OutboxWriter` 同事务写 `pmd_outbox_events` → Rust `pmd-outbox-publisher` 发往 RabbitMQ）。**占位 LLM**（`PlaceholderLlmProvider`，无外部 HTTP）。 | — |
 | `rabbitmq` | 5672/15672 | 5672/15672 | — | RabbitMQ 3.13 | 事件总线 broker；拓扑通过 `infrastructure/config/rabbitmq/definitions.json` 预声明 | — |
 | `registrator` | — | — | — | gliderlabs/registrator:master | 项目级服务注册：监听 `/var/run/docker.sock`，读容器 `SERVICE_*` label → PUT `/v1/agent/service/register`（**phase5a-2 替代了 6 个 sidecar + `consul connect proxy -register`）** | — |
 

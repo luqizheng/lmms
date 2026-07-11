@@ -138,3 +138,49 @@ Worker 必须以 `services/iam-outbox-publisher/src/main.rs` 与 `libs/common-ev
 ## 8. Worker 执行入口
 
 执行计划见 `.omo/plans/project-mvp.md`。本 spec 取代早期 Rust 版 PMD MVP spec。若同时存在 `2026-07-11-pm-platform-design.md`，该文件视为更大范围平台草案，不作为本 MVP worker 的 source of truth。
+
+---
+
+## Status: ✅ Implemented (Phase 9 MVP)
+
+Implementation landed on branch `prod/software-project-management` (merge of `validation/software-project-management`).
+Source of truth for downstream: this file + `.omo/plans/project-mvp.md` (plan) + `.omo/drafts/project-mvp.md` (adoption ledger).
+
+### Commits (12 code + 1 evidence-only)
+
+| # | SHA | Title |
+|---|---|---|
+| 0 | `b0c6b0a` | chore(repo): allow task branches for new phase validation work |
+| 1 | `b6f7f5c` | feat(contracts): add pmd permissions, error codes, events, table prefix |
+| 2 | `550393b` | feat(project-service): scaffold Spring Boot 3 service (Java 25 + JPA + Flyway) |
+| 3 | `2321af3` | feat(project-service): add v001 init migrations (pmd prefix) |
+| 4 | `25c2f40` | feat(rabbit): add audit.pmd-events queue + pmd.# binding |
+| 5 | `1967280` | feat(pmd-outbox-publisher): scaffold bin cloning iam-outbox-publisher |
+| 6 | `7131e0e` | feat(project-service): implement project/milestone/task CRUD with Spring + JPA |
+| 7 | `2bbbf0d` | feat(project-service): add llm refiner module with placeholder impl (Java) |
+| 8 | `603e842` | feat(audit): consume pmd.# events into audit_events |
+| 9 | `a501853` | feat(gateway): route /v1/project/* + commit springdoc openapi yaml |
+| 10 | `a6d8bdd` | chore(runtime): add project-service + pmd-outbox-publisher to docker-compose |
+| 11 | `2c0c229` | test(e2e): add project-service smoke + api cases |
+| 12 | evidence | CI gates verification recorded under `.omo/evidence/task-12-*.md` |
+
+### Rollback guidance
+
+| Concern | Recovery |
+|---|---|
+| contract drift after deploy | `node scripts/contracts-gen.js` then `git diff libs/`; commit fixes |
+| cross-language outbox schema drift | fall back to `nproc ninjia pmd.pmd_outbox_events` inspect; columns are pinned in V001__init.sql + mirror tested at `libs/common-event::outbox::MySqlOutboxRepo::enqueue` SQL string |
+| LLM provider swap | `PMD_LLM_PROVIDER=http` env activates future HttpLlmProvider bean (Phase 10); placeholder continues to serve the `placeholder` value |
+| audit event backlog | monitor `audit_events.received_at` lag; `audit.pmd-events` queue rabbitmq mgmt UI distinct from `audit.iam-events` |
+| Java toolchain missing in image | `service-standard` CI now detects Spring Boot 3 via the T2 extension; add Dockerfile / Java tool to dev env (Phase 9.5 follow-up) |
+
+### Follow-up specs (deferred to Phase 10)
+
+- `pmd.outbox.archive.cron` — outbox archive table + retention policy
+- `LlmProvider.http` — Ark/Ollama/HTTP-backed providers; `pmd.llm.provider` env dispatcher
+- `Markdown/*` — markdown docs / spaces / versions (KB)
+- `CR/*` — change requests lifecycle + audit
+- `Resource / Worklog` — resource table + worklog + capacity reporting
+- `Milestone.Gantt` — milestone view + dependency graph
+
+This spec will be retired once Phase 10 lands; the Phase 9 PMD MVP is what production runs.
