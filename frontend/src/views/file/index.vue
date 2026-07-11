@@ -238,7 +238,7 @@ function onDrop(e: DragEvent) {
       </el-tag>
     </div>
 
-    <PureTableBar :title="t('menus.fileColumnFilename')" @refresh="onSearch">
+    <PureTableBar :title="t('menus.fileColumnFilename')" @refresh="onSearch" :columns="columns" >
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
           align-whole="center"
