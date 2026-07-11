@@ -12,7 +12,7 @@
 
 - **仓库布局**：monorepo，含 `services/`（Rust）、`frontend/`（Vue 3）、`libs/`（Rust 共享库，含 `common-telemetry`）、`tests/e2e/`（Playwright + Vitest）、`contracts/`（错误码 / 权限码 / 事件的单一真相源）、`infrastructure/`（Consul/Redis/MySQL + 可观测性 overlay）。
 - **当前阶段**：Phase 3 完成 + OTel 扩展 + coder-new-service skill。13 项路线图任务全部交付（见 `docs/superpowers/specs/2026-06-25-roadmap-completion-summary.md`）。
-- **分支策略**：所有工作直接在 `main` 上进行，一个任务一个 commit，不开 feature 分支。
+- **分支策略**：新阶段功能 / 验证工作从 `main` 新建描述性任务分支（如 `validation/...`、`feat/...`）；一个任务一个 commit；禁止 amend / force-push。
 
 ---
 

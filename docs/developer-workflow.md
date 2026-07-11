@@ -140,7 +140,7 @@ git diff --exit-code -- 'services/*/openapi.yaml'   # ④ 确认无 drift
 
 ## 6. Phase 5 — 提交 & 推送
 
-**一句话**：直接 commit 到 `main`；一个任务一个 commit；不打 amend 不打 force-push。
+**一句话**：新阶段功能 / 验证工作先从 `main` 新建描述性任务分支（如 `validation/...`、`feat/...`），完成后合并回 `main`；一个任务一个 commit；不打 amend 不打 force-push。
 
 ```bash
 git add <精确的文件，别 git add .>
@@ -150,7 +150,7 @@ git push origin main
 
 | 限制 | 出处 |
 |---|---|
-| **不开 feature 分支** | `.trae/rules/project_rules.md` §1.2 |
+| **任务分支优先**（从 `main` 新建 `feat/<scope>` / `validation/<topic>` 等） | `.trae/rules/project_rules.md` §1.2 |
 | **一个 task 一个 commit** | 同上 |
 | **禁止 amend / force-push** | 同上 |
 | **commit 格式**：`<Phase>:<summary>` 或 `feat(scope): ...` | 同上 |

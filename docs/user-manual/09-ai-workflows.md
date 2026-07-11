@@ -58,7 +58,7 @@ AI Agent 会根据你触碰的路径自动加载 Skill：
 
 ## 9.4 提交规范
 
-- **直接在 `main` 上工作**（项目处于开发阶段，无 feature 分支）
+- **任务分支优先**：新阶段功能 / 验证工作从 `main` 新建描述性分支（如 `validation/...`、`feat/...`）
 - **一个任务一个 commit**
 - **禁止 amend / force-push**
 - Commit message：`<Phase>:<summary>` 或 `feat(scope): <summary>`

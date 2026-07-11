@@ -20,7 +20,7 @@ AI agents MUST load this file on first file touch in this repo.
 
 ### 1.2 Commit & Branch Policy
 
-- **Work directly on `main`.** Do NOT create feature branches.
+- **Use task branches for feature/validation work.** Create a descriptive branch from `main` (for example `validation/software-project-management` or `feat/<scope>`), keep it synced with `main` as needed, and merge back only after gates pass.
 - **One task per commit.** Don't bundle unrelated changes.
 - **Never amend or force-push.** If a commit fails, create a new one.
 - **Commit message format**: `<Phase>:<short imperative summary>` or `feat(scope): <summary>`.
