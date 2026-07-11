@@ -188,20 +188,17 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     let http_client = reqwest::Client::new();
     use common_jwt::{JwksConfig, JWKSCache};
 
-    let jwks_cache = JWKSCache::new(JwksConfig {
+    let jwks_cache = Arc::new(JWKSCache::new(JwksConfig {
         url: cfg.jwks_url.clone(),
         ..Default::default()
-    }, http_client.clone());
-    // 降级为 warn：token-service 可能还在起；首个 JWT 验证时 JWKSCache 会自动 retry。
-    if let Err(e) = jwks_cache.refresh().await {
-        tracing::warn!(
-            "JWKS initial refresh failed (will retry on first verify): {e}; token-service must be reachable"
-        );
-    }
-    let jwks_cache = Arc::new(jwks_cache);
-
-    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
-    common_jwt::JWKSCache::spawn_refresh_loop(Arc::clone(&jwks_cache), shutdown_rx);
+    }, http_client.clone()));
+    // Block up to 30s on startup retry + spawn periodic refresh loop.
+    // Fixes docker-compose boot race: token-service may not be listening yet
+    // when api-gateway comes up; previously a single failed `refresh()` was
+    // warn-ignored and the cache stayed empty forever (401 on every verify).
+    let jwks_shutdown = Arc::clone(&jwks_cache)
+        .init_with_refresh_loop(std::time::Duration::from_secs(30))
+        .await;
 
     let redis_conn = blacklist::connect(&cfg.redis.url)
         .await
@@ -329,7 +326,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         tokio::spawn(async move {
         tokio::signal::ctrl_c().await.expect("failed to listen for ctrl-c");
         tracing::info!("received shutdown signal");
-        let _ = shutdown_tx.send(true);
+        let _ = jwks_shutdown.send(true);
         std::process::exit(0);
     });
 

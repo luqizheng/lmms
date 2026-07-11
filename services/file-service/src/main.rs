@@ -44,12 +44,13 @@ async fn main() {
         },
         http_for_jwt,
     ));
-    // 降级为 warn：token-service 可能还在起；首个 service-jwt verify 时 JWKSCache 会自动 retry。
-    if let Err(e) = jwks.refresh().await {
-        tracing::warn!(
-            "JWKS initial refresh failed (will retry on first verify): {e}; token-service must be reachable"
-        );
-    }
+    // Block up to 30s on startup retry + spawn periodic refresh loop.
+    // Fixes docker-compose boot race: token-service may not be listening yet
+    // when this service comes up; previously a single failed `refresh()` was
+    // warn-ignored and the cache stayed empty forever (401 on every verify).
+    let jwks_shutdown = Arc::clone(&jwks)
+        .init_with_refresh_loop(Duration::from_secs(30))
+        .await;
 
     let state = create_state(pool, storage, base_url, config.max_file_size, jwks);
 
@@ -74,6 +75,15 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(&addr).await.expect("Failed to bind");
     tracing::info!("file-service listening on {}", addr);
+
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to listen for ctrl-c");
+        tracing::info!("received shutdown signal");
+        let _ = jwks_shutdown.send(true);
+        std::process::exit(0);
+    });
 
     axum::serve(listener, app).await.expect("Server error");
 }
