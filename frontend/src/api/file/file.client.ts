@@ -4,6 +4,7 @@
 import type {
   CreatePresignUrl,
   FileInfo,
+  MigrationStateResponse,
   PagedFiles,
   PresignUrlResponse
 } from "./file.types";
@@ -60,13 +61,11 @@ export class FileClient {
     return text as any;
   }
 
-  async queryFiles(params?: {
-    tenant_id?: string;
-    user_id?: string;
-    filename?: string;
-    page?: number;
-    size?: number;
-  }): Promise<PagedFiles> {
+  async handler(): Promise<MigrationStateResponse> {
+    return this.request("GET", "/file/internal/migrations/state", undefined, undefined);
+  }
+
+  async queryFiles(params?: { tenant_id?: string; user_id?: string; filename?: string; page?: number; size?: number }): Promise<PagedFiles> {
     return this.request("GET", "/file/list", params, undefined);
   }
 
@@ -79,30 +78,15 @@ export class FileClient {
   }
 
   async downloadFile(id: string): Promise<string> {
-    return this.request(
-      "GET",
-      `/file/${encodeURIComponent(id)}`,
-      undefined,
-      undefined
-    );
+    return this.request("GET", `/file/${encodeURIComponent(id)}`, undefined, undefined);
   }
 
   async deleteFile(id: string): Promise<any> {
-    return this.request(
-      "DELETE",
-      `/file/${encodeURIComponent(id)}`,
-      undefined,
-      undefined
-    );
+    return this.request("DELETE", `/file/${encodeURIComponent(id)}`, undefined, undefined);
   }
 
   async getFileInfo(id: string): Promise<FileInfo> {
-    return this.request(
-      "GET",
-      `/file/${encodeURIComponent(id)}/info`,
-      undefined,
-      undefined
-    );
+    return this.request("GET", `/file/${encodeURIComponent(id)}/info`, undefined, undefined);
   }
 
   async health(): Promise<{ status: string }> {

@@ -249,6 +249,11 @@ components:
         updated_at:
           type: string
           format: date-time
+        url:
+          type: string
+          description: |-
+            客户端可渲染的下载 URL（相对路径，前端 axios baseURL /api + 此值）。
+            由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
         user_id:
           type:
           - string

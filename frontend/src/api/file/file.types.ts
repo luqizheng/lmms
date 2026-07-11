@@ -17,10 +17,26 @@ export interface FileInfo {
   is_temporary: boolean;
   size: number;
   storage_path: string;
-  tenant_id?: string;
+  tenant_id: number;
   updated_at: string;
   url?: string;
   user_id?: string;
+}
+
+export interface MigrationInfo {
+  name: string;
+  version: string;
+}
+
+export interface MigrationStateResponse {
+  applied: string[];
+  available: MigrationInfo[];
+  current_version?: string;
+  dialect: string;
+  extra: string[];
+  in_sync: boolean;
+  missing: string[];
+  service: string;
 }
 
 export interface PagedFiles {
@@ -41,7 +57,7 @@ export interface UploadFileMeta {
   expires_in_seconds?: number;
   filename: string;
   is_temporary?: boolean;
-  tenant_id?: string;
+  tenant_id?: number;
   user_id?: string;
 }
 
