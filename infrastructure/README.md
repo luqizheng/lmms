@@ -98,6 +98,7 @@ pnpm check:env
 | iam-service | 9081 | 8081 | 用户 / 角色 / 权限（端口错位避开 host 6002 冲突） |
 | notification-service | 8083 | 8083 | 通知 / 邮件 / 短信 |
 | audit-service | 8084 | 8084 | 审计日志 |
+| project-service | 6008 | 8080 | PMD Java service（Phase 9） |
 | config-service | 8085 | 8081 | 动态配置 |
 | file-service | 8086 | 8082 | 对象存储 |
 | prue_backend | 8087 | 8087 | 流程引擎（SQLite + MySQL 双栈） |
