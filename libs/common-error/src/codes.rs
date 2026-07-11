@@ -73,6 +73,18 @@ pub mod codes {
     pub const FILE_READ_4001: &str = "FILE_READ_4001";
     /// file delete failed
     pub const FILE_DELETE_4002: &str = "FILE_DELETE_4002";
+    /// project not found
+    pub const PMD_PROJECT_1001: &str = "PMD_PROJECT_1001";
+    /// milestone not found
+    pub const PMD_MILESTONE_1002: &str = "PMD_MILESTONE_1002";
+    /// task not found
+    pub const PMD_TASK_1003: &str = "PMD_TASK_1003";
+    /// project code already exists
+    pub const PMD_PROJECT_3001: &str = "PMD_PROJECT_3001";
+    /// invalid task state transition
+    pub const PMD_TASK_4001: &str = "PMD_TASK_4001";
+    /// refine forbidden for caller
+    pub const PMD_LLM_REFINE_5001: &str = "PMD_LLM_REFINE_5001";
 }
 
 /// Get message for error code
@@ -113,6 +125,12 @@ pub fn message(code: &str) -> &str {
         "FILE_PRESIGN_3001" => "presign url expired",
         "FILE_READ_4001" => "file read failed",
         "FILE_DELETE_4002" => "file delete failed",
+        "PMD_PROJECT_1001" => "project not found",
+        "PMD_MILESTONE_1002" => "milestone not found",
+        "PMD_TASK_1003" => "task not found",
+        "PMD_PROJECT_3001" => "project code already exists",
+        "PMD_TASK_4001" => "invalid task state transition",
+        "PMD_LLM_REFINE_5001" => "refine forbidden for caller",
         _ => "unknown error",
     }
 }
@@ -157,6 +175,12 @@ pub fn kind(code: &str) -> ErrorKind {
         "FILE_PRESIGN_3001" => ErrorKind::Unauthorized,
         "FILE_READ_4001" => ErrorKind::Internal,
         "FILE_DELETE_4002" => ErrorKind::Internal,
+        "PMD_PROJECT_1001" => ErrorKind::NotFound,
+        "PMD_MILESTONE_1002" => ErrorKind::NotFound,
+        "PMD_TASK_1003" => ErrorKind::NotFound,
+        "PMD_PROJECT_3001" => ErrorKind::Conflict,
+        "PMD_TASK_4001" => ErrorKind::BadRequest,
+        "PMD_LLM_REFINE_5001" => ErrorKind::Forbidden,
         _ => ErrorKind::Internal,
     }
 }

@@ -134,3 +134,62 @@ events:
       key:           { type: string, required: true }
       action:        { type: string, required: true }   # created | updated | deleted
       actor_id:      { type: string, required: false }
+
+  # === 项目管理事件（project-service 产出，Phase 9） ===
+  # routing-key 命名空间 `pmd.`；audit-service `audit.pmd-events` 队列订阅 `pmd.#`
+  pmd.project.created:
+    schema_version: 1
+    description: "项目创建"
+    payload:
+      tenant_id:    { type: int,    required: true }
+      project_id:   { type: string, required: true }
+      code:         { type: string, required: true }
+      name:         { type: string, required: true }
+      owner_id:     { type: string, required: true }
+      actor_id:     { type: string, required: false }
+      ts:           { type: int,    required: true }
+
+  pmd.project.archived:
+    schema_version: 1
+    description: "项目归档（软删，status='archived'）"
+    payload:
+      tenant_id:   { type: int,    required: true }
+      project_id:  { type: string, required: true }
+      actor_id:    { type: string, required: true }
+      ts:          { type: int,    required: true }
+
+  pmd.task.status_changed:
+    schema_version: 1
+    description: "任务状态机转移（由 tryTransition 校验合法后写入）"
+    payload:
+      tenant_id:   { type: int,    required: true }
+      project_id:  { type: string, required: true }
+      task_id:     { type: string, required: true }
+      from_status: { type: string, required: true }
+      to_status:   { type: string, required: true }
+      actor_id:    { type: string, required: false }
+      ts:          { type: int,    required: true }
+
+  pmd.llm.refinement.requested:
+    schema_version: 1
+    description: "调用 LLM 细化需求（占位 provider 由 project-service 触发）"
+    payload:
+      tenant_id:        { type: int,    required: true }
+      project_id:       { type: string, required: false }
+      task_id:          { type: string, required: false }
+      caller_user_id:   { type: string, required: true }
+      provider:         { type: string, required: true }   # placeholder | http (TODO)
+      prompt_summary:   { type: string, required: true }   # ≤120 字符
+      ts:               { type: int,    required: true }
+
+  pmd.llm.refinement.completed:
+    schema_version: 1
+    description: "LLM 细化完成（provider 响应后异步发；MVP 由 placeholder 返回固定响应同事务写）"
+    payload:
+      tenant_id:        { type: int,    required: true }
+      project_id:       { type: string, required: false }
+      task_id:          { type: string, required: false }
+      caller_user_id:   { type: string, required: true }
+      provider:         { type: string, required: true }
+      items_count:      { type: int,    required: true }
+      ts:               { type: int,    required: true }

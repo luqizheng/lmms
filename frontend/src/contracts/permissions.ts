@@ -47,6 +47,16 @@ export type PermissionCode =
   | 'FILE_READ'
   | 'SYS_SETTING_READ'
   | 'SYS_SETTING_UPDATE'
+  | 'PMD_PROJECT_CREATE'
+  | 'PMD_PROJECT_READ'
+  | 'PMD_PROJECT_UPDATE'
+  | 'PMD_PROJECT_DELETE'
+  | 'PMD_MILESTONE_CREATE'
+  | 'PMD_MILESTONE_READ'
+  | 'PMD_MILESTONE_UPDATE'
+  | 'PMD_MILESTONE_DELETE'
+  | 'PMD_TASK_UPDATE'
+  | 'PMD_LLM_REFINE'
 ;
 
 export const PermissionDescriptions: Record<PermissionCode, string> = {
@@ -95,4 +105,14 @@ export const PermissionDescriptions: Record<PermissionCode, string> = {
   'FILE_READ': '查看文件列表与详情',
   'SYS_SETTING_READ': '查看系统设置',
   'SYS_SETTING_UPDATE': '编辑系统设置',
+  'PMD_PROJECT_CREATE': '创建项目',
+  'PMD_PROJECT_READ': '查看项目',
+  'PMD_PROJECT_UPDATE': '编辑项目',
+  'PMD_PROJECT_DELETE': '归档项目（软删）',
+  'PMD_MILESTONE_CREATE': '创建里程碑',
+  'PMD_MILESTONE_READ': '查看里程碑',
+  'PMD_MILESTONE_UPDATE': '编辑里程碑',
+  'PMD_MILESTONE_DELETE': '删除里程碑',
+  'PMD_TASK_UPDATE': '编辑任务（含状态机转移）',
+  'PMD_LLM_REFINE': '调用 LLM 细化需求（占位 provider）',
 };

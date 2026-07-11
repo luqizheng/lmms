@@ -17,6 +17,7 @@
 | config-service        | `cfg_`   | `cfg_namespaces`                  |
 | file-service          | `file_`  | `file_files`                      |
 | prue_backend          | `prue_`  | `prue_menu_configs`               |
+| project-service       | `pmd_`   | `pmd_projects`、`pmd_outbox_events` |
 
 > 与 `contracts/error-codes.yaml` 中的服务缩写（IAM/CFG/AUD/NTF/FILE/SYS）**故意不完全对齐**：错误码追求 3 字母短，表名追求可读，各自规则独立校验。
 

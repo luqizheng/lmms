@@ -93,6 +93,26 @@ pub mod perms {
     pub const SYS_SETTING_READ: &str = "SYS_SETTING_READ";
     /// 编辑系统设置
     pub const SYS_SETTING_UPDATE: &str = "SYS_SETTING_UPDATE";
+    /// 创建项目
+    pub const PMD_PROJECT_CREATE: &str = "PMD_PROJECT_CREATE";
+    /// 查看项目
+    pub const PMD_PROJECT_READ: &str = "PMD_PROJECT_READ";
+    /// 编辑项目
+    pub const PMD_PROJECT_UPDATE: &str = "PMD_PROJECT_UPDATE";
+    /// 归档项目（软删）
+    pub const PMD_PROJECT_DELETE: &str = "PMD_PROJECT_DELETE";
+    /// 创建里程碑
+    pub const PMD_MILESTONE_CREATE: &str = "PMD_MILESTONE_CREATE";
+    /// 查看里程碑
+    pub const PMD_MILESTONE_READ: &str = "PMD_MILESTONE_READ";
+    /// 编辑里程碑
+    pub const PMD_MILESTONE_UPDATE: &str = "PMD_MILESTONE_UPDATE";
+    /// 删除里程碑
+    pub const PMD_MILESTONE_DELETE: &str = "PMD_MILESTONE_DELETE";
+    /// 编辑任务（含状态机转移）
+    pub const PMD_TASK_UPDATE: &str = "PMD_TASK_UPDATE";
+    /// 调用 LLM 细化需求（占位 provider）
+    pub const PMD_LLM_REFINE: &str = "PMD_LLM_REFINE";
 }
 
 /// Check if permission code is valid
@@ -187,5 +207,25 @@ pub fn is_valid(perm: &str) -> bool {
         "SYS_SETTING_READ"
         |
         "SYS_SETTING_UPDATE"
+        |
+        "PMD_PROJECT_CREATE"
+        |
+        "PMD_PROJECT_READ"
+        |
+        "PMD_PROJECT_UPDATE"
+        |
+        "PMD_PROJECT_DELETE"
+        |
+        "PMD_MILESTONE_CREATE"
+        |
+        "PMD_MILESTONE_READ"
+        |
+        "PMD_MILESTONE_UPDATE"
+        |
+        "PMD_MILESTONE_DELETE"
+        |
+        "PMD_TASK_UPDATE"
+        |
+        "PMD_LLM_REFINE"
     )
 }
