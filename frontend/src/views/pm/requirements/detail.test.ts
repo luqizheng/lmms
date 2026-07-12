@@ -30,9 +30,7 @@ const pmStoreState: {
   versions: any[];
 } = vi.hoisted(() => ({
   // Pre-populate so the v-if="pmStore.currentRequirement" template guard
-  // renders the .pm-req-detail root on mount (the mock store is not
-  // vue-reactive, so we cannot rely on a post-load re-render to satisfy
-  // the .exists() assertion).
+  // renders the .pm-req-detail root on mount.
   currentRequirement: {
     id: 99,
     title: "Test Requirement",
@@ -54,8 +52,6 @@ vi.mock("@/api/pm", () => ({
   getRequirement,
   listStories,
   listCriteria,
-  decomposeRequirement,
-  refineRequirement,
   listProjects: vi.fn(),
   createProject: vi.fn(),
   archiveProject: vi.fn(),
@@ -75,7 +71,8 @@ vi.mock("@/api/pm", () => ({
 vi.mock("@/api/llm", () => ({
   decomposeRequirement: (...args: any[]) => (decomposeRequirement as any)(...args),
   refineRequirement: (...args: any[]) => (refineRequirement as any)(...args),
-  listProviders: vi.fn()
+  listProviders: vi.fn(),
+  parseDecomposedJson: vi.fn(() => null)
 }));
 
 vi.mock("@/utils/auth", () => ({
@@ -110,7 +107,6 @@ vi.mock("@/store/modules/pm", () => ({
       pmStoreState.versions = v;
     },
     loadRequirement: vi.fn(async (id: number) => {
-      // delegate to mocked @/api/pm so tests can assert on getRequirement calls
       const res = await getRequirement(id);
       pmStoreState.currentRequirement = res.data;
       return pmStoreState.currentRequirement;
@@ -126,17 +122,24 @@ vi.mock("@/store/modules/pm", () => ({
   })
 }));
 
+// Element Plus icons are used directly; stub them to keep test light.
+vi.mock("@element-plus/icons-vue", () => ({
+  ArrowLeft: { template: "<span />" },
+  Loading: { template: "<span />" }
+}));
+
 import PmRequirementDetail from "./detail.vue";
 
 const elStubs: Record<string, any> = {
   ElPageHeader: {
     name: "ElPageHeader",
+    props: ["icon"],
     template:
       '<div class="el-page-header-stub" @click="$emit(\'back\')"><slot name="content" /><slot name="extra" /></div>'
   },
   ElCard: { template: '<div class="el-card-stub"><slot /><slot name="header" /></div>' },
   ElButton: {
-    props: ["disabled", "loading"],
+    props: ["disabled", "loading", "type"],
     template: '<button class="el-button-stub" :disabled="disabled"><slot /></button>'
   },
   ElTag: { props: ["type", "size"], template: '<span class="el-tag-stub"><slot /></span>' },
@@ -144,30 +147,43 @@ const elStubs: Record<string, any> = {
   ElSelect: {
     props: ["modelValue"],
     template:
-      '<select class="el-select-stub" :value="modelValue" @change="$emit(\x27update:modelValue\x27, $event.target.value)"><slot /></select>'
+      '<select class="el-select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><slot /></select>'
   },
   ElOption: { props: ["label", "value"], template: '<option :value="value">{{ label }}</option>' },
   ElCheckbox: {
     props: ["modelValue"],
     template:
-      '<label class="el-checkbox-stub"><input type="checkbox" :checked="modelValue" @change="$emit(\x27update:modelValue\x27, $event.target.checked)" /></label>'
+      '<label class="el-checkbox-stub"><input type="checkbox" :checked="!!modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /><slot /></label>'
   },
   ElDialog: {
     props: ["modelValue", "title", "width"],
     template:
-      '<div v-if="modelValue" class="el-dialog-stub"><slot /><div v-if="!$slots.footer"></div></div>'
+      '<div v-if="modelValue" class="el-dialog-stub"><slot /><slot name="footer" /></div>'
   },
   ElForm: { template: "<form><slot /></form>" },
   ElFormItem: {
     props: ["label"],
-    template:
-      '<div><span class="el-form-item__label">{{ label }}</span><slot /></div>'
+    template: '<div><span class="el-form-item__label">{{ label }}</span><slot /></div>'
   },
-  ElInput: { template: "<input />" },
+  ElInput: { template: "<input />", props: ["modelValue"] },
   ElInputNumber: { props: ["min"], template: '<input type="number" />' },
   ElTextarea: { props: ["rows"], template: '<textarea />' },
-  ElAlert: { template: '<div class="el-alert-stub"><slot /></div>' }
+  ElAlert: {
+    props: ["type", "title", "closable", "showIcon", "description"],
+    template: '<div class="el-alert-stub" :data-type="type"><slot /></div>'
+  },
+  ElIcon: { template: "<i><slot /></i>" },
+  ElMessage: { error: vi.fn(), success: vi.fn(), warning: vi.fn() }
 };
+
+// Stub ElMessage static methods so we don't get runtime errors.
+vi.mock("element-plus", async () => {
+  const actual = await vi.importActual("element-plus");
+  return {
+    ...(actual as any),
+    ElMessage: { error: vi.fn(), success: vi.fn(), warning: vi.fn() }
+  };
+});
 
 function mountDetail() {
   return mount(PmRequirementDetail, {
@@ -187,7 +203,7 @@ describe("PmRequirementDetail", () => {
     expect(wrapper.find(".pm-req-detail").exists()).toBe(true);
   });
 
-  it("renders AI 拆解 button (disabled) and AI 改写 button (disabled)", async () => {
+  it("renders enabled AI 拆解 and AI 改写 buttons (DeepSeek wiring done)", async () => {
     const wrapper = mountDetail();
     await flushPromises();
     const buttons = wrapper.findAll(".el-button-stub");
@@ -195,8 +211,9 @@ describe("PmRequirementDetail", () => {
     const refine = buttons.find(b => b.text().includes("AI 改写"));
     expect(decompose).toBeTruthy();
     expect(refine).toBeTruthy();
-    expect((decompose!.element as HTMLButtonElement).disabled).toBe(true);
-    expect((refine!.element as HTMLButtonElement).disabled).toBe(true);
+    // Buttons are enabled — clicks drive LLM API and open dialog.
+    expect((decompose!.element as HTMLButtonElement).disabled).toBe(false);
+    expect((refine!.element as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("opens create-story dialog when clicking 添加故事", async () => {
@@ -208,5 +225,19 @@ describe("PmRequirementDetail", () => {
     await createStoryBtn!.trigger("click");
     await flushPromises();
     expect(wrapper.find(".el-dialog-stub").exists()).toBe(true);
+  });
+
+  it("AI 拆解 opens dialog and shows disabled alert when provider is noop", async () => {
+    const wrapper = mountDetail();
+    await flushPromises();
+    const buttons = wrapper.findAll(".el-button-stub");
+    const decompose = buttons.find(b => b.text().includes("AI 拆解"))!;
+    await decompose.trigger("click");
+    await flushPromises();
+    // Dialog opens with disabled alert rendered.
+    const dialog = wrapper.find(".el-dialog-stub");
+    expect(dialog.exists()).toBe(true);
+    expect(dialog.find(".el-alert-stub").exists()).toBe(true);
+    expect(decomposeRequirement).toHaveBeenCalledWith(99);
   });
 });
