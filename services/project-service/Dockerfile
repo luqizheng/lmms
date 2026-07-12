@@ -2,10 +2,14 @@
 # Phase 9 PMD — Spring Boot 3 / Java 25 multi-stage build.
 # Builder installs maven via apt because the internal registry does not yet
 # mirror a maven:*-eclipse-temurin-25 image (mirror apps/pm/Dockerfile once it
-# does). maven-settings.xml mirrors Central -> Aliyun and routes
-# com.kudi.coder:* to the on-prem Reposilite at mvn.kudi.repos:18181.
+# does).
+# MAVEN_SETTINGS: filename under services/project-service/ for Maven settings
+# (mirrors Central -> Aliyun + routes com.kudi.coder:* to on-prem Reposilite).
+# Pass --build-arg MAVEN_SETTINGS=<file> in non-CN / internal CI environments
+# where the default aliyun mirror + mvn.kudi.repos are inaccessible.
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+ARG MAVEN_SETTINGS=maven-settings.xml
 
 FROM ${BASE_REGISTRY}/eclipse-temurin:25-jdk AS builder
 WORKDIR /build
@@ -17,7 +21,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /root/.m2 /app
-COPY services/project-service/maven-settings.xml /root/.m2/settings.xml
+COPY services/project-service/${MAVEN_SETTINGS} /root/.m2/settings.xml
 
 COPY services/project-service/pom.xml /build/pom.xml
 RUN --mount=type=cache,id=m2-project-service,target=/root/.m2 \
@@ -26,7 +30,7 @@ RUN --mount=type=cache,id=m2-project-service,target=/root/.m2 \
 COPY services/project-service/src /build/src
 
 RUN --mount=type=cache,id=m2-project-service,target=/root/.m2 \
-    mvn -B -ntp -f /build/pom.xml -Dmaven.test.skip=true package && \
+    mvn -B -ntp -f /build/pom.xml package && \
     cp /build/target/project-service.jar /app/project-service.jar
 
 FROM ${BASE_REGISTRY}/eclipse-temurin:25-jre-alpine
