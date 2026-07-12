@@ -24,7 +24,7 @@ variables:
 rust_test:
   stage: test
   tags:
-    - docker
+    - shell
   image: $BASE_REGISTRY/rust:1.96-slim
   variables:
     REDIS_URL: redis://192.168.2.130:6379
@@ -37,28 +37,28 @@ rust_test:
 
 service_standard_check:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/node:20
   script:
     - node scripts/check-service-standard.js
 
 spec_check:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/node:20
   script:
     - node scripts/check-spec.js
 
 contracts_check:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/node:20
   script:
     - node scripts/contracts-gen.js --check
 
 spec_generate:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/rust:1.96-slim
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
@@ -73,7 +73,7 @@ spec_generate:
 
 e2e_api_test:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/node:20
   before_script:
     - cd tests/e2e && npm install
@@ -83,7 +83,7 @@ e2e_api_test:
 
 e2e_ui_test:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: mcr.microsoft.com/playwright:v1.48.0-jammy
   before_script:
     - cd tests/e2e && npm install
@@ -94,7 +94,7 @@ e2e_ui_test:
 
 e2e_migration_state_test:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/node:20
   before_script:
     - cd tests/e2e && npm install
@@ -164,7 +164,7 @@ deploy:
 
 java_sdk_test:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   script:
     - cd sdk/java && mvn -B verify
@@ -174,7 +174,7 @@ java_sdk_test:
 
 dotnet_sdk_test:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - cd sdk/dotnet && dotnet test --nologo --verbosity minimal
@@ -184,7 +184,7 @@ dotnet_sdk_test:
 
 sdk_publish:
   stage: publish
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   script:
     - cd sdk/java && mvn -B deploy -DskipTests
@@ -196,7 +196,7 @@ sdk_publish:
 
 sdk_publish_dotnet:
   stage: publish
-  tags: [docker]
+  tags: [shell]
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - cd sdk/dotnet
@@ -213,7 +213,7 @@ sdk_publish_dotnet:
 # ─────────────────────────────────────────────────────────────────────────────
 release:dist:
   stage: release
-  tags: [docker]
+  tags: [shell]
   image: $BASE_REGISTRY/docker:24-cli
   variables:
     DOCKER_HOST: tcp://localhost:2376
