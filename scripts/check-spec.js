@@ -192,6 +192,7 @@ function main() {
   
   console.log('🔍 检查 OpenAPI 规范...');
   const openapiFiles = [];
+  // 扫描 services/ 目录（Rust 服务）
   fs.readdirSync(servicesDir, { withFileTypes: true })
     .filter(dirent => dirent.isDirectory())
     .forEach(service => {
@@ -201,6 +202,19 @@ function main() {
         errors.push(...validateOpenApiSpec(openapiPath));
       }
     });
+  // 扫描 apps/ 目录（Java 等服务）
+  const appsDir = path.join(__dirname, '..', 'apps');
+  if (fs.existsSync(appsDir)) {
+    fs.readdirSync(appsDir, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .forEach(app => {
+        const openapiPath = path.join(appsDir, app.name, 'openapi.yaml');
+        if (fs.existsSync(openapiPath)) {
+          openapiFiles.push(openapiPath);
+          errors.push(...validateOpenApiSpec(openapiPath));
+        }
+      });
+  }
   
   generateReport(errors);
   

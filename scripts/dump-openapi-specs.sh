@@ -32,6 +32,17 @@ dump_java() {
     echo "--- $svc/openapi.yaml present ---"
 }
 
+dump_app() {
+    local app="$1"
+    local yaml="$ROOT_DIR/apps/$app/openapi.yaml"
+    echo "=== Dumping OpenAPI for apps/$app (springdoc — committed source) ==="
+    if [ ! -f "$yaml" ]; then
+        echo "  ERROR: $yaml missing — commit springdoc-generated openapi.yaml before CI"
+        exit 1
+    fi
+    echo "--- apps/$app/openapi.yaml present ---"
+}
+
 dump_service() {
     local svc="$1"
     local kind="$2"
@@ -59,9 +70,9 @@ dump_service notification-service  rust
 # services). For now the file is committed and unchanged.
 dump_service project-service      java
 
-# apps/pm / PM Platform (Spring Boot 3 + springdoc). Same story as
-# project-service: the openapi.yaml is committed alongside the source;
-# at runtime springdoc also serves /v3/api-docs (yaml via .yaml suffix).
-dump_service apps/pm/pm-app-bootstrap java
+# apps/pm / PM Platform (Spring Boot 3 + springdoc). The openapi.yaml is
+# committed alongside the source under apps/pm/ (not services/).
+# At runtime springdoc serves /pm-api/v3/api-docs (yaml via .yaml suffix).
+dump_app pm
 
 echo "=== All 10 OpenAPI specs dumped ==="
