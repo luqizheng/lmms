@@ -81,6 +81,22 @@ export interface AcceptanceCriteria {
   updatedAt: string;
 }
 
+export interface Task {
+  id: number;
+  projectId: number;
+  requirementId?: number;
+  title: string;
+  description?: string;
+  status: "todo" | "in_progress" | "done";
+  priority: "low" | "medium" | "high";
+  assigneeId?: number;
+  dueDate?: string;
+  sortOrder: number;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 function qs(params?: Record<string, unknown>) {
   if (!params) return "";
   const sp = new URLSearchParams();
@@ -174,4 +190,31 @@ export function updateCriterion(id: number, payload: Partial<AcceptanceCriteria>
 
 export function checkCriterion(id: number, checked: boolean) {
   return pmHttp.post<AcceptanceCriteria>(`/v1/criteria/${id}/check`, { checked });
+}
+
+// ---------- tasks (Phase D4) ----------
+
+export function listTasks(
+  projectId: number,
+  params: { page?: number; size?: number; status?: string; priority?: string; assigneeId?: number } = {}
+) {
+  return pmHttp.get<Paged<Task>>(
+    `/v1/projects/${projectId}/tasks${qs(params)}`
+  );
+}
+
+export function getTask(id: number) {
+  return pmHttp.get<Task>(`/v1/tasks/${id}`);
+}
+
+export function createTask(projectId: number, payload: Partial<Task> & { title: string }) {
+  return pmHttp.post<Task>(`/v1/projects/${projectId}/tasks`, payload);
+}
+
+export function updateTask(id: number, payload: Partial<Task>) {
+  return pmHttp.patch<Task>(`/v1/tasks/${id}`, payload);
+}
+
+export function deleteTask(id: number) {
+  return pmHttp.delete<void>(`/v1/tasks/${id}`);
 }

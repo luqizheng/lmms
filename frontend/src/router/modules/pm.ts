@@ -74,6 +74,16 @@ export default {
         showLink: false,
         keepAlive: false
       }
+    },
+    {
+      path: "/pm/projects/:projectId/tasks",
+      name: "PmTasks",
+      component: () => import("@/views/pm/tasks/list.vue"),
+      meta: {
+        title: "任务",
+        showLink: false,
+        keepAlive: false
+      }
     }
   ]
 } satisfies RouteConfigsTable;
