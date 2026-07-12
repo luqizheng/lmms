@@ -1,7 +1,7 @@
 # dev profile overrides — local docker-compose / native mvn execution
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/superpowers?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/pm_platform?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: rootpass
 

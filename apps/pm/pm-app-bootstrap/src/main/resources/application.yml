@@ -9,7 +9,7 @@ spring:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/superpowers?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/pm_platform?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:rootpass}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -19,9 +19,12 @@ spring:
       pool-name: pm-pool
   flyway:
     enabled: true
-    baseline-on-migrate: false
+    baseline-on-migrate: true
+    baseline-version: 0
     locations: classpath:db/migration
     table: pm_flyway_history
+    default-schema: pm_platform
+    schemas: pm_platform
 
 server:
   port: ${SERVER_PORT:8088}
@@ -60,6 +63,12 @@ pm:
   llm:
     provider:
       default: ${PM_LLM_PROVIDER:noop}
+    deepseek:
+      # OpenAI-compatible Chat Completions API. Set api-key to enable; leave
+      # blank to keep NoopLlmProvider as the only enabled provider.
+      api-key: ${DEEPSEEK_API_KEY:}
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      model: ${DEEPSEEK_MODEL:deepseek-v4-flash}
   sdk:
     audit:
       base-url: ${LOWMEM_GATEWAY_BASE:http://localhost:3000}
