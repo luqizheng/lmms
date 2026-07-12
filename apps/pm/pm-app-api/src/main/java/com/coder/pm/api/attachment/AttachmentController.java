@@ -35,7 +35,7 @@ public class AttachmentController {
     public ResponseEntity<FileInfo> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "tag", required = false) String tag,
-            @RequestParam(value = "tenantId", defaultValue = "1") int tenantId) throws IOException {
+            @RequestParam(value = "tenantId", defaultValue = "1") String tenantId) throws IOException {
         byte[] content = file.getBytes();
         String fileName = file.getOriginalFilename();
         FileInfo info = attachmentService.upload(fileName, content, tag, tenantId);
