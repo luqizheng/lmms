@@ -4,6 +4,7 @@ import com.coder.pm.web.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -21,15 +22,23 @@ import java.util.List;
  * <p>Public endpoints (no JWT required):
  * <ul>
  *   <li>{@code /pm-api/v1/health/**} — Kubernetes-style liveness/readiness</li>
- *   <li>{@code /pm-api/v1/auth/**} — login + refresh (added in PR-2 Business)</li>
  *   <li>{@code /pm-api/v3/api-docs/**} + {@code /pm-api/swagger-ui/**} — OpenAPI</li>
  *   <li>{@code /pm-api/actuator/**} — Spring Boot Actuator</li>
+ *   <li>{@code /error}</li>
+ *   <li>All {@code OPTIONS} pre-flights (CORS)</li>
  * </ul>
  *
  * <p>Authenticated endpoints: everything else under {@code /pm-api/v1/**}.
- * JWT validation is delegated to {@link JwtAuthFilter}.
+ * JWT verification is delegated to {@link JwtAuthFilter}, which delegates to
+ * either {@code JwksJwtVerifier} (RS256 via iam-service) or
+ * {@code Hs256JwtVerifier} (local dev) depending on {@code pm.jwt.mode}.
+ *
+ * <p>{@link EnableMethodSecurity} turns on {@code @PreAuthorize} /
+ * {@code @Secured} so future controllers can do per-endpoint permission
+ * checks against the {@code Principal}'s roles / permissions authorities.
  */
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -51,7 +60,6 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/v1/health",
                                 "/v1/health/**",
-                                "/v1/auth/**",
                                 "/v3/api-docs",
                                 "/v3/api-docs/**",
                                 "/swagger-ui",

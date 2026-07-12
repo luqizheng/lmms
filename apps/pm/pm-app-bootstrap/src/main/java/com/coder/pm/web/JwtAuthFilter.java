@@ -1,15 +1,17 @@
 package com.coder.pm.web;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.JwtParser;
+import com.coder.pm.web.security.JwtVerifier;
+import com.coder.pm.web.security.JwtVerifierRouter;
+import com.coder.pm.web.security.Principal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -17,19 +19,23 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**
- * JWT authentication filter.
+ * Bearer-JWT authentication filter.
  *
- * <p>Reads {@code Authorization: Bearer <jwt>}, verifies with {@link JwtParser}.
- * On success: extracts {@code sub} (user id), {@code uname} (display name), {@code roles}
- * and sets a {@link UsernamePasswordAuthenticationToken} on the SecurityContext.
+ * <p>Reads {@code Authorization: Bearer <jwt>}, hands the raw token to the
+ * configured {@link JwtVerifier} (RS256 via JWKS in prod / HS256 in dev),
+ * and installs the resulting {@link Principal} on the Spring SecurityContext
+ * so downstream handlers can inject it via
+ * {@code @AuthenticationPrincipal Principal}.
  *
- * <p>On failure (missing/malformed/expired): leaves SecurityContext empty; downstream
- * security chain will reject as 401.
+ * <p>Failure modes (missing header, malformed token, bad signature, expired
+ * token, wrong issuer/audience/scope) all collapse to "no authentication set"
+ * — the security chain will then reject the request as 401, matching the
+ * platform's contract (see {@code docs/ai-context.md} pitfall 19).
  */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
@@ -38,10 +44,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final String HEADER = "Authorization";
     private static final String PREFIX = "Bearer ";
 
-    private final JwtParser jwtParser;
+    private final JwtVerifier verifier;
 
-    public JwtAuthFilter(JwtParser jwtParser) {
-        this.jwtParser = jwtParser;
+    public JwtAuthFilter(@Qualifier(JwtVerifierRouter.BEAN_NAME) JwtVerifier verifier) {
+        this.verifier = verifier;
     }
 
     @Override
@@ -51,27 +57,51 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String header = request.getHeader(HEADER);
         if (header != null && header.startsWith(PREFIX)) {
             String token = header.substring(PREFIX.length()).trim();
-            try {
-                Claims claims = jwtParser.parseSignedClaims(token).getPayload();
-                Long userId = Long.parseLong(claims.getSubject());
-                String username = claims.get("uname", String.class);
-                @SuppressWarnings("unchecked")
-                List<String> roles = claims.get("roles", List.class);
-                Collection<SimpleGrantedAuthority> authorities = roles == null
-                        ? Collections.emptyList()
-                        : roles.stream()
-                        .map(r -> new SimpleGrantedAuthority("ROLE_" + r.toUpperCase()))
-                        .toList();
-
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(userId, username, authorities);
+            Principal principal = verifier.verify(token);
+            if (!principal.isAnonymous()) {
+                AbstractAuthenticationToken auth = new AuthToken(principal, authorities(principal));
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
-            } catch (JwtException | IllegalArgumentException ex) {
-                log.debug("JWT validation failed: {}", ex.getMessage());
+            } else {
+                log.debug("JWT rejected; clearing SecurityContext");
                 SecurityContextHolder.clearContext();
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /** Roles are exposed as {@code ROLE_<UPPER>} authorities; permissions keep their canonical form. */
+    private static Collection<? extends GrantedAuthority> authorities(Principal p) {
+        List<GrantedAuthority> out = new ArrayList<>();
+        if (p.roles() != null) {
+            for (String r : p.roles()) {
+                if (r != null && !r.isBlank()) out.add(new SimpleGrantedAuthority("ROLE_" + r.toUpperCase()));
+            }
+        }
+        if (p.permissions() != null) {
+            for (String perm : p.permissions()) {
+                if (perm != null && !perm.isBlank()) out.add(new SimpleGrantedAuthority(perm));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Authentication that carries the rich {@link Principal} instead of just a
+     * username string. The principal exposes userId, tenantId, roles, and
+     * permissions so controllers don't have to re-parse JWT claims.
+     */
+    private static final class AuthToken extends AbstractAuthenticationToken {
+        private final Principal principal;
+
+        AuthToken(Principal principal, Collection<? extends GrantedAuthority> authorities) {
+            super(authorities);
+            this.principal = principal;
+            super.setAuthenticated(true);
+        }
+
+        @Override public Object getCredentials() { return ""; }
+        @Override public Principal getPrincipal() { return principal; }
+        @Override public String getName() { return principal.username() != null ? principal.username() : "anonymous"; }
     }
 }
