@@ -58,3 +58,13 @@ service    = "pm-platform"
 upstream   = "/v1/pm/documents/{rest}"
 downstream = "/pm-api/v1/documents/{rest}"
 service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/sprints/{rest}"
+downstream = "/pm-api/v1/sprints/{rest}"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/tasks/{rest}"
+downstream = "/pm-api/v1/tasks/{rest}"
+service    = "pm-platform"
