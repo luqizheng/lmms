@@ -148,6 +148,16 @@
         </repository>
     </repositories>
 
+    <pluginRepositories>
+        <pluginRepository>
+            <id>repo-maven-apache-org</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
     <build>
         <pluginManagement>
             <plugins>
@@ -173,7 +183,59 @@
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>3.3.5</version>
                 </plugin>
+
+                <!-- Phase E6: SpotBugs (bytecode-level bug detection) -->
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>4.10.2.0</version>
+                    <configuration>
+                        <effort>Max</effort>
+                        <threshold>Low</threshold>
+                        <failOnError>true</failOnError>
+                        <maxAllowedViolations>100</maxAllowedViolations>
+                        <includeTests>false</includeTests>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals><goal>check</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Phase E6: PMD (source-level static analysis) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-pmd-plugin</artifactId>
+                    <version>3.26.0</version>
+                    <configuration>
+                        <failOnViolation>true</failOnViolation>
+                        <printFailingErrors>true</printFailingErrors>
+                        <maxAllowedViolations>100</maxAllowedViolations>
+                        <rulesets>
+                            <ruleset>category/java/bestpractices.xml</ruleset>
+                            <ruleset>category/java/errorprone.xml</ruleset>
+                        </rulesets>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals><goal>check</goal><goal>cpd-check</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
+
+        <!-- Activate SpotBugs and PMD for all child modules -->
+        <plugins>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 </project>
