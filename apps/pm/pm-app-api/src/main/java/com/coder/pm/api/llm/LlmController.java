@@ -47,14 +47,18 @@ public class LlmController {
     @PostMapping("/requirements/{id}/decompose")
     @Operation(summary = "Decompose a requirement into user stories + acceptance criteria")
     public CompletionResponse decompose(@PathVariable long id,
-                                       @RequestParam(required = false, defaultValue = "noop") String provider) {
-        // For MVP we always route through Noop by default; future: take provider as request body.
-        return analyzer.decompose(id);
+                                        @RequestParam(required = false) String provider) {
+        return (provider == null || provider.isBlank())
+                ? analyzer.decompose(id)
+                : analyzer.decompose(id, provider);
     }
 
     @PostMapping("/requirements/{id}/refine")
     @Operation(summary = "Rewrite a requirement's description for clarity")
-    public CompletionResponse refine(@PathVariable long id) {
-        return analyzer.refine(id);
+    public CompletionResponse refine(@PathVariable long id,
+                                     @RequestParam(required = false) String provider) {
+        return (provider == null || provider.isBlank())
+                ? analyzer.refine(id)
+                : analyzer.refine(id, provider);
     }
 }

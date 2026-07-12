@@ -44,12 +44,26 @@ public class RequirementService extends ServiceImpl<RequirementMapper, Requireme
         if (draft.getStatus() == null) draft.setStatus("draft");
         validateEnum("priority", draft.getPriority(), VALID_PRIORITIES);
         validateEnum("status", draft.getStatus(), VALID_STATUSES);
+        if (draft.getCreatedBy() == null) {
+            Long actorId = parseActorId();
+            if (actorId != null) draft.setCreatedBy(actorId);
+        }
         save(draft);
         audit.report(currentActor(), "PM_REQUIREMENT_CREATED", "pm_requirement",
                 String.valueOf(draft.getId()),
                 Map.of("projectId", draft.getProjectId(), "title", draft.getTitle(),
                         "type", draft.getType(), "priority", draft.getPriority()));
         return draft;
+    }
+
+    private static Long parseActorId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
+            return null;
+        }
+        Object p = auth.getPrincipal();
+        if (p instanceof Long l) return l;
+        try { return Long.valueOf(String.valueOf(p)); } catch (NumberFormatException ignored) { return null; }
     }
 
     @Transactional

@@ -5,6 +5,7 @@ import com.coder.pm.infra.persistence.entity.Requirement;
 import com.coder.pm.llm.CompletionRequest;
 import com.coder.pm.llm.CompletionResponse;
 import com.coder.pm.llm.LlmProviderRegistry;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -22,35 +23,45 @@ public class RequirementAnalyzer {
 
     private final LlmProviderRegistry registry;
     private final RequirementService requirementService;
+    private final String defaultProvider;
 
     public RequirementAnalyzer(LlmProviderRegistry registry,
-                               RequirementService requirementService) {
+                               RequirementService requirementService,
+                               @Value("${pm.llm.provider.default:noop}") String defaultProvider) {
         this.registry = registry;
         this.requirementService = requirementService;
+        this.defaultProvider = defaultProvider;
     }
 
     public CompletionResponse decompose(long requirementId) {
+        return decompose(requirementId, defaultProvider);
+    }
+
+    public CompletionResponse decompose(long requirementId, String provider) {
         Requirement r = requirementService.findOrThrow(requirementId);
-        return registry.dispatch(defaultProvider(), CompletionRequest.builder()
+        String chosen = (provider == null || provider.isBlank()) ? defaultProvider : provider;
+        return registry.dispatch(chosen, CompletionRequest.builder()
                 .prompt(buildDecomposePrompt(r))
                 .systemPrompt(DECOMPOSE_SYSTEM)
-                .maxTokens(1024)
+                .maxTokens(2048)
                 .temperature(0.3)
                 .build());
     }
 
     public CompletionResponse refine(long requirementId) {
-        Requirement r = requirementService.findOrThrow(requirementId);
-        return registry.dispatch(defaultProvider(), CompletionRequest.builder()
-                .prompt("Rewrite this requirement so it is unambiguous and testable:\n\n" + safe(r.getDescription()))
-                .systemPrompt(REFINE_SYSTEM)
-                .maxTokens(512)
-                .temperature(0.2)
-                .build());
+        return refine(requirementId, defaultProvider);
     }
 
-    private String defaultProvider() {
-        return System.getenv().getOrDefault("PM_LLM_PROVIDER", "noop");
+    public CompletionResponse refine(long requirementId, String provider) {
+        Requirement r = requirementService.findOrThrow(requirementId);
+        String chosen = (provider == null || provider.isBlank()) ? defaultProvider : provider;
+        return registry.dispatch(chosen, CompletionRequest.builder()
+                .prompt("Rewrite this requirement so it is unambiguous and testable.\n\nTitle: "
+                        + safe(r.getTitle()) + "\n\nDescription:\n" + safe(r.getDescription()))
+                .systemPrompt(REFINE_SYSTEM)
+                .maxTokens(1024)
+                .temperature(0.2)
+                .build());
     }
 
     private static String buildDecomposePrompt(Requirement r) {
