@@ -81,7 +81,7 @@ c361471 feat(pm-platform): Spring Boot 3.x PM Platform v0.1.0
 | E2 | 业务 controller 单测 (7/7 controllers, 53 cases) | ✅ 完成 | `9c84d92` / `95e9715` / `e8d48fa` / `3089b5f` / `7111b98` / `0ff2a08` |
 | E3 | e2e Playwright 覆盖 (API smoke cases done, UI pending) | ✅ 部分完成 | `76db5f8` |
 | E4 | OpenAPI yaml 落库 | ✅ 完成 | `84cd4cc` |
-| E5 | vitest coverage 接 CI | ⏸ 未开始 |
+| E5 | vitest coverage 接 CI (coverage-v8 + test:coverage script) | ✅ 完成 | `027808d` |
 | E6 | SpotBugs + PMD 接 CI | ⏸ 未开始 |
 | E7 | E2E 在 docker compose 完整栈上跑 | ⏸ 未开始 |
 
