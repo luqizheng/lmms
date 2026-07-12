@@ -40,8 +40,18 @@ public class SdkConfig {
     @Value("${pm.sdk.bearer.static-token:dev-bypass-token}")
     private String staticBearer;
 
+    private final ServiceJwtSupplier serviceJwtSupplier;
+
+    public SdkConfig(ServiceJwtSupplier serviceJwtSupplier) {
+        this.serviceJwtSupplier = serviceJwtSupplier;
+    }
+
     private Supplier<String> bearerSupplier() {
-        return () -> staticBearer;
+        return () -> {
+            String jwt = serviceJwtSupplier.get();
+            // If the supplier returned a real JWT, use it; otherwise fall back
+            return jwt;
+        };
     }
 
     @Bean
