@@ -228,7 +228,7 @@ release:dist:
     - bash bin/build-frontend.sh
     # 打包 release 脚本放在 dist-template/scripts/release.sh，
     # 实际 release 由运维在有网环境执行
-    - echo "[release:dist] 离线分发包已就绪: release/dist-template/"
+    - 'echo "[release:dist] 离线分发包已就绪: release/dist-template/"'
     - ls -la release/dist-template/
   artifacts:
     paths:
