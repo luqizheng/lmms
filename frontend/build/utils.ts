@@ -84,7 +84,10 @@ const fileListTotal: number[] = [];
 const getPackageSize = options => {
   const { folder = "dist", callback, format = true } = options;
   readdir(folder, (err, files: string[]) => {
-    if (err) throw err;
+    if (err) {
+      callback(format ? formatBytes(0) : 0);
+      return;
+    }
     let count = 0;
     const checkEnd = () => {
       ++count == files.length &&

@@ -40,5 +40,6 @@ export {
   guide,
   menuoverflow,
   account,
-  notification
+  notification,
+  pm
 };
