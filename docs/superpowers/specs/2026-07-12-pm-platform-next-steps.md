@@ -82,7 +82,7 @@ c361471 feat(pm-platform): Spring Boot 3.x PM Platform v0.1.0
 | E3 | e2e Playwright 覆盖 (API smoke cases done, UI pending) | ✅ 部分完成 | `76db5f8` |
 | E4 | OpenAPI yaml 落库 | ✅ 完成 | `84cd4cc` |
 | E5 | vitest coverage 接 CI (coverage-v8 + test:coverage script) | ✅ 完成 | `027808d` |
-| E6 | SpotBugs + PMD 接 CI | ⏸ 未开始 |
+| E6 | SpotBugs + PMD 接 CI (Maven verify phase) | ✅ 完成 | `31ef11e` |
 | E7 | E2E 在 docker compose 完整栈上跑 | ⏸ 未开始 |
 
 ### Phase F：Dev Experience（部分完成）
