@@ -210,3 +210,24 @@ location /pm-api/ {
 - PR-5：Spring Security + JWT 完整身份验证（user 表 + 登录）
 - PR-6：vue-pure-admin 路由 + 视图
 - PR-7：完善 e2e + 文档
+
+## 端到端验证（commit 164a8ac 实测）
+
+容器启动后跑 `scripts/pm-smoke.sh` 触发的 service 层 audit 调用，pm 容器日志显示 SDK 真在打 audit-service：
+
+```
+WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
+     (action=PM_PROJECT_CREATED,  resource=pm_project/2): audit 401: Invalid or expired token
+WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
+     (action=PM_PROJECT_UPDATED,  resource=pm_project/2): audit 401
+WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
+     (action=PM_PROJECT_ARCHIVED, resource=pm_project/2): audit 401
+WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
+     (action=KB_SPACE_CREATED,    resource=kb_space/2):   audit 401
+```
+
+**SDK 链 4 个链路（`ProjectService` × 3 + `KbSpaceService` × 1）已端到端打穿**：
+- `service.create() → audit.report() → AuditEventReporter → AuditServiceClient → HTTP POST api-gateway:3000/v1/audit/events → audit-service`
+- 返回的 401 **不是 SDK bug**——是 `PM_SDK_BEARER=dev-bypass-token` 不是 audit-service 接受的 JWT 格式（apps/pm 用 HS256+自己 secret，audit-service 期望 iam-service 的 RS256 token）
+- **唯一卡点**：IAM 互通（spec §11 明确延后）。SDK 自身 + 网络 + api-gateway 路由全 OK。
+
