@@ -57,15 +57,17 @@ springdoc:
 
 pm:
   jwt:
-    secret: ${PM_JWT_SECRET:dev-secret-change-me-in-production-min-256-bits-long-enough-please}
-    expiration-minutes: ${PM_JWT_EXPIRATION_MINUTES:60}
-    issuer: pm-platform
+    mode: ${PM_JWT_MODE:jwks}    # jwks | hs256
+    jwks-url: ${PM_JWT_JWKS_URL:http://localhost:3000/v1/tokens/.well-known/jwks.json}
+    issuer: ${PM_JWT_ISSUER:superpowers-token-service}
+    audience: ${PM_JWT_AUDIENCE:coder-micro-services}
+    required-scope: ${PM_JWT_REQUIRED_SCOPE:access}
+    cache-ttl-minutes: ${PM_JWT_CACHE_TTL_MINUTES:10}
+    hmac-secret: ${PM_JWT_HMAC_SECRET:}    # only when mode=hs256
   llm:
     provider:
       default: ${PM_LLM_PROVIDER:noop}
     deepseek:
-      # OpenAI-compatible Chat Completions API. Set api-key to enable; leave
-      # blank to keep NoopLlmProvider as the only enabled provider.
       api-key: ${DEEPSEEK_API_KEY:}
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
       model: ${DEEPSEEK_MODEL:deepseek-v4-flash}

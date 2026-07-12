@@ -83,6 +83,13 @@
             <groupId>com.kudi.coder</groupId>
             <artifactId>file-service-sdk</artifactId>
         </dependency>
+
+        <!-- Unit tests for JWT verifiers (Phase B) -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
