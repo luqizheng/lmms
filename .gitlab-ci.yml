@@ -3,6 +3,7 @@ stages:
   - build
   - deploy
   - publish
+  - release
 
 variables:
   DOCKER_REGISTRY: zhcoder-docker-registry.com:8000
