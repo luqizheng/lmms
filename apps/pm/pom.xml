@@ -38,8 +38,8 @@
         <flexmark.version>0.64.8</flexmark.version>
         <springdoc.version>2.6.0</springdoc.version>
 
-        <!-- SDK 0.3.0-SNAPSHOT is the target version after notification/file/config SDK PRs land. -->
-        <kudi-sdk.version>0.3.0-SNAPSHOT</kudi-sdk.version>
+        <!-- low-memory-micro-services SDK modules (release 0.3.0) -->
+        <kudi-sdk.version>0.3.0</kudi-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -139,6 +139,14 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <id>kudi-maven</id>
+            <name>Internal Maven Repository (Reposilite)</name>
+            <url>http://192.168.2.12:18181/releases</url>
+        </repository>
+    </repositories>
 
     <build>
         <pluginManagement>
