@@ -101,9 +101,9 @@ c361471 feat(pm-platform): Spring Boot 3.x PM Platform v0.1.0
 |---|---|---|
 | G1 | OAuth2 / OIDC 替换 | ⏸ 跳过 |
 | G2 | 多租户 | ⏸ 跳过 |
-| G3 | 全文检索 (ES / Meilisearch) | ⏸ 跳过 |
+| G3 | 全文检索 (SQL LIKE on title, MVP) | ✅ 部分完成 | `4a51401` |
 | G4 | 实时协作 (WebSocket + OT) | ⏸ 跳过 |
-| G5 | 合规审计链路 | ⏸ 跳过 |
+| G5 | 审计 (SDK service-jwt 注入) | ✅ 部分完成 | `96831f5` |
 
 ---
 
