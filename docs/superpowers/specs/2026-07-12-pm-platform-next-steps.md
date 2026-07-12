@@ -67,7 +67,7 @@ c361471 feat(pm-platform): Spring Boot 3.x PM Platform v0.1.0
 |---|---|---|---|
 | D1 | KB 文档编辑器 (md-editor-v3) | ✅ 完成 | `e0aa301` |
 | D2 | KB 文档版本切换 UI | ✅ 完成（含在 D1） | `e0aa301` |
-| D3 | KB 文档树状导航 | ⏸ 未开始 | — |
+| D3 | KB 文档树状导航 (el-tree 懒加载) | ✅ 完成 | `893e609` |
 | D4 | 任务 / Bug / 用例管理 | ✅ 完成 | `e176d94d` / `f600b993` / `b3ff5788` |
 | D5 | 迭代（Sprint）管理 | ✅ 完成 | `785663e` / `2a4562b` |
 | D6 | 附件上传到 file-service | ✅ 完成 | `dceb0c6` |
