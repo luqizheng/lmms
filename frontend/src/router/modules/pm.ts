@@ -54,6 +54,26 @@ export default {
         icon: "ep/document",
         keepAlive: true
       }
+    },
+    {
+      path: "/pm/kb/spaces/:spaceId/documents",
+      name: "PmKbDocuments",
+      component: () => import("@/views/pm/kb/documents.vue"),
+      meta: {
+        title: "文档列表",
+        showLink: false,
+        keepAlive: false
+      }
+    },
+    {
+      path: "/pm/kb/documents/:id",
+      name: "PmKbDocumentDetail",
+      component: () => import("@/views/pm/kb/document-detail.vue"),
+      meta: {
+        title: "文档详情",
+        showLink: false,
+        keepAlive: false
+      }
     }
   ]
 } satisfies RouteConfigsTable;

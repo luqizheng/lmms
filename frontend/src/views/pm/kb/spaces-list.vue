@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { listSpaces, createSpace, type KbSpace } from "@/api/kb";
 
 defineOptions({ name: "PmKbSpaces" });
 
+const router = useRouter();
 const loading = ref(false);
 const dataList = ref<KbSpace[]>([]);
 const total = ref(0);
@@ -70,7 +72,7 @@ onMounted(fetchData);
       <el-table-column prop="createdAt" label="创建于" width="180" />
       <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" link disabled>文档</el-button>
+          <el-button size="small" link @click="router.push(`/pm/kb/spaces/${row.id}/documents`)">文档</el-button>
         </template>
       </el-table-column>
     </el-table>
