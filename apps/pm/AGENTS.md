@@ -15,10 +15,11 @@
 
 - `SPRING_PROFILES_ACTIVE`: dev / prod / staging
 - `SERVER_PORT`: 默认 8088
-- `SPRING_DATASOURCE_URL/USER/PASSWORD`: MySQL 连接（默认 superpowers 库）
+- `SPRING_DATASOURCE_URL/USER/PASSWORD`: MySQL 连接（默认 `pm_platform` schema，与 Rust 服务的 `superpowers` 库同实例、独立 schema）
 - `PM_JWT_SECRET`: HS256 共享密钥（≥32 字节；生产环境必读 ENV）
 - `PM_JWT_EXPIRATION_MINUTES`: token TTL，默认 60 分钟
-- `PM_LLM_PROVIDER`: LLM provider 名，默认 noop
+- `PM_LLM_PROVIDER`: LLM provider 名，默认 noop（noop / deepseek）
+- `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL`: DeepSeek (OpenAI-compatible) 接入配置；api-key 非空时 deepseek provider 自动启用
 - `LOWMEM_GATEWAY_BASE`: api-gateway baseURL，SDK 内部使用
 - `PM_SDK_BEARER`: SDK 内部用的静默 bearer（MVP 阶段）
 
@@ -27,11 +28,22 @@
 ```
 apps/pm/
 ├── pm-app-bootstrap/         # @SpringBootApplication + Security + JWT filter + 健康检查
-├── pm-app-api/               # REST controllers（PM + KB + 占位 LLM）
+├── pm-app-api/               # REST controllers（PM + KB + LLM）
 ├── pm-app-domain/            # 领域模型（pom 占位，service 实体放 infra 复用 MP）
-├── pm-app-infrastructure/    # MyBatis-Plus + Flyway + Markdown 渲染 + SDK bean 配置
-└── pm-app-llm/               # LlmProvider 抽象 + NoopLlmProvider 默认实现
+├── pm-app-infrastructure/    # MyBatis-Plus + Flyway + SDK bean 配置 + Markdown 渲染
+└── pm-app-llm/               # LlmProvider 抽象 + NoopLlmProvider(默认) + DeepSeekLlmProvider(可选)
 ```
+
+### LLM Provider 扩展
+
+`pm-app-llm` 通过 Spring `@Component` 自动发现 `LlmProvider` 实现。新增 provider（如 Doubao / Ollama）：
+
+1. 新建类 `XxxLlmProvider implements LlmProvider`，放 `com.coder.pm.llm.provider` 包，加 `@Component("xxx")`
+2. 构造器通过 `@Value` 注入 `pm.llm.xxx.*` 配置项，`isEnabled()` 以 api-key/endpoint 非空为判据
+3. 在 `application.yml` 的 `pm.llm` 下加对应配置块
+4. 实现 `complete(CompletionRequest)` 返回 `CompletionResponse`——**禁止抛出 RuntimeException**，错误一律返回 `disabled=true` 的响应以保证前端降级
+
+前端通过 `POST /pm-api/v1/llm/requirements/{id}/decompose?provider=xxx` 选择 provider；不带 `provider` 参数则用 `pm.llm.provider.default`。
 
 ## 已暴露端点
 

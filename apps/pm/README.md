@@ -134,7 +134,7 @@ java -jar pm-app-bootstrap/target/pm-app-bootstrap.jar \
 # 默认端口 8088，需要 MySQL（在 host 网络下）
 docker build -t pm-platform:0.1.0 -f apps/pm/Dockerfile .
 docker run --rm -p 8088:8088 \
-  -e SPRING_DATASOURCE_URL='jdbc:mysql://host.docker.internal:3306/superpowers?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' \
+  -e SPRING_DATASOURCE_URL='jdbc:mysql://host.docker.internal:3306/pm_platform?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' \
   -e PM_JWT_SECRET='dev-secret-change-me-min-256-bits-long-enough-please' \
   pm-platform:0.1.0
 
@@ -153,21 +153,49 @@ curl http://localhost:8088/pm-api/v1/health/ready
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | `dev` | Spring profile |
 | `SERVER_PORT` | `8088` | HTTP 端口 |
-| `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3306/superpowers?...` | MySQL JDBC URL |
+| `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3306/pm_platform?...` | MySQL JDBC URL（独立 schema `pm_platform`，与 Rust 服务同 MySQL 实例） |
 | `SPRING_DATASOURCE_USERNAME` | `root` | DB 用户 |
 | `SPRING_DATASOURCE_PASSWORD` | `rootpass` | DB 密码 |
 | `PM_JWT_SECRET` | dev fallback | HS256 共享密钥（≥ 32 字节） |
 | `PM_JWT_EXPIRATION_MINUTES` | `60` | token 有效期（分钟） |
-| `PM_LLM_PROVIDER` | `noop` | 默认 LLM provider 名 |
+| `PM_LLM_PROVIDER` | `noop` | 默认 LLM provider 名（`noop` / `deepseek`） |
+| `DEEPSEEK_API_KEY` | *(empty)* | DeepSeek API Key；非空时自动启用 DeepSeek provider |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | DeepSeek Chat Completions base URL（兼容 OpenAI 协议的服务都可替换） |
+| `DEEPSEEK_MODEL` | `deepseek-v4-flash` | DeepSeek 模型名 |
 | `LOWMEM_GATEWAY_BASE` | `http://localhost:3000` | api-gateway baseURL（SDK 调用） |
 | `PM_SDK_BEARER` | `dev-bypass-token` | SDK 调用时用的静默 bearer |
+
+### 启用真实 LLM（DeepSeek）
+
+默认情况下 apps/pm 启动时注册 `noop` 和 `deepseek` 两个 provider，但 `deepseek` 在未配置 API Key 时 `isEnabled()=false`，`registry.dispatch("deepseek", …)` 会自动回退到 noop。启用只需：
+
+```bash
+export DEEPSEEK_API_KEY=sk-your-real-key
+export PM_LLM_PROVIDER=deepseek   # 可选：把默认 provider 切成 deepseek
+java -jar pm-app-bootstrap/target/pm-app-bootstrap.jar
+```
+
+也可在 `application.yml` 写死：
+
+```yaml
+pm:
+  llm:
+    provider:
+      default: deepseek
+    deepseek:
+      api-key: sk-...
+      base-url: https://api.deepseek.com
+      model: deepseek-v4-flash
+```
+
+前端需求详情页的「AI 拆解」会把需求发给 DeepSeek，返回 3–7 个用户故事 + 验收标准的 JSON，用户确认后可一键批量导入。「AI 改写」则返回重写后的描述，支持「应用改写」一键覆盖。
 
 ## 与 low-memory-micro-services 的关系
 
 ```
 Browser → vue-pure-admin → /pm-api → apps/pm (Spring Boot, 8088)
                                        │
-                                       ├─ 直连 MySQL `superpowers` 库（pm_/kb_ 表）
+                                       ├─ 直连 MySQL `superpowers` 实例，独立 schema `pm_platform`（pm_/kb_ 表）
                                        └─ SDK → api-gateway (:3000) → Rust 服务
                                                   ├─ audit-service-sdk  → audit-service
                                                   ├─ file-service-sdk   → file-service
@@ -175,7 +203,7 @@ Browser → vue-pure-admin → /pm-api → apps/pm (Spring Boot, 8088)
                                                   └─ config-service-sdk → config-service
 ```
 
-- **共享 MySQL 实例**：apps/pm 与 Rust 服务共用 `superpowers` 库，新表带前缀 `pm_` / `kb_`（已在 `scripts/check-db-naming.js` 白名单）。
+- **共享 MySQL 实例，独立 schema**：apps/pm 与 Rust 服务共用同一 MySQL 实例（`superpowers`），但 PM 表放独立 schema `pm_platform`（pm_/kb_ 前缀，已在 `scripts/check-db-naming.js` 白名单）。JDBC URL 必须指向 `pm_platform`；Flyway 自动建表。
 - **跨服务用户引用**：`owner_id` / `assignee_id` / `created_by` 存 BIGINT，**无物理外键**（iam-service 是独立服务）；写入前调 `iam-service` 校验存在性。
 - **JWT**：apps/pm 自己签发 HS256；与 iam-service 的 RS256 JWT 不互通（v0.2.0 计划切换为共享 JWKS）。
 
