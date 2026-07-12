@@ -1,8 +1,8 @@
 package com.coder.pm.web;
 
+import com.coder.pm.domain.security.Principal;
 import com.coder.pm.web.security.JwtVerifier;
 import com.coder.pm.web.security.JwtVerifierRouter;
-import com.coder.pm.web.security.Principal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

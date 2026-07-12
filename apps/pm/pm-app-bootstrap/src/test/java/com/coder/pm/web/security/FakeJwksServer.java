@@ -1,5 +1,6 @@
 package com.coder.pm.web.security;
 
+import com.coder.pm.domain.security.Principal;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 

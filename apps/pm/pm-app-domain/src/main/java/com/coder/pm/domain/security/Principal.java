@@ -1,4 +1,4 @@
-package com.coder.pm.web.security;
+package com.coder.pm.domain.security;
 
 import java.util.List;
 
@@ -9,7 +9,12 @@ import java.util.List;
  * services/token-service::TokenIssuer::issue_user_jwt) into a Spring-friendly
  * representation. Used as the {@code principal} field on the
  * {@link org.springframework.security.core.Authentication} created by
- * {@link JwtAuthFilter}.
+ * {@code com.coder.pm.web.JwtAuthFilter}.
+ *
+ * <p>Lives in {@code pm-app-domain} so any module — bootstrap (the filter that
+ * installs the Authentication), infra (services that read the actor id out
+ * of the SecurityContext) — can import it without creating a dependency
+ * cycle.
  *
  * @param userId      numeric id derived from {@code sub} (UUID hex → first 8 bytes → long);
  *                    null if the sub is not parseable

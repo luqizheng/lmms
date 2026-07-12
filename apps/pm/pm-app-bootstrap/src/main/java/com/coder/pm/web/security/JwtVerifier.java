@@ -1,5 +1,7 @@
 package com.coder.pm.web.security;
 
+import com.coder.pm.domain.security.Principal;
+
 /**
  * Verifies a bearer token and returns the {@link Principal} it represents, or
  * {@link Principal#ANONYMOUS} when verification fails / no token is provided.

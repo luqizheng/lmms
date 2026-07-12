@@ -1,5 +1,6 @@
 package com.coder.pm.web.security;
 
+import com.coder.pm.domain.security.Principal;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.Mac;

@@ -1,5 +1,6 @@
 package com.coder.pm.web.security;
 
+import com.coder.pm.domain.security.Principal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
