@@ -77,8 +77,8 @@ c361471 feat(pm-platform): Spring Boot 3.x PM Platform v0.1.0
 
 | # | 任务 | 状态 |
 |---|---|---|
-| E1 | 业务 service 单测 (Project/Requirement/Kb 等) | ⏸ 未开始 |
-| E2 | 业务 controller 单测 (@WebMvcTest) | ⏸ 未开始 |
+| E1 | 业务 service 单测 (6/6 services, 36 cases) | ✅ 完成 | `1f0a89a` / `5554879` / `6b675c3` / `d40b1a3` |
+| E2 | 业务 controller 单测 (@WebMvcTest) | ⏸ 未开始 | - |
 | E3 | e2e Playwright 覆盖 | ⏸ 未开始 |
 | E4 | OpenAPI yaml 落库 | ⏸ 未开始 |
 | E5 | vitest coverage 接 CI | ⏸ 未开始 |
