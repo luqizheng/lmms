@@ -1,44 +1,43 @@
 package com.coder.pm.web.security;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 /**
  * Selects which {@link JwtVerifier} implementation is active based on the
  * {@code pm.jwt.mode} configuration property. Spring picks exactly one
- * delegate (either {@link JwksJwtVerifier} or {@link Hs256JwtVerifier}) and
- * the router just forwards to it.
+ * delegate (either {@link JwksJwtVerifier}, {@link Hs256JwtVerifier}, or
+ * {@link NoOpJwtVerifier}) and the router just forwards to it.
  *
- * <p>Default mode is {@code jwks} so that a misconfigured environment
- * degrades to "talks to iam-service / token-service" rather than silently
- * accepting an HS256 secret nobody set. HS256 is opt-in via
- * {@code PM_JWT_MODE=hs256} for offline / dev work.
+ * <p>Default mode is {@code jwks} so that a misconfigured production
+ * environment degrades to "talks to iam-service / token-service" rather than
+ * silently accepting tokens. {@code hs256} is opt-in for offline work.
+ * {@code noop} is the dev-profile short-circuit that returns a synthetic
+ * Principal for every request so a developer can curl any protected endpoint
+ * without first logging in via iam-service.
  *
- * <p>This class is the only {@code @Component} {@link JwtVerifier} bean; the
- * two delegates are created internally via Spring's factory lookup so the
- * autowiring of {@link JwtVerifier} into {@link JwtAuthFilter} is unambiguous.
+ * <p>NOT annotated with {@code @Component} on purpose — Spring wires this
+ * bean only via {@link JwtSecurityConfig}, which gates the prod and dev
+ * sub-configs by Spring profile. Annotation here would defeat the gate.
  */
-@Component(JwtVerifierRouter.BEAN_NAME)
 public class JwtVerifierRouter implements JwtVerifier {
 
     /** Stable bean name for explicit injection by tests and other components. */
     public static final String BEAN_NAME = "jwtVerifierRouter";
 
-    public enum Mode { JWKS, HS256 }
+    public enum Mode { JWKS, HS256, NOOP }
 
     private final Mode mode;
     private final JwksJwtVerifier jwks;
     private final Hs256JwtVerifier hs256;
+    private final NoOpJwtVerifier noop;
 
-    /**
-     * Look up the delegates by their fully-qualified class so Spring can
-     * construct them via their {@code @Value}-annotated constructors without
-     * needing {@code @Component} on the delegates themselves.
-     */
     public JwtVerifierRouter(
             JwksJwtVerifier jwks,
             Hs256JwtVerifier hs256,
             @Value("${pm.jwt.mode:jwks}") String modeRaw) {
+        this.jwks = jwks;
+        this.hs256 = hs256;
+        this.noop = new NoOpJwtVerifier();
         Mode parsed;
         try {
             parsed = Mode.valueOf(modeRaw.trim().toUpperCase());
@@ -46,8 +45,11 @@ public class JwtVerifierRouter implements JwtVerifier {
             parsed = Mode.JWKS;
         }
         this.mode = parsed;
-        this.jwks = jwks;
-        this.hs256 = hs256;
+    }
+
+    /** Test / dev convenience overload that locks mode to jwks. */
+    public JwtVerifierRouter(JwksJwtVerifier jwks, Hs256JwtVerifier hs256) {
+        this(jwks, hs256, "jwks");
     }
 
     public Mode mode() {
@@ -56,6 +58,10 @@ public class JwtVerifierRouter implements JwtVerifier {
 
     @Override
     public Principal verify(String token) {
-        return mode == Mode.HS256 ? hs256.verify(token) : jwks.verify(token);
+        return switch (mode) {
+            case HS256 -> hs256.verify(token);
+            case NOOP -> noop.verify(token);
+            case JWKS -> jwks.verify(token);
+        };
     }
 }

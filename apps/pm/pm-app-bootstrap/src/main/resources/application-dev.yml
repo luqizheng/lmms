@@ -1,9 +1,18 @@
-# dev profile overrides — local docker-compose / native mvn execution
+# dev profile overrides — local docker-compose / native mvn execution.
+# Spring profile=dev gates NoOpJwtVerifier (see JwtSecurityConfig), so requests
+# are authenticated as a synthetic dev principal without any token. Override
+# PM_JWT_MODE to force JWKS verification inside dev if you need to exercise the
+# real verifier locally (e.g. for debugging).
+
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/pm_platform?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: rootpass
+
+pm:
+  jwt:
+    mode: ${PM_JWT_MODE:noop}
 
 logging:
   level:

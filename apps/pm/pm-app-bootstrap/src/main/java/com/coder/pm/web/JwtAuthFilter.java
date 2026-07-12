@@ -54,20 +54,30 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String header = request.getHeader(HEADER);
-        if (header != null && header.startsWith(PREFIX)) {
-            String token = header.substring(PREFIX.length()).trim();
-            Principal principal = verifier.verify(token);
-            if (!principal.isAnonymous()) {
-                AbstractAuthenticationToken auth = new AuthToken(principal, authorities(principal));
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            } else {
-                log.debug("JWT rejected; clearing SecurityContext");
-                SecurityContextHolder.clearContext();
-            }
+        log.info("JwtAuthFilter entered for {} {}", request.getMethod(), request.getRequestURI());
+        String token = extractBearer(request.getHeader(HEADER));
+        // Always call verify — even when the token is missing. Production
+        // verifiers return Principal.ANONYMOUS for null input, which leaves
+        // the SecurityContext empty (and Spring Security returns 401/403
+        // for protected endpoints, as it should). Dev-profile verifiers
+        // (NoOpJwtVerifier) return a synthetic dev principal regardless of
+        // input, which lets a developer curl protected endpoints without a
+        // token. Both branches honour the same SecurityContext contract.
+        Principal principal = verifier.verify(token);
+        if (!principal.isAnonymous()) {
+            AbstractAuthenticationToken auth = new AuthToken(principal, authorities(principal));
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        } else {
+            log.debug("JWT rejected; clearing SecurityContext");
+            SecurityContextHolder.clearContext();
         }
         filterChain.doFilter(request, response);
+    }
+
+    private static String extractBearer(String header) {
+        if (header == null || !header.startsWith(PREFIX)) return null;
+        return header.substring(PREFIX.length()).trim();
     }
 
     /** Roles are exposed as {@code ROLE_<UPPER>} authorities; permissions keep their canonical form. */
