@@ -159,3 +159,24 @@ nginx 代理：在 frontend 的 `nginx.conf` 中加 `/pm-api/` 转发到 `pm:808
 - 当前阶段：mvn compile + Spring Boot 启动验证（环境无 JDK 17/Maven 未能本地跑 verify）
 - 后续：每个 service 至少 3 个 happy-path + 2 个 error-path 单测
 - E2E：`pnpm run test:e2e --filter pm`（下一迭代）
+
+## Dev 演示数据（Phase F2）
+
+跑 `scripts/seed-pm.sh`（默认指向 `http://localhost:8088`，可用 `PM_BASE=...` 覆盖）一次性创建：
+
+- 1 个项目 `DEMO`（id 沿用已存在的，跳过重复创建）
+- 2 个 requirements（`用户登录功能` / `KB 文档版本回滚`）
+- 2 个 user story + 2 条 AC
+- 1 个 KB space `Demo KB` + 1 个 markdown 文档 `Welcome`
+
+幂等：每次跑都按 code/title 查重，不重复创建；多次跑只是补齐缺失项。脚本依赖 `SPRING_PROFILES_ACTIVE=dev`（dev profile 下 NoOpJwtVerifier 启用，无需 Authorization header），同时依赖 `python3`（代替 `jq` 解析响应）。
+
+## 安全上下文工具
+
+`com.coder.pm.infra.security.CurrentActor` 统一读取 Spring `SecurityContextHolder` 内的 `Principal`，提供：
+
+- `actorIdOrNull()` / `actorIdOrZero()`：填 `created_by` 列时用
+- `displayName()`：audit report 的 actor 字段
+- `principalOrNull()`：需要完整 Principal 时用
+
+域内 6 个 service（Project/Requirement/UserStory/KbSpace/KbDocument + AcceptanceCriteria）已统一通过 `CurrentActor` 拿 actor 信息，不直接接触 `SecurityContextHolder`。新增 entity / service 时也请走 `CurrentActor`，不要内联样板代码。

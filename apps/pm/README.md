@@ -212,6 +212,7 @@ Browser → vue-pure-admin → /pm-api → apps/pm (Spring Boot, 8088)
 - **共享 MySQL 实例，独立 schema**：apps/pm 与 Rust 服务共用同一 MySQL 实例（`superpowers`），但 PM 表放独立 schema `pm_platform`（pm_/kb_ 前缀，已在 `scripts/check-db-naming.js` 白名单）。JDBC URL 必须指向 `pm_platform`；Flyway 自动建表。
 - **跨服务用户引用**：`owner_id` / `assignee_id` / `created_by` 存 BIGINT，**无物理外键**（iam-service 是独立服务）；写入前调 `iam-service` 校验存在性。
 - **JWT**（Phase B）：apps/pm 通过 `JwksJwtVerifier` 验证 iam-service / token-service 签发的 RS256 JWT；issuer=audience=scope 与 `services/token-service/src/issuer.rs::issue_user_jwt` 对齐。从 JWT 抽 `sub`(UUID)→`userId`(long)、`user_code`→`username`、`tid`→`tenantId`、`roles[]` / `permissions[]` / `scope`，注入 `Principal` 给 `Authentication.principal`，控制器可用 `@AuthenticationPrincipal Principal p` 取。
+- **域 service actor 读取**（Phase F1 修复）：`com.coder.pm.infra.security.CurrentActor` 工具集中读 SecurityContext 内的 `Principal`，6 个 service（Project / Requirement / UserStory / KbSpace / KbDocument / AcceptanceCriteria）的 `create` 在 caller 没传 `createdBy` 时自动 fallback 到当前 actor id；audit `report(...)` 用 `displayName()`。Dev profile + NoOpJwtVerifier 下自动用 userId=1，所以 `POST /v1/projects`、`/requirements`、`/stories`、`/spaces`、`/documents` 在 dev 都不再报 500。
 - **端到端联调**：`POST {LOWMEM_GATEWAY_BASE}/v1/iam/auth/login` 拿 token → `Authorization: Bearer <jwt>` 调 `/pm-api/v1/llm/providers` / `/pm-api/v1/projects` → 200 OK；伪造 / 错签名 / 无 token → 403 Forbidden；健康检查 `/pm-api/v1/health` 公开。
 - **Dev profile bypass**（Phase F1）：`SPRING_PROFILES_ACTIVE=dev` 时 `JwtSecurityConfig` 走 `Development` 子配置（`@Profile("dev")`），注入 `NoOpJwtVerifier`，对任意请求（含无 token / 错 token / 真 token）都返回固定的 dev `Principal`（userId=1, username=`dev`, roles=`[pm_admin]`）。本地开发不再需要先登录 iam-service 也能 curl/前端/e2e 跑通；`pm.jwt.mode=noop` 仅在 `application-dev.yml` 默认生效，prod 配置文件仍是 `jwks`，**不会**误启用 bypass。
 
@@ -269,6 +270,18 @@ curl -s -X POST http://localhost:8088/pm-api/v1/projects \
 ```
 
 `pm.jwt.mode=noop` 仅 dev profile 生效；prod 配置文件 (`application.yml`) 默认 `jwks`，JWT 验签逻辑不变。`JwtSecurityConfig.Production` 子配置没声明 `NoOpJwtVerifier` bean，prod 模式下不存在 bypass。
+
+**Phase F2（Dev demo data seed）**：
+
+```bash
+# 起 PM dev profile 容器后，跑：
+PM_BASE=http://localhost:8088 scripts/seed-pm.sh
+
+# 幂等创建：1 个 DEMO 项目 + 2 个 requirement + 2 个 story + 2 条 AC + 1 个 KB space + 1 个 markdown doc
+# 用 dev principal（Phase F1 自动启用），所以不需要 token
+```
+
+依赖 `python3` 解析响应（替代 jq）。每次跑都按 code/title 查重：已存在则跳过，缺失则补齐。
 
 **Phase B（IAM JWT 互通）**：
 
