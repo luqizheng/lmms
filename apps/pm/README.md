@@ -119,11 +119,11 @@ Endpoints 由 `application.yml` 的 `pm.sdk.{audit,file,notification,config}.bas
 
 ## 快速开始
 
-### 本机编译（需要 JDK 17/21 + Maven 3.9+）
+### 本机编译（需要 JDK 21 + Maven 3.9+）
 
 ```bash
 cd apps/pm
-mvn -Pjava17 clean package -DskipTests
+mvn -Pjava21 clean package -DskipTests
 java -jar pm-app-bootstrap/target/pm-app-bootstrap.jar \
      --spring.profiles.active=dev
 ```
@@ -134,9 +134,10 @@ java -jar pm-app-bootstrap/target/pm-app-bootstrap.jar \
 # 默认端口 8088，需要 MySQL（在 host 网络下）
 docker build -t pm-platform:0.1.0 -f apps/pm/Dockerfile .
 docker run --rm -p 8088:8088 \
-  -e SPRING_DATASOURCE_URL='jdbc:mysql://host.docker.internal:3306/pm_platform?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' \
-  -e LOWMEM_GATEWAY_BASE='http://api-gateway:3000' \
-  -e PM_JWT_JWKS_URL='http://api-gateway:3000/v1/tokens/.well-known/jwks.json' \
+  -e SPRING_DATASOURCE_URL='jdbc:mysql://host.docker.internal:3306/pm_platform?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8' \
+  -e SPRING_PROFILES_ACTIVE=dev \
+  -e LOWMEM_GATEWAY_BASE='http://host.docker.internal:3000' \
+  -e PM_JWT_JWKS_URL='http://host.docker.internal:3000/v1/tokens/.well-known/jwks.json' \
   pm-platform:0.1.0
 
 # 启动后验证
@@ -235,8 +236,9 @@ location /pm-api/ {
 
 ## CI / 本地检查
 
-- `mvn -Pjava17 verify` — 编译 + 测试 + 打包
-- `docker build` 通过 Dockerfile 构建
+- `mvn -Pjava21 verify` — 编译 + 测试 + 打包（JDK 21）
+- `mvn -Pjava17 verify` — 编译到 Java 17 字节码（需 JDK 17+，用于需要 JDK 17 兼容的部署场景）
+- `docker build` 通过 Dockerfile 构建（镜像内使用 Eclipse Temurin JDK 21 构建、JRE 21 Alpine 运行）
 - 表前缀检查：`node scripts/check-db-naming.js`（已加 pm_/kb_ 白名单）
 
 ## 后续 PR（不属 MVP）

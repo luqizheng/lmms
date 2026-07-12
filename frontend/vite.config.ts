@@ -70,6 +70,16 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
           target: "http://127.0.0.1:8087",
           changeOrigin: true,
           rewrite: (p: string) => p.replace(/^\/probe\/prue-backend/, "")
+        },
+        "/probe/pm-platform": {
+          target: "http://127.0.0.1:8088",
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/probe\/pm-platform/, "")
+        },
+        // PM Platform (apps/pm, Spring Boot 3) 直连，绕过 api-gateway（与 frontend/nginx.conf 对齐）
+        "/pm-api": {
+          target: "http://127.0.0.1:8088",
+          changeOrigin: true
         }
       },
       // 预热文件以提前转换和缓存结果，降低启动期间的初始页面加载时长并防止转换瀑布

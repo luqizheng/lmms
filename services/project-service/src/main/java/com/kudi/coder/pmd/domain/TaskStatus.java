@@ -36,7 +36,8 @@ public enum TaskStatus {
     public static void tryTransition(TaskStatus from, TaskStatus to) {
         if (from == to) return;
         if (from.isTerminal()) {
-            throw AppException.invalidState(to, "from terminal " + from);
+            throw AppException.invalidState("PMD_TASK_INVALID_STATE_TRANSITION",
+                    to.name(), "from terminal " + from);
         }
         boolean ok = switch (from) {
             case Backlog -> to == Todo || to == InProgress || to == Cancelled;
@@ -47,7 +48,8 @@ public enum TaskStatus {
             case Done, Cancelled -> false;
         };
         if (!ok) {
-            throw AppException.invalidState(to, "from " + from);
+            throw AppException.invalidState("PMD_TASK_INVALID_STATE_TRANSITION",
+                    to.name(), "from " + from);
         }
     }
 }

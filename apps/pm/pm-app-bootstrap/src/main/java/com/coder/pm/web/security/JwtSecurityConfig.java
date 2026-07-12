@@ -75,16 +75,14 @@ public class JwtSecurityConfig {
     static class Development {
 
         @Bean
-        public JwksJwtVerifier devJwksJwtVerifier() {
-            // Wired so that JwtVerifierRouter can be constructed if needed
-            // (e.g. someone flips PM_JWT_MODE=jwks while in dev). The router
-            // itself ignores this bean because pm.jwt.mode=noop in dev.
-            return new JwksJwtVerifier(
-                    "http://localhost:0/.well-known/jwks.json",
-                    "superpowers-token-service",
-                    "coder-micro-services",
-                    "access",
-                    10);
+        public JwksJwtVerifier devJwksJwtVerifier(
+                @Value("${pm.jwt.jwks-url:http://localhost:3000/v1/tokens/.well-known/jwks.json}") String jwksUrl,
+                @Value("${pm.jwt.issuer:superpowers-token-service}") String issuer,
+                @Value("${pm.jwt.audience:coder-micro-services}") String audience,
+                @Value("${pm.jwt.required-scope:access}") String requiredScope,
+                @Value("${pm.jwt.cache-ttl-minutes:10}") long cacheTtlMinutes) {
+            // Present so dev can flip PM_JWT_MODE=jwks for real-token debugging.
+            return new JwksJwtVerifier(jwksUrl, issuer, audience, requiredScope, cacheTtlMinutes);
         }
 
         @Bean

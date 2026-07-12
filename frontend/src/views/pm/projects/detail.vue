@@ -8,6 +8,7 @@ import {
   type Requirement,
   type Paged
 } from "@/api/pm";
+import { ArrowLeft } from "@element-plus/icons-vue";
 import { usePmStore } from "@/store/modules/pm";
 
 defineOptions({ name: "PmProjectDetail" });

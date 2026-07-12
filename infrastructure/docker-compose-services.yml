@@ -192,6 +192,12 @@ services:
       - ./config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
       - ./config/api-gateway/rate-limits.toml:/app/config/api-gateway/rate-limits.toml:ro
       - ../docker-example/secrets:/app/keys:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     depends_on:
       consul:
         condition: service_healthy
@@ -434,7 +440,9 @@ services:
     labels: *svc-reg-labels-project
     environment:
       TENANT_ID: "${TENANT_ID}"
-      DATABASE_URL: "${DATABASE_URL}"
+      SPRING_DATASOURCE_URL: "${PROJECT_JDBC_URL}"
+      SPRING_DATASOURCE_USERNAME: "${MYSQL_USER}"
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_PASSWORD}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       SPRING_PROFILES_ACTIVE: "prod"
@@ -505,13 +513,14 @@ services:
     labels: *svc-reg-labels-pm
     environment:
       SERVER_PORT: "8088"
-      SPRING_PROFILES_ACTIVE: "${PM_SPRING_PROFILE:-prod}"
-      SPRING_DATASOURCE_URL: "${DATABASE_URL}"
+      # Default dev profile (JWT noop bypass). Override PM_SPRING_PROFILE=prod in .env for real JWKS.
+      SPRING_PROFILES_ACTIVE: "${PM_SPRING_PROFILE:-dev}"
+      SPRING_DATASOURCE_URL: "${PM_JDBC_URL}"
       SPRING_DATASOURCE_USERNAME: "${MYSQL_USER}"
       SPRING_DATASOURCE_PASSWORD: "${MYSQL_PASSWORD}"
       LOWMEM_GATEWAY_BASE: "http://api-gateway:3000"
       PM_JWT_JWKS_URL: "${LOWMEM_GATEWAY_BASE:-http://api-gateway:3000}/v1/tokens/.well-known/jwks.json"
-      PM_JWT_MODE: "${PM_JWT_MODE:-jwks}"
+      PM_JWT_MODE: "${PM_JWT_MODE:-noop}"
       PM_LLM_PROVIDER: "${PM_LLM_PROVIDER:-noop}"
       DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
       DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"

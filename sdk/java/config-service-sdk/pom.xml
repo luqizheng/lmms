@@ -22,7 +22,7 @@
         <dependency>
             <groupId>com.kudi.coder</groupId>
             <artifactId>kudi-coder-sdk-common</artifactId>
-            <version>0.2.0</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>

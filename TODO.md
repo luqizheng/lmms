@@ -414,6 +414,14 @@
 - [x] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式） — **决策：保留 SQLite**（spec `2026-07-08-prue-backend-sqlite-decision-design.md`）。仅 1 个 migration，翻译成本可接受；dev/CI 零依赖启动价值更高。配套加 `scripts/check-prue-migrations-parity.sh` CI gate 防 drift。
 - [x] `events.yaml` — **Phase 4 已落地**（首批三事件 + Phase 5B-fu3 三事件 `iam.user.role.{assigned,unassigned}` + `iam.user.dept.changed` 已 codegen + producer/consumer 闭环）
 - [ ] 健康检查补齐三级探针（目前仅 liveness）
+- [ ] **project-service 生产化收尾**（2026-07-12 docker compose 修复 session 遗留）：
+  - [ ] `services/project-service/pom.xml` 补 `spring-boot-starter-test` test scope 依赖（当前 Dockerfile 用 `-Dmaven.test.skip=true` 绕过测试编译，本地/CI 跑单测会因缺 JUnit/AssertJ 失败）
+  - [ ] `services/project-service/config/application.yml` 与 jar 内 `src/main/resources/application.yml` 的 datasource url/user/pass 清理：外部 config 仍用 `${DATABASE_URL}`/`${DB_USER}`/`${DB_PASSWORD}` 占位符（Rust 风格），实际 Spring 读取 compose 注入的 `SPRING_DATASOURCE_*` 环境变量，两个 ${} 占位成为死代码；可删除外部 config 中的 datasource 段或改为读取同名 JDBC 变量（避免后续有人误以为这两个变量会生效）
+  - [ ] 补 maven-settings.xml 到 `.gitignore` 审视：`services/project-service/maven-settings.xml` 是项目内镜像/内网仓库配置，aliyun mirror 在非 CN 网络、内部 CI 不一定适用，考虑改为 build-arg 或复用 `~/.m2/settings.xml` mount；本次为了让镜像能成功构建，直接放在了服务目录里
+- [ ] **Rust 服务 Dockerfile 补 HEALTHCHECK**（2026-07-12 docker compose 修复 session 遗留）：iam / token / notification / audit / config / file / prue_backend 这 7 个 Rust 服务的 Dockerfile 均无 HEALTHCHECK 指令（api-gateway 已在 compose 层加了 healthcheck），`docker ps` 状态只显示 "Up" 不显示 "Up (healthy)"。当前 compose 里没有服务以 `condition: service_healthy` 依赖它们所以不影响启动，但与 pm / project-service 一致、也符合 Phase 10「健康检查补齐」目标，建议每个 Dockerfile 统一补：
+  - alpine 基础镜像自带 busybox wget，无需额外 apk add（除 iam/token 已经装了 curl 之外）
+  - health 路径统一 `/health`，端口按 `SERVICE_PORT`（8081/8082/8083/8084/8081/8082/8087）
+  - 推荐参数：`--interval=15s --timeout=3s --retries=5 --start-period=20s`
 - 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`） — **G3 7/7 端点接入完成（待集成测试 + 文档同步）**
   - [x] spec `docs/superpowers/specs/2026-07-08-migrations-state-endpoint-design.md`
   - [x] `libs/common-db::MigrationState` trait + `build_response`（commit `61d4b0c`）

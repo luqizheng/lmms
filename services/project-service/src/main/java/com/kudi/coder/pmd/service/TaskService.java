@@ -108,5 +108,9 @@ public class TaskService {
                                 String assigneeId,
                                 BigDecimal estimateHours) { }
 
-    private record Pair<A, B>(A first, B second) { }
+    private record Pair<A, B>(A first, B second) {
+        static <A, B> Pair<A, B> of(A first, B second) {
+            return new Pair<>(first, second);
+        }
+    }
 }

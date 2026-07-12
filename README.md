@@ -223,7 +223,7 @@ docker run --rm `
 | Audit Service        | Rust     | Axum      | — |
 | Config Service       | Rust     | Axum      | — |
 | File Service         | Rust     | Axum      | — |
-| PM Platform          | Java 17  | Spring Boot 3 | — |
+| PM Platform          | Java 21   | Spring Boot 3 | — |
 
 > 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`。
 >

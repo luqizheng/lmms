@@ -1,27 +1,36 @@
 # syntax=docker/dockerfile:1.6
-# Phase 9 PMD — multi-stage Spring Boot 3 + Java 25 build.
-# Stage 1: eclipse-temurin:25-jdk (build + maven test + package).
-# Stage 2: eclipse-temurin:25-jre-alpine (runtime).
+# Phase 9 PMD — Spring Boot 3 / Java 25 multi-stage build.
+# Builder installs maven via apt because the internal registry does not yet
+# mirror a maven:*-eclipse-temurin-25 image (mirror apps/pm/Dockerfile once it
+# does). maven-settings.xml mirrors Central -> Aliyun and routes
+# com.kudi.coder:* to the on-prem Reposilite at mvn.kudi.repos:18181.
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 
 FROM ${BASE_REGISTRY}/eclipse-temurin:25-jdk AS builder
 WORKDIR /build
 
-# Maven wrapper or local mvn must be present on PATH.
-# CI images pre-install mvn; for offline builds cache ~/.m2 via --mount.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends maven && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /root/.m2 /app
+COPY services/project-service/maven-settings.xml /root/.m2/settings.xml
+
 COPY services/project-service/pom.xml /build/pom.xml
-RUN --mount=type=cache,id=m2,target=/root/.m2 \
-    mvn -B -ntp -f /build/pom.xml -DskipTests dependency:go-offline
+RUN --mount=type=cache,id=m2-project-service,target=/root/.m2 \
+    mvn -B -ntp -f /build/pom.xml -Dmaven.test.skip=true dependency:go-offline
 
 COPY services/project-service/src /build/src
 
-RUN --mount=type=cache,id=m2,target=/root/.m2 \
-    mvn -B -ntp -f /build/pom.xml -DskipTests package && \
+RUN --mount=type=cache,id=m2-project-service,target=/root/.m2 \
+    mvn -B -ntp -f /build/pom.xml -Dmaven.test.skip=true package && \
     cp /build/target/project-service.jar /app/project-service.jar
 
 FROM ${BASE_REGISTRY}/eclipse-temurin:25-jre-alpine
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata wget
 WORKDIR /app
 COPY --from=builder /app/project-service.jar /app/project-service.jar
 COPY services/project-service/config /app/config

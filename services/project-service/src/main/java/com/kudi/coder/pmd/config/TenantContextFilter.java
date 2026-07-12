@@ -68,7 +68,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
         try {
             byte[] decoded = Base64.getUrlDecoder().decode(body);
             return MAPPER.readTree(decoded);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IOException e) {
             return null;
         }
     }

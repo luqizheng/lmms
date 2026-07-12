@@ -2,7 +2,7 @@
 
 ## 必需组件（8-item 服务规范）
 
-- [x] Dockerfile — `apps/pm/Dockerfile`（multi-stage musl-free, temurin JRE 21 runtime）
+- [x] Dockerfile — `apps/pm/Dockerfile`（multi-stage: `maven:3.9.9-eclipse-temurin-21` 构建 + `eclipse-temurin:21-jre-alpine` 运行时）
 - [x] config/ — `apps/pm/config/{application.yml, application-dev.yml}` + `pm-app-bootstrap/src/main/resources/{application.yml, application-dev.yml}`
 - [x] README.md — `apps/pm/README.md`
 - [x] AGENTS.md — 本文件
@@ -156,7 +156,8 @@ nginx 代理：在 frontend 的 `nginx.conf` 中加 `/pm-api/` 转发到 `pm:808
 
 ## 测试策略
 
-- 当前阶段：mvn compile + Spring Boot 启动验证（环境无 JDK 17/Maven 未能本地跑 verify）
+- 默认编译目标：JDK 21（`mvn -Pjava21` 或直接 `mvn`，默认 profile 就是 java21）
+- 兼容 JDK 17：`mvn -Pjava17` 输出 17 字节码（仅特殊部署需求，非默认）
 - 后续：每个 service 至少 3 个 happy-path + 2 个 error-path 单测
 - E2E：`pnpm run test:e2e --filter pm`（下一迭代）
 
