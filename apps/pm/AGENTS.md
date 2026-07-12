@@ -16,10 +16,15 @@
 - `SPRING_PROFILES_ACTIVE`: dev / prod / staging
 - `SERVER_PORT`: 默认 8088
 - `SPRING_DATASOURCE_URL/USER/PASSWORD`: MySQL 连接（默认 `pm_platform` schema，与 Rust 服务的 `superpowers` 库同实例、独立 schema）
-- `PM_JWT_SECRET`: HS256 共享密钥（≥32 字节；生产环境必读 ENV）
-- `PM_JWT_EXPIRATION_MINUTES`: token TTL，默认 60 分钟
 - `PM_LLM_PROVIDER`: LLM provider 名，默认 noop（noop / deepseek）
 - `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL`: DeepSeek (OpenAI-compatible) 接入配置；api-key 非空时 deepseek provider 自动启用
+- `PM_JWT_MODE`: `jwks`（默认，RS256 + 共享 iam-service JWKS）/ `hs256`（dev fallback，共享密钥 HS256）
+- `PM_JWT_JWKS_URL`: JWKS endpoint（默认 `http://localhost:3000/v1/tokens/.well-known/jwks.json`）
+- `PM_JWT_ISSUER`: 期望的 JWT issuer（默认 `superpowers-token-service`，与 iam-service 对齐）
+- `PM_JWT_AUDIENCE`: 期望的 JWT aud（默认 `coder-micro-services`）
+- `PM_JWT_REQUIRED_SCOPE`: 期望的 JWT scope（默认 `access`，拒绝 `refresh` / `resource`）
+- `PM_JWT_CACHE_TTL_MINUTES`: JWKS key 缓存 TTL（默认 10 分钟）
+- `PM_JWT_HMAC_SECRET`: HS256 dev 模式用的共享密钥（生产环境禁止设置）
 - `LOWMEM_GATEWAY_BASE`: api-gateway baseURL，SDK 内部使用
 - `PM_SDK_BEARER`: SDK 内部用的静默 bearer（MVP 阶段）
 
@@ -124,8 +129,15 @@ CI 检查：`node scripts/check-db-naming.js` 已扩展扫描 `apps/**/*.sql`。
 
 ## 与 IAM JWT 的关系
 
-v0.1.0 **不**与 IAM JWT 互通：apps/pm 自己签发 HS256 JWT（`JwtConfig` + `JwtAuthFilter`）；当前未实现 `/pm-api/v1/auth/login`，`SecurityContext` 在控的请求由网关或开发模式 dev-bypass 注入。
-**未来计划（v0.3+）**：切换为 RS256 + 共享 JWKS，让用户可以 IAM 登录后无缝进入 PM 模块。
+**v0.2.0 已与 iam-service JWT 互通**（Phase B 完成）：apps/pm 不再自签 JWT，而是在请求入口验证 iam-service 发行的 RS256 token。
+
+- **JWKS 来源**：通过 `pm.jwt.jwks-url`（默认 `http://localhost:3000/v1/tokens/.well-known/jwks.json`，即 `LOWMEM_GATEWAY_BASE/v1/tokens/.well-known/jwks.json`）拉 RSA 公钥，缓存 `pm.jwt.cache-ttl-minutes` 分钟，缺 `kid` 时强制刷新。
+- **issuer / audience / scope**：默认 `superpowers-token-service` / `coder-micro-services` / `access`，与 `services/token-service/src/issuer.rs::issue_user_jwt` 一致。
+- **claims 提取**：从 token 抽出 `sub`(UUID) → `userId`(long，取 UUID 前 16 hex 解析)、`user_code`(username)、`tid`(tenantId)、`roles[]`、`permissions[]`、`scope`。`Principal` record 是 Spring `Authentication.principal` 的载体，控制器可 `@AuthenticationPrincipal Principal p` 注入。
+- **HS256 dev fallback**：把 `PM_JWT_MODE=hs256` 且 `PM_JWT_HMAC_SECRET=...` 即可启用。生产环境禁止设这俩环境变量。
+- **端到端验证**：用 `POST /v1/iam/auth/login` 拿 token → 调 `/pm-api/v1/llm/providers`、`/pm-api/v1/projects` 均 200；伪造 token 全部 403；健康检查 `/pm-api/v1/health` 公开。
+
+实现见 `apps/pm/pm-app-bootstrap/src/main/java/com/coder/pm/web/security/`（`JwksJwtVerifier` / `Hs256JwtVerifier` / `JwtVerifierRouter` / `Principal` / `JwtSecurityConfig`）以及 `JwtAuthFilter`（路由注入用 `@Qualifier(JwtVerifierRouter.BEAN_NAME)`）。
 
 ## 部署
 

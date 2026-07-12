@@ -135,7 +135,8 @@ java -jar pm-app-bootstrap/target/pm-app-bootstrap.jar \
 docker build -t pm-platform:0.1.0 -f apps/pm/Dockerfile .
 docker run --rm -p 8088:8088 \
   -e SPRING_DATASOURCE_URL='jdbc:mysql://host.docker.internal:3306/pm_platform?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' \
-  -e PM_JWT_SECRET='dev-secret-change-me-min-256-bits-long-enough-please' \
+  -e LOWMEM_GATEWAY_BASE='http://api-gateway:3000' \
+  -e PM_JWT_JWKS_URL='http://api-gateway:3000/v1/tokens/.well-known/jwks.json' \
   pm-platform:0.1.0
 
 # 启动后验证
@@ -156,8 +157,13 @@ curl http://localhost:8088/pm-api/v1/health/ready
 | `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3306/pm_platform?...` | MySQL JDBC URL（独立 schema `pm_platform`，与 Rust 服务同 MySQL 实例） |
 | `SPRING_DATASOURCE_USERNAME` | `root` | DB 用户 |
 | `SPRING_DATASOURCE_PASSWORD` | `rootpass` | DB 密码 |
-| `PM_JWT_SECRET` | dev fallback | HS256 共享密钥（≥ 32 字节） |
-| `PM_JWT_EXPIRATION_MINUTES` | `60` | token 有效期（分钟） |
+| `PM_JWT_MODE` | `jwks` | JWT 验签模式：`jwks`（默认，RS256 + iam-service JWKS）或 `hs256`（dev fallback） |
+| `PM_JWT_JWKS_URL` | `http://localhost:3000/v1/tokens/.well-known/jwks.json` | JWKS endpoint（生产指向 api-gateway / token-service） |
+| `PM_JWT_ISSUER` | `superpowers-token-service` | 期望的 JWT issuer |
+| `PM_JWT_AUDIENCE` | `coder-micro-services` | 期望的 JWT aud |
+| `PM_JWT_REQUIRED_SCOPE` | `access` | 期望的 JWT scope（拒绝 `refresh` / `resource`） |
+| `PM_JWT_CACHE_TTL_MINUTES` | `10` | JWKS 公钥缓存 TTL |
+| `PM_JWT_HMAC_SECRET` | *(empty)* | HS256 dev 模式共享密钥（生产禁止设置） |
 | `PM_LLM_PROVIDER` | `noop` | 默认 LLM provider 名（`noop` / `deepseek`） |
 | `DEEPSEEK_API_KEY` | *(empty)* | DeepSeek API Key；非空时自动启用 DeepSeek provider |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | DeepSeek Chat Completions base URL（兼容 OpenAI 协议的服务都可替换） |
@@ -205,7 +211,8 @@ Browser → vue-pure-admin → /pm-api → apps/pm (Spring Boot, 8088)
 
 - **共享 MySQL 实例，独立 schema**：apps/pm 与 Rust 服务共用同一 MySQL 实例（`superpowers`），但 PM 表放独立 schema `pm_platform`（pm_/kb_ 前缀，已在 `scripts/check-db-naming.js` 白名单）。JDBC URL 必须指向 `pm_platform`；Flyway 自动建表。
 - **跨服务用户引用**：`owner_id` / `assignee_id` / `created_by` 存 BIGINT，**无物理外键**（iam-service 是独立服务）；写入前调 `iam-service` 校验存在性。
-- **JWT**：apps/pm 自己签发 HS256；与 iam-service 的 RS256 JWT 不互通（v0.2.0 计划切换为共享 JWKS）。
+- **JWT**（Phase B）：apps/pm 通过 `JwksJwtVerifier` 验证 iam-service / token-service 签发的 RS256 JWT；issuer=audience=scope 与 `services/token-service/src/issuer.rs::issue_user_jwt` 对齐。从 JWT 抽 `sub`(UUID)→`userId`(long)、`user_code`→`username`、`tid`→`tenantId`、`roles[]` / `permissions[]` / `scope`，注入 `Principal` 给 `Authentication.principal`，控制器可用 `@AuthenticationPrincipal Principal p` 取。
+- **端到端联调**：`POST {LOWMEM_GATEWAY_BASE}/v1/iam/auth/login` 拿 token → `Authorization: Bearer <jwt>` 调 `/pm-api/v1/llm/providers` / `/pm-api/v1/projects` → 200 OK；伪造 / 错签名 / 无 token → 403 Forbidden；健康检查 `/pm-api/v1/health` 公开。
 
 ## nginx 接入
 
@@ -239,23 +246,38 @@ location /pm-api/ {
 - PR-6：vue-pure-admin 路由 + 视图
 - PR-7：完善 e2e + 文档
 
-## 端到端验证（commit 164a8ac 实测）
+## 端到端验证（Phase A + Phase B 实测）
 
-容器启动后跑 `scripts/pm-smoke.sh` 触发的 service 层 audit 调用，pm 容器日志显示 SDK 真在打 audit-service：
+**Phase B（IAM JWT 互通）**：
+
+```
+# 1. 用 iam-service 登录拿真 token
+curl -s -X POST http://localhost:3000/v1/iam/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"..."}'
+
+# 2. 调 PM 受保护端点
+TOK=...
+curl -s http://localhost:8088/pm-api/v1/llm/providers \
+  -H "Authorization: Bearer $TOK"
+# → ["deepseek","noop"]
+
+# 3. 调 PM 列表
+curl -s http://localhost:8088/pm-api/v1/projects \
+  -H "Authorization: Bearer $TOK"
+# → {"items":[...]}
+```
+
+✓ 真打 iam-service RS256 JWT 通过 PM JwtAuthFilter，密钥从 `LOWMEM_GATEWAY_BASE/v1/tokens/.well-known/jwks.json` 拉取并缓存。伪造 token / 改坏签名 → 403 Forbidden。
+
+**Phase A（SDK 链路）**：容器启动后跑 `scripts/pm-smoke.sh` 触发的 service 层 audit 调用，pm 容器日志显示 SDK 真在打 audit-service：
 
 ```
 WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
      (action=PM_PROJECT_CREATED,  resource=pm_project/2): audit 401: Invalid or expired token
-WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
-     (action=PM_PROJECT_UPDATED,  resource=pm_project/2): audit 401
-WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
-     (action=PM_PROJECT_ARCHIVED, resource=pm_project/2): audit 401
-WARN c.coder.pm.infra.sdk.AuditEventReporter : audit-service report failed
-     (action=KB_SPACE_CREATED,    resource=kb_space/2):   audit 401
 ```
 
 **SDK 链 4 个链路（`ProjectService` × 3 + `KbSpaceService` × 1）已端到端打穿**：
 - `service.create() → audit.report() → AuditEventReporter → AuditServiceClient → HTTP POST api-gateway:3000/v1/audit/events → audit-service`
-- 返回的 401 **不是 SDK bug**——是 `PM_SDK_BEARER=dev-bypass-token` 不是 audit-service 接受的 JWT 格式（apps/pm 用 HS256+自己 secret，audit-service 期望 iam-service 的 RS256 token）
-- **唯一卡点**：IAM 互通（spec §11 明确延后）。SDK 自身 + 网络 + api-gateway 路由全 OK。
+- audit 401 是 SDK 调用时仍带 `PM_SDK_BEARER=dev-bypass-token`，不是 iam-service 发行的 JWT；这是 SDK 调用侧的 token 注入问题，独立于 PM 的 inbound JWT 验证。Phase G 计划用 service-to-service JWT 替换。
 
