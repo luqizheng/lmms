@@ -150,3 +150,22 @@ export function rollbackVersion(documentId: number, n: number) {
     `/v1/documents/${documentId}/rollback/${n}`
   );
 }
+
+// ---------- comments (Phase D7) ----------
+
+export interface Comment {
+  id: number;
+  documentId: number;
+  parentId?: number;
+  content: string;
+  authorId: number;
+  createdAt: string;
+}
+
+export function listComments(documentId: number) {
+  return pmHttp.get<Comment[]>(`/v1/documents/${documentId}/comments`);
+}
+
+export function createComment(documentId: number, payload: { content: string; parentId?: number; authorId?: number }) {
+  return pmHttp.post<Comment>(`/v1/documents/${documentId}/comments`, payload);
+}

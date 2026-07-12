@@ -11,8 +11,11 @@ import {
   listVersions,
   getVersion,
   rollbackVersion,
+  listComments,
+  createComment,
   type KbDocument,
-  type KbDocumentVersion
+  type KbDocumentVersion,
+  type Comment
 } from "@/api/kb";
 import { uploadAttachment } from "@/api/pm";
 
@@ -35,6 +38,11 @@ const versionsPanelOpen = ref(false);
 const uploading = ref(false);
 const attachments = ref<{ id: number; name: string }[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
+
+const comments = ref<Comment[]>([]);
+const commentLoading = ref(false);
+const newComment = ref("");
+const commentSaving = ref(false);
 
 const displayContent = computed(() => {
   if (viewingVersion.value) return viewingVersion.value.contentMd ?? "";
@@ -141,7 +149,34 @@ async function doRollback(v: KbDocumentVersion) {
   }
 }
 
-onMounted(loadDocument);
+onMounted(() => {
+  loadDocument();
+  loadComments();
+});
+
+async function loadComments() {
+  if (!docId.value) return;
+  commentLoading.value = true;
+  try {
+    const { data } = await listComments(docId.value);
+    comments.value = data;
+  } catch { comments.value = []; }
+  finally { commentLoading.value = false; }
+}
+
+async function addComment() {
+  if (!newComment.value.trim()) return;
+  commentSaving.value = true;
+  try {
+    await createComment(docId.value, { content: newComment.value });
+    newComment.value = "";
+    await loadComments();
+  } catch (err: any) {
+    ElMessage.error("评论失败: " + (err?.message ?? err));
+  } finally {
+    commentSaving.value = false;
+  }
+}
 
 async function handleUploadFile(event: Event) {
   const input = event.target as HTMLInputElement;
@@ -262,6 +297,39 @@ function triggerUpload() {
     >
       <el-icon><Clock /></el-icon>
     </el-button>
+
+    <!-- Comment section -->
+    <div class="comment-section">
+      <div class="comment-header">评论 ({{ comments.length }})</div>
+
+      <div v-if="commentLoading" class="comment-loading">加载中…</div>
+      <div v-else>
+        <div v-if="comments.length === 0" class="comment-empty">暂无评论</div>
+        <div v-for="c in comments" :key="c.id" class="comment-item">
+          <div class="comment-meta">用户 #{{ c.authorId }} · {{ c.createdAt }}</div>
+          <div class="comment-content">{{ c.content }}</div>
+        </div>
+      </div>
+
+      <div class="comment-input-row">
+        <el-input
+          v-model="newComment"
+          type="textarea"
+          :rows="2"
+          placeholder="写下你的评论…"
+          :disabled="commentSaving"
+        />
+        <el-button
+          type="primary"
+          :loading="commentSaving"
+          :disabled="!newComment.trim()"
+          @click="addComment"
+          style="margin-top: 8px"
+        >
+          发表评论
+        </el-button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -325,5 +393,37 @@ export default { components: { Clock } };
   right: 32px;
   bottom: 80px;
   z-index: 100;
+}
+.comment-section {
+  margin-top: 32px;
+  border-top: 1px solid #ebeef5;
+  padding-top: 16px;
+}
+.comment-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.comment-loading, .comment-empty {
+  color: #909399;
+  padding: 12px 0;
+}
+.comment-item {
+  background: #f7f8fa;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.comment-meta {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+.comment-content {
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+.comment-input-row {
+  margin-top: 12px;
 }
 </style>
