@@ -4,7 +4,7 @@
 
   <groupId>com.kudi.coder</groupId>
   <artifactId>kudi-coder-sdk-parent</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <packaging>pom</packaging>
 
   <name>Kudi Coder SDK Parent</name>
@@ -18,6 +18,9 @@
     <module>token-server-client-sdk</module>
     <module>kudi-http-client</module>
     <module>audit-service-sdk</module>
+    <module>config-service-sdk</module>
+    <module>file-service-sdk</module>
+    <module>notification-service-sdk</module>
   </modules>
 
   <properties>

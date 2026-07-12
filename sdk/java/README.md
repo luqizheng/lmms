@@ -1,6 +1,6 @@
 # KudiCoder Java SDK
 
-`iam-service` / `token-service` 的 Java 8 / 17 / 21 客户端 SDK。
+`iam-service` / `token-service` / `audit-service` / `notification-service` / `file-service` / `config-service` 的 Java 8 / 17 / 21 客户端 SDK。
 
 ## 模块
 
@@ -13,6 +13,9 @@
 | `token-server-client-sdk` | `com.kudi.coder:token-server-client-sdk` | 服务间 `client_credentials` 调用 `token-service` |
 | `kudi-http-client` | `com.kudi.coder:kudi-http-client` | 轻量 HTTP 客户端，JWT 透传模型，适合无专属 SDK 的下游服务 |
 | `audit-service-sdk` | `com.kudi.coder:audit-service-sdk` | 业务侧 → `audit-service`（上报事件、查日志、列事件类型） |
+| `notification-service-sdk` | `com.kudi.coder:notification-service-sdk` | PM/KB 工具 → `notification-service`（创建/发布/查阅公告） |
+| `file-service-sdk` | `com.kudi.coder:file-service-sdk` | PM/KB 工具 → `file-service`（附件预签名 / multipart 上传 / 文件查询） |
+| `config-service-sdk` | `com.kudi.coder:config-service-sdk` | PM/KB 工具 → `config-service`（命名空间 + 配置项 CRUD；watch SSE 留 stub） |
 
 > artifact ID 沿用历史命名（`user-service` / `token-server`），但实际打通的服务已经是合并后的 `iam-service` 和 `token-service`。后续大版本再考虑 artifact 重命名。
 
