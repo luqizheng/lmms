@@ -84,6 +84,16 @@ export default {
         showLink: false,
         keepAlive: false
       }
+    },
+    {
+      path: "/pm/projects/:projectId/sprints",
+      name: "PmSprints",
+      component: () => import("@/views/pm/sprints/list.vue"),
+      meta: {
+        title: "迭代",
+        showLink: false,
+        keepAlive: false
+      }
     }
   ]
 } satisfies RouteConfigsTable;

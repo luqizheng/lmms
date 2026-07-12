@@ -218,3 +218,41 @@ export function updateTask(id: number, payload: Partial<Task>) {
 export function deleteTask(id: number) {
   return pmHttp.delete<void>(`/v1/tasks/${id}`);
 }
+
+// ---------- sprints (Phase D5) ----------
+
+export interface Sprint {
+  id: number;
+  projectId: number;
+  name: string;
+  goal?: string;
+  startDate?: string;
+  endDate?: string;
+  status: "planning" | "active" | "completed";
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listSprints(
+  projectId: number,
+  params: { page?: number; size?: number; status?: string } = {}
+) {
+  return pmHttp.get<Paged<Sprint>>(`/v1/projects/${projectId}/sprints${qs(params)}`);
+}
+
+export function getSprint(id: number) {
+  return pmHttp.get<Sprint>(`/v1/sprints/${id}`);
+}
+
+export function createSprint(projectId: number, payload: { name: string; goal?: string; status?: string; startDate?: string; endDate?: string }) {
+  return pmHttp.post<Sprint>(`/v1/projects/${projectId}/sprints`, payload);
+}
+
+export function updateSprint(id: number, payload: Partial<Sprint>) {
+  return pmHttp.patch<Sprint>(`/v1/sprints/${id}`, payload);
+}
+
+export function deleteSprint(id: number) {
+  return pmHttp.delete<void>(`/v1/sprints/${id}`);
+}
