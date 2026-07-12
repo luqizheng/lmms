@@ -1,3 +1,4 @@
+
 package com.coder.pm.infra.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -7,8 +8,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.coder.pm.infra.persistence.entity.KbSpace;
 import com.coder.pm.infra.persistence.mapper.KbSpaceMapper;
 import com.coder.pm.infra.sdk.AuditEventReporter;
+import com.coder.pm.infra.security.CurrentActor;
 import com.coder.pm.web.exception.NotFoundException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,10 @@ public class KbSpaceService extends ServiceImpl<KbSpaceMapper, KbSpace> {
         else if (!VALID_VISIBILITY.contains(draft.getVisibility())) {
             throw new IllegalArgumentException(
                     "invalid visibility: " + draft.getVisibility() + " (allowed: " + VALID_VISIBILITY + ")");
+        }
+        if (draft.getCreatedBy() == null) {
+            Long actorId = CurrentActor.actorIdOrNull();
+            if (actorId != null) draft.setCreatedBy(actorId);
         }
         save(draft);
         audit.report(currentActor(), "KB_SPACE_CREATED", "kb_space",
@@ -82,10 +87,6 @@ public class KbSpaceService extends ServiceImpl<KbSpaceMapper, KbSpace> {
     }
 
     private static String currentActor() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
-            return "system";
-        }
-        return String.valueOf(auth.getPrincipal());
+        return CurrentActor.displayName();
     }
 }

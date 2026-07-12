@@ -1,3 +1,4 @@
+
 package com.coder.pm.infra.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -8,8 +9,8 @@ import com.coder.pm.infra.persistence.entity.KbDocumentVersion;
 import com.coder.pm.infra.persistence.mapper.KbDocumentMapper;
 import com.coder.pm.infra.persistence.mapper.KbDocumentVersionMapper;
 import com.coder.pm.infra.sdk.AuditEventReporter;
+import com.coder.pm.infra.security.CurrentActor;
 import com.coder.pm.web.exception.NotFoundException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +43,10 @@ public class KbDocumentService extends ServiceImpl<KbDocumentMapper, KbDocument>
         if (draft.getDocType() == null) draft.setDocType("markdown");
         else if (!VALID_TYPES.contains(draft.getDocType())) {
             throw new IllegalArgumentException("invalid docType: " + draft.getDocType());
+        }
+        if (draft.getCreatedBy() == null) {
+            Long actorId = CurrentActor.actorIdOrNull();
+            if (actorId != null) draft.setCreatedBy(actorId);
         }
         save(draft);
         String md = initialMarkdown == null ? "" : initialMarkdown;
@@ -133,10 +138,6 @@ public class KbDocumentService extends ServiceImpl<KbDocumentMapper, KbDocument>
     }
 
     private static String currentActor() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
-            return "system";
-        }
-        return String.valueOf(auth.getPrincipal());
+        return CurrentActor.displayName();
     }
 }

@@ -50,7 +50,7 @@ public class KbSpaceController {
         s.setName(req.name());
         s.setDescription(req.description());
         s.setVisibility(req.visibility());
-        s.setCreatedBy(0L); // populated from SecurityContext upstream if/when JWT auth wired
+        s.setCreatedBy(com.coder.pm.infra.security.CurrentActor.actorIdOrZero());
         KbSpace saved = service.create(s);
         return ResponseEntity.status(201).body(saved);
     }

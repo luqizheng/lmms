@@ -7,8 +7,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.coder.pm.infra.persistence.entity.Requirement;
 import com.coder.pm.infra.persistence.mapper.RequirementMapper;
 import com.coder.pm.infra.sdk.AuditEventReporter;
+import com.coder.pm.infra.security.CurrentActor;
 import com.coder.pm.web.exception.NotFoundException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,25 +45,15 @@ public class RequirementService extends ServiceImpl<RequirementMapper, Requireme
         validateEnum("priority", draft.getPriority(), VALID_PRIORITIES);
         validateEnum("status", draft.getStatus(), VALID_STATUSES);
         if (draft.getCreatedBy() == null) {
-            Long actorId = parseActorId();
+            Long actorId = CurrentActor.actorIdOrNull();
             if (actorId != null) draft.setCreatedBy(actorId);
         }
         save(draft);
-        audit.report(currentActor(), "PM_REQUIREMENT_CREATED", "pm_requirement",
+        audit.report(CurrentActor.displayName(), "PM_REQUIREMENT_CREATED", "pm_requirement",
                 String.valueOf(draft.getId()),
                 Map.of("projectId", draft.getProjectId(), "title", draft.getTitle(),
                         "type", draft.getType(), "priority", draft.getPriority()));
         return draft;
-    }
-
-    private static Long parseActorId() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
-            return null;
-        }
-        Object p = auth.getPrincipal();
-        if (p instanceof Long l) return l;
-        try { return Long.valueOf(String.valueOf(p)); } catch (NumberFormatException ignored) { return null; }
     }
 
     @Transactional
@@ -94,7 +84,7 @@ public class RequirementService extends ServiceImpl<RequirementMapper, Requireme
         payload.put("title", existing.getTitle());
         payload.put("status", existing.getStatus());
         payload.put("priority", existing.getPriority());
-        audit.report(currentActor(), "PM_REQUIREMENT_UPDATED", "pm_requirement",
+        audit.report(CurrentActor.displayName(), "PM_REQUIREMENT_UPDATED", "pm_requirement",
                 String.valueOf(id), payload);
         return existing;
     }
@@ -124,10 +114,6 @@ public class RequirementService extends ServiceImpl<RequirementMapper, Requireme
     }
 
     private static String currentActor() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
-            return "system";
-        }
-        return String.valueOf(auth.getPrincipal());
+        return CurrentActor.displayName();
     }
 }

@@ -7,9 +7,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.coder.pm.infra.persistence.entity.Project;
 import com.coder.pm.infra.persistence.mapper.ProjectMapper;
 import com.coder.pm.infra.sdk.AuditEventReporter;
+import com.coder.pm.infra.security.CurrentActor;
 import com.coder.pm.web.exception.ConflictException;
 import com.coder.pm.web.exception.NotFoundException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +45,10 @@ public class ProjectService extends ServiceImpl<ProjectMapper, Project> {
         }
         if (draft.getStatus() == null) {
             draft.setStatus("active");
+        }
+        if (draft.getCreatedBy() == null) {
+            Long actorId = CurrentActor.actorIdOrNull();
+            if (actorId != null) draft.setCreatedBy(actorId);
         }
         save(draft);
         audit.report(currentActor(), "PM_PROJECT_CREATED", "pm_project",
@@ -112,10 +116,6 @@ public class ProjectService extends ServiceImpl<ProjectMapper, Project> {
     }
 
     private static String currentActor() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
-            return "system";
-        }
-        return String.valueOf(auth.getPrincipal());
+        return CurrentActor.displayName();
     }
 }

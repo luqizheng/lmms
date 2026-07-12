@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -50,8 +49,9 @@ public class ProjectController {
         draft.setCode(req.code());
         draft.setName(req.name());
         draft.setDescription(req.description());
-        draft.setOwnerId(req.ownerId() == null ? currentUserIdOrZero() : req.ownerId());
-        draft.setCreatedBy(currentUserIdOrZero());
+        Long actorId = com.coder.pm.infra.security.CurrentActor.actorIdOrZero();
+        draft.setOwnerId(req.ownerId() == null ? actorId : req.ownerId());
+        draft.setCreatedBy(actorId);
         Project saved = service.create(draft);
         return ResponseEntity.status(201).body(saved);
     }
@@ -92,14 +92,6 @@ public class ProjectController {
     public ResponseEntity<Void> archive(@PathVariable long id) {
         service.archive(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private long currentUserIdOrZero() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null) return 0L;
-        Object p = auth.getPrincipal();
-        if (p instanceof Number n) return n.longValue();
-        try { return Long.parseLong(p.toString()); } catch (NumberFormatException e) { return 0L; }
     }
 
     public record CreateProjectRequest(

@@ -1,3 +1,4 @@
+
 package com.coder.pm.infra.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -5,8 +6,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.coder.pm.infra.persistence.entity.UserStory;
 import com.coder.pm.infra.persistence.mapper.UserStoryMapper;
 import com.coder.pm.infra.sdk.AuditEventReporter;
+import com.coder.pm.infra.security.CurrentActor;
 import com.coder.pm.web.exception.NotFoundException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,10 @@ public class UserStoryService extends ServiceImpl<UserStoryMapper, UserStory> {
             throw new IllegalArgumentException("invalid status: " + draft.getStatus());
         }
         if (draft.getSortOrder() == null) draft.setSortOrder(0);
+        if (draft.getCreatedBy() == null) {
+            Long actorId = CurrentActor.actorIdOrNull();
+            if (actorId != null) draft.setCreatedBy(actorId);
+        }
         save(draft);
         audit.report(currentActor(), "PM_USER_STORY_CREATED", "pm_user_story",
                 String.valueOf(draft.getId()),
@@ -78,10 +83,6 @@ public class UserStoryService extends ServiceImpl<UserStoryMapper, UserStory> {
     }
 
     private static String currentActor() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
-            return "system";
-        }
-        return String.valueOf(auth.getPrincipal());
+        return CurrentActor.displayName();
     }
 }
