@@ -1,0 +1,33 @@
+group: pm-platform
+description: PM Platform smoke tests (through api-gateway /v1/pm/*)
+cases:
+  - caseId: PM-001
+    desc: PM 健康检查（公开）
+    smoke: true
+    method: GET
+    path: /v1/pm/health
+    auth: false
+    expectStatus: [200, 502]
+
+  - caseId: PM-002
+    desc: PM 健康检查 readiness（公开）
+    smoke: true
+    method: GET
+    path: /v1/pm/health/ready
+    auth: false
+    expectStatus: [200, 502, 503]
+
+  - caseId: PM-003
+    desc: 未认证调 LLM providers 应拒绝
+    smoke: true
+    method: GET
+    path: /v1/pm/llm/providers
+    auth: false
+    expectStatus: [401, 403]
+
+  - caseId: PM-004
+    desc: 登录后调 LLM providers 返回 provider 列表
+    method: GET
+    path: /v1/pm/llm/providers
+    auth: true
+    expectStatus: [200]
