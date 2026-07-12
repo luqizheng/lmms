@@ -114,6 +114,14 @@ export function createDocument(spaceId: number, payload: { title: string; markdo
   return pmHttp.post<KbDocument>(`/v1/spaces/${spaceId}/documents`, payload);
 }
 
+export function searchDocuments(params: { q: string; spaceId?: number; limit?: number }) {
+  const sp = new URLSearchParams();
+  sp.set("q", params.q);
+  if (params.spaceId) sp.set("spaceId", String(params.spaceId));
+  if (params.limit) sp.set("limit", String(params.limit));
+  return pmHttp.get<KbDocument[]>(`/v1/documents/search?${sp.toString()}`);
+}
+
 export function updateDocument(id: number, payload: Partial<KbDocument>) {
   return pmHttp.patch<KbDocument>(`/v1/documents/${id}`, payload);
 }

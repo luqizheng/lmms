@@ -128,6 +128,18 @@ public class KbDocumentService extends ServiceImpl<KbDocumentMapper, KbDocument>
         return list(q);
     }
 
+    public List<KbDocument> search(String keyword, Long spaceId, int limit) {
+        QueryWrapper<KbDocument> q = new QueryWrapper<>();
+        q.isNull("deleted_at");
+        if (spaceId != null) q.eq("space_id", spaceId);
+        if (keyword != null && !keyword.isBlank()) {
+            q.like("title", keyword);
+        }
+        q.last("LIMIT " + Math.min(limit, 100));
+        q.orderByDesc("updated_at");
+        return list(q);
+    }
+
     @Transactional
     public void softDelete(long id) {
         KbDocument d = findActiveOrThrow(id);

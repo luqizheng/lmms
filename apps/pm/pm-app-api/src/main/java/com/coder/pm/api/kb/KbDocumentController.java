@@ -68,6 +68,14 @@ public class KbDocumentController {
         return documentService.listBySpace(spaceId, parentId);
     }
 
+    @GetMapping("/v1/documents/search")
+    @Operation(summary = "Full-text search across KB documents (title)")
+    public List<KbDocument> search(@RequestParam String q,
+                                   @RequestParam(required = false) Long spaceId,
+                                   @RequestParam(defaultValue = "20") int limit) {
+        return documentService.search(q, spaceId, limit);
+    }
+
     @GetMapping("/v1/documents/{id}")
     @Operation(summary = "Document detail (current version id embedded)")
     public KbDocument detail(@PathVariable long id) {
