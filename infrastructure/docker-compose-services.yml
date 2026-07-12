@@ -477,6 +477,32 @@ services:
     networks:
       - superpowers
 
+  # ─────────── pm ───────────
+  pm:
+    build:
+      context: ..
+      dockerfile: apps/pm/Dockerfile
+    image: pm-platform:0.1.0
+    ports:
+      - "8088:8088"
+    environment:
+      SERVER_PORT: "8088"
+      SPRING_PROFILES_ACTIVE: "dev"
+      SPRING_DATASOURCE_URL: "${DATABASE_URL}"
+      SPRING_DATASOURCE_USERNAME: "${MYSQL_USER}"
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_PASSWORD}"
+      PM_JWT_SECRET: "${PM_JWT_SECRET:-dev-secret-change-me-min-256-bits-long-enough-please}"
+      PM_LLM_PROVIDER: "${PM_LLM_PROVIDER:-noop}"
+      LOWMEM_GATEWAY_BASE: "http://api-gateway:3000"
+      PM_SDK_BEARER: "${PM_SDK_BEARER:-dev-bypass-token}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      api-gateway:
+        condition: service_started
+    networks:
+      - superpowers
+
 volumes:
   file-storage:
 

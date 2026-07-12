@@ -45,6 +45,7 @@
 | router/modules/monitor.ts | /monitor | 监控中心 |
 | router/modules/permission.ts | /permission | 权限演示 |
 | router/modules/error.ts | /error | 错误页面 |
+| router/modules/pm.ts | /pm | 研发管理（项目 / 需求 / 知识库） |
 
 ### 布局组件
 
@@ -80,6 +81,24 @@ http.request("get", "/v1/iam/users", { params: { page: 1, size: 20 } });
 | notification-service | `/v1/notification/...` | src/api/notification.ts |
 | file-service | `/v1/file/...` | src/api/file.ts（codegen types + 手写 http） |
 | config-service | `/v1/config/...` | src/api/config.ts（codegen types + 手写 http） |
+
+### PM Platform 直连服务（不走 api-gateway）
+
+`apps/pm/`（Spring Boot 3.x，端口 8088，context-path `/pm-api`）由 nginx 直接转发到容器 `pm:8088`。
+
+调用约定：API 文件自带独立 `axios` 实例，`baseURL` = `${VITE_PM_API_BASE}`（默认 `/pm-api`）。nginx 已配 `location /pm-api/ → http://pm:8088`。
+
+| 模块 | 端点前缀 | API 文件 |
+|------|----------|----------|
+| PM CRUD | `/pm-api/v1/projects` + `/pm-api/v1/requirements` + `/pm-api/v1/stories` + `/pm-api/v1/criteria` | src/api/pm.ts |
+| KB 知识库 | `/pm-api/v1/spaces` + `/pm-api/v1/documents` + `/pm-api/v1/documents/{id}/versions` | src/api/kb.ts |
+| LLM 辅助 | `/pm-api/v1/llm/...` | src/api/llm.ts |
+
+环境变量（新增于 `.env.development` / `.env.production`）：
+
+```
+VITE_PM_API_BASE=/pm-api
+```
 
 ## 状态管理
 

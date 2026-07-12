@@ -223,8 +223,11 @@ docker run --rm `
 | Audit Service        | Rust     | Axum      | — |
 | Config Service       | Rust     | Axum      | — |
 | File Service         | Rust     | Axum      | — |
+| PM Platform          | Java 17  | Spring Boot 3 | — |
 
 > 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`。
+>
+> PM Platform（`apps/pm/`，端口 8088）是 2026-07 阶段新增的研发管理工具：项目 / 需求 / 用户故事 / 验收标准 + 知识库（空间 / 文档 / 版本 / Markdown 渲染）+ LLM 接口预留（`NoopLlmProvider`）。共享 MySQL `superpowers` 库（新增 `pm_` / `kb_` 表前缀），通过 Java SDK 调现有 Rust 服务。具体见 [`apps/pm/README.md`](apps/pm/README.md) 与 [`docs/superpowers/specs/2026-07-11-pm-platform-design.md`](docs/superpowers/specs/2026-07-11-pm-platform-design.md)。
 
 ## AI 辅助开发
 

@@ -112,6 +112,13 @@ menus:
   notificationDraft: 草稿
   notificationPublished: 已发布
   notificationRevoked: 已撤销
+  pm: 研发管理
+  pmProjectList: 项目列表
+  pmProjectDetail: 项目详情
+  pmRequirementList: 需求列表
+  pmRequirementDetail: 需求详情
+  pmRequirementDecompose: AI 拆解需求
+  pmKbSpaces: 知识库
   notificationMarkRead: 标为已读
   notificationMarkAllRead: 全部标为已读
   notificationRefresh: 刷新通知

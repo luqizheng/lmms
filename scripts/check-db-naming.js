@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const VALID_PREFIXES = [
-  'iam_', 'audit_', 'token_', 'ntf_', 'cfg_', 'file_', 'prue_',
+  'iam_', 'audit_', 'token_', 'ntf_', 'cfg_', 'file_', 'prue_', 'pm_', 'kb_',
 ];
 
 const SKIP_IN_SOURCE = new Set([
@@ -113,6 +113,7 @@ async function main() {
   const rustFiles = walkDir(path.join(repoRoot, 'services'), ['.rs']);
   const migrationFiles = [
     ...walkDir(path.join(repoRoot, 'services'), ['.sql']),
+    ...walkDir(path.join(repoRoot, 'apps'), ['.sql']),
     ...walkDir(path.join(repoRoot, 'scripts', 'migrations'), ['.sql']),
   ];
 

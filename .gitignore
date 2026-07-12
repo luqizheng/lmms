@@ -26,3 +26,6 @@ docker-example/mysql
 # utoipa-swagger-ui build.rs 依赖的 vendor zip；pnpm setup 时自动下载，
 # 大文件不进 git。需要时跑 `pnpm run assets:download` 恢复。
 /infrastructure/vendor/
+
+apps/pm/**/target/
+/apps/pm/.gitignore

@@ -1,0 +1,59 @@
+import { $t } from "@/plugins/i18n";
+import { pm } from "@/router/enums";
+import { RouteConfigsTable } from "@/router/types";
+
+const Layout = () => import("@/layout/index.vue");
+
+export default {
+  path: "/pm",
+  component: Layout,
+  redirect: "/pm/projects/list",
+  name: "Pm",
+  meta: {
+    title: $t("menus.pm"),
+    icon: "ep/folder",
+    rank: pm
+  },
+  children: [
+    {
+      path: "/pm/projects/list",
+      name: "PmProjectList",
+      component: () => import("@/views/pm/projects/list.vue"),
+      meta: {
+        title: $t("menus.pmProjectList"),
+        icon: "ep/discover",
+        keepAlive: true
+      }
+    },
+    {
+      path: "/pm/projects/detail/:id",
+      name: "PmProjectDetail",
+      component: () => import("@/views/pm/projects/detail.vue"),
+      meta: {
+        title: $t("menus.pmProjectDetail"),
+        showLink: false,
+        keepAlive: false
+      }
+    },
+    {
+      path: "/pm/requirements/detail/:id",
+      name: "PmRequirementDetail",
+      component: () => import("@/views/pm/requirements/detail.vue"),
+      meta: {
+        title: $t("menus.pmRequirementDetail"),
+        showLink: false,
+        keepAlive: false
+      }
+    },
+    {
+      path: "/pm/kb/spaces",
+      name: "PmKbSpaces",
+      component: () => import("@/views/pm/kb/spaces-list.vue"),
+      meta: {
+        title: $t("menus.pmKbSpaces"),
+        icon: "ep/document",
+        keepAlive: true
+      }
+    }
+  ]
+} satisfies RouteConfigsTable;
