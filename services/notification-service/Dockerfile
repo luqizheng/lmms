@@ -28,4 +28,8 @@ COPY --from=builder /app/notification-service /usr/local/bin/notification-servic
 COPY --from=builder /app/ntf-outbox-publisher /usr/local/bin/ntf-outbox-publisher
 COPY services/notification-service/config /app/config
 EXPOSE 8083
+
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
+  CMD wget --spider -q http://localhost:8083/health || exit 1
+
 CMD ["notification-service", "/app/config/config.yaml"]

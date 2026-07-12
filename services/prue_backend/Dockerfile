@@ -27,4 +27,7 @@ COPY --from=builder /app/prue_backend /usr/local/bin/prue_backend
 
 EXPOSE 8080
 
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
+  CMD wget --spider -q http://localhost:8080/health || exit 1
+
 CMD ["prue_backend"]

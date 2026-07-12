@@ -29,3 +29,15 @@ docker-example/mysql
 
 apps/pm/**/target/
 /apps/pm/.gitignore
+
+# release/dist-template 是发布模板；最终 dist 由 CI 生成，不入 git
+# 但模板本身（脚本/compose/Makefile/README）需要入 git
+/release/dist-template/secrets/*.pem
+/release/dist-template/.env
+/release/dist-template/frontend/node_modules/
+/release/dist-template/frontend/dist/
+/release/dist-template/frontend/.eslintcache
+/release/dist-template/frontend/coverage/
+/release/dist-*.tar.gz
+/release/images-*.tar.gz
+/release/dist-template/frontend-source-*.tar.gz

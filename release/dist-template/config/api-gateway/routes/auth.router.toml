@@ -1,0 +1,28 @@
+[[route]]
+upstream   = "/v1/iam/auth/login"
+downstream = "/iam/auth/login"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/register"
+downstream = "/iam/auth/register"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/refresh"
+downstream = "/iam/auth/refresh"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/setup-status"
+downstream = "/iam/auth/setup-status"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/{rest}"
+downstream = "/iam/auth/{rest}"
+service    = "iam-service"

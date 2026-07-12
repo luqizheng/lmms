@@ -32,4 +32,7 @@ COPY services/iam-service/config/config.yaml /etc/iam-service/config.yaml
 
 EXPOSE 8080
 
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
+  CMD wget --spider -q http://localhost:8080/health || exit 1
+
 CMD ["iam-service"]

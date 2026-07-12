@@ -27,4 +27,8 @@ COPY --from=builder /app/token-service /app/token-service
 COPY --from=builder /app/services/token-service/config /app/config
 RUN mkdir -p /app/keys
 ENV RUST_LOG=token_service=debug
+
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
+  CMD curl -f http://localhost:8080/health || exit 1
+
 CMD ["/app/token-service"]

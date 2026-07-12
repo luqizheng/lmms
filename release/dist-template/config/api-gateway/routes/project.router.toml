@@ -1,0 +1,35 @@
+[[route]]
+upstream   = "/v1/project/health"
+downstream = "/project/health"
+service    = "project-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/project/projects"
+downstream = "/project/projects"
+service    = "project-service"
+
+[[route]]
+upstream   = "/v1/project/projects/{rest}"
+downstream = "/project/projects/{rest}"
+service    = "project-service"
+
+[[route]]
+upstream   = "/v1/project/milestones/{rest}"
+downstream = "/project/milestones/{rest}"
+service    = "project-service"
+
+[[route]]
+upstream   = "/v1/project/tasks/{rest}"
+downstream = "/project/tasks/{rest}"
+service    = "project-service"
+
+[[route]]
+upstream   = "/v1/project/sprints/{rest}"
+downstream = "/project/sprints/{rest}"
+service    = "project-service"
+
+[[route]]
+upstream   = "/v1/project/llm/refine"
+downstream = "/project/llm/refine"
+service    = "project-service"

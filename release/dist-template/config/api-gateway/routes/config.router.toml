@@ -1,0 +1,44 @@
+[[route]]
+upstream   = "/v1/config/health"
+downstream = "/health"
+service    = "config-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/config/namespace/{rest}"
+downstream = "/config/namespace/{rest}"
+service    = "config-service"
+
+[[route]]
+upstream   = "/v1/config/namespace"
+downstream = "/config/namespace"
+service    = "config-service"
+
+[[route]]
+upstream   = "/v1/config/item/{rest}"
+downstream = "/config/item/{rest}"
+service    = "config-service"
+
+[[route]]
+upstream   = "/v1/config/item"
+downstream = "/config/item"
+service    = "config-service"
+
+[[route]]
+upstream   = "/v1/config/export/{rest}"
+downstream = "/config/export/{rest}"
+service    = "config-service"
+
+[[route]]
+upstream   = "/v1/config/import/{rest}"
+downstream = "/config/import/{rest}"
+service    = "config-service"
+
+# SSE 端点：config-service /config/watch，浏览器端 EventSource 走 ?token= query
+# 鉴权由 auth_middleware query-token fallback 处理（详见
+# docs/superpowers/specs/2026-07-02-sse-gateway-streaming-design.md）
+[[route]]
+upstream   = "/v1/config/watch"
+downstream = "/config/watch"
+service    = "config-service"
+ws         = true

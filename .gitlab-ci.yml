@@ -109,24 +109,6 @@ build_token_service:
     - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/token-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/token-service:latest
     - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-service:latest
 
-build_credential_login_service:
-  stage: build
-  tags: [shell]
-  script:
-    - sudo docker build -f Dockerfile.credential-login-service -t $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:$IMAGE_TAG .
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:$IMAGE_TAG
-    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:latest
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/credential-login-service:latest
-
-build_user_service:
-  stage: build
-  tags: [shell]
-  script:
-    - sudo docker build -f Dockerfile.user-service -t $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG .
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG
-    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/user-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/user-service:latest
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/user-service:latest
-
 deploy:
   stage: deploy
   tags: [micro-service-runner]
@@ -138,9 +120,9 @@ deploy:
     - rm -rf ~/coder-micro-services/.git
     - cd ~/coder-micro-services
 
-    - sudo /bin/docker-compose -f docker-compose.yml down
-    - sudo /bin/docker-compose -f docker-compose.yml pull
-    - sudo /bin/docker-compose -f docker-compose.yml up -d
+    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml down
+    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml pull
+    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml up -d
   only:
     - main
 
@@ -187,3 +169,35 @@ sdk_publish_dotnet:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
     name: nuget-releases
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Release stage — 打包离线分发包（仅 tag 触发）
+# 输出：release/coder-micro-services-${VERSION}/
+#       release/coder-micro-services-${VERSION}-airgap.tar.gz
+# ─────────────────────────────────────────────────────────────────────────────
+release:dist:
+  stage: release
+  tags: [docker]
+  image: $BASE_REGISTRY/docker:24-cli
+  variables:
+    DOCKER_HOST: tcp://localhost:2376
+    DOCKER_TLS_CERTDIR: /certs
+  before_script:
+    - docker info
+  script:
+    - echo "=== release:dist job ==="
+    - echo "VERSION=${CI_COMMIT_TAG#v}"
+    - cd release/dist-template
+    - chmod +x bin/*.sh scripts/release.sh
+    # 构建前端镜像（作为当前版本镜像）
+    - bash bin/build-frontend.sh
+    # 打包 release 脚本放在 dist-template/scripts/release.sh，
+    # 实际 release 由运维在有网环境执行
+    - echo "[release:dist] 离线分发包已就绪: release/dist-template/"
+    - ls -la release/dist-template/
+  artifacts:
+    paths:
+      - release/dist-template/
+    expire_in: 1 day
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'

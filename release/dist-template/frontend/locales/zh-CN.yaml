@@ -1,0 +1,754 @@
+buttons:
+  pureAccountSettings: 账户设置
+  accountCardTitleBoundPhone: 密保手机
+  accountCardIllustrateBoundPhone: '已经绑定手机：{phone}'
+  accountCardTitleBoundEmail: 备用邮箱
+  accountCardIllustrateBoundEmail: '已绑定邮箱：{email}'
+  accountCardTitleSecurityQuestion: 密保问题
+  accountCardIllustrateSecurityQuestion: 未设置密保问题，密保问题可有效保护账户安全
+  accountCardTitlePasswordStrength: 当前密码强度：{level}
+  accountCardButtonModify: 修改
+  systemRole: 角色管理
+  permsDemoTitle1: 组件方式判断权限
+  permsDemoTitle2: 函数方式判断权限
+  permsDemoTitle3: 指令方式判断权限
+  permsDemoTitle3Note: "（该方式不能动态修改权限）"
+  permsDemoCodeList1: permission:btn:add
+  permsDemoCodeList2: permission:btn:edit
+  permsDemoCodeList3Delete: permission:btn:delete
+  fileImagePreview: 预览
+  notificationPermissionDenied: 浏览器通知权限被拒
+  dashboardUptime: 可用率
+  dashboardP50: p50
+  dashboardP95: p95
+  dashboardP99: p99
+  pureChangePassword: 修改密码
+  pureLoginOut: 退出系统
+  pureLogin: 登录
+  pureOpenSystemSet: 打开系统配置
+  pureReload: 重新加载
+  pureCloseCurrentTab: 关闭当前标签页
+  pureCloseLeftTabs: 关闭左侧标签页
+  pureCloseRightTabs: 关闭右侧标签页
+  pureCloseOtherTabs: 关闭其他标签页
+  pureCloseAllTabs: 关闭全部标签页
+  pureContentFullScreen: 内容区全屏
+  pureContentExitFullScreen: 内容区退出全屏
+  pureClickCollapse: 点击折叠
+  pureClickExpand: 点击展开
+  pureConfirm: 确认
+  pureSwitch: 切换
+  pureClose: 关闭
+  pureBackTop: 回到顶部
+  pureOpenText: 开
+  pureCloseText: 关
+  pureWatchMore: 查看更多
+  pureMarkAsRead: 标为已读
+search:
+  pureTotal: 共
+  pureHistory: 搜索历史
+  pureCollect: 收藏
+  pureDragSort: （可拖拽排序）
+  pureEmpty: 暂无搜索结果
+  purePlaceholder: 搜索菜单（支持拼音搜索）
+panel:
+  pureSystemSet: 系统配置
+  pureCloseSystemSet: 关闭配置
+  pureClearCacheAndToLogin: 清空缓存并返回登录页
+  pureClearCache: 清空缓存
+  pureThemeMode: 主题模式
+  pureThemeModeLight: 浅色
+  pureThemeModeLightTip: 清新启航，点亮舒适的工作界面
+  pureThemeModeDark: 深色
+  pureThemeModeDarkTip: 月光序曲，沉醉于夜的静谧雅致
+  pureThemeModeSystem: 自动
+  pureThemeModeSystemTip: 同步时光，界面随晨昏自然呼应
+  pureThemeColor: 主题色
+  pureMenuLayout: 菜单布局
+  pureVerticalTip: 左侧菜单，亲切熟悉
+  pureHorizontalTip: 顶部菜单，简洁概览
+  pureMixTip: 混合菜单，灵活多变
+  pureStretch: 页宽
+  pureStretchFixed: 固定
+  pureStretchFixedTip: 紧凑页面，轻松找到所需信息
+  pureStretchCustom: 自定义
+  pureStretchCustomTip: 最小1280、最大1600
+  pureTagsStyle: 页签风格
+  pureTagsStyleSmart: 灵动
+  pureTagsStyleSmartTip: 灵动标签，添趣生辉
+  pureTagsStyleCard: 卡片
+  pureTagsStyleCardTip: 卡片标签，高效浏览
+  pureTagsStyleChrome: 谷歌
+  pureTagsStyleChromeTip: 谷歌风格，经典美观
+  pureFullScreenWatermark: 全屏水印
+  pureEnableWatermark: 水印
+  pureWatermarkText: 文本
+  pureWatermarkTextPlaceholder: 请输入水印文本
+  pureInterfaceDisplay: 界面显示
+  pureGreyModel: 灰色模式
+  pureWeakModel: 色弱模式
+  pureHiddenTags: 隐藏标签页
+  pureHiddenFooter: 隐藏页脚
+  pureMultiTagsCache: 页签持久化
+menus:
+  pureHome: 首页
+  pureLogin: 登录
+  pureEmpty: 无Layout页
+  pureTable: 表格
+  pureSysManagement: 系统管理
+  pureUser: 用户管理
+  pureRole: 角色管理
+  system: 系统管理
+  systemUser: 用户管理
+  systemRole: 角色管理
+  systemTokenClient: 令牌客户端
+  systemPermission: 权限管理
+  notification: 通知中心
+  notificationInbox: 收件箱
+  notificationAdmin: 公告管理
+  notificationDetail: 公告详情
+  notificationUnread: 未读
+  notificationRead: 已读
+  notificationDraft: 草稿
+  notificationPublished: 已发布
+  notificationRevoked: 已撤销
+  pm: 研发管理
+  pmProjectList: 项目列表
+  pmProjectDetail: 项目详情
+  pmRequirementList: 需求列表
+  pmRequirementDetail: 需求详情
+  pmRequirementDecompose: AI 拆解需求
+  pmKbSpaces: 知识库
+  notificationMarkRead: 标为已读
+  notificationMarkAllRead: 全部标为已读
+  notificationRefresh: 刷新通知
+  notificationTitle: 标题
+  notificationEdit: 编辑
+  notificationStatus: 状态
+  notificationFilterTitle: 按标题筛选
+  notificationFilterAll: 全部
+  notificationAll: 全部
+  userSearchUsername: 用户名称
+  userPlaceholderUsername: 请输入用户名称
+  userPhone: 手机号码
+  userPlaceholderPhone: 请输入手机号码
+  userStatus: 状态
+  userStatusActive: 已开启
+  userStatusInactive: 已关闭
+  purePlaceholderSelect: 请选择
+  userNew: 新增用户
+  userEdit: 修改
+  userDelete: 删除
+  userUploadAvatar: 上传头像
+  userResetPassword: 重置密码
+  userAssignRole: 分配角色
+  userBatchDelete: 批量删除
+  userSelected: "已选 {n} 项"
+  userCancelSelection: 取消选择
+  userConfirmDelete: 是否确认删除？
+  userConfirmDeleteUser: "是否确认删除用户编号为 {id} 的这条数据？"
+  notificationSearch: 搜索
+  notificationReset: 重置
+  notificationNew: 新建公告
+  notificationPublish: 发布
+  notificationRevoke: 撤销
+  notificationPlaceholderRecipients: 请选择接收人
+  notificationBellTitle: 通知中心
+  notificationEmpty: 暂无新通知
+  notificationViewAll: 查看全部
+  notificationJustNow: 刚刚
+  notificationMinutesAgo: "{n} 分钟前"
+  notificationHoursAgo: "{n} 小时前"
+  notificationDaysAgo: "{n} 天前"
+  fileUploadTitle: 上传文件
+  fileUploadBackendNotice: 后端 /file/upload 当前仅接 metadata，不接受二进制内容。前端先发文件名+content-type 占位，待后端补 multipart 后自动生效。客户端已校验大小 ≤ 100MB + 黑名单扩展名。
+  fileLabel: 文件
+  fileLabelTemporary: 临时文件
+  fileLabelExpires: 过期秒数
+  fileSearchFilename: 文件名
+  fileExpiresOptional: 可选
+  fileUploadSubmit: 提交上传
+  fileUploadSelectFirst: 请先选文件
+  fileUploadResultSummary: "成功 {ok}，失败 {fail}"
+  fileTooLarge: "{name} 超过 {limit}MB"
+  fileExtensionBlocked: "{name} 是禁止的可执行扩展名"
+  fileDragOrClick: 拖入或点击选择文件
+  announcement: 公告
+  announcementTitle: 公告标题
+  announcementContent: 公告内容
+  announcementPublishTime: 发布时间
+  announcementExpireTime: 过期时间
+  announcementPinned: 置顶
+  announcementPopover: 弹窗提示
+  announcementRecipients: 接收人
+  pureSystemMenu: 菜单管理
+  pureDept: 部门管理
+  pureSysMonitor: 系统监控
+  pureOnlineUser: 在线用户
+  pureLoginLog: 登录日志
+  pureOperationLog: 操作日志
+  pureSystemLog: 系统日志
+  monitorOperationLog: 操作日志
+  monitorLoginLog: 登录日志
+  monitorRetention: 数据保留
+  pureAbnormal: 异常页面
+  pureDashboard: 服务监控面板
+  dashboardRefresh: 刷新
+  dashboardStatusOk: 正常
+  dashboardStatusDown: 不可达
+  dashboardStatusUnknown: 未知
+  dashboardLastCheck: 最近检测
+  dashboardUpCount: 在线
+  dashboardDownCount: 离线
+  purePageNotFound: "404"
+  pureAccessDenied: "403"
+  pureServerError: "500"
+  pureComponents: 组件
+  pureDialog: 函数式弹框
+  pureDrawer: 函数式抽屉
+  pureMessage: 消息提示
+  pureVideo: 视频
+  pureSegmented: 分段控制器
+  pureWaterfall: 瀑布流无限滚动
+  pureMap: 地图
+  pureDraggable: 拖拽
+  pureSplitPane: 切割面板
+  pureText: 文本省略
+  pureSlider: 滑块
+  pureElButton: 按钮
+  pureCheckButton: 可选按钮
+  pureButton: 按钮动效
+  pureCropping: 图片裁剪
+  pureAnimatecss: animate.css选择器
+  pureCountTo: 数字动画
+  pureSelector: 范围选择器
+  pureSeamless: 无缝滚动
+  pureContextmenu: 右键菜单
+  pureTypeit: 打字机
+  pureJsonEditor: JSON编辑器
+  pureColorPicker: 颜色选择器
+  pureColorPickerPanel: 颜色选择器面板
+  pureDatePicker: 日期选择器
+  pureDateTimePicker: 日期时间选择器
+  pureTimePicker: 时间选择器
+  pureTag: 标签
+  pureStatistic: 统计组件
+  pureCollapse: 折叠面板
+  pureProgress: 进度条
+  pureUpload: 文件上传
+  pureCheckCard: 多选卡片
+  pureMenus: 多级菜单
+  pureMenu1: 菜单1
+  pureMenu1-1: 菜单1-1
+  pureMenu1-2: 菜单1-2
+  pureMenu1-2-1: 菜单1-2-1
+  pureMenu1-2-2: 菜单1-2-2
+  pureMenu1-3: 菜单1-3
+  pureMenu2: 菜单二
+  purePermission: 权限管理
+  purePermissionPage: 页面权限
+  purePermissionButton: 按钮权限
+  purePermissionButtonRouter: 路由返回按钮权限
+  purePermissionButtonLogin: 登录接口返回按钮权限
+  pureTabs: 标签页操作
+  pureGuide: 引导页
+  pureAble: 功能
+  pureMenuTree: 菜单树结构
+  pureVideoFrame: 视频帧截取-wasm版
+  pureWavesurfer: 音频可视化
+  pureRipple: 波纹(Ripple)
+  pureMqtt: MQTT客户端(mqtt)
+  pureOptimize: 防抖、截流、复制、长按指令
+  pureVerify: 图形验证码
+  pureWatermark: 水印
+  purePrint: 打印
+  pureDownload: 下载
+  pureExternalPage: 外部页面
+  pureExternalDoc: 文档外链
+  pureEmbeddedDoc: 文档内嵌
+  pureExternalLink: vue-pure-admin
+  pureUtilsLink: pure-admin-utils
+  pureColorHuntDoc: 调色板
+  pureUiGradients: 渐变色
+  pureEpDoc: element-plus
+  pureTailwindcssDoc: tailwindcss
+  pureVueDoc: vue3
+  pureViteDoc: vite
+  purePiniaDoc: pinia
+  pureRouterDoc: vue-router
+  pureAbout: 关于
+  pureResult: 结果页面
+  pureSuccess: 成功页面
+  pureFail: 失败页面
+  pureIconSelect: 图标选择器
+  pureTimeline: 时间线
+  pureLineTree: 树形连接线
+  pureList: 列表页面
+  pureCardList: 卡片列表页
+  pureDebounce: 防抖节流
+  pureBarcode: 条形码
+  pureQrcode: 二维码
+  pureCascader: 区域级联选择器
+  pureSwiper: Swiper插件
+  pureVirtualList: 虚拟列表
+  purePdf: PDF预览
+  pureExcel: 导出Excel
+  pureInfiniteScroll: 表格无限滚动
+  pureSensitive: 敏感词过滤
+  purePinyin: 汉语拼音
+  pureDanmaku: 弹幕
+  pureTableBase: 基础用法
+  pureTableHigh: 高级用法
+  pureTableEdit: 可编辑用法
+  pureVxeTable: 虚拟滚动
+  pureMenuOverflow: 目录超出显示 Tooltip 文字提示
+  pureChildMenuOverflow: 菜单超出显示 Tooltip 文字提示
+  pureProfile: 个人信息
+  purePreferences: 偏好设置
+  pureSecurityLog: 安全日志
+  pureAccountManagement: 账户管理
+  accountCardTitlePassword: 账户密码
+  accountCardIllustratePassword: 其他用户的消息将以站内信的形式通知
+  accountCardTitleSystemMessage: 系统消息
+  accountCardIllustrateSystemMessage: 系统消息将以站内信的形式通知
+  accountCardTitleTodoTask: 待办任务
+  accountCardIllustrateTodoTask: 待办任务将以站内信的形式通知
+  accountCardSwitchActive: 是
+  accountCardSwitchInactive: 否
+  accountCardSetSuccess: '{title}设置成功'
+  securityLogDetail: 详情
+  securityLogIp: IP 地址
+  securityLogLocation: 地点
+  securityLogOs: 操作系统
+  securityLogBrowser: 浏览器类型
+  securityLogTime: 时间
+  profileNicknameRequired: 昵称必填
+  profileUpdateAvatarSuccess: 更新头像成功
+  profileUpdateAvatarFail: 更新头像失败
+  profileUpdateAvatarError: "提交异常 {error}"
+  profileUpdateInfoSuccess: 更新信息成功
+  profileAvatar: 头像
+  profileUpdateAvatarBtn: 更新头像
+  profileNickname: 昵称
+  profileNicknamePlaceholder: 请输入昵称
+  profileEmail: 邮箱
+  profileEmailPlaceholder: 请输入邮箱
+  profilePhone: 联系电话
+  profilePhonePlaceholder: 请输入联系电话
+  profileDescription: 简介
+  profileDescriptionPlaceholder: 请输入简介
+  profileUpdateInfo: 更新信息
+  profileEditAvatarTitle: 编辑头像
+  profileCancel: 取消
+  profileConfirm: 确定
+  systemDept: 部门管理
+  deptSearchName: 部门名称
+  deptPlaceholderName: 请输入部门名称
+  deptStatusActive: 启用
+  deptStatusInactive: 停用
+  deptPlaceholderStatus: 请选择状态
+  deptNew: 新增部门
+  deptAssignUsers: 分配成员
+  deptConfirmDelete: "是否确认删除部门名称为 {name} 的这条数据？"
+  roleSearchName: 角色名称
+  roleSearchCode: 角色标识
+  rolePlaceholderName: 请输入角色名称
+  rolePlaceholderCode: 请输入角色标识
+  roleStatusActive: 已启用
+  roleStatusInactive: 已停用
+  rolePlaceholderStatus: 请选择状态
+  roleNew: 新增角色
+  roleConfirmDelete: "是否确认删除角色名称为 {name} 的这条数据？"
+  rolePermissionBtn: 权限
+  roleAssignPermissionTitle: "分配权限（{name}）"
+  roleAssignPermissionTitleEmpty: 分配权限
+  roleNoPermission: 暂无权限数据
+  roleCancel: 取消
+  permissionSearchKeyword: 关键字
+  permissionPlaceholderKeyword: code / name
+  permissionCategory: 类别
+  permissionCategoryMenu: 菜单
+  permissionCategoryButton: 按钮
+  permissionCategoryApi: API
+  permissionNew: 新增权限
+  permissionConfirmDelete: "确认删除 {code} ？"
+  tokenClientSearchKeyword: 关键字
+  tokenClientPlaceholderKeyword: Client ID / 名称
+  tokenClientNew: 新增客户端
+  tokenClientStatusDisabled: 禁用
+  tokenClientEnable: 启用
+  tokenClientDisable: 禁用
+  tokenClientResetSecret: 重置 Secret
+  tokenClientConfirmDelete: "确认删除 {clientId} ？"
+  systemTenant: 租户管理
+  systemSession: 会话管理
+  systemMenu: 菜单管理
+  tenantRefresh: 刷新
+  tenantCreate: 新建租户
+  tenantColumnId: ID
+  tenantColumnSlug: Slug
+  tenantColumnDisplayName: 显示名
+  tenantColumnAdmin: 管理员
+  tenantColumnCreatedAt: 创建时间
+  tenantListPending: 列表接口待实现
+  tenantCreateSuccess: 已创建租户
+  tenantCreateFail: 创建失败
+  tenantSlugPrompt: "租户 slug（小写字母数字下划线，长度 2-64）"
+  tenantDisplayNamePrompt: 显示名
+  tenantAdminUsernamePrompt: 管理员用户名
+  tenantPasswordPrompt: "管理员密码（≥8 位）"
+  sessionColumnId: Session ID
+  sessionColumnUser: 用户
+  sessionColumnIp: IP
+  sessionColumnUa: UA
+  sessionColumnCreatedAt: 创建时间
+  sessionColumnExpiresAt: 过期时间
+  sessionColumnStatus: 状态
+  sessionColumnOperation: 操作
+  sessionStatusCurrent: 当前
+  sessionStatusActive: 活跃
+  sessionRevoke: 踢下线
+  sessionConfirmRevoke: "确认踢下线 session {id}？"
+  sessionRevokeSuccess: 已踢下线
+  sessionLoadFail: 加载失败
+  sessionActionFail: 操作失败
+  menuColumnTitle: 菜单名称
+  menuColumnVersion: 菜单版本
+  menuPlaceholderTitle: 请输入菜单名称
+  menuPlaceholderVersion: 请选择菜单版本
+  menuVersionOptionFormat: "v{version} - {name} - {status}{active}"
+  menuVersionActive: " - active"
+  menuVersionNotActive: ""
+  menuNewDraft: 新建草稿
+  menuPublishVersion: 发布当前版本
+  menuNewMenu: 新增菜单
+  menuConfirmDelete: "是否确认删除菜单名称为 {name} 的这条数据？"
+  menuChildrenNote: 注意下级菜单也会一并删除，请谨慎操作
+  roleFormLabelName: 角色名称
+  roleFormLabelCode: 角色标识
+  roleFormLabelDataScope: 数据范围
+  roleFormLabelStatus: 状态
+  roleFormLabelDescription: 描述
+  roleFormPlaceholderName: 请输入角色名称
+  roleFormPlaceholderCode: 请输入角色标识
+  roleFormPlaceholderDataScope: 请选择数据范围
+  roleFormPlaceholderDescription: 请输入描述信息
+  roleFormDataScopeSelf: 仅本人
+  roleFormDataScopeDept: 本部门
+  roleFormDataScopeDeptAndBelow: 本部门及以下
+  roleFormDataScopeAll: 全部
+  configColumnId: ID
+  configColumnApp: App
+  configColumnEnv: Env
+  configColumnKey: Key
+  configColumnValue: Value
+  configColumnType: 类型
+  configColumnSecret: 敏感
+  configSearchName: 名称
+  configSearchKey: Key
+  configSearchNamespace: 命名空间
+  configPlaceholderName: 按名称筛选
+  configPlaceholderKey: 按 key 筛选
+  configPlaceholderNamespace: 选择
+  configNamespaceCreate: 新建
+  configNamespaceConfirmDelete: "确认删除命名空间 {app}？"
+  configNamespacePromptApp: App 名称
+  configNamespacePromptEnv: "Env（如 dev/staging/prod）"
+  configNamespaceSelectEnv: 请选择
+  configNamespaceDialogTitle: 新建命名空间
+  configNamespaceFieldProfile: Profile
+  configNamespacePlaceholderProfile: "如 default（可选）"
+  configNamespaceFieldDescription: 描述
+  configNamespacePlaceholderDescription: "请输入描述（可选）"
+  configNamespaceCancel: 取消
+  configNamespaceConfirm: 确定
+  configItemCreate: 新建
+  configItemConfirmDelete: "删除 {key}？"
+  configItemPromptKey: 配置 Key
+  configItemPromptValue: 配置 Value
+  configItemSecretConfirm: 标记为敏感（敏感值默认 UI 掩码）？
+  configItemShowValue: 显示
+  configItemHideValue: 隐藏
+  configItemSelectNsFirst: 先选命名空间
+  configItemSecretYes: 是
+  configItemSecretNo: 否
+  configCreated: 已创建
+  configDeleted: 已删除
+  configCreateFailFallback: 创建失败
+  configDeleteFailFallback: 删除失败
+  configLoadFailPrefix: "加载失败：{error}"
+  fileColumnId: ID
+  fileColumnFilename: 文件名
+  fileColumnType: 类型
+  fileColumnSize: 大小
+  fileColumnUploadedAt: 上传时间
+  filePlaceholderFilename: 按文件名筛选
+  fileNew: 上传
+  presignTitle: 预签名 URL
+  presignNotice: "对已存在的 file_id 生成 GET/PUT 临时 URL。直传请用 /file/upload。"
+  presignFileId: File ID
+  presignFileIdPlaceholder: file id
+  presignOperation: 操作
+  presignOperationGet: GET（下载）
+  presignOperationPut: PUT（覆盖）
+  presignExpires: 过期秒数
+  presignGenerateBtn: 生成 URL
+  presignResultHeader: 预签名结果
+  presignUrlLabel: URL
+  presignExpiresLabel: 过期
+  presignCopyUrl: 复制 URL
+  presignGenerated: 已生成
+  presignGenerateFailFallback: 生成失败
+  presignInputFileIdFirst: 请输入 file_id
+  presignCopied: URL 已复制
+  retentionCardHot: 热数据
+  retentionCardWarm: 温数据
+  retentionCardCold: 冷数据
+  retentionCardExpired: 过期数据
+  retentionCardTotalSize: 总大小
+  retentionPolicyTitle: 保留策略
+  retentionCleanupBtn: 立即清理
+  retentionSaveBtn: 保存策略
+  retentionLabelHotDays: "热数据保留(天)"
+  retentionLabelWarmDays: "温数据保留(天)"
+  retentionLabelColdDays: "冷数据保留(天)"
+  retentionLabelArchive: 启用归档
+  retentionLabelPurge: 启用清理
+  retentionProbeTitle: "Stage 探针（输入 created_at 看落点）"
+  retentionProbeLabel: RFC3339 时间
+  retentionProbePlaceholder: 2024-01-01T00:00:00Z
+  retentionProbeBtn: 查询
+  retentionProbeResult: 结果
+  retentionLoadFailPrefix: "加载失败：{error}"
+  retentionSaveSuccess: 保存成功
+  retentionSaveFailPrefix: "保存失败：{error}"
+  retentionCleanupConfirm: 立即触发清理将根据当前策略删除过期数据，确认继续？
+  retentionCleanupConfirmTitle: 系统提示
+  retentionCleanupDone: "清理完成，删除 {count} 条"
+  retentionCleanupDonePartial: "（部分失败）"
+  retentionCleanupFailPrefix: "清理失败：{error}"
+  retentionProbeWarnNoTs: 请输入 RFC3339 时间戳
+  retentionProbeFailPrefix: "查询失败：{error}"
+  monitorOperationUserId: 用户ID
+  monitorOperationAction: 操作
+  monitorOperationResource: 资源
+  monitorExportCsv: 合规导出 CSV
+  monitorExportJson: 合规导出 JSON
+  monitorOperationDetail: 详情
+  monitorExportSuccess: 已下载 CSV
+  monitorExportSuccessJson: 已下载 JSON
+  monitorExportFailFallback: 导出失败
+  deptFormLabelParent: 上级部门
+  deptFormLabelName: 部门名称
+  deptFormLabelCode: 部门编码
+  deptFormLabelSort: 排序
+  deptFormLabelStatus: 状态
+  deptFormPlaceholderParent: 请选择上级部门
+  deptFormPlaceholderName: 请输入部门名称
+  deptFormPlaceholderCode: 请输入部门编码
+  menuFormLabelType: 菜单类型
+  menuFormLabelParent: 上级菜单
+  menuFormLabelTitle: 菜单名称
+  menuFormLabelRouteName: 路由名称
+  menuFormLabelPath: 路由路径
+  menuFormLabelComponent: 组件路径
+  menuFormLabelRank: 菜单排序
+  menuFormLabelRedirect: 路由重定向
+  menuFormLabelIcon: 菜单图标
+  menuFormLabelExtraIcon: 右侧图标
+  menuFormLabelEnter: 进场动画
+  menuFormLabelLeave: 离场动画
+  menuFormLabelActive: 菜单激活
+  menuFormLabelAuths: 权限标识
+  menuFormLabelFrameSrc: 链接地址
+  menuFormLabelFrameLoading: 加载动画
+  menuFormLabelShowLink: 菜单
+  menuFormLabelShowParent: 父级菜单
+  menuFormLabelKeepAlive: 缓存页面
+  menuFormLabelHiddenTag: 标签页
+  menuFormLabelFixedTag: 固定标签页
+  menuFormPlaceholderParent: 请选择上级菜单
+  menuFormPlaceholderTitle: 请输入菜单名称
+  menuFormPlaceholderRouteName: 请输入路由名称
+  menuFormPlaceholderPath: 请输入路由路径
+  menuFormPlaceholderComponent: 请输入组件路径
+  menuFormPlaceholderRedirect: 请输入默认跳转地址
+  menuFormPlaceholderExtraIcon: 菜单名称右侧的额外图标
+  menuFormPlaceholderEnter: 请选择页面进场加载动画
+  menuFormPlaceholderLeave: 请选择页面离场加载动画
+  menuFormPlaceholderActive: 请输入需要激活的菜单
+  menuFormPlaceholderAuths: 请输入权限标识
+  menuFormPlaceholderFrameSrc: 请输入 iframe 链接地址
+  userFormLabelNickname: 用户昵称
+  userFormLabelUsername: 用户名称
+  userFormLabelPassword: 用户密码
+  userFormLabelPhone: 手机号
+  userFormLabelEmail: 邮箱
+  userFormLabelSex: 用户性别
+  userFormLabelDept: 归属部门
+  userFormLabelStatus: 用户状态
+  userFormLabelRemark: 备注
+  userFormPlaceholderNickname: 请输入用户昵称
+  userFormPlaceholderUsername: 请输入用户名称
+  userFormPlaceholderPassword: 请输入用户密码
+  userFormPlaceholderPhone: 请输入手机号
+  userFormPlaceholderEmail: 请输入邮箱
+  userFormPlaceholderSex: 请选择用户性别
+  userFormPlaceholderDept: 请选择归属部门
+  userFormPlaceholderRemark: 请输入备注信息
+  userFormSexMale: 男
+  userFormSexFemale: 女
+  userFormStatusActive: 启用
+  userFormStatusInactive: 停用
+  apiKeyColumnId: ID
+  apiKeyColumnName: 名称
+  apiKeyColumnScopes: Scopes
+  apiKeyColumnStatus: 状态
+  apiKeyColumnCreatedAt: 创建时间
+  apiKeyColumnOperation: 操作
+  apiKeySearchName: 名称
+  apiKeySearchScopes: Scopes
+  apiKeyPlaceholderName: API Key 名称
+  apiKeyPlaceholderScopes: 逗号分隔
+  apiKeyCreate: 新建
+  apiKeyCopy: 复制
+  apiKeyClearCache: 清除缓存
+  apiKeyCreatedHint: "已创建（secret 已保存到本地缓存）"
+  apiKeySecretNotCached: 本浏览器未缓存该 key 的 secret；后端不返回明文
+  apiKeyCopiedFull: 已复制完整 key
+  apiKeyCacheCleared: "缓存已清除（后端记录未变）"
+  apiKeyConfirmClearCache: "从本地缓存删除 {name}？"
+  apiKeyListLoadFailFallback: 列表加载失败
+  apiKeyCreateFailFallback: 创建失败
+  apiKeyNotice: "列表来自后端 GET /v1/api-keys；secret 仅创建时返回一次，本地缓存保存以便复制。"
+  apiKeyNameRequired: 请输入名称
+  zhCn: 简体中文
+  loginMonitorLog: 登录日志
+  detailLoadFail: 加载失败
+  detailLoading: 加载中...
+  detailPublishLabel: "发布："
+  detailExpireLabel: "· 过期："
+  detailPinnedTag: 置顶
+  detailPopoverTag: 弹窗
+  welcomeWeekLast: 上周
+  welcomeWeekThis: 本周
+  welcomeCardOverview: 分析概览
+  welcomeCardResolution: 解决概率
+  welcomeCardDataStats: 数据统计
+  welcomeCardLatest: 最新动态
+  welcomeNewProblemsTemplate: "新增 {n} 条问题，{m} 条已解决"
+  permsDemoCodeLine: "代码位置 {path}"
+  permsDemoHaveCode: "拥有 code：{code} 权限可见"
+  permsDemoHasCodes: "拥有 code：{codes} 权限可见"
+  permsDemoCurrentAuths: 当前拥有的 code 列表
+  permsDemoRoleAdmin: 管理员角色
+  permsDemoRoleUser: 普通角色
+  permsDemoRoleSimulate: 模拟后台根据不同角色返回对应路由，观察左侧菜单变化（管理员角色可查看系统管理菜单、普通角色不可查看系统管理菜单）
+  permsDemoCurrentRole: "当前角色：{name}"
+  dialogActionEdit: 修改
+  dialogActionCreate: 新增
+  dashboardRecentActivity: 最近活动
+  dashboardRecentActivityEmpty: 暂无最近活动
+  dashboardUserCount: 用户数
+  dashboardRoleCount: 角色数
+  dashboardSessionCount: 活跃会话
+  dashboardOperationCount: 操作日志
+  dashboardColAction: 操作
+  dashboardColResource: 资源
+  dashboardColUser: 用户
+  dashboardColTime: 时间
+  fileSelected: "已选 {n} 项"
+  fileBulkDelete: 批量删除
+  fileDropHint: 拖入此处上传
+  inboxMarkRead: 标为已读
+  inboxDetailClose: 关闭
+  notificationDesktopTitle: 新通知
+  notificationDesktopBody: "{title} — 点击查看"
+  fileBulkDeleteConfirm: "确认删除 {n} 个文件？"
+  fileBulkDeleteSuccess: "已删除 {n} 个文件"
+  fileBulkDeletePartial: "已删除 {ok} 个，{fail} 个失败"
+  dashboardAvgLatency: 平均延迟
+  dashboardLatencyTrend: "延迟趋势（最近 {n} 次）"
+  dashboardErrorRate: 错误率
+status:
+  pureLoad: 加载中...
+  pureMessage: 消息
+  pureNotify: 通知
+  pureTodo: 待办
+  pureNoMessage: 暂无消息
+  pureNoNotify: 暂无通知
+  pureNoTodo: 暂无待办
+login:
+  pureUsername: 账号
+  purePassword: 密码
+  pureVerifyCode: 验证码
+  pureRemember: 天内免登录
+  pureRememberInfo: 勾选并登录后，规定天数内无需输入用户名和密码会自动登入系统
+  pureSure: 确认密码
+  pureForget: 忘记密码?
+  pureLogin: 登录
+  pureThirdLogin: 第三方登录
+  purePhoneLogin: 手机登录
+  pureQRCodeLogin: 二维码登录
+  pureRegister: 注册
+  pureWeChatLogin: 微信登录
+  pureAlipayLogin: 支付宝登录
+  pureQQLogin: QQ登录
+  pureWeiBoLogin: 微博登录
+  purePhone: 手机号码
+  pureSmsVerifyCode: 短信验证码
+  pureBack: 返回
+  pureTest: 模拟测试
+  pureTip: 扫码后点击"确认"，即可完成登录
+  pureDefinite: 确定
+  pureLoginSuccess: 登录成功
+  pureLoginFail: 登录失败
+  pureRegisterSuccess: 注册成功
+  pureTickPrivacy: 请勾选隐私政策
+  pureReadAccept: 我已仔细阅读并接受
+  purePrivacyPolicy: 《隐私政策》
+  pureGetVerifyCode: 获取验证码
+  pureInfo: 秒后重新获取
+  pureUsernameReg: 请输入账号
+  purePassWordReg: 请输入密码
+  pureVerifyCodeReg: 请输入验证码
+  pureVerifyCodeCorrectReg: 请输入正确的验证码
+  pureVerifyCodeSixReg: 请输入6位数字验证码
+  purePhoneReg: 请输入手机号码
+  purePhoneCorrectReg: 请输入正确的手机号码格式
+  purePassWordRuleReg: 密码格式应为8-18位数字、字母、符号的任意两种组合
+  purePassWordSureReg: 请输入确认密码
+  purePassWordDifferentReg: 两次密码不一致!
+  purePassWordUpdateReg: 修改密码成功
+  pureLoginExpired: 登录已过期，请重新登录
+tableBar:
+  pureList: 列表
+  pureLarge: 宽松
+  pureDefault: 默认
+  pureSmall: 紧凑
+  pureColumnSettings: 列设置
+  pureCollapse: 折叠
+  pureExpand: 展开
+  pureRefresh: 刷新
+  pureDensity: 密度
+  pureColumnDisplay: 列展示
+  pureReset: 重置
+  pureExitFullScreen: 退出全屏
+  pureFullScreen: 全屏
+  purePinLeft: 固定在左边
+  purePinRight: 固定在右边
+  pureUnpin: 取消固定
+changePassword:
+  title: "修改密码"
+  oldPassword: "旧密码"
+  oldPasswordPlaceholder: "请输入旧密码"
+  newPassword: "新密码"
+  newPasswordPlaceholder: "请输入新密码（8-128 位）"
+  confirmPassword: "确认密码"
+  confirmPasswordPlaceholder: "请再次输入新密码"
+  submit: "确定"
+  cancel: "取消"
+  passwordMismatch: "两次输入密码不一致"
+  passwordSameAsOld: "新密码不能与旧密码相同"
+  success: "修改成功，请重新登录"
+  failure: "修改失败"

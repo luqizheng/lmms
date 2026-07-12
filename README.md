@@ -325,6 +325,44 @@ docker-compose -f infrastructure/docker-compose.yml pull
 docker-compose -f infrastructure/docker-compose.yml up -d
 ```
 
+## 离线分发包（私有化部署）
+
+项目提供完整的**离线分发包**，适用于无法访问外网的私有化部署环境。
+
+### 核心文件
+
+| 文件 | 说明 |
+|------|------|
+| [`release/dist-template/`](release/dist-template/) | 离线分发包完整目录 |
+| [`release/dist-template/README.md`](release/dist-template/README.md) | 分发包使用文档 |
+| [`release/dist-template/docs/`](release/dist-template/docs/) | 完整部署文档（含故障排查、升级、备份） |
+| `release/dist-template/index.html` | 文档入口（浏览器直接打开，内置搜索） |
+
+### 快速部署
+
+```bash
+# 1. 加载 Docker 镜像（约 10-15GB）
+bash bin/load-images.sh
+
+# 2. 生成密钥和密码
+make secrets
+
+# 3. 启动所有服务
+make up
+
+# 4. 验证
+make verify
+```
+
+### 离线镜像打包（在有网环境执行）
+
+```bash
+# 打包离线镜像（输出 release/coder-micro-services-v1.0.0-airgap.tar.gz）
+bash scripts/release.sh v1.0.0
+```
+
+> 详见 [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md)
+
 ## Infrastructure
 
 - **Consul**: Service discovery
@@ -487,3 +525,5 @@ pnpm run docker:build
 | api-gateway 路由配置 | [`docs/guides/api-gateway-routing.md`](docs/guides/api-gateway-routing.md) |
 | ADR (架构决策) | [`docs/decisions/`](docs/decisions/) |
 | 12 周路线图与月度复盘 | [`docs/superpowers/`](docs/superpowers/) |
+| **私有化离线部署** | [`release/dist-template/`](release/dist-template/) |
+| 离线部署步骤 | [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md) |

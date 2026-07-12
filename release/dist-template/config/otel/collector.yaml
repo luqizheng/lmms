@@ -1,0 +1,79 @@
+# OpenTelemetry Collector configuration.
+# Receives OTLP gRPC from services on :4317 and OTLP HTTP on :4318.
+# Exports traces to Jaeger (in-memory) and Prometheus-style metrics to
+# the same Prometheus instance.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+  # Add deployment.environment attribute to every span
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: dev
+        action: upsert
+
+connectors:
+  # Aggregate RED metrics (Rate / Errors / Duration) from incoming spans.
+  # Jaeger UI's Monitor tab reads these via Prometheus to draw service
+  # performance charts.
+  spanmetrics:
+    namespace: traces.spanmetrics
+    histogram:
+      explicit:
+        buckets: [2ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s]
+    dimensions:
+      - name: http.method
+      - name: http.status_code
+      - name: deployment.environment
+    exemplars:
+      enabled: true
+    exclude_dimensions: ['status.code']
+    metrics_flush_interval: 15s
+
+exporters:
+  # Jaeger as the primary trace UI backend.
+  # Jaeger v1.35+ natively accepts OTLP (COLLECTOR_OTLP_ENABLED=true is set on
+  # the jaeger all-in-one container), so we use the otlp exporter — the
+  # legacy `jaeger` exporter was removed from the Collector in v0.86+.
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # Expose metrics generated from traces (RED) plus any OTLP metrics that
+  # services push directly. Jaeger SPM scrapes these via Prometheus.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlp/jaeger, spanmetrics, debug]
+    metrics:
+      receivers: [otlp, spanmetrics]
+      processors: [resource, batch]
+      exporters: [prometheus]
+
+  telemetry:
+    logs:
+      level: info
