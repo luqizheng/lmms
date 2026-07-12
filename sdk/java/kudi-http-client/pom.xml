@@ -4,7 +4,7 @@
   <parent>
     <groupId>com.kudi.coder</groupId>
     <artifactId>kudi-coder-sdk-parent</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
   </parent>
   <artifactId>kudi-http-client</artifactId>
   <packaging>jar</packaging>
