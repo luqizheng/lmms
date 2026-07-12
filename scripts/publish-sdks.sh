@@ -42,7 +42,7 @@ fi
 
 if [[ "${DRY_RUN}" == "1" ]]; then
   echo "==> DRY RUN: skipping actual deploy"
-  mvn -Pjava8 -pl sdk/java/audit-service-sdk,sdk/java/notification-service-sdk,sdk/java/file-service-sdk,sdk/java/config-service-sdk -am -DskipTests verify
+  ( cd sdk/java && mvn -Pjava8 -pl audit-service-sdk,notification-service-sdk,file-service-sdk,config-service-sdk -am -DskipTests verify )
   echo "==> Dry run OK"
   exit 0
 fi
@@ -53,11 +53,11 @@ if [[ ! -f "${HOME}/.m2/settings.xml" ]] || ! grep -q "<id>kudi-maven</id>" "${H
   exit 2
 fi
 
-mvn -Pjava8 \
-    -pl sdk/java/audit-service-sdk,sdk/java/notification-service-sdk,sdk/java/file-service-sdk,sdk/java/config-service-sdk \
+( cd sdk/java && mvn -Pjava8 \
+    -pl audit-service-sdk,notification-service-sdk,file-service-sdk,config-service-sdk \
     -am \
     -DskipTests \
-    clean deploy
+    clean deploy )
 
 echo
 echo "==> Done. Next step:"
