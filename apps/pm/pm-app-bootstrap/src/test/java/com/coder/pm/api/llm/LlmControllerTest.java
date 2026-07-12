@@ -31,14 +31,6 @@ class LlmControllerTest {
 
     @BeforeEach
     void setup() {
-        // The constructor only takes registry + analyzer, but analyzer's
-        // no-arg form in turn requires RequirementService. Use a @Mock
-        // for RequirementService by reflecting it into the field.
-        try {
-            var f = RequirementAnalyzer.class.getDeclaredField("requirementService");
-            f.setAccessible(true);
-            f.set(analyzer, mock(com.coder.pm.infra.service.RequirementService.class));
-        } catch (Exception ignored) {}
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
