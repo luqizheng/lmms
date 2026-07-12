@@ -1,0 +1,60 @@
+[[route]]
+upstream   = "/v1/pm/health"
+downstream = "/pm-api/v1/health"
+service    = "pm-platform"
+public     = true
+
+[[route]]
+upstream   = "/v1/pm/health/ready"
+downstream = "/pm-api/v1/health/ready"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/llm/providers"
+downstream = "/pm-api/v1/llm/providers"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/llm/requirements/{rest}"
+downstream = "/pm-api/v1/llm/requirements/{rest}"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/projects"
+downstream = "/pm-api/v1/projects"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/projects/{rest}"
+downstream = "/pm-api/v1/projects/{rest}"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/requirements/{rest}"
+downstream = "/pm-api/v1/requirements/{rest}"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/stories/{rest}"
+downstream = "/pm-api/v1/stories/{rest}"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/criteria/{rest}"
+downstream = "/pm-api/v1/criteria/{rest}"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/spaces"
+downstream = "/pm-api/v1/spaces"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/spaces/{rest}"
+downstream = "/pm-api/v1/spaces/{rest}"
+service    = "pm-platform"
+
+[[route]]
+upstream   = "/v1/pm/documents/{rest}"
+downstream = "/pm-api/v1/documents/{rest}"
+service    = "pm-platform"
