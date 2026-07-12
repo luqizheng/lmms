@@ -157,7 +157,7 @@ curl http://localhost:8088/pm-api/v1/health/ready
 | `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3306/pm_platform?...` | MySQL JDBC URL（独立 schema `pm_platform`，与 Rust 服务同 MySQL 实例） |
 | `SPRING_DATASOURCE_USERNAME` | `root` | DB 用户 |
 | `SPRING_DATASOURCE_PASSWORD` | `rootpass` | DB 密码 |
-| `PM_JWT_MODE` | `jwks` | JWT 验签模式：`jwks`（默认，RS256 + iam-service JWKS）或 `hs256`（dev fallback） |
+| `PM_JWT_MODE` | `jwks`（生产）/ `noop`（dev profile 默认） | JWT 验签模式：`jwks`（RS256 + iam-service JWKS）/ `hs256`（HS256 dev fallback）/ `noop`（仅 `dev` profile，跳过 token 校验） |
 | `PM_JWT_JWKS_URL` | `http://localhost:3000/v1/tokens/.well-known/jwks.json` | JWKS endpoint（生产指向 api-gateway / token-service） |
 | `PM_JWT_ISSUER` | `superpowers-token-service` | 期望的 JWT issuer |
 | `PM_JWT_AUDIENCE` | `coder-micro-services` | 期望的 JWT aud |
@@ -213,6 +213,7 @@ Browser → vue-pure-admin → /pm-api → apps/pm (Spring Boot, 8088)
 - **跨服务用户引用**：`owner_id` / `assignee_id` / `created_by` 存 BIGINT，**无物理外键**（iam-service 是独立服务）；写入前调 `iam-service` 校验存在性。
 - **JWT**（Phase B）：apps/pm 通过 `JwksJwtVerifier` 验证 iam-service / token-service 签发的 RS256 JWT；issuer=audience=scope 与 `services/token-service/src/issuer.rs::issue_user_jwt` 对齐。从 JWT 抽 `sub`(UUID)→`userId`(long)、`user_code`→`username`、`tid`→`tenantId`、`roles[]` / `permissions[]` / `scope`，注入 `Principal` 给 `Authentication.principal`，控制器可用 `@AuthenticationPrincipal Principal p` 取。
 - **端到端联调**：`POST {LOWMEM_GATEWAY_BASE}/v1/iam/auth/login` 拿 token → `Authorization: Bearer <jwt>` 调 `/pm-api/v1/llm/providers` / `/pm-api/v1/projects` → 200 OK；伪造 / 错签名 / 无 token → 403 Forbidden；健康检查 `/pm-api/v1/health` 公开。
+- **Dev profile bypass**（Phase F1）：`SPRING_PROFILES_ACTIVE=dev` 时 `JwtSecurityConfig` 走 `Development` 子配置（`@Profile("dev")`），注入 `NoOpJwtVerifier`，对任意请求（含无 token / 错 token / 真 token）都返回固定的 dev `Principal`（userId=1, username=`dev`, roles=`[pm_admin]`）。本地开发不再需要先登录 iam-service 也能 curl/前端/e2e 跑通；`pm.jwt.mode=noop` 仅在 `application-dev.yml` 默认生效，prod 配置文件仍是 `jwks`，**不会**误启用 bypass。
 
 ## nginx 接入
 
@@ -247,6 +248,27 @@ location /pm-api/ {
 - PR-7：完善 e2e + 文档
 
 ## 端到端验证（Phase A + Phase B 实测）
+
+**Phase F1（Dev profile JWT bypass）**：
+
+`SPRING_PROFILES_ACTIVE=dev` 起 PM 容器后无需任何 token 即可调全部受保护端点：
+
+```bash
+# 无 token 直调 GET 受保护端点
+curl -s http://localhost:8088/pm-api/v1/llm/providers
+# → ["deepseek","noop"]  (HTTP 200)
+
+curl -s http://localhost:8088/pm-api/v1/projects?page=1\&size=5
+# → {"items":[...]}     (HTTP 200)
+
+# 无 token POST 创建（dev principal userId=1 自动注入）
+curl -s -X POST http://localhost:8088/pm-api/v1/projects \
+  -H "Content-Type: application/json" \
+  -d '{"code":"DEV-1","name":"Dev Test","ownerId":1}'
+# → HTTP 201 + 项目 payload
+```
+
+`pm.jwt.mode=noop` 仅 dev profile 生效；prod 配置文件 (`application.yml`) 默认 `jwks`，JWT 验签逻辑不变。`JwtSecurityConfig.Production` 子配置没声明 `NoOpJwtVerifier` bean，prod 模式下不存在 bypass。
 
 **Phase B（IAM JWT 互通）**：
 

@@ -18,13 +18,23 @@
 - `SPRING_DATASOURCE_URL/USER/PASSWORD`: MySQL 连接（默认 `pm_platform` schema，与 Rust 服务的 `superpowers` 库同实例、独立 schema）
 - `PM_LLM_PROVIDER`: LLM provider 名，默认 noop（noop / deepseek）
 - `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL`: DeepSeek (OpenAI-compatible) 接入配置；api-key 非空时 deepseek provider 自动启用
-- `PM_JWT_MODE`: `jwks`（默认，RS256 + 共享 iam-service JWKS）/ `hs256`（dev fallback，共享密钥 HS256）
+- `PM_JWT_MODE`: `jwks`（默认，RS256 + 共享 iam-service JWKS）/ `hs256`（dev fallback，共享密钥 HS256）/ `noop`（仅 `dev` profile，跳过 token 校验）
 - `PM_JWT_JWKS_URL`: JWKS endpoint（默认 `http://localhost:3000/v1/tokens/.well-known/jwks.json`）
 - `PM_JWT_ISSUER`: 期望的 JWT issuer（默认 `superpowers-token-service`，与 iam-service 对齐）
 - `PM_JWT_AUDIENCE`: 期望的 JWT aud（默认 `coder-micro-services`）
 - `PM_JWT_REQUIRED_SCOPE`: 期望的 JWT scope（默认 `access`，拒绝 `refresh` / `resource`）
 - `PM_JWT_CACHE_TTL_MINUTES`: JWKS key 缓存 TTL（默认 10 分钟）
 - `PM_JWT_HMAC_SECRET`: HS256 dev 模式用的共享密钥（生产环境禁止设置）
+
+### Dev profile JWT bypass
+
+`SPRING_PROFILES_ACTIVE=dev` 时（默认）`JwtSecurityConfig` 走 `Development` 子配置：注入一个 `NoOpJwtVerifier`，对每个请求都返回固定的 dev `Principal`（userId=1, username=`dev`, tenantId=1, roles=`[pm_admin]`, permissions=`[pm:*]`, scope=`access`），使任何受保护端点都无需 token。
+
+- 默认（`dev` profile + `pm.jwt.mode=noop`）：JWT 验签被完全跳过，本地 curl / 前端 / e2e 都无需登录。
+- dev profile 想用真 JWKS 验证：`pm.jwt.mode=jwks` 即可覆盖，模式切换在 `JwtVerifierRouter` 内部完成。
+- 生产 profile：自动注入 `JwksJwtVerifier`，配置 `pm.jwt.mode=jwks` / `hs256` 之一，**绝不**会启用 noop（`JwtSecurityConfig.Production` 没声明 NoOpJwtVerifier bean）。
+
+`pm.jwt.mode: noop` 仅在 `dev` profile 配置文件 (`application-dev.yml`) 中默认启用；`application.yml` 的默认仍是 `jwks`，避免误用。
 - `LOWMEM_GATEWAY_BASE`: api-gateway baseURL，SDK 内部使用
 - `PM_SDK_BEARER`: SDK 内部用的静默 bearer（MVP 阶段）
 
