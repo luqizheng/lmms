@@ -91,6 +91,41 @@ e2e_ui_test:
   script:
     - cd tests/e2e && pnpm run test:ui
 
+e2e_migration_state_test:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  before_script:
+    - cd tests/e2e && npm install
+    - npm install -g pnpm && pnpm install
+  script:
+    - docker compose -f infrastructure/docker-compose.yml up -d
+    - |
+      for i in $(seq 1 24); do
+        ready=$(docker compose -f infrastructure/docker-compose.yml ps --format json 2>/dev/null | \
+          node -e "const d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const r=JSON.parse('['+d.trim().split('\n').join(',')+']');const u=r.filter(s=>/^u/.test(s.Health));console.log(u.length===0?'ok':'not_ready');})" 2>/dev/null || echo "not_ready")
+        [ "$ready" = "ok" ] && break
+        sleep 5
+      done
+    - |
+      IAM_BOOTSTRAP_TOKEN="${IAM_DEV_BT}" \
+      NTF_BOOTSTRAP_TOKEN="${NOTIFICATION_DEV_BT}" \
+      TOKEN_BOOTSTRAP_TOKEN="${TOKEN_DEV_BT}" \
+      AUDIT_BOOTSTRAP_TOKEN="${AUDIT_DEV_BT}" \
+      CONFIG_BOOTSTRAP_TOKEN="${CONFIG_DEV_BT}" \
+      FILE_BOOTSTRAP_TOKEN="${FILE_DEV_BT}" \
+      PRUE_BOOTSTRAP_TOKEN="${PRUE_DEV_BT}" \
+      node scripts/e2e-migration-state.js
+  variables:
+    IAM_DEV_BT: "${IAM_DEV_BT}"
+    NOTIFICATION_DEV_BT: "${NOTIFICATION_DEV_BT}"
+    TOKEN_DEV_BT: "${TOKEN_DEV_BT}"
+    AUDIT_DEV_BT: "${AUDIT_DEV_BT}"
+    CONFIG_DEV_BT: "${CONFIG_DEV_BT}"
+    FILE_DEV_BT: "${FILE_DEV_BT}"
+    PRUE_DEV_BT: "${PRUE_DEV_BT}"
+  allow_failure: false
+
 build_api_gateway:
   stage: build
   tags: [shell]

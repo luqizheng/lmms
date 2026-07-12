@@ -432,7 +432,7 @@
   - [x] config-service 接入（commit `25a6bf6`，2 migrations）
   - [x] file-service 接入（commit `25a6bf6`，2 migrations）
   - [x] prue_backend 接入（commit `8a19729`，1 migration × 2 dialects）
-  - [ ] 集成测试 + 文档同步（`docs/guides/operations.md` + 各服务 AGENTS.md）
+  - [x] 集成测试 + 文档同步 — CI job `e2e_migration_state_test` 已接入（`.gitlab-ci.yml`）；AGENTS.md 7/7 已有端点条目；`docs/guides/migrations-state.md` 已完整
 - [x] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key） — runbook `docs/runbooks/secret-rotation.md`。覆盖：① JWT 私钥（含 kid + JWKS 路线图），② MySQL root 密码，③ Redis 密码；含手动 SOP 命令与未来自动化路线。
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
