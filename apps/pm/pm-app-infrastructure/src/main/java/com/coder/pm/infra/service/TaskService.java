@@ -96,6 +96,7 @@ public class TaskService extends ServiceImpl<TaskMapper, Task> {
         if (patch.getAssigneeId() != null) existing.setAssigneeId(patch.getAssigneeId());
         if (patch.getDueDate() != null) existing.setDueDate(patch.getDueDate());
         if (patch.getSortOrder() != null) existing.setSortOrder(patch.getSortOrder());
+        if (patch.getSprintId() != null) existing.setSprintId(patch.getSprintId());
         updateById(existing);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("status", existing.getStatus());

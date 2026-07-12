@@ -42,6 +42,7 @@ public class TaskController {
                                       @RequestBody @Valid CreateTaskRequest req) {
         Task t = new Task();
         t.setProjectId(projectId);
+        t.setSprintId(req.sprintId());
         t.setRequirementId(req.requirementId());
         t.setTitle(req.title());
         t.setDescription(req.description());
@@ -88,6 +89,7 @@ public class TaskController {
         patch.setAssigneeId(req.assigneeId());
         patch.setDueDate(req.dueDate());
         patch.setSortOrder(req.sortOrder());
+        patch.setSprintId(req.sprintId());
         return service.update(id, patch);
     }
 
@@ -106,6 +108,7 @@ public class TaskController {
             String status,
             String priority,
             Long requirementId,
+            Long sprintId,
             Long assigneeId,
             LocalDate dueDate,
             Integer sortOrder
@@ -117,6 +120,7 @@ public class TaskController {
             String status,
             String priority,
             Long assigneeId,
+            Long sprintId,
             LocalDate dueDate,
             Integer sortOrder
     ) {}

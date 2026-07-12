@@ -23,6 +23,9 @@ public class Task {
     @TableField("project_id")
     private Long projectId;
 
+    @TableField("sprint_id")
+    private Long sprintId;
+
     @TableField("requirement_id")
     private Long requirementId;
 
@@ -65,6 +68,9 @@ public class Task {
 
     public Long getProjectId() { return projectId; }
     public void setProjectId(Long projectId) { this.projectId = projectId; }
+
+    public Long getSprintId() { return sprintId; }
+    public void setSprintId(Long sprintId) { this.sprintId = sprintId; }
 
     public Long getRequirementId() { return requirementId; }
     public void setRequirementId(Long requirementId) { this.requirementId = requirementId; }
