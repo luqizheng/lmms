@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import type Node from "element-plus/es/components/tree/src/model/node";
 import {
   listDocuments,
   createDocument,
@@ -17,28 +18,50 @@ const router = useRouter();
 const spaceId = ref<number>(Number(route.params.spaceId));
 
 const space = ref<KbSpace | null>(null);
-const documents = ref<KbDocument[]>([]);
 const loading = ref(false);
+const treeRef = ref();
 
 const dialogVisible = ref(false);
-const form = ref({ title: "", markdown: "", docType: "markdown" });
+const form = ref({ title: "", markdown: "", docType: "markdown", parentId: null as number | null });
 
-async function fetchData() {
-  loading.value = true;
+interface TreeNode {
+  id: number;
+  label: string;
+  isLeaf: boolean;
+  docType?: string;
+  raw: KbDocument;
+  children?: TreeNode[];
+}
+
+async function loadSpace() {
   try {
     const { data: s } = await getSpace(spaceId.value);
     space.value = s;
-    const { data: docs } = await listDocuments(spaceId.value);
-    documents.value = docs;
   } catch (err: any) {
-    ElMessage.error("加载失败: " + (err?.message ?? err));
-  } finally {
-    loading.value = false;
+    ElMessage.error("加载空间失败: " + (err?.message ?? err));
   }
 }
 
-function openCreate() {
-  form.value = { title: "", markdown: "", docType: "markdown" };
+async function loadChildren(node: Node, resolve: (data: TreeNode[]) => void) {
+  const parentId = node.level === 0 ? undefined : node.data?.id;
+  try {
+    const { data: docs } = await listDocuments(spaceId.value, parentId);
+    resolve(
+      docs.map((d: KbDocument) => ({
+        id: d.id,
+        label: d.title,
+        isLeaf: false,
+        docType: d.docType,
+        raw: d
+      }))
+    );
+  } catch {
+    resolve([]);
+  }
+}
+
+function openCreate(parentId?: number) {
+  form.value = { title: "", markdown: "", docType: "markdown", parentId: parentId ?? null };
   dialogVisible.value = true;
 }
 
@@ -48,46 +71,57 @@ async function submitCreate() {
     await createDocument(spaceId.value, form.value);
     ElMessage.success("文档创建成功");
     dialogVisible.value = false;
-    await fetchData();
+    treeRef.value?.refresh();
   } catch (err: any) {
     ElMessage.error("创建失败: " + (err?.message ?? err));
   }
 }
 
-function openDocument(doc: KbDocument) {
-  router.push(`/pm/kb/documents/${doc.id}`);
+function handleNodeClick(data: TreeNode) {
+  router.push(`/pm/kb/documents/${data.id}`);
 }
 
-onMounted(fetchData);
+const docTypeTag: Record<string, "" | "primary" | "success" | "warning" | "info" | "danger"> = {
+  markdown: "",
+  api_spec: "success",
+  design_doc: "warning",
+  meeting: "info"
+};
+
+onMounted(loadSpace);
 </script>
 
 <template>
   <div class="pm-kb-docs">
     <el-page-header @back="router.back()">
       <template #content>
-        <span>{{ space?.name ?? "知识库" }} - 文档列表</span>
+        <span>{{ space?.name ?? "知识库" }} - 文档树</span>
       </template>
       <template #extra>
-        <el-button type="primary" @click="openCreate">新建文档</el-button>
+        <el-button type="primary" @click="openCreate()">新建文档</el-button>
       </template>
     </el-page-header>
 
-    <div v-loading="loading" style="margin-top: 16px">
-      <el-empty v-if="documents.length === 0" description="还没有文档" />
-      <div v-else class="doc-grid">
-        <div
-          v-for="doc in documents"
-          :key="doc.id"
-          class="doc-card"
-          @click="openDocument(doc)"
-        >
-          <div class="doc-card-title">{{ doc.title }}</div>
-          <div class="doc-card-meta">
-            <el-tag size="small">{{ doc.docType }}</el-tag>
-            <span class="doc-card-date">{{ doc.updatedAt }}</span>
-          </div>
-        </div>
-      </div>
+    <div v-loading="loading" class="tree-wrap">
+      <el-tree
+        ref="treeRef"
+        :props="{ label: 'label', isLeaf: 'isLeaf' }"
+        :load="loadChildren"
+        lazy
+        node-key="id"
+        highlight-current
+        :expand-on-click-node="false"
+        @node-click="handleNodeClick"
+      >
+        <template #default="{ data }">
+          <span class="tree-node">
+            <span class="tree-node-label">{{ data.label }}</span>
+            <el-tag v-if="data.docType && data.docType !== 'markdown'" size="small" :type="(docTypeTag as any)[data.docType]">
+              {{ data.docType }}
+            </el-tag>
+          </span>
+        </template>
+      </el-tree>
     </div>
 
     <el-dialog v-model="dialogVisible" title="新建文档" width="520">
@@ -124,37 +158,16 @@ onMounted(fetchData);
 .pm-kb-docs {
   padding: 16px;
 }
-.doc-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+.tree-wrap {
+  margin-top: 16px;
+  min-height: 300px;
 }
-.doc-card {
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
-  padding: 16px;
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-}
-.doc-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-.doc-card-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #303133;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.doc-card-meta {
+.tree-node {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.doc-card-date {
-  font-size: 12px;
-  color: #909399;
+.tree-node-label {
+  font-size: 14px;
 }
 </style>
