@@ -1,0 +1,82 @@
+# PM Platform — defaults (dev profile is the typical local-dev mode)
+spring:
+  application:
+    name: pm-platform
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/superpowers?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:rootpass}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      pool-name: pm-pool
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+    table: pm_flyway_history
+
+server:
+  port: ${SERVER_PORT:8088}
+  servlet:
+    context-path: /pm-api
+  forward-headers-strategy: framework
+  error:
+    include-message: always
+    include-stacktrace: never
+    include-binding-errors: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui/index.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+pm:
+  jwt:
+    secret: ${PM_JWT_SECRET:dev-secret-change-me-in-production-min-256-bits-long-enough-please}
+    expiration-minutes: ${PM_JWT_EXPIRATION_MINUTES:60}
+    issuer: pm-platform
+  llm:
+    provider:
+      default: ${PM_LLM_PROVIDER:noop}
+  sdk:
+    audit:
+      base-url: ${LOWMEM_GATEWAY_BASE:http://localhost:3000}
+    file:
+      base-url: ${LOWMEM_GATEWAY_BASE:http://localhost:3000}
+    notification:
+      base-url: ${LOWMEM_GATEWAY_BASE:http://localhost:3000}
+    config:
+      base-url: ${LOWMEM_GATEWAY_BASE:http://localhost:3000}
+    bearer:
+      # Static bearer token used by SDK clients when calling Rust services.
+      # In MVP apps/pm acquires this via PM_LOGIN bootstrap; static value here is dev fallback.
+      static-token: ${PM_SDK_BEARER:dev-bypass-token}
+
+logging:
+  level:
+    root: INFO
+    com.coder.pm: INFO
+    org.springframework.security: WARN
+    org.flywaydb: INFO
