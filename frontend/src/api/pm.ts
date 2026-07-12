@@ -256,3 +256,15 @@ export function updateSprint(id: number, payload: Partial<Sprint>) {
 export function deleteSprint(id: number) {
   return pmHttp.delete<void>(`/v1/sprints/${id}`);
 }
+
+// ---------- attachments (Phase D6) ----------
+
+export function uploadAttachment(file: File, tag?: string, tenantId = 1) {
+  const form = new FormData();
+  form.append("file", file);
+  if (tag) form.append("tag", tag);
+  form.append("tenantId", String(tenantId));
+  return pmHttp.post<{ id: number; name: string }>("/v1/attachments/upload", form, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+}

@@ -14,6 +14,7 @@ import {
   type KbDocument,
   type KbDocumentVersion
 } from "@/api/kb";
+import { uploadAttachment } from "@/api/pm";
 
 defineOptions({ name: "PmKbDocumentDetail" });
 
@@ -31,6 +32,9 @@ const editSummary = ref("");
 const versions = ref<KbDocumentVersion[]>([]);
 const viewingVersion = ref<KbDocumentVersion | null>(null);
 const versionsPanelOpen = ref(false);
+const uploading = ref(false);
+const attachments = ref<{ id: number; name: string }[]>([]);
+const fileInput = ref<HTMLInputElement | null>(null);
 
 const displayContent = computed(() => {
   if (viewingVersion.value) return viewingVersion.value.contentMd ?? "";
@@ -138,6 +142,28 @@ async function doRollback(v: KbDocumentVersion) {
 }
 
 onMounted(loadDocument);
+
+async function handleUploadFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input?.files?.[0];
+  if (!file) return;
+  uploading.value = true;
+  try {
+    const tag = `kb:doc:${docId.value}`;
+    const { data } = await uploadAttachment(file, tag);
+    attachments.value.push(data);
+    ElMessage.success(`附件 ${data.name} 上传成功`);
+  } catch (err: any) {
+    ElMessage.error("上传失败: " + (err?.message ?? err));
+  } finally {
+    uploading.value = false;
+    input.value = "";
+  }
+}
+
+function triggerUpload() {
+  fileInput.value?.click();
+}
 </script>
 
 <template>
@@ -155,7 +181,9 @@ onMounted(loadDocument);
         <el-button v-if="!editing && !viewingVersion" type="primary" @click="startEdit">编辑</el-button>
         <template v-if="editing">
           <el-button @click="cancelEdit">取消</el-button>
+          <el-button :loading="uploading" @click="triggerUpload">上传附件</el-button>
           <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+          <input ref="fileInput" type="file" style="display:none" @change="handleUploadFile" />
         </template>
       </template>
     </el-page-header>
