@@ -191,7 +191,6 @@ services:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
       - ./config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
       - ./config/api-gateway/rate-limits.toml:/app/config/api-gateway/rate-limits.toml:ro
-      - ../docker-example/secrets:/app/keys:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 15s
@@ -250,7 +249,6 @@ services:
       - "9081:8081"
     labels: *svc-reg-labels-iam
     volumes:
-      - ../docker-example/secrets:/app/keys:ro
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
       SERVICE_BOOTSTRAP_TOKEN: "${IAM_DEV_BT}"
