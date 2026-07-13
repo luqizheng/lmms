@@ -45,7 +45,7 @@ async function withConn<T>(
 // 整轮开始：清全部 + 重导基础 seed
 export async function resetBase(): Promise<void> {
   await withConn(async (c) => {
-    await c.query('SET FOREIGN_KEY_CHECKS = 0');
+    await c.query('SET FOREIGN_KEY_CHECKS = 0').catch(() => undefined);
     for (const t of [...BUSINESS_TABLES, ...PERMISSION_TABLES, 'iam_users']) {
       await c.query(`DELETE FROM ${t}`).catch(() => undefined);
     }
@@ -55,14 +55,14 @@ export async function resetBase(): Promise<void> {
     for (const stmt of sql.split(';').map((s) => s.trim()).filter(Boolean)) {
       await c.query(stmt).catch(() => undefined);
     }
-    await c.query('SET FOREIGN_KEY_CHECKS = 1');
+    await c.query('SET FOREIGN_KEY_CHECKS = 1').catch(() => undefined);
   });
 }
 
 // 每套件前：清业务数据，保留基础数据
 export async function resetBusiness(): Promise<void> {
   await withConn(async (c) => {
-    await c.query('SET FOREIGN_KEY_CHECKS = 0');
+    await c.query('SET FOREIGN_KEY_CHECKS = 0').catch(() => undefined);
     for (const t of BUSINESS_TABLES) {
       await c.query(`DELETE FROM ${t}`).catch(() => undefined);
     }
@@ -70,6 +70,6 @@ export async function resetBusiness(): Promise<void> {
     await c
       .query('DELETE FROM iam_users WHERE username NOT IN (?)', [config.seedUsernames])
       .catch(() => undefined);
-    await c.query('SET FOREIGN_KEY_CHECKS = 1');
+    await c.query('SET FOREIGN_KEY_CHECKS = 1').catch(() => undefined);
   });
 }

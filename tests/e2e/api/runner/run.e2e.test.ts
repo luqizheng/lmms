@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, it } from 'vitest';
@@ -20,12 +20,11 @@ import {
 } from '../../shared/report/writer';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const token = JSON.parse(
-  readFileSync(join(__dirname, '..', '.token.json'), 'utf8'),
-).token as string;
+const TOKEN_FILE = join(__dirname, '..', '.token.json');
 
 const results: CaseResult[] = [];
 const ctx: Record<string, unknown> = {};
+let token: string | undefined;
 
 const casesDir = join(__dirname, '..', 'cases');
 const files = readdirSync(casesDir).filter((f) => /\.ya?ml$/.test(f));
@@ -33,6 +32,13 @@ const files = readdirSync(casesDir).filter((f) => /\.ya?ml$/.test(f));
 const SMOKE_ONLY = process.env.E2E_SMOKE === '1';
 
 beforeAll(async () => {
+  // globalSetup 已经写好 token；若文件不存在（例如只跑了部分 suite），现场报错提示
+  if (!existsSync(TOKEN_FILE)) {
+    throw new Error(
+      `缺失 ${TOKEN_FILE}。请确认先经过 vitest globalSetup，或重新跑 pnpm -C tests/e2e test:api。`,
+    );
+  }
+  token = JSON.parse(readFileSync(TOKEN_FILE, 'utf8')).token as string;
   await resetBusiness();
 });
 
@@ -49,6 +55,10 @@ for (const file of files) {
     for (const c of filtered) {
       const run = c.skip ? it.skip : it;
       run(`${c.caseId} ${c.desc}`, async () => {
+        if (!token) {
+          // beforeAll 失败时 vitest 也会标红，这里再补一道兜底
+          throw new Error('admin token 未初始化（globalSetup 失败？）');
+        }
         const start = Date.now();
         const path = resolve(c.path, ctx);
         const body = c.body !== undefined ? resolve(c.body, ctx) : undefined;
