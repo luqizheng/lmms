@@ -5,11 +5,10 @@
 
 ## 语言偏好
 
-AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码注释、commit message、技术术语保持英文。同一规则写入 `.trae/rules/project_rules.md` §1.1，全仓库（含 `.trae/rules/*`）统一执行。
+AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码注释、commit message、技术术语保持英文。同一规则写入 `.trae/rule/project_rules.md` §1.1，全仓库（含 `.trae/rules/*`）统一执行。
 
 ## 开发环境
 
-<!-- - 类 Unix（WSL / macOS / Linux）。Windows 必须 WSL2，禁止原生 PowerShell / CMD。 -->
 - **集成测试（含 MySQL / testcontainers）跑容器**——CI 与本地缺依赖的 dev 唯一可靠路径：
   ```bash
   node scripts/run-tests-docker.js                 # 全部服务
