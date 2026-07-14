@@ -406,7 +406,7 @@ pnpm run setup
 | `pnpm run check`                             | 在所有 workspace 包中执行 `check`                 |
 | `pnpm run test`                              | 在所有 workspace 包中执行 `test`                  |
 | `pnpm run clean`                             | 在所有 workspace 包中执行 `clean`                 |
-| `pnpm run docker:build`                      | 构建所有服务 Docker 镜像                          |
+| `pnpm run docker:build`                      | 构建所有服务镜像（交互式；支持 `-v`/`--push`/`--load-and-push`/`--platform`，见「常用工作流」示例） |
 | `pnpm run docker:build:api-gateway`          | 仅构建 api-gateway 镜像                           |
 | `pnpm run docker:build:token-service`        | 仅构建 token-service 镜像                         |
 | `pnpm run docker:build:iam-service`          | 仅构建 iam-service 镜像                           |
@@ -506,7 +506,10 @@ pnpm --filter token-service run build
 pnpm run check && pnpm run test && pnpm run build
 
 # 构建镜像
-pnpm run docker:build
+pnpm run docker:build                                   # 交互式（默认推送 Y / linux/amd64）
+pnpm run docker:build -- -v 1.0.0 --push                # 参数式：版本号 1.0.0，直接推送
+pnpm run docker:build -- --load-and-push -v 1.0.0       # 本地留镜像 + 推送
+pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push   # 多架构
 ```
 
 ## 参考文档
