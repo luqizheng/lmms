@@ -6,30 +6,30 @@ public     = true
 
 [[route]]
 upstream   = "/v1/project/projects"
-downstream = "/project/projects"
+downstream = "/projects"
 service    = "project-service"
 
 [[route]]
 upstream   = "/v1/project/projects/{rest}"
-downstream = "/project/projects/{rest}"
+downstream = "/projects/{rest}"
 service    = "project-service"
 
 [[route]]
 upstream   = "/v1/project/milestones/{rest}"
-downstream = "/project/milestones/{rest}"
+downstream = "/milestones/{rest}"
 service    = "project-service"
 
 [[route]]
 upstream   = "/v1/project/tasks/{rest}"
-downstream = "/project/tasks/{rest}"
+downstream = "/tasks/{rest}"
 service    = "project-service"
 
 [[route]]
 upstream   = "/v1/project/sprints/{rest}"
-downstream = "/project/sprints/{rest}"
+downstream = "/sprints/{rest}"
 service    = "project-service"
 
 [[route]]
 upstream   = "/v1/project/llm/refine"
-downstream = "/project/llm/refine"
+downstream = "/llm/refine"
 service    = "project-service"

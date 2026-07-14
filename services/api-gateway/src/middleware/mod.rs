@@ -164,9 +164,13 @@ pub async fn auth_middleware(
     }
 
     let mut conn: MultiplexedConnection = state.redis_conn.clone();
-    let blacklisted = crate::blacklist::is_blacklisted(&mut conn, &state.redis_prefix, &claims.jti)
-        .await
-        .unwrap_or(false);
+    let blacklisted = match crate::blacklist::is_blacklisted(&mut conn, &state.redis_prefix, &claims.jti).await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(error = %e, "blacklist check error, failing open");
+            false
+        }
+    };
     if blacklisted {
         return (StatusCode::UNAUTHORIZED, "Token revoked").into_response();
     }

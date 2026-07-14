@@ -23,3 +23,4 @@ issuer = "superpowers-token-service"
 "file-service"          = { host = "file-service",         port = 8082 }
 "config-service"        = { host = "config-service",       port = 8081 }
 "pm-platform"           = { host = "pm",                    port = 8088 }
+"project-service"       = { host = "project-service",       port = 8080 }

@@ -8,6 +8,7 @@ public     = true
 upstream   = "/v1/pm/health/ready"
 downstream = "/pm-api/v1/health/ready"
 service    = "pm-platform"
+public     = true
 
 [[route]]
 upstream   = "/v1/pm/llm/providers"
