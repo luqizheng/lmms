@@ -23,7 +23,6 @@ echo "[build-frontend]   首次 build 约需 1-2 分钟（pnpm install），后�
 DOCKER_BUILDKIT=1 docker build \
   --build-arg BUILDKIT_INLINE_CACHE=1 \
   --build-arg VITE_API_BASE="${VITE_API_BASE:-/api}" \
-  --build-arg VITE_PM_API_BASE="${VITE_PM_API_BASE:-/pm-api}" \
   --build-arg VITE_DISABLE_CAPTCHA="${VITE_DISABLE_CAPTCHA:-true}" \
   --tag "${IMG}" \
   ./frontend

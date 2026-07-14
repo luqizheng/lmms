@@ -74,7 +74,6 @@ JWKS_URL=http://token-service:8082/.well-known/jwks.json
 
 ```env
 VITE_API_BASE=/api
-VITE_PM_API_BASE=/pm-api
 VITE_DISABLE_CAPTCHA=true
 ```
 

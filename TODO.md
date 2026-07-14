@@ -414,7 +414,6 @@
 - [x] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式） — **决策：保留 SQLite**（spec `2026-07-08-prue-backend-sqlite-decision-design.md`）。仅 1 个 migration，翻译成本可接受；dev/CI 零依赖启动价值更高。配套加 `scripts/check-prue-migrations-parity.sh` CI gate 防 drift。
 - [x] `events.yaml` — **Phase 4 已落地**（首批三事件 + Phase 5B-fu3 三事件 `iam.user.role.{assigned,unassigned}` + `iam.user.dept.changed` 已 codegen + producer/consumer 闭环）
 - [x] 健康检查补齐三级探针 — 7 个 Rust 服务 Dockerfile 已补 HEALTHCHECK（commit `8eec3d4`），参数：`--interval=15s --timeout=3s --retries=5 --start-period=20s`
-- [x] **project-service 生产化收尾**（commit `73896dc`）：
   - [x] `pom.xml` 补 `spring-boot-starter-test` test scope
   - [x] `config/application.yml` 移除死代码 datasource 段（compose 注 `SPRING_DATASOURCE_*`）
   - [x] `Dockerfile` 的 maven-settings.xml 改为 `ARG MAVEN_SETTINGS` build-arg，移除 `-Dmaven.test.skip`

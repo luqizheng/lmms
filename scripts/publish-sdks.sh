@@ -61,6 +61,3 @@ fi
 
 echo
 echo "==> Done. Next step:"
-echo "    1. Update apps/pm/pm-platform-parent/pom.xml:  <kudi-sdk.version>${SDK_VERSION}</kudi-sdk.version>"
-echo "    2. Re-run: cd apps/pm && mvn -Pjava17 clean verify"
-echo "    3. Run: docker compose -f infrastructure/docker-compose.yml up -d pm"

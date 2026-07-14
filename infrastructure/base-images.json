@@ -48,7 +48,6 @@
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "pm-platform:0.1.0",
       "source": "infrastructure\\docker-compose-services.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
@@ -84,12 +83,10 @@
     },
     {
       "ref": "zhcoder-docker-registry.com:8000/official/eclipse-temurin:25-jdk",
-      "source": "services\\project-service\\Dockerfile",
       "mirror": null
     },
     {
       "ref": "zhcoder-docker-registry.com:8000/official/eclipse-temurin:25-jre-alpine",
-      "source": "services\\project-service\\Dockerfile",
       "mirror": null
     },
     {

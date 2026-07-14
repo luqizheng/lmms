@@ -126,23 +126,15 @@ codes:
     message: "file delete failed"
     kind: Internal
 
-  # === 项目管理服务（project-service, Phase 9） ===
-  # 类别 1xxx = NotFound / 3xxx = Conflict / 4xxx = Validation / 5xxx = Forbidden
-  PMD_PROJECT_1001:
     message: "project not found"
     kind: NotFound
-  PMD_MILESTONE_1002:
     message: "milestone not found"
     kind: NotFound
-  PMD_TASK_1003:
     message: "task not found"
     kind: NotFound
-  PMD_PROJECT_3001:
     message: "project code already exists"
     kind: Conflict
-  PMD_TASK_4001:
     message: "invalid task state transition"
     kind: BadRequest
-  PMD_LLM_REFINE_5001:
     message: "refine forbidden for caller"
     kind: Forbidden

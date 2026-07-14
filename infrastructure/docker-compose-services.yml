@@ -70,32 +70,7 @@ x-svc-registrator-labels-audit: &svc-reg-labels-audit
   - "SERVICE_8084_CHECK_INTERVAL=30s"
   - "SERVICE_8084_CHECK_TIMEOUT=3s"
 
-# Phase 9: project-service (Java + Spring Boot 3 + JPA + Flyway). Check path
-# uses /project/health because the api-gateway routes project under
-# upstream /v1/project/* and strips the prefix before forwarding.
-x-svc-registrator-labels-project: &svc-reg-labels-project
-  - "SERVICE_NAME=project-service"
-  - "SERVICE_ID=project-service"
-  - "SERVICE_PORT=8080"
-  - "SERVICE_TAGS=backend,project-service,java"
-  - "SERVICE_8080_CHECK_HTTP=/project/health"
-  - "SERVICE_8080_CHECK_INTERVAL=15s"
-  - "SERVICE_8080_CHECK_TIMEOUT=3s"
 
-# pmd-outbox-publisher is a CLI binary (no HTTP) — registrator skips it;
-# therefore no label anchor is needed.
-
-# pm-platform (Spring Boot, Phase C/B + Phase F1 dev bypass). Health path
-# is /pm-api/v1/health/ready so registrator's check doesn't false-positive
-# on the bare /pm-api/v1/health which doesn't touch the DB (liveness only).
-x-svc-registrator-labels-pm: &svc-reg-labels-pm
-  - "SERVICE_NAME=pm-platform"
-  - "SERVICE_ID=pm-platform"
-  - "SERVICE_PORT=8088"
-  - "SERVICE_TAGS=backend,pm-platform,java"
-  - "SERVICE_8088_CHECK_HTTP=/pm-api/v1/health/ready"
-  - "SERVICE_8088_CHECK_INTERVAL=30s"
-  - "SERVICE_8088_CHECK_TIMEOUT=5s"
 
 services:
   config-service:
@@ -425,62 +400,6 @@ services:
     networks:
       - superpowers
 
-  # ─────────── Phase 9 / project-service (Java + Spring Boot) ───────────
-  # See services/project-service/Dockerfile (multi-stage eclipse-temurin:25-jdk
-  # → 25-jre-alpine). Migrations (V001__init.sql) auto-applied via Flyway at
-  # startup; service fails boot if the existing pmd_* tables don't match.
-  project-service:
-    build:
-      context: ..
-      dockerfile: services/project-service/Dockerfile
-    ports:
-      - "${PROJECT_SERVICE_PORT_EXPORT:-6008}:8080"
-    labels: *svc-reg-labels-project
-    environment:
-      TENANT_ID: "${TENANT_ID}"
-      SPRING_DATASOURCE_URL: "${PROJECT_JDBC_URL}"
-      SPRING_DATASOURCE_USERNAME: "${MYSQL_USER}"
-      SPRING_DATASOURCE_PASSWORD: "${MYSQL_PASSWORD}"
-      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
-      CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
-      SPRING_PROFILES_ACTIVE: "prod"
-      SWAGGER_ENABLED: "false"
-      PMD_LLM_PROVIDER: "placeholder"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
-      JAVA_OPTS: "-XX:+UseG1GC -XX:MaxRAMPercentage=75.0"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - superpowers
-
-  # ─────────── Phase 9 / pmd-outbox-publisher (Rust, CLI) ───────────
-  # Same workspace cargo-target as notification's family; no Swarm port
-  # exposure (CLI), no registrator labels. Mirrors services/pmd-outbox-publisher
-  # /src/main.rs: env DATABASE_URL, EVENT_BUS_URL, EVENT_BUS_EXCHANGE.
-  pmd-outbox-publisher:
-    build:
-      context: ..
-      dockerfile: services/pmd-outbox-publisher/Dockerfile
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: "${DATABASE_URL}"
-      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
-      EVENT_BUS_EXCHANGE: "events"
-      OUTBOX_POLL_INTERVAL_MS: "200"
-      OUTBOX_BATCH_SIZE: "100"
-      RUST_LOG: "info"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - superpowers
 
   frontend:
     build:
@@ -495,46 +414,6 @@ services:
     networks:
       - superpowers
 
-  # ─────────── pm ───────────
-  # Phase C/B + Phase F1: PM service authenticates inbound requests via the
-  # same RS256 JWKS as the Rust services (issuer=superpowers-token-service,
-  # audience=coder-micro-services, scope=access). Profile defaults to
-  # ${PM_SPRING_PROFILE:-prod} — set PM_SPRING_PROFILE=dev in .env to enable
-  # the NoOpJwtVerifier dev bypass for local exploration without iam-service.
-  pm:
-    build:
-      context: ..
-      dockerfile: apps/pm/Dockerfile
-    image: pm-platform:0.1.0
-    ports:
-      - "8088:8088"
-    labels: *svc-reg-labels-pm
-    environment:
-      SERVER_PORT: "8088"
-      # Default dev profile (JWT noop bypass). Override PM_SPRING_PROFILE=prod in .env for real JWKS.
-      SPRING_PROFILES_ACTIVE: "${PM_SPRING_PROFILE:-dev}"
-      SPRING_DATASOURCE_URL: "${PM_JDBC_URL}"
-      SPRING_DATASOURCE_USERNAME: "${MYSQL_USER}"
-      SPRING_DATASOURCE_PASSWORD: "${MYSQL_PASSWORD}"
-      LOWMEM_GATEWAY_BASE: "http://api-gateway:3000"
-      PM_JWT_JWKS_URL: "${LOWMEM_GATEWAY_BASE:-http://api-gateway:3000}/v1/tokens/.well-known/jwks.json"
-      PM_JWT_MODE: "${PM_JWT_MODE:-noop}"
-      PM_LLM_PROVIDER: "${PM_LLM_PROVIDER:-noop}"
-      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
-      DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
-      DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-deepseek-v4-flash}"
-      PM_SDK_BEARER: "${PM_SDK_BEARER:-dev-bypass-token}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
-      JAVA_OPTS: "-XX:+UseG1GC -XX:MaxRAMPercentage=75.0"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      api-gateway:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
-    networks:
-      - superpowers
 
 volumes:
   file-storage:

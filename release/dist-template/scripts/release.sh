@@ -124,7 +124,8 @@ REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
 
 # Rust 共享库（业务 Rust 服务编译时依赖 path = "../../libs/..."）
 if [ -d "${REPO_ROOT}/libs" ]; then
-  rsync -a --exclude='target/' "${REPO_ROOT}/libs/" "${DIST_DIR}/libs/"
+  cp -r "${REPO_ROOT}/libs" "${DIST_DIR}/libs"
+  find "${DIST_DIR}/libs" -type d -name 'target' -exec rm -rf {} + 2>/dev/null || true
   echo "[release]   ✓ libs/"
 else
   echo "[release]   ⚠ libs/ not found at ${REPO_ROOT}/libs - Rust 业务服务将无法编译"
@@ -132,7 +133,8 @@ fi
 
 # Java SDK（业务 Java 服务 Maven 依赖 sdk/java/*）
 if [ -d "${REPO_ROOT}/sdk" ]; then
-  rsync -a --exclude='target/' "${REPO_ROOT}/sdk/" "${DIST_DIR}/sdk/"
+  cp -r "${REPO_ROOT}/sdk" "${DIST_DIR}/sdk"
+  find "${DIST_DIR}/sdk" -type d -name 'target' -exec rm -rf {} + 2>/dev/null || true
   echo "[release]   ✓ sdk/"
 else
   echo "[release]   ⚠ sdk/ not found - Java 业务服务将无法编译"

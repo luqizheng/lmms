@@ -88,8 +88,6 @@ git diff services/<svc>/migrations/mysql/
 | `cfg_` | `cfg_namespaces`, `cfg_config_items` |
 | `file_` | `file_metadata`, `file_uploads` |
 | `prue_` | `prue_menus`, `prue_routes` |
-| `pm_` | `pm_projects`, `pm_tasks` |
-| `kb_` | `kb_spaces`, `kb_documents` |
 | `pmd_` | `pmd_projects`, `pmd_sprints` |
 
 ### 2.3 服务特定检查

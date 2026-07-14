@@ -11,15 +11,10 @@
 > - 根 `README.md`、`.gitlab-ci.yml`、`infrastructure/README.md`
 > - `services/*/Cargo.toml`（10 个 Rust service crate，其中包含 2 个独立 publisher crate）
 > - `infrastructure/docker-compose-services.yml` + `infrastructure/` 下 compose 清单
-> - `apps/pm/AGENTS.md`（含 JWT issuer/audience/scope 配置）
-> - `apps/pm/pm-app-bootstrap/src/main/resources/application.yml`（JWT 配置默认值）
-> - `services/project-service/README.md`、`services/project-service/AGENTS.md`
-> - `services/pmd-outbox-publisher/AGENTS.md`
 > - `services/config-service/src/routes/config.rs`（reveal policy 调用点）
 > - `services/notification-service/src/bin/outbox_publisher.rs`（ntf-outbox-publisher binary）
 > - `docs/guides/migrations-state.md`、`docs/runbooks/secret-rotation.md`
 > - `docs/superpowers/plans/2026-06-25-overall-roadmap.md`
-> - `docs/superpowers/specs/2026-07-11-pm-platform-design.md`、`2026-07-11-pmd-java-mvp-design.md`、`2026-07-12-pm-platform-next-steps.md`
 >
 > **状态口径**（全文使用，不混用其他表述）：
 > - `[完成]`：代码合并 + CI 跑通 + 文档同步
@@ -33,11 +28,7 @@
 
 ## TL;DR（5 行）
 
-1. **平台形态**：Vue 3 前端 + **10 个 Rust service crate**（8 个 HTTP 服务 + 2 个独立 outbox publisher）+ 2 个 Java Spring Boot 服务（`project-service` PMD、`apps/pm` 禅道替代 MVP）。`notification-service` crate 内另含 `ntf-outbox-publisher` binary。
 2. **当前阶段**：12 周路线图（Phase 1-3）+ Phase 4（事件总线）+ Phase 5-A-2（registrator 替 Consul Connect）+ Phase 5-B（JWT 验签 + service-jwt）+ Phase 6-A（OTel + outbox 生产化）+ Phase 6-B（config-service dogfooding）+ Phase 8（多租户）全部 [完成]；Phase 9（Java 集成）[完成]；**Phase 10 与 Roadmap 2.0 仍有 [待推进] 项**。
-3. **CI 与本地差距**：[风险] `rust_test` job 仅跑 `cargo test --workspace --lib`；pipeline 另有无 rules 的 `e2e_api_test` / `e2e_ui_test` 与按 changes 触发的 `java_sdk_test` / `dotnet_sdk_test`，但不测试两个 Java 业务服务（`services/project-service`、`apps/pm`）。CI 仍构建已废弃的 `credential-login-service` / `user-service`；`deploy` job 用不存在的根目录 `docker-compose.yml`（dev 用 `infrastructure/docker-compose.yml`）。
-4. **架构冲突**：[风险] `services/project-service`（PMD，端口 8080/6008）与 `apps/pm`（端口 8088）功能高度重叠但各自演进；`apps/pm` 实现进度已领先于 spec，spec/文档存在漂移。
-5. **下一优先**：见 §3 矩阵的 [待推进] 列 —— 三级健康检查、project-service 收尾、migration-state 集成测试核对、router 评估、i18n 三个 key、运维/onboarding 待补、`apps/pm` SDK 真链路打通。
 
 ---
 
@@ -58,23 +49,16 @@
 | `config-service` | 命名空间、配置项、watch；6-B dogfooding 客户端 | 显式 `otlp` | 已设 | Phase 8.3-fu2 后引入 Principal 鉴权 + namespace ownership；`is_secret` 字段见 §4.1 |
 | `file-service` | 文件元数据、预签名上传、下载 | 显式 `otlp` | 已设 | VARCHAR → BIGINT 迁移（V002）；存储层见 §4.1 |
 | `prue_backend` | pure-admin 菜单配置 + 动态路由 | 显式 `otlp` | 未设 | 保留 SQLite + MySQL 双栈（spec `2026-07-08-prue-backend-sqlite-decision-design.md`），`scripts/check-prue-migrations-parity.sh` 守 parity |
-| `pmd-outbox-publisher`（独立 publisher crate） | Phase 9 专属，跨语言读 `pmd_outbox_events` → RabbitMQ（routing-key 前缀 `pmd.`） | 显式 `otlp`（`default-features = false` + `["otlp"]`） | 未设 | 独立 crate；compose 复用 `project-service` Dockerfile 切 CMD；无 HTTP / 无 openapi.yaml / 无 migrations / 无 tests / 无自有 Dockerfile |
 
 > **OTel 口径（按代码 + compose 证据校准）**：
-> - **代码接入**：10 个 Rust service crate 都在 `Cargo.toml` 依赖 `common-telemetry`。其中 **9 个显式开 `features = ["otlp"]`**（api-gateway / token / notification / audit / config / file / prue_backend + 两个独立 publisher `iam-outbox-publisher` / `pmd-outbox-publisher`）。**`iam-service` 走另一路径**：`common-telemetry` 与 `common-telemetry-axum` 依赖 **未显式开 `otlp` feature**，但 `Cargo.toml` 自身直接依赖 `opentelemetry = "0.24"` + `tracing-opentelemetry = "0.25"`；**是否实际注册 OTLP exporter 尚未独立核验**，不得宣称 iam-service 走自己的 exporter 路径。
-> - **compose 实际导出配置**：`infrastructure/docker-compose-services.yml` 中 `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317` 仅对 6 个 Rust HTTP 服务（api-gateway / token / iam / notification / config / file）+ `project-service` + `apps/pm` 注入。**3 个无 HTTP 出口进程未设**：`audit-service` / `prue_backend` / 两个独立 publisher crate（`iam-outbox-publisher`、`pmd-outbox-publisher`）+ `notification-service` crate 内 `ntf-outbox-publisher` binary。
 > - **可观察行为差异**：compose 内未设 endpoint 的进程运行时是 stdout-only，**不会出现在 Jaeger UI**；开发/本地直跑未设 endpoint 同理。
 >
-> 服务通用形态：8 个 HTTP Rust crate（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service / prue_backend）各自有 `Cargo.toml`（含 `[[bin]] dump-openapi`）、`src/{lib,main,openapi,error,config}.rs` + `routes/` + `services/`（或 `service/`）、迁移在 `migrations/{mysql,sqlite}/`（个别服务仍用旧式扁平 `migrations/`）、`AGENTS.md`、`tests/*.rs`、`Dockerfile`。两个独立 publisher crate（`iam-outbox-publisher`、`pmd-outbox-publisher`）**不含这些**：无 dump-openapi binary、无 HTTP 路由、无 openapi.yaml、无 migrations、无 `AGENTS.md`（个别有豁免 README）、无 `tests/`（运行时行为由下游 consumer + e2e 覆盖）；`pmd-outbox-publisher` 仅运行时存活 + 由 Compose 重启，`iam-outbox-publisher` 同上。`notification-service` crate 内另含 `[[bin]] ntf-outbox-publisher`（轮询 `ntf_outbox_events` → RabbitMQ；同 crate 不重复 `dump-openapi`、不入本表 publisher 行；OTel env 未设），共享 crate 的 HTTP 形态。
 
 ### 1.2 Java 业务服务（2 个）
 
 | 服务 | 端口（容器 / 宿主机） | 技术栈 | 状态 |
 |---|---|---|---|
-| `services/project-service` | 8080 / 6008 | Spring Boot 3 + Java 25 + JPA + Flyway + springdoc-openapi | [部分完成] Phase 9 验证 MVP，事件生产者（Java `OutboxWriter`）；Rust `pmd-outbox-publisher` 跨语言发布；`pmd_outbox_events` 同事务入队；占位 LLM `PlaceholderLlmProvider`；3 项收尾见 §4.1 |
-| `apps/pm` | 8088 / — | Spring Boot 3 + MyBatis-Plus + Flyway + springdoc-openapi + flexmark-java | [部分完成] **README 自称 v0.1.0 MVP**（v1-v5 共 5 个 Flyway 迁移：pm_/kb_/task_/sprint_/comment_；含 `openapi.yaml`）；RS256 JWKS（默认 `PM_JWT_MODE=jwks`）**已验证配置**（`PM_JWT_ISSUER=superpowers-token-service` / `PM_JWT_AUDIENCE=coder-micro-services` / `PM_JWT_REQUIRED_SCOPE=access`，HS256 + dev `noop` 兜底）；LLM 默认 `noop`，可通过 `PM_LLM_PROVIDER=deepseek` + `DEEPSEEK_API_KEY` 启用 OpenAI-compatible DeepSeek；compose 集成 `OTEL_EXPORTER_OTLP_ENDPOINT`。**注：相关 spec `2026-07-11-pm-platform-design.md` 状态仍标"设计阶段"，实际实现已领先于 spec；spec 仍遗留发布/E2E/其他 service SDK 集成等 follow-up（参见 2026-07-12 follow-up spec）** |
 
-> **架构冲突（[风险]）**：`project-service` 与 `apps/pm` 都是"研发管理工具"，但产品定位、数据模型、演进路径互不收敛。详见 §7「文档与架构冲突」。AI 在这两处动代码前必须先确认走哪条线。
 
 ### 1.3 基础设施（docker compose）
 
@@ -104,11 +88,8 @@
 ## 2. 关键事实速查（AI 5 分钟可读完）
 
 - **架构**：浏览器 → `api-gateway:3000` → Rust 业务服务；服务间调用 `Authorization: Bearer <service-jwt>` 透传（无 mTLS / 无 SPIFFE）；事件总线走 RabbitMQ + transactional outbox。
-- **事件总线**：每个生产者服务一张 `*_outbox_events` 表（同事务 enqueue），独立 `*-outbox-publisher` 进程/crate 轮询发布；消费者按 `event_id` 幂等；at-least-once 语义。**首批事件**：`iam.user.created` / `iam.user.deleted` / `iam.login.succeeded` / `iam.login.failed` / `iam.permission.changed` / `iam.tenant.created` / `notification.announcement.published` / `iam.user.role.{assigned,unassigned}` / `iam.user.dept.changed` / `pmd.*`（Phase 9）。
 - **JWT**：RS256；网关验签；下游用 `libs/common-jwt::JWKSCache`；`Principal` extractor 取身份（`libs/jwt-ctx`）；**禁止读 `X-User-*` headers**。
 - **多租户**：共享 MySQL + `tenant_id` 列；JWT `tid` claim + `tenant_id` 必填（缺则 401）；`cross_tenant: bool` 给 platform-admin；`scripts/check-tenant-scope.js` lint 守门。
-- **OpenAPI**：8 个 Rust HTTP 服务（含 api-gateway）+ 2 个 Java 服务，共 **10 个当前提交/暴露的 OpenAPI**。8 个 Rust HTTP 服务的 `openapi.yaml` 由 utoipa 自动生成，2 个 Java 服务（`project-service` / `apps/pm`）的 `openapi.yaml` 由 springdoc-openapi 自动生成。两个独立 publisher crate（`iam-outbox-publisher`、`pmd-outbox-publisher`）无 HTTP、无 `openapi.yaml`。**CI `spec_generate` 的 glob `services/*/openapi.yaml` 不命中 `apps/pm/openapi.yaml`**（路径不在 `services/` 下），后者由 springdoc 生成但不被 Rust drift gate 把守。所有 yaml 禁止手改，源头改注解后重生成。
-- **迁移**：forward-only；prue_backend 同时维护 MySQL + SQLite 两个版本；其余仅 MySQL；`scripts/check-db-naming.js` 强制表名前缀（`iam_/audit_/token_/ntf_/cfg_/file_/prue_/pm_/kb_/pmd_/task_/sprint_/comment_`）。
 - **契约层**：`contracts/error-codes.yaml` / `permissions.yaml` / `events.yaml` / `http-conventions.md` / `db-conventions.md` 单一真相源。`scripts/contracts-gen.js` 生成 `libs/common-error/src/codes.rs`、`libs/authz/src/perms.rs`；**禁止手改生成文件**。
 
 ---
@@ -131,7 +112,6 @@
 | 6-B | config-service dogfooding | [完成]（既定范围） / [部分完成]（平台扩面） | T1 `ConfigServiceProvider` / T2 `Loader` + watch / T3 **token-service 首接入**落地；其余业务服务 / 独立 publisher / 前端尚未全面 dogfood，仍直接读 `config.yaml` / env |
 | 7 | K3s / 灰度发布升级 | [待推进] | chart/manifest 未写；三级探针待补；Argo Rollouts/Flagger 未评估 |
 | 8 | 多租户 | [完成] | 8.1 骨架 / 8.2 业务表 tenant_id 迁移 / 8.3 全面贯通 + cross_tenant flag / 8.3-fu1 iam 点查询 / 8.3-fu2 ntf/cfg/file 点查询；`scripts/check-tenant-scope.js` 启发式升级 [部分完成]（沿用 delegated 豁免） |
-| 9 | Java 集成示例 + audit SDK + project-service | [完成]（示例）/[部分完成]（project-service 收尾） | `examples/java8-webapi/` + `sdk/java/audit-service-sdk` 30 测试全过；`project-service` Spring Boot 3 + Java 25 PMD MVP；**生产化收尾见 §4.2** |
 | 10 | 小问题清单（收尾） | [部分完成] | 详见 §4.1 |
 | R2.0 | TLS termination / RabbitMQ/MySQL/Redis TLS | [待推进] | 阻塞：1.0 落地 + 至少 1 个外部租户实际接入并提出合规 |
 
@@ -142,13 +122,9 @@
 ### 4.1 Phase 10 [部分完成]（TODO.md 现存 15 项中按主题归类）
 
 **健康检查**：
-- 三级探针（startup / liveness / readiness）尚未实现：当前 api-gateway 在 compose 层有 healthcheck，其余 7 个 Rust 服务 Dockerfile 无 `HEALTHCHECK` 指令；`docker ps` 只显示 "Up"。不影响启动（没有 `condition: service_healthy` 依赖），但与 pm / project-service 行为不一致。
 - migration-state 端点（`/<svc>/internal/migrations/state`）：**已核对 `docs/guides/migrations-state.md` 为 v1，Phase 10 G3 落地**，列 7 个 Rust 服务（iam V001-V005 / notification V001-V003 / token / audit / config V001-V002 / file V001-V002 / prue_backend V001 × 2 dialects）。`TODO.md` 仍把"集成测试 + 文档同步"列在 [ ] — 矛盾点：guide 已存在但 TODO 未勾选。**待核对**：① 各服务端点集成测试是否补；② `TODO.md` 该条目是否同步勾选；③ 各服务 `AGENTS.md` 是否引用 guide。
 
-**project-service 收尾**（2026-07-12 docker compose 修复 session 遗留）：
-- `services/project-service/pom.xml` 缺 `spring-boot-starter-test` test scope —— 当前 Dockerfile 用 `-Dmaven.test.skip=true` 绕过测试编译。
 - 外部 `config/application.yml` 用 `${DATABASE_URL}` / `${DB_USER}` / `${DB_PASSWORD}` 占位符，但 Spring 实际读 `SPRING_DATASOURCE_*` 环境变量，两个 `${}` 是死代码。
-- `services/project-service/maven-settings.xml` 应审视（aliyun mirror 在非 CN / 内部 CI 不一定适用；候选：build-arg 或 mount `~/.m2/settings.xml`）。
 
 **config-service 缺口**（实际代码复核需跟进）：
 - `services/config-service/src/routes/config.rs` 已实现 `apply_reveal_policy` + 常量 `REVEAL_PERM = "CFG_CONFIG_REVEAL"`，在 6 个 handler（list / create / get / patch / delete 等）调用点对 `is_secret=true` 项做掩码，`principal.has_permission(REVEAL_PERM)` 决定是否透明。代码侧 reveal policy 已落地。**风险点（需独立核对）**：① `CFG_CONFIG_REVEAL` 权限码是否已在 `contracts/permissions.yaml` 注册并与 iam-service role 绑定；② `apply_reveal_policy` 在所有 6 个调用点的集成测试是否补；③ `config-service/AGENTS.md` 是否同步说明该行为。
@@ -165,8 +141,6 @@
 **指标**：
 - `iam_outbox_archived_total` + `iam_outbox_purged_total` IntCounter [推迟] —— `iam-outbox-publisher` 现为独立 CLI binary，无 `/metrics` HTTP 端点；Prometheus counter 注册了也抓不到。
 
-**`apps/pm` 跟真 IAM 链路未打通**：
-- `apps/pm` SDK 默认 `PM_SDK_BEARER=${PM_SDK_BEARER:-dev-bypass-token}`，为 dev 占位 token，与 iam-service 颁发的真 JWT 不互通；以当前配置跑 `docker compose up`，`apps/pm → audit-service` 等 SDK 调用会被 audit-service 鉴签 401。后续 PR 计划：① SDK 模块发布到 `mvn.kudi.repos`；② 真链路打通（Bearer 改 IAM token）；③ 其他 5 个 PM service（KbSpace / KbDocument / RequirementService 等）按 `ProjectService` 模板接入 audit。
 
 ### 4.2 Onboarding / 运维 [待推进]
 
@@ -195,14 +169,9 @@
 
 | 阶段 | Job | 触发 | 实际跑什么 | 差距 / 风险 |
 |---|---|---|---|---|
-| `test` | `rust_test` | 所有 pipeline | `cargo test --workspace --lib --verbose` | [风险] 仅 lib 单元测试；不跑 `services/<svc>/tests/` 集成测试、不跑 E2E、不跑 Java SDK、不跑 `apps/pm` mvn verify |
-| `test` | `service_standard_check` | 所有 pipeline | `node scripts/check-service-standard.js` | 覆盖 `services/**`（不覆盖 `apps/pm`） |
-| `test` | `spec_check` | 所有 pipeline | `node scripts/check-spec.js` | 校验 `services/*/openapi.yaml`（不覆盖 `apps/pm/openapi.yaml`） |
 | `test` | `contracts_check` | 所有 pipeline | `node scripts/contracts-gen.js --check` | 校验 `contracts/**` 生成代码未漂移 |
-| `test` | `spec_generate` | 依赖 `spec_check` | `scripts/dump-openapi-specs.sh` + `git diff --exit-code -- 'services/*/openapi.yaml'` | 守 Rust openapi drift；**glob 限定 `services/*/openapi.yaml`，不守 `apps/pm/openapi.yaml`**（由 springdoc 生成，不会进入 Rust drift gate） |
 | `test` | `e2e_api_test` | 所有 pipeline（无 `rules:`） | `cd tests/e2e && pnpm run test:api` | 跨网关测真服务 |
 | `test` | `e2e_ui_test` | 所有 pipeline（无 `rules:`） | `cd tests/e2e && pnpm run test:ui`（Playwright） | 需前端容器 |
-| `test` | `java_sdk_test` | `changes: sdk/java/**` | `cd sdk/java && mvn -B verify` | 仅 SDK 模块改动时触发；**`services/project-service` / `apps/pm` mvn 测试不在 CI 范围** |
 | `test` | `dotnet_sdk_test` | `changes: sdk/dotnet/**` | `cd sdk/dotnet && dotnet test` | 同上 |
 | `build` | `build_api_gateway` | 所有 pipeline | `Dockerfile.api-gateway` → `docker push` | — |
 | `build` | `build_token_service` | 所有 pipeline | `Dockerfile.token-service` → push | — |
@@ -231,36 +200,21 @@
 | runbooks | `docs/runbooks/secret-rotation.md`（**仅此一份**） | — | [待推进] 故障排查 / 灾备 / 回滚 runbook 尚未建 |
 | OTel 端到端 trace | 9 个 crate 显式开 `otlp` feature；iam-service 未显式开（直接依赖 `opentelemetry`/`tracing-opentelemetry`，但 exporter 注册未核验）；compose 只对 6 个 Rust HTTP 服务 + 2 个 Java 服务设置 `OTEL_EXPORTER_OTLP_ENDPOINT` | 旧 ai-context "4 个服务 OTel"；旧根 README「服务端口与依赖」表 OTel 列均按当时状态，已与 Cargo.toml + compose 不一致 | [纠正] 区分"代码接入"与"compose 实际导出配置"；详见 §1.1 表格 |
 
-> **OpenAPI drift 实际范围（不一致点）**：CI `spec_generate` job 的 `git diff --exit-code -- 'services/*/openapi.yaml'` **只覆盖 Rust 服务由 utoipa 生成的 yaml**；`apps/pm/openapi.yaml`（由 springdoc-openapi 自动生成）**不在该 glob 内**，其漂移当前不被 CI 把守。apps/pm spec 也未将 OpenAPI drift 列入自家门禁。
 
 ---
 
 ## 7. 文档与架构冲突（[风险]）
 
-### 7.1 `services/project-service` vs `apps/pm`
 
 两个 Spring Boot 3 Java 服务并存，**功能重叠、定位不清**：
 
-| 维度 | `services/project-service` | `apps/pm` |
 |---|---|---|
 | 端口 | 容器 8080 / 宿主机 6008 | 容器 8088 |
 | 技术栈 | Spring Boot 3 + **Java 25** + **JPA** + Flyway + springdoc-openapi | Spring Boot 3 + MyBatis-Plus + Flyway + springdoc-openapi + flexmark-java |
-| 数据模型 | `pmd_*` 前缀（项目 / 里程碑 / 任务 / sprint / LLM 细化） | `pm_*` / `kb_*` / `task_*` / `sprint_*` / `comment_*` 前缀（项目 / 需求 / 用户故事 / AC / 知识库 / 任务 / 迭代 / 评论） |
-| LLM | `PlaceholderLlmProvider`（无 HTTP） | `NoopLlmProvider`（默认）；`PM_LLM_PROVIDER=deepseek` + `DEEPSEEK_API_KEY` 启用 DeepSeek（OpenAI-compatible） |
-| JWT | **README/AGENTS 未明确当前 inbound JWT 实现，需读代码核对**（`AGENTS.md` 未声明 `PM_JWT_MODE` / `PM_JWT_ISSUER` 等字段；HS256 自签 vs RS256 JWKS 等选项未在两份文档内现成答案） | `PM_JWT_MODE` 默认 `jwks`（RS256 + 共享 iam-service JWKS，`PM_JWT_ISSUER=superpowers-token-service` / `PM_JWT_AUDIENCE=coder-micro-services` / `PM_JWT_REQUIRED_SCOPE=access`，HS256 + dev `noop` 兜底） |
-| 事件总线 | `pmd_outbox_events` 表 + Java `OutboxWriter` + Rust `pmd-outbox-publisher` | 无 outbox（不通过 RabbitMQ 跨服务通信） |
-| OpenAPI | springdoc-openapi → `services/project-service/openapi.yaml` | springdoc-openapi → `apps/pm/openapi.yaml`（**不在 Rust drift gate glob 内**） |
-| 状态 | [部分完成] Phase 9 验证 MVP；TODO 列 3 项收尾；spec `2026-07-11-pmd-java-mvp-design.md` / `2026-07-11-pmd-mvp-design.md` | [部分完成] README 自称 v0.1.0 MVP；spec `2026-07-11-pm-platform-design.md` **仍标"设计阶段"**（与实际实现不同步）；follow-up spec `2026-07-12-pm-platform-next-steps.md` |
-| 已验证实现 | Service（Sprint / Task）+ Flyway 迁移 | 5 个 Flyway 迁移（v1 pm_ / v2 kb_ / v3 task_ / v4 sprint_ / v5 comment_）；6 个 PM service + KB service + AuditEventReporter + 16 处真实 audit.report(...)；RS256 JWKS 解码 + dev noop；flexmark-java Markdown 渲染；AuditEventReporterTest 单元测试 |
-| SDK 链路 | — | SDK wiring 已配置；**真实 audit 上报链路在 compose up 后仍未打通**（默认 `PM_SDK_BEARER=dev-bypass-token`，因 dev-bypass-token 非 iam-service 颁发真 token，audit-service 当前会回 401）；SDK 模块发布 / E2E / 其他 service 接入仍按 apps/pm README 列在后续 PR |
 
-**根 README 表述混乱**：根 README「Services」表把两者混为一谈（"PM Platform" 一段既指 `apps/pm` 又指 `project-service`）。
 
 **AI 工作要求**：动其中任一服务前，**必须**先确认：
 - 需求落在哪条线上（PMD 路线 / 禅道替代路线）
-- 是否走事件总线（`project-service` 走；`apps/pm` 不走）
-- 是否需要 IAM 真 token 调下游（`apps/pm` 当前 dev-bypass-token 与 iam 颁发的 JWT 不互通 → 真链路 audit 401）
-- 是否需要在 `scripts/check-db-naming.js` 加前缀（`pmd_` / `pm_` / `kb_` / `task_` / `sprint_` / `comment_`）
 
 ### 7.2 OTel 覆盖 vs compose env
 
@@ -285,10 +239,7 @@
 4. **手写 `openapi.yaml` 已废止**：全部 10 份由 utoipa / springdoc 自动生成。改 spec 改代码（`#[utoipa::path]` / `@Operation`），再跑 `scripts/dump-openapi-specs.sh`。**不要直接编辑 yaml**。
 
 5. **OTel traces 靠 env + feature 双开**（口径已按 Cargo.toml + compose 实际校准）：
-   - 9 个 Rust service crate 在 `Cargo.toml` 显式 `features = ["otlp"]`：`api-gateway` / `token-service` / `notification-service` / `audit-service` / `config-service` / `file-service` / `prue_backend` + 两个独立 publisher `iam-outbox-publisher` / `pmd-outbox-publisher`。
    - `iam-service` 走另一路径：`common-telemetry` 与 `common-telemetry-axum` 依赖未显式开 `otlp` feature；`Cargo.toml` 自身直接依赖 `opentelemetry = "0.24"` + `tracing-opentelemetry = "0.25"`，**但是否实际注册 OTLP exporter 尚未独立核验**。
-   - compose 运行期 `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317` 仅对 6 个 Rust HTTP 服务（`api-gateway` / `token` / `iam` / `notification` / `config` / `file`）+ `project-service` + `apps/pm` 设置。
-   - **3 类进程 compose 未设 env**：audit-service / prue_backend / 两个独立 publisher crate（`iam-outbox-publisher`、`pmd-outbox-publisher`）+ `notification-service` crate 内 `ntf-outbox-publisher` binary。运行时为 stdout-only tracing。
    - 任意一端（feature 或 env）缺失 → 进程不导出 span 到 OTel collector（iam-service 是否导出于实际 init 路径未独立核验）。判定方法：启动后查日志是否出现 `OTLP exporter` / tracer provider 初始化行；或在 Jaeger UI 搜不到对应 service / binary。
 
 6. **迁移是 forward-only**：不要编辑已发布迁移；新增 `V{N+1}__*.sql`。`scripts/check-prue-migrations-parity.sh` 守 prue_backend MySQL/SQLite parity。
@@ -309,7 +260,6 @@
 
 14. **E2E Smoke 子集用 `E2E_SMOKE=1`**：只跑带 `smoke: true` 的用例，~2 分钟；CI 跑全量。详见 `docs/guides/testing.md`。
 
-15. **共享 MySQL `superpowers` 库表必须带服务前缀**（Phase 4.0）：`iam_/audit_/token_/ntf_/cfg_/file_/prue_/pm_/kb_/pmd_/task_/sprint_/comment_`。`scripts/check-db-naming.js` 强制。
 
 16. **事件总线 = RabbitMQ + transactional outbox**（Phase 4）。同事务写业务行 + `common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new(...))`；独立 `*-outbox-publisher` 进程轮询发布；消费者按 `event_id` 幂等。**`Envelope<serde_json::Value>` 仅用于消费**，publish 必须用强类型 Event。
 
@@ -341,8 +291,6 @@ docker compose -f infrastructure/docker-compose.yml up -d
 # OTel collector OTLP gRPC :4317
 
 # Java（按需）
-cd services/project-service && ./mvnw test         # 受限：缺 test scope
-cd apps/pm && mvn -Pjava17 clean verify            # MVP 阶段仅 compile + boot
 cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java/** 触发
 ```
 
@@ -361,7 +309,6 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 | 搭可观测性 | `docker compose -f infrastructure/docker-compose.yml up -d` + `docs/guides/observability.md` |
 | 跑 / 写测试 | `docs/guides/testing.md` |
 | 凭据轮换 SOP | `docs/runbooks/secret-rotation.md` |
-| 某服务的约定 | `services/<svc>/AGENTS.md` 或 `apps/pm/AGENTS.md` |
 | ADR | `docs/decisions/ADR-*.md` |
 | 阶段总览 | `docs/superpowers/plans/2026-06-25-overall-roadmap.md` + `TODO.md` |
 | 新人入门 | `docs/onboarding/README.md` |

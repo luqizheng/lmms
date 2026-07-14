@@ -65,14 +65,5 @@ dump_service notification-service  rust
 
 # Phase 9: Java + Spring Boot. The committed openapi.yaml is the source of
 # truth while no live service is available; in a populated CI image the
-# `java` branch could be replaced with a `curl http://project-service:8080/v3/api-docs`
-# fetch (matching the rust service_kind rust convention used in the PHP
-# services). For now the file is committed and unchanged.
-dump_service project-service      java
-
-# apps/pm / PM Platform (Spring Boot 3 + springdoc). The openapi.yaml is
-# committed alongside the source under apps/pm/ (not services/).
-# At runtime springdoc serves /pm-api/v3/api-docs (yaml via .yaml suffix).
-dump_app pm
 
 echo "=== All 10 OpenAPI specs dumped ==="

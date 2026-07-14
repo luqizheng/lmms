@@ -13,7 +13,7 @@ description: |
 Scaffold a new Java Spring Boot microservice that satisfies the **8-item service
 standard baseline** (ADR-002) on first commit - no exemptions required.
 
-The service uses the same multi-module Maven layout as `apps/pm`:
+The service uses a multi-module Maven layout:
 `{name}-bootstrap` (entry + security + health) / `{name}-api` (controllers) /
 `{name}-domain` (exceptions + domain models) / `{name}-infrastructure`
 (MyBatis-Plus + Flyway + SDK beans).
@@ -781,7 +781,7 @@ public class ConflictException extends RuntimeException {
 
 > **Note**: The exception package is `com.coder.{pkg}.web.exception` (not `.domain.exception`)
 > so that `GlobalExceptionHandler` in bootstrap can import them without a circular module
-> dependency. This mirrors the `apps/pm` convention.
+> dependency. This mirrors the `the project-manager repository` convention.
 
 ## {short}-app-api/pom.xml
 
@@ -1012,7 +1012,7 @@ logging:
 ## Dockerfile
 
 3-stage build: (1) build Kudi Java SDK into local m2, (2) build the service,
-(3) slim JRE runtime. Mirrors `apps/pm/Dockerfile` structure.
+(3) slim JRE runtime. Mirrors `Dockerfile` structure.
 
 ```dockerfile
 # syntax=docker/dockerfile:1.7
@@ -1322,7 +1322,7 @@ docker build -t {name}:0.1.0 -f services/{name}/Dockerfile .
 
 ## Out of Scope
 
-- JWKS signature verification (this template trusts the api-gateway; for end-to-end verification like `apps/pm`, implement a `JwksJwtVerifier` separately)
-- LLM provider integration (that's `apps/pm` specific; add per-service if needed)
+- JWKS signature verification (this template trusts the api-gateway; for end-to-end verification like `the project-manager repository`, implement a `JwksJwtVerifier` separately)
+- LLM provider integration (that's `the project-manager repository` specific; add per-service if needed)
 - Frontend integration (separate workflow)
 - Production deployment configs (handled at infra layer)

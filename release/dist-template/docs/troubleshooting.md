@@ -44,7 +44,6 @@ docker logs coder-micro-services-frontend
 curl http://localhost:3000/health
 
 # 检查前端配置是否正确
-# 确认 .env 中 VITE_API_BASE 和 VITE_PM_API_BASE 与网关路由匹配
 ```
 
 ## 镜像加载失败（离线环境）

@@ -86,7 +86,6 @@ Closes #123
 | `file` | file-service |
 | `gateway` | api-gateway |
 | `prue` | prue_backend |
-| `pm` | apps/pm |
 | `e2e` | 端到端测试 |
 | `db` | 数据库迁移 |
 | `infra` | 基础设施 |

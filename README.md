@@ -1,12 +1,12 @@
 # Coder Micro Services
 
-> **新人入职？** 请先阅读 [`docs/onboarding/README.md`](docs/onboarding/README.md) — 从零开始的手把手入门指南（中文），覆盖环境准备、第一次跑通、日志排查、前后端联调。
+> **新人入职？** 请先阅读 [`docs-site/onboarding/README.md`](docs-site/onboarding/README.md) — 从零开始的手把手入门指南（中文），覆盖环境准备、第一次跑通、日志排查、前后端联调。
 
 ## Overview
 
 A microservices architecture for coder platform, built with Rust.
 
-**Full documentation**: [`docs/user-manual/`](docs/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
+**Full documentation**: [`docs-site/user-manual/`](docs-site/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 
 **AI entry point**: [`docs/ai-context.md`](docs/ai-context.md) — service map, known pitfalls, common commands (read first when starting work in this repo).
 
@@ -136,7 +136,7 @@ requests_per_second = 5     # auth 端点严格
 burst = 10
 ```
 
-限流时返回 HTTP 429 + `Retry-After: 1`。详见 [`docs/user-manual/07-rate-limiting.md`](docs/user-manual/07-rate-limiting.md)。
+限流时返回 HTTP 429 + `Retry-After: 1`。详见 [`docs-site/user-manual/07-rate-limiting.md`](docs-site/user-manual/07-rate-limiting.md)。
 
 ### 灰度发布
 
@@ -223,11 +223,8 @@ docker run --rm `
 | Audit Service        | Rust     | Axum      | — |
 | Config Service       | Rust     | Axum      | — |
 | File Service         | Rust     | Axum      | — |
-| PM Platform          | Java 21   | Spring Boot 3 | — |
 
 > 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`。
->
-> PM Platform（`apps/pm/`，端口 8088）是 2026-07 阶段新增的研发管理工具：项目 / 需求 / 用户故事 / 验收标准 + 知识库（空间 / 文档 / 版本 / Markdown 渲染）+ LLM 接口预留（`NoopLlmProvider`）。共享 MySQL `superpowers` 库（新增 `pm_` / `kb_` 表前缀），通过 Java SDK 调现有 Rust 服务。具体见 [`apps/pm/README.md`](apps/pm/README.md) 与 [`docs/superpowers/specs/2026-07-11-pm-platform-design.md`](docs/superpowers/specs/2026-07-11-pm-platform-design.md)。
 
 ## AI 辅助开发
 
@@ -518,7 +515,7 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push   # 多架构
 
 | 场景 | 文档 |
 |------|------|
-| 我是新人 / 新 AI 实例 | [`docs/user-manual/`](docs/user-manual/) |
+| 我是新人 / 新 AI 实例 | [`docs-site/user-manual/`](docs-site/user-manual/) |
 | AI 协作者读取入口 | [`docs/ai-context.md`](docs/ai-context.md) |
 | 加路由 / 加迁移 / 新建 service | [`.agents/skills/`](.agents/skills/) |
 | E2E 测试 (smoke / data-driven) | [`docs/guides/testing.md`](docs/guides/testing.md) |

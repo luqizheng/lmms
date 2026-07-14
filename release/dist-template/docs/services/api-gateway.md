@@ -42,7 +42,6 @@ issuer = "superpowers-token-service"
 | `file.router.toml` | `/api/v1/file` | file-service |
 | `notification.router.toml` | `/api/v1/notification` | notification-service |
 | `audit.router.toml` | `/api/v1/audit` | audit-service |
-| `pm.router.toml` | `/pm-api/*` | prue_backend |
 | `prue_backend.router.toml` | `/api/v1/prue/*` | prue_backend |
 
 ## 限流

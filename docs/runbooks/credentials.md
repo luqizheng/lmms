@@ -143,7 +143,6 @@ docker pull zhcoder-docker-registry.com:8000/micro-server/iam-service:latest
 ### 3.4 pom.xml 配置
 
 ```xml
-<!-- sdk/java/pom.xml 或 services/project-service/pom.xml -->
 <distributionManagement>
   <repository>
     <id>internal-releases</id>

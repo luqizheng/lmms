@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const VALID_PREFIXES = [
-  'iam_', 'audit_', 'token_', 'ntf_', 'cfg_', 'file_', 'prue_', 'pm_', 'kb_',
+  'iam_', 'audit_', 'token_', 'ntf_', 'cfg_', 'file_', 'prue_', ,
 ];
 
 const SKIP_IN_SOURCE = new Set([
