@@ -51,6 +51,7 @@ cases:
 
   - caseId: ROLE-PERM-CREATE-001
     desc: 为角色绑权限前先创建 permission（自包含，避免跨文件引用）
+    smoke: true
     method: POST
     path: /v1/iam/permissions
     body:

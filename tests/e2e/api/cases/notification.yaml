@@ -14,7 +14,7 @@ cases:
       popover: false
       recipients:
         - scope_type: role
-          scope_id: 1
+          scope_id: "1"
     expectStatus: [200, 201, 204, 502, 503, 404]
 
   - caseId: NOTIF-002

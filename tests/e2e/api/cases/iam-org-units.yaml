@@ -79,6 +79,7 @@ cases:
 
   - caseId: ORG-BIND-PREP
     desc: 为组织绑用户前先创建专用 org-unit（自包含，不与 ORG-002 删除流程冲突）
+    smoke: true
     method: POST
     path: /v1/iam/org-units
     body:
@@ -91,6 +92,7 @@ cases:
 
   - caseId: ORG-BIND-USER-PREP
     desc: 为组织绑用户前先创建用户（自包含）
+    smoke: true
     method: POST
     path: /v1/iam/users
     body:

@@ -2,6 +2,7 @@ group: auth-lifecycle
 cases:
   - caseId: AUTH-REFRESH-LOGIN
     desc: admin 登录（为 refresh 取 refresh_token）
+    smoke: true
     method: POST
     path: /v1/iam/auth/login
     auth: false
@@ -28,6 +29,7 @@ cases:
 
   - caseId: AUTH-LIFE-001
     desc: admin 创建临时用户（用于密码/会话/登出测试）
+    smoke: true
     method: POST
     path: /v1/iam/users
     body:
@@ -41,6 +43,7 @@ cases:
 
   - caseId: AUTH-LIFE-002
     desc: 临时用户登录拿 access + refresh
+    smoke: true
     method: POST
     path: /v1/iam/auth/login
     auth: false
@@ -75,6 +78,7 @@ cases:
 
   - caseId: AUTH-LIFE-005
     desc: 临时用户查自己的会话列表
+    smoke: true
     method: GET
     path: /v1/iam/auth/sessions
     headers:
@@ -94,6 +98,7 @@ cases:
 
   - caseId: AUTH-LIFE-006
     desc: 临时用户登出
+    smoke: true
     method: POST
     path: /v1/iam/auth/logout
     headers:

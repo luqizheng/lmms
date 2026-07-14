@@ -27,7 +27,7 @@ cases:
       X-Tenant-Id: "1"
     expectStatus: [200, 502, 503, 404]
     expect:
-      - $. is array
+      - $.content is array
 
   - caseId: PMD-003
     desc: milestone 创建

@@ -12,6 +12,7 @@ cases:
 
   - caseId: MENU-002
     desc: 创建草稿菜单配置
+    smoke: true
     method: POST
     path: /v1/pure/menu-configs
     body:
