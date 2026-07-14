@@ -53,6 +53,8 @@ contracts_check:
   stage: test
   tags: [docker]
   image: $BASE_REGISTRY/node:20
+  before_script:
+    - npm config set registry https://registry.npmmirror.com/
   script:
     - node scripts/contracts-gen.js --check
 
