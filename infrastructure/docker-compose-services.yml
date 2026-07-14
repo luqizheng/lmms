@@ -195,7 +195,20 @@ services:
     # post-dephase config so the service binds 8082 without rebuild.
     volumes:
       - ../services/token-service/config:/app/config:ro
-      - ../docker-example/secrets:/app/keys:ro
+      # ── secret-key volume 已移除 ──────────────────────────────────
+      # 原映射: ../docker-example/secrets:/app/keys:ro
+      #
+      # 原因: token-service 启动时若 /app/keys/ 下找不到 private.pem /
+      # public.pem，main.rs::load_or_generate_keys 会自动生成新的 RSA
+      # key pair 并写入 /app/keys/（Dockerfile 已 mkdir -p /app/keys），
+      # 服务可自举，无需外部挂载 key 文件。消费方 api-gateway / iam-service
+      # 通过 JWKS URL（http://token-service:8082/.well-known/jwks.json）
+      # 动态拉取 public key 验签，同样不依赖本地 key 文件。
+      #
+      # ⚠️ 副作用: 容器每次重启都会重新生成 key pair，此前签发的所有
+      #    access / refresh token 立即失效，用户需重新登录。如需 key
+      #    跨重启持久化或多实例共享同一 key，恢复本行挂载即可。
+      # ──────────────────────────────────────────────────────────
     environment:
       SERVICE_BOOTSTRAP_TOKENS: "${SERVICE_BOOTSTRAP_TOKENS}"
       TENANT_ID: "${TENANT_ID}"
