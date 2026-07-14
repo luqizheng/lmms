@@ -117,6 +117,77 @@ else
   echo "[release]   ⚠ npx 不可用，保留 index.html 占位符"
 fi
 
+echo "[release] -> 同步开发骨架（libs/sdk/contracts/skills/scripts/services）..."
+
+# 开发仓库根（dist-template 的上两级）
+REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
+
+# Rust 共享库（业务 Rust 服务编译时依赖 path = "../../libs/..."）
+if [ -d "${REPO_ROOT}/libs" ]; then
+  rsync -a --exclude='target/' "${REPO_ROOT}/libs/" "${DIST_DIR}/libs/"
+  echo "[release]   ✓ libs/"
+else
+  echo "[release]   ⚠ libs/ not found at ${REPO_ROOT}/libs - Rust 业务服务将无法编译"
+fi
+
+# Java SDK（业务 Java 服务 Maven 依赖 sdk/java/*）
+if [ -d "${REPO_ROOT}/sdk" ]; then
+  rsync -a --exclude='target/' "${REPO_ROOT}/sdk/" "${DIST_DIR}/sdk/"
+  echo "[release]   ✓ sdk/"
+else
+  echo "[release]   ⚠ sdk/ not found - Java 业务服务将无法编译"
+fi
+
+# 契约层（前后端单一真相源：error-codes / permissions / events / conventions）
+if [ -d "${REPO_ROOT}/contracts" ]; then
+  cp -r "${REPO_ROOT}/contracts" "${DIST_DIR}/contracts"
+  echo "[release]   ✓ contracts/"
+fi
+
+# CI 门禁脚本（check-service-standard / check-db-naming / check-spec / contracts-gen 等）
+if [ -d "${REPO_ROOT}/scripts" ]; then
+  cp -r "${REPO_ROOT}/scripts" "${DIST_DIR}/scripts"
+  echo "[release]   ✓ scripts/"
+fi
+
+# AI skills（6 个：coder-new-service / coder-add-route / coder-migrate-db + 3 Java 版）
+if [ -d "${REPO_ROOT}/.agents/skills" ]; then
+  cp -r "${REPO_ROOT}/.agents/skills" "${DIST_DIR}/skills"
+  echo "[release]   ✓ skills/"
+fi
+
+# services/ 目录骨架（空 - 用户通过 skills 创建业务微服务）
+mkdir -p "${DIST_DIR}/services"
+if [ -f "${REPO_ROOT}/services/agents-template.md" ]; then
+  cp "${REPO_ROOT}/services/agents-template.md" "${DIST_DIR}/services/agents-template.md"
+fi
+touch "${DIST_DIR}/services/.gitkeep"
+echo "[release]   ✓ services/ (empty - for user-created business services)"
+
+# Rust workspace 根 Cargo.toml（移除 services/* members，用户通过 skill 动态加入）
+if [ -f "${REPO_ROOT}/Cargo.toml" ]; then
+  sed '/^[[:space:]]*"services\//d' "${REPO_ROOT}/Cargo.toml" > "${DIST_DIR}/Cargo.toml"
+  echo "[release]   ✓ Cargo.toml (workspace: libs + sdk/rust, services/ excluded)"
+fi
+
+# pnpm workspace + package.json（根调度脚本，CI 门禁命令）
+if [ -f "${REPO_ROOT}/pnpm-workspace.yaml" ]; then
+  cp "${REPO_ROOT}/pnpm-workspace.yaml" "${DIST_DIR}/pnpm-workspace.yaml"
+fi
+if [ -f "${REPO_ROOT}/package.json" ]; then
+  cp "${REPO_ROOT}/package.json" "${DIST_DIR}/package.json"
+fi
+echo "[release]   ✓ pnpm-workspace.yaml + package.json"
+
+# AGENTS.md（项目协作指南，skill 引用的约定）
+if [ -f "${REPO_ROOT}/AGENTS.md" ]; then
+  cp "${REPO_ROOT}/AGENTS.md" "${DIST_DIR}/AGENTS.md"
+  echo "[release]   ✓ AGENTS.md"
+fi
+
+echo "[release] ✓ 开发骨架同步完成"
+echo ""
+
 echo "[release] -> 打包 tar.gz..."
 cd "${ROOT}/release"
 tar -czf "coder-micro-services-${VERSION}-airgap.tar.gz" \

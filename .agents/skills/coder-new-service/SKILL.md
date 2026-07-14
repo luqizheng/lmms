@@ -357,8 +357,8 @@ After scaffolding, customize the AGENTS.md (copied from `services/agents-templat
 ## Validation (run after scaffolding)
 
 ```bash
-# 1. Add to workspace
-# Edit Cargo.toml root members array: add "services/{name}"
+# 1. Workspace member already added by Auto-Registration step 1.
+#    Verify it's present: grep "services/{name}" Cargo.toml
 
 # 2. Build (must use docker)
 docker run --rm --network host \
@@ -389,26 +389,66 @@ node scripts/check-spec.js
 # Expected: warnings (no summaries) but exit 0
 ```
 
-## Adding Service to docker-compose.yml
+## Auto-Registration (3 append operations)
 
-Append to `infrastructure/docker-compose.yml`:
+After creating all files, the skill MUST perform these 3 registrations so the
+service compiles in the workspace and is reachable via docker-compose + gateway.
+Do not leave the user to do them manually.
+
+### 1. Add to root `Cargo.toml` workspace members
+
+Edit the root `Cargo.toml` `[workspace]` section and add the new service to the
+`members` array (Cargo does NOT support globs - each service must be listed):
+
+```toml
+[workspace]
+members = [
+    # ... existing members ...
+    "services/{name}",
+]
+```
+
+Place the new entry after the last `services/` entry to keep alphabetical-ish
+ordering. Without this, `cargo check -p {name}` and `cargo build -p {name}`
+will fail with "package not found in workspace".
+
+### 2. Append to `infrastructure/docker-compose-services.yml`
+
+Insert a new service block. Use the `x-svc-registrator-labels` anchor pattern
+from existing services. Insert before the `volumes:` section (or before the
+`# >>> business-services (auto-appended by skill) <<<` anchor if it exists):
 
 ```yaml
+  # ─────────── {name} (Rust + Axum) ───────────
   {name}:
     build:
       context: ..
       dockerfile: services/{name}/Dockerfile
     ports:
       - "{external_port}:8080"
+    labels:
+      - "SERVICE_NAME={name}"
+      - "SERVICE_ID={name}"
+      - "SERVICE_PORT=8080"
+      - "SERVICE_TAGS=backend,{name},rust"
+      - "SERVICE_8080_CHECK_HTTP=/health"
+      - "SERVICE_8080_CHECK_INTERVAL=15s"
+      - "SERVICE_8080_CHECK_TIMEOUT=3s"
     environment:
+      SERVICE_BOOTSTRAP_TOKEN: "${{name-upper}_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
-      DATABASE_HOST: mysql
-      DATABASE_PORT: "3306"
-      DATABASE_USER: root
-      DATABASE_PASSWORD: rootpass
-      DATABASE_NAME: superpowers
+      DATABASE_URL: "${DATABASE_URL}"
       CONSUL_ADDR: "http://consul:8500"
+      RUST_LOG: "info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      SERVICE_NAME: "{name}"
+      SERVICE_ID: "{name}"
+      SERVICE_PORT: "8080"
+      SERVICE_HEALTH_PATH: "/health"
     depends_on:
       mysql:
         condition: service_healthy
@@ -418,11 +458,16 @@ Append to `infrastructure/docker-compose.yml`:
       - superpowers
 ```
 
-## Adding API Gateway Route
+> `{name-upper}` = `{name}` in uppercase with hyphens replaced by underscores
+> (e.g. `billing-service` -> `BILLING_SERVICE`).
+> `{external_port}` = pick the next free port (existing services use 8081-8087
+> for docker, 6001-6007 for host; check `infrastructure/README.md` port table).
+> If the service needs Redis or RabbitMQ, add them to `depends_on`.
 
-If this service should be reachable via api-gateway:
+### 3. Create api-gateway route file
 
-1. Create `infrastructure/config/api-gateway/routes/{name}.router.toml`:
+Create `infrastructure/config/api-gateway/routes/{name}.router.toml` so
+api-gateway forwards `/v1/{name}/*` to the new service:
 
 ```toml
 [[routes]]
@@ -433,7 +478,14 @@ public = false
 ws = false
 ```
 
-2. Verify with: `cargo run -p api-gateway -- validate --routes infrastructure/config/api-gateway/routes`
+Verify: `cargo run -p api-gateway -- validate --routes infrastructure/config/api-gateway/routes`
+
+### 4. (Optional) Add to `infrastructure/.env`
+
+Add the bootstrap token and port export:
+```
+{name-upper}_DEV_BT=dev-bypass-token
+```
 
 ## CI Verification Checklist
 
