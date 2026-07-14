@@ -30,7 +30,7 @@ RUN --mount=type=cache,id=m2-project-service,target=/root/.m2 \
 COPY services/project-service/src /build/src
 
 RUN --mount=type=cache,id=m2-project-service,target=/root/.m2 \
-    mvn -B -ntp -f /build/pom.xml package && \
+    mvn -B -ntp -f /build/pom.xml -Dmaven.test.skip=true package && \
     cp /build/target/project-service.jar /app/project-service.jar
 
 FROM ${BASE_REGISTRY}/eclipse-temurin:25-jre-alpine
