@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220" height="220">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3c8772"/>
+      <stop offset="1" stop-color="#1f5f4f"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="200" height="200" rx="44" fill="url(#g)"/>
+  <!-- 简化的齿轮 + 节点，象征微服务 -->
+  <g fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+    <circle cx="110" cy="110" r="34"/>
+    <path d="M110 60 V40"/>
+    <path d="M110 180 V160"/>
+    <path d="M60 110 H40"/>
+    <path d="M180 110 H160"/>
+    <path d="M74 74 L60 60"/>
+    <path d="M160 160 L146 146"/>
+    <path d="M146 74 L160 60"/>
+    <path d="M60 160 L74 146"/>
+  </g>
+  <circle cx="110" cy="110" r="11" fill="#ffffff"/>
+</svg>

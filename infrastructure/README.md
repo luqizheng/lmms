@@ -57,9 +57,17 @@ pnpm check:env
 | --- | --- |
 | `pnpm run docker:compose:build` | 构建所有服务的镜像（走 `docker compose build`）。 |
 | `pnpm run docker:compose:build:<svc>` | 仅构建某一个服务，例如 `docker:compose:build:iam-service`。 |
-| `pnpm run docker:build` | 走 `scripts/build-docker.js` 的旧入口，构建所有镜像。与上面等价，保留兼容。 |
-| `pnpm run docker:build:<svc>` | 旧入口的单服务构建。 |
+| `pnpm run docker:build` | 走 `scripts/build-docker.js`，构建所有镜像。无参数=交互式；参数式支持 `-v <ver>` / `--push` / `--load-and-push` / `--platform linux/amd64,linux/arm64`。详见 `node scripts/build-docker.js --help`。 |
+| `pnpm run docker:build:<svc>` | 单服务构建（= `node scripts/build-docker.js <svc>`，参数式默认不推送）。 |
 | `pnpm run docker:build:clean` | prune dangling images 释放磁盘。 |
+
+常用参数式示例：
+
+```bash
+pnpm run docker:build -- -v 1.0.0 --push                              # 版本号 + 直推
+pnpm run docker:build -- --load-and-push -v 1.0.0                     # 本地留镜像 + 推送
+pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架构（自动 --push）
+```
 
 > 单服务名列表：`api-gateway` / `token-service` / `iam-service` / `notification-service` / `audit-service` / `config-service` / `file-service` / `prue_backend` / `frontend`。`prue_backend` 在 `docker:compose:build` 写法里用 `_`（compose 服务名），在 `docker:build` 写法里用 `-`（脚本别名）。
 

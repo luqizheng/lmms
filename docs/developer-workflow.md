@@ -189,21 +189,42 @@ git push origin main
 
 ### 8.2 路径 B：本地手动出镜像（hotfix / RC / 调试时用）
 
-```bash
-# 1) 单独 build 一个 / 全部
-pnpm docker:build:iam-service              # = node scripts/build-docker.js iam-service
-pnpm docker:build                           # 全部 9 个服务
+`scripts/build-docker.js` 支持交互式 / 参数式两种模式，自带版本号 tag、多 CPU 架构、可选推送。
 
-# 2) 打 sha tag + :latest，再 push 到内网 Registry
-IMAGE_TAG=$(git rev-parse --short HEAD) \
-  node scripts/release-push.js iam-service  # = zhcoder/.../iam-service:<sha> + :latest
+```bash
+# 交互式（无参数）：依次问 版本号 / 架构 / 是否推送 / 服务子集
+pnpm docker:build
+
+# 参数式：全部服务，版本号 1.0.0，直接 buildx --push（不留本地）
+pnpm docker:build -- -v 1.0.0 --push
+
+# 本地留镜像 + 推送（单架构 --load 后再 docker push 每 tag）
+pnpm docker:build -- --load-and-push -v 1.0.0
+
+# 多架构（buildx 多架构无法 --load，自动开启 --push）
+pnpm docker:build -- --platform linux/amd64,linux/arm64 --push
+
+# 单服务子集
+pnpm docker:build -- api-gateway token-service -v 1.0.0 --push
+# = node scripts/build-docker.js api-gateway token-service -v 1.0.0 --push
 ```
 
-| 工具 | 干啥 | 行数 |
-|---|---|---|
-| [`scripts/build-docker.js`](../scripts/build-docker.js) | `docker buildx build --load`，给 9 个服务的 Dockerfile 各自出本地镜像（裸 tag，无版本号） | 123 行 |
-| [`scripts/release-push.js`](../scripts/release-push.js) | 给裸 tag 加 `:${sha}` 和 `:latest`，`fail-fast` 推送 | 87 行 |
-| [`scripts/build-docker.js clean`](../scripts/build-docker.js) | 清理 buildx cache（`cargo-registry`、`cargo-git`） | — |
+| 工具 | 干啥 |
+|---|---|
+| [`scripts/build-docker.js`](../scripts/build-docker.js) | 批量构建 micro-server 镜像。无参数=交互式；参数式支持 `-v <ver>`（同时打 `:<ver>` + `:latest`）、`--push`（buildx 直推）、`--load-and-push`（单架构本地留镜像 + 推送）、`-p/--platform linux/amd64,linux/arm64`（多架构，自动 `--push`）。默认 registry `zhcoder-docker-registry.com:8000/micro-server`。`node scripts/build-docker.js --help` 看全部选项。 |
+| [`scripts/release-push.js`](../scripts/release-push.js) | 给已有裸 tag 加 `:${sha}` 和 `:latest`，`fail-fast` 推送。适合 build-docker.js 出完本地镜像后再补 sha tag 推送的旧流程。 |
+| [`scripts/build-docker.js clean`](../scripts/build-docker.js) | 清理 buildx cache（`cargo-registry`、`cargo-git`）。 |
+
+**模式与默认值**：
+
+| 模式 | 触发 | push 默认 | 架构默认 |
+|---|---|---|---|
+| 交互式 | 无参数 / `-i` | Y（推送） | linux/amd64 |
+| 参数式 | 带任何参数 | 不推送（需 `--push`/`--load-and-push`） | linux/amd64 |
+
+**多架构注意**：buildx 多架构镜像无法 `--load` 到本地 docker，必须 `--push`。`--platform` 含多个架构且未显式推送时，脚本自动开启 `--push`；`--load-and-push` 在多架构下回退为 `--push`。arm64 构建需宿主启用 qemu binfmt：`docker run --privileged --rm tonistiigi/binfmt --install all`。
+
+**非 TTY**：CI 等 stdin 非 TTY 环境无参数时回退到参数式默认值（latest / amd64 / 不推送 / 全部服务），不阻塞。
 
 **registry**：`zhcoder-docker-registry.com:8000/micro-server/<service>`
 **基镜像**：[`infrastructure/base-images.json`](../infrastructure/base-images.json) 列出 7 个 builder 镜像（`node:20` / `rust:1.96-slim-musl` / ...）
@@ -292,7 +313,9 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 跑 4 道 CI Gate | `node scripts/check-service-standard.js && node scripts/check-spec.js && node scripts/contracts-gen.js --check && scripts/dump-openapi-specs.sh && git diff --exit-code -- 'services/*/openapi.yaml'` |
 | 单独出某个镜像 | `pnpm docker:build:<svc>` |
 | 全部出镜像 | `pnpm docker:build` |
-| 推镜像到 Registry | `IMAGE_TAG=<sha> node scripts/release-push.js [services]` |
+| 出镜像并打版本号推送 | `pnpm docker:build -- -v 1.0.0 --push` |
+| 多架构出镜像 | `pnpm docker:build -- --platform linux/amd64,linux/arm64 --push` |
+| 推已有镜像补 sha tag | `IMAGE_TAG=<sha> node scripts/release-push.js [services]` |
 | 重新加载 gateway 路由 | `curl -X POST http://localhost:3000/__admin/reload` |
 
 ---

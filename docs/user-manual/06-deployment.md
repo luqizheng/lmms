@@ -6,16 +6,37 @@
 
 ## 6.1 构建镜像
 
+`scripts/build-docker.js` 支持交互式 / 参数式两种模式，可打版本号 tag、多 CPU 架构、可选推送到内网 registry（`zhcoder-docker-registry.com:8000/micro-server/<service>`）。
+
 ```bash
-# 全部服务
+# 交互式（无参数）：依次问 版本号 / 架构 / 是否推送 / 服务子集，默认推送 Y
 pnpm run docker:build
 
-# 单服务
-pnpm run docker:build:iam-service
+# 参数式：全部服务，版本号 1.0.0，直接推送
+pnpm run docker:build -- -v 1.0.0 --push
 
-# 镜像会被打 tag 推送到内网仓库：
-#   zhcoder-docker-registry.com:8000/micro-server/<service>:<commit-sha>
+# 本地留镜像 + 推送（单架构 --load 后再 docker push 每 tag）
+pnpm run docker:build -- --load-and-push -v 1.0.0
+
+# 多架构（buildx 多架构无法 --load，自动开启 --push）
+pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push
+
+# 单服务
+pnpm run docker:build:iam-service          # = node scripts/build-docker.js iam-service
 ```
+
+| 选项 | 作用 |
+|---|---|
+| `-v, --version <ver>` | 版本号 tag（如 `1.0.0`），同时打 `:<ver>` 与 `:latest` |
+| `--push` | `buildx --push` 直接推送，不留本地镜像 |
+| `--load-and-push` | 单架构：`--load` 后再 `docker push` 每 tag（本地留镜像 + 推送）；多架构：回退 `--push` |
+| `--no-push` | 不推送（参数式默认） |
+| `-p, --platform <list>` | CPU 架构，逗号分隔（默认 `linux/amd64`），如 `linux/amd64,linux/arm64` |
+| `-i, --interactive` | 强制交互式 |
+
+> **本地 vs CI**：本地参数式默认**不推送**（需 `--push`/`--load-and-push`）；交互式默认推送 Y。CI 走 `.gitlab-ci.yml` 的 `build_*` job 自动 `docker buildx build` + `docker push`，打 `:<commit-sha>` + `:latest`。`node scripts/build-docker.js --help` 看全部选项。
+
+> **多架构注意**：arm64 构建需宿主启用 qemu binfmt：`docker run --privileged --rm tonistiigi/binfmt --install all`。
 
 ---
 
