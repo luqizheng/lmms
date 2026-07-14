@@ -89,13 +89,18 @@
     "check:vitest-coverage:report": "node scripts/check-vitest-coverage.js --all",
     "check:frontend-i18n": "node scripts/check-i18n-hardcode.js",
     "check:frontend-i18n:report": "node scripts/check-i18n-hardcode.js --all",
-    "check:frontend-v-perms": "node scripts/check-v-perms.js"
+    "check:frontend-v-perms": "node scripts/check-v-perms.js",
+    "docs:dev": "vitepress dev docs-site",
+    "docs:build": "vitepress build docs-site",
+    "docs:preview": "vitepress preview docs-site"
   },
   "dependencies": {
     "argon2": "^0.44.0"
   },
   "devDependencies": {
     "js-yaml": "^5.2.1",
-    "mysql2": "^3.22.6"
+    "mysql2": "^3.22.6",
+    "vitepress": "^1.6.0",
+    "vue": "^3.5.0"
   }
 }
