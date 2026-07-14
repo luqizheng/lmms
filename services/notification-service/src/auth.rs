@@ -8,6 +8,8 @@ pub trait AdminCheck {
 
 impl AdminCheck for Principal {
     fn is_admin(&self) -> bool {
-        self.has_role("admin") || self.has_role("notification.admin")
+        self.has_role("admin")
+            || self.has_role("tenant_admin")
+            || self.has_role("notification.admin")
     }
 }
