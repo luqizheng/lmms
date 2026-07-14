@@ -103,6 +103,19 @@ bash scripts/release.sh
 #   release/coder-micro-services-v1.0.0/
 ```
 
+### 选项
+
+| 用法 | 行为 |
+| --- | --- |
+| `bash scripts/release.sh [VERSION]` | 默认：pull + save 全部镜像 |
+| `bash scripts/release.sh v1.2.0 --no-images` | 跳过 docker pull/save，仅打文档/配置包 |
+| `EXPORT_IMAGES=0 bash scripts/release.sh [VERSION]` | 等价 `--no-images`（环境变量风格） |
+| `bash scripts/release.sh --images [VERSION]` | 显式导出镜像（与默认等价，便于 CI 声明） |
+| `bash scripts/release.sh --help` | 打印完整用法 |
+
+- `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 bash scripts/release.sh`。
+- flag 优先级高于 `EXPORT_IMAGES` 环境变量；`REGISTRY` 环境变量可覆盖默认仓库。
+
 ## 升级
 
 ```bash
