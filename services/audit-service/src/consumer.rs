@@ -67,25 +67,21 @@ async fn subscribe_loop(
 async fn try_subscribe(
     pool: &MySqlPool,
     event_bus_url: &str,
-    queue_name: &str,
-    routing_keys: &[&str],
+    queue_name: &'static str,
+    routing_keys: &'static [&'static str],
 ) -> anyhow::Result<RabbitMqConsumer> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
     let pool_clone = pool.clone();
-    let queue_name_owned = queue_name.to_string();
     consumer
         .subscribe::<serde_json::Value, _, _>(
             queue_name,
             routing_keys,
             move |env: Envelope<serde_json::Value>| {
+                // Build span synchronously: `span_from_envelope_trace_id` requires
+                // `&'static str`, which borrowing inside the async future can't provide.
+                let span = span_from_envelope_trace_id(&env, queue_name);
                 let pool = pool_clone.clone();
-                let queue_for_span = queue_name_owned.clone();
-                async move {
-                    let span = span_from_envelope_trace_id(&env, &queue_for_span);
-                    async move { persist(&pool, &env).await }
-                        .instrument(span)
-                        .await
-                }
+                async move { persist(&pool, &env).instrument(span).await }
             },
         )
         .await?;
