@@ -1,44 +1,176 @@
 # Coder Micro Services 文档站
 
-基于 [VitePress](https://vitepress.dev) 构建的文档门户，内容源是仓库根的 [`docs/`](../docs/) 目录。
+基于 [VitePress](https://vitepress.dev) 构建的文档门户。
 
-## 设计原则
+## 内容来源（两种模式并存）
 
-- **单一真相源**：`docs/` 是文档唯一来源，本目录通过 **symlink** 引入，不复制内容。改文档改 `docs/` 即可，文档站自动同步。
-- **docs/ 零改动**：本目录只放 VitePress 配置（`.vitepress/config.ts`）、首页（`index.md`）和 symlink，不动 `docs/` 任何文件。
-- **中文优先**：站点 `lang: zh-CN`，主题文案、搜索框全部本地化。
+| 内容 | 存放位置 | 维护方式 |
+|------|----------|----------|
+| onboarding / user-manual / index.md | `docs-site/` 下直接维护 | 文档站专属内容，直接编辑 `docs-site/` 内文件 |
+| guides / decisions / runbooks / plans / ai-context / developer-workflow | 仓库根 `docs/` | **单一真相源**，通过 symlink 引入，改 `docs/` 即自动同步 |
+
+> 设计原则：`docs/` 放跨团队通用的工程文档（guides / ADR / runbooks），`docs-site/` 放面向读者的入门 / 手册内容。两边互不复制。
 
 ## 目录结构
 
 ```
 docs-site/
 ├─ .vitepress/
-│  └─ config.ts          # 站点配置（nav / sidebar / 搜索 / 中文主题）
-├─ index.md              # 首页（hero + features）
-├─ README.md             # 本文件
-├─ ai-context.md         # → ../docs/ai-context.md (symlink)
-├─ developer-workflow.md # → ../docs/developer-workflow.md (symlink)
-├─ USER_MANUAL.md        # → ../docs/USER_MANUAL.md (symlink)
-├─ onboarding/           # → ../docs/onboarding (symlink)
-├─ user-manual/          # → ../docs/user-manual (symlink)
-├─ guides/               # → ../docs/guides (symlink)
-├─ decisions/            # → ../docs/decisions (symlink)
-├─ runbooks/             # → ../docs/runbooks (symlink)
-├─ superpowers/          # → ../docs/superpowers (symlink)
-└─ plans/                # → ../docs/plans (symlink)
+│  └─ config.mts           # 站点配置（nav / sidebar / 搜索 / 中文主题 / rewrites）
+├─ index.md                # 首页（hero + features）
+├─ README.md               # 本文件（工程说明，srcExclude 不进文档站）
+├─ package.json            # 占位（依赖装在仓库根 package.json）
+├─ public/
+│  └─ logo.svg             # 静态资源
+├─ onboarding/             # 真实目录（文档站专属，直接维护）
+├─ user-manual/            # 真实目录（文档站专属，直接维护）
+├─ ai-context.md           # -> ../docs/ai-context.md            (symlink)
+├─ developer-workflow.md   # -> ../docs/developer-workflow.md    (symlink)
+├─ guides/                 # -> ../docs/guides                   (symlink)
+├─ decisions/              # -> ../docs/decisions                (symlink)
+├─ runbooks/               # -> ../docs/runbooks                 (symlink)
+└─ plans/                  # -> ../docs/plans                    (symlink)
 ```
 
-## 本地开发
+## 如何使用
 
-依赖装在仓库根（`vitepress` + `vue` 在根 `package.json` 的 `devDependencies`）：
+### 环境准备
+
+依赖（`vitepress` + `vue`）声明在仓库根 `package.json` 的 `devDependencies`，`docs-site/package.json` 仅占位。
 
 ```bash
 # 在仓库根
-pnpm install                 # 安装 vitepress / vue
-pnpm docs:dev                # 启动 dev server（默认 http://localhost:5173）
-pnpm docs:build              # 构建静态站点到 docs-site/.vitepress/dist
-pnpm docs:preview            # 预览构建产物
+pnpm install
 ```
+
+### 本地开发
+
+```bash
+pnpm docs:dev       # 启动 dev server，默认 http://localhost:5173，支持热更新
+pnpm docs:build     # 构建静态站点到 docs-site/.vitepress/dist/
+pnpm docs:preview   # 预览构建产物（先 build 再 preview）
+```
+
+### 新增文档
+
+**情况一：文档站专属内容（onboarding / user-manual）**
+
+1. 在 `docs-site/onboarding/` 或 `docs-site/user-manual/` 下新增 `.md`。
+2. 在 `.vitepress/config.mts` 的 `sidebar` 对应分组追加 `{ text, link }`。
+3. `pnpm docs:dev` 验证页面可访问。
+
+**情况二：通用工程文档（guides / decisions / runbooks / plans）**
+
+1. 在 `docs/` 对应子目录新增 `.md`（真相源）。
+2. 若是全新子目录，在 `docs-site/` 下建 symlink：`ln -sf ../docs/<new-dir> <new-dir>`。
+3. 在 `.vitepress/config.mts` 的 `sidebar` 追加条目。
+4. `pnpm docs:dev` 验证。
+
+### 编写规范
+
+- **中文优先**：站点 `lang: zh-CN`，正文用中文；代码 / 命令 / 路径 / 技术标识符保持英文。
+- **frontmatter**：可选。`title` 覆盖页面标题；VitePress 自动取第一个 H1。
+- **内部链接**：用相对路径（如 `[测试](./04-testing)`），不带 `.md` 后缀（`cleanUrls: true`）。`config.mts` 已设 `ignoreDeadLinks: true`，因 symlink 会让 dead-link 检测器路径前缀错位误报，实际生成的链接基于页面 URL 解析，正确。
+- **图片**：放 `docs-site/public/`，引用用绝对路径 `/logo.svg`。
+
+### 修改站点配置
+
+编辑 `.vitepress/config.mts`，常用区域：
+
+| 区域 | 作用 |
+|------|------|
+| `nav` | 顶部导航栏 |
+| `sidebar` | 各 section 侧边栏（按 URL 前缀匹配） |
+| `rewrites` | 把 `README.md` 映射为目录首页 `index.md` |
+| `themeConfig.search` | 本地搜索（已中文化） |
+| `srcExclude` | 排除不进文档站的文件（当前排除 `README.md`） |
+
+## 如何发布
+
+### 构建产物
+
+```bash
+pnpm docs:build
+# 产物: docs-site/.vitepress/dist/  （纯静态 HTML/JS/CSS）
+pnpm docs:preview   # 本地预览 dist/，确认无误再部署
+```
+
+`dist/` 是自包含的静态站点，可托管到任意静态文件服务器。
+
+### 部署方式
+
+#### 方式一：GitLab Pages（推荐，配合项目现有 CI）
+
+在 `.gitlab-ci.yml` 追加 `pages` job：
+
+```yaml
+pages:
+  stage: deploy
+  image: node:20-alpine
+  cache:
+    key: docs-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .pnpm-store/
+  before_script:
+    - corepack enable
+    - pnpm config set store-dir .pnpm-store
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm docs:build
+    - mv docs-site/.vitepress/dist public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - docs/**/*
+        - docs-site/**/*
+        - package.json
+        - pnpm-lock.yaml
+  dependencies: []
+```
+
+推送 `main` 后，GitLab 自动构建并在 `Settings → Pages` 暴露站点 URL。
+
+> symlink 注意：GitLab CI runner 在 Linux 上 checkout，symlink 正常解析。若用 Windows runner 需配置 `git config --global core.symlinks true`。
+
+#### 方式二：Docker 镜像（nginx 托管）
+
+在 `docs-site/` 下新建 `Dockerfile`：
+
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+COPY . .
+RUN pnpm docs:build
+
+FROM nginx:alpine
+COPY --from=builder /app/docs-site/.vitepress/dist /usr/share/nginx/html
+EXPOSE 80
+```
+
+```bash
+docker build -t docs-site:latest -f docs-site/Dockerfile .
+docker run -p 8080:80 docs-site:latest
+# 访问 http://localhost:8080
+```
+
+#### 方式三：直接拷贝静态文件
+
+```bash
+pnpm docs:build
+rsync -avz docs-site/.vitepress/dist/ user@server:/var/www/docs/
+```
+
+### 发布检查清单
+
+- [ ] `pnpm docs:build` 无报错
+- [ ] `pnpm docs:preview` 本地浏览，关键页面可访问
+- [ ] 新增的 sidebar 条目 link 与实际文件路径一致
+- [ ] symlink 指向的 `docs/` 文件存在（`ls -L docs-site/<symlink>` 无 broken link）
 
 ## Symlink 维护
 
@@ -46,28 +178,22 @@ symlink 使用相对路径（`../docs/...`），在 Linux / macOS / WSL2 下正�
 
 ```bash
 cd docs-site
-# 子目录
-ln -sf ../docs/onboarding onboarding
-ln -sf ../docs/user-manual user-manual
+ln -sf ../docs/ai-context.md ai-context.md
+ln -sf ../docs/developer-workflow.md developer-workflow.md
 ln -sf ../docs/guides guides
 ln -sf ../docs/decisions decisions
 ln -sf ../docs/runbooks runbooks
-ln -sf ../docs/superpowers superpowers
 ln -sf ../docs/plans plans
-# 顶级 md
-ln -sf ../docs/ai-context.md ai-context.md
-ln -sf ../docs/developer-workflow.md developer-workflow.md
-ln -sf ../docs/USER_MANUAL.md USER_MANUAL.md
 ```
 
 > Windows 原生 git 默认不解析 symlink；本项目要求 WSL2 开发，故 symlink 方案适用。
 
-## 新增文档
+## 故障排查
 
-1. 在 `docs/` 对应子目录新增 `.md` 文件（真相源）。
-2. 在 `docs-site/.vitepress/config.ts` 的 `sidebar` 对应分组追加一条 `{ text, link }`。
-3. `pnpm docs:dev` 验证。
-
-## 部署
-
-`pnpm docs:build` 产物在 `docs-site/.vitepress/dist/`，是纯静态文件，可托管到任意静态服务器 / GitLab Pages / Vercel / Netlify。
+| 现象 | 原因 | 解决 |
+|------|------|------|
+| 页面 404 | sidebar link 与文件路径不匹配 | 核对 `config.mts` 中 link 与实际文件名（含中文），注意 `cleanUrls` 去掉了 `.md` |
+| `pnpm docs:dev` 报 symlink 找不到 | docs/ 下源文件被删 / 移动 | 重建 symlink 或在 `config.mts` 移除对应 sidebar 条目 |
+| 构建报 dead link | `ignoreDeadLinks: true` 在 dev 下不阻断，build 下也不阻断，但页面会显示断链 | 全局搜索 `(./` 检查相对链接 |
+| 搜索框无结果 | 首次 build 后才生成搜索索引 | `pnpm docs:build` 后 `pnpm docs:preview` 验证 |
+| sidebar 分组不显示 | URL 前缀与 sidebar key 不匹配 | sidebar key 是 URL 前缀（如 `/onboarding/`），需带尾斜杠 |

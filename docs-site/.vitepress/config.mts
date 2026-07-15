@@ -110,7 +110,8 @@ export default defineConfig({
             { text: '08 · 灰度发布', link: '/user-manual/08-canary-rollout' },
             { text: '09 · AI 协作工作流', link: '/user-manual/09-ai-workflows' },
             { text: '10 · 故障排查', link: '/user-manual/10-troubleshooting' },
-            { text: '11 · 参考', link: '/user-manual/11-reference' }
+            { text: '11 · 参考', link: '/user-manual/11-reference' },
+            { text: '12 · 发布与分发', link: '/user-manual/12-release-and-distribute' }
           ]
         }
       ],
@@ -199,8 +200,7 @@ export default defineConfig({
           items: [
             { text: '首页', link: '/' },
             { text: 'AI 协作上下文', link: '/ai-context' },
-            { text: '开发者工作流总图', link: '/developer-workflow' },
-            { text: '用户手册（旧入口）', link: '/USER_MANUAL' }
+            { text: '开发者工作流总图', link: '/developer-workflow' }
           ]
         },
         {
