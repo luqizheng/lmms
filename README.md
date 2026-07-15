@@ -355,9 +355,13 @@ make verify
 
 ```bash
 # 打包离线镜像（输出 release/coder-micro-services-v1.0.0-airgap.tar.gz）
-bash scripts/release.sh v1.0.0
+bash release/dist-template/scripts/release.sh v1.0.0
 ```
 
+> 路径注意：脚本实际位于 `release/dist-template/scripts/release.sh`，本节必须带 `release/dist-template/` 前缀。
+>
+> 可选参数：`--no-images` 跳过 `docker pull/save`（仅打配置/骨架包，需消费方自备镜像），等价于 `EXPORT_IMAGES=0 bash release/dist-template/scripts/release.sh v1.0.0`。详见 [`release/dist-template/README.md`](release/dist-template/README.md) §「离线镜像打包 / 选项」。
+>
 > 详见 [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md)
 
 ## Infrastructure
