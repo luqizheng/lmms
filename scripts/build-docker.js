@@ -51,6 +51,7 @@ const SERVICES = [
   'audit-service',
   'prue_backend',
   'frontend',
+  'docs-site',
 ];
 
 // pushMode: 'none' | 'push' | 'loadAndPush'
@@ -296,6 +297,11 @@ function buildService(name, ctx) {
     dockerfile = path.join(FRONTEND_DIR, 'Dockerfile');
     cwd = FRONTEND_DIR;
     relDf = 'Dockerfile';
+  } else if (name === 'docs-site') {
+    // docs-site 的 vitepress 依赖在仓库根 package.json，构建上下文必须是 ROOT_DIR
+    dockerfile = path.join(ROOT_DIR, 'docs-site', 'Dockerfile');
+    cwd = ROOT_DIR;
+    relDf = 'docs-site/Dockerfile';
   } else {
     dockerfile = path.join(SERVICES_DIR, name, 'Dockerfile');
     cwd = ROOT_DIR;
@@ -304,6 +310,17 @@ function buildService(name, ctx) {
   if (!fs.existsSync(dockerfile)) {
     console.log(`${FAIL} [skip] ${name} 无 Dockerfile`);
     return false;
+  }
+
+  // docs-site 的 Dockerfile 只打包预构建产物，需先在宿主机跑 vitepress build
+  // （vitepress lastUpdated 依赖完整 git 仓库，容器内无法获取真实最后更新时间）
+  if (name === 'docs-site') {
+    console.log(`${A.dim}[pre-build]${A.reset} pnpm docs:build (生成静态站点)`);
+    const r = spawnSync('pnpm', ['docs:build'], { cwd: ROOT_DIR, stdio: 'inherit', shell: false });
+    if (r.status !== 0) {
+      console.log(`${FAIL} [pre-build-fail] docs-site: pnpm docs:build 失败`);
+      return false;
+    }
   }
 
   const baseRef = `${registry}/${repo}/${name}`;

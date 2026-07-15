@@ -1,0 +1,10 @@
+# docs-site 专属 dockerignore
+# 注意：仅当 build context = docs-site/ 时才生效。
+# 本项目 docs-site 的 Dockerfile 构建上下文是仓库根（见 docs-site/Dockerfile），
+# 实际生效的是仓库根 .dockerignore。本文件留给独立构建场景备用。
+
+.vitepress/cache
+.vitepress/dist
+node_modules
+.git
+*.log

@@ -55,6 +55,7 @@
     "docker:build:audit-service": "node scripts/build-docker.js audit-service",
     "docker:build:prue-backend": "node scripts/build-docker.js prue_backend",
     "docker:build:frontend": "node scripts/build-docker.js frontend",
+    "docker:build:docs-site": "node scripts/build-docker.js docs-site",
     "docker:build": "node scripts/build-docker.js",
     "docker:build:clean": "node scripts/build-docker.js prune",
     "docker:demo:data": "node scripts/demo-data.js",

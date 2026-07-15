@@ -137,26 +137,29 @@ pages:
 
 #### 方式二：Docker 镜像（nginx 托管）
 
-在 `docs-site/` 下新建 `Dockerfile`：
-
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
-COPY . .
-RUN pnpm docs:build
-
-FROM nginx:alpine
-COPY --from=builder /app/docs-site/.vitepress/dist /usr/share/nginx/html
-EXPOSE 80
-```
+`docs-site/Dockerfile` 已就绪：vitepress build 在宿主机完成（需要完整 git 仓库以生成 `lastUpdated`），Dockerfile 只打包预构建的 `dist/` 到 nginx。已接入项目镜像编排器，`pnpm run docker:build:docs-site` 会自动先跑 `pnpm docs:build` 再 `docker buildx build`。
 
 ```bash
+# 单独构建 docs-site 镜像（自动预构建 + 本地留镜像，不推送）
+pnpm run docker:build:docs-site
+
+# 带版本号 + 推送到内网 registry
+pnpm run docker:build:docs-site -- -v 1.0.0 --push
+
+# 本地留镜像 + 推送
+pnpm run docker:build:docs-site -- --load-and-push -v 1.0.0
+
+# 多架构
+pnpm run docker:build:docs-site -- --platform linux/amd64,linux/arm64 --push
+
+# 或手动两步（构建上下文必须是仓库根）
+pnpm docs:build
 docker build -t docs-site:latest -f docs-site/Dockerfile .
 docker run -p 8080:80 docs-site:latest
 # 访问 http://localhost:8080
 ```
+
+镜像推送到 `${REGISTRY}/micro-server/docs-site`，与其它服务镜像同仓库。`nginx.conf` 已配置 VitePress `cleanUrls` 兜底（`try_files $uri $uri/ $uri.html $uri/index.html`）、gzip、静态资源缓存与健康检查。
 
 #### 方式三：直接拷贝静态文件
 
