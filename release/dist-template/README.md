@@ -140,7 +140,7 @@ bash scripts/release.sh
 
 - `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 bash scripts/release.sh`。
 - flag 优先级高于 `EXPORT_IMAGES` 环境变量；`REGISTRY` 环境变量可覆盖默认仓库。
-- v2 新增：release.sh 自动从开发仓库同步 `libs/` / `sdk/` / `contracts/` / `skills/` / `scripts/` / `services/`（空）+ `Cargo.toml` / `pnpm-workspace.yaml` / `package.json` / `AGENTS.md` 到发布包。
+- v2 新增：release.sh 自动从开发仓库同步 `libs/` / `sdk/` / `contracts/` / `skills/` / `scripts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `services/`（空）+ `Cargo.toml` / `pnpm-workspace.yaml` / `package.json` / `AGENTS.md` 到发布包。`frontend/` 是 compose/services.yml 中 frontend 服务的 build context，离线镜像缺失时供本地 docker build 兜底。
 
 ## 升级
 

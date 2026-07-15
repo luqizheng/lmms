@@ -11,7 +11,7 @@
 #
 # 参数：
 #   VERSION              第一个位置参数，默认 v1.0.0
-#   --no-images          跳过 docker pull + docker save（仅打文档/配置包）
+#   --no-images          跳过 docker pull + docker save（仅打配置/骨架包）
 #   --images             显式导出镜像（默认行为，与省略等价）
 #   --help, -h           打印帮助
 #
@@ -48,7 +48,7 @@ DIST_DIR="${ROOT}/release/coder-micro-services-${VERSION}"
 DIST_ARCHIVE="${ROOT}/release/coder-micro-services-${VERSION}-airgap.tar.gz"
 IMAGES_DIR="${DIST_DIR}/images"
 
-# DIST_DIR 必须存在（否则 --no-images + VitePress 跳过时 tar 会失败）；
+# DIST_DIR 必须存在（tar 源目录不能为空）；
 # IMAGES_DIR 仅在导出镜像时创建，避免空 images/ 目录混入分发包。
 mkdir -p "${DIST_DIR}"
 if [[ "${EXPORT_IMAGES}" == "1" ]]; then
@@ -99,23 +99,8 @@ else
   echo "[release] ⚠ --no-images：跳过 docker pull/save"
 fi
 
-echo "[release] -> 构建 VitePress 文档..."
-if command -v npx >/dev/null 2>&1; then
-  DOCS_SRC="${DIST_DIR}/docs"
-  if [[ -f "${DOCS_SRC}/.vitepress/config.ts" ]]; then
-    echo "[release]   npx vitepress build ${DOCS_SRC}"
-    cd "${DOCS_SRC}"
-    npx --yes vitepress@latest build . 2>/dev/null && \
-      cp -r "${DOCS_SRC}/.vitepress/dist/"* "${DIST_DIR}/" && \
-      echo "[release]   ✓ VitePress 文档已构建到根目录" || \
-      echo "[release]   ⚠ vitepress build failed，保留 index.html 占位符"
-    cd "${ROOT}"
-  else
-    echo "[release]   ⚠ docs/.vitepress/config.ts 不存在，跳过 VitePress 构建"
-  fi
-else
-  echo "[release]   ⚠ npx 不可用，保留 index.html 占位符"
-fi
+echo "[release] -> 跳过文档构建（不打包 docs；用户查阅 docs/ 源或开发仓库 docs-site/）..."
+echo ""
 
 echo "[release] -> 同步开发骨架（libs/sdk/contracts/skills/scripts/services）..."
 
@@ -156,6 +141,17 @@ fi
 if [ -d "${REPO_ROOT}/.agents/skills" ]; then
   cp -r "${REPO_ROOT}/.agents/skills" "${DIST_DIR}/skills"
   echo "[release]   ✓ skills/"
+fi
+
+# 前端源码（compose/services.yml 的 frontend 服务 build context: ./frontend，
+# 离线镜像缺失时供 docker build 兜底）
+if [ -d "${REPO_ROOT}/frontend" ]; then
+  cp -r "${REPO_ROOT}/frontend" "${DIST_DIR}/frontend"
+  find "${DIST_DIR}/frontend" -type d \( -name 'node_modules' -o -name 'dist' -o -name 'dist-ssr' -o -name 'coverage' \) -exec rm -rf {} + 2>/dev/null || true
+  find "${DIST_DIR}/frontend" -type f \( -name '.eslintcache' -o -name '*.local' -o -name 'report.html' \) -delete 2>/dev/null || true
+  echo "[release]   ✓ frontend/ (node_modules / dist / dist-ssr / coverage / lint-cache excluded)"
+else
+  echo "[release]   ⚠ frontend/ not found at ${REPO_ROOT}/frontend - 前端容器镜像缺失时将无法本地构建"
 fi
 
 # services/ 目录骨架（空 - 用户通过 skills 创建业务微服务）
@@ -208,9 +204,11 @@ if [[ "${EXPORT_IMAGES}" == "1" ]]; then
   echo "  3. 初始化：make secrets"
   echo "  4. 启动：make up"
   echo ""
-  echo "文档：直接打开 index.html（浏览器 file:// 协议即可）"
+  echo "文档：分发包 docs/ 目录内有 Markdown 源可直接查看；"
+  echo "      完整开发文档请参见开发仓库 docs-site/ 目录。"
 else
-  echo "⚠ 本次未导出镜像，离线安装需先自行 docker pull 或单独执行："
-  echo "    EXPORT_IMAGES=1 bash scripts/release.sh ${VERSION}"
-  echo "文档：直接打开 index.html（浏览器 file:// 协议即可）"
+echo "⚠ 本次未导出镜像，离线安装需先自行 docker pull 或单独执行："
+echo "    EXPORT_IMAGES=1 bash scripts/release.sh ${VERSION}"
+  echo "文档：分发包 docs/ 目录内有 Markdown 源可直接查看；"
+  echo "      完整开发文档请参见开发仓库 docs-site/ 目录。"
 fi
