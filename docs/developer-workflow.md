@@ -6,7 +6,7 @@
 >
 > **最近更新**：2026-07-09 ｜ **适用范围**：coder-micro-services 全仓库
 >
-> 💡 **新人入职**：如果你是第一次接触这个仓库，先走 [`./onboarding/README.md`](onboarding/README.md) 的 9 章节线性入门，再回到这份总图进入日常工作节奏。
+> 💡 **新人入职**：如果你是第一次接触这个仓库，先走 [`docs-site/onboarding/README.md`](onboarding/README.md) 的 9 章节线性入门，再回到这份总图进入日常工作节奏。
 
 ---
 
@@ -33,7 +33,7 @@
 ```
 
 > 💡 老员工把这份图当作速查表，按当前所在阶段往下翻。
-> 新员工建议配合 [`docs/onboarding/README.md`](onboarding/README.md) 通读一遍。
+> 新员工建议配合 [`docs-site/onboarding/README.md`](onboarding/README.md) 通读一遍。
 
 ---
 
@@ -53,9 +53,9 @@ cd services/iam-service && cargo run                        # 跑第一个服务
 > 💡 为什么不是 `pnpm install`？Day 1 真正缺的是**基镜像**（无网/认证/镜像冷拉都痛）。`pnpm run setup` 自动按 [`infrastructure/base-images.json`](../infrastructure/base-images.json) 走 mirror → source 回落到本地 Docker 缓存。
 
 **详细文档**：
-- 工具清单、安装步骤、IDE 配置 → [`docs/onboarding/02-环境准备.md`](onboarding/02-环境准备.md)
-- 从 clone 到接口正常返回（每步在做什么） → [`docs/onboarding/03-第一次跑通.md`](onboarding/03-第一次跑通.md)
-- 项目结构、技术栈、服务端口表 → [`docs/onboarding/01-项目概览.md`](onboarding/01-项目概览.md)
+- 工具清单、安装步骤、IDE 配置 → [`docs-site/onboarding/02-环境准备.md`](onboarding/02-环境准备.md)
+- 从 clone 到接口正常返回（每步在做什么） → [`docs-site/onboarding/03-第一次跑通.md`](onboarding/03-第一次跑通.md)
+- 项目结构、技术栈、服务端口表 → [`docs-site/onboarding/01-项目概览.md`](onboarding/01-项目概览.md)
 
 ---
 
@@ -116,7 +116,7 @@ node scripts/run-tests-docker.js                # 全部服务
 
 **详细文档**：
 - 测试金字塔、数据驱动 YAML、smoke 选样、报告 → [`docs/guides/testing.md`](guides/testing.md)
-- 改 SQL 后必跑 → `cargo sqlx prepare` 更新 `sqlx-data.json`（[`docs/onboarding/05-数据库与迁移.md`](onboarding/05-数据库与迁移.md) §5.5）
+- 改 SQL 后必跑 → `cargo sqlx prepare` 更新 `sqlx-data.json`（[`docs-site/onboarding/05-数据库与迁移.md`](onboarding/05-数据库与迁移.md) §5.5）
 
 ---
 
@@ -286,15 +286,15 @@ docker-compose down && docker-compose pull && docker-compose up -d
 **详细文档**：
 - 跨服务 trace 怎么用 → [`docs/guides/otel-tracing.md`](guides/otel-tracing.md)
 - 指标看板 + PromQL → [`docs/guides/observability.md`](guides/observability.md)
-- 5 个最常见错误的应对 → [`docs/onboarding/07-日志与排查Bug.md`](onboarding/07-日志与排查Bug.md)
+- 5 个最常见错误的应对 → [`docs-site/onboarding/07-日志与排查Bug.md`](onboarding/07-日志与排查Bug.md)
 - 请求头里拿 `X-Trace-Id` → 同上 §7.4
 
 ---
 
 ## 11. 卡住时
 
-按这个顺序自检：[`docs/onboarding/09-出问题怎么办.md`](onboarding/09-出问题怎么办.md) §9.1 的清单。
-还是搞不定 → 用 [`docs/onboarding/09-出问题怎么办.md`](onboarding/09-出问题怎么办.md) §9.3 的 bug 报告模板提 issue。
+按这个顺序自检：[`docs-site/onboarding/09-出问题怎么办.md`](onboarding/09-出问题怎么办.md) §9.1 的清单。
+还是搞不定 → 用 [`docs-site/onboarding/09-出问题怎么办.md`](onboarding/09-出问题怎么办.md) §9.3 的 bug 报告模板提 issue。
 
 ---
 
@@ -324,7 +324,7 @@ docker-compose down && docker-compose pull && docker-compose up -d
 
 | 我想… | 去哪 |
 |---|---|
-| 我是新人，第一次来 | [`docs/onboarding/README.md`](onboarding/README.md) |
+| 我是新人，第一次来 | [`docs-site/onboarding/README.md`](onboarding/README.md) |
 | 我是 AI Agent，第一次进仓库 | [`docs/ai-context.md`](ai-context.md) |
 | 我要改代码但不熟规则 | [`.trae/rules/project_rules.md`](../.trae/rules/project_rules.md) |
 | 我要给某服务加接口 | `.agents/skills/coder-add-route/` |
@@ -334,7 +334,7 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 我要出镜像 / 看 CI 配置 | [`.gitlab-ci.yml`](../.gitlab-ci.yml) + [`scripts/build-docker.js`](../scripts/build-docker.js) |
 | 我要灰度发布 | [`docs/guides/canary-rollout.md`](guides/canary-rollout.md) |
 | 我要查 api-gateway 路由配置 | [`docs/guides/api-gateway-routing.md`](guides/api-gateway-routing.md) |
-| 我要看怎么排查 bug | [`docs/onboarding/07-日志与排查Bug.md`](onboarding/07-日志与排查Bug.md) |
+| 我要看怎么排查 bug | [`docs-site/onboarding/07-日志与排查Bug.md`](onboarding/07-日志与排查Bug.md) |
 | 我要看协议层的错误码 / 权限码 | [`../contracts/`](../contracts/) |
 | 我要想清楚再写的 spec 模板 | [`docs/superpowers/specs/`](superpowers/specs/) |
 
