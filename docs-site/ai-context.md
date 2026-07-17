@@ -221,7 +221,7 @@
 
 ### 7.3 部署 compose 路径（[明确漂移]）
 
-`.gitlab-ci.yml` `deploy` job 用的是仓库根 `docker-compose.yml`。**根目录列表已核对不存在该文件**（仅有 `docker-example/`、`infrastructure/` 两个含 compose 文件的目录，与 `deploy` job 用的根路径不匹配）。dev 流程用的是 `infrastructure/docker-compose.yml`（含 `include` 3 个子文件）。**该 `deploy` job 当前配置下没有可运行的 compose 文件 —— 部署必然失败**。修法候选：① deploy job 改用 `docker-compose -f infrastructure/docker-compose.yml`；② 补一份仓库根 `docker-compose.yml` 镜像生产部署形态；③ CI 改走 K8s/manifest（对应 Phase 7 [待推进]）。
+`.gitlab-ci.yml` `deploy` job 用的是仓库根 `docker-compose.yml`。**根目录列表已核对不存在该文件**（仅 `infrastructure/` 一个含 compose 文件的目录，与 `deploy` job 用的根路径不匹配）。dev 流程用的是 `infrastructure/docker-compose.yml`（含 `include` 3 个子文件）。**该 `deploy` job 当前配置下没有可运行的 compose 文件 —— 部署必然失败**。修法候选：① deploy job 改用 `docker-compose -f infrastructure/docker-compose.yml`；② 补一份仓库根 `docker-compose.yml` 镜像生产部署形态；③ CI 改走 K8s/manifest（对应 Phase 7 [待推进]）。
 
 ---
 

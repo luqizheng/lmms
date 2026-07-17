@@ -53,7 +53,7 @@ cargo run -p api-gateway -- serve `
 ### 文件路径
 
 - 默认相对路径：`config/api-gateway`（不带后缀）
-- 实际配置文件在仓库内的 `docker-example/config/api-gateway/api-gateway.toml`
+- 仓库内实际配置文件：`infrastructure/config/api-gateway/api-gateway.toml`
 - 容器内通常挂载到 `config/api-gateway/`
 
 ### 环境变量
@@ -99,14 +99,19 @@ issuer = "superpowers-token-service"
 
 `--routes` 指定目录，扫描 `*.router.toml` 按文件名排序加载，重复 `match` 启动失败。
 
-`docker-example/config/api-gateway/routes/` 示例：
+`infrastructure/config/api-gateway/routes/` 示例：
 
+- `audit.router.toml`
 - `auth.router.toml`
+- `config.router.toml`
+- `file.router.toml`
+- `iam.router.toml`
+- `notification.router.toml`
+- `permissions.router.toml`
+- `prue_backend.router.toml`
+- `roles.router.toml`
 - `token.router.toml`
 - `user.router.toml`
-- `roles.router.toml`
-- `permissions.router.toml`
-- `notification.router.toml`
 
 ### Route 字段
 
@@ -204,7 +209,7 @@ services:
       - "--admin-port"
       - "9090"
     volumes:
-      - ../../docker-example/config/api-gateway/routes:/app/config/routes:ro
+      - ../../infrastructure/config/api-gateway/routes:/app/config/routes:ro
     ports:
       - "3000:3000"   # 业务端口
       - "9090:9090"   # admin reload
