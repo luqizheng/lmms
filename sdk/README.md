@@ -8,19 +8,11 @@
 sdk/
   java/                          # Java 8 / 17 / 21（v0.2.0，已对齐 v1 路由）
     common/                      # HttpClient、TokenCache、异常、模型
-    user-service-user-sdk/       # user → iam-service
-    user-service-client-sdk/     # client → iam-service
-    token-server-user-sdk/       # user → token-service
-    token-server-client-sdk/     # client → token-service
+    user-service-user-sdk/       # user -> iam-service
+    user-service-client-sdk/     # client -> iam-service
+    token-server-user-sdk/       # user -> token-service
+    token-server-client-sdk/     # client -> token-service
     kudi-http-client/            # 通用服务间 HTTP 客户端（client_credentials + Bearer 透传）
-  dotnet/                        # .NET 6 / 9 / 10
-    Common/                      # 公共基础
-    UserService.UserSdk/
-    UserService.ClientSdk/
-    TokenServer.UserSdk/
-    TokenServer.ClientSdk/
-    KudiCoder.HttpClient/        # 通用服务间 HTTP 客户端
-    tests/KudiCoder.HttpClient.Tests/
   rust/                          # Rust（workspace 成员）
     kudi-http-client/            # 通用服务间 HTTP 客户端
   openapi/                       # 离线 OpenAPI 规范
@@ -31,12 +23,12 @@ sdk/
 
 ## 选型矩阵
 
-| 场景 | 用户凭证 | 包名（Java / .NET） |
-|------|----------|---------------------|
-| 终端用户调用 iam-service | username + password | `user-service-user-sdk` / `KudiCoder.UserService.UserSdk` |
-| 终端用户调用 token-service | username + password | `token-server-user-sdk` / `KudiCoder.TokenServer.UserSdk` |
-| 服务间调用 iam-service | api_key + secret | `user-service-client-sdk` / `KudiCoder.UserService.ClientSdk` |
-| 服务间调用 token-service | api_key + secret | `token-server-client-sdk` / `KudiCoder.TokenServer.ClientSdk` |
+| 场景 | 用户凭证 | 包名（Java） |
+|------|----------|--------------|
+| 终端用户调用 iam-service | username + password | `user-service-user-sdk` |
+| 终端用户调用 token-service | username + password | `token-server-user-sdk` |
+| 服务间调用 iam-service | api_key + secret | `user-service-client-sdk` |
+| 服务间调用 token-service | api_key + secret | `token-server-client-sdk` |
 
 ## 网络路径
 
@@ -45,7 +37,6 @@ sdk/
 ## 仓库
 
 - Maven：`http://mvn.kudi.repos/#/`（Reposilite）
-- NuGet：`http://nuget.kudi.repos/v3/index.json`
 
 ## 重新生成
 

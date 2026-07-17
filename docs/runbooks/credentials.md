@@ -8,7 +8,7 @@
 
 ## 0. 一句话
 
-> 本项目使用三类内部仓库：Docker Registry、Maven 仓库、NuGet 源。
+> 本项目使用两类内部仓库：Docker Registry、Maven 仓库。
 > 本文档说明如何申请、配置、验证各类凭证。
 
 ---
@@ -19,7 +19,6 @@
 |----------|------|------|----------|
 | Docker Registry | `zhcoder-docker-registry.com:8000` | 推送/拉取服务镜像 | 用户名+密码 或 ServiceAccount |
 | Maven 仓库 | `mvn.kudi.repos` | Java SDK 发布/依赖 | 用户名+密码 或 Deploy Token |
-| NuGet 源 | `nuget.kudi.repos` | .NET SDK 发布/依赖 | API Key |
 
 ---
 
@@ -173,67 +172,9 @@ mvn deploy -DskipTests -DaltDeploymentRepository=local::default::file:///tmp/mav
 
 ---
 
-## 4. NuGet 源凭证
-
-### 4.1 凭证说明
-
-- **NuGet 源地址**：`nuget.kudi.repos`
-- **用途**：.NET SDK 发布/依赖
-
-### 4.2 申请流程
-
-```
-1. 向 DevOps/平台团队发送申请
-   内容：
-   - 项目名称
-   - 用途（push / consume）
-   
-2. 收到 API Key 后配置
-```
-
-### 4.3 nuget.config 配置
-
-```xml
-<!-- 项目根目录或 ~/.nuget/NuGet/NuGet.Config -->
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-    <add key="internal" value="https://nuget.kudi.repos/v3/index.json" />
-  </packageSources>
-  <packageSourceCredentials>
-    <internal>
-      <add key="Username" value="${NUGET_USER}" />
-      <add key="ClearTextPassword" value="${NUGET_API_KEY}" />
-    </internal>
-  </packageSourceCredentials>
-</configuration>
-```
-
-### 4.4 验证配置
-
-```bash
-# 列出可用源
-dotnet nuget list source
-
-# 测试包下载
-dotnet add package Kudi.Coder.SDK --source https://nuget.kudi.repos/v3/index.json
-
-# 测试包发布
-dotnet build -c Release
-dotnet nuget push \
-  bin/Release/*.nupkg \
-  --source https://nuget.kudi.repos/v3/index.json \
-  --api-key ${NUGET_API_KEY}
-```
-
----
-
-## 5. Rust Crates 代理
+## 4. Rust Crates 代理
 
 ### 5.1 当前配置
-
 项目 `.cargo/config` 已配置 rsproxy.cn 代理：
 
 ```toml
@@ -319,7 +260,6 @@ build:
 # 3. 验证新凭证
 docker pull <image>
 mvn dependency:get <artifact>
-dotnet restore
 
 # 4. 验证旧凭证失效
 docker pull <image>  # 应该失败

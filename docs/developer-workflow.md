@@ -167,7 +167,7 @@ git push origin main
 | `test` | `rust_test`, `service_standard_check`, `spec_check`, `contracts_check`, `spec_generate`, `e2e_api_test`, `e2e_ui_test` | 静态检查 + 单元/集成 + e2e |
 | `build` | `build_api_gateway`, `build_token_service`, ... | Docker build + push（`:`sha` + `:latest` 两个 tag） |
 | `deploy` | `deploy`（仅 master 分支） | 在 `192.168.2.128` 上 `docker compose pull & up -d` |
-| `publish` | `sdk_publish`, `sdk_publish_dotnet`（仅打 tag `vX.Y.Z` 触发） | Java SDK / .NET SDK 推到内网 Maven/NuGet |
+| `publish` | `sdk_publish`（仅打 tag `vX.Y.Z` 触发） | Java SDK 推到内网 Maven |
 
 配置文件：[`.gitlab-ci.yml`](../.gitlab-ci.yml)。
 

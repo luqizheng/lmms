@@ -145,7 +145,7 @@
 ### 4.2 Onboarding / 运维 [待推进]
 
 来自 `docs/onboarding/` 系列 TODO：
-- 内网仓库凭证申请流程（Docker Registry / Maven / NuGet）—— 待运维补充
+- 内网仓库凭证申请流程（Docker Registry / Maven）—— 待运维补充
 - 生产数据迁移 SOP（备份 / 回滚 / 灰度验证）—— 待运维补充
 - 集中式日志收集方案（ELK / Loki / 阿里云 SLS）—— 待运维补充
 - 求救渠道 / on-call 值班表 —— 待团队负责人补充
@@ -172,7 +172,6 @@
 | `test` | `contracts_check` | 所有 pipeline | `node scripts/contracts-gen.js --check` | 校验 `contracts/**` 生成代码未漂移 |
 | `test` | `e2e_api_test` | 所有 pipeline（无 `rules:`） | `cd tests/e2e && pnpm run test:api` | 跨网关测真服务 |
 | `test` | `e2e_ui_test` | 所有 pipeline（无 `rules:`） | `cd tests/e2e && pnpm run test:ui`（Playwright） | 需前端容器 |
-| `test` | `dotnet_sdk_test` | `changes: sdk/dotnet/**` | `cd sdk/dotnet && dotnet test` | 同上 |
 | `build` | `build_api_gateway` | 所有 pipeline | `Dockerfile.api-gateway` → `docker push` | — |
 | `build` | `build_token_service` | 所有 pipeline | `Dockerfile.token-service` → push | — |
 | `build` | `build_credential_login_service` | 所有 pipeline | `Dockerfile.credential-login-service` → push | **[风险] credential-login-service 已废弃并合并进 iam-service**，CI 仍构建并推送镜像 |

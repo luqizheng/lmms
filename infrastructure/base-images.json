@@ -28,11 +28,6 @@
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "mcr.microsoft.com/dotnet/sdk:10.0",
-      "source": ".gitlab-ci.yml",
-      "mirror": "zhcoder-docker-registry.com:8000/official"
-    },
-    {
       "ref": "mcr.microsoft.com/playwright:v1.48.0-jammy",
       "source": ".gitlab-ci.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"

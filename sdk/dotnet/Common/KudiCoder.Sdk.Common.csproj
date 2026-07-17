@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <RootNamespace>KudiCoder.Sdk.Common</RootNamespace>
-    <AssemblyName>KudiCoder.Sdk.Common</AssemblyName>
-    <PackageId>KudiCoder.Sdk.Common</PackageId>
-    <Description>Shared base for KudiCoder .NET SDK clients (HttpClient, TokenCache, errors, models).</Description>
-  </PropertyGroup>
-</Project>

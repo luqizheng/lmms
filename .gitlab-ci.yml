@@ -174,16 +174,6 @@ java_sdk_test:
     - changes:
         - sdk/java/**
 
-dotnet_sdk_test:
-  stage: test
-  tags: [docker]
-  image: mcr.microsoft.com/dotnet/sdk:10.0
-  script:
-    - cd sdk/dotnet && dotnet test --nologo --verbosity minimal
-  rules:
-    - changes:
-        - sdk/dotnet/**
-
 sdk_publish:
   stage: publish
   tags: [docker]
@@ -195,18 +185,6 @@ sdk_publish:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
     name: maven-releases
-
-sdk_publish_dotnet:
-  stage: publish
-  tags: [docker]
-  image: mcr.microsoft.com/dotnet/sdk:10.0
-  script:
-    - cd sdk/dotnet
-    - dotnet nuget push "**/*.nupkg" -s ${NUGET_REPO_URL} -k ${NUGET_API_KEY} --skip-duplicate
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
-  environment:
-    name: nuget-releases
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Release stage — 打包离线分发包（仅 tag 触发）
