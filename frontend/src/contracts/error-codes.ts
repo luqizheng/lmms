@@ -37,12 +37,6 @@ export type ErrorCode =
   | 'FILE_PRESIGN_3001'
   | 'FILE_READ_4001'
   | 'FILE_DELETE_4002'
-  | 'PMD_PROJECT_1001'
-  | 'PMD_MILESTONE_1002'
-  | 'PMD_TASK_1003'
-  | 'PMD_PROJECT_3001'
-  | 'PMD_TASK_4001'
-  | 'PMD_LLM_REFINE_5001'
 ;
 
 export const ErrorMessages: Record<ErrorCode, string> = {
@@ -80,11 +74,5 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   'FILE_UPLOAD_2002': 'file too large',
   'FILE_PRESIGN_3001': 'presign url expired',
   'FILE_READ_4001': 'file read failed',
-  'FILE_DELETE_4002': 'file delete failed',
-  'PMD_PROJECT_1001': 'project not found',
-  'PMD_MILESTONE_1002': 'milestone not found',
-  'PMD_TASK_1003': 'task not found',
-  'PMD_PROJECT_3001': 'project code already exists',
-  'PMD_TASK_4001': 'invalid task state transition',
-  'PMD_LLM_REFINE_5001': 'refine forbidden for caller',
+  'FILE_DELETE_4002': 'refine forbidden for caller',
 };
