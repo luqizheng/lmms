@@ -78,29 +78,29 @@ e2e_api_test:
   tags: [docker]
   image: $BASE_REGISTRY/node:20
   before_script:
-    - cd tests/e2e && npm install
-    - npm install -g pnpm && pnpm install
+    - npm install -g pnpm
+    - pnpm -C tests/e2e install
   script:
-    - cd tests/e2e && pnpm run test:api
+    - pnpm -C tests/e2e run test:api
 
 e2e_ui_test:
   stage: test
   tags: [docker]
   image: mcr.microsoft.com/playwright:v1.48.0-jammy
   before_script:
-    - cd tests/e2e && npm install
-    - npm install -g pnpm && pnpm install
-    - npx playwright install chromium
+    - npm install -g pnpm
+    - pnpm -C tests/e2e install
+    - pnpm -C tests/e2e exec playwright install chromium
   script:
-    - cd tests/e2e && pnpm run test:ui
+    - pnpm -C tests/e2e run test:ui
 
 e2e_migration_state_test:
   stage: test
   tags: [docker]
   image: $BASE_REGISTRY/node:20
   before_script:
-    - cd tests/e2e && npm install
-    - npm install -g pnpm && pnpm install
+    - npm install -g pnpm
+    - pnpm -C tests/e2e install
   script:
     - docker compose -f infrastructure/docker-compose.yml up -d
     - |
