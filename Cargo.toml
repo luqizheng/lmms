@@ -27,6 +27,12 @@ members = [
     "services/file-service",
     "services/prue_backend",
     "sdk/rust/kudi-http-client",
+    "sdk/rust/audit-service-sdk",
+    "sdk/rust/iam-service-sdk",
+    "sdk/rust/token-service-sdk",
+    "sdk/rust/file-service-sdk",
+    "sdk/rust/notification-service-sdk",
+    "sdk/rust/config-service-sdk",
 ]
 resolver = "2"
 

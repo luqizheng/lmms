@@ -409,6 +409,41 @@
 - audit 上报改异步队列
 - demo 集成 e2e（`tests/e2e` 加 java8-webapi 跑通套件）
 
+### Phase 9.5 — Rust 多语言 SDK 套件（P3，与 Java SDK 对齐，**已完成并合并**）
+
+> 与 Phase 9 Java 8 SDK + Demo 对偶的 Rust 侧补齐。范围：把 Rust 侧的 `sdk/rust/kudi-http-client` 升级为共享底座，并补齐 6 个 service 业务 SDK（与 Java `sdk/java/{iam,token,audit,file,notification,config}-service-sdk` 1:1 对齐），让外部 Rust 应用能用与 Java 等价的 SDK 调平台公网 API。
+>
+> 设计原则：
+> - 端点路径一律以 `services/<svc>/openapi.yaml`（utoipa 自动 dump 的 single source of truth）为事实源——Java SDK 部分路径已过期（典型如 `/v1/audit/...` 在现网服务中不存在），Rust 端不照搬。
+> - Bearer 模式：所有 service SDK 用 `Fn() -> Option<String> + Send + Sync` closure 持有 user JWT（与 Java `Supplier<String>` 对齐），调用方负责 token 生命周期。
+> - 错误模型：5 种 `SdkError` variant 严格按 `docs/superpowers/specs/2026-06-08-multi-lang-sdk-design.md` §9（`Auth` / `Validation` / `RateLimit` / `Server` / `Network`）。
+> - 内部 service 不使用 SDK——Rust service 间通信走 `libs/common-http::ResilientClient` + `common_jwt::ServiceJwtCache`（service-jwt + Consul/internal 端点），与 SDK 的 client_credentials + Bearer passthrough 是不同的信任域（详见 plan §0）。
+>
+> Plan（本地）：`.omo/plans/2026-07-17-rust-service-sdk.md`（10 节：架构、crate 布局、命名、错误、测试、CI、风险、DoD、显式 out-of-scope）
+> 范围外的明确不做项（plan §9）：为 prue_backend / api-gateway 加 SDK；改 Rust service 内部通信；改 `dump-openapi-specs.sh` / `check-spec.js`；发内部 cargo registry；做 e2e；拆 user/client 两个 crate（用 Builder 切换场景）。
+
+- [x] `kudi-http-client` 增强为共享底座（新增 `SdkError` alias / `Builder::base_url` + `with_base_url` / `base_url()` getter / `force_refresh()` + README「作为 SDK 共享底座」一节 + `tests/sdk_base_test.rs` 3 个新测试）
+- [x] `audit-service-sdk`（样板，6 方法：query_login_logs / query_operation_logs / trigger_cleanup / get_retention_policy / update_retention_policy；6 wiremock + 1 doctest）
+- [x] `iam-service-sdk`（11 方法：login / refresh / logout / change_password + list_users / get_user / create_user / update_user + list_roles / get_role / create_role / update_role + list_permissions；11 wiremock + 1 doctest）
+- [x] `token-service-sdk`（5 方法：access / refresh / revoke / list_api_keys / create_api_key；6 wiremock）
+- [x] `file-service-sdk`（3 方法：create_presign / list_files / get_file_info；4 wiremock；upload + download 走 presign URL，由调用方直接 PUT/GET）
+- [x] `notification-service-sdk`（5 方法：list_announcements / get_announcement / create_announcement / publish / unread_count；5 wiremock；WS 推送不包装，调用方用 tungstenite 客户端直连 `/notification/ws`）
+- [x] `config-service-sdk`（4 方法：list_namespaces / create_namespace / list_items / create_item；5 wiremock；SSE watch 不包装，调用方用 eventsource-client）
+- [x] 顶层 `sdk/rust/README.md`（crate 矩阵 + install/usage/扩展指南 + 错误模型 + 与 Java SDK 的差异说明 + 扩展模板）
+- [x] 根 `Cargo.toml` workspace 注册 6 个新 crate + `sdk/rust/kudi-http-client` 已在内
+- [x] 全部 SDK 集成 `cargo build -p` + `cargo test -p` 通过（46 单元 + 2 doctest = 48 测试全过，0 fail；目标 `sdk/rust/kudi-http-client` + 6 个 service SDK）
+- [x] `services/<svc>/openapi.yaml` 重 dump 验证零 drift（25 个 SDK endpoint ↔ yaml 全部 OK；dump 脚本 fallback 成功；无 yaml 改动）
+- [x] 现有 service 测试不破坏（未触碰 `services/*`、`libs/*`、`sdk/java/*`、`sdk/openapi/*`、根 `Cargo.toml` workspace 顺序）
+
+#### 未做项（plan §9 已显式排除 / 留待后续）
+
+- 每个 service SDK 还有未包装的端点（详见各 crate README 的「Not wrapped」段）：iam（org-units、sessions、tenants、role/permission attach、user roles assign）；token（user-jwt、oauth-clients admin、reset-secret）；audit（compliance export csv/json、retention stage/cleanup）；file（upload multipart、download bytes）；notification（mark_read / 我的通知列表）；config（namespace/{id} get/put、item/{id} get/put、watch SSE、export/import）。补全按各 SDK 现有模式扩展即可。
+- `scripts/check-rust-sdks.sh`（独立 build/test 脚本）：当前用直接 `cargo build/test` 命令验证，nice-to-have 不是 must；后续 CI gate 接入时一并补。
+- 内网 cargo registry 发布：项目当前没有内部 cargo registry，文档说明先 `path = "..."` 依赖，后续补 `cargo login` + `~/.cargo/config`。
+- CI 门禁接入：未改 `.gitlab-ci.yml`；文档说明可后续通过现有 `run-tests-docker.js` 工作流接入。
+- DELETE method / multipart upload / binary download：当前 `kudi-http-client` 的 `HttpTransport` trait 只暴露 GET / POST（post_json / post_form），且 `HttpResponse.body` 是 text-only。如需支持，给 `KudiWebClient` 加 `delete` 方法 + `HttpTransport` 加 `delete_json`/`post_multipart`，并把 `HttpResponse.body` 改成 `Vec<u8>`（破坏向后兼容，等下一次大版本再考虑）。
+- Momus plan review：subagent 30 分钟 timeout 未返回评审意见，本工作全部决策由 implementer 基于已读代码 + 项目规则自行判断（详见 plan §0-§9）。
+
 ### Phase 10 — 小问题清单（P3，零散收尾）
 
 - [x] `prue_backend` 评估是否去掉 SQLite 分支，统一 MySQL（SQLite 仅留 dev 模式） — **决策：保留 SQLite**（spec `2026-07-08-prue-backend-sqlite-decision-design.md`）。仅 1 个 migration，翻译成本可接受；dev/CI 零依赖启动价值更高。配套加 `scripts/check-prue-migrations-parity.sh` CI gate 防 drift。

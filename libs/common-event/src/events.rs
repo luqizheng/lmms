@@ -158,82 +158,12 @@ pub struct ConfigItemChanged {
     pub key: String,
     pub action: String,
     pub actor_id: Option<String>,
-}
-
-impl Event for ConfigItemChanged {
-    fn event_type() -> &'static str { "config.item.changed" }
-    fn schema_version() -> u32 { 1 }
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PmdProjectCreated {
-    pub tenant_id: i64,
-    pub project_id: String,
-    pub code: String,
-    pub name: String,
-    pub owner_id: String,
-    pub actor_id: Option<String>,
-    pub ts: i64,
-}
-
-impl Event for PmdProjectCreated {
-    fn event_type() -> &'static str { "pmd.project.created" }
-    fn schema_version() -> u32 { 1 }
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PmdProjectArchived {
-    pub tenant_id: i64,
-    pub project_id: String,
-    pub actor_id: String,
-    pub ts: i64,
-}
-
-impl Event for PmdProjectArchived {
-    fn event_type() -> &'static str { "pmd.project.archived" }
-    fn schema_version() -> u32 { 1 }
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PmdTaskStatus_changed {
-    pub tenant_id: i64,
-    pub project_id: String,
-    pub task_id: String,
-    pub from_status: String,
-    pub to_status: String,
-    pub actor_id: Option<String>,
-    pub ts: i64,
-}
-
-impl Event for PmdTaskStatus_changed {
-    fn event_type() -> &'static str { "pmd.task.status_changed" }
-    fn schema_version() -> u32 { 1 }
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PmdLlmRefinementRequested {
-    pub tenant_id: i64,
-    pub project_id: Option<String>,
-    pub task_id: Option<String>,
-    pub caller_user_id: String,
-    pub provider: String,
-    pub prompt_summary: String,
-    pub ts: i64,
-}
-
-impl Event for PmdLlmRefinementRequested {
-    fn event_type() -> &'static str { "pmd.llm.refinement.requested" }
-    fn schema_version() -> u32 { 1 }
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PmdLlmRefinementCompleted {
-    pub tenant_id: i64,
-    pub project_id: Option<String>,
-    pub task_id: Option<String>,
-    pub caller_user_id: String,
-    pub provider: String,
     pub items_count: i64,
     pub ts: i64,
 }
 
-impl Event for PmdLlmRefinementCompleted {
-    fn event_type() -> &'static str { "pmd.llm.refinement.completed" }
+impl Event for ConfigItemChanged {
+    fn event_type() -> &'static str { "config.item.changed" }
     fn schema_version() -> u32 { 1 }
 }
 
@@ -257,9 +187,4 @@ pub enum IamEventEnum {
     FileUploaded(Envelope<FileUploaded>),
     FileDeleted(Envelope<FileDeleted>),
     ConfigItemChanged(Envelope<ConfigItemChanged>),
-    PmdProjectCreated(Envelope<PmdProjectCreated>),
-    PmdProjectArchived(Envelope<PmdProjectArchived>),
-    PmdTaskStatus_changed(Envelope<PmdTaskStatus_changed>),
-    PmdLlmRefinementRequested(Envelope<PmdLlmRefinementRequested>),
-    PmdLlmRefinementCompleted(Envelope<PmdLlmRefinementCompleted>),
 }

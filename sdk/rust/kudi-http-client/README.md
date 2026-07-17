@@ -60,3 +60,47 @@ client.post("http://user-svc/api/users", r#"{"name":"x"}"#, None).await?;
 | `user_agent` | `kudi-http-client/<version>` |
 
 The first call to a transport installs the rustls `aws_lc_rs` crypto provider (idempotent).
+
+## 作为 SDK 共享底座
+
+This crate is the shared transport + token-cache layer for the per-service SDKs
+(`iam-service-sdk`, `token-service-sdk`, `audit-service-sdk`,
+`file-service-sdk`, `notification-service-sdk`, `config-service-sdk`).
+If you are calling the platform from your own application you can also depend
+on this crate directly and build the URL yourself.
+
+### Public API used by service SDKs
+
+| Symbol | Purpose |
+|---|---|
+| `SdkError` (= `KudiHttpError`) | Canonical error type — `Auth` / `Validation` / `RateLimit` / `Server` / `Network`. Service SDKs re-export this so callers don't need to know the internal name. |
+| `KudiHttpClient::builder().base_url(...)` / `with_base_url(...)` | Stash the api-gateway base URL so the service SDK can compose `/v1/<svc>/...` paths without callers passing the prefix on every request. |
+| `KudiWebClient::base_url()` | Read back the stashed base URL. |
+| `KudiWebClient::force_refresh()` | Invalidate the cached client_credentials token after observing a 401 so the next call refetches. |
+
+### Example wiring inside a service SDK
+
+```rust
+use kudi_http_client::{KudiWebClient, KudiHttpOptions, RequestContext, SdkError};
+
+// 1. Service SDK caller: provide base URL once.
+let http = KudiWebClient::builder()
+    .credential("contract-svc", "secret-111")
+    .base_url("https://gw.kudi.repos")   // → stashed on the client
+    .build()?;
+
+// 2. Inside the SDK, compose paths against the stashed base URL.
+let path = format!("{}/v1/iam/auth/login", http.base_url().unwrap());
+let resp = http.post(&path, body, None).await?;
+
+// 3. On 401, force a token refresh and retry once.
+if resp.status == 401 {
+    http.force_refresh().await?;
+    let resp = http.post(&path, body, None).await?;
+}
+```
+
+If you need per-call default headers (e.g. `X-Tenant-Id`, `X-Trace-Id`), build
+them into the path or merge them into a `reqwest::header::HeaderMap` and pass
+it via `client.get_with_bearer(...)` style usage — `HttpTransport` is trait-
+sealed to avoid leaking reqwest-specific concepts into this crate.

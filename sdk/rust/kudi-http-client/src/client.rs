@@ -13,6 +13,7 @@ pub struct KudiWebClient {
     cache: ServiceTokenCache,
     fetcher: Arc<ClientCredentialsFetcher>,
     credential: Option<(String, String)>,
+    base_url: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -20,6 +21,7 @@ pub struct Builder {
     pub options: KudiHttpOptions,
     pub client_id: Option<String>,
     pub secret_key: Option<String>,
+    pub base_url: Option<String>,
 }
 
 impl Builder {
@@ -48,6 +50,10 @@ impl Builder {
         self.options.retry_count = n;
         self
     }
+    pub fn base_url(mut self, url: impl Into<String>) -> Self {
+        self.base_url = Some(url.into());
+        self
+    }
     pub fn build(self) -> Result<KudiWebClient, KudiHttpError> {
         let transport = ReqwestTransport::new(self.options.clone())?;
         let cache = ServiceTokenCache::new(self.options.refresh_skew);
@@ -61,6 +67,7 @@ impl Builder {
             cache,
             fetcher,
             credential: self.client_id.zip(self.secret_key),
+            base_url: self.base_url,
         })
     }
 }
@@ -82,6 +89,7 @@ impl KudiWebClient {
             cache,
             fetcher,
             credential: None,
+            base_url: None,
         }
     }
 
@@ -94,12 +102,38 @@ impl KudiWebClient {
         self
     }
 
+    pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
+        self.base_url = Some(url.into());
+        self
+    }
+
+    /// Returns the service base URL previously set on the builder, or `None`
+    /// if the caller did not provide one. Service SDKs (iam/token/audit/...)
+    /// use this to compose full request paths such as
+    /// `format!("{}/v1/iam/auth/login", self.base_url().unwrap())`.
+    pub fn base_url(&self) -> Option<&str> {
+        self.base_url.as_deref()
+    }
+
     pub fn options(&self) -> &KudiHttpOptions {
         &self.options
     }
 
     pub async fn cache_snapshot(&self) -> crate::cache::TokenCacheSnapshot {
         self.cache.snapshot().await
+    }
+
+    /// Invalidate the cached client_credentials access token so the next call
+    /// refetches it from the token endpoint. Service SDKs invoke this after
+    /// observing a 401 to recover from a rotated/expired token.
+    ///
+    /// No-op when the client was constructed without `credential(...)` or
+    /// `with_credential(...)` (Bearer passthrough has no cache entry).
+    pub async fn force_refresh(&self) -> Result<(), KudiHttpError> {
+        if let Some((cid, sk)) = &self.credential {
+            self.cache.invalidate(cid, sk).await;
+        }
+        Ok(())
     }
 
     async fn resolve_bearer(
