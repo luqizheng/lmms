@@ -68,6 +68,7 @@ export default defineConfig({
       { text: '新人入门', link: '/onboarding/' },
       { text: '用户手册', link: '/user-manual/' },
       { text: '专题指南', link: '/guides/testing' },
+      { text: 'SDK 套件', link: '/guides/rust-sdk' },
       { text: '架构决策', link: '/decisions/ADR-001-api-gateway-multi-file-router-config' },
       { text: '运维手册', link: '/runbooks/oncall' },
       { text: 'AI 协作', link: '/ai-context' }
