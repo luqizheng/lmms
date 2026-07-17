@@ -134,6 +134,7 @@ export default defineConfig({
             { text: 'config-service 使用', link: '/guides/config-service-usage' },
             { text: '菜单发布', link: '/guides/menu-publish' },
             { text: 'Java 集成', link: '/guides/java-integration' },
+            { text: 'Rust SDK', link: '/guides/rust-sdk' },
             { text: '提交规范', link: '/guides/commit-convention' }
           ]
         }
