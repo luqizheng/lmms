@@ -193,7 +193,8 @@ export default defineConfig({
         }
       ],
 
-      // 顶级散页（首页 / AI 协作 / 开发者工作流）的 fallback 侧边栏
+      // 顶级散页（首页 / AI 协作 / 开发者工作流）：分别给 key，
+      // 避免 `'/': [...]` 在 vitepress 中作为 catch-all 副作用覆盖其它 section 的 sidebar
       '/': [
         {
           text: '快速入口',
@@ -203,16 +204,27 @@ export default defineConfig({
             { text: 'AI 协作上下文', link: '/ai-context' },
             { text: '开发者工作流总图', link: '/developer-workflow' }
           ]
-        },
+        }
+      ],
+      '/ai-context/': [
         {
-          text: '导航',
+          text: '快速入口',
           collapsed: false,
           items: [
-            { text: '新人入职', link: '/onboarding/' },
-            { text: '用户手册', link: '/user-manual/' },
-            { text: '专题指南', link: '/guides/testing' },
-            { text: '架构决策', link: '/decisions/ADR-001-api-gateway-multi-file-router-config' },
-            { text: '运维手册', link: '/runbooks/oncall' }
+            { text: '首页', link: '/' },
+            { text: 'AI 协作上下文', link: '/ai-context' },
+            { text: '开发者工作流总图', link: '/developer-workflow' }
+          ]
+        }
+      ],
+      '/developer-workflow/': [
+        {
+          text: '快速入口',
+          collapsed: false,
+          items: [
+            { text: '首页', link: '/' },
+            { text: 'AI 协作上下文', link: '/ai-context' },
+            { text: '开发者工作流总图', link: '/developer-workflow' }
           ]
         }
       ]
