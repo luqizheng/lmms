@@ -8,7 +8,7 @@ This addresses the long-term AI efficiency plan's Phase 4 goal: *"project's own 
 
 ## Decision
 
-### 1. New file: `docs/ai-context.md`
+### 1. New file: `docs-site/ai-context.md`
 
 Single-file AI entrypoint with these sections:
 
@@ -26,7 +26,7 @@ Single-file AI entrypoint with these sections:
 
 `.trae/rules/project_rules.md` adds:
 
-> "AI agents MUST read `docs/ai-context.md` first, before `AGENTS.md` per service."
+> "AI agents MUST read `docs-site/ai-context.md` first, before `AGENTS.md` per service."
 
 This makes `ai-context.md` the **first** doc the AI loads, replacing the previous "load project_rules.md" behavior.
 
@@ -49,7 +49,7 @@ Sourced from per-service `AGENTS.md` files (already standardized in P1.3). The a
 
 | File | Change |
 |------|--------|
-| `docs/ai-context.md` | NEW — AI entrypoint |
+| `docs-site/ai-context.md` | NEW — AI entrypoint |
 | `docs/superpowers/specs/2026-06-25-knowledge-consolidation-design.md` | NEW — this spec |
 | `docs/superpowers/retros/_template.md` | NEW — retro template |
 | `docs/superpowers/retros/2026-06-retrospective.md` | NEW — June 2026 retro |

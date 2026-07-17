@@ -79,8 +79,8 @@
 | `services/notification-outbox-publisher/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
 | `infrastructure/docker-compose-services.yml` | modify | Add `SERVICE_BOOTSTRAP_TOKEN` / `TENANT_ID` / `TOKEN_SERVICE_URL` to each business service; add `SERVICE_BOOTSTRAP_TOKENS` to token-service |
 | `infrastructure/.env` | modify | Add dev bootstrap tokens (one per service, 32-byte random; for dev use deterministic placeholders like `dev-bt-iam-svc-...`) |
-| `docs/ai-context.md` | modify | §2 service map: add `common-jwt`, `ServiceJwtCache`; §3 architecture add common-jwt |
-| `docs/guides/service-to-service-auth.md` | create | Bootstrap token 运维手册 (rotate / 泄漏处理 / dev / prod) |
+| `docs-site/ai-context.md` | modify | §2 service map: add `common-jwt`, `ServiceJwtCache`; §3 architecture add common-jwt |
+| `docs-site/guides/service-to-service-auth.md` | create | Bootstrap token 运维手册 (rotate / 泄漏处理 / dev / prod) |
 | `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md` | modify | §2.2 "Phase 5-B JWT 签名验证" 段标 superseded |
 
 No other files. New files: 7. Modified: 17. Deleted: 0. Renamed: 0.
@@ -1033,8 +1033,8 @@ git commit -m "dephase(auth): outbox-publishers add common-jwt dep (no active us
 ## Task E: docs — `service-to-service-auth.md` + ai-context + phase5a spec superseded
 
 **Files:**
-- Create: `docs/guides/service-to-service-auth.md`
-- Modify: `docs/ai-context.md`
+- Create: `docs-site/guides/service-to-service-auth.md`
+- Modify: `docs-site/ai-context.md`
 - Modify: `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md` (mark §2.2 "Phase 5-B JWT 签名验证" 段 superseded)
 - Modify: `infrastructure/.env` (add `SERVICE_BOOTSTRAP_TOKENS` and per-service bootstrap tokens)
 - Modify: `infrastructure/docker-compose-services.yml` (add `SERVICE_BOOTSTRAP_TOKEN` / `TENANT_ID` / `TOKEN_SERVICE_URL` to each business service; add `SERVICE_BOOTSTRAP_TOKENS` to token-service)
@@ -1051,7 +1051,7 @@ Outline:
 - §7 dev 模式 token 示例
 - §8 出错处理速查表
 
-- [ ] **Step 2: Update `docs/ai-context.md`**
+- [ ] **Step 2: Update `docs-site/ai-context.md`**
 
 §2 service map table — add a column or row entry for `common-jwt` lib.
 §3 architecture — add common-jwt to the lib list.
@@ -1110,7 +1110,7 @@ For `token-service`:
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docs/ai-context.md docs/guides/service-to-service-auth.md \
+git add docs-site/ai-context.md docs-site/guides/service-to-service-auth.md \
         docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md \
         infrastructure/.env infrastructure/docker-compose-services.yml
 git commit -m "dephase(auth): docs + compose bootstrap tokens (phase5b rollout)"

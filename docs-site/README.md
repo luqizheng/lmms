@@ -2,14 +2,15 @@
 
 基于 [VitePress](https://vitepress.dev) 构建的文档门户。
 
-## 内容来源（两种模式并存）
+## 内容来源
 
 | 内容 | 存放位置 | 维护方式 |
 |------|----------|----------|
-| onboarding / user-manual / index.md | `docs-site/` 下直接维护 | 文档站专属内容，直接编辑 `docs-site/` 内文件 |
-| guides / decisions / runbooks / plans / ai-context / developer-workflow | 仓库根 `docs/` | **单一真相源**，通过 symlink 引入，改 `docs/` 即自动同步 |
+| 全部 VitePress 渲染内容（guides / decisions / runbooks / plans / onboarding / user-manual / ai-context.md / developer-workflow.md / USER_MANUAL.md / index.md） | `docs-site/` 下直接维护 | 文档站专属内容，物理上全部在 `docs-site/` 内 |
+| 设计 spec / plan / 进度 | 仓库根 `docs/superpowers/` | 不进文档站，由 AI / 工程流程直接读 |
+| 数据库脚本 | 仓库根 `docs/*.sql`, `docs/*.csv` | 不进文档站 |
 
-> 设计原则：`docs/` 放跨团队通用的工程文档（guides / ADR / runbooks），`docs-site/` 放面向读者的入门 / 手册内容。两边互不复制。
+> 之前的设计是「`docs/` 放跨团队通用的工程文档、`docs-site/` 放读者入门手册 + 通过 symlink 引用 `docs/`」；本次重整后所有文档站内容物理上落在 `docs-site/`（删 symlink），`docs/` 只保留 `superpowers/` specs + 数据库脚本。`docs/user-manual/` 作为历史备份保留（drift 已 reconcile：docs-site 版本含 `12-release-and-distribute.md`，docs 版本较旧）。
 
 ## 目录结构
 
@@ -22,15 +23,18 @@ docs-site/
 ├─ package.json            # 占位（依赖装在仓库根 package.json）
 ├─ public/
 │  └─ logo.svg             # 静态资源
-├─ onboarding/             # 真实目录（文档站专属，直接维护）
-├─ user-manual/            # 真实目录（文档站专属，直接维护）
-├─ ai-context.md           # -> ../docs/ai-context.md            (symlink)
-├─ developer-workflow.md   # -> ../docs/developer-workflow.md    (symlink)
-├─ guides/                 # -> ../docs/guides                   (symlink)
-├─ decisions/              # -> ../docs/decisions                (symlink)
-├─ runbooks/               # -> ../docs/runbooks                 (symlink)
-└─ plans/                  # -> ../docs/plans                    (symlink)
+├─ onboarding/             # 真实目录
+├─ user-manual/            # 真实目录
+├─ guides/                 # 真实目录
+├─ decisions/              # 真实目录
+├─ runbooks/               # 真实目录
+├─ plans/                  # 真实目录
+├─ ai-context.md           # 真实文件
+├─ developer-workflow.md   # 真实文件
+└─ USER_MANUAL.md          # 真实文件
 ```
+
+> 全部内容物理上落在 `docs-site/` 内，无 symlink。仓库根 `docs/` 只保留 `superpowers/` specs 与数据库脚本。
 
 ## 如何使用
 
@@ -53,24 +57,20 @@ pnpm docs:preview   # 预览构建产物（先 build 再 preview）
 
 ### 新增文档
 
-**情况一：文档站专属内容（onboarding / user-manual）**
+文档站所有内容都在 `docs-site/` 下，新增页面只需：
 
-1. 在 `docs-site/onboarding/` 或 `docs-site/user-manual/` 下新增 `.md`。
-2. 在 `.vitepress/config.mts` 的 `sidebar` 对应分组追加 `{ text, link }`。
-3. `pnpm docs:dev` 验证页面可访问。
+1. 在 `docs-site/<section>/` 下新增 `.md`（或直接在 `docs-site/` 根目录放顶级页）。
+2. 若需要左侧 sidebar 入口，在 `.vitepress/config.mts` 的 `sidebar` 对应分组追加 `{ text, link }`。
+3. 若需要顶部 nav 入口，在 `nav` 数组追加 `{ text, link }`。
+4. `pnpm docs:dev` 验证页面可访问 + 链接生效。
 
-**情况二：通用工程文档（guides / decisions / runbooks / plans）**
-
-1. 在 `docs/` 对应子目录新增 `.md`（真相源）。
-2. 若是全新子目录，在 `docs-site/` 下建 symlink：`ln -sf ../docs/<new-dir> <new-dir>`。
-3. 在 `.vitepress/config.mts` 的 `sidebar` 追加条目。
-4. `pnpm docs:dev` 验证。
+> 历史指南（`情况二：通用工程文档（guides / decisions / runbooks / plans）`）描述的「在 `docs/` 加文件 + docs-site 建 symlink」流程已废弃——所有内容现在直接落 `docs-site/`。
 
 ### 编写规范
 
 - **中文优先**：站点 `lang: zh-CN`，正文用中文；代码 / 命令 / 路径 / 技术标识符保持英文。
 - **frontmatter**：可选。`title` 覆盖页面标题；VitePress 自动取第一个 H1。
-- **内部链接**：用相对路径（如 `[测试](./04-testing)`），不带 `.md` 后缀（`cleanUrls: true`）。`config.mts` 已设 `ignoreDeadLinks: true`，因 symlink 会让 dead-link 检测器路径前缀错位误报，实际生成的链接基于页面 URL 解析，正确。
+- **内部链接**：用相对路径（如 `[测试](./04-testing)`），不带 `.md` 后缀（`cleanUrls: true`）。`config.mts` 已设 `ignoreDeadLinks: true`。
 - **图片**：放 `docs-site/public/`，引用用绝对路径 `/logo.svg`。
 
 ### 修改站点配置
@@ -173,30 +173,15 @@ rsync -avz docs-site/.vitepress/dist/ user@server:/var/www/docs/
 - [ ] `pnpm docs:build` 无报错
 - [ ] `pnpm docs:preview` 本地浏览，关键页面可访问
 - [ ] 新增的 sidebar 条目 link 与实际文件路径一致
-- [ ] symlink 指向的 `docs/` 文件存在（`ls -L docs-site/<symlink>` 无 broken link）
 
-## Symlink 维护
-
-symlink 使用相对路径（`../docs/...`），在 Linux / macOS / WSL2 下正常工作。如需重建：
-
-```bash
-cd docs-site
-ln -sf ../docs/ai-context.md ai-context.md
-ln -sf ../docs/developer-workflow.md developer-workflow.md
-ln -sf ../docs/guides guides
-ln -sf ../docs/decisions decisions
-ln -sf ../docs/runbooks runbooks
-ln -sf ../docs/plans plans
-```
-
-> Windows 原生 git 默认不解析 symlink；本项目要求 WSL2 开发，故 symlink 方案适用。
+## 故障排查
 
 ## 故障排查
 
 | 现象 | 原因 | 解决 |
 |------|------|------|
 | 页面 404 | sidebar link 与文件路径不匹配 | 核对 `config.mts` 中 link 与实际文件名（含中文），注意 `cleanUrls` 去掉了 `.md` |
-| `pnpm docs:dev` 报 symlink 找不到 | docs/ 下源文件被删 / 移动 | 重建 symlink 或在 `config.mts` 移除对应 sidebar 条目 |
+| `pnpm docs:dev` 报 symlink 找不到 | 历史版本残留问题——symlink 已废弃，如重新出现请直接 rm 并确保文件物理上在 docs-site/ |
 | 构建报 dead link | `ignoreDeadLinks: true` 在 dev 下不阻断，build 下也不阻断，但页面会显示断链 | 全局搜索 `(./` 检查相对链接 |
 | 搜索框无结果 | 首次 build 后才生成搜索索引 | `pnpm docs:build` 后 `pnpm docs:preview` 验证 |
 | sidebar 分组不显示 | URL 前缀与 sidebar key 不匹配 | sidebar key 是 URL 前缀（如 `/onboarding/`），需带尾斜杠 |

@@ -55,8 +55,8 @@ services/notification-service/src/openapi.rs             # Modify (if needed)
 infrastructure/config/rabbitmq/definitions.json          # Modify (declare notification.membership-events queue)
 
 test-case/5b-fu3-event-sync.md                          # Create (live e2e manual)
-docs/USER_MANUAL.md                                      # Modify (mention local projection + bootstrap)
-docs/ai-context.md                                       # Modify (sync to spec)
+docs-site/USER_MANUAL.md                                      # Modify (mention local projection + bootstrap)
+docs-site/ai-context.md                                       # Modify (sync to spec)
 ```
 
 ---
@@ -986,9 +986,9 @@ git commit -m "test(ntf): 5B-fu3 membership projection (5 cases) + live e2e test
 ### Task 9: docs sync (USER_MANUAL + ai-context + observability)
 
 **Files:**
-- Modify: `docs/USER_MANUAL.md`
-- Modify: `docs/ai-context.md`
-- Modify: `docs/guides/observability.md` (if has notification section)
+- Modify: `docs-site/USER_MANUAL.md`
+- Modify: `docs-site/ai-context.md`
+- Modify: `docs-site/guides/observability.md` (if has notification section)
 
 - [ ] **Step 1: Update USER_MANUAL**
 
@@ -1001,7 +1001,7 @@ Add to §服务地图 entry for notification-service: "consumes iam.user.role.* 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add docs/USER_MANUAL.md docs/ai-context.md docs/guides/observability.md
+git add docs-site/USER_MANUAL.md docs-site/ai-context.md docs-site/guides/observability.md
 git commit -m "docs(ntf): note local user membership projection + bootstrap endpoint"
 ```
 

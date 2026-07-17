@@ -58,7 +58,7 @@
 | `libs/authz/src/lib.rs` | 删除 `pub mod require_service_token;` 与 `pub use require_service_token::require_service_token;` 两行 |
 | `libs/authz/src/require_service_token.rs` | 删除 |
 | `libs/authz/tests/require_service_token_test.rs` | 删除 |
-| `docs/guides/mtls-deployment.md` | 运维手册（CA 备份、轮换、回滚、故障排查） |
+| `docs-site/guides/mtls-deployment.md` | 运维手册（CA 备份、轮换、回滚、故障排查） |
 | `TODO.md` | Phase 5-A 段勾选完成 |
 
 ---
@@ -1450,11 +1450,11 @@ git commit -m "P5-A: remove require_service_token middleware (mTLS replaces serv
 ## Task 14: 编写运维文档
 
 **Files:**
-- Create: `docs/guides/mtls-deployment.md`
+- Create: `docs-site/guides/mtls-deployment.md`
 
 - [ ] **Step 1: 写入文档**
 
-`docs/guides/mtls-deployment.md`：
+`docs-site/guides/mtls-deployment.md`：
 
 ```markdown
 # mTLS 服务网格部署与运维
@@ -1576,7 +1576,7 @@ Task 15 Step 2 的 3 条断言会校验此约束；上线前**必须**确认 3 �
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docs/guides/mtls-deployment.md
+git add docs-site/guides/mtls-deployment.md
 git commit -m "P5-A: document mTLS deployment, rotation, and rollback procedure"
 ```
 

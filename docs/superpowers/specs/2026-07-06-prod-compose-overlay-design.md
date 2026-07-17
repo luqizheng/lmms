@@ -256,7 +256,7 @@ infrastructure/
 
 ## 8. ADR（推荐同时提交）
 
-`docs/decisions/ADR-004-prod-compose-overlay.md`：记录"最小 prod overlay + 启动脚本"决策。原因：
+`docs-site/decisions/ADR-004-prod-compose-overlay.md`：记录"最小 prod overlay + 启动脚本"决策。原因：
 - 跟 ADR-002-service-standard-baseline 同源（pod-level hardening）
 - 把 out-of-scope 项（resource limits / TLS / K8s）显式记入"future decision"
 - 提供给后续 phase 5/6 上 staging 时的回溯点

@@ -496,7 +496,7 @@ e2e_trace:
 
 ## 10. ADR-003 草稿
 
-新文件：`docs/decisions/ADR-003-production-readiness-baseline.md`
+新文件：`docs-site/decisions/ADR-003-production-readiness-baseline.md`
 
 固化：
 - 4 项 L1 基线（health 分级 + 优雅停机 / CVE 闸门 / 5 SLO + alert / 跨服务 trace）
@@ -534,7 +534,7 @@ e2e_trace:
 - [ ] `tests/e2e/alerts.spec.ts` 能断言 SLO #4 触发
 - [ ] 4 个服务（token/iam/notification/audit）启用 OTel，`x-trace-id` 响应头存在
 - [ ] `tests/e2e/trace.spec.ts` 能断言 4-service trace 联贯
-- [ ] `docs/decisions/ADR-003-production-readiness-baseline.md` 提交
+- [ ] `docs-site/decisions/ADR-003-production-readiness-baseline.md` 提交
 - [ ] `docs/slo.md` 提交
 - [ ] `pnpm run check:readiness` 一条命令全绿
 - [ ] roadmap.md 增加 Phase 4 L1 段落与指标表行
@@ -547,5 +547,5 @@ e2e_trace:
 - 实施 plan（待 writing-plans 产出）：`docs/superpowers/plans/2026-06-25-phase4-l1-plan.md`
 - 总 roadmap：`docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 - 上个月 retro：`docs/superpowers/retros/2026-06-retrospective.md`
-- 服务规范基线 ADR-002：`docs/decisions/ADR-002-service-standard-baseline.md`
-- L1 baseline ADR-003：`docs/decisions/ADR-003-production-readiness-baseline.md`（待创建）
+- 服务规范基线 ADR-002：`docs-site/decisions/ADR-002-service-standard-baseline.md`
+- L1 baseline ADR-003：`docs-site/decisions/ADR-003-production-readiness-baseline.md`（待创建）

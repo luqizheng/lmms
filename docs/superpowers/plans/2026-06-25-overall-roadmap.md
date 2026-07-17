@@ -3,7 +3,7 @@
 > 日期：2026-06-25
 > 状态：用户已认可，按 Phase 1 → Phase 2 → Phase 3 串行推进
 > 维护者：PM Agent
-> 关联长期计划：[docs/plans/2026-06-09-long-term-ai-efficiency-plan.md](../../plans/2026-06-09-long-term-ai-efficiency-plan.md)
+> 关联长期计划：[docs-site/plans/2026-06-09-long-term-ai-efficiency-plan.md](../../plans/2026-06-09-long-term-ai-efficiency-plan.md)
 
 ---
 
@@ -59,7 +59,7 @@
 - P3.2 限流 / 熔断 / 性能基线（**待定**：gateway 集中 vs 双重）
 - P3.3 E2E 稳定性收口（smoke + 全量分档、testcontainers 复用）
 - P3.4 高可用 / 灰度（路由权重、canary）
-- P3.5 知识沉淀（`docs/ai-context.md`、月度复盘）
+- P3.5 知识沉淀（`docs-site/ai-context.md`、月度复盘）
 
 ### Phase 3 · 生产就绪 — ✅ 已完成
 
@@ -67,7 +67,7 @@
 - ✅ P3.2 限流 / 熔断：api-gateway 集中限流（governor token bucket，按推荐"Gateway 集中"路径）
 - ✅ P3.3 E2E 稳定性：smoke 子集 + retry + preflight health check
 - ✅ P3.4 高可用 / 灰度：Nginx upstream weight + Consul `canary` tag（按推荐"Nginx+Consul"短期路径）
-- ✅ P3.5 知识沉淀：`docs/ai-context.md` + 月度复盘模板
+- ✅ P3.5 知识沉淀：`docs-site/ai-context.md` + 月度复盘模板
 
 ---
 
@@ -100,7 +100,7 @@
 - ✅ P3.4 Canary via Nginx + Consul
 - ✅ P3.5 Knowledge consolidation
 
-**12 周路线图全部交付。** 详见 `docs/superpowers/retros/2026-06-retrospective.md` 与 `docs/ai-context.md`。
+**12 周路线图全部交付。** 详见 `docs/superpowers/retros/2026-06-retrospective.md` 与 `docs-site/ai-context.md`。
 
 ---
 
@@ -109,7 +109,7 @@
 - 总路线（本文档）：`docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 - P1.3 设计：`docs/superpowers/specs/2026-06-25-service-standard-sweep-design.md`
 - P1.3 实施：`docs/superpowers/plans/2026-06-25-service-standard-sweep-plan.md`（writing-plans 阶段产出）
-- 长期 AI 协同计划：`docs/plans/2026-06-09-long-term-ai-efficiency-plan.md`
+- 长期 AI 协同计划：`docs-site/plans/2026-06-09-long-term-ai-efficiency-plan.md`
 - 契约层：`contracts/`
-- 测试指南：`docs/guides/testing.md`
-- 路由手册：`docs/guides/api-gateway-routing.md`
+- 测试指南：`docs-site/guides/testing.md`
+- 路由手册：`docs-site/guides/api-gateway-routing.md`

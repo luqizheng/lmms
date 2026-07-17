@@ -172,9 +172,9 @@
 ## 附录 B：相关文档
 
 - `AGENTS.md` — 项目 AI 协作指南
-- `docs/ai-context.md` — 服务地图、ADR 索引、pitfall 列表
+- `docs-site/ai-context.md` — 服务地图、ADR 索引、pitfall 列表
 - `test-case/` — 手工场景步骤表
 - `tests/e2e/` — 自动化 API + UI 用例
 - `docs/superpowers/specs/` — 各 Phase 设计文档
 - `docs/superpowers/plans/` — 各 Phase 实施计划
-- `docs/runbooks/secret-rotation.md` — 密钥轮换 runbook
+- `docs-site/runbooks/secret-rotation.md` — 密钥轮换 runbook

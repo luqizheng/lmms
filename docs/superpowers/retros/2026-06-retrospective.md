@@ -74,8 +74,8 @@
 ### 2.5 新增 Plan / Guide / 总结
 
 - `docs/superpowers/plans/2026-06-25-overall-roadmap.md` (12 周 master plan)
-- `docs/guides/canary-rollout.md` (灰度 runbook)
-- `docs/guides/otel-tracing.md` (OTel 使用 runbook)
+- `docs-site/guides/canary-rollout.md` (灰度 runbook)
+- `docs-site/guides/otel-tracing.md` (OTel 使用 runbook)
 - `docs/superpowers/specs/2026-06-25-roadmap-completion-summary.md` (12 周交付总结)
 
 ---
@@ -146,12 +146,12 @@
 
 ## 8. 经验沉淀
 
-1. **utoipa 的 `yaml` feature 必加** — 已写入 `docs/ai-context.md` § 7 #1
-2. **本机 cargo 不能编译，必须 docker** — 已写入 `docs/ai-context.md` § 7 #2
-3. **`check-spec.js` summary 字段是 warning 不是 error** — 已写入 `docs/ai-context.md` § 7 #8
-4. **`ApiDoc::openapi()` 必须显式 import trait** — 已写入 `docs/ai-context.md` § 7 (隐含)
+1. **utoipa 的 `yaml` feature 必加** — 已写入 `docs-site/ai-context.md` § 7 #1
+2. **本机 cargo 不能编译，必须 docker** — 已写入 `docs-site/ai-context.md` § 7 #2
+3. **`check-spec.js` summary 字段是 warning 不是 error** — 已写入 `docs-site/ai-context.md` § 7 #8
+4. **`ApiDoc::openapi()` 必须显式 import trait** — 已写入 `docs-site/ai-context.md` § 7 (隐含)
 5. **所有 spec 走"先 spec 后 code" 纪律**，零反模式 — 应作为下月复盘的开场强调
-6. **OTel 0.17 API 需 `WithExportConfig` trait + `trace` feature** — 已写入 `docs/ai-context.md` § 7 #11/12
+6. **OTel 0.17 API 需 `WithExportConfig` trait + `trace` feature** — 已写入 `docs-site/ai-context.md` § 7 #11/12
 7. **User decisions 推荐组合方案都能成功落地**（P3.1 Prometheus+OTel, P3.2 Gateway, P3.4 Nginx+Consul）— 不阻塞工作流
 
 是否新增 / 更新：
@@ -159,7 +159,7 @@
 - [x] Skill (coder-add-route, coder-migrate-db, coder-new-service)
 - [ ] Spec 模板（可优化：当前模板缺 "回滚方案" 段，可下月补）
 - [x] AGENTS.md (P1.3 已对齐)
-- [x] docs/ai-context.md (本任务建立)
+- [x] docs-site/ai-context.md (本任务建立)
 
 ---
 

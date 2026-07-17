@@ -61,8 +61,8 @@
 | `scripts/consul-intentions.sh` | delete | No longer needed |
 | `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md` | modify | Add "Superseded by 2026-07-07-..." banner |
 | `docs/superpowers/plans/2026-06-29-phase5a-mtls-sidecar.md` | modify | Add "Superseded" banner |
-| `docs/ai-context.md` | modify | Update service map and "不要做" list |
-| `docs/guides/mesh-service-onboarding.md` | delete or repurpose | Replace with `service-to-service-auth.md` |
+| `docs-site/ai-context.md` | modify | Update service map and "不要做" list |
+| `docs-site/guides/mesh-service-onboarding.md` | delete or repurpose | Replace with `service-to-service-auth.md` |
 | `docker-example/services/*/Dockerfile` (if listed) | modify | Drop sidecar assumptions, document direct-URL + JWT usage |
 | `docker-example/docker-compose*.yml` | modify | Mirror the production compose changes |
 
@@ -796,8 +796,8 @@ git commit -m "dephase(lib): delete libs/consul-registrar"
 **Files:**
 - Modify: `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md` (add banner)
 - Modify: `docs/superpowers/plans/2026-06-29-phase5a-mtls-sidecar.md` (add banner)
-- Modify: `docs/ai-context.md` (refresh)
-- Modify: `docs/guides/mesh-service-onboarding.md` (replace or delete)
+- Modify: `docs-site/ai-context.md` (refresh)
+- Modify: `docs-site/guides/mesh-service-onboarding.md` (replace or delete)
 - Delete: `scripts/consul-intentions.sh` (chmod-only-diff from earlier session rolled into the git tree as a deletion)
 
 **Interfaces:**
@@ -820,9 +820,9 @@ Same pattern in `docs/superpowers/plans/2026-06-29-phase5a-mtls-sidecar.md`:
 > ⚠️ **Superseded by** `docs/superpowers/plans/2026-07-07-deprecate-consul-connect.md` (2026-07-07). The consul-dataplane sidecar approach described here was rolled back. Retained for historical reference only.
 ```
 
-- [ ] **Step 3: Refresh `docs/ai-context.md`**
+- [ ] **Step 3: Refresh `docs-site/ai-context.md`**
 
-Open `docs/ai-context.md`. Find these sections and update:
+Open `docs-site/ai-context.md`. Find these sections and update:
 
 - **Service map** (if present): sidecars removed; add `registrator` as infra service.
 - **Pitfall list** (if present): remove any "service must bind 127.0.0.1 because of sidecar" guidance — `SERVER_HOST=0.0.0.0` is now fine.
@@ -844,9 +844,9 @@ Concrete wording for the ADR-style append (if the doc has such a section):
 
 - [ ] **Step 4: Replace mesh-onboarding guide**
 
-`docs/guides/mesh-service-onboarding.md` is no longer relevant. Pick one:
+`docs-site/guides/mesh-service-onboarding.md` is no longer relevant. Pick one:
 
-- **Option A (delete)**: `git rm docs/guides/mesh-service-onboarding.md`
+- **Option A (delete)**: `git rm docs-site/guides/mesh-service-onboarding.md`
 - **Option B (rewrite)**: rename to `service-to-service-auth.md` and write a short guide (≤ 60 lines) covering: registrator labels; JWT passthrough; `Audience::Any` on internal endpoints.
 
 Default to **Option A** — the spec left this as a follow-up. Document the deletion in the next retrospective.

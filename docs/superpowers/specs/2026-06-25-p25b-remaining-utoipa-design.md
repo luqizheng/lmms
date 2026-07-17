@@ -102,8 +102,8 @@ Missing probably: `unread-count` and `mine` (list) routes. Need to verify.
 | `services/api-gateway/openapi.yaml` | NEW (generated) |
 | `scripts/dump-openapi-specs.sh` | add the 4 new services |
 | `docs/superpowers/specs/2026-06-25-p25b-remaining-utoipa-design.md` | NEW (this doc) |
-| `docs/USER_MANUAL.md` | update § Swagger UI table with all 8 services |
-| `docs/ai-context.md` | update § 1 / § 9 |
+| `docs-site/USER_MANUAL.md` | update § Swagger UI table with all 8 services |
+| `docs-site/ai-context.md` | update § 1 / § 9 |
 
 ## Verification
 

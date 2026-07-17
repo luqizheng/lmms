@@ -55,7 +55,7 @@ All 8 services already expose `/metrics` (Prometheus text format) per P1.3 basel
 | `services/api-gateway/Cargo.toml` | Optional dep on common-telemetry |
 | `services/api-gateway/src/main.rs` | Call init_tracing with optional OTLP |
 | `services/api-gateway/src/middleware/mod.rs` | Add trace_id extraction |
-| `docs/ai-context.md` | Update § 9 CI gates + § 2 service map with observability services |
+| `docs-site/ai-context.md` | Update § 9 CI gates + § 2 service map with observability services |
 | `docs/superpowers/specs/2026-06-25-observability-design.md` | NEW (this doc) |
 
 ## Verification

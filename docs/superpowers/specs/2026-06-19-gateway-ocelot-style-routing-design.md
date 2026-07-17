@@ -222,7 +222,7 @@ fn render(tpl, dict) -> String {
 | `services/api-gateway/tests/**` | 改测�?fixtures 与断言 | |
 | `.trae/rules/routing-rules.md` | 重写 §2.2 / §2.3 / §2.5 / §2.6 / §2.7 | |
 | `.trae/rules/project_rules.md` | 删除 rewrite 类型白名单段�?| |
-| `docs/guides/api-gateway-routing.md` | 同步用户文档 | |
+| `docs-site/guides/api-gateway-routing.md` | 同步用户文档 | |
 
 ---
 
@@ -317,7 +317,7 @@ downstream = "/iam/auth/{anything}"
 
 ## 十、上线后�?
 
-1. 文档：`docs/guides/api-gateway-routing.md` 重写
+1. 文档：`docs-site/guides/api-gateway-routing.md` 重写
 2. 规则：`.trae/rules/routing-rules.md` 同步
 3. CI：`coder-route-validate` skill 沿用，仅校验命令实现升级
 4. 团队同步：commit message 写明 BREAKING CHANGE

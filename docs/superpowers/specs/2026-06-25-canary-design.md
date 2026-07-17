@@ -97,7 +97,7 @@ Both ways: within 10 seconds (consul-template refresh interval), traffic returns
 | `infrastructure/docker-compose.yml` | Document `canary` tag convention |
 | `services/*/src/main.rs` | Add `consul.register(tags: vec!["v1.0.0"])` helper |
 | `services/api-gateway/src/discovery.rs` | Accept tag filter param |
-| `docs/guides/canary-rollout.md` | NEW runbook |
+| `docs-site/guides/canary-rollout.md` | NEW runbook |
 | `docs/superpowers/specs/2026-06-25-canary-design.md` | NEW (this doc) |
 
 ## Verification
@@ -106,7 +106,7 @@ Both ways: within 10 seconds (consul-template refresh interval), traffic returns
 2. Curl 100 times → ~10 land on canary (per `split_clients` 10%)
 3. Force `X-Canary: true` header → 100% land on canary
 4. Stop canary container → nginx upstream removes it within 10s
-5. Document procedure in `docs/guides/canary-rollout.md`
+5. Document procedure in `docs-site/guides/canary-rollout.md`
 
 ## Out of Scope
 

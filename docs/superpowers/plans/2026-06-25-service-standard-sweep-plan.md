@@ -68,7 +68,7 @@
 - Delete: `build-gw.log`、`build-iam.log`（根目录）
 
 **ADR：**
-- Create: `docs/decisions/ADR-002-service-standard-baseline.md`
+- Create: `docs-site/decisions/ADR-002-service-standard-baseline.md`
 
 ---
 
@@ -1570,7 +1570,7 @@ git commit -m "ci: enforce check:spec and contracts:check as test gates"
 ## Task 10: ADR-002 + 终验
 
 **Files:**
-- Create: `docs/decisions/ADR-002-service-standard-baseline.md`
+- Create: `docs-site/decisions/ADR-002-service-standard-baseline.md`
 
 **Interfaces:**
 - Produces: 文档化的硬基线，新服务复用模板必须遵守
@@ -1633,7 +1633,7 @@ Expected: test:e2e 全套 PASS
 - [ ] **Step 10.4: 提交**
 
 ```bash
-git add docs/decisions/ADR-002-service-standard-baseline.md
+git add docs-site/decisions/ADR-002-service-standard-baseline.md
 git commit -m "docs(adr): ADR-002 service standard baseline"
 ```
 
@@ -1654,7 +1654,7 @@ git commit -m "docs(adr): ADR-002 service standard baseline"
 - [x] `scripts/contracts-gen.js --check` 子命令落地（Task 8.1）
 - [x] `.gitlab-ci.yml` test 阶段串 3 闸门（Task 9）
 - [x] `.gitignore` 加 `build-*.log`，删除根目录两个历史日志（Task 8.3–8.4）
-- [x] `docs/decisions/ADR-002-service-standard-baseline.md` 提交（Task 10.1）
+- [x] `docs-site/decisions/ADR-002-service-standard-baseline.md` 提交（Task 10.1）
 - [x] 所有验收 Demo 命令 exit 0（Task 10.2–10.3）
 
 Placeholder 扫描：每个 Task 含完整代码块与命令，无 TBD/TODO/"similar to" 引用。
