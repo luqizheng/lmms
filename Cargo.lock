@@ -645,6 +645,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "audit-service-sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kudi-http-client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
 name = "authz"
 version = "0.1.0"
 dependencies = [
@@ -1490,6 +1503,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "config-service-sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kudi-http-client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2276,6 +2302,19 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
+]
+
+[[package]]
+name = "file-service-sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kudi-http-client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
 ]
 
 [[package]]
@@ -3113,6 +3152,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "iam-service-sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kudi-http-client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
 name = "iana-time-zone"
 version = "0.1.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3943,6 +3995,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "notification-service-sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kudi-http-client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4496,22 +4561,6 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
-
-[[package]]
-name = "pmd-outbox-publisher"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "common-event",
- "common-telemetry",
- "prometheus 0.13.4",
- "serde",
- "serde_json",
- "serde_yaml",
- "sqlx",
- "tokio 1.52.3",
- "tracing",
-]
 
 [[package]]
 name = "polling"
@@ -6400,6 +6449,18 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
+]
+
+[[package]]
+name = "token-service-sdk"
+version = "0.1.0"
+dependencies = [
+ "kudi-http-client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
 ]
 
 [[package]]
