@@ -46,8 +46,11 @@ spec_check:
   stage: test
   tags: [docker]
   image: $BASE_REGISTRY/node:20
+  before_script:
+    - npm config set registry https://registry.npmmirror.com/
+    - npm install --prefix /tmp/deps js-yaml@^5.2.1
   script:
-    - node scripts/check-spec.js
+    - NODE_PATH=/tmp/deps/node_modules node scripts/check-spec.js
 
 contracts_check:
   stage: test
@@ -55,8 +58,9 @@ contracts_check:
   image: $BASE_REGISTRY/node:20
   before_script:
     - npm config set registry https://registry.npmmirror.com/
+    - npm install --prefix /tmp/deps js-yaml@^5.2.1
   script:
-    - node scripts/contracts-gen.js --check
+    - NODE_PATH=/tmp/deps/node_modules node scripts/contracts-gen.js --check
 
 spec_generate:
   stage: test
