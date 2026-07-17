@@ -18,7 +18,6 @@ sdk/dotnet/**/obj/
 sdk/java/**/target/
 *.nuspec
 reports/
-docker-example/mysql
 /build-*.log.superpowers/
 .superpowers/
 /.worktrees/

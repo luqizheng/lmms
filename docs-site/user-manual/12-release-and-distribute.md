@@ -120,7 +120,7 @@ bash release/dist-template/scripts/release.sh v1.0.0
 | API Gateway 路由 | `infrastructure/config/api-gateway/routes/*.router.toml` | `config/api-gateway/routes/*.router.toml`（去了一层目录） |
 | 运维入口 | pnpm 脚本 | Makefile（`make up` / `make verify` / ...） |
 | `bin/` | 无（运维在 `infrastructure/`） | 12 个一键脚本（`start.sh` / `stop.sh` / `load-images.sh` / `generate-secrets.sh` / `upgrade.sh` 等） |
-| `secrets/` | 无（开发用 docker-example/secrets） | 运行时由 `make secrets` 生成的密钥目录 |
+| `secrets/` | 无（token-service 启动时自举生成 RSA key pair 写入 `/app/keys/`） | 运行时由 `make secrets` 生成的密钥目录 |
 
 **dist 包不需要**：`services/` 下的核心服务源码（已编译进镜像）、`.gitlab-ci.yml`（无 CI）、`infrastructure/` 下 dev 用 overlay。
 

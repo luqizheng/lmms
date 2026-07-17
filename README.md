@@ -154,10 +154,9 @@ docker exec consul consul tags -delete -service audit-service -tag canary -id <i
 
 ### 配置文件位置
 
-服务进程读取以下配置文件（优先级从高到低）：
+服务进程读取以下配置文件：
 
-- `services/<svc>/config/config.yaml`（首选，宿主机路径）
-- `docker-example/config/<svc>/config.yaml`（容器化部署时使用）
+- `services/<svc>/config/config.yaml`（宿主机路径；容器化部署时由 `infrastructure/docker-compose-services.yml` bind mount 进 `/app/config:ro`）
 
 基础设施的 docker compose 文件位于 `infrastructure/`：
 
