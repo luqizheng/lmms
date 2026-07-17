@@ -22,7 +22,7 @@
 | **P3.2** | Gateway 集中限流 | governor token bucket + 429 + Prometheus 计数 | `30b3708` |
 | **P3.3** | E2E stability | smoke + retry + preflight health check | `07a0922` |
 | **P3.4** | Canary rollout | Nginx + Consul + consul-template sidecar | `d21f738` |
-| **P3.5** | Knowledge consolidation | `docs/ai-context.md` + 复盘模板 + 首份 retro | `6e1588d` |
+| **P3.5** | Knowledge consolidation | `docs-site/ai-context.md` + 复盘模板 + 首份 retro | `6e1588d` |
 
 ---
 
@@ -74,13 +74,13 @@ docs/superpowers/retros/2026-06-retrospective.md
 
 ### 决策与指南 (1 ADR + 1 guide)
 ```
-docs/decisions/ADR-002-service-standard-baseline.md
-docs/guides/canary-rollout.md
+docs-site/decisions/ADR-002-service-standard-baseline.md
+docs-site/guides/canary-rollout.md
 ```
 
 ### AI 入口与触发器
 ```
-docs/ai-context.md
+docs-site/ai-context.md
 .trae/rules/project_rules.md
 .agents/skills/coder-add-route/SKILL.md
 .agents/skills/coder-migrate-db/SKILL.md

@@ -29,7 +29,7 @@
 - **Tests:** Docker-based via `node scripts/run-tests-docker.js <svc>`. New `common-event` lib gets standalone unit tests (rabbitmq via testcontainers). Token-service testcontainers cleanup bug is known — manually `docker rm -f` any `mysql:8.x` containers not matching `infrastructure-mysql-1` after full-suite run.
 - **Naming:** All SQL tables/indexes/keys use `iam_` / `audit_` / `prue_` / `cfg_` / `file_` / `token_` / `ntf_` prefix per `contracts/db-conventions.md`. CI gate `node scripts/check-db-naming.js` is mandatory before push.
 - **Commits:** One task = one commit. Conventional Commits format: `feat(scope):` / `refactor(scope):` / `docs:` / `chore:`.
-- **Branch policy:** `main` only, no feature branches (per `docs/ai-context.md` §1).
+- **Branch policy:** `main` only, no feature branches (per `docs-site/ai-context.md` §1).
 
 ---
 
@@ -73,8 +73,8 @@
 | `services/audit-service/src/tracing_mw.rs` | Add OTel layer (Phase 6 advance) | C |
 | `services/audit-service/Cargo.toml` | Add `common-event` dep | M |
 | `tests/e2e/api/cases/iam-audit-event-flow.yaml` | E2E: create user → audit row appears | C |
-| `docs/USER_MANUAL.md` | Add event bus section | M |
-| `docs/ai-context.md` | Add OTel note for audit-service | M |
+| `docs-site/USER_MANUAL.md` | Add event bus section | M |
+| `docs-site/ai-context.md` | Add OTel note for audit-service | M |
 | `scripts/check-db-naming.js` | Update if new patterns slip through | M |
 
 **Total: 35 files, 17 tasks.**
@@ -1935,7 +1935,7 @@ steps:
 
 - [ ] **Step 2: Wire the e2e test into the test orchestrator**
 
-The existing `tests/e2e/api/cases/` is loaded by the e2e runner (per `docs/ai-context.md` §8). Verify the new YAML is picked up; if the runner needs registration, add it to any index file.
+The existing `tests/e2e/api/cases/` is loaded by the e2e runner (per `docs-site/ai-context.md` §8). Verify the new YAML is picked up; if the runner needs registration, add it to any index file.
 
 - [ ] **Step 3: Run the e2e test against the local stack**
 
@@ -1962,8 +1962,8 @@ git commit -m "test(e2e): iam→audit event flow happy path (phase 4)"
 - Modify: `libs/common-event/src/metrics.rs` (replace placeholder)
 - Create: `services/audit-service/src/tracing_mw.rs` (OTel layer)
 - Modify: `services/audit-service/Cargo.toml` (enable `otlp` feature on common-telemetry)
-- Modify: `docs/USER_MANUAL.md` (add event bus section)
-- Modify: `docs/ai-context.md` (mark audit-service as OTel-enabled)
+- Modify: `docs-site/USER_MANUAL.md` (add event bus section)
+- Modify: `docs-site/ai-context.md` (mark audit-service as OTel-enabled)
 
 - [ ] **Step 1: Implement metrics in `libs/common-event/src/metrics.rs`**
 
@@ -2051,8 +2051,8 @@ Kill RabbitMQ for 30s, repeat: outbox should pile up; restart RabbitMQ; backlog 
 
 - [ ] **Step 6: Update docs**
 
-- `docs/USER_MANUAL.md`: add "Event Bus" section explaining topology + how to publish/consume.
-- `docs/ai-context.md`: mark audit-service as OTel-enabled in service map table.
+- `docs-site/USER_MANUAL.md`: add "Event Bus" section explaining topology + how to publish/consume.
+- `docs-site/ai-context.md`: mark audit-service as OTel-enabled in service map table.
 
 - [ ] **Step 7: Final commit**
 

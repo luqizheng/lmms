@@ -378,7 +378,7 @@ register_int_counter!(
 
 ### 5.5 OPS docs
 
-加一行到 `docs/USER_MANUAL.md` 的 outbox section：
+加一行到 `docs-site/USER_MANUAL.md` 的 outbox section：
 
 > outbox archive 与 publisher 同进程；查询长期事件历史去 `iam_outbox_events_archive`；
 > 表保留 30 天，超过自动删除。
@@ -479,7 +479,7 @@ async fn publisher_main_loop_unaffected_during_archive() {
 5. 加 testcontainers 集成测试 `services/iam-service/tests/outbox_archive_test.rs` 7 个（含 BETWEEN 窗口测试）。
 6. workspace `cargo build` + `cargo test -p iam-service`。
 7. 手工 e2e（test-case/64）。
-8. 更新 `docs/USER_MANUAL.md` outbox section。
+8. 更新 `docs-site/USER_MANUAL.md` outbox section。
 
 ## 8. 验收
 

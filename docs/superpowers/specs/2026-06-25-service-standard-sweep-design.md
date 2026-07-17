@@ -148,7 +148,7 @@
 
 ### 4.4 ADR
 
-新增 `docs/decisions/ADR-002-service-standard-baseline.md`：
+新增 `docs-site/decisions/ADR-002-service-standard-baseline.md`：
 
 - 上下文：服务长出后规范漂移
 - 决议：固定 3.1 的 8 项 + 3.2 的 7 个环境变量 + 3.3 的豁免规则
@@ -275,7 +275,7 @@ P1.3 不改任何对外 HTTP 接口。`/health` 与 `/metrics` 沿用现有 hand
 - [ ] `scripts/contracts-gen.js --check` 子命令落地
 - [ ] `.gitlab-ci.yml` test 阶段串 3 闸门
 - [ ] `.gitignore` 加 `build-*.log`，删除根目录两个历史日志
-- [ ] `docs/decisions/ADR-002-service-standard-baseline.md` 提交
+- [ ] `docs-site/decisions/ADR-002-service-standard-baseline.md` 提交
 - [ ] 所有验收 Demo 命令 exit 0
 
 ---

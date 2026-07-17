@@ -93,8 +93,8 @@ Prometheus counter `service_rate_limited_total{route="...", service="notificatio
 | `services/notification-service/tests/rate_limit_integration_test.rs` | NEW — Redis-backed integration test |
 | `infrastructure/config/api-gateway/rate-limits.toml` | Adjust notification limits in gateway (since service now also enforces) |
 | `docs/superpowers/specs/2026-06-25-service-ratelimit-design.md` | NEW (this doc) |
-| `docs/USER_MANUAL.md` § 7 | Update with dual-layer concept |
-| `docs/guides/observability.md` | Add `service_rate_limited_total` panel |
+| `docs-site/USER_MANUAL.md` § 7 | Update with dual-layer concept |
+| `docs-site/guides/observability.md` | Add `service_rate_limited_total` panel |
 
 ## Verification
 

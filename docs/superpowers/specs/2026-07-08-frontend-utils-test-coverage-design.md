@@ -258,7 +258,7 @@ pnpm run test:unit
   message / http 通过 vi.mock 包装 element-plus + axios。
   详见 docs/superpowers/specs/2026-07-08-frontend-utils-test-coverage-design.md
 
-  Refs: docs/ai-context.md §"测试规范"；frontend/AGENTS.md §"测试规范"
+  Refs: docs-site/ai-context.md §"测试规范"；frontend/AGENTS.md §"测试规范"
   ```
 
 ---

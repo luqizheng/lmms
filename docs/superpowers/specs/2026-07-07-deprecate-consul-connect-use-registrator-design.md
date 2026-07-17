@@ -330,7 +330,7 @@ SERVICE_HEALTH_PATH=
 | `services/api-gateway/config/api-gateway.toml` | 上游 URL 回到真服务端口 |
 | `libs/consul-registrar/src/lib.rs` | 删 `ConnectConfig / SidecarConfig / with_sidecar_config` 字段；保留 K/V 健康报告（如还在用） |
 | `libs/consul-registrar/tests/register_payload_test.rs` | 删 connect 测试用例 |
-| `docs/superpowers/plans/TODO.md` / `docs/ai-context.md` | 更新引用 |
+| `docs/superpowers/plans/TODO.md` / `docs-site/ai-context.md` | 更新引用 |
 
 ### 5.3 文件新建
 

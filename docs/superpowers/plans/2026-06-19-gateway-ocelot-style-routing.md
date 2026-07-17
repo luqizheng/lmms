@@ -29,7 +29,7 @@
 | `docker-example/config/api-gateway/routes/*.router.toml` | 8 个文件全部改�?|
 | `.trae/rules/routing-rules.md` | §2.2/§2.3/§2.5/§2.6/§2.7 重写 |
 | `.trae/rules/project_rules.md` | 删除 rewrite 类型白名单段�?|
-| `docs/guides/api-gateway-routing.md` | 同步用户文档（如已存在） |
+| `docs-site/guides/api-gateway-routing.md` | 同步用户文档（如已存在） |
 
 ---
 
@@ -998,7 +998,7 @@ git commit -m "test(api-gateway): align tests with upstream/downstream model"
 **Files:**
 - Modify: `.trae/rules/routing-rules.md`
 - Modify: `.trae/rules/project_rules.md`
-- Modify: `docs/guides/api-gateway-routing.md`（如存在�?
+- Modify: `docs-site/guides/api-gateway-routing.md`（如存在�?
 
 - [ ] **Step 1: `.trae/rules/routing-rules.md`**
 
@@ -1039,14 +1039,14 @@ public     = false
 - 路由条目使用 `upstream` / `downstream` 占位符语法，不再支持 `match` / `rewrite`
 ```
 
-- [ ] **Step 3: `docs/guides/api-gateway-routing.md`**
+- [ ] **Step 3: `docs-site/guides/api-gateway-routing.md`**
 
 如已存在，重�?配置语法"章节为占位符模型；如不存在，跳过�?
 
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add .trae/rules docs/guides/api-gateway-routing.md
+git add .trae/rules docs-site/guides/api-gateway-routing.md
 git commit -m "docs(api-gateway): update routing rules to upstream/downstream syntax"
 ```
 

@@ -183,7 +183,7 @@ impl MigrationState for PrueMigrationState {
 - [ ] "extra" 测试：手动建一张 orphan table（不可能但 API 需支持）
 
 ### 4.3 文档
-- [ ] `docs/guides/operations.md` 加 "如何检查 schema 一致性" 一节
+- [ ] `docs-site/guides/operations.md` 加 "如何检查 schema 一致性" 一节
 - [ ] 每个服务 AGENTS.md 在端点域加 `/<svc>/internal/migrations/state`
 
 ### 4.4 不在范围

@@ -366,4 +366,4 @@ func ServiceAuthMiddleware() gin.HandlerFunc {
 | `services/notification-service/src/auth.rs` | 更新 Identity 提取逻辑，从 JWT payload 解析 |
 | `services/notification-service/Cargo.toml` | 添加 base64 依赖 |
 | `services/api-gateway/src/middleware/mod.rs` | **移除** X-User-* headers 注入逻辑（可选，保留不影响） |
-| `docs/guides/microservice-auth.md` (新建) | 部署规范：端口隔离、网关唯一入口、JWT 解析规范 |
+| `docs-site/guides/microservice-auth.md` (新建) | 部署规范：端口隔离、网关唯一入口、JWT 解析规范 |

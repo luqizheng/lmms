@@ -196,7 +196,7 @@ services/<name>/AGENTS.md
 
 ### 阶段 5：文档和培训
 
-- 更新 `docs/guides/` 添加服务规范指南
+- 更新 `docs-site/guides/` 添加服务规范指南
 - 更新 `AGENTS.md` 说明新规则系统
 
 ---

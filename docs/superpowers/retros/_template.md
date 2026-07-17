@@ -71,7 +71,7 @@
 
 ## 5. 反模式
 
-本月触犯的反模式（参考 `docs/plans/2026-06-09-long-term-ai-efficiency-plan.md` § 5）：
+本月触犯的反模式（参考 `docs-site/plans/2026-06-09-long-term-ai-efficiency-plan.md` § 5）：
 
 - [ ] ❌ 把 fix-prompt 整个塞进对话上下文
 - [ ] ❌ 业务源码改了不写 ADR/spec
@@ -115,7 +115,7 @@
 - [ ] Skill
 - [ ] Spec 模板
 - [ ] AGENTS.md
-- [ ] docs/ai-context.md
+- [ ] docs-site/ai-context.md
 
 ---
 

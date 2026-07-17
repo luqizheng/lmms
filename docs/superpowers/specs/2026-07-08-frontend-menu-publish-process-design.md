@@ -16,7 +16,7 @@
 
 ### 2.1 在范围
 
-- 新建 `docs/guides/menu-publish.md`：操作指南，4-5 节
+- 新建 `docs-site/guides/menu-publish.md`：操作指南，4-5 节
   1. 概述（为什么 sidebar 不自动出现）
   2. 完整流程图（新增 view → 路由注册 → 菜单 publish → 验证）
   3. 详细步骤（建 view / 注册 router module / 菜单 publish / 验证 sidebar）
@@ -161,7 +161,7 @@ curl -X POST $PRUE/pure/menu-configs/$DRAFT_ID/publish
 
 ## 4. 验收
 
-- [ ] `docs/guides/menu-publish.md` 存在 + 4-5 节齐全
+- [ ] `docs-site/guides/menu-publish.md` 存在 + 4-5 节齐全
 - [ ] 步骤示例代码可复制粘贴
 - [ ] curl 流程示例与 prue_backend 6 端点对齐
 - [ ] FAQ 覆盖 §3.4 列的 6 类常见问题

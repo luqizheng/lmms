@@ -739,7 +739,7 @@ loop {
 | `libs/common-jwt/src/lib.rs` | JWKSCache / verify_token / sign_token / ServiceJwtCache / Errors |
 | `libs/common-jwt/tests/cache_test.rs` | JWKS parse / refresh / kid lookup |
 | `libs/common-jwt/tests/verify_test.rs` | sign+verify roundtrip / expired / wrong aud / wrong kid |
-| `docs/guides/service-to-service-auth.md` | 内部调用 auth 流程 + bootstrap token 运维手册 |
+| `docs-site/guides/service-to-service-auth.md` | 内部调用 auth 流程 + bootstrap token 运维手册 |
 | `services/token-service/src/routes/service_jwt.rs` | `POST /tokens/service-jwt` handler |
 
 ### 6.2 文件修改
@@ -766,7 +766,7 @@ loop {
 | `infrastructure/docker-compose-services.yml` | 每个 service 增 `SERVICE_BOOTSTRAP_TOKEN` / `TENANT_ID` / `TOKEN_SERVICE_URL` env；token-service 增 `SERVICE_BOOTSTRAP_TOKENS`（多个 token，逗号分隔） |
 | `infrastructure/.env` 或 secrets 文件 | bootstrap tokens 实际值（256-bit random，dev 用固定 string 例如 `dev-token-iam-...`） |
 | `infrastructure/config/api-gateway/api-gateway.toml` | 增 `service_jwt` 块（如果 gateway 需要 outbound） |
-| `docs/ai-context.md` | §2 服务地图加 service-jwt 列；§3 架构加 common-jwt；§11 TODO 标记 phase5c |
+| `docs-site/ai-context.md` | §2 服务地图加 service-jwt 列；§3 架构加 common-jwt；§11 TODO 标记 phase5c |
 | `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md` | §2.2 「Phase 5-B: JWT 签名验证」段标 superseded |
 
 ### 6.3 共享依赖增删

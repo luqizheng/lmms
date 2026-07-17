@@ -24,9 +24,9 @@ Plan-review 阶段发现 10 个 follow-up，按优先级分为 P0~P3。本 desig
 | T2-fu1 | P1 | span_from_envelope_trace_id 统一 | `libs/common-event/src/span.rs` + 3 consumer | ~30 |
 | T2-fu3 | P1 | outbox-publisher 独立 crate | `services/iam-outbox-publisher/` | ~170 |
 | T3-fu3 | P3 | sleep→poll 消除 CI flake | `consumer_redelivery.rs` | ~20 |
-| T2-fu2 | P3 | 删 docs 中 tracing_mw 旧说明 | `docs/USER_MANUAL.md` 等 | ~10 |
+| T2-fu2 | P3 | 删 docs 中 tracing_mw 旧说明 | `docs-site/USER_MANUAL.md` 等 | ~10 |
 | T3-fu4 | P3 | perm_consumer 行为变更发布说明 | `services/api-gateway/AGENTS.md` | ~3 |
-| T4-fu1 | P3 | USER_MANUAL archive 说明 | `docs/USER_MANUAL.md` | ~1 |
+| T4-fu1 | P3 | USER_MANUAL archive 说明 | `docs-site/USER_MANUAL.md` | ~1 |
 
 ## 3. Design
 
