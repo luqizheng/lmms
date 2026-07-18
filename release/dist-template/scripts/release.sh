@@ -116,14 +116,17 @@ else
   echo "[release]   ⚠ libs/ not found at ${REPO_ROOT}/libs - Rust 业务服务将无法编译"
 fi
 
-# Java SDK（业务 Java 服务 Maven 依赖 sdk/java/*）
-if [ -d "${REPO_ROOT}/sdk" ]; then
-  cp -r "${REPO_ROOT}/sdk" "${DIST_DIR}/sdk"
-  find "${DIST_DIR}/sdk" -type d -name 'target' -exec rm -rf {} + 2>/dev/null || true
-  echo "[release]   ✓ sdk/"
-else
-  echo "[release]   ⚠ sdk/ not found - Java 业务服务将无法编译"
-fi
+# SDK 目录：完全不打进分发包。
+# sdk/java/* — 由 CI sdk_publish job 推送到私有 Maven 仓库
+#               (http://192.168.2.12:18181/releases，由 MAVEN_REPO_URL 覆盖)，
+#               业务 Java 服务通过 <dependency> 直接引入。
+# sdk/rust/* — 以 crate 形式发布到 crates.io（或内网 Panamax mirror
+#               http://192.168.2.12:16444），业务 Rust 服务通过 `cargo add` 引入。
+# sdk/openapi + sdk/scripts + sdk/README — 开发者仓库内部资产，
+#               分发包用户通过包管理器拿到 SDK，无需源码或本地发布脚本。
+#               根 Cargo.toml 的 workspace members 仍列出 sdk/rust/*，
+#               下文会用 sed 过滤掉，避免指向不存在的目录。
+echo "[release]   ⚠ sdk/ skipped — entire sdk/ published to private package registries"
 
 # 契约层（前后端单一真相源：error-codes / permissions / events / conventions）
 if [ -d "${REPO_ROOT}/contracts" ]; then
@@ -162,10 +165,11 @@ fi
 touch "${DIST_DIR}/services/.gitkeep"
 echo "[release]   ✓ services/ (empty - for user-created business services)"
 
-# Rust workspace 根 Cargo.toml（移除 services/* members，用户通过 skill 动态加入）
+# Rust workspace 根 Cargo.toml（移除 services/* 和 sdk/rust/* members，
+# services/ 用户通过 skill 动态加入；sdk/rust/ 以 crate 发布，不打包源码）
 if [ -f "${REPO_ROOT}/Cargo.toml" ]; then
-  sed '/^[[:space:]]*"services\//d' "${REPO_ROOT}/Cargo.toml" > "${DIST_DIR}/Cargo.toml"
-  echo "[release]   ✓ Cargo.toml (workspace: libs + sdk/rust, services/ excluded)"
+  sed '/^[[:space:]]*"services\//d; /^[[:space:]]*"sdk\/rust\//d' "${REPO_ROOT}/Cargo.toml" > "${DIST_DIR}/Cargo.toml"
+  echo "[release]   ✓ Cargo.toml (workspace: libs only, services/ + sdk/rust/ excluded)"
 fi
 
 # pnpm workspace + package.json（根调度脚本，CI 门禁命令）

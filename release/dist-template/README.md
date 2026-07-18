@@ -22,10 +22,9 @@ coder-micro-services/
 ├── services/               # 空 - 用户在此创建业务微服务
 ├── skills/                 # 6 个 AI skill（3 Rust + 3 Java）
 ├── libs/                   # Rust 共享库（common-error / common-db / jwt-ctx / ...）
-├── sdk/                    # Java SDK + Rust SDK（业务服务调用核心服务的客户端）
 ├── contracts/              # 契约层（error-codes / permissions / events / conventions）
 ├── scripts/                # CI 门禁脚本（check-service-standard / check-db-naming / ...）
-├── Cargo.toml              # Rust workspace 根（members: libs + sdk/rust，services/ 动态加入）
+├── Cargo.toml              # Rust workspace 根（members: libs；sdk/rust/* 和 services/* 均被 sed 过滤）
 ├── pnpm-workspace.yaml     # pnpm workspace 配置
 ├── package.json            # 根调度脚本（CI 门禁 / 构建 / 测试命令）
 ├── AGENTS.md               # 项目协作指南（skill 引用的约定）
@@ -112,6 +111,99 @@ node scripts/contracts-gen.js --check    # 契约生成代码一致性
 5. CI 门禁通过                                   # check-service-standard / check-db-naming / check-spec
 ```
 
+## SDK 引入（包管理器）
+
+Rust SDK 和 Java SDK 均以包管理器发布，不打包进分发包源码。
+
+### Rust SDK（crates.io / 内网 mirror）
+
+Rust SDK 各子 crate 发布到 crates.io（或内网 Panamax mirror `http://192.168.2.12:16444`）。业务 Rust 服务通过 `cargo add` 引入：
+
+```bash
+# 按需添加对应服务的 SDK
+cargo add audit-service-sdk
+cargo add config-service-sdk
+cargo add file-service-sdk
+cargo add iam-service-sdk
+cargo add notification-service-sdk
+cargo add token-service-sdk
+cargo add kudi-http-client
+```
+
+或在 `Cargo.toml` 手动添加：
+
+```toml
+[dependencies]
+audit-service-sdk = "0.1"
+iam-service-sdk = "0.1"
+```
+
+cargo 会自动从已配置的 Panamax 镜像（`.cargo/config.toml`）拉取。
+
+### Java SDK（私有 Maven 仓库）
+
+Java SDK 由 CI 在 `v*.*.*` tag 触发时推送到私有 Maven 仓库。业务 Java 服务通过 `<dependency>` 直接引入即可。
+
+- **仓库地址**：`http://192.168.2.12:18181/releases`
+- **groupId**：`com.kudi.coder`
+- **version**：与 `sdk/java/pom.xml` 一致（当前 `0.3.0`）
+
+### 1. 配置 Maven 仓库
+
+在业务服务的 `pom.xml`（或 `~/.m2/settings.xml`）中声明仓库：
+
+```xml
+<repositories>
+  <repository>
+    <id>kudi-maven-releases</id>
+    <url>http://192.168.2.12:18181/releases</url>
+    <releases><enabled>true</enabled></releases>
+    <snapshots><enabled>false</enabled></snapshots>
+  </repository>
+</repositories>
+```
+
+如仓库需鉴权，在 `~/.m2/settings.xml` 的 `<servers>` 中补上：
+
+```xml
+<servers>
+  <server>
+    <id>kudi-maven-releases</id>
+    <username>你的用户名</username>
+    <password>你的密码</password>
+  </server>
+</servers>
+```
+
+### 2. 引入 SDK 依赖
+
+按需引入对应服务的 SDK（所有模块共享 `com.kudi.coder:kudi-coder-sdk-common`，会自动传递依赖）：
+
+| SDK 模块 | artifactId | 用途 |
+| --- | --- | --- |
+| common | `kudi-coder-sdk-common` | 公共配置/异常（其余 SDK 自动传递依赖） |
+| kudi-http-client | `kudi-http-client` | 底层 HTTP 客户端封装 |
+| user-service-user-sdk | `user-service-user-sdk` | 用户身份视角调用 IAM |
+| user-service-client-sdk | `user-service-client-sdk` | 客户端应用视角调用 IAM |
+| token-server-user-sdk | `token-server-user-sdk` | 用户身份视角调用 Token |
+| token-server-client-sdk | `token-server-client-sdk` | 客户端应用视角调用 Token |
+| audit-service-sdk | `audit-service-sdk` | 调用审计服务 |
+| config-service-sdk | `config-service-sdk` | 调用配置中心 |
+| file-service-sdk | `file-service-sdk` | 调用文件服务 |
+| notification-service-sdk | `notification-service-sdk` | 调用通知服务 |
+
+示例（以 audit-service-sdk 为例）：
+
+```xml
+<dependency>
+  <groupId>com.kudi.coder</groupId>
+  <artifactId>audit-service-sdk</artifactId>
+  <version>0.3.0</version>
+</dependency>
+```
+
+> 版本号请对齐实际发布的 tag（`v0.3.0` -> `0.3.0`）。可通过 `sdk/java/pom.xml` 的 `<version>` 字段或 Maven 仓库 UI 确认。
+
 ## 镜像版本
 
 所有核心服务镜像统一版本：`${IMAGE_TAG}`
@@ -140,7 +232,7 @@ bash scripts/release.sh
 
 - `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 bash scripts/release.sh`。
 - flag 优先级高于 `EXPORT_IMAGES` 环境变量；`REGISTRY` 环境变量可覆盖默认仓库。
-- v2 新增：release.sh 自动从开发仓库同步 `libs/` / `sdk/` / `contracts/` / `skills/` / `scripts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `services/`（空）+ `Cargo.toml` / `pnpm-workspace.yaml` / `package.json` / `AGENTS.md` 到发布包。`frontend/` 是 compose/services.yml 中 frontend 服务的 build context，离线镜像缺失时供本地 docker build 兜底。
+- v2 新增：release.sh 自动从开发仓库同步 `libs/` / `contracts/` / `skills/` / `scripts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `services/`（空）+ `Cargo.toml` / `pnpm-workspace.yaml` / `package.json` / `AGENTS.md` 到发布包。**`sdk/` 不打包进分发包**：整套 SDK（`sdk/java/*` + `sdk/rust/*` + `sdk/openapi/` + `sdk/scripts/` + `sdk/README.md`）均发布到私有包仓库（crates.io/Panamax mirror + 内网 Maven 仓库），业务服务通过 `cargo add` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 用 `sed` 过滤掉了 `sdk/rust/*` 行以避免指向不存在的目录。`frontend/` 是 compose/services.yml 中 frontend 服务的 build context，离线镜像缺失时供本地 docker build 兜底。
 
 ## 升级
 
