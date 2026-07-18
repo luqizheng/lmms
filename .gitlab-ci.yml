@@ -89,7 +89,7 @@ e2e_api_test:
 
 e2e_ui_test:
   stage: test
-  tags: [docker]
+  tags: [shell]
   image: mcr.microsoft.com/playwright:v1.48.0-jammy
   before_script:
     - npm install -g pnpm
@@ -100,7 +100,7 @@ e2e_ui_test:
 
 e2e_migration_state_test:
   stage: test
-  tags: [shell]
+  tags: [docker]
   image: $BASE_REGISTRY/node:20
   before_script:
     - npm install -g pnpm
