@@ -79,7 +79,7 @@ spec_generate:
 
 e2e_api_test:
   stage: test
-  tags: [shell]
+  tags: [docker]
   image: $BASE_REGISTRY/node:20
   before_script:
     - npm install -g pnpm
