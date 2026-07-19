@@ -99,7 +99,7 @@ else
   echo "[release] ⚠ --no-images：跳过 docker pull/save"
 fi
 
-echo "[release] -> 跳过文档构建（不打包 docs；用户查阅 docs/ 源或开发仓库 docs-site/）..."
+echo "[release] -> 跳过文档构建（user-manual 归 docs-site/ 管理，不打包进分发包）..."
 echo ""
 
 echo "[release] -> 同步开发骨架（libs/sdk/contracts/skills/scripts/services）..."
@@ -140,10 +140,23 @@ if [ -d "${REPO_ROOT}/scripts" ]; then
   echo "[release]   ✓ scripts/"
 fi
 
-# AI skills（6 个：coder-new-service / coder-add-route / coder-migrate-db + 3 Java 版）
+# AI skills（复制到 .agents/skills/ 以符合 agent 发现规范）
 if [ -d "${REPO_ROOT}/.agents/skills" ]; then
-  cp -r "${REPO_ROOT}/.agents/skills" "${DIST_DIR}/skills"
-  echo "[release]   ✓ skills/"
+  mkdir -p "${DIST_DIR}/.agents"
+  cp -r "${REPO_ROOT}/.agents/skills" "${DIST_DIR}/.agents/skills"
+  echo "[release]   ✓ .agents/skills/"
+fi
+
+# AI 规则文件（.agents/rules/ — 项目级 L4 触发规则，替换原 .trae/rules/ 约定）
+if [ -d "${REPO_ROOT}/.agents/rules" ]; then
+  mkdir -p "${DIST_DIR}/.agents"
+  cp -r "${REPO_ROOT}/.agents/rules" "${DIST_DIR}/.agents/rules"
+  echo "[release]   ✓ .agents/rules/"
+elif [ -d "${REPO_ROOT}/.trae/rules" ]; then
+  # 兼容旧版：从 .trae/rules/ 迁移到 .agents/rules/
+  mkdir -p "${DIST_DIR}/.agents/rules"
+  cp -r "${REPO_ROOT}/.trae/rules/"* "${DIST_DIR}/.agents/rules/"
+  echo "[release]   ✓ .agents/rules/ (migrated from .trae/rules/)"
 fi
 
 # 前端源码（compose/services.yml 的 frontend 服务 build context: ./frontend，
@@ -165,6 +178,51 @@ fi
 touch "${DIST_DIR}/services/.gitkeep"
 echo "[release]   ✓ services/ (empty - for user-created business services)"
 
+# infrastructure/ 目录（Docker Compose + 配置，发布后即刻启动开发环境）
+if [ -d "${REPO_ROOT}/infrastructure" ]; then
+  # 复制所有 compose 文件
+  cp "${REPO_ROOT}/infrastructure/docker-compose.yml" "${DIST_DIR}/infrastructure/docker-compose.yml" 2>/dev/null || true
+  cp "${REPO_ROOT}/infrastructure/docker-compose-infra.yml" "${DIST_DIR}/infrastructure/docker-compose-infra.yml" 2>/dev/null || true
+  cp "${REPO_ROOT}/infrastructure/docker-compose-infra.dev.yml" "${DIST_DIR}/infrastructure/docker-compose-infra.dev.yml" 2>/dev/null || true
+  cp "${REPO_ROOT}/infrastructure/docker-compose-services.yml" "${DIST_DIR}/infrastructure/docker-compose-services.yml" 2>/dev/null || true
+  cp "${REPO_ROOT}/infrastructure/docker-compose-observability.yml" "${DIST_DIR}/infrastructure/docker-compose-observability.yml" 2>/dev/null || true
+  echo "[release]   ✓ infrastructure/docker-compose*.yml"
+
+  # 复制配置目录（API 网关路由、Consul、Grafana、Prometheus、OTel 等）
+  if [ -d "${REPO_ROOT}/infrastructure/config" ]; then
+    cp -r "${REPO_ROOT}/infrastructure/config" "${DIST_DIR}/infrastructure/config"
+    echo "[release]   ✓ infrastructure/config/"
+  fi
+
+  # 复制 MySQL 初始化脚本
+  if [ -d "${REPO_ROOT}/infrastructure/mysql-init" ]; then
+    cp -r "${REPO_ROOT}/infrastructure/mysql-init" "${DIST_DIR}/infrastructure/mysql-init"
+    echo "[release]   ✓ infrastructure/mysql-init/"
+  fi
+
+  # 复制 Nginx 配置
+  if [ -d "${REPO_ROOT}/infrastructure/nginx" ]; then
+    cp -r "${REPO_ROOT}/infrastructure/nginx" "${DIST_DIR}/infrastructure/nginx"
+    echo "[release]   ✓ infrastructure/nginx/"
+  fi
+
+  # 复制 vendor（swagger-ui zip，build.rs 需要）
+  if [ -d "${REPO_ROOT}/infrastructure/vendor" ]; then
+    cp -r "${REPO_ROOT}/infrastructure/vendor" "${DIST_DIR}/infrastructure/vendor"
+    echo "[release]   ✓ infrastructure/vendor/"
+  fi
+
+  # 复制 .env 模板
+  if [ -f "${REPO_ROOT}/infrastructure/.env" ]; then
+    cp "${REPO_ROOT}/infrastructure/.env" "${DIST_DIR}/infrastructure/.env"
+    echo "[release]   ✓ infrastructure/.env"
+  fi
+
+  echo "[release]   ✓ infrastructure/ (Docker Compose + configs — ready for dev environment)"
+else
+  echo "[release]   ⚠ infrastructure/ not found — 发布后无法直接启动开发环境"
+fi
+
 # Rust workspace 根 Cargo.toml（移除 services/* 和 sdk/rust/* members，
 # services/ 用户通过 skill 动态加入；sdk/rust/ 以 crate 发布，不打包源码）
 if [ -f "${REPO_ROOT}/Cargo.toml" ]; then
@@ -184,7 +242,15 @@ echo "[release]   ✓ pnpm-workspace.yaml + package.json"
 # AGENTS.md（项目协作指南，skill 引用的约定）
 if [ -f "${REPO_ROOT}/AGENTS.md" ]; then
   cp "${REPO_ROOT}/AGENTS.md" "${DIST_DIR}/AGENTS.md"
-  echo "[release]   ✓ AGENTS.md"
+  # 将 .trae/ 引用替换为 .agents/（分发包不使用 Trae IDE）
+  sed -i 's|\.trae/rules/|.agents/rules/|g' "${DIST_DIR}/AGENTS.md"
+  sed -i 's|\.trae/rule/|.agents/rules/|g' "${DIST_DIR}/AGENTS.md"
+  sed -i 's|\.trae/skills/|.agents/skills/|g' "${DIST_DIR}/AGENTS.md"
+  # 移除平台 skill 表行（.trae/skills/ 在分发包中不存在）
+  sed -i '/| 同步基础镜像 |.*\.trae\/skills\//d' "${DIST_DIR}/AGENTS.md"
+  sed -i '/| 审计服务规范 |.*\.trae\/skills\//d' "${DIST_DIR}/AGENTS.md"
+  sed -i '/| 引导开发环境 |.*\.trae\/skills\//d' "${DIST_DIR}/AGENTS.md"
+  echo "[release]   ✓ AGENTS.md (.trae/ references replaced with .agents/)"
 fi
 
 echo "[release] ✓ 开发骨架同步完成"
