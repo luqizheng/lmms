@@ -81,12 +81,8 @@ services:
       - "8085:8081"
     labels: *svc-reg-labels-config
     environment:
-      SERVICE_BOOTSTRAP_TOKEN: "${CONFIG_DEV_BT}"
-      TENANT_ID: "${TENANT_ID}"
-      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
-      SERVER_HOST: "0.0.0.0"
-      SERVER_ADDR: "0.0.0.0:8081"
       DATABASE_URL: "${DATABASE_URL}"
       RUST_LOG: "info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -94,6 +90,10 @@ services:
       SERVICE_ID: "config-service"
       SERVICE_PORT: "8081"
       SERVICE_HEALTH_PATH: "/health"
+      # SERVER_ADDR: "0.0.0.0:8081"   # 默认值，取消注释可覆盖
+
+      # ── config.yaml 中的默认值，取消注释可覆盖 ──
+      # SWAGGER_ENABLED: "false"
     depends_on:
       mysql:
         condition: service_healthy
@@ -110,12 +110,8 @@ services:
       - "8086:8082"
     labels: *svc-reg-labels-file
     environment:
-      SERVICE_BOOTSTRAP_TOKEN: "${FILE_DEV_BT}"
-      TENANT_ID: "${TENANT_ID}"
-      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
-      SERVER_HOST: "0.0.0.0"
-      SERVER_ADDR: "0.0.0.0:8082"
       DATABASE_URL: "${DATABASE_URL}"
       STORAGE_PATH: "/var/lib/file-service/storage"
       RUST_LOG: "info"
@@ -124,6 +120,10 @@ services:
       SERVICE_ID: "file-service"
       SERVICE_PORT: "8082"
       SERVICE_HEALTH_PATH: "/health"
+      # SERVER_ADDR: "0.0.0.0:8082"   # 默认值，取消注释可覆盖
+
+      # ── config.yaml 中的默认值，取消注释可覆盖 ──
+      # SWAGGER_ENABLED: "false"
     volumes:
       - file-storage:/var/lib/file-service/storage
     depends_on:
@@ -143,11 +143,7 @@ services:
       - "3000:3000"
     labels: *svc-reg-labels-gateway
     environment:
-      SERVICE_BOOTSTRAP_TOKEN: "${GATEWAY_DEV_BT}"
-      TENANT_ID: "${TENANT_ID}"
-      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
-      JWKS_URL: "${JWKS_URL}"
-      RUST_LOG: "api_gateway=trace,info"
+      # ── 直接读取（GW_ 前缀，config crate 加载） ──
       GW_SERVER__HOST: "0.0.0.0"
       GW_SERVER__PORT: "3000"
       GW_REDIS__URL: "redis://redis:6379"
@@ -157,6 +153,8 @@ services:
       GW_ISSUER: "superpowers-token-service"
       GW_ROUTES_DIR: "/app/config/api-gateway/routes"
       GW_EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
+      # GW_PERM_EPOCH_TTL_SEC: "900"   # 默认值，取消注释可覆盖
+      RUST_LOG: "api_gateway=trace,info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "api-gateway"
       SERVICE_ID: "api-gateway"
@@ -260,20 +258,24 @@ services:
     volumes:
       - ../services/iam-service/config:/etc/iam-service:ro
     environment:
+      # ── 直接读取（main.rs 中硬编码读取） ──
       SERVICE_BOOTSTRAP_TOKEN: "${IAM_DEV_BT}"
       TENANT_ID: "${TENANT_ID}"
       TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
       JWKS_URL: "${JWKS_URL}"
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "8081"
+      # IAM_PRIVATE_KEY_PEM_PATH: "" # 可选：私钥 PEM 文件路径（当前未使用）
       DATABASE_URL: "${DATABASE_URL}"
-      CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "iam-service"
       SERVICE_ID: "iam-service"
       SERVICE_PORT: "8081"
       SERVICE_HEALTH_PATH: "/health"
+
+      # ── config.yaml 中的默认值，取消注释可覆盖 ──
+      # SERVER_HOST: "0.0.0.0"
+      # SERVER_PORT: "8081"
+      # SWAGGER_ENABLED: "true"
     depends_on:
       mysql:
         condition: service_healthy
@@ -316,18 +318,20 @@ services:
       - "8087:8087"
     labels: *svc-reg-labels-prue
     environment:
-      SERVICE_BOOTSTRAP_TOKEN: "${PRUE_DEV_BT}"
-      TENANT_ID: "${TENANT_ID}"
-      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "8087"
       DATABASE_URL: "${DATABASE_URL}"
       RUST_LOG: "info"
+      # CONSUL_ADDR: "http://consul:8500"  # 默认值，取消注释可覆盖
       SERVICE_NAME: "prue_backend"
       SERVICE_ID: "prue_backend"
       SERVICE_PORT: "8087"
       SERVICE_HEALTH_PATH: "/health"
+
+      # ── config.yaml 中的默认值，取消注释可覆盖 ──
+      # SERVER_HOST: "0.0.0.0"
+      # SERVER_PORT: "8087"
+      # SWAGGER_ENABLED: "false"
     depends_on:
       mysql:
         condition: service_healthy
@@ -351,12 +355,12 @@ services:
     volumes:
       - ../services/notification-service/config:/app/config:ro
     environment:
+      # ── 直接读取（main.rs 中硬编码读取） ──
       SERVICE_BOOTSTRAP_TOKEN: "${NOTIFICATION_DEV_BT}"
       TENANT_ID: "${TENANT_ID}"
       TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
       JWKS_URL: "${JWKS_URL}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
-      CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
       SERVER_PORT: "8083"
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
@@ -365,6 +369,9 @@ services:
       SERVICE_ID: "notification-service"
       SERVICE_PORT: "8083"
       SERVICE_HEALTH_PATH: "/health"
+
+      # ── config.yaml 中的默认值，取消注释可覆盖 ──
+      # SWAGGER_ENABLED: "true"
     depends_on:
       mysql:
         condition: service_healthy
@@ -406,22 +413,25 @@ services:
       - "8084:8084"
     labels: *svc-reg-labels-audit
     environment:
-      SERVICE_BOOTSTRAP_TOKEN: "${AUDIT_DEV_BT}"
-      TENANT_ID: "${TENANT_ID}"
-      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "8084"
       DATABASE_URL: "${DATABASE_URL}"
-      CONSUL_ADDR: "http://${CONSUL_HOST}:${CONSUL_HTTP_PORT}"
-      CONSUL_SERVICE_NAME: "audit-service"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
+      # CONSUL_ADDR: "http://consul:8500"   # 默认值，取消注释可覆盖
+      # CONSUL_SERVICE_NAME: "audit-service"  # 默认值，取消注释可覆盖
       RUST_LOG: "info"
       SERVICE_NAME: "audit-service"
       SERVICE_ID: "audit-service"
       SERVICE_PORT: "8084"
       SERVICE_HEALTH_PATH: "/health"
+
+      # ── config.yaml 中的默认值，取消注释可覆盖 ──
+      # SERVER_HOST: "0.0.0.0"
+      # SERVER_PORT: "8084"
+      # SWAGGER_ENABLED: "false"
+      # LOGIN_RISK_THRESHOLD: "5"       # 风控：窗口内登录失败次数告警阈值
+      # LOGIN_RISK_WINDOW_SECS: "300"   # 风控：滑动窗口秒数
     depends_on:
       mysql:
         condition: service_healthy
