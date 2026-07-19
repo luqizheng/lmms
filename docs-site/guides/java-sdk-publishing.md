@@ -37,8 +37,8 @@ sdk/java/
 | `notification-service-sdk` | `com.kudi.coder` | 调用通知服务 |
 
 > **目标仓库**：Reposilite `http://192.168.2.12:18181/`
-> - release：http://192.168.2.12:18181/releases（`<version>` 不能带 `-SNAPSHOT`）
-> - snapshot：http://192.168.2.12:18181/snapshots（`<version>` 必须带 `-SNAPSHOT`）
+> - release：http://192.168.2.12:18181/releases（`&lt;version&gt;` 不能带 `-SNAPSHOT`）
+> - snapshot：http://192.168.2.12:18181/snapshots（`&lt;version&gt;` 必须带 `-SNAPSHOT`）
 
 ---
 

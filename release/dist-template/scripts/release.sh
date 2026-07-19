@@ -188,6 +188,17 @@ if [ -d "${REPO_ROOT}/infrastructure" ]; then
   cp "${REPO_ROOT}/infrastructure/docker-compose-infra.dev.yml" "${DIST_DIR}/infrastructure/docker-compose-infra.dev.yml" 2>/dev/null || true
   cp "${REPO_ROOT}/infrastructure/docker-compose-services.yml" "${DIST_DIR}/infrastructure/docker-compose-services.yml" 2>/dev/null || true
   cp "${REPO_ROOT}/infrastructure/docker-compose-observability.yml" "${DIST_DIR}/infrastructure/docker-compose-observability.yml" 2>/dev/null || true
+
+  # 转换 docker-compose-services.yml：将 build: 块替换为 image: 引用
+  # （分发包用户通过已推送的镜像启动，无需本地构建）
+  if [ -f "${DIST_DIR}/infrastructure/docker-compose-services.yml" ]; then
+    node "${ROOT}/scripts/transform-compose.js" \
+      "${DIST_DIR}/infrastructure/docker-compose-services.yml" \
+      "${REGISTRY}" "${VERSION}" && \
+      echo "[release]   ✓ docker-compose-services.yml: build → image 转换完成" || \
+      echo "[release]   ⚠ docker-compose-services.yml 转换失败（非致命）"
+  fi
+
   echo "[release]   ✓ infrastructure/docker-compose*.yml"
 
   # 复制配置目录（API 网关路由、Consul、Grafana、Prometheus、OTel 等）
