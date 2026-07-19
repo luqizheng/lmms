@@ -49,7 +49,7 @@ const SERVICES = [
   'file-service',
   'config-service',
   'audit-service',
-  'prue_backend',
+  'prue-admin-backend',
   'frontend',
   'docs-site',
 ];
@@ -302,6 +302,11 @@ function buildService(name, ctx) {
     dockerfile = path.join(ROOT_DIR, 'docs-site', 'Dockerfile');
     cwd = ROOT_DIR;
     relDf = 'docs-site/Dockerfile';
+  } else if (name === 'prue-admin-backend') {
+    // prue-admin-backend 镜像名，源码目录仍是 prue_backend
+    dockerfile = path.join(SERVICES_DIR, 'prue_backend', 'Dockerfile');
+    cwd = ROOT_DIR;
+    relDf = 'services/prue_backend/Dockerfile';
   } else {
     dockerfile = path.join(SERVICES_DIR, name, 'Dockerfile');
     cwd = ROOT_DIR;

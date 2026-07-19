@@ -335,9 +335,9 @@ services:
     networks:
       - superpowers
 
-  prue_backend:
-    image: ${REGISTRY}/micro-server/prue-backend:${IMAGE_TAG}
-    container_name: coder-micro-services-prue-backend
+  prue_admin_backend:
+    image: ${REGISTRY}/micro-server/prue-admin-backend:${IMAGE_TAG}
+    container_name: coder-micro-services-prue-admin-backend
     restart: unless-stopped
     ports:
       - "8087:8087"

@@ -66,7 +66,7 @@ IMAGES=(
   "${REGISTRY}/micro-server/iam-service:${VERSION}"
   "${REGISTRY}/micro-server/notification-service:${VERSION}"
   "${REGISTRY}/micro-server/audit-service:${VERSION}"
-  "${REGISTRY}/micro-server/prue-backend:${VERSION}"
+  "${REGISTRY}/micro-server/prue-admin-backend:${VERSION}"
   "${REGISTRY}/micro-server/frontend:${VERSION}"
   "hashicorp/consul:2.0.1"
   "gliderlabs/registrator:master"

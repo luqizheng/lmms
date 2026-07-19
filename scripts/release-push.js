@@ -25,7 +25,7 @@ const ALL_SERVICES = [
   'file-service',
   'config-service',
   'audit-service',
-  'prue_backend',
+  'prue-admin-backend',
   'frontend',
 ];
 
