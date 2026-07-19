@@ -180,6 +180,8 @@ echo "[release]   ✓ services/ (empty - for user-created business services)"
 
 # infrastructure/ 目录（Docker Compose + 配置，发布后即刻启动开发环境）
 if [ -d "${REPO_ROOT}/infrastructure" ]; then
+  mkdir -p "${DIST_DIR}/infrastructure"
+
   # 复制所有 compose 文件
   cp "${REPO_ROOT}/infrastructure/docker-compose.yml" "${DIST_DIR}/infrastructure/docker-compose.yml" 2>/dev/null || true
   cp "${REPO_ROOT}/infrastructure/docker-compose-infra.yml" "${DIST_DIR}/infrastructure/docker-compose-infra.yml" 2>/dev/null || true
