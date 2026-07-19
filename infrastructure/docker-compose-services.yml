@@ -210,15 +210,37 @@ services:
       #    跨重启持久化或多实例共享同一 key，恢复本行挂载即可。
       # ──────────────────────────────────────────────────────────
     environment:
+      # ── 直接读取（main.rs 中硬编码读取，非 TOKEN_ 前缀） ──
       SERVICE_BOOTSTRAP_TOKENS: "${SERVICE_BOOTSTRAP_TOKENS}"
       TENANT_ID: "${TENANT_ID}"
       SWAGGER_ENABLED: "true"
-      TOKEN_DATABASE_URL: "${DATABASE_URL}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "token-service"
       SERVICE_ID: "token-service"
       SERVICE_PORT: "8082"
       SERVICE_HEALTH_PATH: "/health"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      # CONFIG_SERVICE_URL: ""       # 可选：远程配置中心地址
+      # CONFIG_SERVICE_NAMESPACE: "" # 可选：远程配置中心命名空间
+      # RUST_LOG: "info"
+
+      # ── 覆盖 config.yaml（TOKEN_ 前缀，由 common_config::Loader 读取） ──
+      TOKEN_DATABASE_URL: "${DATABASE_URL}"    # 数据库连接
+
+      # ── config.yaml 中的默认值，取消注释可覆盖 ──
+      # TOKEN_SERVER_HOST: "0.0.0.0"
+      # TOKEN_SERVER_PORT: "8082"
+      # TOKEN_DATABASE_DB_TYPE: "mysql"
+      # TOKEN_DATABASE_MAX_CONNECTIONS: "16"
+      # TOKEN_CONSUL_ADDR: "http://consul:8500"
+      # TOKEN_CONSUL_SERVICE_NAME: "token-service"
+      # TOKEN_CONSUL_SERVICE_ID_FILE: "/tmp/token-service-id"
+      # TOKEN_JWT_PRIVATE_KEY_PATH: "/app/keys/private.pem"
+      # TOKEN_JWT_PUBLIC_KEY_PATH: "/app/keys/public.pem"
+      # TOKEN_ISSUER: "superpowers-token-service"
+      # TOKEN_DEFAULT_ACCESS_TTL_SEC: "3600"
+      # TOKEN_DEFAULT_REFRESH_TTL_SEC: "2592000"
+      # TOKEN_DEFAULT_RESOURCE_TTL_SEC: "300"
+      # TOKEN_USER_SERVICE_URL: "http://iam-service:8081"
     depends_on:
       mysql:
         condition: service_healthy
