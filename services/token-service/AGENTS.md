@@ -19,7 +19,6 @@
 | SERVER_PORT | 8080 | 监听端口 |
 | SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址 |
 | DATABASE_URL | 服务自定义 | MySQL 连接 |
-| REDIS_URL | 服务自定义 | Redis 连接 |
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
