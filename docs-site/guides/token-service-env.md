@@ -32,10 +32,13 @@
 | 租户 ID | `TENANT_ID` | `${TENANT_ID}` | — |
 | 是否启用 Swagger UI | `SWAGGER_ENABLED` | `true` | `true` |
 | OpenTelemetry 端点 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | — |
-| 服务名（注册发现） | `SERVICE_NAME` | `token-service` | `token-service` |
+| 服务名（通用标识） | `SERVICE_NAME` | `token-service` | `token-service` |
 | 服务实例 ID | `SERVICE_ID` | `token-service` | `token-service` |
-| 服务端口（注册发现） | `SERVICE_PORT` | `8082` | `8080` |
+| 服务端口（注册探测） | `SERVICE_PORT` | `8082` | `8080` |
 | 健康检查路径 | `SERVICE_HEALTH_PATH` | `/health` | `/health` |
 | 配置中心地址（可选） | `CONFIG_SERVICE_URL` | — | — |
 | 配置中心命名空间（可选） | `CONFIG_SERVICE_NAMESPACE` | — | — |
 | 日志级别 | `RUST_LOG` | `info` | `info` |
+
+> **注意**：`SERVICE_NAME` 与 `TOKEN_CONSUL_SERVICE_NAME` 不是同一个设置。
+> `SERVICE_NAME` 被遥测/日志库（`common_telemetry`）读取，作为服务通用标识；`TOKEN_CONSUL_SERVICE_NAME` 是 Consul 注册专用配置，由 `config.yaml` 的 `consul.service_name` 控制。两者值都是 `token-service`，但用途不同。
