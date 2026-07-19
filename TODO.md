@@ -274,7 +274,10 @@
   - [x] `main.rs` 用 `Loader::new("TOKEN").with_config_service(...).with_file(...).load().await` 替代 yaml
   - [x] `test-case/65-config-service-dogfood.md` 手工验收
 
-### Phase 7 — 生产级部署（P2）
+### Phase 7 — 生产级部署（P10，降级）
+
+> **2026-07-19 决策**：当前无客户使用 K8s，Phase 7 从 P2 降级至 P10。
+> 维持 docker-compose 作为唯一部署方案，等出现 K8s 部署需求时再启动。
 
 - [ ] **K3s / Kubernetes 化**
   - [ ] 服务 chart / manifest 编写（替代 `docker-compose` 生产用途）

@@ -18,8 +18,7 @@ const home = 0, // 平台规定只有 home 路由的 rank 才能为 0 ，所以�
   guide = 26,
   menuoverflow = 27,
   account = 28,
-  notification = 29,
-  pm = 30;
+  notification = 29;
 
 export {
   home,
@@ -40,6 +39,5 @@ export {
   guide,
   menuoverflow,
   account,
-  notification,
-  pm
+  notification
 };

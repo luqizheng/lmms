@@ -112,13 +112,6 @@ menus:
   notificationDraft: Draft
   notificationPublished: Published
   notificationRevoked: Revoked
-  pm: Dev Management
-  pmProjectList: Projects
-  pmProjectDetail: Project Detail
-  pmRequirementList: Requirements
-  pmRequirementDetail: Requirement Detail
-  pmRequirementDecompose: AI Decompose
-  pmKbSpaces: Knowledge Base
   notificationMarkRead: Mark as Read
   notificationMarkAllRead: Mark All as Read
   notificationRefresh: Refresh
@@ -127,6 +120,9 @@ menus:
   notificationFilterTitle: Filter by title
   notificationFilterAll: All
   notificationAll: All
+  accountSettings: Account
+  accountProfile: Profile
+  accountSecurity: Security Log
   userSearchUsername: Username
   userPlaceholderUsername: Enter username
   userPhone: Phone

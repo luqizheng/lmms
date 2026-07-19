@@ -21,6 +21,8 @@
 
 **全部对接完成（2026-07-02）**：7 个服务全部接入端到端。后端 4 个 gap（multipart upload、is_secret reveal、api-key list、gateway SSE streaming）已分别在 `fix/backend-integration-gaps` 与 `feat/sse-gateway-streaming` 分支修复并 push。SSE `/v1/config/watch` 已激活，前端 `api/config/sse.ts` `EventSource` 实打开。
 
+> **PM 平台（研发管理）已于 2026-07-19 移除**：PM 属于独立业务项目 `/home/kudi/projects/project-manager`，不属于本基础框架范围。相关文件已删除（`views/pm/`、`api/{pm,kb,llm}.ts`、`router/modules/pm.ts`、`store/modules/pm.ts`、locales 中 PM i18n keys）。
+
 ---
 
 ## 1. 完全无前端的服务（P0）

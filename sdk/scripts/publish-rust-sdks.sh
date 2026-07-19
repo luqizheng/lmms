@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# sdk/scripts/publish-rust-sdks.sh - 发布 Rust SDK crates 到 crates.io
+#
+# 依赖顺序：先发布 kudi-http-client（基础库），再发布 6 个 service SDK。
+# 各 service SDK 通过 path 依赖 kudi-http-client，发布时临时替换为 version
+# 依赖，发布完自动恢复。
+#
+# 前置条件：
+#   1. `cargo login` 已完成（或指定 --registry 且已登录该 registry）
+#   2. 网络可访问目标 registry（默认 crates.io，--registry 指定私有 registry）
+#   3. 工作区能正常编译（`cargo build -p kudi-http-client` 通过）
+#
+# 用法：
+#   bash sdk/scripts/publish-rust-sdks.sh [--dry-run] [--registry <name>] [--version <ver>]
+#
+# 选项：
+#   --dry-run       只验证，不实际发布
+#   --registry XXX  发布到指定 registry（写入 Cargo.toml 的 publish 字段）
+#   --version VER   统一版本号（默认 0.1.0，所有 crate 保持相同版本）
+#   --help, -h      打印帮助
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+# ── 默认值 ──────────────────────────────────────────────────────────────────
+CRATE_VERSION="${CRATE_VERSION:-0.1.0}"
+DRY_RUN=0
+REGISTRY=""
+SED_INPLACE=(-i)
+
+# ── 路径 ────────────────────────────────────────────────────────────────────
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+RUST_SDK_DIR="${ROOT}/rust"
+
+# 发布顺序：基础库在前，service SDK 在后
+BASE_CRATES=(
+  "kudi-http-client"
+)
+SERVICE_CRATES=(
+  "audit-service-sdk"
+  "config-service-sdk"
+  "file-service-sdk"
+  "iam-service-sdk"
+  "notification-service-sdk"
+  "token-service-sdk"
+)
+
+# ── 参数解析 ────────────────────────────────────────────────────────────────
+SHOW_HELP=0
+for arg in "$@"; do
+  case "${arg}" in
+    --dry-run)  DRY_RUN=1 ;;
+    --registry) REGISTRY="${2:-}"; shift ;;
+    --version)  CRATE_VERSION="${2:-}"; shift ;;
+    --help|-h)  SHOW_HELP=1 ;;
+    *)          echo "[publish-rust] 未知参数: ${arg}" >&2; SHOW_HELP=1 ;;
+  esac
+done
+
+if [[ "${SHOW_HELP}" == "1" ]]; then
+  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+
+echo "============================================"
+echo " Rust SDK Publish"
+echo " Version:  ${CRATE_VERSION}"
+echo " Registry: ${REGISTRY:-crates.io (default)}"
+echo " Dry-run:  ${DRY_RUN}"
+echo "============================================"
+echo ""
+
+# ── 前置检查 ────────────────────────────────────────────────────────────────
+if ! command -v cargo &>/dev/null; then
+  echo "[publish-rust] ERROR: 'cargo' not found on PATH" >&2
+  exit 1
+fi
+
+# 检查每个 crate 的必要 package 字段
+REQUIRED_FIELDS=("description" "license")
+check_required_fields() {
+  local crate_dir="$1"
+  local crate_name
+  crate_name="$(basename "${crate_dir}")"
+  for field in "${REQUIRED_FIELDS[@]}"; do
+    if ! grep -q "^${field} " "${crate_dir}/Cargo.toml"; then
+      echo "[publish-rust] ERROR: ${crate_name} missing '${field}' in Cargo.toml — required by crates.io" >&2
+      exit 1
+    fi
+  done
+}
+
+echo "[publish-rust] -> Checking required fields..."
+for crate in "${BASE_CRATES[@]}" "${SERVICE_CRATES[@]}"; do
+  check_required_fields "${RUST_SDK_DIR}/${crate}"
+done
+echo "[publish-rust]   ✓ All crates have required fields"
+echo ""
+
+# ── 统一版本号 ──────────────────────────────────────────────────────────────
+echo "[publish-rust] -> Ensuring all crates have version ${CRATE_VERSION}..."
+for crate in "${BASE_CRATES[@]}" "${SERVICE_CRATES[@]}"; do
+  toml="${RUST_SDK_DIR}/${crate}/Cargo.toml"
+  current="$(grep "^version " "${toml}" | sed 's/version = "\(.*\)"/\1/')"
+  if [[ "${current}" != "${CRATE_VERSION}" ]]; then
+    echo "[publish-rust]   ~ ${crate}: ${current} -> ${CRATE_VERSION}"
+    sed "${SED_INPLACE[@]}" "s/^version = \"${current}\"/version = \"${CRATE_VERSION}\"/" "${toml}"
+  else
+    echo "[publish-rust]   ✓ ${crate}: ${CRATE_VERSION}"
+  fi
+done
+echo ""
+
+# ── 注册 registry 参数 ─────────────────────────────────────────────────────
+REGISTRY_ARG=()
+REGISTRY_TOML=""
+if [[ -n "${REGISTRY}" ]]; then
+  REGISTRY_ARG=(--registry "${REGISTRY}")
+  REGISTRY_TOML="${REGISTRY}"
+fi
+
+# ── 发布函数 ────────────────────────────────────────────────────────────────
+publish_crate() {
+  local crate_name="$1"
+  shift
+
+  echo "[publish-rust]   Publishing ${crate_name}..."
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[publish-rust]     (dry-run) cargo publish -p ${crate_name} ${REGISTRY_ARG[*]:+--registry ${REGISTRY}} --allow-dirty"
+    # dry-run 时用 --dry-run 验证
+    if [[ -n "${REGISTRY}" ]]; then
+      cargo publish -p "${crate_name}" --registry "${REGISTRY}" --dry-run --allow-dirty 2>&1 | sed 's/^/      /'
+    else
+      cargo publish -p "${crate_name}" --dry-run --allow-dirty 2>&1 | sed 's/^/      /'
+    fi
+  else
+    if [[ -n "${REGISTRY}" ]]; then
+      cargo publish -p "${crate_name}" --registry "${REGISTRY}" --allow-dirty 2>&1 | sed 's/^/      /'
+    else
+      cargo publish -p "${crate_name}" --allow-dirty 2>&1 | sed 's/^/      /'
+    fi
+  fi
+  echo "[publish-rust]   ✓ ${crate_name} published"
+}
+
+# ── 发布 kudi-http-client（基础库，无 path 依赖问题）────────────────────
+echo "[publish-rust] -> Step 1/2: Publishing base crate ${BASE_CRATES[0]}..."
+(
+  cd "${RUST_SDK_DIR}/${BASE_CRATES[0]}"
+  publish_crate "${BASE_CRATES[0]}"
+)
+echo ""
+
+# ── 发布 service SDK（需临时替换 path 依赖为 version 依赖）───────────────
+echo "[publish-rust] -> Step 2/2: Publishing service SDK crates..."
+
+# 保存所有被修改文件的备份路径，用于恢复
+BACKUP_FILES=()
+
+for crate in "${SERVICE_CRATES[@]}"; do
+  toml="${RUST_SDK_DIR}/${crate}/Cargo.toml"
+  # 替换 path 依赖为 version 依赖
+  if grep -q "path = \"../kudi-http-client\"" "${toml}"; then
+    echo "[publish-rust]   ~ ${crate}: replacing path dep with version ${CRATE_VERSION}"
+    sed "${SED_INPLACE[@]}.bak" \
+      's|kudi-http-client = { path = "../kudi-http-client" }|kudi-http-client = { version = "'"${CRATE_VERSION}"'" }|' \
+      "${toml}"
+    BACKUP_FILES+=("${toml}")
+  fi
+done
+
+# 逐个发布
+PUBLISH_FAILED=0
+for crate in "${SERVICE_CRATES[@]}"; do
+  (
+    cd "${RUST_SDK_DIR}/${crate}"
+    publish_crate "${crate}"
+  ) || {
+    echo "[publish-rust]   ✗ ${crate} failed" >&2
+    PUBLISH_FAILED=1
+  }
+done
+
+# ── 恢复 path 依赖 ──────────────────────────────────────────────────────────
+echo ""
+echo "[publish-rust] -> Restoring path dependencies..."
+for toml in "${BACKUP_FILES[@]}"; do
+  if [[ -f "${toml}.bak" ]]; then
+    mv "${toml}.bak" "${toml}"
+    echo "[publish-rust]   ✓ restored ${toml}"
+  fi
+done
+
+# ── 结果 ────────────────────────────────────────────────────────────────────
+echo ""
+if [[ "${DRY_RUN}" == "1" ]]; then
+  echo "============================================"
+  echo " Dry-run complete. No crates were published."
+  echo " Run without --dry-run to publish."
+  echo "============================================"
+elif [[ "${PUBLISH_FAILED}" == "1" ]]; then
+  echo "============================================"
+  echo " WARNING: Some crates failed to publish."
+  echo " Re-run to retry failed ones (idempotent)."
+  echo "============================================"
+  exit 1
+else
+  echo "============================================"
+  echo " All Rust SDK crates published successfully!"
+  echo " Version: ${CRATE_VERSION}"
+  [[ -n "${REGISTRY}" ]] && echo " Registry: ${REGISTRY}" || echo " Registry: crates.io"
+  echo "============================================"
+  echo ""
+  echo "Next step: consumers add via Cargo.toml:"
+  echo "  [dependencies]"
+  echo "  iam-service-sdk = \"${CRATE_VERSION}\""
+  echo "  # or: cargo add iam-service-sdk"
+fi
