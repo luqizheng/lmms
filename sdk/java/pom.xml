@@ -91,11 +91,11 @@
 
   <distributionManagement>
     <repository>
-      <id>kudi-maven</id>
+      <id>reposilite-repository-releases</id>
       <url>http://192.168.2.12:18181/releases</url>
     </repository>
     <snapshotRepository>
-      <id>kudi-maven</id>
+      <id>reposilite-repository-snapshots</id>
       <url>http://192.168.2.12:18181/snapshots</url>
     </snapshotRepository>
   </distributionManagement>

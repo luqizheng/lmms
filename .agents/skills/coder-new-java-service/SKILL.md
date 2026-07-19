@@ -885,6 +885,26 @@ public class ConflictException extends RuntimeException {
         <!--
         <dependency>
             <groupId>com.kudi.coder</groupId>
+            <artifactId>token-server-client-sdk</artifactId>
+            <version>${kudi-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.kudi.coder</groupId>
+            <artifactId>token-server-user-sdk</artifactId>
+            <version>${kudi-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.kudi.coder</groupId>
+            <artifactId>user-service-user-sdk</artifactId>
+            <version>${kudi-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.kudi.coder</groupId>
+            <artifactId>user-service-client-sdk</artifactId>
+            <version>${kudi-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.kudi.coder</groupId>
             <artifactId>audit-service-sdk</artifactId>
             <version>${kudi-sdk.version}</version>
         </dependency>
@@ -1027,6 +1047,9 @@ WORKDIR /build
 COPY sdk/java/pom.xml sdk/java/pom.xml
 COPY sdk/java/common/pom.xml                 sdk/java/common/pom.xml
 COPY sdk/java/kudi-http-client/pom.xml      sdk/java/kudi-http-client/pom.xml
+COPY sdk/java/user-service-user-sdk/pom.xml sdk/java/user-service-user-sdk/pom.xml
+COPY sdk/java/user-service-client-sdk/pom.xml sdk/java/user-service-client-sdk/pom.xml
+COPY sdk/java/token-server-user-sdk/pom.xml sdk/java/token-server-user-sdk/pom.xml
 COPY sdk/java/audit-service-sdk/pom.xml     sdk/java/audit-service-sdk/pom.xml
 COPY sdk/java/file-service-sdk/pom.xml      sdk/java/file-service-sdk/pom.xml
 COPY sdk/java/notification-service-sdk/pom.xml sdk/java/notification-service-sdk/pom.xml
@@ -1034,10 +1057,16 @@ COPY sdk/java/config-service-sdk/pom.xml    sdk/java/config-service-sdk/pom.xml
 
 COPY sdk/java/common                 sdk/java/common
 COPY sdk/java/kudi-http-client      sdk/java/kudi-http-client
+COPY sdk/java/user-service-user-sdk sdk/java/user-service-user-sdk
+COPY sdk/java/user-service-client-sdk sdk/java/user-service-client-sdk
+COPY sdk/java/token-server-user-sdk sdk/java/token-server-user-sdk
 COPY sdk/java/audit-service-sdk     sdk/java/audit-service-sdk
 COPY sdk/java/file-service-sdk      sdk/java/file-service-sdk
 COPY sdk/java/notification-service-sdk sdk/java/notification-service-sdk
 COPY sdk/java/config-service-sdk    sdk/java/config-service-sdk
+
+# token-server-client-sdk 已发布到内网 Reposilite 仓库，通过 Maven 依赖拉取，无需本地构建
+# 详见父 pom.xml 的 repositories 配置
 
 RUN --mount=type=cache,id=m2,target=/root/.m2 \
     mvn -f sdk/java/pom.xml -Pjava21 -DskipTests install \

@@ -81,6 +81,11 @@ function runMaven({ goal, profile, extra }) {
     '--network', 'host',
     '-v', `${ROOT}:/workspace`,
     '-v', `${M2_VOLUME}:/root/.m2`,
+    // 挂载宿主机 settings.xml 使 mvn deploy 能用仓库凭证
+    '-v', `${path.join(require('os').homedir(), '.m2', 'settings.xml')}:/root/.m2/settings.xml:ro`,
+    // 透传 Maven 仓库认证环境变量（settings.xml 内引用 ${env.MAVEN_USER} / ${env.MAVEN_PASS}）
+    '-e', `MAVEN_USER=${process.env.MAVEN_USER || 'admin'}`,
+    '-e', `MAVEN_PASS=${process.env.MAVEN_PASS || ''}`,
     '-w', '/workspace/sdk/java',
     IMAGE,
     'mvn', `-P${profile}`, ...goalArgs, ...extra,
