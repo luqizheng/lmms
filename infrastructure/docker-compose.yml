@@ -2,3 +2,17 @@ include:
   - docker-compose-infra.yml
   - docker-compose-services.yml
   - docker-compose-observability.yml
+
+services:
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_DISABLE_CAPTCHA: "true"
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - superpowers

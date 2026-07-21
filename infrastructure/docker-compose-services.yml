@@ -446,20 +446,6 @@ services:
       - superpowers
 
 
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_DISABLE_CAPTCHA: "true"
-    ports:
-      - "8080:80"
-    depends_on:
-      - api-gateway
-    networks:
-      - superpowers
-
-
 volumes:
   file-storage:
 
