@@ -2,7 +2,8 @@
 /**
  * scripts/setup-wizard.js
  *
- * 交互式配置 Docker 镜像拉取来源 + Rust crates.io 镜像与 token。
+ * 交互式配置 Docker 镜像拉取来源 + Rust crates.io 镜像与 token
+ * + Maven 仓库镜像与 token + npm 仓库镜像与 token。
  *
  * 输出文件（均 gitignored，本地配置不入 git）：
  *   - infrastructure/.docker-registry.json
@@ -12,6 +13,11 @@
  *       会被覆盖式重写（保留 kellnr 私有 registry 与 git-fetch-with-cli）。
  *   - .cargo/credentials.toml
  *       [registry.<name>] token = "..."（仅当 crateToken 非空时生成）。
+ *   - .mvn/settings.xml + .mvn/maven.config
+ *       Maven mirror 替换 central；token 作为 server password。
+ *       maven.config 含 "-s.mvn/settings.xml"，mvn 启动时自动加载。
+ *   - .npmrc（项目根）
+ *       registry=... + //host/:_authToken=...（仅当 npmToken 非空时写 _authToken）。
  *
  * 两类 Docker 镜像：
  *   1. 基础镜像（rabbitmq / redis / nginx / mysql / consul / grafana 等）
@@ -21,12 +27,11 @@
  *      - 默认 zhcoder-docker-registry.com:8000
  *      - 输入其他 registry = 重写 ref 的 registry 前缀
  *
- * crates.io 镜像：
- *   - 留空 = 官方 crates.io（移除 replace-with）
- *   - 输入 URL = 作为 [source.coder-mirror] 替换 crates-io。
- *     自动补 sparse+ 前缀；若只给 host:port（如 http://192.168.2.12:16444），
- *     自动补 /api/v1/crates/（kellnr 默认路径）。
- *   - token：留空 = 不写 credentials.toml；非空 = 写入 [registry.<name>] token。
+ * crates.io / maven / npm 镜像：
+ *   - 留空 = 官方源（crates.io / Maven Central / npmjs.com）
+ *   - 输入 URL = 作为私有 mirror 替换官方源
+ *   - crates.io 自动补 sparse+ 前缀与 /api/v1/crates/（kellnr 默认路径）
+ *   - token：留空 = 不写 credentials；非空 = 写入对应 credentials 文件。
  *
  * 优先级（高 -> 低）：CLI 参数 > 环境变量 > 现有配置文件 > 默认值
  * 非交互模式：stdin 不是 TTY，或传 --non-interactive / --defaults 时启用。
@@ -37,7 +42,10 @@
  *   node scripts/setup-wizard.js --defaults      # 强制用默认值，跳过交互
  *   node scripts/setup-wizard.js --show          # 打印当前配置后退出
  *   CODER_BASE_REGISTRY=... CODER_BUILDER_REGISTRY=... \
- *     CODER_CRATE_REGISTRY=... CODER_CRATE_TOKEN=... node scripts/setup-wizard.js --non-interactive
+ *     CODER_CRATE_REGISTRY=... CODER_CRATE_TOKEN=... \
+ *     CODER_MAVEN_REGISTRY=... CODER_MAVEN_TOKEN=... \
+ *     CODER_NPM_REGISTRY=... CODER_NPM_TOKEN=... \
+ *     node scripts/setup-wizard.js --non-interactive
  */
 
 'use strict';
@@ -55,6 +63,11 @@ const CARGO_DIR = path.join(ROOT, '.cargo');
 const CARGO_CONFIG_PATH = path.join(CARGO_DIR, 'config.toml');
 const CARGO_CREDENTIALS_PATH = path.join(CARGO_DIR, 'credentials.toml');
 
+const MVN_DIR = path.join(ROOT, '.mvn');
+const MVN_SETTINGS_PATH = path.join(MVN_DIR, 'settings.xml');
+const MVN_CONFIG_PATH = path.join(MVN_DIR, 'maven.config');
+const NPMRC_PATH = path.join(ROOT, '.npmrc');
+
 // 项目共享的私有 kellnr registry（libs/* 和 sdk/rust/* 发布到此处）。
 // wizard 重生成 .cargo/config.toml 时始终保留这一段。
 const KELLNR_REGISTRY = 'sparse+http://192.168.2.12:16444/api/v1/crates/';
@@ -62,12 +75,19 @@ const KELLNR_REGISTRY = 'sparse+http://192.168.2.12:16444/api/v1/crates/';
 const MIRROR_NAME = 'coder-mirror';
 // 交互提示用的 example URL（与 kellnr 同 host，便于团队识别）。
 const CRATE_REGISTRY_EXAMPLE = 'http://192.168.2.12:16444';
+const MVN_MIRROR_ID = 'coder-maven-mirror';
+const MVN_REGISTRY_EXAMPLE = 'http://mvn.kudi.repos';
+const NPM_REGISTRY_EXAMPLE = 'http://npm.kudi.repos';
 
 const DEFAULTS = {
   baseRegistry: '',
   builderRegistry: DEFAULT_BUILDER_REGISTRY,
   crateRegistry: '',
   crateToken: '',
+  mavenRegistry: '',
+  mavenToken: '',
+  npmRegistry: '',
+  npmToken: '',
 };
 
 function parseArgs(argv) {
@@ -93,8 +113,7 @@ function printHelp() {
   console.log('usage: node scripts/setup-wizard.js [--non-interactive|--defaults|--show]');
   console.log('');
   console.log('  --non-interactive   skip prompts; use env vars or existing config or defaults');
-  console.log('  --defaults          force defaults (base=docker hub, builder=zhcoder-docker-registry.com:8000,');
-  console.log('                      crates.io=official, no token)');
+  console.log('  --defaults          force defaults (all registries = official, no tokens)');
   console.log('  --show              print current config and exit');
   console.log('');
   console.log('env vars (override config file):');
@@ -102,6 +121,10 @@ function printHelp() {
   console.log('  CODER_BUILDER_REGISTRY   builder images registry');
   console.log('  CODER_CRATE_REGISTRY     crates.io mirror URL (empty = official crates.io)');
   console.log('  CODER_CRATE_TOKEN        crates.io / mirror auth token');
+  console.log('  CODER_MAVEN_REGISTRY     maven mirror URL (empty = Maven Central)');
+  console.log('  CODER_MAVEN_TOKEN        maven mirror auth token (server password)');
+  console.log('  CODER_NPM_REGISTRY       npm mirror URL (empty = npmjs.com)');
+  console.log('  CODER_NPM_TOKEN          npm mirror auth token (_authToken)');
 }
 
 function readExistingConfig() {
@@ -113,6 +136,10 @@ function readExistingConfig() {
       builderRegistry: raw.builderRegistry != null ? String(raw.builderRegistry) : DEFAULT_BUILDER_REGISTRY,
       crateRegistry: raw.crateRegistry != null ? String(raw.crateRegistry) : '',
       crateToken: raw.crateToken != null ? String(raw.crateToken) : '',
+      mavenRegistry: raw.mavenRegistry != null ? String(raw.mavenRegistry) : '',
+      mavenToken: raw.mavenToken != null ? String(raw.mavenToken) : '',
+      npmRegistry: raw.npmRegistry != null ? String(raw.npmRegistry) : '',
+      npmToken: raw.npmToken != null ? String(raw.npmToken) : '',
       updatedAt: raw.updatedAt || null,
     };
   } catch (err) {
@@ -123,11 +150,15 @@ function readExistingConfig() {
 
 function writeConfig(cfg) {
   const data = {
-    version: 2,
+    version: 3,
     baseRegistry: cfg.baseRegistry,
     builderRegistry: cfg.builderRegistry,
     crateRegistry: cfg.crateRegistry,
     crateToken: cfg.crateToken,
+    mavenRegistry: cfg.mavenRegistry,
+    mavenToken: cfg.mavenToken,
+    npmRegistry: cfg.npmRegistry,
+    npmToken: cfg.npmToken,
     updatedAt: new Date().toISOString(),
   };
   fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
@@ -137,25 +168,32 @@ function writeConfig(cfg) {
 function showSummary(cfg, source) {
   const baseDisplay = cfg.baseRegistry || '(docker hub)';
   const crateDisplay = cfg.crateRegistry || '(official crates.io)';
-  const tokenDisplay = cfg.crateToken ? '(set)' : '(none)';
+  const crateTokenDisplay = cfg.crateToken ? '(set)' : '(none)';
+  const mvnDisplay = cfg.mavenRegistry || '(Maven Central)';
+  const mvnTokenDisplay = cfg.mavenToken ? '(set)' : '(none)';
+  const npmDisplay = cfg.npmRegistry || '(npmjs.com)';
+  const npmTokenDisplay = cfg.npmToken ? '(set)' : '(none)';
   log.green(`[wizard] config written to ${path.relative(ROOT, CONFIG_PATH)}`);
   log.plain(`[wizard] source:            ${source}`);
   log.plain(`[wizard] base registry:     ${baseDisplay}`);
   log.plain(`[wizard] builder registry:  ${cfg.builderRegistry}`);
-  log.plain(`[wizard] crates.io mirror:  ${crateDisplay}`);
-  log.plain(`[wizard] crates.io token:   ${tokenDisplay}`);
+  log.plain(`[wizard] crates.io mirror:  ${crateDisplay}  token: ${crateTokenDisplay}`);
+  log.plain(`[wizard] maven mirror:      ${mvnDisplay}  token: ${mvnTokenDisplay}`);
+  log.plain(`[wizard] npm mirror:        ${npmDisplay}  token: ${npmTokenDisplay}`);
   log.plain('');
   log.plain('[wizard] next: `pnpm run images:sync` will apply these to base-images.json');
   log.plain('[wizard]       .cargo/config.toml regenerated (kellnr + [net] preserved)');
   if (cfg.crateToken) {
-    log.plain('');
-    log.yellow('[wizard] token written to .cargo/credentials.toml (gitignored).');
-    log.plain('[wizard] cargo 默认不读项目级 credentials.toml；应用 token 请执行：');
-    log.plain(`[wizard]   export CARGO_CREDENTIALS_PATH="${path.relative(ROOT, CARGO_CREDENTIALS_PATH)}"`);
-    log.plain('[wizard] 或将该 export 加入 shell 配置（~/.bashrc / ~/.zshrc）。');
-  } else if (fs.existsSync(CARGO_CREDENTIALS_PATH)) {
-    log.plain('');
-    log.plain('[wizard] .cargo/credentials.toml removed (token cleared).');
+    log.yellow('[wizard] crate token -> .cargo/credentials.toml (gitignored).');
+    log.plain(`[wizard]   apply: export CARGO_CREDENTIALS_PATH="${path.relative(ROOT, CARGO_CREDENTIALS_PATH)}"`);
+  }
+  if (cfg.mavenRegistry) {
+    log.yellow('[wizard] maven mirror -> .mvn/settings.xml + .mvn/maven.config (gitignored).');
+    log.plain('[wizard]   mvn auto-loads via .mvn/maven.config (-s.mvn/settings.xml).');
+  }
+  if (cfg.npmRegistry) {
+    log.yellow('[wizard] npm mirror -> .npmrc (gitignored, project root).');
+    log.plain('[wizard]   npm/pnpm auto-loads project-level .npmrc.');
   }
 }
 
@@ -166,15 +204,17 @@ function showCurrent() {
     log.plain('[wizard] defaults would be:');
     log.plain(`  base registry:     (docker hub)`);
     log.plain(`  builder registry: ${DEFAULTS.builderRegistry}`);
-    log.plain(`  crates.io mirror: (official)`);
-    log.plain(`  crates.io token:  (none)`);
+    log.plain(`  crates.io mirror: (official)   token: (none)`);
+    log.plain(`  maven mirror:     (Maven Central) token: (none)`);
+    log.plain(`  npm mirror:       (npmjs.com)   token: (none)`);
     return;
   }
   log.green(`[wizard] current config at ${path.relative(ROOT, CONFIG_PATH)}`);
   log.plain(`  base registry:     ${existing.baseRegistry || '(docker hub)'}`);
   log.plain(`  builder registry:  ${existing.builderRegistry}`);
-  log.plain(`  crates.io mirror:  ${existing.crateRegistry || '(official crates.io)'}`);
-  log.plain(`  crates.io token:   ${existing.crateToken ? '(set)' : '(none)'}`);
+  log.plain(`  crates.io mirror:  ${existing.crateRegistry || '(official crates.io)'}   token: ${existing.crateToken ? '(set)' : '(none)'}`);
+  log.plain(`  maven mirror:      ${existing.mavenRegistry || '(Maven Central)'}   token: ${existing.mavenToken ? '(set)' : '(none)'}`);
+  log.plain(`  npm mirror:        ${existing.npmRegistry || '(npmjs.com)'}   token: ${existing.npmToken ? '(set)' : '(none)'}`);
   log.plain(`  updatedAt:         ${existing.updatedAt || '(unknown)'}`);
 }
 
@@ -214,6 +254,20 @@ function validateCrateRegistry(value) {
   return { ok: true, value: v };
 }
 
+// maven / npm registry URL 校验：留空 = 官方源；非空 = 不能含空白。
+// 不做 URL 严格校验（用户可能填 http://host:port 或 https://host/path）。
+function validateMavenRegistry(value) {
+  const v = (value || '').trim();
+  if (v && /\s/.test(v)) return { ok: false, reason: 'must not contain whitespace' };
+  return { ok: true, value: v };
+}
+
+function validateNpmRegistry(value) {
+  const v = (value || '').trim();
+  if (v && /\s/.test(v)) return { ok: false, reason: 'must not contain whitespace' };
+  return { ok: true, value: v };
+}
+
 function validateCrateToken(value) {
   const v = (value || '').trim();
   if (v && /\s/.test(v)) return { ok: false, reason: 'must not contain whitespace' };
@@ -232,6 +286,10 @@ function resolveNonInteractive(args, existing) {
     cfg.builderRegistry = existing.builderRegistry;
     cfg.crateRegistry = existing.crateRegistry;
     cfg.crateToken = existing.crateToken;
+    cfg.mavenRegistry = existing.mavenRegistry;
+    cfg.mavenToken = existing.mavenToken;
+    cfg.npmRegistry = existing.npmRegistry;
+    cfg.npmToken = existing.npmToken;
     source = 'existing config';
   }
 
@@ -250,6 +308,22 @@ function resolveNonInteractive(args, existing) {
   if (process.env.CODER_CRATE_TOKEN != null) {
     cfg.crateToken = process.env.CODER_CRATE_TOKEN.trim();
     source = 'env var CODER_CRATE_TOKEN';
+  }
+  if (process.env.CODER_MAVEN_REGISTRY != null) {
+    cfg.mavenRegistry = process.env.CODER_MAVEN_REGISTRY.trim();
+    source = 'env var CODER_MAVEN_REGISTRY';
+  }
+  if (process.env.CODER_MAVEN_TOKEN != null) {
+    cfg.mavenToken = process.env.CODER_MAVEN_TOKEN.trim();
+    source = 'env var CODER_MAVEN_TOKEN';
+  }
+  if (process.env.CODER_NPM_REGISTRY != null) {
+    cfg.npmRegistry = process.env.CODER_NPM_REGISTRY.trim();
+    source = 'env var CODER_NPM_REGISTRY';
+  }
+  if (process.env.CODER_NPM_TOKEN != null) {
+    cfg.npmToken = process.env.CODER_NPM_TOKEN.trim();
+    source = 'env var CODER_NPM_TOKEN';
   }
 
   return { cfg, source };
@@ -308,9 +382,13 @@ async function runInteractive(existing) {
   const initialBase = existing?.baseRegistry ?? DEFAULTS.baseRegistry;
   const initialBuilder = existing?.builderRegistry ?? DEFAULTS.builderRegistry;
   const initialCrate = existing?.crateRegistry ?? DEFAULTS.crateRegistry;
-  const initialToken = existing?.crateToken ?? DEFAULTS.crateToken;
+  const initialCrateToken = existing?.crateToken ?? DEFAULTS.crateToken;
+  const initialMaven = existing?.mavenRegistry ?? DEFAULTS.mavenRegistry;
+  const initialMavenToken = existing?.mavenToken ?? DEFAULTS.mavenToken;
+  const initialNpm = existing?.npmRegistry ?? DEFAULTS.npmRegistry;
+  const initialNpmToken = existing?.npmToken ?? DEFAULTS.npmToken;
 
-  log.cyan('\n=== Docker Registry & Cargo Setup Wizard ===\n');
+  log.cyan('\n=== Docker Registry & Cargo / Maven / Npm Setup Wizard ===\n');
   log.plain('配置两类 Docker 镜像的拉取来源：\n');
   log.plain('1. 基础镜像（rabbitmq / redis / nginx / mysql / consul / grafana / prometheus 等）');
   log.plain('   默认从 Docker Hub (hub.docker.com) 拉取。若环境无法访问 Docker Hub，');
@@ -353,15 +431,60 @@ async function runInteractive(existing) {
     log.plain('   留空 = 不写 token（公开镜像如官方 crates.io / rsproxy 不需要）。');
     log.plain('   私有 kellnr 等需认证的镜像，输入 token；输入会被隐藏（显示 *）。\n');
 
-    const crateToken = await promptSecret(
+    const crateTokenInput = await promptSecret(rl, '  crates.io token');
+    const crateToken = crateTokenInput !== '' ? crateTokenInput : (initialCrateToken || '');
+
+    log.plain('\n5. Maven 镜像（Java 依赖拉取来源）');
+    log.plain('   留空 = 官方 Maven Central（repo.maven.apache.org）；');
+    log.plain(`   输入镜像 URL 作为 <mirror> 替换 central。example: ${MVN_REGISTRY_EXAMPLE}`);
+    log.plain('   生成 .mvn/settings.xml + .mvn/maven.config（mvn 自动加载）。\n');
+
+    const mavenRegistry = await prompt(
       rl,
-      '  crates.io token',
+      '  maven mirror',
+      initialMaven || '',
+      validateMavenRegistry,
     );
-    // 直接回车 = 保留 existing token（若有）；输入新值则覆盖。
-    const finalToken = crateToken !== '' ? crateToken : (initialToken || '');
+
+    log.plain('\n6. Maven mirror 的 auth token');
+    log.plain('   留空 = 不写 <server> credentials；');
+    log.plain('   私有 nexus/reposilite 等需认证的镜像，输入 token（作为 server password，');
+    log.plain('   username 固定为 "token"）；输入会被隐藏（显示 *）。\n');
+
+    const mavenTokenInput = await promptSecret(rl, '  maven token');
+    const mavenToken = mavenTokenInput !== '' ? mavenTokenInput : (initialMavenToken || '');
+
+    log.plain('\n7. npm 镜像（Node 依赖拉取来源）');
+    log.plain('   留空 = 官方 npmjs.com（registry.npmjs.org）；');
+    log.plain(`   输入镜像 URL 作为 registry。example: ${NPM_REGISTRY_EXAMPLE}`);
+    log.plain('   生成项目根 .npmrc（npm/pnpm 自动加载）。\n');
+
+    const npmRegistry = await prompt(
+      rl,
+      '  npm mirror',
+      initialNpm || '',
+      validateNpmRegistry,
+    );
+
+    log.plain('\n8. npm mirror 的 auth token');
+    log.plain('   留空 = 不写 _authToken；');
+    log.plain('   私有 verdaccio/nexus 等需认证的镜像，输入 token（写入 //host/:_authToken）；');
+    log.plain('   输入会被隐藏（显示 *）。\n');
+
+    const npmTokenInput = await promptSecret(rl, '  npm token');
+    const npmToken = npmTokenInput !== '' ? npmTokenInput : (initialNpmToken || '');
 
     return {
-      cfg: { baseRegistry, builderRegistry, crateRegistry, crateToken: finalToken },
+      cfg: {
+        baseRegistry,
+        builderRegistry,
+        crateRegistry,
+        crateToken,
+        mavenRegistry,
+        mavenToken,
+        npmRegistry,
+        npmToken,
+      },
       source: 'interactive prompt',
     };
   } finally {
@@ -419,6 +542,82 @@ function applyCargoConfig(cfg) {
   }
 }
 
+// 从 registry URL 提取 "//host[:port]/" 形式，用于 npm _authToken 的 key。
+// npm 规范：_authToken 的 key 是不含协议的 host:port 段，前缀 //，后缀 /。
+// 例：http://npm.kudi.repos -> //npm.kudi.repos/
+//      https://registry.npmjs.org/ -> //registry.npmjs.org/
+function npmAuthKey(registryUrl) {
+  try {
+    const u = new URL(registryUrl);
+    return `//${u.host}/`;
+  } catch (_) {
+    return null;
+  }
+}
+
+function renderMavenSettings(registry, token) {
+  const lines = [];
+  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
+  lines.push('<!-- 由 scripts/setup-wizard.js 生成；已在 .gitignore，请勿 commit。 -->');
+  lines.push('<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"');
+  lines.push('          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"');
+  lines.push('          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">');
+  if (registry) {
+    lines.push('  <mirrors>');
+    lines.push('    <mirror>');
+    lines.push(`      <id>${MVN_MIRROR_ID}</id>`);
+    lines.push('      <mirrorOf>central</mirrorOf>');
+    lines.push(`      <url>${registry}</url>`);
+    lines.push('    </mirror>');
+    lines.push('  </mirrors>');
+  }
+  if (registry && token) {
+    lines.push('  <servers>');
+    lines.push('    <server>');
+    lines.push(`      <id>${MVN_MIRROR_ID}</id>`);
+    lines.push('      <username>token</username>');
+    lines.push(`      <password>${token}</password>`);
+    lines.push('    </server>');
+    lines.push('  </servers>');
+  }
+  lines.push('</settings>');
+  lines.push('');
+  return lines.join('\n');
+}
+
+function applyMavenConfig(cfg) {
+  if (!cfg.mavenRegistry) {
+    if (fs.existsSync(MVN_SETTINGS_PATH)) fs.unlinkSync(MVN_SETTINGS_PATH);
+    if (fs.existsSync(MVN_CONFIG_PATH)) fs.unlinkSync(MVN_CONFIG_PATH);
+    return;
+  }
+  fs.mkdirSync(MVN_DIR, { recursive: true });
+  fs.writeFileSync(MVN_SETTINGS_PATH, renderMavenSettings(cfg.mavenRegistry, cfg.mavenToken));
+  fs.writeFileSync(MVN_CONFIG_PATH, '-s.mvn/settings.xml\n');
+}
+
+function renderNpmrc(registry, token) {
+  const lines = [];
+  lines.push('# 由 scripts/setup-wizard.js 生成；已在 .gitignore，请勿 commit。');
+  lines.push(`registry=${registry}`);
+  if (token) {
+    const authKey = npmAuthKey(registry);
+    if (authKey) {
+      lines.push(`${authKey}:_authToken=${token}`);
+    }
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+function applyNpmConfig(cfg) {
+  if (!cfg.npmRegistry) {
+    if (fs.existsSync(NPMRC_PATH)) fs.unlinkSync(NPMRC_PATH);
+    return;
+  }
+  fs.writeFileSync(NPMRC_PATH, renderNpmrc(cfg.npmRegistry, cfg.npmToken));
+}
+
 async function main() {
   const args = parseArgs(process.argv);
 
@@ -441,6 +640,8 @@ async function main() {
 
   writeConfig(result.cfg);
   applyCargoConfig(result.cfg);
+  applyMavenConfig(result.cfg);
+  applyNpmConfig(result.cfg);
   showSummary(result.cfg, result.source);
 }
 
