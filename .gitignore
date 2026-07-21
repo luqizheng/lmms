@@ -31,6 +31,10 @@ reports/
 # 本地配置不入 git；CI 可用 CODER_BASE_REGISTRY / CODER_BUILDER_REGISTRY 环境变量覆盖。
 /infrastructure/.docker-registry.json
 
+# .cargo/credentials.toml 由 setup-wizard.js 写入（crates.io / mirror 的 auth token），
+# 含敏感信息，本地配置不入 git；CI 可用 CODER_CRATE_TOKEN 环境变量覆盖。
+/.cargo/credentials.toml
+
 apps/pm/**/target/
 /apps/pm/.gitignore
 
