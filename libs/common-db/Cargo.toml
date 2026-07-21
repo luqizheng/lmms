@@ -1,6 +1,8 @@
 [package]
 name = "common-db"
 version = "0.1.0"
+license = "Apache-2.0"
+description = "Multi-dialect sqlx wrapper (MySQL/SQLite/Dameng/MSSQL) with test fixtures for KudiCoder services"
 edition = "2021"
 
 [features]

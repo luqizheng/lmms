@@ -1,6 +1,8 @@
 [package]
 name = "common-http"
 version = "0.1.0"
+license = "Apache-2.0"
+description = "Resilient reqwest HTTP client wrapper with request ID propagation for KudiCoder services"
 edition = "2021"
 
 [dependencies]

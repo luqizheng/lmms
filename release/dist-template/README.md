@@ -21,7 +21,7 @@ coder-micro-services/
 │
 ├── services/               # 空 - 用户在此创建业务微服务
 ├── skills/                 # 6 个 AI skill（3 Rust + 3 Java）
-├── libs/                   # Rust 共享库（common-error / common-db / jwt-ctx / ...）
+├── .cargo/                 # Cargo registry 配置（kellnr 私有 registry + rsproxy 镜像）
 ├── contracts/              # 契约层（error-codes / permissions / events / conventions）
 ├── scripts/                # CI 门禁脚本（check-service-standard / check-db-naming / ...）
 ├── Cargo.toml              # Rust workspace 根（members: libs；sdk/rust/* 和 services/* 均被 sed 过滤）
@@ -115,30 +115,37 @@ node scripts/contracts-gen.js --check    # 契约生成代码一致性
 
 Rust SDK 和 Java SDK 均以包管理器发布，不打包进分发包源码。
 
-### Rust SDK（crates.io / 内网 mirror）
+### Rust SDK（私有 kellnr registry）
 
-Rust SDK 各子 crate 发布到 crates.io（或内网 Panamax mirror `http://192.168.2.12:16444`）。业务 Rust 服务通过 `cargo add` 引入：
+Rust SDK 各子 crate 和 libs/ 平台基础设施库均发布到私有 kellnr registry（`http://192.168.2.12:16444`）。业务 Rust 服务通过 `cargo add --registry kellnr` 引入：
 
 ```bash
-# 按需添加对应服务的 SDK
-cargo add audit-service-sdk
-cargo add config-service-sdk
-cargo add file-service-sdk
-cargo add iam-service-sdk
-cargo add notification-service-sdk
-cargo add token-service-sdk
-cargo add kudi-http-client
+# 按需添加对应服务的 SDK（--registry kellnr 指定从私有 registry 拉取）
+cargo add audit-service-sdk --registry kellnr
+cargo add config-service-sdk --registry kellnr
+cargo add file-service-sdk --registry kellnr
+cargo add iam-service-sdk --registry kellnr
+cargo add notification-service-sdk --registry kellnr
+cargo add token-service-sdk --registry kellnr
+cargo add kudi-http-client --registry kellnr
+
+# 平台基础设施库（业务 Rust 服务作为 axum web 时的地基）
+cargo add common-error --registry kellnr
+cargo add common-db --registry kellnr
+cargo add common-log --registry kellnr
 ```
 
 或在 `Cargo.toml` 手动添加：
 
 ```toml
 [dependencies]
-audit-service-sdk = "0.1"
-iam-service-sdk = "0.1"
+audit-service-sdk = { version = "0.1", registry = "kellnr" }
+iam-service-sdk = { version = "0.1", registry = "kellnr" }
+common-error = { version = "0.1", registry = "kellnr" }
+common-db = { version = "0.1", registry = "kellnr" }
 ```
 
-cargo 会自动从已配置的 Panamax 镜像（`.cargo/config.toml`）拉取。
+cargo 会自动从已配置的 kellnr registry（`.cargo/config.toml`）拉取。编译前需设置 `CARGO_REGISTRIES_KELLNR_TOKEN` 环境变量。
 
 ### Java SDK（私有 Maven 仓库）
 
@@ -232,7 +239,7 @@ bash scripts/release.sh
 
 - `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 bash scripts/release.sh`。
 - flag 优先级高于 `EXPORT_IMAGES` 环境变量；`REGISTRY` 环境变量可覆盖默认仓库。
-- v2 新增：release.sh 自动从开发仓库同步 `libs/` / `contracts/` / `skills/` / `scripts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `services/`（空）+ `Cargo.toml` / `pnpm-workspace.yaml` / `package.json` / `AGENTS.md` 到发布包。**`sdk/` 不打包进分发包**：整套 SDK（`sdk/java/*` + `sdk/rust/*` + `sdk/openapi/` + `sdk/scripts/` + `sdk/README.md`）均发布到私有包仓库（crates.io/Panamax mirror + 内网 Maven 仓库），业务服务通过 `cargo add` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 用 `sed` 过滤掉了 `sdk/rust/*` 行以避免指向不存在的目录。`frontend/` 是 compose/services.yml 中 frontend 服务的 build context，离线镜像缺失时供本地 docker build 兜底。
+- v2 新增：release.sh 自动从开发仓库同步 `contracts/` / `skills/` / `scripts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `services/`（空）+ `Cargo.toml` / `.cargo/config.toml` / `pnpm-workspace.yaml` / `package.json` / `AGENTS.md` 到发布包。**`libs/` 和 `sdk/` 均不打包进分发包**：libs/*（17 个平台基础设施 crate）和 sdk/rust/*（7 个 Rust SDK crate）由 CI rust_publish job 发布到私有 kellnr registry（`http://192.168.2.12:16444`），sdk/java/* 发布到私有 Maven 仓库；业务服务通过 `cargo add --registry kellnr` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 用 `sed` 过滤掉了 `libs/*` 和 `sdk/rust/*` 行以避免指向不存在的目录。`frontend/` 是 compose/services.yml 中 frontend 服务的 build context，离线镜像缺失时供本地 docker build 兜底。
 
 ## 升级
 

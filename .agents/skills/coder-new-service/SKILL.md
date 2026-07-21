@@ -88,14 +88,14 @@ chrono.workspace = true
 prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
-common-log = { path = "../../libs/common-log" }
-common-cache = { path = "../../libs/common-cache" }
-common = { path = "../../libs/common" }
-consul-registrar = { path = "../../libs/consul-registrar" }
+# 平台基础设施库 - 从私有 kellnr registry 拉取
+common-error = { version = "0.1", registry = "kellnr" }
+common-db = { version = "0.1", registry = "kellnr", features = ["mysql", "sqlite"] }
+common-log = { version = "0.1", registry = "kellnr" }
+common-cache = { version = "0.1", registry = "kellnr" }
+common = { version = "0.1", registry = "kellnr" }
 # Optional OTel: uncomment if tracing is needed
-# common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+# common-telemetry = { version = "0.1", registry = "kellnr", features = ["otlp"] }
 
 [[bin]]
 name = "dump-openapi"
@@ -105,6 +105,18 @@ path = "src/bin/dump-openapi.rs"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ```
 
+> **kellnr registry 配置**：业务服务的 `Cargo.toml` 通过 `registry = "kellnr"` 引用
+> 平台基础设施库（libs/* 发布的 17 个 crate）。编译前需配置 kellnr 访问：
+> ```bash
+> # .cargo/config.toml
+> [source.kellnr]
+> registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
+>
+> # ~/.cargo/credentials.toml 或环境变量
+> # CARGO_REGISTRIES_KELLNR_TOKEN=<token>
+> ```
+> Docker 构建时通过 `--build-arg KELLNR_TOKEN=xxx` 传递 token（见 Dockerfile 模板）。
+
 ## Dockerfile Template
 
 ```dockerfile
@@ -113,12 +125,17 @@ USER root
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
-COPY libs/ libs/
 COPY services/ services/
-COPY sdk sdk
 
+# 配置 kellnr registry（libs/* 和 sdk/rust/* 的 crate 托管于此）
+RUN mkdir -p /app/.cargo && \
+    printf '[source.kellnr]\nregistry = "sparse+http://192.168.2.12:16444/api/v1/crates/"\n' > /app/.cargo/config.toml
+
+# KELLNR_TOKEN 通过 docker build --build-arg KELLNR_TOKEN=xxx 传递
+ARG KELLNR_TOKEN
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
+    CARGO_REGISTRIES_KELLNR_TOKEN=${KELLNR_TOKEN} \
     cargo build --release --target x86_64-unknown-linux-musl -p {name} && \
     cp /app/target/x86_64-unknown-linux-musl/release/{name} /app/{name}
 
@@ -130,14 +147,19 @@ ENV RUST_LOG=info
 CMD ["{name}"]
 ```
 
+> **构建命令**（需传递 kellnr token）：
+> ```bash
+> docker build --build-arg KELLNR_TOKEN=$KELLNR_TOKEN \
+>   -f services/{name}/Dockerfile -t {name}:latest .
+> ```
+
 ## src/main.rs Template
 
 ```rust
 use {snake_name}::{config::AppConfig, routes, create_state};
 use common_log::init_json;
-use consul_registrar::ConsulRegistrar;
 use std::net::SocketAddr;
-use tracing::{info, warn};
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -171,24 +193,8 @@ async fn main() -> anyhow::Result<()> {
         )
     } else { app };
 
-    let mut consul_registrar = ConsulRegistrar::new(
-        &config.consul_addr,
-        &config.consul_service_name,
-        "/tmp/{name}-id",
-    );
-    if let Err(e) = consul_registrar
-        .register_discovered(addr.port(), &config.consul_service_name)
-        .await
-    {
-        warn!("failed to register with consul: {}", e);
-    }
-
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.expect("failed to listen for ctrl-c");
-        info!("received shutdown signal, deregistering from consul");
-        let _ = consul_registrar.deregister().await;
-        std::process::exit(0);
-    });
+    // Consul registration is handled by gliderlabs/registrator sidecar
+    // (based on SERVICE_* labels in docker-compose-services.yml).
 
     axum::serve(listener, app).await.expect("Server error");
     Ok(())
@@ -360,8 +366,10 @@ After scaffolding, customize the AGENTS.md (copied from `services/agents-templat
 # 1. Workspace member already added by Auto-Registration step 1.
 #    Verify it's present: grep "services/{name}" Cargo.toml
 
-# 2. Build (must use docker)
+# 2. Build (must use docker, 需 KELLNR_TOKEN 访问私有 registry)
 docker run --rm --network host \
+  -e CARGO_REGISTRIES_KELLNR_TOKEN="${KELLNR_TOKEN}" \
+  -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
   -v $(pwd):/app \
   -v coder-cargo-registry:/usr/local/cargo/registry \
   -v coder-cargo-git:/usr/local/cargo/git \
@@ -378,8 +386,10 @@ node scripts/run-tests-docker.js {name}
 node scripts/check-service-standard.js
 # Expected: ✓ 8/8 items for {name}
 
-# 5. Generate OpenAPI yaml
+# 5. Generate OpenAPI yaml (需 KELLNR_TOKEN)
 docker run --rm -v $(pwd):/app -v coder-cargo-target:/app/target \
+  -e CARGO_REGISTRIES_KELLNR_TOKEN="${KELLNR_TOKEN}" \
+  -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
   -w /app/services/{name} \
   zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl \
   cargo run --target x86_64-unknown-linux-musl --bin dump-openapi
@@ -501,7 +511,7 @@ Add the bootstrap token and port export:
 - ❌ Forgetting to add the service to root `Cargo.toml` members → `cargo check` won't find it
 - ❌ Using MySQL-specific types in SQLite migration → use port-appropriate types (see `coder-migrate-db` skill)
 - ❌ Hardcoding port 3000 (that's api-gateway's port) → use 8080 internal, map externally
-- ❌ Forgetting `register_discovered` for Consul → service won't be discoverable
+- ❌ Forgetting `KELLNR_TOKEN` env var when building → cargo can't fetch libs/* from kellnr registry
 - ❌ Missing `db.rs` schema bootstrap → service starts but tables don't exist
 - ❌ Not copying `services/agents-template.md` → CI service-standard check fails on missing AGENTS.md
 

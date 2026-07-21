@@ -1,6 +1,8 @@
 [package]
 name = "common-validator"
 version = "0.1.0"
+license = "Apache-2.0"
+description = "Validation rules (Chinese phone, strong password) for KudiCoder services"
 edition = "2021"
 
 [dependencies]

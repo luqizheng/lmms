@@ -102,31 +102,32 @@ fi
 echo "[release] -> 跳过文档构建（user-manual 归 docs-site/ 管理，不打包进分发包）..."
 echo ""
 
-echo "[release] -> 同步开发骨架（libs/sdk/contracts/skills/scripts/services）..."
+echo "[release] -> 同步开发骨架（sdk/contracts/skills/scripts/services）..."
 
 # 开发仓库根（dist-template 的上两级）
 REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
 
-# Rust 共享库（业务 Rust 服务编译时依赖 path = "../../libs/..."）
-if [ -d "${REPO_ROOT}/libs" ]; then
-  cp -r "${REPO_ROOT}/libs" "${DIST_DIR}/libs"
-  find "${DIST_DIR}/libs" -type d -name 'target' -exec rm -rf {} + 2>/dev/null || true
-  echo "[release]   ✓ libs/"
-else
-  echo "[release]   ⚠ libs/ not found at ${REPO_ROOT}/libs - Rust 业务服务将无法编译"
-fi
+# libs/ 目录：完全不打进分发包。
+# libs/* - 平台基础设施库（common-error / common-db / common-jwt / authz 等 17 个 crate），
+#           由 CI rust_publish job 推送到私有 kellnr registry
+#           (http://192.168.2.12:16444)，业务 Rust 服务通过
+#           `cargo add common-error --registry kellnr` 引入。
+#           根 Cargo.toml 的 workspace members 仍列出 libs/*，
+#           下文会用 sed 过滤掉，避免指向不存在的目录。
+echo "[release]   ⚠ libs/ skipped - 17 crates published to private kellnr registry"
 
 # SDK 目录：完全不打进分发包。
 # sdk/java/* — 由 CI sdk_publish job 推送到私有 Maven 仓库
 #               (http://192.168.2.12:18181/releases，由 MAVEN_REPO_URL 覆盖)，
 #               业务 Java 服务通过 <dependency> 直接引入。
-# sdk/rust/* — 以 crate 形式发布到 crates.io（或内网 Panamax mirror
-#               http://192.168.2.12:16444），业务 Rust 服务通过 `cargo add` 引入。
+# sdk/rust/* - 以 crate 形式发布到私有 kellnr registry
+#               (http://192.168.2.12:16444)，业务 Rust 服务通过
+#               `cargo add iam-service-sdk --registry kellnr` 引入。
 # sdk/openapi + sdk/scripts + sdk/README — 开发者仓库内部资产，
 #               分发包用户通过包管理器拿到 SDK，无需源码或本地发布脚本。
 #               根 Cargo.toml 的 workspace members 仍列出 sdk/rust/*，
 #               下文会用 sed 过滤掉，避免指向不存在的目录。
-echo "[release]   ⚠ sdk/ skipped — entire sdk/ published to private package registries"
+echo "[release]   ⚠ sdk/ skipped — sdk/java -> Maven, sdk/rust -> kellnr"
 
 # 契约层（前后端单一真相源：error-codes / permissions / events / conventions）
 if [ -d "${REPO_ROOT}/contracts" ]; then
@@ -236,12 +237,31 @@ else
   echo "[release]   ⚠ infrastructure/ not found — 发布后无法直接启动开发环境"
 fi
 
-# Rust workspace 根 Cargo.toml（移除 services/* 和 sdk/rust/* members，
-# services/ 用户通过 skill 动态加入；sdk/rust/ 以 crate 发布，不打包源码）
+# Rust workspace 根 Cargo.toml（移除 services/* + sdk/rust/* + libs/* members，
+# services/ 用户通过 skill 动态加入；sdk/rust/ 和 libs/ 均以 crate 发布到 kellnr，不打包源码）
 if [ -f "${REPO_ROOT}/Cargo.toml" ]; then
-  sed '/^[[:space:]]*"services\//d; /^[[:space:]]*"sdk\/rust\//d' "${REPO_ROOT}/Cargo.toml" > "${DIST_DIR}/Cargo.toml"
-  echo "[release]   ✓ Cargo.toml (workspace: libs only, services/ + sdk/rust/ excluded)"
+  sed '/^[[:space:]]*"services\//d; /^[[:space:]]*"sdk\/rust\//d; /^[[:space:]]*"libs\//d' "${REPO_ROOT}/Cargo.toml" > "${DIST_DIR}/Cargo.toml"
+  echo "[release]   ✓ Cargo.toml (workspace: empty, services/ + sdk/rust/ + libs/ all excluded)"
 fi
+
+# .cargo/config.toml - 配置 kellnr registry（libs/* 和 sdk/rust/* 的 crate 托管于此）
+# 分发包用户在宿主机用 cargo 时需此配置；Dockerfile 内部会自动生成等价配置。
+# 第三方 crate 走 rsproxy 镜像（与开发仓库一致），libs/sdk crate 走 kellnr。
+mkdir -p "${DIST_DIR}/.cargo"
+cat > "${DIST_DIR}/.cargo/config.toml" <<'CARGO_CONFIG'
+[source.crates-io]
+replace-with = "rsproxy-sparse"
+
+[source.rsproxy-sparse]
+registry = "sparse+https://rsproxy.cn/index/"
+
+[source.kellnr]
+registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
+
+[net]
+git-fetch-with-cli = true
+CARGO_CONFIG
+echo "[release]   ✓ .cargo/config.toml (kellnr registry for libs/* + sdk/rust/*)"
 
 # pnpm workspace + package.json（根调度脚本，CI 门禁命令）
 if [ -f "${REPO_ROOT}/pnpm-workspace.yaml" ]; then

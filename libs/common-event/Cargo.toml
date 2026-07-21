@@ -1,6 +1,8 @@
 [package]
 name = "common-event"
 version = "0.1.0"
+license = "Apache-2.0"
+description = "Transactional outbox and event envelope types for KudiCoder services"
 edition = "2021"
 
 [dependencies]

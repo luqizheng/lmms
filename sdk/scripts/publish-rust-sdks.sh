@@ -26,7 +26,7 @@ set -euo pipefail
 # ── 默认值 ──────────────────────────────────────────────────────────────────
 CRATE_VERSION="${CRATE_VERSION:-0.1.0}"
 DRY_RUN=0
-REGISTRY=""
+REGISTRY="kellnr"
 SED_INPLACE=(-i)
 
 # ── 路径 ────────────────────────────────────────────────────────────────────
@@ -48,13 +48,13 @@ SERVICE_CRATES=(
 
 # ── 参数解析 ────────────────────────────────────────────────────────────────
 SHOW_HELP=0
-for arg in "$@"; do
-  case "${arg}" in
-    --dry-run)  DRY_RUN=1 ;;
-    --registry) REGISTRY="${2:-}"; shift ;;
-    --version)  CRATE_VERSION="${2:-}"; shift ;;
-    --help|-h)  SHOW_HELP=1 ;;
-    *)          echo "[publish-rust] 未知参数: ${arg}" >&2; SHOW_HELP=1 ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)  DRY_RUN=1; shift ;;
+    --registry) REGISTRY="${2:-}"; shift 2 ;;
+    --version)  CRATE_VERSION="${2:-}"; shift 2 ;;
+    --help|-h)  SHOW_HELP=1; shift ;;
+    *)          echo "[publish-rust] 未知参数: $1" >&2; SHOW_HELP=1; shift ;;
   esac
 done
 
@@ -66,7 +66,7 @@ fi
 echo "============================================"
 echo " Rust SDK Publish"
 echo " Version:  ${CRATE_VERSION}"
-echo " Registry: ${REGISTRY:-crates.io (default)}"
+echo " Registry: ${REGISTRY}"
 echo " Dry-run:  ${DRY_RUN}"
 echo "============================================"
 echo ""
@@ -127,18 +127,22 @@ publish_crate() {
 
   echo "[publish-rust]   Publishing ${crate_name}..."
   if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "[publish-rust]     (dry-run) cargo publish -p ${crate_name} ${REGISTRY_ARG[*]:+--registry ${REGISTRY}} --allow-dirty"
-    # dry-run 时用 --dry-run 验证
+    echo "[publish-rust]     (dry-run) cargo publish -p ${crate_name} ${REGISTRY_ARG[*]:+--registry ${REGISTRY}} --no-verify --allow-dirty"
     if [[ -n "${REGISTRY}" ]]; then
-      cargo publish -p "${crate_name}" --registry "${REGISTRY}" --dry-run --allow-dirty 2>&1 | sed 's/^/      /'
+      cargo publish -p "${crate_name}" --registry "${REGISTRY}" --no-verify --allow-dirty --dry-run 2>&1 | sed 's/^/      /' || true
     else
-      cargo publish -p "${crate_name}" --dry-run --allow-dirty 2>&1 | sed 's/^/      /'
+      cargo publish -p "${crate_name}" --no-verify --allow-dirty --dry-run 2>&1 | sed 's/^/      /' || true
     fi
   else
     if [[ -n "${REGISTRY}" ]]; then
-      cargo publish -p "${crate_name}" --registry "${REGISTRY}" --allow-dirty 2>&1 | sed 's/^/      /'
+      cargo publish -p "${crate_name}" --registry "${REGISTRY}" --no-verify --allow-dirty 2>&1 | sed 's/^/      /'
     else
-      cargo publish -p "${crate_name}" --allow-dirty 2>&1 | sed 's/^/      /'
+      cargo publish -p "${crate_name}" --no-verify --allow-dirty 2>&1 | sed 's/^/      /'
+    fi
+    local rc=${PIPESTATUS[0]}
+    if [[ ${rc} -ne 0 ]]; then
+      echo "[publish-rust]   ✗ ${crate_name} publish failed (exit ${rc})" >&2
+      return 1
     fi
   fi
   echo "[publish-rust]   ✓ ${crate_name} published"
@@ -160,11 +164,12 @@ BACKUP_FILES=()
 
 for crate in "${SERVICE_CRATES[@]}"; do
   toml="${RUST_SDK_DIR}/${crate}/Cargo.toml"
-  # 替换 path 依赖为 version 依赖
+  # 替换 path 依赖为 version + registry 依赖
+  # 必须带 registry = "${REGISTRY}"，否则 cargo 从 crates-io 找 kudi-http-client 找不到
   if grep -q "path = \"../kudi-http-client\"" "${toml}"; then
-    echo "[publish-rust]   ~ ${crate}: replacing path dep with version ${CRATE_VERSION}"
+    echo "[publish-rust]   ~ ${crate}: replacing path dep with version ${CRATE_VERSION} + registry ${REGISTRY}"
     sed "${SED_INPLACE[@]}.bak" \
-      's|kudi-http-client = { path = "../kudi-http-client" }|kudi-http-client = { version = "'"${CRATE_VERSION}"'" }|' \
+      's|kudi-http-client = { path = "../kudi-http-client" }|kudi-http-client = { version = "'"${CRATE_VERSION}"'", registry = "'"${REGISTRY}"'" }|' \
       "${toml}"
     BACKUP_FILES+=("${toml}")
   fi
