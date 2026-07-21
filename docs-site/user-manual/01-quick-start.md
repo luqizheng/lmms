@@ -26,13 +26,22 @@ git clone <repo-url> coder-micro-services
 cd coder-micro-services
 pnpm install
 
-# 2. 启动基础设施（MySQL / Redis / Consul / 业务服务 / 可观测性）
+# 2. 配置 Docker 镜像来源 + 同步镜像清单 + 拉镜像 + 下载 swagger-ui + 环境体检
+pnpm run setup
+# 其中的 setup-wizard 会交互式询问两类镜像来源：
+#   - 基础镜像（redis/mysql/consul 等）：留空=Docker Hub，或输入内网 mirror
+#   - Builder 镜像（rust/java 等）：默认 zhcoder-docker-registry.com:8000
+# 详见 ../guides/docker-registry-config.md
+
+# 3. 启动基础设施（MySQL / Redis / Consul / 业务服务 / 可观测性）
 docker compose -f infrastructure/docker-compose.yml up -d
 
-# 3. 校验基础设施健康
+# 4. 校验基础设施健康
 docker ps --filter "network=superpowers"
 # 应看到：8 个业务服务 + consul + redis + mysql 全部 UP
 ```
+
+> **内网环境**：若 Docker Hub 不可达，`pnpm run setup` 时基础镜像填 `zhcoder-docker-registry.com:8000/official`。CI 用 `CODER_BASE_REGISTRY` 环境变量覆盖。
 
 ---
 

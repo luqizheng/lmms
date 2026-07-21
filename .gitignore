@@ -27,6 +27,10 @@ reports/
 # 大文件不进 git。需要时跑 `pnpm run assets:download` 恢复。
 /infrastructure/vendor/
 
+# Docker registry 来源由 `pnpm run setup` 交互式向导写入（scripts/setup-wizard.js），
+# 本地配置不入 git；CI 可用 CODER_BASE_REGISTRY / CODER_BUILDER_REGISTRY 环境变量覆盖。
+/infrastructure/.docker-registry.json
+
 apps/pm/**/target/
 /apps/pm/.gitignore
 

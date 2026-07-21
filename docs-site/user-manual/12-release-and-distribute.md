@@ -147,6 +147,13 @@ make verify                  # 端到端冒烟测试
 
 `make help` 看全部 12 个 make 命令。
 
+> **重新配置镜像来源**：dist 包自带 `scripts/setup-wizard.js`（由 release.sh 从 dev 仓库同步）。若需切换 Docker registry 来源（如从 Docker Hub 切到内网 mirror），跑：
+> ```bash
+> pnpm install && pnpm run setup:wizard   # 交互式配置
+> pnpm run images:sync                    # 重新生成 base-images.json
+> ```
+> 详见 [Docker Registry 来源配置指南](../guides/docker-registry-config.md)。
+
 访问地址（默认端口，dist 包内文档同）：
 
 | 服务 | 地址 | 默认账号 |
