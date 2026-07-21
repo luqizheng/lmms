@@ -38,10 +38,9 @@ apps/pm/**/target/
 # 但模板本身（脚本/compose/Makefile/README）需要入 git
 /release/dist-template/secrets/*.pem
 /release/dist-template/.env
-/release/dist-template/frontend/node_modules/
-/release/dist-template/frontend/dist/
-/release/dist-template/frontend/.eslintcache
-/release/dist-template/frontend/coverage/
+# frontend/ 由 release.sh 从 dev frontend/ 动态复制到分发包输出目录，不入 git；
+# CI 通过 build-frontend.sh 直接用 dev frontend/ 构建镜像，不依赖此目录快照
+/release/dist-template/frontend/
 /release/dist-template/release/
 /release/dist-*.tar.gz
 /release/images-*.tar.gz
