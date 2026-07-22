@@ -76,6 +76,12 @@
    留空 = 不写 _authToken。
 
   npm token [留空=跳过]: _
+
+9. 同步到 .gitlab-ci.yml
+   将配置写入 .gitlab-ci.yml 的 variables: 段（CODER_* 变量）。
+   非敏感值直接写明文；敏感值引用 GitLab CI Variables。
+
+  sync to .gitlab-ci.yml [no]: yes
 ```
 
 > 所有 token / password 均为明文输入（不隐藏），但不在提示中回显已有值（避免泄露）。
@@ -142,6 +148,38 @@
 
 ---
 
+## 同步到 GitLab CI
+
+向导第 9 步询问是否将配置同步到 `.gitlab-ci.yml`。yes 时 wizard 直接编辑 `.gitlab-ci.yml` 的 `variables:` 段，写入 `CODER_*` 变量：
+
+- **非敏感值**（registry URL / auth mode）直接写明文
+- **敏感值**（token / password / username）写 `"$CI_VAR"` 引用形式，实际值需在 GitLab **Settings -> CI/CD -> Variables** 中创建
+
+### 敏感值 -> GitLab CI Variable 映射
+
+| Wizard 字段 | `.gitlab-ci.yml` 中的写法 | 需在 GitLab 创建的 CI Variable |
+|---|---|---|
+| `crateToken` | `CODER_CRATE_TOKEN: "$CRATE_TOKEN"` | `CRATE_TOKEN`（masked + protected） |
+| `mavenToken` | `CODER_MAVEN_TOKEN: "$MAVEN_TOKEN"` | `MAVEN_TOKEN`（masked + protected） |
+| `mavenUsername` | `CODER_MAVEN_USERNAME: "$MAVEN_USERNAME"` | `MAVEN_USERNAME`（masked + protected） |
+| `mavenPassword` | `CODER_MAVEN_PASSWORD: "$MAVEN_PASSWORD"` | `MAVEN_PASSWORD`（masked + protected） |
+| `npmToken` | `CODER_NPM_TOKEN: "$NPM_TOKEN"` | `NPM_TOKEN`（masked + protected） |
+
+### 同步行为
+
+- **幂等**：多次跑向导只更新 `CODER_*` 行，不会重复插入
+- **保留格式**：不做 YAML 序列化（避免丢注释和缩进），逐行处理 `variables:` 段
+- **不影响其他变量**：只增删 `CODER_*` 行，`DOCKER_REGISTRY` / `BASE_REGISTRY` / `MAVEN_REPO_URL` 等原有变量原封不动
+- **空值跳过**：字段为空的不写入（如 `crateRegistry` 空 = 官方 crates.io 时不生成对应行）
+
+### 同步后 CI 各 job 怎么用
+
+`.gitlab-ci.yml` 的 `variables:` 段变量会作为环境变量注入所有 job。各 job 在 `before_script` 中跑 `setup-wizard --non-interactive`（如果 image 有 node），wizard 会读取这些 `CODER_*` 环境变量并生成本地配置文件（`.cargo/` / `.mvn/` / `.npmrc`），后续 `cargo build` / `mvn` / `pnpm install` 自动使用。
+
+对于没有 node 的 image（rust / maven），可以直接在 `before_script` 中手写配置文件（`.cargo/config.toml` / `~/.m2/settings.xml`），用 `CODER_*` 环境变量填充值。
+
+---
+
 ## 非交互模式（CI / 自动化）
 
 stdin 不是 TTY 时自动跳过交互，按以下优先级解析配置：
@@ -161,6 +199,7 @@ stdin 不是 TTY 时自动跳过交互，按以下优先级解析配置：
 | `CODER_MAVEN_PASSWORD` | maven password（auth=userpass 时用） | 空 |
 | `CODER_NPM_REGISTRY` | npm mirror URL（空=npmjs.com） | 空 |
 | `CODER_NPM_TOKEN` | npm mirror auth token | 空 |
+| `CODER_SYNC_GITLAB_CI` | 同步 CODER_* 到 `.gitlab-ci.yml`（`yes` / `1` / `true`） | 关 |
 
 > 设置 `CODER_MAVEN_TOKEN` 时自动推断 authMode=token；设置 `CODER_MAVEN_USERNAME` / `CODER_MAVEN_PASSWORD` 时自动推断 authMode=userpass。
 

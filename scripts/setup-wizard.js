@@ -4,6 +4,7 @@
  *
  * 交互式配置 Docker 镜像拉取来源 + Rust crates.io 镜像与 token
  * + Maven 仓库镜像与 token + npm 仓库镜像与 token。
+ * 可选同步到 .gitlab-ci.yml（CODER_* 变量写入 variables: 段）。
  *
  * 输出文件（均 gitignored，本地配置不入 git）：
  *   - infrastructure/.docker-registry.json
@@ -50,6 +51,7 @@
  *     CODER_MAVEN_REGISTRY=... CODER_MAVEN_AUTH_MODE=token|userpass \
  *     CODER_MAVEN_TOKEN=... CODER_MAVEN_USERNAME=... CODER_MAVEN_PASSWORD=... \
  *     CODER_NPM_REGISTRY=... CODER_NPM_TOKEN=... \
+ *     CODER_SYNC_GITLAB_CI=yes \
  *     node scripts/setup-wizard.js --non-interactive
  */
 
@@ -72,6 +74,7 @@ const MVN_DIR = path.join(ROOT, '.mvn');
 const MVN_SETTINGS_PATH = path.join(MVN_DIR, 'settings.xml');
 const MVN_CONFIG_PATH = path.join(MVN_DIR, 'maven.config');
 const NPMRC_PATH = path.join(ROOT, '.npmrc');
+const GITLAB_CI_PATH = path.join(ROOT, '.gitlab-ci.yml');
 
 // 项目共享的私有 kellnr registry（libs/* 和 sdk/rust/* 发布到此处）。
 // wizard 重生成 .cargo/config.toml 时始终保留这一段。
@@ -101,6 +104,23 @@ const DEFAULTS = {
   npmRegistry: '',
   npmToken: '',
 };
+
+// wizard 字段 -> .gitlab-ci.yml variables 段的 CI 变量映射。
+// sensitive=true 的字段写 "$CI_VAR" 引用（需在 GitLab Settings -> CI/CD -> Variables 创建），
+// sensitive=false 的字段直接写明文值。
+const CI_FIELD_MAP = [
+  { field: 'baseRegistry',    var: 'CODER_BASE_REGISTRY',    sensitive: false },
+  { field: 'builderRegistry', var: 'CODER_BUILDER_REGISTRY', sensitive: false },
+  { field: 'crateRegistry',   var: 'CODER_CRATE_REGISTRY',   sensitive: false },
+  { field: 'crateToken',      var: 'CODER_CRATE_TOKEN',      sensitive: true, ciVar: 'CRATE_TOKEN' },
+  { field: 'mavenRegistry',   var: 'CODER_MAVEN_REGISTRY',   sensitive: false },
+  { field: 'mavenAuthMode',   var: 'CODER_MAVEN_AUTH_MODE',  sensitive: false },
+  { field: 'mavenToken',      var: 'CODER_MAVEN_TOKEN',      sensitive: true, ciVar: 'MAVEN_TOKEN' },
+  { field: 'mavenUsername',   var: 'CODER_MAVEN_USERNAME',   sensitive: true, ciVar: 'MAVEN_USERNAME' },
+  { field: 'mavenPassword',   var: 'CODER_MAVEN_PASSWORD',   sensitive: true, ciVar: 'MAVEN_PASSWORD' },
+  { field: 'npmRegistry',     var: 'CODER_NPM_REGISTRY',     sensitive: false },
+  { field: 'npmToken',        var: 'CODER_NPM_TOKEN',        sensitive: true, ciVar: 'NPM_TOKEN' },
+];
 
 function parseArgs(argv) {
   const out = { nonInteractive: false, defaults: false, show: false };
@@ -140,6 +160,7 @@ function printHelp() {
   console.log('  CODER_MAVEN_PASSWORD     maven password (auth=userpass)');
   console.log('  CODER_NPM_REGISTRY       npm mirror URL (empty = npmjs.com)');
   console.log('  CODER_NPM_TOKEN          npm mirror auth token (_authToken)');
+  console.log('  CODER_SYNC_GITLAB_CI     sync CODER_* vars to .gitlab-ci.yml (yes/1/true)');
 }
 
 function readExistingConfig() {
@@ -198,7 +219,7 @@ function mavenAuthSummary(cfg) {
   return 'auth: (none)';
 }
 
-function showSummary(cfg, source) {
+function showSummary(cfg, source, ciSynced) {
   const baseDisplay = cfg.baseRegistry || '(docker hub)';
   const crateDisplay = cfg.crateRegistry || '(official crates.io)';
   const crateTokenDisplay = cfg.crateToken ? '(set)' : '(none)';
@@ -227,6 +248,17 @@ function showSummary(cfg, source) {
   if (cfg.npmRegistry) {
     log.yellow('[wizard] npm mirror -> .npmrc (gitignored, project root).');
     log.plain('[wizard]   npm/pnpm auto-loads project-level .npmrc.');
+  }
+  if (ciSynced) {
+    log.plain('');
+    log.green(`[wizard] .gitlab-ci.yml synced: CODER_* variables updated in variables: section.`);
+    const ciVars = requiredCIVariables(cfg);
+    if (ciVars.length) {
+      log.yellow('[wizard] 敏感值引用了 GitLab CI Variables，请在 Settings -> CI/CD -> Variables 创建：');
+      for (const v of ciVars) {
+        log.plain(`[wizard]   - ${v}`);
+      }
+    }
   }
 }
 
@@ -317,9 +349,15 @@ function validateMavenAuthMode(value) {
   return { ok: false, reason: 'must be one of: none | token | userpass' };
 }
 
+function validateYesNo(value) {
+  const v = (value || '').trim().toLowerCase();
+  if (v === 'yes' || v === 'y' || v === 'no' || v === 'n') return { ok: true, value: v };
+  return { ok: false, reason: 'must be yes/y or no/n' };
+}
+
 function resolveNonInteractive(args, existing) {
   // CLI --defaults > env vars > existing config > defaults
-  if (args.defaults) return { cfg: { ...DEFAULTS }, source: 'defaults (forced)' };
+  if (args.defaults) return { cfg: { ...DEFAULTS }, syncGitlabCI: false, source: 'defaults (forced)' };
 
   const cfg = { ...DEFAULTS };
   let source = 'defaults';
@@ -392,7 +430,11 @@ function resolveNonInteractive(args, existing) {
     source = 'env var CODER_NPM_TOKEN';
   }
 
-  return { cfg, source };
+  const syncGitlabCI = process.env.CODER_SYNC_GITLAB_CI === 'yes'
+    || process.env.CODER_SYNC_GITLAB_CI === '1'
+    || process.env.CODER_SYNC_GITLAB_CI === 'true';
+
+  return { cfg, syncGitlabCI, source };
 }
 
 async function prompt(rl, question, defaultValue, validator) {
@@ -545,6 +587,20 @@ async function runInteractive(existing) {
 
     const npmToken = await promptVisible(rl, '  npm token', initialNpmToken, validateCrateToken);
 
+    log.plain('\n9. 同步到 .gitlab-ci.yml');
+    log.plain('   将配置写入 .gitlab-ci.yml 的 variables: 段（CODER_* 变量）。');
+    log.plain('   非敏感值（registry URL 等）直接写明文；');
+    log.plain('   敏感值（token / password）引用 GitLab CI Variables（如 $CRATE_TOKEN）。');
+    log.plain('   yes = 同步（需在 GitLab Settings -> CI/CD -> Variables 创建对应变量）\n');
+
+    const syncInput = await prompt(
+      rl,
+      '  sync to .gitlab-ci.yml',
+      'no',
+      validateYesNo,
+    );
+    const syncGitlabCI = syncInput === 'yes' || syncInput === 'y';
+
     return {
       cfg: {
         baseRegistry,
@@ -559,6 +615,7 @@ async function runInteractive(existing) {
         npmRegistry,
         npmToken,
       },
+      syncGitlabCI,
       source: 'interactive prompt',
     };
   } finally {
@@ -711,6 +768,76 @@ function applyNpmConfig(cfg) {
   fs.writeFileSync(NPMRC_PATH, renderNpmrc(cfg.npmRegistry, cfg.npmToken));
 }
 
+// 生成需要写入 .gitlab-ci.yml variables 段的 CODER_* 行。
+// 空值字段跳过；sensitive 字段写 "$CI_VAR" 引用，非 sensitive 写明文。
+function generateCILines(cfg) {
+  const lines = ['  # --- setup-wizard 同步（敏感值引用 GitLab CI Variables）---'];
+  for (const m of CI_FIELD_MAP) {
+    const val = cfg[m.field];
+    if (!val) continue;
+    if (m.sensitive) {
+      lines.push(`  ${m.var}: "$${m.ciVar}"`);
+    } else {
+      lines.push(`  ${m.var}: "${val}"`);
+    }
+  }
+  return lines;
+}
+
+// 修改 .gitlab-ci.yml 的 variables: 段，替换其中所有 CODER_* 行。
+// 保留段内其他变量和注释；用逐行处理避免 YAML 序列化丢格式。
+function applyGitlabCI(cfg) {
+  if (!fs.existsSync(GITLAB_CI_PATH)) {
+    log.yellow(`[wizard] .gitlab-ci.yml not found, skipping CI sync.`);
+    return false;
+  }
+
+  const content = fs.readFileSync(GITLAB_CI_PATH, 'utf8');
+  const lines = content.split('\n');
+
+  // 定位 variables: 段范围（行首 variables: 到下一个行首非空行）
+  let varStart = -1;
+  let varEnd = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^variables:\s*$/.test(lines[i])) {
+      varStart = i;
+    } else if (varStart >= 0 && /^\S/.test(lines[i])) {
+      varEnd = i;
+      break;
+    }
+  }
+
+  if (varStart < 0) {
+    log.yellow(`[wizard] no "variables:" section in .gitlab-ci.yml, skipping CI sync.`);
+    return false;
+  }
+
+  // 保留 variables 段内非 CODER_ 的行（含注释和空行）
+  const varLines = lines.slice(varStart + 1, varEnd);
+  const kept = varLines.filter((l) => !/^\s+CODER_/.test(l) && !/^\s+# --- setup-wizard/.test(l));
+
+  const newLines = [
+    ...lines.slice(0, varStart + 1),
+    ...kept,
+    ...generateCILines(cfg),
+    ...lines.slice(varEnd),
+  ];
+
+  fs.writeFileSync(GITLAB_CI_PATH, newLines.join('\n') + '\n');
+  return true;
+}
+
+// 返回 wizard 需要提示用户在 GitLab 中创建的 CI Variable 名列表。
+function requiredCIVariables(cfg) {
+  const names = [];
+  for (const m of CI_FIELD_MAP) {
+    if (m.sensitive && cfg[m.field]) {
+      names.push(m.ciVar);
+    }
+  }
+  return names;
+}
+
 async function main() {
   const args = parseArgs(process.argv);
 
@@ -735,7 +862,13 @@ async function main() {
   applyCargoConfig(result.cfg);
   applyMavenConfig(result.cfg);
   applyNpmConfig(result.cfg);
-  showSummary(result.cfg, result.source);
+
+  let ciSynced = false;
+  if (result.syncGitlabCI) {
+    ciSynced = applyGitlabCI(result.cfg);
+  }
+
+  showSummary(result.cfg, result.source, ciSynced);
 }
 
 main().catch((err) => {
