@@ -1,7 +1,7 @@
 # Java SDK 发布指南
 
 > 适用：把 `sdk/java/` 下的 Maven 多模块发布到内网私有 Maven 仓库（Reposilite）。
-> 关联：[`sdk/java/README.md`](../../sdk/java/README.md)（SDK 用法）、[`scripts/publish-maven-release.sh`](../../scripts/publish-maven-release.sh)（主发布脚本）、[`scripts/publish-sdks.sh`](../../scripts/publish-sdks.sh)（旧 4 模块脚本）。
+> 关联：[`sdk/java/README.md`](../../sdk/java/README.md)（SDK 用法）、[`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)（主发布脚本）、[`scripts/publish-sdks.sh`](../../scripts/publish-sdks.sh)（旧 4 模块脚本）。
 > 维护：本文档随发布脚本和 Reposilite 政策变化同步更新。
 
 ---
@@ -87,15 +87,30 @@ sdk/java/
 export MAVEN_USERNAME=admin
 export MAVEN_PASSWORD='s3cret'
 
-bash scripts/publish-maven-release.sh        # release 版本
-bash scripts/publish-maven-snapshot.sh      # snapshot 版本
+node scripts/publish-maven-release.js        # release 版本
+node scripts/publish-maven-snapshot.js      # snapshot 版本
+# 或用 pnpm 别名：
+#   pnpm run sdk:publish:release
+#   pnpm run sdk:publish:snapshot
 ```
 
 或者命令行直接传：
 
 ```bash
-bash scripts/publish-maven-release.sh --user admin --pass 's3cret'
+node scripts/publish-maven-release.js --user admin --pass 's3cret'
 ```
+
+#### 方式 C：`setup:wizard` 生成的配置（推荐用于本地开发）
+
+跑过 `pnpm run setup:wizard` 并选了 maven mirror + 认证后，配置会写入 `infrastructure/.docker-registry.json`。发布脚本会**自动读取**这份 wizard 配置，无需再手工设 env 或 `~/.m2/settings.xml`：
+
+- `mavenAuthMode = userpass` → 用 `mavenUsername` + `mavenPassword` 作为凭证
+- `mavenAuthMode = token` → username 固定为 `token`，password 用 `mavenToken`（公网 project token 场景）
+- `mavenRegistry` → 拼上 `/releases` 或 `/snapshots` 作为 repo URL（reposilite 惯例）
+
+优先级链（高→低）：CLI `--user`/`--pass` > env `MAVEN_USERNAME`/`MAVEN_PASSWORD` > wizard 配置 > `~/.m2/settings.xml`。想临时覆盖 wizard 值直接传 CLI 参数即可，wizard 文件不会被改动。
+
+详见 [Registry 来源配置](./docker-registry-config)。
 
 ### 3.2 server id 与 pom 中的 `<distributionManagement>` 对齐
 
@@ -114,7 +129,7 @@ bash scripts/publish-maven-release.sh --user admin --pass 's3cret'
 </distributionManagement>
 ```
 
-如果你用 `publish-maven-release.sh`（`curl` 模式），脚本会通过 `-DaltDeploymentRepository` 覆盖 deploy 目标，**不需要改 pom**。
+如果你用 `publish-maven-release.js`（`curl` 模式），脚本会通过 `-DaltDeploymentRepository` 覆盖 deploy 目标，**不需要改 pom**。
 
 > ⚠️ **历史背景**：v0.2.0 及之前用 `id=kudi-maven`（依赖环境变量 `MAVEN_USER` / `MAVEN_PASS`）。v0.3.0 起改为 `reposilite-repository-releases` / `reposilite-repository-snapshots`，直接匹配 `settings.xml` 中硬编码的凭证，避免环境变量传递问题。
 
@@ -165,14 +180,14 @@ user-service-user-sdk user-service-client-sdk  ...   token-server-user-sdk
 
 ### 5.1 用发布脚本（推荐）
 
-`scripts/publish-maven-release.sh` 和 `scripts/publish-maven-snapshot.sh` 是统一入口，支持 release / snapshot 两种场景。
+`scripts/publish-maven-release.js` 和 `scripts/publish-maven-snapshot.js` 是统一入口，支持 release / snapshot 两种场景。
 
 ```bash
 # Release 版本（不带 -SNAPSHOT）
-bash scripts/publish-maven-release.sh
+node scripts/publish-maven-release.js
 
 # Snapshot 版本（带 -SNAPSHOT）
-bash scripts/publish-maven-snapshot.sh
+node scripts/publish-maven-snapshot.js
 ```
 
 **参数：**
@@ -182,12 +197,11 @@ bash scripts/publish-maven-snapshot.sh
 | `--profile <ver>` | 编译 profile：`java8` / `java17` / `java21`，默认 `java8` |
 | `--modules "a,b,c"` | 只发指定模块（Maven `-pl` 语法），默认全量 |
 | `--user <name>` `--pass <pwd>` | Reposilite 凭证（覆盖 settings.xml） |
-| `--repo-id <id>` | 自定义 server id，默认 `reposilite-repository-releases` |
-| `--repo-url <url>` | 自定义仓库 URL，默认 `http://192.168.2.12:18181/releases` |
-| `--docker` | 在 docker 容器内跑（无需本机 JDK/Maven） |
+| `--repo-id <id>` | 自定义 server id，默认 `reposilite-repository-releases` / `reposilite-repository-snapshots` |
+| `--repo-url <url>` | 自定义仓库 URL；默认按此优先级解析：CLI `--repo-url` > env `MAVEN_REPO_URL` > wizard `mavenRegistry` 拼 `/releases`（或 `/snapshots`）> 硬编码 `http://192.168.2.12:18181/{releases,snapshots}` |
 | `--mvn` | 强制使用 `mvn deploy`（默认是 `mvn install + curl`，绕过 Reposilite 的 Expect:100-continue bug） |
 | `--dry-run` | 只 verify，不实际 deploy |
-| `--` | 透传额外 mvn 参数：`bash scripts/... -- -pl xxx -am -DskipTests` |
+| `--` | 透传额外 mvn 参数：`node scripts/... -- -pl xxx -am -DskipTests` |
 
 **脚本做的事：**
 
@@ -224,7 +238,7 @@ node scripts/build-java-sdk-docker.js deploy --profile java21
 3. 挂载宿主机 `~/.m2/settings.xml`（只读），透传 `MAVEN_USER` / `MAVEN_PASS` 环境变量
 4. 在容器内执行 `mvn -Pjava8 deploy -DskipTests`
 
-> 本方法与 `publish-maven-release.sh` 的 `--docker` 模式等价，但更轻量——直接 `node scripts/build-java-sdk-docker.js deploy` 一行搞定，不需要单独构建 builder 镜像。
+> 本方法与本地跑 `publish-maven-release.js` 效果等价；如果本机没有 JDK/Maven，用 `node scripts/build-java-sdk-docker.js deploy` 一行搞定，在容器内跑 mvn。
 
 ### 5.3 典型发布循环
 
@@ -235,13 +249,13 @@ node scripts/build-java-sdk-docker.js deploy --profile java21
 grep -A 1 "<version>" sdk/java/pom.xml | head -3
 
 # 2. dry-run 验证
-bash scripts/publish-maven-release.sh --dry-run
+node scripts/publish-maven-release.js --dry-run
 
 # 3. 真发布（推荐方式 A：Docker 容器发布）
 node scripts/build-java-sdk-docker.js deploy
 
 # 或方式 B：本机有 JDK 时用发布脚本
-bash scripts/publish-maven-release.sh
+node scripts/publish-maven-release.js
 
 # 4. 验证：在临时项目里引用 SDK
 ```
@@ -257,7 +271,7 @@ git diff sdk/java/pom.xml
 git add sdk/java && git commit -m "feat(sdk): bump to 0.4.0"
 
 # 发布
-bash scripts/publish-maven-release.sh
+node scripts/publish-maven-release.js
 ```
 
 #### 发 snapshot
@@ -268,25 +282,18 @@ mvn -f sdk/java/pom.xml versions:set -DnewVersion=0.3.1-SNAPSHOT versions:commit
 git add sdk/java && git commit -m "feat(sdk): start 0.3.1-SNAPSHOT"
 
 # 发布
-bash scripts/publish-maven-snapshot.sh
+node scripts/publish-maven-snapshot.js
 ```
 
-### 5.4 旧脚本 Docker 模式
+### 5.4 无本机 JDK/Maven 场景
 
-如果本机没装 JDK / Maven，且想用 `publish-maven-release.sh` 的 `curl` 模式：
+如果本机没装 JDK / Maven，用 Docker 容器内发布：
 
 ```bash
-# 先构建 builder 镜像（一次性）
-docker build -f sdk/java/Dockerfile.builder -t kudi-maven-builder:latest sdk/java/
-
-# 或直接拉取内网镜像
-docker pull zhcoder-docker-registry.com:8000/official/maven:3.9-eclipse-temurin-17
-
-# 发布（脚本会自动用 docker run -v ~/.m2 来跑 mvn）
-bash scripts/publish-maven-release.sh --docker
+node scripts/build-java-sdk-docker.js deploy
 ```
 
-Docker 模式下脚本会用 `docker run` 启动临时容器，挂载源码、`.m2/`、`~/.m2/settings.xml`，在容器内跑 mvn。
+该脚本在 `zhcoder-docker-registry.com:8000/official/maven:3.9-eclipse-temurin-21` 容器内跑 `mvn -Pjava8 deploy`，挂载源码 + `~/.m2/` + `~/.m2/settings.xml`。详见 [`scripts/build-java-sdk-docker.js`](../../scripts/build-java-sdk-docker.js)。
 
 ---
 
@@ -389,16 +396,16 @@ Reposilite 没有公开的速率限制文档，但有几个实战经验：
 | --- | --- | --- |
 | `error: could not determine project version from sdk/java/pom.xml` | pom.xml 解析失败 | 检查 pom.xml 格式；mvn 是否能跑通 `help:evaluate` |
 | `repository id is 'kudi-maven' but settings.xml only has 'reposilite-repository-releases'` | 老 pom.xml 与 settings.xml 的 server ID 不匹配 | v0.3.0+ 已改为 `reposilite-repository-releases`。如用旧版本，在 settings.xml 加 `<server><id>kudi-maven</id>` 或升级 pom.xml |
-| `error: release version found in pom but script is publish-maven-snapshot.sh` | 跑错了脚本（snapshot 拒绝 release 版本） | 改用 `publish-maven-release.sh`，或先把版本改成 `-SNAPSHOT` |
-| `error: pom is SNAPSHOT but script is publish-maven-release.sh` | 同上，反向 | 用 `publish-maven-snapshot.sh`，或去掉 `-SNAPSHOT` |
+| `error: release version found in pom but script is publish-maven-snapshot.js` | 跑错了脚本（snapshot 拒绝 release 版本） | 改用 `publish-maven-release.js`，或先把版本改成 `-SNAPSHOT` |
+| `error: pom is SNAPSHOT but script is publish-maven-release.js` | 同上，反向 | 用 `publish-maven-snapshot.js`，或去掉 `-SNAPSHOT` |
 | `HTTP 400 Bad Request` on `mvn deploy` | 版本已存在，Reposilite 禁止重部署（`Redeployment is not allowed`） | **bump 版本号**再重试；或确认是否真的需要重部署同版本（release 原则上不可覆盖） |
-| `HTTP 400 Bad Request` on `mvn deploy`（Expect:100-continue） | Reposilite 与 Maven Aether 的 Expect:100-continue 不兼容（旧版本 Reposilite） | 用 `build-java-sdk-docker.js deploy`（`mvn deploy` 直连）或 `publish-maven-release.sh`（`curl` 模式） |
+| `HTTP 400 Bad Request` on `mvn deploy`（Expect:100-continue） | Reposilite 与 Maven Aether 的 Expect:100-continue 不兼容（旧版本 Reposilite） | 用 `build-java-sdk-docker.js deploy`（`mvn deploy` 直连）或 `publish-maven-release.js`（`curl` 模式） |
 | `407 Proxy Authentication Required` / `403 Forbidden` | Reposilite token 无效 / 没权限 | 找运维确认账号；或加 `--user` / `--pass` 重新传 |
 | `404 Not Found` on upload | 仓库 URL 错 / snapshot 传错到 release | 检查 `--repo-url`；snapshot 脚本默认 `/snapshots`，release 默认 `/releases` |
 | `mvn install` 成功但 `curl upload` 失败（HTTP 500） | Reposilite 内部错误 / 磁盘满 | 看 Reposilite 控制台；联系运维 |
 | `Permission denied` 写 `~/.m2/repository` | 用户无权写本地 maven 仓库 | `chown -R $USER:$USER ~/.m2`；或在 docker 模式下用 `~/.m2` bind mount |
 | 部分模块成功部分失败 | 中途网络中断 / Reposilite 抖动 | 重跑脚本（已成功的不会重复部署；release 部署失败可 bump 后重试） |
-| 老的 `publish-sdks.sh` 不支持新模块 | 脚本只发 4 个 service SDK | 改用 `publish-maven-release.sh` |
+| 老的 `publish-sdks.sh` 不支持新模块 | 脚本只发 4 个 service SDK | 改用 `publish-maven-release.js` |
 
 ---
 
@@ -408,8 +415,8 @@ Reposilite 没有公开的速率限制文档，但有几个实战经验：
 - [`./rust-sdk`](./rust-sdk)：Rust SDK 用法（对照参考）
 - [`./rust-sdk-publishing`](./rust-sdk-publishing)：Rust SDK 发布流程（与本文档结构对齐）
 - [`sdk/java/README.md`](../../sdk/java/README.md)：SDK 模块列表与生成说明
-- [`scripts/publish-maven-release.sh`](../../scripts/publish-maven-release.sh)：主发布脚本（release，`curl` 模式）
-- [`scripts/publish-maven-snapshot.sh`](../../scripts/publish-maven-snapshot.sh)：主发布脚本（snapshot，`curl` 模式）
+- [`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)：主发布脚本（release，`curl` 模式）
+- [`scripts/publish-maven-snapshot.js`](../../scripts/publish-maven-snapshot.js)：主发布脚本（snapshot，`curl` 模式）
 - [`scripts/build-java-sdk-docker.js`](../../scripts/build-java-sdk-docker.js)：Docker 容器发布脚本（`mvn deploy` 模式，无需本机 JDK）
 - [`scripts/publish-sdks.sh`](../../scripts/publish-sdks.sh)：旧 4 模块脚本（保留兼容）
 - [`sdk/java/Dockerfile.builder`](../../sdk/java/Dockerfile.builder)：Docker 模式下的 builder 镜像

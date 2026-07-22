@@ -66,6 +66,8 @@
     "sdk:test:java:17": "cd sdk/java && mvn -B test -P java17",
     "sdk:test:java:21": "cd sdk/java && mvn -B test -P java21",
     "sdk:test": "pnpm run sdk:test:java",
+    "sdk:publish:release": "node scripts/publish-maven-release.js",
+    "sdk:publish:snapshot": "node scripts/publish-maven-snapshot.js",
     "build:docker": "node scripts/build-docker.js",
     "build:cargo": "node scripts/build-cargo.js",
     "check:service-standard": "node scripts/check-service-standard.js",
