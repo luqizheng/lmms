@@ -6,6 +6,7 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo .cargo
+ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml
 COPY libs/ libs/
 COPY services/ services/
 COPY sdk sdk

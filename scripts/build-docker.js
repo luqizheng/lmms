@@ -328,6 +328,19 @@ function buildService(name, ctx) {
     }
   }
 
+  // frontend 构建上下文是 frontend/，但 setup-wizard 生成的 .npmrc 在项目根。
+  // 构建前临时复制到 frontend/，构建后清理。
+  let tempNpmrc = null;
+  if (name === 'frontend') {
+    const rootNpmrc = path.join(ROOT_DIR, '.npmrc');
+    const frontendNpmrc = path.join(FRONTEND_DIR, '.npmrc');
+    if (fs.existsSync(rootNpmrc) && !fs.existsSync(frontendNpmrc)) {
+      fs.copyFileSync(rootNpmrc, frontendNpmrc);
+      console.log(`${A.dim}[pre-build]${A.reset} 复制 .npmrc -> frontend/ (setup-wizard npm 配置)`);
+      tempNpmrc = frontendNpmrc;
+    }
+  }
+
   const baseRef = `${registry}/${repo}/${name}`;
   const tags = [version ? `${baseRef}:${version}` : null, `${baseRef}:latest`].filter(Boolean);
   const uniqTags = [...new Set(tags)];   // version=latest 时去重
@@ -343,6 +356,12 @@ function buildService(name, ctx) {
   console.log(`\n${A.bold}[build]${A.reset} ${name} -> ${uniqTags.join(', ')}`);
   console.log(`${A.dim}$ ${buildCmd.join(' ')}${A.reset}`);
   const res = spawnSync(buildCmd[0], buildCmd.slice(1), { cwd, stdio: 'inherit', shell: false });
+
+  if (tempNpmrc) {
+    try { fs.unlinkSync(tempNpmrc); } catch (_) { /* best-effort cleanup */ }
+    tempNpmrc = null;
+  }
+
   if (res.status !== 0) {
     console.log(`${FAIL} [fail] ${name}`);
     return false;

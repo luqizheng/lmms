@@ -11,6 +11,8 @@ ENV SWAGGER_UI_DOWNLOAD_URL=file:///tmp/swagger-ui.zip
 
 COPY . .
 
+ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml
+
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-file-service,target=/app/target,sharing=locked \
