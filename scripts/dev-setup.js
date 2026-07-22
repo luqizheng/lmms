@@ -18,16 +18,13 @@
 
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { chalk } = require('./lib/ui.js');
 
 const ROOT = path.join(__dirname, '..');
 const COMPOSE = ['docker', 'compose', '-f', 'infrastructure/docker-compose.yml'];
 
-const A = {
-  reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
-  green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m', cyan: '\x1b[36m',
-};
-const OK = `${A.green}\u2713${A.reset}`;
-const FAIL = `${A.red}\u2717${A.reset}`;
+const OK = chalk.green('\u2713');
+const FAIL = chalk.red('\u2717');
 
 class RingBuffer {
   constructor(n) { this.n = n; this.lines = []; }
@@ -41,8 +38,8 @@ class RingBuffer {
 
 function runStep(name, cmd, { capture = false } = {}) {
   return new Promise((resolve, reject) => {
-    console.log(`\n${A.bold}[step]${A.reset} ${name}`);
-    console.log(`${A.dim}$ ${cmd.join(' ')}${A.reset}`);
+    console.log(`\n${chalk.bold(`[step]`)} ${name}`);
+    console.log(`${chalk.dim(`$ ${cmd.join(' ')}`)}`);
     const failBuf = new RingBuffer(50);
     const sumBuf = capture ? new RingBuffer(40) : null;
     const child = spawn(cmd[0], cmd.slice(1), {
@@ -62,9 +59,9 @@ function runStep(name, cmd, { capture = false } = {}) {
     child.on('close', (code) => {
       if (code !== 0) {
         console.error(`\n${FAIL} ${name} failed (exit ${code})`);
-        console.error(`${A.dim}--- last 50 lines ---${A.reset}`);
+        console.error(`${chalk.dim(`--- last 50 lines ---`)}`);
         console.error(failBuf.dump() || '(no output captured)');
-        console.error(`${A.dim}--- end ---${A.reset}`);
+        console.error(`${chalk.dim(`--- end ---`)}`);
         process.exit(code || 1);
       }
       console.log(`${OK} ${name}`);
@@ -82,7 +79,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`${A.bold}${A.cyan}=== dev setup ===${A.reset}`);
+  console.log(chalk.bold.cyan('=== dev setup ==='));
   console.log(`mode: ${RESET ? 'reset (wipe + seed)' : 'append (idempotent upsert)'}`);
 
   await runStep('preflight: env check', ['node', 'scripts/check-dev-env.js']);
@@ -101,13 +98,13 @@ async function main() {
   const row = (s) => `\u2551 ${String(s).slice(0, inner).padEnd(inner)} \u2551`;
   const strip = (s) => s.replace(/^\[demo-data\]\s?/, '');
   const stripped = (demoTail || '(no demo output captured)').split('\n').map(strip);
-  console.log(`\n${A.green}\u2554${'='.repeat(W - 2)}\u2557${A.reset}`);
-  console.log(`${A.green}${row('Setup complete!')}${A.reset}`);
-  console.log(`${A.green}${row('Services  : http://localhost:3000 (api-gateway)')}${A.reset}`);
-  console.log(`${A.green}${row('Swagger   : http://localhost:6001..6007/swagger-ui  (per-service)')}${A.reset}`);
-  console.log(`${A.green}${row('Login accounts (last ~30 lines from demo-data):')}${A.reset}`);
-  for (const ln of stripped) console.log(`${A.green}${row(ln)}${A.reset}`);
-  console.log(`${A.green}\u255a${'='.repeat(W - 2)}\u255d${A.reset}`);
+  console.log(`\n${chalk.green(`\u2554${'='.repeat(W - 2)}\u2557`)}`);
+  console.log(`${chalk.green(`${row('Setup complete!')}`)}`);
+  console.log(`${chalk.green(`${row('Services  : http://localhost:3000 (api-gateway)')}`)}`);
+  console.log(`${chalk.green(`${row('Swagger   : http://localhost:6001..6007/swagger-ui  (per-service)')}`)}`);
+  console.log(`${chalk.green(`${row('Login accounts (last ~30 lines from demo-data):')}`)}`);
+  for (const ln of stripped) console.log(`${chalk.green(`${row(ln)}`)}`);
+  console.log(`${chalk.green(`\u255a${'='.repeat(W - 2)}\u255d`)}`);
 }
 
 main().catch((err) => {

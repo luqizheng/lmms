@@ -13,6 +13,7 @@
 //   (exits 0 on success, 1 on failure)
 
 const { execSync } = require('node:child_process');
+const { chalk, spinner } = require('./lib/ui.js');
 
 const GATEWAY = process.env.E2E_BASE_URL || 'http://localhost:3000';
 const ADMIN = process.env.E2E_ADMIN_USER || 'e2eadmin';
@@ -64,7 +65,7 @@ async function main() {
   const userId = create.body.id;
   console.log(`[e2e-event-flow] user created id=${userId}`);
 
-  console.log('[e2e-event-flow] polling iam_outbox_events for the row...');
+  const sp1 = spinner('polling iam_outbox_events for the row ...').start();
   let outboxId = '';
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -77,12 +78,12 @@ async function main() {
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
   if (!outboxId) {
-    console.error('FAIL: outbox row never appeared');
+    sp1.fail('outbox row never appeared');
     process.exit(1);
   }
-  console.log(`[e2e-event-flow] outbox row id=${outboxId}`);
+  sp1.succeed(`outbox row id=${outboxId}`);
 
-  console.log('[e2e-event-flow] polling for published_at + audit_events row...');
+  const sp2 = spinner('polling for published_at + audit_events row ...').start();
   let publishedAt = '';
   let auditEventId = '';
   while (Date.now() < deadline) {
@@ -98,14 +99,14 @@ async function main() {
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
   if (!publishedAt) {
-    console.error('FAIL: iam_outbox_events.published_at never set (publisher not running?)');
+    sp2.fail('iam_outbox_events.published_at never set (publisher not running?)');
     process.exit(1);
   }
   if (!auditEventId) {
-    console.error('FAIL: audit_events row never appeared (consumer not running?)');
+    sp2.fail('audit_events row never appeared (consumer not running?)');
     process.exit(1);
   }
-  console.log(`[e2e-event-flow] PASS — published_at=${publishedAt} audit event_id=${auditEventId}`);
+  sp2.succeed(chalk.green(`PASS — published_at=${publishedAt} audit event_id=${auditEventId}`));
   process.exit(0);
 }
 

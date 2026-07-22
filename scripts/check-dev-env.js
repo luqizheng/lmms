@@ -1,5 +1,6 @@
 ﻿const http = require('http');
 const { execSync } = require('child_process');
+const { chalk, spinner, section } = require('./lib/ui.js');
 
 const services = [
   { name: 'Frontend Dev Server', url: 'http://localhost:8849', type: 'http' },
@@ -76,38 +77,45 @@ function checkDockerServices() {
   }
 }
 
+function formatMark(status) {
+  return status === 'success' ? chalk.green('✓') : chalk.red('✗');
+}
+
 async function runChecks() {
-  console.log('=== Development Environment Check ===\n');
+  console.log(chalk.bold.cyan('=== Development Environment Check ==='));
 
-  console.log('[Docker Services Status]');
+  section('Docker Services');
+  const dockerSp = spinner('inspecting docker compose ps ...').start();
   const dockerResults = checkDockerServices();
+  dockerSp.stop();
   dockerResults.forEach(result => {
-    const symbol = result.status === 'success' ? 'OK' : 'FAIL';
-    const color = result.status === 'success' ? '\x1b[32m' : '\x1b[31m';
-    const reset = '\x1b[0m';
-    console.log(`  ${color}${symbol}${reset} ${result.name}: ${result.actualStatus} (expected: ${result.expectedStatus})`);
+    console.log(`  ${formatMark(result.status)} ${result.name}: ${result.actualStatus} ${chalk.gray(`(expected: ${result.expectedStatus})`)}`);
   });
 
-  console.log('\n[HTTP Services Status]');
+  section('HTTP Services');
+  const httpSp = spinner(`probing ${services.length} endpoints ...`).start();
   const httpResults = await Promise.all(services.map(checkHttpService));
+  httpSp.stop();
   httpResults.forEach(result => {
-    const symbol = result.status === 'success' ? 'OK' : 'FAIL';
-    const color = result.status === 'success' ? '\x1b[32m' : '\x1b[31m';
-    const reset = '\x1b[0m';
-    const statusText = result.status === 'success' 
-      ? `HTTP ${result.code}` 
-      : result.status === 'timeout' 
-        ? 'Timeout' 
+    const statusText = result.status === 'success'
+      ? `HTTP ${result.code}`
+      : result.status === 'timeout'
+        ? 'Timeout'
         : 'Unreachable';
-    console.log(`  ${color}${symbol}${reset} ${result.name}: ${statusText}`);
+    console.log(`  ${formatMark(result.status)} ${result.name}: ${statusText}`);
   });
 
-  console.log('\n=== Check Complete ===');
   const allSuccess = [...dockerResults, ...httpResults].every(r => r.status === 'success');
+  console.log('');
+  if (allSuccess) {
+    console.log(chalk.green('✓ 全部服务健康'));
+  } else {
+    console.log(chalk.red('✗ 有服务未就绪，见上'));
+  }
   process.exit(allSuccess ? 0 : 1);
 }
 
 runChecks().catch(err => {
-  console.error('Error during check:', err);
+  console.error(chalk.red('Error during check:'), err);
   process.exit(1);
 });

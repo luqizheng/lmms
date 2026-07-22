@@ -16,6 +16,7 @@
 //   (exits 0 on all-pass, 1 on any-fail)
 
 const http = require('node:http');
+const { chalk } = require('./lib/ui.js');
 
 // 默认端口映射 (来自 AGENTS.md / docker-compose-services.yml)
 const SERVICES = [
@@ -51,10 +52,10 @@ function get(port, path) {
 }
 
 function ok(label) {
-  return `\x1b[32m✓\x1b[0m ${label}`;
+  return `${chalk.green('✓')} ${label}`;
 }
 function fail(label, detail) {
-  return `\x1b[31m✗\x1b[0m ${label}\n   ${detail}`;
+  return `${chalk.red('✗')} ${label}\n   ${detail}`;
 }
 
 async function checkService(svc) {
@@ -143,10 +144,10 @@ async function main() {
   const failed = results.filter((r) => !r.passed);
   console.log('');
   if (failed.length === 0) {
-    console.log(`\x1b[32m✓ all ${SERVICES.length} services in_sync\x1b[0m`);
+    console.log(chalk.green(`✓ all ${SERVICES.length} services in_sync`));
     process.exit(0);
   } else {
-    console.log(`\x1b[31m✗ ${failed.length}/${SERVICES.length} services failed checks\x1b[0m`);
+    console.log(chalk.red(`✗ ${failed.length}/${SERVICES.length} services failed checks`));
     process.exit(1);
   }
 }

@@ -15,6 +15,7 @@
 const fs = require('node:fs');
 const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
+const { chalk, spinner, section } = require('./lib/ui.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -114,7 +115,7 @@ function ensureNextest() {
   { encoding: 'utf8' });
   if (check.status === 0 && /OK/.test(check.stdout || '')) return;
 
-  console.log('[nextest] installing cargo-nextest (first run, ~2 min)...');
+  const sp = spinner('installing cargo-nextest (first run, ~2 min)...').start();
   const install = spawnSync('docker', ['run', '--rm',
     '-v', `${ROOT}:/app`,
     '-v', 'coder-cargo-registry:/usr/local/cargo/registry',
@@ -124,7 +125,11 @@ function ensureNextest() {
     IMAGE,
     'cargo', 'install', 'cargo-nextest', '--locked', '--root', '/usr/local/cargo',
   ], { stdio: 'inherit' });
-  if (install.status !== 0) throw new Error('install cargo-nextest failed');
+  if (install.status !== 0) {
+    sp.fail('install cargo-nextest failed');
+    throw new Error('install cargo-nextest failed');
+  }
+  sp.succeed('cargo-nextest installed');
 }
 
 // 启动一个共享 MySQL 容器（host network + 固定端口），返回 { port }。
@@ -137,12 +142,12 @@ function startSharedMysql() {
       'exec', MYSQL_CONTAINER_NAME, 'mysqladmin', 'ping', '-uroot', `--port=${MYSQL_PORT}`,
     ], { encoding: 'utf8' });
     if (ping.status === 0 && /mysqld is alive/.test(ping.stdout || '')) {
-      console.log(`[mysql] reusing ${MYSQL_CONTAINER_NAME} on host port ${MYSQL_PORT}`);
+      console.log(chalk.green('✓'), `mysql: reusing ${MYSQL_CONTAINER_NAME} on host port ${MYSQL_PORT}`);
       return { port: MYSQL_PORT };
     }
   }
   spawnSync('docker', ['rm', '-f', MYSQL_CONTAINER_NAME], { stdio: 'ignore' });
-  console.log(`[mysql] starting shared ${MYSQL_IMAGE} on host port ${MYSQL_PORT}...`);
+  const sp = spinner(`starting shared ${MYSQL_IMAGE} on host port ${MYSQL_PORT} ...`).start();
   const run = spawnSync('docker', [
     'run', '-d',
     '--name', MYSQL_CONTAINER_NAME,
@@ -156,7 +161,7 @@ function startSharedMysql() {
     '--skip-log-bin',
   ], { encoding: 'utf8' });
   if (run.status !== 0) {
-    console.error('[mysql] docker run failed:', run.stderr);
+    sp.fail(`docker run failed: ${run.stderr}`);
     throw new Error('start shared mysql failed');
   }
   const deadline = Date.now() + 60_000;
@@ -166,11 +171,13 @@ function startSharedMysql() {
       'mysqladmin', 'ping', '-uroot', `--port=${MYSQL_PORT}`,
     ], { encoding: 'utf8' });
     if (ping.status === 0 && /mysqld is alive/.test(ping.stdout || '')) {
-      console.log(`[mysql] ready on 127.0.0.1:${MYSQL_PORT}`);
+      sp.succeed(`mysql ready on 127.0.0.1:${MYSQL_PORT}`);
       return { port: MYSQL_PORT };
     }
+    sp.text = `waiting for mysql ... ${Math.floor((Date.now() - (deadline - 60_000)) / 1000)}s`;
     spawnSync('sleep', ['1']);
   }
+  sp.fail(`shared mysql not ready in 60s`);
   throw new Error(`shared mysql not ready in 60s`);
 }
 
@@ -295,7 +302,7 @@ async function main() {
     }
   }
   if (targets.length === 0) {
-    console.log('\n=== summary ===');
+    section('summary');
     console.log('total : 0');
     console.log('pass  : 0');
     console.log('fail  : 0');
@@ -341,25 +348,25 @@ async function main() {
   const failed = [];
   try {
     // 阶段 A：编译。失败的 service 跳过阶段 B。
-    console.log(`\n=== phase 1: compile (concurrency=${CONCURRENCY_COMPILE}) ===`);
+    section(`phase 1: compile (concurrency=${CONCURRENCY_COMPILE})`);
     const failedCompile = new Set(await runPool(targets, CONCURRENCY_COMPILE, runCompile, sharedEnv));
     for (const s of failedCompile) failed.push(`${s} (compile)`);
 
     // 阶段 B：跑测试。仅跑编译成功的。
     const runnable = targets.filter(s => !failedCompile.has(s));
     if (runnable.length > 0) {
-      console.log(`\n=== phase 2: run (concurrency=${CONCURRENCY_RUN}) ===`);
+      section(`phase 2: run (concurrency=${CONCURRENCY_RUN})`);
       const failedRun = await runPool(runnable, CONCURRENCY_RUN, runRun, sharedEnv);
       for (const s of failedRun) failed.push(`${s} (run)`);
     }
   } finally {
     doCleanup();
   }
-  console.log('\n=== summary ===');
+  section('summary');
   console.log(`total : ${targets.length}`);
-  console.log(`pass  : ${targets.length - failed.length}`);
-  console.log(`fail  : ${failed.length}`);
-  for (const f of failed) console.log(`  - ${f}`);
+  console.log(`pass  : ${chalk.green(targets.length - failed.length)}`);
+  console.log(`fail  : ${failed.length ? chalk.red(failed.length) : failed.length}`);
+  for (const f of failed) console.log(`  ${chalk.red('-')} ${f}`);
   process.exit(failed.length ? 1 : 0);
 }
 

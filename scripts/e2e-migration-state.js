@@ -34,6 +34,7 @@
 //   (exits 0 on all-pass, 1 on any-fail, 0 with warning if all skipped)
 
 const http = require('node:http');
+const { chalk } = require('./lib/ui.js');
 
 const TOKEN_SERVICE_URL = process.env.TOKEN_SERVICE_URL || 'http://localhost:8082';
 const SERVICE_HOST = process.env.SERVICE_HOST || 'localhost';
@@ -95,9 +96,9 @@ function httpRequest(method, url, headers, body) {
   });
 }
 
-function ok(label) { return `\x1b[32m✓\x1b[0m ${label}`; }
-function fail(label, detail) { return `\x1b[31m✗\x1b[0m ${label}\n   ${detail}`; }
-function warn(label, detail) { return `\x1b[33m⚠\x1b[0m ${label}\n   ${detail}`; }
+function ok(label) { return `${chalk.green('✓')} ${label}`; }
+function fail(label, detail) { return `${chalk.red('✗')} ${label}\n   ${detail}`; }
+function warn(label, detail) { return `${chalk.yellow('⚠')} ${label}\n   ${detail}`; }
 
 async function mintServiceJwt(aud, bootstrapToken) {
   const res = await httpRequest(
@@ -221,20 +222,21 @@ async function main() {
   }
 
   const all = results.flatMap((r) => r.lines);
-  const passed = all.filter((l) => l.startsWith('\x1b[32m')).length;
-  const failed = all.filter((l) => l.startsWith('\x1b[31m')).length;
-  const skipped = all.filter((l) => l.startsWith('\x1b[33m')).length;
+  // 用 unicode 字符判类（不依赖 ANSI），兼容 chalk 在非 TTY 被 strip 的情况。
+  const passed = all.filter((l) => l.includes('✓')).length;
+  const failed = all.filter((l) => l.includes('✗')).length;
+  const skipped = all.filter((l) => l.includes('⚠')).length;
   const skippedSvcs = results.filter((r) => r.skipped).length;
 
   console.log('');
   if (failed === 0 && skippedSvcs === 0) {
-    console.log(`\x1b[32m✓ all ${passed} checks pass across ${SERVICES.length} services\x1b[0m`);
+    console.log(chalk.green(`✓ all ${passed} checks pass across ${SERVICES.length} services`));
     process.exit(0);
   } else if (failed === 0) {
-    console.log(`\x1b[33m⚠ ${skippedSvcs} services skipped (no bootstrap token); ${passed} checks pass; ${skipped} warnings\x1b[0m`);
+    console.log(chalk.yellow(`⚠ ${skippedSvcs} services skipped (no bootstrap token); ${passed} checks pass; ${skipped} warnings`));
     process.exit(0);
   } else {
-    console.log(`\x1b[31m✗ ${failed} checks fail across ${SERVICES.length - skippedSvcs} services\x1b[0m`);
+    console.log(chalk.red(`✗ ${failed} checks fail across ${SERVICES.length - skippedSvcs} services`));
     process.exit(1);
   }
 }
