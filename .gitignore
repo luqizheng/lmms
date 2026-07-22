@@ -31,6 +31,20 @@ reports/
 # 本地配置不入 git；CI 可用 CODER_BASE_REGISTRY / CODER_BUILDER_REGISTRY 环境变量覆盖。
 /infrastructure/.docker-registry.json
 
+# .cargo/credentials.toml 由 setup-wizard.js 写入（crates.io / mirror 的 auth token），
+# 含敏感信息，本地配置不入 git；CI 可用 CODER_CRATE_TOKEN 环境变量覆盖。
+/.cargo/credentials.toml
+
+# .mvn/settings.xml + .mvn/maven.config 由 setup-wizard.js 写入（maven mirror + token），
+# 含敏感信息，本地配置不入 git；CI 可用 CODER_MAVEN_REGISTRY / CODER_MAVEN_TOKEN 覆盖。
+/.mvn/settings.xml
+/.mvn/maven.config
+
+# 项目根 .npmrc 由 setup-wizard.js 写入（npm mirror + token），含敏感信息，本地配置不入 git；
+# CI 可用 CODER_NPM_REGISTRY / CODER_NPM_TOKEN 覆盖。
+# 注意：只忽略项目根 .npmrc，不影响 tests/e2e/.npmrc 等子目录 .npmrc。
+/.npmrc
+
 apps/pm/**/target/
 /apps/pm/.gitignore
 
@@ -38,10 +52,9 @@ apps/pm/**/target/
 # 但模板本身（脚本/compose/Makefile/README）需要入 git
 /release/dist-template/secrets/*.pem
 /release/dist-template/.env
-/release/dist-template/frontend/node_modules/
-/release/dist-template/frontend/dist/
-/release/dist-template/frontend/.eslintcache
-/release/dist-template/frontend/coverage/
+# frontend/ 由 release.sh 从 dev frontend/ 动态复制到分发包输出目录，不入 git；
+# CI 通过 build-frontend.sh 直接用 dev frontend/ 构建镜像，不依赖此目录快照
+/release/dist-template/frontend/
 /release/dist-template/release/
 /release/dist-*.tar.gz
 /release/images-*.tar.gz

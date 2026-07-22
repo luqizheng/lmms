@@ -7,6 +7,7 @@ WORKDIR /app
 # 阶段1: 只复制依赖文件，构建依赖层（利用 Docker 缓存）
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo .cargo
+ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk

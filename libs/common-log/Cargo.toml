@@ -1,6 +1,8 @@
 [package]
 name = "common-log"
 version = "0.1.0"
+license = "Apache-2.0"
+description = "Structured JSON logging with request_id middleware for KudiCoder services"
 edition = "2021"
 
 [dependencies]

@@ -14,6 +14,7 @@
 
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const ROOT = path.join(__dirname, '..');
 const SDK_DIR = path.join(ROOT, 'sdk', 'java');
@@ -76,20 +77,30 @@ function ensureImage() {
 
 function runMaven({ goal, profile, extra }) {
   const goalArgs = GOALS[goal];
+
+  // 优先用 setup-wizard 生成的项目级 .mvn/settings.xml（含 mirror + deploy 凭证）；
+  // fallback 到 ~/.m2/settings.xml；两者都不存在则不 mount。
+  const projectSettings = path.join(ROOT, '.mvn', 'settings.xml');
+  const userSettings = path.join(require('os').homedir(), '.m2', 'settings.xml');
+  const settingsSrc = fs.existsSync(projectSettings) ? projectSettings
+    : fs.existsSync(userSettings) ? userSettings : null;
+
   const cmd = [
     'run', '--rm',
     '--network', 'host',
     '-v', `${ROOT}:/workspace`,
     '-v', `${M2_VOLUME}:/root/.m2`,
-    // 挂载宿主机 settings.xml 使 mvn deploy 能用仓库凭证
-    '-v', `${path.join(require('os').homedir(), '.m2', 'settings.xml')}:/root/.m2/settings.xml:ro`,
-    // 透传 Maven 仓库认证环境变量（settings.xml 内引用 ${env.MAVEN_USER} / ${env.MAVEN_PASS}）
+  ];
+  if (settingsSrc) {
+    cmd.push('-v', `${settingsSrc}:/root/.m2/settings.xml:ro`);
+  }
+  cmd.push(
     '-e', `MAVEN_USER=${process.env.MAVEN_USER || 'admin'}`,
     '-e', `MAVEN_PASS=${process.env.MAVEN_PASS || ''}`,
     '-w', '/workspace/sdk/java',
     IMAGE,
     'mvn', `-P${profile}`, ...goalArgs, ...extra,
-  ];
+  );
   console.log(`[mvn] -P${profile} ${goalArgs.join(' ')}${extra.length ? ' ' + extra.join(' ') : ''}`);
   const res = spawnSync('docker', cmd, { stdio: 'inherit' });
   return res.status === 0;
