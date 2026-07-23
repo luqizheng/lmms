@@ -35,6 +35,12 @@ pub struct OrgUnitResponse {
     pub status: String,
     pub created_at: DateTime<chrono::Utc>,
     pub updated_at: DateTime<chrono::Utc>,
+    // Self-referential schema; without `no_recursion` utoipa inlines the
+    // subtree indefinitely and overflows the stack while building `openapi()`.
+    // The runtime JSON payload is unaffected — this only shapes the OpenAPI
+    // schema output so it emits a `$ref` back to `OrgUnitResponse` instead of
+    // expanding forever.
+    #[schema(no_recursion)]
     pub children: Vec<OrgUnitResponse>,
 }
 
