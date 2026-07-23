@@ -59,10 +59,10 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const readline = require('node:readline/promises');
-const { stdin, stdout } = require('node:process');
+const prompts = require('prompts');
 
-const { ROOT, log } = require('./lib/utils.js');
+const { ROOT } = require('./lib/utils.js');
+const { chalk } = require('./lib/ui.js');
 const { DEFAULT_BUILDER_REGISTRY } = require('./lib/Base-Images-Writer.js');
 
 const CONFIG_PATH = path.join(ROOT, 'infrastructure', '.docker-registry.json');
@@ -133,7 +133,7 @@ function parseArgs(argv) {
       printHelp();
       process.exit(0);
     } else {
-      log.red(`unknown argument: ${a}`);
+      console.error(chalk.red(`unknown argument: ${a}`));
       printHelp();
       process.exit(1);
     }
@@ -186,7 +186,7 @@ function readExistingConfig() {
       updatedAt: raw.updatedAt || null,
     };
   } catch (err) {
-    log.yellow(`[wizard] warning: failed to parse ${CONFIG_PATH}: ${err.message}`);
+    console.log(chalk.yellow(`[wizard] warning: failed to parse ${CONFIG_PATH}: ${err.message}`));
     return null;
   }
 }
@@ -226,37 +226,37 @@ function showSummary(cfg, source, ciSynced) {
   const mvnDisplay = cfg.mavenRegistry || '(Maven Central)';
   const npmDisplay = cfg.npmRegistry || '(npmjs.com)';
   const npmTokenDisplay = cfg.npmToken ? '(set)' : '(none)';
-  log.green(`[wizard] config written to ${path.relative(ROOT, CONFIG_PATH)}`);
-  log.plain(`[wizard] source:            ${source}`);
-  log.plain(`[wizard] base registry:     ${baseDisplay}`);
-  log.plain(`[wizard] builder registry:  ${cfg.builderRegistry}`);
-  log.plain(`[wizard] crates.io mirror:  ${crateDisplay}  token: ${crateTokenDisplay}`);
-  log.plain(`[wizard] maven mirror:      ${mvnDisplay}  ${mavenAuthSummary(cfg)}`);
-  log.plain(`[wizard] npm mirror:        ${npmDisplay}  token: ${npmTokenDisplay}`);
-  log.plain('');
-  log.plain('[wizard] next: `pnpm run images:sync` will apply these to base-images.json');
-  log.plain('[wizard]       .cargo/config.toml regenerated (kellnr + [net] preserved)');
+  console.log(chalk.green(`[wizard] config written to ${path.relative(ROOT, CONFIG_PATH)}`));
+  console.log(`[wizard] source:            ${source}`);
+  console.log(`[wizard] base registry:     ${baseDisplay}`);
+  console.log(`[wizard] builder registry:  ${cfg.builderRegistry}`);
+  console.log(`[wizard] crates.io mirror:  ${crateDisplay}  token: ${crateTokenDisplay}`);
+  console.log(`[wizard] maven mirror:      ${mvnDisplay}  ${mavenAuthSummary(cfg)}`);
+  console.log(`[wizard] npm mirror:        ${npmDisplay}  token: ${npmTokenDisplay}`);
+  console.log('');
+  console.log('[wizard] next: `pnpm run images:sync` will apply these to base-images.json');
+  console.log('[wizard]       .cargo/config.toml regenerated (kellnr + [net] preserved)');
   if (cfg.crateToken) {
-    log.yellow('[wizard] crate token -> .cargo/credentials.toml (gitignored).');
-    log.plain(`[wizard]   apply: export CARGO_CREDENTIALS_PATH="${path.relative(ROOT, CARGO_CREDENTIALS_PATH)}"`);
+    console.log(chalk.yellow('[wizard] crate token -> .cargo/credentials.toml (gitignored).'));
+    console.log(`[wizard]   apply: export CARGO_CREDENTIALS_PATH="${path.relative(ROOT, CARGO_CREDENTIALS_PATH)}"`);
   }
   if (cfg.mavenRegistry || cfg.mavenAuthMode !== 'none') {
-    log.yellow('[wizard] maven -> .mvn/settings.xml + .mvn/maven.config (gitignored).');
-    log.plain('[wizard]   <servers> covers mirror + releases + snapshots (mvn deploy).');
-    log.plain('[wizard]   mvn auto-loads via .mvn/maven.config (-s.mvn/settings.xml).');
+    console.log(chalk.yellow('[wizard] maven -> .mvn/settings.xml + .mvn/maven.config (gitignored).'));
+    console.log('[wizard]   <servers> covers mirror + releases + snapshots (mvn deploy).');
+    console.log('[wizard]   mvn auto-loads via .mvn/maven.config (-s.mvn/settings.xml).');
   }
   if (cfg.npmRegistry) {
-    log.yellow('[wizard] npm mirror -> .npmrc (gitignored, project root).');
-    log.plain('[wizard]   npm/pnpm auto-loads project-level .npmrc.');
+    console.log(chalk.yellow('[wizard] npm mirror -> .npmrc (gitignored, project root).'));
+    console.log('[wizard]   npm/pnpm auto-loads project-level .npmrc.');
   }
   if (ciSynced) {
-    log.plain('');
-    log.green(`[wizard] .gitlab-ci.yml synced: CODER_* variables updated in variables: section.`);
+    console.log('');
+    console.log(chalk.green(`[wizard] .gitlab-ci.yml synced: CODER_* variables updated in variables: section.`));
     const ciVars = requiredCIVariables(cfg);
     if (ciVars.length) {
-      log.yellow('[wizard] 敏感值引用了 GitLab CI Variables，请在 Settings -> CI/CD -> Variables 创建：');
+      console.log(chalk.yellow('[wizard] 敏感值引用了 GitLab CI Variables，请在 Settings -> CI/CD -> Variables 创建：'));
       for (const v of ciVars) {
-        log.plain(`[wizard]   - ${v}`);
+        console.log(`[wizard]   - ${v}`);
       }
     }
   }
@@ -265,22 +265,22 @@ function showSummary(cfg, source, ciSynced) {
 function showCurrent() {
   const existing = readExistingConfig();
   if (!existing) {
-    log.yellow(`[wizard] no config at ${path.relative(ROOT, CONFIG_PATH)}`);
-    log.plain('[wizard] defaults would be:');
-    log.plain(`  base registry:     (docker hub)`);
-    log.plain(`  builder registry: ${DEFAULTS.builderRegistry}`);
-    log.plain(`  crates.io mirror: (official)   token: (none)`);
-    log.plain(`  maven mirror:     (Maven Central) auth: (none)`);
-    log.plain(`  npm mirror:       (npmjs.com)   token: (none)`);
+    console.log(chalk.yellow(`[wizard] no config at ${path.relative(ROOT, CONFIG_PATH)}`));
+    console.log('[wizard] defaults would be:');
+    console.log(`  base registry:     (docker hub)`);
+    console.log(`  builder registry: ${DEFAULTS.builderRegistry}`);
+    console.log(`  crates.io mirror: (official)   token: (none)`);
+    console.log(`  maven mirror:     (Maven Central) auth: (none)`);
+    console.log(`  npm mirror:       (npmjs.com)   token: (none)`);
     return;
   }
-  log.green(`[wizard] current config at ${path.relative(ROOT, CONFIG_PATH)}`);
-  log.plain(`  base registry:     ${existing.baseRegistry || '(docker hub)'}`);
-  log.plain(`  builder registry:  ${existing.builderRegistry}`);
-  log.plain(`  crates.io mirror:  ${existing.crateRegistry || '(official crates.io)'}   token: ${existing.crateToken ? '(set)' : '(none)'}`);
-  log.plain(`  maven mirror:      ${existing.mavenRegistry || '(Maven Central)'}   ${mavenAuthSummary(existing)}`);
-  log.plain(`  npm mirror:        ${existing.npmRegistry || '(npmjs.com)'}   token: ${existing.npmToken ? '(set)' : '(none)'}`);
-  log.plain(`  updatedAt:         ${existing.updatedAt || '(unknown)'}`);
+  console.log(chalk.green(`[wizard] current config at ${path.relative(ROOT, CONFIG_PATH)}`));
+  console.log(`  base registry:     ${existing.baseRegistry || '(docker hub)'}`);
+  console.log(`  builder registry:  ${existing.builderRegistry}`);
+  console.log(`  crates.io mirror:  ${existing.crateRegistry || '(official crates.io)'}   token: ${existing.crateToken ? '(set)' : '(none)'}`);
+  console.log(`  maven mirror:      ${existing.mavenRegistry || '(Maven Central)'}   ${mavenAuthSummary(existing)}`);
+  console.log(`  npm mirror:        ${existing.npmRegistry || '(npmjs.com)'}   token: ${existing.npmToken ? '(set)' : '(none)'}`);
+  console.log(`  updatedAt:         ${existing.updatedAt || '(unknown)'}`);
 }
 
 function validateBuilderRegistry(value) {
@@ -400,7 +400,7 @@ function resolveNonInteractive(args, existing) {
   if (process.env.CODER_MAVEN_AUTH_MODE != null) {
     const m = validateMavenAuthMode(process.env.CODER_MAVEN_AUTH_MODE);
     if (!m.ok) {
-      log.red(`[wizard] invalid CODER_MAVEN_AUTH_MODE: ${m.reason}`);
+      console.error(chalk.red(`[wizard] invalid CODER_MAVEN_AUTH_MODE: ${m.reason}`));
       process.exit(1);
     }
     cfg.mavenAuthMode = m.value;
@@ -437,30 +437,43 @@ function resolveNonInteractive(args, existing) {
   return { cfg, syncGitlabCI, source };
 }
 
-async function prompt(rl, question, defaultValue, validator) {
+function onCancel() {
+  console.error(chalk.yellow('\n✗ 操作被取消'));
+  process.exit(130);
+}
+
+async function prompt(_rl, question, defaultValue, validator) {
   const suffix = defaultValue ? ` [${defaultValue}]` : ' [留空=Docker Hub]';
   while (true) {
-    const answer = await rl.question(`${question}${suffix}: `);
-    const raw = (answer || '').trim();
+    const res = await prompts({
+      type: 'text',
+      name: 'v',
+      message: `${question}${suffix}`,
+    }, { onCancel });
+    const raw = (res.v || '').trim();
     const value = raw === '' ? defaultValue : raw;
     const v = validator(value);
     if (v.ok) return v.value;
-    log.red(`  invalid: ${v.reason}`);
+    console.error(chalk.red(`  invalid: ${v.reason}`));
   }
 }
 
 // 明文输入 token / password 等敏感值。
 // 不在提示中回显 existing 值（避免明文泄露），只提示"留空=保留现有"。
 // 直接回车 = 保留 existingValue；输入新值则覆盖。
-async function promptVisible(rl, question, existingValue, validator) {
+async function promptVisible(_rl, question, existingValue, validator) {
   const suffix = existingValue ? ' [留空=保留现有]' : ' [留空=跳过]';
   while (true) {
-    const answer = await rl.question(`${question}${suffix}: `);
-    const raw = (answer || '').trim();
+    const res = await prompts({
+      type: 'text',
+      name: 'v',
+      message: `${question}${suffix}`,
+    }, { onCancel });
+    const raw = (res.v || '').trim();
     const value = raw === '' ? (existingValue || '') : raw;
     const v = validator(value);
     if (v.ok) return v.value;
-    log.red(`  invalid: ${v.reason}`);
+    console.error(chalk.red(`  invalid: ${v.reason}`));
   }
 }
 
@@ -477,13 +490,13 @@ async function runInteractive(existing) {
   const initialNpm = existing?.npmRegistry ?? DEFAULTS.npmRegistry;
   const initialNpmToken = existing?.npmToken ?? DEFAULTS.npmToken;
 
-  log.cyan('\n=== Docker Registry & Cargo / Maven / Npm Setup Wizard ===\n');
-  log.plain('配置两类 Docker 镜像的拉取来源：\n');
-  log.plain('1. 基础镜像（rabbitmq / redis / nginx / mysql / consul / grafana / prometheus 等）');
-  log.plain('   默认从 Docker Hub (hub.docker.com) 拉取。若环境无法访问 Docker Hub，');
-  log.plain('   输入镜像仓库地址（如 zhcoder-docker-registry.com:8000/official）作为 mirror。\n');
+  console.log(chalk.cyan('\n=== Docker Registry & Cargo / Maven / Npm Setup Wizard ===\n'));
+  console.log('配置两类 Docker 镜像的拉取来源：\n');
+  console.log('1. 基础镜像（rabbitmq / redis / nginx / mysql / consul / grafana / prometheus 等）');
+  console.log('   默认从 Docker Hub (hub.docker.com) 拉取。若环境无法访问 Docker Hub，');
+  console.log('   输入镜像仓库地址（如 zhcoder-docker-registry.com:8000/official）作为 mirror。\n');
 
-  const rl = readline.createInterface({ input: stdin, output: stdout });
+  const rl = null;
   try {
     const baseRegistry = await prompt(
       rl,
@@ -492,9 +505,9 @@ async function runInteractive(existing) {
       validateBaseRegistry,
     );
 
-    log.plain('\n2. Builder 镜像（rust / java / maven / node 等编译环境）');
-    log.plain('   默认从 zhcoder-docker-registry.com:8000 拉取。切换到其他私有仓库时，');
-    log.plain('   输入 registry 地址（如 registry.my.com:5000）。\n');
+    console.log('\n2. Builder 镜像（rust / java / maven / node 等编译环境）');
+    console.log('   默认从 zhcoder-docker-registry.com:8000 拉取。切换到其他私有仓库时，');
+    console.log('   输入 registry 地址（如 registry.my.com:5000）。\n');
 
     const builderRegistry = await prompt(
       rl,
@@ -503,11 +516,11 @@ async function runInteractive(existing) {
       validateBuilderRegistry,
     );
 
-    log.plain('\n3. crates.io 镜像（Rust crate 拉取来源）');
-    log.plain('   留空 = 官方 crates.io（crates.io）；');
-    log.plain(`   输入镜像 URL 作为 [source.crates-io] 的 replace-with。`);
-    log.plain(`   example: ${CRATE_REGISTRY_EXAMPLE}（自动补 sparse+ 与 /api/v1/crates/）`);
-    log.plain('   也接受完整 URL，如 sparse+https://rsproxy.cn/index/。\n');
+    console.log('\n3. crates.io 镜像（Rust crate 拉取来源）');
+    console.log('   留空 = 官方 crates.io（crates.io）；');
+    console.log(`   输入镜像 URL 作为 [source.crates-io] 的 replace-with。`);
+    console.log(`   example: ${CRATE_REGISTRY_EXAMPLE}（自动补 sparse+ 与 /api/v1/crates/）`);
+    console.log('   也接受完整 URL，如 sparse+https://rsproxy.cn/index/。\n');
 
     const crateRegistry = await prompt(
       rl,
@@ -516,16 +529,16 @@ async function runInteractive(existing) {
       validateCrateRegistry,
     );
 
-    log.plain('\n4. crates.io / mirror 的 auth token');
-    log.plain('   留空 = 不写 token（公开镜像如官方 crates.io / rsproxy 不需要）。');
-    log.plain('   私有 kellnr 等需认证的镜像，输入 token（明文输入）。\n');
+    console.log('\n4. crates.io / mirror 的 auth token');
+    console.log('   留空 = 不写 token（公开镜像如官方 crates.io / rsproxy 不需要）。');
+    console.log('   私有 kellnr 等需认证的镜像，输入 token（明文输入）。\n');
 
     const crateToken = await promptVisible(rl, '  crates.io token', initialCrateToken, validateCrateToken);
 
-    log.plain('\n5. Maven 镜像（Java 依赖拉取来源）');
-    log.plain('   留空 = 官方 Maven Central（repo.maven.apache.org）；');
-    log.plain(`   输入镜像 URL 作为 <mirror> 替换 central。example: ${MVN_REGISTRY_EXAMPLE}`);
-    log.plain('   生成 .mvn/settings.xml + .mvn/maven.config（mvn 自动加载）。\n');
+    console.log('\n5. Maven 镜像（Java 依赖拉取来源）');
+    console.log('   留空 = 官方 Maven Central（repo.maven.apache.org）；');
+    console.log(`   输入镜像 URL 作为 <mirror> 替换 central。example: ${MVN_REGISTRY_EXAMPLE}`);
+    console.log('   生成 .mvn/settings.xml + .mvn/maven.config（mvn 自动加载）。\n');
 
     const mavenRegistry = await prompt(
       rl,
@@ -534,10 +547,10 @@ async function runInteractive(existing) {
       validateMavenRegistry,
     );
 
-    log.plain('\n6. Maven 认证方式（拉取 mirror + mvn deploy 发布都用此认证）');
-    log.plain('   none     = 不写 <servers>（公开 mirror 如 Maven Central 无需认证）');
-    log.plain('   token    = 公网发布（如 Maven Central project token；username 固定 "token"）');
-    log.plain('   userpass = 私有部署（reposilite / nexus 的 username + password）\n');
+    console.log('\n6. Maven 认证方式（拉取 mirror + mvn deploy 发布都用此认证）');
+    console.log('   none     = 不写 <servers>（公开 mirror 如 Maven Central 无需认证）');
+    console.log('   token    = 公网发布（如 Maven Central project token；username 固定 "token"）');
+    console.log('   userpass = 私有部署（reposilite / nexus 的 username + password）\n');
 
     const mavenAuthModeInput = await prompt(
       rl,
@@ -552,14 +565,14 @@ async function runInteractive(existing) {
     let mavenPassword = initialMavenPassword;
 
     if (mavenAuthMode === 'token') {
-      log.plain('\n   输入 token（公网 project token，明文输入）。');
-      log.plain('   直接回车 = 保留 existing token（若有）。\n');
+      console.log('\n   输入 token（公网 project token，明文输入）。');
+      console.log('   直接回车 = 保留 existing token（若有）。\n');
       mavenToken = await promptVisible(rl, '  maven token', initialMavenToken, validateCrateToken);
       mavenUsername = '';
       mavenPassword = '';
     } else if (mavenAuthMode === 'userpass') {
-      log.plain('\n   输入 username + password（私有 reposilite / nexus，明文输入）。');
-      log.plain('   直接回车 = 保留 existing 值（若有）。\n');
+      console.log('\n   输入 username + password（私有 reposilite / nexus，明文输入）。');
+      console.log('   直接回车 = 保留 existing 值（若有）。\n');
       mavenUsername = await promptVisible(rl, '  maven username', initialMavenUsername, validateCrateToken);
       mavenPassword = await promptVisible(rl, '  maven password', initialMavenPassword, validateCrateToken);
       mavenToken = '';
@@ -569,10 +582,10 @@ async function runInteractive(existing) {
       mavenPassword = '';
     }
 
-    log.plain('\n7. npm 镜像（Node 依赖拉取来源）');
-    log.plain('   留空 = 官方 npmjs.com（registry.npmjs.org）；');
-    log.plain(`   输入镜像 URL 作为 registry。example: ${NPM_REGISTRY_EXAMPLE}`);
-    log.plain('   生成项目根 .npmrc（npm/pnpm 自动加载）。\n');
+    console.log('\n7. npm 镜像（Node 依赖拉取来源）');
+    console.log('   留空 = 官方 npmjs.com（registry.npmjs.org）；');
+    console.log(`   输入镜像 URL 作为 registry。example: ${NPM_REGISTRY_EXAMPLE}`);
+    console.log('   生成项目根 .npmrc（npm/pnpm 自动加载）。\n');
 
     const npmRegistry = await prompt(
       rl,
@@ -581,17 +594,17 @@ async function runInteractive(existing) {
       validateNpmRegistry,
     );
 
-    log.plain('\n8. npm mirror 的 auth token');
-    log.plain('   留空 = 不写 _authToken；');
-    log.plain('   私有 verdaccio/nexus 等需认证的镜像，输入 token（写入 //host/:_authToken，明文输入）。\n');
+    console.log('\n8. npm mirror 的 auth token');
+    console.log('   留空 = 不写 _authToken；');
+    console.log('   私有 verdaccio/nexus 等需认证的镜像，输入 token（写入 //host/:_authToken，明文输入）。\n');
 
     const npmToken = await promptVisible(rl, '  npm token', initialNpmToken, validateCrateToken);
 
-    log.plain('\n9. 同步到 .gitlab-ci.yml');
-    log.plain('   将配置写入 .gitlab-ci.yml 的 variables: 段（CODER_* 变量）。');
-    log.plain('   非敏感值（registry URL 等）直接写明文；');
-    log.plain('   敏感值（token / password）引用 GitLab CI Variables（如 $CRATE_TOKEN）。');
-    log.plain('   yes = 同步（需在 GitLab Settings -> CI/CD -> Variables 创建对应变量）\n');
+    console.log('\n9. 同步到 .gitlab-ci.yml');
+    console.log('   将配置写入 .gitlab-ci.yml 的 variables: 段（CODER_* 变量）。');
+    console.log('   非敏感值（registry URL 等）直接写明文；');
+    console.log('   敏感值（token / password）引用 GitLab CI Variables（如 $CRATE_TOKEN）。');
+    console.log('   yes = 同步（需在 GitLab Settings -> CI/CD -> Variables 创建对应变量）\n');
 
     const syncInput = await prompt(
       rl,
@@ -619,7 +632,7 @@ async function runInteractive(existing) {
       source: 'interactive prompt',
     };
   } finally {
-    rl.close();
+    void rl;
   }
 }
 
@@ -788,7 +801,7 @@ function generateCILines(cfg) {
 // 保留段内其他变量和注释；用逐行处理避免 YAML 序列化丢格式。
 function applyGitlabCI(cfg) {
   if (!fs.existsSync(GITLAB_CI_PATH)) {
-    log.yellow(`[wizard] .gitlab-ci.yml not found, skipping CI sync.`);
+    console.log(chalk.yellow(`[wizard] .gitlab-ci.yml not found, skipping CI sync.`));
     return false;
   }
 
@@ -808,7 +821,7 @@ function applyGitlabCI(cfg) {
   }
 
   if (varStart < 0) {
-    log.yellow(`[wizard] no "variables:" section in .gitlab-ci.yml, skipping CI sync.`);
+    console.log(chalk.yellow(`[wizard] no "variables:" section in .gitlab-ci.yml, skipping CI sync.`));
     return false;
   }
 
@@ -848,7 +861,7 @@ async function main() {
 
   const existing = readExistingConfig();
 
-  const isTTY = stdin.isTTY === true;
+  const isTTY = process.stdin.isTTY === true;
   const useInteractive = !args.nonInteractive && !args.defaults && isTTY;
 
   let result;
@@ -872,7 +885,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  log.red(`[wizard] crashed: ${err.message}`);
+  console.error(chalk.red(`[wizard] crashed: ${err.message}`));
   if (err.stack) console.error(err.stack);
   process.exit(1);
 });

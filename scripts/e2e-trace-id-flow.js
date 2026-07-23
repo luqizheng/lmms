@@ -14,6 +14,7 @@
 //   退出码 0=PASS，非 0=FAIL
 
 const { execSync } = require('node:child_process');
+const { chalk, spinner } = require('./lib/ui.js');
 
 const GATEWAY = process.env.E2E_BASE_URL || 'http://localhost:3000';
 const ADMIN = process.env.E2E_ADMIN_USER || 'e2eadmin';
@@ -75,7 +76,7 @@ async function main() {
   const userId = create.body.id;
   console.log(`[e2e-trace-id-flow] user created id=${userId}`);
 
-  console.log('[e2e-trace-id-flow] polling audit_events for trace_id match...');
+  const sp = spinner('polling audit_events for trace_id match ...').start();
   let auditTraceId = '';
   let lastErr = null;
   const deadline = Date.now() + TIMEOUT_MS;
@@ -92,7 +93,9 @@ async function main() {
     } catch (e) { lastErr = e; }
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
-  if (lastErr) console.warn(`[e2e-trace-id-flow] mysqlScalar last error: ${lastErr.message || lastErr}`);
+  if (lastErr) sp.warn(`mysqlScalar last error: ${lastErr.message || lastErr}`);
+  else if (auditTraceId) sp.succeed(`trace_id=${auditTraceId}`);
+  else sp.fail('audit_events row never appeared');
 
   assert(
     auditTraceId === traceId,

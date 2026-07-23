@@ -30,8 +30,9 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const readline = require('node:readline');
+const prompts = require('prompts');
 const { spawnSync } = require('node:child_process');
+const { chalk } = require('./lib/ui.js');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const SERVICES_DIR = path.join(ROOT_DIR, 'services');
@@ -59,13 +60,14 @@ const PUSH_NONE = 'none';
 const PUSH_PUSH = 'push';
 const PUSH_LOAD_AND_PUSH = 'loadAndPush';
 
-const A = {
-  reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
-  green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m', cyan: '\x1b[36m',
-};
-const OK = `${A.green}\u2713${A.reset}`;
-const FAIL = `${A.red}\u2717${A.reset}`;
-const WARN = `${A.yellow}!${A.reset}`;
+const OK = chalk.green('\u2713');
+const FAIL = chalk.red('\u2717');
+const WARN = chalk.yellow('!');
+
+function onCancel() {
+  console.error(chalk.yellow('\n✗ 操作被取消'));
+  process.exit(130);
+}
 
 // ---------- arg parsing ----------
 
@@ -172,17 +174,16 @@ function shouldProceed(ans) {
   return ans === '' || /^[yY]/.test(ans);
 }
 
-function ask(rl, question, defaultValue) {
-  return new Promise((resolve) => {
-    const hint = defaultValue !== undefined ? ` [${defaultValue}]` : '';
-    rl.question(`${question}${hint}: `, (ans) => resolve((ans || '').trim()));
-  });
+function ask(_rl, question, defaultValue) {
+  const hint = defaultValue !== undefined ? ` [${defaultValue}]` : '';
+  return prompts({ type: 'text', name: 'v', message: `${question}${hint}` }, { onCancel })
+    .then((r) => (r.v || '').trim());
 }
 
 function pushLabel(mode) {
-  if (mode === PUSH_PUSH) return A.green + 'push' + A.reset;
-  if (mode === PUSH_LOAD_AND_PUSH) return A.green + 'load+push' + A.reset;
-  return A.dim + 'no' + A.reset;
+  if (mode === PUSH_PUSH) return chalk.green('push');
+  if (mode === PUSH_LOAD_AND_PUSH) return chalk.green('load+push');
+  return chalk.dim('no');
 }
 
 /**
@@ -218,8 +219,8 @@ async function interactivePrompt() {
     };
   }
 
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  console.log(`\n${A.bold}${A.cyan}=== docker build 交互式 ===${A.reset}\n`);
+  const rl = null;
+  console.log('\n' + chalk.bold.cyan('=== docker build 交互式 ===') + '\n');
 
   // 1. version
   let version = await ask(rl, '版本号 tag (如 1.0.0)', '跳过');
@@ -268,7 +269,7 @@ async function interactivePrompt() {
   }
 
   // 5. confirm
-  console.log(`\n${A.bold}--- 确认 ---${A.reset}`);
+  console.log(`\n${chalk.bold(`--- 确认 ---`)}`);
   console.log(`  version : ${version || '(latest only)'}`);
   console.log(`  platform: ${platforms.join(',')}`);
   console.log(`  push    : ${pushLabel(pushMode)}`);
@@ -276,10 +277,10 @@ async function interactivePrompt() {
   console.log(`  services: ${services.join(', ')} (${services.length})`);
 
   const go = await ask(rl, '\n开始构建? (y/n)', 'y');
-  rl.close();
+  void rl;
 
   if (!shouldProceed(go)) {
-    console.log(`${A.yellow}已取消。${A.reset}`);
+    console.log(`${chalk.yellow(`已取消。`)}`);
     process.exit(0);
   }
 
@@ -320,7 +321,7 @@ function buildService(name, ctx) {
   // docs-site 的 Dockerfile 只打包预构建产物，需先在宿主机跑 vitepress build
   // （vitepress lastUpdated 依赖完整 git 仓库，容器内无法获取真实最后更新时间）
   if (name === 'docs-site') {
-    console.log(`${A.dim}[pre-build]${A.reset} pnpm docs:build (生成静态站点)`);
+    console.log(`${chalk.dim(`[pre-build]`)} pnpm docs:build (生成静态站点)`);
     const r = spawnSync('pnpm', ['docs:build'], { cwd: ROOT_DIR, stdio: 'inherit', shell: false });
     if (r.status !== 0) {
       console.log(`${FAIL} [pre-build-fail] docs-site: pnpm docs:build 失败`);
@@ -336,7 +337,7 @@ function buildService(name, ctx) {
     const frontendNpmrc = path.join(FRONTEND_DIR, '.npmrc');
     if (fs.existsSync(rootNpmrc) && !fs.existsSync(frontendNpmrc)) {
       fs.copyFileSync(rootNpmrc, frontendNpmrc);
-      console.log(`${A.dim}[pre-build]${A.reset} 复制 .npmrc -> frontend/ (setup-wizard npm 配置)`);
+      console.log(`${chalk.dim(`[pre-build]`)} 复制 .npmrc -> frontend/ (setup-wizard npm 配置)`);
       tempNpmrc = frontendNpmrc;
     }
   }
@@ -353,8 +354,8 @@ function buildService(name, ctx) {
   for (const t of uniqTags) buildCmd.push('-t', t);
   buildCmd.push('.');
 
-  console.log(`\n${A.bold}[build]${A.reset} ${name} -> ${uniqTags.join(', ')}`);
-  console.log(`${A.dim}$ ${buildCmd.join(' ')}${A.reset}`);
+  console.log(`\n${chalk.bold(`[build]`)} ${name} -> ${uniqTags.join(', ')}`);
+  console.log(`${chalk.dim(`$ ${buildCmd.join(' ')}`)}`);
   const res = spawnSync(buildCmd[0], buildCmd.slice(1), { cwd, stdio: 'inherit', shell: false });
 
   if (tempNpmrc) {
@@ -370,7 +371,7 @@ function buildService(name, ctx) {
   // loadAndPush: 单架构 --load 成功后，逐 tag docker push
   if (pushMode === PUSH_LOAD_AND_PUSH && !multiArch) {
     for (const t of uniqTags) {
-      console.log(`${A.dim}[push]${A.reset} ${t}`);
+      console.log(`${chalk.dim(`[push]`)} ${t}`);
       const r = spawnSync('docker', ['push', t], { stdio: 'inherit', shell: false });
       if (r.status !== 0) {
         console.log(`${FAIL} [push-fail] ${t}`);
@@ -455,14 +456,14 @@ async function main() {
     process.exit(2);
   }
 
-  console.log(`\n${A.bold}=== build plan ===${A.reset}`);
+  console.log(`\n${chalk.bold(`=== build plan ===`)}`);
   console.log(`  version : ${ctx.version || '(latest only)'}`);
   console.log(`  platform: ${ctx.platforms.join(',')}`);
   console.log(`  push    : ${pushLabel(ctx.pushMode)}`);
   console.log(`  registry: ${ctx.registry}/${ctx.repo}`);
   console.log(`  services: ${ctx.services.join(', ')} (${ctx.services.length})`);
   if (ctx.platforms.length > 1) {
-    console.log(`${A.dim}  hint    : 若 arm64 失败，启用 qemu: docker run --privileged --rm tonistiigi/binfmt --install all${A.reset}`);
+    console.log(`${chalk.dim(`  hint    : 若 arm64 失败，启用 qemu: docker run --privileged --rm tonistiigi/binfmt --install all`)}`);
   }
 
   const start = Date.now();
@@ -471,7 +472,7 @@ async function main() {
     if (buildService(name, ctx)) ok += 1; else fail += 1;
   }
   const sec = ((Date.now() - start) / 1000).toFixed(1);
-  console.log(`\n${A.bold}[done]${A.reset} 成功 ${A.green}${ok}${A.reset} 失败 ${A.red}${fail}${A.reset} 耗时 ${sec}s`);
+  console.log(`\n${chalk.bold(`[done]`)} 成功 ${chalk.green(`${ok}`)} 失败 ${chalk.red(`${fail}`)} 耗时 ${sec}s`);
   if (fail > 0) process.exit(1);
 }
 

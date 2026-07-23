@@ -14,6 +14,7 @@
 
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
+const { chalk } = require('./lib/ui.js');
 
 const REGISTRY = 'zhcoder-docker-registry.com:8000';
 const REPO = 'micro-server';
@@ -32,7 +33,7 @@ const ALL_SERVICES = [
 function run(cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'inherit', shell: false, ...opts });
   if (res.status !== 0) {
-    console.error(`[fail] ${cmd} ${args.join(' ')} -> exit ${res.status}`);
+    console.error(chalk.red(`[fail] ${cmd} ${args.join(' ')} -> exit ${res.status}`));
     process.exit(res.status || 1);
   }
 }
@@ -43,7 +44,7 @@ function getShortSha() {
     shell: false,
   });
   if (res.status !== 0) {
-    console.error('[fail] git rev-parse --short HEAD 失败 — 当前目录不是 git 仓库？');
+    console.error(chalk.red('[fail] git rev-parse --short HEAD 失败 — 当前目录不是 git 仓库？'));
     process.exit(1);
   }
   return res.stdout.trim();
@@ -59,13 +60,13 @@ function pushService(name, sha) {
   const shaTag = `${baseRef}:${sha}`;
   const latestTag = `${baseRef}:latest`;
 
-  console.log(`\n[tag] ${name}: -> :${sha} & :latest`);
+  console.log('\n' + chalk.bold(`[tag]`), `${name}: -> :${sha} & :latest`);
   run('docker', ['tag', baseRef, shaTag]);
   run('docker', ['tag', baseRef, latestTag]);
 
-  console.log(`[push] ${shaTag}`);
+  console.log(chalk.cyan('[push]'), shaTag);
   run('docker', ['push', shaTag]);
-  console.log(`[push] ${latestTag}`);
+  console.log(chalk.cyan('[push]'), latestTag);
   run('docker', ['push', latestTag]);
 }
 
@@ -73,7 +74,7 @@ function main() {
   const sha = process.env.IMAGE_TAG || getShortSha();
   const targets = listTargets();
 
-  console.log(`[release] IMAGE_TAG=${sha}`);
+  console.log(chalk.bold.cyan(`[release] IMAGE_TAG=${sha}`));
   console.log(`[release] targets (${targets.length}): ${targets.join(', ')}`);
 
   const start = Date.now();
@@ -81,7 +82,7 @@ function main() {
     pushService(svc, sha);
   }
   const sec = ((Date.now() - start) / 1000).toFixed(1);
-  console.log(`\n[done] 成功推送 ${targets.length} 服务 × 2 tag，耗时 ${sec}s`);
+  console.log('\n' + chalk.green(`✓ [done] 成功推送 ${targets.length} 服务 × 2 tag，耗时 ${sec}s`));
 }
 
 main();

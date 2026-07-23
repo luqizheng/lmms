@@ -6,7 +6,8 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 
-const { ROOT, log } = require('./utils.js');
+const { ROOT } = require('./utils.js');
+const { chalk } = require('./ui.js');
 
 const CONFIG_PATH = path.join(ROOT, 'infrastructure', '.docker-registry.json');
 const M2_SETTINGS_PATH = path.join(os.homedir(), '.m2', 'settings.xml');
@@ -73,7 +74,7 @@ function readWizardConfig() {
       mavenPassword: raw.mavenPassword || '',
     };
   } catch (err) {
-    log.yellow(`[publish] warning: failed to parse ${CONFIG_PATH}: ${err.message}`);
+    console.log(chalk.yellow(`[publish] warning: failed to parse ${CONFIG_PATH}: ${err.message}`));
     return null;
   }
 }
@@ -181,7 +182,7 @@ function readPomVersion() {
 }
 
 function runMvn(mvnArgs, sdkDir) {
-  log.plain(`[mvn] ${mvnArgs.join(' ')}`);
+  console.log(`[mvn] ${mvnArgs.join(' ')}`);
   const res = spawnSync('mvn', mvnArgs, { cwd: sdkDir, stdio: 'inherit', shell: false });
   return res.status === 0;
 }
@@ -200,7 +201,7 @@ function uploadFile(filePath, remoteBase, relPath, curlAuth, skipIfExists) {
     if (skipIfExists) {
       const head = spawnSync('curl', ['-sf', '-u', curlAuth, '-o', '/dev/null', remote], { stdio: 'ignore' });
       if (head.status === 0) {
-        log.plain(`  SKIP ${relPath}${suffix}  (already exists)`);
+        console.log(`  SKIP ${relPath}${suffix}  (already exists)`);
         continue;
       }
     }
@@ -216,12 +217,12 @@ function uploadFile(filePath, remoteBase, relPath, curlAuth, skipIfExists) {
         const up = spawnSync('curl', uploadArgs, { stdio: 'inherit' });
         if (up.status !== 0) { fs.unlinkSync(tmp); return { ok: false, path: `${relPath}${suffix}` }; }
       } finally { try { fs.unlinkSync(tmp); } catch (_) { /* best-effort */ } }
-      log.plain(`  OK   ${relPath}${suffix}`);
+      console.log(`  OK   ${relPath}${suffix}`);
       continue;
     }
     const up = spawnSync('curl', uploadArgs, { stdio: 'inherit' });
     if (up.status !== 0) return { ok: false, path: `${relPath}${suffix}` };
-    log.plain(`  OK   ${relPath}${suffix}`);
+    console.log(`  OK   ${relPath}${suffix}`);
   }
   return { ok: true };
 }
@@ -268,7 +269,7 @@ function runPublish(variant, argv) {
   }
   let args;
   try { args = parseArgs(argv); }
-  catch (err) { log.red(`ERROR: ${err.message}`); process.exit(2); }
+  catch (err) { console.error(chalk.red(`ERROR: ${err.message}`)); process.exit(2); }
 
   if (args.help) { printHelp(variant); process.exit(0); }
 
@@ -278,17 +279,17 @@ function runPublish(variant, argv) {
   const version = readPomVersion();
   const isSnapshot = version.endsWith('-SNAPSHOT');
   if (variant === 'release' && isSnapshot) {
-    log.red(`ERROR: sdk/java/pom.xml version is '${version}' (a SNAPSHOT).`);
-    log.plain(`       The release repository rejects -SNAPSHOT artifacts.`);
-    log.plain(`       Bump the pom to a release version first, e.g.:`);
-    log.plain(`         mvn -f sdk/java/pom.xml versions:set -DnewVersion=<release-ver> versions:commit`);
+    console.error(chalk.red(`ERROR: sdk/java/pom.xml version is '${version}' (a SNAPSHOT).`));
+    console.log(`       The release repository rejects -SNAPSHOT artifacts.`);
+    console.log(`       Bump the pom to a release version first, e.g.:`);
+    console.log(`         mvn -f sdk/java/pom.xml versions:set -DnewVersion=<release-ver> versions:commit`);
     process.exit(3);
   }
   if (variant === 'snapshot' && !isSnapshot) {
-    log.red(`ERROR: sdk/java/pom.xml version is '${version}' (not a SNAPSHOT).`);
-    log.plain(`       The snapshot repository rejects non-SNAPSHOT artifacts.`);
-    log.plain(`       Bump the pom to a snapshot version first, e.g.:`);
-    log.plain(`         mvn -f sdk/java/pom.xml versions:set -DnewVersion=${version}-SNAPSHOT versions:commit`);
+    console.error(chalk.red(`ERROR: sdk/java/pom.xml version is '${version}' (not a SNAPSHOT).`));
+    console.log(`       The snapshot repository rejects non-SNAPSHOT artifacts.`);
+    console.log(`       Bump the pom to a snapshot version first, e.g.:`);
+    console.log(`         mvn -f sdk/java/pom.xml versions:set -DnewVersion=${version}-SNAPSHOT versions:commit`);
     process.exit(3);
   }
 
@@ -313,15 +314,15 @@ function runPublish(variant, argv) {
   const creds = resolveCredentials(args, wizard, repoId);
 
   const mode = args.useMvn ? 'mvn-deploy' : 'curl-upload (default)';
-  log.green(`==> Repository : ${repoId} @ ${repoUrl}`);
-  log.plain(`==> URL source : ${repoUrlSource}`);
-  log.plain(`==> Version    : ${version}  (from sdk/java/pom.xml)`);
-  log.plain(`==> Profile    : ${args.profile}`);
-  log.plain(`==> Modules    : ${args.modules || '<all>'}`);
-  log.plain(`==> Mode       : ${mode}`);
-  log.plain(`==> Dry run    : ${args.dryRun ? 'yes' : 'no'}`);
-  log.plain(`==> Credentials: ${creds ? creds.source : '(none)'}`);
-  log.plain('');
+  console.log(chalk.green(`==> Repository : ${repoId} @ ${repoUrl}`));
+  console.log(`==> URL source : ${repoUrlSource}`);
+  console.log(`==> Version    : ${version}  (from sdk/java/pom.xml)`);
+  console.log(`==> Profile    : ${args.profile}`);
+  console.log(`==> Modules    : ${args.modules || '<all>'}`);
+  console.log(`==> Mode       : ${mode}`);
+  console.log(`==> Dry run    : ${args.dryRun ? 'yes' : 'no'}`);
+  console.log(`==> Credentials: ${creds ? creds.source : '(none)'}`);
+  console.log('');
 
   // 若有凭证，生成临时 settings.xml（用于 mvn deploy 模式；curl 模式则直接用 user:pass）
   let settingsFile = null;
@@ -337,10 +338,10 @@ function runPublish(variant, argv) {
 
   try {
     if (args.dryRun) {
-      log.plain('==> DRY RUN: running clean verify only.');
+      console.log('==> DRY RUN: running clean verify only.');
       const ok = runMvn([`-P${args.profile}`, ...settingsArgs, '-DskipTests', 'clean', 'verify'], sdkDir);
       if (!ok) process.exit(4);
-      log.green('==> Dry run OK.');
+      console.log(chalk.green('==> Dry run OK.'));
       return;
     }
 
@@ -354,31 +355,31 @@ function runPublish(variant, argv) {
       if (args.modules) mvnArgs.push('-pl', args.modules, '-am');
       if (args.extraMvn.length) mvnArgs.push(...args.extraMvn);
       const ok = runMvn([...mvnArgs, 'clean', 'deploy'], sdkDir);
-      if (!ok) { log.red(`ERROR: mvn deploy failed.`); process.exit(5); }
-      log.green(`==> ${variant} deploy complete (mvn mode).`);
+      if (!ok) { console.error(chalk.red(`ERROR: mvn deploy failed.`)); process.exit(5); }
+      console.log(chalk.green(`==> ${variant} deploy complete (mvn mode).`));
       return;
     }
 
     // ---------- curl mode ----------
-    log.green('==> Step 1: mvn install (compile + package to ~/.m2)');
+    console.log(chalk.green('==> Step 1: mvn install (compile + package to ~/.m2)'));
     const installArgs = [`-P${args.profile}`, ...settingsArgs, '-DskipTests', 'clean', 'install'];
     if (args.modules) installArgs.push('-pl', args.modules, '-am');
     if (args.extraMvn.length) installArgs.push(...args.extraMvn);
-    if (!runMvn(installArgs, sdkDir)) { log.red('ERROR: mvn install failed.'); process.exit(4); }
+    if (!runMvn(installArgs, sdkDir)) { console.error(chalk.red('ERROR: mvn install failed.')); process.exit(4); }
 
     if (!creds) {
-      log.red('ERROR: no credentials available for curl upload.');
-      log.plain('       Use --user/--pass, MAVEN_USERNAME/MAVEN_PASSWORD env, wizard config, or ~/.m2/settings.xml.');
+      console.error(chalk.red('ERROR: no credentials available for curl upload.'));
+      console.log('       Use --user/--pass, MAVEN_USERNAME/MAVEN_PASSWORD env, wizard config, or ~/.m2/settings.xml.');
       process.exit(5);
     }
     const curlAuth = `${creds.user}:${creds.pass}`;
 
-    log.plain('');
-    log.green(`==> Step 2: curl -T upload to ${repoUrl}`);
+    console.log('');
+    console.log(chalk.green(`==> Step 2: curl -T upload to ${repoUrl}`));
 
     const files = findArtifacts(version);
     if (files.length === 0) {
-      log.red(`ERROR: no artifacts found under ${M2_REPO_ROOT}/${GROUP_PATH}/**/${version}/`);
+      console.error(chalk.red(`ERROR: no artifacts found under ${M2_REPO_ROOT}/${GROUP_PATH}/**/${version}/`));
       process.exit(6);
     }
 
@@ -392,18 +393,18 @@ function runPublish(variant, argv) {
       total++;
       if (!r.ok) {
         fail++;
-        log.red(`  FAIL ${r.path}`);
-        log.plain(`  -> stopping at ${rel}`);
+        console.error(chalk.red(`  FAIL ${r.path}`));
+        console.log(`  -> stopping at ${rel}`);
         break;
       }
     }
 
-    log.plain('');
-    log.plain(`==> Upload complete. Artifacts: ${total}, Failures: ${fail}`);
+    console.log('');
+    console.log(`==> Upload complete. Artifacts: ${total}, Failures: ${fail}`);
     if (fail > 0) process.exit(6);
-    log.green(`==> ${variant} deploy complete (curl mode).`);
-    log.plain(`    Repository: ${repoUrl}`);
-    log.plain(`    Version   : ${version}`);
+    console.log(chalk.green(`==> ${variant} deploy complete (curl mode).`));
+    console.log(`    Repository: ${repoUrl}`);
+    console.log(`    Version   : ${version}`);
   } finally {
     cleanup();
   }

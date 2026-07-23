@@ -17,9 +17,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
 const crypto = require('node:crypto');
-const { pipeline } = require('node:stream/promises');
 
 const { ROOT } = require('./lib/utils.js');
+const { chalk, spinner } = require('./lib/ui.js');
 
 // ---- 单点维护 -----------------------------------------------------------
 const VERSION = 'v5.17.14';
@@ -43,9 +43,9 @@ function parseArgs(argv) {
 
 // ---- helpers ------------------------------------------------------------
 function logInfo(msg)  { process.stdout.write(`[swagger-ui] ${msg}\n`); }
-function logOk(msg)    { process.stdout.write(`[swagger-ui] \x1b[32m${msg}\x1b[0m\n`); }
-function logErr(msg)   { process.stderr.write(`[swagger-ui] \x1b[31m${msg}\x1b[0m\n`); }
-function logWarn(msg)  { process.stdout.write(`[swagger-ui] \x1b[33m${msg}\x1b[0m\n`); }
+function logOk(msg)    { process.stdout.write(`[swagger-ui] ${chalk.green(msg)}\n`); }
+function logErr(msg)   { process.stderr.write(`[swagger-ui] ${chalk.red(msg)}\n`); }
+function logWarn(msg)  { process.stdout.write(`[swagger-ui] ${chalk.yellow(msg)}\n`); }
 
 function sha256OfFile(p) {
   return new Promise((resolve, reject) => {
@@ -57,13 +57,13 @@ function sha256OfFile(p) {
   });
 }
 
-function download(url, dest) {
+function download(url, dest, sp) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: { 'user-agent': 'coder-micro-setup' } }, (res) => {
       // 跟随 3xx（gh-proxy 在大文件上偶发 302 → github 直连）
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        download(res.headers.location, dest).then(resolve, reject);
+        download(res.headers.location, dest, sp).then(resolve, reject);
         return;
       }
       if (res.statusCode !== 200) {
@@ -75,9 +75,14 @@ function download(url, dest) {
       let received = 0;
       res.on('data', (chunk) => {
         received += chunk.length;
-        if (total) {
+        if (sp && total) {
           const pct = ((received / total) * 100).toFixed(1);
-          process.stdout.write(`\r[swagger-ui] downloading ${VERSION} ... ${pct}% (${(received / 1024 / 1024).toFixed(1)} MB)`);
+          const mb = (received / 1024 / 1024).toFixed(1);
+          const totalMb = (total / 1024 / 1024).toFixed(1);
+          sp.text = `downloading ${VERSION} ... ${pct}% (${mb} / ${totalMb} MB)`;
+        } else if (sp) {
+          const mb = (received / 1024 / 1024).toFixed(1);
+          sp.text = `downloading ${VERSION} ... ${mb} MB`;
         }
       });
       const tmp = `${dest}.partial`;
@@ -127,11 +132,16 @@ async function ensureZip({ check, force }) {
 
   logInfo(`downloading ${REMOTE_URL}`);
   const t0 = Date.now();
-  await download(REMOTE_URL, DEST);
-  const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-  const size = fs.statSync(DEST).size;
-  process.stdout.write('\n');
-  logOk(`downloaded ${(size / 1024 / 1024).toFixed(1)} MB in ${elapsed}s`);
+  const sp = spinner(`downloading ${VERSION} ...`).start();
+  try {
+    await download(REMOTE_URL, DEST, sp);
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    const size = fs.statSync(DEST).size;
+    sp.succeed(`downloaded ${(size / 1024 / 1024).toFixed(1)} MB in ${elapsed}s`);
+  } catch (err) {
+    sp.fail(`download failed: ${err.message}`);
+    throw err;
+  }
 
   if (EXPECTED_SHA256) {
     const got = await sha256OfFile(DEST);
