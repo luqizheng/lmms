@@ -1,0 +1,37 @@
+# notification-service default config (embedded via include_str! at compile time).
+# On first boot, when CONFIG_PATH does not exist, this file's contents are
+# seeded to the target path. On subsequent boots, the seeded file is read
+# as-is. Env vars always take precedence over any value here.
+#
+# Priority: env > this file > (fail — no hardcoded fallback for sensitive URLs)
+#
+# Sensitive fields (mysql.url, redis.url) are left empty on purpose.
+# They MUST be provided via env vars (DATABASE_URL / REDIS_URL) or by
+# editing the seeded file directly. Startup fails fast if either ends up
+# blank after the merge.
+
+server:
+  http_addr: "0.0.0.0:8083"
+
+mysql:
+  url: ""              # required — set via DATABASE_URL env
+  max_connections: 10
+
+redis:
+  url: ""              # required — set via REDIS_URL env
+
+scheduler:
+  tick_secs: 60
+
+log:
+  level: "info"
+
+consul:
+  addr: "http://consul:8500"
+  service_name: "notification-service"
+  service_id_file: "/tmp/notification-service-id"
+
+event_bus:
+  url: "amqp://guest:guest@rabbitmq:5672/%2f"
+
+iam_base_url: "http://iam-service:8081"

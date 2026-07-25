@@ -13,20 +13,40 @@
 
 ## 环境变量
 
+配置加载遵循三段优先级：**env > yaml > (fail fast)**。合并后任一必需字段仍为空 → 服务启动失败并列出缺失字段。yaml 模板从二进制 `include_str!` 内嵌（`config/config.default.yaml`），首次启动时若 `CONFIG_PATH` 不存在则原子写入（`create_new` 抗并发 race）。
+
+### 直接读取的 env（非 yaml 覆盖）
+
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| SERVER_HOST | 0.0.0.0 | 监听主机 |
-| SERVER_PORT | 8080 | 监听端口 |
-| SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址 |
-| DATABASE_URL | 服务自定义 | MySQL 连接 |
-| REDIS_URL | 服务自定义 | Redis 连接 |
-| RUST_LOG | info | 日志级别 |
+| CONFIG_PATH | `/etc/notification-service/config.yaml` | yaml 目标路径；不存在则 seed 内嵌 default |
+| SERVICE_BOOTSTRAP_TOKEN | 必填 | 服务间调用启动令牌 |
+| TENANT_ID | 必填（i64） | 租户 ID |
+| TOKEN_SERVICE_URL | `http://token-service:8082` | token 服务地址 |
+| JWKS_URL | `http://token-service:8082/.well-known/jwks.json` | JWKS 拉取地址 |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
-| CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
-| EVENT_BUS_URL | amqp://guest:guest@localhost:5672/%2f | RabbitMQ 连接（事件生产/消费） |
-| EVENT_BUS_EXCHANGE | events | outbox publisher 目标 exchange（ntf-outbox-publisher） |
-| OUTBOX_POLL_INTERVAL_MS | 1000 | ntf-outbox-publisher 轮询间隔 |
-| OUTBOX_BATCH_SIZE | 100 | ntf-outbox-publisher 每批行数 |
+| RUST_LOG | info | 日志级别 |
+
+### 覆盖 `config.yaml` 同名字段的 env
+
+| 变量 | yaml 键 | yaml 默认值 |
+|------|---------|-------------|
+| SERVER_HTTP_ADDR | server.http_addr | 0.0.0.0:8083 |
+| SERVER_PORT | server.http_addr 的 port 部分 | 8083（保留 host，只重绑 port） |
+| DATABASE_URL | mysql.url | 空（必须由 env 或 yaml 提供，否则 fail） |
+| DATABASE_MAX_CONNECTIONS | mysql.max_connections | 10 |
+| REDIS_URL | redis.url | 空（必须由 env 或 yaml 提供，否则 fail） |
+| SCHEDULER_TICK_SECS | scheduler.tick_secs | 60 |
+| CONSUL_ADDR | consul.addr | http://consul:8500 |
+| CONSUL_SERVICE_NAME | consul.service_name | notification-service |
+| CONSUL_SERVICE_ID_FILE | consul.service_id_file | /tmp/notification-service-id |
+| EVENT_BUS_URL | event_bus.url | amqp://guest:guest@rabbitmq:5672/%2f |
+| EVENT_BUS_EXCHANGE | （outbox publisher 独有）events | ntf-outbox-publisher 目标 exchange |
+| OUTBOX_POLL_INTERVAL_MS | （outbox publisher 独有）1000 | ntf-outbox-publisher 轮询间隔 |
+| OUTBOX_BATCH_SIZE | （outbox publisher 独有）100 | ntf-outbox-publisher 每批行数 |
+| IAM_BASE_URL | iam_base_url | http://iam-service:8081 |
+
+数字类 env 解析失败（如 `SERVER_PORT=abc`）会 warn 后保持 yaml 值；空字符串 / 全空白等同"未设置"。
 
 ## 二进制 / 事件生产消费（Phase 4.3）
 

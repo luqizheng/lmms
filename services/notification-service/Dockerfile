@@ -27,10 +27,15 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /app/notification-service /usr/local/bin/notification-service
 COPY --from=builder /app/ntf-outbox-publisher /usr/local/bin/ntf-outbox-publisher
-COPY services/notification-service/config /app/config
+
+# Note: no COPY of config.yaml. The default config is embedded in the binary
+# via `include_str!("../config/config.default.yaml")` (see src/config.rs) and
+# is written to CONFIG_PATH on first boot if the file is absent. Runtime
+# overrides come from env vars (see services/notification-service/AGENTS.md).
+
 EXPOSE 8083
 
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
   CMD wget --spider -q http://localhost:8083/health || exit 1
 
-CMD ["notification-service", "/app/config/config.yaml"]
+CMD ["notification-service"]

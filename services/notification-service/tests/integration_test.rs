@@ -4,9 +4,9 @@ use notification_service::models::{CreateAnnouncement, ScopeInput, ScopeType, St
 use notification_service::redis_cli::RedisCli;
 
 #[tokio::test]
-#[ignore = "requires MySQL/Redis containers; run with --include-ignored"]
+#[ignore = "requires MySQL/Redis + DATABASE_URL/REDIS_URL env; run with --include-ignored"]
 async fn create_then_publish_then_read_flow() {
-    let cfg = AppConfig::load(std::path::Path::new("config/config.yaml")).unwrap();
+    let cfg = AppConfig::load().expect("DATABASE_URL and REDIS_URL must be set");
     let db = Db::connect(&cfg.mysql.url, cfg.mysql.max_connections)
         .await
         .unwrap();

@@ -32,6 +32,7 @@ authz = { path = "../../libs/authz" }
 uuid = { version = "1", features = ["v7", "serde"] }
 futures = "0.3"
 config = { workspace = true }
+serde_yaml = "0.9"
 prometheus = "0.13"
 prometheus_exporter = "0.1"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
@@ -44,6 +45,7 @@ rand.workspace = true
 testcontainers = "0.20"
 testcontainers-modules = { version = "0.8", features = ["mysql", "redis"] }
 wiremock = "0.6"
+tempfile = "3"
 
 [[bin]]
 name = "notification-service"

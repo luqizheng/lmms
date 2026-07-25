@@ -33,16 +33,13 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let path = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "config/config.yaml".to_string());
-    let cfg = AppConfig::load(std::path::Path::new(&path))?;
     common_telemetry::init_tracing("notification-service");
     common_ratelimit::init_metrics("notification-service");
     // Tell rate-limit middleware which service it is (for metric labels)
     std::env::set_var("SERVICE_NAME", "notification-service");
+
+    let cfg = AppConfig::load()?;
     println!("==== notification-service config ====");
-    println!("config_path: {}", path);
     match serde_json::to_string_pretty(&cfg) {
         Ok(s) => println!("{}", s),
         Err(e) => tracing::warn!("failed to serialize config: {}", e),
@@ -178,7 +175,7 @@ async fn main() -> anyhow::Result<()> {
     let db_for_consumer = db.clone();
     let redis_for_consumer = redis.clone();
     let outbox_repo_for_consumer = db.outbox_repo.clone();
-    let event_bus_url = std::env::var("EVENT_BUS_URL").unwrap_or(cfg.event_bus.url.clone());
+    let event_bus_url = cfg.event_bus.url.clone();
     tokio::spawn(async move {
         if let Err(e) = consumer::run(
             db_for_consumer.pool.clone(),
@@ -193,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let hub_for_ann = hub.clone();
-    let ann_event_bus_url = std::env::var("EVENT_BUS_URL").unwrap_or(cfg.event_bus.url.clone());
+    let ann_event_bus_url = cfg.event_bus.url.clone();
     tokio::spawn(async move {
         if let Err(e) = consumer::announcement_run(hub_for_ann, ann_event_bus_url).await {
             tracing::warn!("announcement consumer exited: {}", e);
@@ -202,7 +199,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Phase 5B-fu3: membership event consumer (notification.membership-events)
     let db_for_membership = db.clone();
-    let membership_event_bus_url = std::env::var("EVENT_BUS_URL").unwrap_or(cfg.event_bus.url.clone());
+    let membership_event_bus_url = cfg.event_bus.url.clone();
     tokio::spawn(async move {
         if let Err(e) = consumer::membership::run(db_for_membership, membership_event_bus_url).await {
             tracing::warn!("membership consumer exited: {}", e);
