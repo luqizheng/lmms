@@ -10,6 +10,7 @@ paths:
     get:
       tags:
       - internal
+      summary: Get file-service schema migration state
       operationId: handler
       responses:
         '200':
@@ -28,6 +29,7 @@ paths:
     get:
       tags:
       - file
+      summary: List files
       operationId: query_files
       parameters:
       - name: tenant_id
@@ -80,6 +82,7 @@ paths:
     post:
       tags:
       - presign
+      summary: Create presigned URL
       operationId: create_presign
       requestBody:
         content:
@@ -129,6 +132,7 @@ paths:
     get:
       tags:
       - file
+      summary: Download file by id
       operationId: download_file
       parameters:
       - name: id
@@ -149,6 +153,7 @@ paths:
     delete:
       tags:
       - file
+      summary: Delete file by id
       operationId: delete_file
       parameters:
       - name: id
@@ -169,6 +174,7 @@ paths:
     get:
       tags:
       - file
+      summary: Get file metadata by id
       operationId: get_file_info
       parameters:
       - name: id

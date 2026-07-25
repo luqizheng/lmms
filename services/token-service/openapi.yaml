@@ -10,6 +10,7 @@ paths:
     post:
       tags:
       - admin
+      summary: Create OAuth client (returns plaintext client_secret once)
       operationId: handle_create
       requestBody:
         content:
@@ -32,6 +33,7 @@ paths:
     put:
       tags:
       - admin
+      summary: Update OAuth client
       operationId: handle_update
       parameters:
       - name: client_id
@@ -60,6 +62,7 @@ paths:
     post:
       tags:
       - admin
+      summary: Reset OAuth client secret (returns new plaintext)
       operationId: handle_reset_secret
       parameters:
       - name: client_id
@@ -122,6 +125,7 @@ paths:
     post:
       tags:
       - api-key
+      summary: Create API key (returns plaintext secret once)
       operationId: handle_create_api_key
       requestBody:
         content:
@@ -140,6 +144,7 @@ paths:
     get:
       tags:
       - admin
+      summary: List OAuth clients
       operationId: handle_list
       parameters:
       - name: keyword
@@ -183,6 +188,7 @@ paths:
     delete:
       tags:
       - admin
+      summary: Delete OAuth client
       operationId: handle_delete
       parameters:
       - name: client_id
@@ -201,6 +207,7 @@ paths:
     get:
       tags:
       - internal
+      summary: Query token-service migration state
       operationId: handler
       responses:
         '200':
@@ -219,6 +226,7 @@ paths:
     post:
       tags:
       - tokens
+      summary: Issue access token via authorization code
       operationId: handle_access
       requestBody:
         content:
@@ -241,6 +249,7 @@ paths:
     post:
       tags:
       - tokens
+      summary: Refresh access token (single-use refresh_token)
       operationId: handle_refresh
       requestBody:
         content:
@@ -261,6 +270,7 @@ paths:
     post:
       tags:
       - tokens
+      summary: Revoke token (add to blacklist)
       operationId: handle_revoke
       requestBody:
         content:
@@ -279,6 +289,7 @@ paths:
     post:
       tags:
       - tokens
+      summary: Issue user JWT (service-to-service)
       operationId: handle_user_jwt
       requestBody:
         content:

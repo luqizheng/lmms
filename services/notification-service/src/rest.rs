@@ -72,6 +72,7 @@ pub fn router(state: RestState) -> Router {
 #[utoipa::path(
     post,
     path = "/notification/announcements",
+    summary = "Create announcement",
     request_body = CreateAnnouncement,
     responses(
         (status = 201, description = "创建成功", body = serde_json::Value),
@@ -97,6 +98,7 @@ pub async fn create(
 #[utoipa::path(
     post,
     path = "/notification/announcements/{id}/publish",
+    summary = "Publish announcement",
     params(("id" = u64, Path, description = "公告ID")),
     responses(
         (status = 200, description = "发布成功", body = serde_json::Value),
@@ -121,6 +123,7 @@ pub async fn publish(
 #[utoipa::path(
     post,
     path = "/notification/announcements/{id}/revoke",
+    summary = "Revoke announcement",
     params(("id" = u64, Path, description = "公告ID")),
     responses(
         (status = 200, description = "撤销成功", body = serde_json::Value),
@@ -143,6 +146,7 @@ pub async fn revoke(
 #[utoipa::path(
     get,
     path = "/notification/announcements/{id}",
+    summary = "Get announcement detail",
     params(("id" = u64, Path, description = "公告ID")),
     responses(
         (status = 200, description = "获取成功", body = Announcement),
@@ -169,6 +173,7 @@ pub struct ListQuery {
 #[utoipa::path(
     get,
     path = "/notification/announcements",
+    summary = "List announcements for current user",
     params(ListQuery),
     responses(
         (status = 200, description = "获取成功", body = Vec<Announcement>),
@@ -186,6 +191,7 @@ pub async fn list_mine(
 #[utoipa::path(
     post,
     path = "/notification/announcements/{id}/read",
+    summary = "Mark announcement as read",
     params(("id" = u64, Path, description = "公告ID")),
     responses(
         (status = 200, description = "标记已读", body = serde_json::Value),
@@ -207,6 +213,7 @@ pub async fn read_one(
 #[utoipa::path(
     get,
     path = "/notification/unread-count",
+    summary = "Get unread notification count",
     responses(
         (status = 200, description = "获取未读数", body = serde_json::Value),
     ),

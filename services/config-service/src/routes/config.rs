@@ -32,6 +32,7 @@ pub fn routes(state: AppState) -> axum::Router<AppState> {
 #[utoipa::path(
     post,
     path = "/config/item",
+    summary = "Create config item",
     request_body = CreateConfigItem,
     responses(
         (status = 200, description = "Config item created", body = ConfigItem),
@@ -53,6 +54,7 @@ pub async fn create_config_item(
 #[utoipa::path(
     get,
     path = "/config/item",
+    summary = "List config items",
     params(QueryConfigItems),
     responses(
         (status = 200, description = "Paged config items", body = PagedConfigItems),
@@ -76,6 +78,7 @@ pub async fn query_config_items(
 #[utoipa::path(
     get,
     path = "/config/item/{id}",
+    summary = "Get config item by id",
     params(("id" = String, Path, description = "Config item id")),
     responses(
         (status = 200, description = "Config item", body = ConfigItem),
@@ -100,6 +103,7 @@ pub async fn get_config_item(
 #[utoipa::path(
     put,
     path = "/config/item/{id}",
+    summary = "Update config item",
     params(("id" = String, Path, description = "Config item id")),
     request_body = UpdateConfigItem,
     responses(
@@ -126,6 +130,7 @@ pub async fn update_config_item(
 #[utoipa::path(
     delete,
     path = "/config/item/{id}",
+    summary = "Delete config item",
     params(("id" = String, Path, description = "Config item id")),
     responses(
         (status = 200, description = "Deleted", body = serde_json::Value),
@@ -148,6 +153,7 @@ pub async fn delete_config_item(
 #[utoipa::path(
     get,
     path = "/config/export/{namespace_id}",
+    summary = "Export config as JSON",
     params(("namespace_id" = String, Path, description = "Namespace id")),
     responses(
         (status = 200, description = "Exported config as JSON string", body = String),
@@ -181,6 +187,7 @@ pub async fn export_config(
 #[utoipa::path(
     post,
     path = "/config/import/{namespace_id}",
+    summary = "Import config from JSON",
     params(("namespace_id" = String, Path, description = "Namespace id")),
     request_body = String,
     responses(

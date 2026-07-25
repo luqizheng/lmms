@@ -34,6 +34,7 @@ pub fn routes(state: AppState) -> Router {
 #[utoipa::path(
     get,
     path = "/get-async-routes",
+    summary = "Get active dynamic routes (sanitized for pure-admin)",
     responses(
         (status = 200, description = "Active dynamic routes (sanitized)", body = serde_json::Value),
     ),
@@ -48,6 +49,7 @@ pub async fn get_async_routes(State(state): State<AppState>) -> AppResult<Json<A
 #[utoipa::path(
     get,
     path = "/pure/menu-configs",
+    summary = "List menu config versions",
     responses(
         (status = 200, description = "Menu config versions", body = MenuConfigListResponse),
     ),
@@ -64,6 +66,7 @@ pub async fn list_menu_configs(
 #[utoipa::path(
     post,
     path = "/pure/menu-configs",
+    summary = "Create menu config draft",
     request_body = CreateMenuConfigRequest,
     responses(
         (status = 200, description = "Draft created", body = MenuConfigDetail),
@@ -82,6 +85,7 @@ pub async fn create_menu_config(
 #[utoipa::path(
     get,
     path = "/pure/menu-configs/{id}",
+    summary = "Get menu config by id",
     params(("id" = String, Path, description = "Menu config id")),
     responses(
         (status = 200, description = "Menu config detail", body = MenuConfigDetail),
@@ -101,6 +105,7 @@ pub async fn get_menu_config(
 #[utoipa::path(
     put,
     path = "/pure/menu-configs/{id}",
+    summary = "Update menu config draft (requires etag)",
     params(("id" = String, Path, description = "Menu config id")),
     request_body = UpdateMenuConfigRequest,
     responses(
@@ -123,6 +128,7 @@ pub async fn update_menu_config(
 #[utoipa::path(
     post,
     path = "/pure/menu-configs/{id}/publish",
+    summary = "Publish menu config (draft → published)",
     params(("id" = String, Path, description = "Menu config id")),
     responses(
         (status = 200, description = "Published", body = MenuConfigDetail),
@@ -141,6 +147,7 @@ pub async fn publish_menu_config(
 #[utoipa::path(
     post,
     path = "/pure/menu-configs/{id}/clone",
+    summary = "Clone menu config",
     params(("id" = String, Path, description = "Menu config id")),
     responses(
         (status = 200, description = "Cloned draft", body = MenuConfigDetail),
@@ -159,6 +166,7 @@ pub async fn clone_menu_config(
 #[utoipa::path(
     delete,
     path = "/pure/menu-configs/{id}",
+    summary = "Delete menu config",
     params(("id" = String, Path, description = "Menu config id")),
     responses(
         (status = 204, description = "Deleted"),

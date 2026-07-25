@@ -10,6 +10,7 @@ paths:
     get:
       tags:
       - internal
+      summary: Get config schema migration state
       operationId: handler
       responses:
         '200':
@@ -28,6 +29,7 @@ paths:
     get:
       tags:
       - config-item
+      summary: Export config as JSON
       operationId: export_config
       parameters:
       - name: namespace_id
@@ -47,6 +49,7 @@ paths:
     post:
       tags:
       - config-item
+      summary: Import config from JSON
       operationId: import_config
       parameters:
       - name: namespace_id
@@ -73,6 +76,7 @@ paths:
     get:
       tags:
       - config-item
+      summary: List config items
       operationId: query_config_items
       parameters:
       - name: namespace_id
@@ -117,6 +121,7 @@ paths:
     post:
       tags:
       - config-item
+      summary: Create config item
       operationId: create_config_item
       requestBody:
         content:
@@ -135,6 +140,7 @@ paths:
     get:
       tags:
       - config-item
+      summary: Get config item by id
       operationId: get_config_item
       parameters:
       - name: id
@@ -155,6 +161,7 @@ paths:
     put:
       tags:
       - config-item
+      summary: Update config item
       operationId: update_config_item
       parameters:
       - name: id
@@ -181,6 +188,7 @@ paths:
     delete:
       tags:
       - config-item
+      summary: Delete config item
       operationId: delete_config_item
       parameters:
       - name: id
@@ -201,6 +209,7 @@ paths:
     get:
       tags:
       - namespace
+      summary: List config namespaces
       operationId: query_namespaces
       parameters:
       - name: app
@@ -245,6 +254,7 @@ paths:
     post:
       tags:
       - namespace
+      summary: Create config namespace
       operationId: create_namespace
       requestBody:
         content:
@@ -263,6 +273,7 @@ paths:
     get:
       tags:
       - namespace
+      summary: Get config namespace by id
       operationId: get_namespace
       parameters:
       - name: id
@@ -283,6 +294,7 @@ paths:
     put:
       tags:
       - namespace
+      summary: Update config namespace
       operationId: update_namespace
       parameters:
       - name: id
@@ -309,6 +321,7 @@ paths:
     delete:
       tags:
       - namespace
+      summary: Delete config namespace
       operationId: delete_namespace
       parameters:
       - name: id
@@ -329,6 +342,7 @@ paths:
     get:
       tags:
       - watch
+      summary: Watch config changes (long-poll)
       operationId: watch_config
       parameters:
       - name: namespace_id

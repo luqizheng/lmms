@@ -12,6 +12,7 @@ pub fn routes(state: AppState) -> axum::Router<AppState> {
 #[utoipa::path(
     post,
     path = "/file/presign",
+    summary = "Create presigned URL",
     request_body = CreatePresignUrl,
     responses(
         (status = 200, description = "Presigned URL", body = PresignUrlResponse),

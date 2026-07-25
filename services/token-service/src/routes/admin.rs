@@ -118,6 +118,7 @@ fn internal(_e: sqlx::Error) -> (StatusCode, &'static str) {
 #[utoipa::path(
     get,
     path = "/api/v1/admin/oauth-clients",
+    summary = "List OAuth clients",
     params(ListQuery),
     responses((status = 200, body = ListResponse)),
     security(("bearer_auth" = [])),
@@ -147,6 +148,7 @@ pub async fn handle_list(
 #[utoipa::path(
     post,
     path = "/admin/oauth-clients",
+    summary = "Create OAuth client (returns plaintext client_secret once)",
     request_body = CreateRequest,
     responses(
         (status = 200, body = CreateResponse),
@@ -197,6 +199,7 @@ pub async fn handle_create(
 #[utoipa::path(
     put,
     path = "/admin/oauth-clients/{client_id}",
+    summary = "Update OAuth client",
     params(("client_id" = String, Path,)),
     request_body = UpdateRequest,
     responses(
@@ -238,6 +241,7 @@ pub async fn handle_update(
 #[utoipa::path(
     delete,
     path = "/api/v1/admin/oauth-clients/{client_id}",
+    summary = "Delete OAuth client",
     params(("client_id" = String, Path,)),
     responses(
         (status = 204, description = "deleted"),
@@ -262,6 +266,7 @@ pub async fn handle_delete(
 #[utoipa::path(
     post,
     path = "/admin/oauth-clients/{client_id}/reset-secret",
+    summary = "Reset OAuth client secret (returns new plaintext)",
     params(("client_id" = String, Path,)),
     responses(
         (status = 200, body = ResetSecretResponse),

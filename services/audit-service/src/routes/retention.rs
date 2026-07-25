@@ -16,6 +16,7 @@ pub fn routes(state: AppState) -> Router {
 #[utoipa::path(
     get,
     path = "/audit/retention/stats",
+    summary = "Get retention stats",
     responses(
         (status = 200, description = "Retention stats", body = RetentionStats),
     ),
@@ -31,6 +32,7 @@ pub async fn get_retention_stats(
 #[utoipa::path(
     get,
     path = "/audit/retention/policy",
+    summary = "Get retention policy",
     responses(
         (status = 200, description = "Current retention policy", body = crate::models::RetentionPolicy),
     ),
@@ -46,6 +48,7 @@ pub async fn get_retention_policy(
 #[utoipa::path(
     put,
     path = "/audit/retention/policy",
+    summary = "Update retention policy",
     request_body = crate::models::RetentionPolicy,
     responses(
         (status = 200, description = "Updated retention policy", body = crate::models::RetentionPolicy),
@@ -79,6 +82,7 @@ pub async fn update_retention_policy(
 #[utoipa::path(
     post,
     path = "/audit/retention/cleanup",
+    summary = "Trigger retention cleanup",
     responses(
         (status = 200, description = "Cleanup result", body = serde_json::Value),
     ),
@@ -99,6 +103,7 @@ pub async fn trigger_cleanup(
 #[utoipa::path(
     get,
     path = "/audit/retention/stage/{created_at}",
+    summary = "Get data stage classification",
     params(("created_at" = String, Path, description = "RFC3339 timestamp")),
     responses(
         (status = 200, description = "Data stage classification", body = serde_json::Value),

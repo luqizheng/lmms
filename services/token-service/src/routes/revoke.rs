@@ -20,6 +20,7 @@ pub struct RevokeResponse {
 #[utoipa::path(
     post,
     path = "/tokens/revoke",
+    summary = "Revoke token (add to blacklist)",
     request_body = RevokeRequest,
     responses(
         (status = 200, description = "revoked", body = RevokeResponse),

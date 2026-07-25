@@ -10,6 +10,7 @@ paths:
     get:
       tags:
       - announcements
+      summary: List announcements for current user
       operationId: list_mine
       parameters:
       - name: pinned
@@ -38,6 +39,7 @@ paths:
     post:
       tags:
       - announcements
+      summary: Create announcement
       operationId: create
       requestBody:
         content:
@@ -57,6 +59,7 @@ paths:
     get:
       tags:
       - announcements
+      summary: Get announcement detail
       operationId: detail
       parameters:
       - name: id
@@ -80,6 +83,7 @@ paths:
     post:
       tags:
       - announcements
+      summary: Publish announcement
       operationId: publish
       parameters:
       - name: id
@@ -102,6 +106,7 @@ paths:
     post:
       tags:
       - notifications
+      summary: Mark announcement as read
       operationId: read_one
       parameters:
       - name: id
@@ -122,6 +127,7 @@ paths:
     post:
       tags:
       - announcements
+      summary: Revoke announcement
       operationId: revoke
       parameters:
       - name: id
@@ -144,6 +150,7 @@ paths:
     get:
       tags:
       - notifications
+      summary: Get unread notification count
       operationId: unread_count
       responses:
         '200':
@@ -155,6 +162,7 @@ paths:
     get:
       tags:
       - internal
+      summary: Get notification schema migration state
       operationId: handler
       responses:
         '200':

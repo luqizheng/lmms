@@ -10,6 +10,7 @@ paths:
     get:
       tags:
       - compliance
+      summary: Export login logs as CSV
       operationId: export_login_csv
       parameters:
       - name: user_id
@@ -29,6 +30,7 @@ paths:
     get:
       tags:
       - compliance
+      summary: Export operation logs as CSV
       operationId: export_operation_csv
       parameters:
       - name: user_id
@@ -48,6 +50,7 @@ paths:
     get:
       tags:
       - compliance
+      summary: Export operation logs as JSON
       operationId: export_operation_json
       parameters:
       - name: user_id
@@ -67,6 +70,7 @@ paths:
     get:
       tags:
       - internal
+      summary: Get audit migration state
       operationId: handler
       responses:
         '200':
@@ -85,6 +89,7 @@ paths:
     get:
       tags:
       - login
+      summary: Query login logs
       operationId: query_login_logs
       parameters:
       - name: username
@@ -144,6 +149,7 @@ paths:
     get:
       tags:
       - operation
+      summary: Query operation logs
       operationId: query_operation_logs
       parameters:
       - name: user_id
@@ -210,6 +216,7 @@ paths:
     post:
       tags:
       - retention
+      summary: Trigger retention cleanup
       operationId: trigger_cleanup
       responses:
         '200':
@@ -221,6 +228,7 @@ paths:
     get:
       tags:
       - retention
+      summary: Get retention policy
       operationId: get_retention_policy
       responses:
         '200':
@@ -232,6 +240,7 @@ paths:
     put:
       tags:
       - retention
+      summary: Update retention policy
       operationId: update_retention_policy
       requestBody:
         content:
@@ -252,6 +261,7 @@ paths:
     get:
       tags:
       - retention
+      summary: Get data stage classification
       operationId: get_data_stage
       parameters:
       - name: created_at
@@ -272,6 +282,7 @@ paths:
     get:
       tags:
       - retention
+      summary: Get retention stats
       operationId: get_retention_stats
       responses:
         '200':

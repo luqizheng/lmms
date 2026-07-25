@@ -22,6 +22,7 @@ impl MigrationState for AuditMigrationState {
 #[to_path(
     get,
     path = "/audit/internal/migrations/state",
+    summary = "Get audit migration state",
     responses(
         (status = 200, body = MigrationStateResponse, description = "schema state"),
         (status = 401, description = "missing or invalid service-jwt"),

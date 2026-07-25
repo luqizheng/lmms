@@ -12,6 +12,7 @@ pub fn routes(state: AppState) -> Router {
 #[utoipa::path(
     get,
     path = "/audit/login",
+    summary = "Query login logs",
     params(QueryLoginLogs),
     responses(
         (status = 200, description = "Paged login logs", body = PagedLoginLogs),

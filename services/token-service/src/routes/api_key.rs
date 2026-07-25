@@ -66,6 +66,7 @@ impl From<oauth_client_svc::ClientView> for ApiKeySummary {
 #[utoipa::path(
     post,
     path = "/api-keys",
+    summary = "Create API key (returns plaintext secret once)",
     request_body = CreateApiKeyRequest,
     responses(
         (status = 200, description = "Created api key", body = ApiKeyCreated),

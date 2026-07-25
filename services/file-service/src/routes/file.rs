@@ -90,6 +90,7 @@ pub async fn upload_file(
 #[utoipa::path(
     get,
     path = "/file/list",
+    summary = "List files",
     params(QueryFiles),
     responses(
         (status = 200, description = "Paged file list", body = PagedFiles),
@@ -115,6 +116,7 @@ pub async fn query_files(
 #[utoipa::path(
     get,
     path = "/file/{id}",
+    summary = "Download file by id",
     params(("id" = String, Path, description = "File id")),
     responses(
         (status = 200, description = "File bytes (octet-stream or content-type)", body = String),
@@ -147,6 +149,7 @@ pub async fn download_file(
 #[utoipa::path(
     delete,
     path = "/file/{id}",
+    summary = "Delete file by id",
     params(("id" = String, Path, description = "File id")),
     responses(
         (status = 200, description = "Deleted", body = serde_json::Value),
@@ -169,6 +172,7 @@ pub async fn delete_file(
 #[utoipa::path(
     get,
     path = "/file/{id}/info",
+    summary = "Get file metadata by id",
     params(("id" = String, Path, description = "File id")),
     responses(
         (status = 200, description = "File info", body = FileInfo),

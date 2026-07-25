@@ -66,6 +66,7 @@ fn decode_refresh_token(
 #[utoipa::path(
     post,
     path = "/tokens/refresh",
+    summary = "Refresh access token (single-use refresh_token)",
     request_body = RefreshRequest,
     responses(
         (status = 200, description = "refreshed tokens", body = RefreshResponse),

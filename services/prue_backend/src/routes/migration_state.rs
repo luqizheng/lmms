@@ -47,6 +47,7 @@ async fn probe_applied(pool: &DbPool) -> Result<Vec<String>, sqlx::Error> {
 #[to_path(
     get,
     path = "/prue/internal/migrations/state",
+    summary = "Query prue_backend migration state (mysql+sqlite)",
     responses(
         (status = 200, body = MigrationStateResponse, description = "schema state"),
         (status = 401, description = "missing or invalid service-jwt"),

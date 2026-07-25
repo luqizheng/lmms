@@ -16,6 +16,7 @@ pub fn routes(state: AppState) -> axum::Router<AppState> {
 #[utoipa::path(
     post,
     path = "/config/namespace",
+    summary = "Create config namespace",
     request_body = CreateNamespace,
     responses(
         (status = 200, description = "Namespace created", body = Namespace),
@@ -36,6 +37,7 @@ pub async fn create_namespace(
 #[utoipa::path(
     get,
     path = "/config/namespace",
+    summary = "List config namespaces",
     params(QueryNamespaces),
     responses(
         (status = 200, description = "Paged namespaces", body = PagedNamespaces),
@@ -55,6 +57,7 @@ pub async fn query_namespaces(
 #[utoipa::path(
     get,
     path = "/config/namespace/{id}",
+    summary = "Get config namespace by id",
     params(("id" = String, Path, description = "Namespace id")),
     responses(
         (status = 200, description = "Namespace", body = Namespace),
@@ -77,6 +80,7 @@ pub async fn get_namespace(
 #[utoipa::path(
     put,
     path = "/config/namespace/{id}",
+    summary = "Update config namespace",
     params(("id" = String, Path, description = "Namespace id")),
     request_body = UpdateNamespace,
     responses(
@@ -102,6 +106,7 @@ pub async fn update_namespace(
 #[utoipa::path(
     delete,
     path = "/config/namespace/{id}",
+    summary = "Delete config namespace",
     params(("id" = String, Path, description = "Namespace id")),
     responses(
         (status = 200, description = "Deleted", body = serde_json::Value),

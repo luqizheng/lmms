@@ -35,6 +35,7 @@ async fn probe_applied(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
 #[to_path(
     get,
     path = "/cfg/internal/migrations/state",
+    summary = "Get config schema migration state",
     responses(
         (status = 200, body = MigrationStateResponse, description = "schema state"),
         (status = 401, description = "missing or invalid service-jwt"),

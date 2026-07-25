@@ -18,6 +18,7 @@ pub fn routes(state: AppState) -> Router {
 #[utoipa::path(
     get,
     path = "/audit/export/compliance/operation/csv/{user_id}",
+    summary = "Export operation logs as CSV",
     params(
         ("user_id" = String, Path, description = "User id to export operation logs for"),
     ),
@@ -56,6 +57,7 @@ pub async fn export_operation_csv(
 #[utoipa::path(
     get,
     path = "/audit/export/compliance/operation/json/{user_id}",
+    summary = "Export operation logs as JSON",
     params(
         ("user_id" = String, Path, description = "User id to export operation logs for"),
     ),
@@ -81,6 +83,7 @@ pub async fn export_operation_json(
 #[utoipa::path(
     get,
     path = "/audit/export/compliance/login/csv/{user_id}",
+    summary = "Export login logs as CSV",
     params(
         ("user_id" = String, Path, description = "User id to export login logs for"),
     ),

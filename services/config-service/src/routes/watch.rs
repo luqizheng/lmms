@@ -20,6 +20,7 @@ pub struct WatchParams {
 #[utoipa::path(
     get,
     path = "/config/watch",
+    summary = "Watch config changes (long-poll)",
     params(WatchParams),
     responses(
         (status = 200, description = "Long-poll result", body = serde_json::Value),
