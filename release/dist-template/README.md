@@ -7,12 +7,15 @@
 ```
 coder-micro-services/
 ├── bin/                    # 一键运维脚本
-├── compose/                # Docker Compose 模块化配置
-│   ├── infra.yml           # 基础设施（MySQL/Redis/Consul/RabbitMQ/Registrator）
-│   ├── services.yml        # 8 个核心服务（image: 引用仓库镜像）+ frontend
-│   └── observability.yml   # 可观测性（Prometheus/Grafana/Jaeger/OTel）
-├── config/                 # 运行时配置（api-gateway routes / grafana / consul / ...）
-├── init-mysql/             # MySQL 初始化 SQL
+├── infrastructure/         # Docker Compose + 平台运行时配置（唯一真相源）
+│   ├── docker-compose.yml           # 主入口（include 三个 yml）
+│   ├── docker-compose-infra.yml     # 基础设施（MySQL/Redis/Consul/RabbitMQ/Registrator）
+│   ├── docker-compose-services.yml  # 8 个核心服务（image: 引用仓库镜像）+ frontend
+│   ├── docker-compose-observability.yml  # 可观测性（Prometheus/Grafana/Jaeger/OTel）
+│   ├── config/             # 运行时配置（api-gateway routes / grafana / consul / ...）
+│   │   ├── iam/            # iam-service 首启 seed 目标目录（含 config.default.yaml 模板）
+│   │   └── notification/   # notification-service seed 目标（同上）
+│   └── mysql-init/         # MySQL 初始化 SQL
 ├── frontend/               # 前端源码（pnpm-lock.yaml，不含 node_modules）
 ├── images/                 # 离线 Docker 镜像包 + manifest.json
 ├── secrets/                # 运行时生成的密钥（不提交 git）
@@ -29,7 +32,6 @@ coder-micro-services/
 ├── package.json            # 根调度脚本（CI 门禁 / 构建 / 测试命令）
 ├── AGENTS.md               # 项目协作指南（skill 引用的约定）
 │
-├── docker-compose.yml      # 主入口（include 三个 yml）
 ├── Makefile                # make 命令统一入口
 └── .env.example            # 环境变量模板
 ```
@@ -106,8 +108,8 @@ node scripts/contracts-gen.js --check    # 契约生成代码一致性
 ```
 1. make up                                    # 启动平台
 2. AI skill 生成业务服务骨架                      # services/{name}/
-3. AI skill 自动追加 compose + 网关路由           # docker-compose + config/api-gateway/routes/
-4. 业务服务接入 docker compose up                # docker compose -f docker-compose.yml up -d {name}
+3. AI skill 自动追加 compose + 网关路由           # infrastructure/docker-compose-services.yml + infrastructure/config/api-gateway/routes/
+4. 业务服务接入 docker compose up                # docker compose -f infrastructure/docker-compose.yml up -d {name}
 5. CI 门禁通过                                   # check-service-standard / check-db-naming / check-spec
 ```
 

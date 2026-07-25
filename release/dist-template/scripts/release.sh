@@ -21,6 +21,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# ─── args ──────────────────────────────────────────────────────────────────
 VERSION=""
 EXPORT_IMAGES="${EXPORT_IMAGES:-1}"
 SHOW_HELP=0
@@ -43,13 +44,50 @@ fi
 
 VERSION="${VERSION:-v1.0.0}"
 REGISTRY="${REGISTRY:-zhcoder-docker-registry.com:8000}"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# ─── paths ─────────────────────────────────────────────────────────────────
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"     # release/dist-template/
+REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"     # repo root
 DIST_DIR="${ROOT}/release/coder-micro-services-${VERSION}"
 DIST_ARCHIVE="${ROOT}/release/coder-micro-services-${VERSION}-airgap.tar.gz"
 IMAGES_DIR="${DIST_DIR}/images"
 
-# DIST_DIR 必须存在（tar 源目录不能为空）；
-# IMAGES_DIR 仅在导出镜像时创建，避免空 images/ 目录混入分发包。
+# ─── prerequisite check ────────────────────────────────────────────────────
+# Fail fast when a dependency is missing so partial output does not leak.
+# docker is only required when EXPORT_IMAGES=1.
+check_dep() {
+  local name="$1"
+  if ! command -v "${name}" >/dev/null 2>&1; then
+    echo "[release] ✗ missing prerequisite: ${name}" >&2
+    return 1
+  fi
+}
+missing=0
+check_dep node || missing=1
+check_dep tar  || missing=1
+check_dep sed  || missing=1
+if [[ "${EXPORT_IMAGES}" == "1" ]]; then
+  check_dep docker || missing=1
+fi
+if [[ "${missing}" != "0" ]]; then
+  echo "[release] fix the above and re-run" >&2
+  exit 1
+fi
+
+# Our `sed -i 'expr' file` (no backup arg) is GNU-only. macOS BSD sed silently
+# does the wrong thing. Detect and reject upfront.
+if ! sed --version >/dev/null 2>&1; then
+  echo "[release] ✗ GNU sed required (BSD sed detected). On macOS: brew install gnu-sed && alias sed=gsed" >&2
+  exit 1
+fi
+
+# ─── clean & prepare DIST ──────────────────────────────────────────────────
+# Blow away DIST_DIR completely so leftovers from a previous run cannot
+# leak into this build (e.g. deleted skills, renamed configs).
+if [[ -d "${DIST_DIR}" ]]; then
+  echo "[release] wiping stale ${DIST_DIR}"
+  rm -rf "${DIST_DIR}"
+fi
 mkdir -p "${DIST_DIR}"
 if [[ "${EXPORT_IMAGES}" == "1" ]]; then
   mkdir -p "${IMAGES_DIR}"
@@ -57,7 +95,7 @@ fi
 
 echo "[release] VERSION=${VERSION} REGISTRY=${REGISTRY} EXPORT_IMAGES=${EXPORT_IMAGES}"
 
-# 镜像清单
+# ─── image manifest ────────────────────────────────────────────────────────
 IMAGES=(
   "${REGISTRY}/micro-server/api-gateway:${VERSION}"
   "${REGISTRY}/micro-server/config-service:${VERSION}"
@@ -91,87 +129,82 @@ if [[ "${EXPORT_IMAGES}" == "1" ]]; then
   for img in "${IMAGES[@]}"; do
     fname=$(echo "${img}" | tr '/:' '__')
     echo "[release]   save ${img} -> ${fname}.tar"
-    docker save "${img}" -o "${IMAGES_DIR}/${fname}.tar" 2>/dev/null && \
-      echo "[release]   ✓ ${fname}.tar" || \
+    if docker save "${img}" -o "${IMAGES_DIR}/${fname}.tar" 2>/dev/null; then
+      echo "[release]   ✓ ${fname}.tar"
+    else
       echo "[release]   ✗ save failed: ${img}"
+    fi
   done
 else
   echo "[release] ⚠ --no-images：跳过 docker pull/save"
 fi
 
-echo "[release] -> 跳过文档构建（user-manual 归 docs-site/ 管理，不打包进分发包）..."
-echo ""
+# ─── skeleton from release/dist-template/ ──────────────────────────────────
+# The dist-template dir carries the pre-baked runtime scaffolding (Makefile,
+# bin/*, README, index.html, docs/, CHANGELOG, .env.example). Copy it wholesale
+# minus this scripts/ dir and any prior build output under release/.
+echo "[release] -> 同步分发包运行时骨架（dist-template/{Makefile,bin,docs,README,...}）..."
+(
+  cd "${ROOT}"
+  find . -mindepth 1 -maxdepth 1 \
+    \! -name 'scripts' \
+    \! -name 'release' \
+    \! -name 'images' \
+    \! -name 'secrets' \
+    -print0 |
+    while IFS= read -r -d '' item; do
+      cp -a "${item}" "${DIST_DIR}/"
+    done
+)
+mkdir -p "${DIST_DIR}/secrets"
+touch "${DIST_DIR}/secrets/.gitkeep"
+echo "[release]   ✓ dist-template skeleton copied"
 
-echo "[release] -> 同步开发骨架（sdk/contracts/skills/scripts/services）..."
+# ─── dev repo artifacts ────────────────────────────────────────────────────
+echo "[release] -> 同步开发骨架（contracts/scripts/skills/frontend/services/infrastructure）..."
 
-# 开发仓库根（dist-template 的上两级）
-REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
-
-# libs/ 目录：完全不打进分发包。
-# libs/* - 平台基础设施库（common-error / common-db / common-jwt / authz 等 17 个 crate），
-#           由 CI rust_publish job 推送到私有 kellnr registry
-#           (http://192.168.2.12:16444)，业务 Rust 服务通过
-#           `cargo add common-error --registry kellnr` 引入。
-#           根 Cargo.toml 的 workspace members 仍列出 libs/*，
-#           下文会用 sed 过滤掉，避免指向不存在的目录。
+# libs/* and sdk/rust/* are published to the private kellnr registry, sdk/java
+# to Maven; users pull them via `cargo add --registry kellnr` and Maven deps.
+# Ship neither the source nor the workspace member declarations (sed below).
 echo "[release]   ⚠ libs/ skipped - 17 crates published to private kellnr registry"
-
-# SDK 目录：完全不打进分发包。
-# sdk/java/* — 由 CI sdk_publish job 推送到私有 Maven 仓库
-#               (http://192.168.2.12:18181/releases，由 MAVEN_REPO_URL 覆盖)，
-#               业务 Java 服务通过 <dependency> 直接引入。
-# sdk/rust/* - 以 crate 形式发布到私有 kellnr registry
-#               (http://192.168.2.12:16444)，业务 Rust 服务通过
-#               `cargo add iam-service-sdk --registry kellnr` 引入。
-# sdk/openapi + sdk/scripts + sdk/README — 开发者仓库内部资产，
-#               分发包用户通过包管理器拿到 SDK，无需源码或本地发布脚本。
-#               根 Cargo.toml 的 workspace members 仍列出 sdk/rust/*，
-#               下文会用 sed 过滤掉，避免指向不存在的目录。
 echo "[release]   ⚠ sdk/ skipped — sdk/java -> Maven, sdk/rust -> kellnr"
 
-# 契约层（前后端单一真相源：error-codes / permissions / events / conventions）
 if [ -d "${REPO_ROOT}/contracts" ]; then
-  cp -r "${REPO_ROOT}/contracts" "${DIST_DIR}/contracts"
+  cp -a "${REPO_ROOT}/contracts" "${DIST_DIR}/contracts"
   echo "[release]   ✓ contracts/"
 fi
 
-# CI 门禁脚本（check-service-standard / check-db-naming / check-spec / contracts-gen 等）
 if [ -d "${REPO_ROOT}/scripts" ]; then
-  cp -r "${REPO_ROOT}/scripts" "${DIST_DIR}/scripts"
+  cp -a "${REPO_ROOT}/scripts" "${DIST_DIR}/scripts"
   echo "[release]   ✓ scripts/"
 fi
 
-# AI skills（复制到 .agents/skills/ 以符合 agent 发现规范）
 if [ -d "${REPO_ROOT}/.agents/skills" ]; then
   mkdir -p "${DIST_DIR}/.agents"
-  cp -r "${REPO_ROOT}/.agents/skills" "${DIST_DIR}/.agents/skills"
+  cp -a "${REPO_ROOT}/.agents/skills" "${DIST_DIR}/.agents/skills"
   echo "[release]   ✓ .agents/skills/"
 fi
 
-# AI 规则文件（.agents/rules/ — 项目级 L4 触发规则，替换原 .trae/rules/ 约定）
 if [ -d "${REPO_ROOT}/.agents/rules" ]; then
   mkdir -p "${DIST_DIR}/.agents"
-  cp -r "${REPO_ROOT}/.agents/rules" "${DIST_DIR}/.agents/rules"
+  cp -a "${REPO_ROOT}/.agents/rules" "${DIST_DIR}/.agents/rules"
   echo "[release]   ✓ .agents/rules/"
 elif [ -d "${REPO_ROOT}/.trae/rules" ]; then
-  # 兼容旧版：从 .trae/rules/ 迁移到 .agents/rules/
   mkdir -p "${DIST_DIR}/.agents/rules"
-  cp -r "${REPO_ROOT}/.trae/rules/"* "${DIST_DIR}/.agents/rules/"
+  cp -a "${REPO_ROOT}/.trae/rules/." "${DIST_DIR}/.agents/rules/"
   echo "[release]   ✓ .agents/rules/ (migrated from .trae/rules/)"
 fi
 
-# 前端源码（compose/services.yml 的 frontend 服务 build context: ./frontend，
-# 离线镜像缺失时供 docker build 兜底）
 if [ -d "${REPO_ROOT}/frontend" ]; then
-  cp -r "${REPO_ROOT}/frontend" "${DIST_DIR}/frontend"
+  cp -a "${REPO_ROOT}/frontend" "${DIST_DIR}/frontend"
   find "${DIST_DIR}/frontend" -type d \( -name 'node_modules' -o -name 'dist' -o -name 'dist-ssr' -o -name 'coverage' \) -exec rm -rf {} + 2>/dev/null || true
   find "${DIST_DIR}/frontend" -type f \( -name '.eslintcache' -o -name '*.local' -o -name 'report.html' \) -delete 2>/dev/null || true
   echo "[release]   ✓ frontend/ (node_modules / dist / dist-ssr / coverage / lint-cache excluded)"
 else
-  echo "[release]   ⚠ frontend/ not found at ${REPO_ROOT}/frontend - 前端容器镜像缺失时将无法本地构建"
+  echo "[release]   ⚠ frontend/ not found — 前端容器镜像缺失时将无法本地构建"
 fi
 
-# services/ 目录骨架（空 - 用户通过 skills 创建业务微服务）
+# services/ ships as an empty skeleton; users create business services via skills.
 mkdir -p "${DIST_DIR}/services"
 if [ -f "${REPO_ROOT}/services/agents-template.md" ]; then
   cp "${REPO_ROOT}/services/agents-template.md" "${DIST_DIR}/services/agents-template.md"
@@ -179,74 +212,136 @@ fi
 touch "${DIST_DIR}/services/.gitkeep"
 echo "[release]   ✓ services/ (empty - for user-created business services)"
 
-# infrastructure/ 目录（Docker Compose + 配置，发布后即刻启动开发环境）
-if [ -d "${REPO_ROOT}/infrastructure" ]; then
-  mkdir -p "${DIST_DIR}/infrastructure"
-
-  # 复制所有 compose 文件
-  cp "${REPO_ROOT}/infrastructure/docker-compose.yml" "${DIST_DIR}/infrastructure/docker-compose.yml" 2>/dev/null || true
-  cp "${REPO_ROOT}/infrastructure/docker-compose-infra.yml" "${DIST_DIR}/infrastructure/docker-compose-infra.yml" 2>/dev/null || true
-  cp "${REPO_ROOT}/infrastructure/docker-compose-infra.dev.yml" "${DIST_DIR}/infrastructure/docker-compose-infra.dev.yml" 2>/dev/null || true
-  cp "${REPO_ROOT}/infrastructure/docker-compose-services.yml" "${DIST_DIR}/infrastructure/docker-compose-services.yml" 2>/dev/null || true
-  cp "${REPO_ROOT}/infrastructure/docker-compose-observability.yml" "${DIST_DIR}/infrastructure/docker-compose-observability.yml" 2>/dev/null || true
-
-  # 转换 docker-compose-services.yml：将 build: 块替换为 image: 引用
-  # （分发包用户通过已推送的镜像启动，无需本地构建）
-  if [ -f "${DIST_DIR}/infrastructure/docker-compose-services.yml" ]; then
-    node "${ROOT}/scripts/transform-compose.js" \
-      "${DIST_DIR}/infrastructure/docker-compose-services.yml" \
-      "${REGISTRY}" "${VERSION}" && \
-      echo "[release]   ✓ docker-compose-services.yml: build → image 转换完成" || \
-      echo "[release]   ⚠ docker-compose-services.yml 转换失败（非致命）"
-  fi
-
-  echo "[release]   ✓ infrastructure/docker-compose*.yml"
-
-  # 复制配置目录（API 网关路由、Consul、Grafana、Prometheus、OTel 等）
-  if [ -d "${REPO_ROOT}/infrastructure/config" ]; then
-    cp -r "${REPO_ROOT}/infrastructure/config" "${DIST_DIR}/infrastructure/config"
-    echo "[release]   ✓ infrastructure/config/"
-  fi
-
-  # 复制 MySQL 初始化脚本
-  if [ -d "${REPO_ROOT}/infrastructure/mysql-init" ]; then
-    cp -r "${REPO_ROOT}/infrastructure/mysql-init" "${DIST_DIR}/infrastructure/mysql-init"
-    echo "[release]   ✓ infrastructure/mysql-init/"
-  fi
-
-  # 复制 Nginx 配置
-  if [ -d "${REPO_ROOT}/infrastructure/nginx" ]; then
-    cp -r "${REPO_ROOT}/infrastructure/nginx" "${DIST_DIR}/infrastructure/nginx"
-    echo "[release]   ✓ infrastructure/nginx/"
-  fi
-
-  # 复制 vendor（swagger-ui zip，build.rs 需要）
-  if [ -d "${REPO_ROOT}/infrastructure/vendor" ]; then
-    cp -r "${REPO_ROOT}/infrastructure/vendor" "${DIST_DIR}/infrastructure/vendor"
-    echo "[release]   ✓ infrastructure/vendor/"
-  fi
-
-  # 复制 .env 模板
-  if [ -f "${REPO_ROOT}/infrastructure/.env" ]; then
-    cp "${REPO_ROOT}/infrastructure/.env" "${DIST_DIR}/infrastructure/.env"
-    echo "[release]   ✓ infrastructure/.env"
-  fi
-
-  echo "[release]   ✓ infrastructure/ (Docker Compose + configs — ready for dev environment)"
-else
-  echo "[release]   ⚠ infrastructure/ not found — 发布后无法直接启动开发环境"
+# ─── infrastructure/ (single source of truth for compose) ──────────────────
+if [ ! -d "${REPO_ROOT}/infrastructure" ]; then
+  echo "[release]   ✗ infrastructure/ missing at ${REPO_ROOT}/infrastructure" >&2
+  exit 1
 fi
 
-# Rust workspace 根 Cargo.toml（移除 services/* + sdk/rust/* + libs/* members，
-# services/ 用户通过 skill 动态加入；sdk/rust/ 和 libs/ 均以 crate 发布到 kellnr，不打包源码）
+mkdir -p "${DIST_DIR}/infrastructure"
+
+# Copy every compose fragment; the main docker-compose.yml `include:`s them.
+for f in \
+    docker-compose.yml \
+    docker-compose-infra.yml \
+    docker-compose-infra.dev.yml \
+    docker-compose-services.yml \
+    docker-compose-observability.yml; do
+  if [ -f "${REPO_ROOT}/infrastructure/${f}" ]; then
+    cp "${REPO_ROOT}/infrastructure/${f}" "${DIST_DIR}/infrastructure/${f}"
+  fi
+done
+echo "[release]   ✓ infrastructure/docker-compose*.yml"
+
+# transform-compose.js swaps `build:` blocks for `image:` refs. Failure means
+# the dist compose still points at build contexts the user does not have.
+if [ ! -f "${DIST_DIR}/infrastructure/docker-compose-services.yml" ]; then
+  echo "[release]   ✗ docker-compose-services.yml missing after copy" >&2
+  exit 1
+fi
+if ! node "${ROOT}/scripts/transform-compose.js" \
+    "${DIST_DIR}/infrastructure/docker-compose-services.yml" \
+    "${REGISTRY}" "${VERSION}"; then
+  echo "[release]   ✗ transform-compose.js failed — dist compose still has build: blocks" >&2
+  exit 1
+fi
+echo "[release]   ✓ docker-compose-services.yml: build → image 转换完成"
+
+# Auto-rewrite bind mounts for every service that ships a config dir.
+#
+# Dev-side mount is `../services/<svc>/config:<container-path>[:ro]` (relative
+# to infrastructure/docker-compose-services.yml). Dist has no services/
+# source tree, so rewrite to `./config/<slug>:<container-path>[:ro]`, which
+# resolves under infrastructure/config/<slug>/ next to the compose file.
+#
+# Rewriting is delegated to release-transforms.js (unit-tested); the loop
+# below only enumerates services and copies each service's config dir.
+declare -A SERVICE_SLUGS=(
+  [iam-service]=iam
+  [notification-service]=notification
+  [token-service]=token
+)
+services_csv=""
+slug_map_csv=""
+for svc_dir in "${REPO_ROOT}"/services/*/config; do
+  [ -d "${svc_dir}" ] || continue
+  svc=$(basename "$(dirname "${svc_dir}")")
+  slug="${SERVICE_SLUGS[${svc}]:-${svc%-service}}"
+  services_csv="${services_csv:+${services_csv},}${svc}"
+  slug_map_csv="${slug_map_csv:+${slug_map_csv},}${svc}=${slug}"
+done
+
+if [[ -n "${services_csv}" ]]; then
+  # Volume rewrite runs once, in Node, and returns a JSON report we log.
+  remap_report=$(node "${ROOT}/scripts/release-transforms.js" remap-volume \
+    --file "${DIST_DIR}/infrastructure/docker-compose-services.yml" \
+    --services "${services_csv}" \
+    --slug-map "${slug_map_csv}")
+  echo "${remap_report}" | node -e '
+    const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
+    for (const { svc, slug, matches } of data.changes) {
+      const path = "../services/" + svc + "/config → ./config/" + slug;
+      if (matches > 0) {
+        console.log("[release]   ✓ " + svc + " volume: " + path + " (" + matches + " occurrences)");
+      } else {
+        console.log("[release]   ⚠ " + svc + ": no dev mount found in compose — skipping rewrite");
+      }
+    }
+  '
+
+  # Copy each service's dev config dir into dist infra config dir. Handled
+  # in bash (not JS) because cp -a is the right primitive; we already know
+  # the source/dest paths from the loop.
+  for svc_dir in "${REPO_ROOT}"/services/*/config; do
+    [ -d "${svc_dir}" ] || continue
+    svc=$(basename "$(dirname "${svc_dir}")")
+    slug="${SERVICE_SLUGS[${svc}]:-${svc%-service}}"
+    mkdir -p "${DIST_DIR}/infrastructure/config/${slug}"
+    cp -a "${svc_dir}/." "${DIST_DIR}/infrastructure/config/${slug}/"
+    echo "[release]   ✓ infrastructure/config/${slug}/ (from services/${svc}/config/)"
+  done
+fi
+
+# Non-seed config dirs (api-gateway routes, grafana provisioning, otel, etc.).
+# Must run AFTER per-service seed loop so we do not clobber freshly copied
+# templates; we skip any dir that already has a config.default.yaml.
+if [ -d "${REPO_ROOT}/infrastructure/config" ]; then
+  find "${REPO_ROOT}/infrastructure/config" -mindepth 1 -maxdepth 1 -print0 |
+    while IFS= read -r -d '' item; do
+      name=$(basename "${item}")
+      if [ -d "${DIST_DIR}/infrastructure/config/${name}" ] &&
+         [ -f "${DIST_DIR}/infrastructure/config/${name}/config.default.yaml" ]; then
+        continue
+      fi
+      cp -a "${item}" "${DIST_DIR}/infrastructure/config/${name}"
+    done
+  echo "[release]   ✓ infrastructure/config/ (non-seed dirs)"
+fi
+
+for d in mysql-init nginx vendor; do
+  if [ -d "${REPO_ROOT}/infrastructure/${d}" ]; then
+    cp -a "${REPO_ROOT}/infrastructure/${d}" "${DIST_DIR}/infrastructure/${d}"
+    echo "[release]   ✓ infrastructure/${d}/"
+  fi
+done
+
+# NEVER copy infrastructure/.env — it has real dev passwords. The dist ships
+# only .env.example (with __CHANGE_ME__ placeholders, from dist-template
+# skeleton copy above); users run `make secrets` to fill in real values.
+if [ ! -f "${DIST_DIR}/.env.example" ]; then
+  echo "[release]   ⚠ .env.example missing from dist-template skeleton — user has no env template" >&2
+fi
+
+echo "[release]   ✓ infrastructure/ (Docker Compose + configs — ready for dev environment)"
+
+# ─── Rust / node workspace stubs ──────────────────────────────────────────
 if [ -f "${REPO_ROOT}/Cargo.toml" ]; then
-  sed '/^[[:space:]]*"services\//d; /^[[:space:]]*"sdk\/rust\//d; /^[[:space:]]*"libs\//d' "${REPO_ROOT}/Cargo.toml" > "${DIST_DIR}/Cargo.toml"
-  echo "[release]   ✓ Cargo.toml (workspace: empty, services/ + sdk/rust/ + libs/ all excluded)"
+  node "${ROOT}/scripts/release-transforms.js" filter-cargo-members \
+    --in "${REPO_ROOT}/Cargo.toml" \
+    --out "${DIST_DIR}/Cargo.toml"
+  echo "[release]   ✓ Cargo.toml (workspace: services/ + sdk/rust/ + libs/ excluded)"
 fi
 
-# .cargo/config.toml - 配置 kellnr registry（libs/* 和 sdk/rust/* 的 crate 托管于此）
-# 分发包用户在宿主机用 cargo 时需此配置；Dockerfile 内部会自动生成等价配置。
-# 第三方 crate 走 rsproxy 镜像（与开发仓库一致），libs/sdk crate 走 kellnr。
 mkdir -p "${DIST_DIR}/.cargo"
 cat > "${DIST_DIR}/.cargo/config.toml" <<'CARGO_CONFIG'
 [source.crates-io]
@@ -263,7 +358,6 @@ git-fetch-with-cli = true
 CARGO_CONFIG
 echo "[release]   ✓ .cargo/config.toml (kellnr registry for libs/* + sdk/rust/*)"
 
-# pnpm workspace + package.json（根调度脚本，CI 门禁命令）
 if [ -f "${REPO_ROOT}/pnpm-workspace.yaml" ]; then
   cp "${REPO_ROOT}/pnpm-workspace.yaml" "${DIST_DIR}/pnpm-workspace.yaml"
 fi
@@ -272,27 +366,48 @@ if [ -f "${REPO_ROOT}/package.json" ]; then
 fi
 echo "[release]   ✓ pnpm-workspace.yaml + package.json"
 
-# AGENTS.md（项目协作指南，skill 引用的约定）
 if [ -f "${REPO_ROOT}/AGENTS.md" ]; then
   cp "${REPO_ROOT}/AGENTS.md" "${DIST_DIR}/AGENTS.md"
-  # 将 .trae/ 引用替换为 .agents/（分发包不使用 Trae IDE）
-  sed -i 's|\.trae/rules/|.agents/rules/|g' "${DIST_DIR}/AGENTS.md"
-  sed -i 's|\.trae/rule/|.agents/rules/|g' "${DIST_DIR}/AGENTS.md"
-  sed -i 's|\.trae/skills/|.agents/skills/|g' "${DIST_DIR}/AGENTS.md"
-  # 移除平台 skill 表行（.trae/skills/ 在分发包中不存在）
-  sed -i '/| 同步基础镜像 |.*\.trae\/skills\//d' "${DIST_DIR}/AGENTS.md"
-  sed -i '/| 审计服务规范 |.*\.trae\/skills\//d' "${DIST_DIR}/AGENTS.md"
-  sed -i '/| 引导开发环境 |.*\.trae\/skills\//d' "${DIST_DIR}/AGENTS.md"
+  node "${ROOT}/scripts/release-transforms.js" rewrite-agents \
+    --file "${DIST_DIR}/AGENTS.md"
   echo "[release]   ✓ AGENTS.md (.trae/ references replaced with .agents/)"
 fi
+
+# ─── MANIFEST.json ────────────────────────────────────────────────────────
+# Records exactly what went into this build so the receiving side can audit
+# provenance (which git commit, when, which images bundled). Serialization
+# is delegated to release-transforms.js so the JSON shape is unit-tested.
+GIT_SHA="unknown"
+GIT_BRANCH="unknown"
+if command -v git >/dev/null 2>&1 && git -C "${REPO_ROOT}" rev-parse --git-dir >/dev/null 2>&1; then
+  GIT_SHA=$(git -C "${REPO_ROOT}" rev-parse HEAD)
+  GIT_BRANCH=$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD)
+fi
+BUILT_AT=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+# Feed images list via tempfile so newlines/quoting stay clean.
+IMAGES_LIST_FILE=$(mktemp)
+trap 'rm -f "${IMAGES_LIST_FILE}"' EXIT
+printf '%s\n' "${IMAGES[@]}" > "${IMAGES_LIST_FILE}"
+
+node "${ROOT}/scripts/release-transforms.js" manifest \
+  --out "${DIST_DIR}/MANIFEST.json" \
+  --version "${VERSION}" \
+  --registry "${REGISTRY}" \
+  --built-at "${BUILT_AT}" \
+  --git-sha "${GIT_SHA}" \
+  --git-branch "${GIT_BRANCH}" \
+  --export-images "${EXPORT_IMAGES}" \
+  --images-file "${IMAGES_LIST_FILE}"
+echo "[release]   ✓ MANIFEST.json (${VERSION} @ ${GIT_SHA:0:7})"
 
 echo "[release] ✓ 开发骨架同步完成"
 echo ""
 
+# ─── tar ──────────────────────────────────────────────────────────────────
 echo "[release] -> 打包 tar.gz..."
-cd "${ROOT}/release"
-tar -czf "coder-micro-services-${VERSION}-airgap.tar.gz" \
-  "coder-micro-services-${VERSION}/"
+(cd "${ROOT}/release" && tar -czf "coder-micro-services-${VERSION}-airgap.tar.gz" \
+  "coder-micro-services-${VERSION}/")
 
 echo "[release] ✓ 完成！"
 echo ""
@@ -306,12 +421,10 @@ if [[ "${EXPORT_IMAGES}" == "1" ]]; then
   echo "  2. 加载镜像：bash bin/load-images.sh"
   echo "  3. 初始化：make secrets"
   echo "  4. 启动：make up"
-  echo ""
-  echo "文档：分发包 docs/ 目录内有 Markdown 源可直接查看；"
-  echo "      完整开发文档请参见开发仓库 docs-site/ 目录。"
 else
-echo "⚠ 本次未导出镜像，离线安装需先自行 docker pull 或单独执行："
-echo "    EXPORT_IMAGES=1 bash scripts/release.sh ${VERSION}"
-  echo "文档：分发包 docs/ 目录内有 Markdown 源可直接查看；"
-  echo "      完整开发文档请参见开发仓库 docs-site/ 目录。"
+  echo "⚠ 本次未导出镜像，离线安装需先自行 docker pull 或单独执行："
+  echo "    EXPORT_IMAGES=1 bash scripts/release.sh ${VERSION}"
 fi
+echo ""
+echo "文档：分发包 docs/ 目录内有 Markdown 源可直接查看；"
+echo "      完整开发文档请参见开发仓库 docs-site/ 目录。"

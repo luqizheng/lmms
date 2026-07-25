@@ -61,6 +61,8 @@
     "docker:build:clean": "node scripts/build-docker.js prune",
     "docker:demo:data": "node scripts/demo-data.js",
     "release:push": "node scripts/release-push.js",
+    "release:test": "node --test release/dist-template/scripts/release-transforms.test.js",
+    "release:build": "bash release/dist-template/scripts/release.sh",
     "sdk:test:java": "cd sdk/java && mvn -B test",
     "sdk:test:java:8": "cd sdk/java && mvn -B test -P java8",
     "sdk:test:java:17": "cd sdk/java && mvn -B test -P java17",

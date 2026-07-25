@@ -12,7 +12,7 @@ bash "${ROOT}/bin/build-frontend.sh"
 
 # 2. 启动所有容器
 echo "[start] → docker compose up -d"
-docker compose --env-file .env up -d
+docker compose --env-file .env -f infrastructure/docker-compose.yml up -d
 
 # 3. 等待关键服务健康
 echo "[start] 等待关键服务健康（最多 120s）..."

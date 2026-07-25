@@ -12,10 +12,10 @@ fi
 
 echo "[upgrade] → 拉取新镜像 tag=${NEW_TAG} ..."
 REGISTRY="${REGISTRY:-zhcoder-docker-registry.com:8000}"
-docker compose --env-file .env pull
+docker compose --env-file .env -f infrastructure/docker-compose.yml pull
 
 echo "[upgrade] → 重启服务（volumes 保留）..."
-docker compose --env-file .env up -d
+docker compose --env-file .env -f infrastructure/docker-compose.yml up -d
 
 echo "[upgrade] ✓ 升级完成: ${NEW_TAG}"
 echo "[upgrade] 验证: bash bin/verify.sh"

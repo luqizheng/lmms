@@ -28,7 +28,7 @@ check "grafana"        "http://localhost:3001/api/health"
 
 echo ""
 echo "=== verify: Docker 容器状态 ==="
-docker compose --env-file .env ps --format "table {{.Name}}\t{{.Status}}" | grep -v "NAME"
+docker compose --env-file .env -f infrastructure/docker-compose.yml ps --format "table {{.Name}}\t{{.Status}}" | grep -v "NAME"
 
 echo ""
 echo "结果: ${OK} 通过, ${FAIL} 失败"
