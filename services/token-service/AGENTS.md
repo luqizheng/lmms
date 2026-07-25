@@ -13,18 +13,35 @@
 
 ## 环境变量
 
+配置加载走 `common_config::Loader`（`TOKEN_` 前缀）。合并 env + yaml 之后由 `validate_all_fields_present` 逐字段校验，任一 deployment-critical 字段为空即启动失败。
+
+**必需字段（env 或 yaml 至少提供一份，否则 fail fast）：**
+
+| 变量 | yaml 键 | 说明 |
+|------|---------|------|
+| TOKEN_DATABASE_URL | database.url | MySQL 连接串 |
+| TOKEN_JWT_PRIVATE_KEY_PATH | jwt_private_key_path | RS256 私钥文件路径 |
+| TOKEN_JWT_PUBLIC_KEY_PATH | jwt_public_key_path | RS256 公钥文件路径 |
+| TOKEN_ISSUER | issuer | JWT `iss` claim |
+| TOKEN_USER_SERVICE_URL | user_service_url | iam-service 地址 |
+
+**可选字段（有非敏感 `Default`）：**
+
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| SERVER_HOST | 0.0.0.0 | 监听主机 |
-| SERVER_PORT | 8080 | 监听端口 |
-| SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址 |
-| DATABASE_URL | 服务自定义 | MySQL 连接 |
-| RUST_LOG | info | 日志级别 |
+| TOKEN_SERVER_HOST | 0.0.0.0 | 监听主机 |
+| TOKEN_SERVER_PORT | 4000 | 监听端口（compose 里显式设 8082） |
+| TOKEN_DATABASE_MAX_CONNECTIONS | 16 | 连接池上限 |
+| TOKEN_DATABASE_DB_TYPE | mysql | 目前仅支持 mysql |
+| TOKEN_CONSUL_ADDR | http://localhost:8500 | Consul 地址（服务当前走 registrator sidecar 注册，此字段仅日志） |
+| TOKEN_CONSUL_SERVICE_NAME | token-service | Consul 服务名 |
+| TOKEN_CONSUL_SERVICE_ID_FILE | /tmp/token-service-id | Consul service id 文件 |
+| TOKEN_DEFAULT_ACCESS_TTL_SEC | 3600 | access token 默认 TTL |
+| TOKEN_DEFAULT_REFRESH_TTL_SEC | 2592000 | refresh token 默认 TTL |
+| TOKEN_DEFAULT_RESOURCE_TTL_SEC | 300 | resource token 默认 TTL |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
-| CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
-| JWT_PRIVATE_KEY_PATH | keys/private.pem | JWT 私钥路径（RS256 签发用） |
-| JWT_PUBLIC_KEY_PATH | keys/public.pem | JWT 公钥路径（JWKS endpoint 暴露） |
-| SERVICE_BOOTSTRAP_TOKENS | （空） | 各业务服务的逗号分隔 bootstrap token；未设置则 POST /tokens/service-jwt 拒绝所有调用方 |
+| RUST_LOG | info | 日志级别 |
+| SERVICE_BOOTSTRAP_TOKENS | 空 | 各业务服务的逗号分隔 bootstrap token；未设置则 POST /tokens/service-jwt 拒绝所有调用方 |
 
 ## 端点域
 

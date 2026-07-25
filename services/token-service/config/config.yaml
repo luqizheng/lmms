@@ -1,14 +1,29 @@
+# token-service config baseline (mirrors iam-service / notification-service pattern:
+# env > yaml > (fail fast validate)). Sensitive fields (database.url, JWT keys)
+# are left empty on purpose — deployments MUST provide them via env
+# (TOKEN_DATABASE_URL / TOKEN_JWT_PRIVATE_KEY_PATH / ...). Startup fails fast
+# via `validate_all_fields_present` if any required field is blank after merge.
+#
+# Loaded by `common_config::Loader::new("TOKEN")` with `TOKEN_` prefix env
+# override. Env names are the yaml path joined by `_`, e.g.
+#   database.url       -> TOKEN_DATABASE_URL
+#   server.port        -> TOKEN_SERVER_PORT
+#   jwt_private_key_path -> TOKEN_JWT_PRIVATE_KEY_PATH
+
 server:
   host: "0.0.0.0"
   port: 8082
+
 database:
   db_type: mysql
-  url: "mysql://root:rootpass@mysql:3306/superpowers"
+  url: ""              # required — set via TOKEN_DATABASE_URL env
   max_connections: 16
+
 consul:
   addr: "http://consul:8500"
   service_name: "token-service"
   service_id_file: "/tmp/token-service-id"
+
 jwt_private_key_path: "/app/keys/private.pem"
 jwt_public_key_path: "/app/keys/public.pem"
 issuer: "superpowers-token-service"

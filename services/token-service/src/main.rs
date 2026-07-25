@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use common_config::Loader;
 use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
+use token_service::config::validate_all_fields_present;
 use token_service::openapi::ApiDoc;
 use token_service::routes;
 use token_service::service::oauth_client_svc;
@@ -25,6 +26,12 @@ async fn main() {
     let cfg: TokenServerConfig = loader
         .load()
         .expect("failed to load config (tried config/config.yaml)");
+
+    // Fail fast on missing deployment-critical fields. Config::default now
+    // leaves sensitive fields empty (database.url / jwt keys / issuer /
+    // user_service_url), so a missing env var + missing yaml key surfaces
+    // here instead of silently connecting to a dev-only fallback DB.
+    validate_all_fields_present(&cfg).expect("token-service config validation");
 
     println!("========== token-service config ==========");
     println!("server.host           : {}", cfg.server.host);
