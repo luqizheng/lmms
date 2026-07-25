@@ -254,8 +254,12 @@ services:
     ports:
       - "9081:8081"
     labels: *svc-reg-labels-iam
+    # dev-only bind mount: iam-service writes config.yaml on first boot from
+    # embedded default (see services/iam-service/src/config.rs). Not :ro so
+    # seed can succeed; runtime env vars always override the yaml regardless.
+    # The seeded yaml is git-ignored (see .gitignore).
     volumes:
-      - ../services/iam-service/config:/etc/iam-service:ro
+      - ../services/iam-service/config:/etc/iam-service
     environment:
       # ── 直接读取（main.rs 中硬编码读取） ──
       SERVICE_BOOTSTRAP_TOKEN: "${IAM_DEV_BT}"
@@ -291,8 +295,11 @@ services:
       dockerfile: services/iam-service/Dockerfile
     command: ["outbox-publisher"]
     restart: unless-stopped
+    # dev-only bind mount: shares the seeded config.yaml with iam-service.
+    # Not :ro — both processes race to seed; create_new picks one winner
+    # (see services/iam-outbox-publisher/src/main.rs::seed_if_absent).
     volumes:
-      - ../services/iam-service/config:/etc/iam-service:ro
+      - ../services/iam-service/config:/etc/iam-service
     environment:
       DATABASE_URL: "${DATABASE_URL}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
@@ -348,14 +355,15 @@ services:
     ports:
       - "8083:8083"
     labels: *svc-reg-labels-notify
-    # Phase 5-A-2 dephase: notification-service's baked config.yaml
-    # had http_addr 127.0.0.1:18083 (mesh internal). Override at runtime
-    # with the post-dephase config so the service binds 0.0.0.0:8083
-    # without rebuild.
+    # dev-only bind mount: notification-service writes config.yaml on first
+    # boot from embedded default (see services/notification-service/src/config.rs).
+    # Not :ro so seed can succeed; env always wins over the yaml regardless.
+    # The seeded yaml is git-ignored.
     volumes:
-      - ../services/notification-service/config:/app/config:ro
+      - ../services/notification-service/config:/etc/notification-service
     environment:
       # ── 直接读取（main.rs 中硬编码读取） ──
+      CONFIG_PATH: "/etc/notification-service/config.yaml"
       SERVICE_BOOTSTRAP_TOKEN: "${NOTIFICATION_DEV_BT}"
       TENANT_ID: "${TENANT_ID}"
       TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
