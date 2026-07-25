@@ -6,10 +6,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     init_tracing("config-service");
 
-    let config = AppConfig::from_env();
+    let config = AppConfig::from_env()?;
     tracing::info!("Starting config-service on {}", config.server_addr);
 
     let pool = init_pool(&config.database_url)
@@ -76,4 +76,5 @@ async fn main() {
     });
 
     axum::serve(listener, app).await.expect("Server error");
+    Ok(())
 }

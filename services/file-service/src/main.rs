@@ -11,10 +11,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     init_tracing("file-service");
 
-    let config = AppConfig::from_env();
+    let config = AppConfig::from_env()?;
     tracing::info!("Starting file-service on {}", config.server_addr);
 
     std::fs::create_dir_all(&config.storage_path).expect("Failed to create storage directory");
@@ -86,4 +86,5 @@ async fn main() {
     });
 
     axum::serve(listener, app).await.expect("Server error");
+    Ok(())
 }

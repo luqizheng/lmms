@@ -1,19 +1,13 @@
+use anyhow::{Context, bail};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
-    #[serde(default = "default_database_url")]
     pub database_url: String,
     #[serde(default = "default_server_addr")]
     pub server_addr: String,
     #[serde(default = "default_log_level")]
     pub log_level: String,
-}
-
-fn default_database_url() -> String {
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        "mysql://root:root@127.0.0.1:3306/superpowers?charset=utf8mb4".to_string()
-    })
 }
 
 fn default_server_addr() -> String {
@@ -25,11 +19,17 @@ fn default_log_level() -> String {
 }
 
 impl AppConfig {
-    pub fn from_env() -> Self {
-        Self {
-            database_url: default_database_url(),
+    /// DATABASE_URL is required — no dev-DB fallback.
+    pub fn from_env() -> anyhow::Result<Self> {
+        let database_url = std::env::var("DATABASE_URL")
+            .context("DATABASE_URL required — config-service has no fallback")?;
+        if database_url.trim().is_empty() {
+            bail!("DATABASE_URL is set but empty");
+        }
+        Ok(Self {
+            database_url,
             server_addr: default_server_addr(),
             log_level: default_log_level(),
-        }
+        })
     }
 }

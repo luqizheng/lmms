@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::main]
-async fn main() {
-    let config = AppConfig::from_env();
+async fn main() -> anyhow::Result<()> {
+    let config = AppConfig::from_env()?;
     init_tracing("prue_backend");
 
     tracing::info!("Starting prue_backend on {}", config.server_addr);
@@ -80,4 +80,5 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("Server error");
+    Ok(())
 }

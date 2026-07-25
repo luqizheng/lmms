@@ -13,17 +13,19 @@
 
 ## 环境变量
 
+配置走 `AppConfig::from_env()` 纯 env 模式（无 yaml 文件）。**`DATABASE_URL` 必填**（无 fallback，缺失或空白启动 fail-fast）。其它变量有 operational default。
+
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
+| DATABASE_URL | **必填** | MySQL 连接串；缺失或空白启动 fail-fast |
 | SERVER_HOST | 0.0.0.0 | 监听主机 |
 | SERVER_PORT | 8080 | 监听端口 |
 | SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址 |
-| DATABASE_URL | 服务自定义 | MySQL 连接串 |
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | false | 是否挂 SwaggerUi |
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
 | EVENT_BUS_URL | amqp://guest:guest@localhost:5672/%2f | RabbitMQ 连接（事件消费） |
-| REDIS_URL | redis://127.0.0.1:6379 | 风控滑动窗口计数存储 |
+| REDIS_URL | redis://127.0.0.1:6379 | 风控滑动窗口计数存储（best-effort，连接失败仅 warn 不阻塞主流程） |
 | LOGIN_RISK_THRESHOLD | 5 | 窗口内登录失败次数告警阈值 |
 | LOGIN_RISK_WINDOW_SECS | 300 | 风控滑动窗口秒数 |
 

@@ -1,12 +1,10 @@
+use anyhow::{Context, bail};
+
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     pub database_url: String,
     pub server_addr: String,
     pub log_level: String,
-}
-
-fn default_database_url() -> String {
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite::memory:".to_string())
 }
 
 fn default_server_addr() -> String {
@@ -20,11 +18,18 @@ fn default_log_level() -> String {
 }
 
 impl AppConfig {
-    pub fn from_env() -> Self {
-        Self {
-            database_url: default_database_url(),
+    /// DATABASE_URL is required — no sqlite::memory: fallback. Callers
+    /// (tests, dev scripts) must set it explicitly.
+    pub fn from_env() -> anyhow::Result<Self> {
+        let database_url = std::env::var("DATABASE_URL")
+            .context("DATABASE_URL required — prue_backend has no fallback")?;
+        if database_url.trim().is_empty() {
+            bail!("DATABASE_URL is set but empty");
+        }
+        Ok(Self {
+            database_url,
             server_addr: default_server_addr(),
             log_level: default_log_level(),
-        }
+        })
     }
 }

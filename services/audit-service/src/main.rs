@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
     init_tracing("audit-service");
     audit_service::risk::init_metrics();
 
-    let config = AppConfig::from_env();
+    let config = AppConfig::from_env()?;
     info!("Starting audit-service on {}", config.server_addr);
 
     let pool = connect(&config.database_url, 10)
