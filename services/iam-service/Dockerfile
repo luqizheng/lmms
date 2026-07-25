@@ -30,7 +30,10 @@ RUN apk add --no-cache ca-certificates curl
 COPY --from=builder /app/iam-service /usr/local/bin/iam-service
 COPY --from=builder /app/outbox-publisher /usr/local/bin/outbox-publisher
 
-COPY services/iam-service/config/config.yaml /etc/iam-service/config.yaml
+# Note: no COPY of config.yaml. The default config is embedded in the binary
+# via `include_str!("../config/config.default.yaml")` (see src/config.rs) and
+# is written to CONFIG_PATH on first boot if the file is absent. Runtime
+# overrides come from env vars (see services/iam-service/AGENTS.md).
 
 EXPOSE 8080
 

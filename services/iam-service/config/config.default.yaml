@@ -1,0 +1,37 @@
+# iam-service default config (embedded via include_str! at compile time).
+# On first boot, when CONFIG_PATH does not exist, this file's contents are
+# seeded to the target path. On subsequent boots, the seeded file is read
+# as-is. Env vars always take precedence over any value here.
+#
+# Priority: env > this file > (fail — no hardcoded fallback)
+#
+# Sensitive fields (database.url, redis.url) are left empty on purpose.
+# They MUST be provided via env vars (DATABASE_URL / REDIS_URL) or by
+# editing the seeded file directly. Startup fails fast if either ends up
+# blank after the merge.
+
+app:
+  name: iam-service
+  host: 0.0.0.0
+  port: 8081
+
+database:
+  url: ""              # required — set via DATABASE_URL env
+  max_connections: 20
+  min_connections: 5
+
+redis:
+  url: ""              # required — set via REDIS_URL env
+  ttl_sec: 86400
+  prefix: "superpowers:"
+
+jwt:
+  private_key_path: /app/keys/private.pem
+  public_key_path: /app/keys/public.pem
+  access_token_ttl_minutes: 15
+  refresh_token_ttl_days: 7
+
+consul:
+  host: consul
+  port: 8500
+  service_name: iam-service

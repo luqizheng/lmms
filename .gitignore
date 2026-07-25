@@ -12,6 +12,15 @@ redis_data/
 frontend/coverage/
 services/auth-service/bin/
 services/user-service/bin/
+
+# iam-service seeds config.yaml on first boot from config.default.yaml (see
+# services/iam-service/src/config.rs). The seeded file lives alongside its
+# template on dev machines (because compose bind-mounts this dir), so ignore
+# the runtime artifact to keep `git status` clean.
+services/iam-service/config/config.yaml
+
+# notification-service same pattern (see services/notification-service/src/config.rs).
+services/notification-service/config/config.yaml
 docker/mysql/data
 sdk/dotnet/**/bin/
 sdk/dotnet/**/obj/

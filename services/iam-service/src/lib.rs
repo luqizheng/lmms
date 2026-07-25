@@ -11,4 +11,4 @@ pub mod routes;
 pub mod service;
 pub mod state;
 
-pub use config::{load_config, Config};
+pub use config::{load_config, load_config_with_env, Config};

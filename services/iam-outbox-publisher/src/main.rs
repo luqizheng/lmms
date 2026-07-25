@@ -14,34 +14,106 @@
 //! - **Graceful shutdown (SIGINT + SIGTERM):** stops claiming new batches but
 //!   lets the current batch finish (publish + mark) before exit, so a
 //!   published-but-unmarked row is never left behind by our own shutdown.
+//!
+//! Config: mirrors iam-service's three-tier semantics for `database.url`:
+//!     env DATABASE_URL > CONFIG_PATH yaml > (fail fast).
+//! The embedded default yaml (same file iam-service uses) is seeded to
+//! `CONFIG_PATH` on first boot if absent; `create_new` handles the race with
+//! iam-service starting in parallel. Empty/blank `database.url` after the
+//! merge → hard error at startup.
 
 mod outbox_archive;
 
+use std::io::{ErrorKind, Write};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
 use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
 
-/// Minimal config fallback: reads `database.url` from iam-service's
-/// `config/config.yaml` when `DATABASE_URL` env is not set.
-fn load_db_url_from_yaml() -> anyhow::Result<String> {
-    let config_path = std::env::var("CONFIG_PATH")
-        .unwrap_or_else(|_| "config/config.yaml".to_string());
-    let content = std::fs::read_to_string(config_path)?;
+/// Shared with iam-service; compile-time embedded. Both processes seed this
+/// same content, and `create_new` in `seed_if_absent` guarantees exactly one
+/// writer wins the race.
+const DEFAULT_YAML: &str =
+    include_str!("../../iam-service/config/config.default.yaml");
+
+const DEFAULT_CONFIG_PATH: &str = "/etc/iam-service/config.yaml";
+
+/// Load `database.url` with the same priority ladder as iam-service:
+///     env DATABASE_URL > CONFIG_PATH yaml > (fail fast).
+/// Any resolved value that is empty / whitespace-only is treated as unset.
+fn load_db_url() -> anyhow::Result<String> {
+    if let Ok(u) = std::env::var("DATABASE_URL") {
+        let trimmed = u.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+        warn!("DATABASE_URL is set but blank; falling back to yaml");
+    }
+
+    let config_path =
+        std::env::var("CONFIG_PATH").unwrap_or_else(|_| DEFAULT_CONFIG_PATH.to_string());
+    let path = Path::new(&config_path);
+    if !path.exists() {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match seed_if_absent(path) {
+            Ok(true) => info!(path = %config_path, "seeded config.yaml from embedded default"),
+            Ok(false) => {} // peer (iam-service) beat us to it, fine
+            Err(e) => warn!(
+                error = %e,
+                path = %config_path,
+                "seed failed; will fall back to embedded default yaml input"
+            ),
+        }
+    }
+
+    let yaml_content = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        warn!(
+            error = %e,
+            path = %config_path,
+            "config file unreadable; using embedded default as yaml input"
+        );
+        DEFAULT_YAML.to_string()
+    });
+
     #[derive(serde::Deserialize)]
     struct DbConfig {
         database: DatabaseSection,
     }
     #[derive(serde::Deserialize)]
     struct DatabaseSection {
+        #[serde(default)]
         url: String,
     }
-    let cfg: DbConfig = serde_yaml::from_str(&content)?;
-    Ok(cfg.database.url)
+    let cfg: DbConfig = serde_yaml::from_str(&yaml_content).context("parse iam config yaml")?;
+    let url = cfg.database.url.trim();
+    if url.is_empty() {
+        return Err(anyhow!(
+            "database.url unset — provide DATABASE_URL env or set database.url in {config_path}"
+        ));
+    }
+    Ok(url.to_string())
+}
+
+fn seed_if_absent(path: &Path) -> std::io::Result<bool> {
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+    {
+        Ok(mut f) => {
+            f.write_all(DEFAULT_YAML.as_bytes())?;
+            Ok(true)
+        }
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Ok(false),
+        Err(e) => Err(e),
+    }
 }
 
 #[tokio::main]
@@ -49,11 +121,7 @@ async fn main() -> anyhow::Result<()> {
     common_telemetry::init_tracing("iam-outbox-publisher");
     info!("iam-outbox-publisher starting");
 
-    // DB url: prefer DATABASE_URL env (compose/CI), else iam-service config.
-    let db_url = match std::env::var("DATABASE_URL") {
-        Ok(u) => u,
-        Err(_) => load_db_url_from_yaml().context("load iam config")?,
-    };
+    let db_url = load_db_url().context("resolve DATABASE_URL")?;
     let event_bus_url = std::env::var("EVENT_BUS_URL")
         .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());
     let exchange = std::env::var("EVENT_BUS_EXCHANGE").unwrap_or_else(|_| "events".to_string());

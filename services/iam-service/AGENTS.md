@@ -13,17 +13,45 @@
 
 ## 环境变量
 
+配置加载遵循三段优先级：**env > yaml > (fail fast)**。合并后任一必需字段仍为空 → 服务启动失败并列出缺失字段。yaml 模板从二进制 `include_str!` 内嵌（`config/config.default.yaml`），首次启动时若 `CONFIG_PATH` 不存在则原子写入（`create_new` 抗 iam-service / iam-outbox-publisher 并发 race）。
+
+### 直接读取的 env（非 yaml 覆盖）
+
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| SERVER_HOST | 0.0.0.0 | 监听主机 |
-| SERVER_PORT | 8080 | 监听端口 |
-| SERVER_ADDR | 0.0.0.0:8080 | 完整监听地址 |
-| DATABASE_URL | 服务自定义 | 数据库连接 |
-| RUST_LOG | info | 日志级别 |
+| CONFIG_PATH | `/etc/iam-service/config.yaml` | yaml 目标路径；不存在则 seed 内嵌 default |
+| SERVICE_BOOTSTRAP_TOKEN | 必填 | 服务间调用启动令牌 |
+| TENANT_ID | 必填 | 租户 ID（i64） |
+| TOKEN_SERVICE_URL | `http://token-service:8082` | token 服务地址 |
+| JWKS_URL | `http://token-service:8082/.well-known/jwks.json` | JWKS 拉取地址 |
+| IAM_PRIVATE_KEY_PEM_PATH | 空 | 可选：预留私钥路径（当前未使用） |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
-| CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
-| REDIS_URL | 服务自定义 | perm_epoch 直写（Phase 4.4）|
+| RUST_LOG | info | 日志级别 |
+| REDIS_URL | 服务自定义 | perm_epoch 直写（Phase 4.4；见下方 yaml 覆盖表也可写） |
 | REDIS_PREFIX | superpowers: | perm_epoch key 前缀，**必须与 api-gateway `GW_REDIS__PREFIX` 一致** |
+| CONSUL_ADDR | http://localhost:8500 | Consul 地址（未在 Config struct，直接读取用于注册） |
+
+### 覆盖 `config.yaml` 同名字段的 env
+
+| 变量 | yaml 键 | yaml 默认值 |
+|------|---------|-------------|
+| SERVER_HOST | app.host | 0.0.0.0 |
+| SERVER_PORT | app.port | 8081 |
+| DATABASE_URL | database.url | 空（必须由 env 或 yaml 提供，否则 fail） |
+| DATABASE_MAX_CONNECTIONS | database.max_connections | 20 |
+| DATABASE_MIN_CONNECTIONS | database.min_connections | 5 |
+| REDIS_URL | redis.url | 空（必须由 env 或 yaml 提供，否则 fail） |
+| REDIS_TTL_SEC | redis.ttl_sec | 86400 |
+| REDIS_PREFIX | redis.prefix | superpowers: |
+| JWT_PRIVATE_KEY_PATH | jwt.private_key_path | /app/keys/private.pem |
+| JWT_PUBLIC_KEY_PATH | jwt.public_key_path | /app/keys/public.pem |
+| JWT_ACCESS_TOKEN_TTL_MINUTES | jwt.access_token_ttl_minutes | 15 |
+| JWT_REFRESH_TOKEN_TTL_DAYS | jwt.refresh_token_ttl_days | 7 |
+| CONSUL_HOST | consul.host | consul |
+| CONSUL_PORT | consul.port | 8500 |
+| CONSUL_SERVICE_NAME | consul.service_name | iam-service |
+
+数字类 env 解析失败（如 `SERVER_PORT=abc`）会 warn 后保持 yaml 值；空字符串 / 全空白值等同"未设置"，触发 fail-fast 校验。
 
 ## 事件生产 / 令牌失效（Phase 4.4）
 
