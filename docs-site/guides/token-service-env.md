@@ -1,44 +1,60 @@
 # token-service 环境变量
 
-配置加载优先级：**代码默认值 ← config.yaml ← `TOKEN_*` 环境变量 ← docker-compose environment**
+配置加载优先级：**env（`TOKEN_` 前缀） > yaml > fail-fast（敏感字段清空 default 后由 validate 把关）**
 
-## 配置结构字段（`TOKEN_` 前缀覆盖）
+## 启动流程
 
-通过 `common_config::Loader::new("TOKEN")` 加载，环境变量名 = 前缀 `TOKEN_` + 蛇形配置路径。
+1. `common_config::Loader::new("TOKEN").with_file("config/config.yaml")`（`required(false)`，文件缺失不报错）
+2. 合并 yaml + env 后调用 `validate_all_fields_present`：5 个敏感字段任一为空立即 panic
+3. `Config::default` 把 `database.url` / `jwt_private_key_path` / `jwt_public_key_path` / `issuer` / `user_service_url` 全部留空，**不再有 dev fallback**——遗漏 env 不会静默错配
 
-| 中文 | env | docker-compose 值 | 代码默认值 |
-|------|-----|-------------------|-----------|
-| 监听主机 | `TOKEN_SERVER_HOST` | `0.0.0.0` | `0.0.0.0` |
-| 监听端口 | `TOKEN_SERVER_PORT` | `8082` | `4000` |
-| 数据库类型 | `TOKEN_DATABASE_DB_TYPE` | `mysql` | `mysql` |
-| 数据库连接 URL | `TOKEN_DATABASE_URL` | `${DATABASE_URL}` → `mysql://root:rootpass@mysql:3306/superpowers` | `mysql://token_service:token_pwd@localhost:3306/token_service` |
-| 数据库最大连接数 | `TOKEN_DATABASE_MAX_CONNECTIONS` | `16` | `16` |
-| Consul 地址 | `TOKEN_CONSUL_ADDR` | `http://consul:8500` | `http://localhost:8500` |
-| Consul 服务名 | `TOKEN_CONSUL_SERVICE_NAME` | `token-service` | `token-service` |
-| Consul 服务 ID 文件 | `TOKEN_CONSUL_SERVICE_ID_FILE` | `/tmp/token-service-id` | `/tmp/token-service-id` |
-| JWT 私钥路径 | `TOKEN_JWT_PRIVATE_KEY_PATH` | `/app/keys/private.pem` | `keys/private.pem` |
-| JWT 公钥路径 | `TOKEN_JWT_PUBLIC_KEY_PATH` | `/app/keys/public.pem` | `keys/public.pem` |
-| JWT 签发者 | `TOKEN_ISSUER` | `superpowers-token-service` | `superpowers-token-service` |
-| Access Token 有效期（秒） | `TOKEN_DEFAULT_ACCESS_TTL_SEC` | `3600` | `3600` |
-| Refresh Token 有效期（秒） | `TOKEN_DEFAULT_REFRESH_TTL_SEC` | `2592000` | `2592000` |
-| Resource Token 有效期（秒） | `TOKEN_DEFAULT_RESOURCE_TTL_SEC` | `300` | `300` |
-| 用户服务地址 | `TOKEN_USER_SERVICE_URL` | `http://iam-service:8081` | `http://127.0.0.1:9081` |
+## 1. 必需字段（env 或 yaml 至少给一份，否则启动失败）
 
-## 非配置字段（main.rs 直接读取）
+| env | yaml 键 | 说明 |
+|-----|---------|------|
+| `TOKEN_DATABASE_URL` | `database.url` | MySQL 连接串 |
+| `TOKEN_JWT_PRIVATE_KEY_PATH` | `jwt_private_key_path` | RS256 私钥文件路径 |
+| `TOKEN_JWT_PUBLIC_KEY_PATH` | `jwt_public_key_path` | RS256 公钥文件路径 |
+| `TOKEN_ISSUER` | `issuer` | JWT `iss` claim |
+| `TOKEN_USER_SERVICE_URL` | `user_service_url` | iam-service 地址 |
 
-| 中文 | env | docker-compose 值 | 默认值 |
-|------|-----|-------------------|--------|
-| 服务启动令牌（逗号分隔） | `SERVICE_BOOTSTRAP_TOKENS` | `${SERVICE_BOOTSTRAP_TOKENS}` | 空（拒绝所有调用方） |
-| 租户 ID | `TENANT_ID` | `${TENANT_ID}` | — |
-| 是否启用 Swagger UI | `SWAGGER_ENABLED` | `true` | `true` |
-| OpenTelemetry 端点 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | — |
-| 服务名（通用标识） | `SERVICE_NAME` | `token-service` | `token-service` |
-| 服务实例 ID | `SERVICE_ID` | `token-service` | `token-service` |
-| 服务端口（注册探测） | `SERVICE_PORT` | `8082` | `8080` |
-| 健康检查路径 | `SERVICE_HEALTH_PATH` | `/health` | `/health` |
-| 配置中心地址（可选） | `CONFIG_SERVICE_URL` | — | — |
-| 配置中心命名空间（可选） | `CONFIG_SERVICE_NAMESPACE` | — | — |
-| 日志级别 | `RUST_LOG` | `info` | `info` |
+## 2. 非敏感 operational 默认
 
-> **注意**：`SERVICE_NAME` 与 `TOKEN_CONSUL_SERVICE_NAME` 不是同一个设置。
-> `SERVICE_NAME` 被遥测/日志库（`common_telemetry`）读取，作为服务通用标识；`TOKEN_CONSUL_SERVICE_NAME` 是 Consul 注册专用配置，由 `config.yaml` 的 `consul.service_name` 控制。两者值都是 `token-service`，但用途不同。
+| env | 默认 | 说明 |
+|-----|------|------|
+| `TOKEN_SERVER_HOST` | `0.0.0.0` | 监听主机 |
+| `TOKEN_SERVER_PORT` | `4000`（compose 显式设 `8082`） | 监听端口 |
+| `TOKEN_DATABASE_DB_TYPE` | `mysql` | 目前仅支持 mysql |
+| `TOKEN_DATABASE_MAX_CONNECTIONS` | `16` | 连接池上限 |
+| `TOKEN_CONSUL_ADDR` | `http://localhost:8500` | 服务走 registrator sidecar 注册，此字段仅日志 |
+| `TOKEN_CONSUL_SERVICE_NAME` | `token-service` | Consul 服务名 |
+| `TOKEN_CONSUL_SERVICE_ID_FILE` | `/tmp/token-service-id` | Consul service id 文件 |
+| `TOKEN_DEFAULT_ACCESS_TTL_SEC` | `3600` | access token 默认 TTL |
+| `TOKEN_DEFAULT_REFRESH_TTL_SEC` | `2592000` | refresh token 默认 TTL |
+| `TOKEN_DEFAULT_RESOURCE_TTL_SEC` | `300` | resource token 默认 TTL |
+
+## 3. main.rs 直接读取（非 Loader）
+
+| env | 默认 | 说明 |
+|-----|------|------|
+| `SERVICE_BOOTSTRAP_TOKENS` | 空 | 逗号分隔 bootstrap token，空则 `POST /tokens/service-jwt` 拒绝所有调用方 |
+| `TENANT_ID` | `1` | 租户 ID |
+| `SWAGGER_ENABLED` | `true` | Swagger UI 开关 |
+| `CONFIG_SERVICE_URL` | 空 | 可选：远程配置中心地址 |
+| `CONFIG_SERVICE_NAMESPACE` | 空 | 可选：远程配置中心命名空间 |
+| `RUST_LOG` | `info` | 日志级别 |
+
+## 4. dev 与分发包两侧挂载
+
+| 环境 | compose 挂载 | 说明 |
+|------|-------------|------|
+| dev | `../services/token-service/config:/app/config:ro` | **保留 `:ro`**（dephase 历史包袱，compose 行 191-193 注释）；源码 `services/token-service/config/config.yaml` 已清掉 mysql 密码 |
+| 分发包 | `./config/token:/app/config:ro` | 内聚 `infrastructure/config/token/`；yaml 里 `database.url: ""` 靠 `TOKEN_DATABASE_URL` 补 |
+
+## 5. 失败语义速查
+
+| 场景 | 行为 |
+|------|------|
+| 5 个敏感字段任一为空 | panic：`token-service config missing required fields after env merge: ...` |
+| yaml 不存在 | Loader `required(false)` → 仅靠 env + default → validate 把关敏感字段 |
+| `TOKEN_SERVER_PORT` 写错 | Loader 反序列化报错，启动失败 |

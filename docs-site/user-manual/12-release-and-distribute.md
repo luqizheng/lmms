@@ -112,17 +112,34 @@ bash release/dist-template/scripts/release.sh v1.0.0
 
 | 维度 | dev 仓库 | dist 包 |
 |------|----------|---------|
-| Compose 路径 | `infrastructure/docker-compose-services.yml` | `compose/services.yml`（重组为模块化） |
-| 主入口 | `infrastructure/docker-compose.yml`（include 子文件） | 根 `docker-compose.yml`（include `compose/*.yml`） |
+| Compose 路径 | `infrastructure/docker-compose-services.yml` | `infrastructure/docker-compose-services.yml`（**与 dev 一致**，release.sh sed 重写 volume 挂载源路径） |
+| 主入口 | `infrastructure/docker-compose.yml`（include 子文件） | `infrastructure/docker-compose.yml`（**与 dev 一致**，`bin/*.sh` 用 `-f infrastructure/docker-compose.yml` 调用） |
 | Skill 路径 | `.agents/skills/` | `skills/`（**去掉了点开头**，AI 工具默认不识别，§12.8 ⚠️） |
 | `services/` | 含 8 个核心服务 + agents-template.md | **空目录** + `agents-template.md`（业务服务动态创建） |
 | `Cargo.toml` members | `services/*` 全列 | `services/*` 被 `sed` 剥掉，由 skill 创建时动态加入 |
-| API Gateway 路由 | `infrastructure/config/api-gateway/routes/*.router.toml` | `config/api-gateway/routes/*.router.toml`（去了一层目录） |
+| API Gateway 路由 | `infrastructure/config/api-gateway/routes/*.router.toml` | `infrastructure/config/api-gateway/routes/*.router.toml`（**与 dev 一致**） |
+| 服务配置文件 | `services/<svc>/config/`（开发仓库源码内） | `infrastructure/config/<slug>/`（内聚；iam / notification / token 三服务首启自动 seed 或运行时读） |
 | 运维入口 | pnpm 脚本 | Makefile（`make up` / `make verify` / ...） |
 | `bin/` | 无（运维在 `infrastructure/`） | 12 个一键脚本（`start.sh` / `stop.sh` / `load-images.sh` / `generate-secrets.sh` / `upgrade.sh` 等） |
 | `secrets/` | 无（token-service 启动时自举生成 RSA key pair 写入 `/app/keys/`） | 运行时由 `make secrets` 生成的密钥目录 |
+| `MANIFEST.json` | 无 | 构建时生成（version / git_sha / built_at / images 清单） |
 
 **dist 包不需要**：`services/` 下的核心服务源码（已编译进镜像）、`.gitlab-ci.yml`（无 CI）、`infrastructure/` 下 dev 用 overlay。
+
+### 服务配置 seed 机制（iam / notification / token）
+
+iam-service / notification-service / token-service 的 yaml 配置**不在 dev 源码树上**，分发包通过 `infrastructure/config/<slug>/` 挂载：
+
+| 服务 | 分发包挂载 | 启动行为 |
+|------|-----------|---------|
+| iam-service | `./config/iam:/etc/iam-service` | 首启若 `config.yaml` 不存在 → 从二进制内嵌 `config.default.yaml` seed 出一份（`create_new` 原子写，与 iam-outbox-publisher 并发安全） |
+| iam-outbox-publisher | 同上 | 共享同一份 seeded yaml |
+| notification-service | `./config/notification:/etc/notification-service` | 同 iam |
+| token-service | `./config/token:/app/config:ro` | 镜像 baked `config.yaml`（含 dev `database.url: ""`），启动时 `TOKEN_DATABASE_URL` env 覆盖 + fail-fast 校验 |
+
+**运维改配置**：直接编辑 `infrastructure/config/<slug>/config.yaml`（iam/notification 首启后自动出现），重启容器生效；env 永远覆盖 yaml。
+
+**配置字段参考**：见 [`docs-site/guides/config-model.md`](../guides/config-model.md)（三段瀑布总览）与各 `*-env.md`。
 
 ---
 

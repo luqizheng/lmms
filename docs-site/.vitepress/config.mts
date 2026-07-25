@@ -138,7 +138,14 @@ export default defineConfig({
             { text: 'Java 集成', link: '/guides/java-integration' },
             { text: 'Rust SDK', link: '/guides/rust-sdk' },
             { text: '提交规范', link: '/guides/commit-convention' },
-            { text: 'token-service 环境变量', link: '/guides/token-service-env' }
+            { text: '平台配置模型 (env / yaml / fail-fast)', link: '/guides/config-model' },
+            { text: 'token-service 环境变量', link: '/guides/token-service-env' },
+            { text: 'iam-service 环境变量', link: '/guides/iam-service-env' },
+            { text: 'notification-service 环境变量', link: '/guides/notification-service-env' },
+            { text: 'audit-service 环境变量', link: '/guides/audit-service-env' },
+            { text: 'config-service 环境变量', link: '/guides/config-service-env' },
+            { text: 'file-service 环境变量', link: '/guides/file-service-env' },
+            { text: 'prue_backend 环境变量', link: '/guides/prue-backend-env' }
           ]
         }
       ],

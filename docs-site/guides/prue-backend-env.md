@@ -2,11 +2,13 @@
 
 配置加载优先级：**代码默认值 ← 环境变量 ← docker-compose environment**
 
+**`DATABASE_URL` 必填**（本轮起移除 `sqlite::memory:` 默认；缺失或空白时启动 fail-fast 报 `DATABASE_URL required — prue_backend has no fallback`）。测试或本地开发需显式设 `DATABASE_URL`。
+
 ## 非配置字段（main.rs / config.rs 直接读取）
 
 | 中文 | env | docker-compose 值 | 代码默认值 |
 |------|-----|-------------------|-----------|
-| 数据库连接 URL | `DATABASE_URL` | `${DATABASE_URL}` | `sqlite::memory:` |
+| 数据库连接 URL | `DATABASE_URL` | `${DATABASE_URL}` | **必填**（无 fallback） |
 | 监听地址 | `SERVER_ADDR` | `0.0.0.0:8087`（由 `SERVER_HOST`:`SERVER_PORT` 拼接） | `0.0.0.0:8087` |
 | 日志级别 | `RUST_LOG` | `info` | `info` |
 | JWKS 地址 | `JWKS_URL` | `${JWKS_URL}` | `http://token-service:8082/.well-known/jwks.json` |
