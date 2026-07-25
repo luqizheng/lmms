@@ -1,5 +1,10 @@
 # Phase 4: 性能压测与熔断限流
 
+> **STATUS: ❌ SUPERSEDED + CLOSED** — 本文描述的 `common-http` 熔断/限流/重试脚手架从未接入任何 service。
+> Phase 5-B 已决定走 `api-gateway` 集中限流（governor token bucket）+ `ResilientClient`。
+> 详见 `2026-06-28-phase5-resilience-triad-design.md`。
+> 本文保留仅作历史参考。
+
 > **⚠️ SUPERSEDED（2026-06-28）by `2026-06-28-phase5-resilience-triad-design.md`。**
 > 本文描述的 `common-http` 熔断/限流/重试脚手架从未被任何 service 接入，且 `CircuitBreaker::is_available`
 > 的 Open 态计时有 bug。Phase 5-B 已决定删除并重写为 `ResilientClient`（包 reqwest，gateway outbound）。

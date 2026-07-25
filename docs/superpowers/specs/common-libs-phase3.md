@@ -1,5 +1,9 @@
 # Phase 3: common-http / common-crypto 完整化
 
+> **STATUS: ✅ 已完成** — `libs/common-http/` 和 `libs/common-crypto/` 均存在，
+> 被 api-gateway, iam-service, notification-service, token-service 引用。
+> 本文为设计参考，不需进一步行动。
+
 > 完成日期：2026-06-14
 
 ## common-http

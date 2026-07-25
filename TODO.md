@@ -469,6 +469,11 @@
 - [x] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key） — runbook `docs/runbooks/secret-rotation.md`。覆盖：① JWT 私钥（含 kid + JWKS 路线图），② MySQL root 密码，③ Redis 密码；含手动 SOP 命令与未来自动化路线。
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
+- [x] **iam-service `dump-openapi` binary 栈溢出**（阻塞 openapi.yaml 自动同步）
+  - **根因**：`services/iam-service/src/dto/org_unit.rs:OrgUnitResponse` 有 `children: Vec<OrgUnitResponse>` 自引用字段，utoipa `ToSchema` derive 展开时无限递归内联，导致 `openapi()` / `to_yaml()` / Drop 均在主线程栈溢出。
+  - **修复**：`#[schema(no_recursion)]` 属性宏加到 `children` 字段，告知 utoipa 用 `$ref` 引用而非内联展开。这是 utoipa 官方处理自引用 schema 的标准方式，运行时的 JSON 序列化不受影响。
+  - **验证**：`dump-openapi` exit 0，1794 行完整写出，`openapi.yaml` 回归自动生成（不再需手工同步）。
+  - **commit**：`1157406`
 - [x] **OpenAPI registration sweep** — 2026-07-07 补齐（commit `a2cd626`：`org_units::*` 6 handler + `permissions::*` 5 handler + DTO ToSchema/IntoParams + openapi.yml 手工补齐；dump-openapi binary stack overflow pre-existing）
 - [ ] **i18n 命名空间修复后续**（commit `20488c2` 把 359 keys 从 `buttons:` 迁到 `menus:` namespace，修复 422 处原始 key 暴露；但扫到 3 处**真正**没翻译的 key 缺失，不是 namespace 错位）：
   - `frontend/src/router/modules/account.ts` 用 `t('menus.accountProfile')` / `t('menus.accountSecurity')` / `t('menus.accountSettings')`，但 yaml 中**只**有 `pureProfile` / `pureSecurityLog` / `pureAccountSettings`（带 `pure` 前缀，在 `menus:` line 229/301/2）—— key 命名不一致，fallback 显示原始字符串。
