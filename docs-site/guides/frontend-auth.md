@@ -45,6 +45,38 @@ POST /v1/iam/auth/login
 
 ---
 
+### 1.3 首次初始化检测（setup-status）
+
+全新部署、首个用户创建之前，前端应展示「初始化管理员」向导页而不是登录页。判断依据：
+
+```bash
+GET /v1/iam/auth/setup-status
+```
+
+**响应**：
+
+```json
+{
+  "setup_required": true,
+  "user_count": 0
+}
+```
+
+| 字段 | 含义 |
+|------|------|
+| `setup_required` | `iam_users` 表是否为空（未删除用户计数为 0）；`true` 时跳初始化向导页 |
+| `user_count` | 当前用户总数 |
+
+初始化页提交到 `POST /v1/iam/auth/register`（**无鉴权，全系统仅首次可用**，网关已配置 `public = true`）：
+
+- 请求体同创建用户：`username` / `password`（≥ 8 位）/ `nickname` 必填；`email`、`phone`、`avatar` 选填。
+- 成功后该用户归属**默认租户**（id=1）并自动获得 `tenant_admin` 角色（绑定全部已启用权限）；前端随后跳登录页走正常登录流程。
+- 已有用户后再调返回 `403 registration closed`——已完成初始化的系统不应再暴露初始化页入口。
+
+> ⚠️ 初始化入口先到先得，部署后应立即完成首个管理员注册。完整流程见 [onboarding 03 章「首次初始化管理员」](../onboarding/03-第一次跑通.md)。
+
+---
+
 ## 2. Access Token 管理
 
 ### 2.1 Token 结构
@@ -429,7 +461,7 @@ window.addEventListener('online', () => {
 
 ---
 
-> **最后更新**：2026-07-13
+> **最后更新**：2026-07-26
 > **待前端负责人确认**：
 > - 实际使用的 token 存储方案
 > - 拦截器具体实现
