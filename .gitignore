@@ -12,6 +12,7 @@ redis_data/
 frontend/coverage/
 services/auth-service/bin/
 services/user-service/bin/
+release/dist-template/release/*
 
 # iam-service seeds config.yaml on first boot from config.default.yaml (see
 # services/iam-service/src/config.rs). The seeded file lives alongside its
@@ -53,6 +54,8 @@ reports/
 # CI 可用 CODER_NPM_REGISTRY / CODER_NPM_TOKEN 覆盖。
 # 注意：只忽略项目根 .npmrc，不影响 tests/e2e/.npmrc 等子目录 .npmrc。
 /.npmrc
+# frontend/.npmrc 同样由 setup 脚本生成，含 npm mirror，本地配置不入 git
+/frontend/.npmrc
 
 apps/pm/**/target/
 /apps/pm/.gitignore

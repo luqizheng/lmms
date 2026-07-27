@@ -262,6 +262,7 @@ services:
       JWKS_URL: "${JWKS_URL}"
       # IAM_PRIVATE_KEY_PEM_PATH: "" # 可选：私钥 PEM 文件路径（当前未使用）
       DATABASE_URL: "${DATABASE_URL}"
+      REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "iam-service"
