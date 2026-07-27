@@ -30,6 +30,6 @@ RUN mkdir -p /app/keys
 ENV RUST_LOG=token_service=debug
 
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
-  CMD curl -f http://localhost:8080/health || exit 1
+  CMD curl -f http://127.0.0.1:8082/health || exit 1
 
 CMD ["/app/token-service"]

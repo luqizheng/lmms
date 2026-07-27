@@ -28,4 +28,10 @@ RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 COPY --from=builder /app/api-gateway /app/api-gateway
 ENV RUST_LOG=api_gateway=debug
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
+  CMD wget --spider -q http://127.0.0.1:3000/health || exit 1
+
 CMD ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]

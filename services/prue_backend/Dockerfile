@@ -27,9 +27,9 @@ RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /app/prue_backend /usr/local/bin/prue_backend
 
-EXPOSE 8080
+EXPOSE 8087
 
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
-  CMD wget --spider -q http://localhost:8080/health || exit 1
+  CMD wget --spider -q http://127.0.0.1:8087/health || exit 1
 
 CMD ["prue_backend"]

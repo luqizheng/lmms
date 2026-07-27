@@ -30,7 +30,7 @@ RUN mkdir -p /data/files
 EXPOSE 8082
 
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
-  CMD wget --spider -q http://localhost:8082/health || exit 1
+  CMD wget --spider -q http://127.0.0.1:8082/health || exit 1
 
 ENV RUST_LOG=info
 ENV STORAGE_PATH=/data/files

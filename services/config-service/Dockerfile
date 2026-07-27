@@ -29,7 +29,7 @@ COPY --from=builder /app/config-service /usr/local/bin/
 EXPOSE 8081
 
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
-  CMD wget --spider -q http://localhost:8081/health || exit 1
+  CMD wget --spider -q http://127.0.0.1:8081/health || exit 1
 
 ENV RUST_LOG=info
 CMD ["config-service"]

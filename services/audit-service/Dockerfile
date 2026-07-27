@@ -24,10 +24,10 @@ ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 FROM ${BASE_REGISTRY}/alpine:3.21
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /app/audit-service /usr/local/bin/audit-service
-EXPOSE 8080
+EXPOSE 8084
 
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
-  CMD wget --spider -q http://localhost:8080/health || exit 1
+  CMD wget --spider -q http://127.0.0.1:8084/health || exit 1
 
 ENV RUST_LOG=info
 CMD ["audit-service"]
