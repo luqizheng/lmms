@@ -21,7 +21,7 @@
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址 |
 | RUST_LOG | info | 日志级别 |
 | SWAGGER_ENABLED | false | 预留（聚合 UI 待 P2.1）|
-| GW_REDIS__PREFIX | superpowers: | Redis key 前缀（blacklist + perm_epoch）；**必须与 iam REDIS_PREFIX 一致** |
+| GW_REDIS_PREFIX | superpowers: | Redis key 前缀（blacklist + perm_epoch）；**必须与 iam REDIS_PREFIX 一致** |
 | GW_EVENT_BUS_URL | amqp://guest:guest@localhost:5672/%2f | RabbitMQ 连接（perm_epoch 兜底 consumer，Phase 4.4）|
 | GW_PERM_EPOCH_TTL_SEC | 900 | perm_epoch 兜底写入 TTL；**应与 iam `access_token_ttl_minutes*60` 对齐** |
 | GW_JWKS_URL | jwks_url | http://127.0.0.1:4000/.well-known/jwks.json（代码默认；docker-compose 部署时覆盖为 http://token-service:8082/.well-known/jwks.json） |

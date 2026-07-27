@@ -123,9 +123,129 @@ impl Default for GatewayConfig {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Loader
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Historical note (2026-07): earlier versions used the `config` crate's
+// `Environment::with_prefix("GW").separator("__")` auto-binder to overlay
+// env vars, forcing env-var names like `GW_SERVER__HOST` (with a double
+// underscore separator so `redis_url`-shape fields survived splitting).
+// That was one of two workarounds for the fact that automatic env→struct
+// binders can't distinguish a `_` inside a field name from a `_` marking
+// a nesting boundary. token-service used the other (single-underscore)
+// half of that dilemma and silently lost `db_type` to it. We unified
+// both services on the same hand-written-overlay shape now used by
+// iam-service / notification-service. Env var names are ordinary single
+// underscore (`GW_SERVER_HOST`, `GW_REDIS_URL`, `GW_REDIS_PREFIX`).
+
+/// Load `path` (any format supported by the `config` crate: yaml, toml,
+/// json). Missing file falls back to `GatewayConfig::default()` — same
+/// behaviour as before, keeping dev / single-file deploys non-fatal.
+///
+/// Accepts both relative paths (e.g. `"config/api-gateway"`) and absolute
+/// paths (e.g. `/etc/gateway/api-gateway.toml`). Uses `File::from` so the
+/// format is auto-detected from the file extension.
+pub fn load_config(path: impl AsRef<std::path::Path>) -> Result<GatewayConfig, String> {
+    let builder = ::config::Config::builder()
+        .add_source(::config::File::from(path.as_ref()).required(false));
+    let cfg = builder
+        .build()
+        .map_err(|e| format!("api-gateway config build failed: {e}"))?
+        .try_deserialize::<GatewayConfig>()
+        .map_err(|e| format!("api-gateway config parse failed: {e}"))?;
+    Ok(cfg)
+}
+
+/// Load config from `path`, then overlay env overrides via `env_lookup`.
+/// The env-source closure lets tests exercise the overlay against a
+/// `HashMap` without touching the process-wide env table.
+pub fn load_config_with_env<F>(
+    path: impl AsRef<std::path::Path>,
+    env_lookup: F,
+) -> Result<GatewayConfig, String>
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let mut cfg = load_config(path)?;
+    apply_env_overrides(&mut cfg, &env_lookup);
+    Ok(cfg)
+}
+
+/// Overwrites config fields from env. Malformed numeric values are logged
+/// and the file value is kept. Env name convention: `GW_<UPPER_YAML_PATH
+/// _WITH_SINGLE_UNDERSCORES>`, treating `_` as *part of a field name*,
+/// never as a nesting separator.
+pub fn apply_env_overrides<F>(cfg: &mut GatewayConfig, env: &F)
+where
+    F: Fn(&str) -> Option<String>,
+{
+    // ── server ──
+    if let Some(v) = env("GW_SERVER_HOST") {
+        cfg.server.host = v;
+    }
+    if let Some(v) = env("GW_SERVER_PORT") {
+        parse_or_warn("GW_SERVER_PORT", &v, &mut cfg.server.port);
+    }
+
+    // ── redis ──
+    if let Some(v) = env("GW_REDIS_URL") {
+        cfg.redis.url = v;
+    }
+    if let Some(v) = env("GW_REDIS_PREFIX") {
+        cfg.redis.prefix = v;
+    }
+
+    // ── discovery / jwks / issuer / routes-dir ──
+    if let Some(v) = env("GW_CONSUL_ADDR") {
+        cfg.consul_addr = v;
+    }
+    if let Some(v) = env("GW_JWKS_URL") {
+        cfg.jwks_url = v;
+    }
+    if let Some(v) = env("GW_ISSUER") {
+        cfg.issuer = v;
+    }
+    if let Some(v) = env("GW_ROUTES_DIR") {
+        cfg.routes_dir = v;
+    }
+
+    // ── event-bus / perm-epoch ──
+    if let Some(v) = env("GW_EVENT_BUS_URL") {
+        cfg.event_bus_url = v;
+    }
+    if let Some(v) = env("GW_PERM_EPOCH_TTL_SEC") {
+        parse_or_warn("GW_PERM_EPOCH_TTL_SEC", &v, &mut cfg.perm_epoch_ttl_sec);
+    }
+}
+
+fn parse_or_warn<T: std::str::FromStr>(key: &str, raw: &str, slot: &mut T)
+where
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    match raw.parse::<T>() {
+        Ok(v) => *slot = v,
+        Err(e) => tracing::warn!(
+            key = key,
+            raw = raw,
+            error = %e,
+            "env override failed to parse; keeping file value"
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
+    fn env_from(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+        let map: HashMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        move |k: &str| map.get(k).cloned()
+    }
 
     #[test]
     fn route_config_parses_upstream_downstream() {
@@ -160,5 +280,106 @@ mod tests {
         let r = &cfg.route[0];
         assert!(r.ws);
         assert_eq!(r.headers.get("X-Source").map(String::as_str), Some("gateway"));
+    }
+
+    #[test]
+    fn env_overlay_string_and_numeric_fields() {
+        let mut cfg = GatewayConfig::default();
+        let env = env_from(&[
+            ("GW_SERVER_HOST", "127.0.0.1"),
+            ("GW_SERVER_PORT", "13000"),
+            ("GW_REDIS_URL", "redis://r/2"),
+            ("GW_REDIS_PREFIX", "gw:"),
+            ("GW_CONSUL_ADDR", "http://consul:8500"),
+            ("GW_JWKS_URL", "http://token-service:8082/.well-known/jwks.json"),
+            ("GW_ISSUER", "acme"),
+            ("GW_ROUTES_DIR", "/etc/gw/routes"),
+            ("GW_EVENT_BUS_URL", "amqp://user:pw@rmq:5672/%2f"),
+            ("GW_PERM_EPOCH_TTL_SEC", "1200"),
+        ]);
+        apply_env_overrides(&mut cfg, &env);
+        assert_eq!(cfg.server.host, "127.0.0.1");
+        assert_eq!(cfg.server.port, 13000);
+        assert_eq!(cfg.redis.url, "redis://r/2");
+        assert_eq!(cfg.redis.prefix, "gw:");
+        assert_eq!(cfg.consul_addr, "http://consul:8500");
+        assert_eq!(cfg.jwks_url, "http://token-service:8082/.well-known/jwks.json");
+        assert_eq!(cfg.issuer, "acme");
+        assert_eq!(cfg.routes_dir, "/etc/gw/routes");
+        assert_eq!(cfg.event_bus_url, "amqp://user:pw@rmq:5672/%2f");
+        assert_eq!(cfg.perm_epoch_ttl_sec, 1200);
+    }
+
+    /// Regression: `redis.prefix` used to require `GW_REDIS__PREFIX`
+    /// (double underscore) because the `config` crate's env auto-binder
+    /// treated a single `_` as a nesting boundary and would have split
+    /// `GW_REDIS_URL` into `redis.url`… but also `GW_REDIS_PREFIX` into
+    /// `redis.prefix`. The hand-written overlay accepts the single-`_`
+    /// form directly, matching the shape used by every other service.
+    #[test]
+    fn env_overlay_single_underscore_prefix_works() {
+        let mut cfg = GatewayConfig::default();
+        let env = env_from(&[("GW_REDIS_PREFIX", "superpowers:")]);
+        apply_env_overrides(&mut cfg, &env);
+        assert_eq!(cfg.redis.prefix, "superpowers:");
+    }
+
+    #[test]
+    fn malformed_numeric_env_keeps_file_value() {
+        let mut cfg = GatewayConfig::default();
+        let file_port = cfg.server.port;
+        let env = env_from(&[("GW_SERVER_PORT", "abc")]);
+        apply_env_overrides(&mut cfg, &env);
+        assert_eq!(cfg.server.port, file_port);
+    }
+
+    #[test]
+    fn empty_env_leaves_config_untouched() {
+        let mut cfg = GatewayConfig::default();
+        let snapshot = format!("{:?}", cfg);
+        apply_env_overrides(&mut cfg, &env_from(&[]));
+        assert_eq!(format!("{:?}", cfg), snapshot);
+    }
+
+    #[test]
+    fn load_config_missing_file_returns_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("does-not-exist");
+        let cfg = load_config(path.to_str().unwrap()).expect("missing file → default");
+        assert_eq!(cfg.server.port, 3000);
+        assert_eq!(cfg.redis.prefix, "superpowers:");
+    }
+
+    #[test]
+    fn load_config_with_env_end_to_end() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("api-gateway.toml");
+        // Root-level keys must precede any [table]; toml groups everything
+        // after `[server]` under the server table.
+        std::fs::write(
+            &path,
+            r#"
+jwks_url = "http://from-file/jwks"
+
+[server]
+host = "0.0.0.0"
+port = 3000
+
+[redis]
+url = "redis://from-file:6379"
+prefix = "file:"
+"#,
+        )
+        .unwrap();
+        let env = env_from(&[
+            ("GW_REDIS_URL", "redis://from-env:6379"),
+            ("GW_ISSUER", "env-issuer"),
+        ]);
+        let cfg = load_config_with_env(path.to_str().unwrap(), &env).expect("load ok");
+        // env wins over file, file wins over hardcoded default.
+        assert_eq!(cfg.redis.url, "redis://from-env:6379");
+        assert_eq!(cfg.redis.prefix, "file:");
+        assert_eq!(cfg.jwks_url, "http://from-file/jwks");
+        assert_eq!(cfg.issuer, "env-issuer");
     }
 }

@@ -73,7 +73,7 @@ changed」。gateway consumer 订阅事件用 **set-if-greater** 兜底补写（
 - ✅ 通过：改权限后旧 token 立刻 401、Redis 戳被写（值≥iat、带 TTL）、重登可用；5 类触发点
   reason 正确、改名不误触发；consumer 能兜底补写；Redis 挂时 fail-open；set-if-greater 不回退。
 - ❌ 失败常见原因：**两端 prefix 不一致**（iam 写 `superpowers:perm_epoch:` 但 gateway 读
-  别的前缀 → 永远拦不住；检查 iam `REDIS_PREFIX` 与 gateway `GW_REDIS__PREFIX` 都为 `superpowers:`）；
+  别的前缀 → 永远拦不住；检查 iam `REDIS_PREFIX` 与 gateway `GW_REDIS_PREFIX` 都为 `superpowers:`）；
   iam 没连上 Redis（看 iam 日志 `connected to redis for perm_epoch`，否则靠 consumer 兜底，有延迟）；
   gateway 未加 perm_epoch 比对（看 `auth_middleware`）。
 

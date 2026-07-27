@@ -1,12 +1,11 @@
 use std::sync::Arc;
-use common_config::Loader;
 use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
-use token_service::config::validate_all_fields_present;
+use token_service::config::{load_config_with_env, DEFAULT_CONFIG_PATH};
 use token_service::openapi::ApiDoc;
 use token_service::routes;
 use token_service::service::oauth_client_svc;
 use token_service::{
-    TokenIssuer, TokenServerConfig, TokenServerState,
+    TokenIssuer, TokenServerState,
 };
 use prometheus::{Encoder, TextEncoder};
 use utoipa::OpenApi;
@@ -16,22 +15,34 @@ use utoipa_swagger_ui::SwaggerUi;
 async fn main() {
     common_telemetry::init_tracing("token-service");
 
-    let mut loader = Loader::new("TOKEN").with_file("config/config.yaml");
-    if let (Ok(url), Ok(ns)) = (
-        std::env::var("CONFIG_SERVICE_URL"),
-        std::env::var("CONFIG_SERVICE_NAMESPACE"),
-    ) {
-        loader = loader.with_config_service(url, ns);
-    }
-    let cfg: TokenServerConfig = loader
-        .load()
-        .expect("failed to load config (tried config/config.yaml)");
+    let config_path = std::env::var("CONFIG_PATH")
+        .unwrap_or_else(|_| DEFAULT_CONFIG_PATH.to_string());
 
-    // Fail fast on missing deployment-critical fields. Config::default now
-    // leaves sensitive fields empty (database.url / jwt keys / issuer /
-    // user_service_url), so a missing env var + missing yaml key surfaces
-    // here instead of silently connecting to a dev-only fallback DB.
-    validate_all_fields_present(&cfg).expect("token-service config validation");
+    // Optional: pull a HashMap from config-service and treat it as a
+    // lower-priority env fallback. Process env still wins the final say.
+    // Historical `common_config::Loader` did the same thing via a
+    // `set_override` layer; we replicate it here so the config-service
+    // dogfood story still works after the Loader retirement.
+    let remote_env: std::collections::HashMap<String, String> = fetch_remote_config_env();
+    if !remote_env.is_empty() {
+        tracing::info!(
+            keys = remote_env.len(),
+            "loaded remote config from CONFIG_SERVICE_URL (falls back under process env)"
+        );
+    }
+
+    let env_lookup = move |k: &str| {
+        // Process env wins; remote_env is a lower-priority fallback layer.
+        std::env::var(k).ok().or_else(|| remote_env.get(k).cloned())
+    };
+
+    let cfg = match load_config_with_env(&config_path, env_lookup) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("failed to load config (path={config_path}): {e}");
+            std::process::exit(1);
+        }
+    };
 
     println!("========== token-service config ==========");
     println!("server.host           : {}", cfg.server.host);
@@ -44,6 +55,15 @@ async fn main() {
     println!("user_service_url      : {}", cfg.user_service_url);
     println!("consul.address        : {}", cfg.consul.addr);
     println!("=========================================");
+
+    let db = token_service::db::init_pool(&cfg.database)
+        .await
+        .expect("failed to connect to mysql");
+    tracing::info!("connected to mysql at {:?}", cfg.database.url);
+
+    token_service::db::ensure_schema(&db)
+        .await
+        .expect("ensure schema");
 
     let db = token_service::db::init_pool(&cfg.database)
         .await
@@ -241,4 +261,63 @@ async fn main() {
 
     tracing::info!("token-service listening on {}", addr);
     axum::serve(listener, app).await.unwrap();
+}
+
+/// Pull `HashMap<String, String>` from the optional remote config-service.
+/// Failure is soft: any error is logged and treated as "no remote config",
+/// so a config-service outage never blocks token-service startup.
+///
+/// This is the retirement path for `common_config::Loader::with_config_service`;
+/// the returned map is layered UNDER `std::env::var` in `main`, keeping the
+/// process env's precedence unchanged.
+fn fetch_remote_config_env() -> std::collections::HashMap<String, String> {
+    let (Ok(url), Ok(ns)) = (
+        std::env::var("CONFIG_SERVICE_URL"),
+        std::env::var("CONFIG_SERVICE_NAMESPACE"),
+    ) else {
+        return std::collections::HashMap::new();
+    };
+    let endpoint = format!("{}/config/export/{}", url.trim_end_matches('/'), ns);
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to build tokio runtime for remote config fetch");
+            return std::collections::HashMap::new();
+        }
+    };
+    rt.block_on(async {
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(error = %e, "failed to build reqwest client for remote config fetch");
+                return std::collections::HashMap::new();
+            }
+        };
+        match client.get(&endpoint).send().await {
+            Ok(resp) if resp.status().is_success() => match resp
+                .json::<std::collections::HashMap<String, String>>()
+                .await
+            {
+                Ok(m) => m,
+                Err(e) => {
+                    tracing::warn!(error = %e, url = %endpoint, "remote config json parse failed");
+                    std::collections::HashMap::new()
+                }
+            },
+            Ok(resp) => {
+                tracing::warn!(status = %resp.status(), url = %endpoint, "remote config non-success");
+                std::collections::HashMap::new()
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, url = %endpoint, "remote config fetch failed");
+                std::collections::HashMap::new()
+            }
+        }
+    })
 }

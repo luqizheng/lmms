@@ -15,7 +15,7 @@ use utoipa::OpenApi;
 
 use api_gateway::template::Template;
 use api_gateway::{
-    blacklist, middleware, router, routes_loader, AppState, GatewayConfig,
+    blacklist, config as gw_config, middleware, router, routes_loader, AppState, GatewayConfig,
     RouteConfig, RouteTable, RouterConfig,
 };
 use api_gateway::resilience_metrics::GatewayMetricsObserver;
@@ -49,17 +49,8 @@ fn find_and_render(
 }
 
 fn load_global_config() -> GatewayConfig {
-    let b = ::config::Config::builder()
-        .add_source(::config::File::with_name("config/api-gateway").required(false))
-        .add_source(
-            ::config::Environment::with_prefix("GW")
-                .prefix_separator("_")
-                .separator("__"),
-        );
-    b.build()
-        .unwrap()
-        .try_deserialize::<GatewayConfig>()
-        .unwrap()
+    gw_config::load_config_with_env("config/api-gateway", |k| std::env::var(k).ok())
+        .expect("failed to load api-gateway config")
 }
 
 /// Load per-route rate-limit overrides from `config/api-gateway/rate-limits.toml`.

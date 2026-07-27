@@ -58,18 +58,22 @@ cargo run -p api-gateway -- serve `
 
 ### 环境变量
 
-前缀 `GW`，分隔符 `__`（双下划线进入嵌套段，单下划线进入字段）：
+前缀 `GW`，单下划线连接嵌套字段与字段名（由 `src/config.rs::apply_env_overrides` 手写映射，非 `config` crate 自动绑定）：
 
 | 环境变量 | 对应字段 | 默认值 |
 |---|---|---|
-| `GW_SERVER__HOST` | `server.host` | `0.0.0.0` |
-| `GW_SERVER__PORT` | `server.port` | `3000` |
-| `GW_REDIS__URL` | `redis.url` | `redis://127.0.0.1:6379` |
-| `GW_REDIS__PREFIX` | `redis.prefix` | `superpowers:` |
+| `GW_SERVER_HOST` | `server.host` | `0.0.0.0` |
+| `GW_SERVER_PORT` | `server.port` | `3000` |
+| `GW_REDIS_URL` | `redis.url` | `redis://127.0.0.1:6379` |
+| `GW_REDIS_PREFIX` | `redis.prefix` | `superpowers:` |
 | `GW_CONSUL_ADDR` | `consul_addr` | `http://127.0.0.1:8500` |
 | `GW_JWKS_URL` | `jwks_url` | `http://127.0.0.1:4000/.well-known/jwks.json` (代码默认；部署时 docker-compose 覆盖为 `http://token-service:8082/.well-known/jwks.json`) |
 | `GW_ISSUER` | `issuer` | `superpowers-token-service` |
-| `GW_ROUTES` | `routes` | （由 `--routes` 参数覆盖） |
+| `GW_ROUTES_DIR` | `routes_dir` | `/app/config/routes` |
+| `GW_EVENT_BUS_URL` | `event_bus_url` | `amqp://guest:guest@localhost:5672/%2f` |
+| `GW_PERM_EPOCH_TTL_SEC` | `perm_epoch_ttl_sec` | `900` |
+
+> **历史注记**：此前采用 `GW_SERVER__HOST` / `GW_REDIS__PREFIX` 这类双下划线是为了绕开 `config::Environment` 把每个 `_` 当成嵌套分隔符的行为。2026-07 起改为手写映射，双下划线的 env 名一律不再识别；请使用上表的单下划线形式。
 
 其他常用环境变量：
 
@@ -194,10 +198,10 @@ services:
       token-service:
         condition: service_started
     environment:
-      GW_SERVER__HOST: "0.0.0.0"
-      GW_SERVER__PORT: "3000"
-      GW_REDIS__URL: "redis://redis:6379"
-      GW_REDIS__PREFIX: "superpowers_"
+      GW_SERVER_HOST: "0.0.0.0"
+      GW_SERVER_PORT: "3000"
+      GW_REDIS_URL: "redis://redis:6379"
+      GW_REDIS_PREFIX: "superpowers_"
       GW_CONSUL_ADDR: "http://consul:8500"
       GW_JWKS_URL: "http://token-service:8082/.well-known/jwks.json"
       GW_ISSUER: "superpowers-token-service"

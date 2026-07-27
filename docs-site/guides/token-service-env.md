@@ -4,9 +4,9 @@
 
 ## 启动流程
 
-1. `common_config::Loader::new("TOKEN").with_file("config/config.yaml")`（`required(false)`，文件缺失不报错）
-2. 合并 yaml + env 后调用 `validate_all_fields_present`：5 个敏感字段任一为空立即 panic
-3. `Config::default` 把 `database.url` / `jwt_private_key_path` / `jwt_public_key_path` / `issuer` / `user_service_url` 全部留空，**不再有 dev fallback**——遗漏 env 不会静默错配
+1. `config.rs::load_config` 读 `config/config.yaml`（缺失时降级为 `Config::default()`，敏感字段留空）
+2. `apply_env_overrides` 逐字段用 `TOKEN_*` env 覆盖 yaml；`_` 一律视作字段名的一部分，不再当嵌套分隔符
+3. `validate_all_fields_present` 检查 5 个敏感字段（database.url / 2 个 jwt 路径 / issuer / user_service_url）任一为空立即 panic
 
 ## 1. 必需字段（env 或 yaml 至少给一份，否则启动失败）
 
@@ -33,14 +33,14 @@
 | `TOKEN_DEFAULT_REFRESH_TTL_SEC` | `2592000` | refresh token 默认 TTL |
 | `TOKEN_DEFAULT_RESOURCE_TTL_SEC` | `300` | resource token 默认 TTL |
 
-## 3. main.rs 直接读取（非 Loader）
+## 3. main.rs 直接读取（非 apply_env_overrides）
 
 | env | 默认 | 说明 |
 |-----|------|------|
 | `SERVICE_BOOTSTRAP_TOKENS` | 空 | 逗号分隔 bootstrap token，空则 `POST /tokens/service-jwt` 拒绝所有调用方 |
 | `TENANT_ID` | `1` | 租户 ID |
 | `SWAGGER_ENABLED` | `true` | Swagger UI 开关 |
-| `CONFIG_SERVICE_URL` | 空 | 可选：远程配置中心地址 |
+| `CONFIG_SERVICE_URL` | 空 | 可选：远程配置中心地址（fetch 失败降级为无 remote） |
 | `CONFIG_SERVICE_NAMESPACE` | 空 | 可选：远程配置中心命名空间 |
 | `RUST_LOG` | `info` | 日志级别 |
 
@@ -56,5 +56,13 @@
 | 场景 | 行为 |
 |------|------|
 | 5 个敏感字段任一为空 | panic：`token-service config missing required fields after env merge: ...` |
-| yaml 不存在 | Loader `required(false)` → 仅靠 env + default → validate 把关敏感字段 |
-| `TOKEN_SERVER_PORT` 写错 | Loader 反序列化报错，启动失败 |
+| yaml 不存在 | 降级为 `Config::default()` → 仅靠 env → validate 把关敏感字段 |
+| `TOKEN_SERVER_PORT` 写错 | 数字解析失败 `warn` 后保持 yaml 值（不再 panic）|
+
+## 6. 2026-07 变更：告别自动 env 绑定
+
+此前使用 `common_config::Loader`（内部 `config::Environment::separator("_")`）自动 env 绑定。
+该行为把每个 `_` 都当嵌套分隔符，导致 `TOKEN_DATABASE_DB_TYPE` 被解析成
+`database.db.type`，与 struct 字段 `database.db_type` 不匹配，运行时静默丢弃。
+从此版起改为 `apply_env_overrides` 手写映射（与 iam-service / notification-service 一致），
+env 名不再有拆分歧义。上表所有 env 名保持不变，兼容原 compose 配置。

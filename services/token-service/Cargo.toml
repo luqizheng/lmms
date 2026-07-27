@@ -12,12 +12,12 @@ hyper = "1"
 testcontainers = "0.20"
 testcontainers-modules = { version = "0.8", features = ["mysql"] }
 reqwest.workspace = true
+tempfile = "3"
 
 [dependencies]
 common = { path = "../../libs/common" }
 common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
-common-config = { path = "../../libs/common-config", features = ["config-service"] }
 common-db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
 common-http = { path = "../../libs/common-http" }
 common-jwt = { path = "../../libs/common-jwt" }

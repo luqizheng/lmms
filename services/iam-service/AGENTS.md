@@ -28,7 +28,7 @@
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
 | RUST_LOG | info | 日志级别 |
 | REDIS_URL | 服务自定义 | perm_epoch 直写（Phase 4.4；见下方 yaml 覆盖表也可写） |
-| REDIS_PREFIX | superpowers: | perm_epoch key 前缀，**必须与 api-gateway `GW_REDIS__PREFIX` 一致** |
+| REDIS_PREFIX | superpowers: | perm_epoch key 前缀，**必须与 api-gateway `GW_REDIS_PREFIX` 一致** |
 | CONSUL_ADDR | http://localhost:8500 | Consul 地址（未在 Config struct，直接读取用于注册） |
 
 ### 覆盖 `config.yaml` 同名字段的 env
