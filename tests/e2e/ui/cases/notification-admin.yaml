@@ -42,9 +42,8 @@ cases:
       - toast=已发布
 
   - caseId: UI-NOTIF-005
-    desc: 创建公告-添加全部部门接收人——跳过：ReOrgSelector 的 ElTreeSelect 弹层不渲染任何节点（API 200 有数据、组件逻辑无误，弹层交互/渲染异常），部门接收人 UI 不可选
+    desc: 创建公告-添加全部部门接收人
     flow: createAnnouncement
-    skip: true
     params:
       title: e2e公告${rand}
       recipients:

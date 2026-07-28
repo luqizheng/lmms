@@ -43,7 +43,11 @@ export class NotificationAdminPage {
   private async pickDeptRecipient(dialog: Locator): Promise<void> {
     await dialog.getByRole('tab', { name: '部门' }).click();
     await dialog.locator('.re-org-selector .el-select__wrapper').click();
-    const node = this.page.locator('.el-tree-node__label').first();
+    // ElTreeSelect popper 内每个节点是 <li class="el-select-dropdown__item"><span>{name}</span></li>
+    const node = this.page
+      .locator('.el-tree-select__popper:visible .el-tree-node')
+      .first()
+      .locator('.el-select-dropdown__item');
     await node.waitFor({ timeout: 15000 });
     await node.click();
   }

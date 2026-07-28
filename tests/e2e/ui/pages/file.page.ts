@@ -82,6 +82,18 @@ export class FileListPage {
     }
   }
 
+  // 点行内「下载」触发 <a download>。Chromium 见 download 属性即触发 download 事件，
+  // 与后端有无 Content-Disposition 无关；等 downlaod 事件拿 suggestedFilename 断言
+  async downloadFirst(name: string): Promise<string> {
+    const row = this.rowByName(name).first();
+    await row.waitFor({ timeout: 8000 });
+    const [download] = await Promise.all([
+      this.page.waitForEvent('download', { timeout: 15000 }),
+      row.getByRole('button', { name: '下载', exact: true }).click(),
+    ]);
+    return download.suggestedFilename();
+  }
+
   // 删除搜索到的第一行；行内删除无确认弹窗，成功 toast "已删除"（menus.configDeleted）
   async deleteFirst(name: string): Promise<string> {
     const row = this.rowByName(name).first();

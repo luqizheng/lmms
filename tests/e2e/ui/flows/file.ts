@@ -46,4 +46,21 @@ export const fileFlows: Record<string, Flow> = {
     await pp.goto();
     return { dialog: await pp.headingText() };
   },
+
+  // 下载闭环：上传唯一文件名 → 列表搜索 → 点行内「下载」→ 等 download 事件
+  downloadFile: async (page, params) => {
+    await loginFirst(page);
+    const filename = String(params.filename);
+    const up = new FileUploadPage(page);
+    await up.goto();
+    await up.submitBuffer(filename, readFileSync(FIXTURE_PATH));
+    const list = new FileListPage(page);
+    await list.goto();
+    await list.search(filename);
+    if ((await list.waitRowCount(filename, 1)) !== 1) {
+      throw new Error(`上传后列表未搜索到 ${filename}`);
+    }
+    const suggested = await list.downloadFirst(filename);
+    return { dialog: suggested };
+  },
 };

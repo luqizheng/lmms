@@ -22,6 +22,9 @@ cases:
       - dialog=预签名 URL
 
   - caseId: UI-FILE-004
-    desc: 列表下载按钮——跳过：文件列表（views/file/index.vue）无下载按钮，仅图片缩略图预览，无下载入口可点
+    desc: 列表行内下载按钮闭环（上传→搜索→下载）
     flow: downloadFile
-    skip: true
+    params:
+      filename: e2e-dl-${rand}.txt
+    expect:
+      - dialog=e2e-dl-
