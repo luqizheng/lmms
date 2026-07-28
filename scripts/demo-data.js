@@ -372,6 +372,24 @@ async function registerUsers(conn) {
   }
 
   const first = USERS[0];
+
+  // Gate: 若 DB 已有其他用户但 admin (USERS[0]) 缺失，追加模式无路可走 —
+  // register 端点会返回 403 (users exist)，随后 loginAs admin 必然 401。
+  // 提前抛错要求 --reset，避免误导用户以为是服务挂了。
+  if (userCount > 0) {
+    const [adminRows] = await conn.query(
+      "SELECT id FROM iam_users WHERE username = ? AND deleted_at IS NULL",
+      [first.username]
+    );
+    if (adminRows.length === 0) {
+      throw new Error(
+        `iam_users has ${userCount} row(s) but seed admin "${first.username}" is missing. ` +
+        `Public /iam/auth/register is closed once any user exists, so demo-data cannot bootstrap admin in append mode. ` +
+        `Run: node scripts/demo-data.js --reset`
+      );
+    }
+  }
+
   const reg0 = await fetchJson(`${API_BASE}/v1/iam/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
