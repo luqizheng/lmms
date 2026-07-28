@@ -9,6 +9,7 @@ use crate::models::file_info::{
 use crate::routes::AppState;
 use bytes::Bytes;
 use jwt_ctx::TenantScope;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 pub fn routes(state: AppState) -> axum::Router<AppState> {
     axum::Router::new()
@@ -142,6 +143,19 @@ pub async fn download_file(
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(axum::http::header::CONTENT_TYPE, content_type.parse().unwrap());
+    // 强制作为附件下载，避免浏览器把文本/图片内联渲染
+    let filename_ascii: String = info
+        .filename
+        .chars()
+        .map(|c| if c.is_ascii() && !matches!(c, '\r' | '\n' | '"' | '\\') { c } else { '_' })
+        .collect();
+    let filename_utf8 = utf8_percent_encode(&info.filename, NON_ALPHANUMERIC).to_string();
+    let disposition = format!(
+        "attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{filename_utf8}"
+    );
+    if let Ok(v) = disposition.parse() {
+        headers.insert(axum::http::header::CONTENT_DISPOSITION, v);
+    }
 
     Ok((headers, data.to_vec()))
 }

@@ -15,6 +15,7 @@ chrono.workspace = true
 uuid.workspace = true
 bytes.workspace = true
 futures.workspace = true
+percent-encoding = "2"
 prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
