@@ -54,18 +54,16 @@ cases:
       - toast=已发布
 
   - caseId: UI-NOTIF-006
-    desc: 发布公告（行级）——跳过：admin/index.vue 的 PureTableBar 漏传 :columns，dynamicColumns 为空导致表格行零单元格渲染，行内「发布」按钮不在 DOM，行级操作 UI 不可达（inbox/namespace 页同款 bug）
+    desc: 发布公告（行级）
     flow: publishAnnouncement
-    skip: true
     params:
       title: e2e待发布公告${rand}
     expect:
       - toast=已发布
 
   - caseId: UI-NOTIF-007
-    desc: 撤销公告（行级）——跳过：同上，行内「撤销」按钮不在 DOM，UI 不可达
+    desc: 撤销公告（行级）
     flow: revokeAnnouncement
-    skip: true
     params:
       title: e2e待撤销公告${rand}
     expect:

@@ -13,4 +13,20 @@ export const notificationFlows: Record<string, Flow> = {
     });
     return { toast };
   },
+
+  publishAnnouncement: async (page, params) => {
+    await loginFirst(page);
+    const np = new NotificationAdminPage(page);
+    const title = String(params.title);
+    await np.createAnnouncement({ title });
+    return { toast: await np.publishByTitle(title) };
+  },
+
+  revokeAnnouncement: async (page, params) => {
+    await loginFirst(page);
+    const np = new NotificationAdminPage(page);
+    const title = String(params.title);
+    await np.createAnnouncement({ title });
+    return { toast: await np.revokeByTitle(title) };
+  },
 };

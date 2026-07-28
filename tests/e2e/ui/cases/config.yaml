@@ -10,17 +10,23 @@ cases:
       - toast=已创建
 
   - caseId: UI-CFG-002
-    desc: 配置项页 smoke——页面可渲染；未选命名空间点新建警告"先选命名空间"
+    desc: 配置项页 smoke——onMounted 自动加载命名空间下拉
     flow: viewConfigItemPage
     expect:
-      - toast=先选命名空间
+      - toast=config-item-page-open
 
   - caseId: UI-CFG-003
-    desc: 删除命名空间——跳过：namespace/index.vue 的 PureTableBar 未传 :columns，el-table 零列渲染（无表头/单元格），行内删除按钮不在 DOM，UI 删除不可达
+    desc: 删除命名空间（闭环：先建再删）
     flow: deleteNamespace
-    skip: true
+    params:
+      app: e2e-ns-del-${rand}
+    expect:
+      - toast=已删除
 
   - caseId: UI-CFG-004
-    desc: 新建/编辑/删除配置项与版本历史——跳过：item/index.vue 的 loadNamespaces() 从未被调用（命名空间下拉恒空，无法选中），表格同样零列渲染；页面无编辑/版本历史/回滚入口，敏感值 reveal 按钮所在列亦不渲染
+    desc: 新建配置项（闭环：先建命名空间再建 key，默认选第一个 ns）
     flow: createConfigItem
-    skip: true
+    params:
+      key: e2e-key-${rand}
+    expect:
+      - toast=已创建

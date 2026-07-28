@@ -2,22 +2,12 @@ import { expect, type Page } from '@playwright/test';
 import { config } from '../../shared/config';
 import { throttlePublish } from '../flows/throttle';
 
-/**
- * 公告收件箱 /#/notification/inbox（源码 views/notification/inbox）。
- * 实测偏差（已核实为前端 bug，frontend 只读不能改）：
- * inbox/index.vue 的 PureTableBar 漏传 :columns，dynamicColumns 为空，
- * 表格行不渲染任何单元格文本。因此列表断言不能读行文本，改为：
- * 1. 唯一标题过滤后「未读 (1)」tab 计数 = 列表中恰好有这条新公告；
- * 2. 点击行打开抽屉，抽屉渲染真实 title/body，可精确断言。
- */
+// 公告收件箱 /#/notification/inbox
 export class InboxPage {
   constructor(private page: Page) {}
 
-  /**
-   * 前置数据：在公告管理页创建并发布一条公告（新版对话框一步完成创建+发布）。
-   * 注：notification.page.ts 的 createAnnouncement 期望旧版「确定」按钮，
-   * 当前前端对话框按钮是「发布」且强制要求至少一个接收人，因此在此自实现。
-   */
+  // 前置数据：在公告管理页创建并发布一条公告。
+  // 复刻自实现（不复用 notification.page.ts）避免收件箱测试受 admin page 变动影响
   async createAndPublishAnnouncement(params: { title: string; body: string }): Promise<void> {
     await this.page.goto(`${config.frontendURL}/#/notification/admin`);
     await this.page.getByRole('button', { name: '新建公告' }).click();
@@ -91,13 +81,11 @@ export class InboxPage {
     return (await unreadTab.textContent()) ?? '';
   }
 
-  // 点开过滤后的首行 → 右侧抽屉详情；进入即标记已读（openDrawer 调 markRead）。
-  // 行无单元格（前端 bug）高度为 0，普通 click 判定不可见，用 dispatchEvent 触发 row-click。
-  // 返回抽屉标题文本；抽屉标题与目标标题不符时抛错。
+  // 点开过滤后按标题匹配的首行 → 右侧抽屉详情；进入即标记已读（openDrawer 调 markRead）
   async openDetailDrawer(title: string): Promise<string> {
-    const row = this.page.locator('.el-table__row').first();
-    await row.waitFor({ state: 'attached', timeout: 15000 });
-    await row.dispatchEvent('click');
+    const row = this.page.locator('.el-table__row').filter({ hasText: title }).first();
+    await row.waitFor({ timeout: 15000 });
+    await row.click();
     const drawerTitle = this.page.locator('.el-drawer .drawer-title');
     await drawerTitle.waitFor({ timeout: 15000 });
     const text = (await drawerTitle.textContent()) ?? '';

@@ -21,7 +21,7 @@ const nid = () => {
 // 与 scripts/demo-data.js 同源，从 contracts/permissions.yaml 重灌。
 async function seedPermissions(): Promise<number> {
   const yamlPath = join(__dirname, '..', '..', '..', 'contracts', 'permissions.yaml');
-  const doc = parse(readFileSync(yamlPath, 'utf8'), { uniqueKeys: false }) as { permissions?: Record<string, { description?: string }> };
+  const doc = parse(readFileSync(yamlPath, 'utf8')) as { permissions?: Record<string, { description?: string }> };
   const perms = doc.permissions ?? {};
   const conn = await createConnection(config.db);
   try {

@@ -89,6 +89,40 @@ export class NotificationAdminPage {
     return toast;
   }
 
+  private async searchByTitle(title: string): Promise<void> {
+    await this.page.getByPlaceholder('按标题筛选').fill(title);
+    const resp = this.page.waitForResponse(
+      (r) =>
+        r.url().includes('/v1/notification/announcements') && r.request().method() === 'GET',
+    );
+    await this.page.getByRole('button', { name: '搜索', exact: true }).click();
+    await resp;
+    await this.page
+      .locator('.el-table__row')
+      .filter({ hasText: title })
+      .first()
+      .waitFor({ timeout: 15000 });
+  }
+
+  async publishByTitle(title: string): Promise<string> {
+    await this.goto();
+    await this.searchByTitle(title);
+    const row = this.page.locator('.el-table__row').filter({ hasText: title }).first();
+    await throttlePublish();
+    await row.getByRole('button', { name: '发布', exact: true }).click();
+    return this.lastToastText('发布');
+  }
+
+  async revokeByTitle(title: string): Promise<string> {
+    await this.goto();
+    await this.searchByTitle(title);
+    const row = this.page.locator('.el-table__row').filter({ hasText: title }).first();
+    await row.getByRole('button', { name: '撤销', exact: true }).click();
+    const box = this.page.locator('.el-message-box').filter({ hasText: '确认撤销' });
+    await box.getByRole('button', { name: '确定' }).click();
+    return this.lastToastText('撤销');
+  }
+
   async lastToastText(filter: string): Promise<string> {
     const toast = this.page.locator('.el-message').filter({ hasText: filter }).last();
     await toast.waitFor({ timeout: 15000 });
