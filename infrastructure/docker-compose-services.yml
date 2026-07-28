@@ -297,7 +297,7 @@ services:
       - ../services/iam-service/config:/etc/iam-service
     environment:
       DATABASE_URL: "${DATABASE_URL}"
-      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
@@ -363,7 +363,7 @@ services:
       TENANT_ID: "${TENANT_ID}"
       TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
       JWKS_URL: "${JWKS_URL}"
-      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
       SERVER_PORT: "8083"
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
@@ -395,7 +395,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: "${DATABASE_URL}"
-      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
@@ -419,7 +419,7 @@ services:
       # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
       DATABASE_URL: "${DATABASE_URL}"
-      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       # CONSUL_ADDR: "http://consul:8500"   # 默认值，取消注释可覆盖
       # CONSUL_SERVICE_NAME: "audit-service"  # 默认值，取消注释可覆盖
