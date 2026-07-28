@@ -478,6 +478,8 @@ menus:
   fileColumnType: Type
   fileColumnSize: Size
   fileColumnUploadedAt: Uploaded At
+  fileTableActions: Actions
+  fileDownload: Download
   filePlaceholderFilename: Filter by filename
   fileNew: Upload
   presignTitle: Presigned URL

@@ -65,20 +65,32 @@ const columns = [
   },
   { label: t("menus.fileColumnUploadedAt"), prop: "created_at", width: 170 },
   {
-    label: t("menus.userDelete"),
-    width: 100,
-    cellRenderer: ({ row }: any) =>
-      row.id && hasPerms(["FILE_DELETE"])
-        ? h(
+    label: t("menus.fileTableActions") ?? "操作",
+    width: 160,
+    fixed: "right",
+    cellRenderer: ({ row }: any) => {
+      if (!row.id) return null;
+      const btns: any[] = [];
+      if (hasPerms(["FILE_DOWNLOAD"])) {
+        btns.push(
+          h(
             ElButton,
-            {
-              type: "danger",
-              link: true,
-              onClick: () => onDelete(row)
-            },
+            { type: "primary", link: true, onClick: () => onDownload(row) },
+            () => t("menus.fileDownload") ?? "下载"
+          )
+        );
+      }
+      if (hasPerms(["FILE_DELETE"])) {
+        btns.push(
+          h(
+            ElButton,
+            { type: "danger", link: true, onClick: () => onDelete(row) },
             () => t("menus.userDelete")
           )
-        : null
+        );
+      }
+      return h("div", { class: "flex gap-2" }, btns);
+    }
   }
 ];
 
@@ -114,6 +126,17 @@ async function onDelete(row: any) {
       type: "error"
     });
   }
+}
+
+function onDownload(row: any) {
+  const href = fileUrl(row.url ?? row.preview_url ?? `/v1/file/${encodeURIComponent(row.id)}`);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = row.filename ?? "";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 const router = useRouter();

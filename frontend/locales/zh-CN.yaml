@@ -478,6 +478,8 @@ menus:
   fileColumnType: 类型
   fileColumnSize: 大小
   fileColumnUploadedAt: 上传时间
+  fileTableActions: 操作
+  fileDownload: 下载
   filePlaceholderFilename: 按文件名筛选
   fileNew: 上传
   presignTitle: 预签名 URL
