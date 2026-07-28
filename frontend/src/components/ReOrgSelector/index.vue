@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
-import { ElTreeSelect, ElTag, ElLoading } from "element-plus";
+import { ref, computed, onMounted } from "vue";
+import { ElTreeSelect } from "element-plus";
 import { listIamOrgUnits, type IamOrgUnit } from "@/api/iam";
 
 export interface OrgValue {
@@ -15,13 +15,11 @@ const props = withDefaults(
     multiple?: boolean;
     placeholder?: string;
     disabled?: boolean;
-    showAllLevels?: boolean;
   }>(),
   {
     multiple: true,
     placeholder: "选择部门",
-    disabled: false,
-    showAllLevels: true
+    disabled: false
   }
 );
 
@@ -133,22 +131,8 @@ function findParent(
   return undefined;
 }
 
-function removeTag(index: number) {
-  if (props.disabled) return;
-  const newValue = props.modelValue.filter((_, idx) => idx !== index);
-  emit("update:modelValue", newValue);
-  emit("change", newValue);
-}
-
-function clearAll() {
-  if (props.disabled) return;
-  emit("update:modelValue", []);
-  emit("change", []);
-}
-
-function getTagLabel(item: OrgValue): string {
-  return props.showAllLevels ? item.path.join("/") : item.name;
-}
+// 保留导出的 tag/清空能力：调用方若要自定义视觉可直接用 tag 或包一层容器；
+// ElTreeSelect 的默认 tag 展示 + collapse-tags-tooltip 已能覆盖多选场景
 
 onMounted(() => {
   loadOrgUnits();
@@ -162,82 +146,18 @@ onMounted(() => {
     :placeholder="placeholder"
     :disabled="disabled"
     :loading="loading"
-    :tree-props="treeProps"
+    :props="treeProps"
     :data="treeData"
     :collapse-tags="true"
+    :collapse-tags-tooltip="true"
     :max-collapse-tags="3"
     class="re-org-selector"
     @change="handleChange"
-  >
-    <template #default>
-      <div class="selector-input">
-        <div class="selected-tags">
-          <ElTag
-            v-for="(item, index) in modelValue.slice(0, 3)"
-            :key="item.id"
-            closable
-            size="small"
-            @close="removeTag(index)"
-          >
-            {{ getTagLabel(item) }}
-          </ElTag>
-          <span v-if="modelValue.length > 3" class="tag tag-more">
-            +{{ modelValue.length - 3 }}
-          </span>
-        </div>
-        <button
-          v-if="modelValue.length > 0"
-          class="clear-btn"
-          title="清空"
-          @click.stop="clearAll"
-        >
-          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-            <path
-              d="M18 6L6 18M6 6l12 12"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-      </div>
-    </template>
-  </ElTreeSelect>
+  />
 </template>
 
 <style scoped>
 .re-org-selector {
   width: 100%;
-}
-
-.tag-more {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  font-size: 12px;
-  color: #909399;
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-}
-
-.clear-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin-left: 4px;
-  color: #909399;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.clear-btn:hover {
-  color: #606266;
-  background: #f5f7fa;
 }
 </style>
