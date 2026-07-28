@@ -64,7 +64,8 @@ export default defineComponent({
       popover.handleClose();
     }
 
-    router.beforeEach(() => {
+    router.beforeEach((to, from) => {
+      if (to.fullPath === from.fullPath) return;
       closeAllDialog();
       closeAllDrawer();
     });

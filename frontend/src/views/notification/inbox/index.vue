@@ -136,7 +136,7 @@ onMounted(() => {
         </el-button>
       </el-form-item>
     </el-form>
-    <PureTableBar :title="t('menus.notificationInbox')" @refresh="onSearch">
+    <PureTableBar :title="t('menus.notificationInbox')" :columns="columns" @refresh="onSearch">
       <template v-slot="{ size, dynamicColumns }">
         <el-tabs v-model="activeTab" class="ml-4" @tab-change="onTabChange">
           <el-tab-pane :name="'all'" :label="t('menus.notificationAll')" />

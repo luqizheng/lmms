@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, h, computed, reactive } from "vue";
+import { ref, h, computed, reactive, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { listNamespaces, createNamespace, deleteNamespace } from "@/api/config";
 import { PureTableBar } from "@/components/RePureTableBar";
@@ -144,6 +144,10 @@ async function onDelete(row: any) {
     });
   }
 }
+
+onMounted(() => {
+  onSearch();
+});
 </script>
 
 <template>
@@ -177,7 +181,7 @@ async function onDelete(row: any) {
         >
       </el-form-item>
     </el-form>
-    <PureTableBar :title="t('menus.configColumnApp')" @refresh="onSearch">
+    <PureTableBar :title="t('menus.configColumnApp')" :columns="columns" @refresh="onSearch">
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
           align-whole="center"

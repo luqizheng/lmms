@@ -75,7 +75,7 @@ function reset() {
       </el-form-item>
     </el-form>
 
-    <PureTableBar :title="t('menus.notificationAdmin')" @refresh="onSearch">
+    <PureTableBar :title="t('menus.notificationAdmin')" :columns="columns" @refresh="onSearch">
       <template #buttons>
         <el-button
           type="primary"

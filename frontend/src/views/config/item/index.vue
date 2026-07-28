@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, h } from "vue";
+import { ref, computed, h, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   listConfigItems,
@@ -87,6 +87,12 @@ async function loadNamespaces() {
     selectedNs.value = namespaces.value[0].id;
   }
 }
+
+onMounted(() => {
+  loadNamespaces().then(() => {
+    if (selectedNs.value) onSearch();
+  });
+});
 
 async function onSearch() {
   if (!selectedNs.value) {
@@ -201,7 +207,7 @@ async function onDelete(row: ConfigItem) {
         >
       </el-form-item>
     </el-form>
-    <PureTableBar :title="t('menus.configColumnValue')" @refresh="onSearch">
+    <PureTableBar :title="t('menus.configColumnValue')" :columns="columns" @refresh="onSearch">
       <template v-slot="{ size: ts, dynamicColumns }">
         <pure-table
           align-whole="center"

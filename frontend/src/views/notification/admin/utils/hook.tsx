@@ -42,7 +42,8 @@ export function useAdmin() {
       width: 170,
       formatter: ({ publish_at }: any) =>
         publish_at ? dayjs(publish_at).format("YYYY-MM-DD HH:mm") : "-"
-    }
+    },
+    { label: "操作", fixed: "right", width: 260, slot: "operation" }
   ];
 
   async function onSearch() {
