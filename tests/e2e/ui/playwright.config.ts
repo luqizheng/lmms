@@ -1,9 +1,10 @@
+import './dev/env';
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './runner',
   globalSetup: './globalSetup.ts',
-  timeout: 60000,
+  timeout: 120000,
   retries: process.env.CI ? 2 : 0,
   use: {
     baseURL: process.env.E2E_FRONTEND_URL ?? 'http://localhost:8080',

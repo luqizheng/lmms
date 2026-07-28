@@ -1,113 +1,27 @@
-import type { Page } from '@playwright/test';
-import { LoginPage } from '../pages/login.page';
-import { UserPage } from '../pages/user.page';
-import { TokenClientPage } from '../pages/token.page';
-import { ChangePasswordPage } from '../pages/change-password.page';
-import { NotificationAdminPage } from '../pages/notification.page';
+import type { Flow } from './types';
+import { userFlows } from './user';
+import { tokenFlows } from './token';
+import { accountFlows } from './account';
+import { notificationFlows } from './notification';
+import { systemFlows } from './system';
+import { fileFlows } from './file';
+import { configFlows } from './config';
+import { monitorFlows } from './monitor';
+import { authFlows } from './auth';
+import { inboxFlows } from './inbox';
+import { smokeFlows } from './smoke';
 
-export interface FlowResult {
-  toast?: string;
-  dialog?: string;
-}
-
-export type Flow = (page: Page, params: Record<string, unknown>) => Promise<FlowResult>;
-
-async function loginFirst(page: Page) {
-  await new LoginPage(page).login();
-}
-
+// 按域聚合：新增域 = 新建 flows/<domain>.ts 并在此加一行 spread
 export const flows: Record<string, Flow> = {
-  createUser: async (page, params) => {
-    await loginFirst(page);
-    const up = new UserPage(page);
-    await up.createUser({
-      username: String(params.username),
-      password: params.password ? String(params.password) : undefined,
-    });
-    return { toast: await up.lastToastText() };
-  },
-
-  createTokenClient: async (page, params) => {
-    await loginFirst(page);
-    const tp = new TokenClientPage(page);
-    return await tp.createClient(String(params.name));
-  },
-
-  resetTokenClientSecret: async (page, params) => {
-    await loginFirst(page);
-    const tp = new TokenClientPage(page);
-    const name = String(params.name);
-    // 准备数据：先创建客户端（返回结果不向测试暴露）
-    await tp.createClient(name);
-    // 执行动作：重置 secret
-    return await tp.resetSecret(name);
-  },
-
-  toggleTokenClient: async (page, params) => {
-    await loginFirst(page);
-    const tp = new TokenClientPage(page);
-    const name = String(params.name);
-    await tp.createClient(name);
-    return await tp.toggleStatus(name);
-  },
-
-  deleteTokenClient: async (page, params) => {
-    await loginFirst(page);
-    const tp = new TokenClientPage(page);
-    const name = String(params.name);
-    await tp.createClient(name);
-    return await tp.deleteClient(name);
-  },
-
-  changeOwnPassword: async (page, params) => {
-    const username = String(params.username);
-    const oldPassword = String(params.oldPassword);
-    const newPassword = String(params.newPassword);
-
-    // 1. 以 admin 登录建新用户
-    const login = new LoginPage(page);
-    await login.login();
-    await new UserPage(page).createUser({ username, password: oldPassword });
-
-    // 2. 退出 admin
-    await login.logout();
-
-    // 3. 以新用户登录
-    await login.login(username, oldPassword);
-
-    // 4. 打开修改密码弹窗并提交
-    const cpp = new ChangePasswordPage(page);
-    await cpp.openDialog();
-    await cpp.submit(oldPassword, newPassword);
-
-    return { toast: await cpp.lastToastText() };
-  },
-
-  createAnnouncement: async (page, params) => {
-    await loginFirst(page);
-    const np = new NotificationAdminPage(page);
-    await np.createAnnouncement({
-      title: String(params.title),
-      body: params.body ? String(params.body) : undefined,
-      recipients: params.recipients as any,
-    });
-    return { toast: await np.lastToastText() };
-  },
-
-  publishAnnouncement: async (page, params) => {
-    await loginFirst(page);
-    const np = new NotificationAdminPage(page);
-    await np.createAnnouncement({ title: String(params.title) });
-    await np.publishFirstAnnouncement();
-    return { toast: await np.lastToastText() };
-  },
-
-  revokeAnnouncement: async (page, params) => {
-    await loginFirst(page);
-    const np = new NotificationAdminPage(page);
-    await np.createAnnouncement({ title: String(params.title) });
-    await np.publishFirstAnnouncement();
-    await np.revokeFirstAnnouncement();
-    return { toast: await np.lastToastText() };
-  },
+  ...userFlows,
+  ...tokenFlows,
+  ...accountFlows,
+  ...notificationFlows,
+  ...systemFlows,
+  ...fileFlows,
+  ...configFlows,
+  ...monitorFlows,
+  ...authFlows,
+  ...inboxFlows,
+  ...smokeFlows,
 };

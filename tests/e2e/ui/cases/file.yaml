@@ -1,0 +1,27 @@
+group: file
+cases:
+  - caseId: UI-FILE-001
+    desc: 上传 fixture 文件（smoke）
+    flow: uploadFile
+    smoke: true
+    expect:
+      - toast=成功 1
+
+  - caseId: UI-FILE-002
+    desc: 上传→列表搜索可见→删除→列表不可见（闭环可重复）
+    flow: deleteFile
+    params:
+      filename: e2e-del-${rand}.txt
+    expect:
+      - toast=已删除
+
+  - caseId: UI-FILE-003
+    desc: 预签名页打开渲染（smoke）
+    flow: viewPresignPage
+    expect:
+      - dialog=预签名 URL
+
+  - caseId: UI-FILE-004
+    desc: 列表下载按钮——跳过：文件列表（views/file/index.vue）无下载按钮，仅图片缩略图预览，无下载入口可点
+    flow: downloadFile
+    skip: true

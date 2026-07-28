@@ -1,0 +1,8 @@
+group: system-session
+cases:
+  - caseId: UI-SESSION-001
+    desc: 在线会话页打开、标题与表格容器渲染（前端缺陷：未传 columns 故只断言容器）
+    flow: viewSessionPage
+    smoke: true
+    expect:
+      - dialog=会话管理

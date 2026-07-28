@@ -1,0 +1,37 @@
+group: system-dept
+cases:
+  - caseId: UI-DEPT-001
+    desc: 新增顶层部门
+    flow: createDept
+    smoke: true
+    params:
+      name: d${rand}
+      code: dc${rand}
+    expect:
+      - toast=您新增了部门名称为
+  - caseId: UI-DEPT-002
+    desc: 新增子部门（级联选父节点，树形创建）
+    flow: createDept
+    params:
+      name: d${rand}
+      code: dc${rand}
+      withParent: true
+    expect:
+      - toast=您新增了部门名称为
+  - caseId: UI-DEPT-003
+    desc: 编辑部门名称（先建再改）
+    flow: editDept
+    params:
+      name: d${rand}
+      code: dc${rand}
+      newName: dn${rand}
+    expect:
+      - toast=您修改了部门名称为
+  - caseId: UI-DEPT-004
+    desc: 删除部门（先建再删）
+    flow: deleteDept
+    params:
+      name: d${rand}
+      code: dc${rand}
+    expect:
+      - toast=您删除了部门名称为

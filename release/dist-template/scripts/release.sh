@@ -179,6 +179,21 @@ if [ -d "${REPO_ROOT}/scripts" ]; then
   echo "[release]   ✓ scripts/"
 fi
 
+# tests/e2e ships so dist users can run both API (vitest) and browser (Playwright)
+# suites. Runtime artifacts are excluded; users reinstall + regenerate locally:
+#   pnpm -C tests/e2e install && npx playwright install chromium
+if [ -d "${REPO_ROOT}/tests/e2e" ]; then
+  mkdir -p "${DIST_DIR}/tests"
+  cp -a "${REPO_ROOT}/tests/e2e" "${DIST_DIR}/tests/e2e"
+  find "${DIST_DIR}/tests/e2e" -type d \
+    \( -name 'node_modules' -o -name 'test-results' -o -name 'playwright-report' \) \
+    -exec rm -rf {} + 2>/dev/null || true
+  rm -f "${DIST_DIR}/tests/e2e/shared/report/"report-*.xlsx 2>/dev/null || true
+  rm -f "${DIST_DIR}/tests/e2e/ui/dev/last-error.png" 2>/dev/null || true
+  find "${DIST_DIR}/tests/e2e/shared/report/errors" -mindepth 1 -delete 2>/dev/null || true
+  echo "[release]   ✓ tests/e2e/ (node_modules / reports / playwright artifacts excluded)"
+fi
+
 if [ -d "${REPO_ROOT}/.agents/skills" ]; then
   mkdir -p "${DIST_DIR}/.agents"
   cp -a "${REPO_ROOT}/.agents/skills" "${DIST_DIR}/.agents/skills"

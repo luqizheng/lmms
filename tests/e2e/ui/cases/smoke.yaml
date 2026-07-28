@@ -1,0 +1,37 @@
+group: smoke
+cases:
+  - caseId: UI-SMOKE-001
+    desc: 欢迎页渲染（登录后默认落地页，统计卡片出现）
+    smoke: true
+    tags: ['@smoke']
+    flow: smokeWelcome
+    expect:
+      - toast=ok:welcome
+  - caseId: UI-SMOKE-002
+    desc: Dashboard 服务状态总览渲染
+    smoke: true
+    tags: ['@smoke']
+    flow: smokeDashboard
+    expect:
+      - toast=ok:dashboard
+  - caseId: UI-SMOKE-003
+    desc: 个人资料页表单渲染（只读，不提交）
+    smoke: true
+    tags: ['@smoke']
+    flow: smokeAccountProfile
+    expect:
+      - toast=ok:account-profile
+  - caseId: UI-SMOKE-004
+    desc: 安全设置页（安全日志表）容器渲染，不断言数据行
+    smoke: true
+    tags: ['@smoke']
+    flow: smokeAccountSecurity
+    expect:
+      - toast=ok:account-security
+  - caseId: UI-SMOKE-005
+    desc: 引导页渲染（打开引导页按钮出现）
+    smoke: true
+    tags: ['@smoke']
+    flow: smokeGuide
+    expect:
+      - toast=ok:guide

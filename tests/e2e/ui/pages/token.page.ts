@@ -77,7 +77,7 @@ export class TokenClientPage {
     await this.searchByName(name);
     const row = this.rowByName(name).first();
     await row.waitFor({ timeout: 8000 });
-    await row.getByRole('button', { name: '重置Secret' }).click();
+    await row.getByRole('button', { name: '重置 Secret' }).click();
     await this.page
       .locator('.el-message-box')
       .filter({ hasText: '重置' })

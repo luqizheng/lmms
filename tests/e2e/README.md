@@ -46,9 +46,12 @@ pnpm -C tests/e2e install
 
 ### 1.3 UI 测试额外要求
 
-- 前端容器需就绪（默认 `http://localhost:8080`），`ui/globalSetup.ts` 会做健康探测，失败即中止。
-- 前端必须禁用登录验证码：`infrastructure/docker-compose.yml` 已为 frontend 构建注入 `VITE_DISABLE_CAPTCHA=true`，改动后需 `docker compose build frontend`。
+- 前端就绪二选一：
+  - 前端容器（默认 `http://localhost:8080`），`ui/globalSetup.ts` 会做健康探测，失败即中止；
+  - 或 vite dev：`pnpm -C frontend dev`（8848 端口），运行时加 `E2E_FRONTEND_URL=http://localhost:8848`。
+- 前端必须禁用登录验证码：容器构建注入 `VITE_DISABLE_CAPTCHA=true`；frontend `.env.development` 已默认禁用。
 - Playwright 使用完整 chromium（`channel: 'chromium'`），首次需 `pnpm -C tests/e2e exec playwright install chromium`。
+- 无 sudo 的环境缺 chrome 系统依赖时：把 .deb 解包到 `~/playwright-libs/root` 并写 `~/playwright-libs/fonts.conf`，`ui/dev/env.ts` 会自动注入 `LD_LIBRARY_PATH` / `FONTCONFIG_FILE`（其他环境 no-op）。
 
 ---
 
@@ -121,8 +124,12 @@ tests/e2e/
   ui/                        # 数据驱动 - UI
     cases/*.yaml             # 用例（flow + params + expect）
     pages/                   # Page Object（login.page.ts / user.page.ts）
-    flows/index.ts           # 业务流编排注册表（flow 名 → 函数）
-    globalSetup.ts           # resetBase + 注册 admin + 前端健康探测
+    flows/                   # 业务流编排，按域分文件：<domain>.ts 各自 export <domain>Flows
+    flows/index.ts           # 聚合注册表（新增域只加一行 spread）
+    dev/run-flow.ts          # 开发期单 flow 验证器（不清库）：npx tsx ui/dev/run-flow.ts <flow> '<params>'
+    dev/probe.ts             # 页面 DOM 探针：npx tsx ui/dev/probe.ts <url>
+    dev/env.ts               # 本机 chrome 依赖探测（~/playwright-libs，无 sudo 环境；他处 no-op）
+    globalSetup.ts           # resetBase + 重灌 iam_permissions + 注册 admin + 前端健康探测
     runner/run.spec.ts       # 遍历 yaml 执行 flow + 校验 toast
     playwright.config.ts
 ```
@@ -196,7 +203,7 @@ cases:
       - toast=已新增用户      # 校验页面提示包含该子串
 ```
 
-新增 flow：在 `flows` 注册表加函数，复用 `pages/` 下 Page Object。
+新增 flow：在对应域的 `flows/<domain>.ts` 加函数（复用 `pages/` 下 Page Object），`flows/index.ts` 已聚合各域，新域只需加一行 spread。开发期用 `ui/dev/run-flow.ts` 单独验证（不清库、可并发），通过后再跑整轮 `test:ui`。
 
 ### 6.5 样例
 

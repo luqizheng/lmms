@@ -64,8 +64,17 @@ export async function resetBusiness(): Promise<void> {
   await withConn(async (c) => {
     await c.query('SET FOREIGN_KEY_CHECKS = 0').catch(() => undefined);
     for (const t of BUSINESS_TABLES) {
+      // 角色绑定是种子用户身份的一部分：只清非种子用户的绑定，
+      // 否则 e2eadmin 丢 tenant_admin → has_role 校验全灭（403）
+      if (t === 'iam_user_roles') continue;
       await c.query(`DELETE FROM ${t}`).catch(() => undefined);
     }
+    await c
+      .query(
+        `DELETE ur FROM iam_user_roles ur JOIN iam_users u ON u.id = ur.user_id WHERE u.username NOT IN (?)`,
+        [config.seedUsernames],
+      )
+      .catch(() => undefined);
     // iam_users 表保留基础数据：删除非种子 username 的行
     await c
       .query('DELETE FROM iam_users WHERE username NOT IN (?)', [config.seedUsernames])

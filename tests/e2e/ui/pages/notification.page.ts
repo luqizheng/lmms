@@ -1,6 +1,15 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { config } from '../../shared/config';
+import { throttlePublish } from '../flows/throttle';
 
+type Recipient = { type: 'user' | 'role' | 'dept'; pickAll?: boolean };
+
+// 公告管理页 /#/notification/admin（views/notification/admin）。
+// 当前前端：「新建公告」对话框字段=公告标题/公告内容/接收人(必填≥1)，
+// 底部「发布」按钮一步完成创建+发布（toast=已发布）；旧版「确定」+免接收人
+// 的实现已随前端改版失效。接收人选择器为 ReUser/Role/OrgSelector，
+// 「搜索xx」是 span 占位符，真实输入框是 .el-select__input（点开才可输入），
+// 且用户下拉选项文案是昵称（users/simple 不返回 username）。
 export class NotificationAdminPage {
   constructor(private page: Page) {}
 
@@ -9,69 +18,80 @@ export class NotificationAdminPage {
     await this.page.getByRole('button', { name: '新建公告' }).waitFor({ timeout: 15000 });
   }
 
+  // 下拉选项按「可见」过滤：公告状态筛选器的 dropdown 也常驻 DOM（隐藏），
+  // 不限定 visible 会误中它的 option
+  private async pickUserRecipient(dialog: Locator): Promise<void> {
+    await dialog.locator('.re-user-selector .el-select__wrapper').click();
+    await dialog.locator('.re-user-selector .el-select__input').fill(config.admin.user);
+    const option = this.page
+      .locator('.el-select-dropdown__item:visible')
+      .filter({ hasText: config.admin.nickname })
+      .first();
+    await option.waitFor({ timeout: 15000 });
+    await option.click();
+  }
+
+  private async pickRoleRecipient(dialog: Locator): Promise<void> {
+    await dialog.getByRole('tab', { name: '角色' }).click();
+    await dialog.locator('.re-role-selector .el-select__wrapper').click();
+    await dialog.locator('.re-role-selector .el-select__input').fill('admin');
+    const option = this.page.locator('.el-select-dropdown__item:visible').first();
+    await option.waitFor({ timeout: 15000 });
+    await option.click();
+  }
+
+  private async pickDeptRecipient(dialog: Locator): Promise<void> {
+    await dialog.getByRole('tab', { name: '部门' }).click();
+    await dialog.locator('.re-org-selector .el-select__wrapper').click();
+    const node = this.page.locator('.el-tree-node__label').first();
+    await node.waitFor({ timeout: 15000 });
+    await node.click();
+  }
+
+  // 创建（对话框「发布」一步创建+发布）；recipients 缺省时选当前登录用户。
+  // 返回结果 toast 文本（成功=已发布），失败文案原样返回由断言判定。
   async createAnnouncement(params: {
     title: string;
     body?: string;
-    recipients?: { type: 'user' | 'role' | 'dept'; pickAll?: boolean }[];
-  }): Promise<void> {
+    recipients?: Recipient[];
+  }): Promise<string> {
     await this.goto();
     await this.page.getByRole('button', { name: '新建公告' }).click();
-
     const dialog = this.page.locator('.el-dialog').filter({ hasText: '新建公告' });
+    await dialog
+      .locator('.el-form-item')
+      .filter({ hasText: '公告标题' })
+      .locator('input')
+      .fill(params.title);
+    await dialog
+      .locator('.el-form-item')
+      .filter({ hasText: '公告内容' })
+      .locator('textarea')
+      .fill(params.body ?? params.title);
 
-    // 通过 form-item label 定位标题输入框
-    const titleFormItem = dialog.locator('.el-form-item').filter({ hasText: '标题' });
-    await titleFormItem.locator('.el-input__inner').fill(params.title);
-
-    if (params.body) {
-      const bodyFormItem = dialog.locator('.el-form-item').filter({ hasText: '正文' });
-      await bodyFormItem.locator('.el-textarea__inner').fill(params.body);
+    const recipients = params.recipients?.length ? params.recipients : [{ type: 'user' as const }];
+    for (const r of recipients) {
+      if (r.type === 'role') await this.pickRoleRecipient(dialog);
+      else if (r.type === 'dept') await this.pickDeptRecipient(dialog);
+      else await this.pickUserRecipient(dialog);
     }
 
-    if (params.recipients && params.recipients.length > 0) {
-      for (const r of params.recipients) {
-        const tabLabel = r.type === 'user' ? '用户' : r.type === 'role' ? '角色' : '部门';
-        await dialog.getByRole('tab', { name: tabLabel }).click();
-        if (r.pickAll) {
-          await dialog.getByRole('button', { name: '添加全部' }).click();
-        }
-      }
+    await throttlePublish();
+    await dialog.getByRole('button', { name: '发布' }).click();
+    // 同 inbox.page.ts：AMQP 抖动导致发布偶发 5xx 时重试（对话框失败不关闭）
+    let toast = await this.lastToastText('发布');
+    for (let i = 0; i < 2 && toast.includes('失败'); i++) {
+      await this.page.waitForTimeout(3000);
+      await throttlePublish();
+      await dialog.getByRole('button', { name: '发布' }).click();
+      toast = await this.lastToastText('发布');
     }
-
-    await dialog.getByRole('button', { name: '确定' }).click();
+    return toast;
   }
 
-  async lastToastText(): Promise<string> {
-    // 等待登录成功 toast 消失（最多等待 5 秒）
-    const loginToast = this.page.locator('.el-message').filter({ hasText: '登录成功' });
-    try {
-      await loginToast.waitFor({ state: 'hidden', timeout: 5000 });
-    } catch {
-      // 登录 toast 可能已经消失，忽略
-    }
-
-    // 等待新的 toast 出现
-    const toast = this.page.locator('.el-message').last();
-    await toast.waitFor({ timeout: 8000 });
+  async lastToastText(filter: string): Promise<string> {
+    const toast = this.page.locator('.el-message').filter({ hasText: filter }).last();
+    await toast.waitFor({ timeout: 15000 });
     return (await toast.textContent()) ?? '';
-  }
-
-  async getAnnouncementCount(): Promise<number> {
-    await this.goto();
-    const rows = await this.page.locator('.el-table__body-wrapper .el-table__row').count();
-    return rows;
-  }
-
-  async publishFirstAnnouncement(): Promise<void> {
-    await this.goto();
-    const firstRow = this.page.locator('.el-table__body-wrapper .el-table__row').first();
-    await firstRow.getByRole('button', { name: '发布' }).click();
-  }
-
-  async revokeFirstAnnouncement(): Promise<void> {
-    await this.goto();
-    const firstRow = this.page.locator('.el-table__body-wrapper .el-table__row').first();
-    await firstRow.getByRole('button', { name: '撤销' }).click();
-    await this.page.getByRole('button', { name: '确定' }).click();
   }
 }
