@@ -120,16 +120,27 @@ permissions:
   SYS_SETTING_UPDATE:
     description: "编辑系统设置"
 
+  # === 项目管理 ===
+  PM_PROJECT_CREATE:
     description: "创建项目"
+  PM_PROJECT_READ:
     description: "查看项目"
+  PM_PROJECT_UPDATE:
     description: "编辑项目"
+  PM_PROJECT_DELETE:
     description: "归档项目（软删）"
   # === 里程碑 ===
+  PM_MILESTONE_CREATE:
     description: "创建里程碑"
+  PM_MILESTONE_READ:
     description: "查看里程碑"
+  PM_MILESTONE_UPDATE:
     description: "编辑里程碑"
+  PM_MILESTONE_DELETE:
     description: "删除里程碑"
   # === 任务状态机转移 ===
+  PM_TASK_UPDATE:
     description: "编辑任务（含状态机转移）"
   # === LLM 辅助 ===
+  PM_LLM_ASSIST:
     description: "调用 LLM 细化需求（占位 provider）"

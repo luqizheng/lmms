@@ -47,6 +47,16 @@ export type PermissionCode =
   | 'FILE_READ'
   | 'SYS_SETTING_READ'
   | 'SYS_SETTING_UPDATE'
+  | 'PM_PROJECT_CREATE'
+  | 'PM_PROJECT_READ'
+  | 'PM_PROJECT_UPDATE'
+  | 'PM_PROJECT_DELETE'
+  | 'PM_MILESTONE_CREATE'
+  | 'PM_MILESTONE_READ'
+  | 'PM_MILESTONE_UPDATE'
+  | 'PM_MILESTONE_DELETE'
+  | 'PM_TASK_UPDATE'
+  | 'PM_LLM_ASSIST'
 ;
 
 export const PermissionDescriptions: Record<PermissionCode, string> = {
@@ -94,5 +104,15 @@ export const PermissionDescriptions: Record<PermissionCode, string> = {
   'FILE_DELETE': '删除文件',
   'FILE_READ': '查看文件列表与详情',
   'SYS_SETTING_READ': '查看系统设置',
-  'SYS_SETTING_UPDATE': '调用 LLM 细化需求（占位 provider）',
+  'SYS_SETTING_UPDATE': '编辑系统设置',
+  'PM_PROJECT_CREATE': '创建项目',
+  'PM_PROJECT_READ': '查看项目',
+  'PM_PROJECT_UPDATE': '编辑项目',
+  'PM_PROJECT_DELETE': '归档项目（软删）',
+  'PM_MILESTONE_CREATE': '创建里程碑',
+  'PM_MILESTONE_READ': '查看里程碑',
+  'PM_MILESTONE_UPDATE': '编辑里程碑',
+  'PM_MILESTONE_DELETE': '删除里程碑',
+  'PM_TASK_UPDATE': '编辑任务（含状态机转移）',
+  'PM_LLM_ASSIST': '调用 LLM 细化需求（占位 provider）',
 };
