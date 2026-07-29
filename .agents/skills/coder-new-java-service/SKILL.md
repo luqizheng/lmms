@@ -1125,6 +1125,11 @@ ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar --spring.profiles.act
 If the service uses MySQL, create an initial migration. Table names MUST use
 the service prefix (`{prefix}`). See `contracts/db-conventions.md`.
 
+> **User reference columns** (`user_id` / `created_by` / `updated_by` /
+> `operator_id` / `actor_id` / `owner_id`) MUST be `VARCHAR(64)` — the platform
+> user id is a random string, not an auto-increment integer. Never `BIGINT`.
+> See `contracts/db-conventions.md` §「用户引用字段类型约定」.
+
 ```sql
 -- V1__init.sql - initial schema for {name}.
 -- Table prefix `{prefix}` registered in scripts/check-db-naming.js.
@@ -1136,7 +1141,7 @@ CREATE TABLE {prefix}items (
     name VARCHAR(128) NOT NULL,
     description TEXT,
     status VARCHAR(32) NOT NULL DEFAULT 'active',
-    created_by BIGINT NOT NULL,
+    created_by VARCHAR(64) NOT NULL,
     deleted_at DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

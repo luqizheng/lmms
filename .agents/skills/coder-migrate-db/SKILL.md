@@ -145,7 +145,7 @@ When the user says a type, map it:
 
 | User says | MySQL | SQLite |
 |-----------|-------|--------|
-| `string` | VARCHAR(255) | TEXT |\
+| `string` | VARCHAR(255) | TEXT |
 | `text` | TEXT | TEXT |
 | `boolean` | TINYINT(1) NOT NULL DEFAULT 0 | INTEGER NOT NULL DEFAULT 0 |
 | `integer`, `id` | BIGINT NOT NULL AUTO_INCREMENT | INTEGER NOT NULL |
@@ -153,6 +153,17 @@ When the user says a type, map it:
 | `datetime` | TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP | DATETIME NOT NULL DEFAULT (datetime('now')) |
 | `uuid` | VARCHAR(36) NOT NULL | TEXT NOT NULL |
 | `json` | JSON NOT NULL | TEXT NOT NULL |
+| **user reference** (`user_id` / `created_by` / `updated_by` / `operator_id` / `actor_id` / `owner_id`) | **VARCHAR(64)** | **TEXT** |
+
+### User Reference Columns (mandatory)
+
+The platform's user id is a **random string** (UUID / Nano ID), not an auto-increment integer. Any column that references a user identity MUST be `VARCHAR(64)` (MySQL) / `TEXT` (SQLite) — never `BIGINT`:
+
+- ❌ `created_by BIGINT NOT NULL` — JWT `sub` is a random string; insert fails or truncates.
+- ✅ `created_by VARCHAR(64) NOT NULL`
+- Existing legacy tables use `VARCHAR(32/36/64/128)` — do NOT migrate them; the convention applies only to **new tables / new columns**.
+
+Authoritative spec: `contracts/db-conventions.md` §「用户引用字段类型约定」.
 
 ## Index Conventions
 
@@ -173,6 +184,7 @@ When the user says a type, map it:
 - [ ] `id` column is present as auto-increment primary key
 - [ ] `deleted_at` soft-delete column is present
 - [ ] `created_at` and `updated_at` timestamps are present
+- [ ] All user reference columns (`user_id` / `created_by` / `updated_by` / `operator_id` / `actor_id` / `owner_id`) are `VARCHAR(64)` (MySQL) / `TEXT` (SQLite), **not** `BIGINT`
 - [ ] Down migration correctly drops the table
 - [ ] No MySQL-specific syntax in SQLite file (no `AUTO_INCREMENT`, no `VARCHAR`)
 - [ ] Index names are unique across the table

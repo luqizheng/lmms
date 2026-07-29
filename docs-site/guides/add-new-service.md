@@ -127,6 +127,16 @@ pub async fn list(&self, scope: &TenantScope, qb: &mut QueryBuilder) -> AppResul
 2. 写 `V001__init.sql` 时所有 `CREATE TABLE` 必须以该前缀起头（如 `ntf_announcements`）；
 3. CI 门禁 `node scripts/check-db-naming.js` 会扫 migration 与 `sqlx` 字符串，违规直接红（参见 `ai-context.md` §7 坑点 18）。
 
+### 4.3.1 用户引用字段类型（必做，新表 / 新列）
+
+**所有引用用户身份的列统一 `VARCHAR(64)`**——本平台 user id 是随机字符串（UUID / Nano ID），不是自增整数。适用：`user_id` / `created_by` / `updated_by` / `operator_id` / `actor_id` / `owner_id`。
+
+- ❌ 错误：`created_by BIGINT NOT NULL` —— JWT `sub` 是随机字符串，写不进去；
+- ✅ 正确：`created_by VARCHAR(64) NOT NULL`（SQLite 写 `TEXT`）；
+- 现存历史表长度不一（`VARCHAR(32/36/64/128)`），**不动旧表**，新表一律 64。
+
+权威定义见 `contracts/db-conventions.md` §「用户引用字段类型约定」。
+
 ### 4.4 权限码 / 错误码注册（必做，先于实现）
 
 ```yaml
@@ -355,6 +365,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 - [ ] `services/<svc>/AGENTS.md` 8 项规范全部勾选 + 端点域列全 + env 表完整
 - [ ] `services/<svc>/README.md` 一句话定位 + quick-start + 端点表
 - [ ] 所有业务表带服务前缀，迁移在 `migrations/mysql/V001__init.sql`（或 sqlite 双版本）
+- [ ] 所有用户引用字段（`user_id` / `created_by` / `updated_by` / `operator_id` / `actor_id` / `owner_id`）为 `VARCHAR(64)`（SQLite 为 `TEXT`），**不是 `BIGINT`**
 - [ ] `contracts/error-codes.yaml` / `contracts/permissions.yaml` 加完且 `contracts-gen` 已重生成
 - [ ] `infrastructure/config/api-gateway/routes/<svc>.router.toml` 已加，`api-gateway validate` 通过
 - [ ] `infrastructure/docker-compose-services.yml` 加 service entry，host port 未占用
@@ -387,6 +398,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 11. **把 outbox 事件 publish 用 `Envelope<serde_json::Value>`** — 会被路由到 `*`，下游无法按 service 过滤。Value 仅供**消费侧**反序列化用。
 12. **跨服务审计又走直连 HTTP** — Phase 4 起一律走 RabbitMQ + transactional outbox（参见 `ai-context.md` §7 坑点 19）。
 13. **gateway 路由重复** — 两个 `*.router.toml` 用相同 `match` → 启动 / 重载报错（参见 [`api-gateway-routing.md`](api-gateway-routing.md) §3「冲突检测」）。
+14. **`created_by` / `user_id` 写成 `BIGINT`** — 本平台 user id 是随机字符串，写入即失败或类型不匹配。新表用户引用字段统一 `VARCHAR(64)`（见 §4.3.1 与 `contracts/db-conventions.md`）。
 
 ---
 

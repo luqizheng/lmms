@@ -27,9 +27,27 @@
 - 唯一键：`uk_<table>_<cols>`。例：`uk_iam_users_email`。
 - 外键名：`fk_<table>_<col>`。例：`fk_iam_user_roles_user_id`。
 
+## 用户引用字段类型约定
+
+**所有引用用户身份的列统一使用 `VARCHAR(64)`**，因为本平台 user id 是随机字符串（UUID / Nano ID 等），不是自增整数。适用字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `user_id` | 用户主键引用 / 外键 |
+| `created_by` / `updated_by` | 审计字段（操作人） |
+| `operator_id` / `actor_id` / `owner_id` | 操作者 / 行为者 / 所有者 |
+
+规则：
+
+- MySQL：`VARCHAR(64)`（`NOT NULL` 或 `NULL` 视语义，索引照常建）。
+- SQLite：`TEXT`（SQLite 无 VARCHAR，与 `coder-migrate-db` 类型映射一致）。
+- **禁止**对这些列使用 `BIGINT` / `INT` —— 会跟 JWT `sub`（随机字符串）对不上，写入即失败或静默截断。
+- 现存历史表长度不一（`VARCHAR(32/36/64/128)`）**不在本次强制范围内**；本约定只约束**新增表 / 新增列**。
+- 关联：`iam_users.id` 当前为 `VARCHAR(36)`（UUID），新表引用它时仍写 `VARCHAR(64)`（64 是上限，向后兼容 36 长度的值）。
+
 ## 不在规范内
 
-- 列名、列类型、索引语义。
+- 除「用户引用字段」之外的列名、列类型、索引语义。
 - 跨服务字段命名（每个服务自行约定）。
 - 第三方组件自带表（sqlx migration metadata、`_sqlx_migrations` 等）。
 

@@ -122,7 +122,7 @@ CREATE TABLE {table} (
     name VARCHAR(128) NOT NULL,
     description TEXT,
     status VARCHAR(32) NOT NULL DEFAULT 'active',
-    created_by BIGINT NOT NULL,
+    created_by VARCHAR(64) NOT NULL,
     deleted_at DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -179,10 +179,17 @@ Every business table should include the audit + soft-delete columns:
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | `BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY` | Surrogate PK |
-| `created_by` | `BIGINT NOT NULL` | Actor who created the row (from JWT `userId`) |
+| `created_by` | `VARCHAR(64) NOT NULL` | Actor who created the row (from JWT `sub` / `Principal.userId` — **random string, not numeric**) |
 | `deleted_at` | `DATETIME DEFAULT NULL` | Soft-delete marker (NULL = active) |
 | `created_at` | `DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP` | Creation timestamp |
 | `updated_at` | `DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` | Last-modified timestamp |
+
+> **User reference columns must be `VARCHAR(64)`** — the platform's user id is a
+> random string (UUID / Nano ID), not an auto-increment integer. This applies to
+> `user_id` / `created_by` / `updated_by` / `operator_id` / `actor_id` / `owner_id`.
+> Never use `BIGINT` for these columns. Legacy tables may use `VARCHAR(32/36/128)`;
+> do not migrate them, but all new tables/columns use 64.
+> Authoritative spec: `contracts/db-conventions.md` §「用户引用字段类型约定」.
 
 MyBatis-Plus `@TableLogic(value = "NULL", delval = "NOW()")` on `deleted_at`
 makes `removeById()` / `delete()` perform a soft delete (sets `deleted_at` to
@@ -199,7 +206,7 @@ For data migrations (not schema changes), use a transaction-safe approach:
 -- Idempotent: safe to re-run (uses INSERT ... ON DUPLICATE KEY UPDATE or WHERE NOT EXISTS).
 
 INSERT INTO {table} (name, description, status, created_by)
-SELECT 'default', 'auto-seeded row', 'active', 1
+SELECT 'default', 'auto-seeded row', 'active', 'system'
 WHERE NOT EXISTS (
     SELECT 1 FROM {table} WHERE name = 'default'
 );
@@ -251,7 +258,7 @@ in the community edition. To revert a schema change:
 - [ ] Foreign key names follow `fk_<table>_<col>` convention
 - [ ] `id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY` is present (for new tables)
 - [ ] `created_at` + `updated_at` + `deleted_at` audit columns are present (for new tables)
-- [ ] `created_by BIGINT NOT NULL` is present (for new tables)
+- [ ] `created_by VARCHAR(64) NOT NULL` is present (for new tables); all user reference columns are `VARCHAR(64)`, **not** `BIGINT`
 - [ ] `SET NAMES utf8mb4;` at the top of the file
 - [ ] `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci` on CREATE TABLE
 - [ ] `node scripts/check-db-naming.js` passes (from repo root)
@@ -262,7 +269,8 @@ in the community edition. To revert a schema change:
 - ❌ Editing an existing migration file -> Flyway checksum mismatch, app refuses to start
 - ❌ Forgetting the service prefix on table names -> `check-db-naming.js` CI gate fails
 - ❌ Using `AUTO_INCREMENT` without `PRIMARY KEY` -> MySQL rejects the DDL
-- ❌ Creating a foreign key to a table in a different service's prefix (e.g. `iam_users`) -> cross-service FKs break deployment ordering; store as plain `BIGINT` without FK constraint
+- ❌ Creating a foreign key to a table in a different service's prefix (e.g. `iam_users`) -> cross-service FKs break deployment ordering; store as a plain column without FK constraint (`VARCHAR(64)` if it references a user id, `BIGINT` otherwise)
 - ❌ Using `TIMESTAMP` instead of `DATETIME` for audit columns -> `TIMESTAMP` has a 2038 limit and timezone quirks; use `DATETIME`
 - ❌ Forgetting `ON UPDATE CURRENT_TIMESTAMP` on `updated_at` -> the column never auto-updates
 - ❌ Using `JSON` type for indexed columns -> MySQL can't index JSON directly; extract to a generated column first
+- ❌ Using `BIGINT` for `user_id` / `created_by` / `updated_by` / `operator_id` / `actor_id` / `owner_id` -> platform user id is a random string (UUID / Nano ID); use `VARCHAR(64)` instead (see `contracts/db-conventions.md` §「用户引用字段类型约定」)
