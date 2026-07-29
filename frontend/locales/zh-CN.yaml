@@ -8,23 +8,13 @@ buttons:
   accountCardIllustrateSecurityQuestion: 未设置密保问题，密保问题可有效保护账户安全
   accountCardTitlePasswordStrength: 当前密码强度：{level}
   accountCardButtonModify: 修改
-  systemRole: 角色管理
-  permsDemoTitle1: 组件方式判断权限
-  permsDemoTitle2: 函数方式判断权限
-  permsDemoTitle3: 指令方式判断权限
-  permsDemoTitle3Note: "（该方式不能动态修改权限）"
-  permsDemoCodeList1: permission:btn:add
-  permsDemoCodeList2: permission:btn:edit
-  permsDemoCodeList3Delete: permission:btn:delete
   fileImagePreview: 预览
   notificationPermissionDenied: 浏览器通知权限被拒
   dashboardUptime: 可用率
   dashboardP50: p50
-  dashboardP95: p95
   dashboardP99: p99
   pureChangePassword: 修改密码
   pureLoginOut: 退出系统
-  pureLogin: 登录
   pureOpenSystemSet: 打开系统配置
   pureReload: 重新加载
   pureCloseCurrentTab: 关闭当前标签页
@@ -49,7 +39,6 @@ search:
   pureHistory: 搜索历史
   pureCollect: 收藏
   pureDragSort: （可拖拽排序）
-  pureEmpty: 暂无搜索结果
   purePlaceholder: 搜索菜单（支持拼音搜索）
 panel:
   pureSystemSet: 系统配置
@@ -668,6 +657,25 @@ menus:
   dashboardAvgLatency: 平均延迟
   dashboardLatencyTrend: "延迟趋势（最近 {n} 次）"
   dashboardErrorRate: 错误率
+
+  dashboardP95: p95
+
+  permsDemoCodeList1: permission:btn:add
+
+  permsDemoCodeList2: permission:btn:edit
+
+  permsDemoCodeList3Delete: permission:btn:delete
+
+  permsDemoTitle1: 组件方式判断权限
+
+  permsDemoTitle2: 函数方式判断权限
+
+  permsDemoTitle3: 指令方式判断权限
+
+  permsDemoTitle3Note: "（该方式不能动态修改权限）"
+
+  pureBack: 返回
+
 status:
   pureLoad: 加载中...
   pureMessage: 消息
@@ -684,7 +692,6 @@ login:
   pureRememberInfo: 勾选并登录后，规定天数内无需输入用户名和密码会自动登入系统
   pureSure: 确认密码
   pureForget: 忘记密码?
-  pureLogin: 登录
   pureThirdLogin: 第三方登录
   purePhoneLogin: 手机登录
   pureQRCodeLogin: 二维码登录
@@ -695,7 +702,6 @@ login:
   pureWeiBoLogin: 微博登录
   purePhone: 手机号码
   pureSmsVerifyCode: 短信验证码
-  pureBack: 返回
   pureTest: 模拟测试
   pureTip: 扫码后点击"确认"，即可完成登录
   pureDefinite: 确定

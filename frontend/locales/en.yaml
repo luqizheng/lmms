@@ -8,23 +8,13 @@ buttons:
   accountCardIllustrateSecurityQuestion: Not set. Security questions protect your account.
   accountCardTitlePasswordStrength: "Current password strength: {level}"
   accountCardButtonModify: Modify
-  systemRole: Role Manage
-  permsDemoTitle1: Component permission check
-  permsDemoTitle2: Function permission check
-  permsDemoTitle3: Directive permission check
-  permsDemoTitle3Note: "(cannot dynamically update permissions)"
-  permsDemoCodeList1: permission:btn:add
-  permsDemoCodeList2: permission:btn:edit
-  permsDemoCodeList3Delete: permission:btn:delete
   fileImagePreview: Preview
   notificationPermissionDenied: Browser notification permission denied
   dashboardUptime: Uptime
   dashboardP50: p50
-  dashboardP95: p95
   dashboardP99: p99
   pureChangePassword: Change Password
   pureLoginOut: LoginOut
-  pureLogin: Login
   pureOpenSystemSet: Open System Configs
   pureReload: Reload
   pureCloseCurrentTab: Close CurrentTab
@@ -49,7 +39,6 @@ search:
   pureHistory: History
   pureCollect: Collect
   pureDragSort: （Drag Sort）
-  pureEmpty: Empty
   purePlaceholder: Search Menu
 panel:
   pureSystemSet: System Configs
@@ -668,6 +657,25 @@ menus:
   dashboardAvgLatency: Avg Latency
   dashboardLatencyTrend: "Latency trend (last {n} polls)"
   dashboardErrorRate: Error Rate
+
+  dashboardP95: p95
+
+  permsDemoCodeList1: permission:btn:add
+
+  permsDemoCodeList2: permission:btn:edit
+
+  permsDemoCodeList3Delete: permission:btn:delete
+
+  permsDemoTitle1: Component permission check
+
+  permsDemoTitle2: Function permission check
+
+  permsDemoTitle3: Directive permission check
+
+  permsDemoTitle3Note: "(cannot dynamically update permissions)"
+
+  pureBack: Back
+
 status:
   pureLoad: Loading...
   pureMessage: Message
@@ -684,7 +692,6 @@ login:
   pureRememberInfo: After checking and logging in, will automatically log in to the system without entering your username and password within the specified number of days.
   pureSure: Sure Password
   pureForget: Forget Password?
-  pureLogin: Login
   pureThirdLogin: Third Login
   purePhoneLogin: Phone Login
   pureQRCodeLogin: QRCode Login
@@ -695,7 +702,6 @@ login:
   pureWeiBoLogin: Weibo Login
   purePhone: Phone
   pureSmsVerifyCode: SMS VerifyCode
-  pureBack: Back
   pureTest: Mock Test
   pureTip: After scanning the code, click "Confirm" to complete the login
   pureDefinite: Definite
