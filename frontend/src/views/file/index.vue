@@ -67,7 +67,7 @@ const columns = [
   {
     label: t("menus.fileTableActions") ?? "操作",
     width: 160,
-    fixed: "right",
+    fixed: "right" as const,
     cellRenderer: ({ row }: any) => {
       if (!row.id) return null;
       const btns: any[] = [];
