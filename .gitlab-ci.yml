@@ -86,6 +86,19 @@ doc_links_check:
   script:
     - node scripts/check-doc-links.js
 
+java_sdk_drift_check:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  script:
+    - node scripts/check-java-sdk-drift.js
+  rules:
+    - changes:
+        - sdk/java/**/*
+        - services/*/openapi.yaml
+      when: on_success
+    - when: never
+
 cargo_clippy:
   stage: test
   tags: [docker]
