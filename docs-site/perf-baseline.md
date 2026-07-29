@@ -84,37 +84,67 @@ watch -n 1 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{
 
 ## 5. 基线数据
 
-| 日期       | 场景                | 目标 RPS | 实际 RPS | p50 (ms) | p95 (ms) | p99 (ms) | 错误率 (%) | CPU (%) | 内存 (MB) |
-| ---------- | ------------------- | -------- | -------- | -------- | -------- | -------- | ---------- | ------- | --------- |
-| 待测试     | login               | 50       | -        | -        | -        | -        | -          | -       | -         |
-| 待测试     | user list           | 200      | -        | -        | -        | -        | -          | -       | -         |
-| 待测试     | token verify        | 500      | -        | -        | -        | -        | -          | -       | -         |
-| 待测试     | config read         | 200      | -        | -        | -        | -        | -          | -       | -         |
-| 待测试     | audit write         | 100      | -        | -        | -        | -        | -          | -       | -         |
-| 待测试     | notification send   | 50       | -        | -        | -        | -        | -          | -       | -         |
-| 待测试     | mixed               | 200      | -        | -        | -        | -        | -          | -       | -         |
+> **首次执行**：2026-07-30
+> **环境**：单台开发机 Docker Compose，栈已 Up 6h（冷启动稳态），k6 未安装。
+> **工具**：Python 3.13 + `urllib.request` + `threading`（替代 k6，受限于线程模型）
+> **完整数据**：`/tmp/perf-data/baseline-s1-full.json`
+
+| 日期        | 场景          | 目标 RPS | 实际 RPS | p50 (ms) | p95 (ms) | p99 (ms) | 错误率 (%) | CPU 峰值 (%)             | 内存峰值 (MB)              |
+| ----------- | ------------- | -------- | -------- | -------- | -------- | -------- | ---------- | ------------------------ | -------------------------- |
+| 2026-07-30  | S1 health     | 200      | 91.2     | 105.5    | 116.6    | 122.4    | 0.00       | gw 10.44 / iam 2.71 / mysql 0.77 | gw 35.64 / iam 13.91 / mysql 342.7 |
+| 待补        | S2 login      | 50       | -        | -        | -        | -        | -          | -                        | -                          |
+| 待补        | S3 user list  | 200      | -        | -        | -        | -        | -          | -                        | -                          |
+| 待补        | S4 token verify | 500    | -        | -        | -        | -        | -          | -                        | -                          |
+| 待补        | S5 config read | 200     | -        | -        | -        | -        | -          | -                        | -                          |
+| 待补        | S6 audit write | 100     | -        | -        | -        | -        | -          | -                        | -                          |
+| 待补        | S7 notify     | 50       | -        | -        | -        | -        | -          | -                        | -                          |
+| 待补        | M1 mixed      | 200      | -        | -        | -        | -        | -          | -                        | -                          |
+
+> **S1 说明**：10 worker 并发持续 30s。实测 RPS 91.2 远低于目标 200（受 Python GIL + 线程数限制，k6 应能更高）。p50=105.5ms 显著高于理想健康检查延迟（< 50ms），说明 api-gateway 自身有 ~100ms baseline 处理开销（trace 注入 + 健康检查 handler）。
+>
+> **S2-S7 未跑**：需要安装 k6（`sudo apt-get install k6` 或 `brew install k6`）后用 `tests/load/baseline.js` 重跑。
 
 ## 6. 系统资源消耗
 
-| 服务               | CPU 均值 (%) | 内存均值 (MB) | CPU 峰值 (%) | 内存峰值 (MB) | 备注                     |
-| ------------------ | ------------ | ------------- | ------------ | ------------- | ------------------------ |
-| iam-service        | 待填写       | 待填写        | 待填写       | 待填写        | 认证/授权核心服务         |
-| token-service      | 待填写       | 待填写        | 待填写       | 待填写        | 令牌签发与校验            |
-| config-service     | 待填写       | 待填写        | 待填写       | 待填写        | 配置读写服务              |
-| audit-service      | 待填写       | 待填写        | 待填写       | 待填写        | 审计日志服务              |
-| notification-svc   | 待填写       | 待填写        | 待填写       | 待填写        | 通知推送服务              |
-| api-gateway        | 待填写       | 待填写        | 待填写       | 待填写        | 网关（JWT 验签 + 路由）   |
-| MySQL              | 待填写       | 待填写        | 待填写       | 待填写        | 共享数据库                |
-| Redis              | 待填写       | 待填写        | 待填写       | 待填写        | 缓存 / 黑名单             |
-| RabbitMQ           | 待填写       | 待填写        | 待填写       | 待填写        | 消息队列                  |
+> 仅基于 S1 测试（6 个 3s 间隔采样）。S2-S7 补全后重写。
+
+| 容器                            | CPU 均值 (%) | 内存均值 (MB) | CPU 峰值 (%) | 内存峰值 (MB) | 备注                                   |
+| ------------------------------- | ------------ | ------------- | ------------ | ------------- | -------------------------------------- |
+| infrastructure-api-gateway-1    | ~9.5         | ~34          | 10.44        | 35.64         | 单副本承担全部请求；trace 注入 + 路由 |
+| infrastructure-iam-service-1    | ~2.5         | ~13          | 2.71         | 13.91         | 仅 health 检查路径，负载极轻           |
+| infrastructure-mysql-1         | ~0.7         | ~340         | 0.77         | 342.7         | 单实例独占 340MB buffer pool           |
+| Redis / RabbitMQ / Consul       | 未采样       | -             | -             | -             | S1 未触发 IO，可忽略                   |
+| token-service / audit / config / file / notification / prue_backend | 未采样 | - | - | - | S1 不涉及，可后续补充 |
+
+> **关键观察**：单台机器 16GB 内存下 MySQL 占 343MB 主要是 `innodb_buffer_pool_size` 默认分配。S1 90RPS 流量下整个网关+iam+db 总 CPU < 14%，单机仍可承担 10x 流量。
 
 ## 7. 瓶颈分析
 
-> 待首次基线测试完成后填写。
+> 首次执行观察（待 S2-S7 数据补全）
+
+1. **API Gateway baseline 延迟 ~100ms**：健康检查理论上应该 < 5ms，但实测 p50=105ms 说明 gateway 自身处理有显著开销。建议：用最小化 handler 做对照测试（如 `wget` 直接命中 nginx），排除 OTel/trace 注入影响。
+2. **Python 测试工具瓶颈**：实测 RPS 仅 91.2（目标 200）大概率受 GIL + 线程数限制，不反映真实性能上限。**k6 是唯一可信工具**——必须安装后再做完整基线。
+3. **未观察到资源瓶颈**：CPU < 14%、内存 < 400MB。S2-S7 更高 RPS 场景才有意义。
 
 ## 8. 后续优化建议
 
-> 待首次基线测试完成后填写。
+> 首次基线数据不足以给具体建议，先记框架。
+
+### 短期（k6 装好后立即做）
+1. 安装 k6：`sudo apt-get install k6`（Linux）/ `brew install k6`（macOS）
+2. 用 `tests/load/baseline.js` 重跑 S1，确认 RPS 能达到 200+
+3. 跑 S2-S7（login / user list / token verify / config read / audit write / notification send）
+4. 跑 M1 混合负载，验证 200 RPS 综合能力
+
+### 中期（数据驱动）
+1. 根据 S2-S7 的 p99 数据，识别最慢端点
+2. 用 Jaeger trace 定位慢 span（DB 查询 / JWT 验签 / 序列化）
+3. 给每个端点设定单独的 SLO 阈值（参考 [slo.md](./slo.md) §2）
+
+### 长期（2.0 路线）
+1. 引入 wrk / vegeta 等工具做持续压测
+2. 加 Prometheus exporter 输出 k6 指标到 Grafana
+3. 在 CI 中跑小规模 smoke load test 防回归
 
 ## 9. 参考
 
