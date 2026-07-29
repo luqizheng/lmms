@@ -203,11 +203,11 @@ TODO 里的原话：
 |---|---|---|---|
 | **19 个 `libs/common-*` crate 过度拆分** | ✅ 已出约定 | `libs/` 下有 17 crate（不含 common/ facade） | [CONVENTIONS-libs-crate-strategy.md](docs-site/decisions/CONVENTIONS-libs-crate-strategy.md)：拆分原则、依赖图、版本策略、变更指南 |
 | **`kudi-http-client` vs `common-http::ResilientClient` 潜在重叠** | ⬜ 推迟到 2.0 | 前者 SDK 底座（用户 JWT），后者服务间调用（韧性三件套） | SDK plan §0 已做语义区分。2.0 后用 trait/type 做编译期隔离 |
-| **frontend e2e 覆盖率评估** | ⬜ 待评估 | `frontend_todo.md` 7 服务对接完成 | 跑一次 vitest coverage report，验证关键路径覆盖率 |
-| **outbox archive 指标暴露未做** | ⬜ 待实现 | outbox-publisher 无 `/metrics` HTTP 端点 | 在 publisher `main.rs` 加 `TcpListener` on `:9184` 暴露 prometheus metrics |
-| **`test-case/` 手工验收步骤** | ⬜ 评估中 | `test-case/00-setup + 41/42/43/…` 25+ 步骤 | 作为 runbook 持续使用；接入 CI 需要挑选最具价值场景 |
-| **Java SDK 端点漂移** | ⬜ 待处理 | Java SDK 部分端点与现网不一致 | 写 `check-java-sdk-drift.js` 或废弃过期端点 |
-| **前端 i18n namespace 错位** | ⚠️ 422 处错位·有 plan | 422 处 `t('menus.X')` 但 yaml 中 `X` 在 `buttons:` namespace | [plan](docs/superpowers/plans/2026-07-10-frontend-i18n-namespace-fix-plan.md)：363 keys 从 `buttons:` → `menus:` 迁移。非 3 个 key，是系统性 bug |
+| **frontend e2e 覆盖率评估** | ✅ 评估完成 | 15 个 UI case + 11 个 flow，4 个关键路径全覆盖 | [frontend-e2e-coverage-eval.md](docs-site/decisions/frontend-e2e-coverage-eval.md)：7/8 服务覆盖（缺 prue_backend 因前端无该模块），vitest 门槛 1.0 后跟进 |
+| **outbox archive 指标暴露未做** | ⬜ 豁免（AGENTS.md） | outbox-publisher AGENTS.md 显式豁免 /metrics | 当前用 process exporter；archive 指标在 §C5 1.0 后评估 |
+| **`test-case/` 手工验收步骤** | ✅ 评估完成 | 20 个手工 case + 7 个 A 类可迁 | [test-case-migration-eval.md](docs-site/decisions/test-case-migration-eval.md)：A 类按 ROI 排序（config-dogfood / tenant / cross-tenant / user-roles 等），1.0 后迁 |
+| **Java SDK 端点漂移** | ✅ check script + 12 处 drift 已记录 | 12 处 SDK 路径与 OpenAPI 不一致 | [scripts/check-java-sdk-drift.js](scripts/check-java-sdk-drift.js) + [KNOWN-DRIFT.md](sdk/java/KNOWN-DRIFT.md)：CI allow_failure，1.0 后逐项修复 |
+| **前端 i18n namespace 错位** | ⚠️ 422 处错位·有 plan·未执行 | 422 处 `t('menus.X')` 但 yaml 中 `X` 在 `buttons:` namespace | [plan](docs/superpowers/plans/2026-07-10-frontend-i18n-namespace-fix-plan.md)：363 keys 从 `buttons:` → `menus:` 迁移。Python 脚本机械化执行 + 测试验证。1.0 阻塞候选 |
 
 ---
 
