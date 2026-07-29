@@ -22,7 +22,7 @@
 > - `docs-site/decisions/{ADR-005-shared-db-vs-per-service-db,ADR-006-gateway-long-term-strategy,CONVENTIONS-libs-crate-strategy,frontend-e2e-coverage-eval,test-case-migration-eval}.md`
 > - `docs-site/{slo,perf-baseline}.md`、`docs-site/plans/k3s-decision-review.md`
 > - `sdk/java/KNOWN-DRIFT.md`（12 处 SDK/OpenAPI 端点漂移）
-> - `scripts/check-{java-sdk-drift,doc-links,service-standard,spec,db-naming}.js`
+> - `scripts/check-{java-sdk-drift,i18n-namespace,doc-links,service-standard,spec,db-naming}.js`
 > - `tests/load/baseline.js`（k6 基线脚本）
 > - `docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 >
@@ -315,7 +315,7 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 14. **E2E Smoke 子集用 `E2E_SMOKE=1`**：只跑带 `smoke: true` 的用例，~2 分钟；CI 跑全量。详见 `docs-site/guides/testing.md`。
 
-15. **i18n namespace 约定**（commit `c2d23b4` 后）：`frontend/locales/{zh-CN,en}.yaml` 中 `menus.X` 的 X 必须定义在 `menus:` namespace 下，**不能在 `buttons:` / `login:` / `search:` / `panel:`**（即使前缀同名也不允许——这是 yaml duplicate key 错误来源）。`scripts/check-i18n-namespace.sh`（**待加 CI gate**）应扫描 `frontend/src/**/*.{vue,ts}` 中的 `t('menus.X')` 调用，对照 yaml `menus:` namespace 校验。
+15. **i18n namespace 约定 + CI gate**（commit `c2d23b4` 后）：`frontend/locales/{zh-CN,en}.yaml` 中 `menus.X` 的 X 必须定义在 `menus:` namespace 下，**不能在 `buttons:` / `login:` / `search:` / `panel:`**（即使前缀同名也不允许——这是 yaml duplicate key 错误来源）。**`scripts/check-i18n-namespace.js`**（commit `f7c7237`，2026-07-30）已在 CI 守门：扫描 `frontend/src` 下所有 .vue / .ts 中的 `t('menus.X')` 调用，对照 yaml `menus:` namespace 校验；hard-fail 退出码 1。CI job `i18n_namespace_check`（`.gitlab-ci.yml`）按 `frontend/src/**/*.{vue,ts}` 或 `frontend/locales/**/*.yaml` 变更触发。
 
 16. **事件总线 = RabbitMQ + transactional outbox**（Phase 4）。同事务写业务行 + `common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new(...))`；独立 `*-outbox-publisher` 进程轮询发布；消费者按 `event_id` 幂等。**`Envelope<serde_json::Value>` 仅用于消费**，publish 必须用强类型 Event。
 
