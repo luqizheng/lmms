@@ -37,21 +37,6 @@ services:
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
-    networks:
-      - superpowers
-    restart: unless-stopped
-
-  alertmanager:
-    image: prom/alertmanager:v0.27.0
-    container_name: observability-alertmanager
-    ports:
-      - "9093:9093"
-    volumes:
-      - ./config/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - alertmanager_data:/alertmanager
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
       - '--web.external-url=http://localhost:9093'
       - '--log.level=info'
     networks:
