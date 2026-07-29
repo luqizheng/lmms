@@ -17,9 +17,6 @@
     <module>token-server-user-sdk</module>
     <module>token-server-client-sdk</module>
     <module>kudi-http-client</module>
-    <module>audit-service-sdk</module>
-    <module>config-service-sdk</module>
-    <module>file-service-sdk</module>
     <module>notification-service-sdk</module>
   </modules>
 

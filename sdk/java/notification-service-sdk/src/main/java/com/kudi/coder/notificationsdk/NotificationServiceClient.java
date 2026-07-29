@@ -109,7 +109,7 @@ public class NotificationServiceClient {
 
     public long unreadCount() {
         try {
-            Request httpReq = baseRequest("/v1/notification/notifications/unread-count").get().build();
+            Request httpReq = baseRequest("/v1/notification/unread-count").get().build();
             try (Response resp = http.newCall(httpReq).execute()) {
                 String respBody = readBody(resp);
                 ensureSuccess(resp, respBody);
@@ -124,7 +124,7 @@ public class NotificationServiceClient {
 
     public void markAsRead(long id) {
         try {
-            Request httpReq = baseRequest("/v1/notification/notifications/" + id + "/read")
+            Request httpReq = baseRequest("/v1/notification/announcements/" + id + "/read")
                     .post(RequestBody.create("", JSON))
                     .build();
             try (Response resp = http.newCall(httpReq).execute()) {

@@ -103,7 +103,7 @@ java_sdk_drift_check:
   stage: test
   tags: [docker]
   image: $BASE_REGISTRY/node:20
-  allow_failure: true  # 已知 12 处 drift (sdk/java/KNOWN-DRIFT.md)，不阻断；修复后改 false
+  allow_failure: false
   script:
     - node scripts/check-java-sdk-drift.js
   rules:

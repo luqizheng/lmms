@@ -152,10 +152,10 @@ function run() {
       if (!byService.has(svc)) byService.set(svc, []);
       // If the path equals the prefix, skip (it's a base URL, not an endpoint)
       if (sdkPath === prefix) continue;
-      // Strip prefix and prepend OpenAPI spec root
-      // SDK uses `/v1/iam/...` but OpenAPI uses `/iam/...` (gateway strips /v1)
-      const subPath = sdkPath.slice(prefix.length);
-      const openApiPath = subPath === "" ? "/" : subPath;
+      // Strip /v1 gateway prefix; OpenAPI paths use /<service>/... format
+      // SDK: `/v1/audit/events` → OpenAPI: `/audit/events`
+      const stripped = sdkPath.replace(/^\/v1/, "").replace(/\/$/, "");
+      const openApiPath = stripped === "" ? "/" : stripped;
       byService.get(svc).push(openApiPath);
     }
 
