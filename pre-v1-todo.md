@@ -249,6 +249,7 @@ TODO 里的原话：
 - [x] P0-2 CI/CD 补齐 7 服务 + 静态检查 + 漏洞扫描（2026-07-29 ✅ 9 服务 build + clippy/fmt + eslint + audit/deny main 触发 + 滚动 deploy）
 - [x] P0-3 明文密码泄露（2026-07-29 ✅ 从 .gitlab-ci.yml / README 移除，加 gitleaks pre-commit）
 - [x] P0-4 基础设施备份 Runbook（2026-07-29 ✅ docs-site/runbooks/backup.md，覆盖 4 组件手动 SOP）
+  - [x] P0-4 剩余：MySQL 主从复制（2026-07-29 ✅ GTID-based async replication + mysql-replica 服务 + docs-site/runbooks/mysql-replication.md）
 - [x] P1-1 观测栈告警/SLO/日志（2026-07-29 ✅ Alertmanager + 5 告警规则 + 6 服务 Grafana dashboard + SLO 文档）
 - [x] P1-2 DB 物理隔离评估（2026-07-29 ✅ ADR-005 Shared-DB vs Per-Service-DB + 1.0 DB user 权限加固方案）
 - [x] P1-3 网关长期策略 ADR（2026-07-29 ✅ ADR-006 自研/Envoy/Pingora 三选项 + 2.0 触发条件）
