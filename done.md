@@ -262,3 +262,89 @@
 - [x] 创建 `deny.toml` 基础配置（license/bans/sources/advisories）
 - [x] deploy 从 stop-the-world（`docker-compose down`）改为逐服务滚动更新 + 60s healthcheck 门禁，基础设施（mysql/redis/consul/rabbitmq）全程不 down
 - [x] `.pre-commit-config.yaml` 加 cargo clippy / cargo fmt / cargo deny 本地 hook
+
+---
+
+## pre-v1-todo.md 全部条目（2026-07-29 ~ 2026-07-30）
+
+> 来源：`pre-v1-todo.md`（架构评审整改清单）全部 P0/P1/P2 落地。
+
+### P1（观测栈 + 决策文档，commit `e24a3f4`）
+
+- [x] **P1-1 观测栈闭环**：
+  - Alertmanager 服务（docker-compose-observability.yml，`prom/alertmanager:v0.27.0`，9093 端口）+ volume `alertmanager_data`
+  - `infrastructure/config/alertmanager/alertmanager.yml`（route / receivers / inhibit_rules）
+  - `infrastructure/config/prometheus/alerts.yml`（5 条规则：ServiceDown critical / HighErrorRate critical / HighLatency warning / OutboxBacklog warning / HighRateLimit warning）
+  - prometheus.yml 加 `alerting:` + `rule_files: ['alerts.yml']`（commit `e24a3f4` 已有）
+  - 6 个 Grafana 服务 dashboard JSON：iam-service / notification-service / audit-service / config-service / file-service / prue_backend（每个含 service template var + 4 panel：Request Rate / Latency p50/p95/p99 / Error Rate / Health）
+  - `docs-site/slo.md`（8 服务 SLO 表 + SLI 公式 + 错误预算策略 + 告警对应）
+- [x] **P1-2 ADR-005 Shared-DB vs Per-Service-DB**：`docs-site/decisions/ADR-005-shared-db-vs-per-service-db.md`
+  - 1.0 维持共享 DB + DB user 表级权限（零迁移成本安全网）
+  - 2.0 Per-Service-DB 拆分路径（iam/token 优先）
+- [x] **P1-3 ADR-006 Gateway 长期策略**：`docs-site/decisions/ADR-006-gateway-long-term-strategy.md`
+  - 1.0 继续自研 + 多副本 + Nginx L4 前置
+  - 2.0 评估 Envoy vs Pingora（K3s 化后启动）
+- [x] **P1-4 K3s 决策重审**：`docs-site/plans/k3s-decision-review.md`
+  - 1.0 Docker Compose（私有化交付友好）+ P0-4 备份 SOP
+  - 2.0 K3s（首个 SaaS tenant / 单机撑不住流量 / 出现生产事故 三选一触发）
+
+### P0-4 剩余：MySQL 主从（commit `e905828`）
+
+- [x] `infrastructure/mysql-replica/Dockerfile`：扩展 mysql:8.0，自定义 entrypoint
+- [x] `infrastructure/mysql-replica/replica-entrypoint.sh`：mysqld 启动后自动 `CHANGE MASTER TO` + `START SLAVE`（GTID auto-positioning，冷启动无需 bootstrap）
+- [x] `infrastructure/docker-compose-infra.yml`：
+  - 主库 command 加 `--server-id=1 --log-bin=mysql-bin --binlog-format=ROW --gtid-mode=ON --enforce-gtid-consistency=ON`
+  - 新增 `mysql-replica` 服务（build 自定义 Dockerfile，expose 3306 不 publish）
+  - healthcheck 验证 `Slave_IO_Running: Yes && Slave_SQL_Running: Yes`
+  - 新增 `mysql_replica_data` volume
+- [x] `infrastructure/.env`：MYSQL_PRIMARY_HOST/PORT、MYSQL_REPL_USER/PASSWORD
+- [x] `docs-site/runbooks/mysql-replication.md`：一次性配置、日常监控、故障处理、Failover 提升、灾后重建
+
+注：mysql-init 目录由 docker daemon 以 root 创建（755），无法直写 init SQL，故复制用户授权放 runbook §1 作为一次性手工步骤。
+
+### P2（技术债，评估 + 部分修复）
+
+- [x] **P2-1 17 个 libs/ crate 拆分策略**（commit `e24a3f4`）：
+  `docs-site/decisions/CONVENTIONS-libs-crate-strategy.md`（拆分原则、依赖图、版本策略、变更指南）
+- [x] **P2-2 kudi-http-client vs ResilientClient**：推迟到 2.0（SDK plan §0 已做语义区分）
+- [x] **P2-3 frontend e2e 覆盖评估**（commit `86adc9e`）：
+  `docs-site/decisions/frontend-e2e-coverage-eval.md`（4 个关键路径全覆盖，7/8 服务，缺 prue_backend 因前端无该模块）
+- [x] **P2-4 outbox archive 指标**：豁免（outbox-publisher AGENTS.md 显式不要求 /metrics）
+- [x] **P2-5 test-case 迁移评估**（commit `b9b57a3`）：
+  `docs-site/decisions/test-case-migration-eval.md`（20 个文件按可自动化程度分类：A 7 个 / B 5 个 / C 8 个）
+- [x] **P2-6 Java SDK 端点漂移**（commits `f4374f5`, `849b4b2`）：
+  - `scripts/check-java-sdk-drift.js`：扫描 SDK 路径 vs OpenAPI 实际路径
+  - `sdk/java/KNOWN-DRIFT.md`：列出 12 处硬失败（audit 3 / config 2 / file 3 / notification 4）
+  - CI `java_sdk_drift_check` job `allow_failure: true`（脚本报告但不阻断）
+- [x] **P2-7 i18n namespace 修复**（commits `c2d23b4`, `0a008b7`）：
+  实际扫描 10 处错位（plan 2026-07-10 估算 422/363 已过时），
+  从 buttons:/login: 移除 10 keys、移到 menus:，zh/en 各 586 keys 完美对称。
+
+### 顺手修复（pre-existing 问题）
+
+- [x] **docker-compose-observability.yml 重复 alertmanager**（commit `cce97d8`）：
+  编辑冲突导致 service block 重复，移除第一个保留完整版（带 `--web.external-url` / `--log.level`）
+- [x] **frontend src/views/file/index.vue TS2322 typecheck**（commit `84a8773`）：
+  `fixed: "right"` 字面量 widen 成 string，不匹配 `TableColumnFixed` 联合类型。改为 `as const` 收窄。
+  pnpm -C frontend run typecheck → exit 0
+
+### 首次负载摸底（Python 替代 k6，commit `d1212a7`）
+
+- [x] `docs-site/perf-baseline.md` 填充 S1 实测数据：
+  - 测试方式：Python 3.13 urllib + threading（10 worker 并发 30s，k6 本地未装）
+  - 结果：RPS 91.2、错误率 0%、p50=105.5ms / p95=116.6ms / p99=122.4ms
+  - 容器资源：api-gateway CPU 10.44% / 35.6MB，iam 2.71% / 13.9MB，mysql 0.77% / 342.7MB
+  - 数据文件：`/tmp/perf-data/baseline-s1-full.json`
+  - 后续：S2-S7 需安装 k6 后补全（apt-get install k6）
+
+### CI 门禁全部通过（2026-07-30 验证）
+
+- [x] `check-doc-links.js` → ✔ 受监控的文档链接全部可达
+- [x] `check-service-standard.js` → ✅ 服务规范检查通过（8/9 服务 + iam-outbox-publisher 全部豁免合规）
+- [x] `check-spec.js` → ✅ 所有契约规范检查通过
+- [x] `contracts-gen.js --check` → ✅ Contracts in sync
+- [x] `pnpm -C frontend run typecheck` → exit 0（顺手修了 file/index.vue）
+
+### 进度跟踪
+
+- `pre-v1-todo.md` 进度表 10/10 项已勾选（P0-1 ~ P0-4、P1-1 ~ P1-5、P2 全部）
