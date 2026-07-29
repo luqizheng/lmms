@@ -122,7 +122,7 @@ CI 用 `git diff --exit-code -- 'services/*/openapi.yaml'` 检测漂移。
 
 | 我想 | 路径 |
 |------|------|
-| 走 AI 入口 | `docs/ai-context.md` |
+| 走 AI 入口 | `docs-site/ai-context.md` |
 | 跑服务标准审计 | `node scripts/check-service-standard.js` |
 | 跑 spec 审计 | `node scripts/check-spec.js` |
 | 跑契约审计 | `node scripts/contracts-gen.js --check` |

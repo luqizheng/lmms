@@ -129,6 +129,6 @@ topk(10,
 ## 10.7 还没解决？
 
 1. 翻 [`docs/onboarding/07-日志与排查Bug.md`](../onboarding/07-日志与排查Bug.md)（中文新手视角）
-2. 翻 [`docs/ai-context.md`](../ai-context.md) § pitfall 列表（项目踩过的坑）
-3. 翻 [`docs/decisions/`](../decisions/) ADR（设计意图）
+2. 翻 [`docs-site/ai-context.md`](../ai-context.md) § pitfall 列表（项目踩过的坑）
+3. 翻 [`docs-site/decisions/`](../decisions/) ADR（设计意图）
 4. 提 issue，附：trace ID、复现步骤、预期 vs 实际

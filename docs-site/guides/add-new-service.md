@@ -349,11 +349,11 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 
 | 文件 | 改什么 |
 |------|------|
-| `docs/ai-context.md` §2 服务地图 | 加新服务一行（端口、DB、Tech、Role、OTel） |
-| `docs/ai-context.md` §10 导航地图 | 加「要新建服务 → 本指南」一行 |
+| `docs-site/ai-context.md` §2 服务地图 | 加新服务一行（端口、DB、Tech、Role、OTel） |
+| `docs-site/ai-context.md` §10 导航地图 | 加「要新建服务 → 本指南」一行 |
 | `services/<svc>/AGENTS.md` | 8 项规范打勾，端点域列全 |
 | `services/<svc>/README.md` | Quick-start + 端点 + env 表 |
-| `docs/decisions/ADR-NNN-*.md` | **可选**：仅当引入新的架构选择（如决定加 Redis）才写 |
+| `docs-site/decisions/ADR-NNN-*.md` | **可选**：仅当引入新的架构选择（如决定加 Redis）才写 |
 
 ---
 
@@ -377,7 +377,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 - [ ] `node scripts/check-db-naming.js` exit 0
 - [ ] `scripts/dump-openapi-specs.sh` 之后 `git diff` 干净
 - [ ] `node scripts/run-tests-docker.js <svc>` 全绿
-- [ ] `docs/ai-context.md` §2 §10 已更新
+- [ ] `docs-site/ai-context.md` §2 §10 已更新
 - [ ] 至少一个 e2e 用例（smoke 子集即可）
 - [ ] 一个 commit，message 如 `feat(<scope>): scaffold xxx-service`
 

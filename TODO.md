@@ -173,7 +173,7 @@
   - [x] audit consumer 用 envelope.trace_id 设 span parent（参考实现，`consumer_span.rs`）
   - [x] README OTel 表 4 个 `—` 改 `✅` + `test-case/62-otel-cross-service-chain.md`（commit `185de1a`）
   - [x] **T2-fix** 拆出 `libs/common-telemetry-axum/` 让 CLI binary 不再透传 axum（commit `e511299`）
-  - [x] **T2-fu2** `docs/USER_MANUAL.md` / `docs/ai-context.md` / `docs/guides/observability.md` 删 `tracing_mw` 旧说明
+  - [x] **T2-fu2** `docs-site/USER_MANUAL.md` / `docs-site/ai-context.md` / `docs-site/guides/observability.md` 删 `tracing_mw` 旧说明
 
 - [x] **T3 — Consumer transient/permanent 分级 + bounded redelivery**（覆盖 I1）
       spec: `docs/superpowers/specs/2026-06-28-phase6a-t3-consumer-error-classes-design.md`
@@ -195,7 +195,7 @@
   - [x] `services/iam-service/src/outbox_archive.rs` archive_loop（`BETWEEN min..max` + 二次 WHERE）+ purge_loop（30d）+ `GET_LOCK` 多副本互斥（commit `db0d77c`）
   - [x] `outbox-publisher` binary 起 archive tokio task（commit `80076b2`）
   - [x] testcontainers 7 个 + `test-case/64-outbox-archive.md`（commit `2e27513`）
-  - [x] **T4-fu1** `docs/USER_MANUAL.md` outbox section 加 archive 30d 一行（spec §5.5 要求，plan 未列，implementer acknowledge）
+  - [x] **T4-fu1** `docs-site/USER_MANUAL.md` outbox section 加 archive 30d 一行（spec §5.5 要求，plan 未列，implementer acknowledge）
 
 ### Phase 6-A 后续项（2026-06-29 plan-review 重排序，按优先级）
 
@@ -244,7 +244,7 @@
       新增 `poll_dlq()` 辅助函数；原有 `sleep(2s/3s/4s)` 全部替换为轮询或计数器轮询，避免慢 CI flake。
 - [x] **T3-fu4** api-gateway perm_consumer 行为变更发布说明
       写入 `services/api-gateway/AGENTS.md` "令牌失效 perm_epoch" 段。
-- [x] **T4-fu1** `docs/USER_MANUAL.md` Troubleshooting 表格新增 outbox archive 30d 说明行
+- [x] **T4-fu1** `docs-site/USER_MANUAL.md` Troubleshooting 表格新增 outbox archive 30d 说明行
 
 ### Phase 6-A 总结
 
@@ -465,8 +465,8 @@
   - [x] config-service 接入（commit `25a6bf6`，2 migrations）
   - [x] file-service 接入（commit `25a6bf6`，2 migrations）
   - [x] prue_backend 接入（commit `8a19729`，1 migration × 2 dialects）
-  - [x] 集成测试 + 文档同步 — CI job `e2e_migration_state_test` 已接入（`.gitlab-ci.yml`）；AGENTS.md 7/7 已有端点条目；`docs/guides/migrations-state.md` 已完整
-- [x] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key） — runbook `docs/runbooks/secret-rotation.md`。覆盖：① JWT 私钥（含 kid + JWKS 路线图），② MySQL root 密码，③ Redis 密码；含手动 SOP 命令与未来自动化路线。
+  - [x] 集成测试 + 文档同步 — CI job `e2e_migration_state_test` 已接入（`.gitlab-ci.yml`）；AGENTS.md 7/7 已有端点条目；`docs-site/guides/migrations-state.md` 已完整
+- [x] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key） — runbook `docs-site/runbooks/secret-rotation.md`。覆盖：① JWT 私钥（含 kid + JWKS 路线图），② MySQL root 密码，③ Redis 密码；含手动 SOP 命令与未来自动化路线。
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
 - [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
 - [x] **iam-service `dump-openapi` binary 栈溢出**（阻塞 openapi.yaml 自动同步）

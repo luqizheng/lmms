@@ -166,7 +166,7 @@
 
 **实际触犯：** 发行工程在 7 月下旬以"快速交付"名义跳过了 spec 环节。8 月需补 spec 并加入"发行工程变更需 spec"的规则提醒。
 
-**额外触犯：ADR 更新缺失。** 本月新增 Multi-tenancy 架构和 Release Engineering 两个大方向，但 `docs/decisions/` 无对应 ADR。ADR-002 是 6 月的产物。
+**额外触犯：ADR 更新缺失。** 本月新增 Multi-tenancy 架构和 Release Engineering 两个大方向，但 `docs-site/decisions/` 无对应 ADR。ADR-002 是 6 月的产物。
 
 ---
 

@@ -1,6 +1,6 @@
 # coder-micro-services AI 协作指南
 
-> 深度上下文（服务地图、架构、完整 pitfall 列表、ADR 索引）见 [`docs/ai-context.md`](docs/ai-context.md) — 接手本仓库时**先读它**。
+> 深度上下文（服务地图、架构、完整 pitfall 列表、ADR 索引）见 [`docs-site/ai-context.md`](docs-site/ai-context.md) — 接手本仓库时**先读它**。
 > 强制规则（分支/提交、spec 纪律、路径触发器、CI 门禁）见 [`.trae/rules/project_rules.md`](.trae/rules/project_rules.md)。本文件只收最高频、最易踩坑的要点。
 
 ## 语言偏好
@@ -82,7 +82,7 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 每个 `services/<svc>/` 下有 `AGENTS.md` 声明本服务约定（端口、DB、端点域、env、豁免项）— **改该服务前先读**。8-item 规范覆盖 Dockerfile / Swagger / 健康检查 / 迁移 / README / tests 等。关键 env：`SWAGGER_ENABLED`、`HEALTH_CHECK_REQUIRED`、`MIGRATIONS_REQUIRED`。
 
-> 跨服务审计写不再走直连 HTTP，走 RabbitMQ + transactional outbox（`common_event::MySqlOutboxRepo::enqueue`，同事务入队）。详见 `docs/ai-context.md` §7 pitfall 19。
+> 跨服务审计写不再走直连 HTTP，走 RabbitMQ + transactional outbox（`common_event::MySqlOutboxRepo::enqueue`，同事务入队）。详见 `docs-site/ai-context.md` §7 pitfall 19。
 
 ## Skill 目录
 

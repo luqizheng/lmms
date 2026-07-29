@@ -259,7 +259,7 @@ node scripts/check-spec.js               # OpenAPI / 错误码 / 权限码 完�
 node scripts/contracts-gen.js --check    # 契约生成代码（libs/common-error/src/codes.rs）与 YAML 一致
 ```
 
-8-item 服务规范定义见 [`docs/decisions/ADR-002-service-standard-baseline`](../decisions/ADR-002-service-standard-baseline.md)。
+8-item 服务规范定义见 [`docs-site/decisions/ADR-002-service-standard-baseline`](../decisions/ADR-002-service-standard-baseline.md)。
 
 ---
 

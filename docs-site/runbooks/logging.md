@@ -439,9 +439,9 @@ groups:
 
 ## 8. 关联
 
-- `docs/runbooks/troubleshooting.md` — 故障排查
-- `docs/guides/otel-tracing.md` — 链路追踪
-- `docs/guides/observability.md` — 可观测性
+- `docs-site/runbooks/troubleshooting.md` — 故障排查
+- `docs-site/guides/otel-tracing.md` — 链路追踪
+- `docs-site/guides/observability.md` — 可观测性
 - `infrastructure/docker-compose.yml` — 基础设施配置
 
 ---

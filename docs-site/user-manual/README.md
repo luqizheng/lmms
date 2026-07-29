@@ -3,7 +3,7 @@
 > 运行、开发、部署、运维 coder-micro-services 平台的完整指南。
 > 从这里开始任何任务。
 >
-> 上次更新：2026-07-06（从原 `docs/USER_MANUAL.md` 按章节拆分并重写）
+> 上次更新：2026-07-06（从原 `docs-site/USER_MANUAL.md` 按章节拆分并重写）
 
 ---
 
@@ -35,17 +35,17 @@
 | 运维 / SRE | 01 → 05 → 06 → 07 → 08 → 10 |
 | 平台发布人（打 tag / 出 airgap 包） | 12 |
 | 私有化部署客户 / dist 包消费方 | 12 + `release/dist-template/docs/deployment/air-gap.md` |
-| AI Agent | 09 + `docs/ai-context.md` |
+| AI Agent | 09 + `docs-site/ai-context.md` |
 | 安全 / 审计 | 02 → 07 → 10 |
 
 ---
 
 ## 相关文档
 
-- [`docs/ai-context.md`](../ai-context.md) — AI 入口（服务地图、坑位、命令清单）
+- [`docs-site/ai-context.md`](../ai-context.md) — AI 入口（服务地图、坑位、命令清单）
 - [`docs/onboarding/`](../onboarding/) — 中文新手指引（覆盖本地起步、框架、迁移、前端、排查）
-- [`docs/decisions/`](../decisions/) — ADR 架构决策记录
-- [`docs/guides/`](../guides/) — 专题指南（Canary、OTel、Testing、Java 集成等）
+- [`docs-site/decisions/`](../decisions/) — ADR 架构决策记录
+- [`docs-site/guides/`](../guides/) — 专题指南（Canary、OTel、Testing、Java 集成等）
 - [`docs/superpowers/specs/`](../superpowers/specs/) — 设计 spec（按 `YYYY-MM-DD-<topic>-design.md` 命名）
 - [`docs/superpowers/plans/`](../superpowers/plans/) — 阶段计划
 - [`docs/superpowers/retros/`](../superpowers/retros/) — 月度复盘

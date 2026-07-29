@@ -77,6 +77,13 @@ spec_generate:
   dependencies:
     - spec_check
 
+doc_links_check:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  script:
+    - node scripts/check-doc-links.js
+
 e2e_api_test:
   stage: test
   tags: [docker]

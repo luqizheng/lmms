@@ -198,14 +198,14 @@ pnpm run docker:build:clean             # prune dangling 镜像
 | --- | --- |
 | 新人入职（环境 → 跑通 → 排查） | [`docs-site/onboarding/README.md`](../docs-site/onboarding/README.md) |
 | 完整用户手册（中文，分章节） | [`docs-site/user-manual/README.md`](../docs-site/user-manual/README.md) |
-| AI 协作入口（service map + pitfalls） | [`docs/ai-context.md`](../docs/ai-context.md) |
-| 可观测性 stack（Prometheus / Grafana / OTel） | [`docs/guides/observability.md`](../docs/guides/observability.md) |
-| OTel trace 接入 | [`docs/guides/otel-tracing.md`](../docs/guides/otel-tracing.md) |
-| 灰度发布（canary tag + nginx） | [`docs/guides/canary-rollout.md`](../docs/guides/canary-rollout.md) |
-| E2E 测试（smoke / 数据驱动） | [`docs/guides/testing.md`](../docs/guides/testing.md) |
+| AI 协作入口（service map + pitfalls） | [`docs-site/ai-context.md`](../docs-site/ai-context.md) |
+| 可观测性 stack（Prometheus / Grafana / OTel） | [`docs-site/guides/observability.md`](../docs-site/guides/observability.md) |
+| OTel trace 接入 | [`docs-site/guides/otel-tracing.md`](../docs-site/guides/otel-tracing.md) |
+| 灰度发布（canary tag + nginx） | [`docs-site/guides/canary-rollout.md`](../docs-site/guides/canary-rollout.md) |
+| E2E 测试（smoke / 数据驱动） | [`docs-site/guides/testing.md`](../docs-site/guides/testing.md) |
 | 加路由 / 迁移 / 新建 service | [`.agents/skills/`](../.agents/skills/) |
 | 服务规范 + 强制规则 | [`.trae/rules/project_rules.md`](../.trae/rules/project_rules.md) |
-| 架构决策记录（ADR） | [`docs/decisions/`](../docs/decisions/) |
+| 架构决策记录（ADR） | [`docs-site/decisions/`](../docs-site/decisions/) |
 | 当前 wrap-up 计划 | [`.omo/plans/docker-compose-dev-infra-wrapup.md`](../.omo/plans/docker-compose-dev-infra-wrapup.md) |
 | 踩坑沉淀 | [`.omo/notepads/docker-compose-build-script/learnings.md`](../.omo/notepads/docker-compose-build-script/learnings.md) |
 

@@ -95,4 +95,4 @@ docker compose -f infrastructure/docker-compose-canary.yml down
 2. 修改权重（如 `90%:10%` → `70%:30%`）
 3. `nginx -s reload`（容器内）或 `docker exec nginx nginx -s reload`
 
-> 完整 runbook 见 [`docs/guides/canary-rollout.md`](../guides/canary-rollout.md)。
+> 完整 runbook 见 [`docs-site/guides/canary-rollout.md`](../guides/canary-rollout.md)。

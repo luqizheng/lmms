@@ -230,8 +230,8 @@ dev 单节点用 requirepass 即可；prod 推荐切 Redis 6+ ACL：
 1. **零明文**：所有 secret 不进 git。`.env` 必须 `.gitignore`（已 ✅）。
 2. **零共享**：每个 secret 一个 owner。共享 = 等同无 owner。
 3. **可轮换**：每 secret 必须能在不停服下轮换（JWT 需 kid + JWKS 配合）。
-4. **可审计**：rotation 事件记录到 `docs/runbooks/rotation-log.md`（每次执行追加一行）。
-5. **应急流程**：泄漏 → 立即 rotation + 通知 + 复盘 → 写 `docs/runbooks/incidents/YYYY-MM-DD-<topic>.md`。
+4. **可审计**：rotation 事件记录到 `docs-site/runbooks/rotation-log.md`（每次执行追加一行）。
+5. **应急流程**：泄漏 → 立即 rotation + 通知 + 复盘 → 写 `docs-site/runbooks/incidents/YYYY-MM-DD-<topic>.md`。
 
 ---
 

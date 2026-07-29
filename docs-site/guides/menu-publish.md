@@ -259,7 +259,7 @@ curl：步骤 5 的最后一步即 publish。
 | sidebar 出现但点击白屏 | router module 没注册 / path 不一致 | 跑 `check:router-modules`；核对 router module children 的 `path` |
 | 重新登录后仍不出现 | 该菜单项 `showLink: false` | 显式 URL 访问（深链），或改 `showLink: true`（适合作为顶级菜单）；保留 `showLink: false`（适合只通过父菜单跳转） |
 | 写操作按钮 403 / 不响应 | 缺权限码 / 权限码拼错 | 确认按钮 `v-perms="['CODE']"` 中的 CODE 在 iam-service 已分配；`translateError('IAM_PERM_3001')` = 权限不足 |
-| 跨租户 403 | `tenant_id` 不匹配 | 见 `docs/ai-context.md §8 Phase 8.3` + `scripts/check-tenant-scope.js` |
+| 跨租户 403 | `tenant_id` 不匹配 | 见 `docs-site/ai-context.md §8 Phase 8.3` + `scripts/check-tenant-scope.js` |
 | publish 时 409 etag conflict | 别人也在改 | 重新 GET 拿最新 etag，重做 PUT |
 | 跨 service 父菜单冲突 | 两个 module 文件顶层 path 重名 | 检查 `check:router-modules` 输出 |
 | 切换租户后菜单不刷新 | JWT 缓存 | 退出重登，新 JWT 触发新的 `get-async-routes` |

@@ -32,3 +32,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^services/.*(Cargo\.toml|src/routes/.*\.rs|src/openapi\.rs)$
+
+      - id: doc-links-check
+        name: Doc Links Check
+        entry: node scripts/check-doc-links.js
+        language: node
+        pass_filenames: false

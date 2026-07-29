@@ -43,7 +43,7 @@
 | **发行工程 spec**: SDK 发布策略 | kellnr + Reposilite | 1h |
 | **Spec 模板**: 补「回滚方案」段 | 6 月 retro 遗留 | 0.5h |
 
-**验收**：`docs/decisions/` 新增 2 份 ADR；`docs/superpowers/specs/` 新增 3 份 spec；spec 模板更新。
+**验收**：`docs-site/decisions/` 新增 2 份 ADR；`docs/superpowers/specs/` 新增 3 份 spec；spec 模板更新。
 
 ### P2 · 技术债务批量清偿（1 周）
 
@@ -108,5 +108,5 @@ Week 4+            → P4 弹性增强（按需启动）
 - 7 月 Retro：`docs/superpowers/retros/2026-07-retrospective.md`
 - Roadmap 总览：`docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 - Spec 目录：`docs/superpowers/specs/`
-- ADR 目录：`docs/decisions/`
+- ADR 目录：`docs-site/decisions/`
 - CI 门禁：`scripts/check-spec.js` / `scripts/check-service-standard.js`

@@ -149,7 +149,7 @@ client.logout().await?;
 - **认证模型不同**：SDK 走 OAuth（`/v1/tokens/access` 换 token + cache）；服务内部走 `common_jwt::ServiceJwtCache`（平台内部签发，不换 token）。
 - **网络路径不同**：SDK 走公网 api-gateway；服务内部走 Consul 直连 `/<svc>/internal/...` internal 端点。
 - **弹性需求不同**：SDK 自带简单 retry；服务内部 `ResilientClient` 带完整熔断器 + overall deadline + Prometheus observer。
-- **架构方向**：项目正在用 RabbitMQ + transactional outbox 替代 service 间同步 HTTP（详见 `docs/guides/architecture-notes` 暂无独立条目，参见 [`docs/decisions/ADR-002-service-standard-baseline`](../../docs-site/decisions/ADR-002-service-standard-baseline) 与 `TODO.md` Phase 4/5B），引入 SDK 做 service 间调用**南辕北辙**。
+- **架构方向**：项目正在用 RabbitMQ + transactional outbox 替代 service 间同步 HTTP（详见 `docs-site/guides/architecture-notes` 暂无独立条目，参见 [`docs-site/decisions/ADR-002-service-standard-baseline`](../../docs-site/decisions/ADR-002-service-standard-baseline) 与 `TODO.md` Phase 4/5B），引入 SDK 做 service 间调用**南辕北辙**。
 
 如果你的需求是「**我也是平台内的一个 Rust 服务，要调其它 service 的 internal 端点**」，请用 `libs/common-http::ResilientClient` + `common_jwt::ServiceJwtCache`，**不要**用 SDK。
 

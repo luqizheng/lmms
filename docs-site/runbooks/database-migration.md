@@ -361,10 +361,10 @@ pnpm -C tests/e2e test:smoke
 
 ## 9. 关联
 
-- `docs/guides/migrations-state.md` — migration-state 端点
+- `docs-site/guides/migrations-state.md` — migration-state 端点
 - `scripts/check-db-naming.js` — 表名检查
 - `scripts/check-prue-migrations-parity.sh` — prue_backend parity 检查
-- `docs/runbooks/troubleshooting.md` — 迁移故障排查
+- `docs-site/runbooks/troubleshooting.md` — 迁移故障排查
 
 ---
 

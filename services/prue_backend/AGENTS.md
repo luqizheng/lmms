@@ -62,7 +62,7 @@
 - 返回 1 个 V001 migration × 2 dialects（mysql + sqlite）的 marker-table 探测结果
 - `dialect` 字段返回 `"mysql+sqlite"`
 - 鉴权：service-jwt `aud=prue_backend`（Phase 10 G3 service-jwt 扩面）
-- 详见 `docs/guides/migrations-state.md`
+- 详见 `docs-site/guides/migrations-state.md`
 
 ## 豁免
 

@@ -31,11 +31,11 @@
 | 主题 | 文档 |
 |------|------|
 | 全功能参考手册（中文，按章节拆分） | [`docs/user-manual/`](../user-manual/) |
-| API Gateway 路由配置 | [`docs/guides/api-gateway-routing.md`](../guides/api-gateway-routing.md) |
-| OpenTelemetry 跨服务追踪 | [`docs/guides/otel-tracing.md`](../guides/otel-tracing.md) |
-| 可观测性（Prometheus + Grafana + Jaeger） | [`docs/guides/observability.md`](../guides/observability.md) |
-| 灰度发布 | [`docs/guides/canary-rollout.md`](../guides/canary-rollout.md) |
-| E2E 测试（数据驱动格式） | [`docs/guides/testing.md`](../guides/testing.md) |
+| API Gateway 路由配置 | [`docs-site/guides/api-gateway-routing.md`](../guides/api-gateway-routing.md) |
+| OpenTelemetry 跨服务追踪 | [`docs-site/guides/otel-tracing.md`](../guides/otel-tracing.md) |
+| 可观测性（Prometheus + Grafana + Jaeger） | [`docs-site/guides/observability.md`](../guides/observability.md) |
+| 灰度发布 | [`docs-site/guides/canary-rollout.md`](../guides/canary-rollout.md) |
+| E2E 测试（数据驱动格式） | [`docs-site/guides/testing.md`](../guides/testing.md) |
 
 ---
 

@@ -99,7 +99,7 @@
 
 - 返回 3 个 V001-V003 migration 的 marker-table 探测结果
 - 鉴权：service-jwt `aud=notification-service`（Phase 10 G3 service-jwt 扩面）
-- 详见 `docs/guides/migrations-state.md`
+- 详见 `docs-site/guides/migrations-state.md`
 
 ## 豁免
 

@@ -12,8 +12,8 @@
 6. 新服务接入可观测性
 7. 常见问题排查
 
-仅看 OTel 配置细节，请参阅 [`docs/guides/otel-tracing.md`](otel-tracing.md)。
-灰度发布请参阅 [`docs/guides/canary-rollout.md`](canary-rollout.md)。
+仅看 OTel 配置细节，请参阅 [`docs-site/guides/otel-tracing.md`](otel-tracing.md)。
+灰度发布请参阅 [`docs-site/guides/canary-rollout.md`](canary-rollout.md)。
 
 ---
 
@@ -402,8 +402,8 @@ OTEL_BSP_MAX_BATCH_SIZE=500     # 单次最多 500 个 span
 
 ## 8. 参考
 
-- `docs/guides/otel-tracing.md` — OTel 详细配置
-- `docs/guides/canary-rollout.md` — 灰度发布 runbook
+- `docs-site/guides/otel-tracing.md` — OTel 详细配置
+- `docs-site/guides/canary-rollout.md` — 灰度发布 runbook
 - `docs/user-manual/05-observability.md` — 速查参考
 - `infrastructure/config/prometheus/prometheus.yml` — Prometheus 采集配置
 - `infrastructure/config/otel/collector.yaml` — OTel collector pipeline

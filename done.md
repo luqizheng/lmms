@@ -94,7 +94,7 @@
 - [x] **T2 — OTel 全覆盖 + tracing_mw 提取共用**
 - [x] **T3 — Consumer transient/permanent 分级 + bounded redelivery**（覆盖 I1）
 - [x] **T4 — Outbox 24h 归档**（覆盖 I6）
-- [x] **T4-fu1** `docs/USER_MANUAL.md` outbox section 加 archive 30d 一行
+- [x] **T4-fu1** `docs-site/USER_MANUAL.md` outbox section 加 archive 30d 一行
 
 ### Phase 6-A 后续项
 
@@ -193,7 +193,7 @@
 ## 本 session 完成（2026-07-07）
 
 - [x] **5B-fu1** `Principal::from_jwt_payload` 加 `#[deprecated]`（`libs/jwt-ctx/src/principal.rs`）
-- [x] **T4-fu1** `docs/USER_MANUAL.md` outbox section 加 archive 30d（`docs/user-manual/02-architecture.md`）
+- [x] **T4-fu1** `docs-site/USER_MANUAL.md` outbox section 加 archive 30d（`docs/user-manual/02-architecture.md`）
 - [x] **5B-fu6** principal extractor JWT 验签失败 warn 日志（`libs/jwt-ctx/src/principal.rs`）
 - [x] **5A-2-fu1** `registrator:master` 保持不变（确认无需固化 digest）
 - [x] **5A-2-fu2** `docker-example/` 已删除
@@ -206,7 +206,7 @@
 - [x] **service-jwt test helper**：`common-jwt::ServiceJwtCache::prime_cache` + 3 个 notification-service 集成测试改 3-arg IamMemberClient + `tests/fixtures/test_private.pem` 测试 RSA 私钥（commit `5481ab6`）
 - [x] TODO.md 清理 stale 项：`I1`/`I4`/`I6`/`T2-fu2`/`T3-fu3`/`T3-fu4`/`5A-fu1` 早已完成移入 done.md，标 `[x]` 并加 commit 索引
 - [x] 2026-07-07 决策：1.0 内不增加安全相关功能，**Phase 5-C 基础设施 TLS** + **5B-fu4 TLS termination** 归入 TODO.md 新增「Roadmap 2.0」区（R2.1 + R2.2），待 1.0 落地 + 真实合规需求时再 brainstorm
-- [x] **5B-fu5** CI 对齐 5B spec：`cargo test --workspace --all-targets` → `--lib`（spec §7.2 早定 --lib，但 CI 漏改）。同步 `docs/guides/testing.md` + `docs/user-manual/06-deployment.md`。本地实测 74 unit tests 全过。附 token-service 编译修复（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未为 `RS256KeyPair` 实现 `set_key_id`，用 inherent `with_key_id` 替）
+- [x] **5B-fu5** CI 对齐 5B spec：`cargo test --workspace --all-targets` → `--lib`（spec §7.2 早定 --lib，但 CI 漏改）。同步 `docs-site/guides/testing.md` + `docs/user-manual/06-deployment.md`。本地实测 74 unit tests 全过。附 token-service 编译修复（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未为 `RS256KeyPair` 实现 `set_key_id`，用 inherent `with_key_id` 替）
 - [x] **5B-fu3** spec + plan + T1 events：spec (`docs/superpowers/specs/2026-07-08-phase5b-fu3-notification-iam-event-sync-design.md`) + plan (`docs/superpowers/plans/2026-07-08-phase5b-fu3-notification-iam-event-sync.md`, 10 task) + T1 `contracts/events.yaml` 新增 3 事件 `iam.user.role.{assigned,unassigned}` + `iam.user.dept.changed`，codegen 自动生成 `IamUserRoleAssigned/Unassigned/IamUserDeptChanged` struct + routing-key 常量（commits `a284e4e` + `239653d`）。T2-T10 待下 session 跨多 commit 执行。
 - [x] **5B-fu3 T2-T10 全量落地**：iam 6 emit 点 + membership_event helper (`1d6c95f` · `21cb6d4` fix Extension→Principal) · GET /iam/internal/membership-bootstrap 端点 + 7 case 集成测全过 (`3092b29`) · notification V003 `ntf_user_projection` + apply/resolve/replace 5 helper (`d88eb7f`) · `notification.membership-events` durable consumer + 3 typed subscribers + definitions.json bindings (`cd77a79`) · bootstrap startup wiring + 标 `#[deprecated]` IamMemberClient::{by_role/by_dept/expand_scopes} (`69cc97b`) · publish_announcement 改走本地 SQL + 改 9 测试 (`0740463` · `d070914` fix PK冲突 seed) · 8 case membership_projection_test + test-case/5b-fu3-event-sync.md live e2e (`b290ecc`) · docs sync architecture + ai-context (`fabd0c5`)。集成测: notification 45/45 passed; iam 38/39 (1 pre-existing SIGABRT)。`cargo test --workspace --lib`: 74 passed。CrossTenant（platform admin）路径暂仍走 deprecated HTTP 端点；删除归 Roadmap 2.0 清理 phase。
 
@@ -218,7 +218,7 @@
 - [x] **TODO.md 收口 sweep**（commit `6a8a9bc`，本 session 续）：Phase 5-B heading / commit count / 5B-fu5 `commit <current>` → `4e1c73c` / 5B-fu6 commit list 补全 + spec/plan 链接 / Phase 5 — 服务间安全 & 韧性 intro "待 brainstorm" / "待 writing-plans" → "均已 CLOSED" / Phase 5-B 韧性三件套 `[ ]` → `[x]` 收口（与 L141 "Phase 5 CLOSED" 一致）。
 - [x] **4.3-fu3 welcome 路径多副本化**（commit `547e8c0`，spec `docs/superpowers/specs/2026-07-08-phase4.3-fu3-welcome-fanout-design.md`）：消除最后一处进程内 `hub.publish` 直推。`ensure_welcome_for_user` 在同一事务内 outbox enqueue `NotificationAnnouncementPublished{user_ids:[user_id]}`，与 `Db::publish_announcement` 同事件同产线；WS 推送由 4.3 既有 per-replica ephemeral queue + `announcement_events::handle` 扇出，多副本下用户 WS 连哪个副本都能收到。`handle_iam_user_created` / `consumer::run` / `main.rs` 透传 `db.outbox_repo: Arc<MySqlOutboxRepo>`（drop `&WsHub` 参数）。测试改造：原 `#[ignore]` AppConfig 路径（DNS 绑 mysql/redis hostname，run-tests-docker.js 下永远跑不起来）换成 testcontainers MySQL+Redis + `OnceCell<RedisFixture>` 共享单容器；3 case 覆盖幂等 / outbox 行（`NotificationAnnouncementPublished` 同事务写入）/ 重投不入双份。`Cargo.toml` 给 `testcontainers-modules` 加 `redis` feature。验证：`scripts/run-tests-docker.js notification-service` 48/48 passed（17.8s）；`scripts/check-service-standard.js` / `scripts/check-db-naming.js` / `scripts/contracts-gen.js --check` 全 clean。
 - [x] **G1 prue_backend SQLite 决策**（spec `docs/superpowers/specs/2026-07-08-prue-backend-sqlite-decision-design.md`）：**决策保留 SQLite**。仅 1 个 migration（V001__init.sql），双方言 ~12 处机械差异（VARCHAR→TEXT / JSON→TEXT / BOOLEAN→INTEGER / TIMESTAMP→TEXT / ON UPDATE 子句差异）；每 migration 翻译成本 ~5 min。砍 SQLite 代价（dev 零依赖失效 / CI 复杂度上升 / 嵌入式能力丧失）远大于收益。配套：建议加 `scripts/check-prue-migrations-parity.sh` CI gate 防 schema drift（~2 小时实施）。
-- [x] **G4 密钥轮换 SOP**（runbook `docs/runbooks/secret-rotation.md`，新建 `docs/runbooks/` 目录）：覆盖 3 类 secret —— ① JWT 私钥（手动 SOP 含 kid 路线图，待 Phase 5-B-fu7 加 kid+JWKS endpoint 配合），② MySQL root 密码（含 `root:rootpass` 硬编码警示，`database.url` 改 env var 路线），③ Redis 密码（requirepass / ACL 模式）；附通用原则（零明文 / 零共享 / 可轮换 / 可审计）+ Roadmap 2.0 自动化 4 阶段。
+- [x] **G4 密钥轮换 SOP**（runbook `docs-site/runbooks/secret-rotation.md`，新建 `docs-site/runbooks/` 目录）：覆盖 3 类 secret —— ① JWT 私钥（手动 SOP 含 kid 路线图，待 Phase 5-B-fu7 加 kid+JWKS endpoint 配合），② MySQL root 密码（含 `root:rootpass` 硬编码警示，`database.url` 改 env var 路线），③ Redis 密码（requirepass / ACL 模式）；附通用原则（零明文 / 零共享 / 可轮换 / 可审计）+ Roadmap 2.0 自动化 4 阶段。
 - [x] **G3 schema state 端点 — 7/7 服务接入完成**（commits `61d4b0c` `bcb5bcf` `8706375` `2b7207d` `b5b59ea` `25a6bf6` `8a19729`）：spec + common-db trait + 7 个服务接入 `GET /<svc>/internal/migrations/state` 全完成。
   - common-db lib：MigrationState trait + probe_marker_mysql/sqlite + build_response（5 单测）
   - iam (5 migrations) + notification (3) + token (1) + audit (1) + config (2) + file (2) + prue_backend (1×2 dialects) = **15 migration 探测位统一暴露**

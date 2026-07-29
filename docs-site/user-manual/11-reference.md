@@ -8,13 +8,13 @@
 
 | 文档 | 用途 |
 |------|------|
-| [`docs/ai-context.md`](../ai-context.md) | AI 入口 — 服务地图、坑位、命令清单 |
-| [`docs/decisions/ADR-*.md`](../decisions/) | 架构决策记录 |
-| [`docs/guides/canary-rollout.md`](../guides/canary-rollout.md) | 灰度发布 runbook |
-| [`docs/guides/otel-tracing.md`](../guides/otel-tracing.md) | OpenTelemetry 接入 |
-| [`docs/guides/testing.md`](../guides/testing.md) | E2E 数据驱动格式 |
-| [`docs/guides/observability.md`](../guides/observability.md) | 可观测性专题 |
-| [`docs/guides/java-integration.md`](../guides/java-integration.md) | Java 端接入 |
+| [`docs-site/ai-context.md`](../ai-context.md) | AI 入口 — 服务地图、坑位、命令清单 |
+| [`docs-site/decisions/ADR-*.md`](../decisions/) | 架构决策记录 |
+| [`docs-site/guides/canary-rollout.md`](../guides/canary-rollout.md) | 灰度发布 runbook |
+| [`docs-site/guides/otel-tracing.md`](../guides/otel-tracing.md) | OpenTelemetry 接入 |
+| [`docs-site/guides/testing.md`](../guides/testing.md) | E2E 数据驱动格式 |
+| [`docs-site/guides/observability.md`](../guides/observability.md) | 可观测性专题 |
+| [`docs-site/guides/java-integration.md`](../guides/java-integration.md) | Java 端接入 |
 | [`docs/superpowers/plans/`](../superpowers/plans/) | 阶段计划（12 周路线图等） |
 | [`docs/superpowers/specs/`](../superpowers/specs/) | 设计 spec（每个变更一个） |
 | [`docs/superpowers/retros/`](../superpowers/retros/) | 月度复盘 |

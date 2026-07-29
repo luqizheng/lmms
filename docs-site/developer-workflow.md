@@ -72,7 +72,7 @@ cat services/<svc>/AGENTS.md
 ```
 
 **为什么先写 spec**：[`.trae/rules/project_rules.md`](../.trae/rules/project_rules.md) §1.3 把 spec 列为强制规则。
-**AI 协作者必读**：[`docs/ai-context.md`](ai-context.md)（服务地图、坑位清单、skill 目录）。
+**AI 协作者必读**：[`docs-site/ai-context.md`](ai-context.md)（服务地图、坑位清单、skill 目录）。
 
 ---
 
@@ -115,7 +115,7 @@ node scripts/run-tests-docker.js                # 全部服务
 ```
 
 **详细文档**：
-- 测试金字塔、数据驱动 YAML、smoke 选样、报告 → [`docs/guides/testing.md`](guides/testing.md)
+- 测试金字塔、数据驱动 YAML、smoke 选样、报告 → [`docs-site/guides/testing.md`](guides/testing.md)
 - 改 SQL 后必跑 → `cargo sqlx prepare` 更新 `sqlx-data.json`（[`docs-site/onboarding/05-数据库与迁移.md`](onboarding/05-数据库与迁移.md) §5.5）
 
 ---
@@ -263,11 +263,11 @@ docker-compose down && docker-compose pull && docker-compose up -d
 
 想验证新版本但不立刻切全量 → 灰度（10% → 50% → 100%）。
 
-**详细分步操作、回滚、调整比例** → [`docs/guides/canary-rollout.md`](guides/canary-rollout.md)
+**详细分步操作、回滚、调整比例** → [`docs-site/guides/canary-rollout.md`](guides/canary-rollout.md)
 
 ### 9.3 改基础设施 / ConfigMap
 
-- 改 `infrastructure/config/api-gateway/routes/*.router.toml` → `curl -X POST http://localhost:3000/__admin/reload`（热加载，详见 [`docs/guides/api-gateway-routing.md`](guides/api-gateway-routing.md)）
+- 改 `infrastructure/config/api-gateway/routes/*.router.toml` → `curl -X POST http://localhost:3000/__admin/reload`（热加载，详见 [`docs-site/guides/api-gateway-routing.md`](guides/api-gateway-routing.md)）
 - 改 `rate-limits.toml` → 同上热加载
 
 ---
@@ -284,8 +284,8 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 服务健康状态 | **Consul UI** | http://localhost:8500 |
 
 **详细文档**：
-- 跨服务 trace 怎么用 → [`docs/guides/otel-tracing.md`](guides/otel-tracing.md)
-- 指标看板 + PromQL → [`docs/guides/observability.md`](guides/observability.md)
+- 跨服务 trace 怎么用 → [`docs-site/guides/otel-tracing.md`](guides/otel-tracing.md)
+- 指标看板 + PromQL → [`docs-site/guides/observability.md`](guides/observability.md)
 - 5 个最常见错误的应对 → [`docs-site/onboarding/07-日志与排查Bug.md`](onboarding/07-日志与排查Bug.md)
 - 请求头里拿 `X-Trace-Id` → 同上 §7.4
 
@@ -325,15 +325,15 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 我想… | 去哪 |
 |---|---|
 | 我是新人，第一次来 | [`docs-site/onboarding/README.md`](onboarding/README.md) |
-| 我是 AI Agent，第一次进仓库 | [`docs/ai-context.md`](ai-context.md) |
+| 我是 AI Agent，第一次进仓库 | [`docs-site/ai-context.md`](ai-context.md) |
 | 我要改代码但不熟规则 | [`.trae/rules/project_rules.md`](../.trae/rules/project_rules.md) |
 | 我要给某服务加接口 | `.agents/skills/coder-add-route/` |
 | 我要加数据库表 / 列 | `.agents/skills/coder-migrate-db/` |
 | 我要新建一个微服务 | `.agents/skills/coder-new-service/` |
-| 我想知道测试怎么搞 / 怎么写 e2e | [`docs/guides/testing.md`](guides/testing.md) |
+| 我想知道测试怎么搞 / 怎么写 e2e | [`docs-site/guides/testing.md`](guides/testing.md) |
 | 我要出镜像 / 看 CI 配置 | [`.gitlab-ci.yml`](../.gitlab-ci.yml) + [`scripts/build-docker.js`](../scripts/build-docker.js) |
-| 我要灰度发布 | [`docs/guides/canary-rollout.md`](guides/canary-rollout.md) |
-| 我要查 api-gateway 路由配置 | [`docs/guides/api-gateway-routing.md`](guides/api-gateway-routing.md) |
+| 我要灰度发布 | [`docs-site/guides/canary-rollout.md`](guides/canary-rollout.md) |
+| 我要查 api-gateway 路由配置 | [`docs-site/guides/api-gateway-routing.md`](guides/api-gateway-routing.md) |
 | 我要看怎么排查 bug | [`docs-site/onboarding/07-日志与排查Bug.md`](onboarding/07-日志与排查Bug.md) |
 | 我要看协议层的错误码 / 权限码 | [`../contracts/`](../contracts/) |
 | 我要想清楚再写的 spec 模板 | [`docs/superpowers/specs/`](superpowers/specs/) |

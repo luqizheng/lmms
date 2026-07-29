@@ -500,7 +500,7 @@ public class OkHttpPlatformClient {
 
 如果你的 Java 应用本身已经接了 OpenTelemetry，那调本平台时 Java 侧的出站请求会自动注入 `traceparent` header，api-gateway 会延续 trace，整条链路（Java → gateway → iam → token）都会出现在同一个 Jaeger trace 里。
 
-详见 `docs/guides/otel-tracing.md` § 5（跨服务串联机制）。
+详见 `docs-site/guides/otel-tracing.md` § 5（跨服务串联机制）。
 
 最小启用方式（OpenTelemetry Java agent）：
 
@@ -592,9 +592,9 @@ node scripts/build-java-sdk-docker.js test -- -pl user-service-user-sdk -am
 
 - `README.md` — 平台总览与本地开发
 - `docs/user-manual/` — 完整用户手册（含 § 07 限流）
-- `docs/guides/api-gateway-routing.md` — 网关路由配置详解
-- `docs/guides/observability.md` — 可观测性
-- `docs/guides/otel-tracing.md` — Java 应用接入 OTel 跨服务串联
+- `docs-site/guides/api-gateway-routing.md` — 网关路由配置详解
+- `docs-site/guides/observability.md` — 可观测性
+- `docs-site/guides/otel-tracing.md` — Java 应用接入 OTel 跨服务串联
 - `infrastructure/config/api-gateway/routes/*.toml` — 当前生效的真实路由清单
 - `services/iam-service/openapi.yaml` — IAM 服务 OpenAPI 规范（用于代码生成参考）
 - `services/token-service/openapi.yaml` — token-service OpenAPI 规范

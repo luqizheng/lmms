@@ -47,7 +47,7 @@
 
 - 返回 2 个 V001-V002 migration 的 marker-table 探测结果
 - 鉴权：service-jwt `aud=file-service`（Phase 10 G3 service-jwt 扩面）
-- 详见 `docs/guides/migrations-state.md`
+- 详见 `docs-site/guides/migrations-state.md`
 
 ## 豁免
 

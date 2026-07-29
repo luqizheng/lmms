@@ -233,7 +233,7 @@ consul intention create -deny '*' '*'                # 默认拒绝（必须放�
 
 ### 添加新 mesh 服务
 
-完整步骤见 [`docs/guides/mesh-service-onboarding.md`](../guides/mesh-service-onboarding.md)，要点：
+完整步骤见 [`docs-site/guides/mesh-service-onboarding.md`](../guides/mesh-service-onboarding.md)，要点：
 
 1. 分配新端口对（`18085 / 9085` 等）
 2. compose 加 `*-sidecar` 容器 + 主服务 `network_mode: "service:<svc>-sidecar"`
@@ -255,7 +255,7 @@ consul intention create -deny '*' '*'                # 默认拒绝（必须放�
 
 > **归档**：活行 >24h 未投递 → 移入 `*_outbox_events_archive`；30 天后 purge。
 
-**为什么需要 outbox**：跨服务事件要在**同一个 DB 事务**里投递，避免「业务写入成功但消息丢了」或「消息发了业务没写」。模式详见 [`docs/ai-context.md` §7 pitfall 19](../ai-context.md)。
+**为什么需要 outbox**：跨服务事件要在**同一个 DB 事务**里投递，避免「业务写入成功但消息丢了」或「消息发了业务没写」。模式详见 [`docs-site/ai-context.md` §7 pitfall 19](../ai-context.md)。
 
 这些 worker **不暴露 HTTP**，不参与 mesh，只是单进程循环。
 
@@ -266,4 +266,4 @@ consul intention create -deny '*' '*'                # 默认拒绝（必须放�
 - ADR-001 API Gateway 多文件路由配置
 - ADR-002 8 项服务标准
 - [Phase 5-A spec](../superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md) Consul Connect mTLS（已落地）
-- 完整索引见 [`docs/decisions/`](../decisions/)
+- 完整索引见 [`docs-site/decisions/`](../decisions/)

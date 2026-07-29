@@ -8,7 +8,7 @@ A microservices architecture for coder platform, built with Rust.
 
 **Full documentation**: [`docs-site/user-manual/`](docs-site/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 
-**AI entry point**: [`docs/ai-context.md`](docs/ai-context.md) — service map, known pitfalls, common commands (read first when starting work in this repo).
+**AI entry point**: [`docs-site/ai-context.md`](docs-site/ai-context.md) — service map, known pitfalls, common commands (read first when starting work in this repo).
 
 ## 快速开始（本地开发与测试）
 
@@ -96,7 +96,7 @@ cargo run                        # 启动
 
 ### 可观测性
 
-详见 [`docs/guides/observability.md`](docs/guides/observability.md)。
+详见 [`docs-site/guides/observability.md`](docs-site/guides/observability.md)。
 
 ```bash
 docker compose -f infrastructure/docker-compose.yml up -d
@@ -140,7 +140,7 @@ burst = 10
 
 ### 灰度发布
 
-详见 [`docs/guides/canary-rollout.md`](docs/guides/canary-rollout.md)。
+详见 [`docs-site/guides/canary-rollout.md`](docs-site/guides/canary-rollout.md)。
 
 ```bash
 # 部署 canary 实例 + tag
@@ -207,7 +207,7 @@ docker run --rm `
 - **cargo 链接错误（fiat_25519）**：本仓库已切到 `aws_lc_rs` crypto provider；如回退到 `ring` 会触发 MSVC LNK2019
 - **服务起不来**：`docker logs <container>` 看基础设施；服务进程日志直接输出到终端
 - **测试数据脏**：e2e 的 `globalSetup` 会在每轮开始清库重置；也可重启 mysql 容器
-- **trace 不出现在 Jaeger**：检查 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量是否设置（详见 `docs/guides/otel-tracing.md`）
+- **trace 不出现在 Jaeger**：检查 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量是否设置（详见 `docs-site/guides/otel-tracing.md`）
 - **API 返回 429**：被 rate limit 了，调整 `infrastructure/config/api-gateway/rate-limits.toml`
 - **OpenAPI drift CI 失败**：运行 `scripts/dump-openapi-specs.sh` 重新生成并 commit
 
@@ -377,7 +377,7 @@ Configuration files are located in `config/` directory:
 - `api-gateway/routes/*.router.toml` - API Gateway routing rules, one file per URL prefix
 - `token-service.toml` - Token Service settings
 
-API Gateway routing is split per URL prefix; each `routes/<name>.router.toml` declares its `match` pattern, target `service`, `public` flag and optional `rewrite` rule chain. The gateway exposes a `validate` subcommand for CI checks and a `serve` subcommand with `SIGHUP` / `POST /__admin/reload` for hot reload. See `docs/guides/api-gateway-routing.md` for the full usage manual and `docs/decisions/ADR-001-api-gateway-multi-file-router-config.md` for rationale.
+API Gateway routing is split per URL prefix; each `routes/<name>.router.toml` declares its `match` pattern, target `service`, `public` flag and optional `rewrite` rule chain. The gateway exposes a `validate` subcommand for CI checks and a `serve` subcommand with `SIGHUP` / `POST /__admin/reload` for hot reload. See `docs-site/guides/api-gateway-routing.md` for the full usage manual and `docs-site/decisions/ADR-001-api-gateway-multi-file-router-config.md` for rationale.
 
 ## NPM Scripts
 
@@ -519,14 +519,14 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push   # 多架构
 | 场景 | 文档 |
 |------|------|
 | 我是新人 / 新 AI 实例 | [`docs-site/user-manual/`](docs-site/user-manual/) |
-| AI 协作者读取入口 | [`docs/ai-context.md`](docs/ai-context.md) |
+| AI 协作者读取入口 | [`docs-site/ai-context.md`](docs-site/ai-context.md) |
 | 加路由 / 加迁移 / 新建 service | [`.agents/skills/`](.agents/skills/) |
-| E2E 测试 (smoke / data-driven) | [`docs/guides/testing.md`](docs/guides/testing.md) |
-| OpenTelemetry / Jaeger / 跨服务 trace | [`docs/guides/otel-tracing.md`](docs/guides/otel-tracing.md) |
-| 可观测性 stack (Prometheus + Grafana + OTel) | [`docs/guides/observability.md`](docs/guides/observability.md) |
-| Canary 灰度发布 | [`docs/guides/canary-rollout.md`](docs/guides/canary-rollout.md) |
-| api-gateway 路由配置 | [`docs/guides/api-gateway-routing.md`](docs/guides/api-gateway-routing.md) |
-| ADR (架构决策) | [`docs/decisions/`](docs/decisions/) |
+| E2E 测试 (smoke / data-driven) | [`docs-site/guides/testing.md`](docs-site/guides/testing.md) |
+| OpenTelemetry / Jaeger / 跨服务 trace | [`docs-site/guides/otel-tracing.md`](docs-site/guides/otel-tracing.md) |
+| 可观测性 stack (Prometheus + Grafana + OTel) | [`docs-site/guides/observability.md`](docs-site/guides/observability.md) |
+| Canary 灰度发布 | [`docs-site/guides/canary-rollout.md`](docs-site/guides/canary-rollout.md) |
+| api-gateway 路由配置 | [`docs-site/guides/api-gateway-routing.md`](docs-site/guides/api-gateway-routing.md) |
+| ADR (架构决策) | [`docs-site/decisions/`](docs-site/decisions/) |
 | 12 周路线图与月度复盘 | [`docs/superpowers/`](docs/superpowers/) |
 | **私有化离线部署** | [`release/dist-template/`](release/dist-template/) |
 | 离线部署步骤 | [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md) |

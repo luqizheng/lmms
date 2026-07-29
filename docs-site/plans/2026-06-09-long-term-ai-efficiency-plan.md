@@ -78,7 +78,7 @@
 
 **目标**：让项目自身的知识反哺 AI。
 
-- [ ] 写 `docs/ai-context.md` —— 一份给 AI 看的项目速览
+- [ ] 写 `docs-site/ai-context.md` —— 一份给 AI 看的项目速览
   - 服务清单 + 端口 + 依赖
   - ADR 摘要（特别是 ADR-001）
   - 已知陷阱清单（cargo ring LNK2019、Consul 健康检查、PowerShell dot-source）
@@ -152,8 +152,8 @@
 
 - Skills 索引：[.trae/skills/](../../.trae/skills/)
 - 测试入口：[scripts/test-orchestrator.ps1](../../scripts/test-orchestrator.ps1)
-- 路由手册：[docs/guides/api-gateway-routing.md](../guides/api-gateway-routing.md)
-- ADR 总览：[docs/decisions/](../decisions/)
+- 路由手册：[docs-site/guides/api-gateway-routing.md](../guides/api-gateway-routing.md)
+- ADR 总览：[docs-site/decisions/](../decisions/)
 
 ---
 

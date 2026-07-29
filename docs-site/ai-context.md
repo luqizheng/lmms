@@ -6,14 +6,14 @@
 > **最后核验日期**：2026-07-12
 >
 > **事实来源**（已核对）：
-> - `docs/ai-context.md`（本文旧版本）
+> - `docs-site/ai-context.md`（本文旧版本）
 > - `TODO.md`
 > - 根 `README.md`、`.gitlab-ci.yml`、`infrastructure/README.md`
 > - `services/*/Cargo.toml`（10 个 Rust service crate，其中包含 2 个独立 publisher crate）
 > - `infrastructure/docker-compose-services.yml` + `infrastructure/` 下 compose 清单
 > - `services/config-service/src/routes/config.rs`（reveal policy 调用点）
 > - `services/notification-service/src/bin/outbox_publisher.rs`（ntf-outbox-publisher binary）
-> - `docs/guides/migrations-state.md`、`docs/runbooks/secret-rotation.md`
+> - `docs-site/guides/migrations-state.md`、`docs-site/runbooks/secret-rotation.md`
 > - `docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 >
 > **状态口径**（全文使用，不混用其他表述）：
@@ -122,7 +122,7 @@
 ### 4.1 Phase 10 [部分完成]（TODO.md 现存 15 项中按主题归类）
 
 **健康检查**：
-- migration-state 端点（`/<svc>/internal/migrations/state`）：**已核对 `docs/guides/migrations-state.md` 为 v1，Phase 10 G3 落地**，列 7 个 Rust 服务（iam V001-V005 / notification V001-V003 / token / audit / config V001-V002 / file V001-V002 / prue_backend V001 × 2 dialects）。`TODO.md` 仍把"集成测试 + 文档同步"列在 [ ] — 矛盾点：guide 已存在但 TODO 未勾选。**待核对**：① 各服务端点集成测试是否补；② `TODO.md` 该条目是否同步勾选；③ 各服务 `AGENTS.md` 是否引用 guide。
+- migration-state 端点（`/<svc>/internal/migrations/state`）：**已核对 `docs-site/guides/migrations-state.md` 为 v1，Phase 10 G3 落地**，列 7 个 Rust 服务（iam V001-V005 / notification V001-V003 / token / audit / config V001-V002 / file V001-V002 / prue_backend V001 × 2 dialects）。`TODO.md` 仍把"集成测试 + 文档同步"列在 [ ] — 矛盾点：guide 已存在但 TODO 未勾选。**待核对**：① 各服务端点集成测试是否补；② `TODO.md` 该条目是否同步勾选；③ 各服务 `AGENTS.md` 是否引用 guide。
 
 - 外部 `config/application.yml` 用 `${DATABASE_URL}` / `${DB_USER}` / `${DB_PASSWORD}` 占位符，但 Spring 实际读 `SPRING_DATASOURCE_*` 环境变量，两个 `${}` 是死代码。
 
@@ -196,7 +196,7 @@
 | Prometheus | 单一 `infrastructure/config/prometheus/prometheus.yml`（consul SD + 自抓 + otel-collector） | — | [正常] |
 | Grafana | 仅预置 1 个 dashboard：`infrastructure/config/grafana/dashboards/gateway.json` | 旧 README「dashboards 自动加载」给人多面板印象 | [风险] 与文档措辞不一致；只覆盖 api-gateway，其他服务的 metrics 面板需自建 |
 | Grafana provisioning | `datasources/prometheus.yml` + `dashboards/defaults.yml` | — | [正常] |
-| runbooks | `docs/runbooks/secret-rotation.md`（**仅此一份**） | — | [待推进] 故障排查 / 灾备 / 回滚 runbook 尚未建 |
+| runbooks | `docs-site/runbooks/secret-rotation.md`（**仅此一份**） | — | [待推进] 故障排查 / 灾备 / 回滚 runbook 尚未建 |
 | OTel 端到端 trace | 9 个 crate 显式开 `otlp` feature；iam-service 未显式开（直接依赖 `opentelemetry`/`tracing-opentelemetry`，但 exporter 注册未核验）；compose 只对 6 个 Rust HTTP 服务 + 2 个 Java 服务设置 `OTEL_EXPORTER_OTLP_ENDPOINT` | 旧 ai-context "4 个服务 OTel"；旧根 README「服务端口与依赖」表 OTel 列均按当时状态，已与 Cargo.toml + compose 不一致 | [纠正] 区分"代码接入"与"compose 实际导出配置"；详见 §1.1 表格 |
 
 
@@ -255,9 +255,9 @@
 
 12. **服务侧限流经 `common-ratelimit` opt-in**：Redis 滑动窗口、跨副本共享、Redis 出错时 fail-open。模式见 `services/notification-service/src/rest.rs`。
 
-13. **灰度通过 Consul `canary` tag**：consul tag + Nginx `split_clients` 接 ~10% 流量；用 `?canary=1` 或 `X-Canary: true` 强制路由。详见 `docs/guides/canary-rollout.md`。
+13. **灰度通过 Consul `canary` tag**：consul tag + Nginx `split_clients` 接 ~10% 流量；用 `?canary=1` 或 `X-Canary: true` 强制路由。详见 `docs-site/guides/canary-rollout.md`。
 
-14. **E2E Smoke 子集用 `E2E_SMOKE=1`**：只跑带 `smoke: true` 的用例，~2 分钟；CI 跑全量。详见 `docs/guides/testing.md`。
+14. **E2E Smoke 子集用 `E2E_SMOKE=1`**：只跑带 `smoke: true` 的用例，~2 分钟；CI 跑全量。详见 `docs-site/guides/testing.md`。
 
 
 16. **事件总线 = RabbitMQ + transactional outbox**（Phase 4）。同事务写业务行 + `common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new(...))`；独立 `*-outbox-publisher` 进程轮询发布；消费者按 `event_id` 幂等。**`Envelope<serde_json::Value>` 仅用于消费**，publish 必须用强类型 Event。
@@ -303,12 +303,12 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 | 改契约（错误码 / 权限码 / 事件） | `contracts/*.yaml` + `node scripts/contracts-gen.js` |
 | 评审 plan | `.trae/skills/plan-eng-review/SKILL.md` |
 | 审计服务规范 | `.trae/skills/coder-service-audit/SKILL.md` |
-| 调试请求链路（OTel / Jaeger） | `docs/guides/otel-tracing.md` |
-| 灰度发布 | `docs/guides/canary-rollout.md` |
-| 搭可观测性 | `docker compose -f infrastructure/docker-compose.yml up -d` + `docs/guides/observability.md` |
-| 跑 / 写测试 | `docs/guides/testing.md` |
-| 凭据轮换 SOP | `docs/runbooks/secret-rotation.md` |
-| ADR | `docs/decisions/ADR-*.md` |
+| 调试请求链路（OTel / Jaeger） | `docs-site/guides/otel-tracing.md` |
+| 灰度发布 | `docs-site/guides/canary-rollout.md` |
+| 搭可观测性 | `docker compose -f infrastructure/docker-compose.yml up -d` + `docs-site/guides/observability.md` |
+| 跑 / 写测试 | `docs-site/guides/testing.md` |
+| 凭据轮换 SOP | `docs-site/runbooks/secret-rotation.md` |
+| ADR | `docs-site/decisions/ADR-*.md` |
 | 阶段总览 | `docs/superpowers/plans/2026-06-25-overall-roadmap.md` + `TODO.md` |
 | 新人入门 | `docs/onboarding/README.md` |
 

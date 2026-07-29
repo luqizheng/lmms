@@ -271,7 +271,7 @@ curl -X POST http://localhost:9090/__admin/reload
 
 ## 9. 参考
 
-- 决策记录：[`docs/decisions/ADR-001-api-gateway-multi-file-router-config.md`](../decisions/ADR-001-api-gateway-multi-file-router-config.md)
-- 灰度发布与流量分配：[`docs/guides/canary-rollout.md`](canary-rollout.md)
+- 决策记录：[`docs-site/decisions/ADR-001-api-gateway-multi-file-router-config.md`](../decisions/ADR-001-api-gateway-multi-file-router-config.md)
+- 灰度发布与流量分配：[`docs-site/guides/canary-rollout.md`](canary-rollout.md)
 - 限流配置：`infrastructure/config/api-gateway/rate-limits.toml`
 - 网关源码：`services/api-gateway/src/`

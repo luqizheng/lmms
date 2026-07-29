@@ -71,7 +71,7 @@
 
 - 返回 1 个 V001 migration 的 marker-table 探测结果
 - 鉴权：service-jwt `aud=token-service`（Phase 10 G3 service-jwt 扩面）
-- 详见 `docs/guides/migrations-state.md`
+- 详见 `docs-site/guides/migrations-state.md`
 
 ## 豁免
 

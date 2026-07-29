@@ -297,9 +297,9 @@ Slack: @here [RESOLVED] <问题> - 原因: <简述> - 解决时间: <时长>
 
 ## 9. 关联
 
-- `docs/runbooks/troubleshooting.md` — 故障排查
-- `docs/runbooks/logging.md` — 日志收集
-- `docs/runbooks/database-migration.md` — 数据库迁移
+- `docs-site/runbooks/troubleshooting.md` — 故障排查
+- `docs-site/runbooks/logging.md` — 日志收集
+- `docs-site/runbooks/database-migration.md` — 数据库迁移
 - `docs/onboarding/09-出问题怎么办.md` — 新人排查指南
 
 ---

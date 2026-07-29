@@ -5,7 +5,7 @@ AI agents MUST load this file on first file touch in this repo.
 
 ## 0. AI Entry Point
 
-**Read `docs/ai-context.md` FIRST** before loading per-service AGENTS.md or any spec.
+**Read `docs-site/ai-context.md` FIRST** before loading per-service AGENTS.md or any spec.
 `ai-context.md` is the single source of truth for project shape, conventions, known pitfalls, and skill catalog.
 
 ---
@@ -15,7 +15,7 @@ AI agents MUST load this file on first file touch in this repo.
 ### 1.1 语言与文档
 
 - AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码注释、commit message、技术术语保持英文。
-- 新写或重写的文档、spec、设计说明默认中文；既有英文文档（如 `docs/ai-context.md`）下次大改时一并转中文。
+- 新写或重写的文档、spec、设计说明默认中文；既有英文文档（如 `docs-site/ai-context.md`）下次大改时一并转中文。
 - 本规则对 `.trae/rules/*` 下所有规则文件统一生效。
 
 ### 1.2 Commit & Branch Policy
@@ -169,7 +169,7 @@ AI MUST read the AGENTS.md file when modifying files under any of these paths:
 ## 6. Reference Documents
 
 - `docs/superpowers/plans/2026-06-25-overall-roadmap.md` — 12-week master plan
-- `docs/decisions/ADR-002-service-standard-baseline.md` — service standard baseline
+- `docs-site/decisions/ADR-002-service-standard-baseline.md` — service standard baseline
 - `docs/superpowers/specs/` — design specs (one per change)
 - `docs/superpowers/plans/` — multi-task rollouts
 - `contracts/` — error codes / permissions / events source of truth

@@ -552,8 +552,8 @@ curl -X POST http://localhost:3000/__admin/reload
 
 - `docs/onboarding/07-日志与排查Bug.md` — 新人日志排查
 - `docs/onboarding/09-出问题怎么办.md` — 升级流程
-- `docs/guides/otel-tracing.md` — 链路追踪
-- `docs/runbooks/oncall.md` — On-call 值班
+- `docs-site/guides/otel-tracing.md` — 链路追踪
+- `docs-site/runbooks/oncall.md` — On-call 值班
 
 ---
 

@@ -455,7 +455,7 @@ window.addEventListener('online', () => {
 
 ## 10. 关联
 
-- `docs/guides/java-integration.md` — 后端 auth 流程
+- `docs-site/guides/java-integration.md` — 后端 auth 流程
 - `services/iam-service/src/routes/auth.rs` — 登录/刷新 API 实现
 - `libs/jwt-ctx/src/principal.rs` — JWT 结构定义
 

@@ -89,7 +89,7 @@ cd tests/e2e && E2E_SMOKE=1 pnpm test:api
   smoke: true   # 纳入冒烟子集
 ```
 
-完整字段（断言表达式、变量插值、依赖用例）见 [`docs/guides/testing.md`](../guides/testing.md)。
+完整字段（断言表达式、变量插值、依赖用例）见 [`docs-site/guides/testing.md`](../guides/testing.md)。
 
 ---
 

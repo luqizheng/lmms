@@ -68,7 +68,7 @@ docker compose -f infrastructure/docker-compose.yml up -d
      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
    ```
 
-完整细节见 [`docs/guides/otel-tracing.md`](../guides/otel-tracing.md)。
+完整细节见 [`docs-site/guides/otel-tracing.md`](../guides/otel-tracing.md)。
 
 ---
 
