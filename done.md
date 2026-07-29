@@ -249,5 +249,16 @@
       3. outbox-publisher binary 重构为带 HTTP 健康/指标端点的常驻服务
       触发后实施方案二选一：
       - **D1** outbox-publisher 内嵌 `tokio::net::TcpListener` 暴露 `/metrics`（半天工作量）
-      - **D2** 指标挪到 iam-service `/metrics`，周期 SELECT `COUNT(*)` from `iam_outbox_events_archive`（半天，DB 查询开销）
-      本次不实施，仅留 TODO + 触发条件记录。
+       - **D2** 指标挪到 iam-service `/metrics`，周期 SELECT `COUNT(*)` from `iam_outbox_events_archive`（半天，DB 查询开销）
+       本次不实施，仅留 TODO + 触发条件记录。
+
+---
+
+## P0-2 — CI/CD 补齐（2026-07-29）
+
+- [x] 补齐 7 个服务（iam/notification/audit/config/file/prue_backend/frontend）的 docker build job，用 YAML `.rust_svc_build` 模板 + `extends` + `changes:` 规则按变更触发
+- [x] test stage 加 `cargo clippy --workspace --all-targets -- -D warnings` + `cargo fmt --check`，设 `allow_failure: false`
+- [x] 加 `cargo audit` + `cargo deny check` 每周 scheduled pipeline，手动触发 `allow_failure: true`
+- [x] 创建 `deny.toml` 基础配置（license/bans/sources/advisories）
+- [x] deploy 从 stop-the-world（`docker-compose down`）改为逐服务滚动更新 + 60s healthcheck 门禁，基础设施（mysql/redis/consul/rabbitmq）全程不 down
+- [x] `.pre-commit-config.yaml` 加 cargo clippy / cargo fmt / cargo deny 本地 hook

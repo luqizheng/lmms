@@ -86,6 +86,31 @@ doc_links_check:
   script:
     - node scripts/check-doc-links.js
 
+cargo_clippy:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/rust:1.96-slim
+  variables:
+    REDIS_URL: redis://192.168.2.130:6379
+  before_script:
+    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
+    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    - apt-get update && apt-get install -y pkg-config libssl-dev
+  script:
+    - cargo clippy --workspace --all-targets -- -D warnings
+  allow_failure: false
+
+cargo_fmt_check:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/rust:1.96-slim
+  before_script:
+    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
+    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+  script:
+    - cargo fmt --check
+  allow_failure: false
+
 e2e_api_test:
   stage: test
   tags: [docker]
@@ -142,38 +167,170 @@ e2e_migration_state_test:
     PRUE_DEV_BT: "${PRUE_DEV_BT}"
   allow_failure: false
 
-build_api_gateway:
+# ── Build caching ──
+# Docker build / cache 配置均在各服务的 Dockerfile 中（dependencies → builder → runner），
+# 不同阶段由 .dockerignore / Dockerfile 的层缓存控制。多服务共享 builder 基础镜像，
+# 因此 build stage 中所有 .rust_svc_build 的 Dockerfile 内层缓存依赖 $BASE_REGISTRY/rust:1.96-slim。
+# 实际构建时 Docker BuildKit 层缓存落在 docker 宿主端，GitLab CI 不做额外缓存卷挂载。
+
+frontend_lint:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  before_script:
+    - npm install -g pnpm
+    - pnpm -C frontend install --no-frozen-lockfile
+  script:
+    - pnpm -C frontend run lint:eslint
+  rules:
+    - changes:
+        - frontend/**/*
+      when: on_success
+    - when: never
+  allow_failure: true
+
+# ── Build anchor: 复用 docker build + push 模式 ──
+.svc_build:
   stage: build
   tags: [shell]
   script:
-    - sudo docker build -f Dockerfile.api-gateway -t $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG .
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG
-    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:latest
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/api-gateway:latest
+    - sudo docker build -f "$SVC_DOCKERFILE" -t "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:$IMAGE_TAG" .
+    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:$IMAGE_TAG"
+    - sudo docker tag "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:$IMAGE_TAG" "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:latest"
+    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:latest"
 
-build_token_service:
+# ── Rust 服务 build helper ──
+.rust_svc_build:
+  extends: .svc_build
+  variables:
+    SVC_DOCKERFILE: "services/${SVC_NAME}/Dockerfile"
+  rules:
+    - changes:
+        - "services/${SVC_NAME}/**/*"
+        - "libs/**/*"
+        - "Cargo.toml"
+        - "Cargo.lock"
+      when: on_success
+    - when: never
+
+# ── 9 个服务 build job ──
+build_api-gateway:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "api-gateway"
+
+build_token-service:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "token-service"
+
+build_iam-service:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "iam-service"
+
+build_notification-service:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "notification-service"
+
+build_audit-service:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "audit-service"
+
+build_config-service:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "config-service"
+
+build_file-service:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "file-service"
+
+build_prue_backend:
+  extends: .rust_svc_build
+  variables:
+    SVC_NAME: "prue_backend"
+
+build_frontend:
   stage: build
   tags: [shell]
+  variables:
+    SVC_NAME: "frontend"
   script:
-    - sudo docker build -f Dockerfile.token-service -t $DOCKER_REGISTRY/$DOCKER_REPO/token-service:$IMAGE_TAG .
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-service:$IMAGE_TAG
-    - sudo docker tag $DOCKER_REGISTRY/$DOCKER_REPO/token-service:$IMAGE_TAG $DOCKER_REGISTRY/$DOCKER_REPO/token-service:latest
-    - sudo docker push $DOCKER_REGISTRY/$DOCKER_REPO/token-service:latest
+    - sudo docker build -f frontend/Dockerfile -t "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:$IMAGE_TAG" frontend/
+    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:$IMAGE_TAG"
+    - sudo docker tag "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:$IMAGE_TAG" "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:latest"
+    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:latest"
+  rules:
+    - changes:
+        - "frontend/**/*"
+      when: on_success
+    - when: never
 
+# ─────────── 滚动更新 deploy ───────────
+# 按服务逐个重启，基础设施（mysql/redis/consul/rabbitmq）全程不 down。
+# 每个服务启动后等待 /health 通过再走下一个。
+#
+# 更新顺序：先更新基础设施依赖（config/token），再更新业务服务（iam/...），
+# outbox publisher 和 frontend 最后更新。
 deploy:
   stage: deploy
   tags: [micro-service-runner]
   before_script:
     - mkdir -p ~/coder-micro-services
   script:
+    # 1. 同步代码
     - rm -rf ~/coder-micro-services
     - cp -r . ~/coder-micro-services
     - rm -rf ~/coder-micro-services/.git
     - cd ~/coder-micro-services
 
-    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml down
+    # 2. 拉取最新镜像（所有服务）
     - sudo /bin/docker-compose -f infrastructure/docker-compose.yml pull
-    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml up -d
+
+    # 3. 逐服务滚动重启 + healthcheck 门禁
+    #    定义更新顺序（基础设施不动，只重启业务服务）
+    - |
+      for svc in \
+        config-service file-service \
+        token-service iam-service iam-outbox-publisher \
+        notification-service notification-outbox-publisher \
+        audit-service prue_backend \
+        api-gateway frontend; \
+      do
+        echo "=== Rolling: $svc ==="
+        sudo /bin/docker-compose -f infrastructure/docker-compose.yml up -d --no-deps "$svc"
+
+        # 健康检查门禁（最长等 60s）
+        ok=0
+        for i in $(seq 1 12); do
+          sleep 5
+          # 取容器的健康状态
+          health=$(sudo /bin/docker inspect --format='{{.State.Health.Status}}' "$svc" 2>/dev/null || echo "starting")
+          echo "  $svc health: $health (attempt $i/12)"
+          if [ "$health" = "healthy" ]; then
+            ok=1
+            break
+          fi
+          # 没有 HEALTHCHECK 的服务（如 outbox-publisher），等启动后用端口连通性代替
+          if [ "$health" = "none" ]; then
+            # 给 10s 启动窗口
+            sleep 10
+            ok=1
+            break
+          fi
+        done
+        if [ "$ok" -eq 0 ]; then
+          echo "!!! $svc 未通过健康检查，中止部署"
+          exit 1
+        fi
+      done
+
+    # 4. 清理旧镜像
+    - sudo /bin/docker image prune -f || true
   only:
     - main
 
@@ -254,3 +411,42 @@ release:dist:
     expire_in: 1 day
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Security audit — 每周 scheduled pipeline + 手动触发
+# ─────────────────────────────────────────────────────────────────────────────
+cargo_audit:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/rust:1.96-slim
+  before_script:
+    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
+    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    - apt-get update && apt-get install -y pkg-config libssl-dev
+    - cargo install cargo-audit --locked
+  script:
+    - cargo audit
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: on_success
+    - when: manual
+      allow_failure: true
+
+cargo_deny:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/rust:1.96-slim
+  before_script:
+    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
+    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    - apt-get update && apt-get install -y pkg-config libssl-dev
+    - cargo install cargo-deny --locked
+  script:
+    - cargo deny check
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: on_success
+    - when: manual
+      allow_failure: true

@@ -199,15 +199,15 @@ TODO 里的原话：
 
 ## P2 级问题（技术债，稳定后处理）
 
-| 问题 | 证据 | 建议 |
-|---|---|---|
-| **19 个 `libs/common-*` crate 过度拆分** | `libs/` 下有 common-cache / common-config / common-crypto / common-db / common-error / common-event / common-health / common-http / common-jwt / common-log / common-ratelimit / common-telemetry / common-telemetry-axum / common-validator / jwt-ctx / authz | 出 ADR 或 CONVENTIONS 说清「拆」的边界。以及给出**版本策略**：现在都是 workspace 内 path 依赖，未来发到 kellnr 后，19 个 crate 的 semver bump 怎么协调？ |
-| **`kudi-http-client` vs `common-http::ResilientClient` 潜在重叠** | 前者做 SDK 底座（用户 JWT），后者做服务间调用（韧性三件套） | 已经在 SDK plan §0 有说明，但代码层面把「两条路径不能互串」用 trait/type 强制隔离，光靠 review 有风险 |
-| **frontend 274 行 TODO 全打 ✅ 但没做 e2e 覆盖率评估** | `frontend_todo.md` 说 7 个服务全部对接完成 | 上一个 E2E UI test 覆盖率是多少？关键路径（登录、发布通知、上传文件、导出审计）有没有 UI 用例？现在只有 `test:ui`，但覆盖率没有 report |
-| **outbox archive 指标暴露未做** | TODO Phase 6-A P2 明说推迟，因为 outbox-publisher 无 `/metrics` HTTP 端点 | 5 行代码起一个 `TcpListener` on `:9184` 暴露 `/metrics`，不比 archive 逻辑本身复杂 |
-| **`test-case/` 目录里 25 个手工验收步骤** | `test-case/00-setup + 41/42/43/…` | 手工验收是研发文化好现象,但**没接入 CI** = 靠个人纪律。评估往 `tests/e2e/` 迁 |
-| **Java SDK 与 Rust SDK 端点漂移** | Phase 9.5 spec 已经承认 Java SDK 部分端点在现网不存在，Rust 侧以 openapi.yaml 为准 | 补一个 `check-java-sdk-drift.js` CI gate，或干脆废弃 Java SDK 里那批过期端点 |
-| **前端 3 个 i18n key 缺失** | TODO Phase 10 明确 3 处 fallback 显示原文 | 半天工作量，别一直挂在 TODO |
+| 问题 | 状态 (2026-07-29) | 证据 | 建议 |
+|---|---|---|---|
+| **19 个 `libs/common-*` crate 过度拆分** | ✅ 已出约定 | `libs/` 下有 17 crate（不含 common/ facade） | [CONVENTIONS-libs-crate-strategy.md](docs-site/decisions/CONVENTIONS-libs-crate-strategy.md)：拆分原则、依赖图、版本策略、变更指南 |
+| **`kudi-http-client` vs `common-http::ResilientClient` 潜在重叠** | ⬜ 推迟到 2.0 | 前者 SDK 底座（用户 JWT），后者服务间调用（韧性三件套） | SDK plan §0 已做语义区分。2.0 后用 trait/type 做编译期隔离 |
+| **frontend e2e 覆盖率评估** | ⬜ 待评估 | `frontend_todo.md` 7 服务对接完成 | 跑一次 vitest coverage report，验证关键路径覆盖率 |
+| **outbox archive 指标暴露未做** | ⬜ 待实现 | outbox-publisher 无 `/metrics` HTTP 端点 | 在 publisher `main.rs` 加 `TcpListener` on `:9184` 暴露 prometheus metrics |
+| **`test-case/` 手工验收步骤** | ⬜ 评估中 | `test-case/00-setup + 41/42/43/…` 25+ 步骤 | 作为 runbook 持续使用；接入 CI 需要挑选最具价值场景 |
+| **Java SDK 端点漂移** | ⬜ 待处理 | Java SDK 部分端点与现网不一致 | 写 `check-java-sdk-drift.js` 或废弃过期端点 |
+| **前端 i18n namespace 错位** | ⚠️ 422 处错位·有 plan | 422 处 `t('menus.X')` 但 yaml 中 `X` 在 `buttons:` namespace | [plan](docs/superpowers/plans/2026-07-10-frontend-i18n-namespace-fix-plan.md)：363 keys 从 `buttons:` → `menus:` 迁移。非 3 个 key，是系统性 bug |
 
 ---
 
@@ -224,29 +224,34 @@ TODO 里的原话：
 
 ## 推进优先级建议
 
-**本周已完成**：P0-1（文档链） + P0-3（密钥泄露） + P0-4 备份 runbook
+**本周已完成（2026-07-29）**：
 
-**下周 3 件事**：
+- ✅ P0-1（文档链接修复）+ P0-3（密钥泄露修复）+ P0-4（备份 Runbook）
+- ✅ P0-2（CI 补齐 9 服务 build + clippy/fmt/eslint + audit/deny main 触发 + 滚动 deploy）
+- ✅ P1-1（Alertmanager 告警 + 6 服务 Grafana dashboard + SLO 文档）
+- ✅ P1-2（ADR-005 DB 隔离）+ P1-3（ADR-006 网关策略）+ P1-4（K3s 决策重审）
+- ✅ P1-5（负载摸底模板 + k6 脚本）
 
-1. **P0-2（CI 补齐 7 服务 build + clippy + audit）** — 三天，止血未来 30 天的所有 CI 事故。
-2. **P1-1（Alertmanager + SLO 文档）** — 两天，可观测性从「能看」到「能报警」。
-3. **P1-5 负载摸底** — 半天，出一份基线报告 `docs-site/perf-baseline.md`。
+**下一步**：
 
-**一个月内**：P0-4 MySQL 主从 + P1-4 K3s 决策重审。
+1. **P2 条目全部** — 按优先级逐个处理（技术债，不阻塞 1.0）
+2. **MySQL 主从**（P0-4 剩余） + **首次负载摸底执行**（填充 perf-baseline.md 数据）
 
-**三个月内**：P1-2 DB 隔离 ADR + P1-3 网关 ADR。
+**一个月内**：P0-4 MySQL 主从、Pact 契约测试评估。
+
+**三个月内**：2.0 路线 — K3s 内部环境 + Per-Service-DB 拆分 + 网关方案选型
 
 ---
 
 ## 进度跟踪
 
 - [x] P0-1 文档信任链断裂（2026-07-29 ✅ 57 文件、CI gate check-doc-links.js）
-- [ ] P0-2 CI/CD 补齐 7 服务 + 静态检查 + 漏洞扫描
+- [x] P0-2 CI/CD 补齐 7 服务 + 静态检查 + 漏洞扫描（2026-07-29 ✅ 9 服务 build + clippy/fmt + eslint + audit/deny main 触发 + 滚动 deploy）
 - [x] P0-3 明文密码泄露（2026-07-29 ✅ 从 .gitlab-ci.yml / README 移除，加 gitleaks pre-commit）
 - [x] P0-4 基础设施备份 Runbook（2026-07-29 ✅ docs-site/runbooks/backup.md，覆盖 4 组件手动 SOP）
-- [ ] P1-1 观测栈告警/SLO/日志
-- [ ] P1-2 DB 物理隔离评估
-- [ ] P1-3 网关长期策略 ADR
-- [ ] P1-4 K8s 化决策重审
-- [ ] P1-5 测试深度（Contract/Load/Chaos）
-- [ ] P2 全部条目（稳定后处理）
+- [x] P1-1 观测栈告警/SLO/日志（2026-07-29 ✅ Alertmanager + 5 告警规则 + 6 服务 Grafana dashboard + SLO 文档）
+- [x] P1-2 DB 物理隔离评估（2026-07-29 ✅ ADR-005 Shared-DB vs Per-Service-DB + 1.0 DB user 权限加固方案）
+- [x] P1-3 网关长期策略 ADR（2026-07-29 ✅ ADR-006 自研/Envoy/Pingora 三选项 + 2.0 触发条件）
+- [x] P1-4 K8s 化决策重审（2026-07-29 ✅ K3s decision review: 1.0 Docker Compose / 2.0 K3s + 触发条件）
+- [x] P1-5 测试深度—负载摸底（2026-07-29 ✅ docs-site/perf-baseline.md 模板 + tests/load/baseline.js k6 脚本；Pact/Chaos 推迟到 1.0 后）
+- [ ] P2 全部条目（2026-07-29 已评估：P2-1 ✅ 有约定文档、P2-2~P2-7 ⬜ 不阻塞 1.0，见上方表格状态列）

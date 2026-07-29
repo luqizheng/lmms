@@ -44,3 +44,24 @@ repos:
         entry: node scripts/check-doc-links.js
         language: node
         pass_filenames: false
+
+      - id: cargo-clippy
+        name: Cargo Clippy
+        entry: bash -c 'cargo clippy --workspace --all-targets -- -D warnings'
+        language: system
+        pass_filenames: false
+        files: \.rs$
+
+      - id: cargo-fmt-check
+        name: Cargo Format Check
+        entry: bash -c 'cargo fmt --check'
+        language: system
+        pass_filenames: false
+        files: \.rs$
+
+      - id: cargo-deny
+        name: Cargo Deny
+        entry: bash -c 'cargo deny check'
+        language: system
+        pass_filenames: false
+        files: ^Cargo\.(toml|lock)$

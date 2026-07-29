@@ -4,6 +4,14 @@ global:
   external_labels:
     cluster: coder-micro-services
 
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - 'alerts.yml'
+
 scrape_configs:
   # Consul service discovery: auto-discover all services with metrics tag
   - job_name: consul-services

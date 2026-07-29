@@ -1,0 +1,73 @@
+# deny.toml — cargo-deny 配置
+# 安装：cargo install cargo-deny
+# 运行：cargo deny check
+
+[graph]
+# 是否禁止 1.0.0 以下版本的 crate（语义化版本未稳定）
+# 保持 false 允许正常使用 pre-1.0 crate
+# 但会 warnings 提示
+# 默认: false
+# 1.0 前不建议开启
+# pre-1.0 警告
+# 默认: false
+# 生产环境建议开启
+# pre-1.0 警告
+ # 默认: false
+ # 建议开启
+warn-pre-release = false
+
+[advisories]
+# 忽略以下 advisory ID（已知但已评估风险）
+# ignore = ["RUSTSEC-2023-0001"]
+# 默认: false → advisory 级别 mismatch 不阻断 CI
+# deny 建议在 scheduled pipeline 用 `--deny=warnings`
+vulnerability = "deny"
+unmaintained = "warn"
+unsound = "deny"
+notice = "warn"
+# 忽略特定 advisory（需逐个评估后加入）
+ignore = []
+
+[licenses]
+# 允许的 license 列表
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "Unlicense",
+    "MPL-2.0",
+]
+# 拒绝未明确声明的 license
+deny = []
+# 跳过以下 crate 的 license 检查
+skip = [
+    # ring 使用 BLAKE2 的 ISC-like license
+    { name = "ring" },
+    # webpki 使用 MPL-like
+    { name = "webpki" },
+    # 一些 bzip2 相关的旧依赖
+    { name = "bzip2-sys" },
+]
+skip-tree = []
+
+[bans]
+# 是否允许多版本（同一 crate 的不同 semver）
+# 允许多版本（workspace 较大，难以完全避免）
+multiple-versions = "warn"
+# 明确禁止的 crate
+deny = []
+# 跳过检查
+skip = []
+skip-tree = []
+
+[sources]
+# 允许的 crate 来源
+allow-git = []
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
