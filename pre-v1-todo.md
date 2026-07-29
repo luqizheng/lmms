@@ -207,7 +207,7 @@ TODO 里的原话：
 | **outbox archive 指标暴露未做** | ⬜ 豁免（AGENTS.md） | outbox-publisher AGENTS.md 显式豁免 /metrics | 当前用 process exporter；archive 指标在 §C5 1.0 后评估 |
 | **`test-case/` 手工验收步骤** | ✅ 评估完成 | 20 个手工 case + 7 个 A 类可迁 | [test-case-migration-eval.md](docs-site/decisions/test-case-migration-eval.md)：A 类按 ROI 排序（config-dogfood / tenant / cross-tenant / user-roles 等），1.0 后迁 |
 | **Java SDK 端点漂移** | ✅ check script + 12 处 drift 已记录 | 12 处 SDK 路径与 OpenAPI 不一致 | [scripts/check-java-sdk-drift.js](scripts/check-java-sdk-drift.js) + [KNOWN-DRIFT.md](sdk/java/KNOWN-DRIFT.md)：CI allow_failure，1.0 后逐项修复 |
-| **前端 i18n namespace 错位** | ⚠️ 422 处错位·有 plan·未执行 | 422 处 `t('menus.X')` 但 yaml 中 `X` 在 `buttons:` namespace | [plan](docs/superpowers/plans/2026-07-10-frontend-i18n-namespace-fix-plan.md)：363 keys 从 `buttons:` → `menus:` 迁移。Python 脚本机械化执行 + 测试验证。1.0 阻塞候选 |
+| **前端 i18n namespace 错位** | ✅ 修复完成 | 实际扫描：9 keys 调用 menus.* 但在 buttons/login + 1 key 三 namespace 重复（plan 原估 422/363 已过时） | commit `c2d23b4`：从 buttons:/login: 移除 10 keys、移到 menus:（zh/en 各 586 keys 完美对称）。Typecheck 报 file/index.vue 类型错误，但通过 git stash 验证为 pre-existing，与 i18n 改动无关 |
 
 ---
 
