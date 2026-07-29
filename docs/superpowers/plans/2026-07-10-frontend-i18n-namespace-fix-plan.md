@@ -1,8 +1,10 @@
 # Frontend i18n Namespace 错位修复 Plan
 
 **日期**：2026-07-10
-**状态**：🟡 待 user review
+**状态**：✅ 已执行（commit `c2d23b4`，2026-07-30）
 **关联**：用户报告 `menus.fileSearchFilename` 显示原始 key；调查发现是全项目级 i18n namespace 错位 bug。
+
+> **执行回填（2026-07-30）**：实际扫描发现仅 10 keys 调用 `menus.*` 但定义在 `buttons:` / `login:`（非 plan 原估 422/363）。其中 1 key（`pureLogin`）同时存在于 `buttons:` / `login:` / `menus:` 三 namespace（`menus:` 是正确归宿，另两处为 stale 重复）。Python 脚本迁移后验证：yaml.safe_load OK、zh-CN / en 各 586 keys 完美对称、0 个 `menus.*` 调用 fallback。详见 commit message 与 `docs-site/decisions/` 归档（pre-v1-todo.md §P2-7）。
 
 ---
 
