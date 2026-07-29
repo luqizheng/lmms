@@ -255,4 +255,4 @@ TODO 里的原话：
 - [x] P1-3 网关长期策略 ADR（2026-07-29 ✅ ADR-006 自研/Envoy/Pingora 三选项 + 2.0 触发条件）
 - [x] P1-4 K8s 化决策重审（2026-07-29 ✅ K3s decision review: 1.0 Docker Compose / 2.0 K3s + 触发条件）
 - [x] P1-5 测试深度—负载摸底（2026-07-29 ✅ docs-site/perf-baseline.md 模板 + tests/load/baseline.js k6 脚本；Pact/Chaos 推迟到 1.0 后）
-- [ ] P2 全部条目（2026-07-29 已评估：P2-1 ✅ 有约定文档、P2-2~P2-7 ⬜ 不阻塞 1.0，见上方表格状态列）
+- [x] P2 全部条目（2026-07-30 ✅ P2-1 crate 约定 / P2-2 推迟 2.0 / P2-3 e2e 覆盖评估 / P2-4 AGENTS 豁免 / P2-5 test-case 迁移评估 / P2-6 Java SDK drift + KNOWN-DRIFT / P2-7 i18n namespace 修复）
