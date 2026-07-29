@@ -245,10 +245,10 @@ To enable automated deployment via GitLab CI, follow these steps:
 
 #### Step 1: Generate SSH Key Pair on Deployment Server
 
-Login to your deployment server (`192.168.2.128`):
+Login to your deployment server (replace `<deploy-server-ip>` with actual IP):
 
 ```bash
-ssh kudi@192.168.2.128
+ssh <deploy-user>@<deploy-server-ip>
 ```
 
 Generate an ED25519 key pair (no passphrase):
@@ -284,9 +284,9 @@ cat ~/.ssh/id_rsa
 | Variable          | Value                                              | Protected |
 | ----------------- | -------------------------------------------------- | --------- |
 | `SSH_PRIVATE_KEY` | Content of id_rsa file                             | Yes       |
-| `DEPLOY_SERVER`   | `192.168.2.128`                                    | Yes       |
-| `DEPLOY_USER`     | `admin`                                            | Yes       |
-| `DEPLOY_PASSWORD` | Server admin password                              | Yes       |
+| `DEPLOY_SERVER`   | `<deploy-server-ip>` (set in GitLab CI/CD vars)    | Yes       |
+| `DEPLOY_USER`     | `<deploy-username>` (set in GitLab CI/CD vars)     | Yes       |
+| `DEPLOY_PASSWORD` | `<deploy-password>` (set in GitLab CI/CD vars)     | Yes       |
 | `DOCKER_REGISTRY` | Docker registry URL (e.g., `registry.example.com`) | Yes       |
 
 ### Deployment Pipeline
@@ -303,7 +303,7 @@ If manual deployment is needed:
 
 ```bash
 # SSH to deployment server
-ssh kudi@192.168.2.128
+ssh <deploy-user>@<deploy-server-ip>
 
 # Navigate to project directory
 cd /opt/coder-micro-services

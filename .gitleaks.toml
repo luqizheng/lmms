@@ -1,0 +1,22 @@
+# gitleaks 配置 — 防止密钥被提交到 git 历史
+# 安装：pip install gitleaks 或 brew install gitleaks
+# 手动扫描：gitleaks detect --verbose
+
+[allowlist]
+  description = "允许的模式（测试 / 示例 / 非生产）"
+
+  # 测试基础设施密码（docker-compose dev 环境）
+  paths = [
+    '''infrastructure/docker-compose.*\.yml''',
+    '''infrastructure/redis/.*''',
+  ]
+
+  # 内网仓库 URL（公开示例性质）
+  regexes = [
+    '''zhcoder-docker-registry\.com''',
+    '''crates\.kudi\.repos''',
+    '''mvn\.kudi\.repos''',
+    '''192\.168\.2\.\d+''',
+    '''nuget\.kudi\.repos''',
+    '''kellnr''',
+  ]
