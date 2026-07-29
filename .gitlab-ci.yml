@@ -86,6 +86,19 @@ doc_links_check:
   script:
     - node scripts/check-doc-links.js
 
+i18n_namespace_check:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  script:
+    - node scripts/check-i18n-namespace.js
+  rules:
+    - changes:
+        - frontend/src/**/*.{vue,ts}
+        - frontend/locales/**/*.yaml
+      when: on_success
+    - when: never
+
 java_sdk_drift_check:
   stage: test
   tags: [docker]
