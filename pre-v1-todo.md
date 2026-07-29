@@ -79,23 +79,24 @@ DEPLOY_USER: kudi              # 生产 SSH 用户
 
 ### P0-4 · 基础设施单点，无 HA 与备份
 
-**现状**：
+**项目启动时现状**：
 
 - MySQL / Redis / Consul / RabbitMQ 各**单容器 1 副本**（`infrastructure/docker-compose.yml`）。
 - 无 backup runbook（`docs-site/runbooks/` 只有 secret-rotation.md）。
 - Phase 7（K8s / K3s 化）已被降级到 **P10**（README 里也说「维持 docker-compose 作为唯一部署方案」）。
 - 服务级也无 replica 概念，`docker-compose scale` 靠谱与否没验证过。
 
-**风险**：Redis 挂 = gateway 限流 + perm_epoch 全挂；MySQL 挂 = 全平台；RabbitMQ 挂 = outbox publisher 堆积（好在 outbox 表兜底，但只到 30 天）。
+**已完成的阶段（2026-07-29）**：
 
-**修法**（分阶段，2-4 周）：
+- ✅ **备份 Runbook**：`docs-site/runbooks/backup.md`，覆盖 MySQL / Redis / RabbitMQ / Consul 的手动备份与恢复全流程，含一键备份脚本 skeleton
 
-1. **马上补的 3 件事**：
-   - MySQL：每日 `mysqldump` + 异地拷贝 runbook（哪怕手动 cron）。
-   - Redis：`SAVE`+`BGSAVE` runbook + 数据丢失影响面书面化（perm_epoch 丢了就变成「所有 token 立即失效」）。
-   - RabbitMQ：`definitions.json` 已预声明 topology，加 `rabbitmqctl export_definitions` runbook。
-2. **1.0 之内**：MySQL 主从（1 主 1 从，读写分离先不做，只做灾备）；Redis 换 Sentinel 或至少 AOF+RDB 双开；Consul 至少 3 节点。
-3. **1.0 之后**：Phase 7 反悔 —— K3s 3 节点 + Consul 3 副本 + RabbitMQ mirrored queue。
+**剩余**（手动备份已覆盖，HA 部分归 Roadmap 2.0）：
+
+- MySQL：每日 `mysqldump` + 异地拷贝 runbook（哪怕手动 cron）。
+- Redis：`SAVE`+`BGSAVE` runbook + 数据丢失影响面书面化（perm_epoch 丢了就变成「所有 token 立即失效」）。
+- RabbitMQ：`definitions.json` 已预声明 topology，加 `rabbitmqctl export_definitions` runbook。
+- **1.0 之内**：MySQL 主从（1 主 1 从，读写分离先不做，只做灾备）；Redis 换 Sentinel 或至少 AOF+RDB 双开；Consul 至少 3 节点。
+- **1.0 之后**：Phase 7 反悔 —— K3s 3 节点 + Consul 3 副本 + RabbitMQ mirrored queue。
 
 ---
 
@@ -223,15 +224,17 @@ TODO 里的原话：
 
 ## 推进优先级建议
 
-**下周三件事**：
+**本周已完成**：P0-1（文档链） + P0-3（密钥泄露） + P0-4 备份 runbook
 
-1. **P0-1（文档链修复）+ P0-3（密钥泄露）** — 一天能干完，风险最高、收益最快。
-2. **P0-2（CI 补齐 7 服务 build + clippy + audit）** — 三天，止血未来 30 天的所有 CI 事故。
-3. **P0-4 中的备份 runbook** — 一天，无需改架构，纯 SOP 补齐。
+**下周 3 件事**：
 
-**一个月内**：P0-4 HA 化 + P1-1 Alertmanager + P1-4 K3s 决策反悔评估。
+1. **P0-2（CI 补齐 7 服务 build + clippy + audit）** — 三天，止血未来 30 天的所有 CI 事故。
+2. **P1-1（Alertmanager + SLO 文档）** — 两天，可观测性从「能看」到「能报警」。
+3. **P1-5 负载摸底** — 半天，出一份基线报告 `docs-site/perf-baseline.md`。
 
-**三个月内**：P1-2 DB 隔离 ADR + P1-3 网关 ADR + P1-5 负载基线。
+**一个月内**：P0-4 MySQL 主从 + P1-4 K3s 决策重审。
+
+**三个月内**：P1-2 DB 隔离 ADR + P1-3 网关 ADR。
 
 ---
 
@@ -240,7 +243,7 @@ TODO 里的原话：
 - [x] P0-1 文档信任链断裂（2026-07-29 ✅ 57 文件、CI gate check-doc-links.js）
 - [ ] P0-2 CI/CD 补齐 7 服务 + 静态检查 + 漏洞扫描
 - [x] P0-3 明文密码泄露（2026-07-29 ✅ 从 .gitlab-ci.yml / README 移除，加 gitleaks pre-commit）
-- [ ] P0-4 基础设施单点/无备份
+- [x] P0-4 基础设施备份 Runbook（2026-07-29 ✅ docs-site/runbooks/backup.md，覆盖 4 组件手动 SOP）
 - [ ] P1-1 观测栈告警/SLO/日志
 - [ ] P1-2 DB 物理隔离评估
 - [ ] P1-3 网关长期策略 ADR
