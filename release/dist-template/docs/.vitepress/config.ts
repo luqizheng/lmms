@@ -12,8 +12,8 @@ export default defineConfig({
   themeConfig: {
     logo: '/logo.svg',
     nav: [
-      { text: '快速开始', link: '/getting-started' },
-      { text: '部署', link: '/deployment/air-gap' },
+      { text: '运维部署', link: '/operations/' },
+      { text: '业务开发', link: '/development/' },
       { text: '服务', link: '/services/overview' },
       { text: '可观测性', link: '/observability/overview' },
       { text: '故障排查', link: '/troubleshooting' },
@@ -24,10 +24,14 @@ export default defineConfig({
           { text: '快速开始', link: '/getting-started' },
           { text: '配置参考', link: '/configuration' },
         ]},
-        { text: '部署', items: [
+        { text: '运维', items: [
+          { text: '运维与部署指南', link: '/operations/' },
           { text: '离线部署', link: '/deployment/air-gap' },
           { text: '升级指南', link: '/deployment/upgrade' },
           { text: '备份与恢复', link: '/deployment/backup' },
+        ]},
+        { text: '业务开发', items: [
+          { text: '业务开发指南', link: '/development/' },
         ]},
         { text: '服务', items: [
           { text: '服务概览', link: '/services/overview' },
