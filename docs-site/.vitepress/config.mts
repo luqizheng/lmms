@@ -130,6 +130,7 @@ export default defineConfig({
             { text: '服务注册', link: '/guides/service-registration' },
             { text: '服务间认证', link: '/guides/service-to-service-auth' },
             { text: '前端鉴权', link: '/guides/frontend-auth' },
+            { text: '前端公共组件', link: '/guides/frontend-components' },
             { text: '新增服务', link: '/guides/add-new-service' },
             { text: 'Registry 来源配置', link: '/guides/docker-registry-config' },
             { text: '迁移状态端点', link: '/guides/migrations-state' },
