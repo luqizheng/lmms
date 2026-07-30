@@ -140,6 +140,7 @@ export default defineConfig({
             { text: 'Rust SDK', link: '/guides/rust-sdk' },
             { text: '提交规范', link: '/guides/commit-convention' },
             { text: '平台配置模型 (env / yaml / fail-fast)', link: '/guides/config-model' },
+            { text: 'token-service 架构总览', link: '/guides/token-service-overview' },
             { text: 'token-service 环境变量', link: '/guides/token-service-env' },
             { text: 'iam-service 环境变量', link: '/guides/iam-service-env' },
             { text: 'notification-service 环境变量', link: '/guides/notification-service-env' },
