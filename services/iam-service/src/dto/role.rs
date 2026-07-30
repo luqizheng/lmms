@@ -32,6 +32,17 @@ pub struct RoleQuery {
     pub size: u32,
 }
 
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct RoleUsersQuery {
+    #[serde(default = "default_page")]
+    pub page: u32,
+    #[serde(default = "default_page_size")]
+    pub size: u32,
+}
+
+fn default_page() -> u32 { 1 }
+fn default_page_size() -> u32 { 20 }
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RoleResponse {
     pub id: String,

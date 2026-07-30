@@ -214,6 +214,66 @@ paths:
           description: missing or invalid tenant_id
         '401':
           description: mesh intention denied
+  /iam/internal/users/by-ids:
+    post:
+      tags:
+      - internal
+      operationId: batch_get_users_by_ids
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchGetUsersRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchGetUsersResponse'
+        '400':
+          description: missing or invalid tenant_id
+        '401':
+          description: mesh intention denied
+  /iam/internal/users/by-org-and-role:
+    post:
+      tags:
+      - internal
+      operationId: list_users_by_org_and_role
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryUsersByOrgAndRoleRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchGetUsersResponse'
+        '400':
+          description: missing or invalid tenant_id
+        '401':
+          description: mesh intention denied
+        '404':
+          description: org unit or role not found
   /iam/internal/users/by-role/{role_id}:
     get:
       tags:
@@ -675,6 +735,42 @@ paths:
           description: role not found
       security:
       - bearer_auth: []
+  /iam/roles/{role_id}/users:
+    get:
+      tags:
+      - roles
+      operationId: list_users_by_role
+      parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '404':
+          description: role not found
+      security:
+      - bearer_auth: []
   /iam/tenants:
     post:
       tags:
@@ -963,6 +1059,24 @@ components:
           type: array
           items:
             type: string
+    BatchGetUsersRequest:
+      type: object
+      required:
+      - user_ids
+      properties:
+        user_ids:
+          type: array
+          items:
+            type: string
+    BatchGetUsersResponse:
+      type: object
+      required:
+      - users
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
     BatchImportUsersRequest:
       type: object
       required:
@@ -1223,6 +1337,7 @@ components:
       - level
       - sort_order
       - status
+      - path
       - created_at
       - updated_at
       - children
@@ -1247,6 +1362,8 @@ components:
           type:
           - string
           - 'null'
+        path:
+          type: string
         sort_order:
           type: integer
           format: int32
@@ -1345,6 +1462,18 @@ components:
         updated_at:
           type: string
           format: date-time
+    QueryUsersByOrgAndRoleRequest:
+      type: object
+      required:
+      - org_path
+      - role_name
+      properties:
+        org_path:
+          type: string
+          description: 组织路径，如 "珠海分公司/销售部"
+        role_name:
+          type: string
+          description: 角色名称，如 "部门经理"
     RefreshRequest:
       type: object
       required:

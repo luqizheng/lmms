@@ -86,6 +86,55 @@ public class UserServiceClientClient extends SdkClient {
         return map(r.getBody(), Permission.class);
     }
 
+    // ── Org-Unit ──
+
+    public List<OrgUnit> listOrgUnits() {
+        HttpResponse r = executeWithAuth(HttpRequest.get(url("/org-units")));
+        return map(r.getBody(), OrgUnit.class);
+    }
+
+    public OrgUnit createOrgUnit(Map<String, Object> body) {
+        HttpResponse r = executeWithAuth(HttpRequest.post(url("/org-units")).jsonBody(body));
+        return mapBody(r, OrgUnit.class);
+    }
+
+    public OrgUnit updateOrgUnit(String id, Map<String, Object> body) {
+        HttpResponse r = executeWithAuth(HttpRequest.put(url("/org-units/" + id)).jsonBody(body));
+        return mapBody(r, OrgUnit.class);
+    }
+
+    // ── Batch user query (internal, needs tenant_id + service-jwt) ──
+
+    public BatchGetUsersResponse batchGetUsers(List<String> userIds, long tenantId) {
+        BatchGetUsersRequest req = new BatchGetUsersRequest(userIds);
+        HttpResponse r = executeWithAuth(
+                HttpRequest.post(url("/internal/users/by-ids?tenant_id=" + tenantId))
+                        .jsonBody(req));
+        return mapBody(r, BatchGetUsersResponse.class);
+    }
+
+    public BatchGetUsersResponse listUsersByOrgAndRole(String orgPath, String roleName, long tenantId) {
+        QueryUsersByOrgAndRoleRequest req = new QueryUsersByOrgAndRoleRequest(orgPath, roleName);
+        HttpResponse r = executeWithAuth(
+                HttpRequest.post(url("/internal/users/by-org-and-role?tenant_id=" + tenantId))
+                        .jsonBody(req));
+        return mapBody(r, BatchGetUsersResponse.class);
+    }
+
+    public ListUsersByRoleResponse listUsersByRole(String roleId, int page, int size) {
+        HttpResponse r = executeWithAuth(
+                HttpRequest.get(url("/roles/" + roleId + "/users?page=" + page + "&size=" + size)));
+        return mapBody(r, ListUsersByRoleResponse.class);
+    }
+
+    public ListUsersByRoleResponse listUsersByRole(String roleId) {
+        return listUsersByRole(roleId, 1, 20);
+    }
+
+    public CompletableFuture<ListUsersByRoleResponse> listUsersByRoleAsync(String roleId, int page, int size) {
+        return wrapAsync(() -> listUsersByRole(roleId, page, size));
+    }
+
     private <T> List<T> map(String body, Class<T> element) {
         try {
             return com.kudi.coder.sdk.common.JsonUtil.mapper()

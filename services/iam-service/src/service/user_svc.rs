@@ -348,6 +348,94 @@ impl UserService {
         }
     }
 
+    pub async fn batch_get_by_ids(&self, user_ids: &[String], scope: &TenantScope) -> Result<Vec<UserResponse>, IamError> {
+        if user_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut qb = QueryBuilder::new(
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users",
+        );
+        qb.push(" WHERE id IN (");
+        let mut separated = qb.separated(", ");
+        for id in user_ids {
+            separated.push_bind(id);
+        }
+        separated.push_unseparated(")");
+        qb.and_tenant(scope);
+        qb.push(" AND deleted_at IS NULL");
+
+        let users: Vec<UserRow> = qb.build_query_as::<UserRow>().fetch_all(&self.state.db).await?;
+        Ok(users.iter().map(|u| self.to_response(u)).collect())
+    }
+
+    pub async fn list_by_org_and_role(
+        &self,
+        org_unit_id: &str,
+        role_id: &str,
+        scope: &TenantScope,
+    ) -> Result<Vec<UserResponse>, IamError> {
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
+        let users: Vec<UserRow> = sqlx::query_as(
+            "SELECT u.id, u.tenant_id, u.username, u.email, u.phone, u.password_hash, u.salt, \
+             u.nickname, u.avatar, u.status, u.email_verified, u.phone_verified, \
+             u.last_login_at, u.last_login_ip, u.password_expired_at, u.created_at, u.updated_at, u.deleted_at \
+             FROM iam_users u \
+             JOIN iam_user_org_units uox ON uox.user_id = u.id \
+             JOIN iam_user_roles ur ON ur.user_id = u.id \
+             WHERE uox.org_unit_id = ? AND ur.role_id = ? AND u.tenant_id = ? AND u.deleted_at IS NULL",
+        )
+        .bind(org_unit_id)
+        .bind(role_id)
+        .bind(tid)
+        .fetch_all(&self.state.db)
+        .await?;
+        Ok(users.iter().map(|u| self.to_response(u)).collect())
+    }
+
+    pub async fn list_users_by_role_with_details(
+        &self,
+        role_id: &str,
+        page: u32,
+        size: u32,
+        scope: &TenantScope,
+    ) -> Result<(Vec<UserResponse>, i64), IamError> {
+        let size = size.clamp(1, 100);
+        let page = page.max(1);
+        let offset = ((page - 1) * size) as i64;
+        let limit = size as i64;
+        let tid = scope.tenant_id().unwrap_or(1) as u64;
+
+        let users: Vec<UserRow> = sqlx::query_as(
+            "SELECT u.id, u.tenant_id, u.username, u.email, u.phone, u.password_hash, u.salt, \
+             u.nickname, u.avatar, u.status, u.email_verified, u.phone_verified, \
+             u.last_login_at, u.last_login_ip, u.password_expired_at, u.created_at, u.updated_at, u.deleted_at \
+             FROM iam_users u \
+             JOIN iam_user_roles ur ON ur.user_id = u.id \
+             WHERE ur.role_id = ? AND u.deleted_at IS NULL AND u.tenant_id = ? \
+             ORDER BY u.id LIMIT ? OFFSET ?",
+        )
+        .bind(role_id)
+        .bind(tid)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.state.db)
+        .await?;
+
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(DISTINCT u.id) FROM iam_users u \
+             JOIN iam_user_roles ur ON ur.user_id = u.id \
+             WHERE ur.role_id = ? AND u.deleted_at IS NULL AND u.tenant_id = ?",
+        )
+        .bind(role_id)
+        .bind(tid)
+        .fetch_one(&self.state.db)
+        .await?;
+
+        let items = users.iter().map(|u| self.to_response(u)).collect();
+        Ok((items, total.0))
+    }
+
     pub async fn list_by_role(
         &self,
         role_id: &str,

@@ -3,10 +3,12 @@ use jwt_ctx::{Principal, TenantScope};
 use crate::{
     state::AppState,
     dto::{
-        CreateRoleRequest, UpdateRoleRequest, RoleQuery, RoleResponse, RoleListResponse,
+        CreateRoleRequest, UpdateRoleRequest, RoleQuery, RoleUsersQuery,
+        RoleResponse, RoleListResponse,
         AssignPermissionsRequest, AssignUserRolesRequest, AssignUserRolesResponse,
+        UserListResponse,
     },
-    service::RoleService,
+    service::{RoleService, UserService},
     error::IamError,
 };
 
@@ -15,6 +17,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/iam/roles", get(list_roles).post(create_role))
         .route("/iam/roles/{role_id}", get(get_role).put(update_role).delete(delete_role))
         .route("/iam/roles/{role_id}/permissions", put(assign_permissions))
+        .route("/iam/roles/{role_id}/users", get(list_users_by_role))
         .route("/iam/users/{user_id}/roles", put(assign_user_roles))
         .with_state(state)
 }
@@ -202,4 +205,36 @@ async fn assign_user_roles(
         _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string()),
     })?;
     Ok(Json(AssignUserRolesResponse { user_id, role_ids }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/iam/roles/{role_id}/users",
+    params(
+        ("role_id" = String, Path,),
+        RoleUsersQuery,
+    ),
+    responses(
+        (status = 200, body = UserListResponse),
+        (status = 404, description = "role not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "roles"
+)]
+async fn list_users_by_role(
+    State(state): State<AppState>,
+    Path(role_id): Path<String>,
+    scope: TenantScope,
+    Query(query): Query<RoleUsersQuery>,
+) -> Result<Json<UserListResponse>, (axum::http::StatusCode, &'static str)> {
+    let svc = UserService::new(state);
+    let (items, total) = svc.list_users_by_role_with_details(&role_id, query.page, query.size, &scope)
+        .await
+        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    Ok(Json(UserListResponse {
+        items,
+        total: total as u64,
+        page: query.page,
+        size: query.size,
+    }))
 }

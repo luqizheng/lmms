@@ -96,6 +96,7 @@
 | /iam/roles/:id | PUT | 更新角色 |
 | /iam/roles/:id | DELETE | 删除角色 |
 | /iam/roles/:id/permissions | PUT | 绑定权限 |
+| /iam/roles/:id/users | GET | 按角色查用户（含完整信息，bearer_auth）|
 
 ### 权限 /iam/permissions/*
 
