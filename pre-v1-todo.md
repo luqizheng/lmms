@@ -234,8 +234,8 @@ TODO 里的原话：
 
 **下一步**：
 
-1. **P2 条目全部** — 按优先级逐个处理（技术债，不阻塞 1.0）
-2. **MySQL 主从**（P0-4 剩余） + **首次负载摸底执行**（填充 perf-baseline.md 数据）
+1. **P2 条目全部** — 按优先级逐个处理（技术债，不阻塞 1.0）✅ 2026-07-30 全部完成
+2. **MySQL 主从**（P0-4 剩余） + **首次负载摸底执行**（填充 perf-baseline.md 数据）✅ 2026-07-30：MySQL 主从 GTID 复制已配置 + k6 基线 S1-S7 已完成（perf-baseline.md 已填充）
 
 **一个月内**：P0-4 MySQL 主从、Pact 契约测试评估。
 
@@ -256,3 +256,6 @@ TODO 里的原话：
 - [x] P1-4 K8s 化决策重审（2026-07-29 ✅ K3s decision review: 1.0 Docker Compose / 2.0 K3s + 触发条件）
 - [x] P1-5 测试深度—负载摸底（2026-07-29 ✅ docs-site/perf-baseline.md 模板 + tests/load/baseline.js k6 脚本；Pact/Chaos 推迟到 1.0 后）
 - [x] P2 全部条目（2026-07-30 ✅ P2-1 crate 约定 / P2-2 推迟 2.0 / P2-3 e2e 覆盖评估 / P2-4 AGENTS 豁免 / P2-5 test-case 迁移评估 / P2-6 Java SDK drift + KNOWN-DRIFT / P2-7 i18n namespace 修复）
+- [x] 首次负载摸底执行（2026-07-30 ✅ k6 v0.57.0 安装 + tests/load/baseline.js 覆盖 S1-S7 + docs-site/perf-baseline.md 填充基线数据）
+  - [x] M1 混合负载测试（2026-07-30 ✅ 60 VU, RPS 198.8, p99=5.8ms）
+  - [x] Login 限流复核（2026-07-30 ✅ 4 阶段 3/5/7/10 rps, 97.5% 成功率, 19 次 429）
