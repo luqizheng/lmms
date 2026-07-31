@@ -1,6 +1,6 @@
 {
-  "name": "@coder-micro-services/dist-tools",
-  "version": "0.2.0",
+  "name": "@digua/dist-tools",
+  "version": "0.3.0",
   "description": "发布与同步工具集 — 把 coder-micro-services 上游的发布包同步到下游项目（Node.js 实现，跨 Linux/macOS/Windows）",
   "main": "lib/sync.js",
   "bin": {

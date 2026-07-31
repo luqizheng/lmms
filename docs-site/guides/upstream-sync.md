@@ -31,7 +31,7 @@
 下游项目根目录：
 
 ```bash
-pnpm add -D @coder-micro-services/dist-tools
+pnpm add -D @digua/dist-tools
 ```
 
 依赖：
@@ -364,13 +364,13 @@ cms-sync **不替代**已有的升级方式，是补充：
 |----------|------|------|
 | **cms-sync** | air-gap 私有化部署，业务项目需要同步配置/脚本/contracts 改动 | `npx cms-sync ./dist.tgz` |
 | **make upgrade** | 镜像版本升级（不动配置） | `make upgrade TAG=v1.1.0` |
-| **pnpm update @coder-micro-services/dist-tools** | 仅更新同步工具本身 | `pnpm update @coder-micro-services/dist-tools` |
+| **pnpm update @digua/dist-tools** | 仅更新同步工具本身 | `pnpm update @digua/dist-tools` |
 
 典型升级组合：
 
 ```bash
 # 1. 同步工具升级（如果新版本）
-pnpm update @coder-micro-services/dist-tools
+pnpm update @digua/dist-tools
 
 # 2. 同步上游配置文件 / 脚本 / contracts
 npx cms-sync ./coder-micro-services-v1.1.0-airgap.tar.gz
@@ -396,4 +396,4 @@ git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
 - [`./docker-registry-config`](./docker-registry-config) — Docker / Cargo / Maven / npm 包源配置
 - [`./commit-convention`](./commit-convention) — 提交规范（含 chore(sync) 前缀）
 - `release/dist-tools/README.md`（包内） — cms-sync 工具技术参考
-- [npm 私有仓库 `http://npm.kudi.repos/`](http://npm.kudi.repos/) — `@coder-micro-services/dist-tools` 包主页
+- [npm 私有仓库 `http://npm.kudi.repos/`](http://npm.kudi.repos/) — `@digua/dist-tools` 包主页

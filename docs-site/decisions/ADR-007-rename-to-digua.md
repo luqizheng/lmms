@@ -13,7 +13,7 @@
 | Rust crates（17 + 7） | `digua_common-jwt`, `iam-service-sdk`, `kudi-http-client` 等 | `kudi-` 是内部公司品牌，公共 registry 上不合适 |
 | Maven groupId | `com.kudi.coder` | 同样含内部品牌 `kudi.coder` |
 | Maven artifactId | `kudi-coder-sdk-digua_common`, `iam-service-sdk` 等 | 与新品牌不一致 |
-| npm scope | `@coder-micro-services/dist-tools` | 仓库级 scope 不适合作为独立公共包 |
+| npm scope | `@digua/dist-tools` | 仓库级 scope 不适合作为独立公共包 |
 | 仓库名 | `coder-micro-services` / `low-memory-micro-services` | 内部代号 |
 
 `kudi` / `coder-micro-services` 在内部使用没问题，但放到公共 registry（crates.io / Maven Central / npmjs）会：
@@ -110,7 +110,7 @@
 
 | 当前 | 改后 |
 |------|------|
-| `@coder-micro-services/dist-tools` | `@digua/dist-tools` |
+| `@digua/dist-tools` | `@digua/dist-tools` |
 | `cms-sync`（CLI 命令） | `cms-sync`（**保留**，避免破坏已发布下游使用方式） |
 
 > CLI 命令 `cms-sync` 不改是因为命令面已被大量文档固化（README / docs-site / CI 脚本），改了反而制造额外迁移成本。包名 `digua` + 命令 `cms-sync` 的组合不矛盾：scope 是发布命名空间，命令是用户体验层。
@@ -145,7 +145,7 @@
 2. Rust crates 改名（17 + 7）+ 更新所有 path 依赖
 3. Maven groupId / artifactId 改名（sdk/java + examples）+ 更新所有 `<dependency>` 引用
 4. npm dist-tools 改名 + 重新发布为 `@digua/dist-tools@1.0.0`
-5. docs-site 中包坐标引用更新（`@coder-micro-services/dist-tools` → `@digua/dist-tools`）
+5. docs-site 中包坐标引用更新（`@digua/dist-tools` → `@digua/dist-tools`）
 6. 跑 `cargo check --workspace` / `mvn validate` / `pnpm test` 验证
 7. 发布 v1.0.0 到私有 registry（私有发布验证流程）
 8. 准备公开发布 checklist（Maven Central 账号注册 / crates.io ownership 转移 / npm public registry 切换）

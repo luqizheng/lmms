@@ -1,4 +1,4 @@
-# @coder-micro-services/dist-tools
+# @digua/dist-tools
 
 发布与同步工具集。配合 [coder-micro-services](https://gitlab/team/low-memory-micro-services) 上游框架使用。
 
@@ -11,7 +11,7 @@
 ## 安装
 
 ```bash
-pnpm add -D @coder-micro-services/dist-tools
+pnpm add -D @digua/dist-tools
 ```
 
 依赖：
