@@ -1,4 +1,4 @@
-package com.kudi.coder.demo.shared;
+package io.digua.shared;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

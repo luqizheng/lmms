@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.kudi.coder.demo</groupId>
+    <groupId>io.digua.demo</groupId>
     <artifactId>java8-webapi-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -34,33 +34,33 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.kudi.coder</groupId>
+                <groupId>io.digua</groupId>
                 <artifactId>audit-service-sdk</artifactId>
                 <version>${audit.sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.kudi.coder</groupId>
-                <artifactId>user-service-user-sdk</artifactId>
+                <groupId>io.digua</groupId>
+                <artifactId>digua-user-user-sdk</artifactId>
                 <version>0.2.0</version>
             </dependency>
             <dependency>
-                <groupId>com.kudi.coder</groupId>
-                <artifactId>user-service-client-sdk</artifactId>
+                <groupId>io.digua</groupId>
+                <artifactId>digua-user-client-sdk</artifactId>
                 <version>0.2.0</version>
             </dependency>
             <dependency>
-                <groupId>com.kudi.coder</groupId>
-                <artifactId>token-server-user-sdk</artifactId>
+                <groupId>io.digua</groupId>
+                <artifactId>digua-token-user-sdk</artifactId>
                 <version>0.2.0</version>
             </dependency>
             <dependency>
-                <groupId>com.kudi.coder</groupId>
-                <artifactId>token-server-client-sdk</artifactId>
+                <groupId>io.digua</groupId>
+                <artifactId>digua-token-client-sdk</artifactId>
                 <version>0.2.0</version>
             </dependency>
             <dependency>
-                <groupId>com.kudi.coder</groupId>
-                <artifactId>kudi-http-client</artifactId>
+                <groupId>io.digua</groupId>
+                <artifactId>digua-http-client</artifactId>
                 <version>0.2.0</version>
             </dependency>
         </dependencies>

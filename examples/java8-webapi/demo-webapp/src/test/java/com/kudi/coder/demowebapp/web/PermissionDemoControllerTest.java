@@ -1,12 +1,12 @@
-package com.kudi.coder.demowebapp.web;
+package io.digua.web;
 
-import com.kudi.coder.demowebapp.config.WebMvcConfig;
-import com.kudi.coder.demowebapp.security.JwtAuthInterceptor;
-import com.kudi.coder.demowebapp.security.PermissionAspect;
-import com.kudi.coder.sdk.common.model.ResourceTokenInfo;
-import com.kudi.coder.sdk.token.TokenServerUserClient;
-import com.kudi.coder.sdk.user.Role;
-import com.kudi.coder.sdk.user.UserServiceClientClient;
+import io.digua.WebMvcConfig;
+import io.digua.JwtAuthInterceptor;
+import io.digua.PermissionAspect;
+import io.digua.ResourceTokenInfo;
+import io.digua.TokenServerUserClient;
+import io.digua.Role;
+import io.digua.UserServiceClientClient;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;

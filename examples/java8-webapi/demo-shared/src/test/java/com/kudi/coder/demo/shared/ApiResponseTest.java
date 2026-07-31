@@ -1,4 +1,4 @@
-package com.kudi.coder.demo.shared;
+package io.digua.shared;
 
 import org.junit.jupiter.api.Test;
 

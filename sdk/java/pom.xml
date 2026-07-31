@@ -2,9 +2,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.kudi.coder</groupId>
-  <artifactId>kudi-coder-sdk-parent</artifactId>
-  <version>1.0.0</version>
+  <groupId>io.digua</groupId>
+  <artifactId>digua-sdk-parent</artifactId>
+  <version>0.3.0</version>
   <packaging>pom</packaging>
 
   <name>Kudi Coder SDK Parent</name>
@@ -12,12 +12,12 @@
 
   <modules>
     <module>common</module>
-    <module>user-service-user-sdk</module>
-    <module>user-service-client-sdk</module>
-    <module>token-server-user-sdk</module>
-    <module>token-server-client-sdk</module>
-    <module>kudi-http-client</module>
-    <module>notification-service-sdk</module>
+    <module>digua-user-user-sdk</module>
+    <module>digua-user-client-sdk</module>
+    <module>digua-token-user-sdk</module>
+    <module>digua-token-client-sdk</module>
+    <module>digua-http-client</module>
+    <module>digua-notification-sdk</module>
   </modules>
 
   <properties>
@@ -32,8 +32,8 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.kudi.coder</groupId>
-        <artifactId>kudi-coder-sdk-common</artifactId>
+        <groupId>io.digua</groupId>
+        <artifactId>digua-sdk-common</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.kudi.coder.demo</groupId>
+        <groupId>io.digua.demo</groupId>
         <artifactId>java8-webapi-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -32,33 +32,33 @@
             <artifactId>h2</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder.demo</groupId>
+            <groupId>io.digua.demo</groupId>
             <artifactId>demo-shared</artifactId>
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>audit-service-sdk</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
-            <artifactId>user-service-user-sdk</artifactId>
+            <groupId>io.digua</groupId>
+            <artifactId>digua-user-user-sdk</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
-            <artifactId>user-service-client-sdk</artifactId>
+            <groupId>io.digua</groupId>
+            <artifactId>digua-user-client-sdk</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
-            <artifactId>token-server-user-sdk</artifactId>
+            <groupId>io.digua</groupId>
+            <artifactId>digua-token-user-sdk</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
-            <artifactId>token-server-client-sdk</artifactId>
+            <groupId>io.digua</groupId>
+            <artifactId>digua-token-client-sdk</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
-            <artifactId>kudi-http-client</artifactId>
+            <groupId>io.digua</groupId>
+            <artifactId>digua-http-client</artifactId>
         </dependency>
 
         <dependency>

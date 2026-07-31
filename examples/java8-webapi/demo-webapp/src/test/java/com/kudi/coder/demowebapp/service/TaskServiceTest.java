@@ -1,9 +1,9 @@
-package com.kudi.coder.demowebapp.service;
+package io.digua.service;
 
-import com.kudi.coder.demowebapp.audit.AuditPublisher;
-import com.kudi.coder.demowebapp.domain.Task;
-import com.kudi.coder.demowebapp.domain.TaskStatus;
-import com.kudi.coder.demowebapp.repository.TaskRepository;
+import io.digua.AuditPublisher;
+import io.digua.Task;
+import io.digua.TaskStatus;
+import io.digua.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

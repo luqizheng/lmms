@@ -1,9 +1,9 @@
-package com.kudi.coder.demowebapp.web;
+package io.digua.web;
 
-import com.kudi.coder.demowebapp.config.ConfigPoller;
-import com.kudi.coder.demowebapp.config.WebMvcConfig;
-import com.kudi.coder.demowebapp.security.JwtAuthInterceptor;
-import com.kudi.coder.demowebapp.security.PermissionAspect;
+import io.digua.ConfigPoller;
+import io.digua.WebMvcConfig;
+import io.digua.JwtAuthInterceptor;
+import io.digua.PermissionAspect;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;

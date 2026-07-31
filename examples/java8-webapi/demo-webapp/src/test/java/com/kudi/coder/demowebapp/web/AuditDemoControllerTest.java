@@ -1,14 +1,14 @@
-package com.kudi.coder.demowebapp.web;
+package io.digua.web;
 
-import com.kudi.coder.auditsdk.AuditServiceClient;
-import com.kudi.coder.auditsdk.model.AuditEvent;
-import com.kudi.coder.auditsdk.model.AuditLog;
-import com.kudi.coder.auditsdk.model.AuditLogQuery;
-import com.kudi.coder.auditsdk.model.PageResult;
-import com.kudi.coder.demowebapp.audit.AuditPublisher;
-import com.kudi.coder.demowebapp.config.WebMvcConfig;
-import com.kudi.coder.demowebapp.security.JwtAuthInterceptor;
-import com.kudi.coder.demowebapp.security.PermissionAspect;
+import io.digua.AuditServiceClient;
+import io.digua.AuditEvent;
+import io.digua.AuditLog;
+import io.digua.AuditLogQuery;
+import io.digua.PageResult;
+import io.digua.AuditPublisher;
+import io.digua.WebMvcConfig;
+import io.digua.JwtAuthInterceptor;
+import io.digua.PermissionAspect;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;

@@ -1,12 +1,12 @@
-package com.kudi.coder.demowebapp.web;
+package io.digua.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kudi.coder.demowebapp.config.WebMvcConfig;
-import com.kudi.coder.demowebapp.domain.Task;
-import com.kudi.coder.demowebapp.domain.TaskStatus;
-import com.kudi.coder.demowebapp.security.JwtAuthInterceptor;
-import com.kudi.coder.demowebapp.security.PermissionAspect;
-import com.kudi.coder.demowebapp.service.TaskService;
+import io.digua.WebMvcConfig;
+import io.digua.Task;
+import io.digua.TaskStatus;
+import io.digua.JwtAuthInterceptor;
+import io.digua.PermissionAspect;
+import io.digua.TaskService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
