@@ -1752,7 +1752,7 @@ dependencies = [
 
 [[package]]
 name = "digua_audit_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -1765,7 +1765,7 @@ dependencies = [
 
 [[package]]
 name = "digua_authz"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum 0.8.9",
  "base64 0.22.1",
@@ -1781,7 +1781,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -1800,7 +1800,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_cache"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "digua_common_error",
@@ -1811,7 +1811,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_config"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "config",
@@ -1826,7 +1826,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_crypto"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1843,7 +1843,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_db"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_error"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum 0.8.9",
  "reqwest",
@@ -1871,7 +1871,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_event"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1895,7 +1895,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_health"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum 0.8.9",
  "http-body-util",
@@ -1912,7 +1912,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_http"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum 0.8.9",
  "bytes 1.11.1",
@@ -1929,7 +1929,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_jwt"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "jsonwebtoken",
@@ -1943,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_log"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum 0.8.9",
  "digua_common_error",
@@ -1959,7 +1959,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_ratelimit"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum 0.8.9",
  "chrono",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
@@ -1985,7 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry_axum"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum 0.8.9",
  "digua_common_telemetry",
@@ -2001,7 +2001,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_validator"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "digua_common_error",
  "validator",
@@ -2009,7 +2009,7 @@ dependencies = [
 
 [[package]]
 name = "digua_config_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -2022,7 +2022,7 @@ dependencies = [
 
 [[package]]
 name = "digua_file_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -2035,7 +2035,7 @@ dependencies = [
 
 [[package]]
 name = "digua_http_client"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -2052,7 +2052,7 @@ dependencies = [
 
 [[package]]
 name = "digua_iam_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -2065,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "digua_jwt_ctx"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
@@ -2083,7 +2083,7 @@ dependencies = [
 
 [[package]]
 name = "digua_notification_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -2096,7 +2096,7 @@ dependencies = [
 
 [[package]]
 name = "digua_token_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "digua_http_client",
  "serde",
