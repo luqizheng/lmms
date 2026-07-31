@@ -30,10 +30,10 @@
 
 | 平台 | 当前 | 改后 | 示例 |
 |------|------|------|------|
-| Maven Central groupId | `com.kudi.coder` | `io.digua` | `io.digua:digua_common-jwt` |
+| Maven Central groupId | `com.kudi.coder` | `io.digua` | `io.digua:digua-sdk-common` |
 | Maven parent artifactId | `kudi-coder-sdk-parent` | `digua-sdk-parent` | — |
-| crates.io (libs/) | `digua_common`, `digua_common-cache`, ... | `digua_common`, `digua_common-cache`, ... | `digua_common-jwt` |
-| crates.io (sdk/rust/) | `iam-service-sdk`, `kudi-http-client`, ... | `digua-iam-sdk`, `digua-http-client`, ... | `digua-iam-sdk` |
+| crates.io (libs/) | `common`, `common-cache`, ... | `digua_common`, `digua_common-cache`, ... | `digua_common_jwt` |
+| crates.io (sdk/rust/) | `iam-service-sdk`, `kudi-http-client`, ... | `digua_iam_sdk`, `digua_http_client`, ... | `digua_iam_sdk` |
 | npm scope | `@coder-micro-services/...` | `@digua/...` | `@digua/dist-tools` |
 | CLI 命令 | `cms-sync` | **保留不变**（命令面已面向用户，不破坏兼容性） |
 
@@ -56,35 +56,41 @@
 
 | 当前 | 改后 |
 |------|------|
-| `digua_authz` | `digua_authz` |
-| `digua_common` | `digua_common` |
-| `digua_common-cache` | `digua_common-cache` |
-| `digua_common-config` | `digua_common-config` |
-| `digua_common-crypto` | `digua_common-crypto` |
-| `digua_common-db` | `digua_common-db` |
-| `digua_common-error` | `digua_common-error` |
-| `digua_common-event` | `digua_common-event` |
-| `digua_common-health` | `digua_common-health` |
-| `digua_common-http` | `digua_common-http` |
-| `digua_common-jwt` | `digua_common-jwt` |
-| `digua_common-log` | `digua_common-log` |
-| `digua_common-ratelimit` | `digua_common-ratelimit` |
-| `digua_common-telemetry` | `digua_common-telemetry` |
-| `digua_common-telemetry-axum` | `digua_common-telemetry-axum` |
-| `digua_common-validator` | `digua_common-validator` |
-| `jwt-ctx` | `digua-jwt-ctx` |
+| `authz` | `digua_authz` |
+| `common` | `digua_common` |
+| `common-cache` | `digua_common_cache` |
+| `common-config` | `digua_common_config` |
+| `common-crypto` | `digua_common_crypto` |
+| `common-db` | `digua_common_db` |
+| `common-error` | `digua_common_error` |
+| `common-event` | `digua_common_event` |
+| `common-health` | `digua_common_health` |
+| `common-http` | `digua_common_http` |
+| `common-jwt` | `digua_common_jwt` |
+| `common-log` | `digua_common_log` |
+| `common-ratelimit` | `digua_common_ratelimit` |
+| `common-telemetry` | `digua_common_telemetry` |
+| `common-telemetry-axum` | `digua_common_telemetry_axum` |
+| `common-validator` | `digua_common_validator` |
+| `jwt-ctx` | `digua_jwt_ctx` |
 
 #### Rust SDK crates（sdk/rust/）
 
 | 当前 | 改后 |
 |------|------|
-| `audit-service-sdk` | `digua-audit-sdk` |
-| `config-service-sdk` | `digua-config-sdk` |
-| `file-service-sdk` | `digua-file-sdk` |
-| `iam-service-sdk` | `digua-iam-sdk` |
-| `notification-service-sdk` | `digua-notification-sdk` |
-| `token-service-sdk` | `digua-token-sdk` |
-| `kudi-http-client` | `digua-http-client` |
+| `audit-service-sdk` | `digua_audit_sdk` |
+| `config-service-sdk` | `digua_config_sdk` |
+| `file-service-sdk` | `digua_file_sdk` |
+| `iam-service-sdk` | `digua_iam_sdk` |
+| `notification-service-sdk` | `digua_notification_sdk` |
+| `token-service-sdk` | `digua_token_sdk` |
+| `kudi-http-client` | `digua_http_client` |
+
+> **重要修正**：Cargo crate `name` 字段不能含连字符（hyphen），
+> 必须全下划线（underscore）。Rust 源码里 `use digua_common_jwt::...`
+> 也是下划线形式（hyphen 在 Rust 标识符里不允许）。本 ADR 初稿曾写
+> `digua-common-jwt`（hyphen），是**错的**，实际命名是 `digua_common_jwt`。
+> 后续 crates.io 上线时也必须是下划线。
 
 #### Maven（sdk/java/ + examples/）
 
@@ -96,7 +102,7 @@
 | 当前 artifactId | 改后 artifactId |
 |-----------------|-----------------|
 | `kudi-coder-sdk-parent` | `digua-sdk-parent` |
-| `kudi-coder-sdk-digua_common` | `digua-sdk-digua_common` |
+| `kudi-coder-sdk-common` | `digua-sdk-common` |
 | `kudi-http-client` | `digua-http-client` |
 | `notification-service-sdk` | `digua-notification-sdk` |
 | `token-server-client-sdk` | `digua-token-client-sdk` |
@@ -104,22 +110,25 @@
 | `user-service-client-sdk` | `digua-user-client-sdk` |
 | `user-service-user-sdk` | `digua-user-user-sdk` |
 
-> `token-server-*` / `user-service-*` 同步改名以保持前缀统一（避免 `token-server-X` 但 `digua-X` 这种半旧半新）。
+> `token-server-*` / `user-service-*` 同步改名以保持前缀统一（避免
+> `token-server-X` 但 `digua-X` 这种半旧半新）。
 
 #### NPM（release/dist-tools/）
 
 | 当前 | 改后 |
 |------|------|
-| `@digua/dist-tools` | `@digua/dist-tools` |
+| `@coder-micro-services/dist-tools` | `@digua/dist-tools` |
 | `cms-sync`（CLI 命令） | `cms-sync`（**保留**，避免破坏已发布下游使用方式） |
 
-> CLI 命令 `cms-sync` 不改是因为命令面已被大量文档固化（README / docs-site / CI 脚本），改了反而制造额外迁移成本。包名 `digua` + 命令 `cms-sync` 的组合不矛盾：scope 是发布命名空间，命令是用户体验层。
+> CLI 命令 `cms-sync` 不改是因为命令面已被大量文档固化（README /
+> docs-site / CI 脚本），改了反而制造额外迁移成本。包名 `digua` +
+> 命令 `cms-sync` 的组合不矛盾：scope 是发布命名空间，命令是用户体验层。
 
 ## 后果
 
 ### 立即收益
 
-1. **公共 registry 友好**：`io.digua:digua_common-jwt` 看起来像独立的公共 Rust 框架而非某个公司的产品
+1. **公共 registry 友好**：`digua_common_jwt` 看起来像独立的公共 Rust 框架而非某个公司的产品
 2. **品牌一致性**：所有平台共享同一品牌前缀 `digua`
 3. **可发现性**：`digua` 在 Maven Central / crates.io / npm 上均无占用，新用户搜索时不会被内部品牌词误导
 
@@ -145,7 +154,7 @@
 2. Rust crates 改名（17 + 7）+ 更新所有 path 依赖
 3. Maven groupId / artifactId 改名（sdk/java + examples）+ 更新所有 `<dependency>` 引用
 4. npm dist-tools 改名 + 重新发布为 `@digua/dist-tools@1.0.0`
-5. docs-site 中包坐标引用更新（`@digua/dist-tools` → `@digua/dist-tools`）
+5. docs-site 中包坐标引用更新（`@coder-micro-services/dist-tools` → `@digua/dist-tools`）
 6. 跑 `cargo check --workspace` / `mvn validate` / `pnpm test` 验证
 7. 发布 v1.0.0 到私有 registry（私有发布验证流程）
 8. 准备公开发布 checklist（Maven Central 账号注册 / crates.io ownership 转移 / npm public registry 切换）
