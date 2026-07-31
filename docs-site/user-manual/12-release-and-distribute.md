@@ -183,6 +183,8 @@ make verify                  # 端到端冒烟测试
 | Jaeger | http://localhost:16686 | — |
 | RabbitMQ | http://localhost:15672 | guest / guest |
 
+> 📌 **后续升级（v1.0 → v1.1 → v2.0 …）请用 [`cms-sync`](../guides/upstream-sync.md)** 自动同步配置文件 / 脚本 / contracts 的改动，而**不**是手动 diff tar.gz。本节是**首次**初始化流程；版本间升级见 §12.10。
+
 ---
 
 ## 12.7 在 dist 包上创建业务微服务（端到端 8 步）
@@ -265,27 +267,64 @@ node scripts/contracts-gen.js --check    # 契约生成代码（libs/common-erro
 
 ## 12.10 升级流程
 
-### 在线升级
+### ⚠️ 区分两层升级
+
+| 升级对象 | 命令 | 频率 | 失败影响 |
+|----------|------|------|----------|
+| **配置 / 脚本 / contracts**（air-gap tarball 中的文件） | `npx cms-sync ./dist.tgz` | 每版必做 | 业务配置漂移、CI 脚本失效 |
+| **Docker 镜像** | `make upgrade TAG=v1.x.y` | 每版必做 | 服务未运行新版本 |
+| **数据 schema** | 容器启动自动跑 migration | 主版本升级时必检 | 数据不一致 |
+
+**两层都要做**——`cms-sync` 只同步配置文件，**不**换镜像；`make upgrade` 只换镜像，**不**改配置文件。
+
+### 12.10.1 配置文件升级：cms-sync（推荐）
+
+> 完整工具文档：[`docs-site/guides/upstream-sync`](../guides/upstream-sync.md)。
 
 ```bash
-# 在 dist 包根目录
+# 1. 拿到新版本 air-gap tarball
+# 例如 coder-micro-services-v1.1.0-airgap.tar.gz
+
+# 2. 干跑 — 看会发生什么，不修改文件
+npx cms-sync --dry-run ./coder-micro-services-v1.1.0-airgap.tar.gz
+
+# 3. 实际同步
+npx cms-sync ./coder-micro-services-v1.1.0-airgap.tar.gz
+# 退出码 0 = 成功；2 = 有冲突需手动解决
+
+# 4. 解决冲突（如有）：编辑冲突文件，删除 <<<<<<< 标记
+#    冲突文件的 base 版本在 <file>.merge-base，方便对比
+
+# 5. 跑 CI 门禁
+pnpm check && pnpm test
+node scripts/check-service-standard.js
+node scripts/contracts-gen.js --check
+
+# 6. 提交
+git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
+```
+
+**首次使用前**需要在项目根目录创建 `.upstream-sync.yaml`（声明哪些文件 managed / three-way-merge / skip）和 `.upstream.lock`（指向 v1.0.0 初始 commit），详见 [`docs-site/guides/upstream-sync`](../guides/upstream-sync.md) §3 / §4.1。
+
+**回滚**：`cms-sync` 写盘前可以走 `git reset --hard HEAD`（前提：sync 前已 commit 当前状态）。
+
+### 12.10.2 镜像升级：make upgrade
+
+`make upgrade` 只换 Docker 镜像，**不**改配置文件：
+
+```bash
+# 在线（能 docker pull 的环境）
 make upgrade TAG=v1.1.0
 # 等价：bash bin/upgrade.sh v1.1.0
+
+# 离线（air-gap 环境，先加载新版本镜像）
+bash bin/load-images.sh
+make upgrade TAG=v1.1.0
 ```
 
 `upgrade.sh` 行为：拉新镜像（覆盖 `:latest` tag）→ `docker compose pull` → `docker compose up -d` → `make verify`。
 
-### 离线升级
-
-```bash
-# 1. 加载新版本镜像 tar（dist 包内的 images/*.tar）
-bash bin/load-images.sh
-
-# 2. 升级
-make upgrade TAG=v1.1.0
-```
-
-### ⚠️ 跨版本 schema 兼容性
+### 12.10.3 ⚠️ 跨版本 schema 兼容性
 
 `make upgrade` 仅做镜像替换，**不自动执行数据库迁移**。各服务的 schema migration（Rust 用 `sqlx migrate run`、Java 用 Flyway）在容器启动时自动跑，但**跨主版本升级（v1.0 → v2.0）可能有不兼容的 schema 变更**，需：
 
@@ -293,6 +332,28 @@ make upgrade TAG=v1.1.0
 2. 若有 breaking change，先在测试环境跑 `make upgrade`，看 `make verify` 是否通过
 3. 数据备份：`mysqldump` 全库 + `redis-cli BGSAVE`
 4. 失败回滚：`make reset-data` 会清空所有数据（**慎用**），需用备份恢复
+
+### 12.10.4 标准升级组合
+
+```bash
+# 1. 同步工具自身升级（如果新版）
+pnpm update @coder-micro-services/dist-tools
+
+# 2. 同步上游配置 / 脚本 / contracts
+npx cms-sync ./coder-micro-services-v1.1.0-airgap.tar.gz
+# 解决冲突（如有）
+
+# 3. 升级镜像
+make upgrade TAG=v1.1.0
+
+# 4. 跑全量 CI 门禁
+pnpm check && pnpm test
+node scripts/check-service-standard.js
+node scripts/contracts-gen.js --check
+
+# 5. 提交
+git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
+```
 
 ---
 
@@ -335,3 +396,7 @@ make upgrade TAG=v1.1.0
 | 业务服务 `docker compose up` 找不到 service | skill 把服务加到了错误的 compose 路径 | dev 仓库内 skill 改 `infrastructure/docker-compose-services.yml`；dist 包内要改 `compose/services.yml` —— 当前 skill **硬编码** dev 仓库路径，在 dist 包内**跑 skill 不会自动注册到 compose**，需手动复制 service entry（已知缺口，见 ai-context §5 待补） |
 | `make verify` 失败 | 镜像未启动 / 端口冲突 / Consul 未发现 | `docker compose ps` 看 healthcheck；`make logs` 看启动日志；`curl http://localhost:8500/v1/catalog/services` 看注册情况 |
 | `make upgrade` 后业务服务连接断开 | 容器 IP 变了，env 缓存了旧地址 | `make restart <svc>` 重启业务服务；长期方案：业务服务全部走 Consul DNS / env 注入 |
+| `npx cms-sync` 报 `Cannot find module 'tar'` | `@coder-micro-services/dist-tools` 没装 / `node_modules` 缺失 | `pnpm install` 或 `pnpm add -D @coder-micro-services/dist-tools` |
+| `npx cms-sync` 报 `no previous sync recorded` | 首次 sync 或 `.upstream.lock` 被 `.gitignore` 误屏蔽 | 首次属正常；若非首次，检查 `.upstream.lock` 是否被 git 跟踪 |
+| `npx cms-sync` 报 `no .upstream-sync.yaml found` | 项目根目录缺策略文件 | 按 [`guides/upstream-sync`](../guides/upstream-sync.md) §3 创建 |
+| `npx cms-sync` 退出码 = 2 留下 CONFLICT 标记 | 上游和下游改了同区域 | 编辑文件解决冲突，删 `<<<<<<<` 标记，删除 `<file>.merge-base`；详见 [`guides/upstream-sync`](../guides/upstream-sync.md) §6 |

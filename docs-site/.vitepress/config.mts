@@ -138,6 +138,7 @@ export default defineConfig({
             { text: '菜单发布', link: '/guides/menu-publish' },
             { text: 'Java 集成', link: '/guides/java-integration' },
             { text: 'Rust SDK', link: '/guides/rust-sdk' },
+            { text: '上游同步 (cms-sync)', link: '/guides/upstream-sync' },
             { text: '提交规范', link: '/guides/commit-convention' },
             { text: '平台配置模型 (env / yaml / fail-fast)', link: '/guides/config-model' },
             { text: 'token-service 架构总览', link: '/guides/token-service-overview' },
