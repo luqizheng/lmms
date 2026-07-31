@@ -165,6 +165,10 @@ export default defineConfig({
             {
               text: 'ADR-002 · 服务规范基线',
               link: '/decisions/ADR-002-service-standard-baseline'
+            },
+            {
+              text: 'ADR-007 · 项目重命名为 Digua',
+              link: '/decisions/ADR-007-rename-to-digua'
             }
           ]
         }
