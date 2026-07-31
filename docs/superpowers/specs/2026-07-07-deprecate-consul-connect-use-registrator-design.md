@@ -66,7 +66,7 @@
 1. **仓库立意**：`low-memory-micro-services` — 6×64M sidecar 与此对立。registrator 一个 ~10M 容器顶替所有 sidecar。
 2. **已具备替代品**：
    - `libs/jwt-ctx::Principal` 已经解码 Bearer token
-   - `common_event::MySqlOutboxRepo` 已经把跨服务协同下沉到 RabbitMQ events
+   - `digua_common_event::MySqlOutboxRepo` 已经把跨服务协同下沉到 RabbitMQ events
    - `permissions.yaml` 已经把应用层 RBAC 集中化
 3. **正交化范围**：mesh 撤掉只动 7 个 service main + 1 lib + 1 connect.hcl + 1 sidecar 文件 + 1 intentions 脚本；不在业务语境内做语义改动。
 4. **服务规模**：7 个 service，mesh 投资回报率在小拓扑不显著。
@@ -109,7 +109,7 @@
 
 - **服务规模**：7 个 Rust service，无跨团队、无跨语言、无多 DC
 - **服务身份**：mesh 提供的 SPIFFE identity 没有任何外部消费者（SaaS、partner）来验证
-- **服务间 authn/authz**：i）网关入口已签 `Authorization: Bearer <jwt>`，`libs/jwt-ctx::Principal` 解码信任网关验签；ii）`/iam/internal/*` 端点已经有 `require_service_token`（`aud: "service"`）应用层身份认证
+- **服务间 authn/digua_authz**：i）网关入口已签 `Authorization: Bearer <jwt>`，`libs/jwt-ctx::Principal` 解码信任网关验签；ii）`/iam/internal/*` 端点已经有 `require_service_token`（`aud: "service"`）应用层身份认证
 - **仓库命名**：`low-memory-micro-services` —— mesh sidecar 6×64MB ≈400MB 与仓库立意冲突
 - **观测**：当前的 `connect.connect_*` Prometheus 指标没有采集面板接（log search 中无）
 

@@ -300,11 +300,11 @@ csv.workspace = true
 prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
-common-log = { path = "../../libs/common-log" }
-common-cache = { path = "../../libs/common-cache" }
-common = { path = "../../libs/common" }
+digua_common-error = { path = "../../libs/digua_common-error" }
+digua_common-db = { path = "../../libs/digua_common-db", features = ["mysql", "sqlite"] }
+digua_common-log = { path = "../../libs/digua_common-log" }
+digua_common-cache = { path = "../../libs/digua_common-cache" }
+digua_common = { path = "../../libs/digua_common" }
 consul-registrar = { path = "../../libs/consul-registrar" }
 ```
 
@@ -537,10 +537,10 @@ uuid.workspace = true
 prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
-common-log = { path = "../../libs/common-log" }
-common-cache = { path = "../../libs/common-cache" }
+digua_common-error = { path = "../../libs/digua_common-error" }
+digua_common-db = { path = "../../libs/digua_common-db", features = ["mysql", "sqlite"] }
+digua_common-log = { path = "../../libs/digua_common-log" }
+digua_common-cache = { path = "../../libs/digua_common-cache" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
@@ -598,7 +598,7 @@ async fn metrics() -> axum::response::Html<String> {
     axum::response::Html(String::from_utf8(buffer).unwrap())
 }
 
-pub fn create_state(pool: common_db::DbPool) -> AppState {
+pub fn create_state(pool: digua_common_db::DbPool) -> AppState {
     Arc::new(ConfigService::new(pool))
 }
 ```
@@ -607,8 +607,8 @@ pub fn create_state(pool: common_db::DbPool) -> AppState {
 
 ```rust
 use config_service::{config::AppConfig, routes::{self, create_state}};
-use common_db::init_pool;
-use common_log::init_json;
+use digua_common_db::init_pool;
+use digua_common_log::init_json;
 use std::net::SocketAddr;
 
 #[tokio::main]
@@ -761,10 +761,10 @@ utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tokio-util = { version = "0.7", features = ["io"] }
 async-trait = "0.1"
-common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
-common-log = { path = "../../libs/common-log" }
-common-cache = { path = "../../libs/common-cache" }
+digua_common-error = { path = "../../libs/digua_common-error" }
+digua_common-db = { path = "../../libs/digua_common-db", features = ["mysql", "sqlite"] }
+digua_common-log = { path = "../../libs/digua_common-log" }
+digua_common-cache = { path = "../../libs/digua_common-cache" }
 ```
 
 - [ ] **Step 4.2: 新建 `services/file-service/src/openapi.rs`**
@@ -788,8 +788,8 @@ pub struct ApiDoc;
 
 ```rust
 use file_service::{config::AppConfig, routes::{self, create_state}, storage::LocalStorage};
-use common_db::init_pool;
-use common_log::init_json;
+use digua_common_db::init_pool;
+use digua_common_log::init_json;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -940,8 +940,8 @@ pub struct ApiDoc;
 - [ ] **Step 5.4: 升级 `services/prue_backend/src/main.rs`** — 接 SWAGGER_ENABLED：
 
 ```rust
-use common_db::init_pool;
-use common_log::init_json;
+use digua_common_db::init_pool;
+use digua_common_log::init_json;
 use prue_backend::{config::AppConfig, db, routes, state::AppState};
 use std::net::SocketAddr;
 
@@ -1460,7 +1460,7 @@ if (isCheck) {
   console.log('');
   console.log('4. Checking for drift...');
   try {
-    execSync('git diff --exit-code -- libs/common-error libs/authz frontend/src/contracts', {
+    execSync('git diff --exit-code -- libs/digua_common-error libs/digua_authz frontend/src/contracts', {
       cwd: repoRoot,
       stdio: 'inherit',
     });

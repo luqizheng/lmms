@@ -13,7 +13,7 @@
 
 ## 环境变量
 
-配置加载走 `common_config::Loader`（`TOKEN_` 前缀）。合并 env + yaml 之后由 `validate_all_fields_present` 逐字段校验，任一 deployment-critical 字段为空即启动失败。
+配置加载走 `digua_common_config::Loader`（`TOKEN_` 前缀）。合并 env + yaml 之后由 `validate_all_fields_present` 逐字段校验，任一 deployment-critical 字段为空即启动失败。
 
 **必需字段（env 或 yaml 至少提供一份，否则 fail fast）：**
 

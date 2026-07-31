@@ -61,7 +61,7 @@
 
 ## 6. 2026-07 变更：告别自动 env 绑定
 
-此前使用 `common_config::Loader`（内部 `config::Environment::separator("_")`）自动 env 绑定。
+此前使用 `digua_common_config::Loader`（内部 `config::Environment::separator("_")`）自动 env 绑定。
 该行为把每个 `_` 都当嵌套分隔符，导致 `TOKEN_DATABASE_DB_TYPE` 被解析成
 `database.db.type`，与 struct 字段 `database.db_type` 不匹配，运行时静默丢弃。
 从此版起改为 `apply_env_overrides` 手写映射（与 iam-service / notification-service 一致），

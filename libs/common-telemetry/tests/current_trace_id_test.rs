@@ -18,7 +18,7 @@ fn run_with_otel_layer<F: FnOnce() -> R, R>(f: F) -> R {
 fn returns_trace_id_inside_active_span() {
     run_with_otel_layer(|| {
         let _g = tracing::info_span!("test").entered();
-        let tid = common_telemetry::current_trace_id();
+        let tid = digua_common_telemetry::current_trace_id();
         assert!(tid.is_some(), "expected Some(trace_id) inside active span");
     });
 }
@@ -26,11 +26,11 @@ fn returns_trace_id_inside_active_span() {
 #[test]
 fn returns_none_with_otel_subscriber_but_no_span() {
     run_with_otel_layer(|| {
-        assert!(common_telemetry::current_trace_id().is_none());
+        assert!(digua_common_telemetry::current_trace_id().is_none());
     });
 }
 
 #[test]
 fn returns_none_without_subscriber() {
-    assert!(common_telemetry::current_trace_id().is_none());
+    assert!(digua_common_telemetry::current_trace_id().is_none());
 }

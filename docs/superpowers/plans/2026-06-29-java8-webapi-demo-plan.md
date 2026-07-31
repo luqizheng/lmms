@@ -4,7 +4,7 @@
 
 **Goal:** 交付 `examples/java8-webapi/` Spring Boot 2.1.18.RELEASE + Java 8 Demo 工程 + `sdk/java/audit-service-sdk` 新 SDK，前者演示 6 类能力（安全/认证 · 权限校验 · 审计 · 配置中心 · 通知 · 文件），后者填补 audit-service 的 Java 8 SDK 缺位。
 
-**Architecture:** 多模块 Maven 父子工程。SDK 层用 OkHttp + Jackson（与 `sdk/java/common` 对齐），与 4 个现有 SDK 同列。Demo 用 Spring Boot 2.1 + H2 + Spring Data JPA；权限用拦截器+注解混合、审计用同步软失败、配置用 5s 轮询。响应格式严格遵循 `contracts/http-conventions.md`。
+**Architecture:** 多模块 Maven 父子工程。SDK 层用 OkHttp + Jackson（与 `sdk/java/digua_common` 对齐），与 4 个现有 SDK 同列。Demo 用 Spring Boot 2.1 + H2 + Spring Data JPA；权限用拦截器+注解混合、审计用同步软失败、配置用 5s 轮询。响应格式严格遵循 `contracts/http-conventions.md`。
 
 **Tech Stack:**
 - Java 8（`-Pjava8` Maven profile）
@@ -60,7 +60,7 @@
     <module>audit-service-sdk</module>
 ```
 
-完整 `<modules>` 期望 7 个：`common` / `user-service-user-sdk` / `user-service-client-sdk` / `token-server-user-sdk` / `token-server-client-sdk` / `kudi-http-client` / `audit-service-sdk`。
+完整 `<modules>` 期望 7 个：`digua_common` / `user-service-user-sdk` / `user-service-client-sdk` / `token-server-user-sdk` / `token-server-client-sdk` / `kudi-http-client` / `audit-service-sdk`。
 
 ### Step 1.2: 创建 sdk/java/audit-service-sdk/pom.xml
 
@@ -90,7 +90,7 @@
     <dependencies>
         <dependency>
             <groupId>com.kudi.coder</groupId>
-            <artifactId>kudi-coder-sdk-common</artifactId>
+            <artifactId>kudi-coder-sdk-digua_common</artifactId>
             <version>0.2.0</version>
         </dependency>
         <dependency>
@@ -614,7 +614,7 @@ git add sdk/java/audit-service-sdk sdk/java/pom.xml sdk/java/README.md
 git commit -m "feat(sdk): audit-service-sdk 0.1.0 (Java 8)
 
 - AuditServiceClient: sendEvent / queryLogs / listEventTypes
-- OkHttp 4.12 + Jackson 2.16.1，与 sdk/java/common 对齐
+- OkHttp 4.12 + Jackson 2.16.1，与 sdk/java/digua_common 对齐
 - 4 个单元测试（MockWebServer）：成功 / 分页 / 401 / 500
 - 补充 sdk/java 父 pom 注册 + README 表格"
 ```

@@ -1,4 +1,4 @@
-pub use common_error::{AppError, AppResult, ErrorKind};
+pub use digua_common_error::{AppError, AppResult, ErrorKind};
 
 pub trait AppErrorExt {
     fn audit_not_found(msg: impl Into<String>) -> Self;

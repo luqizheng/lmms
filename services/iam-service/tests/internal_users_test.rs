@@ -2,15 +2,15 @@
 //! Mesh intentions enforce service identity (Phase 5-A);
 //! tenant_id from query param; cross-tenant reads forbidden.
 
-mod common;
+mod digua_common;
 
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use common_cache::MemoryCache;
-use common_event::MySqlOutboxRepo;
-use common_jwt::{sign_token, JWKSCache};
+use digua_common_cache::MemoryCache;
+use digua_common_event::MySqlOutboxRepo;
+use digua_common_jwt::{sign_token, JWKSCache};
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
@@ -27,11 +27,11 @@ const TEST_TOKEN_PRIVATE_PEM: &str = include_str!("../../token-service/tests/fix
 struct Ctx {
     app: axum::Router,
     state: AppState,
-    _mysql: Option<common::MysqlContainer>,
+    _mysql: Option<digua_common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = common::spawn_mysql().await;
+    let mysql_h = digua_common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
@@ -49,11 +49,11 @@ async fn setup() -> Ctx {
     };
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::from_pem(
+    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(
         include_str!("../../token-service/tests/fixtures/test_token_public.pem"),
     ).expect("test public key must parse"));
-    let service_jwt = std::sync::Arc::new(common_jwt::ServiceJwtCache::new(
-        common_jwt::ServiceJwtConfig {
+    let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
+        digua_common_jwt::ServiceJwtConfig {
             token_service_url: "http://localhost:0".into(),
             bootstrap_token: "test-bt".into(),
             caller_service_name: "iam-service".into(),

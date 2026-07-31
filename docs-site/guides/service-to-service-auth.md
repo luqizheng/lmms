@@ -43,9 +43,9 @@ SERVICE_BOOTSTRAP_TOKENS=dev-bt-iam,dev-bt-token,dev-bt-notification,...
 
 | Component | Location | Role |
 |---|---|---|
-| `libs/common-jwt` | JWKSCache, verify_token, sign_token, ServiceJwtCache | Crypto primitives |
+| `libs/digua_common-jwt` | JWKSCache, verify_token, sign_token, ServiceJwtCache | Crypto primitives |
 | `libs/jwt-ctx` | Principal::from_token (async, verify) | Extractor for Axum |
-| `libs/authz` | verify_aud_principal_middleware | Route-level aud gate |
+| `libs/digua_authz` | verify_aud_principal_middleware | Route-level aud gate |
 | `token-service` | POST /tokens/service-jwt | Minting endpoint |
 | Each service main.rs | JWKS + ServiceJwtCache at startup | Cold-start init |
 

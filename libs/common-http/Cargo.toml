@@ -1,5 +1,5 @@
 [package]
-name = "common-http"
+name = "digua_common_http"
 version = "0.1.0"
 license = "Apache-2.0"
 description = "Resilient reqwest HTTP client wrapper with request ID propagation for KudiCoder services"
@@ -10,7 +10,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "str
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-common-error = { path = "../common-error" }
+digua_common_error = { path = "../common-error" }
 dashmap = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }

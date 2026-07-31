@@ -1,8 +1,8 @@
 [package]
-name = "token-service"
+name = "token_service"
 version = "0.1.0"
 edition = "2021"
-default-run = "token-service"
+default-run = "token_service"
 
 [dev-dependencies]
 mockall = "0.13"
@@ -15,13 +15,13 @@ reqwest.workspace = true
 tempfile = "3"
 
 [dependencies]
-common = { path = "../../libs/common" }
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
-common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
-common-db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
-common-http = { path = "../../libs/common-http" }
-common-jwt = { path = "../../libs/common-jwt" }
-jwt-ctx = { path = "../../libs/jwt-ctx" }
+digua_common = { path = "../../libs/common" }
+digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+digua_common_db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
+digua_common_http = { path = "../../libs/common-http" }
+digua_common_jwt = { path = "../../libs/common-jwt" }
+digua_jwt_ctx = { path = "../../libs/jwt-ctx" }
 reqwest.workspace = true
 axum.workspace = true
 tokio.workspace = true
@@ -44,7 +44,7 @@ hyper = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
 http-body-util = "0.1"
 bytes = "1"
-authz = { path = "../../libs/authz" }
+digua_authz = { path = "../../libs/authz" }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "macros", "chrono", "json"] }
 serde_yaml = "0.9"
 anyhow = "1"
@@ -55,7 +55,7 @@ utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
 [[bin]]
-name = "dump-openapi"
+name = "dump_openapi"
 path = "src/bin/dump-openapi.rs"
 
 

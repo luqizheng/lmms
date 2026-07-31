@@ -1,5 +1,5 @@
 use axum::{Router, routing::{get, put}, extract::{Json, Path, Query, State}};
-use jwt_ctx::{Principal, TenantScope};
+use digua_jwt_ctx::{Principal, TenantScope};
 use crate::{
     state::AppState,
     dto::{

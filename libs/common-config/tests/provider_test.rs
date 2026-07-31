@@ -1,4 +1,4 @@
-use common_config::provider::ConfigServiceProvider;
+use digua_common_config::provider::ConfigServiceProvider;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

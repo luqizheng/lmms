@@ -1,6 +1,6 @@
-use kudi_http_client::cache::ServiceTokenCache;
-use kudi_http_client::error::KudiHttpError;
-use kudi_http_client::models::TokenInfo;
+use digua_http_client::cache::ServiceTokenCache;
+use digua_http_client::error::KudiHttpError;
+use digua_http_client::models::TokenInfo;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;

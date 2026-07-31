@@ -35,9 +35,9 @@
 | auth-service | Go + Gin | `services/auth-service/` |
 | user-service | Go + Gin | `services/user-service/` |
 | notification-service | 计划新增 Rust | `services/notification-service/`（plan 已写） |
-| libs/common | Rust | `libs/common/` |
+| libs/digua_common | Rust | `libs/digua_common/` |
 | libs/go-jwt-ctx | Go | `libs/go-jwt-ctx/` |
-| libs/go-authz | Go | `libs/go-authz/` |
+| libs/go-digua_authz | Go | `libs/go-digua_authz/` |
 | scripts/e2e_test.go | Go | `scripts/e2e_test.go` |
 | .gitlab-ci.yml | CI | 含 `go_test` + `rust_test` job |
 | scripts/test-orchestrator.ps1 | 本地编排 | `Get-ServiceList` 含 Go 服务 |
@@ -53,9 +53,9 @@
 ```toml
 [workspace]
 members = [
-  "libs/common",
+  "libs/digua_common",
   "libs/jwt-ctx",
-  "libs/authz",
+  "libs/digua_authz",
   "services/token-server",
   "services/api-gateway",
   "services/auth-service",
@@ -79,9 +79,9 @@ resolver = "2"
 
 | crate | 取代 | 职责 |
 |---|---|---|
-| `libs/common` | 现有 + 扩展 | 错误、配置、Argon2、MySQL/Redis 池、HTTP client |
+| `libs/digua_common` | 现有 + 扩展 | 错误、配置、Argon2、MySQL/Redis 池、HTTP client |
 | `libs/jwt-ctx` | `libs/go-jwt-ctx` | `Principal` extractor，解析 `X-User-*` 头 |
-| `libs/authz` | `libs/go-authz` | `require_role("...")` 中间件 |
+| `libs/digua_authz` | `libs/go-digua_authz` | `require_role("...")` 中间件 |
 
 ### 3.4 Go 资产目标数量
 
@@ -94,7 +94,7 @@ resolver = "2"
 
 ## 4. 共享 crate 设计
 
-### 4.1 libs/common（扩展现有）
+### 4.1 libs/digua_common（扩展现有）
 
 **现有**：`error`、`config`、`token`（arg 结构）。
 
@@ -131,7 +131,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Principal {
 
 **与 Go 版差异**：字段统一为 `Principal`，方法 `has_role(&str)` / `has_permission(&str)`。
 
-### 4.3 libs/authz（替换 libs/go-authz）
+### 4.3 libs/digua_authz（替换 libs/go-digua_authz）
 
 ```rust
 pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
@@ -164,7 +164,7 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 - `sqlx 0.8`（mysql，runtime-tokio-rustls）
 - `redis 0.27`
 - `reqwest 0.12` 调 token-server / user-service
-- `libs/jwt-ctx`、`libs/authz`、`libs/common`
+- `libs/jwt-ctx`、`libs/digua_authz`、`libs/digua_common`
 
 **配置**：`config/config.yaml` 与 Go 版字段一致（保留 `login_security` 段）。
 
@@ -183,7 +183,7 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 | POST/DELETE | `/api/users/{id}/roles` | 用户绑角色 |
 | GET | `/internal/users/{id}/claims` | 内部端点，登录时聚合 claims |
 
-**关键依赖**：`sqlx`、`libs/jwt-ctx`、`libs/authz`、`libs/common`。
+**关键依赖**：`sqlx`、`libs/jwt-ctx`、`libs/digua_authz`、`libs/digua_common`。
 
 **DDL 复用**：`usr_user`、`usr_role`、`usr_permission`、`usr_user_role`、`usr_role_permission` 零改动。
 
@@ -216,7 +216,7 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 | 路径 | 处理 |
 |---|---|
 | `libs/go-jwt-ctx/` | 整目录删除 |
-| `libs/go-authz/` | 整目录删除 |
+| `libs/go-digua_authz/` | 整目录删除 |
 | `services/auth-service/handlers/*.go` | 删除（保留目录） |
 | `services/auth-service/models/*.go` | 删除（保留目录） |
 | `services/auth-service/store/*.go` | 删除（保留目录） |
@@ -268,7 +268,7 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 |---|---|
 | 契约漂移（API 行为变化） | Go 测试抽 fixture；Rust 集成测试对照；切换前 E2E smoke |
 | Big-Bang 切换瞬间故障 | 低峰期停服窗口；端点 + DB schema 不变，回滚仅需切镜像 |
-| 共享 crate API 设计错 | 现有 `libs/common` 已是 Rust 风格，沿用；jwt-ctx / authz 按现有 Go 包的对外行为 1:1 |
+| 共享 crate API 设计错 | 现有 `libs/digua_common` 已是 Rust 风格，沿用；jwt-ctx / digua_authz 按现有 Go 包的对外行为 1:1 |
 | Rust 编译时长 | 共享 crate 用 `path` 依赖走 workspace cache |
 | Go 残留（go.mod / .gitlab-ci.yml） | 删除清单 + CI 校验：仓库顶层 grep `*.go` 与 `go.mod` 应为空 |
 | 旧 Go 镜像回滚 | 旧 Docker image 保留 24h 备查，不重新打 tag |
@@ -277,10 +277,10 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 
 ## 10. 实施顺序
 
-1. **workspace 拓建**：新增 3 个 libs crate（jwt-ctx / authz）stub，Cargo members 加入
+1. **workspace 拓建**：新增 3 个 libs crate（jwt-ctx / digua_authz）stub，Cargo members 加入
 2. **libs/jwt-ctx 实现**：extractor + 单测
-3. **libs/authz 实现**：require_role + 单测
-4. **libs/common 扩展**：Argon2 + MySQL/Redis 池 + reqwest client
+3. **libs/digua_authz 实现**：require_role + 单测
+4. **libs/digua_common 扩展**：Argon2 + MySQL/Redis 池 + reqwest client
 5. **services/auth-service Rust 化**：骨架 → config → db → redis → handlers → routes → 集成测试
 6. **services/user-service Rust 化**：同上节奏
 7. **services/notification-service 接入 workspace**：按既有 plan
@@ -323,8 +323,8 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 |---|---|
 | `Cargo.toml` | workspace members 扩到 8 项 |
 | `libs/jwt-ctx/` (新建) | Principal extractor + 单测 |
-| `libs/authz/` (新建) | require_role + 单测 |
-| `libs/common/src/{password,db,redisx,http}.rs` (新建) | 共享基础设施 |
+| `libs/digua_authz/` (新建) | require_role + 单测 |
+| `libs/digua_common/src/{password,db,redisx,http}.rs` (新建) | 共享基础设施 |
 | `services/auth-service/` (重写) | 删 Go、写 Rust |
 | `services/user-service/` (重写) | 删 Go、写 Rust |
 | `services/notification-service/` (新建) | 按既有 plan |
@@ -336,7 +336,7 @@ pub fn require_role<S: Clone + Send + Sync + 'static>(role: &'static str)
 | `.trae/rules/project_rules.md` | 删 Go 规则，加 Rust 规则 |
 | `tests/specs/auth-service/*.yaml` (新建) | 契约 |
 | `tests/specs/user-service/*.yaml` (新建) | 契约 |
-| `libs/go-jwt-ctx/`、`libs/go-authz/` | 删除 |
+| `libs/go-jwt-ctx/`、`libs/go-digua_authz/` | 删除 |
 | `scripts/e2e_test.go` | 删除 |
 | 根 `go.mod`、`go.sum`、`go.work`（如有） | 删除 |
 

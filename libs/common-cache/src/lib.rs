@@ -7,7 +7,7 @@ pub use memory::MemoryCache;
 pub use redis::{DistributedLock, RedisCache};
 
 use async_trait::async_trait;
-use common_error::AppResult;
+use digua_common_error::AppResult;
 use std::time::Duration;
 
 #[async_trait]
@@ -17,11 +17,11 @@ pub trait Cache: Send + Sync {
     async fn del(&self, key: &str) -> AppResult<()>;
     async fn incr(&self, key: &str) -> AppResult<i64> {
         let _ = key;
-        Err(common_error::AppError::internal("CACHE_NOT_SUPPORTED", "incr not supported"))
+        Err(digua_common_error::AppError::internal("CACHE_NOT_SUPPORTED", "incr not supported"))
     }
     async fn mget(&self, keys: &[&str]) -> AppResult<Vec<Option<Vec<u8>>>> {
         let _ = keys;
-        Err(common_error::AppError::internal("CACHE_NOT_SUPPORTED", "mget not supported"))
+        Err(digua_common_error::AppError::internal("CACHE_NOT_SUPPORTED", "mget not supported"))
     }
 }
 

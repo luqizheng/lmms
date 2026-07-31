@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use token_service_sdk::{
+use digua_token_sdk::{
     AccessRequest, CreateApiKeyRequest, ListApiKeysQuery, RefreshRequest, RevokeRequest,
     TokenClient,
 };
@@ -147,7 +147,7 @@ async fn access_401_maps_to_auth_error() {
     };
     let err = client.access(&req).await.expect_err("expected Auth error");
     match err {
-        kudi_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
+        digua_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
         other => panic!("expected Auth, got {:?}", other),
     }
 }

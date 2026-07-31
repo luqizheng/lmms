@@ -368,7 +368,7 @@ Totally `ESM` version
 - Added `ReText` component, supports automatic omission and display of `Tooltip` function, supports multi-line omission, high reusability
 - Add an art drawing board function, which can be used to draw some design idea architecture diagrams, for example
 - New component - optional button example
-- Add common button examples
+- Add digua_common button examples
 - Added color picker component example
 - Add date picker component example
 - Added datetime picker example

@@ -4,8 +4,8 @@ use file_service::{
     routes::{self, create_state},
     storage::LocalStorage,
 };
-use common_jwt::{JWKSCache, JwksConfig};
-use common_telemetry::init_tracing;
+use digua_common_jwt::{JWKSCache, JwksConfig};
+use digua_common_telemetry::init_tracing;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;

@@ -1,4 +1,4 @@
-use common_event::{Envelope, Event};
+use digua_common_event::{Envelope, Event};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

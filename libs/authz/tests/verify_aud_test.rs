@@ -6,17 +6,17 @@ use axum::{
     routing::get,
     Router,
 };
-use authz::verify_aud_principal_middleware;
-use common_jwt::{sign_token, JWKSCache};
-use jwt_ctx::PrincipalStateProvider;
+use digua_authz::verify_aud_principal_middleware;
+use digua_common_jwt::{sign_token, JWKSCache};
+use digua_jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 use std::time::Duration;
 use tower::ServiceExt;
 
 const TEST_PRIVATE_PEM: &str =
-    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
+    include_str!("../../digua_common-jwt/tests/fixtures/test_private.pem");
 const TEST_PUBLIC_PEM: &str =
-    include_str!("../../common-jwt/tests/fixtures/test_public.pem");
+    include_str!("../../digua_common-jwt/tests/fixtures/test_public.pem");
 
 #[derive(Clone)]
 struct State {

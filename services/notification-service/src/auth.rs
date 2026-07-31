@@ -1,4 +1,4 @@
-pub use jwt_ctx::Principal;
+pub use digua_jwt_ctx::Principal;
 
 pub type Identity = Principal;
 

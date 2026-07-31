@@ -131,7 +131,7 @@ http.request("get", "/v1/iam/users", { params: { page: 1, size: 20 } });
 
 ### 错误码 i18n
 
-- 后端错误码契约：`libs/common-error/src/codes.rs`（来自 `contracts/error-codes.yaml`）。
+- 后端错误码契约：`libs/digua_common-error/src/codes.rs`（来自 `contracts/error-codes.yaml`）。
 - 前端契约：`frontend/src/contracts/error-codes.ts`（自动生成的 `ErrorCode` 类型 + 默认英文 `ErrorMessages`）。
 - 中文翻译：`frontend/src/contracts/error-codes.zh-CN.ts`（手维护，便于文案评审）。
 - 使用：`import { translateError } from "@/utils/error-translate";` 然后 `message(translateError(err.code))`。

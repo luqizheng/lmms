@@ -1,4 +1,4 @@
-use common_error::AppResult;
+use digua_common_error::AppResult;
 use bytes::Bytes;
 use futures::Stream;
 use std::pin::Pin;

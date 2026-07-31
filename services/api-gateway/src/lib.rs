@@ -19,7 +19,7 @@ use redis::aio::MultiplexedConnection;
 use std::sync::Arc;
 
 pub struct AppState {
-    pub jwks_cache: Arc<common_jwt::JWKSCache>,
+    pub jwks_cache: Arc<digua_common_jwt::JWKSCache>,
     pub perm_epoch_cache: perm_epoch_cache::PermEpochCache,
     pub redis_conn: MultiplexedConnection,
     pub redis_prefix: String,

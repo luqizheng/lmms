@@ -1,4 +1,4 @@
-use common_cache::{Cache, MemoryCache, TieredCache};
+use digua_common_cache::{Cache, MemoryCache, TieredCache};
 use std::sync::Arc;
 
 struct MockRemoteCache {
@@ -15,7 +15,7 @@ impl MockRemoteCache {
 
 #[async_trait::async_trait]
 impl Cache for MockRemoteCache {
-    async fn get(&self, key: &str) -> common_error::AppResult<Option<Vec<u8>>> {
+    async fn get(&self, key: &str) -> digua_common_error::AppResult<Option<Vec<u8>>> {
         Ok(self.data.get(key).cloned())
     }
 
@@ -24,12 +24,12 @@ impl Cache for MockRemoteCache {
         key: &str,
         val: Vec<u8>,
         _ttl: Option<std::time::Duration>,
-    ) -> common_error::AppResult<()> {
+    ) -> digua_common_error::AppResult<()> {
         self.data.insert(key.to_string(), val);
         Ok(())
     }
 
-    async fn del(&self, key: &str) -> common_error::AppResult<()> {
+    async fn del(&self, key: &str) -> digua_common_error::AppResult<()> {
         self.data.remove(key);
         Ok(())
     }

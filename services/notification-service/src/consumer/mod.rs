@@ -5,8 +5,8 @@ pub mod placeholder;
 
 use std::time::Duration;
 
-use common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
-use common_event::{Consumer, Envelope, MySqlOutboxRepo, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
+use digua_common_event::{Consumer, Envelope, MySqlOutboxRepo, RabbitMqConsumer, span_from_envelope_trace_id};
 use sqlx::mysql::MySqlPool;
 use std::sync::Arc;
 use tracing::{info, warn, Instrument};

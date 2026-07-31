@@ -1,5 +1,5 @@
 use axum::{Router, routing::get, extract::{Json, Path, Query, State}};
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use crate::{state::AppState, dto::{CreatePermissionRequest, UpdatePermissionRequest, PermissionQuery, PermissionResponse, PermissionListResponse}, service::PermissionService};
 
 pub fn routes(state: AppState) -> Router {

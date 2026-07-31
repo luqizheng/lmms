@@ -5,7 +5,7 @@
 > 上下文：plan review（2026-06-28，SCOPE REDUCTION → Phase 6-A）。
 >
 > **Plan-review 结论已 bake（推荐方案）：**
-> 0-Q2 A 提取 `tracing_mw.rs` 到 `common-telemetry`（1 处定义 + 8 处 use）·
+> 0-Q2 A 提取 `tracing_mw.rs` 到 `digua_common-telemetry`（1 处定义 + 8 处 use）·
 > 给 audit / config / file / prue_backend 4 个服务接 `init_tracing` + `tracing_mw` ·
 > 与 T1 联动让 producer→consumer 跨服务 span chain 在 Jaeger 可见。
 
@@ -24,7 +24,7 @@ README OTel 表当前状态：
 | file-service | — |
 | prue_backend | — |
 
-四个未接入服务的 `main.rs` 仍用 `common_log::init_json`（见
+四个未接入服务的 `main.rs` 仍用 `digua_common_log::init_json`（见
 `services/audit-service/src/main.rs:3,49`、`services/config-service/src/main.rs:3,8`、
 `services/file-service/src/main.rs:3,9`、`services/prue_backend/src/main.rs:2,9`），
 **没有 OTel 导出 + 没有 HTTP root span**——T1 producer 注入了 trace_id，但这 4 个服务
@@ -45,9 +45,9 @@ services/token-service/src/tracing_mw.rs
 
 ### 目标
 
-- 给 audit / config / file / prue_backend 4 个服务接 `common_telemetry::init_tracing` 并启用 `otlp` feature。
+- 给 audit / config / file / prue_backend 4 个服务接 `digua_common_telemetry::init_tracing` 并启用 `otlp` feature。
 - 给上述 4 个服务接 HTTP 根 span 中间件（W3C traceparent extract + X-Trace-Id 注入 + status/duration 字段）。
-- 把 `tracing_mw.rs` 提取到 `libs/common-telemetry::middleware::trace_request_middleware`，
+- 把 `tracing_mw.rs` 提取到 `libs/digua_common-telemetry::middleware::trace_request_middleware`，
   4 处旧 copy 删除并改 use；4 处新接入直接用。
 - audit-service consumer 端从 envelope.trace_id（T1 已注入）建 span 父子关系，
   跨服务 trace chain 在 Jaeger 可见。
@@ -58,24 +58,24 @@ services/token-service/src/tracing_mw.rs
 - **不**做 metrics export 到 OTLP（保留现有 Prometheus 端点，不动）。
 - **不**给 outbox-publisher（独立 binary）接 OTel——已经从 envelope_json 透传 trace_id，
   publisher 端不引 OTel SDK，避免与「outbox 与业务进程解耦」原则冲突。
-- **不**改 `common_log::init_json` 的现有 caller（`common-log` 与 `common-telemetry` 共存，
+- **不**改 `digua_common_log::init_json` 的现有 caller（`digua_common-log` 与 `digua_common-telemetry` 共存，
   init_tracing 已包含日志层）。新接入的 4 服务从 `init_json` 切到 `init_tracing`。
 - **不**做 sampling 配置（保持 OTel SDK 默认 ParentBased + AlwaysOn）。
-- **不**给消费者侧的「envelope→span」builder 提取到 common-event；audit/notification 各自实现，
+- **不**给消费者侧的「envelope→span」builder 提取到 digua_common-event；audit/notification 各自实现，
   本期只统一 HTTP root span。
 
 ## 3. 决策摘要
 
 | 决策点 | 选择 | 理由 |
 |---|---|---|
-| 提取位置 | `libs/common-telemetry/src/middleware.rs` | 与 init_tracing 同 crate，调用方一次 `use common_telemetry::trace_request_middleware` 解决 |
-| 中间件 feature 门控 | 跟随 `common-telemetry` 的 `otlp` feature 启用 | 无 OTel 时仍能用 fallback random trace_id（4 份现有 copy 的行为本就如此） |
+| 提取位置 | `libs/digua_common-telemetry/src/middleware.rs` | 与 init_tracing 同 crate，调用方一次 `use digua_common_telemetry::trace_request_middleware` 解决 |
+| 中间件 feature 门控 | 跟随 `digua_common-telemetry` 的 `otlp` feature 启用 | 无 OTel 时仍能用 fallback random trace_id（4 份现有 copy 的行为本就如此） |
 | **middleware 模块本身的 feature 门控** | **新增 `axum` feature**；module `#[cfg(feature = "axum")]` 整体门控 | 避免 axum + tower + hyper ~1MB 进 outbox-publisher 等 CLI binary；与 otlp feature 风格一致 |
-| 4 服务 OTel 接入 | 各 `Cargo.toml` 加 `common-telemetry = { features = ["otlp", "axum"] }` | 与 token/iam/notification/gateway 现状对齐 |
-| outbox-publisher 不开 axum | binary 端 `common-telemetry` 默认不带 axum feature | binary 不需要 HTTP middleware，避免膨胀 |
+| 4 服务 OTel 接入 | 各 `Cargo.toml` 加 `digua_common-telemetry = { features = ["otlp", "axum"] }` | 与 token/iam/notification/gateway 现状对齐 |
+| outbox-publisher 不开 axum | binary 端 `digua_common-telemetry` 默认不带 axum feature | binary 不需要 HTTP middleware，避免膨胀 |
 | 4 服务 HTTP middleware 接入 | 在各自 `routes::routes(state)` 构造的 Router 上挂 `.route_layer(from_fn(trace_request_middleware))` | 与 token-service 现状对齐 |
 | consumer 侧 span parent 关联 | audit-service 的 `consumer.rs` / `risk.rs`、notification-service 的 `consumer/mod.rs` 在收到 envelope 后**用 envelope.trace_id 起一个 span** | 让 Jaeger 看到完整链；本期仅做 audit-service 一处作为参考实现，notification/gateway perm_consumer 留 follow-up |
-| 旧 4 份 tracing_mw 删除 | 全删，改 `use common_telemetry::trace_request_middleware` | DRY |
+| 旧 4 份 tracing_mw 删除 | 全删，改 `use digua_common_telemetry::trace_request_middleware` | DRY |
 
 ### 3.1 关于 consumer span parent 仅本期做 audit-service 的折中
 
@@ -125,9 +125,9 @@ Jaeger UI: 一条 trace T1
 
 ## 5. 组件改动
 
-### 5.1 `libs/common-telemetry` 加 middleware 模块
+### 5.1 `libs/digua_common-telemetry` 加 middleware 模块
 
-新建 `libs/common-telemetry/src/middleware.rs`（内容是 4 份 copy 的逐字合并，无逻辑改动）。
+新建 `libs/digua_common-telemetry/src/middleware.rs`（内容是 4 份 copy 的逐字合并，无逻辑改动）。
 **整个模块由 `axum` feature 门控**，避免拖 axum 进 CLI binary（outbox-publisher 等）。
 
 ```rust
@@ -194,7 +194,7 @@ mod fallback_impl {
 }
 ```
 
-`libs/common-telemetry/Cargo.toml` 更新：
+`libs/digua_common-telemetry/Cargo.toml` 更新：
 
 ```toml
 [dependencies]
@@ -227,7 +227,7 @@ otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", 
 > | axum | HTTP 服务无 OTel（罕见，本期无 caller） | `init_tracing` + middleware (fallback) |
 > | axum + otlp | HTTP 服务带 OTel（本期主路径） | `init_tracing` + middleware (otlp) |
 
-`libs/common-telemetry/src/lib.rs` 加：
+`libs/digua_common-telemetry/src/lib.rs` 加：
 
 ```rust
 #[cfg(feature = "axum")]
@@ -253,7 +253,7 @@ mod tracing_mw;  // or middleware::tracing_mw
 use crate::tracing_mw::trace_request_middleware;
 
 // after
-use common_telemetry::trace_request_middleware;
+use digua_common_telemetry::trace_request_middleware;
 ```
 
 api-gateway 的 `services/api-gateway/src/middleware/mod.rs` 需删除 `pub mod tracing_mw;`
@@ -266,23 +266,23 @@ api-gateway 的 `services/api-gateway/src/middleware/mod.rs` 需删除 `pub mod 
 **1. `Cargo.toml`**
 
 ```toml
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp", "axum"] }
 ```
 
 > 这 4 个新服务都是 HTTP 服务，axum feature 必带。
 > 现有 4 服务（api-gateway / iam-service / notification-service / token-service）的 `Cargo.toml`
 > 在本期一并加上 `axum` feature flag——之前没启用是因为 tracing_mw.rs 在各服务本地引 axum，
-> 提取到 common-telemetry 后 feature 必须 explicit 开启。
+> 提取到 digua_common-telemetry 后 feature 必须 explicit 开启。
 
 **2. `main.rs` 把 `init_json(...)` 换成 `init_tracing(...)`**
 
 ```rust
 // audit-service main.rs:3,49
-- use common_log::init_json;
-+ // 用 common_telemetry，OTel feature 已启用
+- use digua_common_log::init_json;
++ // 用 digua_common_telemetry，OTel feature 已启用
 ...
 - init_json("info");
-+ common_telemetry::init_tracing("audit-service");
++ digua_common_telemetry::init_tracing("audit-service");
 ```
 
 同样模式应用到 config-service / file-service / prue_backend（service_name 各异）。
@@ -292,7 +292,7 @@ common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "
 各服务的 `routes.rs` / `routes/mod.rs` / 等 build router 处统一在最后挂：
 
 ```rust
-.route_layer(axum::middleware::from_fn(common_telemetry::trace_request_middleware))
+.route_layer(axum::middleware::from_fn(digua_common_telemetry::trace_request_middleware))
 ```
 
 具体位置按服务现有 `routes()` 函数风格。
@@ -358,8 +358,8 @@ notification-service / gateway perm_consumer 留 follow-up `T2-fu1`。
 
 ### 6.1 编译期 / 单元
 
-- workspace `cargo check --all-features`：4 份旧 tracing_mw.rs 删除 + 提取后所有 caller 用 common-telemetry 的版本，应一次通过。
-- **feature 矩阵 CI**：分别跑 `cargo check -p common-telemetry --no-default-features`、`--features axum`、`--features otlp`、`--features axum,otlp` 四组，确保每个组合都干净编译。
+- workspace `cargo check --all-features`：4 份旧 tracing_mw.rs 删除 + 提取后所有 caller 用 digua_common-telemetry 的版本，应一次通过。
+- **feature 矩阵 CI**：分别跑 `cargo check -p digua_common-telemetry --no-default-features`、`--features axum`、`--features otlp`、`--features axum,otlp` 四组，确保每个组合都干净编译。
 - 4 服务的现有单测全绿（中间件提取是行为不变的 mechanical refactor）。
 
 ### 6.2 集成 / smoke
@@ -398,10 +398,10 @@ notification-service / gateway perm_consumer 留 follow-up `T2-fu1`。
 
 ## 7. 实施步骤
 
-1. 提取 `libs/common-telemetry/src/middleware.rs` + Cargo.toml 加 axum/rand/hex 依赖。
-2. 4 处旧 `tracing_mw.rs` 删除，相应 caller 改 `use common_telemetry::trace_request_middleware`。
+1. 提取 `libs/digua_common-telemetry/src/middleware.rs` + Cargo.toml 加 axum/rand/hex 依赖。
+2. 4 处旧 `tracing_mw.rs` 删除，相应 caller 改 `use digua_common_telemetry::trace_request_middleware`。
 3. workspace `cargo check`：4 个已接入服务回归（无行为改动）。
-4. 4 个新服务 `Cargo.toml` 加 `common-telemetry = { features = ["otlp"] }`，main.rs 从 `init_json` 切到 `init_tracing`，router 挂 middleware。
+4. 4 个新服务 `Cargo.toml` 加 `digua_common-telemetry = { features = ["otlp"] }`，main.rs 从 `init_json` 切到 `init_tracing`，router 挂 middleware。
 5. audit-service consumer / risk handler 加 `span_from_envelope_trace_id` 父子关联。
 6. workspace `cargo build` 全过 → infra + observability overlay 起来。
 7. 手工 cross-service trace 验收（test-case/62）。
@@ -420,7 +420,7 @@ notification-service / gateway perm_consumer 留 follow-up `T2-fu1`。
 | 风险 | 缓解 |
 |---|---|
 | middleware 提取后 4 处 use 漏改 → 编译错 | 编译器全程兜底，无运行时风险 |
-| common-telemetry 加 axum 依赖污染纯 lib | axum 由 `axum` feature 门控，CLI binary（outbox-publisher 等）不开 feature → 不拖 axum 进 binary |
+| digua_common-telemetry 加 axum 依赖污染纯 lib | axum 由 `axum` feature 门控，CLI binary（outbox-publisher 等）不开 feature → 不拖 axum 进 binary |
 | audit consumer parent 关联依赖 envelope.trace_id 非空 → T1 必须先合 | spec 内已声明 T1 优先；T2 PR 在 T1 合后 |
 | OTel version 漂移（0.24 vs 0.25 跨 crate） | 与 api-gateway 现用版本对齐；workspace Cargo.toml 锁版本 |
 | feature gate 配错 | CI 矩阵 4 组合（none / axum / otlp / axum+otlp）全跑（见 §6.1） |

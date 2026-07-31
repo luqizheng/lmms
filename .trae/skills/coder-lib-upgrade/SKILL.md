@@ -1,6 +1,6 @@
 ---
 name: "coder-lib-upgrade"
-description: "Upgrades common-* libraries (common, common-http, common-crypto, etc.) across the workspace. Invoke when user asks to upgrade libs, update dependencies, or sync common library versions."
+description: "Upgrades digua_common-* libraries (digua_common, digua_common-http, digua_common-crypto, etc.) across the workspace. Invoke when user asks to upgrade libs, update dependencies, or sync digua_common library versions."
 ---
 
 # coder-lib-upgrade
@@ -20,9 +20,9 @@ description: "Upgrades common-* libraries (common, common-http, common-crypto, e
 ### 1. 检查当前库版本
 
 ```bash
-cargo tree -p common --invert
-cargo tree -p common-http --invert
-cargo tree -p common-crypto --invert
+cargo tree -p digua_common --invert
+cargo tree -p digua_common-http --invert
+cargo tree -p digua_common-crypto --invert
 ```
 
 ### 2. 升级库依赖
@@ -32,12 +32,12 @@ cargo tree -p common-crypto --invert
 cargo upgrade -p <lib-name>
 
 # 升级全部common-*库
-cargo upgrade -p common -p common-http -p common-crypto -p common-db -p common-log -p common-error
+cargo upgrade -p digua_common -p digua_common-http -p digua_common-crypto -p digua_common-db -p digua_common-log -p digua_common-error
 ```
 
 ### 3. 更新Cargo.toml
 
-编辑各服务的 `Cargo.toml`，更新 `common-*` 依赖版本
+编辑各服务的 `Cargo.toml`，更新 `digua_common-*` 依赖版本
 
 ### 4. 编译验证
 
@@ -61,7 +61,7 @@ cargo update
 cargo outdated
 
 # 仅检查不升级
-cargo check -p common -p common-http
+cargo check -p digua_common -p digua_common-http
 ```
 
 ## 故障排查

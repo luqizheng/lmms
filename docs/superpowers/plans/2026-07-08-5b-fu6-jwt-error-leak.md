@@ -6,7 +6,7 @@
 
 **Architecture:** 复用现有 `tower::ServiceExt::oneshot` + `make_state` / `make_token` 测试模式；新增 `assert_401_empty_body` helper；6 个独立 `#[tokio::test]` 函数覆盖 6 类错误路径；现有 2 个测试各加 1 行 `body.is_empty()` 断言。`principal.rs` 主体代码**不动**（commit `99fc5f9` 已实现正确行为）。
 
-**Tech Stack:** Rust 2021 / `axum` 0.8 / `tokio` 1 (full feature set via workspace) / `tower` 0.5 / `common-jwt` / `serde_json`。
+**Tech Stack:** Rust 2021 / `axum` 0.8 / `tokio` 1 (full feature set via workspace) / `tower` 0.5 / `digua_common-jwt` / `serde_json`。
 
 ## Global Constraints
 

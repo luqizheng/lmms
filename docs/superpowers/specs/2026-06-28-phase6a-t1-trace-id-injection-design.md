@@ -11,7 +11,7 @@
 ## 1. 背景与问题
 
 Phase 4 落地事件总线时，`Envelope` 已预留 `trace_id: Option<String>` 字段
-（`libs/common-event/src/envelope.rs:15`），但 **producer 侧从未填充** ——
+（`libs/digua_common-event/src/envelope.rs:15`），但 **producer 侧从未填充** ——
 所有 5 处 `Envelope::new(...)` 调用（iam-service 内）都没接 `.with_trace_id(...)`。
 
 ```
@@ -54,7 +54,7 @@ Envelope::new() 调用点（grep 验证）：
 | 决策点 | 选择 | 理由 |
 |---|---|---|
 | 注入点 | `MySqlOutboxRepo::enqueue` 实现内（含内部 `fill_trace_id` helper 便于单测） | DRY，零 callsite 改动；envelope 出厂统一管线；helper 提取避免在测试中起 OTel SDK |
-| `current_trace_id()` 放置 | `libs/common-telemetry`（otlp feature 内） | 与 OTel SDK 依赖内聚，避免 common-event 拖第二份 SDK |
+| `current_trace_id()` 放置 | `libs/digua_common-telemetry`（otlp feature 内） | 与 OTel SDK 依赖内聚，避免 digua_common-event 拖第二份 SDK |
 | 取 trace_id 的方式 | `tracing::Span::current().context()` + OTel `span_context().trace_id()` | 与 `services/api-gateway/src/middleware/tracing_mw.rs:61-72` 已有的 idiomatic 写法对齐 |
 | trace_id 编码 | 32-hex W3C TraceId 字符串（`TraceId::to_string()`） | 与 X-Trace-Id header 同款，consumer 端跨语言可读 |
 | 已填则尊重 | `if env.trace_id.is_none() { ... }` 守卫 | caller 显式 .with_trace_id(...) 永远优先 |
@@ -136,12 +136,12 @@ audit/notification consumer → deserialize Envelope<P> → env.trace_id = Some(
 
 ## 5. 组件改动
 
-### 5.1 把 `current_trace_id()` 放在 `libs/common-telemetry`
+### 5.1 把 `current_trace_id()` 放在 `libs/digua_common-telemetry`
 
-考虑到 OTel SDK 依赖已在 `common-telemetry`（otlp feature），把 `current_trace_id()` 放那里
-更内聚——避免 common-event 同时也拖一份 OTel SDK 副本。
+考虑到 OTel SDK 依赖已在 `digua_common-telemetry`（otlp feature），把 `current_trace_id()` 放那里
+更内聚——避免 digua_common-event 同时也拖一份 OTel SDK 副本。
 
-`libs/common-telemetry/src/lib.rs` 新增：
+`libs/digua_common-telemetry/src/lib.rs` 新增：
 
 ```rust
 //! 从当前 tracing span 取 W3C TraceId 字符串。
@@ -169,15 +169,15 @@ pub fn current_trace_id() -> Option<String> {
 }
 ```
 
-`common-event` 通过 `common_telemetry::current_trace_id` 调用。
+`digua_common-event` 通过 `digua_common_telemetry::current_trace_id` 调用。
 
-> **依赖反向问题**：T2 spec 让 common-telemetry 加 `axum` feature。T1 让 common-event 依赖
-> common-telemetry。是否环？—— **不**。common-event 不开 axum feature，只用 `otlp` feature
+> **依赖反向问题**：T2 spec 让 digua_common-telemetry 加 `axum` feature。T1 让 digua_common-event 依赖
+> digua_common-telemetry。是否环？—— **不**。digua_common-event 不开 axum feature，只用 `otlp` feature
 > （也是可选的；当 otlp 关闭时 current_trace_id 返 None，行为退化与 None handler 等价）。
 
-### 5.1.1 ~~（已迁移到 common-telemetry，本节占位）~~
+### 5.1.1 ~~（已迁移到 digua_common-telemetry，本节占位）~~
 
-### 5.2 `libs/common-event/src/outbox.rs` 修改
+### 5.2 `libs/digua_common-event/src/outbox.rs` 修改
 
 trait + impl 都改 `&mut`，并在 `MySqlOutboxRepo::enqueue` 内提取一个内部 helper 便于测试，
 helper 用闭包接受 trace_id source：
@@ -210,7 +210,7 @@ impl OutboxRepo for MySqlOutboxRepo {
         tx: &mut Transaction<'_, MySql>,
         env: &mut Envelope<P>,
     ) -> Result<(), OutboxError> {
-        fill_trace_id(env, || common_telemetry::current_trace_id());
+        fill_trace_id(env, || digua_common_telemetry::current_trace_id());
         let json = serde_json::to_value(&*env)?;
         // 其余完全不变
         ...
@@ -235,7 +235,7 @@ impl OutboxRepo for MySqlOutboxRepo {
 
 - `services/iam-service/tests/permission_changed_test.rs` —— 已绿，需要确认 callsite 改 mut 后仍编译通过（不需要业务断言改动）。
 - `services/audit-service/tests/login_risk_test.rs` —— Phase 4.2 集成测试，直接 publish envelope，应该与 trait 改动无关。
-- `libs/common-event/tests/ephemeral_subscribe.rs` —— 调 `publisher.publish(&env)`，不走 outbox，不影响。
+- `libs/digua_common-event/tests/ephemeral_subscribe.rs` —— 调 `publisher.publish(&env)`，不走 outbox，不影响。
 - `services/notification-service/tests/welcome_consumer_test.rs` —— consumer 侧，不影响。
 
 ## 6. 测试计划
@@ -245,10 +245,10 @@ impl OutboxRepo for MySqlOutboxRepo {
 **关键决策**：不在单测里跑 testcontainers + 真 OTel SDK provider（会有全局
 `global::set_tracer_provider` 测试污染 + 跨测试 flakiness）。改为拆两层独立测：
 
-#### A. 纯函数测 — `libs/common-telemetry/tests/current_trace_id_test.rs`
+#### A. 纯函数测 — `libs/digua_common-telemetry/tests/current_trace_id_test.rs`
 
-把 `current_trace_id()` 从 common-event 抽到 common-telemetry（OTel SDK 已在那里依赖），
-让 common-event 通过 `common_telemetry::current_trace_id` 调用。这样取 trace_id 的纯函数测试
+把 `current_trace_id()` 从 digua_common-event 抽到 digua_common-telemetry（OTel SDK 已在那里依赖），
+让 digua_common-event 通过 `digua_common_telemetry::current_trace_id` 调用。这样取 trace_id 的纯函数测试
 与 OTel SDK 自然内聚。
 
 ```rust
@@ -272,38 +272,38 @@ fn with_otel<F: FnOnce() -> R, R>(f: F) -> R {
 fn returns_trace_id_inside_active_span() {
     with_otel(|| {
         let _g = tracing::info_span!("test").entered();
-        assert!(common_telemetry::current_trace_id().is_some());
+        assert!(digua_common_telemetry::current_trace_id().is_some());
     });
 }
 
 #[test]
 fn returns_none_without_subscriber() {
     // 无 with_default scope，span context invalid
-    assert!(common_telemetry::current_trace_id().is_none());
+    assert!(digua_common_telemetry::current_trace_id().is_none());
 }
 
 #[test]
 fn returns_none_with_subscriber_but_no_span() {
     with_otel(|| {
         // 不进入 span
-        assert!(common_telemetry::current_trace_id().is_none());
+        assert!(digua_common_telemetry::current_trace_id().is_none());
     });
 }
 ```
 
-要把 `current_trace_id` 放在 common-telemetry 后，common-event 在 outbox enqueue 里改为：
+要把 `current_trace_id` 放在 digua_common-telemetry 后，digua_common-event 在 outbox enqueue 里改为：
 
 ```rust
 if env.trace_id.is_none() {
-    if let Some(tid) = common_telemetry::current_trace_id() {
+    if let Some(tid) = digua_common_telemetry::current_trace_id() {
         env.trace_id = Some(tid);
     }
 }
 ```
 
-`common-event/Cargo.toml` 依赖 `common-telemetry`（feature `otlp` 必带）。
+`digua_common-event/Cargo.toml` 依赖 `digua_common-telemetry`（feature `otlp` 必带）。
 
-#### B. 注入逻辑测 — `libs/common-event/tests/enqueue_trace_id_test.rs`
+#### B. 注入逻辑测 — `libs/digua_common-event/tests/enqueue_trace_id_test.rs`
 
 注入逻辑用 mock OutboxRepo + 直接构造 envelope，不需要 OTel SDK、不需要 MySQL：
 
@@ -318,7 +318,7 @@ if env.trace_id.is_none() {
 // 实现方式：把 enqueue 内的注入逻辑提取为内部辅助函数
 //   fn fill_trace_id<P: Event>(env: &mut Envelope<P>, source: impl Fn() -> Option<String>) { ... }
 // 把 source 注入便于测试。MySqlOutboxRepo::enqueue 内调用：
-//   fill_trace_id(env, || common_telemetry::current_trace_id());
+//   fill_trace_id(env, || digua_common_telemetry::current_trace_id());
 
 #[test]
 fn fills_trace_id_when_none_and_source_some() { ... }
@@ -332,7 +332,7 @@ fn leaves_none_when_source_returns_none() { ... }
 
 #### C. 集成测试 — testcontainers MySQL（一个，跑路径而非分支）
 
-`libs/common-event/tests/enqueue_writes_trace_id_to_db.rs`：
+`libs/digua_common-event/tests/enqueue_writes_trace_id_to_db.rs`：
 
 ```rust
 //! 端到端：testcontainers MySQL，构造 envelope.trace_id=Some("test-trace")，
@@ -370,14 +370,14 @@ fn leaves_none_when_source_returns_none() { ... }
 
 ## 7. 实施步骤（plan 阶段细化）
 
-1. `libs/common-telemetry` 加 `current_trace_id()`（`otlp` feature 内，`#[cfg(not)]` 回退 None）。
-2. `libs/common-event/Cargo.toml` 依赖 `common-telemetry = { features = ["otlp"] }`。
+1. `libs/digua_common-telemetry` 加 `current_trace_id()`（`otlp` feature 内，`#[cfg(not)]` 回退 None）。
+2. `libs/digua_common-event/Cargo.toml` 依赖 `digua_common-telemetry = { features = ["otlp"] }`。
 3. 改 `outbox.rs`：trait 签名 `&mut Envelope` + 提取 `fill_trace_id` helper + 实现内调用。
 4. 5 处 callsite 改 `let mut` + `&mut`。
-5. 加纯函数测 `libs/common-telemetry/tests/current_trace_id_test.rs`（with_default scope，3 case）。
-6. 加注入逻辑测 `libs/common-event/tests/enqueue_trace_id_test.rs`（fake source，3 case）。
-7. 加集成测试 `libs/common-event/tests/enqueue_writes_trace_id_to_db.rs`（testcontainers，1 case）。
-8. workspace `cargo check` + `cargo test -p common-telemetry -p common-event -p iam-service`。
+5. 加纯函数测 `libs/digua_common-telemetry/tests/current_trace_id_test.rs`（with_default scope，3 case）。
+6. 加注入逻辑测 `libs/digua_common-event/tests/enqueue_trace_id_test.rs`（fake source，3 case）。
+7. 加集成测试 `libs/digua_common-event/tests/enqueue_writes_trace_id_to_db.rs`（testcontainers，1 case）。
+8. workspace `cargo check` + `cargo test -p digua_common-telemetry -p digua_common-event -p iam-service`。
 9. 加 e2e 用例 `scripts/e2e-trace-id-flow.js` + 手工验收 `test-case/61-trace-id-injection.md`。
 10. README OTel 表新增「Producer Trace ID Injection: ✅」一行（在 Phase 6-A 后跟 T2 / T3 / T4 一并）。
 
@@ -395,4 +395,4 @@ fn leaves_none_when_source_returns_none() { ... }
 | `tracing-opentelemetry` 0.25 与项目内其它版本不一致 | 在 workspace Cargo.toml 检查；与 api-gateway 现用版本对齐 |
 | 5 处 callsite 漏改 | `cargo check` 会立刻报 `&Envelope` 不匹配 `&mut Envelope` |
 | `Span::current()` 在 axum handler 外（如 outbox publisher 启动期）取不到 | 设计就是 `is_valid()==false → None`，不算 bug |
-| OTel SDK feature gate 不一致 | common-event 把 opentelemetry/tracing-opentelemetry 作为必选依赖（非 feature），全 producer 路径行为一致 |
+| OTel SDK feature gate 不一致 | digua_common-event 把 opentelemetry/tracing-opentelemetry 作为必选依赖（非 feature），全 producer 路径行为一致 |

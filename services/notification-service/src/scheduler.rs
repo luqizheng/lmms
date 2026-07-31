@@ -1,6 +1,6 @@
 use crate::db::Db;
 use chrono::Utc;
-use jwt_ctx::TenantScope;
+use digua_jwt_ctx::TenantScope;
 use std::time::Duration;
 use tokio::time;
 

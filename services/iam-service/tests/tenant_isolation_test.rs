@@ -1,14 +1,14 @@
 //! Phase 8.2: cross-tenant isolation for iam business tables (roles / orgs / users).
 //! Phase 8.3-fu1: platform_admin cross-tenant point query (HTTP path).
-mod common;
+mod digua_common;
 
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use common_db::WithTenantScope;
-use common_cache::MemoryCache;
-use common_event::MySqlOutboxRepo;
+use digua_common_db::WithTenantScope;
+use digua_common_cache::MemoryCache;
+use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
@@ -18,7 +18,7 @@ use iam_service::dto::{
 use iam_service::routes::build_router;
 use iam_service::service::{AuthService, OrgService, RoleService, TenantService, UserService};
 use iam_service::state::AppState;
-use jwt_ctx::{Principal, TenantScope};
+use digua_jwt_ctx::{Principal, TenantScope};
 use jwt_simple::prelude::*;
 use std::io::Write;
 use std::sync::Arc;
@@ -27,12 +27,12 @@ use tower::ServiceExt;
 struct Ctx {
     state: AppState,
     app: axum::Router,
-    _mysql: Option<common::MysqlContainer>,
+    _mysql: Option<digua_common::MysqlContainer>,
     _key_file: tempfile::NamedTempFile,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = common::spawn_mysql().await;
+    let mysql_h = digua_common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
@@ -57,10 +57,10 @@ async fn setup() -> Ctx {
     };
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::from_pem(&public_pem)
+    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(&public_pem)
         .expect("test public key must parse"));
-    let service_jwt = std::sync::Arc::new(common_jwt::ServiceJwtCache::new(
-        common_jwt::ServiceJwtConfig {
+    let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
+        digua_common_jwt::ServiceJwtConfig {
             token_service_url: "http://localhost:0".into(),
             bootstrap_token: "test-bt".into(),
             caller_service_name: "iam-service".into(),

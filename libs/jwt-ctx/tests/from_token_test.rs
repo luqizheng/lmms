@@ -1,12 +1,12 @@
 //! Phase 5-B: tests for `Principal::from_token` (async, with verify).
 
-use common_jwt::{sign_token, JWKSCache};
-use jwt_ctx::Principal;
+use digua_common_jwt::{sign_token, JWKSCache};
+use digua_jwt_ctx::Principal;
 use std::time::Duration;
 
 const TEST_PRIVATE_PEM: &str =
-    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
-const TEST_PUBLIC_PEM: &str = include_str!("../../common-jwt/tests/fixtures/test_public.pem");
+    include_str!("../../digua_common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str = include_str!("../../digua_common-jwt/tests/fixtures/test_public.pem");
 
 fn mock_jwks() -> JWKSCache {
     JWKSCache::from_pem(TEST_PUBLIC_PEM).expect("test public key")
@@ -59,5 +59,5 @@ async fn from_token_with_tampered_signature_fails() {
     token = parts.join(".");
 
     let err = Principal::from_token(&token, &cache, None).await.unwrap_err();
-    assert!(matches!(err, jwt_ctx::PrincipalVerifyError::VerifyFailed(_)));
+    assert!(matches!(err, digua_jwt_ctx::PrincipalVerifyError::VerifyFailed(_)));
 }

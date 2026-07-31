@@ -29,7 +29,7 @@
   - notification-service：用配置文件 `http_addr`（不响应 `SERVER_HOST` env），改 `docker-example/config/notification-service/config.yaml` 的 `server.http_addr: "127.0.0.1:8080"`
   - api-gateway 例外：是系统边界，仍 `GW_SERVER__HOST: 0.0.0.0` 接受外部明文 :3000
   - Healthcheck（如 token-service `wget http://127.0.0.1:8080/.well-known/jwks.json`）在 sidecar netns 内 exec 仍能命中，**不受影响**
-- 应用层 `require_service_token` 当前**零调用方**（`grep -rn require_service_token services/ --include='*.rs'` 返回空）—— 仅需删除 `libs/authz/src/require_service_token.rs` + 单测 + `libs/authz/src/lib.rs` 两行导出。无需 sed 服务侧。
+- 应用层 `require_service_token` 当前**零调用方**（`grep -rn require_service_token services/ --include='*.rs'` 返回空）—— 仅需删除 `libs/digua_authz/src/require_service_token.rs` + 单测 + `libs/digua_authz/src/lib.rs` 两行导出。无需 sed 服务侧。
 - Gateway 转发逻辑变更：`router::forward_to_service` URL 拼接从 `http://{consul_address}:{consul_port}{path}` 改为 `http://{egress_host}:{egress_port}{path}`，其中 `(egress_host, egress_port)` 由 `RouterConfig.egress_map: HashMap<String, (String, u16)>` 按 `service_name` 查表。
 - 服务发现：旧 `discovery::ServiceDiscovery` 在 Task 5 后**完全删除**——sidecar envoy 自己维护下游健康端点（EDS），上层再 ping Consul 是重复 RTT + 误报信号源（Consul 抖动 ≠ 下游故障）。健康信号路径变为：sidecar 连接失败 → `ResilientClient::call` 返 `Connect`/`Timeout` → 喂熔断。
 - 测试基线：`node scripts/run-e2e-local.js` 全量通过。
@@ -55,9 +55,9 @@
 | `services/api-gateway/src/main.rs` | 启动时构造 `egress_map`（默认值 + 环境变量覆盖），移除 `ServiceDiscovery::new` |
 | `services/notification-service/src/main.rs` | **不改动**（Task 4 走 lib 自动获得 sidecar 注册）|
 | `services/audit-service/src/main.rs` | **不改动**（同上） |
-| `libs/authz/src/lib.rs` | 删除 `pub mod require_service_token;` 与 `pub use require_service_token::require_service_token;` 两行 |
-| `libs/authz/src/require_service_token.rs` | 删除 |
-| `libs/authz/tests/require_service_token_test.rs` | 删除 |
+| `libs/digua_authz/src/lib.rs` | 删除 `pub mod require_service_token;` 与 `pub use require_service_token::require_service_token;` 两行 |
+| `libs/digua_authz/src/require_service_token.rs` | 删除 |
+| `libs/digua_authz/tests/require_service_token_test.rs` | 删除 |
 | `docs-site/guides/mtls-deployment.md` | 运维手册（CA 备份、轮换、回滚、故障排查） |
 | `TODO.md` | Phase 5-A 段勾选完成 |
 
@@ -479,7 +479,7 @@ struct AgentServiceCheck {
 wiremock = { workspace = true }
 ```
 
-如 workspace `Cargo.toml` 未声明 `wiremock`，从 `libs/common-config/Cargo.toml`（已用 `wiremock = "0.6"`）借同版本，或在 workspace dependencies 加 `wiremock = "0.6"`。
+如 workspace `Cargo.toml` 未声明 `wiremock`，从 `libs/digua_common-config/Cargo.toml`（已用 `wiremock = "0.6"`）借同版本，或在 workspace dependencies 加 `wiremock = "0.6"`。
 
 在 `libs/consul-registrar/src/lib.rs` 的 `#[cfg(test)] mod tests` 末尾追加：
 
@@ -646,7 +646,7 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use common_http::{ResilientClient, ResilientError};
+use digua_common_http::{ResilientClient, ResilientError};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -780,14 +780,14 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::Request;
-    use common_http::ResilienceConfig;
+    use digua_common_http::ResilienceConfig;
 
     fn mk_cfg(map: HashMap<String, EgressTarget>) -> Arc<RouterConfig> {
         Arc::new(RouterConfig {
             resilient: Arc::new(ResilientClient::new(
                 reqwest::Client::new(),
                 ResilienceConfig::default(),
-                Arc::new(common_http::NoopObserver),
+                Arc::new(digua_common_http::NoopObserver),
             )),
             egress_map: Arc::new(map),
         })
@@ -1396,9 +1396,9 @@ echo "tagged pre-mtls at $(git rev-parse HEAD) — sidecar fully deployed, requi
 ## Task 13: 删除 require_service_token
 
 **Files:**
-- Modify: `libs/authz/src/lib.rs`
-- Delete: `libs/authz/src/require_service_token.rs`
-- Delete: `libs/authz/tests/require_service_token_test.rs`
+- Modify: `libs/digua_authz/src/lib.rs`
+- Delete: `libs/digua_authz/src/require_service_token.rs`
+- Delete: `libs/digua_authz/tests/require_service_token_test.rs`
 
 **Interfaces:**
 - Consumes: 无运行时依赖（Task 12 后 mTLS 已生效）。
@@ -1410,11 +1410,11 @@ echo "tagged pre-mtls at $(git rev-parse HEAD) — sidecar fully deployed, requi
 grep -rn "require_service_token" --include='*.rs' .
 ```
 
-Expected: 仅 `libs/authz/src/lib.rs` / `libs/authz/src/require_service_token.rs` / `libs/authz/tests/require_service_token_test.rs` 三处。若 services/ 下有命中，停下报告（与本计划假设不符）。
+Expected: 仅 `libs/digua_authz/src/lib.rs` / `libs/digua_authz/src/require_service_token.rs` / `libs/digua_authz/tests/require_service_token_test.rs` 三处。若 services/ 下有命中，停下报告（与本计划假设不符）。
 
 - [ ] **Step 2: 修改 lib.rs**
 
-将 `libs/authz/src/lib.rs` 整文件替换为：
+将 `libs/digua_authz/src/lib.rs` 整文件替换为：
 
 ```rust
 pub mod require_role;
@@ -1426,14 +1426,14 @@ pub use require_role::require_role;
 - [ ] **Step 3: 删除文件**
 
 ```bash
-git rm libs/authz/src/require_service_token.rs libs/authz/tests/require_service_token_test.rs
+git rm libs/digua_authz/src/require_service_token.rs libs/digua_authz/tests/require_service_token_test.rs
 ```
 
 - [ ] **Step 4: 编译验证**
 
 ```bash
 cargo build --workspace
-cargo test -p authz
+cargo test -p digua_authz
 ```
 
 Expected: 全部通过。
@@ -1441,7 +1441,7 @@ Expected: 全部通过。
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/authz/src/lib.rs
+git add libs/digua_authz/src/lib.rs
 git commit -m "P5-A: remove require_service_token middleware (mTLS replaces service identity)"
 ```
 

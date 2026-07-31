@@ -5,13 +5,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
+use digua_common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
 use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    common_telemetry::init_tracing("ntf-outbox-publisher");
+    digua_common_telemetry::init_tracing("ntf-outbox-publisher");
     info!("ntf-outbox-publisher starting");
 
     let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {

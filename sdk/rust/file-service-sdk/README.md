@@ -15,7 +15,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```rust
 use std::sync::{Arc, Mutex};
-use file_service_sdk::{FileClient, CreatePresignUrl, ListFilesQuery};
+use digua_file_sdk::{FileClient, CreatePresignUrl, ListFilesQuery};
 
 let token = Arc::new(Mutex::new(Some("user.jwt".to_string())));
 let client = FileClient::new("https://gw.kudi.repos", move || {
@@ -47,7 +47,7 @@ binary transfer would require extending that crate first.
 
 ## Errors
 
-All methods return `Result<T, kudi_http_client::SdkError>` (re-exported
-as `file_service_sdk::SdkError`). Five variants per the multi-lang SDK
+All methods return `Result<T, digua_http_client::SdkError>` (re-exported
+as `digua_file_sdk::SdkError`). Five variants per the multi-lang SDK
 design spec §9: `Auth` / `Validation` / `RateLimit` / `Server` /
 `Network`.

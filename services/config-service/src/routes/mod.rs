@@ -4,8 +4,8 @@ pub mod migration_state;
 pub mod watch;
 
 use axum::{Router, middleware as axum_mw, routing::get};
-use common_jwt::JWKSCache;
-use jwt_ctx::PrincipalStateProvider;
+use digua_common_jwt::JWKSCache;
+use digua_jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 use crate::services::ConfigService;
 use prometheus::{Encoder, TextEncoder};
@@ -22,7 +22,7 @@ pub fn routes(state: AppState) -> Router {
     let migration_state_with_authz = migration_state::routes(state.clone())
         .layer(axum_mw::from_fn_with_state(
             state.clone(),
-            authz::verify_aud_principal_middleware::<AppState>("config-service"),
+            digua_authz::verify_aud_principal_middleware::<AppState>("config-service"),
         ));
     Router::new()
         .nest("/config", namespace::routes(state.clone()))
@@ -31,7 +31,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(migration_state_with_authz)
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
         .with_state(state)
 }
 

@@ -1,12 +1,12 @@
 # Phase 4: 性能压测与熔断限流
 
-> **STATUS: ❌ SUPERSEDED + CLOSED** — 本文描述的 `common-http` 熔断/限流/重试脚手架从未接入任何 service。
+> **STATUS: ❌ SUPERSEDED + CLOSED** — 本文描述的 `digua_common-http` 熔断/限流/重试脚手架从未接入任何 service。
 > Phase 5-B 已决定走 `api-gateway` 集中限流（governor token bucket）+ `ResilientClient`。
 > 详见 `2026-06-28-phase5-resilience-triad-design.md`。
 > 本文保留仅作历史参考。
 
 > **⚠️ SUPERSEDED（2026-06-28）by `2026-06-28-phase5-resilience-triad-design.md`。**
-> 本文描述的 `common-http` 熔断/限流/重试脚手架从未被任何 service 接入，且 `CircuitBreaker::is_available`
+> 本文描述的 `digua_common-http` 熔断/限流/重试脚手架从未被任何 service 接入，且 `CircuitBreaker::is_available`
 > 的 Open 态计时有 bug。Phase 5-B 已决定删除并重写为 `ResilientClient`（包 reqwest，gateway outbound）。
 > 本文仅作历史参考，不代表当前实现。
 
@@ -40,7 +40,7 @@
 ### 使用示例
 
 ```rust
-use common_http::{CircuitBreaker, CircuitState};
+use digua_common_http::{CircuitBreaker, CircuitState};
 use std::time::Duration;
 
 let cb = CircuitBreaker::new(5, Duration::from_secs(60));
@@ -81,7 +81,7 @@ match cb.state() {
 ### 使用示例
 
 ```rust
-use common_http::RateLimiter;
+use digua_common_http::RateLimiter;
 
 let limiter = RateLimiter::new(100, 50); // 容量=100, 速率=50/s
 
@@ -104,7 +104,7 @@ use axum::{
     routing::get,
     middleware::from_fn_with_state,
 };
-use common_http::{CircuitBreakerMiddleware, HttpDefaultsConfig};
+use digua_common_http::{CircuitBreakerMiddleware, HttpDefaultsConfig};
 
 let config = HttpDefaultsConfig::production();
 let cb_middleware = config.circuit_breaker();
@@ -122,7 +122,7 @@ let app = Router::new()
 ### RateLimitMiddleware
 
 ```rust
-use common_http::{RateLimitMiddleware, HttpDefaultsConfig};
+use digua_common_http::{RateLimitMiddleware, HttpDefaultsConfig};
 
 let config = HttpDefaultsConfig::production();
 let rl_middleware = config.rate_limiter();
@@ -145,7 +145,7 @@ let app = Router::new()
 
 ```bash
 # 单元测试 + 基准
-cargo test -p common-http -- --nocapture
+cargo test -p digua_common-http -- --nocapture
 
 # 压测脚本
 node scripts/bench.js audit-service 60 10
@@ -176,7 +176,7 @@ RateLimiter::try_acquire:
 ## HTTP 客户端默认配置
 
 ```rust
-use common_http::HttpDefaultsConfig;
+use digua_common_http::HttpDefaultsConfig;
 
 let config = HttpDefaultsConfig::production();
 // 自动启用:
@@ -256,7 +256,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run benchmarks
-        run: cargo test -p common-http --bench
+        run: cargo test -p digua_common-http --bench
       - name: Run load test
         run: node scripts/bench.js audit-service 30 10
       - name: Check thresholds

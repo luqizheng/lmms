@@ -1,7 +1,7 @@
 #[cfg(feature = "config-service")]
 pub mod provider;
 
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use config::{Config, Environment, File};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;

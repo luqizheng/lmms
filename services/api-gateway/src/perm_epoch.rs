@@ -1,5 +1,5 @@
 //! Gateway read-side perm-epoch check (Phase 4.4). Thin wrapper over
-//! `common_event::perm_epoch`. A token is rejected when it was issued
+//! `digua_common_event::perm_epoch`. A token is rejected when it was issued
 //! (`iat`) before the user's last permission change (`perm_epoch`).
 use redis::aio::MultiplexedConnection;
 
@@ -16,7 +16,7 @@ pub async fn check_revoked(
     sub: &str,
     iat: i64,
 ) -> bool {
-    match common_event::perm_epoch::get_perm_epoch(conn, prefix, sub).await {
+    match digua_common_event::perm_epoch::get_perm_epoch(conn, prefix, sub).await {
         Ok(epoch) => is_revoked(epoch, iat),
         Err(_) => false,
     }

@@ -33,7 +33,7 @@ docker compose -f infrastructure/docker-compose.yml up -d
 
 ## Step 2：在某个服务启用 OTel
 
-`common-telemetry` crate 的 OTel layer 通过 `otlp` feature 门控，只有设置了 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量时才会激活。
+`digua_common-telemetry` crate 的 OTel layer 通过 `otlp` feature 门控，只有设置了 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量时才会激活。
 
 `api-gateway` 已经接好了：
 
@@ -47,9 +47,9 @@ environment:
 
 1. 在依赖中开启 `otlp` feature：
    ```toml
-   common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+   digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp"] }
    ```
-2. 启动时调用 `common_telemetry::init_tracing("service-name")`
+2. 启动时调用 `digua_common_telemetry::init_tracing("service-name")`
 3. 设置 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量
 
 不设置该环境变量时，服务会回退到 JSON stdout 日志（无任何行为变化）。

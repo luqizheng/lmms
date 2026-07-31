@@ -20,9 +20,9 @@
 //! `ServiceJwtCache` on each request.
 
 use bytes::Bytes;
-use common_http::{ResilientClient, ResilientError};
-use common_jwt::ServiceJwtCache;
-use jwt_ctx::TenantScope;
+use digua_common_http::{ResilientClient, ResilientError};
+use digua_common_jwt::ServiceJwtCache;
+use digua_jwt_ctx::TenantScope;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Method,

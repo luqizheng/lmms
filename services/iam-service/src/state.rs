@@ -1,8 +1,8 @@
 use sqlx::mysql::MySqlPool;
-use common_cache::MemoryCache;
-use common_event::MySqlOutboxRepo;
-use common_jwt::{JWKSCache, ServiceJwtCache};
-use jwt_ctx::PrincipalStateProvider;
+use digua_common_cache::MemoryCache;
+use digua_common_event::MySqlOutboxRepo;
+use digua_common_jwt::{JWKSCache, ServiceJwtCache};
+use digua_jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 use crate::config::Config;
 use crate::service::TokenForwardClient;

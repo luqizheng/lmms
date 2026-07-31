@@ -17,7 +17,7 @@ Phase 4 main + 4.1-4.4 全部完成并合并后，`TODO.md` 与 broad review 留
 | ID | 来源 | 服务 / 库 | 性质 |
 |---|---|---|---|
 | **I2** | Phase 4 broad review Minor #I2 | audit-service | 死方法 + 孤儿 schema 清理 |
-| **I5** | Phase 4 broad review Minor #I5 | common-event + 3 调用方 | `MySqlOutboxRepo::new(pool.clone())` per-call → AppState 持有 |
+| **I5** | Phase 4 broad review Minor #I5 | digua_common-event + 3 调用方 | `MySqlOutboxRepo::new(pool.clone())` per-call → AppState 持有 |
 | **4.3-fu4** | Phase 4.3 final review follow-up | notification-service + audit-service | consumer `run()` block-on-disconnect 修复（与 announcement_run 同模式）|
 | **4.4-fu4** | Phase 4.4 task-9 review follow-up | iam-service | `PermissionService::create` 修 INSERT...RETURNING |
 
@@ -78,7 +78,7 @@ Phase 4 task 15 已删除 `POST /audit/operation` 与 `POST /audit/login` 路由
 
 #### 现状
 
-`MySqlOutboxRepo` 定义于 `libs/common-event/src/outbox.rs:31-57`，构造签名为：
+`MySqlOutboxRepo` 定义于 `libs/digua_common-event/src/outbox.rs:31-57`，构造签名为：
 ```rust
 pub fn new(pool: MySqlPool) -> Self
 pub fn with_table(pool: MySqlPool, table: impl Into<String>) -> Self
@@ -86,7 +86,7 @@ pub fn with_table(pool: MySqlPool, table: impl Into<String>) -> Self
 
 **调用点**（已复查）：
 - `services/iam-service/src/bin/outbox_publisher.rs:56` — **已正确一次性构造**（`let repo = MySqlOutboxRepo::new(pool);`，循环复用），无需改
-- `services/iam-service/src/service/user_svc.rs:87` — `create_user` 内 `common_event::MySqlOutboxRepo::new(self.state.db.clone())`（**per-call**）
+- `services/iam-service/src/service/user_svc.rs:87` — `create_user` 内 `digua_common_event::MySqlOutboxRepo::new(self.state.db.clone())`（**per-call**）
 - `services/iam-service/src/service/user_svc.rs:313` — 第二处 per-call（推测 delete_user 或 login 路径）
 - `services/notification-service/src/db.rs:323` — `publish_announcement` 内 `MySqlOutboxRepo::with_table(self.pool.clone(), "ntf_outbox_events")`（**per-call**）
 - `services/audit-service/` — **无 outbox repo 调用**（仅消费 audit_events，不发布），无需改
@@ -120,7 +120,7 @@ pub fn with_table(pool: MySqlPool, table: impl Into<String>) -> Self
 
 #### 现状
 
-`RabbitMqConsumer::subscribe_inner`（`libs/common-event/src/consumer.rs:91-214`）是**一次性消费**：
+`RabbitMqConsumer::subscribe_inner`（`libs/digua_common-event/src/consumer.rs:91-214`）是**一次性消费**：
 ```rust
 tokio::spawn(async move {
     while let Some(delivery) = consumer.next().await {
@@ -158,7 +158,7 @@ announcement 是 ephemeral queue：
 
 本次修改的是 durable queue：
 - 仍可 30s 重声明（idempotent），但改进后改为**事件驱动**（连接断才动）
-- `RabbitMqConsumer::connection()` 已存在（`libs/common-event/src/consumer.rs:80-82`），可直接用
+- `RabbitMqConsumer::connection()` 已存在（`libs/digua_common-event/src/consumer.rs:80-82`），可直接用
 
 #### 护栏（与 4.3 announcement_run 修复同等级别）
 

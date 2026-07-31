@@ -1,4 +1,4 @@
-use common_cache::{Cache, MemoryCache};
+use digua_common_cache::{Cache, MemoryCache};
 
 #[tokio::test]
 async fn memory_cache_set_get_delete() {

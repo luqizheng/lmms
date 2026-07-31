@@ -3,7 +3,7 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use common_http::{ResilientClient, ResilientError};
+use digua_common_http::{ResilientClient, ResilientError};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -186,14 +186,14 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::Request;
-    use common_http::ResilienceConfig;
+    use digua_common_http::ResilienceConfig;
 
     fn mk_cfg(map: HashMap<String, EgressTarget>) -> Arc<RouterConfig> {
         Arc::new(RouterConfig {
             resilient: Arc::new(ResilientClient::new(
                 reqwest::Client::new(),
                 ResilienceConfig::default(),
-                Arc::new(common_http::NoopObserver),
+                Arc::new(digua_common_http::NoopObserver),
             )),
             egress_map: Arc::new(map),
         })

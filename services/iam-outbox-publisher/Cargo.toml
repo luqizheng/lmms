@@ -1,12 +1,12 @@
 [package]
-name = "iam-outbox-publisher"
+name = "iam_outbox_publisher"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1"
-common-event = { path = "../../libs/common-event" }
-common-telemetry = { path = "../../libs/common-telemetry", default-features = false, features = ["otlp"] }
+digua_common_event = { path = "../../libs/common-event" }
+digua_common_telemetry = { path = "../../libs/common-telemetry", default-features = false, features = ["otlp"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"

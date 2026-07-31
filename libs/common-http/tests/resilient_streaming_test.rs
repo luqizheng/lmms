@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use common_http::{NoopObserver, ResilienceConfig, ResilientClient};
+use digua_common_http::{NoopObserver, ResilienceConfig, ResilientClient};
 use reqwest::{header::HeaderMap, Client, Method};
 use std::sync::Arc;
 use std::time::Duration;

@@ -6,7 +6,7 @@
 //! Ponytail: 不重复造 V002 schema——`db::ensure_schema` 已经会建好
 //! `iam_outbox_events_archive`;测试 setup 只确保 schema 在,不再手工拼 SQL。
 
-mod common;
+mod digua_common;
 
 use chrono::{Duration as ChronoDuration, Utc};
 use iam_service::outbox_archive;
@@ -15,11 +15,11 @@ use std::sync::Arc;
 
 struct Ctx {
     pool: sqlx::MySqlPool,
-    _mysql: Option<common::MysqlContainer>,
+    _mysql: Option<digua_common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = common::spawn_mysql().await;
+    let mysql_h = digua_common::spawn_mysql().await;
     Ctx {
         pool: mysql_h.pool,
         _mysql: mysql_h.container,

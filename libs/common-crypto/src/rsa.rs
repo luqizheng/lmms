@@ -1,4 +1,4 @@
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use rsa::pkcs1v15::{Signature, SigningKey, VerifyingKey};
 use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding};
 use rsa::sha2::Sha256;

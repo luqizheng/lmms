@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Spec 参考：`docs/superpowers/specs/2026-06-28-phase4-cheap-fixes-design.md`。
-- **禁止**修改 `libs/common-event/src/consumer.rs` 的 `subscribe_inner`（库核心，仅服务侧使用方改）。
+- **禁止**修改 `libs/digua_common-event/src/consumer.rs` 的 `subscribe_inner`（库核心，仅服务侧使用方改）。
 - **禁止**修改 `MySqlOutboxRepo::new` / `with_table` 签名（库 API 兼容，服务侧改用法即可）。
 - 所有 commit 之前必须跑全量回归：`cargo build --workspace` + `cargo test --workspace`。
 - 表命名规范：不涉及新表。
@@ -176,7 +176,7 @@ git commit -m "fix(audit-service): remove dead create_operation_log/create_login
 
 打开 `services/iam-service/src/state.rs`，在 `pub struct AppState { ... }` 内加字段（参考现有字段风格，复制一行修改）：
 ```rust
-pub outbox_repo: Arc<common_event::MySqlOutboxRepo>,
+pub outbox_repo: Arc<digua_common_event::MySqlOutboxRepo>,
 ```
 确认 `use std::sync::Arc;` 已存在（若没有就在 file 顶部加）。
 
@@ -184,7 +184,7 @@ pub outbox_repo: Arc<common_event::MySqlOutboxRepo>,
 
 打开 `services/iam-service/src/main.rs`，找到构造 `AppState { ... }` 的位置（一般在 `let state = AppState { ... };`）。在 file 内已有的 pool 定义后增加一行：
 ```rust
-let outbox_repo = Arc::new(common_event::MySqlOutboxRepo::new(pool.clone()));
+let outbox_repo = Arc::new(digua_common_event::MySqlOutboxRepo::new(pool.clone()));
 ```
 然后在 `AppState { ... }` 中填字段：
 ```rust
@@ -199,12 +199,12 @@ let pool = sqlx::mysql::MySqlPoolOptions::new()
     .max_connections(8)
     .acquire_timeout(Duration::from_secs(5))
     .connect(&db_url).await?;
-let outbox_repo = Arc::new(common_event::MySqlOutboxRepo::new(pool.clone()));
+let outbox_repo = Arc::new(digua_common_event::MySqlOutboxRepo::new(pool.clone()));
 ```
 
 - [ ] **Step 3: iam-service user_svc.rs 替换 line 87**
 
-打开 `services/iam-service/src/service/user_svc.rs`，找到 line 87 附近（`common_event::MySqlOutboxRepo::new(self.state.db.clone())`），替换为：
+打开 `services/iam-service/src/service/user_svc.rs`，找到 line 87 附近（`digua_common_event::MySqlOutboxRepo::new(self.state.db.clone())`），替换为：
 ```rust
 self.state.outbox_repo.clone()
 ```
@@ -212,17 +212,17 @@ self.state.outbox_repo.clone()
 
 - [ ] **Step 4: iam-service user_svc.rs 替换 line 313**
 
-同上，将 line 313 附近的 `common_event::MySqlOutboxRepo::new(self.state.db.clone())` 替换为 `self.state.outbox_repo.clone()`。
+同上，将 line 313 附近的 `digua_common_event::MySqlOutboxRepo::new(self.state.db.clone())` 替换为 `self.state.outbox_repo.clone()`。
 
 - [ ] **Step 5: notification-service Db/AppState 加字段**
 
 打开 `services/notification-service/src/db.rs`，在 `pub struct Db { ... }` 内加字段：
 ```rust
-pub outbox_repo: Arc<common_event::MySqlOutboxRepo>,
+pub outbox_repo: Arc<digua_common_event::MySqlOutboxRepo>,
 ```
 确认 `use std::sync::Arc;` 存在。然后在 `Db::new()` / `Db::from_pool()` 等构造函数初始化：
 ```rust
-outbox_repo: Arc::new(common_event::MySqlOutboxRepo::with_table(pool.clone(), "ntf_outbox_events")),
+outbox_repo: Arc::new(digua_common_event::MySqlOutboxRepo::with_table(pool.clone(), "ntf_outbox_events")),
 ```
 
 - [ ] **Step 6: notification-service publish_announcement 替换**
@@ -276,7 +276,7 @@ git commit -m "refactor(notification-service): hold MySqlOutboxRepo in Db state 
 - Modify: `TODO.md`
 
 **Interfaces:**
-- Consumes: `RabbitMqConsumer::connection()`（已存在，`libs/common-event/src/consumer.rs:80`）
+- Consumes: `RabbitMqConsumer::connection()`（已存在，`libs/digua_common-event/src/consumer.rs:80`）
 - Produces: 两个 `run()` 改持 `RabbitMqConsumer`，`while consumer.connection().status().connected() { sleep(5s) }` 循环
 
 参考实现：`services/notification-service/src/consumer/mod.rs:62-83` `announcement_run()`（已有，4.3 落地）
@@ -455,7 +455,7 @@ use iam_service::config::{
 use iam_service::db;
 use iam_service::service::permission_svc::{CreatePermissionRequest, PermissionService};
 use iam_service::state::AppState;
-use common_cache::MemoryCache;
+use digua_common_cache::MemoryCache;
 use serial_test::serial;
 use testcontainers::ImageExt;
 use testcontainers_modules::{mysql::Mysql, testcontainers::runners::AsyncRunner};
@@ -469,7 +469,7 @@ async fn setup_pool() -> sqlx::MySqlPool {
     let my_port = mysql_c.get_host_port_ipv4(3306).await.unwrap();
     let my_host = mysql_c.get_host().await.unwrap();
     let url = format!("mysql://root@{my_host}:{my_port}/test");
-    let pool = common::db::connect(&url, 5).await.unwrap();
+    let pool = digua_common::db::connect(&url, 5).await.unwrap();
     db::ensure_schema(&pool).await.unwrap();
     pool
 }

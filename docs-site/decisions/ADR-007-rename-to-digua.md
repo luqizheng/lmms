@@ -10,9 +10,9 @@
 
 | 维度 | 当前命名 | 问题（开源后） |
 |------|----------|---------------|
-| Rust crates（17 + 7） | `common-jwt`, `iam-service-sdk`, `kudi-http-client` 等 | `kudi-` 是内部公司品牌，公共 registry 上不合适 |
+| Rust crates（17 + 7） | `digua_common-jwt`, `iam-service-sdk`, `kudi-http-client` 等 | `kudi-` 是内部公司品牌，公共 registry 上不合适 |
 | Maven groupId | `com.kudi.coder` | 同样含内部品牌 `kudi.coder` |
-| Maven artifactId | `kudi-coder-sdk-common`, `iam-service-sdk` 等 | 与新品牌不一致 |
+| Maven artifactId | `kudi-coder-sdk-digua_common`, `iam-service-sdk` 等 | 与新品牌不一致 |
 | npm scope | `@coder-micro-services/dist-tools` | 仓库级 scope 不适合作为独立公共包 |
 | 仓库名 | `coder-micro-services` / `low-memory-micro-services` | 内部代号 |
 
@@ -30,9 +30,9 @@
 
 | 平台 | 当前 | 改后 | 示例 |
 |------|------|------|------|
-| Maven Central groupId | `com.kudi.coder` | `io.digua` | `io.digua:digua-common-jwt` |
+| Maven Central groupId | `com.kudi.coder` | `io.digua` | `io.digua:digua_common-jwt` |
 | Maven parent artifactId | `kudi-coder-sdk-parent` | `digua-sdk-parent` | — |
-| crates.io (libs/) | `common`, `common-cache`, ... | `digua-common`, `digua-common-cache`, ... | `digua-common-jwt` |
+| crates.io (libs/) | `digua_common`, `digua_common-cache`, ... | `digua_common`, `digua_common-cache`, ... | `digua_common-jwt` |
 | crates.io (sdk/rust/) | `iam-service-sdk`, `kudi-http-client`, ... | `digua-iam-sdk`, `digua-http-client`, ... | `digua-iam-sdk` |
 | npm scope | `@coder-micro-services/...` | `@digua/...` | `@digua/dist-tools` |
 | CLI 命令 | `cms-sync` | **保留不变**（命令面已面向用户，不破坏兼容性） |
@@ -56,22 +56,22 @@
 
 | 当前 | 改后 |
 |------|------|
-| `authz` | `digua-authz` |
-| `common` | `digua-common` |
-| `common-cache` | `digua-common-cache` |
-| `common-config` | `digua-common-config` |
-| `common-crypto` | `digua-common-crypto` |
-| `common-db` | `digua-common-db` |
-| `common-error` | `digua-common-error` |
-| `common-event` | `digua-common-event` |
-| `common-health` | `digua-common-health` |
-| `common-http` | `digua-common-http` |
-| `common-jwt` | `digua-common-jwt` |
-| `common-log` | `digua-common-log` |
-| `common-ratelimit` | `digua-common-ratelimit` |
-| `common-telemetry` | `digua-common-telemetry` |
-| `common-telemetry-axum` | `digua-common-telemetry-axum` |
-| `common-validator` | `digua-common-validator` |
+| `digua_authz` | `digua_authz` |
+| `digua_common` | `digua_common` |
+| `digua_common-cache` | `digua_common-cache` |
+| `digua_common-config` | `digua_common-config` |
+| `digua_common-crypto` | `digua_common-crypto` |
+| `digua_common-db` | `digua_common-db` |
+| `digua_common-error` | `digua_common-error` |
+| `digua_common-event` | `digua_common-event` |
+| `digua_common-health` | `digua_common-health` |
+| `digua_common-http` | `digua_common-http` |
+| `digua_common-jwt` | `digua_common-jwt` |
+| `digua_common-log` | `digua_common-log` |
+| `digua_common-ratelimit` | `digua_common-ratelimit` |
+| `digua_common-telemetry` | `digua_common-telemetry` |
+| `digua_common-telemetry-axum` | `digua_common-telemetry-axum` |
+| `digua_common-validator` | `digua_common-validator` |
 | `jwt-ctx` | `digua-jwt-ctx` |
 
 #### Rust SDK crates（sdk/rust/）
@@ -96,7 +96,7 @@
 | 当前 artifactId | 改后 artifactId |
 |-----------------|-----------------|
 | `kudi-coder-sdk-parent` | `digua-sdk-parent` |
-| `kudi-coder-sdk-common` | `digua-sdk-common` |
+| `kudi-coder-sdk-digua_common` | `digua-sdk-digua_common` |
 | `kudi-http-client` | `digua-http-client` |
 | `notification-service-sdk` | `digua-notification-sdk` |
 | `token-server-client-sdk` | `digua-token-client-sdk` |
@@ -119,7 +119,7 @@
 
 ### 立即收益
 
-1. **公共 registry 友好**：`io.digua:digua-common-jwt` 看起来像独立的公共 Rust 框架而非某个公司的产品
+1. **公共 registry 友好**：`io.digua:digua_common-jwt` 看起来像独立的公共 Rust 框架而非某个公司的产品
 2. **品牌一致性**：所有平台共享同一品牌前缀 `digua`
 3. **可发现性**：`digua` 在 Maven Central / crates.io / npm 上均无占用，新用户搜索时不会被内部品牌词误导
 

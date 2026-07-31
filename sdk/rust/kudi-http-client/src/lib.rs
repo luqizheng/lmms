@@ -19,7 +19,7 @@ pub mod transport;
 
 /// Re-export of [`error::KudiHttpError`] under the canonical SDK name.
 ///
-/// Service SDKs (iam/token/audit/...) should `use kudi_http_client::SdkError`
+/// Service SDKs (iam/token/audit/...) should `use digua_http_client::SdkError`
 /// for the error type so callers don't have to know the internal name.
 /// Aligns with the multi-language SDK design spec
 /// `docs/superpowers/specs/2026-06-08-multi-lang-sdk-design.md` §9.

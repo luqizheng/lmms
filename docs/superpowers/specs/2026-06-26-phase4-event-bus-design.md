@@ -25,7 +25,7 @@ Phase 4 引入异步事件总线，解决以上问题。本阶段只做**最小�
 ### 2.1 In Scope
 
 - 引入 RabbitMQ 作为基础设施（infra docker-compose 加容器）。
-- 新增 `libs/common-event` 共享库：完整的 Publisher / Consumer / Envelope / OutboxRepo 抽象 + RabbitMQ 实现。
+- 新增 `libs/digua_common-event` 共享库：完整的 Publisher / Consumer / Envelope / OutboxRepo 抽象 + RabbitMQ 实现。
 - 启用 `contracts/events.yaml`，落地三个事件：`iam.user.created` / `iam.user.deleted` / `iam.login.succeeded`。
 - 扩展 `scripts/contracts-gen.js`：从 events.yaml 生成 Rust event struct 与 routing-key 常量。
 - iam-service 加 outbox 表 + 业务事务里写 outbox 行 + 独立 outbox publisher 二进制。
@@ -132,20 +132,20 @@ events:
 
 `contracts-gen.js` 扩展后产出：
 
-- `libs/common-event/src/events.rs` —— 每个事件一个 `struct IamUserCreated { ... }` + `impl Event for ...`
-- `libs/common-event/src/routing_keys.rs` —— `pub const IAM_USER_CREATED: &str = "iam.user.created";` 等常量
+- `libs/digua_common-event/src/events.rs` —— 每个事件一个 `struct IamUserCreated { ... }` + `impl Event for ...`
+- `libs/digua_common-event/src/routing_keys.rs` —— `pub const IAM_USER_CREATED: &str = "iam.user.created";` 等常量
 - `frontend/src/contracts/events.ts` —— 预留，但 Phase 4 不消费
 
 ---
 
-## 5. `libs/common-event` API 设计
+## 5. `libs/digua_common-event` API 设计
 
 完整抽象，不只服务 iam→audit 一条链。
 
 ### 5.1 核心 trait
 
 ```rust
-// libs/common-event/src/lib.rs
+// libs/digua_common-event/src/lib.rs
 
 #[async_trait]
 pub trait Event: Serialize + DeserializeOwned + Send + Sync + 'static {
@@ -454,7 +454,7 @@ iam-outbox-publisher:
 
 ### 11.1 Metrics（Prometheus）
 
-新增指标（在 `libs/common-event` 里集中暴露）：
+新增指标（在 `libs/digua_common-event` 里集中暴露）：
 
 - `event_publish_total{event_type, status}` —— counter，success / failure
 - `event_consume_total{queue, event_type, status}` —— counter，success / handler_error / decode_error
@@ -488,7 +488,7 @@ iam-outbox-publisher:
 - [ ] 让 audit consumer 故意 panic：消息进 `events.dlq`，手工 shovel 回 `audit.iam-events` 后被正确消费（幂等 — 不重复写）。
 - [ ] 全量 e2e + smoke 通过；audit 旧 HTTP 写入端点已从 openapi.yaml 与代码中移除。
 - [ ] `scripts/check-spec.js` / `contracts-gen.js --check` / `check-service-standard.js` 全绿。
-- [ ] 单服务 cargo test 全绿（iam-service / audit-service / libs/common-event）。
+- [ ] 单服务 cargo test 全绿（iam-service / audit-service / libs/digua_common-event）。
 
 ---
 
@@ -513,7 +513,7 @@ iam-outbox-publisher:
 - 4.3: 落地 `notification.announcement.published`，WebSocket 广播改由事件驱动
 - 4.4: `permission_changed` 事件 + 各服务缓存失效
 
-每个子任务复用 `libs/common-event` 与 outbox 模式，预期单 spec < 半天。
+每个子任务复用 `libs/digua_common-event` 与 outbox 模式，预期单 spec < 半天。
 
 ---
 
@@ -530,7 +530,7 @@ iam-outbox-publisher:
 | 幂等 | event_id (UUIDv7) + consumer 唯一键 | At-least-once + 幂等键 = 端到端 exactly-once |
 | 首批范围 | iam→audit 三事件 | 验证最小闭环，风险可控 |
 | 旧 HTTP 端点 | 直接删除，不留 fallback | 用户选型；事件链路验收通过后单 commit 删除 |
-| common-event 完整度 | 完整抽象，仅 wire 首条链路 | 用户选型；避免 Phase 4.x 重构 |
+| digua_common-event 完整度 | 完整抽象，仅 wire 首条链路 | 用户选型；避免 Phase 4.x 重构 |
 
 ---
 

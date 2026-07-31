@@ -7,7 +7,7 @@
 
 - 配置中心 config-service 已实现 `GET /config/watch`（SSE，services/config-service/src/routes/watch.rs）。
 - 前端已实现 `EventSource` 占位（frontend/src/api/config/sse.ts，禁用 stub）。
-- api-gateway **当前对所有上游响应做全量 buffer**（libs/common-http/src/resilient.rs:124 `body_bytes = resp.bytes().await`，再 `Body::from(resp.body)`），与 SSE 语义不兼容。
+- api-gateway **当前对所有上游响应做全量 buffer**（libs/digua_common-http/src/resilient.rs:124 `body_bytes = resp.bytes().await`，再 `Body::from(resp.body)`），与 SSE 语义不兼容。
 - `RouteConfig.ws: bool` 字段已存在（services/api-gateway/src/config.rs:9），但运行时未读。
 - EventSource 协议层不支持自定义 header，token 必须走 `?token=<jwt>` query 参数；而 `auth_middleware` 仅看 `Authorization: Bearer`（services/api-gateway/src/middleware/mod.rs:40）。
 
@@ -15,7 +15,7 @@
 
 ### 1. 库层：`ResilientClient::call_streaming()`
 
-**文件**：`libs/common-http/src/resilient.rs`
+**文件**：`libs/digua_common-http/src/resilient.rs`
 
 新增方法，复用 breaker/timeout/retry，但**不读 body**：
 
@@ -134,19 +134,19 @@ return () => { es.close(); };
 | Token 出现在 URL query | 浏览器历史、proxy access log 可能落盘 | access log 过滤留作后续 ticket；本期仅 SSE/watch 一条路由，范围可控 |
 | EventSource 自动重连 | 服务端断流时浏览器自动重连 + Last-Event-ID 协议 | 配置服务端支持 `Last-Event-ID`（config-service `watch.rs` 现状） |
 | Auth path 双重来源（header + query） | CSRF 风险 | ws 路由仅暴露给同源前端；本期仅 `/v1/config/watch` 一条 |
-| ResilientClient 测试覆盖 | 新方法需单测 | `libs/common-http/tests/resilient_streaming_test.rs`：mock 服务器返回分块 body，验证 chunk 流式回到 caller |
+| ResilientClient 测试覆盖 | 新方法需单测 | `libs/digua_common-http/tests/resilient_streaming_test.rs`：mock 服务器返回分块 body，验证 chunk 流式回到 caller |
 
 ## 实施步骤
 
 1. 开新分支 `feat/sse-gateway-streaming`（从 `main` 基线）
-2. `libs/common-http/src/resilient.rs` 加 `UpstreamStream` + `call_streaming()` + 单测
+2. `libs/digua_common-http/src/resilient.rs` 加 `UpstreamStream` + `call_streaming()` + 单测
 3. `services/api-gateway/src/router.rs` 加 `ws` 分支
 4. `services/api-gateway/src/main.rs` `find_and_render` 调用处传 `route.ws`
 5. `services/api-gateway/src/middleware/mod.rs` query-token fallback
 6. `infrastructure/config/api-gateway/routes/config.router.toml` 加 `/v1/config/watch` 行
 7. `frontend/src/api/config/sse.ts` 取消注释
 8. `cd services/api-gateway && cargo build` / `cargo test`
-9. `cd libs/common-http && cargo test`
+9. `cd libs/digua_common-http && cargo test`
 10. 提交 2 个 commit（lib + gateway+route+frontend），push，开 MR
 
 ## 验收

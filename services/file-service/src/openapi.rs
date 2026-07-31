@@ -26,8 +26,8 @@ use crate::{
         PagedFiles,
         CreatePresignUrl,
         PresignUrlResponse,
-        common_db::migration_state::MigrationStateResponse,
-        common_db::migration_state::MigrationInfo,
+        digua_common_db::migration_state::MigrationStateResponse,
+        digua_common_db::migration_state::MigrationInfo,
     )),
     tags(
         (name = "file", description = "File upload / download / info"),

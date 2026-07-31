@@ -1,5 +1,5 @@
-use common_http::{ResilientClient, ResilienceConfig};
-use common_jwt::{ServiceJwtCache, ServiceJwtConfig};
+use digua_common_http::{ResilientClient, ResilienceConfig};
+use digua_common_jwt::{ServiceJwtCache, ServiceJwtConfig};
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,7 +12,7 @@ async fn client(base_url: String) -> IamMemberClient {
     let http = Arc::new(ResilientClient::new(
         reqwest::Client::new(),
         ResilienceConfig::default(),
-        Arc::new(common_http::NoopObserver),
+        Arc::new(digua_common_http::NoopObserver),
     ));
     let service_jwt = Arc::new(ServiceJwtCache::new(
         ServiceJwtConfig {

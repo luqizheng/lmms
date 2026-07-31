@@ -3,9 +3,9 @@ use crate::{
     error::IamError,
     state::AppState,
 };
-use common_crypto::password::hash;
-use common_event::events::IamTenantCreated;
-use common_event::{Envelope, OutboxRepo};
+use digua_common_crypto::password::hash;
+use digua_common_event::events::IamTenantCreated;
+use digua_common_event::{Envelope, OutboxRepo};
 use uuid::Uuid;
 
 pub struct TenantService {

@@ -149,7 +149,7 @@ DEPLOY_USER: kudi              # 生产 SSH 用户
 
 - 网关是**每一个请求都过的 SPOF**，出了 bug 全平台挂
 - 现在往里塞了限流 + JWT 验签 + service-jwt 分发 + trace 注入 + Consul 服务发现 + canary + perm_epoch 检查 —— **单个 crate 已经背负 6+ 责任**
-- 自研 = 自己修所有 CVE、性能 bug、并发 bug（`common-http::ResilientClient` 也在这条路径上）
+- 自研 = 自己修所有 CVE、性能 bug、并发 bug（`digua_common-http::ResilientClient` 也在这条路径上）
 - Envoy / Pingora / Traefik 有专业团队和熟成度
 
 **修法**（评估先行，1 周）：
@@ -201,8 +201,8 @@ TODO 里的原话：
 
 | 问题 | 状态 (2026-07-29) | 证据 | 建议 |
 |---|---|---|---|
-| **19 个 `libs/common-*` crate 过度拆分** | ✅ 已出约定 | `libs/` 下有 17 crate（不含 common/ facade） | [CONVENTIONS-libs-crate-strategy.md](docs-site/decisions/CONVENTIONS-libs-crate-strategy.md)：拆分原则、依赖图、版本策略、变更指南 |
-| **`kudi-http-client` vs `common-http::ResilientClient` 潜在重叠** | ⬜ 推迟到 2.0 | 前者 SDK 底座（用户 JWT），后者服务间调用（韧性三件套） | SDK plan §0 已做语义区分。2.0 后用 trait/type 做编译期隔离 |
+| **19 个 `libs/digua_common-*` crate 过度拆分** | ✅ 已出约定 | `libs/` 下有 17 crate（不含 digua_common/ facade） | [CONVENTIONS-libs-crate-strategy.md](docs-site/decisions/CONVENTIONS-libs-crate-strategy.md)：拆分原则、依赖图、版本策略、变更指南 |
+| **`kudi-http-client` vs `digua_common-http::ResilientClient` 潜在重叠** | ⬜ 推迟到 2.0 | 前者 SDK 底座（用户 JWT），后者服务间调用（韧性三件套） | SDK plan §0 已做语义区分。2.0 后用 trait/type 做编译期隔离 |
 | **frontend e2e 覆盖率评估** | ✅ 评估完成 | 15 个 UI case + 11 个 flow，4 个关键路径全覆盖 | [frontend-e2e-coverage-eval.md](docs-site/decisions/frontend-e2e-coverage-eval.md)：7/8 服务覆盖（缺 prue_backend 因前端无该模块），vitest 门槛 1.0 后跟进 |
 | **outbox archive 指标暴露未做** | ⬜ 豁免（AGENTS.md） | outbox-publisher AGENTS.md 显式豁免 /metrics | 当前用 process exporter；archive 指标在 §C5 1.0 后评估 |
 | **`test-case/` 手工验收步骤** | ✅ 评估完成 | 20 个手工 case + 7 个 A 类可迁 | [test-case-migration-eval.md](docs-site/decisions/test-case-migration-eval.md)：A 类按 ROI 排序（config-dogfood / tenant / cross-tenant / user-roles 等），1.0 后迁 |

@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use config_service_sdk::{
+use digua_config_sdk::{
     ConfigClient, CreateConfigItem, CreateNamespace, ListItemsQuery, ListNamespacesQuery,
 };
 use serde_json::json;
@@ -148,7 +148,7 @@ async fn list_namespaces_401_maps_to_auth_error() {
         .await
         .expect_err("expected Auth");
     match err {
-        kudi_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
+        digua_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
         other => panic!("expected Auth, got {:?}", other),
     }
 }

@@ -16,7 +16,7 @@
 - 14 业务端点 (user / role / permission CRUD)
 - 1 内部端点 (claims)
 - 1 health 端点
-- 复用 `libs/common` / `libs/jwt-ctx` / `libs/authz`
+- 复用 `libs/digua_common` / `libs/jwt-ctx` / `libs/digua_authz`
 - MySQL 数据模型与 Go 版保持字段一致（schema 不变）
 - spec-to-code: 已有 `tests/specs/user-service/*.yaml` 改 host 指向 user-service-rust
 
@@ -36,15 +36,15 @@ services/user-service-rust/
 ├── config/
 │   └── config.yaml
 ├── migrations/
-│   └── (使用 libs/common 共享 DDL)
+│   └── (使用 libs/digua_common 共享 DDL)
 ├── src/
 │   ├── main.rs          # 入口 / 启动 axum
 │   ├── lib.rs
 │   ├── config.rs       # serde_yaml 加载 config
 │   ├── error.rs        # AppError + IntoResponse
 │   ├── db.rs           # sqlx MySqlPool
-│   ├── redisx.rs       # redis::aio::ConnectionManager (via common)
-│   ├── auth.rs         # require_service_token 中间件 (via authz lib)
+│   ├── redisx.rs       # redis::aio::ConnectionManager (via digua_common)
+│   ├── auth.rs         # require_service_token 中间件 (via digua_authz lib)
 │   ├── models/
 │   │   ├── mod.rs
 │   │   ├── user.rs     # UserRow, UserDTO, UserExtends
@@ -75,11 +75,11 @@ services/user-service-rust/
 - `axum 0.7` (HTTP)
 - `tokio 1`
 - `sqlx 0.8` MySQL + `runtime-tokio-rustls`
-- `redis 0.27` (via `common::redisx`)
+- `redis 0.27` (via `digua_common::redisx`)
 - `serde` / `serde_json` / `serde_yaml`
 - `thiserror` / `anyhow`
 - `tracing` + `tracing-subscriber`
-- workspace libs: `common`, `jwt-ctx`, `authz`
+- workspace libs: `digua_common`, `jwt-ctx`, `digua_authz`
 - 工具链: 沿用 `aws_lc_rs` (不引入 ring 0.17)
 
 ### 端点 (15 路由)
@@ -112,7 +112,7 @@ HTTP Request
    ↓
 axum::Router
    ↓
-middleware::require_service_token (authz lib)
+middleware::require_service_token (digua_authz lib)
    ↓
 route handler (axum extractors: Path, Query, Json, State, Extension<Principal>)
    ↓
@@ -128,7 +128,7 @@ DTO 序列化 → JSON response
 ### 关键决策
 
 1. **me 端点**: `Extension<Principal>` 从 axum 提取, 用 `principal.user_id` (string) 直接查 DB
-2. **service-token 校验**: 走 `authz::require_service_token` middleware, 已签发 token 中含 `aud=service-name`, 验证 issuer + signature
+2. **service-token 校验**: 走 `digua_authz::require_service_token` middleware, 已签发 token 中含 `aud=service-name`, 验证 issuer + signature
 3. **user-jwt 校验**: 由 api-gateway 提前校验, 传入 `Principal` 即可 (与 Go 版 `principalBridge` 等价但走 axum Extension 而非 gin Context)
 4. **分页**: 列表端点 `?page=1&size=20`, 默认 size=20, max=100
 5. **错误格式**: `{"code": "USER_NOT_FOUND", "message": "..."}`, 4xx/5xx 共用 `AppError`

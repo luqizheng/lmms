@@ -1,4 +1,4 @@
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use sqlx::SqlitePool;
 use std::path::Path;
 use tempfile::NamedTempFile;

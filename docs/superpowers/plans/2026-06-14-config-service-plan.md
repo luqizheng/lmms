@@ -2,7 +2,7 @@
 
 **Goal:** 实现配置中心服务，支持多环境配置管理、版本控制、灰度发布、热更新推送。
 
-**Architecture:** 微服务架构，使用 common-db/common-log/common-cache。支持长轮询 / SSE 推送，敏感配置加密存储。
+**Architecture:** 微服务架构，使用 digua_common-db/digua_common-log/digua_common-cache。支持长轮询 / SSE 推送，敏感配置加密存储。
 
 **Tech Stack:** Rust 2021 / axum 0.8 / sqlx 0.8 / tokio / tracing
 

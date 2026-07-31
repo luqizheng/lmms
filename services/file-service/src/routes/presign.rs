@@ -1,7 +1,7 @@
 use axum::{extract::State, Json, http::StatusCode};
 use crate::models::presign_url::{CreatePresignUrl, PresignUrlResponse};
 use crate::routes::AppState;
-use jwt_ctx::TenantScope;
+use digua_jwt_ctx::TenantScope;
 
 pub fn routes(state: AppState) -> axum::Router<AppState> {
     axum::Router::new()

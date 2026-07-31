@@ -1,6 +1,6 @@
 use crate::Cache;
 use async_trait::async_trait;
-use common_error::AppResult;
+use digua_common_error::AppResult;
 use moka::future::Cache as Moka;
 use std::time::Duration;
 

@@ -75,7 +75,7 @@ impl OutboxRepo for MySqlOutboxRepo {
         tx: &mut Transaction<'_, MySql>,
         env: &mut Envelope<P>,
     ) -> Result<(), OutboxError> {
-        fill_trace_id(env, common_telemetry::current_trace_id);
+        fill_trace_id(env, digua_common_telemetry::current_trace_id);
         let json = serde_json::to_value(&*env)?;
         let event_type = P::event_type();
         sqlx::query(&format!(

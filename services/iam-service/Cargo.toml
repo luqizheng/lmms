@@ -1,24 +1,24 @@
 [package]
-name = "iam-service"
+name = "iam_service"
 version = "0.1.0"
 edition = "2021"
-default-run = "iam-service"
+default-run = "iam_service"
 
 [dependencies]
-common = { path = "../../libs/common" }
-common-error = { path = "../../libs/common-error" }
-common-event = { path = "../../libs/common-event" }
-common-log = { path = "../../libs/common-log" }
-common-telemetry = { path = "../../libs/common-telemetry" }
-common-telemetry-axum = { path = "../../libs/common-telemetry-axum" }
-common-config = { path = "../../libs/common-config" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
-common-cache = { path = "../../libs/common-cache" }
-common-crypto = { path = "../../libs/common-crypto" }
-common-validator = { path = "../../libs/common-validator" }
-jwt-ctx = { path = "../../libs/jwt-ctx" }
-authz = { path = "../../libs/authz" }
-common-jwt = { path = "../../libs/common-jwt" }
+digua_common = { path = "../../libs/common" }
+digua_common_error = { path = "../../libs/common-error" }
+digua_common_event = { path = "../../libs/common-event" }
+digua_common_log = { path = "../../libs/common-log" }
+digua_common_telemetry = { path = "../../libs/common-telemetry" }
+digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum" }
+digua_common_config = { path = "../../libs/common-config" }
+digua_common_db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
+digua_common_cache = { path = "../../libs/common-cache" }
+digua_common_crypto = { path = "../../libs/common-crypto" }
+digua_common_validator = { path = "../../libs/common-validator" }
+digua_jwt_ctx = { path = "../../libs/jwt-ctx" }
+digua_authz = { path = "../../libs/authz" }
+digua_common_jwt = { path = "../../libs/common-jwt" }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 
@@ -56,7 +56,7 @@ sha2 = "0.10"
 hex = "0.4"
 
 [[bin]]
-name = "dump-openapi"
+name = "dump_openapi"
 path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]
@@ -65,8 +65,8 @@ testcontainers-modules = { version = "0.8", features = ["mysql", "redis"] }
 tempfile = "3"
 reqwest.workspace = true
 mockall = "0.13"
-common-jwt = { path = "../../libs/common-jwt" }
+digua_common_jwt = { path = "../../libs/common-jwt" }
 
 [[bin]]
-name = "iam-service"
+name = "iam_service"
 path = "src/main.rs"

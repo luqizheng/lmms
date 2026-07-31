@@ -8,7 +8,7 @@
 
 ## 0. 一句话
 
-> 给所有 7 个 Rust 服务统一暴露 `GET /<svc>/internal/migrations/state` 端点，返回该服务的 DB schema 状态（applied / available / in_sync / missing / extra）。统一在 `libs/common-db` 抽 `MigrationState` trait，避免每个服务重复实现 marker-table 探测。
+> 给所有 7 个 Rust 服务统一暴露 `GET /<svc>/internal/migrations/state` 端点，返回该服务的 DB schema 状态（applied / available / in_sync / missing / extra）。统一在 `libs/digua_common-db` 抽 `MigrationState` trait，避免每个服务重复实现 marker-table 探测。
 
 ---
 
@@ -88,10 +88,10 @@ GET /<svc>/internal/migrations/state
 
 ## 3. 架构设计
 
-### 3.1 `libs/common-db::MigrationState` trait
+### 3.1 `libs/digua_common-db::MigrationState` trait
 
 ```rust
-// libs/common-db/src/migration_state.rs
+// libs/digua_common-db/src/migration_state.rs
 
 #[async_trait]
 pub trait MigrationState: Send + Sync {
@@ -148,7 +148,7 @@ impl MigrationState for IamMigrationState {
 
 // services/iam-service/src/routes/mod.rs
 .route("/iam/internal/migrations/state",
-       get(common_db::migration_state::migration_state_handler)
+       get(digua_common_db::migration_state::migration_state_handler)
            .with_state(Arc::new(IamMigrationState))
            .layer(Extension(pool.clone()))
            .layer(verify_aud_principal_middleware(...)))
@@ -198,7 +198,7 @@ impl MigrationState for PrueMigrationState {
 
 | 子任务 | 估算 |
 |--------|------|
-| `libs/common-db/src/migration_state.rs` + trait + handler | 半天 |
+| `libs/digua_common-db/src/migration_state.rs` + trait + handler | 半天 |
 | iam-service 接入（含集成测） | 1 小时 |
 | notification-service 接入 | 30 min（已有 3 个 marker） |
 | token / audit / config / file 各接入 | 30 min × 4 = 2 小时 |
@@ -222,7 +222,7 @@ impl MigrationState for PrueMigrationState {
 ## 7. 关联
 
 - TODO.md §Phase 10 line 417
-- `libs/common-db` — 现有 db 连接抽象 + retry / pool 配置
+- `libs/digua_common-db` — 现有 db 连接抽象 + retry / pool 配置
 - 各服务 `db.rs::ensure_schema` — 现有 marker-table 模式
 - Phase 5-B service-jwt + `verify_aud_principal_middleware` — 鉴权基础
 - AGENTS.md 各服务端点域 — 文档更新位置

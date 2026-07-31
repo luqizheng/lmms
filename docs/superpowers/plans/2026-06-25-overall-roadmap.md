@@ -10,7 +10,7 @@
 ## 0. 当前坐标
 
 - 7 个 Rust 业务服务（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service）+ 1 个 pure-admin 适配服务（prue_backend）+ Vue 3 前端
-- 12 个共享 lib（common-* / jwt-ctx / authz / consul-registrar）
+- 12 个共享 lib（digua_common-* / jwt-ctx / digua_authz / consul-registrar）
 - 契约层：`contracts/` 单一真相源（error-codes / permissions / events / http-conventions）
 - 基础设施：Consul + Redis + MySQL（docker-compose）
 - 协同成熟度：L3 → L4 攻坚中

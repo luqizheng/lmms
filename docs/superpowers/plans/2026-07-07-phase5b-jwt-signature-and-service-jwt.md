@@ -4,7 +4,7 @@
 
 **Goal:** Add JWT signature verification (RS256 via JWKS) and short-lived `service-jwt` issuance so that the security gap left by phase5a-2 (dephase Consul Connect) is closed. Every internal HTTP call across services is authenticated via Bearer JWT, not by docker network topology.
 
-**Architecture:** New `libs/common-jwt` exposes `JWKSCache` (periodic JWKS fetch from `token-service:8082/.well-known/jwks.json`), `verify_token()` (RS256 + optional `expected_aud` check), `sign_token()` (RS256 with private key), and `ServiceJwtCache` (per-target service-jwt with refresh). `libs/jwt-ctx::Principal` adds `from_token(token, &cache, aud?)` and `FromRequestParts` becomes async. `token-service` adds `POST /tokens/service-jwt` (bootstrap-token auth, mints 1h RS256 JWT with `aud: <target>`). 7 services pull JWKS at startup, mint their first service-jwt, and `common-http::ResilientClient` auto-injects `Authorization: Bearer <service-jwt>` on outbound calls.
+**Architecture:** New `libs/digua_common-jwt` exposes `JWKSCache` (periodic JWKS fetch from `token-service:8082/.well-known/jwks.json`), `verify_token()` (RS256 + optional `expected_aud` check), `sign_token()` (RS256 with private key), and `ServiceJwtCache` (per-target service-jwt with refresh). `libs/jwt-ctx::Principal` adds `from_token(token, &cache, aud?)` and `FromRequestParts` becomes async. `token-service` adds `POST /tokens/service-jwt` (bootstrap-token auth, mints 1h RS256 JWT with `aud: <target>`). 7 services pull JWKS at startup, mint their first service-jwt, and `digua_common-http::ResilientClient` auto-injects `Authorization: Bearer <service-jwt>` on outbound calls.
 
 **Tech Stack:** Rust 1.96 (workspace), `jsonwebtoken = "9"` (new dep), `reqwest` 0.12 + rustls (existing), `axum` 0.8 async extractor (existing), `tokio::sync::watch` for shutdown signalling (existing).
 
@@ -15,8 +15,8 @@
 ## Global Constraints
 
 - **One commit per task**, prefix `dephase(auth): ` (consistent with phase5a-2 style).
-- **Per service Cargo.toml**: add `common-jwt = { workspace = true }` only in the task that touches that service.
-- **Workspace `Cargo.toml`**: `members` adds `libs/common-jwt` in Task A; `[workspace.dependencies]` adds `jsonwebtoken = { version = "9", default-features = false }` in Task A.
+- **Per service Cargo.toml**: add `digua_common-jwt = { workspace = true }` only in the task that touches that service.
+- **Workspace `Cargo.toml`**: `members` adds `libs/digua_common-jwt` in Task A; `[workspace.dependencies]` adds `jsonwebtoken = { version = "9", default-features = false }` in Task A.
 - **Service runtime env vars** (introduced in Task D1, present in all subsequent service tasks):
   - `SERVICE_NAME` — already set by phase5a-2 docker-compose labels / env
   - `SERVICE_BOOTSTRAP_TOKEN` — 32-byte random; injected via docker-compose env in Task D1 onwards
@@ -29,10 +29,10 @@
     - `aud = None` → skips aud check (gateway path, user-jwt)
     - `aud = Some("iam-service")` → fails on mismatch
   - `/iam/internal/*` and any internal route always set `aud = Some(<self-name>)` via a thin middleware.
-- **Test command** (CI gate): `cargo test --workspace --lib`. Local dev: `CARGO_TARGET_DIR=/tmp/cargo-dephase cargo test -p common-jwt -p jwt-ctx`.
+- **Test command** (CI gate): `cargo test --workspace --lib`. Local dev: `CARGO_TARGET_DIR=/tmp/cargo-dephase cargo test -p digua_common-jwt -p jwt-ctx`.
 - **No new DB tables / migrations**.
 - **No new external crates besides `jsonwebtoken`**.
-- **`authz` lib reuse**: existing `require_role` / `require_permission` middleware stays; we add ONE new middleware (`verify_aud_principal_middleware`) in `authz`.
+- **`digua_authz` lib reuse**: existing `require_role` / `require_permission` middleware stays; we add ONE new middleware (`verify_aud_principal_middleware`) in `digua_authz`.
 - **Service-jwt audience contract**: any outbound HTTP call that hits another service must carry `Authorization: Bearer <service-jwt for that target>`. The `ResilientClient` injector looks up the right service-jwt by `aud`.
 - **Spec §0.5.5 open questions (4 items)** stay open — captured in the dephase spec, NOT in this plan.
 
@@ -42,44 +42,44 @@
 
 | File | Change | Responsibility |
 |---|---|---|
-| `Cargo.toml` (workspace) | modify | Add `libs/common-jwt` to `members`; add `jsonwebtoken` to `[workspace.dependencies]` |
-| `libs/common-jwt/Cargo.toml` | create | Crate manifest (name `common-jwt`) |
-| `libs/common-jwt/src/lib.rs` | create | JWKSCache, verify_token, sign_token, ServiceJwtCache, errors |
-| `libs/common-jwt/src/cache.rs` | create | JWKSCache impl (~150 lines) |
-| `libs/common-jwt/src/verify.rs` | create | verify_token + sign_token (~80 lines) |
-| `libs/common-jwt/src/service_jwt.rs` | create | ServiceJwtCache impl (~120 lines) |
-| `libs/common-jwt/tests/cache_test.rs` | create | JWKSCache: parse / refresh / kid lookup / failure tolerance |
-| `libs/common-jwt/tests/verify_test.rs` | create | sign+verify roundtrip / expired / wrong aud / wrong kid / missing kid |
-| `libs/common-jwt/tests/service_jwt_test.rs` | create | ServiceJwtCache: cold start, near-expiry refresh, target partitioning |
+| `Cargo.toml` (workspace) | modify | Add `libs/digua_common-jwt` to `members`; add `jsonwebtoken` to `[workspace.dependencies]` |
+| `libs/digua_common-jwt/Cargo.toml` | create | Crate manifest (name `digua_common-jwt`) |
+| `libs/digua_common-jwt/src/lib.rs` | create | JWKSCache, verify_token, sign_token, ServiceJwtCache, errors |
+| `libs/digua_common-jwt/src/cache.rs` | create | JWKSCache impl (~150 lines) |
+| `libs/digua_common-jwt/src/verify.rs` | create | verify_token + sign_token (~80 lines) |
+| `libs/digua_common-jwt/src/service_jwt.rs` | create | ServiceJwtCache impl (~120 lines) |
+| `libs/digua_common-jwt/tests/cache_test.rs` | create | JWKSCache: parse / refresh / kid lookup / failure tolerance |
+| `libs/digua_common-jwt/tests/verify_test.rs` | create | sign+verify roundtrip / expired / wrong aud / wrong kid / missing kid |
+| `libs/digua_common-jwt/tests/service_jwt_test.rs` | create | ServiceJwtCache: cold start, near-expiry refresh, target partitioning |
 | `libs/jwt-ctx/src/principal.rs` | modify | Add `from_token` (async, verify), add `PrincipalStateProvider` trait, add `PrincipalVerifyError` |
-| `libs/authz/src/lib.rs` | modify | Add `verify_aud_principal_middleware(aud)` (axum middleware factory) |
-| `libs/authz/src/verify_aud.rs` | create | ~50-line middleware impl |
-| `libs/authz/tests/verify_aud_test.rs` | create | 4 cases: valid aud, wrong aud, no auth header, expired token |
-| `libs/common-http/src/client.rs` | modify | `ResilientClient::call` accepts `auth_injector: Option<Arc<AuthInjector>>` |
-| `libs/common-http/src/auth_injector.rs` | create | `AuthInjector::header_value(&self) -> Option<HeaderValue>` |
+| `libs/digua_authz/src/lib.rs` | modify | Add `verify_aud_principal_middleware(aud)` (axum middleware factory) |
+| `libs/digua_authz/src/verify_aud.rs` | create | ~50-line middleware impl |
+| `libs/digua_authz/tests/verify_aud_test.rs` | create | 4 cases: valid aud, wrong aud, no auth header, expired token |
+| `libs/digua_common-http/src/client.rs` | modify | `ResilientClient::call` accepts `auth_injector: Option<Arc<AuthInjector>>` |
+| `libs/digua_common-http/src/auth_injector.rs` | create | `AuthInjector::header_value(&self) -> Option<HeaderValue>` |
 | `services/token-service/src/main.rs` | modify | Load `SERVICE_BOOTSTRAP_TOKENS` env, inject into state, mount `/tokens/service-jwt` route |
 | `services/token-service/src/state.rs` | modify (or add) | Add `private_key_pem: String`, `bootstrap_tokens: Vec<String>` fields |
 | `services/token-service/src/routes/service_jwt.rs` | create | `POST /tokens/service-jwt` handler (~80 lines) |
 | `services/token-service/src/lib.rs` | modify | Re-export `ServiceJwtRequest` / `ServiceJwtResponse` |
-| `services/token-service/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/token-service/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `services/iam-service/src/main.rs` | modify | JWKS + service-jwt cache, AppState, mount `verify_aud_principal_middleware("iam-service")` on `/iam/internal/*` |
-| `services/iam-service/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/iam-service/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `services/notification-service/src/main.rs` | modify | JWKS + service-jwt cache, AppState, replace `None` in IamMemberClient calls |
-| `services/notification-service/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/notification-service/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `services/audit-service/src/main.rs` | modify | JWKS + service-jwt cache, AppState |
-| `services/audit-service/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/audit-service/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `services/token-service/src/lib.rs` (Task D4) | modify | When this task runs, this is `token-service` itself — same change as iam but `aud = None` for self (user-jwt) |
 | `services/api-gateway/src/main.rs` | modify | JWKS cache (no service-jwt needed; gateway has no service-to-service outbound), AppState |
-| `services/api-gateway/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/api-gateway/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `services/prue_backend/src/main.rs` | modify | JWKS + service-jwt cache, AppState (no outbound service calls today; service-jwt for future-proofing) |
-| `services/prue_backend/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/prue_backend/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `services/iam-outbox-publisher/src/main.rs` | modify | service-jwt cache (no JWKS needed; outbox publisher does SQL only) |
-| `services/iam-outbox-publisher/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/iam-outbox-publisher/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `services/notification-outbox-publisher/src/main.rs` | modify | service-jwt cache |
-| `services/notification-outbox-publisher/Cargo.toml` | modify | Add `common-jwt = { workspace = true }` |
+| `services/notification-outbox-publisher/Cargo.toml` | modify | Add `digua_common-jwt = { workspace = true }` |
 | `infrastructure/docker-compose-services.yml` | modify | Add `SERVICE_BOOTSTRAP_TOKEN` / `TENANT_ID` / `TOKEN_SERVICE_URL` to each business service; add `SERVICE_BOOTSTRAP_TOKENS` to token-service |
 | `infrastructure/.env` | modify | Add dev bootstrap tokens (one per service, 32-byte random; for dev use deterministic placeholders like `dev-bt-iam-svc-...`) |
-| `docs-site/ai-context.md` | modify | §2 service map: add `common-jwt`, `ServiceJwtCache`; §3 architecture add common-jwt |
+| `docs-site/ai-context.md` | modify | §2 service map: add `digua_common-jwt`, `ServiceJwtCache`; §3 architecture add digua_common-jwt |
 | `docs-site/guides/service-to-service-auth.md` | create | Bootstrap token 运维手册 (rotate / 泄漏处理 / dev / prod) |
 | `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md` | modify | §2.2 "Phase 5-B JWT 签名验证" 段标 superseded |
 
@@ -87,31 +87,31 @@ No other files. New files: 7. Modified: 17. Deleted: 0. Renamed: 0.
 
 ---
 
-## Task A: Build `libs/common-jwt` (TDD)
+## Task A: Build `libs/digua_common-jwt` (TDD)
 
 **Files:**
 - Modify: `Cargo.toml` (workspace)
-- Create: `libs/common-jwt/Cargo.toml`
-- Create: `libs/common-jwt/src/{lib,cache,verify,service_jwt}.rs`
-- Create: `libs/common-jwt/tests/{cache,verify,service_jwt}_test.rs`
+- Create: `libs/digua_common-jwt/Cargo.toml`
+- Create: `libs/digua_common-jwt/src/{lib,cache,verify,service_jwt}.rs`
+- Create: `libs/digua_common-jwt/tests/{cache,verify,service_jwt}_test.rs`
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: `common_jwt::{JWKSCache, JwksConfig, verify_token, sign_token, ServiceJwtCache, ServiceJwtConfig, JwksError, VerifyError, SignError, ServiceJwtError}`. Exact signatures: see spec §3.1.
+- Produces: `digua_common_jwt::{JWKSCache, JwksConfig, verify_token, sign_token, ServiceJwtCache, ServiceJwtConfig, JwksError, VerifyError, SignError, ServiceJwtError}`. Exact signatures: see spec §3.1.
 
-- [ ] **Step 1: Add `jsonwebtoken` to workspace and create empty `common-jwt` crate**
+- [ ] **Step 1: Add `jsonwebtoken` to workspace and create empty `digua_common-jwt` crate**
 
 In `Cargo.toml`:
-- Under `[workspace] members = [...]`, add `"libs/common-jwt"`.
+- Under `[workspace] members = [...]`, add `"libs/digua_common-jwt"`.
 - Under `[workspace.dependencies]`, add:
   ```toml
   jsonwebtoken = { version = "9", default-features = false }
   ```
 
-Create `libs/common-jwt/Cargo.toml`:
+Create `libs/digua_common-jwt/Cargo.toml`:
 ```toml
 [package]
-name = "common-jwt"
+name = "digua_common-jwt"
 version = "0.1.0"
 edition.workspace = true
 
@@ -124,9 +124,9 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
 ```
 
-Create `libs/common-jwt/src/lib.rs` with the public API surface (function signatures + types) but no implementations yet:
+Create `libs/digua_common-jwt/src/lib.rs` with the public API surface (function signatures + types) but no implementations yet:
 ```rust
-//! common-jwt: shared JWT primitives (JWKS cache, verify, sign, service-jwt cache)
+//! digua_common-jwt: shared JWT primitives (JWKS cache, verify, sign, service-jwt cache)
 
 pub mod cache;
 pub mod service_jwt;
@@ -139,14 +139,14 @@ pub use verify::{sign_token, SignError, VerifyError};
 
 Create empty stub files: `cache.rs`, `verify.rs`, `service_jwt.rs` (each with `// TODO: Task A` and a single empty fn so the crate compiles).
 
-Run: `cargo check -p common-jwt`
+Run: `cargo check -p digua_common-jwt`
 Expected: clean compile (empty stubs OK).
 
 - [ ] **Step 2: Write failing test for `verify_token` roundtrip (TDD red)**
 
-Open `libs/common-jwt/tests/verify_test.rs` and write:
+Open `libs/digua_common-jwt/tests/verify_test.rs` and write:
 ```rust
-use common_jwt::{sign_token, verify_token, JWKSCache, JwksConfig};
+use digua_common_jwt::{sign_token, verify_token, JWKSCache, JwksConfig};
 use serde_json::json;
 use std::time::Duration;
 
@@ -179,17 +179,17 @@ async fn sign_then_verify_roundtrip_succeeds() {
 
 Create fixture keypair. Run:
 ```bash
-mkdir -p libs/common-jwt/tests/fixtures
-openssl genrsa -out libs/common-jwt/tests/fixtures/test_private.pem 2048 2>/dev/null
-openssl rsa -in libs/common-jwt/tests/fixtures/test_private.pem -pubout -out libs/common-jwt/tests/fixtures/test_public.pem 2>/dev/null
+mkdir -p libs/digua_common-jwt/tests/fixtures
+openssl genrsa -out libs/digua_common-jwt/tests/fixtures/test_private.pem 2048 2>/dev/null
+openssl rsa -in libs/digua_common-jwt/tests/fixtures/test_private.pem -pubout -out libs/digua_common-jwt/tests/fixtures/test_public.pem 2>/dev/null
 ```
 
-Run: `cargo test -p common-jwt --test verify_test sign_then_verify_roundtrip_succeeds`
+Run: `cargo test -p digua_common-jwt --test verify_test sign_then_verify_roundtrip_succeeds`
 Expected: FAIL with `todo!()` panic (or `sign_token` not found).
 
 - [ ] **Step 3: Implement `sign_token` and `verify_token` (TDD green)**
 
-In `libs/common-jwt/src/verify.rs`:
+In `libs/digua_common-jwt/src/verify.rs`:
 ```rust
 use jsonwebtoken::{decode, decode_header, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde_json::Value;
@@ -326,12 +326,12 @@ impl JWKSCache {
 
 Add the missing `JwksError` variants per spec §3.1.
 
-Run: `cargo test -p common-jwt --test verify_test sign_then_verify_roundtrip_succeeds`
+Run: `cargo test -p digua_common-jwt --test verify_test sign_then_verify_roundtrip_succeeds`
 Expected: PASS.
 
 - [ ] **Step 4: Add adversarial cases (expired / wrong aud / wrong kid / missing kid)**
 
-Append to `libs/common-jwt/tests/verify_test.rs`:
+Append to `libs/digua_common-jwt/tests/verify_test.rs`:
 ```rust
 #[tokio::test]
 async fn expired_token_returns_expired_error() {
@@ -383,12 +383,12 @@ async fn unknown_kid_returns_malformed() {
 }
 ```
 
-Run: `cargo test -p common-jwt --test verify_test`
+Run: `cargo test -p digua_common-jwt --test verify_test`
 Expected: all 5 tests pass.
 
 - [ ] **Step 5: Add `JWKSCache::refresh` (HTTP path)**
 
-In `libs/common-jwt/src/cache.rs`:
+In `libs/digua_common-jwt/src/cache.rs`:
 ```rust
 impl JWKSCache {
     pub async fn refresh(&self) -> Result<(), JwksError> {
@@ -403,9 +403,9 @@ impl JWKSCache {
 
 For parsing JWKS, use `jsonwebtoken::DecodingKey::from_rsa_components(n_b64, e_b64)`. Handle JWK `kty: "RSA"` and ignore others (return Ok, but no key added).
 
-Add test in `libs/common-jwt/tests/cache_test.rs`:
+Add test in `libs/digua_common-jwt/tests/cache_test.rs`:
 ```rust
-use common_jwt::{JWKSCache, JwksConfig};
+use digua_common_jwt::{JWKSCache, JwksConfig};
 use std::time::Duration;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -416,32 +416,32 @@ async fn cache_refresh_loads_keys_from_jwks() {
     // Simpler: extract refresh logic into `pub async fn parse_jwks(...)` and
     // unit test that.
     let json = r#"{"keys":[{"kid":"k1","kty":"RSA","n":"...","e":"AQAB"}]}"#;
-    let keys = common_jwt::cache::parse_jwks(json).unwrap();
+    let keys = digua_common_jwt::cache::parse_jwks(json).unwrap();
     assert!(keys.contains_key("k1"));
 }
 ```
 
 Extract `parse_jwks(json: &str) -> Result<HashMap<String, DecodingKey>, JwksError>` as a free function and unit-test it (avoids needing a mock HTTP server in unit tests).
 
-Run: `cargo test -p common-jwt`
+Run: `cargo test -p digua_common-jwt`
 Expected: all tests pass; crate builds clean.
 
 - [ ] **Step 6: Add `ServiceJwtCache` + tests**
 
-Implement `libs/common-jwt/src/service_jwt.rs` per spec §3.4.2. Add tests in `libs/common-jwt/tests/service_jwt_test.rs`:
+Implement `libs/digua_common-jwt/src/service_jwt.rs` per spec §3.4.2. Add tests in `libs/digua_common-jwt/tests/service_jwt_test.rs`:
 - `cold_start_calls_token_service_and_caches`
 - `near_expiry_triggers_refresh`
 - `different_targets_get_different_tokens`
 - (mock token-service with `wiremock` or stub the HTTP layer)
 
-Run: `cargo test -p common-jwt`
+Run: `cargo test -p digua_common-jwt`
 Expected: all tests pass.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add Cargo.toml libs/common-jwt
-git commit -m "dephase(auth): introduce libs/common-jwt (JWKSCache + verify + ServiceJwtCache)"
+git add Cargo.toml libs/digua_common-jwt
+git commit -m "dephase(auth): introduce libs/digua_common-jwt (JWKSCache + verify + ServiceJwtCache)"
 ```
 
 ---
@@ -456,7 +456,7 @@ git commit -m "dephase(auth): introduce libs/common-jwt (JWKSCache + verify + Se
 - Modify: `services/token-service/src/lib.rs`
 
 **Interfaces:**
-- Consumes: `common_jwt::sign_token` (Task A)
+- Consumes: `digua_common_jwt::sign_token` (Task A)
 - Produces: `POST /tokens/service-jwt` accepting `Authorization: Bearer ${SERVICE_BOOTSTRAP_TOKEN}` + JSON body `{"aud": "iam-service", "tid": 1}`. Returns 200 `{"access_token", "token_type":"Bearer","expires_in":3600}` or 401 / 400. `TokenServerState` gains `private_key_pem: String` and `bootstrap_tokens: Vec<String>`.
 
 - [ ] **Step 1: Add bootstrap tokens to state + load from env**
@@ -541,10 +541,10 @@ git commit -m "dephase(auth): token-service POST /tokens/service-jwt (bootstrap-
 **Files:**
 - Modify: `libs/jwt-ctx/src/principal.rs`
 - Modify: `libs/jwt-ctx/src/lib.rs` (re-export new types)
-- Modify: `libs/jwt-ctx/Cargo.toml` (add `common-jwt` dep)
+- Modify: `libs/jwt-ctx/Cargo.toml` (add `digua_common-jwt` dep)
 
 **Interfaces:**
-- Consumes: `common_jwt::{JWKSCache, VerifyError, JwksError}` (Task A)
+- Consumes: `digua_common_jwt::{JWKSCache, VerifyError, JwksError}` (Task A)
 - Produces:
   - `Principal::from_token(token, &JWKSCache, expected_aud: Option<&str>) -> Result<Self, PrincipalVerifyError>` (async)
   - `Principal::from_jwt_payload(token)` — **kept** for unit tests, deprecated in doc-comment
@@ -552,12 +552,12 @@ git commit -m "dephase(auth): token-service POST /tokens/service-jwt (bootstrap-
   - `PrincipalVerifyError` enum
   - `FromRequestParts for Principal` becomes async
 
-- [ ] **Step 1: Add `common-jwt` dep to `jwt-ctx`**
+- [ ] **Step 1: Add `digua_common-jwt` dep to `jwt-ctx`**
 
 In `libs/jwt-ctx/Cargo.toml`:
 ```toml
 [dependencies]
-common-jwt = { workspace = true }
+digua_common-jwt = { workspace = true }
 ```
 
 - [ ] **Step 2: Add `PrincipalVerifyError` + `PrincipalStateProvider`**
@@ -565,7 +565,7 @@ common-jwt = { workspace = true }
 In `libs/jwt-ctx/src/principal.rs`, add:
 ```rust
 pub trait PrincipalStateProvider: Send + Sync {
-    fn jwks(&self) -> Arc<common_jwt::JWKSCache>;
+    fn jwks(&self) -> Arc<digua_common_jwt::JWKSCache>;
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -575,7 +575,7 @@ pub enum PrincipalVerifyError {
     #[error("invalid authorization header format")]
     InvalidAuthorizationFormat,
     #[error("verification failed: {0}")]
-    VerifyFailed(#[from] common_jwt::VerifyError),
+    VerifyFailed(#[from] digua_common_jwt::VerifyError),
     #[error("missing sub claim")]
     MissingSub,
     #[error("missing tid claim")]
@@ -591,15 +591,15 @@ impl Principal {
     /// `expected_aud`: Some forces aud match; None skips.
     pub async fn from_token(
         token: &str,
-        cache: &common_jwt::JWKSCache,
+        cache: &digua_common_jwt::JWKSCache,
         expected_aud: Option<&str>,
     ) -> Result<Self, PrincipalVerifyError> {
-        let claims = common_jwt::verify_token(token, cache, expected_aud).await
+        let claims = digua_common_jwt::verify_token(token, cache, expected_aud).await
             .map_err(PrincipalVerifyError::VerifyFailed)?;
         Self::from_claims(claims).map_err(|e| match e {
             PrincipalError::MissingSub => PrincipalVerifyError::MissingSub,
             PrincipalError::MissingTenantId => PrincipalVerifyError::MissingTenantId,
-            other => PrincipalVerifyError::VerifyFailed(common_jwt::VerifyError::Malformed(other.to_string())),
+            other => PrincipalVerifyError::VerifyFailed(digua_common_jwt::VerifyError::Malformed(other.to_string())),
         })
     }
 
@@ -635,7 +635,7 @@ where
 - [ ] **Step 5: Update all `AppState` types to impl `PrincipalStateProvider`**
 
 For each service that uses `Principal` extractor (iam / notification / audit / token / api-gateway / prue_backend), the `AppState` (or equivalent) must:
-1. Add `pub jwks: Arc<common_jwt::JWKSCache>`
+1. Add `pub jwks: Arc<digua_common_jwt::JWKSCache>`
 2. `impl PrincipalStateProvider for AppState { fn jwks(&self) -> Arc<...> { self.jwks.clone() } }`
 
 These are the actual per-service migrations (Tasks D1-D7). Task C only sets up the trait and the FromRequestParts signature. The per-service impls come in D*.
@@ -646,9 +646,9 @@ These are the actual per-service migrations (Tasks D1-D7). Task C only sets up t
 ```rust
 #[tokio::test]
 async fn from_token_with_valid_token_returns_principal() {
-    let cache = common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
+    let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
     let claims = json!({...});
-    let token = common_jwt::sign_token(TEST_PRIVATE_PEM, &claims, Duration::from_secs(60)).unwrap();
+    let token = digua_common_jwt::sign_token(TEST_PRIVATE_PEM, &claims, Duration::from_secs(60)).unwrap();
     let p = Principal::from_token(&token, &cache, Some("iam-service")).await.unwrap();
     assert_eq!(p.user_id, "user-1");
 }
@@ -669,26 +669,26 @@ git commit -m "dephase(auth): jwt-ctx Principal::from_token (async, RS256 verify
 ## Task D1: `iam-service` verify_aud middleware + service-jwt cache
 
 **Files:**
-- Modify: `services/iam-service/Cargo.toml` (add `common-jwt` dep)
+- Modify: `services/iam-service/Cargo.toml` (add `digua_common-jwt` dep)
 - Modify: `services/iam-service/src/main.rs` (JWKS + service-jwt cache, AppState field, middleware on `/iam/internal/*`)
 - Modify: `services/iam-service/src/routes/internal_users.rs` (no functional change; middleware does the work)
 
 **Interfaces:**
-- Consumes: Task A (`common_jwt`), Task B (`/tokens/service-jwt`), Task C (`Principal::from_token`)
+- Consumes: Task A (`digua_common_jwt`), Task B (`/tokens/service-jwt`), Task C (`Principal::from_token`)
 - Produces:
   - `AppState.jwks: Arc<JWKSCache>` (Task C trait)
   - `AppState.service_jwt: Arc<ServiceJwtCache>`
-  - `verify_aud_principal_middleware("iam-service")` mounted on `/iam/internal/*` (added in this task in `libs/authz`)
+  - `verify_aud_principal_middleware("iam-service")` mounted on `/iam/internal/*` (added in this task in `libs/digua_authz`)
   - Outbound calls to token-service use service-jwt (not strictly required for iam; the auto-injector picks up cache)
 
-- [ ] **Step 1: Add `verify_aud_principal_middleware` to `libs/authz`**
+- [ ] **Step 1: Add `verify_aud_principal_middleware` to `libs/digua_authz`**
 
 This is logically part of Task C, but the middleware needs the route module to import it. Add it here for locality with iam's route registration.
 
-In `libs/authz/src/verify_aud.rs`:
+In `libs/digua_authz/src/verify_aud.rs`:
 ```rust
 use axum::{extract::State, http::StatusCode, middleware::Next, response::Response};
-use jwt_ctx::{Principal, PrincipalStateProvider};
+use digua_jwt_ctx::{Principal, PrincipalStateProvider};
 
 pub fn verify_aud_principal_middleware<S>(
     expected_aud: &'static str,
@@ -716,20 +716,20 @@ where
 }
 ```
 
-Add `verify_aud_principal_middleware` to `libs/authz/src/lib.rs` exports.
+Add `verify_aud_principal_middleware` to `libs/digua_authz/src/lib.rs` exports.
 
-In `libs/authz/Cargo.toml`:
+In `libs/digua_authz/Cargo.toml`:
 ```toml
 [dependencies]
-common-jwt = { workspace = true }  # if not already
+digua_common-jwt = { workspace = true }  # if not already
 jwt-ctx = { workspace = true }
 ```
 
-- [ ] **Step 2: Add `common-jwt` to iam-service Cargo.toml**
+- [ ] **Step 2: Add `digua_common-jwt` to iam-service Cargo.toml**
 
 ```toml
 [dependencies]
-common-jwt = { workspace = true }
+digua_common-jwt = { workspace = true }
 ```
 
 - [ ] **Step 3: Add JWKS + service-jwt cache boilerplate to iam-service main**
@@ -739,8 +739,8 @@ After DB / Redis init, before `axum::serve`:
 let http = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
     .build()?;
-let jwks = Arc::new(common_jwt::JWKSCache::new(
-    common_jwt::JwksConfig {
+let jwks = Arc::new(digua_common_jwt::JWKSCache::new(
+    digua_common_jwt::JwksConfig {
         url: std::env::var("TOKEN_SERVICE_URL")
             .unwrap_or_else(|_| "http://token-service:8082/.well-known/jwks.json".into()),
         refresh_interval: Duration::from_secs(3600),
@@ -750,8 +750,8 @@ let jwks = Arc::new(common_jwt::JWKSCache::new(
 ));
 jwks.refresh().await.expect("JWKS refresh failed at startup");
 
-let service_jwt = Arc::new(common_jwt::ServiceJwtCache::new(
-    common_jwt::ServiceJwtConfig {
+let service_jwt = Arc::new(digua_common_jwt::ServiceJwtCache::new(
+    digua_common_jwt::ServiceJwtConfig {
         token_service_url: std::env::var("TOKEN_SERVICE_URL")
             .unwrap_or_else(|_| "http://token-service:8082".into()),
         bootstrap_token: std::env::var("SERVICE_BOOTSTRAP_TOKEN")
@@ -770,15 +770,15 @@ Add `jwks` and `service_jwt` to `AppState`:
 ```rust
 pub struct AppState {
     // ... existing
-    pub jwks: Arc<common_jwt::JWKSCache>,
-    pub service_jwt: Arc<common_jwt::ServiceJwtCache>,
+    pub jwks: Arc<digua_common_jwt::JWKSCache>,
+    pub service_jwt: Arc<digua_common_jwt::ServiceJwtCache>,
 }
 ```
 
 Implement `PrincipalStateProvider` for `AppState`:
 ```rust
-impl jwt_ctx::PrincipalStateProvider for AppState {
-    fn jwks(&self) -> Arc<common_jwt::JWKSCache> { self.jwks.clone() }
+impl digua_jwt_ctx::PrincipalStateProvider for AppState {
+    fn jwks(&self) -> Arc<digua_common_jwt::JWKSCache> { self.jwks.clone() }
 }
 ```
 
@@ -808,7 +808,7 @@ Expected: clean build, all existing tests pass. (Existing tests that don't go th
 - [ ] **Step 6: Commit**
 
 ```bash
-git add services/iam-service libs/authz
+git add services/iam-service libs/digua_authz
 git commit -m "dephase(auth): iam-service verify_aud middleware + service-jwt cache"
 ```
 
@@ -817,18 +817,18 @@ git commit -m "dephase(auth): iam-service verify_aud middleware + service-jwt ca
 ## Task D2: `notification-service` JWKS + service-jwt cache
 
 **Files:**
-- Modify: `services/notification-service/Cargo.toml` (add `common-jwt`)
+- Modify: `services/notification-service/Cargo.toml` (add `digua_common-jwt`)
 - Modify: `services/notification-service/src/main.rs` (boilerplate + AppState)
 - Modify: `services/notification-service/src/iam_client.rs` (replace `None` with real `Some(service_jwt_for("iam-service"))`)
 
 **Interfaces:**
-- Consumes: Task A (`common_jwt`), Task B (token-service), Task C (Principal), Task D1 (verify_aud pattern)
+- Consumes: Task A (`digua_common_jwt`), Task B (token-service), Task C (Principal), Task D1 (verify_aud pattern)
 - Produces:
   - `AppState.jwks`, `AppState.service_jwt`
   - `IamMemberClient::by_role(role_id, tenant, jwt)`, `by_dept(...)`, `expand_scopes(...)`, `fetch_items(...)` all accept `Some(&str)` for the JWT (already plumbed from cdd0c8e)
   - Outbound `by_role` / `by_dept` calls pass service-jwt for `iam-service` audience
 
-- [ ] **Step 1: Add `common-jwt` to notification-service Cargo.toml**
+- [ ] **Step 1: Add `digua_common-jwt` to notification-service Cargo.toml**
 
 - [ ] **Step 2: Add JWKS + service-jwt cache to main, AppState, PrincipalStateProvider**
 
@@ -843,7 +843,7 @@ Add to `IamMemberClient`:
 pub struct IamMemberClient {
     http: Arc<ResilientClient>,
     base_url: String,
-    service_jwt: Arc<common_jwt::ServiceJwtCache>,  // NEW
+    service_jwt: Arc<digua_common_jwt::ServiceJwtCache>,  // NEW
 }
 ```
 
@@ -856,7 +856,7 @@ Actually simpler: the `ResilientClient` already supports an `auth_injector` (Tas
 Wire it up in main:
 ```rust
 let http = reqwest::Client::builder().timeout(...).build()?;
-let injector = common_http::auth_injector::AuthInjector::new(
+let injector = digua_common_http::auth_injector::AuthInjector::new(
     service_jwt.clone(),
     "iam-service".into(),  // default target
 );
@@ -907,11 +907,11 @@ git commit -m "dephase(auth): audit-service service-jwt cache boilerplate (no ac
 ## Task D4: `token-service` self-verify + `fetch_json` carry user-jwt
 
 **Files:**
-- Modify: `services/token-service/Cargo.toml` (add `common-jwt`)
+- Modify: `services/token-service/Cargo.toml` (add `digua_common-jwt`)
 - Modify: `services/token-service/src/main.rs` (JWKS cache, AppState)
 - Modify: `services/token-service/src/lib.rs` / `routes/refresh.rs` / `routes/access.rs` (read user-jwt from request headers, pass to `fetch_json`)
 
-- [ ] **Step 1: Add `common-jwt` dep**
+- [ ] **Step 1: Add `digua_common-jwt` dep**
 
 - [ ] **Step 2: Add JWKS cache to main + AppState + PrincipalStateProvider**
 
@@ -964,7 +964,7 @@ git commit -m "dephase(auth): token-service JWKS cache; fetch_json carries user-
 - Modify: `services/api-gateway/Cargo.toml`
 - Modify: `services/api-gateway/src/main.rs`
 
-- [ ] **Step 1: Add `common-jwt` dep**
+- [ ] **Step 1: Add `digua_common-jwt` dep**
 
 - [ ] **Step 2: Add JWKS cache to main + AppState + PrincipalStateProvider**
 
@@ -1013,19 +1013,19 @@ git commit -m "dephase(auth): prue_backend service-jwt cache boilerplate (no act
 - Modify: `services/notification-outbox-publisher/Cargo.toml`
 - Modify: `services/notification-outbox-publisher/src/main.rs`
 
-- [ ] **Step 1: Add `common-jwt` dep to both**
+- [ ] **Step 1: Add `digua_common-jwt` dep to both**
 
 - [ ] **Step 2: Add service-jwt cache to both (no JWKS)**
 
 Outbox publishers do SQL only (no inbound HTTP). They don't need JWKS, but they need service-jwt IF they call other services. Today they don't, so this is future-proofing. Skip if too speculative — defer to the next phase that requires it.
 
-**Decision**: Skip service-jwt cache for outbox-publishers in this task. They're SQL-only and don't call other services. The `common-jwt` dep is added but no cache instantiation. Re-evaluate when outbox-publishers gain outbound calls (phase5b-event-sync?).
+**Decision**: Skip service-jwt cache for outbox-publishers in this task. They're SQL-only and don't call other services. The `digua_common-jwt` dep is added but no cache instantiation. Re-evaluate when outbox-publishers gain outbound calls (phase5b-event-sync?).
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add services/iam-outbox-publisher services/notification-outbox-publisher
-git commit -m "dephase(auth): outbox-publishers add common-jwt dep (no active use; future-proofing)"
+git commit -m "dephase(auth): outbox-publishers add digua_common-jwt dep (no active use; future-proofing)"
 ```
 
 ---
@@ -1046,15 +1046,15 @@ Outline:
 - §2 token-service bootstrap-token 端点 — POST /tokens/service-jwt 怎么用
 - §3 bootstrap token 运维 — rotate / 泄漏处理 / dev / prod
 - §4 service 主进程启动序列（§4.1 of spec）
-- §5 内部调用出站怎么注入 header（common-http::ResilientClient）
+- §5 内部调用出站怎么注入 header（digua_common-http::ResilientClient）
 - §6 verify_aud 中间件使用指南
 - §7 dev 模式 token 示例
 - §8 出错处理速查表
 
 - [ ] **Step 2: Update `docs-site/ai-context.md`**
 
-§2 service map table — add a column or row entry for `common-jwt` lib.
-§3 architecture — add common-jwt to the lib list.
+§2 service map table — add a column or row entry for `digua_common-jwt` lib.
+§3 architecture — add digua_common-jwt to the lib list.
 Add a §4 ADR entry: "2026-07-07 phase5b: 5a-2 留下的 JWT 验签缺口补齐。"
 
 - [ ] **Step 3: Mark phase5a §2.2 superseded**
@@ -1124,7 +1124,7 @@ After Task E, all of the following must hold:
 
 1. `cargo check --workspace` clean
 2. `cargo test --workspace --lib` green
-3. `cargo test -p common-jwt -p jwt-ctx` green
+3. `cargo test -p digua_common-jwt -p jwt-ctx` green
 4. `node scripts/check-spec.js` green
 5. `node scripts/contracts-gen.js --check` green
 6. dev compose 启动后，notification-service → iam-service (`/iam/internal/users/by-role/1?tenant_id=1`) returns 200 (not 401)
@@ -1156,10 +1156,10 @@ After Task E, all of the following must hold:
 - [x] **Type / method / port consistency across tasks**:
   - `JWKSCache::from_pem` (test-only constructor) defined in Task A
   - `ServiceJwtCache::get(target)` consistently used as `(target: &str) -> String`
-  - `AuthInjector` defined in `libs/common-http/src/auth_injector.rs` (Task D1 dependency)
-  - `verify_aud_principal_middleware` defined in `libs/authz` (Task D1)
+  - `AuthInjector` defined in `libs/digua_common-http/src/auth_injector.rs` (Task D1 dependency)
+  - `verify_aud_principal_middleware` defined in `libs/digua_authz` (Task D1)
   - `PrincipalStateProvider` defined in `libs/jwt-ctx` (Task C)
   - Port 8082 token-service / 8081 iam / 8083 notification — consistent with phase5a-2
 - [x] **Bite-sized steps**: each step is one operation. Largest step is "Step 5: Add `JWKSCache::refresh` (HTTP path)" — acceptable since it's one logical unit.
 - [x] **One commit per task**: Step 7 of each task is the commit. Task D7 is intentionally small (no active use).
-- [x] **Test command runs locally**: `CARGO_TARGET_DIR=/tmp/cargo-dephase cargo test -p common-jwt -p jwt-ctx`; full workspace test in CI (tmpfs 6.4G insufficient locally).
+- [x] **Test command runs locally**: `CARGO_TARGET_DIR=/tmp/cargo-dephase cargo test -p digua_common-jwt -p jwt-ctx`; full workspace test in CI (tmpfs 6.4G insufficient locally).

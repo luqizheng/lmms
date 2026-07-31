@@ -722,7 +722,7 @@ git commit -m "feat(mesh): service sidecar containers + localhost binding + upst
 ```rust
     middleware::service_jwt::require_service_jwt,
 ```
-删除 `use axum::middleware;`（如果只有这一处用）。删除 `use jwt_ctx::Principal;`。
+删除 `use axum::middleware;`（如果只有这一处用）。删除 `use digua_jwt_ctx::Principal;`。
 
 1b. 加 `TenantIdQuery` 结构（从 query param 取 tenant_id）：
 
@@ -942,7 +942,7 @@ impl IamMemberClient {
 创建 `services/notification-service/tests/iam_client_test.rs`：
 
 ```rust
-use common_http::{ResilientClient, ResilienceConfig};
+use digua_common_http::{ResilientClient, ResilienceConfig};
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;
 use wiremock::matchers::{method, path, query_param};
@@ -952,7 +952,7 @@ fn client(base_url: String) -> IamMemberClient {
     let http = Arc::new(ResilientClient::new(
         reqwest::Client::new(),
         ResilienceConfig::default(),
-        Arc::new(common_http::NoopObserver),
+        Arc::new(digua_common_http::NoopObserver),
     ));
     IamMemberClient::new(http, base_url)
 }

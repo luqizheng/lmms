@@ -189,7 +189,7 @@ services/token-service/
   - 调用 `oauth_client_svc::seed_default_clients(&db)`（首次启动空表时 seed 4 客户端）
   - 构造 state 时传入 `db`
 - `src/config.rs`：
-  - 删 `use common::config::RedisConfig`（删除 `redis` import 后 `RedisConfig` 找不到，编译失败 —— 必须显式删除）
+  - 删 `use digua_common::config::RedisConfig`（删除 `redis` import 后 `RedisConfig` 找不到，编译失败 —— 必须显式删除）
   - `TokenServerConfig` 字段：`redis: RedisConfig` → `database: DatabaseCfg`（与 user-service 同形：`db_type` / `url` / `max_connections`）
   - 删 `consul: ConsulConfig` 的 `default` impl 中所有引用；保留 consul 字段
 - `src/store/mod.rs`：仅 `pub mod mysql;`

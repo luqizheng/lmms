@@ -57,14 +57,14 @@ curl -H "traceparent: 00-${TRACE_ID}-1122334455667788-01" \
 
 ### 4. feature 矩阵验证（CI 已自动跑，本节为本地 sanity）
 
-> 自 T2 fix 起，axum 中间件拆出到 `common-telemetry-axum` crate（plan §3 row 5
+> 自 T2 fix 起，axum 中间件拆出到 `digua_common-telemetry-axum` crate（plan §3 row 5
 > 要求 outbox-publisher 不带 axum），两个 crate 各自只有 `default` / `otlp` 两态。
 
 ```bash
-cargo check -p common-telemetry --no-default-features                 # OK
-cargo check -p common-telemetry --features otlp                       # OK
-cargo check -p common-telemetry-axum --no-default-features            # OK
-cargo check -p common-telemetry-axum --features otlp                  # OK
+cargo check -p digua_common-telemetry --no-default-features                 # OK
+cargo check -p digua_common-telemetry --features otlp                       # OK
+cargo check -p digua_common-telemetry-axum --no-default-features            # OK
+cargo check -p digua_common-telemetry-axum --features otlp                  # OK
 ```
 
 附带 CLI binary 验证（关键：outbox-publisher 不应再带 axum）：
@@ -80,5 +80,5 @@ cargo tree -p iam-service -e features 2>&1 \
 - [ ] 4 个新接入服务（audit/config/file/prue_backend）首行日志显示 OTel init 成功或 stdout fallback
 - [ ] iam → audit 跨服务 trace 链在 Jaeger 端到端可见
 - [ ] audit / config / file / prue_backend `/health` 都透传 traceparent → X-Trace-Id 一致
-- [ ] 2×2 feature 矩阵 cargo check 全通过（`common-telemetry` × `common-telemetry-axum` 各 2 态）
+- [ ] 2×2 feature 矩阵 cargo check 全通过（`digua_common-telemetry` × `digua_common-telemetry-axum` 各 2 态）
 - [ ] outbox-publisher / ntf-outbox-publisher 的 `cargo tree` 不再带 axum

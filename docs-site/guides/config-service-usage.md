@@ -256,7 +256,7 @@ token-service 已在 Phase 6-B 接入 config-service：
 
 ```rust
 // services/token-service/src/config.rs
-use common_config::{ConfigServiceClient, Namespace};
+use digua_common_config::{ConfigServiceClient, Namespace};
 
 // 初始化配置服务客户端
 let config_client = ConfigServiceClient::new(
@@ -278,14 +278,14 @@ let access_token_ttl: i64 = config_client
 
 ```toml
 # Cargo.toml
-common-config = { path = "../../libs/common-config" }
+digua_common-config = { path = "../../libs/digua_common-config" }
 ```
 
 #### 2. 初始化客户端
 
 ```rust
 // src/config.rs
-use common_config::ConfigServiceClient;
+use digua_common_config::ConfigServiceClient;
 
 pub struct AppConfig {
     pub client: ConfigServiceClient,
@@ -315,7 +315,7 @@ impl AppConfig {
 
 ```rust
 // src/main.rs
-use common_config::ConfigWatcher;
+use digua_common_config::ConfigWatcher;
 
 #[tokio::main]
 async fn main() {
@@ -416,7 +416,7 @@ curl http://localhost:8087/internal/migrations/state
 ## 9. 关联
 
 - `services/config-service/` — config-service 源码
-- `libs/common-config/` — 公共配置客户端库
+- `libs/digua_common-config/` — 公共配置客户端库
 - `docs/superpowers/specs/2026-06-29-phase6b-config-service-dogfood-design.md` — dogfooding spec
 - `contracts/permissions.yaml` — 权限码定义
 

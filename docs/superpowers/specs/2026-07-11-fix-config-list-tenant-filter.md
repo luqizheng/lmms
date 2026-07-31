@@ -9,7 +9,7 @@
 ## 背景
 
 `services/config-service/src/services/config.rs:59-75` 中 `query_namespaces` 用
-`sqlx::QueryBuilder` 构造 list 查询，并以 `libs/common-db::WithTenantScope::and_tenant`
+`sqlx::QueryBuilder` 构造 list 查询，并以 `libs/digua_common-db::WithTenantScope::and_tenant`
 追加 `AND tenant_id = ?`。`and_tenant` 不负责前置 `WHERE`，而 `query_namespaces` 的
 初始 SQL 是 `SELECT * FROM cfg_namespaces` —— 没有 `WHERE` 子句。最终被拼成：
 

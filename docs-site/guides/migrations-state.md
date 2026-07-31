@@ -166,7 +166,7 @@ curl -fsS http://prue-backend:8087/prue/internal/migrations/state | jq '{service
 
 ### 6.3 已知 follow-up
 
-`verify_aud_principal_middleware`（`libs/authz/src/verify_aud.rs`）的 401 响应是 plain text `"unauthorized"`，与 Phase 5-B-fu6 的"响应 body 必空"约定不完全一致（fu6 改的是 Principal extractor，middleware 仍是旧格式）。建议 follow-up：middleware 也改成空 body 401。
+`verify_aud_principal_middleware`（`libs/digua_authz/src/verify_aud.rs`）的 401 响应是 plain text `"unauthorized"`，与 Phase 5-B-fu6 的"响应 body 必空"约定不完全一致（fu6 改的是 Principal extractor，middleware 仍是旧格式）。建议 follow-up：middleware 也改成空 body 401。
 
 ---
 
@@ -204,10 +204,10 @@ echo "all 7 services in_sync"
 
 ## 8. 实现细节（开发者参考）
 
-- **抽象层**：`libs/common-db::MigrationState` trait + `build_response()`
+- **抽象层**：`libs/digua_common-db::MigrationState` trait + `build_response()`
 - **probe helper**：`probe_marker_mysql()` / `probe_marker_sqlite()`（查 information_schema.tables / sqlite_master）
 - **服务接入**：每个服务实现 `MigrationState` + 写 thin handler（~70 行）
-- **依赖**：`common-db = { ..., features = ["mysql", "sqlite"] }`（prue_backend）/ `["mysql"]`（其他）
+- **依赖**：`digua_common-db = { ..., features = ["mysql", "sqlite"] }`（prue_backend）/ `["mysql"]`（其他）
 
 详见各服务 commit 与 spec。
 

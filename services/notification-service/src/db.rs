@@ -1,10 +1,10 @@
 use crate::error::{AppError, AppResult};
 use crate::models::*;
 use chrono::{DateTime, Utc};
-use common_db::WithTenantScope;
-use common_event::events::NotificationAnnouncementPublished;
-use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
-use jwt_ctx::TenantScope;
+use digua_common_db::WithTenantScope;
+use digua_common_event::events::NotificationAnnouncementPublished;
+use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_jwt_ctx::TenantScope;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::{QueryBuilder, Row};
 use std::collections::{HashMap, HashSet};

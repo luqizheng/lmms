@@ -79,7 +79,7 @@ node scripts/contracts-gen.js
 node scripts/contracts-gen.js --check
 ```
 
-> **不要手改** `libs/common-error/src/codes.rs` 与 `libs/authz/src/perms.rs` —— 它们是生成产物。
+> **不要手改** `libs/digua_common-error/src/codes.rs` 与 `libs/digua_authz/src/perms.rs` —— 它们是生成产物。
 
 ---
 

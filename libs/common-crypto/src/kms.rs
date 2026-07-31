@@ -1,4 +1,4 @@
-use common_error::AppResult;
+use digua_common_error::AppResult;
 use async_trait::async_trait;
 
 #[async_trait]

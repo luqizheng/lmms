@@ -27,7 +27,7 @@
 >   role_svc / org_svc / tenant_svc 写函数尾。
 > - **D5** Consumer durable queue `notification.membership-events`，绑
 >   routing-key `iam.user.role.#` + `iam.user.dept.#`；幂等键 = event_id
->   （已由 common-event envelope 自带），重复投递无副作用。
+>   （已由 digua_common-event envelope 自带），重复投递无副作用。
 > - **D6** Out-of-order 容错：事件 payload 带 server-side `ts`（Unix 秒），
 >   consumer 比对 `ntf_user_projection.last_event_at`，旧事件不覆盖新值。
 > - **D7** HTTP 端点 `/iam/internal/users/by-{role,dept}` **保留 deprecated**
@@ -151,7 +151,7 @@ publish_announcement(ann_id, iam_client, scope)
       ts:        { type: int,    required: true }
 ```
 
-跑 `node scripts/contracts-gen.js` 生成 `common_event::events::{IamUserRoleAssigned, IamUserRoleUnassigned, IamUserDeptChanged}` struct + routing-key 常量。
+跑 `node scripts/contracts-gen.js` 生成 `digua_common_event::events::{IamUserRoleAssigned, IamUserRoleUnassigned, IamUserDeptChanged}` struct + routing-key 常量。
 
 ### 3.3 投影表（`services/notification-service/migrations/mysql/V003__ntf_membership_projection.sql`）
 
@@ -405,7 +405,7 @@ tenant）。
 
 | T# | 内容 | 涉及文件 |
 |---|---|---|
-| T1 | contracts/events.yaml 加 3 事件 + codegen + common-event 类型 | contracts/events.yaml, libs/common-event |
+| T1 | contracts/events.yaml 加 3 事件 + codegen + digua_common-event 类型 | contracts/events.yaml, libs/digua_common-event |
 | T2 | iam 新增 `enqueue_role_assigned/unassigned, enqueue_dept_changed` helper + 6 emit 点 | services/iam-service/src/service/membership_event.rs（新） + 6 处 call site |
 | T3 | iam 新增 `GET /iam/internal/membership-bootstrap` 端点 | services/iam-service/src/routes/internal_membership.rs（新）+ openapi.rs + 测试 |
 | T4 | notification migration V003 + Db::projection 方法 | services/notification-service/migrations/mysql/V003__*.sql + src/db.rs（projection 方法） |

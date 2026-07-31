@@ -1,4 +1,4 @@
-use common_event::perm_epoch::{get_perm_epoch, set_perm_epoch_if_greater};
+use digua_common_event::perm_epoch::{get_perm_epoch, set_perm_epoch_if_greater};
 use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
 
 #[tokio::test]

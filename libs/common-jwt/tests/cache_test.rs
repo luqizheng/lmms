@@ -1,4 +1,4 @@
-use common_jwt::cache::parse_jwks;
+use digua_common_jwt::cache::parse_jwks;
 use serde_json::json;
 
 #[test]

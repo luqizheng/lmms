@@ -146,7 +146,7 @@ iam-service    ──┤                     (UI :16686)
 notification   ──┘
 
 每个服务：
-- 使用 common-telemetry crate（init_tracing）
+- 使用 digua_common-telemetry crate（init_tracing）
 - 设置了 OTEL_EXPORTER_OTLP_ENDPOINT 时，OTel layer 才会被激活
 - 通过 OTLP gRPC :4317 导出 span
 ```
@@ -294,25 +294,25 @@ MY_METRIC.with_label_values(&["x", "y"]).inc();
 **Step 1**：更新 `Cargo.toml`：
 
 ```toml
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp"] }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 rand.workspace = true
 ```
 
-**Step 2**：添加 `common-telemetry-axum` 依赖（Cargo.toml）：
+**Step 2**：添加 `digua_common-telemetry-axum` 依赖（Cargo.toml）：
 
 ```toml
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
-common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp"] }
+digua_common-telemetry-axum = { path = "../../libs/digua_common-telemetry-axum", features = ["otlp"] }
 ```
 
 **Step 3**：在 `src/main.rs` 中初始化 tracing 并挂 middleware：
 
 ```rust
-common_telemetry::init_tracing("<your-service>");
+digua_common_telemetry::init_tracing("<your-service>");
 // ...
-.layer(axum::middleware::from_fn(common_telemetry_axum::trace_request_middleware))
+.layer(axum::middleware::from_fn(digua_common_telemetry_axum::trace_request_middleware))
 ```
 
 **Step 4**：在 `infrastructure/docker-compose.yml` 中：
@@ -341,7 +341,7 @@ OTEL_TRACES_SAMPLER=TraceIdRatio
 OTEL_TRACES_SAMPLER_ARG=0.1
 ```
 
-可在 `common-telemetry` 里加上配置开关，使其按环境可调。
+可在 `digua_common-telemetry` 里加上配置开关，使其按环境可调。
 
 ---
 
@@ -392,11 +392,11 @@ OTEL_BSP_SCHEDULE_DELAY=10000   # 每 10 秒批量上报一次
 OTEL_BSP_MAX_BATCH_SIZE=500     # 单次最多 500 个 span
 ```
 
-可在 `common-telemetry::init_tracing` 中暴露为配置项。
+可在 `digua_common-telemetry::init_tracing` 中暴露为配置项。
 
 ### 7.5 “想在不重启的前提下关掉 trace”
 
-去掉 `OTEL_EXPORTER_OTLP_ENDPOINT` 然后重启服务即可。没有该环境变量时，`common_telemetry` 会回退到仅输出 JSON 日志。
+去掉 `OTEL_EXPORTER_OTLP_ENDPOINT` 然后重启服务即可。没有该环境变量时，`digua_common_telemetry` 会回退到仅输出 JSON 日志。
 
 ---
 
@@ -408,4 +408,4 @@ OTEL_BSP_MAX_BATCH_SIZE=500     # 单次最多 500 个 span
 - `infrastructure/config/prometheus/prometheus.yml` — Prometheus 采集配置
 - `infrastructure/config/otel/collector.yaml` — OTel collector pipeline
 - `infrastructure/config/grafana/dashboards/gateway.json` — 看板 JSON
-- `libs/common-telemetry/src/lib.rs` — 源码参考
+- `libs/digua_common-telemetry/src/lib.rs` — 源码参考

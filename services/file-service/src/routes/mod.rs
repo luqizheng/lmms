@@ -3,8 +3,8 @@ pub mod migration_state;
 pub mod presign;
 
 use axum::{Router, middleware as axum_mw, routing::get};
-use common_jwt::JWKSCache;
-use jwt_ctx::PrincipalStateProvider;
+use digua_common_jwt::JWKSCache;
+use digua_jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 use crate::services::FileService;
 use prometheus::{Encoder, TextEncoder};
@@ -33,12 +33,12 @@ pub fn routes(state: AppState) -> Router {
             migration_state::routes(state.clone())
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
-                    authz::verify_aud_principal_middleware::<AppState>("file-service"),
+                    digua_authz::verify_aud_principal_middleware::<AppState>("file-service"),
                 )),
         )
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
         .with_state(state)
 }
 

@@ -189,7 +189,7 @@ services/{name}/
             </dependency>
             <dependency>
                 <groupId>org.springdoc</groupId>
-                <artifactId>springdoc-openapi-starter-common</artifactId>
+                <artifactId>springdoc-openapi-starter-digua_common</artifactId>
                 <version>${springdoc.version}</version>
             </dependency>
         </dependencies>
@@ -821,7 +821,7 @@ public class ConflictException extends RuntimeException {
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-common</artifactId>
+            <artifactId>springdoc-openapi-starter-digua_common</artifactId>
         </dependency>
     </dependencies>
 </project>
@@ -1045,7 +1045,7 @@ FROM maven:3.9.9-eclipse-temurin-21 AS sdk-builder
 WORKDIR /build
 
 COPY sdk/java/pom.xml sdk/java/pom.xml
-COPY sdk/java/common/pom.xml                 sdk/java/common/pom.xml
+COPY sdk/java/digua_common/pom.xml                 sdk/java/digua_common/pom.xml
 COPY sdk/java/kudi-http-client/pom.xml      sdk/java/kudi-http-client/pom.xml
 COPY sdk/java/user-service-user-sdk/pom.xml sdk/java/user-service-user-sdk/pom.xml
 COPY sdk/java/user-service-client-sdk/pom.xml sdk/java/user-service-client-sdk/pom.xml
@@ -1055,7 +1055,7 @@ COPY sdk/java/file-service-sdk/pom.xml      sdk/java/file-service-sdk/pom.xml
 COPY sdk/java/notification-service-sdk/pom.xml sdk/java/notification-service-sdk/pom.xml
 COPY sdk/java/config-service-sdk/pom.xml    sdk/java/config-service-sdk/pom.xml
 
-COPY sdk/java/common                 sdk/java/common
+COPY sdk/java/digua_common                 sdk/java/digua_common
 COPY sdk/java/kudi-http-client      sdk/java/kudi-http-client
 COPY sdk/java/user-service-user-sdk sdk/java/user-service-user-sdk
 COPY sdk/java/user-service-client-sdk sdk/java/user-service-client-sdk

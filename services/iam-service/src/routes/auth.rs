@@ -6,7 +6,7 @@ use axum::{
     Json as AxumJson,
 };
 use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse, CreateUserRequest, UserResponse}, service::AuthService, error::IamError};
-use jwt_ctx::{Principal, TenantScope};
+use digua_jwt_ctx::{Principal, TenantScope};
 use sqlx;
 use serde_json;
 

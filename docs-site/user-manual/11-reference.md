@@ -51,7 +51,7 @@ coder-micro-services/
 │       ├── migrations/
 │       └── src/
 ├── libs/                           ← 共享 Rust crate
-│   └── common-telemetry/           ← OTel 脚手架
+│   └── digua_common-telemetry/           ← OTel 脚手架
 ├── frontend/                       ← Vue 3 管理后台
 ├── tests/e2e/                      ← Vitest + Playwright
 ├── contracts/                      ← 单一真相源（YAML）

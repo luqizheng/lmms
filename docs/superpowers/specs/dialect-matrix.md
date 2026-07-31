@@ -92,7 +92,7 @@
 ### 业务代码
 
 ```rust
-use common_db::dialect::DialectKind;
+use digua_common_db::dialect::DialectKind;
 
 match pool.dialect() {
     DialectKind::Mssql => {
@@ -121,7 +121,7 @@ migrations/<service>/
 ### URL 前缀识别
 
 ```rust
-use common_db::DbPool;
+use digua_common_db::DbPool;
 
 let pool = DbPool::from_url("mysql://...");   // -> Mysql
 let pool = DbPool::from_url("dameng://...");  // -> Dameng (MySQL 驱动)

@@ -12,4 +12,4 @@ pub use crate::client::FileClient;
 pub use crate::model::{
     CreatePresignUrl, FileInfo, ListFilesQuery, PagedFiles, PresignUrlResponse,
 };
-pub use kudi_http_client::SdkError;
+pub use digua_http_client::SdkError;

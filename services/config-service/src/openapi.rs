@@ -39,8 +39,8 @@ use crate::{
         ConfigItem,
         CreateConfigItem,
 UpdateConfigItem,
-        common_db::migration_state::MigrationStateResponse,
-        common_db::migration_state::MigrationInfo,
+        digua_common_db::migration_state::MigrationStateResponse,
+        digua_common_db::migration_state::MigrationInfo,
         PagedConfigItems,
     )),
     tags(

@@ -1,7 +1,7 @@
 use audit_service::{config::AppConfig, routes, create_state};
-use common::db::connect;
-use common_jwt::{JWKSCache, JwksConfig};
-use common_telemetry::init_tracing;
+use digua_common::db::connect;
+use digua_common_jwt::{JWKSCache, JwksConfig};
+use digua_common_telemetry::init_tracing;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;

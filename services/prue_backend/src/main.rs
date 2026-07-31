@@ -1,6 +1,6 @@
-use common_db::init_pool;
-use common_jwt::{JWKSCache, JwksConfig};
-use common_telemetry::init_tracing;
+use digua_common_db::init_pool;
+use digua_common_jwt::{JWKSCache, JwksConfig};
+use digua_common_telemetry::init_tracing;
 use prue_backend::{config::AppConfig, db, routes, state::AppState};
 use std::net::SocketAddr;
 use std::sync::Arc;

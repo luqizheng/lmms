@@ -204,9 +204,9 @@ pub use models::TokenInfo;
 Edit `Cargo.toml` line 3-11，`members` 数组加入 `"sdk/rust/kudi-http-client"`:
 ```toml
 members = [
-    "libs/common",
+    "libs/digua_common",
     "libs/jwt-ctx",
-    "libs/authz",
+    "libs/digua_authz",
     "libs/consul-registrar",
     "services/token-service",
     "services/api-gateway",
@@ -464,9 +464,9 @@ impl ServiceTokenCache {
 
 Create `sdk/rust/kudi-http-client/tests/cache_test.rs`:
 ```rust
-use kudi_http_client::cache::ServiceTokenCache;
-use kudi_http_client::error::KudiHttpError;
-use kudi_http_client::models::TokenInfo;
+use digua_http_client::cache::ServiceTokenCache;
+use digua_http_client::error::KudiHttpError;
+use digua_http_client::models::TokenInfo;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -977,11 +977,11 @@ impl KudiWebClient {
 Create `sdk/rust/kudi-http-client/tests/client_test.rs`:
 ```rust
 use async_trait::async_trait;
-use kudi_http_client::client::KudiWebClient;
-use kudi_http_client::error::KudiHttpError;
-use kudi_http_client::models::TokenInfo;
-use kudi_http_client::options::KudiHttpOptions;
-use kudi_http_client::transport::{HttpResponse, HttpTransport};
+use digua_http_client::client::KudiWebClient;
+use digua_http_client::error::KudiHttpError;
+use digua_http_client::models::TokenInfo;
+use digua_http_client::options::KudiHttpOptions;
+use digua_http_client::transport::{HttpResponse, HttpTransport};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -1098,10 +1098,10 @@ git commit -m "feat(sdk): kudi-http-client KudiWebClient with mock transport tes
 
 Create `sdk/rust/kudi-http-client/tests/integration_test.rs`:
 ```rust
-use kudi_http_client::client::KudiWebClient;
-use kudi_http_client::error::KudiHttpError;
-use kudi_http_client::models::TokenInfo;
-use kudi_http_client::options::KudiHttpOptions;
+use digua_http_client::client::KudiWebClient;
+use digua_http_client::error::KudiHttpError;
+use digua_http_client::models::TokenInfo;
+use digua_http_client::options::KudiHttpOptions;
 use std::time::Duration;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

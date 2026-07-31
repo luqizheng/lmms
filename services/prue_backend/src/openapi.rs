@@ -28,8 +28,8 @@ use crate::{
         MenuConfigDetail,
         MenuConfigSummary,
         MenuConfigListResponse,
-        common_db::migration_state::MigrationStateResponse,
-        common_db::migration_state::MigrationInfo,
+        digua_common_db::migration_state::MigrationStateResponse,
+        digua_common_db::migration_state::MigrationInfo,
     )),
     tags(
         (name = "menu-configs", description = "Menu config versions"),

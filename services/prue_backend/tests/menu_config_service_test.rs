@@ -1,4 +1,4 @@
-use common_db::init_pool;
+use digua_common_db::init_pool;
 use prue_backend::{
     db,
     dto::{CreateMenuConfigRequest, UpdateMenuConfigRequest},

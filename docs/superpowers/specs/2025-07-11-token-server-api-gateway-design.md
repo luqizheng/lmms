@@ -566,7 +566,7 @@ superpowers/
 ├── docker-compose.yml
 ├── Makefile / Justfile
 │
-├── common/                     # Rust 共享 crate
+├── digua_common/                     # Rust 共享 crate
 │   ├── Cargo.toml
 │   └── src/
 │       ├── lib.rs

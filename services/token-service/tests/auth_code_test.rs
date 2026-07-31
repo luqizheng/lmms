@@ -1,11 +1,11 @@
 // requires: cargo test --test-threads=1
-mod common;
+mod digua_common;
 
 use token_service::service::auth_code_svc;
 
 #[tokio::test]
 async fn save_then_consume_succeeds_once() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-1", "user-1", 3600)
         .await
         .unwrap();
@@ -15,7 +15,7 @@ async fn save_then_consume_succeeds_once() {
 
 #[tokio::test]
 async fn second_consume_returns_none() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-2", "user-2", 3600)
         .await
         .unwrap();
@@ -26,7 +26,7 @@ async fn second_consume_returns_none() {
 
 #[tokio::test]
 async fn consume_expired_returns_none() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-3", "user-3", 1)
         .await
         .unwrap();
@@ -38,14 +38,14 @@ async fn consume_expired_returns_none() {
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     let u = auth_code_svc::consume(&pool, "nope").await.unwrap();
     assert_eq!(u, None);
 }
 
 #[tokio::test]
 async fn concurrent_consume_only_one_succeeds() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-4", "user-4", 3600)
         .await
         .unwrap();

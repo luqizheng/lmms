@@ -79,7 +79,7 @@ Gateway 通过 Consul 或 DNS 解析下游服务名后直连业务端口（明�
 ## 6. 已知限制 / 边界
 
 - **无 mTLS、无服务身份认证**：服务间流量明文 HTTP。跨服务调用的身份仍走 `Authorization: Bearer <jwt>`（见 `.trae/rules/auth-rules.md`）。
-- **只做客户端注册，没有 sidecar / 数据面代理**：TLS、熔断、重试等能力由业务侧库（`libs/common-http` 等）承担，不依赖 envoy。
+- **只做客户端注册，没有 sidecar / 数据面代理**：TLS、熔断、重试等能力由业务侧库（`libs/digua_common-http` 等）承担，不依赖 envoy。
 - `iam-outbox-publisher` / `notification-outbox-publisher` 无 HTTP listener，不注册。
 - `config-service` / `file-service` 源码存在但未部署，启用时按上述模板加 registrar 调用即可。
 - 单测（testcontainers）不注册 Consul，只跑业务逻辑。

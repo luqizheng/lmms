@@ -69,7 +69,7 @@
 
 ```rust
 // 使用 jwt-ctx 库的 Principal extractor
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 
 async fn get_current_user(me: Principal) -> Json<UserResponse> {
     Json(UserResponse {
@@ -109,12 +109,12 @@ impl Principal {
 
 - 授权不进通用中间�?
 - 每个 handler 内部按业务规则判�?
-- 提供可复用的 `authz` 辅助函数�?
+- 提供可复用的 `digua_authz` 辅助函数�?
 
 ### 4.2 典型规则（合同服务示例）
 
 ```go
-// libs/go-authz/contract.go
+// libs/go-digua_authz/contract.go
 func CanReadContract(user *Principal, c *Contract) bool {
   if c.OwnerID == user.UserID { return true }                              // owner
   if user.HasPermission("contract.read.all") { return true }               // 超管
@@ -140,7 +140,7 @@ func GetContract(s *Store) gin.HandlerFunc {
     if contract == nil {
       c.JSON(404, gin.H{"error": "not_found"}); return
     }
-    if !authz.CanReadContract(user, contract) {
+    if !digua_authz.CanReadContract(user, contract) {
       c.JSON(403, gin.H{"error": "forbidden"}); return
     }
     // 字段级授权：普通员工看不到价格
@@ -332,7 +332,7 @@ func ServiceAuthMiddleware() gin.HandlerFunc {
 ### 8.1 单元
 
 - `libs/jwt-ctx/`：JWT payload decode 成功/失败/过期/缺字段/无效格式
-- `libs/authz/`：owner / 同部�?/ 部门主管 / 超管 / 默认拒绝矩阵
+- `libs/digua_authz/`：owner / 同部�?/ 部门主管 / 超管 / 默认拒绝矩阵
 
 ### 8.2 集成
 

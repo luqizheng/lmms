@@ -1,4 +1,4 @@
-use common_jwt::{sign_token, verify_token, JWKSCache, VerifyError};
+use digua_common_jwt::{sign_token, verify_token, JWKSCache, VerifyError};
 use serde_json::json;
 use std::time::Duration;
 

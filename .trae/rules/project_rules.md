@@ -88,7 +88,7 @@ When the AI works in any of the following paths, it MUST also load the reference
 
 - This is the single source of truth for error codes, permissions, events, HTTP conventions.
 - Edit YAML in `contracts/` only.
-- After editing, run `node scripts/contracts-gen.js` to regenerate consumers in `libs/common-error/src/codes.rs` and `libs/authz/src/perms.rs`.
+- After editing, run `node scripts/contracts-gen.js` to regenerate consumers in `libs/digua_common-error/src/codes.rs` and `libs/digua_authz/src/perms.rs`.
 - The `contracts_check` gate fails if generated code drifts from YAML.
 
 ### 2.5 Frontend — `frontend/**`

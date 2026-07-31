@@ -37,21 +37,21 @@
 
 | 路径 | 职责 |
 |---|---|
-| `libs/common-event/tests/error_classes.rs` | HandlerError display + get_redelivery_count 单测 |
-| `libs/common-event/tests/consumer_redelivery.rs` | testcontainers RabbitMQ 5 个集成测 |
+| `libs/digua_common-event/tests/error_classes.rs` | HandlerError display + get_redelivery_count 单测 |
+| `libs/digua_common-event/tests/consumer_redelivery.rs` | testcontainers RabbitMQ 5 个集成测 |
 | `test-case/63-consumer-error-classes.md` | 手工 e2e 验收清单 |
 
 ### 修改
 
 | 路径 | 改动 |
 |---|---|
-| `libs/common-event/src/error.rs` | HandlerError 双分支 |
-| `libs/common-event/src/consumer.rs` | delivery 循环 + republish_and_ack + confirm_select |
+| `libs/digua_common-event/src/error.rs` | HandlerError 双分支 |
+| `libs/digua_common-event/src/consumer.rs` | delivery 循环 + republish_and_ack + confirm_select |
 | `services/audit-service/src/consumer.rs` | handler 改双分支 |
 | `services/audit-service/src/risk.rs` | handler 改双分支（Redis 错误 → Transient 而非 swallow Ok） |
 | `services/notification-service/src/consumer/iam_events.rs` | handler 改双分支 |
 | `services/api-gateway/src/perm_consumer.rs` | handler 改双分支 |
-| `libs/common-event/Cargo.toml` | 加 testcontainers dev-deps |
+| `libs/digua_common-event/Cargo.toml` | 加 testcontainers dev-deps |
 
 ---
 
@@ -72,13 +72,13 @@ T3.3 / T3.4 / T3.6 顺序灵活。
 ### Task 1: HandlerError 改 Transient/Permanent 双分支
 
 **Files:**
-- Modify: `libs/common-event/src/error.rs`
+- Modify: `libs/digua_common-event/src/error.rs`
 
 **Interfaces:**
 - `HandlerError::Transient(String)` — 瞬时错误，consumer 重投
 - `HandlerError::Permanent(String)` — 永久错误，立即 DLQ
 
-- [ ] **Step 1: 修改 `libs/common-event/src/error.rs`**
+- [ ] **Step 1: 修改 `libs/digua_common-event/src/error.rs`**
 
 替换 `HandlerError` 整段：
 
@@ -154,7 +154,7 @@ pub enum RunError {
 
 - [ ] **Step 2: 故意不修 callsite，先 cargo check 看破坏面**
 
-Run: `cargo check -p common-event`
+Run: `cargo check -p digua_common-event`
 Expected: 自身 crate 编译通过（HandlerError 仅在 trait 中使用，自身代码不引用具体变体）
 
 Run: `cargo check --workspace`
@@ -165,8 +165,8 @@ Expected: **失败**，错误在 `services/audit-service/src/consumer.rs:76` 与
 - [ ] **Step 3: Commit**
 
 ```bash
-git add libs/common-event/src/error.rs
-git commit -m "feat(common-event): HandlerError splits Transient/Permanent
+git add libs/digua_common-event/src/error.rs
+git commit -m "feat(digua_common-event): HandlerError splits Transient/Permanent
 
 BREAKING: HandlerError::Handler(String) replaced by Transient(String) /
 Permanent(String) two-variant enum. Tells the consumer which path to
@@ -181,7 +181,7 @@ Caller sites (4 handler impls) will be updated in subsequent commit."
 ### Task 2: consumer.rs 改造 delivery 循环 + republish-and-ack
 
 **Files:**
-- Modify: `libs/common-event/src/consumer.rs`
+- Modify: `libs/digua_common-event/src/consumer.rs`
 
 **Interfaces:**
 - 新增 const `REDELIVERY_LIMIT: i64 = 3` + `REDELIVERY_HEADER: &str = "x-redelivery-count"`
@@ -391,16 +391,16 @@ use std::sync::Arc;
 
 - [ ] **Step 8: cargo check 验证 consumer.rs 自身编译**
 
-Run: `cargo check -p common-event`
-Expected: common-event 自身编译通过
+Run: `cargo check -p digua_common-event`
+Expected: digua_common-event 自身编译通过
 
 > workspace 全 cargo check 仍会失败（4 个 handler caller 还没改），正常。Task 5 修。
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add libs/common-event/src/consumer.rs
-git commit -m "feat(common-event): consumer delivery loop with bounded redelivery
+git add libs/digua_common-event/src/consumer.rs
+git commit -m "feat(digua_common-event): consumer delivery loop with bounded redelivery
 
 - HandlerError::Transient → republish-and-ack with x-redelivery-count
   header incremented; original delivery acked AFTER publisher confirm
@@ -420,17 +420,17 @@ insensitive; new events must pass the §3.2 checklist."
 ### Task 3: 单测 HandlerError display + get_redelivery_count
 
 **Files:**
-- Create: `libs/common-event/tests/error_classes.rs`
+- Create: `libs/digua_common-event/tests/error_classes.rs`
 
 **Interfaces:** `HandlerError::Display` 输出、`get_redelivery_count` 各类型 header 解析
 
-- [ ] **Step 1: 新建 `libs/common-event/tests/error_classes.rs`**
+- [ ] **Step 1: 新建 `libs/digua_common-event/tests/error_classes.rs`**
 
 ```rust
 //! 单测：HandlerError display + get_redelivery_count 各 header 类型解析。
 //! 不起 RabbitMQ，纯单元测。
 
-use common_event::HandlerError;
+use digua_common_event::HandlerError;
 use lapin::types::{AMQPValue, FieldTable, LongString, ShortString};
 
 #[test]
@@ -446,7 +446,7 @@ fn handler_error_permanent_display() {
 }
 
 // 重新暴露 get_redelivery_count 在测试中可调用：
-// 由于是模块私有，需要在 common-event 顶层加 #[cfg(test)] pub(crate) use 导出。
+// 由于是模块私有，需要在 digua_common-event 顶层加 #[cfg(test)] pub(crate) use 导出。
 // 详见 Step 2。
 
 fn make_headers(entries: Vec<(&str, AMQPValue)>) -> Option<FieldTable> {
@@ -461,13 +461,13 @@ fn make_headers(entries: Vec<(&str, AMQPValue)>) -> Option<FieldTable> {
 fn count_zero_when_header_absent() {
     // 把 None 视为"header 字段整体缺失"——AMQP properties headers 整个字段为 None
     let headers: Option<FieldTable> = None;
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 0);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 0);
 }
 
 #[test]
 fn count_zero_when_header_field_absent() {
     let headers = make_headers(vec![("other", AMQPValue::LongLongInt(99))]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 0);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 0);
 }
 
 #[test]
@@ -476,7 +476,7 @@ fn count_parses_long_long_int() {
         "x-redelivery-count",
         AMQPValue::LongLongInt(2),
     )]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 2);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 2);
 }
 
 #[test]
@@ -485,7 +485,7 @@ fn count_parses_long_int() {
         "x-redelivery-count",
         AMQPValue::LongInt(3),
     )]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 3);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 3);
 }
 
 #[test]
@@ -494,13 +494,13 @@ fn count_zero_on_unexpected_type() {
         "x-redelivery-count",
         AMQPValue::LongString(LongString::from("not-a-number")),
     )]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 0);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 0);
 }
 ```
 
 - [ ] **Step 2: 把 `get_redelivery_count` 在 cfg(test) 下导出**
 
-修改 `libs/common-event/src/consumer.rs`：
+修改 `libs/digua_common-event/src/consumer.rs`：
 
 ```rust
 fn get_redelivery_count(headers: &Option<FieldTable>) -> i64 { ... }
@@ -518,7 +518,7 @@ pub(crate) fn get_redelivery_count(headers: &Option<FieldTable>) -> i64 { ... }
 
 > 与 T1 fill_trace_id helper 的 cfg(test) 导出模式一致。
 
-- [ ] **Step 3: 检查 `libs/common-event/Cargo.toml` dev-deps**
+- [ ] **Step 3: 检查 `libs/digua_common-event/Cargo.toml` dev-deps**
 
 文件应已有 `[dev-dependencies]`；如无则加：
 
@@ -531,14 +531,14 @@ lapin = "2"
 
 - [ ] **Step 4: 跑测试验证**
 
-Run: `cargo test -p common-event --test error_classes`
+Run: `cargo test -p digua_common-event --test error_classes`
 Expected: 7 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-event/tests/error_classes.rs libs/common-event/src/consumer.rs libs/common-event/Cargo.toml
-git commit -m "test(common-event): unit tests for HandlerError display and get_redelivery_count
+git add libs/digua_common-event/tests/error_classes.rs libs/digua_common-event/src/consumer.rs libs/digua_common-event/Cargo.toml
+git commit -m "test(digua_common-event): unit tests for HandlerError display and get_redelivery_count
 
 Pure unit tests: no broker, no MySQL. Covers display formatting, header
 absent / field absent / LongLongInt / LongInt / unexpected type."
@@ -549,14 +549,14 @@ absent / field absent / LongLongInt / LongInt / unexpected type."
 ### Task 4: testcontainers RabbitMQ 5 个集成测
 
 **Files:**
-- Modify: `libs/common-event/Cargo.toml` (dev-deps)
-- Create: `libs/common-event/tests/consumer_redelivery.rs`
+- Modify: `libs/digua_common-event/Cargo.toml` (dev-deps)
+- Create: `libs/digua_common-event/tests/consumer_redelivery.rs`
 
 **Interfaces:** testcontainers 真实 broker 验证三态路径 + republish 成功 + count 升级 + deser DLQ + confirm nack 不 ack
 
 - [ ] **Step 1: 加 dev-deps**
 
-`libs/common-event/Cargo.toml` `[dev-dependencies]` 段（如已有，merge）：
+`libs/digua_common-event/Cargo.toml` `[dev-dependencies]` 段（如已有，merge）：
 
 ```toml
 [dev-dependencies]
@@ -571,7 +571,7 @@ uuid = { version = "1", features = ["v7"] }
 lapin = "2"
 ```
 
-- [ ] **Step 2: 新建 `libs/common-event/tests/consumer_redelivery.rs`**
+- [ ] **Step 2: 新建 `libs/digua_common-event/tests/consumer_redelivery.rs`**
 
 > 完整 200+ 行测试文件，覆盖：
 > - Permanent → DLQ
@@ -592,7 +592,7 @@ lapin = "2"
 //! 4. deserialization_failure_goes_to_dlq
 //! 5. republish_confirm_nack_does_not_ack_original
 
-use common_event::{
+use digua_common_event::{
     Consumer, Envelope, Event, HandlerError, RabbitMqConsumer, RabbitMqPublisher,
 };
 use futures_util::StreamExt;
@@ -846,14 +846,14 @@ async fn republish_confirm_nack_does_not_ack_original() {
 
 - [ ] **Step 3: 跑集成测（需要 Docker）**
 
-Run: `cargo test -p common-event --test consumer_redelivery`
+Run: `cargo test -p digua_common-event --test consumer_redelivery`
 Expected: 4 passed（`republish_confirm_nack_does_not_ack_original` 是 `todo!()` 跳过）
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-event/tests/consumer_redelivery.rs libs/common-event/Cargo.toml
-git commit -m "test(common-event): testcontainers RabbitMQ integration for consumer
+git add libs/digua_common-event/tests/consumer_redelivery.rs libs/digua_common-event/Cargo.toml
+git commit -m "test(digua_common-event): testcontainers RabbitMQ integration for consumer
 
 5 integration tests against real broker:
 - permanent → DLQ
@@ -1021,7 +1021,7 @@ docker compose -f infrastructure/docker-compose-infra.yml up -d
 
 - [ ] **Step 2: 跑全部 T3 测试**
 
-Run: `cargo test -p common-event`
+Run: `cargo test -p digua_common-event`
 Expected: error_classes 7 + consumer_redelivery 4 全绿
 
 - [ ] **Step 3: Commit**

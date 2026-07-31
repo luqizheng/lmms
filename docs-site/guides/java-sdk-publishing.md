@@ -11,7 +11,7 @@
 ```
 sdk/java/
 ├── pom.xml                                    # kudi-coder-sdk-parent（聚合 pom）
-├── common                                     # kudi-coder-sdk-common（基础）
+├── digua_common                                     # kudi-coder-sdk-digua_common（基础）
 ├── user-service-user-sdk                      # 用户身份 → iam-service
 ├── user-service-client-sdk                    # 客户端身份 → iam-service
 ├── token-server-user-sdk                      # 用户身份 → token-service
@@ -25,7 +25,7 @@ sdk/java/
 
 | Maven artifactId | groupId | 用途 |
 | --- | --- | --- |
-| `kudi-coder-sdk-common` | `com.kudi.coder` | 公共配置/异常（其余 SDK 自动传递依赖） |
+| `kudi-coder-sdk-digua_common` | `com.kudi.coder` | 公共配置/异常（其余 SDK 自动传递依赖） |
 | `kudi-http-client` | `com.kudi.coder` | 底层 HTTP 客户端封装 |
 | `user-service-user-sdk` | `com.kudi.coder` | 用户身份视角调用 IAM |
 | `user-service-client-sdk` | `com.kudi.coder` | 客户端应用视角调用 IAM |
@@ -157,19 +157,19 @@ node scripts/publish-maven-release.js --user admin --pass 's3cret'
                                      │
         ┌────────────────────────────┼────────────────────────────┐
         ▼                            ▼                            ▼
-kudi-coder-sdk-common        kudi-http-client          (user/token-server SDK — 互不依赖，但都依赖 common)
+kudi-coder-sdk-digua_common        kudi-http-client          (user/token-server SDK — 互不依赖，但都依赖 digua_common)
         │                                                      ▲
         ├────────────────────┬────────────────────┬────────────┤
         ▼                    ▼                    ▼            │
 user-service-user-sdk user-service-client-sdk  ...   token-server-user-sdk
         ▲                                                  ▲
         └─── audit/config/file/notification-service-sdk ───┘
-                  (依赖 common，不依赖 user/token-server SDK)
+                  (依赖 digua_common，不依赖 user/token-server SDK)
 ```
 
 发布顺序：
 
-1. 先发 `kudi-coder-sdk-common` 和 `kudi-http-client`（基础库，service SDK 都依赖）
+1. 先发 `kudi-coder-sdk-digua_common` 和 `kudi-http-client`（基础库，service SDK 都依赖）
 2. 再发其余 9 个 service SDK（之间无依赖关系）
 
 由于 maven 在多模块构建时会按依赖拓扑自动排序，**直接 `mvn deploy -am` 即可**（`--also-make` 自动构建依赖项）。

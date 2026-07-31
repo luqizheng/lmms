@@ -13,7 +13,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json, Router,
 };
-use common_jwt::sign_token;
+use digua_common_jwt::sign_token;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 

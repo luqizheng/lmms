@@ -205,21 +205,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
-name = "api-gateway"
+name = "api_gateway"
 version = "0.1.0"
 dependencies = [
  "arc-swap",
  "axum 0.8.9",
  "bytes 1.11.1",
  "clap",
- "common",
- "common-event",
- "common-http",
- "common-jwt",
- "common-ratelimit",
- "common-telemetry",
- "common-telemetry-axum",
  "config",
+ "digua_common",
+ "digua_common_event",
+ "digua_common_http",
+ "digua_common_jwt",
+ "digua_common_ratelimit",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
  "dotenvy",
  "futures 0.3.32",
  "glob",
@@ -609,24 +609,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "audit-service"
+name = "audit_service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "authz",
  "axum 0.8.9",
  "chrono",
- "common",
- "common-cache",
- "common-db",
- "common-error",
- "common-event",
- "common-jwt",
- "common-log",
- "common-telemetry",
- "common-telemetry-axum",
  "csv",
- "jwt-ctx",
+ "digua_authz",
+ "digua_common",
+ "digua_common_cache",
+ "digua_common_db",
+ "digua_common_error",
+ "digua_common_event",
+ "digua_common_jwt",
+ "digua_common_log",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
+ "digua_jwt_ctx",
  "opentelemetry",
  "prometheus 0.13.4",
  "redis",
@@ -642,35 +642,6 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",
-]
-
-[[package]]
-name = "audit-service-sdk"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "kudi-http-client",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "wiremock",
-]
-
-[[package]]
-name = "authz"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "base64 0.22.1",
- "common-jwt",
- "futures 0.3.32",
- "jwt-ctx",
- "jwt-simple",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "tower 0.5.3",
 ]
 
 [[package]]
@@ -1213,234 +1184,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "argon2",
- "common-crypto",
- "common-db",
- "common-error",
- "redis",
- "reqwest",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "uuid",
-]
-
-[[package]]
-name = "common-cache"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "common-error",
- "moka",
- "redis",
- "tokio 1.52.3",
-]
-
-[[package]]
-name = "common-config"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "common-error",
- "config",
- "reqwest",
- "serde",
- "serde_json",
- "tokio 1.52.3",
- "tracing",
- "wiremock",
-]
-
-[[package]]
-name = "common-crypto"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "argon2",
- "async-trait",
- "blake3",
- "common-error",
- "hex",
- "hmac",
- "rand 0.8.6",
- "rsa",
- "sha2",
- "tokio 1.52.3",
-]
-
-[[package]]
-name = "common-db"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "common-error",
- "jwt-ctx",
- "serde",
- "serde_json",
- "sqlx",
- "tempfile",
- "tokio 1.52.3",
- "utoipa",
-]
-
-[[package]]
-name = "common-error"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "reqwest",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "common-event"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "common-telemetry",
- "futures-util",
- "lapin",
- "opentelemetry",
- "prometheus 0.13.4",
- "redis",
- "serde",
- "serde_json",
- "sqlx",
- "testcontainers",
- "testcontainers-modules",
- "thiserror 1.0.69",
- "tokio 1.52.3",
- "tracing",
- "tracing-opentelemetry",
- "uuid",
-]
-
-[[package]]
-name = "common-health"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "http-body-util",
- "once_cell",
- "prometheus 0.13.4",
- "redis",
- "serde",
- "serde_json",
- "sqlx",
- "tokio 1.52.3",
- "tower 0.5.3",
- "tracing",
-]
-
-[[package]]
-name = "common-http"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "bytes 1.11.1",
- "common-error",
- "dashmap",
- "futures 0.3.32",
- "rand 0.8.6",
- "reqwest",
- "serde",
- "serde_json",
- "tokio 1.52.3",
- "tracing",
-]
-
-[[package]]
-name = "common-jwt"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "jsonwebtoken",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "tracing",
-]
-
-[[package]]
-name = "common-log"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "common-error",
- "reqwest",
- "serde",
- "serde_json",
- "tokio 1.52.3",
- "tower 0.5.3",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "common-ratelimit"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "chrono",
- "prometheus 0.13.4",
- "redis",
- "serde",
- "serde_json",
- "tokio 1.52.3",
- "tracing",
-]
-
-[[package]]
-name = "common-telemetry"
-version = "0.1.0"
-dependencies = [
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "common-telemetry-axum"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "common-telemetry",
- "hex",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "rand 0.8.6",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "common-validator"
-version = "0.1.0"
-dependencies = [
- "common-error",
- "validator",
-]
-
-[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1469,22 +1212,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "config-service"
+name = "config_service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "authz",
  "axum 0.8.9",
  "chrono",
- "common-cache",
- "common-db",
- "common-error",
- "common-jwt",
- "common-log",
- "common-telemetry",
- "common-telemetry-axum",
+ "digua_authz",
+ "digua_common_cache",
+ "digua_common_db",
+ "digua_common_error",
+ "digua_common_jwt",
+ "digua_common_log",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
+ "digua_jwt_ctx",
  "http-body-util",
- "jwt-ctx",
  "jwt-simple",
  "prometheus 0.13.4",
  "reqwest",
@@ -1500,19 +1243,6 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
-]
-
-[[package]]
-name = "config-service-sdk"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "kudi-http-client",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "wiremock",
 ]
 
 [[package]]
@@ -2021,6 +1751,362 @@ dependencies = [
 ]
 
 [[package]]
+name = "digua_audit_sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "digua_http_client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
+name = "digua_authz"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "base64 0.22.1",
+ "digua_common_jwt",
+ "digua_jwt_ctx",
+ "futures 0.3.32",
+ "jwt-simple",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "tower 0.5.3",
+]
+
+[[package]]
+name = "digua_common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "digua_common_crypto",
+ "digua_common_db",
+ "digua_common_error",
+ "redis",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "uuid",
+]
+
+[[package]]
+name = "digua_common_cache"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "digua_common_error",
+ "moka",
+ "redis",
+ "tokio 1.52.3",
+]
+
+[[package]]
+name = "digua_common_config"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "config",
+ "digua_common_error",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio 1.52.3",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
+name = "digua_common_crypto"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "async-trait",
+ "blake3",
+ "digua_common_error",
+ "hex",
+ "hmac",
+ "rand 0.8.6",
+ "rsa",
+ "sha2",
+ "tokio 1.52.3",
+]
+
+[[package]]
+name = "digua_common_db"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "digua_common_error",
+ "digua_jwt_ctx",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "tokio 1.52.3",
+ "utoipa",
+]
+
+[[package]]
+name = "digua_common_error"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "digua_common_event"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "digua_common_telemetry",
+ "futures-util",
+ "lapin",
+ "opentelemetry",
+ "prometheus 0.13.4",
+ "redis",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "testcontainers",
+ "testcontainers-modules",
+ "thiserror 1.0.69",
+ "tokio 1.52.3",
+ "tracing",
+ "tracing-opentelemetry",
+ "uuid",
+]
+
+[[package]]
+name = "digua_common_health"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "http-body-util",
+ "once_cell",
+ "prometheus 0.13.4",
+ "redis",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio 1.52.3",
+ "tower 0.5.3",
+ "tracing",
+]
+
+[[package]]
+name = "digua_common_http"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "bytes 1.11.1",
+ "dashmap",
+ "digua_common_error",
+ "futures 0.3.32",
+ "rand 0.8.6",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio 1.52.3",
+ "tracing",
+]
+
+[[package]]
+name = "digua_common_jwt"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "jsonwebtoken",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "tracing",
+]
+
+[[package]]
+name = "digua_common_log"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "digua_common_error",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio 1.52.3",
+ "tower 0.5.3",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "digua_common_ratelimit"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "chrono",
+ "prometheus 0.13.4",
+ "redis",
+ "serde",
+ "serde_json",
+ "tokio 1.52.3",
+ "tracing",
+]
+
+[[package]]
+name = "digua_common_telemetry"
+version = "0.1.0"
+dependencies = [
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "digua_common_telemetry_axum"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "digua_common_telemetry",
+ "hex",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "rand 0.8.6",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "digua_common_validator"
+version = "0.1.0"
+dependencies = [
+ "digua_common_error",
+ "validator",
+]
+
+[[package]]
+name = "digua_config_sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "digua_http_client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
+name = "digua_file_sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "digua_http_client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
+name = "digua_http_client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "hex",
+ "reqwest",
+ "rustls 0.23.40",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
+name = "digua_iam_sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "digua_http_client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
+name = "digua_jwt_ctx"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum 0.8.9",
+ "base64 0.22.1",
+ "chrono",
+ "digua_common_jwt",
+ "jsonwebtoken",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "tower 0.5.3",
+ "tracing",
+]
+
+[[package]]
+name = "digua_notification_sdk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "digua_http_client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
+name = "digua_token_sdk"
+version = "0.1.0"
+dependencies = [
+ "digua_http_client",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.52.3",
+ "wiremock",
+]
+
+[[package]]
 name = "dirs"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2266,25 +2352,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "file-service"
+name = "file_service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "authz",
  "axum 0.8.9",
  "bytes 1.11.1",
  "chrono",
- "common-cache",
- "common-db",
- "common-error",
- "common-jwt",
- "common-log",
- "common-telemetry",
- "common-telemetry-axum",
+ "digua_authz",
+ "digua_common_cache",
+ "digua_common_db",
+ "digua_common_error",
+ "digua_common_jwt",
+ "digua_common_log",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
+ "digua_jwt_ctx",
  "futures 0.3.32",
  "http-body-util",
- "jwt-ctx",
  "jwt-simple",
  "percent-encoding",
  "prometheus 0.13.4",
@@ -2303,19 +2389,6 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
-]
-
-[[package]]
-name = "file-service-sdk"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "kudi-http-client",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "wiremock",
 ]
 
 [[package]]
@@ -3081,12 +3154,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "iam-outbox-publisher"
+name = "iam_outbox_publisher"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "common-event",
- "common-telemetry",
+ "digua_common_event",
+ "digua_common_telemetry",
  "prometheus 0.13.4",
  "serde",
  "serde_json",
@@ -3097,32 +3170,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "iam-service"
+name = "iam_service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "argon2",
- "authz",
  "axum 0.8.9",
  "bytes 1.11.1",
  "chrono",
- "common",
- "common-cache",
- "common-config",
- "common-crypto",
- "common-db",
- "common-error",
- "common-event",
- "common-jwt",
- "common-log",
- "common-telemetry",
- "common-telemetry-axum",
- "common-validator",
+ "digua_authz",
+ "digua_common",
+ "digua_common_cache",
+ "digua_common_config",
+ "digua_common_crypto",
+ "digua_common_db",
+ "digua_common_error",
+ "digua_common_event",
+ "digua_common_jwt",
+ "digua_common_log",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
+ "digua_common_validator",
+ "digua_jwt_ctx",
  "hex",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-util",
- "jwt-ctx",
  "mockall",
  "nanoid",
  "opentelemetry",
@@ -3150,19 +3223,6 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "validator",
-]
-
-[[package]]
-name = "iam-service-sdk"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "kudi-http-client",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "wiremock",
 ]
 
 [[package]]
@@ -3479,24 +3539,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jwt-ctx"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum 0.8.9",
- "base64 0.22.1",
- "chrono",
- "common-jwt",
- "jsonwebtoken",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "tower 0.5.3",
- "tracing",
-]
-
-[[package]]
 name = "jwt-simple"
 version = "0.12.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3554,23 +3596,6 @@ checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 dependencies = [
  "winapi 0.2.8",
  "winapi-build",
-]
-
-[[package]]
-name = "kudi-http-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "hex",
- "reqwest",
- "rustls 0.23.40",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "tracing",
- "wiremock",
 ]
 
 [[package]]
@@ -3952,25 +3977,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "notification-service"
+name = "notification_service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "authz",
  "axum 0.8.9",
  "bytes 1.11.1",
  "chrono",
- "common-db",
- "common-event",
- "common-http",
- "common-jwt",
- "common-ratelimit",
- "common-telemetry",
- "common-telemetry-axum",
  "config",
+ "digua_authz",
+ "digua_common_db",
+ "digua_common_event",
+ "digua_common_http",
+ "digua_common_jwt",
+ "digua_common_ratelimit",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
+ "digua_jwt_ctx",
  "futures 0.3.32",
- "jwt-ctx",
  "opentelemetry",
  "prometheus 0.13.4",
  "prometheus_exporter",
@@ -3994,19 +4019,6 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
- "wiremock",
-]
-
-[[package]]
-name = "notification-service-sdk"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "kudi-http-client",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
  "wiremock",
 ]
 
@@ -4789,15 +4801,15 @@ name = "prue_backend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "authz",
  "axum 0.8.9",
  "chrono",
- "common-db",
- "common-jwt",
- "common-log",
- "common-telemetry",
- "common-telemetry-axum",
- "jwt-ctx",
+ "digua_authz",
+ "digua_common_db",
+ "digua_common_jwt",
+ "digua_common_log",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
+ "digua_jwt_ctx",
  "nanoid",
  "prometheus 0.13.4",
  "reqwest",
@@ -6406,26 +6418,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
-name = "token-service"
+name = "token_service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "argon2",
- "authz",
  "axum 0.8.9",
  "base64 0.22.1",
  "bytes 1.11.1",
  "chrono",
- "common",
- "common-db",
- "common-http",
- "common-jwt",
- "common-telemetry",
- "common-telemetry-axum",
+ "digua_authz",
+ "digua_common",
+ "digua_common_db",
+ "digua_common_http",
+ "digua_common_jwt",
+ "digua_common_telemetry",
+ "digua_common_telemetry_axum",
+ "digua_jwt_ctx",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-util",
- "jwt-ctx",
  "jwt-simple",
  "mockall",
  "opentelemetry",
@@ -6452,18 +6464,6 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
-]
-
-[[package]]
-name = "token-service-sdk"
-version = "0.1.0"
-dependencies = [
- "kudi-http-client",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "wiremock",
 ]
 
 [[package]]

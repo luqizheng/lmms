@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 use chrono::Utc;
-use notification_service_sdk::{
+use digua_notification_sdk::{
     CreateAnnouncement, ListAnnouncementsQuery, NotificationClient,
 };
 use serde_json::json;

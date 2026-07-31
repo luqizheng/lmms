@@ -75,7 +75,7 @@
 |------|------|------|
 | Service 自治限流（notification spam） | 6 月 retro 目标 | 2 天 |
 | E2E tier-2 全量套件分档 | 同上 | 2 天 |
-| ResilientClient 接入（common-http） | phase4-perf-circuit-limit | 3 天 |
+| ResilientClient 接入（digua_common-http） | phase4-perf-circuit-limit | 3 天 |
 
 ---
 

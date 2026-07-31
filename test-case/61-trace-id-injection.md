@@ -13,8 +13,8 @@ docker compose -f infrastructure/docker-compose-services.yml up -d
 ### 1. 单元测试（无 Docker）
 
 ```bash
-cargo test -p common-telemetry --test current_trace_id_test
-cargo test -p common-event --test enqueue_trace_id_test
+cargo test -p digua_common-telemetry --test current_trace_id_test
+cargo test -p digua_common-event --test enqueue_trace_id_test
 ```
 
 期望：两组都全绿。`enqueue_trace_id_test` 覆盖 `fill_trace_id` 的三分支：
@@ -25,7 +25,7 @@ cargo test -p common-event --test enqueue_trace_id_test
 ### 2. 集成测试（需 Docker）
 
 ```bash
-cargo test -p common-event --test enqueue_writes_trace_id_to_db
+cargo test -p digua_common-event --test enqueue_writes_trace_id_to_db
 ```
 
 期望：1 passed。验证 caller 传入的 `trace_id` 真的写入 MySQL `iam_outbox_events.envelope_json`。
@@ -77,7 +77,7 @@ ORDER BY id DESC LIMIT 1;" superpowers
 
 期望：`trace_id` 字段非空、为 32 位 hex（fallback），但**与 traceparent 透传用例的 trace_id 不相同**（说明这是 fallback 而不是透传）。
 
-> 注：fallback 32-hex 由 `gateway trace_request_middleware` 在无上游 traceparent 时生成，存到当前 span 的 OTel context 中；common-telemetry 的 `current_trace_id()` 从中读取。
+> 注：fallback 32-hex 由 `gateway trace_request_middleware` 在无上游 traceparent 时生成，存到当前 span 的 OTel context 中；digua_common-telemetry 的 `current_trace_id()` 从中读取。
 > 若 iam 未接 OTel collector，fallback 路径不会触发，`trace_id` 留空（fill_trace_id source 返回 None）。
 
 ## 验收标准

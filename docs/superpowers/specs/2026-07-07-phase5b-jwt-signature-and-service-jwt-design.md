@@ -26,7 +26,7 @@
 | 3 | JWT 验证 key source：静态 PEM / 动态 JWKS / HS256 共享 | **JWKS** | 生产友好，支持 key rotation；冷启动能 reach token-service 即可（既有依赖） |
 | 4 | service-jwt issuer：token-service / gateway / pre-shared API key | **token-service** | 复用现有签发架构（同一对 RSA key）；不引入新服务 |
 | 5 | scope：MVP / 全栈 / 只 service-jwt | **全栈** | 半成品不是好半成品，user-jwt + service-jwt 一起做 |
-| 6 | lib 拓扑：扩 jwt-ctx / 新 common-jwt | **新 common-jwt** | jwt-ctx 只管 claim 模型，crypto 集中在 common-jwt；service-jwt 与 user-jwt 共享 lib |
+| 6 | lib 拓扑：扩 jwt-ctx / 新 digua_common-jwt | **新 digua_common-jwt** | jwt-ctx 只管 claim 模型，crypto 集中在 digua_common-jwt；service-jwt 与 user-jwt 共享 lib |
 | 7 | `expected_aud` 校验 | **caller 决定** | 灵活；service→service 强制，gateway 路径可选 |
 | 8 | 后台 refresh 启动 | **caller 控制** | refresh task 生命周期跟 service main 的 `shutdown_rx` 走 |
 | 9 | bootstrap token 形式 | **每服务独立** | 一服务泄漏不影响其他；rotate 是改 env + 重启 |
@@ -52,7 +52,7 @@
 
 1. **安全是生产前置**：phase5a-2 已落地，mesh 不再提供 SPIFFE identity；现在任何能进 docker 网络的容器都等同于「任意 service」—— 是真实漏洞，不是 nice-to-have
 2. **5a-2 commit `b5ae6dd` 留的 Principal extractor 是空壳**：`jwt-ctx::Principal::from_jwt_payload` 只 base64-decode payload 不验签；下一步就是给它加 verify
-3. **复用量大**：token-service 已有 `jwt_simple` 签发 + `/tokens/jwks` 端点 + RSA keypair；common-jwt 主要做 verify + JWKS caching，复用这套设施
+3. **复用量大**：token-service 已有 `jwt_simple` 签发 + `/tokens/jwks` 端点 + RSA keypair；digua_common-jwt 主要做 verify + JWKS caching，复用这套设施
 4. **scope 紧**：12 commits 左右，1-2 周可完成
 5. **AGENTS.md 允许重构**：开发阶段、无生产数据
 
@@ -106,7 +106,7 @@ pub fn from_jwt_payload(token: &str) -> Result<Self, PrincipalError> {
 
 - `services/token-service` 已有 RSA keypair（`/app/keys/{private,public}.pem`），用 `jwt_simple` 签发
 - `services/token-service` 已有 `GET /tokens/jwks` 端点，发布 RS256 public key
-- `common-http::ResilientClient` 已有 service 调 service 的 retry/timeout/breaker
+- `digua_common-http::ResilientClient` 已有 service 调 service 的 retry/timeout/breaker
 - AGENTS.md 已有 `aud: "service"` / `aud: "user"` 约定（iam AGENTS.md §「内部服务调用」）
 
 ### 1.3 不做的事（明确边界）
@@ -125,7 +125,7 @@ pub fn from_jwt_payload(token: &str) -> Result<Self, PrincipalError> {
 
 ```
                     ┌─────────────────────────────────────────┐
-                    │  libs/common-jwt (NEW)                   │
+                    │  libs/digua_common-jwt (NEW)                   │
                     │  ├─ JWKSCache                            │
                     │  ├─ verify_token(token, cache, aud?)    │
                     │  └─ sign_token(key_pem, claims, ttl)    │
@@ -138,7 +138,7 @@ pub fn from_jwt_payload(token: &str) -> Result<Self, PrincipalError> {
 │  libs/jwt-ctx      │                                  │  services/token-svc  │
 │  Principal::       │                                  │  POST /tokens/       │
 │  from_token (NEW)  │                                  │    service-jwt       │
-│  verify via common-│                                  │  (NEW endpoint)      │
+│  verify via digua_common-│                                  │  (NEW endpoint)      │
 │  jwt               │                                  │  uses sign_token()   │
 └────────────────────┘                                  └─────────────────────┘
        ▲                                                            │
@@ -199,7 +199,7 @@ Response 400: aud / tid 缺或不合法
 
 ## 3. 组件详细设计
 
-### 3.1 `libs/common-jwt` (NEW)
+### 3.1 `libs/digua_common-jwt` (NEW)
 
 ```rust
 //! shared JWT primitives: JWKS cache, verify, sign
@@ -345,10 +345,10 @@ impl Principal {
     /// `expected_aud`: Some 强制 aud 匹配，None 跳过（gateway 路径可选）。
     pub async fn from_token(
         token: &str,
-        cache: &common_jwt::JWKSCache,
+        cache: &digua_common_jwt::JWKSCache,
         expected_aud: Option<&str>,
     ) -> Result<Self, PrincipalError> {
-        let claims = common_jwt::verify_token(token, cache, expected_aud).await?;
+        let claims = digua_common_jwt::verify_token(token, cache, expected_aud).await?;
         // 现有 claim 解析逻辑（user_id, user_code, tid, ...）
         Self::from_claims(claims).map_err(...)
     }
@@ -378,7 +378,7 @@ where
 }
 
 pub trait PrincipalStateProvider {
-    fn jwks(&self) -> Arc<common_jwt::JWKSCache>;
+    fn jwks(&self) -> Arc<digua_common_jwt::JWKSCache>;
 }
 ```
 
@@ -392,7 +392,7 @@ pub enum PrincipalVerifyError {
     #[error("invalid authorization header format")]
     InvalidAuthorizationFormat,
     #[error("verification failed: {0}")]
-    VerifyFailed(#[from] common_jwt::VerifyError),
+    VerifyFailed(#[from] digua_common_jwt::VerifyError),
     #[error("missing sub claim")]
     MissingSub,
     #[error("missing tid claim")]
@@ -414,7 +414,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use jsonwebtoken::{encode, EncodingKey, Header};
-use common_jwt::sign_token;
+use digua_common_jwt::sign_token;
 
 #[derive(Debug, Deserialize)]
 pub struct ServiceJwtRequest {
@@ -494,10 +494,10 @@ bootstrap tokens 来源：`std::env::var("SERVICE_BOOTSTRAP_TOKENS")` 解析 com
 
 ### 3.4 Service-side 集成模式
 
-#### 3.4.1 `libs/common-http` 新增 `service-jwt` 注入
+#### 3.4.1 `libs/digua_common-http` 新增 `service-jwt` 注入
 
 ```rust
-// common-http 新增 builder option
+// digua_common-http 新增 builder option
 pub struct ResilientClient {
     // ... existing fields
     service_jwt: Option<Arc<ServiceJwtInjector>>,
@@ -525,7 +525,7 @@ client.call_with_extra_headers(extra_headers_with_auth);
 
 具体：给 `ResilientClient::call` 加一个 `with_authorization: Option<HeaderValue>` 参数（默认 None，service main 在 state 里持有 injector，每次 call 注入）。
 
-#### 3.4.2 `libs/common-jwt` 新增 `ServiceJwtCache`（与 `JWKSCache` 配套）
+#### 3.4.2 `libs/digua_common-jwt` 新增 `ServiceJwtCache`（与 `JWKSCache` 配套）
 
 ```rust
 pub struct ServiceJwtCache {
@@ -581,8 +581,8 @@ client.call_with_auth(service, method, url, headers, body).await
 
 ```rust
 // services/<svc>/src/main.rs (新增 section)
-let service_jwt = Arc::new(common_jwt::ServiceJwtCache::new(
-    common_jwt::ServiceJwtConfig {
+let service_jwt = Arc::new(digua_common_jwt::ServiceJwtCache::new(
+    digua_common_jwt::ServiceJwtConfig {
         token_service_url: std::env::var("TOKEN_SERVICE_URL")?,
         bootstrap_token: std::env::var("SERVICE_BOOTSTRAP_TOKEN")?,
         caller_service_name: std::env::var("SERVICE_NAME")?,
@@ -595,8 +595,8 @@ let service_jwt = Arc::new(common_jwt::ServiceJwtCache::new(
 service_jwt.refresh("iam-service").await?;  // 启动时强制拉一次
 service_jwt.clone().spawn_refresh_loop(shutdown_rx.clone());
 
-let jwks = Arc::new(common_jwt::JWKSCache::new(
-    common_jwt::JwksConfig {
+let jwks = Arc::new(digua_common_jwt::JWKSCache::new(
+    digua_common_jwt::JwksConfig {
         url: format!("{}/.well-known/jwks.json",
                      std::env::var("TOKEN_SERVICE_URL")?),
         refresh_interval: Duration::from_secs(3600),
@@ -613,8 +613,8 @@ jwks.spawn_refresh_loop(shutdown_rx);
 ```rust
 pub struct AppState {
     // ... 现有 fields
-    pub jwks: Arc<common_jwt::JWKSCache>,
-    pub service_jwt: Arc<common_jwt::ServiceJwtCache>,
+    pub jwks: Arc<digua_common_jwt::JWKSCache>,
+    pub service_jwt: Arc<digua_common_jwt::ServiceJwtCache>,
 }
 ```
 
@@ -635,7 +635,7 @@ let app = Router::new()
 // 其他 service 端点不需要 verify_aud（接受 user-jwt，aud=user）
 ```
 
-middleware 实现在 `libs/authz` 复用现有的 `require_role` 模式。
+middleware 实现在 `libs/digua_authz` 复用现有的 `require_role` 模式。
 
 ---
 
@@ -735,10 +735,10 @@ loop {
 
 | 文件 | 内容 |
 |---|---|
-| `libs/common-jwt/Cargo.toml` | crate 描述，依赖 `jsonwebtoken` / `reqwest` / `tokio` / `serde` / `thiserror` |
-| `libs/common-jwt/src/lib.rs` | JWKSCache / verify_token / sign_token / ServiceJwtCache / Errors |
-| `libs/common-jwt/tests/cache_test.rs` | JWKS parse / refresh / kid lookup |
-| `libs/common-jwt/tests/verify_test.rs` | sign+verify roundtrip / expired / wrong aud / wrong kid |
+| `libs/digua_common-jwt/Cargo.toml` | crate 描述，依赖 `jsonwebtoken` / `reqwest` / `tokio` / `serde` / `thiserror` |
+| `libs/digua_common-jwt/src/lib.rs` | JWKSCache / verify_token / sign_token / ServiceJwtCache / Errors |
+| `libs/digua_common-jwt/tests/cache_test.rs` | JWKS parse / refresh / kid lookup |
+| `libs/digua_common-jwt/tests/verify_test.rs` | sign+verify roundtrip / expired / wrong aud / wrong kid |
 | `docs-site/guides/service-to-service-auth.md` | 内部调用 auth 流程 + bootstrap token 运维手册 |
 | `services/token-service/src/routes/service_jwt.rs` | `POST /tokens/service-jwt` handler |
 
@@ -746,18 +746,18 @@ loop {
 
 | 文件 | 改动 |
 |---|---|
-| `Cargo.toml` (workspace) | 加入 `"libs/common-jwt"` 成员；`[workspace.dependencies]` 加 `jsonwebtoken` |
+| `Cargo.toml` (workspace) | 加入 `"libs/digua_common-jwt"` 成员；`[workspace.dependencies]` 加 `jsonwebtoken` |
 | `libs/jwt-ctx/src/principal.rs` | 新增 `Principal::from_token` (async)，新增 `PrincipalStateProvider` trait，新增 `PrincipalVerifyError` |
-| `libs/common-http/src/client.rs` | `ResilientClient::call` 加 `service_jwt_injector: Option<Arc<ServiceJwtInjector>>` |
+| `libs/digua_common-http/src/client.rs` | `ResilientClient::call` 加 `service_jwt_injector: Option<Arc<ServiceJwtInjector>>` |
 | `services/token-service/src/main.rs` | 注入 `private_key_pem` + `bootstrap_tokens` 到 `TokenServerState`；注册 `/tokens/service-jwt` 路由 |
 | `services/token-service/src/lib.rs` | 导出 `ServiceJwtRequest` / `ServiceJwtResponse` |
 | `services/token-service/src/state.rs` | 增字段（如果 state 在独立文件） |
 | `services/iam-service/src/main.rs` | 启动时拉 JWKS + service-jwt；AppState 增字段；/iam/internal 加 `verify_aud` middleware；outbound 调 token-service 用 service-jwt 注入 |
-| `services/iam-service/Cargo.toml` | 增 `common-jwt` 依赖 |
+| `services/iam-service/Cargo.toml` | 增 `digua_common-jwt` 依赖 |
 | `services/iam-service/src/routes/internal_users.rs` | 注入强制 aud="iam-service" 的 Principal 提取（已在 `b5ae6dd` 加 Principal，但无验签） |
 | `services/token-service/src/lib.rs` / `routes/refresh.rs` / `routes/access.rs` | `fetch_json` 调用现传 `None` 的位置改为 `Some(user_jwt)`（来自 request）—— **前提是调用方能拿到 user-jwt**；access/refresh 路径目前没 user-jwt，仍是 `None`，但 code path 完整 |
 | `services/notification-service/src/main.rs` | 启动 boilerplate（JWKS + service-jwt）；AppState；改 iam_client 调用传 service-jwt 替代 `None` |
-| `services/notification-service/Cargo.toml` | 增 `common-jwt` 依赖 |
+| `services/notification-service/Cargo.toml` | 增 `digua_common-jwt` 依赖 |
 | `services/audit-service/src/main.rs` / `Cargo.toml` | 同上 |
 | `services/api-gateway/src/main.rs` / `Cargo.toml` | 启动拉 JWKS；user-jwt 验证 (aud=user)；outbound 不需要 service-jwt（gateway 不调其他 service） |
 | `services/prue_backend/src/main.rs` / `Cargo.toml` | 启动拉 JWKS + service-jwt；如有 outbound call 加 service-jwt 注入 |
@@ -766,7 +766,7 @@ loop {
 | `infrastructure/docker-compose-services.yml` | 每个 service 增 `SERVICE_BOOTSTRAP_TOKEN` / `TENANT_ID` / `TOKEN_SERVICE_URL` env；token-service 增 `SERVICE_BOOTSTRAP_TOKENS`（多个 token，逗号分隔） |
 | `infrastructure/.env` 或 secrets 文件 | bootstrap tokens 实际值（256-bit random，dev 用固定 string 例如 `dev-token-iam-...`） |
 | `infrastructure/config/api-gateway/api-gateway.toml` | 增 `service_jwt` 块（如果 gateway 需要 outbound） |
-| `docs-site/ai-context.md` | §2 服务地图加 service-jwt 列；§3 架构加 common-jwt；§11 TODO 标记 phase5c |
+| `docs-site/ai-context.md` | §2 服务地图加 service-jwt 列；§3 架构加 digua_common-jwt；§11 TODO 标记 phase5c |
 | `docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md` | §2.2 「Phase 5-B: JWT 签名验证」段标 superseded |
 
 ### 6.3 共享依赖增删
@@ -775,7 +775,7 @@ loop {
 # Cargo.toml [workspace.dependencies] 新增
 jsonwebtoken = { version = "9", default-features = false }
 # 各 service Cargo.toml 新增
-common-jwt = { workspace = true }
+digua_common-jwt = { workspace = true }
 ```
 
 ### 6.4 共享依赖不动
@@ -788,7 +788,7 @@ common-jwt = { workspace = true }
 
 ### 7.1 单元测试
 
-**`libs/common-jwt`**：
+**`libs/digua_common-jwt`**：
 - `JWKSCache::refresh` 解析 mock JWKS，keys HashMap 包含期望 kid
 - `verify_token` 对 valid / expired / wrong-sig / wrong-aud / wrong-kid 各返回对应错误
 - `sign_token` 产出 token 立即能 verify 回原 claims
@@ -840,10 +840,10 @@ common-jwt = { workspace = true }
 | service-jwt 1h TTL 太短导致服务 restart 时 burst | 把 TTL 提到 4h（bootstrap token 仍是 1次交换） |
 | Bootstrap token 通过 env 注入，泄漏风险 | 文档要求生产用 secret manager（Vault / K8s Secret）；dev 写明 .env 不入 git |
 | Service 主进程 panic if 启动时 JWKS 拉不到 | 启动 retry 3 次（间隔 1s/2s/4s），仍 fail 才 panic；K8s pod 重新调度解决 |
-| common-jwt lib 集中化后任一 service 升级 lag 整个 mesh 失效 | lib 接口稳定（avro-style），独立 versioned；变更必须 e2e 验证 |
+| digua_common-jwt lib 集中化后任一 service 升级 lag 整个 mesh 失效 | lib 接口稳定（avro-style），独立 versioned；变更必须 e2e 验证 |
 | audience middleware 漏配（漏 `.layer()`） | 写一个 integration test 跑遍所有 internal 端点 + 各种 aud |
 | 服务间调用循环（a→b→a 死锁） | circuit breaker（已有 ResilientClient） + service-jwt 不跨租户传递 |
-| 现有 authz 测试（如果有）失败 | Phase 5-B 第一周就 run test，确认 0 failures 才能继续 |
+| 现有 digua_authz 测试（如果有）失败 | Phase 5-B 第一周就 run test，确认 0 failures 才能继续 |
 
 ---
 
@@ -861,7 +861,7 @@ common-jwt = { workspace = true }
 ### 10.1 已发生
 
 - 2026-07-07 12:30+0800 — 5a-2 落地 commit `b8955b7`；spec §0.5.6 标 4 个 open question
-- 2026-07-07 13:00+0800 — 用户选 5b-auth / JWKS / token-service / 全栈 / new common-jwt
+- 2026-07-07 13:00+0800 — 用户选 5b-auth / JWKS / token-service / 全栈 / new digua_common-jwt
 - 2026-07-07 13:30+0800 — 9 个 design section 草稿
 - 2026-07-07 14:00+0800 — spec v1 写完（待评审）
 
@@ -869,7 +869,7 @@ common-jwt = { workspace = true }
 
 - 2026-07-XX — 用户 sign-off
 - 2026-07-XX — 写 plan `2026-XX-XX-phase5b-jwt-signature-and-service-jwt.md`
-- 2026-07-XX — Phase A 开始（common-jwt crate）
+- 2026-07-XX — Phase A 开始（digua_common-jwt crate）
 - ...
 
 ---
@@ -887,12 +887,12 @@ common-jwt = { workspace = true }
 - §0.5.4 理由 2 说「Principal extractor 是空壳」，§1.1 也说「`from_jwt_payload` 只 decode 不 verify」—— 一致
 - §3.2 `from_token` 是 async；§3.5 middleware 在 service main 注册 —— 一致
 - §3.3 端点路径 `/tokens/service-jwt`；§2.2 也用这个路径 —— 一致
-- §6.2 各 service Cargo.toml 增 `common-jwt`，§3.4.3 boilerplate 引用 common_jwt —— 一致
+- §6.2 各 service Cargo.toml 增 `digua_common-jwt`，§3.4.3 boilerplate 引用 digua_common_jwt —— 一致
 
 ### 11.3 Scope 检查
 
 - 单 spec 覆盖：① crypto lib 新建 ② token-service 端点 ③ jwt-ctx 改造 ④ 7 service 迁移 ⑤ doc ⑥ CI 验收
-- 跨子系统风险：authz middleware 重用 — 但 authz 库已经成熟（plan 2026-06-29 §6 已用），无大改
+- 跨子系统风险：digua_authz middleware 重用 — 但 digua_authz 库已经成熟（plan 2026-06-29 §6 已用），无大改
 - 范围适合一个 plan 落地（12 commits），不需拆
 
 ### 11.4 歧义检查

@@ -1,8 +1,8 @@
-use common_event::consumer::{Consumer, RabbitMqConsumer};
-use common_event::events::IamUserCreated;
-use common_event::outbox::{MySqlOutboxRepo, OutboxRepo};
-use common_event::publisher_loop::{OutboxPublisher, OutboxPublisherOptions};
-use common_event::{Envelope, Publisher, RabbitMqPublisher};
+use digua_common_event::consumer::{Consumer, RabbitMqConsumer};
+use digua_common_event::events::IamUserCreated;
+use digua_common_event::outbox::{MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::publisher_loop::{OutboxPublisher, OutboxPublisherOptions};
+use digua_common_event::{Envelope, Publisher, RabbitMqPublisher};
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;

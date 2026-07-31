@@ -1,6 +1,6 @@
-//! common-telemetry-axum: axum request-tracing middleware.
+//! digua_common-telemetry-axum: axum request-tracing middleware.
 //!
-//! Split out from `common-telemetry` so that CLI binaries (outbox-publisher
+//! Split out from `digua_common-telemetry` so that CLI binaries (outbox-publisher
 //! etc.) that only want `init_tracing` don't drag in the full axum / hyper /
 //! tower / tower-http tree. See plan §3 decision row 5 ("outbox-publisher
 //! binary 不加 axum feature").
@@ -13,7 +13,7 @@
 #[cfg(feature = "otlp")]
 mod otlp_impl {
     //! OTel implementation. Matches the original
-    //! `common-telemetry::middleware::otlp_impl` 1:1.
+    //! `digua_common-telemetry::middleware::otlp_impl` 1:1.
     use axum::{
         body::Body,
         extract::Request,

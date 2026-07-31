@@ -74,10 +74,10 @@ pub fn default_limits() -> Vec<Limit> {
 
 目前 `notification-service` 是首个接入服务侧限流的服务。其它服务按需 opt-in：
 
-1. `Cargo.toml` 加 `common-ratelimit = { path = "../../libs/common-ratelimit" }`
+1. `Cargo.toml` 加 `digua_common-ratelimit = { path = "../../libs/digua_common-ratelimit" }`
 2. 创建 `RateLimiter::new(redis.conn.clone(), default_limits())`
 3. 挂中间件：`.route_layer(axum::middleware::from_fn_with_state(rate_limiter, rate_limit_middleware))`
-4. `main.rs` 加 `common_ratelimit::init_metrics("service-name")`
+4. `main.rs` 加 `digua_common_ratelimit::init_metrics("service-name")`
 
 ---
 

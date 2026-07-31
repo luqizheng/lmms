@@ -11,7 +11,7 @@
 //!   `client_credentials` flow (delegates token mgmt to `kudi-http-client`).
 //!
 //! ```no_run
-//! use iam_service_sdk::IamClient;
+//! use digua_iam_sdk::IamClient;
 //!
 //! let _f = async {
 //!     let (_client, login) = IamClient::login(
@@ -20,7 +20,7 @@
 //!         "secret",
 //!     ).await?;
 //!     println!("logged in as {} ({})", login.user.username, login.user.id);
-//!     Ok::<(), kudi_http_client::SdkError>(())
+//!     Ok::<(), digua_http_client::SdkError>(())
 //! };
 //! ```
 
@@ -34,4 +34,4 @@ pub use crate::model::{
     RefreshResponse, RoleListResponse, RoleResponse, UpdateRoleRequest, UpdateUserRequest,
     UserInfo, UserListResponse, UserResponse,
 };
-pub use kudi_http_client::SdkError;
+pub use digua_http_client::SdkError;

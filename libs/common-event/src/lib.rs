@@ -1,4 +1,4 @@
-//! common-event: domain event bus primitives
+//! digua_common-event: domain event bus primitives
 //!
 //! Provides `Event`, `Envelope`, `Publisher`, `Consumer`, `OutboxRepo` traits
 //! with a RabbitMQ implementation. See `phase4-event-bus-design.md` for the

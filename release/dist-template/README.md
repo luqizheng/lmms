@@ -132,9 +132,9 @@ cargo add token-service-sdk --registry kellnr
 cargo add kudi-http-client --registry kellnr
 
 # 平台基础设施库（业务 Rust 服务作为 axum web 时的地基）
-cargo add common-error --registry kellnr
-cargo add common-db --registry kellnr
-cargo add common-log --registry kellnr
+cargo add digua_common-error --registry kellnr
+cargo add digua_common-db --registry kellnr
+cargo add digua_common-log --registry kellnr
 ```
 
 或在 `Cargo.toml` 手动添加：
@@ -143,8 +143,8 @@ cargo add common-log --registry kellnr
 [dependencies]
 audit-service-sdk = { version = "0.1", registry = "kellnr" }
 iam-service-sdk = { version = "0.1", registry = "kellnr" }
-common-error = { version = "0.1", registry = "kellnr" }
-common-db = { version = "0.1", registry = "kellnr" }
+digua_common-error = { version = "0.1", registry = "kellnr" }
+digua_common-db = { version = "0.1", registry = "kellnr" }
 ```
 
 cargo 会自动从已配置的 kellnr registry（`.cargo/config.toml`）拉取。编译前需设置 `CARGO_REGISTRIES_KELLNR_TOKEN` 环境变量。
@@ -186,11 +186,11 @@ Java SDK 由 CI 在 `v*.*.*` tag 触发时推送到私有 Maven 仓库。业务 
 
 ### 2. 引入 SDK 依赖
 
-按需引入对应服务的 SDK（所有模块共享 `com.kudi.coder:kudi-coder-sdk-common`，会自动传递依赖）：
+按需引入对应服务的 SDK（所有模块共享 `com.kudi.coder:kudi-coder-sdk-digua_common`，会自动传递依赖）：
 
 | SDK 模块 | artifactId | 用途 |
 | --- | --- | --- |
-| common | `kudi-coder-sdk-common` | 公共配置/异常（其余 SDK 自动传递依赖） |
+| digua_common | `kudi-coder-sdk-digua_common` | 公共配置/异常（其余 SDK 自动传递依赖） |
 | kudi-http-client | `kudi-http-client` | 底层 HTTP 客户端封装 |
 | user-service-user-sdk | `user-service-user-sdk` | 用户身份视角调用 IAM |
 | user-service-client-sdk | `user-service-client-sdk` | 客户端应用视角调用 IAM |

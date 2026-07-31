@@ -10,7 +10,7 @@
 
 当前 7 个 Rust 业务服务（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service）之间通过 **应用层 service token** 认证：
 
-- `libs/authz/src/require_service_token.rs` 在部分服务端点提供中间件保护。
+- `libs/digua_authz/src/require_service_token.rs` 在部分服务端点提供中间件保护。
 - Service token 为 JWT，各服务持有公私钥，校验 `token_type == "service"` + audience。
 
 **问题**：
@@ -104,8 +104,8 @@ let url = format!("http://localhost:19001{path}");
 
 删除内容：
 
-- `libs/authz/src/require_service_token.rs` 及单元测试
-- `libs/authz/src/lib.rs` 中的 `pub mod require_service_token`
+- `libs/digua_authz/src/require_service_token.rs` 及单元测试
+- `libs/digua_authz/src/lib.rs` 中的 `pub mod require_service_token`
 - 各服务端点中 `.layer(require_service_token(...))` 的引用
 
 保留内容：

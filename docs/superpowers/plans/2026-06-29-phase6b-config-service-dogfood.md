@@ -4,7 +4,7 @@
 
 **Goal:** token-service 成为第一个从 config-service HTTP API 拉配置的服务。
 
-**Architecture:** `libs/common-config` 加 `config-service` feature → `ConfigServiceProvider` HTTP 拉取 `/config/export/:ns` → `Loader::with_config_service(url, ns)` → fallback 本地 yaml → 可选 30s 轮询热更新。
+**Architecture:** `libs/digua_common-config` 加 `config-service` feature → `ConfigServiceProvider` HTTP 拉取 `/config/export/:ns` → `Loader::with_config_service(url, ns)` → fallback 本地 yaml → 可选 30s 轮询热更新。
 
 **Spec:** `docs/superpowers/specs/2026-06-29-phase6b-config-service-dogfood-design.md`
 
@@ -23,10 +23,10 @@
 
 | 路径 | 改动 |
 |---|---|
-| `libs/common-config/Cargo.toml` | + feature `config-service`, + `tracing` dep, + `wiremock` dev |
-| `libs/common-config/src/provider.rs` | NEW: ConfigServiceProvider (fetch + parse) |
-| `libs/common-config/tests/provider_test.rs` | NEW: wiremock 3 case |
-| `libs/common-config/src/lib.rs` | + `with_config_service` builder, + `load()` 内集成, + `watch_config()`, + `pub mod provider` |
+| `libs/digua_common-config/Cargo.toml` | + feature `config-service`, + `tracing` dep, + `wiremock` dev |
+| `libs/digua_common-config/src/provider.rs` | NEW: ConfigServiceProvider (fetch + parse) |
+| `libs/digua_common-config/tests/provider_test.rs` | NEW: wiremock 3 case |
+| `libs/digua_common-config/src/lib.rs` | + `with_config_service` builder, + `load()` 内集成, + `watch_config()`, + `pub mod provider` |
 | `services/token-service/Cargo.toml` | `features = ["config-service"]` |
 | `services/token-service/src/main.rs` | `load_config("config.yaml")` → `Loader::new("TOKEN").with_config_service(...).with_file(...).load()` |
 | `test-case/65-config-service-dogfood.md` | NEW: 手工验收清单 |
@@ -35,7 +35,7 @@
 
 ### Task 1: provider.rs + wiremock 3 tests
 
-**Files:** `libs/common-config/Cargo.toml`, `libs/common-config/src/provider.rs` (new), `libs/common-config/tests/provider_test.rs` (new)
+**Files:** `libs/digua_common-config/Cargo.toml`, `libs/digua_common-config/src/provider.rs` (new), `libs/digua_common-config/tests/provider_test.rs` (new)
 
 **Step 1: Cargo.toml** — 加 `config-service = ["dep:reqwest"]` feature, `tracing = { workspace = true }`, `[dev-dependencies] wiremock = "0.6"`
 
@@ -43,9 +43,9 @@
 
 **Step 3: provider_test.rs** — 3 wiremock cases: (a) 200-ok returns map, (b) 404-err, (c) invalid-json-err
 
-**Step 4:** `cargo test -p common-config --features config-service --test provider_test` → 3 passed
+**Step 4:** `cargo test -p digua_common-config --features config-service --test provider_test` → 3 passed
 
-**Step 5:** `cargo check -p common-config --no-default-features` + `--features config-service` + `--features consul` all OK
+**Step 5:** `cargo check -p digua_common-config --no-default-features` + `--features config-service` + `--features consul` all OK
 
 **Step 6:** Commit
 
@@ -53,7 +53,7 @@
 
 ### Task 2: Loader 集成 provider + watch_config
 
-**Files:** `libs/common-config/src/lib.rs`
+**Files:** `libs/digua_common-config/src/lib.rs`
 
 **Step 1:** `Loader` struct 加 `#[cfg(feature = "config-service")]` 字段: `config_service_url`, `config_service_namespace`
 
@@ -75,7 +75,7 @@
 
 **Files:** `services/token-service/Cargo.toml`, `services/token-service/src/main.rs`, `test-case/65-config-service-dogfood.md` (new)
 
-**Step 1:** Cargo.toml: `common-config = { path = "...", features = ["config-service"] }`
+**Step 1:** Cargo.toml: `digua_common-config = { path = "...", features = ["config-service"] }`
 
 **Step 2:** main.rs: 把 `load_config("config/config.yaml").or_else(|_| load_config("config/token-service.yaml"))` 换成 `Loader::new("TOKEN").with_file("config/config.yaml").with_config_service(env("CONFIG_SERVICE_URL"), env("CONFIG_SERVICE_NAMESPACE")).load()`
 

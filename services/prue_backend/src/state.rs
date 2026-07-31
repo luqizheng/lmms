@@ -1,6 +1,6 @@
-use common_db::DbPool;
-use common_jwt::JWKSCache;
-use jwt_ctx::PrincipalStateProvider;
+use digua_common_db::DbPool;
+use digua_common_jwt::JWKSCache;
+use digua_jwt_ctx::PrincipalStateProvider;
 use std::sync::Arc;
 
 #[derive(Clone)]

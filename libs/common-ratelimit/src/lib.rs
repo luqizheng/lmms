@@ -1,4 +1,4 @@
-//! common-ratelimit — service-side rate limiting via Redis sliding window.
+//! digua_common-ratelimit — service-side rate limiting via Redis sliding window.
 //!
 //! Use case: business-logic limits beyond what gateway can express.
 //! E.g. "max 5 announcements per admin per minute" — gateway only knows routes,
@@ -25,7 +25,7 @@
 //! ## Example
 //!
 //! ```ignore
-//! use common_ratelimit::{RateLimiter, Limit, rate_limit_middleware};
+//! use digua_common_ratelimit::{RateLimiter, Limit, rate_limit_middleware};
 //!
 //! let limiter = RateLimiter::new(redis_pool);
 //! let app = Router::new()

@@ -1,4 +1,4 @@
-//! common-jwt: shared JWT primitives (JWKS cache, verify, sign, service-jwt cache)
+//! digua_common-jwt: shared JWT primitives (JWKS cache, verify, sign, service-jwt cache)
 //!
 //! Phase 5-B. Replaces ad-hoc JWT handling scattered across services.
 

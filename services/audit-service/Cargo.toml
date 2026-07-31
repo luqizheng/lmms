@@ -1,5 +1,5 @@
 [package]
-name = "audit-service"
+name = "audit_service"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,24 +17,24 @@ csv.workspace = true
 prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-common-error = { path = "../../libs/common-error" }
-common-event = { path = "../../libs/common-event" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
-authz = { path = "../../libs/authz" }
-common-log = { path = "../../libs/common-log" }
-common-cache = { path = "../../libs/common-cache" }
-common = { path = "../../libs/common" }
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
-common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
-common-jwt = { path = "../../libs/common-jwt" }
-jwt-ctx = { path = "../../libs/jwt-ctx" }
+digua_common_error = { path = "../../libs/common-error" }
+digua_common_event = { path = "../../libs/common-event" }
+digua_common_db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
+digua_authz = { path = "../../libs/authz" }
+digua_common_log = { path = "../../libs/common-log" }
+digua_common_cache = { path = "../../libs/common-cache" }
+digua_common = { path = "../../libs/common" }
+digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+digua_common_jwt = { path = "../../libs/common-jwt" }
+digua_jwt_ctx = { path = "../../libs/jwt-ctx" }
 reqwest.workspace = true
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 redis = { workspace = true, features = ["connection-manager"] }
 
 [[bin]]
-name = "dump-openapi"
+name = "dump_openapi"
 path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]

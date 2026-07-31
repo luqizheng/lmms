@@ -1,4 +1,4 @@
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use crate::storage::object_store::{ByteStream, ObjectStore};
 use bytes::Bytes;
 use futures::StreamExt;

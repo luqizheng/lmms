@@ -3,9 +3,9 @@
 //!
 //! Redis SETEX 失败 → HandlerError::Transient：让 broker 重投（bounded 3 次后升 DLQ）。
 //! 之前 swallow 返 Ok 已被 Phase 6-A T3 禁用。
-use common_event::events::IamPermissionChanged;
-use common_event::perm_epoch::set_perm_epoch_if_greater;
-use common_event::{Consumer, ConsumeError, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::events::IamPermissionChanged;
+use digua_common_event::perm_epoch::set_perm_epoch_if_greater;
+use digua_common_event::{Consumer, ConsumeError, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
 use redis::aio::MultiplexedConnection;
 use std::time::Duration;
 use tracing::{info, warn, Instrument};

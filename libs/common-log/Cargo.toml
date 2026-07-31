@@ -1,5 +1,5 @@
 [package]
-name = "common-log"
+name = "digua_common_log"
 version = "0.1.0"
 license = "Apache-2.0"
 description = "Structured JSON logging with request_id middleware for KudiCoder services"
@@ -9,7 +9,7 @@ edition = "2021"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
-common-error = { path = "../common-error" }
+digua_common_error = { path = "../common-error" }
 axum.workspace = true
 tower.workspace = true
 serde.workspace = true

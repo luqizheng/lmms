@@ -19,7 +19,7 @@ serde_json = "1"
 ## Usage
 
 ```rust
-use kudi_http_client::KudiWebClient;
+use digua_http_client::KudiWebClient;
 
 let client = KudiWebClient::builder()
     .credential("contract-svc", "secret-111")
@@ -38,7 +38,7 @@ client.post("http://user-svc/api/users", r#"{"name":"x"}"#, None).await?;
 
 ## Errors
 
-`kudi_http_client::KudiHttpError`:
+`digua_http_client::KudiHttpError`:
 
 - `Auth { status, message, details }` — HTTP 401/403
 - `Validation { status, message, details }` — HTTP 400/422
@@ -81,7 +81,7 @@ on this crate directly and build the URL yourself.
 ### Example wiring inside a service SDK
 
 ```rust
-use kudi_http_client::{KudiWebClient, KudiHttpOptions, RequestContext, SdkError};
+use digua_http_client::{KudiWebClient, KudiHttpOptions, RequestContext, SdkError};
 
 // 1. Service SDK caller: provide base URL once.
 let http = KudiWebClient::builder()

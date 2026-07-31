@@ -10,7 +10,7 @@
 //!   - [`probe_marker_mysql`] / [`probe_marker_sqlite`] helper：查 marker table 是否存在
 //!   - [`build_response`]：比对 available vs applied，计算 missing / extra / current_version / in_sync
 //!
-//! axum handler 不在本模块（避免 common-db 引入 axum 依赖）。
+//! axum handler 不在本模块（避免 digua_common-db 引入 axum 依赖）。
 //! 各服务 routes/mod.rs 自行写一个 5-10 行的 thin handler，调用 [`build_response`]。
 //!
 //! 设计参考：spec `docs/superpowers/specs/2026-07-08-migrations-state-endpoint-design.md`

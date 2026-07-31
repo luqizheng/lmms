@@ -2,7 +2,7 @@
 
 ## 背景
 
-`token-service` 启动报 `CFG_PARSE / missing field db_type`。根因:`common_config::Loader` 内部用 `config::Environment::with_prefix("TOKEN").separator("_")` 做自动 env→struct 绑定,该行为把 env 名里**每个** `_` 都当嵌套分隔符。
+`token-service` 启动报 `CFG_PARSE / missing field db_type`。根因:`digua_common_config::Loader` 内部用 `config::Environment::with_prefix("TOKEN").separator("_")` 做自动 env→struct 绑定,该行为把 env 名里**每个** `_` 都当嵌套分隔符。
 
 - 目标字段:`database.db_type`
 - env 名:`TOKEN_DATABASE_DB_TYPE`
@@ -22,7 +22,7 @@
 1. **静默失败最坏**。自动绑定拼错 env 名不报错,伪装成 "yaml missing field"。手写映射拼错就是"这个 env 没生效",可诊断。
 2. **多数派已经这么做**。iam/notification/audit/config/file/prue 6 个服务已是手写,统一它俩就消除了两种"异类"。
 3. **AGENTS.md 里 env 表本就是天然实现清单**。手写 apply_env_overrides 就是把那张表落到代码,还能顺带做 `parse_or_warn` 数字类兜底。
-4. **少一个依赖**。`common_config::Loader` 现在唯一非平凡能力就是自动 env 绑定,把它拆了,`common-config` crate 对 token-service 不再必需(iam 早就没用了)。
+4. **少一个依赖**。`digua_common_config::Loader` 现在唯一非平凡能力就是自动 env 绑定,把它拆了,`digua_common-config` crate 对 token-service 不再必需(iam 早就没用了)。
 
 ## 范围
 
@@ -34,10 +34,10 @@
   - `TOKEN_DATABASE_DB_TYPE` 新增 unknown-value 兜底(warn 后保持 yaml)
   - 新增 6 个测试:`env_overlay_sets_db_type_verbatim`(regression)、numeric fields、malformed input、end-to-end
 - `services/token-service/src/main.rs`
-  - 移除 `common_config::Loader`
+  - 移除 `digua_common_config::Loader`
   - `CONFIG_SERVICE_URL` 兜底保留,作为**低优先级 env fallback layer**(process env 仍最优先),失败降级为无 remote(不阻塞启动)
 - `services/token-service/src/lib.rs` —— pub use 更新
-- `services/token-service/Cargo.toml` —— 移除 `common-config`,加 `tempfile` dev-dep
+- `services/token-service/Cargo.toml` —— 移除 `digua_common-config`,加 `tempfile` dev-dep
 
 - `services/api-gateway/src/config.rs`
   - 新增 `apply_env_overrides + load_config_with_env`
@@ -50,7 +50,7 @@
 
 - `infrastructure/docker-compose-services.yml`
   - api-gateway 段:`GW_SERVER__HOST/PORT/GW_REDIS__URL/PREFIX` → 单下划线
-  - 过时的"由 common_config::Loader 加载"注释改为"由 config.rs::apply_env_overrides 手写映射"(token + gateway 两段都改)
+  - 过时的"由 digua_common_config::Loader 加载"注释改为"由 config.rs::apply_env_overrides 手写映射"(token + gateway 两段都改)
 
 ### 文档
 
@@ -93,5 +93,5 @@ token-service 全部 `TOKEN_*` env 名保持不变,只有实现路径变了。�
 
 ## 未来工作
 
-- `libs/common-config` 目前只被少数场景引用(watch_config / HotConfig / config-service provider),可以逐步收敛为纯工具函数库(去除"自动 env 绑定"这条对外 API),避免下次误用。放在下一个 phase 处理。
+- `libs/digua_common-config` 目前只被少数场景引用(watch_config / HotConfig / config-service provider),可以逐步收敛为纯工具函数库(去除"自动 env 绑定"这条对外 API),避免下次误用。放在下一个 phase 处理。
 - 增加 `.trae/rules/project_rules.md` 约定:"config 层禁用 `config::Environment` 自动绑定,统一走 apply_env_overrides"。防止新服务再踩坑。

@@ -109,7 +109,7 @@ Each skill file contains:
 - **When to Invoke**: Specific conditions for using the skill
 - **Features**: Component capabilities and options
 - **API Reference**: Attributes, events, slots, exposes
-- **Usage Examples**: Code snippets for common patterns
+- **Usage Examples**: Code snippets for digua_common patterns
 - **Best Practices**: Recommended implementation guidelines
 
 ## Component Skill Index
@@ -464,7 +464,7 @@ element-plus-skills/
 4. **Provide code examples** from the skill documentation
 5. **Reference related skills** when applicable
 6. **Include best practices** from the skill content
-7. **Mention common issues** if relevant to user's context
+7. **Mention digua_common issues** if relevant to user's context
 
 ## Related Resources
 

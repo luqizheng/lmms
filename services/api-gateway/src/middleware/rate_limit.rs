@@ -74,10 +74,10 @@ fn path_matches(pattern: &str, path: &str) -> bool {
 
 #[derive(Clone)]
 pub struct RouteLimiterSet {
-    limiter: common_ratelimit::RateLimiter,
+    limiter: digua_common_ratelimit::RateLimiter,
     // ponytail: Box::leak at startup for static route strings — < 20 routes, acceptable.
-    limits: Arc<HashMap<String, common_ratelimit::Limit>>,
-    default: common_ratelimit::Limit,
+    limits: Arc<HashMap<String, digua_common_ratelimit::Limit>>,
+    default: digua_common_ratelimit::Limit,
 }
 
 impl RouteLimiterSet {
@@ -85,7 +85,7 @@ impl RouteLimiterSet {
         conn: redis::aio::ConnectionManager,
         cfg: &RateLimitConfig,
     ) -> Self {
-        use common_ratelimit::Limit;
+        use digua_common_ratelimit::Limit;
         let mut limits: HashMap<String, Limit> = HashMap::new();
         for (pattern, rule) in &cfg.routes {
             let route: &'static str = Box::leak(
@@ -99,7 +99,7 @@ impl RouteLimiterSet {
         }
         let default_route: &'static str = Box::leak("gateway:default".to_string().into_boxed_str());
         Self {
-            limiter: common_ratelimit::RateLimiter::new(conn, vec![]),
+            limiter: digua_common_ratelimit::RateLimiter::new(conn, vec![]),
             limits: Arc::new(limits),
             default: Limit {
                 route: default_route,

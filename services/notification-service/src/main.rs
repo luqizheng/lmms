@@ -18,8 +18,8 @@ mod ws_hub;
 
 use axum::routing::get;
 use axum::Router;
-use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
-use common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
+use digua_common_http::{NoopObserver, ResilientClient, ResilienceConfig};
+use digua_common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
 use config::AppConfig;
 use db::Db;
 use iam_client::IamMemberClient;
@@ -33,8 +33,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    common_telemetry::init_tracing("notification-service");
-    common_ratelimit::init_metrics("notification-service");
+    digua_common_telemetry::init_tracing("notification-service");
+    digua_common_ratelimit::init_metrics("notification-service");
     // Tell rate-limit middleware which service it is (for metric labels)
     std::env::set_var("SERVICE_NAME", "notification-service");
 
@@ -114,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
     let rest_state = rest::RestState {
         db: db.clone(),
         redis: redis.clone(),
-        rate_limiter: common_ratelimit::RateLimiter::new(
+        rate_limiter: digua_common_ratelimit::RateLimiter::new(
             redis.conn.clone(),
             rest::default_limits(),
         ),
@@ -142,7 +142,7 @@ async fn main() -> anyhow::Result<()> {
             migration_state_route::routes(rest_state.clone())
                 .layer(axum::middleware::from_fn_with_state(
                     rest_state.clone(),
-                    authz::verify_aud_principal_middleware::<rest::RestState>("notification-service"),
+                    digua_authz::verify_aud_principal_middleware::<rest::RestState>("notification-service"),
                 )),
         )
         .route(
@@ -155,7 +155,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .route("/metrics", get(metrics))
         .layer(axum::middleware::from_fn(
-            common_telemetry_axum::trace_request_middleware,
+            digua_common_telemetry_axum::trace_request_middleware,
         ));
 
     if swagger_enabled {

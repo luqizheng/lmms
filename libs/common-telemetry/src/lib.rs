@@ -1,4 +1,4 @@
-//! common-telemetry: tracing initialization with optional OTel export.
+//! digua_common-telemetry: tracing initialization with optional OTel export.
 //!
 //! Two modes:
 //! - Default (no `otlp` feature): plain tracing-subscriber (JSON logs to stdout).
@@ -6,7 +6,7 @@
 //!   exporter on top of tracing-subscriber. Spans appear in Jaeger / Tempo / OTel collector.
 //!
 //! The axum HTTP request-tracing middleware lives in the sibling crate
-//! `common-telemetry-axum` so that CLI binaries (outbox-publisher etc.) that
+//! `digua_common-telemetry-axum` so that CLI binaries (outbox-publisher etc.) that
 //! only want `init_tracing` don't pull in the full axum / hyper / tower
 //! dependency tree.
 
@@ -22,7 +22,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 /// # Example
 ///
 /// ```no_run
-/// common_telemetry::init_tracing("audit-service");
+/// digua_common_telemetry::init_tracing("audit-service");
 /// ```
 pub fn init_tracing(service_name: &'static str) {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {

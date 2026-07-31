@@ -46,7 +46,7 @@
 ## 3. 全局约束
 
 - **不改对外 HTTP 契约**。新增端点只在 `/health/*` 路径下。`/health` 保留为旧调用方兼容（返回值不变）。
-- **不动业务代码**。所有改动落在 `main.rs` 装配层 + 新 `libs/common-health` crate + 新 CI job + 新 e2e 用例。
+- **不动业务代码**。所有改动落在 `main.rs` 装配层 + 新 `libs/digua_common-health` crate + 新 CI job + 新 e2e 用例。
 - **可独立提交**。4 个子系统互不依赖，可任意顺序合入 main。
 - **本地等价**。每个 CI job 必须有 `pnpm run check:*` 或脚本对应物，PM agent 能 dry run。
 - **向后兼容**。`scripts/check-service-standard.js` 8-item baseline 不破坏旧规则，新规则以 "或" 方式追加（`/health` 或 `/health/live` 任一存在即通过；模板默认要 live+ready）。
@@ -72,7 +72,7 @@
    ┌────────────┐      ┌──────────┐      ┌─────────┐     ┌─────────┐
    │ 8 services │      │ Cargo +  │      │ Prom    │     │ Jaeger  │
    │ refactored │      │ Trivy CI │      │ rules + │     │ query   │
-   │ + common-  │      │ ignore   │      │ AM +    │     │ assert  │
+   │ + digua_common-  │      │ ignore   │      │ AM +    │     │ assert  │
    │   health   │      │ expiry   │      │ mock-wh │     │ 4 svc   │
    └────────────┘      └──────────┘      └─────────┘     └─────────┘
 ```
@@ -93,10 +93,10 @@
 
 **关键决策**（来自澄清问题）：readiness 只查 DB + Redis，**不查 Consul 注册状态**，避免启动慢。Consul 注册失败后台重试。
 
-### 5.2 新 crate: `libs/common-health`
+### 5.2 新 crate: `libs/digua_common-health`
 
 ```rust
-// libs/common-health/src/lib.rs
+// libs/digua_common-health/src/lib.rs
 pub struct HealthState {
     pub db: Option<sqlx::AnyPool>,
     pub redis: Option<redis::aio::ConnectionManager>,
@@ -408,7 +408,7 @@ test('SLO #4 readiness-fail triggers alert in <90s', async () => {
 
 `docs/superpowers/retros/2026-06-retrospective.md` § 7 列为下月目标。本期落实：
 
-- 复制 api-gateway 的 OTel 初始化代码到 `libs/common-otel`（新 crate 或扩 common-log）
+- 复制 api-gateway 的 OTel 初始化代码到 `libs/digua_common-otel`（新 crate 或扩 digua_common-log）
 - 4 个 service（token / iam / notification / audit）的 main.rs 调用 `common_otel::init("service-name")`
 - 各 service `Cargo.toml` 加 `opentelemetry`, `opentelemetry-otlp`, `tracing-opentelemetry`（与 gateway 同版本，已知 0.17 + `WithExportConfig`）
 - 加 axum middleware 提取 `traceparent` header 并 set parent span（用 `tracing-opentelemetry::OpenTelemetrySpanExt::set_parent`）
@@ -510,10 +510,10 @@ e2e_trace:
 
 | 风险 | 影响 | 缓解 |
 |------|------|------|
-| `common-health` 引入循环依赖 | 编译失败 | crate 只依赖 sqlx + redis crate（已在 workspace），不依赖任何 service crate |
-| OTel 4-service 启用引入 0.17 API 兼容坑 | trace 不上报 | retro 已记录 `WithExportConfig` + `trace` feature；本期把它写进 `common-otel` 一次解决 |
+| `digua_common-health` 引入循环依赖 | 编译失败 | crate 只依赖 sqlx + redis crate（已在 workspace），不依赖任何 service crate |
+| OTel 4-service 启用引入 0.17 API 兼容坑 | trace 不上报 | retro 已记录 `WithExportConfig` + `trace` feature；本期把它写进 `digua_common-otel` 一次解决 |
 | mock-webhook 被误打成 production 镜像 | 体积膨胀 | dockerfile / 服务规范脚本通过路径/AGENTS 标记排除；ADR 显式声明 |
-| Alertmanager 内存 SLO #4 触发依赖 readiness 探针被 Prometheus 抓取 | SLO #4 不触发 | `common-health` 暴露 `service_ready` IntGauge 到 `/metrics`，Prometheus 已有 SD 自动抓所有服务的 metrics endpoint，无需新增 job |
+| Alertmanager 内存 SLO #4 触发依赖 readiness 探针被 Prometheus 抓取 | SLO #4 不触发 | `digua_common-health` 暴露 `service_ready` IntGauge 到 `/metrics`，Prometheus 已有 SD 自动抓所有服务的 metrics endpoint，无需新增 job |
 | Trivy 在内网无法访问 vuln DB | CI fail | 在 CI runner 提前 `trivy image --download-db-only`；或使用离线 DB cache |
 | `pnpm run check:readiness` 总耗时过长 | DX 退化 | 4 段并行设计；目标 <3min（unit 测试已习惯 2min） |
 

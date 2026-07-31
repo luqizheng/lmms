@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
 use sqlx::mysql::MySqlPool;
 use tracing::{info, warn, Instrument};
 

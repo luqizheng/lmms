@@ -2,7 +2,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, SaltString},
     Argon2, Algorithm, Version,
 };
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 
 pub use argon2::password_hash::PasswordHasher;
 

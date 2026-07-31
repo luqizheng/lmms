@@ -1,7 +1,7 @@
 // 验证 ResilientClient 返回值与 gateway 映射的对应关系（决策 5A/12A）。
 // Ok(resp) -> 透传; CircuitOpen->503; Timeout->504; Connect->502 (映射见 router.rs)。
 use bytes::Bytes;
-use common_http::{NoopObserver, ResilienceConfig, ResilientClient, ResilientError};
+use digua_common_http::{NoopObserver, ResilienceConfig, ResilientClient, ResilientError};
 use reqwest::{header::HeaderMap, Client, Method, StatusCode};
 use std::sync::Arc;
 use std::time::Duration;

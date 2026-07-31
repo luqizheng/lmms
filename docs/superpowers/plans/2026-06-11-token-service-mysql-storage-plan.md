@@ -133,10 +133,10 @@ CREATE TABLE refresh_markers (
 
 ---
 
-## Task 3: tests/common/mod.rs — testcontainers MySQL helper
+## Task 3: tests/digua_common/mod.rs — testcontainers MySQL helper
 
 **Files:**
-- Create: `services/token-service/tests/common/mod.rs`
+- Create: `services/token-service/tests/digua_common/mod.rs`
 
 - [ ] **Step 1: 写测试公共模块**
 
@@ -712,7 +712,7 @@ git commit -m "feat(token-service): add models/ with FromRow structs for 4 table
 
 ```rust
 // requires: cargo test --test-threads=1
-mod common;
+mod digua_common;
 
 use token_service::db::DbPool;
 use token_service::models::oauth_client::Client;
@@ -733,7 +733,7 @@ fn sample_client(id: &str) -> Client {
 
 #[tokio::test]
 async fn seed_then_find_by_id() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     let n = oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     assert_eq!(n, 4); // api-gateway / token-service / user-service / notification-service
 
@@ -746,7 +746,7 @@ async fn seed_then_find_by_id() {
 
 #[tokio::test]
 async fn seed_is_idempotent() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     let n1 = oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     let n2 = oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     assert_eq!(n1, 4);
@@ -755,7 +755,7 @@ async fn seed_is_idempotent() {
 
 #[tokio::test]
 async fn find_unknown_returns_none() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     let c = oauth_client_svc::find_by_id(&pool, "ghost").await.unwrap();
     assert!(c.is_none());
@@ -763,7 +763,7 @@ async fn find_unknown_returns_none() {
 
 #[tokio::test]
 async fn insert_new_client() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     let c = sample_client("svc-new");
     oauth_client_svc::insert(&pool, &c).await.unwrap();
     let got = oauth_client_svc::find_by_id(&pool, "svc-new").await.unwrap();
@@ -930,7 +930,7 @@ cargo test -p token-service --test oauth_client_test -- --test-threads=1
 - [ ] **Step 7: commit**
 
 ```powershell
-git add services/token-service/tests/common services/token-service/tests/oauth_client_test.rs services/token-service/src/service services/token-service/src/lib.rs
+git add services/token-service/tests/digua_common services/token-service/tests/oauth_client_test.rs services/token-service/src/service services/token-service/src/lib.rs
 git commit -m "feat(token-service): oauth_client_svc with seed_default_clients + find/insert"
 ```
 
@@ -946,14 +946,14 @@ git commit -m "feat(token-service): oauth_client_svc with seed_default_clients +
 
 ```rust
 // requires: cargo test --test-threads=1
-mod common;
+mod digua_common;
 
 use token_service::db::DbPool;
 use token_service::service::auth_code_svc;
 
 #[tokio::test]
 async fn save_then_consume_succeeds_once() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-1", "user-1", 3600).await.unwrap();
     let u = auth_code_svc::consume(&pool, "code-1").await.unwrap();
     assert_eq!(u, Some("user-1".to_string()));
@@ -961,7 +961,7 @@ async fn save_then_consume_succeeds_once() {
 
 #[tokio::test]
 async fn second_consume_returns_none() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-2", "user-2", 3600).await.unwrap();
     let _ = auth_code_svc::consume(&pool, "code-2").await.unwrap();
     let u2 = auth_code_svc::consume(&pool, "code-2").await.unwrap();
@@ -970,7 +970,7 @@ async fn second_consume_returns_none() {
 
 #[tokio::test]
 async fn consume_expired_returns_none() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-3", "user-3", 1).await.unwrap();
     // 让它过期
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -980,14 +980,14 @@ async fn consume_expired_returns_none() {
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     let u = auth_code_svc::consume(&pool, "nope").await.unwrap();
     assert_eq!(u, None);
 }
 
 #[tokio::test]
 async fn concurrent_consume_only_one_succeeds() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     auth_code_svc::save(&pool, "code-4", "user-4", 3600).await.unwrap();
     let p1 = pool.clone();
     let p2 = pool.clone();
@@ -1099,21 +1099,21 @@ git commit -m "feat(token-service): auth_code_svc with atomic two-step consume"
 
 ```rust
 // requires: cargo test --test-threads=1
-mod common;
+mod digua_common;
 
 use token_service::db::DbPool;
 use token_service::service::revoke_svc;
 
 #[tokio::test]
 async fn revoke_then_is_revoked() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     revoke_svc::revoke(&pool, "jti-1", 3600).await.unwrap();
     assert!(revoke_svc::is_revoked(&pool, "jti-1").await.unwrap());
 }
 
 #[tokio::test]
 async fn revoke_is_idempotent() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     revoke_svc::revoke(&pool, "jti-2", 3600).await.unwrap();
     revoke_svc::revoke(&pool, "jti-2", 3600).await.unwrap(); // 不报错
     assert!(revoke_svc::is_revoked(&pool, "jti-2").await.unwrap());
@@ -1121,13 +1121,13 @@ async fn revoke_is_idempotent() {
 
 #[tokio::test]
 async fn unknown_jti_is_not_revoked() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     assert!(!revoke_svc::is_revoked(&pool, "nope").await.unwrap());
 }
 
 #[tokio::test]
 async fn expired_revocation_returns_false() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     revoke_svc::revoke(&pool, "jti-3", 1).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     assert!(!revoke_svc::is_revoked(&pool, "jti-3").await.unwrap());
@@ -1205,21 +1205,21 @@ git commit -m "feat(token-service): revoke_svc with INSERT IGNORE idempotent rev
 
 ```rust
 // requires: cargo test --test-threads=1
-mod common;
+mod digua_common;
 
 use token_service::db::DbPool;
 use token_service::service::refresh_svc;
 
 #[tokio::test]
 async fn mark_then_is_marked() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     refresh_svc::mark(&pool, "jti-A", 3600).await.unwrap();
     assert!(refresh_svc::is_marked(&pool, "jti-A").await.unwrap());
 }
 
 #[tokio::test]
 async fn mark_is_idempotent() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     refresh_svc::mark(&pool, "jti-B", 3600).await.unwrap();
     refresh_svc::mark(&pool, "jti-B", 3600).await.unwrap();
     assert!(refresh_svc::is_marked(&pool, "jti-B").await.unwrap());
@@ -1227,7 +1227,7 @@ async fn mark_is_idempotent() {
 
 #[tokio::test]
 async fn unknown_jti_not_marked() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     assert!(!refresh_svc::is_marked(&pool, "nope").await.unwrap());
 }
 ```
@@ -1993,7 +1993,7 @@ git commit -m "refactor(token-service): remove redis + ClientStore; service laye
 
 ```rust
 // requires: cargo test --test-threads=1
-mod common;
+mod digua_common;
 
 use token_service::db::{init_pool, DbPool};
 use token_service::models::oauth_client::Client;
@@ -2001,7 +2001,7 @@ use token_service::service::{auth_code_svc, oauth_client_svc, refresh_svc, revok
 
 #[tokio::test]
 async fn e2e_access_refresh_revoke() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
     // 1. seed an auth code

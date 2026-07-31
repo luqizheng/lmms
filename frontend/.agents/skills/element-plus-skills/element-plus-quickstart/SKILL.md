@@ -232,7 +232,7 @@ This skill provides:
 1. Installation commands for the specified package manager
 2. Configuration code snippets for the build tool
 3. Global configuration examples
-4. Troubleshooting tips for common setup issues
+4. Troubleshooting tips for digua_common setup issues
 
 ## Usage Limitations
 

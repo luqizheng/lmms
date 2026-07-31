@@ -12,7 +12,7 @@
 
 ## 1. 背景与问题
 
-`libs/common-event/src/consumer.rs:185-211` 的 delivery 循环目前是：
+`libs/digua_common-event/src/consumer.rs:185-211` 的 delivery 循环目前是：
 
 ```rust
 match delivery {
@@ -116,7 +116,7 @@ if count >= 3 || d.redelivered {
 
 ### 3.2 OOQ（Out-Of-Order）限制 — 重要！
 
-`libs/common-event/src/consumer.rs:109` 的 `basic_qos(32)` 让 broker 一次投 32 条消息并发处理。
+`libs/digua_common-event/src/consumer.rs:109` 的 `basic_qos(32)` 让 broker 一次投 32 条消息并发处理。
 Transient → republish-and-ack 模式下，**重投消息会被排到队尾**，破坏发送顺序：
 
 ```text
@@ -195,7 +195,7 @@ broker session 关闭时原消息会被 requeue（标准 AMQP 行为）。
 
 ## 5. 组件改动
 
-### 5.1 `libs/common-event/src/error.rs`
+### 5.1 `libs/digua_common-event/src/error.rs`
 
 ```rust
 #[derive(Debug, Error)]
@@ -214,7 +214,7 @@ pub enum HandlerError {
 
 **breaking change**：现有 `HandlerError::Handler(String)` 不再存在；5 处 caller 必须显式选边。
 
-### 5.2 `libs/common-event/src/consumer.rs` delivery 循环重写
+### 5.2 `libs/digua_common-event/src/consumer.rs` delivery 循环重写
 
 ```rust
 const REDELIVERY_LIMIT: i64 = 3;
@@ -350,7 +350,7 @@ match delivery {
 
 ## 6. 测试计划
 
-### 6.1 单元测试 — `libs/common-event/tests/error_classes.rs`
+### 6.1 单元测试 — `libs/digua_common-event/tests/error_classes.rs`
 
 ```rust
 #[test]
@@ -370,7 +370,7 @@ fn redelivery_count_parsing() {
 }
 ```
 
-### 6.2 集成测试 — `libs/common-event/tests/consumer_redelivery.rs`（testcontainers RabbitMQ）
+### 6.2 集成测试 — `libs/digua_common-event/tests/consumer_redelivery.rs`（testcontainers RabbitMQ）
 
 ```rust
 #[tokio::test]
@@ -444,10 +444,10 @@ async fn republish_confirm_nack_does_not_ack_original() {
 
 ## 7. 实施步骤
 
-1. `libs/common-event/src/error.rs` 改 HandlerError 双分支。
-2. `libs/common-event/src/consumer.rs` 加 `get_redelivery_count` + `republish_with_incremented_count` + 改 delivery 循环。
-3. 加 `libs/common-event/tests/error_classes.rs` 单测。
-4. 加 `libs/common-event/tests/consumer_redelivery.rs` testcontainers 5 个集成测试。
+1. `libs/digua_common-event/src/error.rs` 改 HandlerError 双分支。
+2. `libs/digua_common-event/src/consumer.rs` 加 `get_redelivery_count` + `republish_with_incremented_count` + 改 delivery 循环。
+3. 加 `libs/digua_common-event/tests/error_classes.rs` 单测。
+4. 加 `libs/digua_common-event/tests/consumer_redelivery.rs` testcontainers 5 个集成测试。
 5. 4 个 handler caller 同 PR 改造（按 §5.3 表）。
 6. workspace `cargo build` 全过 → testcontainers 全绿。
 7. 手工 e2e 跑 test-case/63 三场景。
@@ -467,6 +467,6 @@ async fn republish_confirm_nack_does_not_ack_original() {
 | republish-and-ack 引入 OOQ（消息次序变） | 同 channel + 同 routing-key + 同 partition broker 保序；spec 不涉及多 channel |
 | 死信循环（DLQ 队列也起 consumer 再读） | DLQ 队列没有 consumer，仅 RabbitMQ Management UI 看 + 手工 shovel；本 spec 不引入 |
 | `confirm_select` 已在 publisher 端 enabled，consumer 重发 channel 是否有？ | `subscribe_inner` 创建的 channel 默认无 confirm；需在 spawn 前 `channel.confirm_select(...).await?` 一次 |
-| HandlerError breaking 改动 | 同 PR 改 5 处 caller；外部无 caller（common-event 仅本 workspace 用） |
+| HandlerError breaking 改动 | 同 PR 改 5 处 caller；外部无 caller（digua_common-event 仅本 workspace 用） |
 | `x-redelivery-count` 阈值 3 偏紧 | 留 const，后期可配置；当前业务恢复时间预期 < 几秒 |
 | **republish 破坏发送顺序（OOQ）** | §3.2 限定为顺序无关 event；新 event 必须过 checklist；将来需严格顺序时改 events.yaml 标记 + consumer 走「transient 直 DLQ」 |

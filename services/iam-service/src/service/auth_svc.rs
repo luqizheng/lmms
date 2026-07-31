@@ -6,9 +6,9 @@ use crate::{
     state::AppState,
     dto::{LoginRequest, LoginResponse, ChangePasswordRequest, UserInfo},
 };
-use common_crypto::password::{hash, verify};
-use common_event::events::{IamLoginSucceeded, IamLoginFailed};
-use common_event::{Envelope, OutboxRepo};
+use digua_common_crypto::password::{hash, verify};
+use digua_common_event::events::{IamLoginSucceeded, IamLoginFailed};
+use digua_common_event::{Envelope, OutboxRepo};
 use chrono::{Utc, Duration};
 use nanoid::nanoid;
 use redis::AsyncCommands;
@@ -139,7 +139,7 @@ impl AuthService {
                 },
             )
             .with_tenant_id(user.tenant_id.to_string());
-            common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
+            digua_common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
                 .await
                 .map_err(|e| IamError::Internal(e.to_string()))?;
             tx.commit().await?;
@@ -400,7 +400,7 @@ impl AuthService {
             },
         )
         .with_tenant_id("1");
-        common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
+        digua_common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
         tx.commit().await?;

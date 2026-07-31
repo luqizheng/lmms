@@ -47,34 +47,34 @@ coder-micro-services/
 ```
 libs/
 ├─ jwt-ctx/        (已存在)
-├─ authz/          (已存在)
-├─ common-error/   统一错误 + HTTP 映射
-├─ common-config/  env+toml+consul+config-service 加载
-├─ common-log/     tracing + request_id + 审计上报
-├─ common-http/    reqwest 封装 + 重试 + 服务发现
-├─ common-db/      sqlx + 多方言（mysql/dameng/mssql/sqlite）
-├─ common-cache/   Redis + 本地双层 + 分布式锁
-├─ common-crypto/  AES/RSA/Argon2/HMAC
-└─ common-validator/ 入参校验扩展
+├─ digua_authz/          (已存在)
+├─ digua_common-error/   统一错误 + HTTP 映射
+├─ digua_common-config/  env+toml+consul+config-service 加载
+├─ digua_common-log/     tracing + request_id + 审计上报
+├─ digua_common-http/    reqwest 封装 + 重试 + 服务发现
+├─ digua_common-db/      sqlx + 多方言（mysql/dameng/mssql/sqlite）
+├─ digua_common-cache/   Redis + 本地双层 + 分布式锁
+├─ digua_common-crypto/  AES/RSA/Argon2/HMAC
+└─ digua_common-validator/ 入参校验扩展
 ```
 
 ### 2.3 内部依赖图（避免环）
 
 ```
-common-error  ← 所有
-common-log    ← 仅依赖 common-error
-common-config ← 依赖 error/log
-common-db     ← 依赖 error/log/config
-common-cache  ← 依赖 error/log/config
-common-http   ← 依赖 error/log/config
-common-crypto ← 仅依赖 error
-common-validator ← 仅依赖 error
-jwt-ctx / authz ← 依赖 error/log/cache
+digua_common-error  ← 所有
+digua_common-log    ← 仅依赖 digua_common-error
+digua_common-config ← 依赖 error/log
+digua_common-db     ← 依赖 error/log/config
+digua_common-cache  ← 依赖 error/log/config
+digua_common-http   ← 依赖 error/log/config
+digua_common-crypto ← 仅依赖 error
+digua_common-validator ← 仅依赖 error
+jwt-ctx / digua_authz ← 依赖 error/log/cache
 ```
 
 ---
 
-## 3. 多数据库支持（common-db 重点）
+## 3. 多数据库支持（digua_common-db 重点）
 
 ### 3.1 支持矩阵
 
@@ -88,7 +88,7 @@ jwt-ctx / authz ← 依赖 error/log/cache
 ### 3.2 模块结构
 
 ```
-libs/common-db/
+libs/digua_common-db/
 ├─ src/
 │  ├─ lib.rs              # DbPool 枚举、init_pool()
 │  ├─ dialect/
@@ -140,7 +140,7 @@ CI 用 docker 起 dameng / mssql 各跑一次核心 service 测试，频次每�
 - Token：JWT 签发 / 校验 / 吊销，复用现有 token-service 内核。
 - 在线会话：在线用户列表、强制下线。
 
-依赖：common-db / common-cache / common-crypto / common-log。
+依赖：digua_common-db / digua_common-cache / digua_common-crypto / digua_common-log。
 
 ### 4.2 config-service（配置中心）
 
@@ -149,7 +149,7 @@ CI 用 docker 起 dameng / mssql 各跑一次核心 service 测试，频次每�
 - 命名空间：app + env（dev/staging/prod）+ profile。
 - 配置项：key/value、类型（string/int/bool/json/yaml）、版本、变更记录。
 - 灰度发布：按实例标签 / IP 段下发。
-- 监听：长轮询 / SSE 推送，客户端走 `common-config` SDK。
+- 监听：长轮询 / SSE 推送，客户端走 `digua_common-config` SDK。
 - 加密项：标记为 secret 的值用 KMS-key 加密落库。
 - 导入导出：toml / yaml / json。
 - 与 Consul KV 边界：config-service 为业务配置层；Consul 仅服务发现。
@@ -158,7 +158,7 @@ CI 用 docker 起 dameng / mssql 各跑一次核心 service 测试，频次每�
 
 端点域：`/audit/*`
 
-- 操作日志：业务方通过 `common-log` 上报，按用户 / 资源 / 动作检索。
+- 操作日志：业务方通过 `digua_common-log` 上报，按用户 / 资源 / 动作检索。
 - 登录日志：成功 / 失败、IP、UA、地理位置。
 - 数据变更：before / after diff。
 - API 访问日志：网关旁路上报，采样可配。
@@ -196,28 +196,28 @@ CI 用 docker 起 dameng / mssql 各跑一次核心 service 测试，频次每�
 
 ## 5. libs 共享内核详表
 
-### 5.1 common-error
+### 5.1 digua_common-error
 
 - `enum AppError`：thiserror，分类 BadRequest / Unauthorized / Forbidden / NotFound / Conflict / Internal / External。
 - `From<sqlx::Error>` / `From<reqwest::Error>` / `From<validator::ValidationErrors>` 自动转换。
 - `IntoResponse`（axum）：输出 `{ code, message, request_id }`。
 - 错误码常量来自 `contracts/error-codes.yaml` 代码生成。
 
-### 5.2 common-config
+### 5.2 digua_common-config
 
 - 加载顺序：默认值 → `config/<env>.toml` → 环境变量 → consul KV → config-service。
 - 类型化：`#[derive(Deserialize)] struct AppConfig`，启动期校验失败 panic。
 - 热更新：订阅 config-service 变更，触发字段级 callback。
 - 敏感字段：`#[secret]` 标记，日志脱敏。
 
-### 5.3 common-log
+### 5.3 digua_common-log
 
 - 全局 subscriber：JSON 格式，级别可配，采样率可配。
 - middleware：注入 `request_id` / `trace_id`，从 header `X-Request-Id` 透传。
 - 跨服务传播：reqwest 客户端自动携带。
 - 审计 API：`audit::log(action, resource, before, after)` 异步推 audit-service，本地 buffer 落盘兜底。
 
-### 5.4 common-http
+### 5.4 digua_common-http
 
 - reqwest 封装：连接池、超时、TLS。
 - 中间件：重试（指数退避 + 抖动）、熔断（半开态）、限流（令牌桶）。
@@ -225,11 +225,11 @@ CI 用 docker 起 dameng / mssql 各跑一次核心 service 测试，频次每�
 - 服务发现：从 Consul 解析 `service-name` → 实例列表 + 轮询。
 - mock：测试模式可注入 stub。
 
-### 5.5 common-db
+### 5.5 digua_common-db
 
 见 §3。
 
-### 5.6 common-cache
+### 5.6 digua_common-cache
 
 - trait `Cache`：`get / set / del / incr / mget / lock`。
 - 实现：Redis（生产）、Moka（本地 LRU）、Memory（测试）。
@@ -237,7 +237,7 @@ CI 用 docker 起 dameng / mssql 各跑一次核心 service 测试，频次每�
 - 分布式锁：Redis SETNX + Lua 解锁。
 - key 命名：`<service>:<entity>:<id>`，TTL 强制设置。
 
-### 5.7 common-crypto
+### 5.7 digua_common-crypto
 
 - 对称：AES-256-GCM。
 - 非对称：RSA-OAEP / Ed25519。
@@ -247,12 +247,12 @@ CI 用 docker 起 dameng / mssql 各跑一次核心 service 测试，频次每�
 - KMS 抽象：trait `KeyProvider`，本地密钥 + 阿里 / 华为 KMS（可选）。
 - crypto provider 锁定 `aws_lc_rs`（项目规则）。
 
-### 5.8 common-validator
+### 5.8 digua_common-validator
 
 - 基于 `validator` crate 扩展：手机号、身份证、统一社会信用代码、强密码。
-- 自定义错误码映射 `common-error`。
+- 自定义错误码映射 `digua_common-error`。
 
-### 5.9 jwt-ctx / authz
+### 5.9 jwt-ctx / digua_authz
 
 - 已存在；与 iam-service 的 `permissions.yaml` 同步。
 
@@ -269,8 +269,8 @@ contracts/
 ├─ events.yaml           # 领域事件名（预留）
 ├─ http-conventions.md   # 响应/分页/排序约定
 └─ codegen/
-   ├─ gen-rust.js        # → libs/common-error/src/codes.rs
-   ├─ gen-rust-perms.js  # → libs/authz/src/perms.rs
+   ├─ gen-rust.js        # → libs/digua_common-error/src/codes.rs
+   ├─ gen-rust-perms.js  # → libs/digua_authz/src/perms.rs
    └─ gen-ts.js          # → frontend/src/contracts/*.ts
 ```
 
@@ -301,7 +301,7 @@ SQLite 并行单测：每用例独立 tempfile，tx 回滚，失败保留路径�
 
 ### Phase 1 — 内核就位
 
-- libs：common-error / common-log / common-config / common-db / common-cache。
+- libs：digua_common-error / digua_common-log / digua_common-config / digua_common-db / digua_common-cache。
 - contracts：error-codes / permissions + 代码生成器。
 - iam-service：合并现有 token + credential + user 三服务。
 
@@ -314,7 +314,7 @@ SQLite 并行单测：每用例独立 tempfile，tx 回滚，失败保留路径�
 ### Phase 3 — 完善
 
 - notification-service 扩展（邮件 / SMS / Webhook）。
-- common-http / common-crypto / common-validator 完整化。
+- digua_common-http / digua_common-crypto / digua_common-validator 完整化。
 - 方言兼容矩阵（dameng / mssql 实测）。
 
 ### Phase 4 — 加固
@@ -329,7 +329,7 @@ SQLite 并行单测：每用例独立 tempfile，tx 回滚，失败保留路径�
 
 兼容性：
 
-- 方言适配在 `common-db` 闭环，业务代码方言无关。
+- 方言适配在 `digua_common-db` 闭环，业务代码方言无关。
 - 错误码 / 权限码契约升级走 codegen，CI 防漂移。
 - libs feature flag 按需启用（`mysql / dameng / mssql / sqlite / redis / consul`）。
 
@@ -351,7 +351,7 @@ SQLite 并行单测：每用例独立 tempfile，tx 回滚，失败保留路径�
 
 ## 10. 风险与未决项
 
-- 达梦 MySQL 兼容模式存在边界差异（关键字、JSON、SEQ），需在 `common-db/dialect/dameng.rs` 显式覆盖。
+- 达梦 MySQL 兼容模式存在边界差异（关键字、JSON、SEQ），需在 `digua_common-db/dialect/dameng.rs` 显式覆盖。
 - MSSQL 选 `sqlx-mssql` 还是 `tiberius`：待 Phase 3 实测决定。
 - iam-service 合并三个现有服务需要数据迁移方案（Phase 1 子计划）。
 - 审计高写入场景下 SQLite 单测可能与生产差异较大，需补充 mysql 集成测试。

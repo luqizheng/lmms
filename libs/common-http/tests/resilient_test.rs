@@ -1,6 +1,6 @@
 use bytes::Bytes;
-use common_http::CircuitState;
-use common_http::{
+use digua_common_http::CircuitState;
+use digua_common_http::{
     NoopObserver, Outcome, ResilienceConfig, ResilienceObserver, ResilientClient, ResilientError,
 };
 use reqwest::{header::HeaderMap, Client, Method, StatusCode};

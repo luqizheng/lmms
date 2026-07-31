@@ -10,7 +10,7 @@
 
 参照设计：[2026-06-13-enterprise-base-libs-design.md](file:///d:/projects/coder-micro-services/docs/superpowers/specs/2026-06-13-enterprise-base-libs-design.md) §6。
 
-执行边界：本计划仅触及 `contracts/`、`scripts/contracts-gen.js`、`libs/common-error/src/codes.rs`、`libs/authz/src/perms.rs`。**不**修改 `services/`、`frontend/`。
+执行边界：本计划仅触及 `contracts/`、`scripts/contracts-gen.js`、`libs/digua_common-error/src/codes.rs`、`libs/digua_authz/src/perms.rs`。**不**修改 `services/`、`frontend/`。
 
 ---
 
@@ -23,8 +23,8 @@ contracts/
 ├─ events.yaml           # 领域事件名（预留）
 ├─ http-conventions.md   # 响应/分页/排序约定
 └─ codegen/
-   ├─ gen-rust.js        # → libs/common-error/src/codes.rs
-   ├─ gen-rust-perms.js  # → libs/authz/src/perms.rs
+   ├─ gen-rust.js        # → libs/digua_common-error/src/codes.rs
+   ├─ gen-rust-perms.js  # → libs/digua_authz/src/perms.rs
    └─ gen-ts.js          # → frontend/src/contracts/*.ts（预留）
 
 scripts/
@@ -370,7 +370,7 @@ git commit -m "feat(contracts): add permissions.yaml and events.yaml"
 
 **Files:**
 - Create: `contracts/codegen/gen-rust.js`
-- Create: `libs/common-error/src/codes.rs`
+- Create: `libs/digua_common-error/src/codes.rs`
 
 - [ ] **Step 1: 写 gen-rust.js**
 
@@ -380,7 +380,7 @@ git commit -m "feat(contracts): add permissions.yaml and events.yaml"
 #!/usr/bin/env node
 /**
  * 从 error-codes.yaml 生成 Rust 常量模块
- * 输出：libs/common-error/src/codes.rs
+ * 输出：libs/digua_common-error/src/codes.rs
  */
 
 const fs = require('fs');
@@ -461,7 +461,7 @@ function generateRust(data) {
 
 function main() {
   const yamlPath = path.resolve(__dirname, '../error-codes.yaml');
-  const outputPath = path.resolve(__dirname, '../../libs/common-error/src/codes.rs');
+  const outputPath = path.resolve(__dirname, '../../libs/digua_common-error/src/codes.rs');
 
   const yamlContent = fs.readFileSync(yamlPath, 'utf8');
   const data = parseYaml(yamlContent);
@@ -480,18 +480,18 @@ main();
 node contracts/codegen/gen-rust.js
 ```
 
-Expected: 输出 `Generated libs/common-error/src/codes.rs`
+Expected: 输出 `Generated libs/digua_common-error/src/codes.rs`
 
 - [ ] **Step 3: 验证生成的 codes.rs**
 
-检查 `libs/common-error/src/codes.rs` 内容应包含：
+检查 `libs/digua_common-error/src/codes.rs` 内容应包含：
 - `pub mod codes { ... }` 常量模块
 - `pub fn message(code: &str) -> &str` 映射函数
 - `pub fn kind(code: &str) -> ErrorKind` 映射函数
 
-- [ ] **Step 4: 更新 common-error lib.rs 引用 codes**
+- [ ] **Step 4: 更新 digua_common-error lib.rs 引用 codes**
 
-修改 `libs/common-error/src/lib.rs`，在文件末尾添加：
+修改 `libs/digua_common-error/src/lib.rs`，在文件末尾添加：
 
 ```rust
 pub mod codes;
@@ -500,7 +500,7 @@ pub mod codes;
 - [ ] **Step 5: 编译验证**
 
 ```bash
-cargo build -p common-error
+cargo build -p digua_common-error
 ```
 
 Expected: 编译成功
@@ -508,7 +508,7 @@ Expected: 编译成功
 - [ ] **Step 6: Commit**
 
 ```bash
-git add contracts/codegen/gen-rust.js libs/common-error/src/codes.rs libs/common-error/src/lib.rs
+git add contracts/codegen/gen-rust.js libs/digua_common-error/src/codes.rs libs/digua_common-error/src/lib.rs
 git commit -m "feat(contracts): add gen-rust.js and generated codes.rs"
 ```
 
@@ -518,7 +518,7 @@ git commit -m "feat(contracts): add gen-rust.js and generated codes.rs"
 
 **Files:**
 - Create: `contracts/codegen/gen-rust-perms.js`
-- Create: `libs/authz/src/perms.rs`
+- Create: `libs/digua_authz/src/perms.rs`
 
 - [ ] **Step 1: 写 gen-rust-perms.js**
 
@@ -528,7 +528,7 @@ git commit -m "feat(contracts): add gen-rust.js and generated codes.rs"
 #!/usr/bin/env node
 /**
  * 从 permissions.yaml 生成 Rust 权限码常量模块
- * 输出：libs/authz/src/perms.rs
+ * 输出：libs/digua_authz/src/perms.rs
  */
 
 const fs = require('fs');
@@ -591,7 +591,7 @@ function generateRust(data) {
 
 function main() {
   const yamlPath = path.resolve(__dirname, '../permissions.yaml');
-  const outputPath = path.resolve(__dirname, '../../libs/authz/src/perms.rs');
+  const outputPath = path.resolve(__dirname, '../../libs/digua_authz/src/perms.rs');
 
   const yamlContent = fs.readFileSync(yamlPath, 'utf8');
   const data = parseYaml(yamlContent);
@@ -610,11 +610,11 @@ main();
 node contracts/codegen/gen-rust-perms.js
 ```
 
-Expected: 输出 `Generated libs/authz/src/perms.rs`
+Expected: 输出 `Generated libs/digua_authz/src/perms.rs`
 
-- [ ] **Step 3: 更新 authz lib.rs 引用 perms**
+- [ ] **Step 3: 更新 digua_authz lib.rs 引用 perms**
 
-修改 `libs/authz/src/lib.rs`，添加：
+修改 `libs/digua_authz/src/lib.rs`，添加：
 
 ```rust
 pub mod perms;
@@ -623,7 +623,7 @@ pub mod perms;
 - [ ] **Step 4: 编译验证**
 
 ```bash
-cargo build -p authz
+cargo build -p digua_authz
 ```
 
 Expected: 编译成功
@@ -631,7 +631,7 @@ Expected: 编译成功
 - [ ] **Step 5: Commit**
 
 ```bash
-git add contracts/codegen/gen-rust-perms.js libs/authz/src/perms.rs libs/authz/src/lib.rs
+git add contracts/codegen/gen-rust-perms.js libs/digua_authz/src/perms.rs libs/digua_authz/src/lib.rs
 git commit -m "feat(contracts): add gen-rust-perms.js and generated perms.rs"
 ```
 
@@ -838,7 +838,7 @@ Expected:
 - [ ] **Step 3: 编译验证**
 
 ```bash
-cargo build -p common-error -p authz
+cargo build -p digua_common-error -p digua_authz
 ```
 
 Expected: 编译成功
@@ -896,7 +896,7 @@ class ContractsValidator {
 
   validateErrorCodes() {
     const yamlPath = path.join(this.contractsDir, 'error-codes.yaml');
-    const generatedPath = path.join(this.libsDir, 'common-error/src/codes.rs');
+    const generatedPath = path.join(this.libsDir, 'digua_common-error/src/codes.rs');
 
     if (!fs.existsSync(yamlPath)) {
       return { name: 'error-codes', passed: false, error: 'YAML source not found' };
@@ -925,7 +925,7 @@ class ContractsValidator {
 
   validatePermissions() {
     const yamlPath = path.join(this.contractsDir, 'permissions.yaml');
-    const generatedPath = path.join(this.libsDir, 'authz/src/perms.rs');
+    const generatedPath = path.join(this.libsDir, 'digua_authz/src/perms.rs');
 
     if (!fs.existsSync(yamlPath)) {
       return { name: 'permissions', passed: false, error: 'YAML source not found' };
@@ -1030,8 +1030,8 @@ node scripts/contracts-gen.js
 ```
 
 生成目标：
-- `libs/common-error/src/codes.rs` — Rust 错误码常量
-- `libs/authz/src/perms.rs` — Rust 权限码常量
+- `libs/digua_common-error/src/codes.rs` — Rust 错误码常量
+- `libs/digua_authz/src/perms.rs` — Rust 权限码常量
 - `frontend/src/contracts/*.ts` — TypeScript 类型（预留）
 
 ## 命名规则
@@ -1061,7 +1061,7 @@ node scripts/test-orchestrator.js validate-contracts
 
 1. 编辑 YAML 文件
 2. 运行 `node scripts/contracts-gen.js`
-3. 运行 `cargo build -p common-error -p authz`
+3. 运行 `cargo build -p digua_common-error -p digua_authz`
 4. Commit YAML + 生成的 Rust 文件
 ```
 

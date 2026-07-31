@@ -7,7 +7,7 @@ P3.2 added gateway-central rate limiting (`governor` token bucket, in-memory). W
 This adds **service-side rate limiting** as an opt-in middleware:
 - Notification-service gets it first (anti-spam use case from roadmap)
 - Token-service / iam-service can opt-in later for similar needs
-- Library `common-ratelimit` so all services share the implementation
+- Library `digua_common-ratelimit` so all services share the implementation
 
 ## Decision
 
@@ -37,7 +37,7 @@ Limits to enforce:
 - `POST /announcements/{id}/revoke`: 10 per admin per minute
 - All other routes: 60 per user per minute (generic)
 
-### Library: `libs/common-ratelimit`
+### Library: `libs/digua_common-ratelimit`
 
 ```rust
 pub struct RateLimiter { /* Redis client, default config */ }
@@ -83,9 +83,9 @@ Prometheus counter `service_rate_limited_total{route="...", service="notificatio
 
 | File | Change |
 |------|--------|
-| `libs/common-ratelimit/Cargo.toml` | NEW — depends on `governor` + `redis` + `axum` + `tokio` |
-| `libs/common-ratelimit/src/lib.rs` | NEW — `RateLimiter`, `Limit`, axum middleware factory |
-| `services/notification-service/Cargo.toml` | Add common-ratelimit |
+| `libs/digua_common-ratelimit/Cargo.toml` | NEW — depends on `governor` + `redis` + `axum` + `tokio` |
+| `libs/digua_common-ratelimit/src/lib.rs` | NEW — `RateLimiter`, `Limit`, axum middleware factory |
+| `services/notification-service/Cargo.toml` | Add digua_common-ratelimit |
 | `services/notification-service/src/rest.rs` | Apply rate-limit middleware to admin routes |
 | `services/notification-service/src/lib.rs` | Export new module |
 | `services/notification-service/src/auth.rs` | Add identity extraction helper if missing |

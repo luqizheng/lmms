@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use kudi_http_client::client::KudiWebClient;
-use kudi_http_client::error::KudiHttpError;
-use kudi_http_client::models::TokenInfo;
-use kudi_http_client::options::KudiHttpOptions;
-use kudi_http_client::transport::{HttpResponse, HttpTransport};
+use digua_http_client::client::KudiWebClient;
+use digua_http_client::error::KudiHttpError;
+use digua_http_client::models::TokenInfo;
+use digua_http_client::options::KudiHttpOptions;
+use digua_http_client::transport::{HttpResponse, HttpTransport};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

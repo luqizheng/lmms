@@ -1,4 +1,4 @@
-pub use common_db::dialect::DialectKind;
+pub use digua_common_db::dialect::DialectKind;
 
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;

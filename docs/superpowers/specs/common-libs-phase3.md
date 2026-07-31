@@ -1,17 +1,17 @@
-# Phase 3: common-http / common-crypto 完整化
+# Phase 3: digua_common-http / digua_common-crypto 完整化
 
-> **STATUS: ✅ 已完成** — `libs/common-http/` 和 `libs/common-crypto/` 均存在，
+> **STATUS: ✅ 已完成** — `libs/digua_common-http/` 和 `libs/digua_common-crypto/` 均存在，
 > 被 api-gateway, iam-service, notification-service, token-service 引用。
 > 本文为设计参考，不需进一步行动。
 
 > 完成日期：2026-06-14
 
-## common-http
+## digua_common-http
 
 ### 模块结构
 
 ```
-libs/common-http/src/
+libs/digua_common-http/src/
 ├─ lib.rs              # 导出
 ├─ client.rs           # HttpClient 封装
 ├─ retry.rs           # 重试策略（指数退避 + 抖动）
@@ -23,7 +23,7 @@ libs/common-http/src/
 ### HttpClient
 
 ```rust
-use common_http::{HttpClient, HttpClientConfig};
+use digua_common_http::{HttpClient, HttpClientConfig};
 
 let client = HttpClient::builder()
     .timeout(Duration::from_secs(10))
@@ -36,7 +36,7 @@ let client = HttpClient::builder()
 ### RetryPolicy
 
 ```rust
-use common_http::RetryPolicy;
+use digua_common_http::RetryPolicy;
 
 let policy = RetryPolicy::new(3)
     .base_delay(Duration::from_millis(200))
@@ -49,7 +49,7 @@ let result = policy.execute(|| async { Ok(()) }).await?;
 ### CircuitBreaker
 
 ```rust
-use common_http::{CircuitBreaker, CircuitState};
+use digua_common_http::{CircuitBreaker, CircuitState};
 
 let cb = CircuitBreaker::new(5, Duration::from_secs(60))
     .half_open_max_calls(3);
@@ -65,7 +65,7 @@ if cb.is_available() {
 ### RateLimiter
 
 ```rust
-use common_http::RateLimiter;
+use digua_common_http::RateLimiter;
 
 let limiter = RateLimiter::new(100, 10); // capacity=100, refill=10/s
 
@@ -77,7 +77,7 @@ if limiter.try_acquire() {
 ### ConsulResolver
 
 ```rust
-use common_http::ConsulResolver;
+use digua_common_http::ConsulResolver;
 
 let resolver = ConsulResolver::new("http://localhost:8500")
     .cache_ttl(30);
@@ -87,12 +87,12 @@ let url = resolver.resolve_url("user-service").await?;
 
 ---
 
-## common-crypto
+## digua_common-crypto
 
 ### 模块结构
 
 ```
-libs/common-crypto/src/
+libs/digua_common-crypto/src/
 ├─ lib.rs              # 导出
 ├─ aead.rs            # AES-256-GCM（已存在）
 ├─ password.rs        # Argon2id（已存在）
@@ -105,7 +105,7 @@ libs/common-crypto/src/
 ### AEAD (AES-256-GCM)
 
 ```rust
-use common_crypto::{AeadCipher, Aes256Gcm};
+use digua_common_crypto::{AeadCipher, Aes256Gcm};
 
 let cipher = Aes256Gcm::new(key);
 let ciphertext = cipher.encrypt(plaintext)?;
@@ -115,7 +115,7 @@ let plaintext = cipher.decrypt(&ciphertext)?;
 ### Password (Argon2id)
 
 ```rust
-use common_crypto::PasswordHasher;
+use digua_common_crypto::PasswordHasher;
 
 let hasher = PasswordHasher::default();
 let hash = hasher.hash(password)?;
@@ -125,7 +125,7 @@ assert!(hasher.verify(password, &hash)?);
 ### RSA
 
 ```rust
-use common_crypto::{RsaKeyPair, RsaPublicKey, RsaScheme};
+use digua_common_crypto::{RsaKeyPair, RsaPublicKey, RsaScheme};
 
 // 生成
 let keypair = RsaKeyPair::generate(2048)?;
@@ -143,7 +143,7 @@ assert!(pub_key.verify(message, &signature, RsaScheme::Pkcs1Sha256)?);
 ### HMAC
 
 ```rust
-use common_crypto::{HmacSha256, HmacSha512};
+use digua_common_crypto::{HmacSha256, HmacSha512};
 
 let hmac = HmacSha256::new(b"secret");
 let digest = hmac.mac(b"secret", b"message");
@@ -153,7 +153,7 @@ assert!(hmac.verify(b"secret", b"message", &digest));
 ### KMS
 
 ```rust
-use common_crypto::{KmsClient, LocalKms};
+use digua_common_crypto::{KmsClient, LocalKms};
 
 #[async_trait]
 trait KmsClient {
@@ -170,7 +170,7 @@ let plaintext = kms.decrypt("my-key", &ciphertext).await?;
 ### Hash
 
 ```rust
-use common_crypto::{Sha256, Blake3};
+use digua_common_crypto::{Sha256, Blake3};
 
 let hash = Sha256::hash(b"data");
 let hex = Sha256::hash_hex(b"data");
@@ -184,6 +184,6 @@ let hex = Blake3::hash_hex(b"data");
 ## 测试
 
 ```bash
-cargo test -p common-http
-cargo test -p common-crypto
+cargo test -p digua_common-http
+cargo test -p digua_common-crypto
 ```

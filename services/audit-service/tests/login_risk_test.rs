@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use audit_service::redis_cli::RedisCli;
 use audit_service::risk::{self, RiskOptions};
-use common_event::events::IamLoginFailed;
-use common_event::{Envelope, Publisher, RabbitMqPublisher};
+use digua_common_event::events::IamLoginFailed;
+use digua_common_event::{Envelope, Publisher, RabbitMqPublisher};
 use testcontainers_modules::{rabbitmq::RabbitMq, redis::Redis, testcontainers::runners::AsyncRunner};
 
 #[tokio::test]

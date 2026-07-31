@@ -20,7 +20,7 @@ use api_gateway::{
 };
 use api_gateway::resilience_metrics::GatewayMetricsObserver;
 use cli::{Cli, Cmd};
-use common_http::ResilientClient;
+use digua_common_http::ResilientClient;
 
 fn find_and_render(
     routes: &[RouteConfig],
@@ -112,7 +112,7 @@ fn resolve_routes_dir(cli_routes: PathBuf) -> PathBuf {
 #[tokio::main]
 async fn main() {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-    common_telemetry::init_tracing("api-gateway");
+    digua_common_telemetry::init_tracing("api-gateway");
     middleware::rate_limit::init_metrics();
 
     let cli = Cli::parse();
@@ -131,7 +131,7 @@ async fn main() {
         Cmd::Serve { routes, admin_port } => serve(routes, admin_port).await,
     };
 
-    common_telemetry::shutdown();
+    digua_common_telemetry::shutdown();
     result
 }
 
@@ -177,7 +177,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     println!("========================================");
 
     let http_client = reqwest::Client::new();
-    use common_jwt::{JwksConfig, JWKSCache};
+    use digua_common_jwt::{JwksConfig, JWKSCache};
 
     let jwks_cache = Arc::new(JWKSCache::new(JwksConfig {
         url: cfg.jwks_url.clone(),
@@ -301,7 +301,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
             middleware::rate_limit::rate_limit_middleware,
         ))
         .route_layer(axum_mw::from_fn(
-            common_telemetry_axum::trace_request_middleware,
+            digua_common_telemetry_axum::trace_request_middleware,
         ))
         .without_v07_checks();
 

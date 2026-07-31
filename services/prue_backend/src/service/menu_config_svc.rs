@@ -8,7 +8,7 @@ use crate::{
     state::AppState,
 };
 use chrono::{DateTime, Utc};
-use common_db::DbPool;
+use digua_common_db::DbPool;
 use nanoid::nanoid;
 use serde_json::Value;
 use sqlx::FromRow;

@@ -28,7 +28,7 @@
 
 ```rust
 // 正确做法：使用 jwt-ctx 库
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 
 async fn handler(me: Principal, State(state): State<AppState>) -> impl IntoResponse {
     let user_id = me.user_id;

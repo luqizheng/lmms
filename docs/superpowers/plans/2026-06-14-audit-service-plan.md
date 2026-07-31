@@ -4,7 +4,7 @@
 
 **Goal:** 实现审计日志服务，支持操作日志、登录日志、API 访问日志，具备合规导出与告警能力。
 
-**Architecture:** 微服务架构，使用 common-db/common-log/common-cache。HTTP 同步上报 + 本地 buffer 兜底，无 MQ。
+**Architecture:** 微服务架构，使用 digua_common-db/digua_common-log/digua_common-cache。HTTP 同步上报 + 本地 buffer 兜底，无 MQ。
 
 **Tech Stack:** Rust 2021 / axum 0.8 / sqlx 0.8 / tokio / tracing
 
@@ -76,10 +76,10 @@ tracing.workspace = true
 sqlx.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-common-error = { path = "../../libs/common-error" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "sqlite"] }
-common-log = { path = "../../libs/common-log" }
-common-cache = { path = "../../libs/common-cache" }
+digua_common-error = { path = "../../libs/digua_common-error" }
+digua_common-db = { path = "../../libs/digua_common-db", features = ["mysql", "sqlite"] }
+digua_common-log = { path = "../../libs/digua_common-log" }
+digua_common-cache = { path = "../../libs/digua_common-cache" }
 ```
 
 - [ ] **Step 2: 创建错误码（contracts/error-codes.yaml）**
@@ -241,7 +241,7 @@ pub struct QueryOperationLogs {
 ```rust
 use crate::error::{AppError, AppResult};
 use crate::models::operation::{CreateOperationLog, OperationLog, QueryOperationLogs};
-use common_db::DbPool;
+use digua_common_db::DbPool;
 use sqlx::Row;
 
 pub struct AuditService {
@@ -256,7 +256,7 @@ impl AuditService {
     pub async fn create_operation_log(&self, log: CreateOperationLog) -> AppResult<i64> {
         let result = match &self.pool {
             #[cfg(feature = "mysql")]
-            common_db::DbPool::Mysql(p) => {
+            digua_common_db::DbPool::Mysql(p) => {
                 sqlx::query(
                     r#"INSERT INTO operation_logs 
                        (user_id, action, resource, resource_id, before_value, after_value, request_id, ip_address, user_agent)
@@ -275,7 +275,7 @@ impl AuditService {
                 .await?
             }
             #[cfg(feature = "sqlite")]
-            common_db::DbPool::Sqlite(p) => {
+            digua_common_db::DbPool::Sqlite(p) => {
                 sqlx::query(
                     r#"INSERT INTO operation_logs 
                        (user_id, action, resource, resource_id, before_value, after_value, request_id, ip_address, user_agent)
@@ -305,7 +305,7 @@ impl AuditService {
         // TODO: 构建动态查询
         let logs = match &self.pool {
             #[cfg(feature = "mysql")]
-            common_db::DbPool::Mysql(p) => {
+            digua_common_db::DbPool::Mysql(p) => {
                 sqlx::query_as::<_, OperationLog>(
                     "SELECT * FROM operation_logs ORDER BY created_at DESC LIMIT ? OFFSET ?"
                 )
@@ -315,7 +315,7 @@ impl AuditService {
                 .await?
             }
             #[cfg(feature = "sqlite")]
-            common_db::DbPool::Sqlite(p) => {
+            digua_common_db::DbPool::Sqlite(p) => {
                 sqlx::query_as::<_, OperationLog>(
                     "SELECT * FROM operation_logs ORDER BY created_at DESC LIMIT ?1 OFFSET ?2"
                 )
@@ -517,8 +517,8 @@ git commit -m "feat(audit-service): add CSV export for operation logs"
 `src/main.rs`:
 ```rust
 use audit_service::{routes, AppConfig, AppState};
-use common_db::init_pool;
-use common_log::init_json;
+use digua_common_db::init_pool;
+use digua_common_log::init_json;
 use std::sync::Arc;
 use axum::Router;
 
@@ -630,5 +630,5 @@ git commit -m "test(audit-service): add unit tests"
    - §4.3 合规导出 CSV → Task 4
    - §4.3 API 访问日志 → 简化版（网关旁路可后续实现）
    - §4.3 保留策略/告警 → 预留，未实现
-2. 依赖：common-db / common-log / common-error 已存在
+2. 依赖：digua_common-db / digua_common-log / digua_common-error 已存在
 3. 范围控制：audit-service 服务本身，不含网关旁路

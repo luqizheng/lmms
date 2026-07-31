@@ -7,7 +7,7 @@ pub mod test_kit;
 #[cfg(feature = "mysql")]
 pub use scope::WithTenantScope;
 
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use dialect::DialectKind;
 use sqlx::{mysql::MySql, sqlite::Sqlite, Pool};
 

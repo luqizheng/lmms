@@ -1,5 +1,5 @@
 #![cfg(feature = "test-kit")]
-use common_db::test_kit::SqliteFixture;
+use digua_common_db::test_kit::SqliteFixture;
 use sqlx::Row;
 use std::path::Path;
 

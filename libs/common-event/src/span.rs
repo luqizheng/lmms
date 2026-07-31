@@ -1,6 +1,6 @@
 //! Consumer-side OTel span parent 关联。
 //!
-//! Phase 6-A T2 参考实现（已从 audit-service 搬到 common-event，T2-fu1）：
+//! Phase 6-A T2 参考实现（已从 audit-service 搬到 digua_common-event，T2-fu1）：
 //! 从 envelope.trace_id (T1 已注入) 建一个 trace context 作为 consumer span
 //! 的 parent，让 producer→consumer 跨服务 chain 在 Jaeger 可见。
 

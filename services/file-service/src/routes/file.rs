@@ -8,7 +8,7 @@ use crate::models::file_info::{
 };
 use crate::routes::AppState;
 use bytes::Bytes;
-use jwt_ctx::TenantScope;
+use digua_jwt_ctx::TenantScope;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 pub fn routes(state: AppState) -> axum::Router<AppState> {

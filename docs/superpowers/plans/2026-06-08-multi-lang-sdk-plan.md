@@ -13,7 +13,7 @@
 ## 阶段二：Java 公共层
 
 - [ ] 2.1 创建 `sdk/java/pom.xml` 父 POM（管理 groupId、version、profile）
-- [ ] 2.2 实现 `sdk/java/common`
+- [ ] 2.2 实现 `sdk/java/digua_common`
   - `HttpClient` 包装（11+ 用 `java.net.http.HttpClient`，8 走 `HttpURLConnection`）
   - `TokenCache`（提前 60s 刷新 + 401 重试一次）
   - `SdkException` + 子类

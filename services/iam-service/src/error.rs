@@ -1,4 +1,4 @@
-use common_error::AppError;
+use digua_common_error::AppError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

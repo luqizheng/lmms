@@ -7,7 +7,7 @@
 ```
 sdk/
   java/                          # Java 8 / 17 / 21（v0.2.0，已对齐 v1 路由）
-    common/                      # HttpClient、TokenCache、异常、模型
+    digua_common/                      # HttpClient、TokenCache、异常、模型
     user-service-user-sdk/       # user -> iam-service
     user-service-client-sdk/     # client -> iam-service
     token-server-user-sdk/       # user -> token-service

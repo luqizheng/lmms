@@ -4,7 +4,7 @@
 
 **Goal:** 把 token-service / api-gateway 中残留的 jwt-simple 旧 API（`claims.audiences = Some(HashSet<...>)`）迁到 0.12 新 API（`Option<Audiences>`），消除编译错误。
 
-**Architecture:** 不改业务逻辑，仅替换类型。`Audiences` 是 `jwt_simple::prelude::*` 下的枚举；对照物是 [`libs/authz/tests/require_service_token_test.rs:21`](file:///d:/projects/coder-micro-services/libs/authz/tests/require_service_token_test.rs#L21)。
+**Architecture:** 不改业务逻辑，仅替换类型。`Audiences` 是 `jwt_simple::prelude::*` 下的枚举；对照物是 [`libs/digua_authz/tests/require_service_token_test.rs:21`](file:///d:/projects/coder-micro-services/libs/digua_authz/tests/require_service_token_test.rs#L21)。
 
 **背景：** 本 bug 是 pre-existing（`5192475 chore(workspace): credential-login + user-service rust migration` 引入），**非** [`2026-06-10-go-to-rust-migration-cleanup-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md) 引起。cleanup T3 在沙箱内未能 `cargo check` 验证，故未暴露。
 
@@ -149,7 +149,7 @@ claims.audiences = Some(Audiences::AsString("coder-micro-services".to_string()))
 
 - [ ] **Step 2: 改 line 642（match 块）**
 
-按 `libs/authz/src/require_service_token.rs:41` 模式改：
+按 `libs/digua_authz/src/require_service_token.rs:41` 模式改：
 
 ```rust
 let aud_ok = match &claims.audiences {
@@ -208,5 +208,5 @@ cargo clippy --workspace --all-targets -- -D warnings
 ## 关联
 
 - 触发发现：[`2026-06-10-go-to-rust-migration-cleanup-plan.md` 评审](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md)
-- 参照物（已修对）：[`libs/authz/src/require_service_token.rs`](file:///d:/projects/coder-micro-services/libs/authz/src/require_service_token.rs) + [`libs/authz/tests/require_service_token_test.rs`](file:///d:/projects/coder-micro-services/libs/authz/tests/require_service_token_test.rs)
+- 参照物（已修对）：[`libs/digua_authz/src/require_service_token.rs`](file:///d:/projects/coder-micro-services/libs/digua_authz/src/require_service_token.rs) + [`libs/digua_authz/tests/require_service_token_test.rs`](file:///d:/projects/coder-micro-services/libs/digua_authz/tests/require_service_token_test.rs)
 - 原始引入 commit：`5192475 chore(workspace): credential-login + user-service rust migration`（pre-existing，非 cleanup 引起）

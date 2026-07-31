@@ -6,8 +6,8 @@
 //!                  hub.publish(uid, New)   // 仅本副本有本地 WS 连接的 uid 实际送达
 //! ```
 //! best-effort：无幂等去重（前端按 id 去重）；漏推由 list_for_user reload 兜底。
-use common_event::events::NotificationAnnouncementPublished;
-use common_event::{Envelope, HandlerError};
+use digua_common_event::events::NotificationAnnouncementPublished;
+use digua_common_event::{Envelope, HandlerError};
 
 use crate::ws_hub::{WsHub, WsOut};
 

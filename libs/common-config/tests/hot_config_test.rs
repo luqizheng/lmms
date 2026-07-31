@@ -1,4 +1,4 @@
-use common_config::{HotConfig, Secret, SensitiveFields};
+use digua_common_config::{HotConfig, Secret, SensitiveFields};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[tokio::test]

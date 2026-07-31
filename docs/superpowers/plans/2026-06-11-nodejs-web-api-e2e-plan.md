@@ -54,7 +54,7 @@
 
 ```yaml
 packages:
-  - "common"
+  - "digua_common"
   - "token-server"
   - "api-gateway"
   - "auth-service"

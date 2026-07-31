@@ -6,7 +6,7 @@
 
 | Module | groupId : artifactId | 说明 |
 |---|---|---|
-| `common` | `com.kudi.coder:kudi-coder-sdk-common` | `HttpClient` 包装、`TokenCache`、模型、`SdkException` 体系 |
+| `digua_common` | `com.kudi.coder:kudi-coder-sdk-digua_common` | `HttpClient` 包装、`TokenCache`、模型、`SdkException` 体系 |
 | `user-service-user-sdk` | `com.kudi.coder:user-service-user-sdk` | 终端用户 → `iam-service`（`username + password`） |
 | `user-service-client-sdk` | `com.kudi.coder:user-service-client-sdk` | 服务间 → `iam-service`（`api_key + secret`） |
 | `token-server-user-sdk` | `com.kudi.coder:token-server-user-sdk` | 终端用户登录 + `token-service`（刷新 / 撤销 / 资源令牌） |

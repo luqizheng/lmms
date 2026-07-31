@@ -1,5 +1,5 @@
 use axum::{Router, routing::{get, post, put, delete}, extract::{Json, Path, State}};
-use jwt_ctx::TenantScope;
+use digua_jwt_ctx::TenantScope;
 use crate::{state::AppState, dto::{CreateOrgUnitRequest, UpdateOrgUnitRequest, OrgUnitResponse, AssignUsersRequest}, service::OrgService};
 
 pub fn routes(state: AppState) -> Router {

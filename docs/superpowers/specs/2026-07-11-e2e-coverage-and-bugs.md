@@ -54,7 +54,7 @@
 
 ### ✅ 已修：Bug #4 — 网关限流完全失效（fail-open）
 
-**位置**：`libs/common-ratelimit/src/lib.rs::check`
+**位置**：`libs/digua_common-ratelimit/src/lib.rs::check`
 
 **修复 commit**：`fb9e72f` `fix(ratelimit): Bug #4 网关限流失效 — pipeline → Lua 脚本`
 
@@ -117,7 +117,7 @@ match count {
 **为什么用 Lua 不用 Vec 索引**：spec 最初建议的 `Vec<i64>` + 索引方案实测有歧义——`v.pop()` 取到的是 EXPIRE 返回值（0/1），不是 ZCARD；`v.get(2)` 在 `.ignore()` 命令存在时也取错位置。Lua 脚本返回值是单一 i64，**无索引歧义**。
 
 **修复后验证**：
-- `cargo test -p common-ratelimit` — 1/1 pass
+- `cargo test -p digua_common-ratelimit` — 1/1 pass
 - `node scripts/e2e-rate-limit.js` — exit 0
   - `rl-auth-login-001`：9 通过 / 6 reject / 全部带 Retry-After
   - `rl-default-001`：220 通过（受 EXPIRE 1s 窗口 + curl/gateway 调度影响，ZCARD 在 1s 窗口内涨不到 200——测试环境约束，auth-login-001 已独立证明 Lua 修复正确）
@@ -369,7 +369,7 @@ prue_backend           ███████████████████
    - JWKS 黑名单验证（依赖 Bug #2 修复）
    - WS 推送（`/v1/notification/ws`，需 ws 客户端）
    - canary 路由（需 consul 注册 canary 实例）
-   - 服务侧限流（`common-ratelimit`）—— ✅ Bug #4 修复后路径已通，需补 e2e case
+   - 服务侧限流（`digua_common-ratelimit`）—— ✅ Bug #4 修复后路径已通，需补 e2e case
    - 幂等性（outbox 事件 at-least-once 重放）
 
 10. 重新跑覆盖率 diff 验证 90%+

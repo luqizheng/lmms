@@ -45,20 +45,20 @@ docker compose -f infrastructure/docker-compose.yml up -d
 1. `Cargo.toml` 加依赖：
 
    ```toml
-   common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
-   common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+   digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp"] }
+   digua_common-telemetry-axum = { path = "../../libs/digua_common-telemetry-axum", features = ["otlp"] }
    ```
 
 2. `main.rs` 初始化：
 
    ```rust
-   common_telemetry::init_tracing("service-name");
+   digua_common_telemetry::init_tracing("service-name");
    ```
 
 3. Axum 路由挂中间件：
 
    ```rust
-   .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
+   .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
    ```
 
 4. `docker-compose.yml` 加环境变量：

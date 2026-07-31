@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 /// Phase 5-B: the `kid` JWT header field. Must match the key id in
-/// the JWKSCache on the verifier side (see `common_jwt::JWKSCache::from_pem`).
+/// the JWKSCache on the verifier side (see `digua_common_jwt::JWKSCache::from_pem`).
 pub const JWT_KEY_ID: &str = "default";
 
 pub struct TokenIssuer {

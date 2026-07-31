@@ -52,8 +52,8 @@
 |---|---|---|---|---|
 | `api-gateway` | JWT 验签、Redis 黑名单、路由、限流 | 显式 `otlp` | 已设 `OTEL_EXPORTER_OTLP_ENDPOINT` | 唯一对外 HTTP 入口；容器 + 宿主机端口均 3000 |
 | `token-service` | access/refresh/service-jwt 签发 | 显式 `otlp` | 已设 | `/tokens/.well-known/jwks.json` |
-| `iam-service` | 用户 / 角色 / 权限 / 部门 / 租户；事件生产者 | **`common-telemetry` 未显式启用 `otlp`**；直接依赖 `opentelemetry` + `tracing-opentelemetry` 但 exporter 注册未独立核验 | 已设 | `iam_outbox_events` 表；`/iam/internal/*` 端点验 `aud="iam-service"`；OTel 实际导出行为待 §8 第 5 条说明 |
-| `iam-outbox-publisher`（独立 publisher crate） | 轮询 `iam_outbox_events` → RabbitMQ | 显式 `otlp`（`default-features = false` + `["otlp"]`） | 未设 | 独立 crate（Phase 6-A T2-fu3 拆出），仅依赖 sqlx + common-event + common-telemetry + serde_yaml；compose 复用 `iam-service` Dockerfile 切 CMD；无 HTTP / 无 openapi.yaml / 无 migrations / 无 tests / 无自有 Dockerfile |
+| `iam-service` | 用户 / 角色 / 权限 / 部门 / 租户；事件生产者 | **`digua_common-telemetry` 未显式启用 `otlp`**；直接依赖 `opentelemetry` + `tracing-opentelemetry` 但 exporter 注册未独立核验 | 已设 | `iam_outbox_events` 表；`/iam/internal/*` 端点验 `aud="iam-service"`；OTel 实际导出行为待 §8 第 5 条说明 |
+| `iam-outbox-publisher`（独立 publisher crate） | 轮询 `iam_outbox_events` → RabbitMQ | 显式 `otlp`（`default-features = false` + `["otlp"]`） | 未设 | 独立 crate（Phase 6-A T2-fu3 拆出），仅依赖 sqlx + digua_common-event + digua_common-telemetry + serde_yaml；compose 复用 `iam-service` Dockerfile 切 CMD；无 HTTP / 无 openapi.yaml / 无 migrations / 无 tests / 无自有 Dockerfile |
 | `notification-service` | 公告 CRUD + WebSocket 推送 + 本地 user membership 投影 | 显式 `otlp` | 已设 | 同 crate 内另含 `[[bin]] ntf-outbox-publisher`（轮询 `ntf_outbox_events` → RabbitMQ；OTel 未设 env）；订阅 `iam.user.*` / `iam.permission.changed` / `notification.announcement.published` |
 | `audit-service` | 操作日志 + 登录日志；事件消费者 | 显式 `otlp` | 未设 | RabbitMQ consumer；envelope.trace_id → span parent |
 | `config-service` | 命名空间、配置项、watch；6-B dogfooding 客户端 | 显式 `otlp` | 已设 | Phase 8.3-fu2 后引入 Principal 鉴权 + namespace ownership；`is_secret` 字段见 §4.1 |
@@ -98,9 +98,9 @@
 ## 2. 关键事实速查（AI 5 分钟可读完）
 
 - **架构**：浏览器 → `api-gateway:3000` → Rust 业务服务；服务间调用 `Authorization: Bearer <service-jwt>` 透传（无 mTLS / 无 SPIFFE）；事件总线走 RabbitMQ + transactional outbox。
-- **JWT**：RS256；网关验签；下游用 `libs/common-jwt::JWKSCache`；`Principal` extractor 取身份（`libs/jwt-ctx`）；**禁止读 `X-User-*` headers**。
+- **JWT**：RS256；网关验签；下游用 `libs/digua_common-jwt::JWKSCache`；`Principal` extractor 取身份（`libs/jwt-ctx`）；**禁止读 `X-User-*` headers**。
 - **多租户**：共享 MySQL + `tenant_id` 列；JWT `tid` claim + `tenant_id` 必填（缺则 401）；`cross_tenant: bool` 给 platform-admin；`scripts/check-tenant-scope.js` lint 守门。
-- **契约层**：`contracts/error-codes.yaml` / `permissions.yaml` / `events.yaml` / `http-conventions.md` / `db-conventions.md` 单一真相源。`scripts/contracts-gen.js` 生成 `libs/common-error/src/codes.rs`、`libs/authz/src/perms.rs`；**禁止手改生成文件**。
+- **契约层**：`contracts/error-codes.yaml` / `permissions.yaml` / `events.yaml` / `http-conventions.md` / `db-conventions.md` 单一真相源。`scripts/contracts-gen.js` 生成 `libs/digua_common-error/src/codes.rs`、`libs/digua_authz/src/perms.rs`；**禁止手改生成文件**。
 
 ---
 
@@ -265,7 +265,7 @@ PM Platform 已于 2026-07-19 移除（commit 在 git 历史）。仅保留 `pm-
 
 ### 7.2 ~~OTel 覆盖 vs compose env 不一致~~ → [已收敛]
 
-旧 ai-context §7 第 11 条列的 audit/config/file/prue_backend OTel "—" 已全部纠正——它们确实开了 `common-telemetry` 的 `otlp` feature。**剩余不确定项**：iam-service `Cargo.toml` 未显式开 feature（直接依赖 `opentelemetry` / `tracing-opentelemetry`），exporter 注册未独立核验（详见 §1.1 表格 + §8 关键约定第 5 条）。
+旧 ai-context §7 第 11 条列的 audit/config/file/prue_backend OTel "—" 已全部纠正——它们确实开了 `digua_common-telemetry` 的 `otlp` feature。**剩余不确定项**：iam-service `Cargo.toml` 未显式开 feature（直接依赖 `opentelemetry` / `tracing-opentelemetry`），exporter 注册未独立核验（详见 §1.1 表格 + §8 关键约定第 5 条）。
 
 ### 7.3 ~~部署 compose 路径漂移~~ → [已修复]
 
@@ -294,7 +294,7 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 4. **手写 `openapi.yaml` 已废止**：全部 10 份由 utoipa / springdoc 自动生成。改 spec 改代码（`#[utoipa::path]` / `@Operation`），再跑 `scripts/dump-openapi-specs.sh`。**不要直接编辑 yaml**。
 
 5. **OTel traces 靠 env + feature 双开**（口径已按 Cargo.toml + compose 实际校准）：
-   - `iam-service` 走另一路径：`common-telemetry` 与 `common-telemetry-axum` 依赖未显式开 `otlp` feature；`Cargo.toml` 自身直接依赖 `opentelemetry = "0.24"` + `tracing-opentelemetry = "0.25"`，**但是否实际注册 OTLP exporter 尚未独立核验**。
+   - `iam-service` 走另一路径：`digua_common-telemetry` 与 `digua_common-telemetry-axum` 依赖未显式开 `otlp` feature；`Cargo.toml` 自身直接依赖 `opentelemetry = "0.24"` + `tracing-opentelemetry = "0.25"`，**但是否实际注册 OTLP exporter 尚未独立核验**。
    - 任意一端（feature 或 env）缺失 → 进程不导出 span 到 OTel collector（iam-service 是否导出于实际 init 路径未独立核验）。判定方法：启动后查日志是否出现 `OTLP exporter` / tracer provider 初始化行；或在 Jaeger UI 搜不到对应 service / binary。
 
 6. **迁移是 forward-only**：不要编辑已发布迁移；新增 `V{N+1}__*.sql`。`scripts/check-prue-migrations-parity.sh` 守 prue_backend MySQL/SQLite parity。
@@ -303,13 +303,13 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 8. **`check-spec.js` 报缺少 `summary` 是 warning 不是 error**；exit 0。utoipa 默认不生成 summary。
 
-9. **`scripts/contracts-gen.js --check` 会重新生成 `libs/common-error/src/codes.rs`**：不要直接编辑该文件。改 `contracts/error-codes.yaml`，再重跑。
+9. **`scripts/contracts-gen.js --check` 会重新生成 `libs/digua_common-error/src/codes.rs`**：不要直接编辑该文件。改 `contracts/error-codes.yaml`，再重跑。
 
 10. **`notification/ws` 鉴权**：网关验 JWT 并注入用户身份；浏览器在 WS upgrade 时自动带 `Authorization`。**不要把 token 放 URL 里**。
 
 11. **网关限流返回 429 + `Retry-After`**：查 `infrastructure/config/api-gateway/rate-limits.toml` 看按路由覆盖；默认 100 rps / 200 burst；`/v1/iam/auth/login` 5 rps / 10 burst。Phase 10 起 gateway 限流统一走 Redis（commit `ddf44a0`），淘汰 in-memory 实现。
 
-12. **服务侧限流经 `common-ratelimit` opt-in**：Redis 滑动窗口、跨副本共享、Redis 出错时 fail-open。模式见 `services/notification-service/src/rest.rs`。
+12. **服务侧限流经 `digua_common-ratelimit` opt-in**：Redis 滑动窗口、跨副本共享、Redis 出错时 fail-open。模式见 `services/notification-service/src/rest.rs`。
 
 13. **灰度通过 Consul `canary` tag**：consul tag + Nginx `split_clients` 接 ~10% 流量；用 `?canary=1` 或 `X-Canary: true` 强制路由。详见 `docs-site/guides/canary-rollout.md`。
 
@@ -317,7 +317,7 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 15. **i18n namespace 约定 + CI gate**（commit `c2d23b4` 后）：`frontend/locales/{zh-CN,en}.yaml` 中 `menus.X` 的 X 必须定义在 `menus:` namespace 下，**不能在 `buttons:` / `login:` / `search:` / `panel:`**（即使前缀同名也不允许——这是 yaml duplicate key 错误来源）。**`scripts/check-i18n-namespace.js`**（commit `f7c7237`，2026-07-30）已在 CI 守门：扫描 `frontend/src` 下所有 .vue / .ts 中的 `t('menus.X')` 调用，对照 yaml `menus:` namespace 校验；hard-fail 退出码 1。CI job `i18n_namespace_check`（`.gitlab-ci.yml`）按 `frontend/src/**/*.{vue,ts}` 或 `frontend/locales/**/*.yaml` 变更触发。
 
-16. **事件总线 = RabbitMQ + transactional outbox**（Phase 4）。同事务写业务行 + `common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new(...))`；独立 `*-outbox-publisher` 进程轮询发布；消费者按 `event_id` 幂等。**`Envelope<serde_json::Value>` 仅用于消费**，publish 必须用强类型 Event。
+16. **事件总线 = RabbitMQ + transactional outbox**（Phase 4）。同事务写业务行 + `digua_common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new(...))`；独立 `*-outbox-publisher` 进程轮询发布；消费者按 `event_id` 幂等。**`Envelope<serde_json::Value>` 仅用于消费**，publish 必须用强类型 Event。
 
 17. **MySQL 复制对主库参数有硬要求**（commit `e905828` 后）：主库 `command` 必须含 `--server-id=1 --log-bin=mysql-bin --binlog-format=ROW --gtid-mode=ON --enforce-gtid-consistency=ON`，否则 replica `START SLAVE` 失败。从库用 GTID auto-positioning（`MASTER_AUTO_POSITION=1`），冷启动自动从主库克隆缺失事务，无需 mysqldump bootstrap。复制用户 `repl@'%'` 需在主库手工创建（见 `docs-site/runbooks/mysql-replication.md` §1）。
 

@@ -89,13 +89,13 @@ prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 # 平台基础设施库 - 从私有 kellnr registry 拉取
-common-error = { version = "0.1", registry = "kellnr" }
-common-db = { version = "0.1", registry = "kellnr", features = ["mysql", "sqlite"] }
-common-log = { version = "0.1", registry = "kellnr" }
-common-cache = { version = "0.1", registry = "kellnr" }
-common = { version = "0.1", registry = "kellnr" }
+digua_common-error = { version = "0.1", registry = "kellnr" }
+digua_common-db = { version = "0.1", registry = "kellnr", features = ["mysql", "sqlite"] }
+digua_common-log = { version = "0.1", registry = "kellnr" }
+digua_common-cache = { version = "0.1", registry = "kellnr" }
+digua_common = { version = "0.1", registry = "kellnr" }
 # Optional OTel: uncomment if tracing is needed
-# common-telemetry = { version = "0.1", registry = "kellnr", features = ["otlp"] }
+# digua_common-telemetry = { version = "0.1", registry = "kellnr", features = ["otlp"] }
 
 [[bin]]
 name = "dump-openapi"
@@ -157,7 +157,7 @@ CMD ["{name}"]
 
 ```rust
 use {snake_name}::{config::AppConfig, routes, create_state};
-use common_log::init_json;
+use digua_common_log::init_json;
 use std::net::SocketAddr;
 use tracing::info;
 
@@ -169,7 +169,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting {name} on {}", config.server_addr);
 
     // If using DB:
-    let pool = common::db::connect(&config.database_url, 10)
+    let pool = digua_common::db::connect(&config.database_url, 10)
         .await
         .expect("Failed to initialize database pool");
 

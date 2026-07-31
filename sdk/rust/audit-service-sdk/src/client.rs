@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use kudi_http_client::client::KudiWebClient;
-use kudi_http_client::SdkError;
+use digua_http_client::client::KudiWebClient;
+use digua_http_client::SdkError;
 
 use crate::model::{
     LoginLogQuery, OperationLogQuery, PagedLoginLogs, PagedOperationLogs, RetentionPolicy,
@@ -106,7 +106,7 @@ impl AuditClient {
     }
 }
 
-fn ensure_success(resp: &kudi_http_client::transport::HttpResponse, op: &str) -> Result<(), SdkError> {
+fn ensure_success(resp: &digua_http_client::transport::HttpResponse, op: &str) -> Result<(), SdkError> {
     let status = resp.status;
     if (200..300).contains(&status) {
         return Ok(());

@@ -1,7 +1,7 @@
 # User Service 多数据库支持 — Design
 
 日期: 2026-06-10
-范围: `services/user-service/`（仅 Rust 版本，不动 `libs/common`、不动其他服务）
+范围: `services/user-service/`（仅 Rust 版本，不动 `libs/digua_common`、不动其他服务）
 
 ## 目的
 
@@ -25,7 +25,7 @@
 **不在范围内**:
 - 业务 SQL 改写（`INSERT IGNORE` / `NOW()` 等保留 MySQL 方言）
 - MSSQL / SQLite 的 DDL / 数据迁移脚本
-- `libs/common` 改动（其他服务继续绑 MySQL）
+- `libs/digua_common` 改动（其他服务继续绑 MySQL）
 - `services/auth-service` / `services/token-service` / `services/api-gateway` 改动
 - `tests/` 现有用例改动
 
@@ -274,7 +274,7 @@ database:
 ### 不动的事
 
 - `tests/` 下现有用例零改动
-- `libs/common` 零改动
+- `libs/digua_common` 零改动
 - 其他服务零改动
 
 ### 验证命令
@@ -290,7 +290,7 @@ cargo test -p user-service
 
 - ❌ 不改业务 SQL（`INSERT IGNORE` / `NOW()` / `?` 占位符全部保留）
 - ❌ 不写 MSSQL / SQLite 的 DDL 迁移脚本
-- ❌ 不动 `libs/common` 的 `db::connect`
+- ❌ 不动 `libs/digua_common` 的 `db::connect`
 - ❌ 不为 MSSQL / SQLite 起 testcontainer
 - ❌ 不主动 commit（用户明说才 commit）
 - ❌ 不发 SDK / 不打 tag

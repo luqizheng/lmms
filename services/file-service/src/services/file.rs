@@ -4,9 +4,9 @@ use crate::models::presign_url::{CreatePresignUrl, PresignUrl, PresignUrlRespons
 use crate::storage::local::LocalStorage;
 use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
-use common_db::WithTenantScope;
-use common_jwt::JWKSCache;
-use jwt_ctx::TenantScope;
+use digua_common_db::WithTenantScope;
+use digua_common_jwt::JWKSCache;
+use digua_jwt_ctx::TenantScope;
 use sqlx::{MySqlPool, QueryBuilder};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -18,7 +18,7 @@ pub struct FileService {
     base_url: String,
     max_file_size: u64,
     /// Phase 5-B: JWKS cache for verifying inbound user-jwt.
-    pub jwks: Arc<common_jwt::JWKSCache>,
+    pub jwks: Arc<digua_common_jwt::JWKSCache>,
 }
 
 impl FileService {
@@ -27,7 +27,7 @@ impl FileService {
         storage: Arc<LocalStorage>,
         base_url: String,
         max_file_size: u64,
-        jwks: Arc<common_jwt::JWKSCache>,
+        jwks: Arc<digua_common_jwt::JWKSCache>,
     ) -> Self {
         Self { pool, storage, base_url, max_file_size, jwks }
     }

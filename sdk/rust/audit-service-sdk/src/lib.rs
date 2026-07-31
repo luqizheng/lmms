@@ -4,7 +4,7 @@
 //! single source of truth; Java SDK paths are stale and have diverged).
 //!
 //! ```no_run
-//! use audit_service_sdk::{AuditClient, LoginLogQuery};
+//! use digua_audit_sdk::{AuditClient, LoginLogQuery};
 //!
 //! let token = std::sync::Arc::new(std::sync::Mutex::new(Some("user.jwt".into())));
 //! let client = AuditClient::new("https://gw.kudi.repos", {
@@ -24,4 +24,4 @@ pub use crate::model::{
     DataStage, LoginLog, LoginLogQuery, OperationLog, OperationLogQuery, PagedLoginLogs,
     PagedOperationLogs, RetentionPolicy,
 };
-pub use kudi_http_client::SdkError;
+pub use digua_http_client::SdkError;

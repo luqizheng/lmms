@@ -1,4 +1,4 @@
-use common_http::HttpClient;
+use digua_common_http::HttpClient;
 use std::time::Duration;
 
 #[test]

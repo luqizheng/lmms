@@ -7,8 +7,8 @@
 
 use std::time::Duration;
 
-use common_event::events::IamLoginFailed;
-use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::events::IamLoginFailed;
+use digua_common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
 use prometheus::{register_int_counter_vec, IntCounterVec};
 use std::sync::OnceLock;
 use tracing::{info, warn, Instrument};

@@ -1,6 +1,6 @@
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use common_jwt::{verify_token, JWKSCache, VerifyError};
+use digua_common_jwt::{verify_token, JWKSCache, VerifyError};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -189,7 +189,7 @@ impl<T: PrincipalStateProvider> PrincipalStateProvider for Arc<T> {
 
 /// Phase 5-B: FromRequestParts becomes async and uses JWKSCache for verify.
 /// `expected_aud` is `None` here — gateway path accepts any valid token
-/// and the per-route middleware (in `authz`) enforces aud when needed.
+/// and the per-route middleware (in `digua_authz`) enforces aud when needed.
 impl<S> FromRequestParts<S> for Principal
 where
     S: PrincipalStateProvider,

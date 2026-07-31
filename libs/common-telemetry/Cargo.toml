@@ -1,5 +1,5 @@
 [package]
-name = "common-telemetry"
+name = "digua_common_telemetry"
 version = "0.1.0"
 license = "Apache-2.0"
 description = "OpenTelemetry tracing setup for KudiCoder services"
@@ -10,9 +10,9 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 # OpenTelemetry — opt-in, only enabled when otlp feature is on.
-# The axum HTTP middleware lives in the separate `common-telemetry-axum`
+# The axum HTTP middleware lives in the separate `digua_common-telemetry-axum`
 # crate so that CLI binaries (outbox-publisher etc.) can depend on
-# `common-telemetry` alone without pulling in axum/hyper/tower.
+# `digua_common-telemetry` alone without pulling in axum/hyper/tower.
 opentelemetry = { version = "0.24", optional = true }
 opentelemetry-otlp = { version = "0.17", optional = true, default-features = false, features = ["grpc-tonic", "trace"] }
 opentelemetry_sdk = { version = "0.24", optional = true, features = ["rt-tokio"] }

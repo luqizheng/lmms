@@ -1,5 +1,5 @@
 [package]
-name = "authz"
+name = "digua_authz"
 version = "0.1.0"
 license = "Apache-2.0"
 description = "RBAC authorization primitives and axum middleware for KudiCoder services"
@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 axum.workspace = true
-jwt-ctx = { path = "../jwt-ctx" }
-common-jwt = { path = "../common-jwt" }
+digua_jwt_ctx = { path = "../jwt-ctx" }
+digua_common_jwt = { path = "../common-jwt" }
 tower = "0.5"
 thiserror.workspace = true
 futures = "0.3"
@@ -19,4 +19,4 @@ serde_json.workspace = true
 [dev-dependencies]
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
-common-jwt = { path = "../common-jwt" }
+digua_common_jwt = { path = "../common-jwt" }

@@ -289,7 +289,7 @@ yank 后 `cargo add kudi-http-client@0.1.0` 仍能拉取（已锁版本的项目
 | `error: crates-io is replaced with non-remote-registry source registry` | 配置了只读 mirror | 见 §5.2 临时禁掉 mirror |
 | `the remote server responded with an error (status 400 Bad Request): A verified email address is required` | crates.io 账号邮箱未验证 | 去 https://crates.io/settings/profile 验证邮箱 |
 | `status 429 Too Many Requests` | 触发速率限制 | 见 §7，等待错误里说的时间后重试 |
-| `error: failed to get anyhow as a dependency of package common v0.1.0` | mirror git index 损坏 / 不同步 | 临时禁掉 mirror 直接走 crates.io；或改用 sparse index |
+| `error: failed to get anyhow as a dependency of package digua_common v0.1.0` | mirror git index 损坏 / 不同步 | 临时禁掉 mirror 直接走 crates.io；或改用 sparse index |
 | `Permission denied (os error 13) ... target/package/tmp-registry` | `target/` 是 docker volume root-owned | 用 `CARGO_TARGET_DIR=/tmp/sdk-publish` |
 | `warning: manifest has no documentation, homepage or repository` | 缺 repository / homepage 字段 | 在 `[package]` 加上，可忽略但建议补 |
 | `error: failed to load source for dependency kudi-http-client` | publish 后没等索引同步就发下一个 | `kudi-http-client` 发完后等 30 秒再发 service SDK |

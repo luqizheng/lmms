@@ -1,5 +1,5 @@
-use kudi_http_client::client::KudiWebClient;
-use kudi_http_client::models::TokenInfo;
+use digua_http_client::client::KudiWebClient;
+use digua_http_client::models::TokenInfo;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

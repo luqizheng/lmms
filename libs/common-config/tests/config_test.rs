@@ -1,4 +1,4 @@
-use common_config::Loader;
+use digua_common_config::Loader;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq, Default)]

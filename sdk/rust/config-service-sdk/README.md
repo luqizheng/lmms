@@ -15,7 +15,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```rust
 use std::sync::{Arc, Mutex};
-use config_service_sdk::{ConfigClient, ListNamespacesQuery};
+use digua_config_sdk::{ConfigClient, ListNamespacesQuery};
 
 let token = Arc::new(Mutex::new(Some("user.jwt".to_string())));
 let client = ConfigClient::new("https://gw.kudi.repos", move || {
@@ -42,7 +42,7 @@ let page = client
 
 ## Errors
 
-All methods return `Result<T, kudi_http_client::SdkError>` (re-exported
-as `config_service_sdk::SdkError`). Five variants per the multi-lang SDK
+All methods return `Result<T, digua_http_client::SdkError>` (re-exported
+as `digua_config_sdk::SdkError`). Five variants per the multi-lang SDK
 design spec §9: `Auth` / `Validation` / `RateLimit` / `Server` /
 `Network`.

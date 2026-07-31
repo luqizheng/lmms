@@ -424,7 +424,7 @@ use axum::{
     routing::{get, post},
     Extension, Json, Router,
 };
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use serde_json::json;
 
 fn require_admin(p: &Principal) -> Result<(), AppError> {

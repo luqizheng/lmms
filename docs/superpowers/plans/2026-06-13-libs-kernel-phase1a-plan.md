@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将现有 `libs/common` 拆分为职责单一的 9 个 crate，并补齐多数据库方言（mysql/dameng/mssql/sqlite）与 SQLite 单测夹具，为后续 contracts 与 iam-service 合并奠基。
+**Goal:** 将现有 `libs/digua_common` 拆分为职责单一的 9 个 crate，并补齐多数据库方言（mysql/dameng/mssql/sqlite）与 SQLite 单测夹具，为后续 contracts 与 iam-service 合并奠基。
 
-**Architecture:** 演进而非破坏。保留 `libs/common` 作为兼容外观（re-export），增量新增独立 crate；逐 crate 写测、迁移、删旧。`common-db` 用 sqlx + Dialect trait + cargo feature 控制方言，业务代码方言无关。
+**Architecture:** 演进而非破坏。保留 `libs/digua_common` 作为兼容外观（re-export），增量新增独立 crate；逐 crate 写测、迁移、删旧。`digua_common-db` 用 sqlx + Dialect trait + cargo feature 控制方言，业务代码方言无关。
 
 **Tech Stack:** Rust 2021 / sqlx 0.8 / tokio / axum 0.8 / tracing 0.1 / thiserror 2 / Argon2 / Redis 0.27 / Moka / tempfile / aws_lc_rs。
 
@@ -17,35 +17,35 @@
 
 ## 总体文件结构
 
-- 新增 `libs/common-error/`
-- 新增 `libs/common-log/`
-- 新增 `libs/common-config/`
-- 新增 `libs/common-db/`（含 dialect/ 与 test_kit/）
-- 新增 `libs/common-cache/`
-- 新增 `libs/common-http/`
-- 新增 `libs/common-crypto/`
-- 新增 `libs/common-validator/`
-- 修改 `libs/common/`（改为兼容外观）
+- 新增 `libs/digua_common-error/`
+- 新增 `libs/digua_common-log/`
+- 新增 `libs/digua_common-config/`
+- 新增 `libs/digua_common-db/`（含 dialect/ 与 test_kit/）
+- 新增 `libs/digua_common-cache/`
+- 新增 `libs/digua_common-http/`
+- 新增 `libs/digua_common-crypto/`
+- 新增 `libs/digua_common-validator/`
+- 修改 `libs/digua_common/`（改为兼容外观）
 - 修改 `Cargo.toml` workspace.members 与 workspace.dependencies
 - 新增 `migrations/_libs-fixture/sqlite/V001__libs_fixture.sql`
 - 新增 `libs/README.md`
 
 ---
 
-## Task 1：workspace 准备 + common-error
+## Task 1：workspace 准备 + digua_common-error
 
 **Files:**
 - Modify: `Cargo.toml`
-- Create: `libs/common-error/Cargo.toml`
-- Create: `libs/common-error/src/lib.rs`
-- Test: `libs/common-error/tests/error_test.rs`
+- Create: `libs/digua_common-error/Cargo.toml`
+- Create: `libs/digua_common-error/src/lib.rs`
+- Test: `libs/digua_common-error/tests/error_test.rs`
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-error/tests/error_test.rs`：
+`libs/digua_common-error/tests/error_test.rs`：
 
 ```rust
-use common_error::{AppError, ErrorKind};
+use digua_common_error::{AppError, ErrorKind};
 
 #[test]
 fn bad_request_has_correct_kind() {
@@ -64,7 +64,7 @@ fn from_sqlx_row_not_found_maps_to_not_found() {
 
 - [ ] **Step 2: 注册 workspace 成员与公共依赖**
 
-修改 `Cargo.toml`，在 `[workspace] members` 增加 `"libs/common-error"`，在 `[workspace.dependencies]` 增加：
+修改 `Cargo.toml`，在 `[workspace] members` 增加 `"libs/digua_common-error"`，在 `[workspace.dependencies]` 增加：
 
 ```toml
 moka = { version = "0.12", features = ["future"] }
@@ -76,15 +76,15 @@ aes-gcm = "0.10"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs"] }
 ```
 
-> 注意：原 workspace 已有 `sqlx`（带 `mysql`），将其替换为以上不带 `mysql` 的版本，方言由各 crate 通过 features 自行启用。`libs/common` 在 Task 10 显式启用 `common-db/mysql` 维持兼容。
+> 注意：原 workspace 已有 `sqlx`（带 `mysql`），将其替换为以上不带 `mysql` 的版本，方言由各 crate 通过 features 自行启用。`libs/digua_common` 在 Task 10 显式启用 `digua_common-db/mysql` 维持兼容。
 
 - [ ] **Step 3: 写 crate**
 
-`libs/common-error/Cargo.toml`：
+`libs/digua_common-error/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-error"
+name = "digua_common-error"
 version = "0.1.0"
 edition = "2021"
 
@@ -97,7 +97,7 @@ reqwest.workspace = true
 axum.workspace = true
 ```
 
-`libs/common-error/src/lib.rs`：
+`libs/digua_common-error/src/lib.rs`：
 
 ```rust
 use axum::{http::StatusCode, response::IntoResponse, Json};
@@ -186,34 +186,34 @@ pub type AppResult<T> = std::result::Result<T, AppError>;
 
 - [ ] **Step 4: 跑测试**
 
-Run: `cargo test -p common-error`
+Run: `cargo test -p digua_common-error`
 Expected: 2 passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-error Cargo.toml
-git commit -m "feat(libs): add common-error crate with AppError + axum IntoResponse"
+git add libs/digua_common-error Cargo.toml
+git commit -m "feat(libs): add digua_common-error crate with AppError + axum IntoResponse"
 ```
 
 ---
 
-## Task 2：common-log
+## Task 2：digua_common-log
 
 **Files:**
-- Create: `libs/common-log/Cargo.toml`
-- Create: `libs/common-log/src/lib.rs`
-- Create: `libs/common-log/src/request_id.rs`
-- Create: `libs/common-log/src/middleware.rs`
-- Test: `libs/common-log/tests/log_test.rs`
-- Modify: `Cargo.toml` members += `"libs/common-log"`
+- Create: `libs/digua_common-log/Cargo.toml`
+- Create: `libs/digua_common-log/src/lib.rs`
+- Create: `libs/digua_common-log/src/request_id.rs`
+- Create: `libs/digua_common-log/src/middleware.rs`
+- Test: `libs/digua_common-log/tests/log_test.rs`
+- Modify: `Cargo.toml` members += `"libs/digua_common-log"`
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-log/tests/log_test.rs`：
+`libs/digua_common-log/tests/log_test.rs`：
 
 ```rust
-use common_log::request_id::RequestId;
+use digua_common_log::request_id::RequestId;
 
 #[test]
 fn request_id_generates_uuid_when_absent() {
@@ -230,11 +230,11 @@ fn request_id_passthrough_header() {
 
 - [ ] **Step 2: 写 crate**
 
-`libs/common-log/Cargo.toml`：
+`libs/digua_common-log/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-log"
+name = "digua_common-log"
 version = "0.1.0"
 edition = "2021"
 
@@ -242,14 +242,14 @@ edition = "2021"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 axum.workspace = true
 tower.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 ```
 
-`libs/common-log/src/lib.rs`：
+`libs/digua_common-log/src/lib.rs`：
 
 ```rust
 pub mod middleware;
@@ -266,7 +266,7 @@ pub fn init_json(default_level: &str) {
 }
 ```
 
-`libs/common-log/src/request_id.rs`：
+`libs/digua_common-log/src/request_id.rs`：
 
 ```rust
 use uuid::Uuid;
@@ -285,7 +285,7 @@ impl RequestId {
 }
 ```
 
-`libs/common-log/src/middleware.rs`：
+`libs/digua_common-log/src/middleware.rs`：
 
 ```rust
 use axum::{extract::Request, http::HeaderValue, middleware::Next, response::Response};
@@ -306,32 +306,32 @@ pub async fn request_id_layer(mut req: Request, next: Next) -> Response {
 
 - [ ] **Step 3: 跑测试**
 
-Run: `cargo test -p common-log`
+Run: `cargo test -p digua_common-log`
 Expected: 2 passed.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-log Cargo.toml
-git commit -m "feat(libs): add common-log with request_id middleware + JSON tracing init"
+git add libs/digua_common-log Cargo.toml
+git commit -m "feat(libs): add digua_common-log with request_id middleware + JSON tracing init"
 ```
 
 ---
 
-## Task 3：common-config
+## Task 3：digua_common-config
 
 **Files:**
-- Create: `libs/common-config/Cargo.toml`
-- Create: `libs/common-config/src/lib.rs`
-- Test: `libs/common-config/tests/config_test.rs`
-- Modify: `Cargo.toml` members += `"libs/common-config"`
+- Create: `libs/digua_common-config/Cargo.toml`
+- Create: `libs/digua_common-config/src/lib.rs`
+- Test: `libs/digua_common-config/tests/config_test.rs`
+- Modify: `Cargo.toml` members += `"libs/digua_common-config"`
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-config/tests/config_test.rs`：
+`libs/digua_common-config/tests/config_test.rs`：
 
 ```rust
-use common_config::Loader;
+use digua_common_config::Loader;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -348,24 +348,24 @@ fn loader_reads_env_first() {
 
 - [ ] **Step 2: 写 crate**
 
-`libs/common-config/Cargo.toml`：
+`libs/digua_common-config/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-config"
+name = "digua_common-config"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 config.workspace = true
 serde.workspace = true
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 ```
 
-`libs/common-config/src/lib.rs`：
+`libs/digua_common-config/src/lib.rs`：
 
 ```rust
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use config::{Config, Environment};
 use serde::de::DeserializeOwned;
 
@@ -395,37 +395,37 @@ impl Loader {
 
 - [ ] **Step 3: 跑测试**
 
-Run: `cargo test -p common-config`
+Run: `cargo test -p digua_common-config`
 Expected: 1 passed.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-config Cargo.toml
-git commit -m "feat(libs): add common-config Loader (env+file)"
+git add libs/digua_common-config Cargo.toml
+git commit -m "feat(libs): add digua_common-config Loader (env+file)"
 ```
 
 ---
 
-## Task 4：common-db Dialect 骨架
+## Task 4：digua_common-db Dialect 骨架
 
 **Files:**
-- Create: `libs/common-db/Cargo.toml`
-- Create: `libs/common-db/src/lib.rs`
-- Create: `libs/common-db/src/dialect/mod.rs`
-- Create: `libs/common-db/src/dialect/sqlite.rs`
-- Create: `libs/common-db/src/dialect/mysql.rs`
-- Create: `libs/common-db/src/dialect/dameng.rs`
-- Create: `libs/common-db/src/dialect/mssql.rs`
-- Test: `libs/common-db/tests/dialect_test.rs`
-- Modify: `Cargo.toml` members += `"libs/common-db"`
+- Create: `libs/digua_common-db/Cargo.toml`
+- Create: `libs/digua_common-db/src/lib.rs`
+- Create: `libs/digua_common-db/src/dialect/mod.rs`
+- Create: `libs/digua_common-db/src/dialect/sqlite.rs`
+- Create: `libs/digua_common-db/src/dialect/mysql.rs`
+- Create: `libs/digua_common-db/src/dialect/dameng.rs`
+- Create: `libs/digua_common-db/src/dialect/mssql.rs`
+- Test: `libs/digua_common-db/tests/dialect_test.rs`
+- Modify: `Cargo.toml` members += `"libs/digua_common-db"`
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-db/tests/dialect_test.rs`：
+`libs/digua_common-db/tests/dialect_test.rs`：
 
 ```rust
-use common_db::dialect::{DialectKind, Paginate};
+use digua_common_db::dialect::{DialectKind, Paginate};
 
 #[test]
 fn sqlite_pagination_uses_limit_offset() {
@@ -450,11 +450,11 @@ fn detect_from_url_picks_dameng() {
 
 - [ ] **Step 2: 写 crate**
 
-`libs/common-db/Cargo.toml`：
+`libs/digua_common-db/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-db"
+name = "digua_common-db"
 version = "0.1.0"
 edition = "2021"
 
@@ -470,7 +470,7 @@ test-kit = ["sqlite", "dep:tempfile"]
 sqlx = { workspace = true, features = ["macros", "chrono"] }
 tokio = { workspace = true }
 chrono = { workspace = true }
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 async-trait.workspace = true
 tempfile = { workspace = true, optional = true }
 
@@ -479,7 +479,7 @@ tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ```
 
-`libs/common-db/src/lib.rs`：
+`libs/digua_common-db/src/lib.rs`：
 
 ```rust
 pub mod dialect;
@@ -487,7 +487,7 @@ pub mod dialect;
 pub mod test_kit;
 ```
 
-`libs/common-db/src/dialect/mod.rs`：
+`libs/digua_common-db/src/dialect/mod.rs`：
 
 ```rust
 pub mod sqlite;
@@ -535,7 +535,7 @@ impl DialectKind {
 }
 ```
 
-`libs/common-db/src/dialect/sqlite.rs`、`mysql.rs`、`dameng.rs`、`mssql.rs` 每个文件内容相同：
+`libs/digua_common-db/src/dialect/sqlite.rs`、`mysql.rs`、`dameng.rs`、`mssql.rs` 每个文件内容相同：
 
 ```rust
 // reserved for future dialect-specific helpers
@@ -543,25 +543,25 @@ impl DialectKind {
 
 - [ ] **Step 3: 跑测试**
 
-Run: `cargo test -p common-db --features sqlite`
+Run: `cargo test -p digua_common-db --features sqlite`
 Expected: 4 passed.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-db Cargo.toml
-git commit -m "feat(libs): add common-db with DialectKind + paginate + url detection"
+git add libs/digua_common-db Cargo.toml
+git commit -m "feat(libs): add digua_common-db with DialectKind + paginate + url detection"
 ```
 
 ---
 
-## Task 5：common-db SQLite 测试夹具
+## Task 5：digua_common-db SQLite 测试夹具
 
 **Files:**
-- Create: `libs/common-db/src/test_kit/mod.rs`
-- Create: `libs/common-db/src/test_kit/sqlite_fixture.rs`
+- Create: `libs/digua_common-db/src/test_kit/mod.rs`
+- Create: `libs/digua_common-db/src/test_kit/sqlite_fixture.rs`
 - Create: `migrations/_libs-fixture/sqlite/V001__libs_fixture.sql`
-- Test: `libs/common-db/tests/sqlite_fixture_test.rs`
+- Test: `libs/digua_common-db/tests/sqlite_fixture_test.rs`
 
 - [ ] **Step 1: 写夹具 SQL**
 
@@ -577,11 +577,11 @@ CREATE TABLE IF NOT EXISTS demo_user (
 
 - [ ] **Step 2: 写失败测试**
 
-`libs/common-db/tests/sqlite_fixture_test.rs`：
+`libs/digua_common-db/tests/sqlite_fixture_test.rs`：
 
 ```rust
 #![cfg(feature = "test-kit")]
-use common_db::test_kit::SqliteFixture;
+use digua_common_db::test_kit::SqliteFixture;
 use sqlx::Row;
 
 #[tokio::test]
@@ -610,17 +610,17 @@ async fn fixture_parallel_does_not_collide() {
 
 - [ ] **Step 3: 写 test_kit 实现**
 
-`libs/common-db/src/test_kit/mod.rs`：
+`libs/digua_common-db/src/test_kit/mod.rs`：
 
 ```rust
 pub mod sqlite_fixture;
 pub use sqlite_fixture::SqliteFixture;
 ```
 
-`libs/common-db/src/test_kit/sqlite_fixture.rs`：
+`libs/digua_common-db/src/test_kit/sqlite_fixture.rs`：
 
 ```rust
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use sqlx::SqlitePool;
 use std::path::Path;
 use tempfile::NamedTempFile;
@@ -667,33 +667,33 @@ impl SqliteFixture {
 
 - [ ] **Step 4: 跑测试**
 
-Run: `cargo test -p common-db --features test-kit`
+Run: `cargo test -p digua_common-db --features test-kit`
 Expected: 6 passed（含 Task 4 的 4 个 + 此 2 个）。
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-db migrations/_libs-fixture
-git commit -m "feat(libs): add common-db SqliteFixture for parallel-safe unit tests"
+git add libs/digua_common-db migrations/_libs-fixture
+git commit -m "feat(libs): add digua_common-db SqliteFixture for parallel-safe unit tests"
 ```
 
 ---
 
-## Task 6：common-cache（Memory + trait）
+## Task 6：digua_common-cache（Memory + trait）
 
 **Files:**
-- Create: `libs/common-cache/Cargo.toml`
-- Create: `libs/common-cache/src/lib.rs`
-- Create: `libs/common-cache/src/memory.rs`
-- Test: `libs/common-cache/tests/cache_test.rs`
-- Modify: `Cargo.toml` members += `"libs/common-cache"`
+- Create: `libs/digua_common-cache/Cargo.toml`
+- Create: `libs/digua_common-cache/src/lib.rs`
+- Create: `libs/digua_common-cache/src/memory.rs`
+- Test: `libs/digua_common-cache/tests/cache_test.rs`
+- Modify: `Cargo.toml` members += `"libs/digua_common-cache"`
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-cache/tests/cache_test.rs`：
+`libs/digua_common-cache/tests/cache_test.rs`：
 
 ```rust
-use common_cache::{Cache, MemoryCache};
+use digua_common_cache::{Cache, MemoryCache};
 use std::time::Duration;
 
 #[tokio::test]
@@ -715,11 +715,11 @@ async fn memory_del_removes_key() {
 
 - [ ] **Step 2: 写 crate**
 
-`libs/common-cache/Cargo.toml`：
+`libs/digua_common-cache/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-cache"
+name = "digua_common-cache"
 version = "0.1.0"
 edition = "2021"
 
@@ -731,21 +731,21 @@ redis = ["dep:redis"]
 [dependencies]
 async-trait.workspace = true
 moka = { workspace = true }
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 redis = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ```
 
-`libs/common-cache/src/lib.rs`：
+`libs/digua_common-cache/src/lib.rs`：
 
 ```rust
 pub mod memory;
 pub use memory::MemoryCache;
 
 use async_trait::async_trait;
-use common_error::AppResult;
+use digua_common_error::AppResult;
 use std::time::Duration;
 
 #[async_trait]
@@ -756,12 +756,12 @@ pub trait Cache: Send + Sync {
 }
 ```
 
-`libs/common-cache/src/memory.rs`：
+`libs/digua_common-cache/src/memory.rs`：
 
 ```rust
 use crate::Cache;
 use async_trait::async_trait;
-use common_error::AppResult;
+use digua_common_error::AppResult;
 use moka::future::Cache as Moka;
 use std::time::Duration;
 
@@ -791,32 +791,32 @@ impl Cache for MemoryCache {
 
 - [ ] **Step 3: 跑测试**
 
-Run: `cargo test -p common-cache`
+Run: `cargo test -p digua_common-cache`
 Expected: 2 passed.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-cache Cargo.toml
-git commit -m "feat(libs): add common-cache Cache trait + MemoryCache(moka)"
+git add libs/digua_common-cache Cargo.toml
+git commit -m "feat(libs): add digua_common-cache Cache trait + MemoryCache(moka)"
 ```
 
 ---
 
-## Task 7：common-http
+## Task 7：digua_common-http
 
 **Files:**
-- Create: `libs/common-http/Cargo.toml`
-- Create: `libs/common-http/src/lib.rs`
-- Test: `libs/common-http/tests/http_test.rs`
-- Modify: `Cargo.toml` members += `"libs/common-http"`
+- Create: `libs/digua_common-http/Cargo.toml`
+- Create: `libs/digua_common-http/src/lib.rs`
+- Test: `libs/digua_common-http/tests/http_test.rs`
+- Modify: `Cargo.toml` members += `"libs/digua_common-http"`
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-http/tests/http_test.rs`：
+`libs/digua_common-http/tests/http_test.rs`：
 
 ```rust
-use common_http::HttpClient;
+use digua_common_http::HttpClient;
 
 #[tokio::test]
 async fn client_builds_with_request_id_header() {
@@ -827,27 +827,27 @@ async fn client_builds_with_request_id_header() {
 
 - [ ] **Step 2: 写 crate**
 
-`libs/common-http/Cargo.toml`：
+`libs/digua_common-http/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-http"
+name = "digua_common-http"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 reqwest.workspace = true
 tokio = { workspace = true }
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ```
 
-`libs/common-http/src/lib.rs`：
+`libs/digua_common-http/src/lib.rs`：
 
 ```rust
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use reqwest::Client;
 use std::time::Duration;
 
@@ -884,35 +884,35 @@ impl HttpClientBuilder {
 
 - [ ] **Step 3: 跑测试**
 
-Run: `cargo test -p common-http`
+Run: `cargo test -p digua_common-http`
 Expected: 1 passed.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-http Cargo.toml
-git commit -m "feat(libs): add common-http builder skeleton"
+git add libs/digua_common-http Cargo.toml
+git commit -m "feat(libs): add digua_common-http builder skeleton"
 ```
 
 ---
 
-## Task 8：common-crypto（Argon2 + AES-GCM）
+## Task 8：digua_common-crypto（Argon2 + AES-GCM）
 
 **Files:**
-- Create: `libs/common-crypto/Cargo.toml`
-- Create: `libs/common-crypto/src/lib.rs`
-- Create: `libs/common-crypto/src/password.rs`
-- Create: `libs/common-crypto/src/aead.rs`
-- Test: `libs/common-crypto/tests/crypto_test.rs`
-- Modify: `Cargo.toml` members += `"libs/common-crypto"`（aes-gcm 已在 Task 1 加入 workspace.dependencies）
+- Create: `libs/digua_common-crypto/Cargo.toml`
+- Create: `libs/digua_common-crypto/src/lib.rs`
+- Create: `libs/digua_common-crypto/src/password.rs`
+- Create: `libs/digua_common-crypto/src/aead.rs`
+- Test: `libs/digua_common-crypto/tests/crypto_test.rs`
+- Modify: `Cargo.toml` members += `"libs/digua_common-crypto"`（aes-gcm 已在 Task 1 加入 workspace.dependencies）
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-crypto/tests/crypto_test.rs`：
+`libs/digua_common-crypto/tests/crypto_test.rs`：
 
 ```rust
-use common_crypto::password::{hash, verify};
-use common_crypto::aead::{Aead, gen_key};
+use digua_common_crypto::password::{hash, verify};
+use digua_common_crypto::aead::{Aead, gen_key};
 
 #[test]
 fn password_roundtrip() {
@@ -933,11 +933,11 @@ fn aead_seal_open_roundtrip() {
 
 - [ ] **Step 2: 写 crate**
 
-`libs/common-crypto/Cargo.toml`：
+`libs/digua_common-crypto/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-crypto"
+name = "digua_common-crypto"
 version = "0.1.0"
 edition = "2021"
 
@@ -945,21 +945,21 @@ edition = "2021"
 argon2.workspace = true
 rand.workspace = true
 aes-gcm = { workspace = true }
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 ```
 
-`libs/common-crypto/src/lib.rs`：
+`libs/digua_common-crypto/src/lib.rs`：
 
 ```rust
 pub mod password;
 pub mod aead;
 ```
 
-`libs/common-crypto/src/password.rs`：
+`libs/digua_common-crypto/src/password.rs`：
 
 ```rust
 use argon2::{password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString}, Argon2};
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 
 pub fn hash(plain: &str) -> AppResult<String> {
     let salt = SaltString::generate(&mut OsRng);
@@ -975,11 +975,11 @@ pub fn verify(plain: &str, hash_str: &str) -> AppResult<bool> {
 }
 ```
 
-`libs/common-crypto/src/aead.rs`：
+`libs/digua_common-crypto/src/aead.rs`：
 
 ```rust
 use aes_gcm::{aead::{Aead as _, AeadCore, KeyInit, OsRng}, Aes256Gcm, Key, Nonce};
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 
 pub fn gen_key() -> [u8; 32] {
     use rand::RngCore;
@@ -1016,32 +1016,32 @@ impl Aead {
 
 - [ ] **Step 3: 跑测试**
 
-Run: `cargo test -p common-crypto`
+Run: `cargo test -p digua_common-crypto`
 Expected: 2 passed.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-crypto Cargo.toml
-git commit -m "feat(libs): add common-crypto Argon2 + AES-256-GCM"
+git add libs/digua_common-crypto Cargo.toml
+git commit -m "feat(libs): add digua_common-crypto Argon2 + AES-256-GCM"
 ```
 
 ---
 
-## Task 9：common-validator
+## Task 9：digua_common-validator
 
 **Files:**
-- Create: `libs/common-validator/Cargo.toml`
-- Create: `libs/common-validator/src/lib.rs`
-- Test: `libs/common-validator/tests/validator_test.rs`
-- Modify: `Cargo.toml` members += `"libs/common-validator"`
+- Create: `libs/digua_common-validator/Cargo.toml`
+- Create: `libs/digua_common-validator/src/lib.rs`
+- Test: `libs/digua_common-validator/tests/validator_test.rs`
+- Modify: `Cargo.toml` members += `"libs/digua_common-validator"`
 
 - [ ] **Step 1: 写失败测试**
 
-`libs/common-validator/tests/validator_test.rs`：
+`libs/digua_common-validator/tests/validator_test.rs`：
 
 ```rust
-use common_validator::{is_cn_mobile, is_strong_password};
+use digua_common_validator::{is_cn_mobile, is_strong_password};
 
 #[test]
 fn cn_mobile_accepts_valid() {
@@ -1060,20 +1060,20 @@ fn strong_password_requires_classes_and_length() {
 
 - [ ] **Step 2: 写 crate**
 
-`libs/common-validator/Cargo.toml`：
+`libs/digua_common-validator/Cargo.toml`：
 
 ```toml
 [package]
-name = "common-validator"
+name = "digua_common-validator"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 validator.workspace = true
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 ```
 
-`libs/common-validator/src/lib.rs`：
+`libs/digua_common-validator/src/lib.rs`：
 
 ```rust
 pub fn is_cn_mobile(s: &str) -> bool {
@@ -1095,36 +1095,36 @@ pub fn is_strong_password(s: &str) -> bool {
 
 - [ ] **Step 3: 跑测试**
 
-Run: `cargo test -p common-validator`
+Run: `cargo test -p digua_common-validator`
 Expected: 2 passed.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-validator Cargo.toml
-git commit -m "feat(libs): add common-validator (cn_mobile + strong_password)"
+git add libs/digua_common-validator Cargo.toml
+git commit -m "feat(libs): add digua_common-validator (cn_mobile + strong_password)"
 ```
 
 ---
 
-## Task 10：libs/common 改为兼容外观
+## Task 10：libs/digua_common 改为兼容外观
 
 **Files:**
-- Modify: `libs/common/Cargo.toml`
-- Modify: `libs/common/src/lib.rs`
-- Modify: `libs/common/src/error.rs`
-- Modify: `libs/common/src/db.rs`
-- Modify: `libs/common/src/password.rs`
+- Modify: `libs/digua_common/Cargo.toml`
+- Modify: `libs/digua_common/src/lib.rs`
+- Modify: `libs/digua_common/src/error.rs`
+- Modify: `libs/digua_common/src/db.rs`
+- Modify: `libs/digua_common/src/password.rs`
 
-目标：保持现有 `services/*` 与 `sdk/*` 编译通过；老路径（`common::error::CommonError`、`common::db::connect`、`common::password::*`）继续可用，内部转发到新 crate。
+目标：保持现有 `services/*` 与 `sdk/*` 编译通过；老路径（`digua_common::error::CommonError`、`digua_common::db::connect`、`digua_common::password::*`）继续可用，内部转发到新 crate。
 
 - [ ] **Step 1: 改 Cargo.toml**
 
-修改 `libs/common/Cargo.toml`：
+修改 `libs/digua_common/Cargo.toml`：
 
 ```toml
 [package]
-name = "common"
+name = "digua_common"
 version = "0.1.0"
 edition = "2021"
 
@@ -1140,21 +1140,21 @@ redis.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 
-common-error = { path = "../common-error" }
-common-db = { path = "../common-db", features = ["mysql"] }
-common-crypto = { path = "../common-crypto" }
+digua_common-error = { path = "../digua_common-error" }
+digua_common-db = { path = "../digua_common-db", features = ["mysql"] }
+digua_common-crypto = { path = "../digua_common-crypto" }
 ```
 
 - [ ] **Step 2: 改 lib.rs（保持原模块）**
 
-`libs/common/src/lib.rs` 不变（仍 `pub mod error/token/config/password/db/redisx/http`）。
+`libs/digua_common/src/lib.rs` 不变（仍 `pub mod error/token/config/password/db/redisx/http`）。
 
 - [ ] **Step 3: 改 error.rs**
 
-`libs/common/src/error.rs`：
+`libs/digua_common/src/error.rs`：
 
 ```rust
-pub use common_error::{AppError, AppResult, ErrorKind};
+pub use digua_common_error::{AppError, AppResult, ErrorKind};
 
 use thiserror::Error;
 
@@ -1177,10 +1177,10 @@ pub type Result<T> = std::result::Result<T, CommonError>;
 
 - [ ] **Step 4: 改 db.rs**
 
-`libs/common/src/db.rs`：
+`libs/digua_common/src/db.rs`：
 
 ```rust
-pub use common_db::dialect::DialectKind;
+pub use digua_common_db::dialect::DialectKind;
 
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
@@ -1195,17 +1195,17 @@ pub async fn connect(url: &str, max: u32) -> anyhow::Result<MySqlPool> {
 
 - [ ] **Step 5: 改 password.rs**
 
-读取当前实现：保留对外公开的所有函数与签名，把内部计算切换到 `common_crypto::password`。例：
+读取当前实现：保留对外公开的所有函数与签名，把内部计算切换到 `digua_common_crypto::password`。例：
 
 ```rust
 use anyhow::Result;
 
 pub fn hash_password(plain: &str) -> Result<String> {
-    common_crypto::password::hash(plain).map_err(|e| anyhow::anyhow!(e.to_string()))
+    digua_common_crypto::password::hash(plain).map_err(|e| anyhow::anyhow!(e.to_string()))
 }
 
 pub fn verify_password(plain: &str, hash: &str) -> Result<bool> {
-    common_crypto::password::verify(plain, hash).map_err(|e| anyhow::anyhow!(e.to_string()))
+    digua_common_crypto::password::verify(plain, hash).map_err(|e| anyhow::anyhow!(e.to_string()))
 }
 ```
 
@@ -1216,17 +1216,17 @@ pub fn verify_password(plain: &str, hash: &str) -> Result<bool> {
 Run: `cargo build --workspace`
 Expected: 成功（含 services/* 与 sdk/*）。
 
-Run: `cargo test --workspace --exclude common-db`
-Expected: 所有现有测试通过；`libs/common/tests/password_test.rs` 仍通过。
+Run: `cargo test --workspace --exclude digua_common-db`
+Expected: 所有现有测试通过；`libs/digua_common/tests/password_test.rs` 仍通过。
 
-Run: `cargo test -p common-db --features test-kit`
+Run: `cargo test -p digua_common-db --features test-kit`
 Expected: 6 passed。
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add libs/common
-git commit -m "refactor(libs): make libs/common a thin facade over new common-* crates"
+git add libs/digua_common
+git commit -m "refactor(libs): make libs/digua_common a thin facade over new digua_common-* crates"
 ```
 
 ---
@@ -1244,25 +1244,25 @@ git commit -m "refactor(libs): make libs/common a thin facade over new common-* 
 
 | crate | 职责 | 关键依赖 |
 |---|---|---|
-| common-error | AppError + axum IntoResponse | thiserror / axum |
-| common-log | tracing JSON + request_id 中间件 | tracing-subscriber |
-| common-config | 配置加载（env + file） | config |
-| common-db | sqlx 多方言（mysql/dameng/mssql/sqlite）+ SqliteFixture | sqlx + tempfile |
-| common-cache | Cache trait + MemoryCache(Moka) / Redis(可选) | moka / redis |
-| common-http | reqwest 封装 + 请求 ID 透传 | reqwest |
-| common-crypto | Argon2 + AES-256-GCM | argon2 / aes-gcm |
-| common-validator | 中国手机号 / 强密码等 | validator |
-| common（外观） | 兼容旧路径，转发到新 crate | — |
-| jwt-ctx / authz | JWT 上下文 + RBAC | (已存在) |
+| digua_common-error | AppError + axum IntoResponse | thiserror / axum |
+| digua_common-log | tracing JSON + request_id 中间件 | tracing-subscriber |
+| digua_common-config | 配置加载（env + file） | config |
+| digua_common-db | sqlx 多方言（mysql/dameng/mssql/sqlite）+ SqliteFixture | sqlx + tempfile |
+| digua_common-cache | Cache trait + MemoryCache(Moka) / Redis(可选) | moka / redis |
+| digua_common-http | reqwest 封装 + 请求 ID 透传 | reqwest |
+| digua_common-crypto | Argon2 + AES-256-GCM | argon2 / aes-gcm |
+| digua_common-validator | 中国手机号 / 强密码等 | validator |
+| digua_common（外观） | 兼容旧路径，转发到新 crate | — |
+| jwt-ctx / digua_authz | JWT 上下文 + RBAC | (已存在) |
 
 ## feature 矩阵
 
-- `common-db`：`mysql` / `dameng` / `mssql` / `sqlite` / `test-kit`，互不强制。
-- `common-cache`：`memory`（默认）/ `redis`。
+- `digua_common-db`：`mysql` / `dameng` / `mssql` / `sqlite` / `test-kit`，互不强制。
+- `digua_common-cache`：`memory`（默认）/ `redis`。
 
 ## 单测约定
 
-- 用 `common-db` 的 `SqliteFixture` 做 DB 单测；每用例独立 tempfile，并行安全。
+- 用 `digua_common-db` 的 `SqliteFixture` 做 DB 单测；每用例独立 tempfile，并行安全。
 - 全部 cargo 命令在真实 PowerShell（vcvarsall x64）跑。
 ```
 
@@ -1287,16 +1287,16 @@ git commit -m "docs(libs): add libs README with crate matrix and feature flags"
 
 1. Spec 覆盖：
    - §3 多方言 → Task 4/5
-   - §5.1 common-error → Task 1
-   - §5.2 common-config → Task 3
-   - §5.3 common-log → Task 2
-   - §5.4 common-http → Task 7（骨架；重试/熔断/服务发现留 Phase 3）
-   - §5.5 common-db → Task 4/5
-   - §5.6 common-cache → Task 6（Memory；Redis 留 Phase 3）
-   - §5.7 common-crypto → Task 8（Argon2 + AES-GCM；RSA/HMAC/KMS 留 Phase 3）
-   - §5.8 common-validator → Task 9
-   - §5.9 jwt-ctx / authz → 已存在，未触及
-2. 兼容性：Task 10 让 `libs/common` 转发，services/sdk 编译不破。
+   - §5.1 digua_common-error → Task 1
+   - §5.2 digua_common-config → Task 3
+   - §5.3 digua_common-log → Task 2
+   - §5.4 digua_common-http → Task 7（骨架；重试/熔断/服务发现留 Phase 3）
+   - §5.5 digua_common-db → Task 4/5
+   - §5.6 digua_common-cache → Task 6（Memory；Redis 留 Phase 3）
+   - §5.7 digua_common-crypto → Task 8（Argon2 + AES-GCM；RSA/HMAC/KMS 留 Phase 3）
+   - §5.8 digua_common-validator → Task 9
+   - §5.9 jwt-ctx / digua_authz → 已存在，未触及
+2. 兼容性：Task 10 让 `libs/digua_common` 转发，services/sdk 编译不破。
 3. 占位符：无 TBD。
 4. 类型一致性：`AppError` / `AppResult` / `DialectKind` / `Cache` 跨任务一致。
 5. 范围控制：本计划仅做 Phase 1-A（libs 内核）。contracts 与 iam-service 合并不在本计划。

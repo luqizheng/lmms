@@ -41,7 +41,7 @@
 - [x] 基础设施：`infrastructure/docker-compose-infra.yml` 加 RabbitMQ + `definitions.json` 预声明 topology（commits `c52f401`, `b0eb5e2`）
 - [x] `contracts/events.yaml` 启用首批三事件 + envelope schema（commit `2fe432f`）
 - [x] `scripts/contracts-gen.js` 扩展：events.yaml → Rust event struct + routing-key 常量（commit `8e9823b`）
-- [x] **`libs/common-event` 完整抽象**：Publisher / Consumer / Envelope / OutboxRepo<DB> trait + lapin RabbitMQ 实现（commits `265adcc` … `e95069f` + minor `8a014de`）
+- [x] **`libs/digua_common-event` 完整抽象**：Publisher / Consumer / Envelope / OutboxRepo<DB> trait + lapin RabbitMQ 实现（commits `265adcc` … `e95069f` + minor `8a014de`）
 - [x] iam-service 加 `iam_outbox_events` 表 + 业务事务里写 outbox（commits `9f8e06b`, `dc048fa`）
 - [x] iam-service 加 `[[bin]] outbox-publisher`（同镜像切 CMD）（commit `7808a7a`）
 - [x] audit-service 加 `audit_events` 表 + RabbitMQ consumer + 删除旧 HTTP 写入端点（commits `0749893`, `ed2f63a` + minors `1577ed9`, `7852718`）
@@ -79,10 +79,10 @@
 - [x] **I1** consumer 瞬时错误直接 DLQ（修复于 Phase 6-A T3：HandlerError 扩 Transient/Permanent 分支 + republish-and-ack 阈值 3；commit `10e4b07`）
 - [x] **I2** audit-service 仍有 `create_operation_log`/`create_login_log` 死方法 + `CreateOperationLog`/`CreateLoginLog` 孤儿 schema — 后续清理
   - [x] **I2-fu1** ~~`scripts/openapi-codegen.js:90` 硬编码~~ 已修复（commit `0412751`）：脚本改为 spec-driven —— 读 `spec.components.schemas` 生成 types（按 `required`/nullable）、读 `spec.paths` 生成 client 方法。下次 `pnpm sdk:generate:audit` 不会再回写 commit `89906cf` 删掉的 `CreateOperationLog`/`CreateLoginLog`；`LoginLog.user_id?: string;` 现在与 Rust `Option<String>` 一致。已用 audit/config/file 三个 spec 验证。
-- [x] **I4** envelope.trace_id producer 侧未填充（修复于 Phase 6-A T1：`libs/common-telemetry/src/outbox.rs` 在 enqueue 内自动注入；commits `798683b`, `4a4ff51`）
+- [x] **I4** envelope.trace_id producer 侧未填充（修复于 Phase 6-A T1：`libs/digua_common-telemetry/src/outbox.rs` 在 enqueue 内自动注入；commits `798683b`, `4a4ff51`）
 - [x] **I5** `MySqlOutboxRepo::new(pool.clone())` per-call — 移到 `AppState` 优化
   - [x] **I5-fu1** 已修复（commit `5bfb2da` + 行号修正 `e78aad8`）：iam 剩余 7 处 `MySqlOutboxRepo::new(pool.clone())` 全部改走 `state.outbox_repo.as_ref()`。
-    - `auth_svc.rs:115/356`（login_success / login_failed）：直接换 `common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), ...)`
+    - `auth_svc.rs:115/356`（login_success / login_failed）：直接换 `digua_common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), ...)`
     - `perm_change.rs:39` helper 签名 `db: &MySqlPool` → `repo: &MySqlOutboxRepo`；5 个 caller（`role_svc.rs:148/185/220` + `permission_svc.rs:208/253`）改传 `self.state.outbox_repo.as_ref()`
     - 回归：`permission_changed_test` 7/7 PASS（testcontainers），workspace build clean
 - [x] **I6** `iam_outbox_events` 无归档 cron（spec §7.3 要求 24h archive） — 修复于 Phase 6-A T4：archive_loop + purge_loop + `iam_outbox_events_archive` 表（commit `5389b24`）
@@ -106,7 +106,7 @@
 > Plan: `docs/superpowers/plans/2026-07-07-phase5b-jwt-signature-and-service-jwt.md`
 
 - [x] **5B-fu1** `Principal::from_jwt_payload`（无验签路径）加 `#[deprecated]`。当前保留为测试用，生产应走 `from_token`。小改。
-- [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。（commits `0f14e1a` … `d295987`）
+- [x] **5B-fu2** `api-gateway` 统一到 `digua_common-jwt::JWKSCache`（当前用自己的 `JwtValidator` / `jwt_simple`）。架构债。（commits `0f14e1a` … `d295987`）
 - [x] **5B-fu3** `notification → iam` 事件化 — 完整落地：spec + plan + T1-T10 全部 commit（`a284e4e`…`d070914`）。notification→iam 同步 HTTP 已消除（publish_announcement 走 `resolve_users_by_scopes` 本地 SQL）；iam 7 emit 点同事务 outbox；V003 ntf_user_projection 单表 projection + bootstrap 端点 + durable consumer `notification.membership-events`（3 typed subscriber）；`IamMemberClient::{by_role,by_dept,expand_scopes}` 标 `#[deprecated]` + warn log。integration tests: notification 45/45 pass; iam 38/39 (1 pre-existing SIGABRT dump-openapi)。
 - [x] ~~**5B-fu4** TLS termination~~ — **延后至 Roadmap 2.0**（1.0 内不增加安全相关功能）
 - [x] **5B-fu5** CI 对齐 5B spec §7.2：`cargo test --workspace --lib`（commit `4e1c73c`；本地实测 74 passed / 0 failed，需 `CARGO_TARGET_DIR` 指向非 tmpfs 大目录）。附 token-service `RS256KeyPair::set_key_id` → `with_key_id`（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未实现 `set_key_id`，之前 CI 跑 `--all-targets` 隐藏了 lib 编译错；改 `--lib` 后暴露）。
@@ -129,10 +129,10 @@
   - [x] ~~**5A-fu1** mesh metrics Grafana 面板~~ — **已撤销**（Phase 5-A-2 撤 Consul Connect，无 sidecar/Consul Dataplane，metrics 源不存在）
 
 - [x] **B — 韧性三件套**（**已完成并合并** — 核心 ResilientClient + 扩面 B-fu1）
-  - [x] 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
+  - [x] 在 `libs/digua_common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
   - [x] 本期接 gateway `forward_to_service`：每下游 service 独立 breaker，状态经 `ResilienceObserver` → Prometheus
   - [x] 删除并重写未使用的韧性脚手架（axum/benchmarks/rate_limit/middleware/service_discovery/circuit_breaker/retry/config）
-  - [x] **B-fu1** 韧性三件套扩面到其余服务间直调（token→user、各服务 `common-http::HttpClient` / `common::http::client()` 调用点）。
+  - [x] **B-fu1** 韧性三件套扩面到其余服务间直调（token→user、各服务 `digua_common-http::HttpClient` / `digua_common::http::client()` 调用点）。
         token-service 的 `fetch_json` 已从裸 hyper 切到 `ResilientClient`（commit `a8cc412`）。
         当前仅 gateway outbound + token-service → iam 两条路径受保护；其余服务间无 HTTP 直调（token/iam/notification/audit 通过事件总线通信，config/file/prue 无出站调用）。
 
@@ -154,25 +154,25 @@
 > - 4B archive 分批 1000 行/批
 > - 4-Q2A envelope x-redelivery-count header 阈值 3 兜底
 >
-> 0-Q1 A 扩 HandlerError 双分支 · 0-Q2 A 提取 tracing_mw 到 common-telemetry-axum
+> 0-Q1 A 扩 HandlerError 双分支 · 0-Q2 A 提取 tracing_mw 到 digua_common-telemetry-axum
 
 - [x] **T1 — Envelope.trace_id producer 自动注入**（覆盖 I4）
       spec: `docs/superpowers/specs/2026-06-28-phase6a-t1-trace-id-injection-design.md`
       plan: `docs/superpowers/plans/2026-06-28-phase6a-t1-trace-id-injection.md`
-  - [x] `libs/common-telemetry/src/trace_id.rs` + `outbox.rs` 在 enqueue 内自动注入（commits `798683b`, `4a4ff51`）
-  - [x] 6 处 callsite 改 `let mut envelope` + `&mut envelope`（mechanical） + 4 处 common-event tests（commit `5ac963b`）
+  - [x] `libs/digua_common-telemetry/src/trace_id.rs` + `outbox.rs` 在 enqueue 内自动注入（commits `798683b`, `4a4ff51`）
+  - [x] 6 处 callsite 改 `let mut envelope` + `&mut envelope`（mechanical） + 4 处 digua_common-event tests（commit `5ac963b`）
   - [x] 单测 3 个（fill / respect / no-span） + integration test + e2e script + `test-case/61-trace-id-injection.md`（commits `3d6e86e`, `b721799`）
 
 - [x] **T2 — OTel 全覆盖 + tracing_mw 提取共用**
       spec: `docs/superpowers/specs/2026-06-28-phase6a-t2-otel-coverage-design.md`
       plan: `docs/superpowers/plans/2026-06-28-phase6a-t2-otel-coverage.md`
       merge commit: `0a832c7`
-  - [x] 提取 4 份 copy `tracing_mw.rs` → `libs/common-telemetry/src/middleware.rs`（commit `ac5b614`）
+  - [x] 提取 4 份 copy `tracing_mw.rs` → `libs/digua_common-telemetry/src/middleware.rs`（commit `ac5b614`）
   - [x] 删 4 份 copy + 改 4 个服务 import（commit `6e62091`）
   - [x] audit-service / config-service / file-service / prue_backend 接 `init_tracing` + middleware（commits `6f7cae1`, `5cdc1d8`）
   - [x] audit consumer 用 envelope.trace_id 设 span parent（参考实现，`consumer_span.rs`）
   - [x] README OTel 表 4 个 `—` 改 `✅` + `test-case/62-otel-cross-service-chain.md`（commit `185de1a`）
-  - [x] **T2-fix** 拆出 `libs/common-telemetry-axum/` 让 CLI binary 不再透传 axum（commit `e511299`）
+  - [x] **T2-fix** 拆出 `libs/digua_common-telemetry-axum/` 让 CLI binary 不再透传 axum（commit `e511299`）
   - [x] **T2-fu2** `docs-site/USER_MANUAL.md` / `docs-site/ai-context.md` / `docs-site/guides/observability.md` 删 `tracing_mw` 旧说明
 
 - [x] **T3 — Consumer transient/permanent 分级 + bounded redelivery**（覆盖 I1）
@@ -201,32 +201,32 @@
 
 > 评审结论已 bake：
 >
-> - **T3-fu1** → `libs/common-event/src/consumer.rs` 注册 `Basic.Return` 回调 + oneshot channel，unroutable 时返回 Err（不 ack 原 delivery）
+> - **T3-fu1** → `libs/digua_common-event/src/consumer.rs` 注册 `Basic.Return` 回调 + oneshot channel，unroutable 时返回 Err（不 ack 原 delivery）
 > - **T3-fu2** → 实现 `republish_confirm_nack_does_not_ack_original` 集成测（`channel.close()` 模拟 republish 失败）
-> - **T2-fu1** → `span_from_envelope_trace_id` 从 `audit-service/src/consumer_span.rs` 搬到 `libs/common-event/src/span.rs`，notification/gateway 统一调用
-> - **T2-fu3** → 新建 `services/iam-outbox-publisher/` 独立 crate（仅依赖 sqlx + common-event + common-telemetry + iam-service lib），不再拖 axum
+> - **T2-fu1** → `span_from_envelope_trace_id` 从 `audit-service/src/consumer_span.rs` 搬到 `libs/digua_common-event/src/span.rs`，notification/gateway 统一调用
+> - **T2-fu3** → 新建 `services/iam-outbox-publisher/` 独立 crate（仅依赖 sqlx + digua_common-event + digua_common-telemetry + iam-service lib），不再拖 axum
 > - **T2-fu4 / T4-fu2** → 合并：`outbox_archive.rs` 加 `iam_outbox_archived_total` + `iam_outbox_purged_total` 两个 IntCounter（复用 `OnceLock` 模式）
 
 #### P0 — 正确性修复
 
 - [x] **T3-fu1** `Basic.Return` 静默丢消息（评审 #2，正确性 bug）
-      `libs/common-event/src/consumer.rs` 改用 `wait_for_confirms()` 同时等待 publisher confirm 并收集 `Basic.Return` 消息；unroutable 时返回 Err 让外层不 ack。
+      `libs/digua_common-event/src/consumer.rs` 改用 `wait_for_confirms()` 同时等待 publisher confirm 并收集 `Basic.Return` 消息；unroutable 时返回 Err 让外层不 ack。
       修复 commit: `consumer.rs` `republish_with_incremented_count` 函数重构。
 
 - [x] **T3-fu2** `republish_confirm_nack_does_not_ack_original` 集成测（评审 #3，核心正确性未实测）
       新增 `republish_confirm_nack_does_not_ack_original` 集成测：unbind routing-key → handler Transient → republish 遇 Basic.Return → 原 delivery 未 ack → 消费者重连后消息重新可见。
       新增 `republish_fails_on_nonexistent_exchange` 直接函数测试。
-      `libs/common-event/tests/consumer_redelivery.rs`。
+      `libs/digua_common-event/tests/consumer_redelivery.rs`。
 
 #### P1 — 架构改进
 
 - [x] **T2-fu1** notification / gateway perm_consumer 设 span parent（评审 #1）
-      `span_from_envelope_trace_id` 从 `audit-service/src/consumer_span.rs` 搬到 `libs/common-event/src/span.rs`；
+      `span_from_envelope_trace_id` 从 `audit-service/src/consumer_span.rs` 搬到 `libs/digua_common-event/src/span.rs`；
       notification durable/ephemeral consumer + gateway perm_consumer 三处调用 `.instrument(span)`。
       删 `services/audit-service/src/consumer_span.rs`。
 
 - [x] **T2-fu3** outbox-publisher 拆为独立 crate（评审 #4）
-      新建 `services/iam-outbox-publisher/` 独立 crate，仅依赖 `sqlx` + `common-event` + `common-telemetry` + `serde_yaml`；
+      新建 `services/iam-outbox-publisher/` 独立 crate，仅依赖 `sqlx` + `digua_common-event` + `digua_common-telemetry` + `serde_yaml`；
       内联 `load_config` YAML 解析（不再依赖 `iam-service` 库，避免拖入 axum）。
       删 `services/iam-service/Cargo.toml` 中 `[[bin]] outbox-publisher` 及旧二进制文件。
       更新 `services/iam-service/Dockerfile` 构建命令。
@@ -259,7 +259,7 @@
 > Plan: `docs/superpowers/plans/2026-06-29-phase6b-config-service-dogfood.md`
 > 策略：token-service 作为第一个 dogfood 服务；其余后续。
 
-- [x] **T1 — `libs/common-config` 加 `ConfigServiceProvider`**
+- [x] **T1 — `libs/digua_common-config` 加 `ConfigServiceProvider`**
       merge: `9aa2a24`
   - [x] 新增 `config-service` feature + `ConfigServiceProvider`（HTTP 拉 `/config/export/:ns`）（commit `2d43c6d`）
   - [x] wiremock 3 个单元测试（200-ok / 404-err / invalid-json-err）
@@ -302,7 +302,7 @@
 - [x] V003 迁移：`iam_tenants` 表 + default seed + `iam_users.tenant_id`
 - [x] `libs/jwt-ctx::Principal.tenant_id` + tid claim 解析
 - [x] `libs/jwt-ctx::TenantScope` extractor
-- [x] `libs/common-db::WithTenantScope` helper
+- [x] `libs/digua_common-db::WithTenantScope` helper
 - [x] `services/iam-service::token_svc::issue_access_token` 加 tenant_id 参数 + JWT `tid` claim
 - [x] iam-service 5 处 Envelope::new callsite 注入 tenant_id
 - [x] `contracts/events.yaml` 加 `iam.tenant.created` + codegen
@@ -342,7 +342,7 @@
 > Plan: `docs/superpowers/plans/2026-07-04-phase8.3-fu1-iam-point-query-migration.md`
 > Spec: `docs/superpowers/specs/2026-07-04-phase8.3-fu1-iam-point-query-migration-design.md`
 
-- [x] `libs/common-db::WithTenantScope` 加 `where_id(id)` helper（commits `697db59`）
+- [x] `libs/digua_common-db::WithTenantScope` 加 `where_id(id)` helper（commits `697db59`）
 - [x] `user_svc.rs` 9 方法签名 + 11 SQL 迁 `scope: &TenantScope` + QueryBuilder + `and_tenant`/`where_id`（commit `8d0fdd6`）
 - [x] `role_svc.rs` 7 方法 + 7 SQL 同上（commit `b177040`）
 - [x] `org_svc.rs` 8 方法 + 7 SQL 同上（commit `2e8739d`）
@@ -420,7 +420,7 @@
 > - 端点路径一律以 `services/<svc>/openapi.yaml`（utoipa 自动 dump 的 single source of truth）为事实源——Java SDK 部分路径已过期（典型如 `/v1/audit/...` 在现网服务中不存在），Rust 端不照搬。
 > - Bearer 模式：所有 service SDK 用 `Fn() -> Option<String> + Send + Sync` closure 持有 user JWT（与 Java `Supplier<String>` 对齐），调用方负责 token 生命周期。
 > - 错误模型：5 种 `SdkError` variant 严格按 `docs/superpowers/specs/2026-06-08-multi-lang-sdk-design.md` §9（`Auth` / `Validation` / `RateLimit` / `Server` / `Network`）。
-> - 内部 service 不使用 SDK——Rust service 间通信走 `libs/common-http::ResilientClient` + `common_jwt::ServiceJwtCache`（service-jwt + Consul/internal 端点），与 SDK 的 client_credentials + Bearer passthrough 是不同的信任域（详见 plan §0）。
+> - 内部 service 不使用 SDK——Rust service 间通信走 `libs/digua_common-http::ResilientClient` + `digua_common_jwt::ServiceJwtCache`（service-jwt + Consul/internal 端点），与 SDK 的 client_credentials + Bearer passthrough 是不同的信任域（详见 plan §0）。
 >
 > Plan（本地）：`.omo/plans/2026-07-17-rust-service-sdk.md`（10 节：架构、crate 布局、命名、错误、测试、CI、风险、DoD、显式 out-of-scope）
 > 范围外的明确不做项（plan §9）：为 prue_backend / api-gateway 加 SDK；改 Rust service 内部通信；改 `dump-openapi-specs.sh` / `check-spec.js`；发内部 cargo registry；做 e2e；拆 user/client 两个 crate（用 Builder 切换场景）。
@@ -457,7 +457,7 @@
   - [x] `Dockerfile` 的 maven-settings.xml 改为 `ARG MAVEN_SETTINGS` build-arg，移除 `-Dmaven.test.skip`
 - 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`） — **G3 7/7 端点接入完成（待集成测试 + 文档同步）**
   - [x] spec `docs/superpowers/specs/2026-07-08-migrations-state-endpoint-design.md`
-  - [x] `libs/common-db::MigrationState` trait + `build_response`（commit `61d4b0c`）
+  - [x] `libs/digua_common-db::MigrationState` trait + `build_response`（commit `61d4b0c`）
   - [x] iam-service 接入（commit `bcb5bcf`，5 migrations）
   - [x] notification-service 接入（commit `8706375`，3 migrations）
   - [x] token-service 接入（commit `2b7207d`，1 migration）

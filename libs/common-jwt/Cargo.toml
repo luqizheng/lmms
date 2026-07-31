@@ -1,5 +1,5 @@
 [package]
-name = "common-jwt"
+name = "digua_common_jwt"
 version = "0.1.0"
 license = "Apache-2.0"
 description = "JWT signing and verification utilities for KudiCoder services"

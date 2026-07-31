@@ -41,7 +41,7 @@ pub enum TenantScope {
 }
 ```
 
-`libs/common-db/src/scope.rs` 提供 `QueryBuilder::and_tenant(&scope)`：
+`libs/digua_common-db/src/scope.rs` 提供 `QueryBuilder::and_tenant(&scope)`：
 - `Single(tid)` → 追加 `AND tenant_id = <tid>`
 - `CrossTenant` → no-op（不追加过滤）
 

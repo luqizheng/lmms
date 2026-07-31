@@ -8,9 +8,9 @@
 //! 已在 `enqueue_trace_id_test` 用纯函数覆盖；OTel 上下文中自动注入的
 //! round-trip 留给 §6.2 e2e 跑全栈验证。
 
-use common_event::envelope::Envelope;
-use common_event::event::Event;
-use common_event::outbox::{MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::envelope::Envelope;
+use digua_common_event::event::Event;
+use digua_common_event::outbox::{MySqlOutboxRepo, OutboxRepo};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 use testcontainers::runners::AsyncRunner;

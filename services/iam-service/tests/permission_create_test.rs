@@ -15,25 +15,25 @@
 //! (sqlx returns PoolTimedOut instead of reconnecting). This is the same
 //! gotcha that `permission_changed_test.rs` works around with `Ctx`.
 
-mod common;
+mod digua_common;
 
-use common_event::MySqlOutboxRepo;
+use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
 use iam_service::dto::permission::CreatePermissionRequest;
 use iam_service::service::permission_svc::PermissionService;
 use iam_service::state::AppState;
-use common_cache::MemoryCache;
+use digua_common_cache::MemoryCache;
 use std::sync::Arc;
 
 struct Ctx {
     state: AppState,
-    _mysql: Option<common::MysqlContainer>,
+    _mysql: Option<digua_common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = common::spawn_mysql().await;
+    let mysql_h = digua_common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
@@ -68,16 +68,16 @@ async fn setup() -> Ctx {
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
     // pass `None` for redis mgr — create path doesn't touch perm_epoch.
-    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::new(
-        common_jwt::JwksConfig {
+    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::new(
+        digua_common_jwt::JwksConfig {
             url: "http://localhost:0/.well-known/jwks.json".into(),
             refresh_interval: std::time::Duration::from_secs(3600),
             request_timeout: std::time::Duration::from_secs(5),
         },
         reqwest::Client::new(),
     ));
-    let service_jwt = std::sync::Arc::new(common_jwt::ServiceJwtCache::new(
-        common_jwt::ServiceJwtConfig {
+    let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
+        digua_common_jwt::ServiceJwtConfig {
             token_service_url: "http://localhost:0".into(),
             bootstrap_token: "test-bt".into(),
             caller_service_name: "iam-service".into(),

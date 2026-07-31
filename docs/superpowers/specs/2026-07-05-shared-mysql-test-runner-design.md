@@ -41,7 +41,7 @@
 
 ### 2. `services/<svc>/tests/`（helper 改造）
 
-每个 service 的 `tests/common/mod.rs`（已有或新建）提供 `spawn_mysql()`：
+每个 service 的 `tests/digua_common/mod.rs`（已有或新建）提供 `spawn_mysql()`：
 
 ```rust
 pub async fn spawn_mysql() -> (DbPool, Option<ContainerAsync<Mysql>>) {
@@ -87,11 +87,11 @@ pub async fn spawn_mysql() -> (DbPool, Option<ContainerAsync<Mysql>>) {
 
 | Service | 改动 |
 |---------|------|
-| token-service | 改 `tests/common/mod.rs::spawn_mysql()` 加 shared 分支（已存在 helper） |
-| iam-service | 新建 `tests/common/mod.rs`；8 个 test 文件 `setup()` 内的 5 行 Mysql 启动样板 → `mod common;` + `common::spawn_mysql().await` |
-| notification-service | 新建 `tests/common/mod.rs`；2 个 test 文件（`announcement_publish_test.rs`、`announcement_recipient_test.rs`）改用 helper |
+| token-service | 改 `tests/digua_common/mod.rs::spawn_mysql()` 加 shared 分支（已存在 helper） |
+| iam-service | 新建 `tests/digua_common/mod.rs`；8 个 test 文件 `setup()` 内的 5 行 Mysql 启动样板 → `mod digua_common;` + `digua_common::spawn_mysql().await` |
+| notification-service | 新建 `tests/digua_common/mod.rs`；2 个 test 文件（`announcement_publish_test.rs`、`announcement_recipient_test.rs`）改用 helper |
 
-iam-service 的 `mod common;` 注意：现有 11 个 test 文件里 8 个用 MySQL、3 个不用（`change_password_test.rs`、`integration_test.rs`、`swagger_test.rs`）。8 个加 `mod common;`，3 个保持不变（不影响 cargo build）。
+iam-service 的 `mod digua_common;` 注意：现有 11 个 test 文件里 8 个用 MySQL、3 个不用（`change_password_test.rs`、`integration_test.rs`、`swagger_test.rs`）。8 个加 `mod digua_common;`，3 个保持不变（不影响 cargo build）。
 
 ## 验证方案
 
@@ -109,16 +109,16 @@ iam-service 的 `mod common;` 注意：现有 11 个 test 文件里 8 个用 MyS
 | `max_connections` 151 不够并发 | mysql 启动加 `--max-connections=500` |
 | 并发 service 抢同一 database name | db 名带 `pid` + `rand`，不会冲突 |
 | 跨 service 全局状态干扰（如 `FLUSH` / `SHOW VARIABLES`） | 实际代码无此类操作；如出现再加 `SESSION` 隔离 |
-| iam-service 8 处重复 setup 是历史债 | 借机抽 `tests/common/mod.rs`；3 个非 MySQL 测试不动 |
+| iam-service 8 处重复 setup 是历史债 | 借机抽 `tests/digua_common/mod.rs`；3 个非 MySQL 测试不动 |
 | `--no-shared-mysql` 路径保留 | 50 行 diff cleanup 算法不删，加分支判断 |
 | Redis / RabbitMQ 仍各起 | 收益边际递减、复杂度上升，不动 |
 
 ## 不做
 
-- 不引入 `common-test` crate —— 抽到 8 个 service 复制粘贴即可，3 处重复不算债
+- 不引入 `digua_common-test` crate —— 抽到 8 个 service 复制粘贴即可，3 处重复不算债
 - 不动 service 主代码
 - 不改 MySQL 镜像版本 / database 默认 schema
-- 不动 `tests/common/mod.rs` 之外的 service 测试逻辑
+- 不动 `tests/digua_common/mod.rs` 之外的 service 测试逻辑
 
 ## 回滚
 

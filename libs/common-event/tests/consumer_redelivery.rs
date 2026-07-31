@@ -11,8 +11,8 @@
 //! 所有测试共享一个 RabbitMQ 容器（ OnceCell ），串行执行（ Mutex ），
 //! 每测结束后清理队列，避免容器泄漏和测试间干扰。
 
-use common_event::{Consumer, Envelope, Event, HandlerError, RabbitMqConsumer};
-use common_event::consumer::republish_with_incremented_count;
+use digua_common_event::{Consumer, Envelope, Event, HandlerError, RabbitMqConsumer};
+use digua_common_event::consumer::republish_with_incremented_count;
 use lapin::{
     options::{
         BasicGetOptions, BasicPublishOptions, ExchangeDeclareOptions, QueueBindOptions,

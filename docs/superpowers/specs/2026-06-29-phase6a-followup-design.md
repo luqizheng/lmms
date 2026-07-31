@@ -19,9 +19,9 @@ Plan-review 阶段发现 10 个 follow-up，按优先级分为 P0~P3。本 desig
 
 | ID | Priority | Item | File(s) | LOC |
 |----|----------|------|---------|-----|
-| T3-fu1 | P0 | Basic.Return 静默丢消息修复 | `libs/common-event/src/consumer.rs` | ~15 |
-| T3-fu2 | P0 | republish 失败路径集成测 | `libs/common-event/tests/consumer_redelivery.rs` | ~60 |
-| T2-fu1 | P1 | span_from_envelope_trace_id 统一 | `libs/common-event/src/span.rs` + 3 consumer | ~30 |
+| T3-fu1 | P0 | Basic.Return 静默丢消息修复 | `libs/digua_common-event/src/consumer.rs` | ~15 |
+| T3-fu2 | P0 | republish 失败路径集成测 | `libs/digua_common-event/tests/consumer_redelivery.rs` | ~60 |
+| T2-fu1 | P1 | span_from_envelope_trace_id 统一 | `libs/digua_common-event/src/span.rs` + 3 consumer | ~30 |
 | T2-fu3 | P1 | outbox-publisher 独立 crate | `services/iam-outbox-publisher/` | ~170 |
 | T3-fu3 | P3 | sleep→poll 消除 CI flake | `consumer_redelivery.rs` | ~20 |
 | T2-fu2 | P3 | 删 docs 中 tracing_mw 旧说明 | `docs-site/USER_MANUAL.md` 等 | ~10 |
@@ -89,22 +89,22 @@ if returns.is_empty() {
 
 **Problem:** `span_from_envelope_trace_id` 定义在 `audit-service/src/consumer_span.rs`，notification / gateway 消费者各自需要复制。
 
-**Solution:** 移动到 `libs/common-event/src/span.rs`，从 `lib.rs` re-export。
+**Solution:** 移动到 `libs/digua_common-event/src/span.rs`，从 `lib.rs` re-export。
 
-**Dependencies:** `common-event` 新增直接依赖 `opentelemetry = "0.24"` 和 `tracing-opentelemetry = "0.25"`（之前通过 `common-telemetry` 间接依赖，但 trait items 需要直接 access）。
+**Dependencies:** `digua_common-event` 新增直接依赖 `opentelemetry = "0.24"` 和 `tracing-opentelemetry = "0.25"`（之前通过 `digua_common-telemetry` 间接依赖，但 trait items 需要直接 access）。
 
 **Call sites:**
 
 | Service | File | Before | After |
 |---------|------|--------|-------|
-| audit | `consumer.rs:16` | `crate::consumer_span::...` | `common_event::span_from_envelope_trace_id` |
-| audit | `risk.rs:16` | `crate::consumer_span::...` | `common_event::span_from_envelope_trace_id` |
+| audit | `consumer.rs:16` | `crate::consumer_span::...` | `digua_common_event::span_from_envelope_trace_id` |
+| audit | `risk.rs:16` | `crate::consumer_span::...` | `digua_common_event::span_from_envelope_trace_id` |
 | notification | `consumer/mod.rs` | (none) | `.instrument(span_from_envelope_trace_id(&env, "..."))` |
 | gateway | `perm_consumer.rs` | (none) | `.instrument(span_from_envelope_trace_id(&env, "..."))` |
 
 ### 3.4 T2-fu3 — outbox-publisher 独立 crate
 
-**Problem:** `outbox-publisher` 作为 `iam-service` 的 `[[bin]]`，共享 `Cargo.toml` 依赖，被迫编译 axum / tower / utoipa / common-telemetry-axum —— 一个纯轮询循环不需要这些。
+**Problem:** `outbox-publisher` 作为 `iam-service` 的 `[[bin]]`，共享 `Cargo.toml` 依赖，被迫编译 axum / tower / utoipa / digua_common-telemetry-axum —— 一个纯轮询循环不需要这些。
 
 **Solution:** 新建 `services/iam-outbox-publisher/` 独立 crate。
 
@@ -112,8 +112,8 @@ if returns.is_empty() {
 ```toml
 [dependencies]
 anyhow = "1"
-common-event = { path = "../../libs/common-event" }
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+digua_common-event = { path = "../../libs/digua_common-event" }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp"] }
 serde = "1"
 serde_json = "1"
 serde_yaml = "0.9"
@@ -144,7 +144,7 @@ cargo build --bin iam-service -p iam-outbox-publisher
 
 ### 3.6 T2-fu2 — docs 清理
 
-更新三份文档，将 "copy tracing_mw.rs" 改为 "use common-telemetry-axum crate"。
+更新三份文档，将 "copy tracing_mw.rs" 改为 "use digua_common-telemetry-axum crate"。
 
 ## 4. Data Flow
 

@@ -51,7 +51,7 @@ Java 8/17/21、.NET Core 6/9/10 三套运行时。
 ```
 sdk/
   java/
-    common/                            # 公共：HttpClient 包装、TokenCache、模型、异常
+    digua_common/                            # 公共：HttpClient 包装、TokenCache、模型、异常
     user-service-user-sdk/             # user → user-service
     user-service-client-sdk/           # client → user-service
     token-server-user-sdk/             # user → token-server（登录、刷新）
@@ -129,7 +129,7 @@ var all = await cc.ListAllAsync();
 Java：
 
 - 11+：`java.net.http.HttpClient`
-- 8：`HttpURLConnection`（`common` 包按 `maven.compiler.release` 编译分支）
+- 8：`HttpURLConnection`（`digua_common` 包按 `maven.compiler.release` 编译分支）
 
 .NET：
 
@@ -181,7 +181,7 @@ NuGet 仓库：`http://nuget.kudi.repos/v3/index.json`（apiKey `<key>`）
 - 单元：Java `MockWebServer` / .NET `WireMock.Net` 模拟 HTTP
 - 集成：`docker-compose.test.yaml` 拉起 token-server + user-service + api-gateway，跑 e2e
 - 契约：`openapi-generator validate` 校验生成的客户端与服务端规范一致
-- 覆盖率：核心包 `common` ≥ 80%
+- 覆盖率：核心包 `digua_common` ≥ 80%
 
 ## 14. 文档
 

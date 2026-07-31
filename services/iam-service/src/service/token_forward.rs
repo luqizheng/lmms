@@ -1,4 +1,4 @@
-use common_jwt::{ServiceJwtCache, ServiceJwtError};
+use digua_common_jwt::{ServiceJwtCache, ServiceJwtError};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;

@@ -1,7 +1,7 @@
 #![cfg(feature = "mysql")]
 
-use common_db::WithTenantScope;
-use jwt_ctx::TenantScope;
+use digua_common_db::WithTenantScope;
+use digua_jwt_ctx::TenantScope;
 use sqlx::{MySql, QueryBuilder};
 
 #[test]

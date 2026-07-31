@@ -50,7 +50,7 @@ async fn spawn_shared(host: String, port: String) -> MysqlHandle {
     admin.close().await;
 
     let url = format!("mysql://root@{host}:{port}/{db_name}");
-    let pool = common::db::connect(&url, 5)
+    let pool = digua_common::db::connect(&url, 5)
         .await
         .expect("connect to test database");
     db::ensure_schema(&pool).await.expect("ensure iam schema");
@@ -71,7 +71,7 @@ async fn spawn_local() -> MysqlHandle {
     let host = c.get_host().await.expect("mysql host");
     let port = c.get_host_port_ipv4(3306).await.expect("mysql port");
     let url = format!("mysql://root@{host}:{port}/test");
-    let pool = common::db::connect(&url, 5)
+    let pool = digua_common::db::connect(&url, 5)
         .await
         .expect("connect local mysql");
     db::ensure_schema(&pool).await.expect("ensure iam schema");

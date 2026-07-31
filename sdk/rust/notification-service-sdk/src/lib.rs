@@ -14,4 +14,4 @@ pub use crate::client::NotificationClient;
 pub use crate::model::{
     Announcement, CreateAnnouncement, ListAnnouncementsQuery, PagedAnnouncements,
 };
-pub use kudi_http_client::SdkError;
+pub use digua_http_client::SdkError;

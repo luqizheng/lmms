@@ -1,5 +1,5 @@
 [package]
-name = "api-gateway"
+name = "api_gateway"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,13 +12,13 @@ tempfile = "3"
 bytes.workspace = true
 
 [dependencies]
-common = { path = "../../libs/common" }
-common-event = { path = "../../libs/common-event" }
-common-http = { path = "../../libs/common-http" }
+digua_common = { path = "../../libs/common" }
+digua_common_event = { path = "../../libs/common-event" }
+digua_common_http = { path = "../../libs/common-http" }
 futures.workspace = true
 bytes.workspace = true
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
-common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 axum.workspace = true
 tokio.workspace = true
 tower.workspace = true
@@ -27,8 +27,8 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-common-jwt = { path = "../../libs/common-jwt" }
-common-ratelimit = { path = "../../libs/common-ratelimit" }
+digua_common_jwt = { path = "../../libs/common-jwt" }
+digua_common_ratelimit = { path = "../../libs/common-ratelimit" }
 redis.workspace = true
 reqwest.workspace = true
 rustls.workspace = true
@@ -48,5 +48,5 @@ tracing-opentelemetry = "0.25"
 rand.workspace = true
 
 [[bin]]
-name = "dump-openapi"
+name = "dump_openapi"
 path = "src/bin/dump-openapi.rs"

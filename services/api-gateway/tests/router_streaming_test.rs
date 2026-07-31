@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use common_http::ResilienceConfig;
+use digua_common_http::ResilienceConfig;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -32,10 +32,10 @@ async fn streaming_forward_passes_chunks_through() {
     let base = format!("http://{addr}");
 
     let cfg = api_gateway::router::RouterConfig {
-        resilient: Arc::new(common_http::ResilientClient::new(
+        resilient: Arc::new(digua_common_http::ResilientClient::new(
             reqwest::Client::new(),
             ResilienceConfig::default(),
-            Arc::new(common_http::NoopObserver),
+            Arc::new(digua_common_http::NoopObserver),
         )),
         egress_map: Arc::new(HashMap::from([(
             "test".into(),
@@ -90,10 +90,10 @@ async fn non_ws_forward_buffers_response() {
     });
 
     let cfg = api_gateway::router::RouterConfig {
-        resilient: Arc::new(common_http::ResilientClient::new(
+        resilient: Arc::new(digua_common_http::ResilientClient::new(
             reqwest::Client::new(),
             ResilienceConfig::default(),
-            Arc::new(common_http::NoopObserver),
+            Arc::new(digua_common_http::NoopObserver),
         )),
         egress_map: Arc::new(HashMap::from([(
             "test".into(),

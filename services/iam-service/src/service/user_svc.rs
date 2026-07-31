@@ -3,12 +3,12 @@ use crate::{
     state::AppState,
     dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleResponse, UserSimpleListResponse, UserClaimsResponse},
 };
-use common_crypto::password::hash;
-use common_db::WithTenantScope;
-use common_event::events::{IamUserCreated, IamUserDeleted};
-use common_event::{Envelope, OutboxRepo};
+use digua_common_crypto::password::hash;
+use digua_common_db::WithTenantScope;
+use digua_common_event::events::{IamUserCreated, IamUserDeleted};
+use digua_common_event::{Envelope, OutboxRepo};
 use chrono::Utc;
-use jwt_ctx::TenantScope;
+use digua_jwt_ctx::TenantScope;
 use nanoid::nanoid;
 use sqlx::{FromRow, QueryBuilder, mysql::MySqlQueryResult};
 

@@ -6,18 +6,18 @@
 //! 与 Redis perm_epoch（值≈now、TTL>0）。
 //!
 //! 注意：多 MySQL 容器并发易 StartupTimeout，用 `--test-threads=1` 串行。
-mod common;
+mod digua_common;
 
-use common_cache::MemoryCache;
-use common_crypto::password::hash as hash_password;
-use common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
-use common_event::MySqlOutboxRepo;
+use digua_common_cache::MemoryCache;
+use digua_common_crypto::password::hash as hash_password;
+use digua_common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
+use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
 use iam_service::dto::LoginRequest;
 use iam_service::service::{AuthService, PermissionService, RoleService};
-use jwt_ctx::TenantScope;
+use digua_jwt_ctx::TenantScope;
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -29,12 +29,12 @@ const PREFIX: &str = "superpowers:";
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
-    _mysql: Option<common::MysqlContainer>,
+    _mysql: Option<digua_common::MysqlContainer>,
     _redis: testcontainers::ContainerAsync<Redis>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = common::spawn_mysql().await;
+    let mysql_h = digua_common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
@@ -75,16 +75,16 @@ async fn setup() -> Ctx {
 
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::new(
-        common_jwt::JwksConfig {
+    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::new(
+        digua_common_jwt::JwksConfig {
             url: "http://localhost:0/.well-known/jwks.json".into(),
             refresh_interval: std::time::Duration::from_secs(3600),
             request_timeout: std::time::Duration::from_secs(5),
         },
         reqwest::Client::new(),
     ));
-    let service_jwt = std::sync::Arc::new(common_jwt::ServiceJwtCache::new(
-        common_jwt::ServiceJwtConfig {
+    let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
+        digua_common_jwt::ServiceJwtConfig {
             token_service_url: "http://localhost:0".into(),
             bootstrap_token: "test-bt".into(),
             caller_service_name: "iam-service".into(),

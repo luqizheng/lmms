@@ -19,7 +19,7 @@ tokio = { version = "1", features = ["full"] }
 ## Usage — password login
 
 ```rust
-use iam_service_sdk::IamClient;
+use digua_iam_sdk::IamClient;
 
 let (client, login) = IamClient::login(
     "https://gw.kudi.repos",
@@ -30,7 +30,7 @@ let (client, login) = IamClient::login(
 println!("hello {}", login.user.nickname);
 
 let page = client
-    .list_users(&iam_service_sdk::ListUsersQuery::new().page(0).size(20))
+    .list_users(&digua_iam_sdk::ListUsersQuery::new().page(0).size(20))
     .await?;
 ```
 
@@ -38,7 +38,7 @@ let page = client
 
 ```rust
 use std::sync::{Arc, Mutex};
-use iam_service_sdk::IamClient;
+use digua_iam_sdk::IamClient;
 
 let token = Arc::new(Mutex::new(Some("user.jwt".to_string())));
 let client = IamClient::new("https://gw.kudi.repos", move || {
@@ -89,7 +89,7 @@ method to `KudiWebClient` and a `delete_json` to `HttpTransport` first.
 
 ## Errors
 
-All methods return `Result<T, kudi_http_client::SdkError>` (re-exported as
-`iam_service_sdk::SdkError`). Five variants per
+All methods return `Result<T, digua_http_client::SdkError>` (re-exported as
+`digua_iam_sdk::SdkError`). Five variants per
 `docs/superpowers/specs/2026-06-08-multi-lang-sdk-design.md` §9:
 `Auth` / `Validation` / `RateLimit` / `Server` / `Network`.

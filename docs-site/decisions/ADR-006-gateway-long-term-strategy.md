@@ -37,7 +37,7 @@
 
 2. **剥离非核心职责**：
    - `consul-template` 已独立运行（canary 路由），路由决策不经过网关代码
-   - Service JWT 签发逻辑评估迁移到 `common-jwt` lib，减少网关代码行数
+   - Service JWT 签发逻辑评估迁移到 `digua_common-jwt` lib，减少网关代码行数
 
 3. **Gateway 专属 SLO**：99.9%（见 [SLO 文档](../slo.md)），错误预算驱动变更节奏
 

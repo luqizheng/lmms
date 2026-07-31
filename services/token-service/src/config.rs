@@ -5,7 +5,7 @@
 //! ```
 //!
 //! Historical note (2026-07): earlier versions of this file used
-//! `common_config::Loader`, which layered `config::Environment::with_prefix
+//! `digua_common_config::Loader`, which layered `config::Environment::with_prefix
 //! ("TOKEN").separator("_")` on top of the yaml source. That auto-binder
 //! treats **every** `_` in an env var name as a nesting separator, so
 //! `TOKEN_DATABASE_DB_TYPE` unbindingly resolved to path

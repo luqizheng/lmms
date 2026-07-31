@@ -18,8 +18,8 @@ node scripts/contracts-gen.js
 ```
 
 生成目标：
-- `libs/common-error/src/codes.rs` — Rust 错误码常量
-- `libs/authz/src/perms.rs` — Rust 权限码常量
+- `libs/digua_common-error/src/codes.rs` — Rust 错误码常量
+- `libs/digua_authz/src/perms.rs` — Rust 权限码常量
 - `frontend/src/contracts/*.ts` — TypeScript 类型（预留）
 
 ## 命名规则
@@ -49,5 +49,5 @@ node scripts/contracts-gen.js   # 重新生成后用 git diff 检查是否有未
 
 1. 编辑 YAML 文件
 2. 运行 `node scripts/contracts-gen.js`
-3. 运行 `cargo build -p common-error -p authz`
+3. 运行 `cargo build -p digua_common-error -p digua_authz`
 4. Commit YAML + 生成的 Rust 文件

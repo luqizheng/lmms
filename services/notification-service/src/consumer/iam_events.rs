@@ -1,5 +1,5 @@
-use common_event::events::IamUserCreated;
-use common_event::{Envelope, HandlerError, MySqlOutboxRepo};
+use digua_common_event::events::IamUserCreated;
+use digua_common_event::{Envelope, HandlerError, MySqlOutboxRepo};
 use sqlx::mysql::MySqlPool;
 use tracing::warn;
 

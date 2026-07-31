@@ -32,8 +32,8 @@ use crate::{
         PagedLoginLogs,
         RetentionPolicy,
         RetentionStats,
-        common_db::migration_state::MigrationStateResponse,
-        common_db::migration_state::MigrationInfo,
+        digua_common_db::migration_state::MigrationStateResponse,
+        digua_common_db::migration_state::MigrationInfo,
         DataStage,
     )),
     tags(

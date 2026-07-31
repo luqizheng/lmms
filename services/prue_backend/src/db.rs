@@ -1,4 +1,4 @@
-use common_db::DbPool;
+use digua_common_db::DbPool;
 use sha2::{Digest, Sha256};
 use tracing::{info, warn};
 

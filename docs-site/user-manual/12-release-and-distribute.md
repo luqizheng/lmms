@@ -258,7 +258,7 @@ dist 包内 `scripts/` 同步了 4 个 CI 门禁脚本。业务服务创建后�
 node scripts/check-service-standard.js   # 8-item 服务规范（Dockerfile/AGENTS/README/tests/health/metrics/migrations/Swagger）
 node scripts/check-db-naming.js          # 表名必须带服务前缀（iam_/audit_/token_/...）
 node scripts/check-spec.js               # OpenAPI / 错误码 / 权限码 完整性
-node scripts/contracts-gen.js --check    # 契约生成代码（libs/common-error/src/codes.rs）与 YAML 一致
+node scripts/contracts-gen.js --check    # 契约生成代码（libs/digua_common-error/src/codes.rs）与 YAML 一致
 ```
 
 8-item 服务规范定义见 [`docs-site/decisions/ADR-002-service-standard-baseline`](../decisions/ADR-002-service-standard-baseline.md)。

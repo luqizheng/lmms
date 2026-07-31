@@ -16,10 +16,10 @@
 **问题**：
 
 - **没有任何服务调用 config-service**。`grep config-service` 在整个 `services/` 下结果为 0。
-- 每个服务自己读本地 `config/config.yaml`（iam-service 用 `serde_yaml::from_str`、token-service 用 `common-config::Loader` 的 file mode、prue_backend 用 env）。
+- 每个服务自己读本地 `config/config.yaml`（iam-service 用 `serde_yaml::from_str`、token-service 用 `digua_common-config::Loader` 的 file mode、prue_backend 用 env）。
 - config-service 是摆设——自己都不 dogfood。
 
-**现有 `libs/common-config`**：
+**现有 `libs/digua_common-config`**：
 
 ```
 Loader::new(prefix)              → 支持 file / env / Consul KV 三种 source
@@ -32,7 +32,7 @@ HotConfig<T>                     → RwLock + on_change 回调，用于运行期
 
 ### 目标
 
-- **在 `libs/common-config` 加 `ConfigServiceProvider`**：启动时从 config-service HTTP 拉取 namespace 的全量 config（`GET /config/export/:ns`），fallback 到本地 yaml。
+- **在 `libs/digua_common-config` 加 `ConfigServiceProvider`**：启动时从 config-service HTTP 拉取 namespace 的全量 config（`GET /config/export/:ns`），fallback 到本地 yaml。
 - **第一个接入的服务**：token-service（最小、最独立、有最明确的 config schema）。
 - **长期轮询 / watch**：HotConfig 已有回调框架，加一个后台 tokio task 每 30s 轮询 `/export/:ns`，与本地 HotConfig 比对，diff 非空时 update + 触发 on_change 回调。
 - **服务配置迁移模式**：保留本地 yaml 作为 fallback，逐步把"必须从配置中心读"的 key 标记。
@@ -51,7 +51,7 @@ HotConfig<T>                     → RwLock + on_change 回调，用于运行期
 
 | 决策点 | 选择 | 理由 |
 |---|---|---|
-| Provider 位置 | `libs/common-config`，新 feature `config-service` | 与现有 Loader 同级；不新建 crate |
+| Provider 位置 | `libs/digua_common-config`，新 feature `config-service` | 与现有 Loader 同级；不新建 crate |
 | 拉取方式 | `GET /config/export/:namespace_id` | config-service 已有此端点，一次拉全量 |
 | 启动策略 | 1) 先试 config-service HTTP；2) 失败 → 试本地 yaml；3) 两者都失败 → panic（同现有行为） | 渐进迁移，不破坏现有部署 |
 | 轮询间隔 | 30 秒（可配） | 比 SSE/长轮询简单；30s 对配置变更够用 |
@@ -67,7 +67,7 @@ HotConfig<T>                     → RwLock + on_change 回调，用于运行期
 ```
 token-service main()
    │
-   ├── common_config::Loader::new("TOKEN")
+   ├── digua_common_config::Loader::new("TOKEN")
    │       .with_config_service("http://config-service:6006", "token-service-dev")
    │       .with_file("config/config.yaml")   ← fallback
    │       .load::<TokenServerConfig>()
@@ -108,7 +108,7 @@ Loader::watch::<T>(&self, interval: Duration) → tokio::task::JoinHandle<()>
 
 ## 5. 组件改动
 
-### 5.1 `libs/common-config/Cargo.toml` 加 `config-service` feature
+### 5.1 `libs/digua_common-config/Cargo.toml` 加 `config-service` feature
 
 ```toml
 [features]
@@ -120,7 +120,7 @@ config-service = ["dep:reqwest"]   # 新增
 reqwest = { workspace = true, optional = true, default-features = false }
 ```
 
-### 5.2 `libs/common-config/src/provider.rs`（新增，feature-gated）
+### 5.2 `libs/digua_common-config/src/provider.rs`（新增，feature-gated）
 
 ```rust
 //! ConfigServiceProvider — 从 config-service HTTP API 拉取配置。
@@ -174,7 +174,7 @@ impl ConfigServiceProvider {
 }
 ```
 
-### 5.3 `libs/common-config/src/lib.rs` 集成 Provider 到 Loader
+### 5.3 `libs/digua_common-config/src/lib.rs` 集成 Provider 到 Loader
 
 ```rust
 pub struct Loader {
@@ -255,7 +255,7 @@ impl<T: DeserializeOwned + Clone + Send + Sync + 'static> Loader {
 `services/token-service/Cargo.toml`：
 
 ```toml
-common-config = { path = "../../libs/common-config", features = ["config-service"] }
+digua_common-config = { path = "../../libs/digua_common-config", features = ["config-service"] }
 ```
 
 `services/token-service/src/main.rs` 改动：
@@ -267,7 +267,7 @@ let cfg: TokenServerConfig = load_config("config/config.yaml")
     .expect("failed to load config.yaml");
 
 // after
-let cfg: TokenServerConfig = common_config::Loader::new("TOKEN")
+let cfg: TokenServerConfig = digua_common_config::Loader::new("TOKEN")
     .with_file("config/config.yaml")
     .with_config_service(
         std::env::var("CONFIG_SERVICE_URL").unwrap_or_else(|_| "http://localhost:6006".into()),
@@ -284,7 +284,7 @@ let cfg: TokenServerConfig = common_config::Loader::new("TOKEN")
 
 ## 6. 测试计划
 
-### 6.1 单元测试 `libs/common-config/tests/provider_test.rs`
+### 6.1 单元测试 `libs/digua_common-config/tests/provider_test.rs`
 
 ```rust
 // 用 wiremock 起一个 mock HTTP server 返回 {"key": "value"}
@@ -318,10 +318,10 @@ let cfg: TokenServerConfig = common_config::Loader::new("TOKEN")
 
 ## 7. 实施步骤（plan 阶段细化）
 
-1. `libs/common-config/Cargo.toml` 加 `config-service` feature + `reqwest` optional dep。
-2. 新建 `libs/common-config/src/provider.rs`，实现 `ConfigServiceProvider`。
-3. `libs/common-config/src/lib.rs`：`Loader` 加 `with_config_service` builder + `load` 内集成 provider source + `watch` 方法。
-4. 加单元测试 `libs/common-config/tests/provider_test.rs`（wiremock 3 case）。
+1. `libs/digua_common-config/Cargo.toml` 加 `config-service` feature + `reqwest` optional dep。
+2. 新建 `libs/digua_common-config/src/provider.rs`，实现 `ConfigServiceProvider`。
+3. `libs/digua_common-config/src/lib.rs`：`Loader` 加 `with_config_service` builder + `load` 内集成 provider source + `watch` 方法。
+4. 加单元测试 `libs/digua_common-config/tests/provider_test.rs`（wiremock 3 case）。
 5. 改 `services/token-service/Cargo.toml` + `main.rs`，用 config-service feature。
 6. 在 config-service 手工建 `token-service-dev` namespace + 写入 token 配置 items。
 7. 加集成测试 `services/token-service/tests/config_provider_test.rs`。
@@ -329,7 +329,7 @@ let cfg: TokenServerConfig = common_config::Loader::new("TOKEN")
 
 ## 8. 验收
 
-- [ ] `libs/common-config` 编译通过 `--features config-service` 与 `--no-default-features`。
+- [ ] `libs/digua_common-config` 编译通过 `--features config-service` 与 `--no-default-features`。
 - [ ] wiremock 单元测试 3 case 全绿。
 - [ ] token-service 在 config-service 可用时从 HTTP 拉取配置启动。
 - [ ] token-service 在 config-service 不可用时回退到本地 yaml 启动。

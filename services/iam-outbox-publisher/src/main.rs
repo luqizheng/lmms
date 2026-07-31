@@ -31,7 +31,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, anyhow};
-use common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
+use digua_common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
 use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
 
@@ -118,7 +118,7 @@ fn seed_if_absent(path: &Path) -> std::io::Result<bool> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    common_telemetry::init_tracing("iam-outbox-publisher");
+    digua_common_telemetry::init_tracing("iam-outbox-publisher");
     info!("iam-outbox-publisher starting");
 
     let db_url = load_db_url().context("resolve DATABASE_URL")?;

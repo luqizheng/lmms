@@ -1,4 +1,4 @@
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs::OpenOptions;

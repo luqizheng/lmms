@@ -20,7 +20,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```rust
 use std::sync::{Arc, Mutex};
-use audit_service_sdk::{AuditClient, LoginLogQuery};
+use digua_audit_sdk::{AuditClient, LoginLogQuery};
 
 let token = Arc::new(Mutex::new(Some("user.jwt".to_string())));
 let client = AuditClient::new("https://gw.kudi.repos", move || {
@@ -51,8 +51,8 @@ Not covered (extend the SDK on demand): `export_*_csv/json` endpoints under
 
 ## Errors
 
-All methods return `Result<T, kudi_http_client::SdkError>` (re-exported as
-`audit_service_sdk::SdkError`):
+All methods return `Result<T, digua_http_client::SdkError>` (re-exported as
+`digua_audit_sdk::SdkError`):
 
 - `Auth { status, message, details }` — HTTP 401/403
 - `Validation { status, message, details }` — HTTP 400/422

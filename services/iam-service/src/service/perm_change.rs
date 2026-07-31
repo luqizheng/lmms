@@ -7,9 +7,9 @@
 //! the durable path (gateway consumer backfills); the direct write is a
 //! latency optimization only — failures are warned, never propagated.
 
-use common_event::events::IamPermissionChanged;
-use common_event::perm_epoch::set_perm_epoch_if_greater;
-use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::events::IamPermissionChanged;
+use digua_common_event::perm_epoch::set_perm_epoch_if_greater;
+use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::{MySql, Transaction};
 
 use crate::error::IamError;

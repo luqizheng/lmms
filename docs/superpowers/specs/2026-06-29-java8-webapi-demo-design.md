@@ -20,7 +20,7 @@
 
 ### 1.2 背景
 
-`coder-micro-services` 是 Rust 微服务平台（iam-service / token-service / audit-service / config-service / file-service / notification-service / api-gateway），已有 `sdk/java/` 客户端 SDK（common + 4 个用户/客户端 SDK + kudi-http-client）。
+`coder-micro-services` 是 Rust 微服务平台（iam-service / token-service / audit-service / config-service / file-service / notification-service / api-gateway），已有 `sdk/java/` 客户端 SDK（digua_common + 4 个用户/客户端 SDK + kudi-http-client）。
 
 但**仓库里没有一个 Java 8 业务服务的参考实现**：新人 / 客户想知道"用 SDK 接入这个平台要写多少代码、长什么样"时，没有可跑的样例。`tests/e2e` 现有 Node.js 端到端测试，但 Java 8 这条线只到 SDK 层，缺一个端到端 webapi 入口。
 
@@ -236,7 +236,7 @@ public class AuditServiceClient {
 
 ### 4.4 传输
 
-- 复用 `sdk/java/common` 的 `HttpClient`（OkHttp 4.x 或 HttpURLConnection，参考 `kudi-http-client` 选择）
+- 复用 `sdk/java/digua_common` 的 `HttpClient`（OkHttp 4.x 或 HttpURLConnection，参考 `kudi-http-client` 选择）
 - JSON 用 Jackson 2.16.1（与现有 SDK 对齐）
 - `bearerSupplier` 模式：调用方每次发请求时调用一次（便于 token 刷新场景）
 
@@ -246,7 +246,7 @@ public class AuditServiceClient {
 <dependencies>
   <dependency>
     <groupId>com.kudi.coder</groupId>
-    <artifactId>kudi-coder-sdk-common</artifactId>
+    <artifactId>kudi-coder-sdk-digua_common</artifactId>
     <version>0.2.0</version>
   </dependency>
   <dependency>

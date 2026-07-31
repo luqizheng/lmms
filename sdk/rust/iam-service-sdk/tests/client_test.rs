@@ -1,8 +1,8 @@
-use iam_service_sdk::{
+use digua_iam_sdk::{
     CreateRoleRequest, CreateUserRequest, IamClient, ListRolesQuery, ListUsersQuery,
     UpdateUserRequest,
 };
-use kudi_http_client::SdkError;
+use digua_http_client::SdkError;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 use wiremock::matchers::{header, method, path};

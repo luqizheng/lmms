@@ -1,5 +1,5 @@
-use audit_service_sdk::{AuditClient, LoginLogQuery, OperationLogQuery, RetentionPolicy};
-use kudi_http_client::SdkError;
+use digua_audit_sdk::{AuditClient, LoginLogQuery, OperationLogQuery, RetentionPolicy};
+use digua_http_client::SdkError;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 use wiremock::matchers::{header, method, path, query_param};

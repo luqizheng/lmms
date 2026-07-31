@@ -15,7 +15,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```rust
 use std::sync::{Arc, Mutex};
-use token_service_sdk::{TokenClient, AccessRequest};
+use digua_token_sdk::{TokenClient, AccessRequest};
 
 let token = Arc::new(Mutex::new(Some("user.jwt".to_string())));
 let client = TokenClient::new("https://gw.kudi.repos", move || {
@@ -47,8 +47,8 @@ Not wrapped: `/tokens/user-jwt`, `/admin/oauth-clients/*` admin endpoints
 
 ## Errors
 
-All methods return `Result<T, kudi_http_client::SdkError>` (re-exported as
-`token_service_sdk::SdkError`). Five variants per the multi-lang SDK
+All methods return `Result<T, digua_http_client::SdkError>` (re-exported as
+`digua_token_sdk::SdkError`). Five variants per the multi-lang SDK
 design spec §9: `Auth` / `Validation` / `RateLimit` / `Server` /
 `Network`.
 

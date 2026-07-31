@@ -1,12 +1,12 @@
 [package]
-name = "notification-service"
+name = "notification_service"
 version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
-common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
-common-ratelimit = { path = "../../libs/common-ratelimit" }
+digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+digua_common_ratelimit = { path = "../../libs/common-ratelimit" }
 axum = { workspace = true, features = ["ws", "macros"] }
 tokio = { workspace = true }
 tower = { workspace = true }
@@ -21,14 +21,14 @@ tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
 anyhow = "1"
 async-trait = "0.1"
-jwt-ctx = { path = "../../libs/jwt-ctx" }
-common-jwt = { path = "../../libs/common-jwt" }
-common-http = { path = "../../libs/common-http" }
+digua_jwt_ctx = { path = "../../libs/jwt-ctx" }
+digua_common_jwt = { path = "../../libs/common-jwt" }
+digua_common_http = { path = "../../libs/common-http" }
 reqwest.workspace = true
 bytes = "1"
-common-event = { path = "../../libs/common-event" }
-common-db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
-authz = { path = "../../libs/authz" }
+digua_common_event = { path = "../../libs/common-event" }
+digua_common_db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
+digua_authz = { path = "../../libs/authz" }
 uuid = { version = "1", features = ["v7", "serde"] }
 futures = "0.3"
 config = { workspace = true }
@@ -48,13 +48,13 @@ wiremock = "0.6"
 tempfile = "3"
 
 [[bin]]
-name = "notification-service"
+name = "notification_service"
 path = "src/main.rs"
 
 [[bin]]
-name = "ntf-outbox-publisher"
+name = "ntf_outbox_publisher"
 path = "src/bin/outbox_publisher.rs"
 
 [[bin]]
-name = "dump-openapi"
+name = "dump_openapi"
 path = "src/bin/dump-openapi.rs"

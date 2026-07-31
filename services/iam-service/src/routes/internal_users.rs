@@ -11,7 +11,7 @@ use crate::{
     service::UserService,
     state::AppState,
 };
-use jwt_ctx::{Principal, TenantScope};
+use digua_jwt_ctx::{Principal, TenantScope};
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct TenantIdQuery {

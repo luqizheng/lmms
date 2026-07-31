@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 重头用 Rust 写 user-service, 替换 Go `services/user-service/`, 暴露 14 业务端点 + 1 internal + 1 health, 复用 `common` / `jwt-ctx` / `authz` libs.
+**Goal:** 重头用 Rust 写 user-service, 替换 Go `services/user-service/`, 暴露 14 业务端点 + 1 internal + 1 health, 复用 `digua_common` / `jwt-ctx` / `digua_authz` libs.
 
-**Architecture:** Axum 0.7 + sqlx 0.8 (MySQL) + redis 0.27 + thiserror + tracing. 三层: routes → service → models. middleware 走 `authz::require_service_token`. `me` 端点从 `Extension<Principal>` 提取 user_id.
+**Architecture:** Axum 0.7 + sqlx 0.8 (MySQL) + redis 0.27 + thiserror + tracing. 三层: routes → service → models. middleware 走 `digua_authz::require_service_token`. `me` 端点从 `Extension<Principal>` 提取 user_id.
 
-**Tech Stack:** Rust 1.x, axum 0.7, tokio 1, sqlx 0.8, redis 0.27, common lib, jwt-ctx lib, authz lib, testcontainers 0.20.
+**Tech Stack:** Rust 1.x, axum 0.7, tokio 1, sqlx 0.8, redis 0.27, digua_common lib, jwt-ctx lib, digua_authz lib, testcontainers 0.20.
 
 **Spec:** [`docs/superpowers/specs/2026-06-10-user-service-rust-design.md`](../specs/2026-06-10-user-service-rust-design.md)
 
 **前置依赖**:
-- 主 plan Task 8 完成 (libs/common 含 password / db / redisx / http)
+- 主 plan Task 8 完成 (libs/digua_common 含 password / db / redisx / http)
 - 主 plan Task 10-12 完成 (token-service 改造 + api-gateway 路由)
 - 工具链: 真实 PowerShell 跑 `vcvarsall x64` 后 cargo (sandbox 隔离 vcvarsall)
 
@@ -80,9 +80,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../../libs/common" }
+digua_common = { path = "../../libs/digua_common" }
 jwt-ctx = { path = "../../libs/jwt-ctx" }
-authz = { path = "../../libs/authz" }
+digua_authz = { path = "../../libs/digua_authz" }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "mysql"] }
@@ -361,7 +361,7 @@ use anyhow::Result;
 use sqlx::mysql::MySqlPool;
 
 pub async fn init_pool(url: &str, max: u32) -> Result<MySqlPool> {
-    common::db::connect(url, max).await
+    digua_common::db::connect(url, max).await
 }
 ```
 
@@ -1205,7 +1205,7 @@ fn default_page() -> u32 { 1 }
 fn default_size() -> u32 { 20 }
 ```
 
-- [ ] **Step 2: Write auth module (delegates to authz lib)**
+- [ ] **Step 2: Write auth module (delegates to digua_authz lib)**
 
 `services/user-service-rust/src/auth.rs`:
 
@@ -1217,16 +1217,16 @@ use axum::{
 };
 
 /// Internal endpoint auth: require service token signed by token-service.
-/// Delegates to `authz::require_service_token` after extracting the bearer token.
+/// Delegates to `digua_authz::require_service_token` after extracting the bearer token.
 pub async fn require_internal_service_token(
     req: Request,
     next: Next,
 ) -> Result<Response, Response> {
-    authz::require_service_token(req, next).await
+    digua_authz::require_service_token(req, next).await
 }
 ```
 
-(Verify the `authz::require_service_token` signature matches; if not, adapt by reading Authorization header + verifying via common::token.)
+(Verify the `digua_authz::require_service_token` signature matches; if not, adapt by reading Authorization header + verifying via digua_common::token.)
 
 - [ ] **Step 3: Commit**
 
@@ -1313,7 +1313,7 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use serde_json::json;
 use sqlx::MySqlPool;
 
@@ -1549,7 +1549,7 @@ use user_service::{
     db::init_pool,
     routes,
 };
-use jwt_ctx::jwt_extractor;
+use digua_jwt_ctx::jwt_extractor;
 
 #[derive(Clone)]
 struct AppState {

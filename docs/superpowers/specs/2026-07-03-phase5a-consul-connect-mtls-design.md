@@ -386,4 +386,4 @@ fn discover_advertise_host(...) -> String {
 - 现有 service-token 中间件（待移除）：`services/iam-service/src/middleware/service_jwt.rs`
 - 网关 egress 配置：`infrastructure/config/api-gateway/api-gateway.toml`
 - Prometheus 配置：`infrastructure/config/prometheus/prometheus.yml`
-- 多租户 extractor（tenant 校验迁移目标）：`libs/jwt-ctx`（`TenantScope`）、`libs/common-db`（`WithTenantScope`）
+- 多租户 extractor（tenant 校验迁移目标）：`libs/jwt-ctx`（`TenantScope`）、`libs/digua_common-db`（`WithTenantScope`）

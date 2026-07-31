@@ -56,7 +56,7 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 `contracts/` 是前后端单一真相源：`error-codes.yaml` / `permissions.yaml` / `events.yaml` / `http-conventions.md` / `db-conventions.md`。
 
-- 改 YAML 后跑 `node scripts/contracts-gen.js` 重新生成 `libs/common-error/src/codes.rs`、`libs/authz/src/perms.rs`。**禁止手改这两个生成文件**。
+- 改 YAML 后跑 `node scripts/contracts-gen.js` 重新生成 `libs/digua_common-error/src/codes.rs`、`libs/digua_authz/src/perms.rs`。**禁止手改这两个生成文件**。
 - **表名必须带服务前缀**（共享 MySQL `superpowers` 库）：`iam_` / `audit_` / `token_` / `ntf_` / `cfg_` / `file_` / `prue_`。规则见 `contracts/db-conventions.md`，违例由 `check-db-naming.js` 拦截。
 
 ## OpenAPI（auto-generated）
@@ -82,7 +82,7 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 每个 `services/<svc>/` 下有 `AGENTS.md` 声明本服务约定（端口、DB、端点域、env、豁免项）— **改该服务前先读**。8-item 规范覆盖 Dockerfile / Swagger / 健康检查 / 迁移 / README / tests 等。关键 env：`SWAGGER_ENABLED`、`HEALTH_CHECK_REQUIRED`、`MIGRATIONS_REQUIRED`。
 
-> 跨服务审计写不再走直连 HTTP，走 RabbitMQ + transactional outbox（`common_event::MySqlOutboxRepo::enqueue`，同事务入队）。详见 `docs-site/ai-context.md` §7 pitfall 19。
+> 跨服务审计写不再走直连 HTTP，走 RabbitMQ + transactional outbox（`digua_common_event::MySqlOutboxRepo::enqueue`，同事务入队）。详见 `docs-site/ai-context.md` §7 pitfall 19。
 
 ## Skill 目录
 

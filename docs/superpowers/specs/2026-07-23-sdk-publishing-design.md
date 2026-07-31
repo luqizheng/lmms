@@ -27,7 +27,7 @@
 # 前置：setup-wizard 已配 kellnr registry + token 到 .cargo/{config,credentials}.toml
 # 触发（cargo publish 每个 crate）
 pnpm run sdk:publish:rust
-# → 依赖顺序 publish libs/common-* / libs/jwt-ctx / libs/authz / sdk/rust/*
+# → 依赖顺序 publish libs/digua_common-* / libs/jwt-ctx / libs/digua_authz / sdk/rust/*
 ```
 
 **发布顺序**：libs → sdk（因为 sdk 依赖 libs），单个 crate publish 后需等 kellnr 索引更新（10-30s）才能 publish 下一个。
@@ -51,7 +51,7 @@ bash sdk/scripts/publish-sdks.sh
 **发布单元**：`sdk/java/pom.xml` 是多模块 reactor：
 - `audit-service-sdk` / `config-service-sdk` / `file-service-sdk` / `iam-service-sdk`
 - `notification-service-sdk` / `token-server-client-sdk`
-- `common` / `kudi-http-client`
+- `digua_common` / `kudi-http-client`
 
 **版本策略**：`0.3.0` 起独立版本号，与平台版本解耦（消费方按需锁定 SDK 版本）。
 
@@ -70,16 +70,16 @@ bash sdk/scripts/publish-sdks.sh
 ### 2.1 Rust workspace 发布拓扑
 
 ```
-libs/common-error       ← 无依赖
-libs/common-config      ← 无依赖
-libs/common-log         ← 无依赖
-libs/common-crypto      ← 无依赖
-libs/common-db          ← common-error
-libs/common-jwt         ← common-error
-libs/common-http        ← common-error
-libs/common-event       ← common-error
-libs/jwt-ctx            ← common-jwt
-libs/authz              ← jwt-ctx
+libs/digua_common-error       ← 无依赖
+libs/digua_common-config      ← 无依赖
+libs/digua_common-log         ← 无依赖
+libs/digua_common-crypto      ← 无依赖
+libs/digua_common-db          ← digua_common-error
+libs/digua_common-jwt         ← digua_common-error
+libs/digua_common-http        ← digua_common-error
+libs/digua_common-event       ← digua_common-error
+libs/jwt-ctx            ← digua_common-jwt
+libs/digua_authz              ← jwt-ctx
 sdk/rust/*              ← 上面全部
 ```
 

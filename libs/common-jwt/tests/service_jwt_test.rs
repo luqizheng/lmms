@@ -1,4 +1,4 @@
-use common_jwt::{
+use digua_common_jwt::{
     verify_token, JWKSCache, ServiceJwtCache, ServiceJwtConfig, ServiceJwtError,
 };
 use std::time::Duration;
@@ -34,7 +34,7 @@ async fn sign_local_roundtrip_works_for_service_jwt() {
     // Use the local-sign path (production is HTTP; tests use local for speed).
     let c = cache();
     let jwt = c.sign_local("iam-service", Duration::from_secs(120)).unwrap();
-    // Verify using common_jwt (with the matching public key).
+    // Verify using digua_common_jwt (with the matching public key).
     let jwks = jwks();
     let verified = verify_token(&jwt, &jwks, Some("iam-service")).await.unwrap();
     assert_eq!(verified["aud"], "iam-service");

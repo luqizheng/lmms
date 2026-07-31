@@ -1,7 +1,7 @@
 //! GET /file/internal/migrations/state — file-service schema 状态查询。
 
 use axum::{extract::Extension, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
-use common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
+use digua_common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
 use serde_json::json;
 use sqlx::MySqlPool;
 use utoipa::path as to_path;

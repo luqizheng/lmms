@@ -337,7 +337,7 @@ iam_users table. Use downtime window or pt-online-schema-change.
 ```
 docs: add troubleshooting section for login failures
 
-Document common causes of login failures (wrong password,
+Document digua_common causes of login failures (wrong password,
 account locked, token expired) with resolution steps.
 Cross-reference with jaeger tracing guide for trace-based debugging.
 ```

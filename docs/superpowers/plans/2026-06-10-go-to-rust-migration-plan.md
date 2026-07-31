@@ -6,7 +6,7 @@
 > - auth-service → 已删除，功能并入 iam-service
 > - user-service → 已迁移为 Rust 服务
 > - token-server → 已迁移并更名为 token-service
-> - 所有共享库（jwt-ctx、authz、common）均已用 Rust 重写
+> - 所有共享库（jwt-ctx、digua_authz、digua_common）均已用 Rust 重写
 >
 > **清理项见：** [`2026-06-10-go-to-rust-migration-cleanup-plan.md`](file:///d:/projects/coder-micro-services/docs/superpowers/plans/2026-06-10-go-to-rust-migration-cleanup-plan.md)
 
@@ -18,7 +18,7 @@
 
 **Goal:** 仓库内所�?Go 服务与共享库 Big-Bang 切换�?Rust；删 Go 资产；同�?CI / 脚本 / AI 规则�?
 
-**Architecture:** 单一 Cargo workspace 5 服务（Rust + Axum�? 3 共享 crate（common / jwt-ctx / authz）；保留现有 MySQL schema；保留现�?HTTP API 契约�?NET / Java SDK 不动）�?
+**Architecture:** 单一 Cargo workspace 5 服务（Rust + Axum�? 3 共享 crate（digua_common / jwt-ctx / digua_authz）；保留现有 MySQL schema；保留现�?HTTP API 契约�?NET / Java SDK 不动）�?
 
 **Tech Stack:** Rust 1.78+、`axum 0.8`、`sqlx 0.8` (mysql + runtime-tokio-rustls)、`redis 0.27`、`argon2 0.5`、`reqwest 0.12`、`tracing`、`aws_lc_rs`（沿�?workspace）�?
 
@@ -38,12 +38,12 @@
 | `Cargo.toml` | workspace members 拓到 8 �?|
 | `libs/jwt-ctx/Cargo.toml`、`src/lib.rs` | Principal extractor |
 | `libs/jwt-ctx/tests/principal_test.rs` | 解析单测 |
-| `libs/authz/Cargo.toml`、`src/lib.rs` | require_role 中间�?|
-| `libs/authz/tests/require_role_test.rs` | 中间件单�?|
-| `libs/common/src/{password,db,redisx,http}.rs` | Argon2、MySQL 池、Redis 池、reqwest client |
-| `libs/common/tests/{password,db_pool}_test.rs` | 工具单测 |
+| `libs/digua_authz/Cargo.toml`、`src/lib.rs` | require_role 中间�?|
+| `libs/digua_authz/tests/require_role_test.rs` | 中间件单�?|
+| `libs/digua_common/src/{password,db,redisx,http}.rs` | Argon2、MySQL 池、Redis 池、reqwest client |
+| `libs/digua_common/tests/{password,db_pool}_test.rs` | 工具单测 |
 | `services/notification-service/Cargo.toml` | 加入 workspace |
-| 删除：`libs/go-jwt-ctx/`、`libs/go-authz/`、`services/auth-service/**/*.go`、`services/user-service/**/*.go`、`scripts/e2e_test.go`、根 `go.mod`/`go.sum`/`go.work`（如有） |
+| 删除：`libs/go-jwt-ctx/`、`libs/go-digua_authz/`、`services/auth-service/**/*.go`、`services/user-service/**/*.go`、`scripts/e2e_test.go`、根 `go.mod`/`go.sum`/`go.work`（如有） |
 | 修改：`.gitlab-ci.yml`、`scripts/test-orchestrator.ps1`、`scripts/lib/*.ps1`、`.trae/rules/project_rules.md`、`infrastructure/docker-compose.*.yaml`、`services/{auth,user}-service/Dockerfile` |
 
 ---
@@ -58,9 +58,9 @@
 ```toml
 [workspace]
 members = [
-    "libs/common",
+    "libs/digua_common",
     "libs/jwt-ctx",
-    "libs/authz",
+    "libs/digua_authz",
     "services/token-server",
     "services/api-gateway",
     "services/auth-service",
@@ -158,7 +158,7 @@ git commit -m "feat(jwt-ctx): scaffold crate"
 `libs/jwt-ctx/tests/principal_test.rs`�?
 ```rust
 use axum::http::HeaderMap;
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use std::collections::HashSet;
 
 #[test]
@@ -281,7 +281,7 @@ use axum::body::Body;
 use axum::http::{Request, header};
 use axum::routing::get;
 use axum::Router;
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use tower::ServiceExt;
 
 async fn who(me: Principal) -> String { format!("u{}", me.user_id) }
@@ -348,17 +348,17 @@ git commit -m "feat(jwt-ctx): add axum FromRequestParts extractor"
 
 ---
 
-## Task 5: libs/authz crate 骨架
+## Task 5: libs/digua_authz crate 骨架
 
 **Files:**
-- Create: `libs/authz/Cargo.toml`
-- Create: `libs/authz/src/lib.rs`
+- Create: `libs/digua_authz/Cargo.toml`
+- Create: `libs/digua_authz/src/lib.rs`
 
 - [ ] **Step 1: �?Cargo.toml**
 
 ```toml
 [package]
-name = "authz"
+name = "digua_authz"
 version = "0.1.0"
 edition = "2021"
 
@@ -380,14 +380,14 @@ pub use require_role::require_role;
 
 - [ ] **Step 3: 验证编译**
 
-Run: `cd libs/authz && cargo check`
+Run: `cd libs/digua_authz && cargo check`
 Expected: `Finished`
 
 - [ ] **Step 4: 提交**
 
 ```bash
-git add libs/authz
-git commit -m "feat(authz): scaffold crate"
+git add libs/digua_authz
+git commit -m "feat(digua_authz): scaffold crate"
 ```
 
 ---
@@ -395,22 +395,22 @@ git commit -m "feat(authz): scaffold crate"
 ## Task 6: require_role 中间件（TDD�?
 
 **Files:**
-- Create: `libs/authz/src/require_role.rs`
-- Create: `libs/authz/tests/require_role_test.rs`
+- Create: `libs/digua_authz/src/require_role.rs`
+- Create: `libs/digua_authz/tests/require_role_test.rs`
 
 - [ ] **Step 1: 写失败测�?*
 
-`libs/authz/tests/require_role_test.rs`�?
+`libs/digua_authz/tests/require_role_test.rs`�?
 ```rust
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::middleware as axum_mw;
 use axum::routing::get;
 use axum::Router;
-use authz::require_role;
+use digua_authz::require_role;
 use tower::ServiceExt;
 
-async fn secret(jwt_ctx::Principal) -> &'static str { "ok" }
+async fn secret(digua_jwt_ctx::Principal) -> &'static str { "ok" }
 
 #[tokio::test]
 async fn with_role_passes() {
@@ -453,18 +453,18 @@ async fn missing_principal_is_401() {
 
 - [ ] **Step 2: 跑测试确�?fail**
 
-Run: `cd libs/authz && cargo test --test require_role_test`
+Run: `cd libs/digua_authz && cargo test --test require_role_test`
 Expected: 编译失败（`require_role` 不存在）
 
 - [ ] **Step 3: 实现中间�?*
 
-`libs/authz/src/require_role.rs`�?
+`libs/digua_authz/src/require_role.rs`�?
 ```rust
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 
 pub fn require_role(role: &'static str)
   -> impl Fn(Request, Next) -> futures::future::BoxFuture<'static, Result<Response, StatusCode>>
@@ -496,30 +496,30 @@ futures = "0.3"
 
 - [ ] **Step 4: 跑测试确�?pass**
 
-Run: `cd libs/authz && cargo test`
+Run: `cd libs/digua_authz && cargo test`
 Expected: 3 tests pass
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add libs/authz
-git commit -m "feat(authz): add require_role middleware with tests"
+git add libs/digua_authz
+git commit -m "feat(digua_authz): add require_role middleware with tests"
 ```
 
 ---
 
-## Task 7: libs/common 扩展 �?password 模块（TDD�?
+## Task 7: libs/digua_common 扩展 �?password 模块（TDD�?
 
 **Files:**
-- Create: `libs/common/src/password.rs`
-- Create: `libs/common/tests/password_test.rs`
-- Modify: `libs/common/src/lib.rs`
+- Create: `libs/digua_common/src/password.rs`
+- Create: `libs/digua_common/tests/password_test.rs`
+- Modify: `libs/digua_common/src/lib.rs`
 
 - [ ] **Step 1: 写失败测�?*
 
-`libs/common/tests/password_test.rs`�?
+`libs/digua_common/tests/password_test.rs`�?
 ```rust
-use common::password::{hash, verify};
+use digua_common::password::{hash, verify};
 
 #[test]
 fn hash_and_verify_roundtrip() {
@@ -538,12 +538,12 @@ fn different_inputs_yield_different_hashes() {
 
 - [ ] **Step 2: 跑测试确�?fail**
 
-Run: `cd libs/common && cargo test --test password_test`
+Run: `cd libs/digua_common && cargo test --test password_test`
 Expected: 编译失败（`password` 模块不存在）
 
 - [ ] **Step 3: 写实�?*
 
-`libs/common/src/password.rs`�?
+`libs/digua_common/src/password.rs`�?
 ```rust
 use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
@@ -559,41 +559,41 @@ pub fn verify(p: &str, h: &str) -> anyhow::Result<bool> {
 }
 ```
 
-`libs/common/Cargo.toml` 加：
+`libs/digua_common/Cargo.toml` 加：
 ```toml
 argon2.workspace = true
 anyhow = "1"
 ```
 
-`libs/common/src/lib.rs`�?
+`libs/digua_common/src/lib.rs`�?
 ```rust
 pub mod password;
 ```
 
 - [ ] **Step 4: 跑测试确�?pass**
 
-Run: `cd libs/common && cargo test --test password_test`
+Run: `cd libs/digua_common && cargo test --test password_test`
 Expected: 2 tests pass
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add libs/common
-git commit -m "feat(common): add argon2 password hash/verify"
+git add libs/digua_common
+git commit -m "feat(digua_common): add argon2 password hash/verify"
 ```
 
 ---
 
-## Task 8: libs/common 扩展 �?db �?
+## Task 8: libs/digua_common 扩展 �?db �?
 
 **Files:**
-- Create: `libs/common/src/db.rs`
-- Modify: `libs/common/src/lib.rs`
-- Modify: `libs/common/Cargo.toml`
+- Create: `libs/digua_common/src/db.rs`
+- Modify: `libs/digua_common/src/lib.rs`
+- Modify: `libs/digua_common/Cargo.toml`
 
 - [ ] **Step 1: 写实现（无外部依赖，连接测试在集成测试）**
 
-`libs/common/src/db.rs`�?
+`libs/digua_common/src/db.rs`�?
 ```rust
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
@@ -606,40 +606,40 @@ pub async fn connect(url: &str, max: u32) -> anyhow::Result<MySqlPool> {
 }
 ```
 
-`libs/common/Cargo.toml` 加：
+`libs/digua_common/Cargo.toml` 加：
 ```toml
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "mysql"] }
 ```
 
-`libs/common/src/lib.rs` 追加�?
+`libs/digua_common/src/lib.rs` 追加�?
 ```rust
 pub mod db;
 ```
 
 - [ ] **Step 2: 验证编译**
 
-Run: `cd libs/common && cargo check`
+Run: `cd libs/digua_common && cargo check`
 Expected: 通过
 
 - [ ] **Step 3: 提交**
 
 ```bash
-git add libs/common
-git commit -m "feat(common): add mysql pool factory"
+git add libs/digua_common
+git commit -m "feat(digua_common): add mysql pool factory"
 ```
 
 ---
 
-## Task 9: libs/common 扩展 �?redis �?
+## Task 9: libs/digua_common 扩展 �?redis �?
 
 **Files:**
-- Create: `libs/common/src/redisx.rs`
-- Modify: `libs/common/src/lib.rs`
-- Modify: `libs/common/Cargo.toml`
+- Create: `libs/digua_common/src/redisx.rs`
+- Modify: `libs/digua_common/src/lib.rs`
+- Modify: `libs/digua_common/Cargo.toml`
 
 - [ ] **Step 1: 写实�?*
 
-`libs/common/src/redisx.rs`�?
+`libs/digua_common/src/redisx.rs`�?
 ```rust
 use redis::aio::ConnectionManager;
 
@@ -649,40 +649,40 @@ pub async fn connect(url: &str) -> anyhow::Result<ConnectionManager> {
 }
 ```
 
-`libs/common/Cargo.toml` 加：
+`libs/digua_common/Cargo.toml` 加：
 ```toml
 redis.workspace = true
 ```
 
-`libs/common/src/lib.rs` 追加�?
+`libs/digua_common/src/lib.rs` 追加�?
 ```rust
 pub mod redisx;
 ```
 
 - [ ] **Step 2: 验证编译**
 
-Run: `cd libs/common && cargo check`
+Run: `cd libs/digua_common && cargo check`
 Expected: 通过
 
 - [ ] **Step 3: 提交**
 
 ```bash
-git add libs/common
-git commit -m "feat(common): add redis connection manager factory"
+git add libs/digua_common
+git commit -m "feat(digua_common): add redis connection manager factory"
 ```
 
 ---
 
-## Task 10: libs/common 扩展 �?http client
+## Task 10: libs/digua_common 扩展 �?http client
 
 **Files:**
-- Create: `libs/common/src/http.rs`
-- Modify: `libs/common/src/lib.rs`
-- Modify: `libs/common/Cargo.toml`
+- Create: `libs/digua_common/src/http.rs`
+- Modify: `libs/digua_common/src/lib.rs`
+- Modify: `libs/digua_common/Cargo.toml`
 
 - [ ] **Step 1: 写实�?*
 
-`libs/common/src/http.rs`�?
+`libs/digua_common/src/http.rs`�?
 ```rust
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -699,26 +699,26 @@ pub fn client() -> &'static reqwest::Client {
 }
 ```
 
-`libs/common/Cargo.toml` 加：
+`libs/digua_common/Cargo.toml` 加：
 ```toml
 reqwest.workspace = true
 ```
 
-`libs/common/src/lib.rs` 追加�?
+`libs/digua_common/src/lib.rs` 追加�?
 ```rust
 pub mod http;
 ```
 
 - [ ] **Step 2: 验证编译**
 
-Run: `cd libs/common && cargo check`
+Run: `cd libs/digua_common && cargo check`
 Expected: 通过
 
 - [ ] **Step 3: 提交**
 
 ```bash
-git add libs/common
-git commit -m "feat(common): add shared reqwest client"
+git add libs/digua_common
+git commit -m "feat(digua_common): add shared reqwest client"
 ```
 
 ---
@@ -982,7 +982,7 @@ Expected: 全部通过
 
 **Files:**
 - Delete: `libs/go-jwt-ctx/`
-- Delete: `libs/go-authz/`
+- Delete: `libs/go-digua_authz/`
 - Delete: `services/auth-service/` �?`*.go`、`go.mod`、`go.sum`
 - Delete: `services/user-service/` �?`*.go`、`go.mod`、`go.sum`
 - Delete: `scripts/e2e_test.go`
@@ -991,7 +991,7 @@ Expected: 全部通过
 - [ ] **Step 1: �?Go 共享�?*
 
 ```bash
-git rm -r libs/go-jwt-ctx libs/go-authz
+git rm -r libs/go-jwt-ctx libs/go-digua_authz
 ```
 
 - [ ] **Step 2: �?auth-service Go 文件（保留目录、保�?Cargo.toml、保�?Dockerfile�?*
@@ -1230,9 +1230,9 @@ git commit -m "style(workspace): apply rustfmt and clippy fixes"
 
 - **Spec 覆盖**�?
   - §3 workspace 拓扑 �?Task 1
-  - §4.1 libs/common 扩展 �?Task 7-10
+  - §4.1 libs/digua_common 扩展 �?Task 7-10
   - §4.2 libs/jwt-ctx �?Task 2-4
-  - §4.3 libs/authz �?Task 5-6
+  - §4.3 libs/digua_authz �?Task 5-6
   - §5.1 auth-service Rust �?�?Task 13（子 plan A�?
   - §5.2 user-service Rust �?�?Task 14（子 plan B�?
   - §5.3 notification-service 接入 �?Task 15（子 plan C 已有�?

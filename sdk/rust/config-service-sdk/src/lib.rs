@@ -12,4 +12,4 @@ pub use crate::model::{
     ConfigItem, CreateConfigItem, CreateNamespace, ListItemsQuery, ListNamespacesQuery,
     Namespace, PagedConfigItems, PagedNamespaces,
 };
-pub use kudi_http_client::SdkError;
+pub use digua_http_client::SdkError;

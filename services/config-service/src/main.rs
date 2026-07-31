@@ -1,6 +1,6 @@
 use config_service::{config::AppConfig, db::{ensure_schema, init_pool}, routes::{self, create_state}};
-use common_jwt::{JWKSCache, JwksConfig};
-use common_telemetry::init_tracing;
+use digua_common_jwt::{JWKSCache, JwksConfig};
+use digua_common_telemetry::init_tracing;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;

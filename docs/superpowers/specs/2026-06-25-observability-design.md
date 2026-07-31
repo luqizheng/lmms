@@ -27,7 +27,7 @@ All 8 services already expose `/metrics` (Prometheus text format) per P1.3 basel
 ### 3. OTel Traces — scaffolded, not mandatory
 
 - Add `opentelemetry`, `opentelemetry-otlp`, `tracing-opentelemetry` to workspace deps
-- New crate `libs/common-telemetry` provides `init_tracing(otlp_endpoint: Option<String>)` 
+- New crate `libs/digua_common-telemetry` provides `init_tracing(otlp_endpoint: Option<String>)` 
   - If endpoint is None: only `tracing-subscriber` (current behavior)
   - If endpoint is Some: layer OTel exporter over tracing-subscriber
 - Only `api-gateway` opts in initially (via `OTEL_EXPORTER_OTLP_ENDPOINT` env)
@@ -49,10 +49,10 @@ All 8 services already expose `/metrics` (Prometheus text format) per P1.3 basel
 | `infrastructure/config/grafana/provisioning/dashboards/dashboards.yml` | NEW |
 | `infrastructure/config/grafana/dashboards/{gateway,services}.json` | NEW |
 | `scripts/start-observability.sh` | NEW |
-| `libs/common-telemetry/Cargo.toml` | NEW crate |
-| `libs/common-telemetry/src/lib.rs` | NEW init_tracing function |
-| `Cargo.toml` (workspace) | Add libs/common-telemetry to members |
-| `services/api-gateway/Cargo.toml` | Optional dep on common-telemetry |
+| `libs/digua_common-telemetry/Cargo.toml` | NEW crate |
+| `libs/digua_common-telemetry/src/lib.rs` | NEW init_tracing function |
+| `Cargo.toml` (workspace) | Add libs/digua_common-telemetry to members |
+| `services/api-gateway/Cargo.toml` | Optional dep on digua_common-telemetry |
 | `services/api-gateway/src/main.rs` | Call init_tracing with optional OTLP |
 | `services/api-gateway/src/middleware/mod.rs` | Add trace_id extraction |
 | `docs-site/ai-context.md` | Update § 9 CI gates + § 2 service map with observability services |

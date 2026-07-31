@@ -10,11 +10,11 @@ use axum::{
     Json, Router,
     routing::get,
 };
-use common_db::{
+use digua_common_db::{
     migration_state::{self, MigrationDescriptor, MigrationState},
     DbPool,
 };
-use common_db::migration_state::MigrationStateResponse;
+use digua_common_db::migration_state::MigrationStateResponse;
 use serde_json::json;
 use std::sync::Arc;
 use utoipa::path as to_path;

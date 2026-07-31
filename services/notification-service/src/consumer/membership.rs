@@ -21,10 +21,10 @@
 
 use std::time::Duration;
 
-use common_event::events::{
+use digua_common_event::events::{
     IamUserDeptChanged, IamUserRoleAssigned, IamUserRoleUnassigned,
 };
-use common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
 use tracing::{error, info, warn, Instrument};
 
 use crate::db::Db;

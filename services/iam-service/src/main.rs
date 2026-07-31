@@ -1,8 +1,8 @@
 use iam_service::{config::load_config, db, openapi::ApiDoc, routes, service::TokenForwardClient, state::AppState};
-use common_telemetry;
-use common_cache::MemoryCache;
-use common_event::MySqlOutboxRepo;
-use common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
+use digua_common_telemetry;
+use digua_common_cache::MemoryCache;
+use digua_common_event::MySqlOutboxRepo;
+use digua_common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
 use tracing::{info, warn};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -12,7 +12,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    common_telemetry::init_tracing("iam-service");
+    digua_common_telemetry::init_tracing("iam-service");
 
     let config = load_config()?;
     info!("Loaded config: {:?}", config.app.name);

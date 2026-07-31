@@ -1,4 +1,4 @@
-use common_log::request_id::RequestId;
+use digua_common_log::request_id::RequestId;
 
 #[test]
 fn request_id_generates_uuid_when_absent() {

@@ -6,10 +6,10 @@
 //! Unix seconds — consumers compare against `last_event_at` to drop
 //! out-of-order events (see spec §3.6 D6).
 
-use common_event::events::{
+use digua_common_event::events::{
     IamUserDeptChanged, IamUserRoleAssigned, IamUserRoleUnassigned,
 };
-use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::{MySql, Transaction};
 
 use crate::error::IamError;

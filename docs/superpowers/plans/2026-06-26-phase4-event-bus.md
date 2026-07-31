@@ -8,7 +8,7 @@
 - **Producer side (iam-service):** Business transaction writes both the data row AND an `iam_outbox_events` row in the same MySQL transaction. An independent `outbox-publisher` binary (same image, different CMD) polls the outbox table using `SELECT ... FOR UPDATE SKIP LOCKED` and publishes to RabbitMQ.
 - **Broker:** Single topic exchange `events`, durable. Three routing keys for this phase: `iam.user.created`, `iam.user.deleted`, `iam.login.succeeded`. Dead letter exchange `events.dlx` → `events.dlq`.
 - **Consumer side (audit-service):** Subscribes to `audit.iam-events` queue (bound to `iam.#`), does idempotent `INSERT ... ON DUPLICATE KEY UPDATE` into `audit_events` table keyed by `event_id`.
-- **Shared library:** New `libs/common-event` crate defines `Event`, `Publisher`, `Consumer`, `OutboxRepo`, `OutboxPublisher` traits with both RabbitMQ and stub/in-memory implementations.
+- **Shared library:** New `libs/digua_common-event` crate defines `Event`, `Publisher`, `Consumer`, `OutboxRepo`, `OutboxPublisher` traits with both RabbitMQ and stub/in-memory implementations.
 
 **Tech Stack:**
 - Rust 1.96 (musl target)
@@ -26,7 +26,7 @@
 
 - **Strategy:** empty-db regenerate for new tables (one-shot V{NNN} migration; existing services have empty dev DB acceptable to recreate). Never edit a shipped migration. Use V{NNN+1} when altering.
 - **Rust style:** sqlx 0.8 `query!` macros preferred for compile-time check. No `unwrap()` in production code. Errors via `anyhow::Result` for handlers, typed errors for libraries.
-- **Tests:** Docker-based via `node scripts/run-tests-docker.js <svc>`. New `common-event` lib gets standalone unit tests (rabbitmq via testcontainers). Token-service testcontainers cleanup bug is known — manually `docker rm -f` any `mysql:8.x` containers not matching `infrastructure-mysql-1` after full-suite run.
+- **Tests:** Docker-based via `node scripts/run-tests-docker.js <svc>`. New `digua_common-event` lib gets standalone unit tests (rabbitmq via testcontainers). Token-service testcontainers cleanup bug is known — manually `docker rm -f` any `mysql:8.x` containers not matching `infrastructure-mysql-1` after full-suite run.
 - **Naming:** All SQL tables/indexes/keys use `iam_` / `audit_` / `prue_` / `cfg_` / `file_` / `token_` / `ntf_` prefix per `contracts/db-conventions.md`. CI gate `node scripts/check-db-naming.js` is mandatory before push.
 - **Commits:** One task = one commit. Conventional Commits format: `feat(scope):` / `refactor(scope):` / `docs:` / `chore:`.
 - **Branch policy:** `main` only, no feature branches (per `docs-site/ai-context.md` §1).
@@ -44,18 +44,18 @@
 | `contracts/events.yaml` | Event schema (replace stub) | M |
 | `contracts/codegen/gen-rust-events.js` | Generate Rust event structs | C |
 | `scripts/contracts-gen.js` | Wire in new generator | M |
-| `libs/common-event/Cargo.toml` | Crate manifest | C |
-| `libs/common-event/src/lib.rs` | Re-exports | C |
-| `libs/common-event/src/event.rs` | `Event` trait | C |
-| `libs/common-event/src/envelope.rs` | `Envelope<P>` struct | C |
-| `libs/common-event/src/publisher.rs` | `Publisher` trait + `RabbitMqPublisher` | C |
-| `libs/common-event/src/consumer.rs` | `Consumer` trait + `RabbitMqConsumer` | C |
-| `libs/common-event/src/outbox.rs` | `OutboxRepo` trait + MySQL impl | C |
-| `libs/common-event/src/publisher_loop.rs` | `OutboxPublisher::run` | C |
-| `libs/common-event/src/error.rs` | `PublishError`, `ConsumeError`, `OutboxError` | C |
-| `libs/common-event/src/config.rs` | `EventBusConfig` from `config/config.yaml` | C |
-| `libs/common-event/src/metrics.rs` | Prometheus counters/gauges | C |
-| `libs/common-event/tests/rabbit_integration.rs` | Testcontainers-based end-to-end | C |
+| `libs/digua_common-event/Cargo.toml` | Crate manifest | C |
+| `libs/digua_common-event/src/lib.rs` | Re-exports | C |
+| `libs/digua_common-event/src/event.rs` | `Event` trait | C |
+| `libs/digua_common-event/src/envelope.rs` | `Envelope<P>` struct | C |
+| `libs/digua_common-event/src/publisher.rs` | `Publisher` trait + `RabbitMqPublisher` | C |
+| `libs/digua_common-event/src/consumer.rs` | `Consumer` trait + `RabbitMqConsumer` | C |
+| `libs/digua_common-event/src/outbox.rs` | `OutboxRepo` trait + MySQL impl | C |
+| `libs/digua_common-event/src/publisher_loop.rs` | `OutboxPublisher::run` | C |
+| `libs/digua_common-event/src/error.rs` | `PublishError`, `ConsumeError`, `OutboxError` | C |
+| `libs/digua_common-event/src/config.rs` | `EventBusConfig` from `config/config.yaml` | C |
+| `libs/digua_common-event/src/metrics.rs` | Prometheus counters/gauges | C |
+| `libs/digua_common-event/tests/rabbit_integration.rs` | Testcontainers-based end-to-end | C |
 | `services/iam-service/migrations/V20260626120000__iam_outbox_events.sql` | Outbox table | C |
 | `services/iam-service/src/outbox.rs` | OutboxRepo concrete (uses iam pool) | C |
 | `services/iam-service/src/events.rs` | Hand-written `IamUserCreated` etc. payloads (or gen) | C |
@@ -63,7 +63,7 @@
 | `services/iam-service/src/service/auth_svc.rs` | Add outbox enqueue in login_success | M |
 | `services/iam-service/src/main.rs` | Add outbox-publisher [[bin]] | M |
 | `services/iam-service/src/bin/outbox_publisher.rs` | Independent publisher binary | C |
-| `services/iam-service/Cargo.toml` | Add `common-event` dep, `[[bin]]` | M |
+| `services/iam-service/Cargo.toml` | Add `digua_common-event` dep, `[[bin]]` | M |
 | `services/iam-service/src/audit_client.rs` | **DELETE** old HTTP client | M (delete) |
 | `services/audit-service/migrations/V20260626120100__audit_events.sql` | Idempotency table | C |
 | `services/audit-service/src/consumer.rs` | RabbitMQ consumer wiring | C |
@@ -71,7 +71,7 @@
 | `services/audit-service/src/routes/audit.rs` | **DELETE** write endpoints (POST) | M (delete) |
 | `services/audit-service/openapi.yaml` | Regenerate without POST writes | M (regen) |
 | `services/audit-service/src/tracing_mw.rs` | Add OTel layer (Phase 6 advance) | C |
-| `services/audit-service/Cargo.toml` | Add `common-event` dep | M |
+| `services/audit-service/Cargo.toml` | Add `digua_common-event` dep | M |
 | `tests/e2e/api/cases/iam-audit-event-flow.yaml` | E2E: create user → audit row appears | C |
 | `docs-site/USER_MANUAL.md` | Add event bus section | M |
 | `docs-site/ai-context.md` | Add OTel note for audit-service | M |
@@ -302,14 +302,14 @@ git commit -m "feat(contracts): rich event schema with payload field types (phas
 **Files:**
 - Create: `contracts/codegen/gen-rust-events.js`
 - Modify: `scripts/contracts-gen.js` (add step 4)
-- Create: `libs/common-event/src/events.rs` (initially generated placeholder — replaced in Task 7 with real trait impls)
-- Create: `libs/common-event/src/routing_keys.rs` (generated)
+- Create: `libs/digua_common-event/src/events.rs` (initially generated placeholder — replaced in Task 7 with real trait impls)
+- Create: `libs/digua_common-event/src/routing_keys.rs` (generated)
 
 **Interfaces:**
 - Consumes: `contracts/events.yaml` (from Task 3)
 - Produces: 
-  - `libs/common-event/src/events.rs` — one struct per event + `IamEventEnum` tagged enum
-  - `libs/common-event/src/routing_keys.rs` — `pub const IAM_USER_CREATED: &str = "iam.user.created";` etc.
+  - `libs/digua_common-event/src/events.rs` — one struct per event + `IamEventEnum` tagged enum
+  - `libs/digua_common-event/src/routing_keys.rs` — `pub const IAM_USER_CREATED: &str = "iam.user.created";` etc.
 
 - [ ] **Step 1: Create the generator script**
 
@@ -320,7 +320,7 @@ const path = require('path');
 
 const YAML = require('js-yaml'); // ensure deps; else hand-parse
 const yamlPath = path.resolve(__dirname, '../events.yaml');
-const outDir = path.resolve(__dirname, '../../libs/common-event/src');
+const outDir = path.resolve(__dirname, '../../libs/digua_common-event/src');
 fs.mkdirSync(outDir, { recursive: true });
 
 const doc = YAML.load(fs.readFileSync(yamlPath, 'utf8'));
@@ -402,8 +402,8 @@ If `js-yaml` is not in `package.json` devDeps, add it: `pnpm add -D js-yaml`. Ot
 
 ```bash
 node contracts/codegen/gen-rust-events.js
-ls libs/common-event/src/
-head -30 libs/common-event/src/routing_keys.rs
+ls libs/digua_common-event/src/
+head -30 libs/digua_common-event/src/routing_keys.rs
 ```
 
 Expected: `routing_keys.rs` contains 3 consts, `events.rs` contains 3 structs and the `IamEventEnum`.
@@ -423,10 +423,10 @@ try {
 }
 ```
 
-Also extend the `--check` `git diff` path to include `libs/common-event`:
+Also extend the `--check` `git diff` path to include `libs/digua_common-event`:
 
 ```javascript
-execSync('git diff --exit-code -- libs/common-error libs/authz libs/common-event frontend/src/contracts', {
+execSync('git diff --exit-code -- libs/digua_common-error libs/digua_authz libs/digua_common-event frontend/src/contracts', {
   cwd: repoRoot,
   stdio: 'inherit',
 });
@@ -444,34 +444,34 @@ Expected: exit 0 both times. (Note: `events.rs` / `routing_keys.rs` will fail to
 - [ ] **Step 5: Commit**
 
 ```bash
-git add contracts/codegen/gen-rust-events.js scripts/contracts-gen.js libs/common-event/src/
+git add contracts/codegen/gen-rust-events.js scripts/contracts-gen.js libs/digua_common-event/src/
 git commit -m "feat(contracts): Rust events code generator (phase 4)"
 ```
 
 ---
 
-### Task 5: Scaffold libs/common-event crate (Cargo.toml + lib.rs)
+### Task 5: Scaffold libs/digua_common-event crate (Cargo.toml + lib.rs)
 
 **Files:**
-- Create: `libs/common-event/Cargo.toml`
-- Create: `libs/common-event/src/lib.rs` (initial — re-exports placeholders)
-- Create: `libs/common-event/src/error.rs`
-- Create: `libs/common-event/src/config.rs`
+- Create: `libs/digua_common-event/Cargo.toml`
+- Create: `libs/digua_common-event/src/lib.rs` (initial — re-exports placeholders)
+- Create: `libs/digua_common-event/src/error.rs`
+- Create: `libs/digua_common-event/src/config.rs`
 - Modify: `Cargo.toml` (workspace member)
 
 **Interfaces:**
 - Consumes: nothing (scaffold)
-- Produces: a crate that compiles with `cargo check -p common-event`, exposing module stubs
+- Produces: a crate that compiles with `cargo check -p digua_common-event`, exposing module stubs
 
 - [ ] **Step 1: Add the crate to workspace members**
 
-Edit root `Cargo.toml`, find `[workspace] members = [...]` and add `"libs/common-event"`.
+Edit root `Cargo.toml`, find `[workspace] members = [...]` and add `"libs/digua_common-event"`.
 
-- [ ] **Step 2: Create `libs/common-event/Cargo.toml`**
+- [ ] **Step 2: Create `libs/digua_common-event/Cargo.toml`**
 
 ```tomoml
 [package]
-name = "common-event"
+name = "digua_common-event"
 version = "0.1.0"
 edition = "2021"
 
@@ -493,10 +493,10 @@ testcontainers = "0.20"
 testcontainers-modules = { version = "0.8", features = ["rabbitmq"] }
 ```
 
-- [ ] **Step 3: Create `libs/common-event/src/lib.rs` (re-exports)**
+- [ ] **Step 3: Create `libs/digua_common-event/src/lib.rs` (re-exports)**
 
 ```rust
-//! common-event: domain event bus primitives
+//! digua_common-event: domain event bus primitives
 //!
 //! Provides `Event`, `Envelope`, `Publisher`, `Consumer`, `OutboxRepo` traits
 //! with a RabbitMQ implementation. See `phase4-event-bus-design.md` for the
@@ -525,7 +525,7 @@ pub use publisher::{Publisher, RabbitMqPublisher};
 pub use publisher_loop::{OutboxPublisher, OutboxPublisherConfig};
 ```
 
-- [ ] **Step 4: Create placeholder `libs/common-event/src/error.rs`**
+- [ ] **Step 4: Create placeholder `libs/digua_common-event/src/error.rs`**
 
 ```rust
 use thiserror::Error;
@@ -573,7 +573,7 @@ pub enum RunError {
 }
 ```
 
-- [ ] **Step 5: Create placeholder `libs/common-event/src/config.rs`**
+- [ ] **Step 5: Create placeholder `libs/digua_common-event/src/config.rs`**
 
 ```rust
 use serde::Deserialize;
@@ -629,7 +629,7 @@ For each of `event.rs`, `envelope.rs`, `publisher.rs`, `consumer.rs`, `outbox.rs
 - [ ] **Step 7: Verify the crate compiles**
 
 ```bash
-cargo check -p common-event --target x86_64-unknown-linux-musl
+cargo check -p digua_common-event --target x86_64-unknown-linux-musl
 ```
 
 Expected: compiles with warnings only (no errors).
@@ -637,8 +637,8 @@ Expected: compiles with warnings only (no errors).
 - [ ] **Step 8: Commit**
 
 ```bash
-git add libs/common-event/ Cargo.toml
-git commit -m "feat(common-event): scaffold crate with error/config stubs (phase 4)"
+git add libs/digua_common-event/ Cargo.toml
+git commit -m "feat(digua_common-event): scaffold crate with error/config stubs (phase 4)"
 ```
 
 ---
@@ -646,18 +646,18 @@ git commit -m "feat(common-event): scaffold crate with error/config stubs (phase
 ### Task 6: Implement Event trait + Envelope struct (TDD)
 
 **Files:**
-- Modify: `libs/common-event/src/event.rs`
-- Modify: `libs/common-event/src/envelope.rs`
-- Create: `libs/common-event/tests/event_trait.rs`
+- Modify: `libs/digua_common-event/src/event.rs`
+- Modify: `libs/digua_common-event/src/envelope.rs`
+- Create: `libs/digua_common-event/tests/event_trait.rs`
 
 **Interfaces:**
 - Consumes: `Event` trait with `event_type() -> &'static str` + default `schema_version() -> u32 { 1 }`
 - Produces: `Envelope<P>` struct with `event_id` (UUIDv7), `occurred_at`, `trace_id`, `tenant_id`, `producer`, `payload: P`. Implements `Envelope::new(producer, payload) -> Self` that fills `event_id` + `occurred_at` from current OTel context (or random fallback).
 
-- [ ] **Step 1: Write the failing test in `libs/common-event/tests/event_trait.rs`**
+- [ ] **Step 1: Write the failing test in `libs/digua_common-event/tests/event_trait.rs`**
 
 ```rust
-use common_event::{Envelope, Event};
+use digua_common_event::{Envelope, Event};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -710,12 +710,12 @@ fn envelope_round_trip_through_json() {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 Expected: compile errors (Envelopes and Event not yet defined).
 
-- [ ] **Step 3: Implement `Event` trait in `libs/common-event/src/event.rs`**
+- [ ] **Step 3: Implement `Event` trait in `libs/digua_common-event/src/event.rs`**
 
 ```rust
 use serde::{de::DeserializeOwned, Serialize};
@@ -726,7 +726,7 @@ pub trait Event: Serialize + DeserializeOwned + Send + Sync + 'static {
 }
 ```
 
-- [ ] **Step 4: Implement `Envelope` in `libs/common-event/src/envelope.rs`**
+- [ ] **Step 4: Implement `Envelope` in `libs/digua_common-event/src/envelope.rs`**
 
 ```rust
 use chrono::{DateTime, Utc};
@@ -780,7 +780,7 @@ Add `pub use event::Event;` to top of `envelope.rs` (or rely on the re-export in
 - [ ] **Step 5: Run the test to verify it passes**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 Expected: 3 passed, 0 failed.
@@ -788,8 +788,8 @@ Expected: 3 passed, 0 failed.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add libs/common-event/src/event.rs libs/common-event/src/envelope.rs libs/common-event/tests/event_trait.rs
-git commit -m "feat(common-event): Event trait + Envelope struct (phase 4)"
+git add libs/digua_common-event/src/event.rs libs/digua_common-event/src/envelope.rs libs/digua_common-event/tests/event_trait.rs
+git commit -m "feat(digua_common-event): Event trait + Envelope struct (phase 4)"
 ```
 
 ---
@@ -797,9 +797,9 @@ git commit -m "feat(common-event): Event trait + Envelope struct (phase 4)"
 ### Task 7: Replace generated placeholder with real events + routing keys
 
 **Files:**
-- Modify: `libs/common-event/src/events.rs` (re-run generator after Task 6 fixed placeholder)
-- Modify: `libs/common-event/src/routing_keys.rs` (re-run generator)
-- Create: `libs/common-event/tests/events_codegen.rs`
+- Modify: `libs/digua_common-event/src/events.rs` (re-run generator after Task 6 fixed placeholder)
+- Modify: `libs/digua_common-event/src/routing_keys.rs` (re-run generator)
+- Create: `libs/digua_common-event/tests/events_codegen.rs`
 
 **Interfaces:**
 - Consumes: events.yaml (Task 3), Envelope (Task 6)
@@ -813,12 +813,12 @@ node scripts/contracts-gen.js
 
 Expected: `events.rs` and `routing_keys.rs` regenerated with the 3 structs.
 
-- [ ] **Step 2: Write the failing test in `libs/common-event/tests/events_codegen.rs`**
+- [ ] **Step 2: Write the failing test in `libs/digua_common-event/tests/events_codegen.rs`**
 
 ```rust
-use common_event::events::{IamLoginSucceeded, IamUserCreated, IamUserDeleted};
-use common_event::routing_keys;
-use common_event::Envelope;
+use digua_common_event::events::{IamLoginSucceeded, IamUserCreated, IamUserDeleted};
+use digua_common_event::routing_keys;
+use digua_common_event::Envelope;
 use serde_json::json;
 
 #[test]
@@ -873,7 +873,7 @@ fn iam_login_succeeded_round_trip() {
 (If generator was already run in Step 1, the test should already pass — that's expected. If it fails, fix the generated `events.rs` until the test passes.)
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 Expected: 4 tests pass.
@@ -881,8 +881,8 @@ Expected: 4 tests pass.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add libs/common-event/src/events.rs libs/common-event/src/routing_keys.rs libs/common-event/tests/events_codegen.rs
-git commit -m "feat(common-event): wire generated event structs (phase 4)"
+git add libs/digua_common-event/src/events.rs libs/digua_common-event/src/routing_keys.rs libs/digua_common-event/tests/events_codegen.rs
+git commit -m "feat(digua_common-event): wire generated event structs (phase 4)"
 ```
 
 ---
@@ -890,8 +890,8 @@ git commit -m "feat(common-event): wire generated event structs (phase 4)"
 ### Task 8: Implement OutboxRepo for MySQL (TDD)
 
 **Files:**
-- Modify: `libs/common-event/src/outbox.rs` (replace placeholder)
-- Create: `libs/common-event/tests/outbox_repo.rs`
+- Modify: `libs/digua_common-event/src/outbox.rs` (replace placeholder)
+- Create: `libs/digua_common-event/tests/outbox_repo.rs`
 
 **Interfaces:**
 - `MySqlOutboxRepo { pool: MySqlPool }`
@@ -900,12 +900,12 @@ git commit -m "feat(common-event): wire generated event structs (phase 4)"
 - `mark_published(ids: &[i64]) -> Result<(), OutboxError>`
 - `OutboxRow { id: i64, event_id: Uuid, routing_key: String, envelope_json: serde_json::Value }`
 
-- [ ] **Step 1: Write the failing test in `libs/common-event/tests/outbox_repo.rs`**
+- [ ] **Step 1: Write the failing test in `libs/digua_common-event/tests/outbox_repo.rs`**
 
 ```rust
-use common_event::outbox::{MySqlOutboxRepo, OutboxRow};
-use common_event::Envelope;
-use common_event::events::IamUserCreated;
+use digua_common_event::outbox::{MySqlOutboxRepo, OutboxRow};
+use digua_common_event::Envelope;
+use digua_common_event::events::IamUserCreated;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
 use testcontainers::runners::AsyncRunner;
@@ -993,12 +993,12 @@ async fn enqueue_is_idempotent_on_duplicate_event_id() {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 Expected: compile error (`MySqlOutboxRepo` not yet implemented).
 
-- [ ] **Step 3: Implement `OutboxRepo` + `MySqlOutboxRepo` in `libs/common-event/src/outbox.rs`**
+- [ ] **Step 3: Implement `OutboxRepo` + `MySqlOutboxRepo` in `libs/digua_common-event/src/outbox.rs`**
 
 ```rust
 use async_trait::async_trait;
@@ -1110,7 +1110,7 @@ impl OutboxRepo for MySqlOutboxRepo {
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 Expected: 2 passed, 0 failed.
@@ -1118,8 +1118,8 @@ Expected: 2 passed, 0 failed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-event/src/outbox.rs libs/common-event/tests/outbox_repo.rs
-git commit -m "feat(common-event): MySqlOutboxRepo with claim/mark idempotency (phase 4)"
+git add libs/digua_common-event/src/outbox.rs libs/digua_common-event/tests/outbox_repo.rs
+git commit -m "feat(digua_common-event): MySqlOutboxRepo with claim/mark idempotency (phase 4)"
 ```
 
 ---
@@ -1127,8 +1127,8 @@ git commit -m "feat(common-event): MySqlOutboxRepo with claim/mark idempotency (
 ### Task 9: Implement RabbitMQ Publisher (TDD)
 
 **Files:**
-- Modify: `libs/common-event/src/publisher.rs` (replace placeholder)
-- Modify: `libs/common-event/tests/rabbit_integration.rs` (rename existing test file to this name; add publisher test)
+- Modify: `libs/digua_common-event/src/publisher.rs` (replace placeholder)
+- Modify: `libs/digua_common-event/tests/rabbit_integration.rs` (rename existing test file to this name; add publisher test)
 
 **Interfaces:**
 - `Publisher` trait: `async fn publish<P: Event>(&self, env: &Envelope<P>) -> Result<(), PublishError>`
@@ -1139,9 +1139,9 @@ git commit -m "feat(common-event): MySqlOutboxRepo with claim/mark idempotency (
 - [ ] **Step 1: Write the failing test**
 
 ```rust
-// libs/common-event/tests/rabbit_integration.rs
-use common_event::events::IamUserCreated;
-use common_event::{Envelope, Event, Publisher, RabbitMqPublisher};
+// libs/digua_common-event/tests/rabbit_integration.rs
+use digua_common_event::events::IamUserCreated;
+use digua_common_event::{Envelope, Event, Publisher, RabbitMqPublisher};
 use std::time::Duration;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::rabbitmq::RabbitMq;
@@ -1170,12 +1170,12 @@ async fn publish_sends_to_topic_exchange() {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 Expected: compile error (`Publisher`, `RabbitMqPublisher` not yet defined).
 
-- [ ] **Step 3: Implement `Publisher` + `RabbitMqPublisher` in `libs/common-event/src/publisher.rs`**
+- [ ] **Step 3: Implement `Publisher` + `RabbitMqPublisher` in `libs/digua_common-event/src/publisher.rs`**
 
 ```rust
 use async_trait::async_trait;
@@ -1249,7 +1249,7 @@ impl Publisher for RabbitMqPublisher {
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 Expected: 1 passed, 0 failed.
@@ -1257,8 +1257,8 @@ Expected: 1 passed, 0 failed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-event/src/publisher.rs libs/common-event/tests/rabbit_integration.rs
-git commit -m "feat(common-event): RabbitMqPublisher with confirms (phase 4)"
+git add libs/digua_common-event/src/publisher.rs libs/digua_common-event/tests/rabbit_integration.rs
+git commit -m "feat(digua_common-event): RabbitMqPublisher with confirms (phase 4)"
 ```
 
 ---
@@ -1266,9 +1266,9 @@ git commit -m "feat(common-event): RabbitMqPublisher with confirms (phase 4)"
 ### Task 10: Implement RabbitMQ Consumer + OutboxPublisher (TDD)
 
 **Files:**
-- Modify: `libs/common-event/src/consumer.rs` (replace placeholder)
-- Modify: `libs/common-event/src/publisher_loop.rs` (replace placeholder)
-- Modify: `libs/common-event/tests/rabbit_integration.rs` (add tests)
+- Modify: `libs/digua_common-event/src/consumer.rs` (replace placeholder)
+- Modify: `libs/digua_common-event/src/publisher_loop.rs` (replace placeholder)
+- Modify: `libs/digua_common-event/tests/rabbit_integration.rs` (add tests)
 
 **Interfaces:**
 - `Consumer::subscribe(queue, bindings, handler)` — declares queue if missing, binds, sets prefetch=32, runs basic_consume
@@ -1277,12 +1277,12 @@ git commit -m "feat(common-event): RabbitMqPublisher with confirms (phase 4)"
 - [ ] **Step 1: Write the failing test in `rabbit_integration.rs`**
 
 ```rust
-use common_event::consumer::{Consumer, RabbitMqConsumer};
-use common_event::events::{IamUserCreated, IamEventEnum};
-use common_event::outbox::MySqlOutboxRepo;
-use common_event::{Envelope, Event, Publisher, RabbitMqPublisher};
-use common_event::publisher_loop::OutboxPublisher;
-use common_event::routing_keys;
+use digua_common_event::consumer::{Consumer, RabbitMqConsumer};
+use digua_common_event::events::{IamUserCreated, IamEventEnum};
+use digua_common_event::outbox::MySqlOutboxRepo;
+use digua_common_event::{Envelope, Event, Publisher, RabbitMqPublisher};
+use digua_common_event::publisher_loop::OutboxPublisher;
+use digua_common_event::routing_keys;
 use std::sync::Arc;
 use std::time::Duration;
 use testcontainers::runners::AsyncRunner;
@@ -1302,12 +1302,12 @@ async fn outbox_publish_loop_sends_pending_rows() {
 }
 ```
 
-(Specifics: see existing testcontainers patterns in `services/token-service/tests/common/mod.rs`. Build incrementally — first the consumer test alone, then add the publisher loop test.)
+(Specifics: see existing testcontainers patterns in `services/token-service/tests/digua_common/mod.rs`. Build incrementally — first the consumer test alone, then add the publisher loop test.)
 
 - [ ] **Step 2: Run to confirm failure**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 ```
 
 - [ ] **Step 3: Implement `Consumer` + `RabbitMqConsumer` in `consumer.rs`**
@@ -1474,7 +1474,7 @@ futures-util = "0.3"
 - [ ] **Step 6: Run tests**
 
 ```bash
-node scripts/run-tests-docker.js common-event 2>&1 | tail -20
+node scripts/run-tests-docker.js digua_common-event 2>&1 | tail -20
 docker ps -a --format '{{.Names}} {{.Image}}' | grep -E "rabbit|mysql:8" | grep -v infrastructure | awk '{print $1}' | xargs -r docker rm -f
 ```
 
@@ -1483,8 +1483,8 @@ Expected: all consumer + publisher_loop tests pass; cleanup done.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add libs/common-event/
-git commit -m "feat(common-event): Consumer + OutboxPublisher loop (phase 4)"
+git add libs/digua_common-event/
+git commit -m "feat(digua_common-event): Consumer + OutboxPublisher loop (phase 4)"
 ```
 
 ---
@@ -1538,7 +1538,7 @@ git commit -m "feat(iam): outbox_events table migration (phase 4)"
 ### Task 12: iam-service wire outbox writes in user_svc + auth_svc
 
 **Files:**
-- Modify: `services/iam-service/Cargo.toml` (add `common-event` dep)
+- Modify: `services/iam-service/Cargo.toml` (add `digua_common-event` dep)
 - Create: `services/iam-service/src/events.rs` (re-exports + handler glue)
 - Create: `services/iam-service/src/outbox.rs` (concrete `MySqlOutboxRepo` instance)
 - Modify: `services/iam-service/src/service/user_svc.rs` (enqueue in create/delete)
@@ -1549,16 +1549,16 @@ git commit -m "feat(iam): outbox_events table migration (phase 4)"
 - `AppState { ..., outbox_repo: MySqlOutboxRepo }`
 - All 3 event emissions wrapped in `pool.begin()` transaction with the original INSERT
 
-- [ ] **Step 1: Add common-event to iam-service Cargo.toml**
+- [ ] **Step 1: Add digua_common-event to iam-service Cargo.toml**
 
 ```toml
-common-event = { path = "../../libs/common-event" }
+digua_common-event = { path = "../../libs/digua_common-event" }
 ```
 
 - [ ] **Step 2: Create `services/iam-service/src/outbox.rs`**
 
 ```rust
-use common_event::outbox::MySqlOutboxRepo;
+use digua_common_event::outbox::MySqlOutboxRepo;
 use sqlx::MySqlPool;
 
 pub fn build(pool: MySqlPool) -> MySqlOutboxRepo {
@@ -1569,10 +1569,10 @@ pub fn build(pool: MySqlPool) -> MySqlOutboxRepo {
 - [ ] **Step 3: Create `services/iam-service/src/events.rs`**
 
 ```rust
-//! Re-exports iam-event structs from common-event for code paths
-//! that don't want to import from the common crate directly.
-pub use common_event::events::{IamLoginSucceeded, IamUserCreated, IamUserDeleted};
-pub use common_event::Envelope;
+//! Re-exports iam-event structs from digua_common-event for code paths
+//! that don't want to import from the digua_common crate directly.
+pub use digua_common_event::events::{IamLoginSucceeded, IamUserCreated, IamUserDeleted};
+pub use digua_common_event::Envelope;
 ```
 
 - [ ] **Step 4: Modify `services/iam-service/src/state.rs`**
@@ -1661,7 +1661,7 @@ path = "src/bin/outbox_publisher.rs"
 ```rust
 use std::time::Duration;
 use anyhow::Context;
-use common_event::{outbox::MySqlOutboxRepo, publisher_loop::{OutboxPublisher, OutboxPublisherConfig}, EventBusConfig, Publisher, RabbitMqPublisher};
+use digua_common_event::{outbox::MySqlOutboxRepo, publisher_loop::{OutboxPublisher, OutboxPublisherConfig}, EventBusConfig, Publisher, RabbitMqPublisher};
 use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
 
@@ -1779,25 +1779,25 @@ git commit -m "feat(audit): audit_events table for event idempotency (phase 4)"
 ### Task 15: audit-service consumer + delete HTTP write endpoints
 
 **Files:**
-- Modify: `services/audit-service/Cargo.toml` (add `common-event` dep)
+- Modify: `services/audit-service/Cargo.toml` (add `digua_common-event` dep)
 - Create: `services/audit-service/src/consumer.rs` (the subscriber)
 - Modify: `services/audit-service/src/main.rs` (spawn consumer task)
 - Modify: `services/audit-service/src/routes/audit.rs` (delete POST handlers)
 - Modify: `services/audit-service/openapi.yaml` (regenerate via `dump-openapi-specs.sh`)
 - Modify: `tests/e2e/api/cases/iam-audit-http.yaml` (remove or convert)
 
-- [ ] **Step 1: Add common-event to audit-service Cargo.toml**
+- [ ] **Step 1: Add digua_common-event to audit-service Cargo.toml**
 
 ```toml
-common-event = { path = "../../libs/common-event" }
+digua_common-event = { path = "../../libs/digua_common-event" }
 ```
 
 - [ ] **Step 2: Create `services/audit-service/src/consumer.rs`**
 
 ```rust
 use anyhow::Context;
-use common_event::events::IamEventEnum;
-use common_event::{Consumer, Envelope, RabbitMqConsumer};
+use digua_common_event::events::IamEventEnum;
+use digua_common_event::{Consumer, Envelope, RabbitMqConsumer};
 use sqlx::MySqlPool;
 use tracing::{info, warn};
 
@@ -1817,9 +1817,9 @@ pub async fn run(pool: MySqlPool, url: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn persist(pool: &MySqlPool, env: &Envelope<IamEventEnum>) -> Result<(), common_event::HandlerError> {
+async fn persist(pool: &MySqlPool, env: &Envelope<IamEventEnum>) -> Result<(), digua_common_event::HandlerError> {
     let payload_json = serde_json::to_value(&env.payload)
-        .map_err(|e| common_event::HandlerError::Handler(e.to_string()))?;
+        .map_err(|e| digua_common_event::HandlerError::Handler(e.to_string()))?;
     sqlx::query(
         "INSERT INTO audit_events (event_id, event_type, occurred_at, trace_id, producer, payload_json) \
          VALUES (?, ?, ?, ?, ?, ?) \
@@ -1834,7 +1834,7 @@ async fn persist(pool: &MySqlPool, env: &Envelope<IamEventEnum>) -> Result<(), c
     .execute(pool).await
     .map_err(|e| {
         warn!(error=%e, "audit consumer persist failed");
-        common_event::HandlerError::Handler(e.to_string())
+        digua_common_event::HandlerError::Handler(e.to_string())
     })?;
     Ok(())
 }
@@ -1959,13 +1959,13 @@ git commit -m "test(e2e): iam→audit event flow happy path (phase 4)"
 ### Task 17: Observability + final regression
 
 **Files:**
-- Modify: `libs/common-event/src/metrics.rs` (replace placeholder)
+- Modify: `libs/digua_common-event/src/metrics.rs` (replace placeholder)
 - Create: `services/audit-service/src/tracing_mw.rs` (OTel layer)
-- Modify: `services/audit-service/Cargo.toml` (enable `otlp` feature on common-telemetry)
+- Modify: `services/audit-service/Cargo.toml` (enable `otlp` feature on digua_common-telemetry)
 - Modify: `docs-site/USER_MANUAL.md` (add event bus section)
 - Modify: `docs-site/ai-context.md` (mark audit-service as OTel-enabled)
 
-- [ ] **Step 1: Implement metrics in `libs/common-event/src/metrics.rs`**
+- [ ] **Step 1: Implement metrics in `libs/digua_common-event/src/metrics.rs`**
 
 ```rust
 use prometheus::{IntCounterVec, IntGauge, HistogramVec, Registry};
@@ -2011,12 +2011,12 @@ impl EventMetrics {
 
 In `services/audit-service/Cargo.toml`:
 ```toml
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp"] }
 ```
 
 Create `services/audit-service/src/tracing_mw.rs` (copy pattern from `services/notification-service/src/tracing_mw.rs`).
 
-In `services/audit-service/src/main.rs`, init `common_telemetry::init(...)` like the other OTel-enabled services.
+In `services/audit-service/src/main.rs`, init `digua_common_telemetry::init(...)` like the other OTel-enabled services.
 
 - [ ] **Step 4: Run all tests + CI gates**
 
@@ -2057,7 +2057,7 @@ Kill RabbitMQ for 30s, repeat: outbox should pile up; restart RabbitMQ; backlog 
 - [ ] **Step 7: Final commit**
 
 ```bash
-git add libs/common-event/ services/audit-service/ docs/
+git add libs/digua_common-event/ services/audit-service/ docs/
 git commit -m "feat(phase 4): metrics + OTel + docs; final regression green (phase 4 close)"
 ```
 
@@ -2066,10 +2066,10 @@ git commit -m "feat(phase 4): metrics + OTel + docs; final regression green (pha
 ## Self-Review
 
 **1. Spec coverage:**
-- §2.1 In Scope: ✅ Tasks 1-3 (infra), Task 4-5 (common-event scaffold), Tasks 6-10 (event/Envelope/Outbox/Publisher/Consumer), Task 3 (events.yaml), Task 4 (codegen), Tasks 11-13 (iam outbox + publisher), Tasks 14-15 (audit consumer), Task 16 (e2e), Task 17 (metrics/tracing)
+- §2.1 In Scope: ✅ Tasks 1-3 (infra), Task 4-5 (digua_common-event scaffold), Tasks 6-10 (event/Envelope/Outbox/Publisher/Consumer), Task 3 (events.yaml), Task 4 (codegen), Tasks 11-13 (iam outbox + publisher), Tasks 14-15 (audit consumer), Task 16 (e2e), Task 17 (metrics/tracing)
 - §3 topology: ✅ Task 2 (definitions.json pre-declares events + events.dlx + audit.iam-events + events.dlq + bindings)
 - §4 Envelope: ✅ Task 6 (Envelope with event_id UUIDv7, occurred_at, trace_id, tenant_id, producer, payload)
-- §5 common-event API: ✅ Tasks 6 (Event + Envelope), 8 (OutboxRepo + MySqlOutboxRepo), 9 (Publisher + RabbitMqPublisher), 10 (Consumer + OutboxPublisher::run)
+- §5 digua_common-event API: ✅ Tasks 6 (Event + Envelope), 8 (OutboxRepo + MySqlOutboxRepo), 9 (Publisher + RabbitMqPublisher), 10 (Consumer + OutboxPublisher::run)
 - §6.2 multi-replica: ✅ Task 8 uses `FOR UPDATE SKIP LOCKED` in `claim_batch`
 - §6.3 deployment: ✅ Task 13 adds `[[bin]]` + docker-compose service
 - §6.4 SIGTERM: ✅ Task 13 has `tokio::select!` for ctrl_c

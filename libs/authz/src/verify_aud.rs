@@ -2,7 +2,7 @@
 //! with `aud == expected_aud`.
 //!
 //! Use `from_fn_with_state` to inject a state type that implements
-//! `jwt_ctx::PrincipalStateProvider`.
+//! `digua_jwt_ctx::PrincipalStateProvider`.
 
 use axum::{
     extract::{Request, State},
@@ -10,7 +10,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use jwt_ctx::{Principal, PrincipalStateProvider};
+use digua_jwt_ctx::{Principal, PrincipalStateProvider};
 
 /// Middleware factory. Returns a closure suitable for
 /// `axum::middleware::from_fn_with_state`.

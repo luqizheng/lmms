@@ -1,6 +1,6 @@
 use chrono::Utc;
 use config_service::models::config_item::ConfigItem;
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use std::collections::HashSet;
 
 fn make_principal(perms: &[&str]) -> Principal {

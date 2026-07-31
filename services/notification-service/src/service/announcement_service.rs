@@ -1,8 +1,8 @@
 use crate::consumer::placeholder::render_template;
 use crate::redis_cli::RedisCli;
 use chrono::{DateTime, Utc};
-use common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
-use common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
+use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::mysql::MySqlPool;
 use sqlx::Row;
 use std::collections::HashMap;
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn placeholder_defaults_kick_in_for_empty_payload() {
-        let payload = common_event::events::IamUserCreated {
+        let payload = digua_common_event::events::IamUserCreated {
             user_id: "u1".to_string(),
             username: String::new(),
             email: None,

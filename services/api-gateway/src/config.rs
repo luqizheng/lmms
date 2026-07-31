@@ -1,5 +1,5 @@
-use common::config::{RedisConfig, ServerConfig};
-use common_http::ResilienceConfig;
+use digua_common::config::{RedisConfig, ServerConfig};
+use digua_common_http::ResilienceConfig;
 use serde::Deserialize;
 use std::collections::HashMap;
 

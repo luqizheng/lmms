@@ -1,12 +1,12 @@
 // requires: cargo test --test-threads=1
 // svc 层端到端：auth_code → refresh marker → revoke → oauth_client（不经 HTTP）
-mod common;
+mod digua_common;
 
 use token_service::service::{auth_code_svc, oauth_client_svc, refresh_svc, revoke_svc};
 
 #[tokio::test]
 async fn e2e_access_refresh_revoke() {
-    let pool = common::spawn_mysql().await;
+    let pool = digua_common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
     // 1. seed an auth code

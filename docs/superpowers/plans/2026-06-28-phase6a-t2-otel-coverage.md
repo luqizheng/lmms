@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 `tracing_mw.rs` 提取到 `common-telemetry::middleware`（feature-gated），并给 audit / config / file / prue_backend 4 个未接 OTel 的服务接入，端到端 trace 链在 Jaeger 可见。
+**Goal:** 把 `tracing_mw.rs` 提取到 `digua_common-telemetry::middleware`（feature-gated），并给 audit / config / file / prue_backend 4 个未接 OTel 的服务接入，端到端 trace 链在 Jaeger 可见。
 
 **Architecture:**
-- `libs/common-telemetry` 加 `axum` feature（避免拖 axum 进 CLI binary），middleware 模块整体门控在该 feature 下。
-- 4 份逐字相同的 `tracing_mw.rs`（api-gateway / iam / notification / token）合并到 `common-telemetry::middleware::trace_request_middleware`，分别两路实现：`otlp` feature 内走 OTel SDK + `opentelemetry` 提取 trace_id；无 otlp 时 fallback 走随机 128-bit。
+- `libs/digua_common-telemetry` 加 `axum` feature（避免拖 axum 进 CLI binary），middleware 模块整体门控在该 feature 下。
+- 4 份逐字相同的 `tracing_mw.rs`（api-gateway / iam / notification / token）合并到 `digua_common-telemetry::middleware::trace_request_middleware`，分别两路实现：`otlp` feature 内走 OTel SDK + `opentelemetry` 提取 trace_id；无 otlp 时 fallback 走随机 128-bit。
 - audit / config / file / prue_backend 各自 `Cargo.toml` 加 `features = ["otlp", "axum"]`，main.rs 从 `init_json` 切到 `init_tracing`，router 挂 `trace_request_middleware`。
 - audit consumer 用 T1 已注入的 `envelope.trace_id` 建 span parent，让 iam→outbox→audit 跨服务 chain 在 Jaeger 端到端。
 
@@ -40,19 +40,19 @@
 
 | 路径 | 职责 |
 |---|---|
-| `libs/common-telemetry/src/middleware.rs` | 提取的 trace_request_middleware（两路 otlp/fallback） |
+| `libs/digua_common-telemetry/src/middleware.rs` | 提取的 trace_request_middleware（两路 otlp/fallback） |
 | `test-case/62-otel-cross-service-chain.md` | 端到端 Jaeger trace 验收清单 |
 
 ### 修改
 
 | 路径 | 改动 |
 |---|---|
-| `libs/common-telemetry/Cargo.toml` | 加 `axum` / `rand` / `hex` optional；加 `axum` feature |
-| `libs/common-telemetry/src/lib.rs` | 暴露 middleware 模块（feature-gated） |
+| `libs/digua_common-telemetry/Cargo.toml` | 加 `axum` / `rand` / `hex` optional；加 `axum` feature |
+| `libs/digua_common-telemetry/src/lib.rs` | 暴露 middleware 模块（feature-gated） |
 | `services/api-gateway/Cargo.toml` | `features = ["otlp", "axum"]` |
 | `services/api-gateway/src/middleware/mod.rs` | 删 `pub mod tracing_mw;` |
 | `services/api-gateway/src/middleware/tracing_mw.rs` | 删 |
-| `services/api-gateway/src/main.rs` | import 改 `common_telemetry::trace_request_middleware` |
+| `services/api-gateway/src/main.rs` | import 改 `digua_common_telemetry::trace_request_middleware` |
 | `services/iam-service/Cargo.toml` | `features = ["otlp", "axum"]` |
 | `services/iam-service/src/lib.rs` | 删 `pub mod tracing_mw;` |
 | `services/iam-service/src/tracing_mw.rs` | 删 |
@@ -65,7 +65,7 @@
 | `services/token-service/src/lib.rs` | 删 `pub mod tracing_mw;` |
 | `services/token-service/src/tracing_mw.rs` | 删 |
 | `services/token-service/src/main.rs` | import 改 |
-| `services/audit-service/Cargo.toml` | 加 common-telemetry `features = ["otlp", "axum"]` |
+| `services/audit-service/Cargo.toml` | 加 digua_common-telemetry `features = ["otlp", "axum"]` |
 | `services/audit-service/src/main.rs` | `init_json` → `init_tracing("audit-service")` + 挂 middleware |
 | `services/audit-service/src/consumer.rs` | 加 `span_from_envelope_trace_id` + handler 入口 `instrument` |
 | `services/audit-service/src/risk.rs` | 同上 |
@@ -93,24 +93,24 @@ T2.3 (audit OTel + span parent ref impl)  → T2.4 (3 other services OTel)
 
 ---
 
-### Task 1: 在 common-telemetry 加 `axum` feature 与 middleware 模块
+### Task 1: 在 digua_common-telemetry 加 `axum` feature 与 middleware 模块
 
 **Files:**
-- Modify: `libs/common-telemetry/Cargo.toml`
-- Modify: `libs/common-telemetry/src/lib.rs`
-- Create: `libs/common-telemetry/src/middleware.rs`
+- Modify: `libs/digua_common-telemetry/Cargo.toml`
+- Modify: `libs/digua_common-telemetry/src/lib.rs`
+- Create: `libs/digua_common-telemetry/src/middleware.rs`
 
 **Interfaces:**
-- Produces: `common_telemetry::trace_request_middleware`（仅在 `axum` feature 启用时存在）
+- Produces: `digua_common_telemetry::trace_request_middleware`（仅在 `axum` feature 启用时存在）
 - 4 组合 CI 验证：`--no-default-features`、`--features axum`、`--features otlp`、`--features axum,otlp`
 
-- [ ] **Step 1: 修改 `libs/common-telemetry/Cargo.toml`**
+- [ ] **Step 1: 修改 `libs/digua_common-telemetry/Cargo.toml`**
 
 完整内容改为：
 
 ```toml
 [package]
-name = "common-telemetry"
+name = "digua_common-telemetry"
 version = "0.1.0"
 edition = "2021"
 
@@ -135,7 +135,7 @@ axum = ["dep:axum", "dep:rand", "dep:hex"]
 otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 ```
 
-- [ ] **Step 2: 新建 `libs/common-telemetry/src/middleware.rs`**
+- [ ] **Step 2: 新建 `libs/digua_common-telemetry/src/middleware.rs`**
 
 ```rust
 //! Per-request tracing middleware. Extracted from 4 copy-paste copies in
@@ -265,7 +265,7 @@ mod fallback_impl {
 }
 ```
 
-- [ ] **Step 3: 修改 `libs/common-telemetry/src/lib.rs`**
+- [ ] **Step 3: 修改 `libs/digua_common-telemetry/src/lib.rs`**
 
 在 `current_trace_id` 相关代码下方添加：
 
@@ -278,26 +278,26 @@ pub use middleware::trace_request_middleware;
 
 - [ ] **Step 4: CI feature 矩阵验证**
 
-Run: `cargo check -p common-telemetry --no-default-features`
+Run: `cargo check -p digua_common-telemetry --no-default-features`
 Expected: 编译通过（无 axum、无 otlp）
 
-Run: `cargo check -p common-telemetry --features axum`
+Run: `cargo check -p digua_common-telemetry --features axum`
 Expected: 编译通过（fallback 路径编译）
 
-Run: `cargo check -p common-telemetry --features otlp`
+Run: `cargo check -p digua_common-telemetry --features otlp`
 Expected: 编译通过（otlp 路径编译，无 axum）
 
-Run: `cargo check -p common-telemetry --features axum,otlp`
+Run: `cargo check -p digua_common-telemetry --features axum,otlp`
 Expected: 编译通过（两 feature 都开）
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-telemetry/
-git commit -m "feat(common-telemetry): extract trace_request_middleware behind axum feature
+git add libs/digua_common-telemetry/
+git commit -m "feat(digua_common-telemetry): extract trace_request_middleware behind axum feature
 
 Consolidates 4 copy-paste copies of tracing_mw.rs (api-gateway / iam /
-notification / token) into libs/common-telemetry::middleware.
+notification / token) into libs/digua_common-telemetry::middleware.
 
 axum feature gates the module: CLI binaries (outbox-publisher) stay slim
 and don't pull axum / rand / hex transitively.
@@ -324,14 +324,14 @@ CI must verify all 4 feature combinations: none / axum / otlp / axum+otlp."
 - Modify: `services/token-service/src/main.rs`
 - Modify: `services/{api-gateway,iam-service,notification-service,token-service}/Cargo.toml`
 
-**Interfaces:** 4 份旧 import 路径全部改用 `common_telemetry::trace_request_middleware`
+**Interfaces:** 4 份旧 import 路径全部改用 `digua_common_telemetry::trace_request_middleware`
 
 - [ ] **Step 1: 修改 4 个服务的 `Cargo.toml` 加 axum feature**
 
-每个文件的 `common-telemetry` 行改为：
+每个文件的 `digua_common-telemetry` 行改为：
 
 ```toml
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp", "axum"] }
 ```
 
 涉及：
@@ -353,7 +353,7 @@ rm services/token-service/src/tracing_mw.rs
 
 `services/api-gateway/src/middleware/mod.rs`：找到第 14 行（推测）`pub mod tracing_mw;`，删除该行。
 
-`services/api-gateway/src/main.rs`：grep 找 `tracing_mw`，把所有 `...::middleware::tracing_mw::trace_request_middleware` 引用改为 `common_telemetry::trace_request_middleware`。
+`services/api-gateway/src/main.rs`：grep 找 `tracing_mw`，把所有 `...::middleware::tracing_mw::trace_request_middleware` 引用改为 `digua_common_telemetry::trace_request_middleware`。
 
 具体行号以 `rg tracing_mw services/api-gateway/src/main.rs` 实际查询为准。
 
@@ -361,24 +361,24 @@ rm services/token-service/src/tracing_mw.rs
 
 `services/iam-service/src/lib.rs`：删除 `pub mod tracing_mw;`（第 11 行附近）。
 
-`services/iam-service/src/main.rs`：grep 找 `tracing_mw`，把 `iam_service::tracing_mw::trace_request_middleware` 改 `common_telemetry::trace_request_middleware`。
+`services/iam-service/src/main.rs`：grep 找 `tracing_mw`，把 `iam_service::tracing_mw::trace_request_middleware` 改 `digua_common_telemetry::trace_request_middleware`。
 
 - [ ] **Step 5: notification-service — 改 `lib.rs` 与 `main.rs`**
 
 `services/notification-service/src/lib.rs`：删除 `pub mod tracing_mw;`（第 15 行附近）。
 
-`services/notification-service/src/main.rs`：第 87 行（推测）`notification_service::tracing_mw::trace_request_middleware` 改 `common_telemetry::trace_request_middleware`。
+`services/notification-service/src/main.rs`：第 87 行（推测）`notification_service::tracing_mw::trace_request_middleware` 改 `digua_common_telemetry::trace_request_middleware`。
 
 - [ ] **Step 6: token-service — 改 `lib.rs` 与 `main.rs`**
 
 `services/token-service/src/lib.rs`：删除 `pub mod tracing_mw;`（第 49 行附近）。
 
-`services/token-service/src/main.rs`：第 137 行（推测）`token_service::tracing_mw::trace_request_middleware` 改 `common_telemetry::trace_request_middleware`。
+`services/token-service/src/main.rs`：第 137 行（推测）`token_service::tracing_mw::trace_request_middleware` 改 `digua_common_telemetry::trace_request_middleware`。
 
 - [ ] **Step 7: workspace cargo check**
 
 Run: `cargo check --workspace`
-Expected: 全部编译通过，4 份旧 import 都已切到 `common_telemetry::trace_request_middleware`
+Expected: 全部编译通过，4 份旧 import 都已切到 `digua_common_telemetry::trace_request_middleware`
 
 - [ ] **Step 8: 4 个服务的现有单测 + 集成测**
 
@@ -394,14 +394,14 @@ Expected: 全绿（中间件提取是 mechanical refactor，行为不变）
 
 ```bash
 git add services/
-git commit -m "refactor: remove 4 tracing_mw.rs copies; rewire to common-telemetry
+git commit -m "refactor: remove 4 tracing_mw.rs copies; rewire to digua_common-telemetry
 
 - delete services/{api-gateway,iam,notification,token}/tracing_mw.rs
 - update Cargo.toml: features = ['otlp', 'axum']
 - replace import paths in main.rs / lib.rs / middleware/mod.rs
 
 Mechanical refactor; behavior unchanged. Subsequent commit will plug
-audit/config/file/prue_backend into the new common module."
+audit/config/file/prue_backend into the new digua_common module."
 ```
 
 ---
@@ -416,12 +416,12 @@ audit/config/file/prue_backend into the new common module."
 
 **Interfaces:** `init_tracing("audit-service")` 替换 `init_json("info")`；handler 入口 `instrument` 带 `span_from_envelope_trace_id(&env)`
 
-- [ ] **Step 1: 修改 `services/audit-service/Cargo.toml` 加 common-telemetry**
+- [ ] **Step 1: 修改 `services/audit-service/Cargo.toml` 加 digua_common-telemetry**
 
 找到 `[dependencies]` 段，追加：
 
 ```toml
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp", "axum"] }
 ```
 
 - [ ] **Step 2: 修改 `services/audit-service/src/main.rs`**
@@ -429,7 +429,7 @@ common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "
 把：
 
 ```rust
-use common_log::init_json;
+use digua_common_log::init_json;
 // ...
 init_json("info");
 ```
@@ -437,12 +437,12 @@ init_json("info");
 改为：
 
 ```rust
-use common_telemetry::init_tracing;
+use digua_common_telemetry::init_tracing;
 // ...
 init_tracing("audit-service");
 ```
 
-> **注意**：audit-service 可能同时引用 common_log（如旧代码还有用），保留 import 不删；
+> **注意**：audit-service 可能同时引用 digua_common_log（如旧代码还有用），保留 import 不删；
 > 仅把 init 函数切到 telemetry。后续清理可留作 follow-up。
 
 - [ ] **Step 3: 找到 audit 的 router 挂 middleware**
@@ -451,7 +451,7 @@ audit-service 的 main.rs（或 routes/mod.rs）构建 Router 处，添加：
 
 ```rust
 .route_layer(axum::middleware::from_fn(
-    common_telemetry::trace_request_middleware,
+    digua_common_telemetry::trace_request_middleware,
 ))
 ```
 
@@ -475,8 +475,8 @@ use opentelemetry::{
 };
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use common_event::Envelope;
-use common_event::event::Event;
+use digua_common_event::Envelope;
+use digua_common_event::event::Event;
 
 /// Build a tracing span whose OTel parent points to the producer's trace.
 /// If envelope.trace_id is None or malformed, the span is parentless
@@ -584,7 +584,7 @@ perm_consumer follow-up tracked as T2-fu1."
 每个文件加：
 
 ```toml
-common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp", "axum"] }
+digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp", "axum"] }
 ```
 
 - [ ] **Step 2: `services/config-service/src/main.rs`**
@@ -595,7 +595,7 @@ Router 构建处加：
 
 ```rust
 .route_layer(axum::middleware::from_fn(
-    common_telemetry::trace_request_middleware,
+    digua_common_telemetry::trace_request_middleware,
 ))
 ```
 
@@ -693,10 +693,10 @@ curl -H "traceparent: 00-${TRACE_ID}-1122334455667788-01" \
 响应 header X-Trace-Id 应为 aabbccddeeff00112233445566778899。
 
 ### 4. feature 矩阵验证（CI 已自动跑，本节为本地 sanity）
-cargo check -p common-telemetry --no-default-features        # OK
-cargo check -p common-telemetry --features axum              # OK
-cargo check -p common-telemetry --features otlp              # OK
-cargo check -p common-telemetry --features axum,otlp         # OK
+cargo check -p digua_common-telemetry --no-default-features        # OK
+cargo check -p digua_common-telemetry --features axum              # OK
+cargo check -p digua_common-telemetry --features otlp              # OK
+cargo check -p digua_common-telemetry --features axum,otlp         # OK
 ```
 
 - [ ] **Step 3: workspace 全 cargo check 与 feature 矩阵**
@@ -704,10 +704,10 @@ cargo check -p common-telemetry --features axum,otlp         # OK
 Run: `cargo check --workspace`
 Expected: 全部通过
 
-Run: `cargo check -p common-telemetry --no-default-features`
+Run: `cargo check -p digua_common-telemetry --no-default-features`
 Expected: 编译通过
 
-Run: `cargo check -p common-telemetry --features axum,otlp`
+Run: `cargo check -p digua_common-telemetry --features axum,otlp`
 Expected: 编译通过
 
 - [ ] **Step 4: 手工 e2e（按 test-case/62）**
@@ -760,7 +760,7 @@ git commit -m "docs: T2 README OTel table + test-case/62 cross-service trace ver
 
 - `trace_request_middleware` 签名在 Task 1 定义（两路 otlp/fallback），Task 2 改 import，Task 3 / Task 4 挂 middleware 使用。一致。
 - `span_from_envelope_trace_id(env, name) -> tracing::Span` 在 Task 3 定义，Task 3 Step 5/6 使用。一致。
-- `common_telemetry::init_tracing` 在 Task 3 / Task 4 替换 `init_json` 使用。一致。
+- `digua_common_telemetry::init_tracing` 在 Task 3 / Task 4 替换 `init_json` 使用。一致。
 
 无冲突。
 

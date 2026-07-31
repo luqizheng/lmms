@@ -31,7 +31,7 @@ iam-service
    ├─ private_key_path: /app/keys/private.pem (静态)
    └─ public_key_path:  /app/keys/public.pem  (静态)
             ↓ (Phase 5B JWKS 化)
-common-jwt::JWKSCache (其他 7 服务)
+digua_common-jwt::JWKSCache (其他 7 服务)
    └─ url: http://iam-service:8081/.well-known/jwks.json
 ```
 
@@ -62,7 +62,7 @@ iam-service 启动时：
        }
 ```
 
-- **多 key 加载**：`libs/common-jwt::JWKSCache` 扩展为支持多 kid（Phase 5B 已是单 key）
+- **多 key 加载**：`libs/digua_common-jwt::JWKSCache` 扩展为支持多 kid（Phase 5B 已是单 key）
 - **灰度签发**：config 配 `signing_kid = "N+1"`，运行时可热切换
 - **老 key 下线**：等所有老 token exp 后（access_token_ttl_minutes=15）从 JWKS 移除 kid=N
 
@@ -174,7 +174,7 @@ curl -fs http://localhost:8083/health  # notification-service
   database:
     url: ${DATABASE_URL}
   ```
-- `common-config` 统一从环境变量 / vault 解析 secret
+- `digua_common-config` 统一从环境变量 / vault 解析 secret
 - CI 闸门：`scripts/check-config-secrets.js` 检测 config.yaml 中是否含明文密码
 
 ---
@@ -198,7 +198,7 @@ docker exec -it redis redis-cli -a "$NEW_REDIS_PASS" CONFIG REWRITE
 # 3. 更新 .env
 sed -i "s/^REDIS_PASSWORD=.*/REDIS_PASSWORD=$NEW_REDIS_PASS/" infrastructure/.env
 
-# 4. 滚动重启所有读 Redis 的服务 (api-gateway 限流 + notification 限流 + iam perm_epoch + 任何 common-ratelimit 用户)
+# 4. 滚动重启所有读 Redis 的服务 (api-gateway 限流 + notification 限流 + iam perm_epoch + 任何 digua_common-ratelimit 用户)
 docker compose -f infrastructure/docker-compose-services.yml restart \
     api-gateway notification-service iam-service
 
@@ -240,7 +240,7 @@ dev 单节点用 requirepass 即可；prod 推荐切 Redis 6+ ACL：
 | 阶段 | 目标 | 触发 |
 |------|------|------|
 | Phase R2-S1 | kid + JWKS endpoint 实现（iam-service） | Phase 5-B-fu7 spec |
-| Phase R2-S2 | `common-config` 统一从 env / vault 解析 secret | prod 部署准备 |
+| Phase R2-S2 | `digua_common-config` 统一从 env / vault 解析 secret | prod 部署准备 |
 | Phase R2-S3 | Vault 集成 + dynamic secret for MySQL / Redis | 合规需求触发 |
 | Phase R2-S4 | rotation cron + 自动验证 + Slack 通知 | SOP 稳定后 |
 

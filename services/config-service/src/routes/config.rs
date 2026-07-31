@@ -1,5 +1,5 @@
 use axum::{extract::State, Json, extract::Path, extract::Query, http::StatusCode};
-use jwt_ctx::{Principal, TenantScope};
+use digua_jwt_ctx::{Principal, TenantScope};
 use crate::models::config_item::{ConfigItem, CreateConfigItem, PagedConfigItems, QueryConfigItems, UpdateConfigItem};
 use crate::routes::AppState;
 

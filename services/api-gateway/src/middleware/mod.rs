@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use common_jwt;
+use digua_common_jwt;
 use redis::aio::MultiplexedConnection;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -149,7 +149,7 @@ pub async fn auth_middleware(
             .into_response(),
     };
 
-    let claims_value = match common_jwt::verify_token(&token, &state.jwks_cache, None).await {
+    let claims_value = match digua_common_jwt::verify_token(&token, &state.jwks_cache, None).await {
         Ok(v) => v,
         Err(e) => {
             tracing::warn!(error = %e, "jwt verification failed");
@@ -180,7 +180,7 @@ pub async fn auth_middleware(
     let epoch = if hit {
         cached_epoch
     } else {
-        let epoch = common_event::perm_epoch::get_perm_epoch(&mut conn, &state.redis_prefix, &claims.sub).await.ok().flatten();
+        let epoch = digua_common_event::perm_epoch::get_perm_epoch(&mut conn, &state.redis_prefix, &claims.sub).await.ok().flatten();
         state.perm_epoch_cache.set(sub_parsed, epoch);
         epoch
     };

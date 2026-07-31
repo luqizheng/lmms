@@ -22,7 +22,7 @@
 - [x] 基础设施：`infrastructure/docker-compose-infra.yml` 加 RabbitMQ + `definitions.json` 预声明 topology（commits `c52f401`, `b0eb5e2`）
 - [x] `contracts/events.yaml` 启用首批三事件 + envelope schema（commit `2fe432f`）
 - [x] `scripts/contracts-gen.js` 扩展：events.yaml → Rust event struct + routing-key 常量（commit `8e9823b`）
-- [x] **`libs/common-event` 完整抽象**：Publisher / Consumer / Envelope / OutboxRepo<DB> trait + lapin RabbitMQ 实现（commits `265adcc` … `e95069f` + minor `8a014de`）
+- [x] **`libs/digua_common-event` 完整抽象**：Publisher / Consumer / Envelope / OutboxRepo<DB> trait + lapin RabbitMQ 实现（commits `265adcc` … `e95069f` + minor `8a014de`）
 - [x] iam-service 加 `iam_outbox_events` 表 + 业务事务里写 outbox（commits `9f8e06b`, `dc048fa`）
 - [x] iam-service 加 `[[bin]] outbox-publisher`（同镜像切 CMD）（commit `7808a7a`）
 - [x] audit-service 加 `audit_events` 表 + RabbitMQ consumer + 删除旧 HTTP 写入端点（commits `0749893`, `ed2f63a` + minors `1577ed9`, `7852718`）
@@ -100,7 +100,7 @@
 
 - [x] **T3-fu1** `Basic.Return` 静默丢消息修复
 - [x] **T3-fu2** `republish_confirm_nack_does_not_ack_original` 集成测
-- [x] **T2-fu1** `span_from_envelope_trace_id` 搬到 `libs/common-event/src/span.rs`
+- [x] **T2-fu1** `span_from_envelope_trace_id` 搬到 `libs/digua_common-event/src/span.rs`
 - [x] **T2-fu3** outbox-publisher 拆为独立 crate
 - [x] **T2-fu2** 删 docs 中 `tracing_mw` 旧说明
 - [x] **T3-fu3** testcontainers `sleep()` → poll-with-deadline
@@ -110,7 +110,7 @@
 
 ## Phase 6-B — Config-Service 自举
 
-- [x] **T1** `libs/common-config` 加 `ConfigServiceProvider`
+- [x] **T1** `libs/digua_common-config` 加 `ConfigServiceProvider`
 - [x] **T2** `Loader` 集成 provider + 热更新 watch
 - [x] **T3** token-service 第一个接入
 
@@ -123,7 +123,7 @@
 - [x] V003 迁移：`iam_tenants` 表 + default seed + `iam_users.tenant_id`
 - [x] `libs/jwt-ctx::Principal.tenant_id` + tid claim 解析
 - [x] `libs/jwt-ctx::TenantScope` extractor
-- [x] `libs/common-db::WithTenantScope` helper
+- [x] `libs/digua_common-db::WithTenantScope` helper
 - [x] `services/iam-service::token_svc::issue_access_token` 加 tenant_id 参数 + JWT `tid` claim
 - [x] iam-service 5 处 Envelope::new callsite 注入 tenant_id
 - [x] `contracts/events.yaml` 加 `iam.tenant.created` + codegen
@@ -151,7 +151,7 @@
 
 ### Phase 8.3-fu1 — iam-service 点查询 TenantScope 迁移
 
-- [x] `libs/common-db::WithTenantScope` 加 `where_id(id)` helper
+- [x] `libs/digua_common-db::WithTenantScope` 加 `where_id(id)` helper
 - [x] `user_svc.rs` 9 方法签名 + 11 SQL 迁 `scope: &TenantScope`
 - [x] `role_svc.rs` 7 方法 + 7 SQL 同上
 - [x] `org_svc.rs` 8 方法 + 7 SQL 同上
@@ -197,13 +197,13 @@
 - [x] **5B-fu6** principal extractor JWT 验签失败 warn 日志（`libs/jwt-ctx/src/principal.rs`）
 - [x] **5A-2-fu1** `registrator:master` 保持不变（确认无需固化 digest）
 - [x] **5A-2-fu2** `docker-example/` 已删除
-- [x] **5B-fu2** `api-gateway` 统一到 `common-jwt::JWKSCache`（删 jwt-simple/rsa/base64；commits `0f14e1a` … `d295987`）
+- [x] **5B-fu2** `api-gateway` 统一到 `digua_common-jwt::JWKSCache`（删 jwt-simple/rsa/base64；commits `0f14e1a` … `d295987`）
 - [x] **4.4-fu3** gateway perm_epoch 5s 本地内存短缓存（commit `0f14e1a`）
 - [x] gateway 限流从 governor 迁 Redis 滑动窗口（多实例共享；commit `ddf44a0`）
-- [x] common-ratelimit ZADD member bug 修复（`format!("{}:{}", identity, now_ms)`；commit `ac28dfa`）
+- [x] digua_common-ratelimit ZADD member bug 修复（`format!("{}:{}", identity, now_ms)`；commit `ac28dfa`）
 - [x] **OpenAPI registration sweep**：iam-service `org_units::*` 6 handler + `permissions::*` 5 handler + 9 DTO ToSchema/IntoParams + openapi.rs paths/components/tags + openapi.yaml 手工补齐（dump-openapi binary 因 utoipa 递归序列化栈溢出 pre-existing，本地无法运行；commit `a2cd626`）
 - [x] **4.3-fu1** announcement delivery 批量 INSERT（`notification-service/src/db.rs` `insert_deliveries_batch` QueryBuilder helper + 2 处调用点改走 + 100-user 回归测试；commit `f5373be`）
-- [x] **service-jwt test helper**：`common-jwt::ServiceJwtCache::prime_cache` + 3 个 notification-service 集成测试改 3-arg IamMemberClient + `tests/fixtures/test_private.pem` 测试 RSA 私钥（commit `5481ab6`）
+- [x] **service-jwt test helper**：`digua_common-jwt::ServiceJwtCache::prime_cache` + 3 个 notification-service 集成测试改 3-arg IamMemberClient + `tests/fixtures/test_private.pem` 测试 RSA 私钥（commit `5481ab6`）
 - [x] TODO.md 清理 stale 项：`I1`/`I4`/`I6`/`T2-fu2`/`T3-fu3`/`T3-fu4`/`5A-fu1` 早已完成移入 done.md，标 `[x]` 并加 commit 索引
 - [x] 2026-07-07 决策：1.0 内不增加安全相关功能，**Phase 5-C 基础设施 TLS** + **5B-fu4 TLS termination** 归入 TODO.md 新增「Roadmap 2.0」区（R2.1 + R2.2），待 1.0 落地 + 真实合规需求时再 brainstorm
 - [x] **5B-fu5** CI 对齐 5B spec：`cargo test --workspace --all-targets` → `--lib`（spec §7.2 早定 --lib，但 CI 漏改）。同步 `docs-site/guides/testing.md` + `docs/user-manual/06-deployment.md`。本地实测 74 unit tests 全过。附 token-service 编译修复（jwt-simple 0.12.16 trait `RSAKeyPairLike` 未为 `RS256KeyPair` 实现 `set_key_id`，用 inherent `with_key_id` 替）
@@ -219,14 +219,14 @@
 - [x] **4.3-fu3 welcome 路径多副本化**（commit `547e8c0`，spec `docs/superpowers/specs/2026-07-08-phase4.3-fu3-welcome-fanout-design.md`）：消除最后一处进程内 `hub.publish` 直推。`ensure_welcome_for_user` 在同一事务内 outbox enqueue `NotificationAnnouncementPublished{user_ids:[user_id]}`，与 `Db::publish_announcement` 同事件同产线；WS 推送由 4.3 既有 per-replica ephemeral queue + `announcement_events::handle` 扇出，多副本下用户 WS 连哪个副本都能收到。`handle_iam_user_created` / `consumer::run` / `main.rs` 透传 `db.outbox_repo: Arc<MySqlOutboxRepo>`（drop `&WsHub` 参数）。测试改造：原 `#[ignore]` AppConfig 路径（DNS 绑 mysql/redis hostname，run-tests-docker.js 下永远跑不起来）换成 testcontainers MySQL+Redis + `OnceCell<RedisFixture>` 共享单容器；3 case 覆盖幂等 / outbox 行（`NotificationAnnouncementPublished` 同事务写入）/ 重投不入双份。`Cargo.toml` 给 `testcontainers-modules` 加 `redis` feature。验证：`scripts/run-tests-docker.js notification-service` 48/48 passed（17.8s）；`scripts/check-service-standard.js` / `scripts/check-db-naming.js` / `scripts/contracts-gen.js --check` 全 clean。
 - [x] **G1 prue_backend SQLite 决策**（spec `docs/superpowers/specs/2026-07-08-prue-backend-sqlite-decision-design.md`）：**决策保留 SQLite**。仅 1 个 migration（V001__init.sql），双方言 ~12 处机械差异（VARCHAR→TEXT / JSON→TEXT / BOOLEAN→INTEGER / TIMESTAMP→TEXT / ON UPDATE 子句差异）；每 migration 翻译成本 ~5 min。砍 SQLite 代价（dev 零依赖失效 / CI 复杂度上升 / 嵌入式能力丧失）远大于收益。配套：建议加 `scripts/check-prue-migrations-parity.sh` CI gate 防 schema drift（~2 小时实施）。
 - [x] **G4 密钥轮换 SOP**（runbook `docs-site/runbooks/secret-rotation.md`，新建 `docs-site/runbooks/` 目录）：覆盖 3 类 secret —— ① JWT 私钥（手动 SOP 含 kid 路线图，待 Phase 5-B-fu7 加 kid+JWKS endpoint 配合），② MySQL root 密码（含 `root:rootpass` 硬编码警示，`database.url` 改 env var 路线），③ Redis 密码（requirepass / ACL 模式）；附通用原则（零明文 / 零共享 / 可轮换 / 可审计）+ Roadmap 2.0 自动化 4 阶段。
-- [x] **G3 schema state 端点 — 7/7 服务接入完成**（commits `61d4b0c` `bcb5bcf` `8706375` `2b7207d` `b5b59ea` `25a6bf6` `8a19729`）：spec + common-db trait + 7 个服务接入 `GET /<svc>/internal/migrations/state` 全完成。
-  - common-db lib：MigrationState trait + probe_marker_mysql/sqlite + build_response（5 单测）
+- [x] **G3 schema state 端点 — 7/7 服务接入完成**（commits `61d4b0c` `bcb5bcf` `8706375` `2b7207d` `b5b59ea` `25a6bf6` `8a19729`）：spec + digua_common-db trait + 7 个服务接入 `GET /<svc>/internal/migrations/state` 全完成。
+  - digua_common-db lib：MigrationState trait + probe_marker_mysql/sqlite + build_response（5 单测）
   - iam (5 migrations) + notification (3) + token (1) + audit (1) + config (2) + file (2) + prue_backend (1×2 dialects) = **15 migration 探测位统一暴露**
   - 跨服务模式：marker-table 探测（不复用 sqlx 内置 _sqlx_migrations）+ service-jwt 鉴权（iam only）+ Extension<MySqlPool> 注入（其他服务，简化版）
   - 集成测试 + docs 同步（operations.md + 各服务 AGENTS.md）推下个 session
-- [x] **G3 service-jwt 鉴权扩面**（commit `ec57c76`）：6 个服务从"无鉴权层（仅网络隔离）"补到与 iam 一致的 `verify_aud_principal_middleware::<AppState>("<svc-name>")` 模式。libs/jwt-ctx 加 `impl<T> PrincipalStateProvider for Arc<T>` blanket impl（audit AppState = Arc<AppServices> 需此）。prue_backend 全套基础设施从 0 加（common-jwt + jwt-ctx + authz 依赖 + JWKSCache 初始化 + state 加 jwks 字段）。7/7 端点鉴权完整闭环。
+- [x] **G3 service-jwt 鉴权扩面**（commit `ec57c76`）：6 个服务从"无鉴权层（仅网络隔离）"补到与 iam 一致的 `verify_aud_principal_middleware::<AppState>("<svc-name>")` 模式。libs/jwt-ctx 加 `impl<T> PrincipalStateProvider for Arc<T>` blanket impl（audit AppState = Arc<AppServices> 需此）。prue_backend 全套基础设施从 0 加（digua_common-jwt + jwt-ctx + digua_authz 依赖 + JWKSCache 初始化 + state 加 jwks 字段）。7/7 端点鉴权完整闭环。
 - [x] **G3 docs 更新反映鉴权扩面**（本 commit）：6 服务 AGENTS.md 把"当前无鉴权层"改为"鉴权 service-jwt aud=<svc-name>"；migrations-state.md §6 整段重写为"7/7 都接 service-jwt"。
-- [x] **G3 端点 utoipa 注解**（commits `bb17b24` `c48ca8d` `dfd2f0a`）：common-db 加 optional `openapi` feature（utoipa 依赖 + MigrationStateResponse/MigrationInfo derive ToSchema）。7 服务 utoipa 注解 + openapi.yaml 重新生成（dump-openapi binary）：
+- [x] **G3 端点 utoipa 注解**（commits `bb17b24` `c48ca8d` `dfd2f0a`）：digua_common-db 加 optional `openapi` feature（utoipa 依赖 + MigrationStateResponse/MigrationInfo derive ToSchema）。7 服务 utoipa 注解 + openapi.yaml 重新生成（dump-openapi binary）：
   - notification / token / audit / config / file / prue_backend: dump-openapi 跑通
   - iam: dump-openapi binary 已知 stack overflow pre-existing (commit a2cd626)；手工 patch openapi.yaml 加 `/iam/internal/migrations/state` 端点 + 2 个 schema
 - [x] **G3 端点集成测试脚本**（`scripts/e2e-migration-state.js`）：Node.js 仿 `e2e-event-flow.js` 模式。对每个服务（7 个）：
@@ -237,7 +237,7 @@
   bootstrap token 来源：`IAM_BOOTSTRAP_TOKEN` / `NTF_BOOTSTRAP_TOKEN` / ... 或 `BOOTSTRAP_TOKENS='{"iam":"t1",...}'` JSON map。未配置则 skip（exit 0 + warning）。
   Node 语法校验通过；本地无服务时 7/7 skip（验证 skip 流程正确）。
   完整 e2e 验证需 docker compose stack + token-service `SERVICE_BOOTSTRAP_TOKENS` 已配置。
-- [x] **G3 service-jwt 鉴权扩面**（commit `ec57c76`）：6 个服务从"无鉴权层（仅网络隔离）"补到与 iam 一致的 `verify_aud_principal_middleware::<AppState>("<svc-name>")` 模式。libs/jwt-ctx 加 `impl<T> PrincipalStateProvider for Arc<T>` blanket impl（audit AppState = Arc<AppServices> 需此）。prue_backend 全套基础设施从 0 加（common-jwt + jwt-ctx + authz 依赖 + JWKSCache 初始化 + state 加 jwks 字段）。7/7 端点鉴权完整闭环。
+- [x] **G3 service-jwt 鉴权扩面**（commit `ec57c76`）：6 个服务从"无鉴权层（仅网络隔离）"补到与 iam 一致的 `verify_aud_principal_middleware::<AppState>("<svc-name>")` 模式。libs/jwt-ctx 加 `impl<T> PrincipalStateProvider for Arc<T>` blanket impl（audit AppState = Arc<AppServices> 需此）。prue_backend 全套基础设施从 0 加（digua_common-jwt + jwt-ctx + digua_authz 依赖 + JWKSCache 初始化 + state 加 jwks 字段）。7/7 端点鉴权完整闭环。
 
 ### Deferred（本 session 决策，标可选未实施）
 

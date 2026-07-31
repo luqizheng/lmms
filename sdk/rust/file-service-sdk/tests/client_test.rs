@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use file_service_sdk::{CreatePresignUrl, FileClient, ListFilesQuery};
+use digua_file_sdk::{CreatePresignUrl, FileClient, ListFilesQuery};
 use serde_json::json;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -107,7 +107,7 @@ async fn presign_401_maps_to_auth_error() {
     };
     let err = client.create_presign(&req).await.expect_err("expected Auth");
     match err {
-        kudi_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
+        digua_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
         other => panic!("expected Auth, got {:?}", other),
     }
 }

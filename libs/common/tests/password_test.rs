@@ -1,4 +1,4 @@
-use common::password::{hash, verify};
+use digua_common::password::{hash, verify};
 
 #[test]
 fn hash_and_verify_roundtrip() {

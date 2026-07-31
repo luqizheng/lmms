@@ -4,24 +4,24 @@
 
 **Goal:** 一次性收束 gateway 三处遗留：① JWKSCache 迁移（替代 jwt-simple），② perm_epoch 5s 本地缓存，③ governor 限流迁 Redis 滑动窗口
 
-**Architecture:** 前置修复 common-ratelimit ZADD bug → 删 jwt.rs/jwks.rs 接 common-jwt → 加 perm_epoch_cache.rs 本地缓存 → 重写 rate_limit.rs 接 common-ratelimit → 清理 workspace deps
+**Architecture:** 前置修复 digua_common-ratelimit ZADD bug → 删 jwt.rs/jwks.rs 接 digua_common-jwt → 加 perm_epoch_cache.rs 本地缓存 → 重写 rate_limit.rs 接 digua_common-ratelimit → 清理 workspace deps
 
-**Tech Stack:** Rust, axum, redis-rs, common-jwt (jsonwebtoken), common-ratelimit, tokio
+**Tech Stack:** Rust, axum, redis-rs, digua_common-jwt (jsonwebtoken), digua_common-ratelimit, tokio
 
 ## Global Constraints
 
 - 推 main，不开 feature 分支
-- Commit 前缀：`dephase(gateway):` 或 `fix(common-ratelimit):`
-- 每个 task 结束后跑 `cargo build -p api-gateway` + `cargo test -p api-gateway --lib` + `cargo test -p common-ratelimit --lib`
+- Commit 前缀：`dephase(gateway):` 或 `fix(digua_common-ratelimit):`
+- 每个 task 结束后跑 `cargo build -p api-gateway` + `cargo test -p api-gateway --lib` + `cargo test -p digua_common-ratelimit --lib`
 - verify_token 已返回 `Result<Value, VerifyError>`，无需新增函数
-- 不新增 crate 依赖（common-ratelimit 已在 workspace）
+- 不新增 crate 依赖（digua_common-ratelimit 已在 workspace）
 
 ---
 
-### Task 1: 修复 common-ratelimit ZADD member bug
+### Task 1: 修复 digua_common-ratelimit ZADD member bug
 
 **Files:**
-- Modify: `libs/common-ratelimit/src/lib.rs:130`
+- Modify: `libs/digua_common-ratelimit/src/lib.rs:130`
 
 **Interfaces:**
 - Consumes: nothing (pre-requisite, no dependencies)
@@ -30,7 +30,7 @@
 - [x] **Step 1: 修改 ZADD member 为唯一值**
 
 ```rust
-// libs/common-ratelimit/src/lib.rs:130
+// libs/digua_common-ratelimit/src/lib.rs:130
 // 旧:
 .zadd(&key, &identity, now_ms) // member is identity to avoid dupes in same ms
 // 新:
@@ -39,7 +39,7 @@
 
 - [x] **Step 2: 加单元测试验证多次请求计数**
 
-在 `libs/common-ratelimit/src/lib.rs` 的 `#[cfg(test)] mod tests` 末尾加：
+在 `libs/digua_common-ratelimit/src/lib.rs` 的 `#[cfg(test)] mod tests` 末尾加：
 
 ```rust
 #[test]
@@ -62,8 +62,8 @@ fn multiple_requests_from_same_identity_are_counted() {
 - [x] **Step 3: 编译 + 测试**
 
 ```bash
-cargo build -p common-ratelimit
-cargo test -p common-ratelimit --lib
+cargo build -p digua_common-ratelimit
+cargo test -p digua_common-ratelimit --lib
 ```
 
 Expected: all tests pass.
@@ -71,8 +71,8 @@ Expected: all tests pass.
 - [x] **Step 4: Commit**
 
 ```bash
-git add libs/common-ratelimit/src/lib.rs
-git commit -m "fix(common-ratelimit): ZADD member must be unique per request, not per identity"
+git add libs/digua_common-ratelimit/src/lib.rs
+git commit -m "fix(digua_common-ratelimit): ZADD member must be unique per request, not per identity"
 ```
 
 ---
@@ -80,7 +80,7 @@ git commit -m "fix(common-ratelimit): ZADD member must be unique per request, no
 ### Task 2: Gateway JWKSCache 迁移
 
 **Files:**
-- Modify: `services/api-gateway/Cargo.toml` — 加 `common-jwt`, 删 `jwt-simple`/`rsa`/`base64`
+- Modify: `services/api-gateway/Cargo.toml` — 加 `digua_common-jwt`, 删 `jwt-simple`/`rsa`/`base64`
 - Modify: `services/api-gateway/src/lib.rs:3-4,15`
 - Modify: `services/api-gateway/src/middleware/mod.rs:71-141`
 - Modify: `services/api-gateway/src/main.rs:16-18,178-183,225,248`
@@ -101,8 +101,8 @@ base64.workspace = true
 rsa.workspace = true
 
 # 新增:
-common-jwt = { path = "../../libs/common-jwt" }
-common-ratelimit = { path = "../../libs/common-ratelimit" }
+digua_common-jwt = { path = "../../libs/digua_common-jwt" }
+digua_common-ratelimit = { path = "../../libs/digua_common-ratelimit" }
 ```
 
 - [x] **Step 2: 删除 jwt.rs 和 jwks.rs**
@@ -130,7 +130,7 @@ pub use jwt::JwtClaims;  // 保留 JwtClaims 类型（从 middleware 内联定�
 
 // 新增到 AppState:
 // pub jwt_validator: Arc<JwtValidator>,  → 替换为:
-pub jwks_cache: Arc<common_jwt::JWKSCache>,
+pub jwks_cache: Arc<digua_common_jwt::JWKSCache>,
 pub perm_epoch_cache: perm_epoch_cache::PermEpochCache,
 ```
 
@@ -201,7 +201,7 @@ fn extract_claims_from_value(claims: &Value) -> JwtClaims {
 // };
 
 // 新 (异步):
-let claims_value = match common_jwt::verify_token(&token, &state.jwks_cache, None).await {
+let claims_value = match digua_common_jwt::verify_token(&token, &state.jwks_cache, None).await {
     Ok(v) => v,
     Err(e) => {
         tracing::warn!(error = %e, "jwt verification failed");
@@ -223,7 +223,7 @@ let (cached_epoch, hit) = state.perm_epoch_cache.get(sub_parsed);
 let epoch = if hit {
     cached_epoch
 } else {
-    let epoch = common_event::perm_epoch::get_perm_epoch(&mut conn, &state.redis_prefix, &claims.sub).await.ok();
+    let epoch = digua_common_event::perm_epoch::get_perm_epoch(&mut conn, &state.redis_prefix, &claims.sub).await.ok();
     state.perm_epoch_cache.set(sub_parsed, epoch);
     epoch
 };
@@ -235,7 +235,7 @@ if crate::perm_epoch::is_revoked(epoch, claims.iat) {
 添加 use 语句顶部：
 
 ```rust
-use common_jwt;
+use digua_common_jwt;
 ```
 
 - [x] **Step 6: 修改 main.rs 初始化**
@@ -256,7 +256,7 @@ use api_gateway::{
 };
 
 // 删除 line 178-183 替换为:
-use common_jwt::{JwksConfig, JWKSCache};
+use digua_common_jwt::{JwksConfig, JWKSCache};
 
 let jwks_cache = JWKSCache::new(http_client.clone(), JwksConfig {
     url: cfg.jwks_url.clone(),
@@ -266,7 +266,7 @@ jwks_cache.refresh().await.expect("failed to fetch initial JWKS");
 let jwks_cache = Arc::new(jwks_cache);
 
 let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
-common_jwt::spawn_refresh_loop(Arc::clone(&jwks_cache), shutdown_rx);
+digua_common_jwt::spawn_refresh_loop(Arc::clone(&jwks_cache), shutdown_rx);
 
 // line 224-233 AppState 中:
 // jwt_validator: Arc::new(jwt_validator),  → 替换为:
@@ -351,8 +351,8 @@ Expected: build passes, all unit tests pass.
 
 ```bash
 git add services/api-gateway/
-git add libs/common-jwt/    # (if verify_token export needed changes)
-git commit -m "dephase(gateway): migrate JWKSCache from jwt-simple to common-jwt"
+git add libs/digua_common-jwt/    # (if verify_token export needed changes)
+git commit -m "dephase(gateway): migrate JWKSCache from jwt-simple to digua_common-jwt"
 ```
 
 ---
@@ -440,10 +440,10 @@ git commit -m "dephase(gateway): add perm_epoch cache unit tests"
 **Files:**
 - Modify: `services/api-gateway/src/middleware/rate_limit.rs:1-168`
 - Modify: `services/api-gateway/src/main.rs:68-86,230-232`
-- Modify: `services/api-gateway/Cargo.toml` — 删 `governor`, 加 `common-ratelimit`
+- Modify: `services/api-gateway/Cargo.toml` — 删 `governor`, 加 `digua_common-ratelimit`
 
 **Interfaces:**
-- Consumes: Task 1 (common-ratelimit bug fix), Task 2 (new AppState fields)
+- Consumes: Task 1 (digua_common-ratelimit bug fix), Task 2 (new AppState fields)
 - Produces: `RouteLimiterSet` backed by Redis sliding window, per-IP identity
 
 - [x] **Step 1: 更新 Cargo.toml**
@@ -454,7 +454,7 @@ git commit -m "dephase(gateway): add perm_epoch cache unit tests"
 governor = "0.6"
 
 # 新增 (如果 Task 2 已加则跳过):
-common-ratelimit = { path = "../../libs/common-ratelimit" }
+digua_common-ratelimit = { path = "../../libs/digua_common-ratelimit" }
 ```
 
 - [x] **Step 2: 重写 rate_limit.rs**
@@ -538,10 +538,10 @@ fn path_matches(pattern: &str, path: &str) -> bool {
 
 #[derive(Clone)]
 pub struct RouteLimiterSet {
-    limiter: common_ratelimit::RateLimiter,
+    limiter: digua_common_ratelimit::RateLimiter,
     // ponytail: Box::leak at startup for static route strings — < 20 routes, acceptable.
-    limits: Arc<HashMap<String, common_ratelimit::Limit>>,
-    default: common_ratelimit::Limit,
+    limits: Arc<HashMap<String, digua_common_ratelimit::Limit>>,
+    default: digua_common_ratelimit::Limit,
 }
 
 impl RouteLimiterSet {
@@ -549,7 +549,7 @@ impl RouteLimiterSet {
         conn: redis::aio::ConnectionManager,
         cfg: &RateLimitConfig,
     ) -> Self {
-        use common_ratelimit::Limit;
+        use digua_common_ratelimit::Limit;
         let mut limits: HashMap<String, Limit> = HashMap::new();
         for (pattern, rule) in &cfg.routes {
             let route: &'static str = Box::leak(
@@ -563,7 +563,7 @@ impl RouteLimiterSet {
         }
         let default_route: &'static str = Box::leak("gateway:default".to_string().into_boxed_str());
         Self {
-            limiter: common_ratelimit::RateLimiter::new(conn, vec![]),
+            limiter: digua_common_ratelimit::RateLimiter::new(conn, vec![]),
             limits: Arc::new(limits),
             default: Limit {
                 route: default_route,
@@ -663,7 +663,7 @@ Expected: build passes. Fix any compilation errors.
 
 ```bash
 cargo test -p api-gateway --lib
-cargo test -p common-ratelimit --lib
+cargo test -p digua_common-ratelimit --lib
 ```
 
 Expected: all tests pass.
@@ -672,7 +672,7 @@ Expected: all tests pass.
 
 ```bash
 git add services/api-gateway/Cargo.toml services/api-gateway/src/middleware/rate_limit.rs services/api-gateway/src/main.rs
-git commit -m "dephase(gateway): migrate rate limiting from governor to common-ratelimit Redis sliding window"
+git commit -m "dephase(gateway): migrate rate limiting from governor to digua_common-ratelimit Redis sliding window"
 ```
 
 ---
@@ -699,8 +699,8 @@ Expected: no errors.
 
 ```bash
 cargo test -p api-gateway --lib
-cargo test -p common-ratelimit --lib
-cargo test -p common-jwt --lib
+cargo test -p digua_common-ratelimit --lib
+cargo test -p digua_common-jwt --lib
 ```
 
 Expected: all tests pass.
@@ -733,7 +733,7 @@ git commit -m "dephase(gateway): cleanup — remove jwt-simple/rsa/base64 deps; 
 ## 执行顺序
 
 ```
-Task 1 (common-ratelimit fix)
+Task 1 (digua_common-ratelimit fix)
   ↓
 Task 2 (JWKSCache migration + perm_epoch cache) ← 核心变更，auth 中间件一次性改造
   ↓
@@ -744,4 +744,4 @@ Task 4 (Redis 限流)
 Task 5 (cleanup + CI)
 ```
 
-Task 2 和 Task 4 独立于 Task 1（但都需要 Task 1 的 common-ratelimit bug fix 来保证限流正确）。Task 2 将 perm_epoch cache 代码与 JWKSCache 迁移放在一起，因为它们改同一段 middleware 代码，拆开反而容易冲突。
+Task 2 和 Task 4 独立于 Task 1（但都需要 Task 1 的 digua_common-ratelimit bug fix 来保证限流正确）。Task 2 将 perm_epoch cache 代码与 JWKSCache 迁移放在一起，因为它们改同一段 middleware 代码，拆开反而容易冲突。

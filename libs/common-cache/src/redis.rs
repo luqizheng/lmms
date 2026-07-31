@@ -1,6 +1,6 @@
 use crate::Cache;
 use async_trait::async_trait;
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 use redis::{AsyncCommands, Client};
 use std::time::Duration;
 

@@ -319,7 +319,7 @@ order:
 node scripts/contracts-gen.js
 ```
 
-这会重新生成 Rust 权限码常量（`libs/authz/src/perms.rs`），你的服务可以通过 `common-authz` crate 引用。
+这会重新生成 Rust 权限码常量（`libs/digua_authz/src/perms.rs`），你的服务可以通过 `digua_common-digua_authz` crate 引用。
 
 #### 错误码
 
@@ -334,7 +334,7 @@ order-catalog:
     - INSUFFICIENT_INVENTORY: 1003
 ```
 
-同样运行 `node scripts/contracts-gen.js` 后，通过 `common-error` crate 引用。
+同样运行 `node scripts/contracts-gen.js` 后，通过 `digua_common-error` crate 引用。
 
 #### 事件
 
@@ -414,9 +414,9 @@ cargo add config-service-sdk --registry kellnr
 cargo add kudi-http-client --registry kellnr
 
 # 平台基础设施库
-cargo add common-error --registry kellnr
-cargo add common-db --registry kellnr
-cargo add common-log --registry kellnr
+cargo add digua_common-error --registry kellnr
+cargo add digua_common-db --registry kellnr
+cargo add digua_common-log --registry kellnr
 ```
 
 或在 `Cargo.toml` 中手动添加：
@@ -425,7 +425,7 @@ cargo add common-log --registry kellnr
 [dependencies]
 iam-service-sdk = { version = "0.1", registry = "kellnr" }
 audit-service-sdk = { version = "0.1", registry = "kellnr" }
-common-error = { version = "0.1", registry = "kellnr" }
+digua_common-error = { version = "0.1", registry = "kellnr" }
 ```
 
 ### 6.2 Java SDK
@@ -465,7 +465,7 @@ common-error = { version = "0.1", registry = "kellnr" }
 ### Rust 中发布事件
 
 ```rust
-use common_event::MySqlOutboxRepo;
+use digua_common_event::MySqlOutboxRepo;
 
 // 在同一个事务中：写入业务数据 + enqueue 事件
 let mut tx = pool.begin().await?;
@@ -486,16 +486,16 @@ tx.commit().await?;
 在 Rust 服务中消费 RabbitMQ 消息：
 
 ```rust
-use common_event::EventConsumer;
+use digua_common_event::EventConsumer;
 
 // 声明队列 + 绑定 exchange
-// common-event 库提供了 RabbitMQ 消费者抽象
+// digua_common-event 库提供了 RabbitMQ 消费者抽象
 ```
 
 ### Java 中发布事件
 
 ```java
-// 使用 common-event Java SDK（待发布）
+// 使用 digua_common-event Java SDK（待发布）
 // 或直接通过 Spring AMQP
 ```
 
@@ -685,8 +685,8 @@ docker compose -f infrastructure/docker-compose.yml up -d my-order-service
 
 # 引入 SDK
 cargo add iam-service-sdk --registry kellnr
-cargo add common-error --registry kellnr
-cargo add common-db --registry kellnr
+cargo add digua_common-error --registry kellnr
+cargo add digua_common-db --registry kellnr
 
 # 本地运行平台
 make up

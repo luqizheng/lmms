@@ -33,7 +33,7 @@
 | 4.4-fu1 | User roles assign | `2026-07-01-…-roles-assign-design.md` | ✅ 完成 |
 | 4.4-fu2 | Actor ID implementation | `2026-07-01-…-actor-id-design.md` | ✅ 完成 |
 | **Phase 5 — JWT 硬化** | | | |
-| Task D4/D5 | libs/common-jwt (JWKSCache + verify + sign + ServiceJwtCache) | `2026-07-07-…-jwt-signature-design.md` | ✅ 完成 |
+| Task D4/D5 | libs/digua_common-jwt (JWKSCache + verify + sign + ServiceJwtCache) | `2026-07-07-…-jwt-signature-design.md` | ✅ 完成 |
 | Task D5.5 | file-service + config-service JWKS cache | (同上) | ✅ 完成 |
 | Task E | docs + compose bootstrap tokens | (同上) | ✅ 完成 |
 | 5B-fu6 | JWT error leak fix | `2026-07-08-…-jwt-error-leak-design.md` | ✅ 完成 |
@@ -146,9 +146,9 @@
 
 | 失败模式 | 出现次数 | 触发根因 | 缓解措施 |
 |---------|---------|---------|---------|
-| Rust async 生命周期错误（span/lifetime） | 3+ | OTel span 引用 + tokio task 边界 | 需要在 `common-telemetry` 层统一封装 span 生命周期模式 |
+| Rust async 生命周期错误（span/lifetime） | 3+ | OTel span 引用 + tokio task 边界 | 需要在 `digua_common-telemetry` 层统一封装 span 生命周期模式 |
 | 多租户 SQL 拼接错误（tenant_id 漏拼、硬编码） | 5+ | 8.3-fu1 点查迁移覆盖面广 | 建立 SQL review checklist；参数化 QueryBuilder 模式已固化但需 all-routes 审计 |
-| JWKS startup panic 连锁 | 7 service 同时 | `unwrap()` 在 startup 阶段，下游无 fallback | 已全局降级为 warn + 异步重试循环；应在 `common-jwt` 层统一处理 |
+| JWKS startup panic 连锁 | 7 service 同时 | `unwrap()` 在 startup 阶段，下游无 fallback | 已全局降级为 warn + 异步重试循环；应在 `digua_common-jwt` 层统一处理 |
 | Docker compose env 与服务代码不匹配 | 4+ | 新增 env 时未同步 compose | 本月已补 env doc per service；建议补 CI 级别的 env drift check |
 | utoipa swagger-ui SIGSEGV | 1 | 25+ endpoint ApiDoc 触发 v9 段错误 | workaround 降级 v8，已在 ai-context 记录 |
 | utoipa yaml feature 缺漏 | 1 | 新服务 Cargo.toml 漏加 | 已固化进 skill |
@@ -202,7 +202,7 @@
 ## 8. 经验沉淀
 
 1. **多租户 SQL 错误率高** — 点查迁移 5+ 次修复。参数化 `QueryBuilder` + `and_tenant` 模式已固化，但老路由仍需逐个审计。建议在 `sqlx` macro 层加 attribute macro 做 tenant_id 传染检查。
-2. **JWKS startup panic** 的教训：所有 service startup 阶段的 `unwrap()` 都应视为潜在 shutdown 风险点。`common-jwt` 层已统一用 fallback + 异步重试。
+2. **JWKS startup panic** 的教训：所有 service startup 阶段的 `unwrap()` 都应视为潜在 shutdown 风险点。`digua_common-jwt` 层已统一用 fallback + 异步重试。
 3. **发行工程无 spec 的代价**：`release/dist-template/` 打包了 1795 个文件，其中包含已不应存在的 PM 引用（历史 release archive 内）。如果有 spec，可以在提取 PM 时一并清理 release archive 的对应文件。
 4. **check-spec summary warning 不阻断但累积**：12 处 suggest 已在 6 月就存在，7 月没有减少。建议设"三个月清零 then 提升为 error"策略。
 5. **Java Spring Boot 服务模式已成熟**：3 个 coder-*-java-* skill 就绪，PM Platform 的 Java 实现验证了全链路（Springdoc → OpenAPI → Flyway → JWT → Dockerfile → service standard）。

@@ -50,7 +50,7 @@ root-owned from a docker volume (see root `AGENTS.md`).
 
 ## Errors
 
-Every method returns `Result<T, kudi_http_client::SdkError>`
+Every method returns `Result<T, digua_http_client::SdkError>`
 (re-exported as `<service>_sdk::SdkError`). The five variants per
 [`docs/superpowers/specs/2026-06-08-multi-lang-sdk-design.md` §9](../../docs/superpowers/specs/2026-06-08-multi-lang-sdk-design.md):
 
@@ -82,7 +82,7 @@ at least request shape, success parsing, and 401 → `SdkError::Auth`.
 ## Out of scope
 
 - **Service internal traffic** — Rust services don't use this SDK; they
-  use `libs/common-http`'s `ResilientClient` + `ServiceJwtCache` for
+  use `libs/digua_common-http`'s `ResilientClient` + `ServiceJwtCache` for
   internal m2m (different trust domain, different auth model).
 - **Java SDK** — unchanged, lives in `sdk/java/`.
 - **Multipart upload / binary download in file-service-sdk** —

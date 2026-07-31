@@ -18,7 +18,7 @@
 | **P2.3** | Coder skills | `coder-add-route` + `coder-migrate-db` | `9ca2042` |
 | **P2.4** | L4 triggers | `.trae/rules/project_rules.md` + pre-commit hooks | `304613f` |
 | **P2.5** | 前端验证 | notification center + password dropdown 已实施 | `6fbe848` |
-| **P3.1** | Prometheus + OTel scaffolding | Grafana dashboard + common-telemetry crate | `728a58f` |
+| **P3.1** | Prometheus + OTel scaffolding | Grafana dashboard + digua_common-telemetry crate | `728a58f` |
 | **P3.2** | Gateway 集中限流 | governor token bucket + 429 + Prometheus 计数 | `30b3708` |
 | **P3.3** | E2E stability | smoke + retry + preflight health check | `07a0922` |
 | **P3.4** | Canary rollout | Nginx + Consul + consul-template sidecar | `d21f738` |
@@ -102,7 +102,7 @@ scripts/git-hooks/pre-commit
 
 ### 代码 (Rust)
 ```
-libs/common-telemetry/{Cargo.toml, src/lib.rs}
+libs/digua_common-telemetry/{Cargo.toml, src/lib.rs}
 services/{audit,config,file,prue_backend}-service/src/bin/dump-openapi.rs
 services/api-gateway/src/middleware/rate_limit.rs
 services/api-gateway/tests/rate_limit_test.rs

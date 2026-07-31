@@ -1,6 +1,6 @@
-use common_event::events::{IamLoginSucceeded, IamUserCreated, IamUserDeleted};
-use common_event::routing_keys;
-use common_event::Envelope;
+use digua_common_event::events::{IamLoginSucceeded, IamUserCreated, IamUserDeleted};
+use digua_common_event::routing_keys;
+use digua_common_event::Envelope;
 
 #[test]
 fn routing_keys_match_yaml() {
@@ -59,11 +59,11 @@ fn iam_login_succeeded_round_trip() {
 
 #[test]
 fn iam_login_failed_codegen_present() {
-    use common_event::event::Event;
-    use common_event::events::IamLoginFailed;
+    use digua_common_event::event::Event;
+    use digua_common_event::events::IamLoginFailed;
     assert_eq!(IamLoginFailed::event_type(), "iam.login.failed");
     assert_eq!(IamLoginFailed::schema_version(), 1);
-    assert_eq!(common_event::routing_keys::IAM_LOGIN_FAILED, "iam.login.failed");
+    assert_eq!(digua_common_event::routing_keys::IAM_LOGIN_FAILED, "iam.login.failed");
     let _ = IamLoginFailed {
         username: "u".into(),
         user_id: Some("id".into()),
@@ -75,15 +75,15 @@ fn iam_login_failed_codegen_present() {
 
 #[test]
 fn notification_announcement_published_codegen_present() {
-    use common_event::event::Event;
-    use common_event::events::NotificationAnnouncementPublished;
+    use digua_common_event::event::Event;
+    use digua_common_event::events::NotificationAnnouncementPublished;
     assert_eq!(
         NotificationAnnouncementPublished::event_type(),
         "notification.announcement.published"
     );
     assert_eq!(NotificationAnnouncementPublished::schema_version(), 1);
     assert_eq!(
-        common_event::routing_keys::NOTIFICATION_ANNOUNCEMENT_PUBLISHED,
+        digua_common_event::routing_keys::NOTIFICATION_ANNOUNCEMENT_PUBLISHED,
         "notification.announcement.published"
     );
     let _ = NotificationAnnouncementPublished {
@@ -97,12 +97,12 @@ fn notification_announcement_published_codegen_present() {
 
 #[test]
 fn iam_permission_changed_codegen_present() {
-    use common_event::event::Event;
-    use common_event::events::IamPermissionChanged;
+    use digua_common_event::event::Event;
+    use digua_common_event::events::IamPermissionChanged;
     assert_eq!(IamPermissionChanged::event_type(), "iam.permission.changed");
     assert_eq!(IamPermissionChanged::schema_version(), 1);
     assert_eq!(
-        common_event::routing_keys::IAM_PERMISSION_CHANGED,
+        digua_common_event::routing_keys::IAM_PERMISSION_CHANGED,
         "iam.permission.changed"
     );
     let _ = IamPermissionChanged {

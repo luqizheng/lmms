@@ -16,7 +16,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```rust
 use std::sync::{Arc, Mutex};
-use notification_service_sdk::{NotificationClient, ListAnnouncementsQuery};
+use digua_notification_sdk::{NotificationClient, ListAnnouncementsQuery};
 
 let token = Arc::new(Mutex::new(Some("user.jwt".to_string())));
 let client = NotificationClient::new("https://gw.kudi.repos", move || {
@@ -47,7 +47,7 @@ for a in page.items {
 
 ## Errors
 
-All methods return `Result<T, kudi_http_client::SdkError>` (re-exported
-as `notification_service_sdk::SdkError`). Five variants per the
+All methods return `Result<T, digua_http_client::SdkError>` (re-exported
+as `digua_notification_sdk::SdkError`). Five variants per the
 multi-lang SDK design spec §9: `Auth` / `Validation` / `RateLimit` /
 `Server` / `Network`.

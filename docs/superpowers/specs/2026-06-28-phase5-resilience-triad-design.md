@@ -21,11 +21,11 @@
 - 下游瞬时抖动（连接重置 / 502 / 503）→ 无重试。
 - 下游持续故障 → gateway 仍不断打过去，无熔断短路，故障扩散、资源浪费。
 
-同时 `libs/common-http` 里残留一批 **2026-06-14 留下的孤儿脚手架**
+同时 `libs/digua_common-http` 里残留一批 **2026-06-14 留下的孤儿脚手架**
 （`circuit_breaker.rs` / `retry.rs` / `rate_limit.rs` / `axum.rs` / `benchmarks.rs`，
 对应旧 spec `phase4-perf-circuit-limit.md`）：
 
-- **没有任何 service import 使用**（`grep` 确认仅 `common-http` 内部互引）。
+- **没有任何 service import 使用**（`grep` 确认仅 `digua_common-http` 内部互引）。
 - `CircuitBreaker::is_available()` 的 Open 态计时逻辑有 bug：
   `Instant::now().checked_duration_since(Instant::now() - Duration::from_secs(last))`
   —— `last` 存的是 `Instant::now().elapsed()`（≈0），整个计时不成立。
@@ -36,15 +36,15 @@
 ## 2. 目标 / 非目标
 
 ### 目标
-- 在 `libs/common-http` 提供一个通用 **`ResilientClient`**（包 `reqwest::Client`），统一封装
+- 在 `libs/digua_common-http` 提供一个通用 **`ResilientClient`**（包 `reqwest::Client`），统一封装
   超时 / 重试 / 熔断三件套。
 - 本期把 **api-gateway 的 `forward_to_service`** 接到 `ResilientClient`，**每个下游 service
   一个独立熔断器**，状态通过 Prometheus 暴露到 gateway 现有 `/metrics`。
-- 删除并重写 `common-http` 里未被使用的韧性脚手架，消除双实现与死代码。
+- 删除并重写 `digua_common-http` 里未被使用的韧性脚手架，消除双实现与死代码。
 
 ### 非目标（YAGNI）
 - **不**接入其他服务间直调（token→user 等），后续迭代再扩面。
-- **不**做限流（gateway 已有 `governor` 实现，notification 用 `common_ratelimit`；本期 `rate_limit.rs` 删除不替换）。
+- **不**做限流（gateway 已有 `governor` 实现，notification 用 `digua_common_ratelimit`；本期 `rate_limit.rs` 删除不替换）。
 - **不**动 mTLS / `require_service_token`（属 Phase 5 子项目 A）。
 - **不**改 reqwest 为 tower::Service 栈（见 §6 决策记录）。
 
@@ -52,7 +52,7 @@
 
 | 决策点 | 选择 |
 |--------|------|
-| 注入点 | 通用库 `common-http`，但**本期仅接 gateway**；其他服务后续迭代 |
+| 注入点 | 通用库 `digua_common-http`，但**本期仅接 gateway**；其他服务后续迭代 |
 | 技术形态 | `ResilientClient` 包 `reqwest`，韧性作为显式调用逻辑（不硬碰 tower::Layer） |
 | 熔断粒度 | 按 `service_name` 一个 breaker，懒创建于 `DashMap` |
 | 状态暴露 | Prometheus gauge/counter，写入 gateway 现有 `/metrics` |
@@ -66,7 +66,7 @@ gateway forward_to_service(svc, req)
    │  服务发现(Consul discover) 已在此之前完成 ── 韧性边界之外，失败不喂 breaker（决策 9A）
    │  (parts.method, target_url, &parts.headers, body: Bytes)
    ▼
-ResilientClient (libs/common-http)            ── 每 gateway 实例一个（进程内，决策 1A）
+ResilientClient (libs/digua_common-http)            ── 每 gateway 实例一个（进程内，决策 1A）
    ├─ inner: reqwest::Client                  ── 复用现有连接池（保留 reqwest 自身 timeout 兜底）
    ├─ breakers: DashMap<String, Arc<CircuitBreaker>>   ── 按 service_name 懒创建（读锁优先，决策 15A）
    ├─ cfg: ResilienceConfig (timeout / overall_timeout / retry / breaker 参数)
@@ -103,7 +103,7 @@ ResilientClient (libs/common-http)            ── 每 gateway 实例一个（
 
 ## 5. 组件细节
 
-### 5.1 `CircuitBreaker`（`libs/common-http/src/circuit_breaker.rs`，重写）
+### 5.1 `CircuitBreaker`（`libs/digua_common-http/src/circuit_breaker.rs`，重写）
 
 - 状态：单个 `AtomicU8`（0=Closed,1=Open,2=HalfOpen）。
 - 计数：`failure_count` / `success_count`（`AtomicU64`）、`half_open_calls`（`AtomicU64`）。
@@ -123,7 +123,7 @@ ResilientClient (libs/common-http)            ── 每 gateway 实例一个（
 - 单测覆盖：默认 Closed；达阈值 Open；Open 超时后 HalfOpen；HalfOpen 成功满额 → Closed；HalfOpen 失败 → Open；
   **并发占额（决策 10A）：spawn ~100 个 task 在 HalfOpen 态同时 `is_available`，断言放行数 == `half_open_max_calls`**。
 
-### 5.2 `RetryPolicy`（`libs/common-http/src/retry.rs`，重写精简）
+### 5.2 `RetryPolicy`（`libs/digua_common-http/src/retry.rs`，重写精简）
 
 - 字段：`max_attempts: u32`、`base_delay: Duration`、`max_delay: Duration`、`jitter: f64`。
 - `delay_for(attempt)`：指数退避 `base_delay * 2^(attempt-1)`，`min(max_delay)`，加 `±jitter` 抖动。
@@ -134,7 +134,7 @@ ResilientClient (libs/common-http)            ── 每 gateway 实例一个（
 - **不再做字符串错误匹配**（旧 `error.contains("timeout")` 删除），改按错误枚举 / status 判定。
 - 单测：退避计算（含 cap）、jitter 在界内、`should_retry` 矩阵（方法 × 错误类型 × status）。
 
-### 5.3 `ResilientClient` + `ResilientError`（`libs/common-http/src/resilient.rs`，新增）
+### 5.3 `ResilientClient` + `ResilientError`（`libs/digua_common-http/src/resilient.rs`，新增）
 
 ```rust
 // 决策 5A：收到任何 HTTP 响应（含 5xx）都读成 owned 结构，错误枚举只表达「没拿到响应」
@@ -162,7 +162,7 @@ pub enum ResilientError {
   2xx/4xx 计 `record_success`（4xx 是请求问题，非下游故障）。429 计失败（下游过载）。
 - breaker 查找（决策 15A）：先 `breakers.get(svc)`（读锁）命中即 `clone` Arc；未命中才 `entry().or_insert_with(...)`（写锁）。
 
-### 5.4 配置 `ResilienceConfig`（`libs/common-http/src/config.rs`，重写）
+### 5.4 配置 `ResilienceConfig`（`libs/digua_common-http/src/config.rs`，重写）
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
@@ -195,7 +195,7 @@ gateway 配置（`GatewayConfig`）新增可选 `resilience:` 段映射到此；
 
 ## 7. 可观测性（决策 3A：`ResilienceObserver` trait + Prometheus）
 
-库定义 trait，gateway 实现写 Prometheus，`common-http` 不强绑监控栈：
+库定义 trait，gateway 实现写 Prometheus，`digua_common-http` 不强绑监控栈：
 
 ```rust
 pub trait ResilienceObserver: Send + Sync {
@@ -213,7 +213,7 @@ gateway 侧 impl 写入现有 `/metrics`：
 
 ## 8. 测试与验收
 
-### 8.1 单元测试（`common-http`）
+### 8.1 单元测试（`digua_common-http`）
 - `CircuitBreaker` 状态机全路径（见 §5.1）：默认 Closed、达阈值 Open、Open 超时→HalfOpen、HalfOpen 满额→Closed、HalfOpen 失败→Open。
 - **并发占额（决策 10A）**：spawn ~100 task 在 HalfOpen 态并发 `is_available`，断言放行数 == `half_open_max_calls`。
 - `RetryPolicy` 退避计算（含 cap）+ jitter 边界。
@@ -221,7 +221,7 @@ gateway 侧 impl 写入现有 `/metrics`：
 - **observer 回调（决策 13A）**：库内 mock `ResilienceObserver`（记录调用到 Vec），断言成功→`on_outcome(success)`、
   失败累积→`on_state_change(Open)`、重试→`on_retry` 在对应路径被触发。
 
-### 8.2 集成测试（gateway 或 common-http，用本地 axum mock 下游）
+### 8.2 集成测试（gateway 或 digua_common-http，用本地 axum mock 下游）
 项目无 `wiremock`；用本地 **axum mock server**（gateway dev-deps 已有 axum/tower/hyper/tokio-test）起假下游，覆盖：
 - 慢响应 → 单次超时触发，返回 504。
 - **overall deadline（决策 11A）**：持续慢下游（每次都超单次 timeout）→ 断言总耗时 ≤ `overall_timeout`+容差、
@@ -242,20 +242,20 @@ gateway 侧 impl 写入现有 `/metrics`：
 
 | 文件 | 处置 |
 |------|------|
-| `libs/common-http/src/axum.rs` | 删（中间件形态本期不用） |
-| `libs/common-http/src/benchmarks.rs` | 删 |
-| `libs/common-http/src/rate_limit.rs` | 删（限流另有实现，无人用；删时同步移除 `lib.rs` 的 `pub use`，决策 Issue 7） |
-| `libs/common-http/src/middleware.rs` | 查引用后删（疑似同批孤儿） |
-| `libs/common-http/src/service_discovery.rs`（`ConsulResolver`） | 删（grep 确认无外部引用） |
-| `libs/common-http/src/circuit_breaker.rs` | 重写（修 Open 计时 bug + HalfOpen 原子占额 2A） |
-| `libs/common-http/src/retry.rs` | 重写（rand + `should_retry` 策略归属 6A） |
-| `libs/common-http/src/config.rs` | 重写为 `ResilienceConfig`（含 `overall_timeout_ms`） |
-| `libs/common-http/src/resilient.rs` | 新增（`ResilientClient` / `ResilientError` / `UpstreamResponse` / `ResilienceObserver`） |
-| `libs/common-http/src/lib.rs` | 更新导出表 |
-| `libs/common-http/Cargo.toml` | 加 `dashmap`、`rand`、`bytes`；`prometheus` 不进库（observer trait 解耦）；移除 `axum`/`tower` 可选 feature（若不再用） |
+| `libs/digua_common-http/src/axum.rs` | 删（中间件形态本期不用） |
+| `libs/digua_common-http/src/benchmarks.rs` | 删 |
+| `libs/digua_common-http/src/rate_limit.rs` | 删（限流另有实现，无人用；删时同步移除 `lib.rs` 的 `pub use`，决策 Issue 7） |
+| `libs/digua_common-http/src/middleware.rs` | 查引用后删（疑似同批孤儿） |
+| `libs/digua_common-http/src/service_discovery.rs`（`ConsulResolver`） | 删（grep 确认无外部引用） |
+| `libs/digua_common-http/src/circuit_breaker.rs` | 重写（修 Open 计时 bug + HalfOpen 原子占额 2A） |
+| `libs/digua_common-http/src/retry.rs` | 重写（rand + `should_retry` 策略归属 6A） |
+| `libs/digua_common-http/src/config.rs` | 重写为 `ResilienceConfig`（含 `overall_timeout_ms`） |
+| `libs/digua_common-http/src/resilient.rs` | 新增（`ResilientClient` / `ResilientError` / `UpstreamResponse` / `ResilienceObserver`） |
+| `libs/digua_common-http/src/lib.rs` | 更新导出表 |
+| `libs/digua_common-http/Cargo.toml` | 加 `dashmap`、`rand`、`bytes`；`prometheus` 不进库（observer trait 解耦）；移除 `axum`/`tower` 可选 feature（若不再用） |
 | `docs/superpowers/specs/phase4-perf-circuit-limit.md` | 顶部标注 **superseded by 本 spec** |
 
-> 删除前对每个文件 `grep` 确认无引用（`middleware.rs`、`service_discovery.rs` 重点核实）；删后 `cargo build -p common-http` 验证无残留引用。
+> 删除前对每个文件 `grep` 确认无引用（`middleware.rs`、`service_discovery.rs` 重点核实）；删后 `cargo build -p digua_common-http` 验证无残留引用。
 
 ## 10. 风险与缓解
 
@@ -263,11 +263,11 @@ gateway 侧 impl 写入现有 `/metrics`：
 - **body clone 成本**：用 `Bytes`（引用计数，clone O(1)）；headers 入口准备一次复用（决策 16A）；gateway 已读全量 body，无额外内存形态变化。
 - **breaker 跨实例不共享（决策 1A）**：每 gateway 实例独立 breaker（进程内）。**已评估复用 gateway 现有 Redis（Phase 4.4 perm_epoch 已接入），
   结论：不值得**——熔断是本地资源保护语义（业界默认进程内），把 Redis 拖进每个 outbound 热路径的延迟成本 > 全局一致收益，且引入新 SPOF。明确记录为已知限制。
-- **`common-http` 不绑 prometheus（决策 3A）**：通过 `ResilienceObserver` trait 注入，库零监控栈依赖，提供 `NoopObserver` 默认实现。
+- **`digua_common-http` 不绑 prometheus（决策 3A）**：通过 `ResilienceObserver` trait 注入，库零监控栈依赖，提供 `NoopObserver` 默认实现。
 
 ## 11. 落地顺序（供 writing-plans 细化）
 
-1. `common-http` 删孤儿（axum/benchmarks/rate_limit/middleware/service_discovery，grep+build 验证）。
+1. `digua_common-http` 删孤儿（axum/benchmarks/rate_limit/middleware/service_discovery，grep+build 验证）。
 2. 重写 `CircuitBreaker`（修计时 bug + HalfOpen 原子占额 2A）+ 单测（含并发占额 10A）。
 3. 重写 `RetryPolicy`（rand + `should_retry` 策略归属 6A）+ `ResilienceConfig`（含 `overall_timeout_ms`）+ 单测。
 4. 定义 `ResilienceObserver` trait + `NoopObserver`（决策 3A）。
@@ -279,8 +279,8 @@ gateway 侧 impl 写入现有 `/metrics`：
 
 ## 12. NOT in scope（明确延后）
 
-- **韧性接入其他服务间直调**（token→user、各服务 `common-http::HttpClient` 调用点）——本期仅 gateway outbound；已加入 TODO.md。
-- **限流（rate limiting）**——gateway 已有 `governor`、notification 用 `common_ratelimit`；本期删 `rate_limit.rs` 不替换。
+- **韧性接入其他服务间直调**（token→user、各服务 `digua_common-http::HttpClient` 调用点）——本期仅 gateway outbound；已加入 TODO.md。
+- **限流（rate limiting）**——gateway 已有 `governor`、notification 用 `digua_common_ratelimit`；本期删 `rate_limit.rs` 不替换。
 - **mTLS / 服务网格 / 淘汰 `require_service_token`**——Phase 5 子项目 A，独立 spec。
 - **breaker 状态跨副本共享**——已评估并否决（§10，决策 1A）。
 - **OTel metrics**——本期用 Prometheus（gateway 现有），observer trait 已为未来换 OTel 解耦。

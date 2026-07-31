@@ -30,7 +30,7 @@ Best for large-scale theme changes and build-time customization.
 #### Available Variables
 
 Find all SCSS variables in:
-- [`packages/theme-chalk/src/common/var.scss`](https://github.com/element-plus/element-plus/blob/dev/packages/theme-chalk/src/common/var.scss)
+- [`packages/theme-chalk/src/digua_common/var.scss`](https://github.com/element-plus/element-plus/blob/dev/packages/theme-chalk/src/digua_common/var.scss)
 
 Key variable categories:
 - `$colors`: Color palette (primary, success, warning, danger, info)
@@ -45,7 +45,7 @@ Create a custom SCSS file (e.g., `styles/element/index.scss`):
 
 ```scss
 /* Override what you need */
-@forward 'element-plus/theme-chalk/src/common/var.scss' with (
+@forward 'element-plus/theme-chalk/src/digua_common/var.scss' with (
   $colors: (
     'primary': (
       'base': green,

@@ -38,7 +38,7 @@ Q1. 这个能力是新的业务限界上下文吗？
 
 **强约束**：
 - DB 表前缀必须在 `contracts/db-conventions.md` §「表名前缀映射」表格中**先新增**一行才能用，CI 才会放过；
-- 错误码 / 权限码必须先在 YAML 里加，**改完跑 `node scripts/contracts-gen.js`** 让 `libs/common-error/src/codes.rs` 与 `libs/authz/src/perms.rs` 重新生成。**禁止手改这两个生成文件**（参见 `ai-context.md` §7 坑点 9）；
+- 错误码 / 权限码必须先在 YAML 里加，**改完跑 `node scripts/contracts-gen.js`** 让 `libs/digua_common-error/src/codes.rs` 与 `libs/digua_authz/src/perms.rs` 重新生成。**禁止手改这两个生成文件**（参见 `ai-context.md` §7 坑点 9）；
 - 同一个服务**只能有一个**表前缀——不允许同服务里出现两个前缀。
 
 ---
@@ -56,7 +56,7 @@ Q1. 这个能力是新的业务限界上下文吗？
 | 是否调用其他服务 | 是 → 列出调用清单（决定 service-jwt 申请 + §4.7）；否 → 默认 |
 | 是否需要 WebSocket | 是 → 参照 notification-service `/notification/ws` 模式；否 → 跳过 |
 | 端口 | 容器内固定 `8080`，对外映射在 `infrastructure/docker-compose*.yml` 里 |
-| 是否启 OTel | 是 → `common-telemetry` + `common-telemetry-axum`；否 → 跳过 |
+| 是否启 OTel | 是 → `digua_common-telemetry` + `digua_common-telemetry-axum`；否 → 跳过 |
 | Swagger 默认开关 | dev 默认 `true`，prod 默认 `false`（按 iam / notification / config 的惯例） |
 
 ---
@@ -92,7 +92,7 @@ skill 完成后**人工核对**（skill 是模板，错的可能性极低但不�
 每个 handler 用 `libs/jwt-ctx::Principal` extractor 拿身份，**禁止读 `X-User-*` headers**。
 
 ```rust
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 
 async fn create_announcement(
     me: Principal,
@@ -157,7 +157,7 @@ NTF_ANNOUNCEMENT_NOT_FOUND:
 ```
 
 ```bash
-node scripts/contracts-gen.js   # 重新生成 libs/common-error/src/codes.rs 与 libs/authz/src/perms.rs
+node scripts/contracts-gen.js   # 重新生成 libs/digua_common-error/src/codes.rs 与 libs/digua_authz/src/perms.rs
 git diff libs/                   # 确认生成产物已更新
 ```
 
@@ -174,7 +174,7 @@ git diff libs/                   # 确认生成产物已更新
 **生产事件**（同步发送跨服务副作用）：
 
 1. `migrations/mysql/V{N+1}__xxx_outbox_events.sql` 建 outbox 表（命名 `<prefix>_outbox_events`）；
-2. 业务代码在 **同一 sqlx 事务**里写业务行 + 调用 `common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new("<svc>", payload))`；
+2. 业务代码在 **同一 sqlx 事务**里写业务行 + 调用 `digua_common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new("<svc>", payload))`；
 3. 新增 `services/<svc>-outbox-publisher/`（参考 `iam-outbox-publisher/` 模板），它是一个独立 bin（同镜像不同 CMD）；
 4. 在 `infrastructure/config/rabbitmq/definitions.json` 的 events exchange + queue 拓扑里登记新队列；
 5. `services/<svc>/Cargo.toml` 加 `[[bin]]` 出 publisher binary。
@@ -276,11 +276,11 @@ cargo run -p api-gateway -- validate --routes infrastructure/config/api-gateway/
 
 1. `Cargo.toml` 加依赖：
    ```toml
-   common-telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
-   common-telemetry-axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
+   digua_common-telemetry = { path = "../../libs/digua_common-telemetry", features = ["otlp"] }
+   digua_common-telemetry-axum = { path = "../../libs/digua_common-telemetry-axum", features = ["otlp"] }
    ```
 2. `src/main.rs` 在最前面 `init_tracing("<svc>")`；
-3. `src/routes/mod.rs` 在 `Router::new()` 后接 `.layer(common_telemetry_axum::tracing_layer())`；
+3. `src/routes/mod.rs` 在 `Router::new()` 后接 `.layer(digua_common_telemetry_axum::tracing_layer())`；
 4. docker-compose 里设 `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317`。
 
 详见 [`otel-tracing.md`](otel-tracing.md)。**两个 feature flag 缺一个 = 静默 stdout-only**（参见 `ai-context.md` §7 坑点 11）。
@@ -370,7 +370,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 - [ ] `infrastructure/config/api-gateway/routes/<svc>.router.toml` 已加，`api-gateway validate` 通过
 - [ ] `infrastructure/docker-compose-services.yml` 加 service entry，host port 未占用
 - [ ] `ConsulRegistrar` 在 `main.rs` 注册（模板默认已加）
-- [ ] 若启用 OTel：`common-telemetry` + `common-telemetry-axum` 都有 `otlp` feature
+- [ ] 若启用 OTel：`digua_common-telemetry` + `digua_common-telemetry-axum` 都有 `otlp` feature
 - [ ] `node scripts/check-service-standard.js` 8/8
 - [ ] `node scripts/check-spec.js` exit 0
 - [ ] `node scripts/contracts-gen.js --check` exit 0
@@ -390,9 +390,9 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 3. **本地 `cargo build` 链接器报错** — 缺 `cc`。统一跑 `node scripts/run-tests-docker.js <svc>`，或在 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl` 容器内构建（参见 `ai-context.md` §7 坑点 2）。
 4. **服务起来了但 Consul 健康检查一直 critical** — `/health` 在容器内不可达。检查：port 是否 8080、handler 是否同步返回、是否在 health 里查 DB（参见 §7.3）。
 5. **改完 handler 注解但 swagger 没更新** — `openapi.yaml` 是 **utoipa 自动生成**的，改代码后必须跑 `scripts/dump-openapi-specs.sh`，CI 用 `git diff --exit-code` 守护。**禁止手改 yaml**（参见 `ai-context.md` §7 坑点 4）。
-6. **手改 `libs/common-error/src/codes.rs`** — 该文件是 `contracts-gen.js` 生成品，改完下次跑就丢了。改 `contracts/error-codes.yaml` 再重生成（参见 `ai-context.md` §7 坑点 9）。
+6. **手改 `libs/digua_common-error/src/codes.rs`** — 该文件是 `contracts-gen.js` 生成品，改完下次跑就丢了。改 `contracts/error-codes.yaml` 再重生成（参见 `ai-context.md` §7 坑点 9）。
 7. **表名撞名** — 共库下所有表必须带前缀（参见 `contracts/db-conventions.md`）。`iam_users` 与历史的 `users` 同库内只能存在一个，违规由 `check-db-naming.js` 拦截。
-8. **OTel 启用了但不出现 trace** — `common-telemetry` + `common-telemetry-axum` 两个 crate 都得开 `otlp` feature，且 `OTEL_EXPORTER_OTLP_ENDPOINT` 必须设。两者缺一即为静默 stdout-only（参见 `ai-context.md` §7 坑点 11）。
+8. **OTel 启用了但不出现 trace** — `digua_common-telemetry` + `digua_common-telemetry-axum` 两个 crate 都得开 `otlp` feature，且 `OTEL_EXPORTER_OTLP_ENDPOINT` 必须设。两者缺一即为静默 stdout-only（参见 `ai-context.md` §7 坑点 11）。
 9. **JWKS / 服务 JWT 不知道去哪申请** — 看 `libs/jwt-ctx` 与 `token-service` 文档，新服务调他人才走 service-jwt；新服务**自己签发 JWT 给浏览器**不在新服务职责内，那是 token-service 的活。
 10. **删了/改了已发布迁移** — 全部服务处于开发期、无生产数据可以重建，**不要 amend 老迁移**，新增 `V{N+1}__*.sql`（参见 `ai-context.md` §7 坑点 5）。
 11. **把 outbox 事件 publish 用 `Envelope<serde_json::Value>`** — 会被路由到 `*`，下游无法按 service 过滤。Value 仅供**消费侧**反序列化用。

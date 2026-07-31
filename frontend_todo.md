@@ -192,7 +192,7 @@
 
 ### 4.2 平台级补全
 
-- **错误码前端字典**：`libs/common-error/src/codes.rs` 已有常量，需前端 `src/utils/error-codes.ts` 镜像 + i18n 文案；目前各页错误是裸英文/数字。
+- **错误码前端字典**：`libs/digua_common-error/src/codes.rs` 已有常量，需前端 `src/utils/error-codes.ts` 镜像 + i18n 文案；目前各页错误是裸英文/数字。
 - ✅ **`v-auth` / `v-perms` 全量回归**（2026-07-01 第二轮）：新增 `scripts/check-v-perms.js` linter，扫描 198 个 .vue 文件，0 违规。本轮新增 view（file / config / system/{tenant,session,dept/assign-users,token-client/api-keys,token-client/resource-probe}）全挂 perm。历史 view `monitor/logs/*` 因 legacy `useRole` 误用跳过（独立清理）
 - **菜单入口整理**：`router/modules/monitor.ts` `notification.ts` `system.ts` 完整性需校验（`monitor/` 5 页是否都在 sidebar 注册）。
 - **nginx.conf `/api/v1/file` `/api/v1/config` 转发**：选 A 方案则 nginx 不动；选 B 方案需补 location。
@@ -229,7 +229,7 @@
 
 ### 7.1 P0 — 没就会卡
 
-**permission matrix 落点未定** → **✓ 已落地（2026-07-01）**：`contracts/permissions.yaml` 增 8 码（`FILE_READ` + `CFG_CONFIG_REVEAL` + `CFG_NAMESPACE_{CREATE,READ,UPDATE,DELETE,EXPORT,IMPORT}`），`scripts/contracts-gen.js` 跑通，`libs/authz/src/perms.rs` 已重新生成；admin 种子策略沿用现有 `ensure_admin_default_permissions`（仅 `notification.admin`），其余需 `POST /iam/permissions` 入库后通过权限管理页分配。doc §1.1/§1.2/P2 UI 按钮的 `v-perms` 引用按新增码声明。
+**permission matrix 落点未定** → **✓ 已落地（2026-07-01）**：`contracts/permissions.yaml` 增 8 码（`FILE_READ` + `CFG_CONFIG_REVEAL` + `CFG_NAMESPACE_{CREATE,READ,UPDATE,DELETE,EXPORT,IMPORT}`），`scripts/contracts-gen.js` 跑通，`libs/digua_authz/src/perms.rs` 已重新生成；admin 种子策略沿用现有 `ensure_admin_default_permissions`（仅 `notification.admin`），其余需 `POST /iam/permissions` 入库后通过权限管理页分配。doc §1.1/§1.2/P2 UI 按钮的 `v-perms` 引用按新增码声明。
 
 **DTO 来源未定** → **✓ 已落地（2026-07-01）**：`scripts/openapi-codegen.js` 出 DTO 类型到 `frontend/src/api/{file,config}/{file,config}.types.ts`；运行时 `api/file.ts` / `api/config.ts` 手写 `http.request` 包装（注入 JWT header，codegen 出的 `FileClient` 类缺鉴权）。参考 `api/audit.ts` / `api/iam.ts` 既有模式。详见 §1.1 / §1.2 头部已更新的注释。
 
@@ -247,8 +247,8 @@
 
 | 项 | 落点 | 动作 |
 | --- | --- | --- |
-| 错误码 i18n 落地表 | `frontend/src/contracts/error-codes.zh-CN.ts` | 镜像 `libs/common-error/src/codes.rs`（数字 → 文案）；启用 `gen-ts.js` 已在 `frontend/src/contracts/`；helper `translateError()` 在 `frontend/src/utils/error-translate.ts`；`frontend/AGENTS.md` 已加使用规范 |
-| 写操作事件盘点 | `contracts/events.yaml` | ✓ 已落地（2026-07-01）：补 `file.uploaded` / `file.deleted` / `config.item.changed`，gen 重生成 `libs/common-event/src/{routing_keys,events}.rs`（10 事件）。`iam.user.roles_assigned` 沿用现有 `iam.permission.changed`（详见 `events.yaml` 注释 + AGENTS.md Phase 4.4 段），未重复造事件 |
+| 错误码 i18n 落地表 | `frontend/src/contracts/error-codes.zh-CN.ts` | 镜像 `libs/digua_common-error/src/codes.rs`（数字 → 文案）；启用 `gen-ts.js` 已在 `frontend/src/contracts/`；helper `translateError()` 在 `frontend/src/utils/error-translate.ts`；`frontend/AGENTS.md` 已加使用规范 |
+| 写操作事件盘点 | `contracts/events.yaml` | ✓ 已落地（2026-07-01）：补 `file.uploaded` / `file.deleted` / `config.item.changed`，gen 重生成 `libs/digua_common-event/src/{routing_keys,events}.rs`（10 事件）。`iam.user.roles_assigned` 沿用现有 `iam.permission.changed`（详见 `events.yaml` 注释 + AGENTS.md Phase 4.4 段），未重复造事件 |
 | sidebar 注册校验 | `scripts/check-router-modules.js` | ✓ 已落地（2026-07-01）：新增 `scripts/check-router-modules.js` 静态校验 `router/modules/*.ts` 每文件至少一条 `path:`。Sidebar 数据由 `prue_backend/get-async-routes` 从 `prue_menu_configs` 读出，模块文件 ↔ 菜单配置项一一对应（路径前缀一致）。新视图上线流程：1) 写 view → 2) 写 `router/modules/<svc>.ts` → 3) 通过菜单配置 UI 创建并 publish 菜单项 → 4) sidebar 自动出现 |
 | audit gateway 多段路径 | `audit.router.toml` | ✓ 已落地（2026-07-01）：`{rest}` **能**吞多段（`/v1/audit/export/{rest}` 吞 `compliance/operation/csv`；`/v1/audit/retention/{rest}` 吞 `stage/<date>`）。镜像 `services/api-gateway/src/template.rs:106-119` 的 TplPart::Var 抓取到 input 末尾或下个 literal 处。新增 `scripts/check-audit-routes.js` 跑测试，6/6 全过。无须改 router.toml |
 
@@ -262,7 +262,7 @@
 
 ### 7.4 隔壁建议（不属于对接清单）
 
-- **user-roles redis 缓存**：§2.1 P0 联通后需确认 PUT 是否进 redis，否则频繁切角色拖慢（`redis.keys` + `authz` lookup 应同步）。
+- **user-roles redis 缓存**：§2.1 P0 联通后需确认 PUT 是否进 redis，否则频繁切角色拖慢（`redis.keys` + `digua_authz` lookup 应同步）。
 - **docker 网络可达性回归**：§3「前端在服务起来后可直连」缺命令，补 `docker compose -f docker-compose-services.yml ps file-service config-service` 验证容器健康。
 
 ---

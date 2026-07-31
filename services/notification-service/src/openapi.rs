@@ -27,8 +27,8 @@ use crate::{migration_state_route, models, rest};
             models::Status,
             models::ScopeType,
             rest::ListQuery,
-            common_db::migration_state::MigrationStateResponse,
-            common_db::migration_state::MigrationInfo,
+            digua_common_db::migration_state::MigrationStateResponse,
+            digua_common_db::migration_state::MigrationInfo,
         )
     ),
     tags(

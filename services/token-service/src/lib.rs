@@ -1,5 +1,5 @@
 use crate::db::DbPool;
-use common_http::ResilientClient;
+use digua_common_http::ResilientClient;
 
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
@@ -50,11 +50,11 @@ pub struct TokenServerState {
     /// 32-byte random token; rotate by editing this list and restarting.
     pub bootstrap_tokens: Vec<String>,
     /// Phase 5-B: JWKS cache for verifying inbound tokens.
-    pub jwks: Arc<common_jwt::JWKSCache>,
+    pub jwks: Arc<digua_common_jwt::JWKSCache>,
 }
 
-impl jwt_ctx::PrincipalStateProvider for TokenServerState {
-    fn jwks(&self) -> Arc<common_jwt::JWKSCache> {
+impl digua_jwt_ctx::PrincipalStateProvider for TokenServerState {
+    fn jwks(&self) -> Arc<digua_common_jwt::JWKSCache> {
         self.jwks.clone()
     }
 }
@@ -77,4 +77,4 @@ pub use issuer::TokenIssuer;
 pub use routes::service_jwt::{
     handle_service_jwt, routes as service_jwt_routes, ServiceJwtRequest, ServiceJwtResponse,
 };
-pub use common_jwt;
+pub use digua_common_jwt;

@@ -8,7 +8,7 @@ A microservices architecture for coder platform, built with Rust.
 
 **Full documentation**: [`docs-site/user-manual/`](docs-site/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 
-**AI entry point**: [`docs-site/ai-context.md`](docs-site/ai-context.md) — service map, known pitfalls, common commands (read first when starting work in this repo).
+**AI entry point**: [`docs-site/ai-context.md`](docs-site/ai-context.md) — service map, known pitfalls, digua_common commands (read first when starting work in this repo).
 
 ## 快速开始（本地开发与测试）
 

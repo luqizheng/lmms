@@ -1,4 +1,4 @@
-use common_error::{AppError, ErrorKind};
+use digua_common_error::{AppError, ErrorKind};
 
 #[test]
 fn bad_request_has_correct_kind() {

@@ -1,8 +1,8 @@
-# Fix: common-ratelimit pipeline 返回解析失败 → 限流失效（Bug #4）
+# Fix: digua_common-ratelimit pipeline 返回解析失败 → 限流失效（Bug #4）
 
 > 日期：2026-07-11
 > 关联：docs/superpowers/specs/2026-07-11-e2e-coverage-and-bugs.md §2 Bug #4
-> 范围：`libs/common-ratelimit/src/lib.rs::check` 单函数修复
+> 范围：`libs/digua_common-ratelimit/src/lib.rs::check` 单函数修复
 > 风险：低（单文件、行为可观测、有 e2e 验证）
 
 ---
@@ -11,7 +11,7 @@
 
 ### 1.1 Bug 行为
 
-`RateLimiter::check`（libs/common-ratelimit/src/lib.rs:118-152）使用 Redis pipeline 4 个命令：
+`RateLimiter::check`（libs/digua_common-ratelimit/src/lib.rs:118-152）使用 Redis pipeline 4 个命令：
 
 ```rust
 let res: Result<i64, redis::RedisError> = redis::pipe()
@@ -35,7 +35,7 @@ error=Response was of incompatible type - TypeError: "Response type not converti
 
 ### 1.2 影响面
 
-- **依赖 common-ratelimit 的 service**：
+- **依赖 digua_common-ratelimit 的 service**：
   - `services/api-gateway`（P3.2 网关层限流，所有路由都受影响）
   - `services/notification-service`（业务层限流，公告发布等）
 - **生产后果**：DDoS 防护、暴力破解防护、突发流量保护全部失效。auth 端点 5 rps / 10 burst 配置形同虚设。
@@ -118,7 +118,7 @@ Lua 脚本方案优势：
 node scripts/run-tests-docker.js
 # 或单测：
 CARGO_TARGET_DIR=/tmp/rl-target SWAGGER_UI_DOWNLOAD_URL=file://$(pwd)/infrastructure/vendor/swagger-ui-v5.17.14.zip \
-  cargo test -p common-ratelimit
+  cargo test -p digua_common-ratelimit
 ```
 
 期望：单测全过（现有 unit_test.rs 不改，新增 test_pipeline_return_array 覆盖修复路径—— 但单测无法构造 RateLimiter，需 docker Redis；本 PR 暂不加集成测试，靠 e2e 验证）
@@ -227,7 +227,7 @@ done
 
 ## 6. 验证完成标准（Definition of Done）
 
-- [x] `cargo test -p common-ratelimit` 全过（1/1 test pass）
+- [x] `cargo test -p digua_common-ratelimit` 全过（1/1 test pass）
 - [x] `node scripts/e2e-rate-limit.js` exit code 0
 - [x] 网关日志无 `redis check failed, failing open`（实测确认）
 - [x] e2e-rate-limit 输出 `通过: 9/15, 429: 6, 带 Retry-After: 6`（实际优于 spec 预期 10/15, 429: 5）

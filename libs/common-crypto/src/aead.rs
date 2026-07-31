@@ -3,7 +3,7 @@ use aes_gcm::{
     Key, Nonce,
 };
 pub use aes_gcm::Aes256Gcm;
-use common_error::{AppError, AppResult};
+use digua_common_error::{AppError, AppResult};
 
 pub fn gen_key() -> [u8; 32] {
     use rand::RngCore;

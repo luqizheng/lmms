@@ -1,4 +1,4 @@
-use common_http::{CircuitState, Outcome, ResilienceObserver};
+use digua_common_http::{CircuitState, Outcome, ResilienceObserver};
 use prometheus::{register_int_counter_vec, register_int_gauge_vec, IntCounterVec, IntGaugeVec};
 use std::sync::OnceLock;
 

@@ -1,4 +1,4 @@
-use common_validator::{is_cn_mobile, is_strong_password};
+use digua_common_validator::{is_cn_mobile, is_strong_password};
 
 #[test]
 fn cn_mobile_accepts_valid() {

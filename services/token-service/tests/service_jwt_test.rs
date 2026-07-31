@@ -7,16 +7,16 @@ use axum::{
     body::Body,
     http::{header, Request, StatusCode},
 };
-use common_jwt::verify_token;
+use digua_common_jwt::verify_token;
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
-const TEST_PRIVATE_PEM: &str = include_str!("../../../libs/common-jwt/tests/fixtures/test_private.pem");
-const TEST_PUBLIC_PEM: &str = include_str!("../../../libs/common-jwt/tests/fixtures/test_public.pem");
+const TEST_PRIVATE_PEM: &str = include_str!("../../../libs/digua_common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str = include_str!("../../../libs/digua_common-jwt/tests/fixtures/test_public.pem");
 
 fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServerState {
     let pool = sqlx::mysql::MySqlPool::connect_lazy("mysql://placeholder").unwrap();
-    let jwks = std::sync::Arc::new(common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap());
+    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap());
     token_service::TokenServerState {
         db: token_service::db::DbPool::Mysql(pool),
         issuer: std::sync::Arc::new(
@@ -27,10 +27,10 @@ fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServer
         jwt_public_key: TEST_PUBLIC_PEM.into(),
         default_resource_ttl_sec: 3600,
         http_client: std::sync::Arc::new(
-            common_http::ResilientClient::new(
+            digua_common_http::ResilientClient::new(
                 reqwest::Client::new(),
-                common_http::ResilienceConfig::default(),
-                std::sync::Arc::new(common_http::NoopObserver),
+                digua_common_http::ResilienceConfig::default(),
+                std::sync::Arc::new(digua_common_http::NoopObserver),
             ),
         ),
         user_service_url: "http://iam-service:8081".into(),
@@ -63,7 +63,7 @@ async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
     let access_token = parsed["access_token"].as_str().unwrap();
 
     // Verify with the public key
-    let cache = common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
+    let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
     let claims =
         verify_token(access_token, &cache, Some("iam-service"))
             .await

@@ -112,7 +112,7 @@ impl Modify for SecurityAddon {
         dto::PermissionQuery,
         internal_membership::MembershipBootstrap,
         internal_membership::UserMembership,
-        common_db::migration_state::MigrationStateResponse,
+        digua_common_db::migration_state::MigrationStateResponse,
     )),
     modifiers(&SecurityAddon),
     tags(

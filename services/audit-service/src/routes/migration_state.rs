@@ -3,7 +3,7 @@
 //! Phase 10 G3 接入。
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
-use common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
+use digua_common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
 use serde_json::json;
 use utoipa::path as to_path;
 

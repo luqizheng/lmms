@@ -101,8 +101,8 @@ Hook 自动跑：
 
 ```bash
 node scripts/contracts-gen.js
-# 生成 libs/common-error/src/codes.rs
-# 生成 libs/authz/src/perms.rs
+# 生成 libs/digua_common-error/src/codes.rs
+# 生成 libs/digua_authz/src/perms.rs
 ```
 
 **改路由注解**（`#[utoipa::path]`）：

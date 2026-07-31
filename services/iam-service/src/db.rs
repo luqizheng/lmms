@@ -14,7 +14,7 @@ const V004_MARKER_TABLE: &str = "iam_migration_v004_applied";
 const V005_MARKER_TABLE: &str = "iam_migration_v005_applied";
 
 pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
-    let pool = common::db::connect(&config.url, config.max_connections).await?;
+    let pool = digua_common::db::connect(&config.url, config.max_connections).await?;
     ensure_schema(&pool).await?;
     Ok(pool)
 }

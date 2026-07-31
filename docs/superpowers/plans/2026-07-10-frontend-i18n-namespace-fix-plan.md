@@ -73,7 +73,7 @@ modified:   frontend/locales/zh-CN.yaml (+1)
 |---|---|---|
 | A. 改 yaml：把 keys 从 `buttons:`/`login:` 移到 `menus:` | 调用方代码零改动；一次到位；尊重 commit 中开发者"用 menus: namespace"的意图（commit message 都明示了 `t('menus.xxx')`） | yaml 数据迁移有机械工作量，但可控 |
 | B. 改 .vue/.test.ts：把 `t('menus.X')` 改成 `t('buttons.X')` | 改 38+ 个文件、422 处调用；yaml 不动 | 工作量大、易漏改；破坏未来 yaml 重构意图 |
-| C. 重整 namespace（新建 `views:`/`common:` 等） | 语义最清晰 | 远超 bugfix 范围；属新设计 |
+| C. 重整 namespace（新建 `views:`/`digua_common:` 等） | 语义最清晰 | 远超 bugfix 范围；属新设计 |
 
 **采用 A**：最小修复 + 一次到位 + 符合 commit 意图。
 
@@ -221,7 +221,7 @@ git checkout HEAD -- frontend/locales/zh-CN.yaml frontend/locales/en.yaml
 
 - 调用方 `.vue`/`.test.ts` 文件修改（保持原状）
 - yaml 中其它 namespace 重整（`search:`/`panel:`/`status:`/`tableBar:`/`changePassword:`）
-- 新建 namespace（`views:`/`common:` 等）
+- 新建 namespace（`views:`/`digua_common:` 等）
 - i18n 文案 review / 翻译润色
 - 把"纯按钮" key 也从 `buttons:` 移到 `menus:`（如果有 `t('menus.X')` 调用的，已经在 363 keys 范围；纯按钮无调用方的不动）
 

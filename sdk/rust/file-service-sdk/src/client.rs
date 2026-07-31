@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use kudi_http_client::client::KudiWebClient;
-use kudi_http_client::{transport::HttpResponse, SdkError};
+use digua_http_client::client::KudiWebClient;
+use digua_http_client::{transport::HttpResponse, SdkError};
 
 use crate::model::{
     CreatePresignUrl, FileInfo, ListFilesQuery, PagedFiles, PresignUrlResponse,

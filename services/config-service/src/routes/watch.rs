@@ -1,5 +1,5 @@
 use axum::{extract::State, extract::Query, http::StatusCode};
-use jwt_ctx::TenantScope;
+use digua_jwt_ctx::TenantScope;
 use crate::routes::AppState;
 use serde::Deserialize;
 use std::time::Duration;

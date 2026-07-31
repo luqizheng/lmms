@@ -3,14 +3,14 @@
 //! Validates that the file-service correctly applies tenant_id filter:
 //! - platform_admin (cross_tenant=true) sees files from any tenant
 //! - regular tenant-scoped user only sees files in their own tenant
-mod common;
+mod digua_common;
 
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
 use file_service::routes::{self, create_state};
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use jwt_simple::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ struct Ctx {
 }
 
 async fn setup() -> Ctx {
-    let h = common::spawn_mysql().await;
+    let h = digua_common::spawn_mysql().await;
     let pool = h.pool;
     let app = build_app(pool.clone(), h.storage);
     Ctx { app, pool }

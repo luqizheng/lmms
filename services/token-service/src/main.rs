@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use common_http::{NoopObserver, ResilientClient, ResilienceConfig};
+use digua_common_http::{NoopObserver, ResilientClient, ResilienceConfig};
 use token_service::config::{load_config_with_env, DEFAULT_CONFIG_PATH};
 use token_service::openapi::ApiDoc;
 use token_service::routes;
@@ -13,14 +13,14 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() {
-    common_telemetry::init_tracing("token-service");
+    digua_common_telemetry::init_tracing("token-service");
 
     let config_path = std::env::var("CONFIG_PATH")
         .unwrap_or_else(|_| DEFAULT_CONFIG_PATH.to_string());
 
     // Optional: pull a HashMap from config-service and treat it as a
     // lower-priority env fallback. Process env still wins the final say.
-    // Historical `common_config::Loader` did the same thing via a
+    // Historical `digua_common_config::Loader` did the same thing via a
     // `set_override` layer; we replicate it here so the config-service
     // dogfood story still works after the Loader retirement.
     let remote_env: std::collections::HashMap<String, String> = fetch_remote_config_env();
@@ -93,8 +93,8 @@ async fn main() {
 // We are the JWKS source. Self-loopback via refresh() would race with
     // axum::serve binding (the listener isn't accepting yet) and leave the
     // cache empty on every restart, breaking inbound service-jwt verify.
-    let jwks_cache: std::sync::Arc<common_jwt::JWKSCache> =
-        std::sync::Arc::new(common_jwt::JWKSCache::from_pem(&public_key_pem)
+    let jwks_cache: std::sync::Arc<digua_common_jwt::JWKSCache> =
+        std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(&public_key_pem)
             .expect("JWKSCache::from_pem"));
 
     let state = TokenServerState {
@@ -184,7 +184,7 @@ async fn main() {
             axum::routing::post(routes::admin::handle_reset_secret),
         )
         .route_layer(axum::middleware::from_fn(
-            common_telemetry_axum::trace_request_middleware,
+            digua_common_telemetry_axum::trace_request_middleware,
         ))
         .with_state(state.clone());
 
@@ -210,7 +210,7 @@ async fn main() {
             )
             .layer(axum::middleware::from_fn_with_state(
                 state.clone(),
-                authz::verify_aud_principal_middleware::<token_service::TokenServerState>("token-service"),
+                digua_authz::verify_aud_principal_middleware::<token_service::TokenServerState>("token-service"),
             ))
             .with_state(state.clone()),
     );
@@ -219,7 +219,7 @@ async fn main() {
         token_service::routes::migration_state::routes(state.clone())
             .layer(axum::middleware::from_fn_with_state(
                 state.clone(),
-                authz::verify_aud_principal_middleware::<token_service::TokenServerState>("token-service"),
+                digua_authz::verify_aud_principal_middleware::<token_service::TokenServerState>("token-service"),
             )),
     );
 
@@ -267,7 +267,7 @@ async fn main() {
 /// Failure is soft: any error is logged and treated as "no remote config",
 /// so a config-service outage never blocks token-service startup.
 ///
-/// This is the retirement path for `common_config::Loader::with_config_service`;
+/// This is the retirement path for `digua_common_config::Loader::with_config_service`;
 /// the returned map is layered UNDER `std::env::var` in `main`, keeping the
 /// process env's precedence unchanged.
 fn fetch_remote_config_env() -> std::collections::HashMap<String, String> {

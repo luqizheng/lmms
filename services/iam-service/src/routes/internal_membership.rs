@@ -14,7 +14,7 @@
 //! - deleted_at IS NULL 的 user 才返回
 
 use axum::{extract::State, Json};
-use jwt_ctx::Principal;
+use digua_jwt_ctx::Principal;
 use serde::Serialize;
 use sqlx::Row;
 use std::collections::HashMap;

@@ -75,7 +75,7 @@ vs Java SDK（`sdk/java/`）的对照：
 ### 3.1 终端用户（username + password）
 
 ```rust
-use iam_service_sdk::IamClient;
+use digua_iam_sdk::IamClient;
 
 let (client, login) = IamClient::login(
     "https://gw.example.com",
@@ -85,7 +85,7 @@ let (client, login) = IamClient::login(
 
 // login.access_token 已缓存在 client 内部，每次调用自动带 Bearer
 let page = client.list_users(
-    &iam_service_sdk::ListUsersQuery::new().page(0).size(20)
+    &digua_iam_sdk::ListUsersQuery::new().page(0).size(20)
 ).await?;
 ```
 
@@ -100,8 +100,8 @@ let page = client.list_users(
 ### 3.2 服务间（client_credentials）
 
 ```rust
-use kudi_http_client::KudiWebClient;
-use kudi_http_client::error::KudiHttpError;
+use digua_http_client::KudiWebClient;
+use digua_http_client::error::KudiHttpError;
 
 let http = KudiWebClient::builder()
     .credential("contract-svc", "secret-111")
@@ -120,7 +120,7 @@ let resp = http.get("https://iam-svc.iam/v1/iam/users", None).await?;
 
 ```rust
 use std::sync::{Arc, Mutex};
-use iam_service_sdk::IamClient;
+use digua_iam_sdk::IamClient;
 
 let token = Arc::new(Mutex::new(Some("user.jwt".into())));
 let client = IamClient::new("https://gw.example.com", move || {
@@ -142,16 +142,16 @@ client.logout().await?;
 | 场景 | 工具 | 认证 |
 |---|---|---|
 | 你的 Rust 应用 → 平台（跨网络边界） | `sdk/rust/<svc>-sdk` | user JWT / client_credentials |
-| 平台 Rust 服务 A → 服务 B（集群内） | `libs/common-http::ResilientClient` | service-jwt（aud=目标服务） |
+| 平台 Rust 服务 A → 服务 B（集群内） | `libs/digua_common-http::ResilientClient` | service-jwt（aud=目标服务） |
 
 详细原因：
 
-- **认证模型不同**：SDK 走 OAuth（`/v1/tokens/access` 换 token + cache）；服务内部走 `common_jwt::ServiceJwtCache`（平台内部签发，不换 token）。
+- **认证模型不同**：SDK 走 OAuth（`/v1/tokens/access` 换 token + cache）；服务内部走 `digua_common_jwt::ServiceJwtCache`（平台内部签发，不换 token）。
 - **网络路径不同**：SDK 走公网 api-gateway；服务内部走 Consul 直连 `/<svc>/internal/...` internal 端点。
 - **弹性需求不同**：SDK 自带简单 retry；服务内部 `ResilientClient` 带完整熔断器 + overall deadline + Prometheus observer。
 - **架构方向**：项目正在用 RabbitMQ + transactional outbox 替代 service 间同步 HTTP（详见 `docs-site/guides/architecture-notes` 暂无独立条目，参见 [`docs-site/decisions/ADR-002-service-standard-baseline`](../../docs-site/decisions/ADR-002-service-standard-baseline) 与 `TODO.md` Phase 4/5B），引入 SDK 做 service 间调用**南辕北辙**。
 
-如果你的需求是「**我也是平台内的一个 Rust 服务，要调其它 service 的 internal 端点**」，请用 `libs/common-http::ResilientClient` + `common_jwt::ServiceJwtCache`，**不要**用 SDK。
+如果你的需求是「**我也是平台内的一个 Rust 服务，要调其它 service 的 internal 端点**」，请用 `libs/digua_common-http::ResilientClient` + `digua_common_jwt::ServiceJwtCache`，**不要**用 SDK。
 
 ---
 
@@ -169,7 +169,7 @@ serde_json = "1"
 `src/main.rs`：
 
 ```rust
-use iam_service_sdk::{IamClient, ListUsersQuery};
+use digua_iam_sdk::{IamClient, ListUsersQuery};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -191,7 +191,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 3. 创建用户（需 admin 权限）
-    let new_user = client.create_user(&iam_service_sdk::CreateUserRequest {
+    let new_user = client.create_user(&digua_iam_sdk::CreateUserRequest {
         username: "bob".into(),
         password: "secret".into(),
         nickname: "Bob".into(),
@@ -221,7 +221,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 6. 错误模型
 
-所有方法返回 `Result<T, kudi_http_client::SdkError>`（在每个 crate 里 re-export 为 `<crate>::SdkError`）。五种 variant 严格按 multi-lang SDK design spec §9：
+所有方法返回 `Result<T, digua_http_client::SdkError>`（在每个 crate 里 re-export 为 `<crate>::SdkError`）。五种 variant 严格按 multi-lang SDK design spec §9：
 
 | HTTP | Error variant | 含义 |
 |---|---|---|

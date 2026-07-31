@@ -1,6 +1,6 @@
-use common_event::events::IamUserCreated;
-use common_event::outbox::{MySqlOutboxRepo, OutboxRepo, OutboxRow};
-use common_event::Envelope;
+use digua_common_event::events::IamUserCreated;
+use digua_common_event::outbox::{MySqlOutboxRepo, OutboxRepo, OutboxRow};
+use digua_common_event::Envelope;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
 use testcontainers::runners::AsyncRunner;

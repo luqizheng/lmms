@@ -11,7 +11,7 @@ pub mod users;
 pub use internal_users::TenantIdQuery;
 
 use axum::{Router, middleware as axum_mw, routing::get};
-use authz::verify_aud_principal_middleware;
+use digua_authz::verify_aud_principal_middleware;
 use crate::state::AppState;
 use prometheus::{Encoder, TextEncoder};
 
@@ -54,7 +54,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(internal_migration_state)
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(common_telemetry_axum::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
 }
 
 async fn health() -> &'static str {

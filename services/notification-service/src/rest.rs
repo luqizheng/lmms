@@ -8,9 +8,9 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use common_jwt::JWKSCache;
-use common_ratelimit::{Limit, RateLimiter, rate_limit_middleware};
-use jwt_ctx::{PrincipalStateProvider, TenantScope};
+use digua_common_jwt::JWKSCache;
+use digua_common_ratelimit::{Limit, RateLimiter, rate_limit_middleware};
+use digua_jwt_ctx::{PrincipalStateProvider, TenantScope};
 use serde::Deserialize;
 use std::sync::Arc;
 

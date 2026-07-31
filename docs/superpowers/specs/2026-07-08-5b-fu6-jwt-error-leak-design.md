@@ -106,7 +106,7 @@ async fn bad_signature_returns_401() {
 | # | 错误路径 | 构造方式 |
 |---|---|---|
 | 1 | 签名错 | 复用 3.2 模式（`A{rest_of_sig}`） |
-| 2 | token 过期 | `sign_token` 用 `Duration::from_secs(0)`，调用前 `tokio::time::sleep(Duration::from_millis(1100))` 越过 exp 边界；或直接构造 `exp: 1` claims + 用 `sign_token` 内部覆盖（需读源码确认 `iat/exp` 是否被覆盖 → 源码 `libs/common-jwt/src/verify.rs:37-40` 显示 `iat` / `exp` 都被覆盖，故必须 sleep） |
+| 2 | token 过期 | `sign_token` 用 `Duration::from_secs(0)`，调用前 `tokio::time::sleep(Duration::from_millis(1100))` 越过 exp 边界；或直接构造 `exp: 1` claims + 用 `sign_token` 内部覆盖（需读源码确认 `iat/exp` 是否被覆盖 → 源码 `libs/digua_common-jwt/src/verify.rs:37-40` 显示 `iat` / `exp` 都被覆盖，故必须 sleep） |
 | 3 | 缺 sub | `sign_token` 时 claims 无 `sub` |
 | 4 | 缺 tid | `sign_token` 时 claims 无 `tid` |
 | 5 | 错误签发 key | 测试 fixture 引入第二对 PEM（`tests/fixtures/other_private.pem` + `other_public.pem`），用它签 token、用 `TEST_PUBLIC_PEM` 验 |
@@ -132,7 +132,7 @@ async fn assert_401_empty_body(app: Router, token_header_value: String) {
 
 ### 3.4 第二对 RSA key fixture
 
-仅 `libs/jwt-ctx/tests/fixtures/` 下新增（`common-jwt` 不需要 mirror ——
+仅 `libs/jwt-ctx/tests/fixtures/` 下新增（`digua_common-jwt` 不需要 mirror ——
 它的 `sign_token` 只接 `&str` PEM 参数，公钥在 `JWKSCache::from_pem` 时由
 jwt-ctx 测试自己加载）：
 

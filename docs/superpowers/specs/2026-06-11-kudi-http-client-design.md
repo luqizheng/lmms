@@ -46,7 +46,7 @@
 
 | 项 | 决策 |
 |----|------|
-| 命名空间 | .NET `KudiCoder.HttpClient` / Java `com.kudi.coder.httpclient` / Rust `kudi_http_client` |
+| 命名空间 | .NET `KudiCoder.HttpClient` / Java `com.kudi.coder.httpclient` / Rust `digua_http_client` |
 | 类名 | `KudiWebClient`（沿用用户原话） |
 | 依赖底座 | .NET `HttpClient` / Java `java.net.http.HttpClient`（8 走 `HttpURLConnection`）/ Rust `reqwest` |
 | 服务票据获取 | 复用 `token-service` 现有 `POST /api/tokens/access`，`grant_type=client_credentials` |
@@ -141,7 +141,7 @@ Rust 端首次进入 `sdk/`，与 `sdk/dotnet`、`sdk/java` 对称；`Cargo.toml
 |------|------|
 | .NET | packageId `KudiCoder.HttpClient`，RootNamespace `KudiCoder.HttpClient`，TargetFrameworks `net6.0;net9.0;net10.0` |
 | Java | groupId `com.kudi.coder`，artifactId `kudi-http-client`，`maven.compiler.release` profile 8/17/21 |
-| Rust | crate `kudi-http-client`，库名 `kudi_http_client`，edition 2021 |
+| Rust | crate `kudi-http-client`，库名 `digua_http_client`，edition 2021 |
 
 版本号随 monorepo tag（`0.1.0` 起）。
 
@@ -196,7 +196,7 @@ http.get("http://user-svc/api/users/me", userJwt);
 ### Rust
 
 ```rust
-use kudi_http_client::{KudiWebClient, KudiHttpOptions, Method, RequestBody};
+use digua_http_client::{KudiWebClient, KudiHttpOptions, Method, RequestBody};
 
 let http = KudiWebClient::builder()
     .credential("合同系统OrKey", "111")
@@ -230,7 +230,7 @@ http.get_with_bearer("http://user-svc/api/users/me", &user_jwt).await?;
 ## 8. HTTP 客户端
 
 - .NET：`System.Net.Http.HttpClient`，`IHttpClientFactory` 友好；连接池复用由调用方决定（SDK 不在静态字段持有 `HttpClient`）
-- Java 11+：`java.net.http.HttpClient`；Java 8：`HttpURLConnection`（按 `maven.compiler.release` profile 分支编译，与现有 `sdk/java/common` 策略一致）
+- Java 11+：`java.net.http.HttpClient`；Java 8：`HttpURLConnection`（按 `maven.compiler.release` profile 分支编译，与现有 `sdk/java/digua_common` 策略一致）
 - Rust：`reqwest` 默认 feature（`rustls-tls`），共享 `reqwest::Client`（内部 `Arc`）
 
 ## 9. 错误模型
@@ -262,7 +262,7 @@ http.get_with_bearer("http://user-svc/api/users/me", &user_jwt).await?;
 ## 11. 构建
 
 - .NET：`Directory.Build.props` 统一 `Version` / `Authors` / `RepositoryUrl`；`KudiCoder.sln` 加新项目
-- Java：父 `sdk/java/pom.xml` 加 module；`common` 的 `HttpClientWrapper` 复用为底座（不破坏性）
+- Java：父 `sdk/java/pom.xml` 加 module；`digua_common` 的 `HttpClientWrapper` 复用为底座（不破坏性）
 - Rust：仓库根 `Cargo.toml` 加 `members = ["services/*", "libs/*", "sdk/rust/*"]`；依赖 `reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }`、`tokio = { version = "1", features = ["full"] }`、`serde`、`serde_json`、`thiserror`、`tracing`
 
 ## 12. 测试

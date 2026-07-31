@@ -1,6 +1,6 @@
-use common_event::consumer::{Consumer, RabbitMqConsumer};
-use common_event::events::IamUserCreated;
-use common_event::{Envelope, Publisher, RabbitMqPublisher};
+use digua_common_event::consumer::{Consumer, RabbitMqConsumer};
+use digua_common_event::events::IamUserCreated;
+use digua_common_event::{Envelope, Publisher, RabbitMqPublisher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;

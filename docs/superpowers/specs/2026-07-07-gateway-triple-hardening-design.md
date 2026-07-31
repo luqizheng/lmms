@@ -11,7 +11,7 @@
 
 ## 0. 一句话
 
-> gateway 是目前唯一还在用 `jwt-simple` 自研验签的服务（其余 7 个已在 Phase 5B 迁移 `common-jwt`），且 perm_epoch 每请求读 Redis、限流走进程内 governor 不共享。本 spec 一次性收束三处：① 接 `common-jwt::JWKSCache` + `verify_token_with_claims()`，② perm_epoch 加 5s 本地缓存，③ 限流从 governor 迁 `common-ratelimit` Redis 滑动窗口。
+> gateway 是目前唯一还在用 `jwt-simple` 自研验签的服务（其余 7 个已在 Phase 5B 迁移 `digua_common-jwt`），且 perm_epoch 每请求读 Redis、限流走进程内 governor 不共享。本 spec 一次性收束三处：① 接 `digua_common-jwt::JWKSCache` + `verify_token_with_claims()`，② perm_epoch 加 5s 本地缓存，③ 限流从 governor 迁 `digua_common-ratelimit` Redis 滑动窗口。
 
 ---
 
@@ -19,9 +19,9 @@
 
 | # | 触发 | 选项 / 决定 | 理由 |
 |---|------|-------------|------|
-| 1 | 迁移 JWKSCache 后 verify_token 不返回 claims | **common-jwt 加 verify_token_with_claims** | gateway 需要 claims 做下游透传，不复用 verify_token 二次 decode 浪费 |
+| 1 | 迁移 JWKSCache 后 verify_token 不返回 claims | **digua_common-jwt 加 verify_token_with_claims** | gateway 需要 claims 做下游透传，不复用 verify_token 二次 decode 浪费 |
 | 2 | perm_epoch 缓存 TTL | **5s** | 保守，权限变更即使延迟 5s 也不影响安全 |
-| 3 | 限流中间件异步化 | **接受异步** | governor 同步 → common-ratelimit Redis 异步，多一次 await，延迟影响 <2ms |
+| 3 | 限流中间件异步化 | **接受异步** | governor 同步 → digua_common-ratelimit Redis 异步，多一次 await，延迟影响 <2ms |
 | 4 | 限流身份提取 | **IP 优先** | 限流在认证前执行，只能用 X-Real-IP / peer addr |
 
 ---
@@ -43,8 +43,8 @@
 删除: src/jwt.rs (131行)
 删除: src/jwks.rs (131行)
 删除: Cargo.toml 中 jwt-simple, rsa, base64
-新增: Cargo.toml 中 libs/common-jwt
-修改: libs/common-jwt/src/verify.rs — 新增 verify_token_with_claims()
+新增: Cargo.toml 中 libs/digua_common-jwt
+修改: libs/digua_common-jwt/src/verify.rs — 新增 verify_token_with_claims()
 修改: src/middleware/mod.rs — JwtValidator → JWKSCache + verify_token_with_claims()
 修改: src/main.rs — 初始化 JWKSCache + spawn_refresh_loop()
 ```
@@ -52,7 +52,7 @@
 ### 1.3 verify_token_with_claims 签名
 
 ```rust
-// libs/common-jwt/src/verify.rs 新增
+// libs/digua_common-jwt/src/verify.rs 新增
 pub async fn verify_token_with_claims(
     token: &str,
     cache: &JWKSCache,
@@ -72,7 +72,7 @@ let validated = state.jwt_validator.validate(&token)?;
 let claims = extract_claims(&validated)?;
 
 // 新 (异步)
-let claims_value = common_jwt::verify_token_with_claims(
+let claims_value = digua_common_jwt::verify_token_with_claims(
     &token, &state.jwks_cache, Some(&config.audience)
 ).await?;
 let claims = extract_claims_from_value(&claims_value)?;
@@ -94,7 +94,7 @@ let jwks_cache = JWKSCache::new(
 );
 jwks_cache.refresh().await?; // 冷启动确保有 key
 let jwks_cache = Arc::new(jwks_cache);
-common_jwt::spawn_refresh_loop(Arc::clone(&jwks_cache), shutdown_rx);
+digua_common_jwt::spawn_refresh_loop(Arc::clone(&jwks_cache), shutdown_rx);
 ```
 
 **AppState**：`jwt_validator: Arc<JwtValidator>` → `jwks_cache: Arc<JWKSCache>`。
@@ -169,7 +169,7 @@ let (cached_epoch, hit) = state.perm_epoch_cache.get(user_id);
 let epoch = if hit {
     cached_epoch
 } else {
-    let epoch = common_event::perm_epoch::get_perm_epoch(&mut conn, &prefix, sub).await?;
+    let epoch = digua_common_event::perm_epoch::get_perm_epoch(&mut conn, &prefix, sub).await?;
     state.perm_epoch_cache.set(user_id, epoch);
     epoch
 };
@@ -196,13 +196,13 @@ if is_revoked(epoch, iat) { return 401; }
 
 ### 3.2 目标
 
-用 `libs/common-ratelimit::RateLimiter`（Redis ZSET 滑动窗口）替换 `governor`。
+用 `libs/digua_common-ratelimit::RateLimiter`（Redis ZSET 滑动窗口）替换 `governor`。
 
 ```
 删除: Cargo.toml 中 governor 依赖 (gateway 是唯一使用者, workspace 一起删)
 保留: RateLimitConfig / RateLimitRule / path_matches (TOML 解析 + 路径匹配)
 保留: rate_limit_middleware 结构、429 JSON 响应、Prometheus 指标
-替换: RouteLimiterSet → common-ratelimit::RateLimiter
+替换: RouteLimiterSet → digua_common-ratelimit::RateLimiter
 ```
 
 ### 3.3 改动
@@ -217,7 +217,7 @@ pub struct RouteLimiterSet {
 }
 
 // 新
-use common_ratelimit::RateLimiter;
+use digua_common_ratelimit::RateLimiter;
 
 pub struct RouteLimiterSet {
     rate_limiter: RateLimiter,
@@ -256,7 +256,7 @@ let route_limiters = RouteLimiterSet::from_config(&config);
 let rate_limiter = RouteLimiterSet::new(redis_conn.clone(), config);
 ```
 
-### 3.4 common-ratelimit 适配
+### 3.4 digua_common-ratelimit 适配
 
 当前 `RateLimiter::check(&self, identity: &str, limit: &Limit)` 已接受显式 `Limit` 参数，gateway 可直接构造 `Limit { route, max, window_secs }` 传入。无需 API 变更（ZADD member bug 见 §5）。
 
@@ -278,9 +278,9 @@ let rate_limiter = RouteLimiterSet::new(redis_conn.clone(), config);
 
 ---
 
-## 5. 前置修复：common-ratelimit ZADD member bug
+## 5. 前置修复：digua_common-ratelimit ZADD member bug
 
-`libs/common-ratelimit/src/lib.rs:130` 当前成员固定为 `identity`：
+`libs/digua_common-ratelimit/src/lib.rs:130` 当前成员固定为 `identity`：
 
 ```rust
 .zadd(&key, &identity, now_ms)
@@ -292,7 +292,7 @@ ZSET member 必须唯一，同一 identity 永远只有一个 member，`ZCARD` �
 .zadd(&key, format!("{}:{}", identity, now_ms), now_ms)
 ```
 
-本次迁移前在 `common-ratelimit` 修复，并在 gateway 迁移后验证。
+本次迁移前在 `digua_common-ratelimit` 修复，并在 gateway 迁移后验证。
 
 ---
 
@@ -300,7 +300,7 @@ ZSET member 必须唯一，同一 identity 永远只有一个 member，`ZCARD` �
 
 | 风险 | 缓解 |
 |------|------|
-| `verify_token_with_claims` 引入 bug 影响全部请求 | `libs/common-jwt` 单测覆盖；gateway 集成测验证 200/401 |
+| `verify_token_with_claims` 引入 bug 影响全部请求 | `libs/digua_common-jwt` 单测覆盖；gateway 集成测验证 200/401 |
 | perm_epoch 缓存导致权限变更延迟 > 5s | 当前 token 15min TTL，5s 缓存可接受；压测确认 |
 | Redis 限流增加网关延迟 | Redis 在本地 docker network，延迟 < 1ms；失败开放 |
-| 删除 governor 后限流逻辑不准确 | common-ratelimit 已有 ZSET 滑动窗口实测；e2e 加限流测试 |
+| 删除 governor 后限流逻辑不准确 | digua_common-ratelimit 已有 ZSET 滑动窗口实测；e2e 加限流测试 |

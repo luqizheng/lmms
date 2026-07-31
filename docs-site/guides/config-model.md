@@ -21,7 +21,7 @@
 - 敏感字段（`database.url` / `redis.url`）在模板里留空
 - `validate_all_fields_present` 在合并后校验
 
-### 形态 B：env + yaml > fail-fast（`common_config::Loader`）
+### 形态 B：env + yaml > fail-fast（`digua_common_config::Loader`）
 **适用**：`token-service`
 
 - `Loader::new("TOKEN").with_file(...).required(false)`，文件缺席不报错

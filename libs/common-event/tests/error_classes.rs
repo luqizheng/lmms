@@ -1,7 +1,7 @@
 //! 单测：HandlerError display + get_redelivery_count 各 header 类型解析。
 //! 不起 RabbitMQ，纯单元测。
 
-use common_event::HandlerError;
+use digua_common_event::HandlerError;
 use lapin::types::{AMQPValue, FieldTable, LongString, ShortString};
 
 #[test]
@@ -27,13 +27,13 @@ fn make_headers(entries: Vec<(&str, AMQPValue)>) -> Option<FieldTable> {
 #[test]
 fn count_zero_when_header_absent() {
     let headers: Option<FieldTable> = None;
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 0);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 0);
 }
 
 #[test]
 fn count_zero_when_header_field_absent() {
     let headers = make_headers(vec![("other", AMQPValue::LongLongInt(99))]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 0);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 0);
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn count_parses_long_long_int() {
         "x-redelivery-count",
         AMQPValue::LongLongInt(2),
     )]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 2);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 2);
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn count_parses_long_int() {
         "x-redelivery-count",
         AMQPValue::LongInt(3),
     )]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 3);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 3);
 }
 
 #[test]
@@ -60,5 +60,5 @@ fn count_zero_on_unexpected_type() {
         "x-redelivery-count",
         AMQPValue::LongString(LongString::from("not-a-number")),
     )]);
-    assert_eq!(common_event::consumer::get_redelivery_count(&headers), 0);
+    assert_eq!(digua_common_event::consumer::get_redelivery_count(&headers), 0);
 }

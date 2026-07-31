@@ -1,6 +1,6 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use common_health::{health_routes, HealthState};
+use digua_common_health::{health_routes, HealthState};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 

@@ -4,8 +4,8 @@ use crate::{
     dto::{CreateRoleRequest, UpdateRoleRequest, RoleQuery, RoleResponse, RoleListResponse},
 };
 use chrono::Utc;
-use common_db::WithTenantScope;
-use jwt_ctx::TenantScope;
+use digua_common_db::WithTenantScope;
+use digua_jwt_ctx::TenantScope;
 use nanoid::nanoid;
 use sqlx::{FromRow, QueryBuilder, mysql::MySqlQueryResult};
 use std::collections::{BTreeSet, HashSet};

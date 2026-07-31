@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest 的超时/重试/熔断），并接入 api-gateway 的 `forward_to_service`，每下游 service 一个独立熔断器，状态经 `ResilienceObserver` 暴露到 Prometheus。
+**Goal:** 在 `libs/digua_common-http` 提供通用 `ResilientClient`（包 reqwest 的超时/重试/熔断），并接入 api-gateway 的 `forward_to_service`，每下游 service 一个独立熔断器，状态经 `ResilienceObserver` 暴露到 Prometheus。
 
-**Architecture:** 删除 `common-http` 里从未被使用的韧性脚手架，重写 `CircuitBreaker`（修 Open 计时 bug + HalfOpen 原子占额）与 `RetryPolicy`（rand jitter + 策略归属），新增 `ResilientClient`：收到任何响应即读成 owned `UpstreamResponse`，错误枚举只表达传输层失败；overall deadline 封顶重试总耗时；按 service_name 读锁优先懒创建 breaker；通过库定义的 `ResilienceObserver` trait 解耦 Prometheus。gateway 把裸 reqwest 调用替换为 `ResilientClient::call` 并实现 observer 写指标。
+**Architecture:** 删除 `digua_common-http` 里从未被使用的韧性脚手架，重写 `CircuitBreaker`（修 Open 计时 bug + HalfOpen 原子占额）与 `RetryPolicy`（rand jitter + 策略归属），新增 `ResilientClient`：收到任何响应即读成 owned `UpstreamResponse`，错误枚举只表达传输层失败；overall deadline 封顶重试总耗时；按 service_name 读锁优先懒创建 breaker；通过库定义的 `ResilienceObserver` trait 解耦 Prometheus。gateway 把裸 reqwest 调用替换为 `ResilientClient::call` 并实现 observer 写指标。
 
 **Tech Stack:** Rust, reqwest 0.12, tokio, axum 0.8（gateway + 测试 mock server），dashmap，bytes，rand 0.8，prometheus 0.13（仅 gateway 侧）。
 
 ## Global Constraints
 
 - 数据库/表命名前缀规范不涉及本计划（无 DB 改动）。
-- `common-http` **不得**直接依赖 `prometheus`——监控栈解耦由 `ResilienceObserver` trait 承担（决策 3A）。
+- `digua_common-http` **不得**直接依赖 `prometheus`——监控栈解耦由 `ResilienceObserver` trait 承担（决策 3A）。
 - 重试**仅**对幂等方法（GET/HEAD/PUT/DELETE/OPTIONS）+ 可重试错误。
 - 熔断器**进程内**，不复用 Redis（决策 1A）。
 - 服务发现（Consul `discover`）保持在 `forward_to_service` 内、`call` 之前，**不进** `ResilientClient`、不喂 breaker（决策 9A/14B）。
@@ -25,16 +25,16 @@
 
 | 文件 | 责任 |
 |------|------|
-| `libs/common-http/Cargo.toml` | 依赖：加 `dashmap`/`bytes`/`rand`，dev-dep 加 `axum`；移除 `axum`/`tower` 可选 feature |
-| `libs/common-http/src/lib.rs` | 模块声明 + 导出表（删孤儿、加新模块） |
-| `libs/common-http/src/circuit_breaker.rs` | `CircuitBreaker` 三态状态机（重写） |
-| `libs/common-http/src/retry.rs` | `RetryPolicy`：退避 + `should_retry` 策略（重写） |
-| `libs/common-http/src/config.rs` | `ResilienceConfig`（重写） |
-| `libs/common-http/src/observer.rs` | `ResilienceObserver` trait + `NoopObserver` + `Outcome`（新增） |
-| `libs/common-http/src/resilient.rs` | `ResilientClient` / `ResilientError` / `UpstreamResponse`（新增） |
-| `libs/common-http/src/client.rs` | 保留现状（`HttpClient`，不动） |
-| `libs/common-http/tests/resilient_test.rs` | 集成测试（axum mock 下游）（新增） |
-| `services/api-gateway/Cargo.toml` | 加 `common-http` path 依赖 |
+| `libs/digua_common-http/Cargo.toml` | 依赖：加 `dashmap`/`bytes`/`rand`，dev-dep 加 `axum`；移除 `axum`/`tower` 可选 feature |
+| `libs/digua_common-http/src/lib.rs` | 模块声明 + 导出表（删孤儿、加新模块） |
+| `libs/digua_common-http/src/circuit_breaker.rs` | `CircuitBreaker` 三态状态机（重写） |
+| `libs/digua_common-http/src/retry.rs` | `RetryPolicy`：退避 + `should_retry` 策略（重写） |
+| `libs/digua_common-http/src/config.rs` | `ResilienceConfig`（重写） |
+| `libs/digua_common-http/src/observer.rs` | `ResilienceObserver` trait + `NoopObserver` + `Outcome`（新增） |
+| `libs/digua_common-http/src/resilient.rs` | `ResilientClient` / `ResilientError` / `UpstreamResponse`（新增） |
+| `libs/digua_common-http/src/client.rs` | 保留现状（`HttpClient`，不动） |
+| `libs/digua_common-http/tests/resilient_test.rs` | 集成测试（axum mock 下游）（新增） |
+| `services/api-gateway/Cargo.toml` | 加 `digua_common-http` path 依赖 |
 | `services/api-gateway/src/router.rs` | `RouterConfig` 改 `resilient`，`forward_to_service` 接线 |
 | `services/api-gateway/src/config.rs` | `GatewayConfig` 加 `resilience` 段 |
 | `services/api-gateway/src/resilience_metrics.rs` | gateway 实现 `ResilienceObserver` 写 prometheus（新增） |
@@ -43,27 +43,27 @@
 | `services/api-gateway/tests/resilience_test.rs` | 错误映射集成测试（新增） |
 | `test-case/51-resilience-breaker.md` | 手工验收脚本（新增） |
 
-被删除文件：`libs/common-http/src/axum.rs`、`benchmarks.rs`、`rate_limit.rs`、`middleware.rs`、`service_discovery.rs`。
+被删除文件：`libs/digua_common-http/src/axum.rs`、`benchmarks.rs`、`rate_limit.rs`、`middleware.rs`、`service_discovery.rs`。
 
 ---
 
 ## Task 1: 清理孤儿脚手架 + 依赖调整（绿编译基线）
 
 **Files:**
-- Delete: `libs/common-http/src/axum.rs`, `libs/common-http/src/benchmarks.rs`, `libs/common-http/src/rate_limit.rs`, `libs/common-http/src/middleware.rs`, `libs/common-http/src/service_discovery.rs`
-- Modify: `libs/common-http/src/lib.rs`, `libs/common-http/Cargo.toml`
+- Delete: `libs/digua_common-http/src/axum.rs`, `libs/digua_common-http/src/benchmarks.rs`, `libs/digua_common-http/src/rate_limit.rs`, `libs/digua_common-http/src/middleware.rs`, `libs/digua_common-http/src/service_discovery.rs`
+- Modify: `libs/digua_common-http/src/lib.rs`, `libs/digua_common-http/Cargo.toml`
 - Modify: `Cargo.toml`（workspace，加 `dashmap`）
 
 **Interfaces:**
 - Consumes: 无。
-- Produces: 一个仅含 `client`（保留）+ 空占位的 `circuit_breaker`/`retry`/`config`/`observer`/`resilient` 模块、可编译的 `common-http`。
+- Produces: 一个仅含 `client`（保留）+ 空占位的 `circuit_breaker`/`retry`/`config`/`observer`/`resilient` 模块、可编译的 `digua_common-http`。
 
 - [ ] **Step 1: 确认孤儿文件无外部引用**
 
 Run:
 ```bash
 cd /home/kudi/projects/templates/low-memory-micro-services
-grep -rn "common_http::\(CircuitBreaker\|RateLimiter\|RetryPolicy\|CircuitBreakerMiddleware\|RateLimitMiddleware\|ConsulResolver\|DefaultMiddlewareConfig\|HttpDefaultsConfig\)" services/ libs/ --include=*.rs | grep -v "libs/common-http/"
+grep -rn "digua_common_http::\(CircuitBreaker\|RateLimiter\|RetryPolicy\|CircuitBreakerMiddleware\|RateLimitMiddleware\|ConsulResolver\|DefaultMiddlewareConfig\|HttpDefaultsConfig\)" services/ libs/ --include=*.rs | grep -v "libs/digua_common-http/"
 ```
 Expected: 无输出（确认无外部使用者）。若有输出，停下报告。
 
@@ -71,7 +71,7 @@ Expected: 无输出（确认无外部使用者）。若有输出，停下报告�
 
 ```bash
 cd /home/kudi/projects/templates/low-memory-micro-services
-git rm libs/common-http/src/axum.rs libs/common-http/src/benchmarks.rs libs/common-http/src/rate_limit.rs libs/common-http/src/middleware.rs libs/common-http/src/service_discovery.rs
+git rm libs/digua_common-http/src/axum.rs libs/digua_common-http/src/benchmarks.rs libs/digua_common-http/src/rate_limit.rs libs/digua_common-http/src/middleware.rs libs/digua_common-http/src/service_discovery.rs
 ```
 
 - [ ] **Step 3: 在 workspace `Cargo.toml` 加 dashmap**
@@ -81,12 +81,12 @@ git rm libs/common-http/src/axum.rs libs/common-http/src/benchmarks.rs libs/comm
 dashmap = "6"
 ```
 
-- [ ] **Step 4: 重写 `libs/common-http/Cargo.toml`**
+- [ ] **Step 4: 重写 `libs/digua_common-http/Cargo.toml`**
 
 整文件替换为：
 ```toml
 [package]
-name = "common-http"
+name = "digua_common-http"
 version = "0.1.0"
 edition = "2021"
 
@@ -95,7 +95,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-common-error = { path = "../common-error" }
+digua_common-error = { path = "../digua_common-error" }
 dashmap = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
@@ -105,7 +105,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 axum = { workspace = true }
 ```
 
-- [ ] **Step 5: 重写 `libs/common-http/src/lib.rs` 为新模块骨架**
+- [ ] **Step 5: 重写 `libs/digua_common-http/src/lib.rs` 为新模块骨架**
 
 整文件替换为：
 ```rust
@@ -126,7 +126,7 @@ pub use retry::RetryPolicy;
 
 - [ ] **Step 6: 写空占位模块让其编译**
 
-`libs/common-http/src/circuit_breaker.rs`：
+`libs/digua_common-http/src/circuit_breaker.rs`：
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CircuitState {
@@ -139,19 +139,19 @@ pub enum CircuitState {
 pub struct CircuitBreaker;
 ```
 
-`libs/common-http/src/retry.rs`：
+`libs/digua_common-http/src/retry.rs`：
 ```rust
 #[derive(Debug, Clone)]
 pub struct RetryPolicy;
 ```
 
-`libs/common-http/src/config.rs`：
+`libs/digua_common-http/src/config.rs`：
 ```rust
 #[derive(Debug, Clone)]
 pub struct ResilienceConfig;
 ```
 
-`libs/common-http/src/observer.rs`：
+`libs/digua_common-http/src/observer.rs`：
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
@@ -168,7 +168,7 @@ pub struct NoopObserver;
 impl ResilienceObserver for NoopObserver {}
 ```
 
-`libs/common-http/src/resilient.rs`：
+`libs/digua_common-http/src/resilient.rs`：
 ```rust
 pub struct UpstreamResponse;
 pub enum ResilientError {
@@ -181,14 +181,14 @@ pub struct ResilientClient;
 
 - [ ] **Step 7: 编译验证**
 
-Run: `cargo build -p common-http 2>&1 | tail -5`
+Run: `cargo build -p digua_common-http 2>&1 | tail -5`
 Expected: 编译成功（可能有 unused warning，可忽略）。
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add libs/common-http/ Cargo.toml
-git commit -m "refactor(common-http): delete unused resilience scaffolding, scaffold new modules"
+git add libs/digua_common-http/ Cargo.toml
+git commit -m "refactor(digua_common-http): delete unused resilience scaffolding, scaffold new modules"
 ```
 
 ---
@@ -196,7 +196,7 @@ git commit -m "refactor(common-http): delete unused resilience scaffolding, scaf
 ## Task 2: 重写 `CircuitBreaker`（含 HalfOpen 原子占额 + 并发测试）
 
 **Files:**
-- Modify: `libs/common-http/src/circuit_breaker.rs`
+- Modify: `libs/digua_common-http/src/circuit_breaker.rs`
 
 **Interfaces:**
 - Consumes: 无。
@@ -211,7 +211,7 @@ git commit -m "refactor(common-http): delete unused resilience scaffolding, scaf
 
 - [ ] **Step 1: 写失败测试 + 类型签名（实现留 `todo!()`）**
 
-`libs/common-http/src/circuit_breaker.rs` 整文件：
+`libs/digua_common-http/src/circuit_breaker.rs` 整文件：
 ```rust
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::OnceLock;
@@ -370,7 +370,7 @@ mod tests {
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cargo test -p common-http circuit_breaker 2>&1 | tail -15`
+Run: `cargo test -p digua_common-http circuit_breaker 2>&1 | tail -15`
 Expected: panic `not yet implemented`。
 
 - [ ] **Step 3: 实现 `CircuitBreaker`**
@@ -461,14 +461,14 @@ Expected: panic `not yet implemented`。
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cargo test -p common-http circuit_breaker 2>&1 | tail -15`
+Run: `cargo test -p digua_common-http circuit_breaker 2>&1 | tail -15`
 Expected: 全部 PASS（含 `halfopen_concurrent_admission_capped`）。
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-http/src/circuit_breaker.rs
-git commit -m "feat(common-http): rewrite CircuitBreaker with fixed open-timer + atomic half-open admission"
+git add libs/digua_common-http/src/circuit_breaker.rs
+git commit -m "feat(digua_common-http): rewrite CircuitBreaker with fixed open-timer + atomic half-open admission"
 ```
 
 ---
@@ -476,7 +476,7 @@ git commit -m "feat(common-http): rewrite CircuitBreaker with fixed open-timer +
 ## Task 3: 重写 `RetryPolicy`（rand jitter + `should_retry` 策略归属）
 
 **Files:**
-- Modify: `libs/common-http/src/retry.rs`
+- Modify: `libs/digua_common-http/src/retry.rs`
 
 **Interfaces:**
 - Consumes: `crate::resilient::ResilientError`（Task 1 占位已存在：`CircuitOpen`/`Timeout`/`Connect`）。
@@ -492,7 +492,7 @@ git commit -m "feat(common-http): rewrite CircuitBreaker with fixed open-timer +
 
 - [ ] **Step 1: 写失败测试 + 签名**
 
-`libs/common-http/src/retry.rs` 整文件：
+`libs/digua_common-http/src/retry.rs` 整文件：
 ```rust
 use crate::resilient::ResilientError;
 use rand::Rng;
@@ -588,7 +588,7 @@ mod tests {
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cargo test -p common-http retry 2>&1 | tail -15`
+Run: `cargo test -p digua_common-http retry 2>&1 | tail -15`
 Expected: panic `not yet implemented`。
 
 - [ ] **Step 3: 实现**
@@ -632,14 +632,14 @@ Expected: panic `not yet implemented`。
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cargo test -p common-http retry 2>&1 | tail -15`
+Run: `cargo test -p digua_common-http retry 2>&1 | tail -15`
 Expected: 全部 PASS。
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add libs/common-http/src/retry.rs
-git commit -m "feat(common-http): rewrite RetryPolicy with rand jitter + typed should_retry"
+git add libs/digua_common-http/src/retry.rs
+git commit -m "feat(digua_common-http): rewrite RetryPolicy with rand jitter + typed should_retry"
 ```
 
 ---
@@ -647,7 +647,7 @@ git commit -m "feat(common-http): rewrite RetryPolicy with rand jitter + typed s
 ## Task 4: `ResilienceConfig`（配置 + 默认值）
 
 **Files:**
-- Modify: `libs/common-http/src/config.rs`
+- Modify: `libs/digua_common-http/src/config.rs`
 
 **Interfaces:**
 - Consumes: `crate::circuit_breaker::CircuitBreaker`, `crate::retry::RetryPolicy`。
@@ -657,7 +657,7 @@ git commit -m "feat(common-http): rewrite RetryPolicy with rand jitter + typed s
 
 - [ ] **Step 1: 写失败测试 + 实现（配置简单，一步写完）**
 
-`libs/common-http/src/config.rs` 整文件：
+`libs/digua_common-http/src/config.rs` 整文件：
 ```rust
 use crate::circuit_breaker::CircuitBreaker;
 use crate::retry::RetryPolicy;
@@ -750,14 +750,14 @@ mod tests {
 
 - [ ] **Step 2: 运行测试确认通过**
 
-Run: `cargo test -p common-http config 2>&1 | tail -15`
+Run: `cargo test -p digua_common-http config 2>&1 | tail -15`
 Expected: 全部 PASS。
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add libs/common-http/src/config.rs
-git commit -m "feat(common-http): add ResilienceConfig with spec defaults + builders"
+git add libs/digua_common-http/src/config.rs
+git commit -m "feat(digua_common-http): add ResilienceConfig with spec defaults + builders"
 ```
 
 ---
@@ -765,7 +765,7 @@ git commit -m "feat(common-http): add ResilienceConfig with spec defaults + buil
 ## Task 5: `ResilienceObserver` trait + `NoopObserver` + `Outcome`
 
 **Files:**
-- Modify: `libs/common-http/src/observer.rs`
+- Modify: `libs/digua_common-http/src/observer.rs`
 
 **Interfaces:**
 - Consumes: `crate::circuit_breaker::CircuitState`。
@@ -776,7 +776,7 @@ git commit -m "feat(common-http): add ResilienceConfig with spec defaults + buil
 
 - [ ] **Step 1: 写测试 + 实现（一步到位）**
 
-`libs/common-http/src/observer.rs` 整文件：
+`libs/digua_common-http/src/observer.rs` 整文件：
 ```rust
 use crate::circuit_breaker::CircuitState;
 
@@ -845,14 +845,14 @@ mod tests {
 
 - [ ] **Step 2: 运行测试确认通过**
 
-Run: `cargo test -p common-http observer 2>&1 | tail -10`
+Run: `cargo test -p digua_common-http observer 2>&1 | tail -10`
 Expected: PASS。
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add libs/common-http/src/observer.rs
-git commit -m "feat(common-http): add ResilienceObserver trait + NoopObserver (metrics decoupling)"
+git add libs/digua_common-http/src/observer.rs
+git commit -m "feat(digua_common-http): add ResilienceObserver trait + NoopObserver (metrics decoupling)"
 ```
 
 ---
@@ -860,8 +860,8 @@ git commit -m "feat(common-http): add ResilienceObserver trait + NoopObserver (m
 ## Task 6: `ResilientClient`（call 循环）+ owned 响应 + 集成测试
 
 **Files:**
-- Modify: `libs/common-http/src/resilient.rs`
-- Create: `libs/common-http/tests/resilient_test.rs`
+- Modify: `libs/digua_common-http/src/resilient.rs`
+- Create: `libs/digua_common-http/tests/resilient_test.rs`
 
 **Interfaces:**
 - Consumes: `CircuitBreaker`, `CircuitState`, `RetryPolicy`/`is_idempotent`, `ResilienceConfig`, `ResilienceObserver`/`Outcome`/`NoopObserver`。
@@ -874,7 +874,7 @@ git commit -m "feat(common-http): add ResilienceObserver trait + NoopObserver (m
 
 - [ ] **Step 1: 实现 `resilient.rs`**
 
-`libs/common-http/src/resilient.rs` 整文件替换：
+`libs/digua_common-http/src/resilient.rs` 整文件替换：
 ```rust
 use crate::circuit_breaker::{CircuitBreaker, CircuitState};
 use crate::config::ResilienceConfig;
@@ -1066,16 +1066,16 @@ impl ResilientClient {
 
 - [ ] **Step 2: 编译验证**
 
-Run: `cargo build -p common-http 2>&1 | tail -10`
+Run: `cargo build -p digua_common-http 2>&1 | tail -10`
 Expected: 编译成功。
 
 - [ ] **Step 3: 写集成测试（axum mock 下游；含 observer 回调 13A、deadline 11A）**
 
-`libs/common-http/tests/resilient_test.rs` 整文件：
+`libs/digua_common-http/tests/resilient_test.rs` 整文件：
 ```rust
 use bytes::Bytes;
-use common_http::CircuitState;
-use common_http::{
+use digua_common_http::CircuitState;
+use digua_common_http::{
     NoopObserver, Outcome, ResilienceConfig, ResilienceObserver, ResilientClient, ResilientError,
 };
 use reqwest::{header::HeaderMap, Client, Method, StatusCode};
@@ -1280,19 +1280,19 @@ async fn breaker_recovers_after_open_timeout() {
 
 - [ ] **Step 4: 运行集成测试确认通过**
 
-Run: `cargo test -p common-http --test resilient_test 2>&1 | tail -25`
+Run: `cargo test -p digua_common-http --test resilient_test 2>&1 | tail -25`
 Expected: 全部 PASS。若报 `axum::serve` 签名问题，确认 dev-dep axum 版本 = workspace 0.8。
 
 - [ ] **Step 5: 跑全 crate 测试 + clippy**
 
-Run: `cargo test -p common-http 2>&1 | tail -10 && cargo clippy -p common-http 2>&1 | tail -10`
+Run: `cargo test -p digua_common-http 2>&1 | tail -10 && cargo clippy -p digua_common-http 2>&1 | tail -10`
 Expected: 测试全 PASS；clippy 无 error。
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add libs/common-http/src/resilient.rs libs/common-http/tests/resilient_test.rs
-git commit -m "feat(common-http): add ResilientClient (timeout/retry/per-service breaker)"
+git add libs/digua_common-http/src/resilient.rs libs/digua_common-http/tests/resilient_test.rs
+git commit -m "feat(digua_common-http): add ResilientClient (timeout/retry/per-service breaker)"
 ```
 
 ---
@@ -1306,7 +1306,7 @@ git commit -m "feat(common-http): add ResilientClient (timeout/retry/per-service
 - Modify: `services/api-gateway/src/main.rs`
 
 **Interfaces:**
-- Consumes: `common_http::{ResilientClient, ResilientError, ResilienceConfig, NoopObserver}`；`crate::discovery::ServiceDiscovery`（`discover() -> Result<ServiceInstance{address:String,port:u16}, StatusCode>`）。
+- Consumes: `digua_common_http::{ResilientClient, ResilientError, ResilienceConfig, NoopObserver}`；`crate::discovery::ServiceDiscovery`（`discover() -> Result<ServiceInstance{address:String,port:u16}, StatusCode>`）。
 - Produces:
   - `RouterConfig { discovery: Arc<ServiceDiscovery>, resilient: Arc<ResilientClient> }`
   - `forward_to_service` 用 `resilient.call` + 四态映射（决策 5A）。
@@ -1314,17 +1314,17 @@ git commit -m "feat(common-http): add ResilientClient (timeout/retry/per-service
 
 > 注：本任务 observer 先用 `NoopObserver` 占位，Task 8 换成真 observer。
 
-- [ ] **Step 1: gateway Cargo 加 common-http 依赖**
+- [ ] **Step 1: gateway Cargo 加 digua_common-http 依赖**
 
-`services/api-gateway/Cargo.toml` 的 `[dependencies]` 段，在 `common-event = { path = "../../libs/common-event" }` 之后加：
+`services/api-gateway/Cargo.toml` 的 `[dependencies]` 段，在 `digua_common-event = { path = "../../libs/digua_common-event" }` 之后加：
 ```toml
-common-http = { path = "../../libs/common-http" }
+digua_common-http = { path = "../../libs/digua_common-http" }
 ```
 
 - [ ] **Step 2: `GatewayConfig` 加 resilience 段**
 
 `services/api-gateway/src/config.rs`：
-- 顶部 use 区加：`use common_http::ResilienceConfig;`
+- 顶部 use 区加：`use digua_common_http::ResilienceConfig;`
 - 在 `pub struct GatewayConfig { ... }` 的 `pub routes: Vec<RouteConfig>,` 字段**前**加：
 ```rust
     #[serde(default)]
@@ -1344,7 +1344,7 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use common_http::{ResilientClient, ResilientError};
+use digua_common_http::{ResilientClient, ResilientError};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -1421,7 +1421,7 @@ pub async fn forward_to_service(
 - [ ] **Step 4: `main.rs` 构造 ResilientClient**
 
 `services/api-gateway/src/main.rs`：
-- 在 use 区加：`use common_http::{ResilientClient, NoopObserver};`（`Arc` 已 in-scope，无需再加）。
+- 在 use 区加：`use digua_common_http::{ResilientClient, NoopObserver};`（`Arc` 已 in-scope，无需再加）。
 - 把第 167-170 行：
 ```rust
     let router_cfg = Arc::new(RouterConfig {
@@ -1470,14 +1470,14 @@ git commit -m "feat(gateway): wire forward_to_service through ResilientClient"
 - Create: `services/api-gateway/tests/resilience_test.rs`
 
 **Interfaces:**
-- Consumes: `common_http::{ResilienceObserver, Outcome, CircuitState}`；`prometheus` 0.13（gateway 已依赖）。
+- Consumes: `digua_common_http::{ResilienceObserver, Outcome, CircuitState}`；`prometheus` 0.13（gateway 已依赖）。
 - Produces: `GatewayMetricsObserver`（impl `ResilienceObserver`，写默认 prometheus registry）。
 
 - [ ] **Step 1: 实现 gateway observer**
 
 `services/api-gateway/src/resilience_metrics.rs` 整文件：
 ```rust
-use common_http::{CircuitState, Outcome, ResilienceObserver};
+use digua_common_http::{CircuitState, Outcome, ResilienceObserver};
 use prometheus::{register_int_counter_vec, register_int_gauge_vec, IntCounterVec, IntGaugeVec};
 use std::sync::OnceLock;
 
@@ -1583,7 +1583,7 @@ pub mod resilience_metrics;
 ```
 
 `services/api-gateway/src/main.rs`：
-- 把 Task 7 的 `use common_http::{ResilientClient, NoopObserver};` 改为 `use common_http::ResilientClient;`
+- 把 Task 7 的 `use digua_common_http::{ResilientClient, NoopObserver};` 改为 `use digua_common_http::ResilientClient;`
 - 加 `use api_gateway::resilience_metrics::GatewayMetricsObserver;`
 - 把 Task 7 的 `Arc::new(NoopObserver)` 改为 `Arc::new(GatewayMetricsObserver)`。
 
@@ -1601,7 +1601,7 @@ Expected: `observer_records_without_panic` PASS。
 // 验证 ResilientClient 返回值与 gateway 映射的对应关系（决策 5A/12A）。
 // Ok(resp) -> 透传; CircuitOpen->503; Timeout->504; Connect->502 (映射见 router.rs)。
 use bytes::Bytes;
-use common_http::{NoopObserver, ResilienceConfig, ResilientClient, ResilientError};
+use digua_common_http::{NoopObserver, ResilienceConfig, ResilientClient, ResilientError};
 use reqwest::{header::HeaderMap, Client, Method, StatusCode};
 use std::sync::Arc;
 use std::time::Duration;
@@ -1770,7 +1770,7 @@ git commit -m "docs(test-case): add manual acceptance for resilience triad (brea
 `TODO.md` 把 Phase 5「**B — 韧性三件套**」下三条主项 `- [ ]` 改为 `- [x]`（保留 `B-fu1` 未勾选），标题改为：
 ```markdown
 - [ ] **B — 韧性三件套**（spec 已就绪，**核心已完成并合并**，仅剩 B-fu1）
-  - [x] 在 `libs/common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
+  - [x] 在 `libs/digua_common-http` 提供通用 `ResilientClient`（包 reqwest）：超时 + 重试 + 熔断
   - [x] 本期接 gateway `forward_to_service`：每下游 service 独立 breaker，状态经 `ResilienceObserver` → Prometheus
   - [x] 删除并重写未使用的韧性脚手架（axum/benchmarks/rate_limit/middleware/service_discovery/circuit_breaker/retry/config）
 ```
@@ -1780,7 +1780,7 @@ git commit -m "docs(test-case): add manual acceptance for resilience triad (brea
 Run:
 ```bash
 cargo build --workspace 2>&1 | tail -5
-cargo test -p common-http -p api-gateway 2>&1 | tail -15
+cargo test -p digua_common-http -p api-gateway 2>&1 | tail -15
 ```
 Expected: 编译成功；所有相关测试 PASS。
 
@@ -1823,6 +1823,6 @@ git commit -m "docs(todo): mark Phase 5-B resilience triad core complete (B-fu1 
 - `ResilienceObserver`（on_state_change/on_outcome/on_retry）：Task 5 定义、Task 6 调用、Task 8 实现 —— 一致。
 
 **潜在落地注意点（实现者留意，非阻塞）：**
-- Task 4 `partial_json_fills_defaults` 依赖 `serde_json`（已在 common-http deps）。
+- Task 4 `partial_json_fills_defaults` 依赖 `serde_json`（已在 digua_common-http deps）。
 - Task 6/8 集成测试依赖 dev-dep `axum`（Task 1 已加），axum 0.8 `axum::serve` 签名以 workspace 版本为准。
 - gateway observer 用默认 prometheus registry（与现有 `prometheus::gather()` 一致），多测试并发注册由 `OnceLock` 保证只注册一次。

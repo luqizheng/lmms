@@ -106,7 +106,7 @@ audit-service 作者的意图看起来是"让 queue_name 可配置"，但 `subsc
 - `subscribe_loop` 签名（已正确使用 `'static str` literal）
 - `persist` 逻辑
 - `run` / `run_pmd` 入口
-- `libs/common-event/src/span.rs`（API 仍要求 `'static str`，符合 `tracing` macro 约束）
+- `libs/digua_common-event/src/span.rs`（API 仍要求 `'static str`，符合 `tracing` macro 约束）
 - `Cargo.toml` workspace members / deps
 
 ## 4. 验证
@@ -143,6 +143,6 @@ cargo clippy -p audit-service --lib -- -D warnings 2>&1 | tail -10
 | 风险 | 缓解 |
 |---|---|
 | 闭包 &T 是 Copy 真的能跨 await 移动 | `&'static str` literal 编译期常驻；闭包 move 只复制指针，不释放原值 |
-| 删 `queue_name_owned.to_string()` 后丢失动态配置能力 | `subscribe_loop` 本来就只用字面量；如未来真要动态化，应在 `common-event` 加 `_owned` 变体（独立 PR） |
+| 删 `queue_name_owned.to_string()` 后丢失动态配置能力 | `subscribe_loop` 本来就只用字面量；如未来真要动态化，应在 `digua_common-event` 加 `_owned` 变体（独立 PR） |
 | `tracing::info_span!` 把 `&'static str` 烘进 field metadata，不 borrow 后续 | 已确认：审计过 `tracing` 0.1.x 行为，Span 是 owned |
 
