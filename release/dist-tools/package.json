@@ -1,0 +1,37 @@
+{
+  "name": "@coder-micro-services/dist-tools",
+  "version": "0.2.0",
+  "description": "发布与同步工具集 — 把 coder-micro-services 上游的发布包同步到下游项目（Node.js 实现，跨 Linux/macOS/Windows）",
+  "main": "lib/sync.js",
+  "bin": {
+    "cms-sync": "bin/sync.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test lib/parse-policy.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "tar": "^7.4.3"
+  },
+  "keywords": [
+    "coder-micro-services",
+    "dist",
+    "release",
+    "sync",
+    "upstream",
+    "cross-platform"
+  ],
+  "author": "coder-micro-services team",
+  "license": "UNLICENSED",
+  "private": false,
+  "publishConfig": {
+    "registry": "http://npm.kudi.repos/"
+  }
+}
