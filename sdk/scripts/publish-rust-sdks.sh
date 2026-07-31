@@ -1,30 +1,33 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# sdk/scripts/publish-rust-sdks.sh - 发布 Rust SDK crates 到 crates.io
+# sdk/scripts/publish-rust-sdks.sh - 发布 Rust SDK crates 到私有 registry
 #
-# 依赖顺序：先发布 kudi-http-client（基础库），再发布 6 个 service SDK。
-# 各 service SDK 通过 path 依赖 kudi-http-client，发布时临时替换为 version
+# 依赖顺序：先发布 digua-http-client（基础库），再发布 6 个 service SDK。
+# 各 service SDK 通过 path 依赖 digua-http-client，发布时临时替换为 version
 # 依赖，发布完自动恢复。
 #
 # 前置条件：
-#   1. `cargo login` 已完成（或指定 --registry 且已登录该 registry）
-#   2. 网络可访问目标 registry（默认 crates.io，--registry 指定私有 registry）
-#   3. 工作区能正常编译（`cargo build -p kudi-http-client` 通过）
+#   1. `cargo login --registry <registry>` 已完成（setup-wizard 会写
+#      ~/.cargo/credentials.toml 与 .cargo/config.toml）
+#   2. 网络可访问目标 registry（默认 kellnr，--registry 指定其他）
+#   3. 工作区能正常编译（`cargo build -p digua-http-client` 通过）
 #
 # 用法：
-#   bash sdk/scripts/publish-rust-sdks.sh [--dry-run] [--registry <name>] [--version <ver>]
+#   bash sdk/scripts/publish-rust-sdks.sh <VERSION> [--dry-run] [--registry <name>]
 #
-# 选项：
-#   --dry-run       只验证，不实际发布
-#   --registry XXX  发布到指定 registry（写入 Cargo.toml 的 publish 字段）
-#   --version VER   统一版本号（默认 0.1.0，所有 crate 保持相同版本）
-#   --help, -h      打印帮助
+# 必填位置参数：
+#   VERSION            统一版本号（例如 0.2.0）；所有 7 个 crate 改到该版本
+#
+# 可选 flag：
+#   --dry-run          只验证，不实际发布
+#   --registry NAME    发布到指定 registry（默认 kellnr）
+#   --help, -h         打印帮助
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
 # ── 默认值 ──────────────────────────────────────────────────────────────────
-CRATE_VERSION="${CRATE_VERSION:-0.1.0}"
+CRATE_VERSION=""
 DRY_RUN=0
 REGISTRY="kellnr"
 SED_INPLACE=(-i)
@@ -35,7 +38,7 @@ RUST_SDK_DIR="${ROOT}/rust"
 
 # 发布顺序：基础库在前，service SDK 在后
 BASE_CRATES=(
-  "kudi-http-client"
+  "digua-http-client"
 )
 SERVICE_CRATES=(
   "audit-service-sdk"
@@ -52,15 +55,27 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)  DRY_RUN=1; shift ;;
     --registry) REGISTRY="${2:-}"; shift 2 ;;
-    --version)  CRATE_VERSION="${2:-}"; shift 2 ;;
     --help|-h)  SHOW_HELP=1; shift ;;
-    *)          echo "[publish-rust] 未知参数: $1" >&2; SHOW_HELP=1; shift ;;
+    -*)         echo "[publish-rust] 未知参数: $1" >&2; SHOW_HELP=1; shift ;;
+    *)
+      if [[ -z "${CRATE_VERSION}" ]]; then
+        CRATE_VERSION="$1"; shift
+      else
+        echo "[publish-rust] 未知参数: $1" >&2; SHOW_HELP=1; shift
+      fi
+      ;;
   esac
 done
 
 if [[ "${SHOW_HELP}" == "1" ]]; then
-  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
+fi
+
+if [[ -z "${CRATE_VERSION}" ]]; then
+  echo "[publish-rust] ERROR: VERSION 是必填位置参数（例如 0.2.0）" >&2
+  echo "用法: bash sdk/scripts/publish-rust-sdks.sh <VERSION> [--dry-run] [--registry <name>]" >&2
+  exit 2
 fi
 
 echo "============================================"
@@ -104,8 +119,12 @@ for crate in "${BASE_CRATES[@]}" "${SERVICE_CRATES[@]}"; do
   toml="${RUST_SDK_DIR}/${crate}/Cargo.toml"
   current="$(grep "^version " "${toml}" | sed 's/version = "\(.*\)"/\1/')"
   if [[ "${current}" != "${CRATE_VERSION}" ]]; then
-    echo "[publish-rust]   ~ ${crate}: ${current} -> ${CRATE_VERSION}"
-    sed "${SED_INPLACE[@]}" "s/^version = \"${current}\"/version = \"${CRATE_VERSION}\"/" "${toml}"
+    if [[ "${DRY_RUN}" == "1" ]]; then
+      echo "[publish-rust]   ~ ${crate}: ${current} -> ${CRATE_VERSION}  (dry-run; not modified)"
+    else
+      echo "[publish-rust]   ~ ${crate}: ${current} -> ${CRATE_VERSION}"
+      sed "${SED_INPLACE[@]}" "s/^version = \"${current}\"/version = \"${CRATE_VERSION}\"/" "${toml}"
+    fi
   else
     echo "[publish-rust]   ✓ ${crate}: ${CRATE_VERSION}"
   fi
@@ -148,7 +167,7 @@ publish_crate() {
   echo "[publish-rust]   ✓ ${crate_name} published"
 }
 
-# ── 发布 kudi-http-client（基础库，无 path 依赖问题）────────────────────
+# ── 发布 digua-http-client（基础库，无 path 依赖问题）───────────────────
 echo "[publish-rust] -> Step 1/2: Publishing base crate ${BASE_CRATES[0]}..."
 (
   cd "${RUST_SDK_DIR}/${BASE_CRATES[0]}"
@@ -159,21 +178,23 @@ echo ""
 # ── 发布 service SDK（需临时替换 path 依赖为 version 依赖）───────────────
 echo "[publish-rust] -> Step 2/2: Publishing service SDK crates..."
 
-# 保存所有被修改文件的备份路径，用于恢复
 BACKUP_FILES=()
 
-for crate in "${SERVICE_CRATES[@]}"; do
-  toml="${RUST_SDK_DIR}/${crate}/Cargo.toml"
-  # 替换 path 依赖为 version + registry 依赖
-  # 必须带 registry = "${REGISTRY}"，否则 cargo 从 crates-io 找 kudi-http-client 找不到
-  if grep -q "path = \"../kudi-http-client\"" "${toml}"; then
-    echo "[publish-rust]   ~ ${crate}: replacing path dep with version ${CRATE_VERSION} + registry ${REGISTRY}"
-    sed "${SED_INPLACE[@]}.bak" \
-      's|kudi-http-client = { path = "../kudi-http-client" }|kudi-http-client = { version = "'"${CRATE_VERSION}"'", registry = "'"${REGISTRY}"'" }|' \
-      "${toml}"
-    BACKUP_FILES+=("${toml}")
-  fi
-done
+if [[ "${DRY_RUN}" == "1" ]]; then
+  echo "[publish-rust]   (dry-run) would replace path deps with version+registry, then publish each crate"
+else
+  for crate in "${SERVICE_CRATES[@]}"; do
+    toml="${RUST_SDK_DIR}/${crate}/Cargo.toml"
+    # 必须带 registry = "${REGISTRY}"，否则 cargo 从 crates-io 找 digua-http-client 找不到
+    if grep -q "path = \"../digua-http-client\"" "${toml}"; then
+      echo "[publish-rust]   ~ ${crate}: replacing path dep with version ${CRATE_VERSION} + registry ${REGISTRY}"
+      sed "${SED_INPLACE[@]}.bak" \
+        's|digua_http_client = { path = "../digua-http-client" }|digua_http_client = { version = "'"${CRATE_VERSION}"'", registry = "'"${REGISTRY}"'" }|' \
+        "${toml}"
+      BACKUP_FILES+=("${toml}")
+    fi
+  done
+fi
 
 # 逐个发布
 PUBLISH_FAILED=0

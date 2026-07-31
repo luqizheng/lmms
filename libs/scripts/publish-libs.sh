@@ -15,23 +15,26 @@
 #
 # 前置条件：
 #   1. `cargo login --registry <registry>` 已完成，或 ~/.cargo/credentials 已配置 token
+#      （setup-wizard 会写 ~/.cargo/credentials.toml 与 .cargo/config.toml）
 #   2. 网络可访问目标 registry
 #   3. 工作区能正常编译（`cargo build -p common-error` 通过）
 #
 # 用法：
-#   bash libs/scripts/publish-libs.sh [--dry-run] [--registry <name>] [--version <ver>]
+#   bash libs/scripts/publish-libs.sh <VERSION> [--dry-run] [--registry <name>]
 #
-# 选项：
-#   --dry-run       只验证，不实际发布
-#   --registry XXX  发布到指定 registry（默认 kellnr）
-#   --version VER   统一版本号（默认 0.1.0，所有 crate 保持相同版本）
-#   --help, -h      打印帮助
+# 必填位置参数：
+#   VERSION            统一版本号（例如 0.2.0）；所有 17 个 crate 改到该版本
+#
+# 可选 flag：
+#   --dry-run          只验证，不实际发布
+#   --registry NAME    发布到指定 registry（默认 kellnr）
+#   --help, -h         打印帮助
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
 # ── 默认值 ──────────────────────────────────────────────────────────────────
-CRATE_VERSION="${CRATE_VERSION:-0.1.0}"
+CRATE_VERSION=""
 DRY_RUN=0
 REGISTRY="kellnr"
 SED_INPLACE=(-i)
@@ -73,15 +76,27 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)  DRY_RUN=1; shift ;;
     --registry) REGISTRY="${2:-}"; shift 2 ;;
-    --version)  CRATE_VERSION="${2:-}"; shift 2 ;;
     --help|-h)  SHOW_HELP=1; shift ;;
-    *)          echo "[publish-libs] 未知参数: $1" >&2; SHOW_HELP=1; shift ;;
+    -*)         echo "[publish-libs] 未知参数: $1" >&2; SHOW_HELP=1; shift ;;
+    *)
+      if [[ -z "${CRATE_VERSION}" ]]; then
+        CRATE_VERSION="$1"; shift
+      else
+        echo "[publish-libs] 未知参数: $1" >&2; SHOW_HELP=1; shift
+      fi
+      ;;
   esac
 done
 
 if [[ "${SHOW_HELP}" == "1" ]]; then
-  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
+fi
+
+if [[ -z "${CRATE_VERSION}" ]]; then
+  echo "[publish-libs] ERROR: VERSION 是必填位置参数（例如 0.2.0）" >&2
+  echo "用法: bash libs/scripts/publish-libs.sh <VERSION> [--dry-run] [--registry <name>]" >&2
+  exit 2
 fi
 
 echo "============================================"
@@ -125,8 +140,12 @@ for crate in "${PUBLISH_ORDER[@]}"; do
   toml="${LIBS_DIR}/${crate}/Cargo.toml"
   current="$(grep "^version " "${toml}" | sed 's/version = "\(.*\)"/\1/')"
   if [[ "${current}" != "${CRATE_VERSION}" ]]; then
-    echo "[publish-libs]   ~ ${crate}: ${current} -> ${CRATE_VERSION}"
-    sed "${SED_INPLACE[@]}" "s/^version = \"${current}\"/version = \"${CRATE_VERSION}\"/" "${toml}"
+    if [[ "${DRY_RUN}" == "1" ]]; then
+      echo "[publish-libs]   ~ ${crate}: ${current} -> ${CRATE_VERSION}  (dry-run; not modified)"
+    else
+      echo "[publish-libs]   ~ ${crate}: ${current} -> ${CRATE_VERSION}"
+      sed "${SED_INPLACE[@]}" "s/^version = \"${current}\"/version = \"${CRATE_VERSION}\"/" "${toml}"
+    fi
   else
     echo "[publish-libs]   ✓ ${crate}: ${CRATE_VERSION}"
   fi

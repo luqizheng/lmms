@@ -1,7 +1,7 @@
 # Java SDK 发布指南
 
 > 适用：把 `sdk/java/` 下的 Maven 多模块发布到内网私有 Maven 仓库（Reposilite）。
-> 关联：[`sdk/java/README.md`](../../sdk/java/README.md)（SDK 用法）、[`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)（主发布脚本）、[`scripts/publish-sdks.sh`](../../scripts/publish-sdks.sh)（旧 4 模块脚本）。
+> 关联：[`sdk/java/README.md`](../../sdk/java/README.md)（SDK 用法）、[`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)（主 release 发布脚本）、[`scripts/publish-maven-snapshot.js`](../../scripts/publish-maven-snapshot.js)（snapshot 发布脚本）。
 > 维护：本文档随发布脚本和 Reposilite 政策变化同步更新。
 
 ---
@@ -183,30 +183,31 @@ digua-user-user-sdk digua-user-client-sdk  ...   digua-token-user-sdk
 `scripts/publish-maven-release.js` 和 `scripts/publish-maven-snapshot.js` 是统一入口，支持 release / snapshot 两种场景。
 
 ```bash
-# Release 版本（不带 -SNAPSHOT）
-node scripts/publish-maven-release.js
+# Release 版本（不带 -SNAPSHOT）—— **必须传 --version**
+node scripts/publish-maven-release.js --version 0.4.0
 
-# Snapshot 版本（带 -SNAPSHOT）
-node scripts/publish-maven-snapshot.js
+# Snapshot 版本（带 -SNAPSHOT）—— **必须传 --version**
+node scripts/publish-maven-snapshot.js --version 0.4.1-SNAPSHOT
 ```
 
 **参数：**
 
 | 参数 | 说明 |
 | --- | --- |
+| **`--version <ver>`** | **必填**：目标版本号（release: `0.4.0` / snapshot: `0.4.1-SNAPSHOT`）。脚本在 deploy 前自动跑 `mvn versions:set` 把 `sdk/java/pom.xml` 的 `<version>` 节点改成该值（幂等：当前值一致则跳过）。**注意**：pom.xml 的修改**不自动 git commit** —— 发完需手动 `git diff sdk/java/ && git add sdk/java && git commit -m "feat(sdk): bump to <ver>"` |
 | `--profile <ver>` | 编译 profile：`java8` / `java17` / `java21`，默认 `java8` |
 | `--modules "a,b,c"` | 只发指定模块（Maven `-pl` 语法），默认全量 |
 | `--user <name>` `--pass <pwd>` | Reposilite 凭证（覆盖 settings.xml） |
 | `--repo-id <id>` | 自定义 server id，默认 `reposilite-repository-releases` / `reposilite-repository-snapshots` |
 | `--repo-url <url>` | 自定义仓库 URL；默认按此优先级解析：CLI `--repo-url` > env `MAVEN_REPO_URL` > wizard `mavenRegistry` 拼 `/releases`（或 `/snapshots`）> 硬编码 `http://192.168.2.12:18181/{releases,snapshots}` |
 | `--mvn` | 强制使用 `mvn deploy`（默认是 `mvn install + curl`，绕过 Reposilite 的 Expect:100-continue bug） |
-| `--dry-run` | 只 verify，不实际 deploy |
+| `--dry-run` | 只 verify + bump pom（dry-run 不实际改 pom，也不 deploy） |
 | `--` | 透传额外 mvn 参数：`node scripts/... -- -pl xxx -am -DskipTests` |
 
 **脚本做的事：**
 
-1. **前置检查**：JDK/Maven/curl 在 PATH；版本号符合 release/snapshot 规则（release 不能有 -SNAPSHOT 后缀，snapshot 必须有）。
-2. **解析版本**：从 `sdk/java/pom.xml` 读 `<version>`。
+1. **前置检查**：JDK/Maven/curl 在 PATH；`--version <ver>` 必须传，且符合 release/snapshot 规则（release 不能有 -SNAPSHOT 后缀，snapshot 必须有）。
+2. **Bump pom.xml**：如果 `sdk/java/pom.xml` 的 `<version>` 与 `--version` 不一致，自动跑 `mvn versions:set -DnewVersion=<ver> versions:commit` 把父 pom + 所有子模块对齐。**不自动 git commit**。
 3. **构建依赖**：`mvn -P<profile> -DskipTests install` 把所有模块装到本地 `~/.m2/repository`。
 4. **上传**（默认 `curl` 模式）：遍历 `~/.m2/repository/io/digua/`，逐个 `curl -T upload` 到 Reposilite。**绕过 Maven Aether 的 Expect:100-continue 与 Reposilite 不兼容的 bug**。
 5. **汇总**：成功 / 失败的 artifact。
@@ -221,41 +222,42 @@ node scripts/publish-maven-snapshot.js
 # 默认 verify（编译 + 测试 + 打包）
 node scripts/build-java-sdk-docker.js
 
-# 发布到内网 Maven 仓库（Release）
-node scripts/build-java-sdk-docker.js deploy
+# 发布到内网 Maven 仓库（Release）—— --version 透传到容器内的 publish 脚本
+node scripts/build-java-sdk-docker.js deploy -- --version 0.4.0
 
 # 只测试
 node scripts/build-java-sdk-docker.js test
 
 # 指定 profile
-node scripts/build-java-sdk-docker.js deploy --profile java21
+node scripts/build-java-sdk-docker.js deploy -- --version 0.4.0 --profile java21
 ```
 
 **脚本做的事：**
 
 1. 自动检测 builder 镜像（`zhcoder-docker-registry.com:8000/builder/java-sdk:0.2.0`），不存在则构建
 2. 挂载源码到容器，`~/.m2` 通过命名 volume `coder-java-m2` 持久化缓存
-3. 挂载宿主机 `~/.m2/settings.xml`（只读），透传 `MAVEN_USER` / `MAVEN_PASS` 环境变量
-4. 在容器内执行 `mvn -Pjava8 deploy -DskipTests`
+3. 挂载宿主机 `~/.m2/settings.xml`（只读），透传 `MAVEN_USER` / `MAVEN_PASS` 环境变量与 `--version`
+4. 在容器内执行 `publish-maven-release.js --version <ver>`（自动 bump pom + deploy）
 
-> 本方法与本地跑 `publish-maven-release.js` 效果等价；如果本机没有 JDK/Maven，用 `node scripts/build-java-sdk-docker.js deploy` 一行搞定，在容器内跑 mvn。
+> 本方法与本地跑 `publish-maven-release.js --version <ver>` 效果等价；如果本机没有 JDK/Maven，用 `node scripts/build-java-sdk-docker.js deploy -- --version <ver>` 一行搞定。
 
 ### 5.3 典型发布循环
 
 #### 第一次发 release
 
 ```bash
-# 1. 确认 sdk/java/pom.xml 的 <version> 不带 -SNAPSHOT
-grep -A 1 "<version>" sdk/java/pom.xml | head -3
+# 1. dry-run 验证（脚本会检查 pom.xml 当前版本与 --version）
+node scripts/publish-maven-release.js --version 0.4.0 --dry-run
 
-# 2. dry-run 验证
-node scripts/publish-maven-release.js --dry-run
+# 2. 真发布（推荐方式 A：Docker 容器发布，自动传 --version）
+node scripts/build-java-sdk-docker.js deploy -- --version 0.4.0
 
-# 3. 真发布（推荐方式 A：Docker 容器发布）
-node scripts/build-java-sdk-docker.js deploy
+# 或方式 B：本机有 JDK 时用发布脚本（脚本自动 bump pom.xml + deploy）
+node scripts/publish-maven-release.js --version 0.4.0
 
-# 或方式 B：本机有 JDK 时用发布脚本
-node scripts/publish-maven-release.js
+# 3. commit pom.xml 的 <version> 改动（脚本不自动 commit）
+git diff sdk/java/pom.xml   # 检查 bump
+git add sdk/java && git commit -m "feat(sdk): bump to 0.4.0"
 
 # 4. 验证：在临时项目里引用 SDK
 ```
@@ -263,26 +265,21 @@ node scripts/publish-maven-release.js
 #### Bump 版本号 → 再发 release
 
 ```bash
-# 0.3.0 → 0.4.0
-mvn -f sdk/java/pom.xml versions:set -DnewVersion=0.4.0 versions:commit
-# 检查 diff，确认无误
-git diff sdk/java/pom.xml
-# commit
-git add sdk/java && git commit -m "feat(sdk): bump to 0.4.0"
+# 直接传 --version 即可 —— 脚本自动跑 mvn versions:set
+node scripts/publish-maven-release.js --version 0.5.0
 
-# 发布
-node scripts/publish-maven-release.js
+# 完成后手动 commit pom.xml 改动
+git diff sdk/java/pom.xml
+git add sdk/java && git commit -m "feat(sdk): bump to 0.5.0"
 ```
 
 #### 发 snapshot
 
 ```bash
-# 0.3.0 → 0.3.1-SNAPSHOT
-mvn -f sdk/java/pom.xml versions:set -DnewVersion=0.3.1-SNAPSHOT versions:commit
-git add sdk/java && git commit -m "feat(sdk): start 0.3.1-SNAPSHOT"
+node scripts/publish-maven-snapshot.js --version 0.5.1-SNAPSHOT
 
-# 发布
-node scripts/publish-maven-snapshot.js
+git diff sdk/java/pom.xml
+git add sdk/java && git commit -m "feat(sdk): start 0.5.1-SNAPSHOT"
 ```
 
 ### 5.4 无本机 JDK/Maven 场景
@@ -290,10 +287,10 @@ node scripts/publish-maven-snapshot.js
 如果本机没装 JDK / Maven，用 Docker 容器内发布：
 
 ```bash
-node scripts/build-java-sdk-docker.js deploy
+node scripts/build-java-sdk-docker.js deploy -- --version 0.4.0
 ```
 
-该脚本在 `zhcoder-docker-registry.com:8000/official/maven:3.9-eclipse-temurin-21` 容器内跑 `mvn -Pjava8 deploy`，挂载源码 + `~/.m2/` + `~/.m2/settings.xml`。详见 [`scripts/build-java-sdk-docker.js`](../../scripts/build-java-sdk-docker.js)。
+该脚本在 `zhcoder-docker-registry.com:8000/official/maven:3.9-eclipse-temurin-21` 容器内跑 `publish-maven-release.js --version 0.4.0`，挂载源码 + `~/.m2/` + `~/.m2/settings.xml`。详见 [`scripts/build-java-sdk-docker.js`](../../scripts/build-java-sdk-docker.js)。
 
 ---
 
@@ -405,7 +402,8 @@ Reposilite 没有公开的速率限制文档，但有几个实战经验：
 | `mvn install` 成功但 `curl upload` 失败（HTTP 500） | Reposilite 内部错误 / 磁盘满 | 看 Reposilite 控制台；联系运维 |
 | `Permission denied` 写 `~/.m2/repository` | 用户无权写本地 maven 仓库 | `chown -R $USER:$USER ~/.m2`；或在 docker 模式下用 `~/.m2` bind mount |
 | 部分模块成功部分失败 | 中途网络中断 / Reposilite 抖动 | 重跑脚本（已成功的不会重复部署；release 部署失败可 bump 后重试） |
-| 老的 `publish-sdks.sh` 不支持新模块 | 脚本只发 4 个 service SDK | 改用 `publish-maven-release.js` |
+| `error: --version <ver> is required` | 忘记传 `--version` 参数 | 重跑脚本时带 `--version <ver>`（release: 不带 -SNAPSHOT；snapshot: 必须带 -SNAPSHOT） |
+| pom.xml 的 `<version>` 没改成目标版本 | 脚本自动 bump 失败（旧 pom.xml 损坏） | 看 stderr；或手动 `mvn -f sdk/java/pom.xml versions:set -DnewVersion=<ver> versions:commit` |
 
 ---
 
@@ -415,9 +413,8 @@ Reposilite 没有公开的速率限制文档，但有几个实战经验：
 - [`./rust-sdk`](./rust-sdk)：Rust SDK 用法（对照参考）
 - [`./rust-sdk-publishing`](./rust-sdk-publishing)：Rust SDK 发布流程（与本文档结构对齐）
 - [`sdk/java/README.md`](../../sdk/java/README.md)：SDK 模块列表与生成说明
-- [`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)：主发布脚本（release，`curl` 模式）
-- [`scripts/publish-maven-snapshot.js`](../../scripts/publish-maven-snapshot.js)：主发布脚本（snapshot，`curl` 模式）
+- [`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)：主发布脚本（release，`curl` 模式，REQUIRED `--version`）
+- [`scripts/publish-maven-snapshot.js`](../../scripts/publish-maven-snapshot.js)：主发布脚本（snapshot，`curl` 模式，REQUIRED `--version`）
 - [`scripts/build-java-sdk-docker.js`](../../scripts/build-java-sdk-docker.js)：Docker 容器发布脚本（`mvn deploy` 模式，无需本机 JDK）
-- [`scripts/publish-sdks.sh`](../../scripts/publish-sdks.sh)：旧 4 模块脚本（保留兼容）
 - [`sdk/java/Dockerfile.builder`](../../sdk/java/Dockerfile.builder)：Docker 模式下的 builder 镜像
 - [`release/dist-template/README.md`](../../release/dist-template/README.md)：「Java SDK 引入」章节说明业务服务如何通过 `<dependency>` 引用 SDK

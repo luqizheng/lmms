@@ -37,6 +37,7 @@ function parseArgs(argv) {
     useMvn: false,
     extraMvn: [],
     help: false,
+    version: '',
   };
   const args = argv.slice(2);
   for (let i = 0; i < args.length; i++) {
@@ -48,6 +49,7 @@ function parseArgs(argv) {
       case '--pass': out.pass = args[++i]; break;
       case '--repo-id': out.repoId = args[++i]; break;
       case '--repo-url': out.repoUrl = args[++i]; break;
+      case '--version': out.version = args[++i]; break;
       case '--mvn': out.useMvn = true; break;
       case '--dry-run': out.dryRun = true; break;
       case '--': out.extraMvn = args.slice(i + 1); i = args.length; break;
@@ -181,6 +183,46 @@ function readPomVersion() {
   return v[1].trim();
 }
 
+// 用 mvn versions:set 把 sdk/java/pom.xml 的 <version> 节点改为 targetVersion。
+// - 仅在 pom.xml 当前版本与 targetVersion 不一致时执行(幂等)。
+// - dry-run 模式下不实际改文件,只 echo 计划。
+// - 不自动 git commit;留给用户手动 review + commit。
+function bumpPomVersion(targetVersion, opts = {}) {
+  const dryRun = !!opts.dryRun;
+  const pomPath = path.join(ROOT, 'sdk', 'java', 'pom.xml');
+  const current = readPomVersion();
+  if (current === targetVersion) {
+    console.log(`[bump] pom.xml <version> already ${targetVersion} — no change`);
+    return;
+  }
+  console.log(`[bump] pom.xml <version>: ${current} -> ${targetVersion}`);
+  if (dryRun) {
+    console.log(`[bump]   (dry-run) would run: mvn -f ${pomPath} versions:set -DnewVersion=${targetVersion} versions:commit`);
+    return;
+  }
+  // versions:set 之后用 versions:commit 把 pom.xml 实际写盘(去掉 backup)。
+  // 不传 oldVersion 会更新所有引用当前版本的子模块。
+  const ok1 = runMvn([
+    '-f', pomPath,
+    'versions:set',
+    `-DnewVersion=${targetVersion}`,
+    'versions:commit',
+  ], ROOT);
+  if (!ok1) {
+    console.error(chalk.red(`ERROR: mvn versions:set failed (pump pom.xml <version> to ${targetVersion}).`));
+    process.exit(7);
+  }
+  // 再次校验,确保真的写入了(防御 versions:set 在多模块下未对齐子模块的场景)
+  const after = readPomVersion();
+  if (after !== targetVersion) {
+    console.error(chalk.red(`ERROR: pom.xml <version> bump mismatch: expected ${targetVersion}, got ${after}.`));
+    console.log(`       Manually inspect sdk/java/pom.xml and child <parent><version> blocks.`);
+    process.exit(8);
+  }
+  console.log(`[bump] pom.xml now at <version>${targetVersion}</version>`);
+  console.log(`[bump]   ⚠ 不要忘记: git diff sdk/java/ && git commit -m "feat(sdk): bump to ${targetVersion}"`);
+}
+
 function runMvn(mvnArgs, sdkDir) {
   console.log(`[mvn] ${mvnArgs.join(' ')}`);
   const res = spawnSync('mvn', mvnArgs, { cwd: sdkDir, stdio: 'inherit', shell: false });
@@ -273,25 +315,32 @@ function runPublish(variant, argv) {
 
   if (args.help) { printHelp(variant); process.exit(0); }
 
+  // --version 必填(在 help 之后校验,确保 --help 不需要传版本号)
+  if (!args.version) {
+    console.error(chalk.red(`ERROR: --version <ver> is required (e.g. --version 0.4.0 or --version 0.4.1-SNAPSHOT).`));
+    process.exit(2);
+  }
+
   requireBinary('mvn', "Install Maven 3.9+.");
   if (!args.useMvn) requireBinary('curl', "Required for default upload mode.");
 
-  const version = readPomVersion();
+  const version = args.version;
   const isSnapshot = version.endsWith('-SNAPSHOT');
   if (variant === 'release' && isSnapshot) {
-    console.error(chalk.red(`ERROR: sdk/java/pom.xml version is '${version}' (a SNAPSHOT).`));
+    console.error(chalk.red(`ERROR: --version '${version}' ends with -SNAPSHOT.`));
     console.log(`       The release repository rejects -SNAPSHOT artifacts.`);
-    console.log(`       Bump the pom to a release version first, e.g.:`);
-    console.log(`         mvn -f sdk/java/pom.xml versions:set -DnewVersion=<release-ver> versions:commit`);
+    console.log(`       Re-run with a release version: --version 0.4.0`);
     process.exit(3);
   }
   if (variant === 'snapshot' && !isSnapshot) {
-    console.error(chalk.red(`ERROR: sdk/java/pom.xml version is '${version}' (not a SNAPSHOT).`));
+    console.error(chalk.red(`ERROR: --version '${version}' does NOT end with -SNAPSHOT.`));
     console.log(`       The snapshot repository rejects non-SNAPSHOT artifacts.`);
-    console.log(`       Bump the pom to a snapshot version first, e.g.:`);
-    console.log(`         mvn -f sdk/java/pom.xml versions:set -DnewVersion=${version}-SNAPSHOT versions:commit`);
+    console.log(`       Re-run with a snapshot version: --version 0.4.1-SNAPSHOT`);
     process.exit(3);
   }
+
+  // bump sdk/java/pom.xml 的 <version> 节点到目标版本(幂等;不一致时自动 mvn versions:set)
+  bumpPomVersion(version, { dryRun: args.dryRun });
 
   const wizard = readWizardConfig();
 
@@ -316,7 +365,7 @@ function runPublish(variant, argv) {
   const mode = args.useMvn ? 'mvn-deploy' : 'curl-upload (default)';
   console.log(chalk.green(`==> Repository : ${repoId} @ ${repoUrl}`));
   console.log(`==> URL source : ${repoUrlSource}`);
-  console.log(`==> Version    : ${version}  (from sdk/java/pom.xml)`);
+  console.log(`==> Version    : ${version}  (from --version CLI arg; pom.xml will be bumped if different)`);
   console.log(`==> Profile    : ${args.profile}`);
   console.log(`==> Modules    : ${args.modules || '<all>'}`);
   console.log(`==> Mode       : ${mode}`);
@@ -418,6 +467,13 @@ function printHelp(variant) {
   const defaultUrl = DEFAULT_REPO_URL[variant];
   console.log(`Publish Java SDK artifacts to the Reposilite ${variant.toUpperCase()} repository.
 
+REQUIRED:
+  --version <ver>   Target version (e.g. 0.4.0 for release, 0.4.1-SNAPSHOT for snapshot).
+                    The script bumps sdk/java/pom.xml <version> to this value via
+                    'mvn versions:set' before deploying (idempotent if already matches).
+                    The pom.xml change is NOT auto-committed — review and commit manually:
+                      git diff sdk/java/ && git add sdk/java && git commit -m "feat(sdk): bump to <ver>"
+
 Version policy:
   ${versionPolicy}
 
@@ -437,13 +493,14 @@ Configuration sources (highest first):
              wizard config (authMode=userpass or token) > ~/.m2/settings.xml (by id)
 
 Usage:
-  node ${bin}
-  node ${bin} --profile java17
-  node ${bin} --modules "common,user-service-user-sdk"
-  node ${bin} --user admin --pass 's3cret'
-  node ${bin} --mvn                     # force mvn deploy mode
-  node ${bin} --dry-run                 # clean verify only, no deploy
-  node ${bin} -- -pl user-service-user-sdk -am  # extra mvn args
+  node ${bin} --version 0.4.0
+  node ${bin} --version 0.4.1-SNAPSHOT
+  node ${bin} --version 0.4.0 --profile java17
+  node ${bin} --version 0.4.0 --modules "common,user-service-user-sdk"
+  node ${bin} --version 0.4.0 --user admin --pass 's3cret'
+  node ${bin} --version 0.4.0 --mvn                     # force mvn deploy mode
+  node ${bin} --version 0.4.0 --dry-run                 # bump-pom + clean verify only, no deploy
+  node ${bin} --version 0.4.0 -- -pl user-service-user-sdk -am  # extra mvn args
 `);
 }
 

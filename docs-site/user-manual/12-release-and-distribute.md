@@ -368,6 +368,33 @@ git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
 - [ ] `release/dist-template/CHANGELOG.md` 更新本期变更（手动维护，暂无自动同步）
 - [ ] 打 tag：`git tag v1.x.y && git push origin v1.x.y`
 
+### SDK 发布（与平台 tag 解耦，独立节奏）
+
+SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 各有发布脚本，**VERSION 必填**：
+
+| SDK | 目标 | 发布命令 | 详细 |
+| --- | --- | --- | --- |
+| Java SDK (sdk/java) | Reposilite (`http://mvn.kudi.repos`) | `node scripts/publish-maven-release.js --version <ver>` | [java-sdk-publishing](../guides/java-sdk-publishing.md) |
+| Java SDK snapshot | Reposilite snapshots | `node scripts/publish-maven-snapshot.js --version <ver>-SNAPSHOT` | 同上 |
+| Rust libs (libs/*) | kellnr (`http://192.168.2.12:16444`) | `bash libs/scripts/publish-libs.sh <ver>` | [rust-sdk-publishing §8](../guides/rust-sdk-publishing.md)（与 SDK 共享同一份版本号） |
+| Rust SDK (sdk/rust/*) | kellnr | `bash sdk/scripts/publish-rust-sdks.sh <ver>` | [rust-sdk-publishing](../guides/rust-sdk-publishing.md) |
+
+等价 pnpm aliases：`pnpm sdk:publish:release -- <ver>` / `pnpm sdk:publish:snapshot -- <ver>` / `pnpm sdk:publish:libs -- <ver>` / `pnpm sdk:publish:rust -- <ver>`。
+
+**所有发布脚本在 deploy 前会：**
+- Java：自动 `mvn versions:set` 把 `sdk/java/pom.xml` 的 `<version>` 改成 `<ver>`（**不自动 git commit**，需手动 `git commit -m "feat(sdk): bump to <ver>"`）
+- Rust：自动把 17 / 7 个 crate 的 `version = "..."` 改成 `<ver>`（脚本处理完会自动恢复任何备份）
+
+发 SDK 前 checklist：
+
+- [ ] `pnpm run setup:wizard` 已生成 maven/kellnr 凭证（或手写 `~/.m2/settings.xml` / `~/.cargo/credentials.toml`）
+- [ ] `bash libs/scripts/publish-libs.sh <ver> --dry-run` 退出 0
+- [ ] `bash sdk/scripts/publish-rust-sdks.sh <ver> --dry-run` 退出 0
+- [ ] `node scripts/publish-maven-release.js --version <ver> --dry-run` 退出 0
+- [ ] 真发布；Java SDK 发完后手动 `git diff sdk/java/ && git add sdk/java && git commit -m "feat(sdk): bump to <ver>"`
+
+> CI 自动跑：`.gitlab-ci.yml` 的 `sdk_publish` / `rust_publish` job 在 `v\d+\.\d+\.\d+$` tag 触发时自动注入 `${CI_COMMIT_TAG#v}` 作为 VERSION。本地 tag 触发也会跑。
+
 ### 运维（打包）
 
 - [ ] 在有网环境，磁盘 ≥ 20 GB 可用

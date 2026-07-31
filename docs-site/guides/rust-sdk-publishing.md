@@ -10,13 +10,13 @@
 
 ```
 sdk/rust/
-├── digua_http_client           # 底层 HTTP + token-cache 共享库（先发布）
-├── digua_audit_sdk          # 6 个 service SDK 都依赖 digua_http_client
-├── digua_config_sdk         # （path 依赖在本地开发时；发布时切 version）
-├── digua_file_sdk
-├── digua_iam_sdk
-├── digua_notification_sdk
-└── digua_token_sdk
+├── digua-http-client/      # 目录名（crate name = digua_http_client，先发布）
+├── audit-service-sdk/      # 6 个 service SDK 都依赖 digua_http_client（path 依赖）
+├── config-service-sdk/     # （path 依赖在本地开发时；发布时切 version）
+├── file-service-sdk/
+├── iam-service-sdk/
+├── notification-service-sdk/
+└── token-service-sdk/
 ```
 
 每个 crate 独立打包为 `*.tar.gz` 上传到 [crates.io](https://crates.io)，最终用户通过 `cargo add <name>` 或 `Cargo.toml` 依赖引入。
@@ -134,25 +134,25 @@ digua_http_client   ←  基础库，先发
 ### 5.1 用发布脚本（推荐）
 
 ```bash
-# 从仓库根
-bash sdk/scripts/publish-rust-sdks.sh [--dry-run] [--registry <name>] [--version <ver>]
+# 从仓库根 —— VERSION 是必填位置参数
+bash sdk/scripts/publish-rust-sdks.sh <VERSION> [--dry-run] [--registry <name>]
 ```
 
 **参数：**
 
 | 参数 | 说明 |
 | --- | --- |
-| `--dry-run` | 只验证，不上传 |
-| `--registry <name>` | 上传到指定 registry（默认 crates.io），需先在 `[registries.<name>]` 配好 token |
-| `--version <ver>` | 统一版本号（默认读各 crate 当前的 `version = "..."`） |
+| `<VERSION>`（位置参数，**必填**） | 统一版本号（例如 `0.2.0`）；脚本把 7 个 crate 的 `version = "..."` 全部改成该值（dry-run 模式下不改 Cargo.toml） |
+| `--dry-run` | 只验证，不上传 + 不改 Cargo.toml |
+| `--registry <name>` | 上传到指定 registry（默认 kellnr），需先在 `[registries.<name>]` 配好 token |
 | `--help` | 打印 header 注释里的完整用法 |
 
 **脚本做的事：**
 
-1. **前置检查**：每个 crate 必须有 `description` + `license`，否则 exit 2。
-2. **统一版本号**：所有 crate 的 `version = "..."` 统一成同一个（确保 digua_http_client 和 service SDK 一致）。
+1. **前置检查**：每个 crate 必须有 `description` + `license`，否则 exit 2。`<VERSION>` 必填，缺参 exit 2。
+2. **统一版本号**：所有 crate 的 `version = "..."` 统一成 `<VERSION>`（dry-run 模式下只 echo，不改 Cargo.toml）。
 3. **发 digua_http_client**：无 path 依赖，直接 `cargo publish`。
-4. **替换 path 依赖**：把 6 个 service SDK 的 `path = "../digua_http_client"` 临时改为 `version = "<ver>"`，备份到 `.bak`。
+4. **替换 path 依赖**：把 6 个 service SDK 的 `path = "../digua-http-client"` 临时改为 `version = "<ver>"` + `registry = "<registry>"`，备份到 `.bak`（dry-run 跳过此步）。
 5. **逐个发 service SDK**：编译 → 打包 → 上传。
 6. **恢复 path 依赖**：`mv *.bak` 还原。
 7. **汇总**：成功 / 失败 crate 列表。
@@ -163,12 +163,12 @@ bash sdk/scripts/publish-rust-sdks.sh [--dry-run] [--registry <name>] [--version
 
 ```bash
 # 第一次发布 / 验证流程
-bash sdk/scripts/publish-rust-sdks.sh --dry-run
+bash sdk/scripts/publish-rust-sdks.sh 0.2.0 --dry-run
 
 # 确认无误后真发布
 CARGO_TARGET_DIR=/tmp/sdk-publish \
   CARGO_REGISTRY_TOKEN=<token> \
-  bash sdk/scripts/publish-rust-sdks.sh
+  bash sdk/scripts/publish-rust-sdks.sh 0.2.0
 ```
 
 ---
@@ -197,7 +197,7 @@ EOF
 # 3. publish（脚本仍然有效）
 CARGO_TARGET_DIR=/tmp/sdk-publish \
   CARGO_REGISTRY_TOKEN=<token> \
-  bash sdk/scripts/publish-rust-sdks.sh
+  bash sdk/scripts/publish-rust-sdks.sh 0.2.0
 
 # 4. 恢复
 mv .cargo/config.toml.bak .cargo/config.toml
@@ -267,8 +267,8 @@ crates.io 对**新账号**和**高频账号**有 rate limit：
 
 发布流程：
 
-1. 同步改 7 个 crate 的 `version = "..."`（可以手动或用 `cargo workspace version`）
-2. 跑 `bash sdk/scripts/publish-rust-sdks.sh --version 0.2.0`
+1. 同步改 7 个 crate 的 `version = "..."`（脚本自动做，或用 `cargo workspace version`）
+2. 跑 `bash sdk/scripts/publish-rust-sdks.sh 0.2.0`（VERSION 是必填位置参数）
 
 ### 8.3 yank（撤回已发布版本）
 

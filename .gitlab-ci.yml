@@ -375,9 +375,10 @@ sdk_publish:
   stage: publish
   tags: [docker]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
+  variables:
+    SDK_VERSION: "${CI_COMMIT_TAG#v}"
   script:
-    - cd sdk/java && mvn -B deploy -DskipTests
-      -DaltDeploymentRepository=kudi-maven::default::${MAVEN_REPO_URL}
+    - node scripts/publish-maven-release.js --version "${SDK_VERSION}"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -385,8 +386,9 @@ sdk_publish:
 
 # Rust libs/* + sdk/rust/* 发布到私有 kellnr registry (http://192.168.2.12:16444)
 # libs/ 17 个 crate（common-error / common-db / common-jwt / authz 等）按拓扑顺序发布
-# sdk/rust/ 7 个 crate（kudi-http-client + 6 个 service SDK）按依赖顺序发布
+# sdk/rust/ 7 个 crate（digua-http-client + 6 个 service SDK）按依赖顺序发布
 # 发布顺序由各自脚本内部处理（path 依赖临时替换为 version 依赖，发布完恢复）
+# VERSION 由 ${CI_COMMIT_TAG#v} 注入（与 sdk_publish 共享同一 VERSION 语义）
 rust_publish:
   stage: publish
   tags: [docker]
@@ -394,14 +396,15 @@ rust_publish:
   variables:
     CARGO_REGISTRIES_KELLNR_TOKEN: "${KELLNR_TOKEN}"
     CARGO_REGISTRIES_KELLNR_INDEX: "sparse+http://192.168.2.12:16444/api/v1/crates/"
+    SDK_VERSION: "${CI_COMMIT_TAG#v}"
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
     - apt-get update && apt-get install -y pkg-config libssl-dev
   script:
     - chmod +x libs/scripts/publish-libs.sh sdk/scripts/publish-rust-sdks.sh
-    - bash libs/scripts/publish-libs.sh --registry kellnr
-    - bash sdk/scripts/publish-rust-sdks.sh --registry kellnr
+    - bash libs/scripts/publish-libs.sh "${SDK_VERSION}" --registry kellnr
+    - bash sdk/scripts/publish-rust-sdks.sh "${SDK_VERSION}" --registry kellnr
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
