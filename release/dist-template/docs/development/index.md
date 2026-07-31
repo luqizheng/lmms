@@ -135,7 +135,7 @@ export CARGO_REGISTRIES_KELLNR_TOKEN=<your-token>
 <settings>
   <servers>
     <server>
-      <id>kudi-maven-releases</id>
+      <id>digua-maven-releases</id>
       <username>your-username</username>
       <password>your-password</password>
     </server>
@@ -411,7 +411,7 @@ cargo add audit-service-sdk --registry kellnr
 cargo add config-service-sdk --registry kellnr
 
 # HTTP 客户端（JWT 自动注入、重试、熔断）
-cargo add kudi-http-client --registry kellnr
+cargo add digua-http-client --registry kellnr
 
 # 平台基础设施库
 cargo add digua_common-error --registry kellnr
@@ -435,19 +435,19 @@ digua_common-error = { version = "0.1", registry = "kellnr" }
 ```xml
 <repositories>
   <repository>
-    <id>kudi-maven-releases</id>
+    <id>digua-maven-releases</id>
     <url>http://192.168.2.12:18181/releases</url>
   </repository>
 </repositories>
 
 <dependencies>
   <dependency>
-    <groupId>com.kudi.coder</groupId>
+    <groupId>io.digua</groupId>
     <artifactId>iam-service-sdk</artifactId>
     <version>0.3.0</version>
   </dependency>
   <dependency>
-    <groupId>com.kudi.coder</groupId>
+    <groupId>io.digua</groupId>
     <artifactId>audit-service-sdk</artifactId>
     <version>0.3.0</version>
   </dependency>

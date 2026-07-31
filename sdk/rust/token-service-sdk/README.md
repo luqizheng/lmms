@@ -1,4 +1,4 @@
-# token-service-sdk
+# digua_token_sdk
 
 Rust client SDK for the KudiCoder `token-service`. Endpoint paths and
 request/response shapes come from `services/token-service/openapi.yaml`.
@@ -7,7 +7,7 @@ request/response shapes come from `services/token-service/openapi.yaml`.
 
 ```toml
 [dependencies]
-token-service-sdk = { path = "../token-service-sdk" }
+digua_token_sdk = { path = "../digua_token_sdk" }
 tokio = { version = "1", features = ["full"] }
 ```
 

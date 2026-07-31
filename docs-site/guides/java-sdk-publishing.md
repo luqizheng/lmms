@@ -10,31 +10,31 @@
 
 ```
 sdk/java/
-├── pom.xml                                    # kudi-coder-sdk-parent（聚合 pom）
-├── digua_common                                     # kudi-coder-sdk-digua_common（基础）
-├── user-service-user-sdk                      # 用户身份 → iam-service
-├── user-service-client-sdk                    # 客户端身份 → iam-service
-├── token-server-user-sdk                      # 用户身份 → token-service
-├── token-server-client-sdk                    # 客户端身份 → token-service
-├── kudi-http-client                           # 通用服务间 HTTP 客户端
-├── audit-service-sdk
-├── config-service-sdk
-├── file-service-sdk
-└── notification-service-sdk
+├── pom.xml                                    # digua-sdk-parent（聚合 pom）
+├── digua_common                                     # digua-sdk-common（基础）
+├── digua-user-user-sdk                      # 用户身份 → iam-service
+├── digua-user-client-sdk                    # 客户端身份 → iam-service
+├── digua-token-user-sdk                      # 用户身份 → token-service
+├── digua-token-client-sdk                    # 客户端身份 → token-service
+├── digua-http-client                           # 通用服务间 HTTP 客户端
+├── digua-audit-sdk
+├── digua-config-sdk
+├── digua-file-sdk
+└── digua-notification-sdk
 ```
 
 | Maven artifactId | groupId | 用途 |
 | --- | --- | --- |
-| `kudi-coder-sdk-digua_common` | `com.kudi.coder` | 公共配置/异常（其余 SDK 自动传递依赖） |
-| `kudi-http-client` | `com.kudi.coder` | 底层 HTTP 客户端封装 |
-| `user-service-user-sdk` | `com.kudi.coder` | 用户身份视角调用 IAM |
-| `user-service-client-sdk` | `com.kudi.coder` | 客户端应用视角调用 IAM |
-| `token-server-user-sdk` | `com.kudi.coder` | 用户身份视角调用 Token |
-| `token-server-client-sdk` | `com.kudi.coder` | 客户端应用视角调用 Token |
-| `audit-service-sdk` | `com.kudi.coder` | 调用审计服务 |
-| `config-service-sdk` | `com.kudi.coder` | 调用配置中心 |
-| `file-service-sdk` | `com.kudi.coder` | 调用文件服务 |
-| `notification-service-sdk` | `com.kudi.coder` | 调用通知服务 |
+| `digua-sdk-common` | `io.digua` | 公共配置/异常（其余 SDK 自动传递依赖） |
+| `digua-http-client` | `io.digua` | 底层 HTTP 客户端封装 |
+| `digua-user-user-sdk` | `io.digua` | 用户身份视角调用 IAM |
+| `digua-user-client-sdk` | `io.digua` | 客户端应用视角调用 IAM |
+| `digua-token-user-sdk` | `io.digua` | 用户身份视角调用 Token |
+| `digua-token-client-sdk` | `io.digua` | 客户端应用视角调用 Token |
+| `digua-audit-sdk` | `io.digua` | 调用审计服务 |
+| `digua-config-sdk` | `io.digua` | 调用配置中心 |
+| `digua-file-sdk` | `io.digua` | 调用文件服务 |
+| `digua-notification-sdk` | `io.digua` | 调用通知服务 |
 
 > **目标仓库**：Reposilite `http://192.168.2.12:18181/`
 > - release：http://192.168.2.12:18181/releases（`&lt;version&gt;` 不能带 `-SNAPSHOT`）
@@ -153,23 +153,23 @@ node scripts/publish-maven-release.js --user admin --pass 's3cret'
 ## 4. 发布顺序与依赖关系
 
 ```
-                        kudi-coder-sdk-parent  (pom packaging, 不发布)
+                        digua-sdk-parent  (pom packaging, 不发布)
                                      │
         ┌────────────────────────────┼────────────────────────────┐
         ▼                            ▼                            ▼
-kudi-coder-sdk-digua_common        kudi-http-client          (user/token-server SDK — 互不依赖，但都依赖 digua_common)
+digua-sdk-common        digua-http-client          (user/token-server SDK — 互不依赖，但都依赖 digua_common)
         │                                                      ▲
         ├────────────────────┬────────────────────┬────────────┤
         ▼                    ▼                    ▼            │
-user-service-user-sdk user-service-client-sdk  ...   token-server-user-sdk
+digua-user-user-sdk digua-user-client-sdk  ...   digua-token-user-sdk
         ▲                                                  ▲
-        └─── audit/config/file/notification-service-sdk ───┘
+        └─── audit/config/file/digua-notification-sdk ───┘
                   (依赖 digua_common，不依赖 user/token-server SDK)
 ```
 
 发布顺序：
 
-1. 先发 `kudi-coder-sdk-digua_common` 和 `kudi-http-client`（基础库，service SDK 都依赖）
+1. 先发 `digua-sdk-common` 和 `digua-http-client`（基础库，service SDK 都依赖）
 2. 再发其余 9 个 service SDK（之间无依赖关系）
 
 由于 maven 在多模块构建时会按依赖拓扑自动排序，**直接 `mvn deploy -am` 即可**（`--also-make` 自动构建依赖项）。
@@ -208,7 +208,7 @@ node scripts/publish-maven-snapshot.js
 1. **前置检查**：JDK/Maven/curl 在 PATH；版本号符合 release/snapshot 规则（release 不能有 -SNAPSHOT 后缀，snapshot 必须有）。
 2. **解析版本**：从 `sdk/java/pom.xml` 读 `<version>`。
 3. **构建依赖**：`mvn -P<profile> -DskipTests install` 把所有模块装到本地 `~/.m2/repository`。
-4. **上传**（默认 `curl` 模式）：遍历 `~/.m2/repository/com/kudi/coder/`，逐个 `curl -T upload` 到 Reposilite。**绕过 Maven Aether 的 Expect:100-continue 与 Reposilite 不兼容的 bug**。
+4. **上传**（默认 `curl` 模式）：遍历 `~/.m2/repository/io/digua/`，逐个 `curl -T upload` 到 Reposilite。**绕过 Maven Aether 的 Expect:100-continue 与 Reposilite 不兼容的 bug**。
 5. **汇总**：成功 / 失败的 artifact。
 
 > ⚠️ **`curl` 模式不是 mvn deploy**：先 `mvn install` 到本地仓库，再用 `curl` 单独 PUT 到 Reposilite。这是为了规避 Reposilite 的已知问题（HTTP 400 on Expect:100-continue）。`--mvn` 模式才用真正的 `mvn deploy`。
@@ -314,8 +314,8 @@ cat > pom.xml << 'EOF'
   <packaging>jar</packaging>
   <dependencies>
     <dependency>
-      <groupId>com.kudi.coder</groupId>
-      <artifactId>token-server-client-sdk</artifactId>
+      <groupId>io.digua</groupId>
+      <artifactId>digua-token-client-sdk</artifactId>
       <version>0.3.0</version>
     </dependency>
   </dependencies>
@@ -342,7 +342,7 @@ mkdir -p ~/.m2 && cat > ~/.m2/settings.xml << 'EOF'
 </settings>
 EOF
 
-# 4. 编译（应能拉到 token-server-client-sdk）
+# 4. 编译（应能拉到 digua-token-client-sdk）
 mvn compile
 ```
 

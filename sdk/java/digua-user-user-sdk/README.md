@@ -1,4 +1,4 @@
-# user-service-user-sdk
+# digua-user-user-sdk
 
 终端用户访问 `iam-service`（用户/角色/权限管理）的 SDK，走 v1 路由 `/v1/iam/...`。
 
@@ -6,8 +6,8 @@
 
 ```xml
 <dependency>
-  <groupId>com.kudi.coder</groupId>
-  <artifactId>user-service-user-sdk</artifactId>
+  <groupId>io.digua</groupId>
+  <artifactId>digua-user-user-sdk</artifactId>
   <version>0.2.0</version>
 </dependency>
 ```

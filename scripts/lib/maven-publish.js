@@ -12,7 +12,7 @@ const { chalk } = require('./ui.js');
 const CONFIG_PATH = path.join(ROOT, 'infrastructure', '.docker-registry.json');
 const M2_SETTINGS_PATH = path.join(os.homedir(), '.m2', 'settings.xml');
 const M2_REPO_ROOT = path.join(os.homedir(), '.m2', 'repository');
-const GROUP_PATH = 'com/kudi/coder';
+const GROUP_PATH = 'io/digua';
 const VALID_PROFILES = new Set(['java8', 'java17', 'java21']);
 
 const DEFAULT_REPO_ID = {
@@ -227,7 +227,7 @@ function uploadFile(filePath, remoteBase, relPath, curlAuth, skipIfExists) {
   return { ok: true };
 }
 
-// 递归找 M2_REPO_ROOT/com/kudi/coder/*/<VERSION>/*.pom + *.jar，排序稳定。
+// 递归找 M2_REPO_ROOT/io/digua/*/<VERSION>/*.pom + *.jar，排序稳定。
 function findArtifacts(version) {
   const base = path.join(M2_REPO_ROOT, GROUP_PATH);
   if (!fs.existsSync(base)) return [];

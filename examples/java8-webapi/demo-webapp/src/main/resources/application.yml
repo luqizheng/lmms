@@ -21,7 +21,7 @@ spring:
     init:
       mode: always
       data-locations: classpath:data.sql
-kudi:
+digua:
   gateway:
     base-url: ${KUDI_GATEWAY_URL:http://localhost:3000}
   iam:
@@ -33,5 +33,5 @@ kudi:
     code: ${DEMO_API_CODE:demo-code}
 logging:
   level:
-    com.kudi.coder.demowebapp: INFO
+    io.digua.demowebapp: INFO
     org.springframework.web: INFO

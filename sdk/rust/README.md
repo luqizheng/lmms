@@ -1,7 +1,7 @@
 # KudiCoder Rust SDK Suite
 
 Typed Rust clients for the KudiCoder microservices platform. The shared
-HTTP + token-cache layer is `kudi-http-client`; one crate per public
+HTTP + token-cache layer is `digua_http_client`; one crate per public
 service wraps that layer with service-specific typed methods and models.
 
 Endpoint paths and request/response shapes are sourced from each
@@ -12,15 +12,15 @@ paths have diverged in places, so do not copy them blindly.
 
 | Crate | Purpose | Endpoints wrapped |
 |---|---|---|
-| [`kudi-http-client`](kudi-http-client) | Shared transport + token cache | (not a service client — used by the SDKs below) |
-| [`iam-service-sdk`](iam-service-sdk) | `iam-service` (auth + user/role/permission/tenant management) | login/refresh/logout/password + users/roles/permissions CRUD |
-| [`token-service-sdk`](token-service-sdk) | `token-service` (OAuth + API key) | access/refresh/revoke + api-keys CRUD |
-| [`audit-service-sdk`](audit-service-sdk) | `audit-service` (operation & login logs + retention) | query login/operation logs + retention policy CRUD |
-| [`file-service-sdk`](file-service-sdk) | `file-service` (presigned upload/download + metadata) | presign + list + info (binary transfer done via presign URL) |
-| [`notification-service-sdk`](notification-service-sdk) | `notification-service` (announcements + unread count) | announcement CRUD + publish/revoke + unread count |
-| [`config-service-sdk`](config-service-sdk) | `config-service` (namespaces + items + watch) | namespace + item CRUD (SSE watch left for SSE clients) |
+| [`digua_http_client`](digua_http_client) | Shared transport + token cache | (not a service client — used by the SDKs below) |
+| [`digua_iam_sdk`](digua_iam_sdk) | `iam-service` (auth + user/role/permission/tenant management) | login/refresh/logout/password + users/roles/permissions CRUD |
+| [`digua_token_sdk`](digua_token_sdk) | `token-service` (OAuth + API key) | access/refresh/revoke + api-keys CRUD |
+| [`digua_audit_sdk`](digua_audit_sdk) | `audit-service` (operation & login logs + retention) | query login/operation logs + retention policy CRUD |
+| [`digua_file_sdk`](digua_file_sdk) | `file-service` (presigned upload/download + metadata) | presign + list + info (binary transfer done via presign URL) |
+| [`digua_notification_sdk`](digua_notification_sdk) | `notification-service` (announcements + unread count) | announcement CRUD + publish/revoke + unread count |
+| [`digua_config_sdk`](digua_config_sdk) | `config-service` (namespaces + items + watch) | namespace + item CRUD (SSE watch left for SSE clients) |
 
-All six service SDKs depend on `kudi-http-client` (workspace path).
+All six service SDKs depend on `digua_http_client` (workspace path).
 Bring them in with `path = "..."` while consuming them locally; publishing
 to an internal `crates.io` mirror is a follow-up.
 
@@ -28,21 +28,21 @@ to an internal `crates.io` mirror is a follow-up.
 
 ```bash
 # Just the SDK crates
-cargo build -p kudi-http-client \
-  -p iam-service-sdk \
-  -p token-service-sdk \
-  -p audit-service-sdk \
-  -p file-service-sdk \
-  -p notification-service-sdk \
-  -p config-service-sdk
+cargo build -p digua_http_client \
+  -p digua_iam_sdk \
+  -p digua_token_sdk \
+  -p digua_audit_sdk \
+  -p digua_file_sdk \
+  -p digua_notification_sdk \
+  -p digua_config_sdk
 
-cargo test -p kudi-http-client \
-  -p iam-service-sdk \
-  -p token-service-sdk \
-  -p audit-service-sdk \
-  -p file-service-sdk \
-  -p notification-service-sdk \
-  -p config-service-sdk
+cargo test -p digua_http_client \
+  -p digua_iam_sdk \
+  -p digua_token_sdk \
+  -p digua_audit_sdk \
+  -p digua_file_sdk \
+  -p digua_notification_sdk \
+  -p digua_config_sdk
 ```
 
 Use `CARGO_TARGET_DIR=/tmp/sdk-target` if the repo-root `target/` is
@@ -65,7 +65,7 @@ Every method returns `Result<T, digua_http_client::SdkError>`
 Most service SDKs take a `Fn() -> Option<String>` bearer supplier so
 the caller owns the user JWT (typically the one issued by `iam-service`
 login). For service-to-service flows where you have a client
-credential pair, `kudi-http-client` also supports `client_credentials`
+credential pair, `digua_http_client` also supports `client_credentials`
 with automatic token caching and refresh (`force_refresh()` to
 invalidate after a 401).
 
@@ -85,10 +85,10 @@ at least request shape, success parsing, and 401 → `SdkError::Auth`.
   use `libs/digua_common-http`'s `ResilientClient` + `ServiceJwtCache` for
   internal m2m (different trust domain, different auth model).
 - **Java SDK** — unchanged, lives in `sdk/java/`.
-- **Multipart upload / binary download in file-service-sdk** —
-  `kudi-http-client`'s `HttpResponse` is text-only. Presign and use any
+- **Multipart upload / binary download in digua_file_sdk** —
+  `digua_http_client`'s `HttpResponse` is text-only. Presign and use any
   HTTP client directly against the storage URL.
-- **WebSocket / SSE** — out of scope for `kudi-http-client`. Use a
+- **WebSocket / SSE** — out of scope for `digua_http_client`. Use a
   dedicated streaming client (`tokio-tungstenite`, `eventsource-client`,
   etc.) against the public WebSocket/SSE URL.
 - **CI gate** — no new required gate. CI `test` stage does not run

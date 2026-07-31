@@ -2,7 +2,7 @@ package io.digua.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "kudi")
+@ConfigurationProperties(prefix = "digua")
 public class KudiCoderProperties {
 
     private Gateway gateway = new Gateway();

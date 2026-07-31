@@ -1,4 +1,4 @@
-# kudi-http-client (Java)
+# digua-http-client (Java)
 
 轻量 HTTP 客户端，专为本平台的 **JWT 透传**模型设计。
 
@@ -6,15 +6,15 @@
 >
 > 如果需要服务首次获取 token，请用：
 >
-> - 终端用户场景：`user-service-user-sdk`（username/password 登录 → JWT）
-> - OAuth Client 场景：`token-server-client-sdk`（authorization_code → JWT）
+> - 终端用户场景：`digua-user-user-sdk`（username/password 登录 → JWT）
+> - OAuth Client 场景：`digua-token-client-sdk`（authorization_code → JWT）
 
 ## 安装
 
 ```xml
 <dependency>
-  <groupId>com.kudi.coder</groupId>
-  <artifactId>kudi-http-client</artifactId>
+  <groupId>io.digua</groupId>
+  <artifactId>digua-http-client</artifactId>
   <version>0.2.0</version>
 </dependency>
 ```
@@ -22,8 +22,8 @@
 ## 用法
 
 ```java
-import com.kudi.coder.httpclient.KudiHttpClient;
-import com.kudi.coder.httpclient.HttpTransport;
+import io.digua.httpclient.KudiHttpClient;
+import io.digua.httpclient.HttpTransport;
 
 KudiHttpClient client = KudiHttpClient.create();
 
@@ -46,7 +46,7 @@ client.get("http://localhost:3000/v1/iam/health", null);
 
 ## 错误映射
 
-非 2xx 响应会按状态码抛出 `com.kudi.coder.httpclient.Exceptions.*`：
+非 2xx 响应会按状态码抛出 `io.digua.httpclient.Exceptions.*`：
 
 | 状态码 | 异常 |
 |--------|------|
@@ -80,10 +80,10 @@ KudiHttpClient client = KudiHttpClient.create(opts);
 | `connectTimeout` | 5s | 连接超时 |
 | `readTimeout` | 15s | 读超时 |
 | `retryCount` | 1 | 5xx / 网络错误重试次数 |
-| `userAgent` | `kudi-http-client/0.2.0` | UA header |
+| `userAgent` | `digua-http-client/0.2.0` | UA header |
 
 ## 与其它 SDK 的关系
 
 - 此模块**只做 HTTP 透传** —— 不解析响应 JSON，调用方拿到 `Response.body` 字符串自行处理（用 Jackson / Gson 等）
-- 需要做完整业务模型映射（强类型 `User` / `Role` 等）请用领域 SDK：`user-service-user-sdk` / `token-server-user-sdk` / 等
+- 需要做完整业务模型映射（强类型 `User` / `Role` 等）请用领域 SDK：`digua-user-user-sdk` / `digua-token-user-sdk` / 等
 - 适合用于尚未有专门 SDK 的下游服务，或者只需要一两个端点的轻量集成

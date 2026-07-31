@@ -161,7 +161,7 @@ docker pull zhcoder-docker-registry.com:8000/micro-server/iam-service:latest
 ```bash
 # 测试依赖下载
 mvn dependency:get \
-  -DgroupId=com.kudi.coder \
+  -DgroupId=io.digua \
   -DartifactId=user-service-user-sdk \
   -Dversion=0.2.0 \
   -DrepoUrl=https://mvn.kudi.repos/releases

@@ -137,7 +137,7 @@ services/{name}/
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.6.0</springdoc.version>
-        <kudi-sdk.version>0.3.0</kudi-sdk.version>
+        <digua-sdk.version>0.3.0</digua-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -197,7 +197,7 @@ services/{name}/
 
     <repositories>
         <repository>
-            <id>kudi-maven</id>
+            <id>digua-maven</id>
             <name>Internal Maven Repository (Reposilite)</name>
             <url>http://192.168.2.12:18181/releases</url>
         </repository>
@@ -884,44 +884,44 @@ public class ConflictException extends RuntimeException {
         <!-- Optional SDK deps - uncomment the ones this service actually calls -->
         <!--
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>token-server-client-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>token-server-user-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>user-service-user-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>user-service-client-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>audit-service-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>file-service-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>notification-service-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.kudi.coder</groupId>
+            <groupId>io.digua</groupId>
             <artifactId>config-service-sdk</artifactId>
-            <version>${kudi-sdk.version}</version>
+            <version>${digua-sdk.version}</version>
         </dependency>
         -->
 
@@ -1046,7 +1046,7 @@ WORKDIR /build
 
 COPY sdk/java/pom.xml sdk/java/pom.xml
 COPY sdk/java/digua_common/pom.xml                 sdk/java/digua_common/pom.xml
-COPY sdk/java/kudi-http-client/pom.xml      sdk/java/kudi-http-client/pom.xml
+COPY sdk/java/digua-http-client/pom.xml      sdk/java/digua-http-client/pom.xml
 COPY sdk/java/user-service-user-sdk/pom.xml sdk/java/user-service-user-sdk/pom.xml
 COPY sdk/java/user-service-client-sdk/pom.xml sdk/java/user-service-client-sdk/pom.xml
 COPY sdk/java/token-server-user-sdk/pom.xml sdk/java/token-server-user-sdk/pom.xml
@@ -1056,7 +1056,7 @@ COPY sdk/java/notification-service-sdk/pom.xml sdk/java/notification-service-sdk
 COPY sdk/java/config-service-sdk/pom.xml    sdk/java/config-service-sdk/pom.xml
 
 COPY sdk/java/digua_common                 sdk/java/digua_common
-COPY sdk/java/kudi-http-client      sdk/java/kudi-http-client
+COPY sdk/java/digua-http-client      sdk/java/digua-http-client
 COPY sdk/java/user-service-user-sdk sdk/java/user-service-user-sdk
 COPY sdk/java/user-service-client-sdk sdk/java/user-service-client-sdk
 COPY sdk/java/token-server-user-sdk sdk/java/token-server-user-sdk

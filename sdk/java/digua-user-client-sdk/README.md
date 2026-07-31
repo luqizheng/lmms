@@ -1,4 +1,4 @@
-# user-service-client-sdk
+# digua-user-client-sdk
 
 服务之间或受信任后台访问 `iam-service`（用户/角色/权限管理）的 SDK（`client_credentials` 流程），走 v1 路由 `/v1/iam/...`。
 
@@ -6,8 +6,8 @@
 
 ```xml
 <dependency>
-  <groupId>com.kudi.coder</groupId>
-  <artifactId>user-service-client-sdk</artifactId>
+  <groupId>io.digua</groupId>
+  <artifactId>digua-user-client-sdk</artifactId>
   <version>0.2.0</version>
 </dependency>
 ```

@@ -1,4 +1,4 @@
-# config-service-sdk
+# digua_config_sdk
 
 Rust client SDK for the KudiCoder `config-service`. Endpoint paths and
 request/response shapes from `services/config-service/openapi.yaml`.
@@ -7,7 +7,7 @@ request/response shapes from `services/config-service/openapi.yaml`.
 
 ```toml
 [dependencies]
-config-service-sdk = { path = "../config-service-sdk" }
+digua_config_sdk = { path = "../digua_config_sdk" }
 tokio = { version = "1", features = ["full"] }
 ```
 

@@ -1,4 +1,4 @@
-# token-server-user-sdk
+# digua-token-user-sdk
 
 终端用户访问 `token-service` 的 SDK：先经 `iam-service` 登录拿 JWT，再用同一 JWT 调用 token 相关接口（刷新 / 撤销 / 资源令牌 / JWKS）。走 v1 路由 `/v1/iam/auth/login` + `/v1/tokens/...`。
 
@@ -6,8 +6,8 @@
 
 ```xml
 <dependency>
-  <groupId>com.kudi.coder</groupId>
-  <artifactId>token-server-user-sdk</artifactId>
+  <groupId>io.digua</groupId>
+  <artifactId>digua-token-user-sdk</artifactId>
   <version>0.2.0</version>
 </dependency>
 ```

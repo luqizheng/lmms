@@ -1,4 +1,4 @@
-# kudi-http-client (Rust)
+# digua_http_client (Rust)
 
 Generic HTTP client for inter-service calls. Two modes:
 
@@ -11,7 +11,7 @@ Token cache is keyed by `SHA256(client_id | secret_key)` and shared across `Kudi
 
 ```toml
 [dependencies]
-kudi-http-client = { path = "../kudi-http-client" }
+digua_http_client = { path = "../digua_http_client" }
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 ```
@@ -57,15 +57,15 @@ client.post("http://user-svc/api/users", r#"{"name":"x"}"#, None).await?;
 | `read_timeout` | 15s |
 | `retry_count` | 1 (5xx/network only) |
 | `refresh_skew` | 60s |
-| `user_agent` | `kudi-http-client/<version>` |
+| `user_agent` | `digua_http_client/<version>` |
 
 The first call to a transport installs the rustls `aws_lc_rs` crypto provider (idempotent).
 
 ## 作为 SDK 共享底座
 
 This crate is the shared transport + token-cache layer for the per-service SDKs
-(`iam-service-sdk`, `token-service-sdk`, `audit-service-sdk`,
-`file-service-sdk`, `notification-service-sdk`, `config-service-sdk`).
+(`digua_iam_sdk`, `digua_token_sdk`, `digua_audit_sdk`,
+`digua_file_sdk`, `digua_notification_sdk`, `digua_config_sdk`).
 If you are calling the platform from your own application you can also depend
 on this crate directly and build the URL yourself.
 

@@ -127,9 +127,9 @@ cargo add audit-service-sdk --registry kellnr
 cargo add config-service-sdk --registry kellnr
 cargo add file-service-sdk --registry kellnr
 cargo add iam-service-sdk --registry kellnr
-cargo add notification-service-sdk --registry kellnr
+cargo add digua-notification-sdk --registry kellnr
 cargo add token-service-sdk --registry kellnr
-cargo add kudi-http-client --registry kellnr
+cargo add digua-http-client --registry kellnr
 
 # 平台基础设施库（业务 Rust 服务作为 axum web 时的地基）
 cargo add digua_common-error --registry kellnr
@@ -154,7 +154,7 @@ cargo 会自动从已配置的 kellnr registry（`.cargo/config.toml`）拉取�
 Java SDK 由 CI 在 `v*.*.*` tag 触发时推送到私有 Maven 仓库。业务 Java 服务通过 `<dependency>` 直接引入即可。
 
 - **仓库地址**：`http://192.168.2.12:18181/releases`
-- **groupId**：`com.kudi.coder`
+- **groupId**：`io.digua`
 - **version**：与 `sdk/java/pom.xml` 一致（当前 `0.3.0`）
 
 ### 1. 配置 Maven 仓库
@@ -164,7 +164,7 @@ Java SDK 由 CI 在 `v*.*.*` tag 触发时推送到私有 Maven 仓库。业务 
 ```xml
 <repositories>
   <repository>
-    <id>kudi-maven-releases</id>
+    <id>digua-maven-releases</id>
     <url>http://192.168.2.12:18181/releases</url>
     <releases><enabled>true</enabled></releases>
     <snapshots><enabled>false</enabled></snapshots>
@@ -177,7 +177,7 @@ Java SDK 由 CI 在 `v*.*.*` tag 触发时推送到私有 Maven 仓库。业务 
 ```xml
 <servers>
   <server>
-    <id>kudi-maven-releases</id>
+    <id>digua-maven-releases</id>
     <username>你的用户名</username>
     <password>你的密码</password>
   </server>
@@ -186,26 +186,26 @@ Java SDK 由 CI 在 `v*.*.*` tag 触发时推送到私有 Maven 仓库。业务 
 
 ### 2. 引入 SDK 依赖
 
-按需引入对应服务的 SDK（所有模块共享 `com.kudi.coder:kudi-coder-sdk-digua_common`，会自动传递依赖）：
+按需引入对应服务的 SDK（所有模块共享 `io.digua:digua-sdk-common`，会自动传递依赖）：
 
 | SDK 模块 | artifactId | 用途 |
 | --- | --- | --- |
-| digua_common | `kudi-coder-sdk-digua_common` | 公共配置/异常（其余 SDK 自动传递依赖） |
-| kudi-http-client | `kudi-http-client` | 底层 HTTP 客户端封装 |
-| user-service-user-sdk | `user-service-user-sdk` | 用户身份视角调用 IAM |
-| user-service-client-sdk | `user-service-client-sdk` | 客户端应用视角调用 IAM |
-| token-server-user-sdk | `token-server-user-sdk` | 用户身份视角调用 Token |
-| token-server-client-sdk | `token-server-client-sdk` | 客户端应用视角调用 Token |
+| digua_common | `digua-sdk-common` | 公共配置/异常（其余 SDK 自动传递依赖） |
+| digua-http-client | `digua-http-client` | 底层 HTTP 客户端封装 |
+| digua-user-user-sdk | `digua-user-user-sdk` | 用户身份视角调用 IAM |
+| digua-user-client-sdk | `digua-user-client-sdk` | 客户端应用视角调用 IAM |
+| digua-token-user-sdk | `digua-token-user-sdk` | 用户身份视角调用 Token |
+| digua-token-client-sdk | `digua-token-client-sdk` | 客户端应用视角调用 Token |
 | audit-service-sdk | `audit-service-sdk` | 调用审计服务 |
 | config-service-sdk | `config-service-sdk` | 调用配置中心 |
 | file-service-sdk | `file-service-sdk` | 调用文件服务 |
-| notification-service-sdk | `notification-service-sdk` | 调用通知服务 |
+| digua-notification-sdk | `digua-notification-sdk` | 调用通知服务 |
 
 示例（以 audit-service-sdk 为例）：
 
 ```xml
 <dependency>
-  <groupId>com.kudi.coder</groupId>
+  <groupId>io.digua</groupId>
   <artifactId>audit-service-sdk</artifactId>
   <version>0.3.0</version>
 </dependency>

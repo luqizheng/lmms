@@ -10,26 +10,26 @@
 
 ```
 sdk/rust/
-├── kudi-http-client           # 底层 HTTP + token-cache 共享库（先发布）
-├── audit-service-sdk          # 6 个 service SDK 都依赖 kudi-http-client
-├── config-service-sdk         # （path 依赖在本地开发时；发布时切 version）
-├── file-service-sdk
-├── iam-service-sdk
-├── notification-service-sdk
-└── token-service-sdk
+├── digua_http_client           # 底层 HTTP + token-cache 共享库（先发布）
+├── digua_audit_sdk          # 6 个 service SDK 都依赖 digua_http_client
+├── digua_config_sdk         # （path 依赖在本地开发时；发布时切 version）
+├── digua_file_sdk
+├── digua_iam_sdk
+├── digua_notification_sdk
+└── digua_token_sdk
 ```
 
 每个 crate 独立打包为 `*.tar.gz` 上传到 [crates.io](https://crates.io)，最终用户通过 `cargo add <name>` 或 `Cargo.toml` 依赖引入。
 
 | crate | 版本 | crates.io |
 | --- | --- | --- |
-| `kudi-http-client` | 0.1.0 | https://crates.io/crates/kudi-http-client |
-| `iam-service-sdk` | 0.1.0 | https://crates.io/crates/iam-service-sdk |
-| `token-service-sdk` | 0.1.0 | https://crates.io/crates/token-service-sdk |
-| `audit-service-sdk` | 0.1.0 | https://crates.io/crates/audit-service-sdk |
-| `file-service-sdk` | 0.1.0 | https://crates.io/crates/file-service-sdk |
-| `notification-service-sdk` | 0.1.0 | https://crates.io/crates/notification-service-sdk |
-| `config-service-sdk` | 0.1.0 | https://crates.io/crates/config-service-sdk |
+| `digua_http_client` | 0.1.0 | https://crates.io/crates/digua_http_client |
+| `digua_iam_sdk` | 0.1.0 | https://crates.io/crates/digua_iam_sdk |
+| `digua_token_sdk` | 0.1.0 | https://crates.io/crates/digua_token_sdk |
+| `digua_audit_sdk` | 0.1.0 | https://crates.io/crates/digua_audit_sdk |
+| `digua_file_sdk` | 0.1.0 | https://crates.io/crates/digua_file_sdk |
+| `digua_notification_sdk` | 0.1.0 | https://crates.io/crates/digua_notification_sdk |
+| `digua_config_sdk` | 0.1.0 | https://crates.io/crates/digua_config_sdk |
 
 ---
 
@@ -113,19 +113,19 @@ homepage = "https://github.com/your-org/your-repo"
 ## 4. 发布顺序与依赖关系
 
 ```
-kudi-http-client   ←  基础库，先发
+digua_http_client   ←  基础库，先发
        ↑
-       ├── audit-service-sdk
-       ├── config-service-sdk
-       ├── file-service-sdk
-       ├── iam-service-sdk
-       ├── notification-service-sdk
-       └── token-service-sdk      ← 6 个 service SDK，每个独立，互不依赖
+       ├── digua_audit_sdk
+       ├── digua_config_sdk
+       ├── digua_file_sdk
+       ├── digua_iam_sdk
+       ├── digua_notification_sdk
+       └── digua_token_sdk      ← 6 个 service SDK，每个独立，互不依赖
 ```
 
-发布顺序：先发 `kudi-http-client`，等 crates.io 索引（约 30 秒）后，再发 6 个 service SDK。6 个 service SDK 之间互不依赖，可以串行或并行。
+发布顺序：先发 `digua_http_client`，等 crates.io 索引（约 30 秒）后，再发 6 个 service SDK。6 个 service SDK 之间互不依赖，可以串行或并行。
 
-> ⚠️ 6 个 SDK 本地 Cargo.toml 用 `path = "../kudi-http-client"`（workspace path 依赖），`cargo publish` 拒绝 path 依赖。脚本会自动把它们临时改为 `version = "<x.y.z>"`，发完后恢复（见 §5.1）。
+> ⚠️ 6 个 SDK 本地 Cargo.toml 用 `path = "../digua_http_client"`（workspace path 依赖），`cargo publish` 拒绝 path 依赖。脚本会自动把它们临时改为 `version = "<x.y.z>"`，发完后恢复（见 §5.1）。
 
 ---
 
@@ -150,9 +150,9 @@ bash sdk/scripts/publish-rust-sdks.sh [--dry-run] [--registry <name>] [--version
 **脚本做的事：**
 
 1. **前置检查**：每个 crate 必须有 `description` + `license`，否则 exit 2。
-2. **统一版本号**：所有 crate 的 `version = "..."` 统一成同一个（确保 kudi-http-client 和 service SDK 一致）。
-3. **发 kudi-http-client**：无 path 依赖，直接 `cargo publish`。
-4. **替换 path 依赖**：把 6 个 service SDK 的 `path = "../kudi-http-client"` 临时改为 `version = "<ver>"`，备份到 `.bak`。
+2. **统一版本号**：所有 crate 的 `version = "..."` 统一成同一个（确保 digua_http_client 和 service SDK 一致）。
+3. **发 digua_http_client**：无 path 依赖，直接 `cargo publish`。
+4. **替换 path 依赖**：把 6 个 service SDK 的 `path = "../digua_http_client"` 临时改为 `version = "<ver>"`，备份到 `.bak`。
 5. **逐个发 service SDK**：编译 → 打包 → 上传。
 6. **恢复 path 依赖**：`mv *.bak` 还原。
 7. **汇总**：成功 / 失败 crate 列表。
@@ -220,9 +220,9 @@ cargo publish -p <crate> --allow-dirty --registry crates-io \
 # 拉一个临时目录试装
 mkdir /tmp/sdk-verify && cd /tmp/sdk-verify
 cargo init --name verify-app
-cargo add iam-service-sdk kudi-http-client
-cargo build           # 期望：从 crates.io 拉 kudi-http-client 和 iam-service-sdk
-cargo tree | head      # 期望：能看到 kudi-http-client v0.1.0 是从 crates.io 拉的
+cargo add digua_iam_sdk digua_http_client
+cargo build           # 期望：从 crates.io 拉 digua_http_client 和 digua_iam_sdk
+cargo tree | head      # 期望：能看到 digua_http_client v0.1.0 是从 crates.io 拉的
 ```
 
 或在文档站浏览：[`./rust-sdk`](./rust-sdk) §「SDK 现状」给出 `cargo add` 示例。
@@ -260,10 +260,10 @@ crates.io 对**新账号**和**高频账号**有 rate limit：
 
 ### 8.2 一致性约束
 
-`kudi-http-client` 和所有 service SDK **必须使用同一个版本号**（脚本默认行为）。原因：
+`digua_http_client` 和所有 service SDK **必须使用同一个版本号**（脚本默认行为）。原因：
 
-- service SDK 依赖 `kudi-http-client = { version = "0.1.0" }`（发布时脚本自动注入）
-- 如果 kudi-http-client 升到 `0.2.0` 而 service SDK 还在 `0.1.0`，会引入两个版本共存问题
+- service SDK 依赖 `digua_http_client = { version = "0.1.0" }`（发布时脚本自动注入）
+- 如果 digua_http_client 升到 `0.2.0` 而 service SDK 还在 `0.1.0`，会引入两个版本共存问题
 
 发布流程：
 
@@ -275,10 +275,10 @@ crates.io 对**新账号**和**高频账号**有 rate limit：
 如果发现严重问题，需要 yank（标记为不可用、但仍可查）：
 
 ```bash
-cargo yank --version 0.1.0 kudi-http-client
+cargo yank --version 0.1.0 digua_http_client
 ```
 
-yank 后 `cargo add kudi-http-client@0.1.0` 仍能拉取（已锁版本的项目不受影响），但新项目不会被推荐。需要彻底删只能联系 crates.io 管理员。
+yank 后 `cargo add digua_http_client@0.1.0` 仍能拉取（已锁版本的项目不受影响），但新项目不会被推荐。需要彻底删只能联系 crates.io 管理员。
 
 ---
 
@@ -292,7 +292,7 @@ yank 后 `cargo add kudi-http-client@0.1.0` 仍能拉取（已锁版本的项目
 | `error: failed to get anyhow as a dependency of package digua_common v0.1.0` | mirror git index 损坏 / 不同步 | 临时禁掉 mirror 直接走 crates.io；或改用 sparse index |
 | `Permission denied (os error 13) ... target/package/tmp-registry` | `target/` 是 docker volume root-owned | 用 `CARGO_TARGET_DIR=/tmp/sdk-publish` |
 | `warning: manifest has no documentation, homepage or repository` | 缺 repository / homepage 字段 | 在 `[package]` 加上，可忽略但建议补 |
-| `error: failed to load source for dependency kudi-http-client` | publish 后没等索引同步就发下一个 | `kudi-http-client` 发完后等 30 秒再发 service SDK |
+| `error: failed to load source for dependency digua_http_client` | publish 后没等索引同步就发下一个 | `digua_http_client` 发完后等 30 秒再发 service SDK |
 | 脚本发完一半退出，service SDK 还是 `version` 依赖 | 脚本崩溃前未到恢复 .bak 的步骤 | 手动 `mv sdk/rust/*/Cargo.toml.bak sdk/rust/*/Cargo.toml` |
 
 ---

@@ -4,11 +4,11 @@
 #
 # Pre-reqs (env-blocked):
 #   1. JDK 17 on PATH (to honor sdk/java's <java.version>17)
-#   2. ~/.m2/settings.xml with credentials for <id>kudi-maven</id>:
+#   2. ~/.m2/settings.xml with credentials for <id>digua-maven</id>:
 #        <settings>
 #          <servers>
 #            <server>
-#              <id>kudi-maven</id>
+#              <id>digua-maven</id>
 #              <username>${env.MAVEN_USER}</username>
 #              <password>${env.MAVEN_PASS}</password>
 #            </server>
@@ -48,8 +48,8 @@ if [[ "${DRY_RUN}" == "1" ]]; then
 fi
 
 # sanity: ensure ~/.m2/settings.xml has the server
-if [[ ! -f "${HOME}/.m2/settings.xml" ]] || ! grep -q "<id>kudi-maven</id>" "${HOME}/.m2/settings.xml"; then
-  echo "ERROR: ~/.m2/settings.xml missing server id 'kudi-maven'. See header comment in this script." >&2
+if [[ ! -f "${HOME}/.m2/settings.xml" ]] || ! grep -q "<id>digua-maven</id>" "${HOME}/.m2/settings.xml"; then
+  echo "ERROR: ~/.m2/settings.xml missing server id 'digua-maven'. See header comment in this script." >&2
   exit 2
 fi
 

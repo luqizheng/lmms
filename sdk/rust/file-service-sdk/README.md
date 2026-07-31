@@ -1,4 +1,4 @@
-# file-service-sdk
+# digua_file_sdk
 
 Rust client SDK for the KudiCoder `file-service`. Endpoint paths and
 request/response shapes from `services/file-service/openapi.yaml`.
@@ -7,7 +7,7 @@ request/response shapes from `services/file-service/openapi.yaml`.
 
 ```toml
 [dependencies]
-file-service-sdk = { path = "../file-service-sdk" }
+digua_file_sdk = { path = "../digua_file_sdk" }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -42,7 +42,7 @@ let page = client.list_files(&ListFilesQuery::new().page(0).size(20)).await?;
 
 **Not wrapped**: `POST /file/upload` (multipart) and `GET /file/{id}`
 (download). Both are byte-heavy — presign a URL and use any HTTP client
-directly. `kudi-http-client`'s `HttpResponse` is text-only, so wrapping
+directly. `digua_http_client`'s `HttpResponse` is text-only, so wrapping
 binary transfer would require extending that crate first.
 
 ## Errors

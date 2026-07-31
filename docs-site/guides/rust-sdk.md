@@ -9,7 +9,7 @@
 - 想直接对接 `api-gateway` 暴露的 HTTP 接口（登录、拿 JWT、CRUD 资源）但又不想手写 reqwest + serde + token 缓存样板
 - 想理解 Rust SDK 与 Java SDK 的差异、服务内部通信与外部 SDK 的边界的同学
 
-> ℹ️ **关于 `sdk/rust/`**：1.0 起 6 个 service crate 已就位（iam / token / audit / file / notification / config），共享 `kudi-http-client` 底座。直接依赖 `sdk/rust/<svc>-sdk` 即可，不必再按本文示例手写 reqwest。详见文末「§ 8 SDK 现状」。
+> ℹ️ **关于 `sdk/rust/`**：1.0 起 6 个 service crate 已就位（iam / token / audit / file / notification / config），共享 `digua_http_client` 底座。直接依赖 `sdk/rust/<svc>-sdk` 即可，不必再按本文示例手写 reqwest。详见文末「§ 8 SDK 现状」。
 
 ---
 
@@ -52,7 +52,7 @@
 
 | Crate | 用途 | 端点数（已包装） |
 |---|---|---|
-| `kudi-http-client` | 共享底座：HTTP + token 缓存 + Bearer passthrough + `client_credentials` + 错误映射 | — |
+| `digua_http_client` | 共享底座：HTTP + token 缓存 + Bearer passthrough + `client_credentials` + 错误映射 | — |
 | `iam-service-sdk` | `iam-service`：登录、用户 / 角色 / 权限 / 组织单元管理 | 11 |
 | `token-service-sdk` | `token-service`：OAuth client / token 端点 / API Key | 5 |
 | `audit-service-sdk` | `audit-service`：登录 / 操作日志查询 + 留存策略 | 6 |
@@ -62,7 +62,7 @@
 
 vs Java SDK（`sdk/java/`）的对照：
 
-- **crate 数**：Java 8 个 module（按 service + 场景拆开 user/client 两个变体）；Rust 6 个 service crate（用 Builder 切换 user / client_credentials 场景，因为 `kudi-http-client` 同时支持两种模式）。
+- **crate 数**：Java 8 个 module（按 service + 场景拆开 user/client 两个变体）；Rust 6 个 service crate（用 Builder 切换 user / client_credentials 场景，因为 `digua_http_client` 同时支持两种模式）。
 - **代码生成方式**：Java 用 `openapi-generator` 骨架 + 手写凭证层；Rust 端点路径与模型**直接从 `services/<svc>/openapi.yaml`（utoipa 自动生成）手写翻译**，不跑 `openapi-generator`（产物质量差，与 Java 实践一致：最终都是手写）。
 - **端点路径源**：以 `services/<svc>/openapi.yaml` 为单一事实源。**Java SDK 的 `/v1/audit/...` 等路径已过期（与现网服务不符），Rust 端不照搬**。
 - **测试**：Java 用 `MockWebServer`；Rust 用 `wiremock`。
@@ -303,7 +303,7 @@ match client.get_user("u-1").await {
 | `client.list_files(&ListFilesQuery)` | GET | `/file/list` |
 | `client.get_file_info(id)` | GET | `/file/{id}/info` |
 
-> 故意未包装：multipart upload (`POST /file/upload`) 与 binary download (`GET /file/{id}`) — 这两条路径走字节流，`kudi-http-client` 的 `HttpResponse` 是 text-only，强行包装会丢字节。正确做法：先 `create_presign` 拿到 storage URL，调用方用任何 HTTP client（reqwest / curl / aws-sdk）直接 PUT/GET 到 URL。
+> 故意未包装：multipart upload (`POST /file/upload`) 与 binary download (`GET /file/{id}`) — 这两条路径走字节流，`digua_http_client` 的 `HttpResponse` 是 text-only，强行包装会丢字节。正确做法：先 `create_presign` 拿到 storage URL，调用方用任何 HTTP client（reqwest / curl / aws-sdk）直接 PUT/GET 到 URL。
 
 ### notification-service-sdk
 
@@ -336,7 +336,7 @@ match client.get_user("u-1").await {
 
 ### 8.1 当前状态
 
-- 6 个 service crate + 共享底座 `kudi-http-client`，全部在 Cargo workspace 内。
+- 6 个 service crate + 共享底座 `digua_http_client`，全部在 Cargo workspace 内。
 - 端点路径与 `services/<svc>/openapi.yaml` 一一对齐（25/25 OK，2026-07-17 重 dump 验证零 drift）。
 - 单元 + doctest 总计 **48 个测试全过**。
 - 已合并 main（commit `f26dbf0` + drift fix `3a14444`）。
@@ -365,7 +365,7 @@ match client.get_user("u-1").await {
 6. `cargo test -p audit-service-sdk` + `cargo build --workspace` 验证。
 7. commit + push。
 
-### 8.3 共享底座 `kudi-http-client` 的扩展点
+### 8.3 共享底座 `digua_http_client` 的扩展点
 
 当前暴露给 service SDK 用的 API：
 

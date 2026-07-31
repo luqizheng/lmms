@@ -1,4 +1,4 @@
-# iam-service-sdk
+# digua_iam_sdk
 
 Rust client SDK for the KudiCoder `iam-service`.
 
@@ -12,7 +12,7 @@ need them.
 
 ```toml
 [dependencies]
-iam-service-sdk = { path = "../iam-service-sdk" }
+digua_iam_sdk = { path = "../digua_iam_sdk" }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -68,7 +68,7 @@ client.logout().await?;
 | `create_user(&CreateUserRequest)` | POST | `/iam/users` |
 | `update_user(user_id, &UpdateUserRequest)` | POST | `/iam/users/{user_id}` |
 
-DELETE on `/iam/users/{user_id}` is not wrapped — `kudi-http-client`'s
+DELETE on `/iam/users/{user_id}` is not wrapped — `digua_http_client`'s
 `HttpTransport` trait currently only exposes GET / POST. Add a `delete`
 method to `KudiWebClient` and a `delete_json` to `HttpTransport` first.
 

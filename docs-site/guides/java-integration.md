@@ -534,7 +534,7 @@ agent 会自动给 `java.net.http.HttpClient` / OkHttp / RestTemplate / WebClien
 
 ## 9. SDK 现状
 
-`sdk/java/` 共 6 个 Maven 模块（`digua_common` / `user-service-user-sdk` / `user-service-client-sdk` / `token-server-user-sdk` / `token-server-client-sdk` / `kudi-http-client`）。**`0.2.0` 起已对齐当前 `api-gateway` 的 v1 路由与 JSON 请求体**，可以正式用于新接入。
+`sdk/java/` 共 6 个 Maven 模块（`digua_common` / `digua-user-user-sdk` / `digua-user-client-sdk` / `digua-token-user-sdk` / `digua-token-client-sdk` / `digua-http-client`）。**`0.2.0` 起已对齐当前 `api-gateway` 的 v1 路由与 JSON 请求体**，可以正式用于新接入。
 
 ### 9.1 已对齐
 
@@ -547,8 +547,8 @@ agent 会自动给 `java.net.http.HttpClient` / OkHttp / RestTemplate / WebClien
 ### 9.2 快速接入示例
 
 ```java
-import com.kudi.coder.sdk.user.UserServiceUserClient;
-import com.kudi.coder.sdk.user.User;
+import io.digua.sdk.user.UserServiceUserClient;
+import io.digua.sdk.user.User;
 
 try (UserServiceUserClient c = UserServiceUserClient.login(
         "https://gw.example.com", "alice", "P@ssw0rd!")) {
@@ -581,7 +581,7 @@ node scripts/build-java-sdk-docker.js deploy
 node scripts/build-java-sdk-docker.js test --profile java17
 
 # 透传 mvn 参数
-node scripts/build-java-sdk-docker.js test -- -pl user-service-user-sdk -am
+node scripts/build-java-sdk-docker.js test -- -pl digua-user-user-sdk -am
 ```
 
 详见 `sdk/java/README.md` 「编译」节。

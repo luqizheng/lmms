@@ -1,4 +1,4 @@
-# audit-service-sdk
+# digua_audit_sdk
 
 Rust client SDK for the KudiCoder `audit-service`.
 
@@ -12,7 +12,7 @@ exposed.
 
 ```toml
 [dependencies]
-audit-service-sdk = { path = "../audit-service-sdk" }
+digua_audit_sdk = { path = "../digua_audit_sdk" }
 tokio = { version = "1", features = ["full"] }
 ```
 

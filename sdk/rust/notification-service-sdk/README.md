@@ -1,4 +1,4 @@
-# notification-service-sdk
+# digua_notification_sdk
 
 Rust client SDK for the KudiCoder `notification-service`. Endpoint paths
 and request/response shapes from
@@ -8,7 +8,7 @@ and request/response shapes from
 
 ```toml
 [dependencies]
-notification-service-sdk = { path = "../notification-service-sdk" }
+digua_notification_sdk = { path = "../digua_notification_sdk" }
 tokio = { version = "1", features = ["full"] }
 ```
 

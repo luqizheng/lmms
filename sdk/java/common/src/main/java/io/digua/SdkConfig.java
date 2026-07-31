@@ -5,7 +5,7 @@ public class SdkConfig {
     private int connectTimeoutMs = 5000;
     private int readTimeoutMs = 15000;
     private int retryCount = 1;
-    private String userAgent = "kudi-coder-sdk/0.2.0";
+    private String userAgent = "digua-sdk/1.0.0";
 
     public SdkConfig() {}
 

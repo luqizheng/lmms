@@ -12,9 +12,9 @@ sdk/
     user-service-client-sdk/     # client -> iam-service
     token-server-user-sdk/       # user -> token-service
     token-server-client-sdk/     # client -> token-service
-    kudi-http-client/            # 通用服务间 HTTP 客户端（client_credentials + Bearer 透传）
+    digua_http_client/            # 通用服务间 HTTP 客户端（client_credentials + Bearer 透传）
   rust/                          # Rust（workspace 成员）
-    kudi-http-client/            # 通用服务间 HTTP 客户端
+    digua_http_client/            # 通用服务间 HTTP 客户端
   openapi/                       # 离线 OpenAPI 规范
   scripts/                       # openapi-generator 触发脚本
 ```

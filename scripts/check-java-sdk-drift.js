@@ -140,7 +140,7 @@ function run() {
 
   for (const moduleDir of modules) {
     const moduleName = path.basename(moduleDir);
-    if (moduleName === "common" || moduleName === "kudi-http-client") continue;
+    if (moduleName === "common" || moduleName === "digua-http-client") continue;
     const { paths, prefixes } = extractSdkPaths(moduleDir);
 
     // Group SDK paths by service prefix

@@ -1,4 +1,4 @@
-# token-server-client-sdk
+# digua-token-client-sdk
 
 服务之间或受信任后台访问 `token-service` 的 SDK（`client_credentials` 流程），走 v1 路由 `/v1/tokens/...` 和 `/v1/api-keys`。
 
@@ -6,8 +6,8 @@
 
 ```xml
 <dependency>
-  <groupId>com.kudi.coder</groupId>
-  <artifactId>token-server-client-sdk</artifactId>
+  <groupId>io.digua</groupId>
+  <artifactId>digua-token-client-sdk</artifactId>
   <version>0.2.0</version>
 </dependency>
 ```

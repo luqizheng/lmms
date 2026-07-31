@@ -28,7 +28,7 @@ public abstract class SdkClient implements AutoCloseable {
         this.http = new HttpClientWrapper(config);
         this.tokens = new TokenCache(provider);
         this.asyncExecutor = Executors.newCachedThreadPool(r -> {
-            Thread t = new Thread(r, "kudi-sdk-async");
+            Thread t = new Thread(r, "digua-sdk-async");
             t.setDaemon(true);
             return t;
         });
