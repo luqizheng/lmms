@@ -1,9 +1,5 @@
 packages:
-  - "common"
-  - "token-server"
-  - "api-gateway"
-  - "auth-service"
-  - "user-service"
+  - "services/token-service"
   - "frontend"
 allowBuilds:
   '@parcel/watcher': true
