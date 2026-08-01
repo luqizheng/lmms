@@ -27,6 +27,7 @@ export default defineConfig({
         { text: '运维', items: [
           { text: '运维与部署指南', link: '/operations/' },
           { text: '离线部署', link: '/deployment/air-gap' },
+          { text: '部署包发布', link: '/deployment/deploy-package' },
           { text: '升级指南', link: '/deployment/upgrade' },
           { text: '备份与恢复', link: '/deployment/backup' },
         ]},
