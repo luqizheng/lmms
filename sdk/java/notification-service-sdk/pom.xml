@@ -7,12 +7,12 @@
     <parent>
         <groupId>com.kudi.coder</groupId>
         <artifactId>kudi-coder-sdk-parent</artifactId>
-        <version>0.3.0</version>
+        <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>notification-service-sdk</artifactId>
-    <version>0.3.0</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>notification-service-sdk</name>
