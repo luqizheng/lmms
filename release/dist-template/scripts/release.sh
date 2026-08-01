@@ -177,6 +177,12 @@ fi
 if [ -d "${REPO_ROOT}/scripts" ]; then
   cp -a "${REPO_ROOT}/scripts" "${DIST_DIR}/scripts"
   echo "[release]   ✓ scripts/"
+  # 从分发包中移除 demo/seed/mock 数据文件。
+  # 这些文件仅供开发环境使用，下游仓库各自维护自己的 data-demo/ 目录。
+  # 移除它们避免 cms-sync three-way-merge 时覆盖下游自定义的 demo 数据。
+  rm -f "${DIST_DIR}/scripts/demo-data.js"
+  rm -f "${DIST_DIR}/scripts/mock-iam-server.js"
+  echo "[release]   ⚠ removed demo/seed/mock scripts (downstream maintains data-demo/)"
 fi
 
 # tests/e2e ships so dist users can run both API (vitest) and browser (Playwright)

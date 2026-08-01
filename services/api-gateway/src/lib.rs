@@ -61,6 +61,7 @@ mod tests {
                 public: false,
                 ws: false,
                 headers: Default::default(),
+                timeout_ms: None,
             }],
         }));
         let cur = swap.load();

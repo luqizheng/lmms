@@ -2286,6 +2286,7 @@ dependencies = [
  "http-body-util",
  "jwt-ctx",
  "jwt-simple",
+ "percent-encoding",
  "prometheus 0.13.4",
  "reqwest",
  "serde",

@@ -14,6 +14,11 @@ pub struct RouteConfig {
     pub ws: bool,
     #[serde(default)]
     pub headers: HashMap<String, String>,
+    /// 可选 per-route 单次发送超时（毫秒）。
+    /// 当 `Some(ms)` 时，调到上游服务的 `ResilientClient.call_with_timeout` 用该值
+    /// 覆盖单次发送与整体超时；缺省 `None` 时走全局 `ResilienceConfig.timeout_ms`。
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -280,6 +285,31 @@ mod tests {
         let r = &cfg.route[0];
         assert!(r.ws);
         assert_eq!(r.headers.get("X-Source").map(String::as_str), Some("gateway"));
+    }
+
+    #[test]
+    fn route_config_parses_timeout_ms_some() {
+        let toml = r#"
+            [[route]]
+            upstream    = "/v1/ai/parse-requirement"
+            downstream  = "/ai/parse-requirement"
+            service     = "pm-platform"
+            timeout_ms  = 90000
+        "#;
+        let cfg: RouteFile = toml::from_str(toml).unwrap();
+        assert_eq!(cfg.route[0].timeout_ms, Some(90000));
+    }
+
+    #[test]
+    fn route_config_parses_timeout_ms_absent_defaults_to_none() {
+        let toml = r#"
+            [[route]]
+            upstream   = "/v1/iam/users/{rest}"
+            downstream = "/iam/users/{rest}"
+            service    = "iam-service"
+        "#;
+        let cfg: RouteFile = toml::from_str(toml).unwrap();
+        assert_eq!(cfg.route[0].timeout_ms, None);
     }
 
     #[test]

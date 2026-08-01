@@ -421,7 +421,7 @@ async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request)
         propagator.inject_context(&tracing::Span::current().context(), &mut Hd(request.headers_mut()));
     });
 
-    router::forward_to_service(state.router_cfg.clone(), request, &route.service, &target, route.ws).await
+    router::forward_to_service(state.router_cfg.clone(), request, &route.service, &target, route.ws, route.timeout_ms).await
 }
 
 #[cfg(test)]
