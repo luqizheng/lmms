@@ -49,6 +49,41 @@ rewrite  = [ ... ]                # 重写规则链（可选）
 | `service` | string | 是 | Consul 中注册的服务名 |
 | `public` | bool | 否 | `true` 跳过 JWT 鉴权，默认 `false` |
 | `rewrite` | array | 否 | 顺序执行的规则链，见 §4 |
+| `timeout_ms` | u64 | 否 | 可选 per-route 单次请求超时（毫秒）。`Some(ms)` 时覆盖全局 `resilience.timeout_ms`（默认 3000）。适用 LLM / 长 RPC 等需要 >3s 的端点。详见 §2.5。 |
+
+---
+
+## 2.5 Per-route upstream 超时覆盖
+
+适用场景：调 LLM / 长 RPC / 慢报表等下游端点。背景：全局 `resilience.timeout_ms` 默认 3000ms，长耗时调用必然 504。决策与权衡详见 [ADR-003](../decisions/ADR-003-route-timeout-override)。
+
+### 示例：AI 拆解端点 90s 超时
+
+```toml
+# pm.router.toml — 下游 pm-platform 的 AI 拆解路由
+# upstream/downstream 字面量长度降序匹配，/pm-api/v1/ai/{rest} 优先于通用 /pm-api/v1/{rest}
+[[route]]
+upstream    = "/pm-api/v1/ai/{rest}"
+downstream  = "/pm-api/v1/ai/{rest}"
+service     = "pm-platform"
+timeout_ms  = 90000
+```
+
+### 路由匹配陷阱
+
+`routes_loader.rs` 按 `upstream` 字面量长度**降序**排序匹配。
+带 `timeout_ms` 的更具体的路由**必须**字面量长度 > 通用路由（否则通用 route 先命中且无 `timeout_ms`，3s 超时立刻生效）。
+
+### 镜像版本要求
+
+字段 `timeout_ms` 引入于 api-gateway `v1.1.0`。`v1.0.0` 镜像启动时会因 unknown field 解析失败。**必须先升级镜像再 reload 含新字段的路由**。
+
+### 设计 rationale
+
+`POST` 请求非幂等（`should_retry_err` 对 POST 返回 false）→ 网关不重试。
+`call_with_timeout()` 内 per-attempt 与 overall deadline 同步放宽：
+长时间调用一次就够，不怕 overall 8s 截断 90s 单次。
+对其他幂等方法（GET/PUT/DELETE），per-route override 仍安全，retry 次数取决于 `retry_max_attempts`。
 
 ---
 
@@ -258,6 +293,7 @@ curl -X POST http://localhost:9090/__admin/reload
 | reload HTTP 500 | 新配置不合法 | gateway 保留旧表；fix 配置后再次 reload |
 | Windows 上 reload 没反应 | 不支持 SIGHUP | 用 `POST /__admin/reload` |
 | `prefix not in path` 出现在请求日志 | strip_prefix 配置的 prefix 不在路径里 | 改为精确匹配或调前缀 |
+| AI / LLM 端点返回 504，但下游日志显示处理了 5s+ | 该路由缺 `timeout_ms` 配置，被 3s 全局超时截断 | 在对应 `*.router.toml` 加 `timeout_ms = 90000`（或更长），确认镜像 ≥ v1.1.0 后 reload |
 
 ---
 
