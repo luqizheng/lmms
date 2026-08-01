@@ -104,3 +104,45 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 - 从 GitHub 拉文件（releases / archives / raw）必须走代理：`https://gh-proxy.org/<原始链接>`。
 - 内网镜像仓库 `zhcoder-docker-registry.com:8000`。
+
+## 跨仓库分发（cms-sync 下游消费）
+
+本仓库是**多个下游消费仓的 source of truth**。代表下游：
+`project-manager`（业务垂直集成），通过 `cms-sync` air-gap 接收本仓库的源码 + release 镜像。同步策略以**下游**仓库自己的 `.upstream-sync.yaml` 为权威（下游定义 `managed` / `three-way-merge` / `skip` 三类范围，由分发脚手架固定）。
+
+### 修改本仓 `infrastructure/**` 时的下游穿透风险
+
+`infrastructure/**` 默认在下游的 `three-way-merge` 范围。本仓 compose 错误会**原样**穿透到所有下游：
+
+- `release/dist-template/scripts/transform-compose.js` 只把 `build:` 块换成 `image:` 引用，**不动 `command:` 字段**。
+- 镜像版 `v1.0.0` 推下去后，下游只用替换 image tag 升级镜像，不会重读 compose 内容。
+- 所以**当任何下游报告 OCI `executable file not found in $PATH`，而镜像里实际装了该 binary 时，根因几乎 100% 在本仓 compose**。
+
+### Cargo `[[bin]] name` → 容器内二进制名的强制映射
+
+`[[bin]] name = "x-y-z"`（kebab-case）在 cargo build 时**强制**把磁盘产物名转为下划线 `x_y_z`（[Cargo Book · Targets > Binaries](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#binaries)）。本仓实例：
+
+```toml
+# services/notification-service/Cargo.toml
+[[bin]] name = "notification-service"    # ↦ /usr/local/bin/notification_service
+[[bin]] name = "ntf-outbox-publisher"     # ↦ /usr/local/bin/ntf_outbox_publisher
+```
+
+docker-compose `command:` 字段**必须**用下划线。常见踩坑：把 `ntf-outbox-publisher`(kebab)直接抄进 compose（`["ntf-outbox-publisher"]`），启动时 OCI runtime 在 `$PATH` 中找不到对应名，容器创建失败。
+
+### 发布前对账 SOP
+
+```bash
+# 1) 渲染离线下发包 compose（不变 command:）
+node scripts/transform-compose.js \
+  ./infrastructure/docker-compose-services.yml \
+  zhcoder-docker-registry.com:8000 v1.0.0
+
+# 2) 列出真实二进制名（与 compose 的 command: 字段交叉对账）
+docker run --rm --entrypoint sh \
+  zhcoder-docker-registry.com:8000/micro-server/<svc>:v1.0.0 \
+  -c 'ls /usr/local/bin'
+```
+
+任何镜像 `command:` 与 `ls /usr/local/bin` 输出出现拼写差异 → 修本仓 compose 后重 release，不允许"先推了再说"。
+
