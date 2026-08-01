@@ -92,7 +92,49 @@ function parseImageLines(content, vars) {
 }
 
 function parseCompose(content) {
-  return parseImageLines(content, new Map());
+  // Compose files may declare `build:` for services whose image is built
+  // locally (not pulled from a registry). Those images should be excluded
+  // from the pull manifest — they'll be built by `docker compose build`.
+  const lines = content.split('\n');
+  const servicesWithBuild = new Set();
+  let currentService = null;
+
+  // Pass 1: find services that declare `build:` at service-child indent.
+  for (const line of lines) {
+    const trimmed = line.trimStart();
+    const indent = line.length - trimmed.length;
+    // service-level key (2-space indent under top-level `services:`)
+    if (indent === 2 && /^\w[\w-]*:/.test(trimmed)) {
+      currentService = trimmed.replace(/:$/, '');
+    }
+    // build: at 4-space indent (direct child of a service)
+    if (indent === 4 && currentService && trimmed.startsWith('build:')) {
+      servicesWithBuild.add(currentService);
+    }
+  }
+
+  // Pass 2: collect image refs, skipping services with build.
+  const refs = [];
+  const seen = new Set();
+  currentService = null;
+  for (const line of lines) {
+    const trimmed = line.trimStart();
+    const indent = line.length - trimmed.length;
+    if (indent === 2 && /^\w[\w-]*:/.test(trimmed)) {
+      currentService = trimmed.replace(/:$/, '');
+    }
+    if (indent === 4 && currentService && !servicesWithBuild.has(currentService)) {
+      const m = trimmed.match(/^image:\s*(\S+)/);
+      if (m) {
+        const raw = m[1].replace(/['"]/g, '');
+        if (raw && !seen.has(raw)) {
+          seen.add(raw);
+          refs.push(raw);
+        }
+      }
+    }
+  }
+  return refs;
 }
 
 function parseGitlabCi(content) {

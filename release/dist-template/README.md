@@ -45,7 +45,7 @@ coder-micro-services/
 make secrets && make up && make verify
 
 # 离线环境
-bash bin/load-images.sh && make secrets && make up && make verify
+node bin/load-images.js && make secrets && make up && make verify
 ```
 
 ### 2. 创建业务微服务

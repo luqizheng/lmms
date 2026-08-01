@@ -12,7 +12,7 @@
 | `api-gateway` blacklist 测试失败 | 本机无 Redis 依赖 | 走 docker（已带 test Redis） |
 | `utoipa::to_yaml()` 找不到 | 缺 `yaml` feature | 在 Cargo.toml 加 `features = ["axum_extras", "chrono", "yaml"]` |
 | `429 Too Many Requests` | 命中限流 | 调 `infrastructure/config/api-gateway/rate-limits.toml` 或退避重试 |
-| OpenAPI drift CI 失败 | 手改了 yaml | 跑 `scripts/dump-openapi-specs.sh` 后重提 |
+| OpenAPI drift CI 失败 | 手改了 yaml | 跑 `node scripts/dump-openapi-specs.js` 后重提 |
 | 服务没注册到 Consul | 容器不在 `superpowers` 网络 | compose 加 `networks: [superpowers]` |
 | Jaeger 看不到 trace | `OTEL_EXPORTER_OTLP_ENDPOINT` 未设 | compose / env 加 `http://otel-collector:4317` |
 | Swagger 404 | `SWAGGER_ENABLED=false` | 设成 `true` |

@@ -16,15 +16,15 @@ ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-config-service,target=/app/target,sharing=locked \
-    cargo build --release --target x86_64-unknown-linux-musl -p config-service && \
-    cp /app/target/x86_64-unknown-linux-musl/release/config-service /app/config-service
+    cargo build --release --target x86_64-unknown-linux-musl -p config_service && \
+    cp /app/target/x86_64-unknown-linux-musl/release/config_service /app/config_service
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 FROM ${BASE_REGISTRY}/alpine:3.21
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /app/config-service /usr/local/bin/
+COPY --from=builder /app/config_service /usr/local/bin/
 
 EXPOSE 8081
 
@@ -32,4 +32,4 @@ HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
   CMD wget --spider -q http://127.0.0.1:8081/health || exit 1
 
 ENV RUST_LOG=info
-CMD ["config-service"]
+CMD ["config_service"]

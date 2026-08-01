@@ -161,7 +161,7 @@ CI 门禁：`node scripts/check-service-standard.js` 全过才允许 merge。
 **改了 `#[utoipa::path]` 注解后**重新生成：
 
 ```bash
-scripts/dump-openapi-specs.sh   # 8 个服务一起
+node scripts/dump-openapi-specs.js   # 8 个服务一起
 ```
 
 CI 门禁：`node scripts/check-spec.js` 校验 yaml 合法性 + `git diff --exit-code` 检测漂移。

@@ -15,7 +15,7 @@
 ```bash
 make secrets
 # 或
-bash bin/generate-secrets.sh
+node bin/generate-secrets.js
 ```
 
 ## 安全建议

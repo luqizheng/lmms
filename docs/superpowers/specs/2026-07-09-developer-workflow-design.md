@@ -19,7 +19,7 @@
 | `docs-site/guides/testing.md` 等 | 深度专题（每篇独立） | 没有一张总图串联 |
 | `scripts/*.js` + `.gitlab-ci.yml` | 自动化脚本 | 命令分散，需记忆 |
 
-尤其"出镜像"那条线（`scripts/build-docker.js`、`scripts/release-push.js`、CI build stages、release tag 打 `:sha` + `:latest` 两 tag 的逻辑），目前 onboarding/08 仅一句带过，新人首次出镜像要摸 3 个文件。
+尤其"出镜像"那条线（`scripts/build-docker.js`、CI build stages、release tag 打 `:sha` + `:latest` 两 tag 的逻辑），目前 onboarding/08 仅一句带过，新人首次出镜像要摸 3 个文件。
 
 ---
 
@@ -61,7 +61,7 @@ Day 1 真正卡住的不是装工具（= `pnpm install`），而是**预拉基�
 
 镜像发布那条线已经有：
 - `scripts/build-docker.js`（123 行）—— 仅 build，输出 9 个服务的本地镜像
-- `scripts/release-push.js`（87 行）—— 打 `:${sha}` + `:latest` tag、fail-fast push
+- `scripts/release-push.js`（87 行）—— 打 `:${sha}` + `:latest` tag、fail-fast push（**已于 2026-08 废弃，功能合并进 build-docker.js 的 `--push` / `--load-and-push`**）
 
 总图里只描述**两条路径**（CI 自动 + 本地手动 hotfix），不重写脚本使用说明。Phase 7 顶部一句"前置"指向 `infrastructure/base-images.json` 是单一真相源。
 

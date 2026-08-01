@@ -16,15 +16,15 @@ ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-file-service,target=/app/target,sharing=locked \
-    cargo build --release --target x86_64-unknown-linux-musl -p file-service && \
-    cp /app/target/x86_64-unknown-linux-musl/release/file-service /app/file-service
+    cargo build --release --target x86_64-unknown-linux-musl -p file_service && \
+    cp /app/target/x86_64-unknown-linux-musl/release/file_service /app/file_service
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 FROM ${BASE_REGISTRY}/alpine:3.21
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /app/file-service /usr/local/bin/
+COPY --from=builder /app/file_service /usr/local/bin/
 
 RUN mkdir -p /data/files
 EXPOSE 8082
@@ -34,4 +34,4 @@ HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
 
 ENV RUST_LOG=info
 ENV STORAGE_PATH=/data/files
-CMD ["file-service"]
+CMD ["file_service"]

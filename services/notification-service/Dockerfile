@@ -17,16 +17,16 @@ ENV SWAGGER_UI_DOWNLOAD_URL=file:///tmp/swagger-ui.zip
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-notification-service,target=/app/target,sharing=locked \
-    cargo build --release --target x86_64-unknown-linux-musl --bin notification-service --bin ntf-outbox-publisher && \
-    cp /app/target/x86_64-unknown-linux-musl/release/notification-service /app/notification-service && \
-    cp /app/target/x86_64-unknown-linux-musl/release/ntf-outbox-publisher /app/ntf-outbox-publisher
+    cargo build --release --target x86_64-unknown-linux-musl --bin notification_service --bin ntf_outbox_publisher && \
+    cp /app/target/x86_64-unknown-linux-musl/release/notification_service /app/notification_service && \
+    cp /app/target/x86_64-unknown-linux-musl/release/ntf_outbox_publisher /app/ntf_outbox_publisher
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 FROM ${BASE_REGISTRY}/alpine:3.21
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
-COPY --from=builder /app/notification-service /usr/local/bin/notification-service
-COPY --from=builder /app/ntf-outbox-publisher /usr/local/bin/ntf-outbox-publisher
+COPY --from=builder /app/notification_service /usr/local/bin/notification_service
+COPY --from=builder /app/ntf_outbox_publisher /usr/local/bin/ntf_outbox_publisher
 
 # Note: no COPY of config.yaml. The default config is embedded in the binary
 # via `include_str!("../config/config.default.yaml")` (see src/config.rs) and
@@ -38,4 +38,4 @@ EXPOSE 8083
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
   CMD wget --spider -q http://127.0.0.1:8083/health || exit 1
 
-CMD ["notification-service"]
+CMD ["notification_service"]

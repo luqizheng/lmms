@@ -51,7 +51,7 @@ pnpm run docker:build:iam-service          # = node scripts/build-docker.js iam-
 | `service_standard_check` | `node scripts/check-service-standard.js` |
 | `spec_check` | `node scripts/check-spec.js` |
 | `contracts_check` | `node scripts/contracts-gen.js --check` |
-| `spec_generate` | `scripts/dump-openapi-specs.sh`（产出 yaml 给 drift 检测） |
+| `spec_generate` | `node scripts/dump-openapi-specs.js`（产出 yaml 给 drift 检测） |
 | `rust_test` | `cargo test --workspace --lib`（容器内；集成测由本地 `scripts/run-tests-docker.js` 覆盖） |
 | `e2e_api_test` | `pnpm -C tests/e2e test:api` |
 | `e2e_ui_test` | `pnpm -C tests/e2e test:ui` |
@@ -75,7 +75,7 @@ SSH 到部署机 → 拉新镜像 → 重启 compose。
 | 服务标准 | `node scripts/check-service-standard.js` |
 | Spec 校验 | `node scripts/check-spec.js` |
 | 契约漂移 | `node scripts/contracts-gen.js --check` |
-| OpenAPI 漂移 | `scripts/dump-openapi-specs.sh` + `git diff --exit-code` |
+| OpenAPI 漂移 | `node scripts/dump-openapi-specs.js` + `git diff --exit-code` |
 | Rust 测试 | `node scripts/run-tests-docker.js <svc>` |
 | E2E API | `pnpm -C tests/e2e test:api` |
 | E2E UI | `pnpm -C tests/e2e test:ui` |
@@ -86,7 +86,7 @@ SSH 到部署机 → 拉新镜像 → 重启 compose。
 node scripts/check-service-standard.js && \
   node scripts/check-spec.js && \
   node scripts/contracts-gen.js --check && \
-  scripts/dump-openapi-specs.sh && \
+  node scripts/dump-openapi-specs.js && \
   git diff --exit-code -- 'services/*/openapi.yaml'
 ```
 

@@ -18,7 +18,7 @@ cd coder-micro-services-v1.0.0
 ```
 
 > 在线环境下，Docker 可直接从 `REGISTRY`（默认 `zhcoder-docker-registry.com:8000`）拉取镜像，
-> 无需执行 `bin/load-images.sh`。
+> 无需执行 `node bin/load-images.js`。
 
 ### 离线环境（无外网 / 私有化部署）
 
@@ -27,7 +27,7 @@ tar -xzf coder-micro-services-v1.0.0-airgap.tar.gz
 cd coder-micro-services-v1.0.0
 
 # 加载所有 Docker 镜像（约 10-15GB，耗时 5-10 分钟）
-bash bin/load-images.sh
+node bin/load-images.js
 
 # 验证镜像已加载
 docker images | grep micro-server
@@ -282,7 +282,7 @@ make verify
 ```bash
 # 1. 传输新镜像包到目标机器
 # 2. 加载镜像
-bash bin/load-images.sh
+node bin/load-images.js
 
 # 3. 改 tag 并重启
 sed -i 's/IMAGE_TAG=v1.0.0/IMAGE_TAG=v1.1.0/' .env

@@ -249,11 +249,13 @@ pnpm run setup:wizard -- --show                 # 传参给脚本
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "baseRegistry": "",
   "builderRegistry": "zhcoder-docker-registry.com:8000",
   "crateRegistry": "",
   "crateToken": "",
+  "privateCrateRegistry": "",
+  "privateCrateRegistryToken": "",
   "mavenRegistry": "",
   "mavenAuthMode": "none",
   "mavenToken": "",
@@ -269,8 +271,10 @@ pnpm run setup:wizard -- --show                 # 传参给脚本
 |------|------|
 | `baseRegistry` | 空字符串 = Docker Hub；非空 = mirror registry URL |
 | `builderRegistry` | Builder 镜像仓库，默认 `zhcoder-docker-registry.com:8000` |
-| `crateRegistry` | 空字符串 = 官方 crates.io；非空 = mirror URL |
-| `crateToken` | crates.io / mirror auth token |
+| `crateRegistry` | crates.io 镜像 URL（拉公网 crate）；空 = 官方 crates.io |
+| `crateToken` | crates.io / 镜像的 auth token |
+| `privateCrateRegistry` | 私有 crate registry URL（托管 libs/* + sdk/rust/* 的发布与拉取）；空 = 无 |
+| `privateCrateRegistryToken` | 私有 crate registry auth token（`cargo publish --registry kellnr` 用） |
 | `mavenRegistry` | 空字符串 = Maven Central；非空 = mirror URL |
 | `mavenAuthMode` | `none` / `token` / `userpass` |
 | `mavenToken` | token 模式时的 token |
@@ -283,13 +287,28 @@ pnpm run setup:wizard -- --show                 # 传参给脚本
 文件不存在时，`base-images-sync.js` 回退到默认值（等价于 `--defaults`）。
 
 > 旧版配置文件（version 1-3）会被自动迁移：v3 的 `mavenToken` 自动升级为 `mavenAuthMode: "token"`。
+> v4 → v5：新增 `privateCrateRegistry` / `privateCrateRegistryToken`，保留 `crateRegistry` 语义独立。如旧 `crateRegistry` 已是 KELLNR_REGISTRY，向导会自动迁移到新字段（避免重复 source 定义）。
+
+#### `crateRegistry` 与 `privateCrateRegistry` 的关系
+
+两者**语义独立**，URL 可相同也可不同。向导会自动处理 4 种组合：
+
+| 场景 | `[source.crates-io]` replace-with | `[source.kellnr]` 私有 | 典型场景 |
+|------|------|------|------|
+| A. 都空 | （无） | — | 直连 crates.io + 无私有 crate |
+| B. 只 crate | crates-io 镜像 | — | crates-io 走公网镜像（如 rsproxy） |
+| C. 只 private | （无） | kellnr | 私有 crate 走内网 kellnr，crates-io 直连 |
+| D-same. 都填且 URL 相同 | kellnr（合并 source） | （同 source 兼任） | kellnr 同时配 crates.io upstream + 托管私有 crate |
+| D-diff. 都填且 URL 不同 | crates-io 镜像 | kellnr（独立 source） | crates-io 走 rsproxy + 私有走 kellnr |
+
+> 同 URL 时 cargo 不允许两个 source 指向同一 registry URL。向导自动合并成单个 source 并用 `kellnr` 作 name（防 `source defined multiple times` 错误）。
 
 ### 向导生成的其他文件
 
 | 文件 | gitignored | 内容 |
 |------|------------|------|
-| `.cargo/config.toml` | 否（团队共享基线，但向导会重生成） | `[source.crates-io]` + kellnr + `[net]` |
-| `.cargo/credentials.toml` | ✅ | `[registry.coder-mirror] token = "..."` |
+| `.cargo/config.toml` | 否（团队共享基线，但向导会重生成） | `[source.crates-io]` + 私有 source（按上面 4 种组合） + `[net]` |
+| `.cargo/credentials.toml` | ✅ | 每个有 token 的 source 一个 `[registry.<name>]` section |
 | `.mvn/settings.xml` | ✅ | `<mirrors>` + `<servers>` |
 | `.mvn/maven.config` | ✅ | `-s.mvn/settings.xml` |
 | `.npmrc`（项目根） | ✅ | `registry=...` + `//host/:_authToken=...` |

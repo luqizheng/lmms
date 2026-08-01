@@ -81,8 +81,9 @@ const GITLAB_CI_PATH = path.join(ROOT, '.gitlab-ci.yml');
 const KELLNR_REGISTRY = 'sparse+http://192.168.2.12:16444/api/v1/crates/';
 // crates.io 镜像替换后的 source 名字（[source.coder-mirror]）。
 const MIRROR_NAME = 'coder-mirror';
-// 交互提示用的 example URL（与 kellnr 同 host，便于团队识别）。
-const CRATE_REGISTRY_EXAMPLE = 'http://192.168.2.12:16444';
+// 交互提示用的 example URL：必须是 crates.io 公网镜像。私有 kellnr（192.168.2.12:16444）
+// 不镜像公网 crate，填进去会让 crates-io 找不到 anyhow/serde 等——不要用作 example。
+const CRATE_REGISTRY_EXAMPLE = 'https://rsproxy.cn/index/';
 const MVN_MIRROR_ID = 'coder-maven-mirror';
 // sdk/java/pom.xml <distributionManagement> 的 repository id；
 // <servers> 段需覆盖这些 id，mvn deploy 才能认证。
@@ -96,6 +97,9 @@ const DEFAULTS = {
   builderRegistry: DEFAULT_BUILDER_REGISTRY,
   crateRegistry: '',
   crateToken: '',
+  // 私有 crate registry：托管 libs/* 和 sdk/rust/* 的发布 + 拉取，与 crateRegistry 语义独立。
+  privateCrateRegistry: '',
+  privateCrateRegistryToken: '',
   mavenRegistry: '',
   mavenAuthMode: 'none',
   mavenToken: '',
@@ -109,17 +113,19 @@ const DEFAULTS = {
 // sensitive=true 的字段写 "$CI_VAR" 引用（需在 GitLab Settings -> CI/CD -> Variables 创建），
 // sensitive=false 的字段直接写明文值。
 const CI_FIELD_MAP = [
-  { field: 'baseRegistry',    var: 'CODER_BASE_REGISTRY',    sensitive: false },
-  { field: 'builderRegistry', var: 'CODER_BUILDER_REGISTRY', sensitive: false },
-  { field: 'crateRegistry',   var: 'CODER_CRATE_REGISTRY',   sensitive: false },
-  { field: 'crateToken',      var: 'CODER_CRATE_TOKEN',      sensitive: true, ciVar: 'CRATE_TOKEN' },
-  { field: 'mavenRegistry',   var: 'CODER_MAVEN_REGISTRY',   sensitive: false },
-  { field: 'mavenAuthMode',   var: 'CODER_MAVEN_AUTH_MODE',  sensitive: false },
-  { field: 'mavenToken',      var: 'CODER_MAVEN_TOKEN',      sensitive: true, ciVar: 'MAVEN_TOKEN' },
-  { field: 'mavenUsername',   var: 'CODER_MAVEN_USERNAME',   sensitive: true, ciVar: 'MAVEN_USERNAME' },
-  { field: 'mavenPassword',   var: 'CODER_MAVEN_PASSWORD',   sensitive: true, ciVar: 'MAVEN_PASSWORD' },
-  { field: 'npmRegistry',     var: 'CODER_NPM_REGISTRY',     sensitive: false },
-  { field: 'npmToken',        var: 'CODER_NPM_TOKEN',        sensitive: true, ciVar: 'NPM_TOKEN' },
+  { field: 'baseRegistry',              var: 'CODER_BASE_REGISTRY',              sensitive: false },
+  { field: 'builderRegistry',           var: 'CODER_BUILDER_REGISTRY',           sensitive: false },
+  { field: 'crateRegistry',             var: 'CODER_CRATE_REGISTRY',             sensitive: false },
+  { field: 'crateToken',                var: 'CODER_CRATE_TOKEN',                sensitive: true, ciVar: 'CRATE_TOKEN' },
+  { field: 'privateCrateRegistry',      var: 'CODER_PRIVATE_CRATE_REGISTRY',     sensitive: false },
+  { field: 'privateCrateRegistryToken', var: 'CODER_PRIVATE_CRATE_REGISTRY_TOKEN', sensitive: true, ciVar: 'PRIVATE_CRATE_REGISTRY_TOKEN' },
+  { field: 'mavenRegistry',             var: 'CODER_MAVEN_REGISTRY',             sensitive: false },
+  { field: 'mavenAuthMode',             var: 'CODER_MAVEN_AUTH_MODE',            sensitive: false },
+  { field: 'mavenToken',                var: 'CODER_MAVEN_TOKEN',                sensitive: true, ciVar: 'MAVEN_TOKEN' },
+  { field: 'mavenUsername',             var: 'CODER_MAVEN_USERNAME',             sensitive: true, ciVar: 'MAVEN_USERNAME' },
+  { field: 'mavenPassword',             var: 'CODER_MAVEN_PASSWORD',             sensitive: true, ciVar: 'MAVEN_PASSWORD' },
+  { field: 'npmRegistry',               var: 'CODER_NPM_REGISTRY',               sensitive: false },
+  { field: 'npmToken',                  var: 'CODER_NPM_TOKEN',                  sensitive: true, ciVar: 'NPM_TOKEN' },
 ];
 
 function parseArgs(argv) {
@@ -151,8 +157,10 @@ function printHelp() {
   console.log('env vars (override config file):');
   console.log('  CODER_BASE_REGISTRY      base images registry (empty = docker hub)');
   console.log('  CODER_BUILDER_REGISTRY   builder images registry');
-  console.log('  CODER_CRATE_REGISTRY     crates.io mirror URL (empty = official crates.io)');
-  console.log('  CODER_CRATE_TOKEN        crates.io / mirror auth token');
+  console.log('  CODER_CRATE_REGISTRY         crates.io mirror URL (empty = official crates.io)');
+  console.log('  CODER_CRATE_TOKEN            crates.io / mirror auth token');
+  console.log('  CODER_PRIVATE_CRATE_REGISTRY private crate registry (libs/* sdk/rust/*); empty = none');
+  console.log('  CODER_PRIVATE_CRATE_REGISTRY_TOKEN private crate registry auth token');
   console.log('  CODER_MAVEN_REGISTRY     maven mirror URL (empty = Maven Central)');
   console.log('  CODER_MAVEN_AUTH_MODE    maven auth: none | token | userpass');
   console.log('  CODER_MAVEN_TOKEN        maven token (auth=token; username fixed to "token")');
@@ -176,6 +184,8 @@ function readExistingConfig() {
       builderRegistry: raw.builderRegistry != null ? String(raw.builderRegistry) : DEFAULT_BUILDER_REGISTRY,
       crateRegistry: raw.crateRegistry != null ? String(raw.crateRegistry) : '',
       crateToken: raw.crateToken != null ? String(raw.crateToken) : '',
+      privateCrateRegistry: raw.privateCrateRegistry != null ? String(raw.privateCrateRegistry) : '',
+      privateCrateRegistryToken: raw.privateCrateRegistryToken != null ? String(raw.privateCrateRegistryToken) : '',
       mavenRegistry: raw.mavenRegistry != null ? String(raw.mavenRegistry) : '',
       mavenAuthMode: migratedAuthMode,
       mavenToken: raw.mavenToken != null ? String(raw.mavenToken) : '',
@@ -193,11 +203,13 @@ function readExistingConfig() {
 
 function writeConfig(cfg) {
   const data = {
-    version: 4,
+    version: 5,
     baseRegistry: cfg.baseRegistry,
     builderRegistry: cfg.builderRegistry,
     crateRegistry: cfg.crateRegistry,
     crateToken: cfg.crateToken,
+    privateCrateRegistry: cfg.privateCrateRegistry,
+    privateCrateRegistryToken: cfg.privateCrateRegistryToken,
     mavenRegistry: cfg.mavenRegistry,
     mavenAuthMode: cfg.mavenAuthMode,
     mavenToken: cfg.mavenToken,
@@ -223,21 +235,24 @@ function showSummary(cfg, source, ciSynced) {
   const baseDisplay = cfg.baseRegistry || '(docker hub)';
   const crateDisplay = cfg.crateRegistry || '(official crates.io)';
   const crateTokenDisplay = cfg.crateToken ? '(set)' : '(none)';
+  const privateDisplay = cfg.privateCrateRegistry || '(none)';
+  const privateTokenDisplay = cfg.privateCrateRegistryToken ? '(set)' : '(none)';
   const mvnDisplay = cfg.mavenRegistry || '(Maven Central)';
   const npmDisplay = cfg.npmRegistry || '(npmjs.com)';
   const npmTokenDisplay = cfg.npmToken ? '(set)' : '(none)';
   console.log(chalk.green(`[wizard] config written to ${path.relative(ROOT, CONFIG_PATH)}`));
-  console.log(`[wizard] source:            ${source}`);
-  console.log(`[wizard] base registry:     ${baseDisplay}`);
-  console.log(`[wizard] builder registry:  ${cfg.builderRegistry}`);
-  console.log(`[wizard] crates.io mirror:  ${crateDisplay}  token: ${crateTokenDisplay}`);
-  console.log(`[wizard] maven mirror:      ${mvnDisplay}  ${mavenAuthSummary(cfg)}`);
-  console.log(`[wizard] npm mirror:        ${npmDisplay}  token: ${npmTokenDisplay}`);
+  console.log(`[wizard] source:                  ${source}`);
+  console.log(`[wizard] base registry:           ${baseDisplay}`);
+  console.log(`[wizard] builder registry:        ${cfg.builderRegistry}`);
+  console.log(`[wizard] crates.io mirror:        ${crateDisplay}  token: ${crateTokenDisplay}`);
+  console.log(`[wizard] private crate registry:  ${privateDisplay}  token: ${privateTokenDisplay}`);
+  console.log(`[wizard] maven mirror:            ${mvnDisplay}  ${mavenAuthSummary(cfg)}`);
+  console.log(`[wizard] npm mirror:              ${npmDisplay}  token: ${npmTokenDisplay}`);
   console.log('');
   console.log('[wizard] next: `pnpm run images:sync` will apply these to base-images.json');
   console.log('[wizard]       .cargo/config.toml regenerated (kellnr + [net] preserved)');
-  if (cfg.crateToken) {
-    console.log(chalk.yellow('[wizard] crate token -> .cargo/credentials.toml (gitignored).'));
+  if (cfg.crateToken || cfg.privateCrateRegistryToken) {
+    console.log(chalk.yellow('[wizard] crate token(s) -> .cargo/credentials.toml (gitignored).'));
     console.log(`[wizard]   apply: export CARGO_CREDENTIALS_PATH="${path.relative(ROOT, CARGO_CREDENTIALS_PATH)}"`);
   }
   if (cfg.mavenRegistry || cfg.mavenAuthMode !== 'none') {
@@ -367,6 +382,8 @@ function resolveNonInteractive(args, existing) {
     cfg.builderRegistry = existing.builderRegistry;
     cfg.crateRegistry = existing.crateRegistry;
     cfg.crateToken = existing.crateToken;
+    cfg.privateCrateRegistry = existing.privateCrateRegistry;
+    cfg.privateCrateRegistryToken = existing.privateCrateRegistryToken;
     cfg.mavenRegistry = existing.mavenRegistry;
     cfg.mavenAuthMode = existing.mavenAuthMode;
     cfg.mavenToken = existing.mavenToken;
@@ -392,6 +409,14 @@ function resolveNonInteractive(args, existing) {
   if (process.env.CODER_CRATE_TOKEN != null) {
     cfg.crateToken = process.env.CODER_CRATE_TOKEN.trim();
     source = 'env var CODER_CRATE_TOKEN';
+  }
+  if (process.env.CODER_PRIVATE_CRATE_REGISTRY != null) {
+    cfg.privateCrateRegistry = process.env.CODER_PRIVATE_CRATE_REGISTRY.trim();
+    source = 'env var CODER_PRIVATE_CRATE_REGISTRY';
+  }
+  if (process.env.CODER_PRIVATE_CRATE_REGISTRY_TOKEN != null) {
+    cfg.privateCrateRegistryToken = process.env.CODER_PRIVATE_CRATE_REGISTRY_TOKEN.trim();
+    source = 'env var CODER_PRIVATE_CRATE_REGISTRY_TOKEN';
   }
   if (process.env.CODER_MAVEN_REGISTRY != null) {
     cfg.mavenRegistry = process.env.CODER_MAVEN_REGISTRY.trim();
@@ -482,6 +507,8 @@ async function runInteractive(existing) {
   const initialBuilder = existing?.builderRegistry ?? DEFAULTS.builderRegistry;
   const initialCrate = existing?.crateRegistry ?? DEFAULTS.crateRegistry;
   const initialCrateToken = existing?.crateToken ?? DEFAULTS.crateToken;
+  const initialPrivateCrate = existing?.privateCrateRegistry ?? DEFAULTS.privateCrateRegistry;
+  const initialPrivateCrateToken = existing?.privateCrateRegistryToken ?? DEFAULTS.privateCrateRegistryToken;
   const initialMaven = existing?.mavenRegistry ?? DEFAULTS.mavenRegistry;
   const initialMavenAuthMode = existing?.mavenAuthMode ?? DEFAULTS.mavenAuthMode;
   const initialMavenToken = existing?.mavenToken ?? DEFAULTS.mavenToken;
@@ -535,7 +562,36 @@ async function runInteractive(existing) {
 
     const crateToken = await promptVisible(rl, '  crates.io token', initialCrateToken, validateCrateToken);
 
-    console.log('\n5. Maven 镜像（Java 依赖拉取来源）');
+    console.log('\n5. 私有 crate registry（托管 libs/* + sdk/rust/* 的发布 + 拉取）');
+    console.log('   留空 = 无私有 registry（无需 cargo publish --registry）');
+    console.log('   填 URL（如 kellnr / 自建 nexus / cloudSmith）用于私有 crate');
+    console.log('   与上面 crates-io 镜像独立——可以是同一个 registry（kellnr 同时配 upstream）');
+    console.log(`   默认 example: ${KELLNR_REGISTRY.replace(/^sparse\+/, '')}`);
+    console.log('   自动补 sparse+ 与 /api/v1/crates/\n');
+
+    const initialPrivate = (() => {
+      const v = existing?.privateCrateRegistry;
+      if (v) return v;
+      // 向后兼容：旧 crateRegistry 等于 kellnr 时自动迁移到新字段
+      if (initialCrate && normalizeCrateRegistry(initialCrate) === KELLNR_REGISTRY) return initialCrate;
+      return '';
+    })();
+
+    const privateCrateRegistry = await prompt(
+      rl,
+      '  private crate registry',
+      initialPrivate,
+      validateCrateRegistry,
+    );
+
+    console.log('\n6. 私有 crate registry 的 auth token');
+    console.log('   留空 = 无认证（公开匿名 registry）');
+    console.log('   私有 kellnr 等需认证 registry，输入 token（明文输入）');
+    console.log('   用于 cargo publish --registry privateCrateRegistry\n');
+
+    const privateCrateRegistryToken = await promptVisible(rl, '  private crate token', initialPrivateCrateToken, validateCrateToken);
+
+    console.log('\n7. Maven 镜像（Java 依赖拉取来源）');
     console.log('   留空 = 官方 Maven Central（repo.maven.apache.org）；');
     console.log(`   输入镜像 URL 作为 <mirror> 替换 central。example: ${MVN_REGISTRY_EXAMPLE}`);
     console.log('   生成 .mvn/settings.xml + .mvn/maven.config（mvn 自动加载）。\n');
@@ -620,6 +676,8 @@ async function runInteractive(existing) {
         builderRegistry,
         crateRegistry,
         crateToken,
+        privateCrateRegistry,
+        privateCrateRegistryToken,
         mavenRegistry,
         mavenAuthMode,
         mavenToken,
@@ -636,24 +694,38 @@ async function runInteractive(existing) {
   }
 }
 
-function renderCargoConfig(normalizedRegistry) {
+function renderCargoConfig(crateUrl, privateUrl) {
+  // cargo 不允许两个 source 指向同一 registry URL。同 URL 时（典型场景：kellnr 同时
+  // 充当 crates-io 镜像 + 私有 registry）合并成单个 source 用 kellnr 作 name，避免冲突。
+  // 4 种组合：
+  //   A. 都空                          → 仅 crates-io，无 replace-with
+  //   B. 仅 crate                      → crates-io 替换为 crate mirror
+  //   C. 仅 private                    → crates-io 不替换；额外声明 kellnr 私有 source
+  //   D. 都有且 URL 不同               → crates-io 替换 + 独立 kellnr 私有 source
+  const isSame = crateUrl && privateUrl && crateUrl === privateUrl;
+  const crateMirrorName = (crateUrl && isSame) ? 'kellnr' : MIRROR_NAME;
   const lines = [];
-  if (normalizedRegistry) {
+
+  if (crateUrl) {
     lines.push('[source.crates-io]');
-    lines.push(`replace-with = "${MIRROR_NAME}"`);
+    lines.push(`replace-with = "${crateMirrorName}"`);
     lines.push('');
-    lines.push(`[source.${MIRROR_NAME}]`);
-    lines.push(`registry = "${normalizedRegistry}"`);
+    lines.push(`[source.${crateMirrorName}]`);
+    lines.push(`registry = "${crateUrl}"`);
   } else {
     lines.push('[source.crates-io]');
     lines.push('# 官方 crates.io，无 replace-with');
   }
-  lines.push('');
-  lines.push('# 私有 kellnr registry - 托管 libs/* 和 sdk/rust/* 发布的 crate');
-  lines.push('# cargo publish --registry kellnr  发布到此处');
-  lines.push('# cargo add <crate> --registry kellnr  从此处拉取');
-  lines.push('[source.kellnr]');
-  lines.push(`registry = "${KELLNR_REGISTRY}"`);
+
+  if (privateUrl && !isSame) {
+    lines.push('');
+    lines.push('# 私有 crate registry - 托管 libs/* 和 sdk/rust/* 发布的 crate');
+    lines.push('# cargo publish --registry kellnr  发布到此处');
+    lines.push('# cargo add <crate> --registry kellnr  从此处拉取');
+    lines.push('[source.kellnr]');
+    lines.push(`registry = "${privateUrl}"`);
+  }
+
   lines.push('');
   lines.push('[net]');
   lines.push('git-fetch-with-cli = true');
@@ -661,24 +733,42 @@ function renderCargoConfig(normalizedRegistry) {
   return lines.join('\n');
 }
 
-function renderCargoCredentials(normalizedRegistry, token) {
-  if (!token) return null;
-  const name = normalizedRegistry ? MIRROR_NAME : 'crates-io';
-  const lines = [];
-  lines.push('# 由 scripts/setup-wizard.js 生成；已在 .gitignore，请勿 commit。');
-  lines.push(`[registry.${name}]`);
-  lines.push(`token = "${token}"`);
-  lines.push('');
-  return lines.join('\n');
+function renderCargoCredentials(crateUrl, crateToken, privateUrl, privateToken) {
+  const sections = [];
+  const isSame = crateUrl && privateUrl && crateUrl === privateUrl;
+  const header = '# 由 scripts/setup-wizard.js 生成；已在 .gitignore，请勿 commit。';
+
+  if (isSame) {
+    if (crateToken || privateToken) {
+      sections.push(`[registry.kellnr]`);
+      sections.push(`token = "${crateToken || privateToken}"`);
+    }
+  } else {
+    if (crateUrl && crateToken) {
+      sections.push(`[registry.${MIRROR_NAME}]`);
+      sections.push(`token = "${crateToken}"`);
+    }
+    if (privateUrl && privateToken) {
+      sections.push(`[registry.kellnr]`);
+      sections.push(`token = "${privateToken}"`);
+    }
+  }
+
+  if (sections.length === 0) return null;
+  return [header, ...sections, ''].join('\n');
 }
 
 function applyCargoConfig(cfg) {
   fs.mkdirSync(CARGO_DIR, { recursive: true });
-  const normalizedRegistry = normalizeCrateRegistry(cfg.crateRegistry);
+  const crateUrl = normalizeCrateRegistry(cfg.crateRegistry);
+  const privateUrl = normalizeCrateRegistry(cfg.privateCrateRegistry);
 
-  fs.writeFileSync(CARGO_CONFIG_PATH, renderCargoConfig(normalizedRegistry));
+  fs.writeFileSync(CARGO_CONFIG_PATH, renderCargoConfig(crateUrl, privateUrl));
 
-  const credentialsContent = renderCargoCredentials(normalizedRegistry, cfg.crateToken);
+  const credentialsContent = renderCargoCredentials(
+    crateUrl, cfg.crateToken,
+    privateUrl, cfg.privateCrateRegistryToken,
+  );
   if (credentialsContent) {
     fs.writeFileSync(CARGO_CREDENTIALS_PATH, credentialsContent);
   } else if (fs.existsSync(CARGO_CREDENTIALS_PATH)) {

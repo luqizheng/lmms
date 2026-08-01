@@ -30,7 +30,7 @@ make verify
 
 ```bash
 # 1. 加载 Docker 镜像
-bash bin/load-images.sh
+node bin/load-images.js
 
 # 2. 初始化 .env
 make secrets

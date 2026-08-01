@@ -111,7 +111,7 @@
 | Phase | 主题 | 状态 | 关键证据 |
 |---|---|---|---|
 | 1 | 服务规范 sweep + prue 并发 + active routes 净化 | [完成] | ADR-002 + 8-item baseline + 3 CI gates；spec `2026-06-25-prue-backend-concurrency-design.md` |
-| 2 | Swagger 全覆盖 / OpenAPI auto-dump / skills / L4 triggers / 前端 P1 | [完成] | 8/8 Swagger 覆盖；`scripts/dump-openapi-specs.sh`；`.agents/skills/{coder-add-route,coder-migrate-db,coder-new-service}`；`.trae/rules/project_rules.md` |
+| 2 | Swagger 全覆盖 / OpenAPI auto-dump / skills / L4 triggers / 前端 P1 | [完成] | 8/8 Swagger 覆盖；`node scripts/dump-openapi-specs.js`；`.agents/skills/{coder-add-route,coder-migrate-db,coder-new-service}`；`.trae/rules/project_rules.md` |
 | 3 | 可观测性 + 限流 + E2E 稳定性 + 灰度 + 知识沉淀 | [完成] | Prometheus + OTel scaffold；api-gateway 集中限流；smoke 子集；Nginx + Consul canary |
 | 4 | 异步事件总线（RabbitMQ + outbox） | [完成] | 17 任务全部完成；4.1 welcome / 4.2 登录风控 / 4.3 announcement WS / 4.3-fu1~fu4 / 4.4 permission-changed + perm-epoch / 4.4-fu1~fu4 |
 | 5-A-2 | 撤 Consul Connect，改 registrator | [完成] | spec `2026-07-07-deprecate-consul-connect-use-registrator-design.md`；10 commit |
@@ -208,7 +208,7 @@
 | `test` | `service_standard_check` | 所有 pipeline | `node scripts/check-service-standard.js` | [正常] |
 | `test` | `spec_check` | 所有 pipeline | `node scripts/check-spec.js` | [正常] |
 | `test` | `contracts_check` | 所有 pipeline | `node scripts/contracts-gen.js --check` | [正常] |
-| `test` | `spec_generate` | 所有 pipeline | `scripts/dump-openapi-specs.sh` + `git diff --exit-code` | [正常] 守 openapi drift |
+| `test` | `spec_generate` | 所有 pipeline | `node scripts/dump-openapi-specs.js` + `git diff --exit-code` | [正常] 守 openapi drift |
 | `test` | `doc_links_check` | 所有 pipeline | `node scripts/check-doc-links.js` | [正常]（P0-1 加） |
 | `test` | `cargo_clippy` | 所有 pipeline | `cargo clippy --workspace --all-targets -- -D warnings` | [正常] |
 | `test` | `cargo_fmt_check` | 所有 pipeline | `cargo fmt --check` | [正常] |
@@ -291,7 +291,7 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 3. **`api-gateway` 黑名单测试是历史遗留失败**：它要求宿主机 Redis 在 `127.0.0.1:6379`；与任何在途改动无关。Docker 跑（用测试 Redis）可通过。
 
-4. **手写 `openapi.yaml` 已废止**：全部 10 份由 utoipa / springdoc 自动生成。改 spec 改代码（`#[utoipa::path]` / `@Operation`），再跑 `scripts/dump-openapi-specs.sh`。**不要直接编辑 yaml**。
+4. **手写 `openapi.yaml` 已废止**：全部 10 份由 utoipa / springdoc 自动生成。改 spec 改代码（`#[utoipa::path]` / `@Operation`），再跑 `node scripts/dump-openapi-specs.js`。**不要直接编辑 yaml**。
 
 5. **OTel traces 靠 env + feature 双开**（口径已按 Cargo.toml + compose 实际校准）：
    - `iam-service` 走另一路径：`digua_common-telemetry` 与 `digua_common-telemetry-axum` 依赖未显式开 `otlp` feature；`Cargo.toml` 自身直接依赖 `opentelemetry = "0.24"` + `tracing-opentelemetry = "0.25"`，**但是否实际注册 OTLP exporter 尚未独立核验**。
@@ -335,7 +335,7 @@ node scripts/check-service-standard.js      # services/** 服务规范
 node scripts/check-spec.js                  # OpenAPI / 错误码 / 权限码
 node scripts/contracts-gen.js --check       # contracts/** 生成代码未漂移
 node scripts/check-db-naming.js             # 表前缀
-scripts/dump-openapi-specs.sh               # 重新生成 openapi.yaml
+node scripts/dump-openapi-specs.js               # 重新生成 openapi.yaml
 git diff --exit-code -- 'services/*/openapi.yaml'  # drift 守门
 
 # Rust 单元测试（docker 内）

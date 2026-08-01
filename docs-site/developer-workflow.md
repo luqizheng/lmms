@@ -128,7 +128,7 @@ node scripts/run-tests-docker.js                # 全部服务
 node scripts/check-service-standard.js          # ① 8-item 服务规范（Dockerfile/AGENTS.md/...）
 node scripts/check-spec.js                      # ② OpenAPI / 权限码 / 错误码
 node scripts/contracts-gen.js --check           # ③ 契约生成代码与 YAML 一致
-scripts/dump-openapi-specs.sh                   # ④ 重新生成 openapi.yaml
+node scripts/dump-openapi-specs.js                   # ④ 重新生成 openapi.yaml
 git diff --exit-code -- 'services/*/openapi.yaml'   # ④ 确认无 drift
 ```
 
@@ -211,8 +211,7 @@ pnpm docker:build -- api-gateway token-service -v 1.0.0 --push
 
 | 工具 | 干啥 |
 |---|---|
-| [`scripts/build-docker.js`](../scripts/build-docker.js) | 批量构建 micro-server 镜像。无参数=交互式；参数式支持 `-v <ver>`（同时打 `:<ver>` + `:latest`）、`--push`（buildx 直推）、`--load-and-push`（单架构本地留镜像 + 推送）、`-p/--platform linux/amd64,linux/arm64`（多架构，自动 `--push`）。默认 registry `zhcoder-docker-registry.com:8000/micro-server`。`node scripts/build-docker.js --help` 看全部选项。 |
-| [`scripts/release-push.js`](../scripts/release-push.js) | 给已有裸 tag 加 `:${sha}` 和 `:latest`，`fail-fast` 推送。适合 build-docker.js 出完本地镜像后再补 sha tag 推送的旧流程。 |
+| [`scripts/build-docker.js`](../scripts/build-docker.js) | 批量构建 + 推送 micro-server 镜像。无参数=交互式；参数式支持 `-v <ver>`（同时打 `:<ver>` + `:latest`）、`--push`（buildx 直推）、`--load-and-push`（单架构本地留镜像 + 推送）、`-p/--platform linux/amd64,linux/arm64`（多架构，自动 `--push`）。默认 registry `zhcoder-docker-registry.com:8000/micro-server`。`node scripts/build-docker.js --help` 看全部选项。 |
 | [`scripts/build-docker.js clean`](../scripts/build-docker.js) | 清理 buildx cache（`cargo-registry`、`cargo-git`）。 |
 
 **模式与默认值**：
@@ -309,14 +308,15 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 跑某个服务 | `cd services/<svc> && cargo run` |
 | 跑某个服务测试 | `node scripts/run-tests-docker.js <svc>` |
 | 跑 smoke e2e | `pnpm -C tests/e2e test:smoke` |
-| 重新生成 OpenAPI | `scripts/dump-openapi-specs.sh` |
-| 跑 4 道 CI Gate | `node scripts/check-service-standard.js && node scripts/check-spec.js && node scripts/contracts-gen.js --check && scripts/dump-openapi-specs.sh && git diff --exit-code -- 'services/*/openapi.yaml'` |
+| 重新生成 OpenAPI | `node scripts/dump-openapi-specs.js` |
+| 跑 4 道 CI Gate | `node scripts/check-service-standard.js && node scripts/check-spec.js && node scripts/contracts-gen.js --check && node scripts/dump-openapi-specs.js && git diff --exit-code -- 'services/*/openapi.yaml'` |
 | 单独出某个镜像 | `pnpm docker:build:<svc>` |
 | 全部出镜像 | `pnpm docker:build` |
 | 出镜像并打版本号推送 | `pnpm docker:build -- -v 1.0.0 --push` |
-| 多架构出镜像 | `pnpm docker:build -- --platform linux/amd64,linux/arm64 --push` |
-| 推已有镜像补 sha tag | `IMAGE_TAG=<sha> node scripts/release-push.js [services]` |
 | 重新加载 gateway 路由 | `curl -X POST http://localhost:3000/__admin/reload` |
+| 发布 Rust libs (17 crates) | `CARGO_TARGET_DIR=/tmp/libs-target node scripts/publish-libs.js <VER>` |
+| 发布 Rust SDK (7 crates) | `CARGO_TARGET_DIR=/tmp/sdk-target node scripts/publish-rust-sdks.js <VER>` |
+| 发布 npm 包 (`@digua/dist-tools`) | `pnpm run sdk:publish:npm` |
 
 ---
 
@@ -331,7 +331,7 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 我要加数据库表 / 列 | `.agents/skills/coder-migrate-db/` |
 | 我要新建一个微服务 | `.agents/skills/coder-new-service/` |
 | 我想知道测试怎么搞 / 怎么写 e2e | [`docs-site/guides/testing.md`](guides/testing.md) |
-| 我要出镜像 / 看 CI 配置 | [`.gitlab-ci.yml`](../.gitlab-ci.yml) + [`scripts/build-docker.js`](../scripts/build-docker.js) |
+| 我要发布 SDK | [`docs-site/guides/rust-sdk-publishing.md`](guides/rust-sdk-publishing.md) |
 | 我要灰度发布 | [`docs-site/guides/canary-rollout.md`](guides/canary-rollout.md) |
 | 我要查 api-gateway 路由配置 | [`docs-site/guides/api-gateway-routing.md`](guides/api-gateway-routing.md) |
 | 我要看怎么排查 bug | [`docs-site/onboarding/07-日志与排查Bug.md`](onboarding/07-日志与排查Bug.md) |

@@ -35,13 +35,13 @@ run_check "contracts" '^contracts/' node scripts/contracts-gen.js --check
 
 if echo "$STAGED" | grep -qE '^services/.*(Cargo\.toml|src/routes/.*\.rs|src/openapi\.rs)$'; then
     echo "[pre-commit] running openapi-drift..."
-    if ! bash scripts/dump-openapi-specs.sh > /dev/null 2>&1; then
+    if ! node scripts/dump-openapi-specs.js > /dev/null 2>&1; then
         echo "[pre-commit] FAIL: openapi-drift (dump failed)"
         exit 1
     fi
     if ! git diff --exit-code -- services/*/openapi.yaml > /dev/null 2>&1; then
         echo "[pre-commit] FAIL: openapi-drift"
-        echo "  openapi.yaml has drifted. Run: scripts/dump-openapi-specs.sh && git add services/*/openapi.yaml"
+        echo "  openapi.yaml has drifted. Run: node scripts/dump-openapi-specs.js && git add services/*/openapi.yaml"
         exit 1
     fi
     echo "[pre-commit] OK: openapi-drift"

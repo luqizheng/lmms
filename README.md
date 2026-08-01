@@ -58,7 +58,7 @@ docker compose -f infrastructure/docker-compose.yml down
 | `node scripts/check-service-standard.js` | CI gate: 8-item 服务规范检查 |
 | `node scripts/check-spec.js` | CI gate: OpenAPI / 错误码 / 权限码检查 |
 | `node scripts/contracts-gen.js --check` | CI gate: 契约生成代码与 YAML 一致性 |
-| `scripts/dump-openapi-specs.sh` | 重新生成 4 个 service 的 openapi.yaml |
+| `node scripts/dump-openapi-specs.js` | 重新生成 4 个 service 的 openapi.yaml |
 
 ### 单独跑某个服务
 
@@ -120,7 +120,7 @@ docker compose -f infrastructure/docker-compose.yml up -d
 | config-service       | 6006     | http://localhost:6006/swagger-ui | http://localhost:6006/api-docs/openapi.json |
 | file-service         | 6007     | http://localhost:6007/swagger-ui | http://localhost:6007/api-docs/openapi.json |
 
-> 全部 7 个业务服务的 openapi.yaml 都是 utoipa 自动生成的。`api-gateway` 是代理，无自有路由（详情见 `services/api-gateway/openapi.yaml`）。详见 `scripts/dump-openapi-specs.sh` 和 `.agents/skills/coder-new-service`。
+> 全部 7 个业务服务的 openapi.yaml 都是 utoipa 自动生成的。`api-gateway` 是代理，无自有路由（详情见 `services/api-gateway/openapi.yaml`）。详见 `node scripts/dump-openapi-specs.js` 和 `.agents/skills/coder-new-service`。
 
 ### API Gateway 限流
 
@@ -209,7 +209,7 @@ docker run --rm `
 - **测试数据脏**：e2e 的 `globalSetup` 会在每轮开始清库重置；也可重启 mysql 容器
 - **trace 不出现在 Jaeger**：检查 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量是否设置（详见 `docs-site/guides/otel-tracing.md`）
 - **API 返回 429**：被 rate limit 了，调整 `infrastructure/config/api-gateway/rate-limits.toml`
-- **OpenAPI drift CI 失败**：运行 `scripts/dump-openapi-specs.sh` 重新生成并 commit
+- **OpenAPI drift CI 失败**：运行 `node scripts/dump-openapi-specs.js` 重新生成并 commit
 
 ## Services
 
@@ -338,7 +338,7 @@ docker-compose -f infrastructure/docker-compose.yml up -d
 
 ```bash
 # 1. 加载 Docker 镜像（约 10-15GB）
-bash bin/load-images.sh
+node bin/load-images.js
 
 # 2. 生成密钥和密码
 make secrets
@@ -354,12 +354,12 @@ make verify
 
 ```bash
 # 打包离线镜像（输出 release/coder-micro-services-v1.0.0-airgap.tar.gz）
-bash release/dist-template/scripts/release.sh v1.0.0
+node release/dist-template/scripts/release.js v1.0.0
 ```
 
-> 路径注意：脚本实际位于 `release/dist-template/scripts/release.sh`，本节必须带 `release/dist-template/` 前缀。
+> 路径注意：脚本实际位于 `release/dist-template/scripts/release.js`，本节必须带 `release/dist-template/` 前缀。
 >
-> 可选参数：`--no-images` 跳过 `docker pull/save`（仅打配置/骨架包，需消费方自备镜像），等价于 `EXPORT_IMAGES=0 bash release/dist-template/scripts/release.sh v1.0.0`。详见 [`release/dist-template/README.md`](release/dist-template/README.md) §「离线镜像打包 / 选项」。
+> 可选参数：`--no-images` 跳过 `docker pull/save`（仅打配置/骨架包，需消费方自备镜像），等价于 `EXPORT_IMAGES=0 node release/dist-template/scripts/release.js v1.0.0`。详见 [`release/dist-template/README.md`](release/dist-template/README.md) §「离线镜像打包 / 选项」。
 >
 > 详见 [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md)
 
@@ -420,7 +420,7 @@ pnpm run setup
 | `pnpm run contracts:gen`                      | 生成契约代码（错误码、权限码）                    |
 | `pnpm run check:service-standard`             | 检查服务规范合规性                                |
 | `pnpm run check:spec`                         | 检查契约规范（权限码、错误码、OpenAPI）           |
-| `node scripts/dump-openapi-specs.sh`          | 重新生成 4 个 service 的 openapi.yaml            |
+| `node scripts/dump-openapi-specs.js`          | 重新生成 4 个 service 的 openapi.yaml            |
 | `docker compose -f infrastructure/docker-compose.yml up -d` | 启动全部基础设施 + 业务 + 可观测性（observability 已 include 进主 compose） |
 
 ### AI 辅助工具

@@ -42,7 +42,7 @@ sdk/
 
 ```bash
 export OPENAPI_GENERATOR_JAR=/path/to/openapi-generator-cli.jar
-./scripts/generate.sh
+node sdk/scripts/generate.js
 ```
 
 生成结果落在 `.generated/`，作为各 SDK 内部实现参考。

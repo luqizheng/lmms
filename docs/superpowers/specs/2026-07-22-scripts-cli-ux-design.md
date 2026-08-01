@@ -48,7 +48,7 @@
 | `log.*` 调用总数 | 136（83 + 41 + 12） |
 | 直接用 `\x1b[` ANSI 拼接的文件 | 6（check-dev-env / check-migration-state / dev-setup / build-docker / download-swagger-ui / e2e-migration-state） |
 | 用 readline 交互的脚本 | 2（setup-wizard、build-docker） |
-| 适合套 ora 的脚本 | ~6（download-swagger-ui / run-tests-docker / release-push / check-dev-env / e2e-event-flow / e2e-trace-id-flow） |
+| 适合套 ora 的脚本 | ~6（download-swagger-ui / run-tests-docker / release-push（已废弃） / check-dev-env / e2e-event-flow / e2e-trace-id-flow） |
 | `stdio: 'inherit'` 类（不套 spinner） | 7 |
 
 ### 3.2 分层策略
@@ -139,7 +139,7 @@
 **Layer 4 — Spinner 加装**（6 个文件）
 - `download-swagger-ui.js`：HTTPS 下载套 ora，`spinner.text` 显示 `[已下载 XX MB / 共 YY MB]`。
 - `run-tests-docker.js`：docker container 检查、mysql 启动、镜像拉取阶段套 ora。
-- `release-push.js`：git 状态检查、rev-parse 阶段套 ora（push 本身用 inherit 不套）。
+- `release-push.js`：git 状态检查、rev-parse 阶段套 ora（push 本身用 inherit 不套）。（**已于 2026-08 废弃，功能合并进 build-docker.js**）
 - `check-dev-env.js`：环境检查逐项套 ora（Docker / Node / pnpm / Rust ...）。
 - `e2e-event-flow.js` / `e2e-trace-id-flow.js`：HTTP 轮询等待阶段套 ora。
 

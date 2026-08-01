@@ -23,6 +23,19 @@ variables:
   # E2E_DB_PASSWORD 通过 GitLab CI/CD Variables 注入（type: env_var, masked）
   E2E_DB_NAME: superpowers
 
+  # --- setup-wizard 同步（敏感值引用 GitLab CI Variables）---
+  CODER_BASE_REGISTRY: "zhcoder-docker-registry.com:8000/official"
+  CODER_BUILDER_REGISTRY: "zhcoder-docker-registry.com:8000/builder"
+  CODER_CRATE_REGISTRY: "https://rsproxy.cn/index/"
+  CODER_CRATE_TOKEN: "$CRATE_TOKEN"
+  CODER_PRIVATE_CRATE_REGISTRY: "http://192.168.2.12:16444"
+  CODER_PRIVATE_CRATE_REGISTRY_TOKEN: "$PRIVATE_CRATE_REGISTRY_TOKEN"
+  CODER_MAVEN_REGISTRY: "http://mvn.kudi.repos"
+  CODER_MAVEN_AUTH_MODE: "userpass"
+  CODER_MAVEN_USERNAME: "$MAVEN_USERNAME"
+  CODER_MAVEN_PASSWORD: "$MAVEN_PASSWORD"
+  CODER_NPM_REGISTRY: "http://npm.kudi.repos"
+  CODER_NPM_TOKEN: "$NPM_TOKEN"
 rust_test:
   stage: test
   tags:
@@ -73,8 +86,7 @@ spec_generate:
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
     - apt-get update && apt-get install -y pkg-config libssl-dev
   script:
-    - chmod +x scripts/dump-openapi-specs.sh
-    - scripts/dump-openapi-specs.sh
+    - node scripts/dump-openapi-specs.js
     - git diff --exit-code -- 'services/*/openapi.yaml'
   dependencies:
     - spec_check
@@ -402,9 +414,8 @@ rust_publish:
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
     - apt-get update && apt-get install -y pkg-config libssl-dev
   script:
-    - chmod +x libs/scripts/publish-libs.sh sdk/scripts/publish-rust-sdks.sh
-    - bash libs/scripts/publish-libs.sh "${SDK_VERSION}" --registry kellnr
-    - bash sdk/scripts/publish-rust-sdks.sh "${SDK_VERSION}" --registry kellnr
+    - node scripts/publish-libs.js "${SDK_VERSION}" --registry kellnr
+    - node scripts/publish-rust-sdks.js "${SDK_VERSION}" --registry kellnr
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -428,9 +439,8 @@ release:dist:
     - echo "=== release:dist job ==="
     - echo "VERSION=${CI_COMMIT_TAG#v}"
     - cd release/dist-template
-    - chmod +x bin/*.sh scripts/release.sh
     # 构建前端镜像（作为当前版本镜像）
-    - bash bin/build-frontend.sh
+    - node bin/build-frontend.js
     # 打包 release 脚本放在 dist-template/scripts/release.sh，
     # 实际 release 由运维在有网环境执行
     - 'echo "[release:dist] 离线分发包已就绪: release/dist-template/"'
@@ -480,3 +490,4 @@ cargo_deny:
       when: on_success
     - when: manual
       allow_failure: true
+

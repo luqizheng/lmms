@@ -328,7 +328,7 @@ node scripts/contracts-gen.js --check
 node scripts/check-db-naming.js
 
 # 5. OpenAPI yaml 漂移
-scripts/dump-openapi-specs.sh
+node scripts/dump-openapi-specs.js
 git diff --exit-code -- 'services/*/openapi.yaml'
 
 # 6. Rust 测试（docker）
@@ -375,7 +375,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 - [ ] `node scripts/check-spec.js` exit 0
 - [ ] `node scripts/contracts-gen.js --check` exit 0
 - [ ] `node scripts/check-db-naming.js` exit 0
-- [ ] `scripts/dump-openapi-specs.sh` 之后 `git diff` 干净
+- [ ] `node scripts/dump-openapi-specs.js` 之后 `git diff` 干净
 - [ ] `node scripts/run-tests-docker.js <svc>` 全绿
 - [ ] `docs-site/ai-context.md` §2 §10 已更新
 - [ ] 至少一个 e2e 用例（smoke 子集即可）
@@ -389,7 +389,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 2. **`utoipa::OpenApi::to_yaml()` 编译失败** — `Cargo.toml` 的 `utoipa` 必须带 `yaml` feature（参见 `ai-context.md` §7 坑点 1）。
 3. **本地 `cargo build` 链接器报错** — 缺 `cc`。统一跑 `node scripts/run-tests-docker.js <svc>`，或在 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl` 容器内构建（参见 `ai-context.md` §7 坑点 2）。
 4. **服务起来了但 Consul 健康检查一直 critical** — `/health` 在容器内不可达。检查：port 是否 8080、handler 是否同步返回、是否在 health 里查 DB（参见 §7.3）。
-5. **改完 handler 注解但 swagger 没更新** — `openapi.yaml` 是 **utoipa 自动生成**的，改代码后必须跑 `scripts/dump-openapi-specs.sh`，CI 用 `git diff --exit-code` 守护。**禁止手改 yaml**（参见 `ai-context.md` §7 坑点 4）。
+5. **改完 handler 注解但 swagger 没更新** — `openapi.yaml` 是 **utoipa 自动生成**的，改代码后必须跑 `node scripts/dump-openapi-specs.js`，CI 用 `git diff --exit-code` 守护。**禁止手改 yaml**（参见 `ai-context.md` §7 坑点 4）。
 6. **手改 `libs/digua_common-error/src/codes.rs`** — 该文件是 `contracts-gen.js` 生成品，改完下次跑就丢了。改 `contracts/error-codes.yaml` 再重生成（参见 `ai-context.md` §7 坑点 9）。
 7. **表名撞名** — 共库下所有表必须带前缀（参见 `contracts/db-conventions.md`）。`iam_users` 与历史的 `users` 同库内只能存在一个，违规由 `check-db-naming.js` 拦截。
 8. **OTel 启用了但不出现 trace** — `digua_common-telemetry` + `digua_common-telemetry-axum` 两个 crate 都得开 `otlp` feature，且 `OTEL_EXPORTER_OTLP_ENDPOINT` 必须设。两者缺一即为静默 stdout-only（参见 `ai-context.md` §7 坑点 11）。

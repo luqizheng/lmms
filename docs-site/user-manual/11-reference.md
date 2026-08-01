@@ -79,7 +79,7 @@ coder-micro-services/
 
 ```bash
 alias cms-ci='node scripts/check-service-standard.js && node scripts/check-spec.js && node scripts/contracts-gen.js --check'
-alias cms-openapi='scripts/dump-openapi-specs.sh'
+alias cms-openapi='node scripts/dump-openapi-specs.js'
 alias cms-test='node scripts/run-tests-docker.js'
 alias cms-obs='docker compose -f infrastructure/docker-compose.yml up -d'
 alias cms-e2e='cd tests/e2e && pnpm test:smoke'

@@ -1,6 +1,6 @@
 [package]
 name = "digua_common"
-version = "0.1.0"
+version = "1.0.0"
 license = "Apache-2.0"
 description = "Facade crate re-exporting digua_common-error/digua_common-db/digua_common-crypto for KudiCoder services"
 edition = "2021"

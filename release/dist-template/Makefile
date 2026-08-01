@@ -21,34 +21,34 @@ help:
 	@echo "环境变量：REGISTRY=${REGISTRY}  IMAGE_TAG=${IMAGE_TAG}"
 
 secrets:
-	@bash bin/generate-secrets.sh
+	@node bin/generate-secrets.js
 
 up:
-	@bash bin/start.sh
+	@node bin/start.js
 
 down:
-	@bash bin/stop.sh
+	@node bin/stop.js
 
 status:
-	@bash bin/status.sh
+	@node bin/status.js
 
 logs:
-	@bash bin/logs.sh $(svc)
+	@node bin/logs.js $(svc)
 
 verify:
-	@bash bin/verify.sh
+	@node bin/verify.js
 
 reset-data:
-	@bash bin/reset-data.sh
+	@node bin/reset-data.js
 
 seed-demo:
-	@bash bin/seed-demo.sh
+	@node bin/seed-demo.js
 
 build-frontend:
-	@bash bin/build-frontend.sh
+	@node bin/build-frontend.js
 
 load-images:
-	@bash bin/load-images.sh
+	@node bin/load-images.js
 
 upgrade:
-	@bash bin/upgrade.sh $(TAG)
+	@node bin/upgrade.js $(TAG)

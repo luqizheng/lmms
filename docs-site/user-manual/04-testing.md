@@ -115,7 +115,7 @@ GitLab CI `test` 阶段：
 node scripts/check-service-standard.js && \
   node scripts/check-spec.js && \
   node scripts/contracts-gen.js --check && \
-  scripts/dump-openapi-specs.sh && \
+  node scripts/dump-openapi-specs.js && \
   git diff --exit-code -- 'services/*/openapi.yaml' && \
   node scripts/run-tests-docker.js iam-service
 ```

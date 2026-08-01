@@ -50,7 +50,7 @@ tar -xzf coder-micro-services-v1.0.0-airgap.tar.gz
 cd coder-micro-services-v1.0.0
 
 # 加载 Docker 镜像（约 10-15GB，需 5-10 分钟）
-bash bin/load-images.sh
+node bin/load-images.js
 ```
 
 ### 第四步：初始化配置
@@ -70,16 +70,16 @@ make secrets
 
 ```bash
 # 前端构建（约 2 分钟，后续命中 cache 秒级）
-bash bin/build-frontend.sh
+node bin/build-frontend.js
 
 # 启动所有容器
-bash bin/start.sh
+node bin/start.js
 ```
 
 ### 第六步：验证
 
 ```bash
-bash bin/verify.sh
+node bin/verify.js
 ```
 
 预期输出：所有服务 `✓` 通过。

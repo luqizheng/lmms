@@ -89,7 +89,7 @@ const ROOT = process.env.CODER_ROOT || path.resolve(__dirname, '..', '..');
 
 - ❌ **不修 Harbor `official/` proxy 配置** —— 需 admin 权限和上游策略变更，非 code change 范围
 - ❌ **不删 `BASE_REGISTRY` 变量** —— 其他 job（`rust_test`、`spec_check`、`e2e_api_test` 等）仍依赖它
-- ❌ **不动 `release-push.js`** —— 当前未追踪的发布脚本，不在本 commit 范围
+- ❌ **不动 `release-push.js`** —— 当时未追踪的发布脚本，不在本 commit 范围（**已于 2026-08 废弃，功能合并进 build-docker.js**）
 - ❌ **不动 Harbor `official/dotnet-sdk` / `official/playwright` 的空仓库** —— 留作 proxy 修复后回退缓存位
 
 ---

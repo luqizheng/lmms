@@ -2,9 +2,9 @@
 replace-with = "coder-mirror"
 
 [source.coder-mirror]
-registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
+registry = "sparse+https://rsproxy.cn/index/"
 
-# 私有 kellnr registry - 托管 libs/* 和 sdk/rust/* 发布的 crate
+# 私有 crate registry - 托管 libs/* 和 sdk/rust/* 发布的 crate
 # cargo publish --registry kellnr  发布到此处
 # cargo add <crate> --registry kellnr  从此处拉取
 [source.kellnr]

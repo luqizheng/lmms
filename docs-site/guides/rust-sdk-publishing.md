@@ -1,8 +1,8 @@
 # Rust SDK 发布指南
 
-> 适用：把 `sdk/rust/` 下的 7 个 crate 发布到 crates.io。
-> 关联：[`sdk/rust/README.md`](../../sdk/rust/README.md)（SDK 用法）、[`sdk/scripts/publish-rust-sdks.sh`](../../sdk/scripts/publish-rust-sdks.sh)（发布脚本）。
-> 维护：本文档随发布脚本和 crates.io 政策变化同步更新。
+> 适用：把 `sdk/rust/` 下的 7 个 crate 发布到 kellnr（内网 registry）。
+> 关联：[`sdk/rust/README.md`](../../sdk/rust/README.md)（SDK 用法）、[`scripts/publish-rust-sdks.js`](../../scripts/publish-rust-sdks.js)（发布脚本，Node.js，跨平台）。
+> 维护：本文档随发布脚本和 registry 政策变化同步更新。
 
 ---
 
@@ -21,15 +21,15 @@ sdk/rust/
 
 每个 crate 独立打包为 `*.tar.gz` 上传到 [crates.io](https://crates.io)，最终用户通过 `cargo add <name>` 或 `Cargo.toml` 依赖引入。
 
-| crate | 版本 | crates.io |
+| crate | 版本 | registry |
 | --- | --- | --- |
-| `digua_http_client` | 0.1.0 | https://crates.io/crates/digua_http_client |
-| `digua_iam_sdk` | 0.1.0 | https://crates.io/crates/digua_iam_sdk |
-| `digua_token_sdk` | 0.1.0 | https://crates.io/crates/digua_token_sdk |
-| `digua_audit_sdk` | 0.1.0 | https://crates.io/crates/digua_audit_sdk |
-| `digua_file_sdk` | 0.1.0 | https://crates.io/crates/digua_file_sdk |
-| `digua_notification_sdk` | 0.1.0 | https://crates.io/crates/digua_notification_sdk |
-| `digua_config_sdk` | 0.1.0 | https://crates.io/crates/digua_config_sdk |
+| `digua_http_client` | 1.0.0 | kellnr |
+| `digua_iam_sdk` | 1.0.0 | kellnr |
+| `digua_token_sdk` | 1.0.0 | kellnr |
+| `digua_audit_sdk` | 1.0.0 | kellnr |
+| `digua_file_sdk` | 1.0.0 | kellnr |
+| `digua_notification_sdk` | 1.0.0 | kellnr |
+| `digua_config_sdk` | 1.0.0 | kellnr |
 
 ---
 
@@ -39,11 +39,10 @@ sdk/rust/
 
 | # | 条件 | 怎么验证 |
 | - | --- | --- |
-| 1 | crates.io 账号 + 已验证邮箱 | 登录 https://crates.io/settings/profile，邮箱一栏显示 verified |
-| 2 | 已生成 API token | https://crates.io/settings/tokens → New Token（勾选 publish 范围） |
-| 3 | 本机 `cargo` 1.70+ | `cargo --version` |
-| 4 | 项目级 `CARGO_TARGET_DIR` 可写 | 仓库根 `target/` 默认是 docker volume 的（root-owned），必须用 `CARGO_TARGET_DIR=/tmp/sdk-publish` 绕开 |
-| 5 | 内网 mirror 配好但 sparse index 优先 | 见 §3 |
+| 1 | kellnr registry 已配置 + token | `~/.cargo/credentials.toml` 有 `[registries.kellnr]` section（`scripts/setup-wizard.js` 自动写） |
+| 2 | 本机 `cargo` 1.70+ | `cargo --version` |
+| 3 | 项目级 `CARGO_TARGET_DIR` 可写 | 仓库根 `target/` 默认是 docker volume 的（root-owned），必须用 `CARGO_TARGET_DIR=/tmp/sdk-publish` 绕开 |
+| 4 | `.cargo/config.toml` 配置正确 | 必须有 `[registries.kellnr]` 的 index URL |
 
 > ⚠️ **Cargo 必须能访问 crates.io 真正的 index**。如果项目级 `.cargo/config.toml` 把 `[source.crates-io]` replace-with 到了 Panamax 之类的只读 mirror，**publish 时会失败**（mirror 不接受上传）。要么发布前临时禁掉 mirror（§5.2），要么 publish 时绕开 mirror。
 
@@ -134,83 +133,65 @@ digua_http_client   ←  基础库，先发
 ### 5.1 用发布脚本（推荐）
 
 ```bash
-# 从仓库根 —— VERSION 是必填位置参数
-bash sdk/scripts/publish-rust-sdks.sh <VERSION> [--dry-run] [--registry <name>]
+# 从仓库根 —— VERSION 是必填位置参数。跨平台（Linux / macOS / Windows）
+node scripts/publish-rust-sdks.js <VERSION> [--dry-run] [--registry <name>]
 ```
 
 **参数：**
 
 | 参数 | 说明 |
 | --- | --- |
-| `<VERSION>`（位置参数，**必填**） | 统一版本号（例如 `0.2.0`）；脚本把 7 个 crate 的 `version = "..."` 全部改成该值（dry-run 模式下不改 Cargo.toml） |
-| `--dry-run` | 只验证，不上传 + 不改 Cargo.toml |
-| `--registry <name>` | 上传到指定 registry（默认 kellnr），需先在 `[registries.<name>]` 配好 token |
-| `--help` | 打印 header 注释里的完整用法 |
+| `<VERSION>`（位置参数，**必填**） | 统一版本号（例如 `1.0.0`）；脚本检查所有 crate 版本是否一致 |
+| `--dry-run` | 只验证，不上传 + 不修改 Cargo.toml |
+| `--registry <name>` | 上传到指定 registry（默认 `kellnr`） |
+| `--help` | 打印完整用法 |
 
 **脚本做的事：**
 
-1. **前置检查**：每个 crate 必须有 `description` + `license`，否则 exit 2。`<VERSION>` 必填，缺参 exit 2。
-2. **统一版本号**：所有 crate 的 `version = "..."` 统一成 `<VERSION>`（dry-run 模式下只 echo，不改 Cargo.toml）。
-3. **发 digua_http_client**：无 path 依赖，直接 `cargo publish`。
-4. **替换 path 依赖**：把 6 个 service SDK 的 `path = "../digua-http-client"` 临时改为 `version = "<ver>"` + `registry = "<registry>"`，备份到 `.bak`（dry-run 跳过此步）。
+1. **前置检查**：每个 crate 必须有 `description` + `license`。`<VERSION>` 必填。
+2. **版本检查**：所有 crate 的 `version` 必须与 `<VERSION>` 一致。
+3. **发 digua_http_client**：基础库，直接 `cargo publish`。
+4. **替换 path 依赖**：把 6 个 service SDK 的 `path = "../digua-http-client"` 临时改为 `version = "<ver>"` + `registry = "kellnr"`，备份到 `.bak`。
 5. **逐个发 service SDK**：编译 → 打包 → 上传。
-6. **恢复 path 依赖**：`mv *.bak` 还原。
-7. **汇总**：成功 / 失败 crate 列表。
-
-> 💡 脚本**不**自动改 cargo mirror 配置；如果你用只读 mirror，publish 仍会卡在依赖解析（见 §5.2）。
+6. **恢复 path 依赖**：mv `.bak` 还原。
+7. **汇总**：成功 / 失败列表。
 
 **典型执行：**
 
 ```bash
 # 第一次发布 / 验证流程
-bash sdk/scripts/publish-rust-sdks.sh 0.2.0 --dry-run
+node scripts/publish-rust-sdks.js 1.0.0 --dry-run
 
 # 确认无误后真发布
 CARGO_TARGET_DIR=/tmp/sdk-publish \
-  CARGO_REGISTRY_TOKEN=<token> \
-  bash sdk/scripts/publish-rust-sdks.sh 0.2.0
+  node scripts/publish-rust-sdks.js 1.0.0
+
+# 或通过 pnpm
+pnpm run sdk:publish:rust -- 1.0.0 --dry-run
+CARGO_TARGET_DIR=/tmp/sdk-publish pnpm run sdk:publish:rust -- 1.0.0
 ```
+
+> Windows PowerShell：`$env:CARGO_TARGET_DIR="$env:TEMP\sdk-publish"; node scripts/publish-rust-sdks.js 1.0.0`
 
 ---
 
-### 5.2 处理「只读 mirror 拦截 publish」
+### 5.2 使用 kellnr registry
 
-crates.io 被 mirror replace 后，`cargo publish` 会报：
-
-```
-error: crates-io is replaced with non-remote-registry source registry `panamax`;
-include `--registry crates-io` to use crates.io
-```
-
-且即使加 `--registry crates-io`，workspace 依赖解析仍走 mirror，触发 git index 失败。**最干净的解法**：发布期间临时把 mirror 关掉。
+脚本默认发布到 `kellnr`（内网 registry），无需额外配置。若需发布到其他 registry：
 
 ```bash
-# 1. 备份当前 config
-cp .cargo/config.toml .cargo/config.toml.bak
-
-# 2. 写一个只保留必要项的 config（无 mirror）
-cat > .cargo/config.toml << 'EOF'
-[net]
-git-fetch-with-cli = true
-EOF
-
-# 3. publish（脚本仍然有效）
-CARGO_TARGET_DIR=/tmp/sdk-publish \
-  CARGO_REGISTRY_TOKEN=<token> \
-  bash sdk/scripts/publish-rust-sdks.sh 0.2.0
-
-# 4. 恢复
-mv .cargo/config.toml.bak .cargo/config.toml
+node scripts/publish-rust-sdks.js 1.0.0 --registry my-registry
 ```
 
-如果你不能动 `.cargo/config.toml`，`cargo publish` 提供 `--config` 覆盖：
+前提是 `~/.cargo/credentials.toml` 中已配置对应 registry 的 token：
 
-```bash
-cargo publish -p <crate> --allow-dirty --registry crates-io \
-  --config 'source.crates-io.replace-with = ""'   # ← cargo 会拒绝（空字符串非法 source）
+```toml
+[registries.kellnr]
+token = "xxx"
+
+[registries.my-registry]
+token = "yyy"
 ```
-
-实测 cargo 1.70+ 不接受这种空字符串覆盖，且循环引用检测会挡掉 `replace-with = "crates-io"`。**推荐用临时改 config 文件的方式**（§5.2 上面那段）。
 
 ---
 
@@ -220,9 +201,9 @@ cargo publish -p <crate> --allow-dirty --registry crates-io \
 # 拉一个临时目录试装
 mkdir /tmp/sdk-verify && cd /tmp/sdk-verify
 cargo init --name verify-app
-cargo add digua_iam_sdk digua_http_client
-cargo build           # 期望：从 crates.io 拉 digua_http_client 和 digua_iam_sdk
-cargo tree | head      # 期望：能看到 digua_http_client v0.1.0 是从 crates.io 拉的
+cargo add digua_iam_sdk digua_http_client --registry kellnr
+cargo build           # 期望：从 kellnr 拉 digua_http_client 和 digua_iam_sdk
+cargo tree | head      # 期望：能看到 digua_http_client v1.0.0 是从 kellnr 拉的
 ```
 
 或在文档站浏览：[`./rust-sdk`](./rust-sdk) §「SDK 现状」给出 `cargo add` 示例。
@@ -267,8 +248,8 @@ crates.io 对**新账号**和**高频账号**有 rate limit：
 
 发布流程：
 
-1. 同步改 7 个 crate 的 `version = "..."`（脚本自动做，或用 `cargo workspace version`）
-2. 跑 `bash sdk/scripts/publish-rust-sdks.sh 0.2.0`（VERSION 是必填位置参数）
+1. 确保 7 个 crate 的 `version` 与预期 `<VERSION>` 一致
+2. 跑 `node scripts/publish-rust-sdks.js <VERSION>`（VERSION 是必填位置参数）
 
 ### 8.3 yank（撤回已发布版本）
 
@@ -286,14 +267,11 @@ yank 后 `cargo add digua_http_client@0.1.0` 仍能拉取（已锁版本的项�
 
 | 现象 | 原因 | 解决 |
 | --- | --- | --- |
-| `error: crates-io is replaced with non-remote-registry source registry` | 配置了只读 mirror | 见 §5.2 临时禁掉 mirror |
-| `the remote server responded with an error (status 400 Bad Request): A verified email address is required` | crates.io 账号邮箱未验证 | 去 https://crates.io/settings/profile 验证邮箱 |
-| `status 429 Too Many Requests` | 触发速率限制 | 见 §7，等待错误里说的时间后重试 |
-| `error: failed to get anyhow as a dependency of package digua_common v0.1.0` | mirror git index 损坏 / 不同步 | 临时禁掉 mirror 直接走 crates.io；或改用 sparse index |
 | `Permission denied (os error 13) ... target/package/tmp-registry` | `target/` 是 docker volume root-owned | 用 `CARGO_TARGET_DIR=/tmp/sdk-publish` |
-| `warning: manifest has no documentation, homepage or repository` | 缺 repository / homepage 字段 | 在 `[package]` 加上，可忽略但建议补 |
+| `error: no matching package named 'digua_http_client' found` | 基础库还没发布到 registry | 确保 `digua_http_client` 先发布成功再发 service SDK |
 | `error: failed to load source for dependency digua_http_client` | publish 后没等索引同步就发下一个 | `digua_http_client` 发完后等 30 秒再发 service SDK |
 | 脚本发完一半退出，service SDK 还是 `version` 依赖 | 脚本崩溃前未到恢复 .bak 的步骤 | 手动 `mv sdk/rust/*/Cargo.toml.bak sdk/rust/*/Cargo.toml` |
+| `warning: manifest has no documentation, homepage or repository` | 缺 repository / homepage 字段 | 在 `[package]` 加上，可忽略但建议补 |
 
 ---
 
@@ -302,5 +280,6 @@ yank 后 `cargo add digua_http_client@0.1.0` 仍能拉取（已锁版本的项�
 - [`./rust-sdk`](./rust-sdk)：Rust SDK 用法（消费者向）
 - [`./java-integration`](./java-integration)：Java SDK 用法（对照参考）
 - [`sdk/rust/README.md`](../../sdk/rust/README.md)：SDK crate 列表与测试方法
-- [`sdk/scripts/publish-rust-sdks.sh`](../../sdk/scripts/publish-rust-sdks.sh)：发布脚本本体
-- [`release/dist-template/README.md`](../../release/dist-template/README.md)：离线分发包如何引用 crates.io 上的 SDK
+- [`scripts/publish-rust-sdks.js`](../../scripts/publish-rust-sdks.js)：发布脚本（Node.js，跨平台）
+- [`scripts/publish-libs.js`](../../scripts/publish-libs.js)：发布 libs/ 共享库（Node.js，跨平台）
+- [`release/dist-template/README.md`](../../release/dist-template/README.md)：离线分发包

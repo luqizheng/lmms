@@ -30,7 +30,7 @@ docker save \
 scp images/*.tar user@target:/opt/coder-micro-services-v1.0.0/images/
 
 # 3. 加载镜像
-bash bin/load-images.sh
+node bin/load-images.js
 
 # 4. 修改 IMAGE_TAG 并重启
 sed -i 's/IMAGE_TAG=v1.0.0/IMAGE_TAG=v1.1.0/' .env

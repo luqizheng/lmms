@@ -16,8 +16,8 @@ COPY sdk ./sdk
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-api-gateway,target=/app/target,sharing=locked \
-    cargo build --release --target x86_64-unknown-linux-musl -p api-gateway --jobs 8 && \
-    cp /app/target/x86_64-unknown-linux-musl/release/api-gateway /app/api-gateway
+    cargo build --release --target x86_64-unknown-linux-musl -p api_gateway --jobs 8 && \
+    cp /app/target/x86_64-unknown-linux-musl/release/api_gateway /app/api_gateway
 
 # 阶段2: 复制源代码并编译
 COPY services/api-gateway/src ./services/api-gateway/src
@@ -26,7 +26,7 @@ ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 FROM ${BASE_REGISTRY}/alpine:3.21
 RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
-COPY --from=builder /app/api-gateway /app/api-gateway
+COPY --from=builder /app/api_gateway /app/api_gateway
 ENV RUST_LOG=api_gateway=debug
 
 EXPOSE 3000
@@ -34,4 +34,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
   CMD wget --spider -q http://127.0.0.1:3000/health || exit 1
 
-CMD ["/app/api-gateway", "serve", "--routes", "/app/config/api-gateway/routes"]
+CMD ["/app/api_gateway", "serve", "--routes", "/app/config/api-gateway/routes"]

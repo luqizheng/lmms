@@ -47,7 +47,7 @@ node scripts/check-service-standard.js      # 服务规范（services/**）
 node scripts/check-spec.js                  # OpenAPI / 错误码 / 权限码（services/**/openapi.yaml）
 node scripts/contracts-gen.js --check       # 契约漂移（contracts/**）
 node scripts/check-db-naming.js             # 表名服务前缀（migrations + sqlx 查询）
-scripts/dump-openapi-specs.sh && git diff --exit-code -- 'services/*/openapi.yaml'
+node scripts/dump-openapi-specs.js && git diff --exit-code -- 'services/*/openapi.yaml'
 ```
 
 GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contracts / openapi-drift）+ `cargo test --workspace` + E2E；失败阻断 build/deploy。也可装 pre-commit（`.pre-commit-config.yaml`）本地拦截。
@@ -61,7 +61,7 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 ## OpenAPI（auto-generated）
 
-`services/*/openapi.yaml` 由 utoipa 从代码生成，**禁止直接编辑**。改路由后：编辑 `#[utoipa::path]` 注解与 `src/openapi.rs` → 跑 `scripts/dump-openapi-specs.sh` 重新生成 → commit。CI 用 `git diff --exit-code` 检测漂移。
+`services/*/openapi.yaml` 由 utoipa 从代码生成，**禁止直接编辑**。改路由后：编辑 `#[utoipa::path]` 注解与 `src/openapi.rs` → 跑 `node scripts/dump-openapi-specs.js` 重新生成 → commit。CI 用 `git diff --exit-code` 检测漂移。
 
 > utoipa 若要调 `to_yaml()`，服务 `Cargo.toml` 必须带 `features = [..., "yaml"]`，否则编译失败。
 
@@ -90,7 +90,7 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 | 意图 | Skill | 常用命令 |
 | --- | --- | --- |
-| 加路由 | `.agents/skills/coder-add-route` | 改完跑 `scripts/dump-openapi-specs.sh` |
+| 加路由 | `.agents/skills/coder-add-route` | 改完跑 `node scripts/dump-openapi-specs.js` |
 | 加迁移 | `.agents/skills/coder-migrate-db` | — |
 | 新建服务 | `.agents/skills/coder-new-service` | — |
 | 审查计划 | `.agents/skills/plan-eng-review` | — |
@@ -146,3 +146,23 @@ docker run --rm --entrypoint sh \
 
 任何镜像 `command:` 与 `ls /usr/local/bin` 输出出现拼写差异 → 修本仓 compose 后重 release，不允许"先推了再说"。
 
+## SDK 发布
+
+所有 SDK 发布脚本已改为 Node.js 实现，跨平台兼容（Linux / macOS / Windows）。
+
+| 发布内容 | 命令 | Registry |
+|---------|------|----------|
+| npm 包 (`@digua/dist-tools`) | `pnpm run sdk:publish:npm` | `npm.kudi.repos` |
+| Rust 通用库 (17 crates) | `pnpm run sdk:publish:libs -- <VERSION>` | `kellnr` |
+| Rust SDK (7 crates) | `pnpm run sdk:publish:rust -- <VERSION>` | `kellnr` |
+
+> `target/` 目录是 docker volume root-owned，发布 Rust crate 时必须设置 `CARGO_TARGET_DIR`：
+> ```bash
+> # Linux / macOS
+> CARGO_TARGET_DIR=/tmp/libs-target pnpm run sdk:publish:libs -- 1.0.0
+> 
+> # Windows PowerShell
+> $env:CARGO_TARGET_DIR="$env:TEMP\libs-target"; pnpm run sdk:publish:rust -- 1.0.0
+> ```
+>
+> 发布前先 dry-run 验证：加 `--dry-run` 参数。

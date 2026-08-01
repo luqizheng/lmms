@@ -37,7 +37,7 @@ AI Agent 会根据你触碰的路径自动加载 Skill：
 |------|----------|
 | `services/*/src/routes/*.rs` | `coder-add-route`（新增路由时） |
 | `services/*/migrations/**` | `coder-migrate-db`（新增迁移时） |
-| `services/*/openapi.yaml` | **警告：禁止手改**，跑 `scripts/dump-openapi-specs.sh` |
+| `services/*/openapi.yaml` | **警告：禁止手改**，跑 `node scripts/dump-openapi-specs.js` |
 | `contracts/**` | 跑 `node scripts/contracts-gen.js` 重新生成 |
 
 完整触发映射见 [`.trae/rules/project_rules.md`](../../.trae/rules/project_rules.md)。
@@ -108,7 +108,7 @@ node scripts/contracts-gen.js
 **改路由注解**（`#[utoipa::path]`）：
 
 ```bash
-scripts/dump-openapi-specs.sh
+node scripts/dump-openapi-specs.js
 # 生成 services/*/openapi.yaml
 ```
 

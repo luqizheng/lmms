@@ -8,8 +8,8 @@
 
 | 形态 | 产物 | 适用场景 | 触发命令 |
 |------|------|----------|----------|
-| **A. 镜像推内网 registry** | 9 个 Docker 镜像（8 核心服务 + frontend），打 `:short-sha` + `:latest` tag，推到 `zhcoder-docker-registry.com:8000/micro-server/*` | 内网有 registry、能联网拉镜像的环境 | `pnpm release:push` |
-| **B. 离线分发包（air-gap tar.gz）** | `coder-micro-services-${VERSION}-airgap.tar.gz`（约 10–15 GB）+ 同步 libs/sdk/contracts/skills/scripts/services 骨架 | 客户环境无网络 / 涉密 / 私有化部署 | `bash release/dist-template/scripts/release.sh v1.0.0` |
+| **A. 镜像推内网 registry** | 9 个 Docker 镜像（8 核心服务 + frontend），打 `:<version>` + `:latest` tag，推到 `zhcoder-docker-registry.com:8000/micro-server/*` | 内网有 registry、能联网拉镜像的环境 | `pnpm docker:build -- -v <ver> --push` |
+| **B. 离线分发包（air-gap tar.gz）** | `coder-micro-services-${VERSION}-airgap.tar.gz`（约 10–15 GB）+ 同步 libs/sdk/contracts/skills/scripts/services 骨架 | 客户环境无网络 / 涉密 / 私有化部署 | `node release/dist-template/scripts/release.js v1.0.0` |
 | **C. SSH 直接部署** | `docker compose down && pull && up` 到 192.168.2.128 | 单一固定生产主机（**已知路径错**，[风险] 见 §12.4） | 由 `.gitlab-ci.yml` 的 `deploy` job 自动触发 |
 
 > 大多数场景用 **形态 B**（私有化）或 **形态 A**（内网微服务）。形态 C 是早期遗留，建议迁移到形态 A。
@@ -21,23 +21,33 @@
 ### 命令
 
 ```bash
-pnpm release:push
-# = node scripts/release-push.js
+# 构建全部 9 个服务镜像并推送到内网 registry
+pnpm docker:build -- -v 1.0.0 --push
+# = node scripts/build-docker.js -v 1.0.0 --push
+
+# 仅构建单个服务
+pnpm docker:build -- api-gateway -v 1.0.0 --push
+
+# 本地留镜像 + 推送（单架构）
+pnpm docker:build -- --load-and-push -v 1.0.0
+
+# 多架构
+pnpm docker:build -- --platform linux/amd64,linux/arm64 --push
 ```
 
-底层走 `scripts/release-push.js`，逐个 `docker tag + docker push` 9 个镜像（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service / prue_backend / frontend）。
+底层走 `scripts/build-docker.js`，集成构建 + 打 tag + 推送一体化流程，覆盖 9 个镜像（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service / prue-admin-backend / frontend）。
 
 ### tag 命名
 
 每个镜像同时打两个 tag：
-- `zhcoder-docker-registry.com:8000/micro-server/<service>:<short-sha>` — 精确回溯
+- `zhcoder-docker-registry.com:8000/micro-server/<service>:<version>` — 精确回溯
 - `zhcoder-docker-registry.com:8000/micro-server/<service>:latest` — 默认拉取
 
-`short-sha` 取 `git rev-parse --short HEAD`（7 字符）。
+版本号通过 `-v <version>` 参数指定。
 
 ### CI 触发
 
-`.gitlab-ci.yml` 的 `build_api_gateway` / `build_token_service` 等 job（line 132-148）仅推当前在跑的两个服务的镜像；其余 6 个服务镜像由 `release:push` 手动触发或 `release:dist` job 间接触发。
+`.gitlab-ci.yml` 的 `build_api_gateway` / `build_token_service` 等 job（line 132-148）使用 `build-docker.js` 构建并推送对应服务镜像。
 
 > ⚠️ **历史遗留**：`build_credential_login_service` / `build_user_service` job 已废弃（ai-context §5.1 [风险]），但 CI 仍在跑。如不再维护，删 job 即可。
 
@@ -49,14 +59,14 @@ pnpm release:push
 
 ```bash
 # 在 dev 仓库根目录，有网环境（建议 16GB+ 磁盘）
-bash release/dist-template/scripts/release.sh v1.0.0
+node release/dist-template/scripts/release.js v1.0.0
 
 # 输出：
 #   release/coder-micro-services-v1.0.0-airgap.tar.gz   ← 交付给客户
 #   release/coder-micro-services-v1.0.0/                ← 同上解压版（供本机预览）
 ```
 
-> **路径注意**：脚本位于 `release/dist-template/scripts/release.sh`。根 README §离线分发包曾写 `bash scripts/release.sh`，**路径缺了 `release/dist-template/` 前缀**，按那个路径会找不到脚本。请用本节给出的完整路径。
+> **路径注意**：脚本位于 `release/dist-template/scripts/release.js`。根 README §离线分发包曾写 `bash scripts/release.sh`，**路径缺了 `release/dist-template/` 前缀**，按那个路径会找不到脚本。请用本节给出的完整路径。
 
 ### 脚本做了什么
 
@@ -88,9 +98,9 @@ bash release/dist-template/scripts/release.sh v1.0.0
 
 ### CI 触发（**当前未自动化**）
 
-`.gitlab-ci.yml` 的 `release:dist` job（line 216-241）tag 触发（`v\d+\.\d+\.\d+$`），但**只跑 `bash bin/build-frontend.sh` + 把 dist-template 当 artifact 上传**——**不自动调 `scripts/release.sh` 产出 airgap tar.gz**。job 内注释（line 232-233）明示：「实际 release 由运维在有网环境执行」。
+`.gitlab-ci.yml` 的 `release:dist` job（line 216-241）tag 触发（`v\d+\.\d+\.\d+$`），但**只跑 `node bin/build-frontend.js` + 把 dist-template 当 artifact 上传**——**不自动调 `scripts/release.sh` 产出 airgap tar.gz**。job 内注释（line 232-233）明示：「实际 release 由运维在有网环境执行」。
 
-**改进方向**：在 `release:dist` job 的 `script:` 末尾追加 `bash release/dist-template/scripts/release.sh $CI_COMMIT_TAG`，artifact 同时上传 `release/coder-micro-services-${CI_COMMIT_TAG}-airgap.tar.gz`，即可 tag → 自动出包。改前需在 GitLab Runner 上验证 `docker save` 磁盘空间。
+**改进方向**：在 `release:dist` job 的 `script:` 末尾追加 `node release/dist-template/scripts/release.js $CI_COMMIT_TAG`，artifact 同时上传 `release/coder-micro-services-${CI_COMMIT_TAG}-airgap.tar.gz`，即可 tag → 自动出包。改前需在 GitLab Runner 上验证 `docker save` 磁盘空间。
 
 ---
 
@@ -151,14 +161,14 @@ tar -xzf coder-micro-services-v1.0.0-airgap.tar.gz
 cd coder-micro-services-v1.0.0
 
 # 2. 加载镜像（仅离线 / air-gap 环境需要；在线环境跳过）
-bash bin/load-images.sh      # = make load-images
+node bin/load-images.js      # = make load-images
 
 # 3. 生成密钥 + 改 .env
-make secrets                 # = bash bin/generate-secrets.sh
+make secrets                 # = node bin/generate-secrets.js
 # 把 .env 里的 __CHANGE_ME__ 占位一一替换为实际值（DB 密码 / JWT issuer / 域名等）
 
 # 4. 启动 + 冒烟
-make up                      # = bash bin/start.sh
+make up                      # = node bin/start.js
 make verify                  # 端到端冒烟测试
 ```
 
@@ -315,10 +325,10 @@ git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
 ```bash
 # 在线（能 docker pull 的环境）
 make upgrade TAG=v1.1.0
-# 等价：bash bin/upgrade.sh v1.1.0
+# 等价：node bin/upgrade.js v1.1.0
 
 # 离线（air-gap 环境，先加载新版本镜像）
-bash bin/load-images.sh
+node bin/load-images.js
 make upgrade TAG=v1.1.0
 ```
 
@@ -364,7 +374,7 @@ git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
 - [ ] `main` 分支已合并本期所有 PR，`git status` 干净
 - [ ] `pnpm check && pnpm test && pnpm build` 全过
 - [ ] CI `test` 阶段全绿
-- [ ] `release/dist-template/scripts/release.sh` 同步本期新增的 `services/<new-svc>` 到 dist 包（如有）
+- [ ] `release/dist-template/scripts/release.js` 同步本期新增的 `services/<new-svc>` 到 dist 包（如有）
 - [ ] `release/dist-template/CHANGELOG.md` 更新本期变更（手动维护，暂无自动同步）
 - [ ] 打 tag：`git tag v1.x.y && git push origin v1.x.y`
 
@@ -376,8 +386,8 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 | --- | --- | --- | --- |
 | Java SDK (sdk/java) | Reposilite (`http://mvn.kudi.repos`) | `node scripts/publish-maven-release.js --version <ver>` | [java-sdk-publishing](../guides/java-sdk-publishing.md) |
 | Java SDK snapshot | Reposilite snapshots | `node scripts/publish-maven-snapshot.js --version <ver>-SNAPSHOT` | 同上 |
-| Rust libs (libs/*) | kellnr (`http://192.168.2.12:16444`) | `bash libs/scripts/publish-libs.sh <ver>` | [rust-sdk-publishing §8](../guides/rust-sdk-publishing.md)（与 SDK 共享同一份版本号） |
-| Rust SDK (sdk/rust/*) | kellnr | `bash sdk/scripts/publish-rust-sdks.sh <ver>` | [rust-sdk-publishing](../guides/rust-sdk-publishing.md) |
+| Rust libs (libs/*) | kellnr (`http://192.168.2.12:16444`) | `node scripts/publish-libs.js <ver>` | [rust-sdk-publishing §8](../guides/rust-sdk-publishing.md)（与 SDK 共享同一份版本号） |
+| Rust SDK (sdk/rust/*) | kellnr | `node scripts/publish-rust-sdks.js <ver>` | [rust-sdk-publishing](../guides/rust-sdk-publishing.md) |
 
 等价 pnpm aliases：`pnpm sdk:publish:release -- <ver>` / `pnpm sdk:publish:snapshot -- <ver>` / `pnpm sdk:publish:libs -- <ver>` / `pnpm sdk:publish:rust -- <ver>`。
 
@@ -388,8 +398,8 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 发 SDK 前 checklist：
 
 - [ ] `pnpm run setup:wizard` 已生成 maven/kellnr 凭证（或手写 `~/.m2/settings.xml` / `~/.cargo/credentials.toml`）
-- [ ] `bash libs/scripts/publish-libs.sh <ver> --dry-run` 退出 0
-- [ ] `bash sdk/scripts/publish-rust-sdks.sh <ver> --dry-run` 退出 0
+- [ ] `node scripts/publish-libs.js <ver> --dry-run` 退出 0
+- [ ] `node scripts/publish-rust-sdks.js <ver> --dry-run` 退出 0
 - [ ] `node scripts/publish-maven-release.js --version <ver> --dry-run` 退出 0
 - [ ] 真发布；Java SDK 发完后手动 `git diff sdk/java/ && git add sdk/java && git commit -m "feat(sdk): bump to <ver>"`
 
@@ -398,7 +408,7 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 ### 运维（打包）
 
 - [ ] 在有网环境，磁盘 ≥ 20 GB 可用
-- [ ] `bash release/dist-template/scripts/release.sh v1.x.y` 执行成功
+- [ ] `node release/dist-template/scripts/release.js v1.x.y` 执行成功
 - [ ] `release/coder-micro-services-v1.x.y-airgap.tar.gz` 文件存在
 - [ ] `sha256sum` 记录归档（**建议**：CI 自动跑，artifact 一并上传）
 
@@ -416,7 +426,7 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| `bash scripts/release.sh` 找不到 | 根 README 路径错（少 `release/dist-template/` 前缀） | 用完整路径：`bash release/dist-template/scripts/release.sh v1.0.0` |
+| `bash scripts/release.sh` 找不到 | 根 README 路径错（少 `release/dist-template/` 前缀） | 用完整路径：`node release/dist-template/scripts/release.js v1.0.0` |
 | `release:dist` CI job 没产出 tar.gz | 该 job 只 build frontend，**不调** release.sh | 手动跑 `scripts/release.sh`，或在 CI job `script:` 末尾追加该命令（§12.3） |
 | 解压后 AI 找不到 skill | skill 路径是 `skills/` 而非 `.agents/skills/` | `ln -s skills .agents/skills`（§12.8） |
 | `coder-new-service` 报"找不到 agents-template.md" | dist 包内缺该模板 | 回到 dev 仓库确认 `services/agents-template.md` 存在，重跑 release.sh |
