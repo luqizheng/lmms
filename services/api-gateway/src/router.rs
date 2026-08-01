@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Response};
 use common_http::{ResilientClient, ResilientError};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[derive(Clone)]
 pub struct RouterConfig {
@@ -20,12 +21,16 @@ pub struct RouterConfig {
 /// `ws=true` 时走 streaming 路径（SSE / WebSocket）：body 不 buffer，
 /// `resilient.call_streaming()` 仅在拿到上游 status+headers 后即返回，
 /// 上游 byte stream 透传到下游；其他路径同 buffer 行为。
+///
+/// `timeout_ms`：当 `Some(ms)` 时，调用 `ResilientClient::call_with_timeout`
+/// 用 `ms` 覆盖该次调用的单次发送超时与整体超时；`None` 走全局 cfg。
 pub async fn forward_to_service(
     cfg: Arc<RouterConfig>,
     request: Request<Body>,
     service_name: &str,
     target_path_query: &str,
     ws: bool,
+    timeout_ms: Option<u64>,
 ) -> Response {
     let Some(egress) = cfg.egress_map.get(service_name) else {
         tracing::error!("no egress configured for service '{}'", service_name);
@@ -51,15 +56,32 @@ pub async fn forward_to_service(
             &parts.headers,
             bytes,
             service_name,
+            timeout_ms,
         )
         .await;
     }
 
-    match cfg
-        .resilient
-        .call(service_name, parts.method, &target_url, &parts.headers, bytes)
-        .await
-    {
+    let call_result = match timeout_ms {
+        Some(ms) => {
+            cfg.resilient
+                .call_with_timeout(
+                    service_name,
+                    parts.method,
+                    &target_url,
+                    &parts.headers,
+                    bytes,
+                    Duration::from_millis(ms),
+                )
+                .await
+        }
+        None => {
+            cfg.resilient
+                .call(service_name, parts.method, &target_url, &parts.headers, bytes)
+                .await
+        }
+    };
+
+    match call_result {
         Ok(resp) => {
             let mut builder = Response::builder().status(resp.status);
             for (key, value) in resp.headers.iter() {
@@ -92,6 +114,7 @@ pub async fn forward_to_service(
 }
 
 /// 流式转发：上游 byte stream 透传为 axum streaming body。
+/// `timeout_ms` 透传给 `ResilientClient::call_streaming_with_timeout`。
 async fn forward_streaming(
     cfg: Arc<RouterConfig>,
     method: axum::http::Method,
@@ -99,12 +122,29 @@ async fn forward_streaming(
     headers: &axum::http::HeaderMap,
     body: bytes::Bytes,
     service_name: &str,
+    timeout_ms: Option<u64>,
 ) -> Response {
-    match cfg
-        .resilient
-        .call_streaming(service_name, method, target_url, headers, body)
-        .await
-    {
+    let stream_result = match timeout_ms {
+        Some(ms) => {
+            cfg.resilient
+                .call_streaming_with_timeout(
+                    service_name,
+                    method,
+                    target_url,
+                    headers,
+                    body,
+                    Duration::from_millis(ms),
+                )
+                .await
+        }
+        None => {
+            cfg.resilient
+                .call_streaming(service_name, method, target_url, headers, body)
+                .await
+        }
+    };
+
+    match stream_result {
         Ok(stream) => {
             let mut builder = Response::builder().status(stream.status);
             for (key, value) in stream.headers.iter() {
@@ -113,9 +153,6 @@ async fn forward_streaming(
                     builder = builder.header(key_str, value.as_bytes());
                 }
             }
-            // reqwest::Response::bytes_stream 是 reqwest 流，转 axum Body。
-            // map_err 把 Stream 转 TryStream（bytes_stream 的 Item 是 Result，
-            // 但裸 Stream 没 impl TryStream —— 需要 map_err/into_async_read 等转换）。
             use futures::TryStreamExt;
             let mapped = stream
                 .body
@@ -166,7 +203,7 @@ mod tests {
     async fn unknown_service_returns_bad_gateway() {
         let cfg = mk_cfg(HashMap::new());
         let req = Request::builder().uri("/x").body(Body::empty()).unwrap();
-        let resp = forward_to_service(cfg, req, "no-such-service", "/x", false).await;
+        let resp = forward_to_service(cfg, req, "no-such-service", "/x", false, None).await;
         assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 }

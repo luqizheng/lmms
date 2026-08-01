@@ -127,6 +127,7 @@ issuer = "superpowers-token-service"
 | `public` | bool | 否 | `true` 跳过 JWT 校验，默认 `false` |
 | `ws` | bool | 否 | `true` 标记 WebSocket 路由，开启协议升级透传 |
 | `headers` | table | 否 | 透传时注入的额外 header（key/value 都是字符串） |
+| `timeout_ms` | u64 | 否 | 可选 per-route 单次请求超时（毫秒）。当 `Some(ms)` 时，调到上游的 `ResilientClient` 用该值覆盖单次发送与整体超时；缺省 `None` 走全局 `resilience.timeout_ms`（默认 3000）。适用 LLM/长 RPC 等需要比默认 3s 更长容忍时间的端点。 |
 
 ### 路由示例
 

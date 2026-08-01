@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use reqwest::header::HeaderMap;
 use reqwest::{Client, Method, StatusCode};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::time::timeout;
 
 /// 收到任何 HTTP 响应（含 5xx）都读成 owned 结构（决策 5A），
@@ -95,15 +95,47 @@ impl ResilientClient {
         headers: &HeaderMap,
         body: Bytes,
     ) -> Result<UpstreamResponse, ResilientError> {
+        self.call_inner(service, method, url, headers, body, None).await
+    }
+
+    /// Per-call 超时覆盖：当 `timeout_opt = Some(t)` 时，该次调用的单次发送超时与
+    /// 整体超时都用 `t`（POST 非幂等不重试，单次=整体语义对齐）。缺省 None 走
+    /// 全局 `ResilienceConfig` 默认值。调用方应使用带名字的常量/路由配置传入。
+    pub async fn call_with_timeout(
+        &self,
+        service: &str,
+        method: Method,
+        url: &str,
+        headers: &HeaderMap,
+        body: Bytes,
+        timeout: Duration,
+    ) -> Result<UpstreamResponse, ResilientError> {
+        self.call_inner(service, method, url, headers, body, Some(timeout))
+            .await
+    }
+
+    async fn call_inner(
+        &self,
+        service: &str,
+        method: Method,
+        url: &str,
+        headers: &HeaderMap,
+        body: Bytes,
+        timeout_opt: Option<Duration>,
+    ) -> Result<UpstreamResponse, ResilientError> {
         let deadline = Instant::now(); // 决策 8C：栈上局部
         let breaker = self.breaker_for(service);
         let mut attempt = 0u32;
+
+        // Per-call override：单次超时与整体超时同步放宽（POST 不重试，单次=整体语义对齐）
+        let per_attempt_timeout = timeout_opt.unwrap_or_else(|| self.cfg.timeout());
+        let overall_timeout = timeout_opt.unwrap_or_else(|| self.cfg.overall_timeout());
 
         loop {
             attempt += 1;
 
             // 决策 4A：overall deadline 封顶（含重试+退避）
-            if deadline.elapsed() >= self.cfg.overall_timeout() {
+            if deadline.elapsed() >= overall_timeout {
                 self.observer.on_outcome(service, Outcome::Timeout);
                 return Err(ResilientError::Timeout);
             }
@@ -123,7 +155,7 @@ impl ResilientClient {
                 .headers(headers.clone())
                 .body(body.clone());
 
-            let result = timeout(self.cfg.timeout(), req.send()).await;
+            let result = timeout(per_attempt_timeout, req.send()).await;
 
             match result {
                 // 拿到响应（含 5xx）—— 决策 5A：读成 owned
@@ -155,7 +187,7 @@ impl ResilientClient {
 
                     // 决策 6A：status 是否重试
                     if self.retry.should_retry_status(attempt, status, &method)
-                        && deadline.elapsed() < self.cfg.overall_timeout()
+                        && deadline.elapsed() < overall_timeout
                     {
                         self.observer.on_retry(service);
                         tokio::time::sleep(self.retry.delay_for(attempt)).await;
@@ -179,7 +211,7 @@ impl ResilientClient {
                     self.note_state(service, st, &breaker);
                     let err = ResilientError::Connect(e);
                     if self.retry.should_retry_err(attempt, &err, &method)
-                        && deadline.elapsed() < self.cfg.overall_timeout()
+                        && deadline.elapsed() < overall_timeout
                     {
                         self.observer.on_retry(service);
                         tokio::time::sleep(self.retry.delay_for(attempt)).await;
@@ -195,7 +227,7 @@ impl ResilientClient {
                     self.note_state(service, st, &breaker);
                     let err = ResilientError::Timeout;
                     if self.retry.should_retry_err(attempt, &err, &method)
-                        && deadline.elapsed() < self.cfg.overall_timeout()
+                        && deadline.elapsed() < overall_timeout
                     {
                         self.observer.on_retry(service);
                         tokio::time::sleep(self.retry.delay_for(attempt)).await;
@@ -219,14 +251,44 @@ impl ResilientClient {
         headers: &HeaderMap,
         body: Bytes,
     ) -> Result<UpstreamStream, ResilientError> {
+        self.call_streaming_inner(service, method, url, headers, body, None)
+            .await
+    }
+
+    /// 流式 per-call 超时覆盖（参见 `call_with_timeout`）。
+    pub async fn call_streaming_with_timeout(
+        &self,
+        service: &str,
+        method: Method,
+        url: &str,
+        headers: &HeaderMap,
+        body: Bytes,
+        timeout: Duration,
+    ) -> Result<UpstreamStream, ResilientError> {
+        self.call_streaming_inner(service, method, url, headers, body, Some(timeout))
+            .await
+    }
+
+    async fn call_streaming_inner(
+        &self,
+        service: &str,
+        method: Method,
+        url: &str,
+        headers: &HeaderMap,
+        body: Bytes,
+        timeout_opt: Option<Duration>,
+    ) -> Result<UpstreamStream, ResilientError> {
         let deadline = Instant::now();
         let breaker = self.breaker_for(service);
         let mut attempt = 0u32;
 
+        let per_attempt_timeout = timeout_opt.unwrap_or_else(|| self.cfg.timeout());
+        let overall_timeout = timeout_opt.unwrap_or_else(|| self.cfg.overall_timeout());
+
         loop {
             attempt += 1;
 
-            if deadline.elapsed() >= self.cfg.overall_timeout() {
+            if deadline.elapsed() >= overall_timeout {
                 self.observer.on_outcome(service, Outcome::Timeout);
                 return Err(ResilientError::Timeout);
             }
@@ -245,7 +307,7 @@ impl ResilientClient {
                 .headers(headers.clone())
                 .body(body.clone());
 
-            let result = timeout(self.cfg.timeout(), req.send()).await;
+            let result = timeout(per_attempt_timeout, req.send()).await;
 
             match result {
                 Ok(Ok(resp)) => {
@@ -280,7 +342,7 @@ impl ResilientClient {
                     self.note_state(service, st, &breaker);
                     let err = ResilientError::Connect(e);
                     if self.retry.should_retry_err(attempt, &err, &method)
-                        && deadline.elapsed() < self.cfg.overall_timeout()
+                        && deadline.elapsed() < overall_timeout
                     {
                         self.observer.on_retry(service);
                         tokio::time::sleep(self.retry.delay_for(attempt)).await;
@@ -295,7 +357,7 @@ impl ResilientClient {
                     self.note_state(service, st, &breaker);
                     let err = ResilientError::Timeout;
                     if self.retry.should_retry_err(attempt, &err, &method)
-                        && deadline.elapsed() < self.cfg.overall_timeout()
+                        && deadline.elapsed() < overall_timeout
                     {
                         self.observer.on_retry(service);
                         tokio::time::sleep(self.retry.delay_for(attempt)).await;
@@ -306,5 +368,144 @@ impl ResilientClient {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod timeout_override_tests {
+    use super::*;
+    use crate::NoopObserver;
+    use axum::{routing::post, Json, Router};
+    use bytes::Bytes;
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    async fn spawn_slow_server(delay: Duration) -> (SocketAddr, Arc<AtomicU64>) {
+        let hits = Arc::new(AtomicU64::new(0));
+        let hits_clone = hits.clone();
+        let app = Router::new().route(
+            "/slow",
+            post(move || {
+                let hits = hits_clone.clone();
+                let delay = delay;
+                async move {
+                    tokio::time::sleep(delay).await;
+                    hits.fetch_add(1, Ordering::SeqCst);
+                    Json(serde_json::json!({"ok": true}))
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        (addr, hits)
+    }
+
+    fn build_client() -> ResilientClient {
+        let cfg = ResilienceConfig {
+            timeout_ms: 3000,
+            overall_timeout_ms: 3000,
+            retry_max_attempts: 1,
+            ..Default::default()
+        };
+        let http = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .unwrap();
+        ResilientClient::new(http, cfg, Arc::new(NoopObserver))
+    }
+
+    #[tokio::test]
+    async fn call_with_timeout_overrides_default_for_slow_upstream() {
+        let (addr, hits) = spawn_slow_server(Duration::from_secs(5)).await;
+        let client = build_client();
+        let url = format!("http://{addr}/slow");
+
+        let started = std::time::Instant::now();
+        let result = client
+            .call_with_timeout(
+                "test",
+                reqwest::Method::POST,
+                &url,
+                &reqwest::header::HeaderMap::new(),
+                Bytes::new(),
+                Duration::from_millis(500),
+            )
+            .await;
+        let elapsed = started.elapsed();
+
+        assert!(matches!(result, Err(ResilientError::Timeout)));
+        // POST 不重试 → 只 1 次 attempt，500ms override 应触发立即 Timeout
+        assert!(elapsed < Duration::from_secs(2), "elapsed={elapsed:?}");
+        assert_eq!(hits.load(Ordering::SeqCst), 0, "server should not have completed");
+    }
+
+    #[tokio::test]
+    async fn call_with_timeout_succeeds_for_fast_upstream() {
+        let (addr, hits) = spawn_slow_server(Duration::from_millis(50)).await;
+        let client = build_client();
+        let url = format!("http://{addr}/slow");
+
+        let result = client
+            .call_with_timeout(
+                "test",
+                reqwest::Method::POST,
+                &url,
+                &reqwest::header::HeaderMap::new(),
+                Bytes::new(),
+                Duration::from_secs(5),
+            )
+            .await;
+
+        assert!(result.is_ok(), "expected Ok, got {result:?}");
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn call_without_override_uses_default_timeout() {
+        let (addr, hits) = spawn_slow_server(Duration::from_secs(5)).await;
+        let client = build_client();
+        let url = format!("http://{addr}/slow");
+
+        let result = client
+            .call(
+                "test",
+                reqwest::Method::POST,
+                &url,
+                &reqwest::header::HeaderMap::new(),
+                Bytes::new(),
+            )
+            .await;
+
+        // 默认 3000ms timeout, 5s 上游 → Timeout
+        assert!(matches!(result, Err(ResilientError::Timeout)));
+        assert_eq!(hits.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn call_streaming_with_timeout_overrides_default() {
+        let (addr, hits) = spawn_slow_server(Duration::from_secs(5)).await;
+        let client = build_client();
+        let url = format!("http://{addr}/slow");
+
+        let started = std::time::Instant::now();
+        let result = client
+            .call_streaming_with_timeout(
+                "test",
+                reqwest::Method::POST,
+                &url,
+                &reqwest::header::HeaderMap::new(),
+                Bytes::new(),
+                Duration::from_millis(500),
+            )
+            .await;
+        let elapsed = started.elapsed();
+
+        assert!(matches!(result, Err(ResilientError::Timeout)));
+        assert!(elapsed < Duration::from_secs(2), "elapsed={elapsed:?}");
+        assert_eq!(hits.load(Ordering::SeqCst), 0);
     }
 }
