@@ -288,7 +288,13 @@ services:
     build:
       context: ..
       dockerfile: services/iam-service/Dockerfile
-    command: ["outbox-publisher"]
+    # Cargo bin target → on-disk binary is `iam_outbox_publisher`
+    # (kebab-case `iam-outbox-publisher` declared in
+    # services/iam-outbox-publisher/Cargo.toml; cargo rewrites bin names
+    # to underscores on disk). Compose `command:` must reference the
+    # on-disk name — bare `outbox-publisher` fails OCI runtime with
+    # `executable file not found in $PATH`.
+    command: ["iam_outbox_publisher"]
     restart: unless-stopped
     # dev-only bind mount: shares the seeded config.yaml with iam-service.
     # Not :ro — both processes race to seed; create_new picks one winner
