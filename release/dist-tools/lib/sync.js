@@ -8,11 +8,13 @@
  *   2. Load new MANIFEST.json
  *   3. Load previous .upstream.lock (if any)
  *   4. Load and parse .upstream-sync.yaml
- *   5. Expand glob patterns against the dist tree
- *   6. For each managed file: overwrite
- *   7. For each three-way-merge file: 3-way merge (or overwrite if no base)
- *   8. Write updated .upstream.lock
- *   9. Print summary
+ *   5. Expand glob patterns against the dist tree (managed, merge, skip)
+ *   6. Apply skip exclusions to merge files; managed always wins over skip
+ *      (explicit listing > wildcard). Warn on managed∖skip overlaps.
+ *   7. For each managed file: overwrite
+ *   8. For each three-way-merge file: 3-way merge (or overwrite if no base)
+ *   9. Write updated .upstream.lock
+ *  10. Print summary
  *
  * Returns the exit code to use.
  */
@@ -59,14 +61,39 @@ async function runSync(opts) {
     const policy = loadPolicy(policyPath);
 
     // 5. Expand globs against dist tree
-    const managedFiles = expandGlobs(policy.managed, distRoot);
-    const mergeFiles = expandGlobs(policy.merge, distRoot);
+    const skipFiles = new Set(expandGlobs(policy.skip || [], distRoot));
+    const rawManaged = expandGlobs(policy.managed, distRoot);
+    const rawMerge = expandGlobs(policy.merge, distRoot);
+    const rawProtected = expandGlobs(policy['protected-managed'] || [], distRoot);
+
+    // 6. Apply skip: managed always wins over skip (explicit > wildcard).
+    //    For merge files, skip wins (no accidental force-merge).
+    //    protected-managed also wins over merge: those files would otherwise
+    //    get overwritten by the merge loop *before* the sidecar block runs.
+    const managedFiles = rawManaged;
+    const protectedFiles = rawProtected.filter((f) => !skipFiles.has(f));
+    const protectedSet = new Set(protectedFiles);
+    const mergeFiles = rawMerge.filter((f) => !skipFiles.has(f) && !protectedSet.has(f));
+
+    const overlaps = rawManaged.filter((f) => skipFiles.has(f));
+    if (overlaps.length > 0) {
+      r.warn(`${overlaps.length} file(s) listed in BOTH managed and skip — managed wins:`);
+      for (const f of overlaps) r.log(`    ${f}`);
+    }
 
     r.section(opts.dryRun ? 'DRY RUN — no files will be modified' : 'syncing files');
 
-    // 6. Managed files: overwrite
+    // 7. Managed files: overwrite
     r.section('managed (auto-overwrite)');
-    const counts = { managed: 0, merged: 0, conflicts: 0, added: 0, unchanged: 0 };
+    const counts = {
+      managed: 0,
+      merged: 0,
+      conflicts: 0,
+      added: 0,
+      unchanged: 0,
+      protectedCreated: 0,
+      protectedSidecar: 0,
+    };
 
     for (const rel of managedFiles) {
       const srcPath = path.join(distRoot, rel);
@@ -86,7 +113,7 @@ async function runSync(opts) {
       r.item('updated', 'green', rel);
     }
 
-    // 7. Three-way merge files
+    // 8. Three-way merge files
     r.section('three-way merge');
     let hasConflict = false;
     const inGit = await isGitRepo(root);
@@ -152,15 +179,61 @@ async function runSync(opts) {
       }
     }
 
-    // 8. Summary
-    r.section('summary');
-    r.log(`  managed overwritten:  ${counts.managed}`);
-    r.log(`  three-way merged:     ${counts.merged}`);
-    r.log(`  new files added:      ${counts.added}`);
-    if (counts.conflicts > 0) {
-      r.err(`  conflicts (need fix): ${counts.conflicts}`);
+    // 9. Protected-managed: dst untouched, upstream lands as .new.<ext>
+    //    so the developer diffs and merges manually.
+    if (protectedFiles.length > 0) {
+      r.section('protected-managed (sidecar .new.<ext> when dst exists)');
+      for (const rel of protectedFiles) {
+        const srcPath = path.join(distRoot, rel);
+        const dstPath = path.join(root, rel);
+
+        if (!fs.existsSync(srcPath)) {
+          // Upstream no longer ships this file — leave dst alone, no sidecar.
+          counts.unchanged++;
+          r.item('upstream missing — dst preserved', 'dim', rel);
+          continue;
+        }
+
+        if (!fs.existsSync(dstPath)) {
+          // First install: copy as-is, no sidecar suffix.
+          if (!opts.dryRun) {
+            fs.mkdirSync(path.dirname(dstPath), { recursive: true });
+            fs.copyFileSync(srcPath, dstPath);
+          }
+          counts.protectedCreated++;
+          r.item('created', 'green', rel);
+          continue;
+        }
+
+        if (fileIdentical(srcPath, dstPath)) {
+          counts.unchanged++;
+          r.item('unchanged', 'dim', rel);
+          continue;
+        }
+
+        // dst exists and differs — write src as <file>.new.<ext>, keep dst.
+        const newPath = sidecarPath(dstPath);
+        if (!opts.dryRun) {
+          fs.mkdirSync(path.dirname(newPath), { recursive: true });
+          fs.copyFileSync(srcPath, newPath);
+        }
+        counts.protectedSidecar++;
+        r.warn(`protected-managed: dst preserved, upstream written to ${path.relative(root, newPath)}`);
+        r.item('sidecar', 'yellow', `${rel} → ${path.relative(root, newPath)}`);
+      }
     }
-    r.log(`  unchanged:            ${counts.unchanged}`);
+
+    // 9. Summary
+    r.section('summary');
+    r.log(`  managed overwritten:        ${counts.managed}`);
+    r.log(`  three-way merged:           ${counts.merged}`);
+    r.log(`  new files added:            ${counts.added}`);
+    r.log(`  protected-managed created:  ${counts.protectedCreated}`);
+    r.log(`  protected-managed sidecar:  ${counts.protectedSidecar}`);
+    if (counts.conflicts > 0) {
+      r.err(`  conflicts (need fix):       ${counts.conflicts}`);
+    }
+    r.log(`  unchanged:                  ${counts.unchanged}`);
 
     // 9. Update lock (only on successful sync, not dry-run, not conflicts)
     if (hasConflict) {
@@ -194,6 +267,15 @@ function fileIdentical(a, b) {
   const ca = fs.readFileSync(a);
   const cb = fs.readFileSync(b);
   return ca.equals(cb);
+}
+
+// For protected-managed: dst stays untouched, src lands as <file>.new.<ext>
+// so the developer diffs and merges manually. Preserves no extension for
+// extensionless names like `Makefile` (-> `Makefile.new`).
+function sidecarPath(dstPath) {
+  const ext = path.extname(dstPath);
+  const base = dstPath.slice(0, dstPath.length - ext.length);
+  return base + '.new' + ext;
 }
 
 module.exports = { runSync };

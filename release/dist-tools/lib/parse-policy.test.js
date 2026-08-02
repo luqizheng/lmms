@@ -56,6 +56,24 @@ managed:
   assert.deepEqual(result.managed, ['.cargo/config.toml']);
   assert.deepEqual(result.merge, []);
   assert.deepEqual(result.skip, []);
+  assert.deepEqual(result['protected-managed'], []);
+});
+
+test('parses protected-managed block', () => {
+  const yaml = `
+managed:
+  - Makefile
+
+protected-managed:
+  - infrastructure/docker-compose.yml
+  - infrastructure/docker-compose-services.yml
+`;
+  const result = parsePolicy(yaml);
+  assert.deepEqual(result.managed, ['Makefile']);
+  assert.deepEqual(result['protected-managed'], [
+    'infrastructure/docker-compose.yml',
+    'infrastructure/docker-compose-services.yml',
+  ]);
 });
 
 test('ignores malformed lines but continues', () => {

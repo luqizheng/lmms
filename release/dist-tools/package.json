@@ -12,7 +12,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node --test lib/parse-policy.test.js"
+    "test": "node --test lib/parse-policy.test.js lib/sync.test.js"
   },
   "engines": {
     "node": ">=18"
