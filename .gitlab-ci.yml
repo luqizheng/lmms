@@ -160,10 +160,33 @@ e2e_api_test:
   script:
     - pnpm -C tests/e2e run test:api
 
+e2e_deploy:
+  stage: test
+  tags: [shell]
+  variables:
+    COMPOSE_PROJECT_NAME: "e2e-${CI_PIPELINE_ID}"
+    DOCKER_BUILDKIT: "1"
+  script:
+    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml build
+    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml up -d
+    - |
+      for i in $(seq 1 60); do
+        if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+          echo "[e2e_deploy] api-gateway ready"
+          break
+        fi
+        echo "[e2e_deploy] waiting for api-gateway... ($i/60)"
+        sleep 5
+      done
+    - curl -sf http://localhost:3000/health > /dev/null || { echo "[e2e_deploy] api-gateway not ready after 5 min"; exit 1; }
+  after_script:
+    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml down -v || true
+
 e2e_ui_test:
   stage: test
   tags: [docker]
   image: mcr.microsoft.com/playwright:v1.48.0-jammy
+  network_mode: host
   before_script:
     - npm install -g pnpm
     - pnpm -C tests/e2e install
