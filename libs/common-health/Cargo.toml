@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_health"
-version = "1.0.0"
+version = "1.1.0"
 license = "Apache-2.0"
 description = "Health check endpoint types for KudiCoder services"
 edition = "2021"

@@ -1,17 +1,17 @@
 package io.digua.common;
 
-import io.digua.CredentialProvider;
-import io.digua.TokenCache;
-import io.digua.AuthException;
-import io.digua.NetworkException;
-import io.digua.RateLimitException;
-import io.digua.SdkException;
-import io.digua.ServerException;
-import io.digua.ValidationException;
-import io.digua.HttpClientWrapper;
-import io.digua.HttpRequest;
-import io.digua.HttpResponse;
-import io.digua.ApiError;
+import io.digua.auth.CredentialProvider;
+import io.digua.auth.TokenCache;
+import io.digua.exception.AuthException;
+import io.digua.exception.NetworkException;
+import io.digua.exception.RateLimitException;
+import io.digua.exception.SdkException;
+import io.digua.exception.ServerException;
+import io.digua.exception.ValidationException;
+import io.digua.http.HttpClientWrapper;
+import io.digua.http.HttpRequest;
+import io.digua.http.HttpResponse;
+import io.digua.model.ApiError;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;

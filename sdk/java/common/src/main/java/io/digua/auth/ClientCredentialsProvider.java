@@ -1,12 +1,12 @@
 package io.digua.auth;
 
-import io.digua.SdkConfig;
-import io.digua.AuthException;
-import io.digua.SdkException;
-import io.digua.HttpClientWrapper;
-import io.digua.HttpRequest;
-import io.digua.HttpResponse;
-import io.digua.TokenInfo;
+import io.digua.common.SdkConfig;
+import io.digua.exception.AuthException;
+import io.digua.exception.SdkException;
+import io.digua.http.HttpClientWrapper;
+import io.digua.http.HttpRequest;
+import io.digua.http.HttpResponse;
+import io.digua.model.TokenInfo;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,7 +51,7 @@ public class ClientCredentialsProvider implements CredentialProvider {
         if (resp.getStatusCode() < 200 || resp.getStatusCode() >= 300) {
             throw new SdkException("client_credentials failed: HTTP " + resp.getStatusCode(), resp.getStatusCode(), resp.getBody(), null);
         }
-        TokenInfo t = com.digua.sdk.common.JsonUtil.fromJson(resp.getBody(), TokenInfo.class);
+        TokenInfo t = io.digua.common.JsonUtil.fromJson(resp.getBody(), TokenInfo.class);
         if (t == null || t.getAccessToken() == null) {
             throw new SdkException("token response missing access_token", resp.getStatusCode(), resp.getBody(), null);
         }

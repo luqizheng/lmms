@@ -9,7 +9,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import io.digua.NetworkException;
+import io.digua.Exceptions.NetworkException;
 
 public class HttpTransport {
 

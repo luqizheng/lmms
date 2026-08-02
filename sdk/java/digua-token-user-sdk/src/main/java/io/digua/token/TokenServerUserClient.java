@@ -1,13 +1,13 @@
 package io.digua.token;
 
-import io.digua.SdkClient;
-import io.digua.SdkConfig;
-import io.digua.CredentialProvider;
-import io.digua.PasswordCredentialProvider;
-import io.digua.HttpRequest;
-import io.digua.HttpResponse;
-import io.digua.ResourceTokenInfo;
-import io.digua.TokenInfo;
+import io.digua.common.SdkClient;
+import io.digua.common.SdkConfig;
+import io.digua.auth.CredentialProvider;
+import io.digua.auth.PasswordCredentialProvider;
+import io.digua.http.HttpRequest;
+import io.digua.http.HttpResponse;
+import io.digua.model.ResourceTokenInfo;
+import io.digua.model.TokenInfo;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

@@ -1,11 +1,11 @@
 package io.digua.httpclient;
 
-import io.digua.AuthException;
-import io.digua.KudiHttpException;
-import io.digua.NetworkException;
-import io.digua.RateLimitException;
-import io.digua.ServerException;
-import io.digua.ValidationException;
+import io.digua.Exceptions.AuthException;
+import io.digua.Exceptions.KudiHttpException;
+import io.digua.Exceptions.NetworkException;
+import io.digua.Exceptions.RateLimitException;
+import io.digua.Exceptions.ServerException;
+import io.digua.Exceptions.ValidationException;
 
 public class KudiHttpClient {
     private final KudiHttpOptions options;

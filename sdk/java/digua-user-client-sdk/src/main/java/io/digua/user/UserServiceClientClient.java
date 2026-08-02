@@ -1,11 +1,11 @@
 package io.digua.user;
 
-import io.digua.SdkClient;
-import io.digua.SdkConfig;
-import io.digua.ClientCredentialsProvider;
-import io.digua.CredentialProvider;
-import io.digua.HttpRequest;
-import io.digua.HttpResponse;
+import io.digua.common.SdkClient;
+import io.digua.common.SdkConfig;
+import io.digua.auth.ClientCredentialsProvider;
+import io.digua.auth.CredentialProvider;
+import io.digua.http.HttpRequest;
+import io.digua.http.HttpResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -137,9 +137,9 @@ public class UserServiceClientClient extends SdkClient {
 
     private <T> List<T> map(String body, Class<T> element) {
         try {
-            return com.digua.sdk.common.JsonUtil.mapper()
+            return io.digua.common.JsonUtil.mapper()
                     .readValue(body,
-                            com.digua.sdk.common.JsonUtil.mapper().getTypeFactory()
+                            io.digua.common.JsonUtil.mapper().getTypeFactory()
                                     .constructCollectionType(java.util.List.class, element));
         } catch (Exception e) {
             throw new RuntimeException(e);

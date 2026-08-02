@@ -1752,10 +1752,10 @@ dependencies = [
 
 [[package]]
 name = "digua_audit_sdk"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.0.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1765,7 +1765,7 @@ dependencies = [
 
 [[package]]
 name = "digua_authz"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "axum 0.8.9",
  "base64 0.22.1",
@@ -1781,7 +1781,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -1800,7 +1800,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_cache"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "digua_common_error",
@@ -1811,7 +1811,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_config"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "base64 0.22.1",
  "config",
@@ -1826,7 +1826,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_crypto"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1843,7 +1843,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_db"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_error"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "axum 0.8.9",
  "reqwest",
@@ -1871,7 +1871,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_event"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1895,7 +1895,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_health"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "axum 0.8.9",
  "http-body-util",
@@ -1912,7 +1912,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_http"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "axum 0.8.9",
  "bytes 1.11.1",
@@ -1929,7 +1929,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_jwt"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "jsonwebtoken",
@@ -1943,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_log"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "axum 0.8.9",
  "digua_common_error",
@@ -1959,7 +1959,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_ratelimit"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "axum 0.8.9",
  "chrono",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
@@ -1985,7 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry_axum"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "axum 0.8.9",
  "digua_common_telemetry",
@@ -2001,7 +2001,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_validator"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "digua_common_error",
  "validator",
@@ -2009,10 +2009,10 @@ dependencies = [
 
 [[package]]
 name = "digua_config_sdk"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.0.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2022,10 +2022,10 @@ dependencies = [
 
 [[package]]
 name = "digua_file_sdk"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.0.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2035,7 +2035,7 @@ dependencies = [
 
 [[package]]
 name = "digua_http_client"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -2052,9 +2052,9 @@ dependencies = [
 
 [[package]]
 name = "digua_http_client"
-version = "1.0.0"
+version = "1.1.0"
 source = "sparse+http://192.168.2.12:16444/api/v1/crates/"
-checksum = "b8bce74fd9142069adf92471483046c34e0008bbd90f1896bd85738ea3039b32"
+checksum = "e5506d1579e1e008ce324b305a1bb5bbf9b396b521e11ef78f1a8e122bf11fc8"
 dependencies = [
  "async-trait",
  "hex",
@@ -2070,10 +2070,10 @@ dependencies = [
 
 [[package]]
 name = "digua_iam_sdk"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.0.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2083,7 +2083,7 @@ dependencies = [
 
 [[package]]
 name = "digua_jwt_ctx"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
@@ -2101,10 +2101,10 @@ dependencies = [
 
 [[package]]
 name = "digua_notification_sdk"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.0.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2114,9 +2114,9 @@ dependencies = [
 
 [[package]]
 name = "digua_token_sdk"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
- "digua_http_client 1.0.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

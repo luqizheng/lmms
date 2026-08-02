@@ -1,6 +1,6 @@
 package io.digua.token;
 
-import io.digua.TokenInfo;
+import io.digua.model.TokenInfo;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;

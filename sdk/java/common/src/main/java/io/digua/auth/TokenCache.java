@@ -1,6 +1,6 @@
 package io.digua.auth;
 
-import io.digua.TokenInfo;
+import io.digua.model.TokenInfo;
 
 import java.util.concurrent.locks.ReentrantLock;
 

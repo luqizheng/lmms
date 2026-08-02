@@ -34,7 +34,7 @@ public class HttpRequest {
 
     public HttpRequest jsonBody(Object value) {
         try {
-            this.body = com.digua.sdk.common.JsonUtil.toJson(value);
+            this.body = io.digua.common.JsonUtil.toJson(value);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

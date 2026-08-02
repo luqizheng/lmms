@@ -1,6 +1,6 @@
 package io.digua.auth;
 
-import io.digua.TokenInfo;
+import io.digua.model.TokenInfo;
 
 /**
  * 外部直接注入 access_token。

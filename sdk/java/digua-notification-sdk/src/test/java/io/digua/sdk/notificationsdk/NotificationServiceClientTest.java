@@ -1,11 +1,11 @@
 package io.digua.notificationsdk;
 
-import io.digua.NotificationAuthException;
-import io.digua.NotificationException;
-import io.digua.NotificationRateLimitException;
-import io.digua.Announcement;
-import io.digua.AnnouncementRequest;
-import io.digua.PageResult;
+import io.digua.exception.NotificationAuthException;
+import io.digua.exception.NotificationException;
+import io.digua.exception.NotificationRateLimitException;
+import io.digua.model.Announcement;
+import io.digua.model.AnnouncementRequest;
+import io.digua.model.PageResult;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;

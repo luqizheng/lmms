@@ -1,8 +1,8 @@
 package io.digua.common;
 
-import io.digua.HttpClientWrapper;
-import io.digua.HttpRequest;
-import io.digua.HttpResponse;
+import io.digua.http.HttpClientWrapper;
+import io.digua.http.HttpRequest;
+import io.digua.http.HttpResponse;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;

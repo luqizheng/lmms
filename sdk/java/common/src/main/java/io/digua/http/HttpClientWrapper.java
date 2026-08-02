@@ -1,7 +1,7 @@
 package io.digua.http;
 
-import io.digua.SdkConfig;
-import io.digua.NetworkException;
+import io.digua.common.SdkConfig;
+import io.digua.exception.NetworkException;
 
 import java.io.BufferedReader;
 import java.io.IOException;

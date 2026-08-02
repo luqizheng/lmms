@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_http"
-version = "1.0.0"
+version = "1.1.0"
 license = "Apache-2.0"
 description = "Resilient reqwest HTTP client wrapper with request ID propagation for KudiCoder services"
 edition = "2021"

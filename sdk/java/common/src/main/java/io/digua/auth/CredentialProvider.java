@@ -1,6 +1,6 @@
 package io.digua.auth;
 
-import io.digua.TokenInfo;
+import io.digua.model.TokenInfo;
 
 /**
  * 提供 access_token 的来源。

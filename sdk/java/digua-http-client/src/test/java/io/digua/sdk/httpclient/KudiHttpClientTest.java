@@ -1,9 +1,9 @@
 package io.digua.httpclient;
 
-import io.digua.AuthException;
-import io.digua.RateLimitException;
-import io.digua.ServerException;
-import io.digua.ValidationException;
+import io.digua.Exceptions.AuthException;
+import io.digua.Exceptions.RateLimitException;
+import io.digua.Exceptions.ServerException;
+import io.digua.Exceptions.ValidationException;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;

@@ -1,8 +1,8 @@
 package io.digua.common;
 
-import io.digua.CredentialProvider;
-import io.digua.TokenCache;
-import io.digua.TokenInfo;
+import io.digua.auth.CredentialProvider;
+import io.digua.auth.TokenCache;
+import io.digua.model.TokenInfo;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
