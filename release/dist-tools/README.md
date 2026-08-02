@@ -79,6 +79,7 @@ npx cms-sync https://releases.example.com/v1.1.0.tar.gz
 | `managed` | 直接覆盖当前文件 | 上游完全管理的文件 |
 | `three-way-merge` | 用 git merge-file 做三方合并 | 双方都可能修改的配置文件 |
 | `skip` | 不动（但显式 `managed` 优先） | 下游独有的内容；通配排除可被 `managed` 显式覆盖 |
+| `protected-managed` | dst 不变；上游版本另存为 `<file>.new.<ext>` | 双方都可能改且下游可能加业务内容（如 `docker-compose.yml` 通过 `include:` 加业务 compose）；由开发者手动 diff 合并 |
 
 ### 优先级与 skip 的语义
 
@@ -87,6 +88,23 @@ npx cms-sync https://releases.example.com/v1.1.0.tar.gz
 - `skip` 只显式排除 `merge` 文件；`managed` 显式列出可破除 skip。
 - 既不在 `managed` 也不在 `merge` 也不在 `skip` 的文件**隐式不动**（与显式 `skip` 行为相同，但 yaml 看不到）。
 - 当一个文件同时出现在 `managed` 和 `skip` 时，sync 会 warn `N file(s) listed in BOTH managed and skip — managed wins`，方便排查策略冗余。
+
+### `protected-managed` 的行为
+
+对 `protected-managed` 列出的每个文件，cms-sync 检查三种状态：
+
+| 状态 | 行为 |
+|------|------|
+| 上游包里有，下游没有 | 正常 copy（如首次安装） |
+| 上下游内容相同 | unchanged |
+| 上下游都存在但内容不同 | **dst 保留**，上游版本另存为 `<file>.new.<ext>`，warn 提示 |
+
+例：`infrastructure/docker-compose.yml` 列入 `protected-managed`：
+- 首次 sync → 创建 `docker-compose.yml`
+- 下游改了 docker-compose.yml（如加 `include: docker-compose-pm.yml`），上游也更新了 → 下游的 docker-compose.yml 不被覆盖，上游版本写到 `docker-compose.new.yml`
+- 开发者 `diff docker-compose.yml docker-compose.new.yml`，手动合并
+
+无扩展名文件保留无扩展名（`Makefile` → `Makefile.new`）。
 
 ### 三方合并的原理
 

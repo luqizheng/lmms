@@ -70,6 +70,7 @@ function parsePolicy(text) {
     managed: result.managed || [],
     merge: result.merge || result['three-way-merge'] || [],
     skip: result.skip || [],
+    'protected-managed': result['protected-managed'] || [],
   };
 }
 
