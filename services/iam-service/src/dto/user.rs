@@ -111,3 +111,19 @@ pub struct UserClaimsResponse {
 
 fn default_page() -> u32 { 1 }
 fn default_size() -> u32 { 20 }
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct BatchGetUsersRequest {
+    pub user_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct BatchGetUsersResponse {
+    pub users: Vec<UserResponse>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct QueryUsersByOrgAndRoleRequest {
+    pub org_path: String,
+    pub role_name: String,
+}
