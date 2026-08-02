@@ -8,11 +8,13 @@
  *   2. Load new MANIFEST.json
  *   3. Load previous .upstream.lock (if any)
  *   4. Load and parse .upstream-sync.yaml
- *   5. Expand glob patterns against the dist tree
- *   6. For each managed file: overwrite
- *   7. For each three-way-merge file: 3-way merge (or overwrite if no base)
- *   8. Write updated .upstream.lock
- *   9. Print summary
+ *   5. Expand glob patterns against the dist tree (managed, merge, skip)
+ *   6. Apply skip exclusions to merge files; managed always wins over skip
+ *      (explicit listing > wildcard). Warn on managed∖skip overlaps.
+ *   7. For each managed file: overwrite
+ *   8. For each three-way-merge file: 3-way merge (or overwrite if no base)
+ *   9. Write updated .upstream.lock
+ *  10. Print summary
  *
  * Returns the exit code to use.
  */
@@ -59,12 +61,24 @@ async function runSync(opts) {
     const policy = loadPolicy(policyPath);
 
     // 5. Expand globs against dist tree
-    const managedFiles = expandGlobs(policy.managed, distRoot);
-    const mergeFiles = expandGlobs(policy.merge, distRoot);
+    const skipFiles = new Set(expandGlobs(policy.skip || [], distRoot));
+    const rawManaged = expandGlobs(policy.managed, distRoot);
+    const rawMerge = expandGlobs(policy.merge, distRoot);
+
+    // 6. Apply skip: managed always wins over skip (explicit > wildcard).
+    //    For merge files, skip wins (no accidental force-merge).
+    const managedFiles = rawManaged;
+    const mergeFiles = rawMerge.filter((f) => !skipFiles.has(f));
+
+    const overlaps = rawManaged.filter((f) => skipFiles.has(f));
+    if (overlaps.length > 0) {
+      r.warn(`${overlaps.length} file(s) listed in BOTH managed and skip — managed wins:`);
+      for (const f of overlaps) r.log(`    ${f}`);
+    }
 
     r.section(opts.dryRun ? 'DRY RUN — no files will be modified' : 'syncing files');
 
-    // 6. Managed files: overwrite
+    // 7. Managed files: overwrite
     r.section('managed (auto-overwrite)');
     const counts = { managed: 0, merged: 0, conflicts: 0, added: 0, unchanged: 0 };
 
@@ -86,7 +100,7 @@ async function runSync(opts) {
       r.item('updated', 'green', rel);
     }
 
-    // 7. Three-way merge files
+    // 8. Three-way merge files
     r.section('three-way merge');
     let hasConflict = false;
     const inGit = await isGitRepo(root);

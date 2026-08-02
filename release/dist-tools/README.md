@@ -78,7 +78,15 @@ npx cms-sync https://releases.example.com/v1.1.0.tar.gz
 |------|------|----------|
 | `managed` | 直接覆盖当前文件 | 上游完全管理的文件 |
 | `three-way-merge` | 用 git merge-file 做三方合并 | 双方都可能修改的配置文件 |
-| `skip` | 不动 | 下游独有的内容 |
+| `skip` | 不动（但显式 `managed` 优先） | 下游独有的内容；通配排除可被 `managed` 显式覆盖 |
+
+### 优先级与 skip 的语义
+
+- `managed` 列表显式列出的文件**总是**被覆盖，即使 `skip` 通配也命中——显式 > 通配。
+- `merge`（`three-way-merge`）文件如果被 `skip` 命中则被排除，不会被强制合并——防止"忘记下游改了"的意外覆盖。
+- `skip` 只显式排除 `merge` 文件；`managed` 显式列出可破除 skip。
+- 既不在 `managed` 也不在 `merge` 也不在 `skip` 的文件**隐式不动**（与显式 `skip` 行为相同，但 yaml 看不到）。
+- 当一个文件同时出现在 `managed` 和 `skip` 时，sync 会 warn `N file(s) listed in BOTH managed and skip — managed wins`，方便排查策略冗余。
 
 ### 三方合并的原理
 
