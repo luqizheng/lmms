@@ -2,6 +2,7 @@ stages:
   - test
   - build
   - deploy
+  - e2e
   - publish
   - release
 
@@ -151,73 +152,48 @@ cargo_fmt_check:
   allow_failure: false
 
 e2e_api_test:
-  stage: test
+  stage: e2e
   tags: [docker]
   image: $BASE_REGISTRY/node:20
+  variables:
+    E2E_BASE_URL: $STAGING_BASE_URL
   before_script:
     - npm install -g pnpm
     - pnpm -C tests/e2e install
   script:
     - pnpm -C tests/e2e run test:api
 
-e2e_deploy:
-  stage: test
-  tags: [shell]
-  variables:
-    COMPOSE_PROJECT_NAME: "e2e-${CI_PIPELINE_ID}"
-    DOCKER_BUILDKIT: "1"
-  script:
-    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml build
-    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml up -d
-    - |
-      for i in $(seq 1 60); do
-        if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
-          echo "[e2e_deploy] api-gateway ready"
-          break
-        fi
-        echo "[e2e_deploy] waiting for api-gateway... ($i/60)"
-        sleep 5
-      done
-    - curl -sf http://localhost:3000/health > /dev/null || { echo "[e2e_deploy] api-gateway not ready after 5 min"; exit 1; }
-  after_script:
-    - sudo /bin/docker-compose -f infrastructure/docker-compose.yml down -v || true
-
 e2e_ui_test:
-  stage: test
-  tags: [shell]
+  stage: e2e
+  tags: [docker]
+  image: mcr.microsoft.com/playwright:v1.48.0-jammy
+  variables:
+    E2E_BASE_URL: $STAGING_BASE_URL
   before_script:
-    - sudo docker pull mcr.microsoft.com/playwright:v1.48.0-jammy
+    - npm install -g pnpm
+    - pnpm -C tests/e2e install
+    - pnpm -C tests/e2e exec playwright install chromium
   script:
-    - |
-      sudo /bin/docker run --rm --network host \
-        -v "$PWD/tests/e2e:/src:ro" \
-        mcr.microsoft.com/playwright:v1.48.0-jammy \
-        sh -c '
-          set -e
-          cp -r /src /tmp/work
-          cd /tmp/work
-          npm install -g pnpm
-          pnpm install
-          pnpm exec playwright install chromium
-          pnpm run test:ui
-        '
+    - pnpm -C tests/e2e run test:ui
 
 e2e_migration_state_test:
-  stage: test
+  stage: e2e
   tags: [docker]
   image: $BASE_REGISTRY/node:20
+  variables:
+    SERVICE_HOST: $STAGING_HOST
+    TOKEN_SERVICE_URL: "http://${STAGING_HOST}:8082"
+    IAM_DEV_BT: "${IAM_DEV_BT}"
+    NOTIFICATION_DEV_BT: "${NOTIFICATION_DEV_BT}"
+    TOKEN_DEV_BT: "${TOKEN_DEV_BT}"
+    AUDIT_DEV_BT: "${AUDIT_DEV_BT}"
+    CONFIG_DEV_BT: "${CONFIG_DEV_BT}"
+    FILE_DEV_BT: "${FILE_DEV_BT}"
+    PRUE_DEV_BT: "${PRUE_DEV_BT}"
   before_script:
     - npm install -g pnpm
     - pnpm -C tests/e2e install
   script:
-    - docker compose -f infrastructure/docker-compose.yml up -d
-    - |
-      for i in $(seq 1 24); do
-        ready=$(docker compose -f infrastructure/docker-compose.yml ps --format json 2>/dev/null | \
-          node -e "const d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const r=JSON.parse('['+d.trim().split('\n').join(',')+']');const u=r.filter(s=>/^u/.test(s.Health));console.log(u.length===0?'ok':'not_ready');})" 2>/dev/null || echo "not_ready")
-        [ "$ready" = "ok" ] && break
-        sleep 5
-      done
     - |
       IAM_BOOTSTRAP_TOKEN="${IAM_DEV_BT}" \
       NTF_BOOTSTRAP_TOKEN="${NOTIFICATION_DEV_BT}" \
@@ -227,14 +203,6 @@ e2e_migration_state_test:
       FILE_BOOTSTRAP_TOKEN="${FILE_DEV_BT}" \
       PRUE_BOOTSTRAP_TOKEN="${PRUE_DEV_BT}" \
       node scripts/e2e-migration-state.js
-  variables:
-    IAM_DEV_BT: "${IAM_DEV_BT}"
-    NOTIFICATION_DEV_BT: "${NOTIFICATION_DEV_BT}"
-    TOKEN_DEV_BT: "${TOKEN_DEV_BT}"
-    AUDIT_DEV_BT: "${AUDIT_DEV_BT}"
-    CONFIG_DEV_BT: "${CONFIG_DEV_BT}"
-    FILE_DEV_BT: "${FILE_DEV_BT}"
-    PRUE_DEV_BT: "${PRUE_DEV_BT}"
   allow_failure: false
 
 # ── Build caching ──
@@ -349,6 +317,10 @@ build_frontend:
 deploy:
   stage: deploy
   tags: [micro-service-runner]
+  environment:
+    name: staging
+    url: $STAGING_BASE_URL
+    on_stop: deploy
   before_script:
     - mkdir -p ~/coder-micro-services
   script:
