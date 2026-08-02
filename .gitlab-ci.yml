@@ -184,15 +184,23 @@ e2e_deploy:
 
 e2e_ui_test:
   stage: test
-  tags: [docker]
-  image: mcr.microsoft.com/playwright:v1.48.0-jammy
-  network_mode: host
+  tags: [shell]
   before_script:
-    - npm install -g pnpm
-    - pnpm -C tests/e2e install
-    - pnpm -C tests/e2e exec playwright install chromium
+    - sudo docker pull mcr.microsoft.com/playwright:v1.48.0-jammy
   script:
-    - pnpm -C tests/e2e run test:ui
+    - |
+      sudo /bin/docker run --rm --network host \
+        -v "$PWD/tests/e2e:/src:ro" \
+        mcr.microsoft.com/playwright:v1.48.0-jammy \
+        sh -c '
+          set -e
+          cp -r /src /tmp/work
+          cd /tmp/work
+          npm install -g pnpm
+          pnpm install
+          pnpm exec playwright install chromium
+          pnpm run test:ui
+        '
 
 e2e_migration_state_test:
   stage: test
