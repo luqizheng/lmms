@@ -64,7 +64,9 @@ rust_test:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    - apt-get update && apt-get install -y pkg-config libssl-dev
+    # rust:1.96-slim 不带 curl；utoipa-swagger-ui build.rs 用 curl 下 swagger-ui zip
+    # SWAGGER_UI_DOWNLOAD_URL 顶部变量已指向 gh-proxy.org 镜像（项目网络规则）
+    - apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev curl
   script:
     - cargo test --workspace --lib --verbose
 
@@ -102,7 +104,8 @@ spec_generate:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    - apt-get update && apt-get install -y pkg-config libssl-dev
+    # rust:1.96-slim 镜像不带 node；dump-openapi-specs.js 调 cargo run 又需要 cargo
+    - apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev nodejs
   script:
     - node scripts/dump-openapi-specs.js
     - git diff --exit-code -- 'services/*/openapi.yaml'
@@ -152,7 +155,9 @@ cargo_clippy:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    - apt-get update && apt-get install -y pkg-config libssl-dev
+    # rust:1.96-slim 镜像不带 clippy / fmt / node / curl 这些 toolchain，需要显式装
+    - rustup component add clippy rustfmt
+    - apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev curl nodejs
   script:
     - cargo clippy --workspace --all-targets -- -D warnings
   allow_failure: false
@@ -164,6 +169,8 @@ cargo_fmt_check:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    # zhcoder-docker-registry.com:8000/official/rust:1.96-slim 镜像不带 rustfmt component
+    - rustup component add rustfmt
   script:
     - cargo fmt --check
   allow_failure: false
