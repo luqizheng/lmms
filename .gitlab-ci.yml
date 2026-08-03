@@ -34,6 +34,12 @@ variables:
   # E2E_DB_PASSWORD 通过 GitLab CI/CD Variables 注入（type: env_var, masked）
   E2E_DB_NAME: superpowers
 
+  # ─── utoipa-swagger-ui build.rs 拉 zip：CI runner 直连 GitHub 不通，
+  #     走 gh-proxy.org 代理（项目网络规则 AGENTS.md「网络规则」节）。
+  #     由 build.rs 自身读取 SWAGGER_UI_DOWNLOAD_URL；本地开发则用
+  #     `pnpm run assets:download` 离线 vendor。──
+  SWAGGER_UI_DOWNLOAD_URL: "${SWAGGER_UI_DOWNLOAD_URL:-https://gh-proxy.org/https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip}"
+
   # --- setup-wizard 同步（敏感值引用 GitLab CI Variables）---
   CODER_BASE_REGISTRY: "zhcoder-docker-registry.com:8000/official"
   CODER_BUILDER_REGISTRY: "zhcoder-docker-registry.com:8000/builder"
