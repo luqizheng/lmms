@@ -402,7 +402,6 @@ deploy:
   environment:
     name: staging
     url: $STAGING_BASE_URL
-    on_stop: deploy
   before_script:
     # node:20 自带 ssh client（libssl 由 openssl 包兜底），无需额外 apt
     - 'which ssh-agent || (apt-get update && apt-get install -y --no-install-recommends openssh-client rsync)'
