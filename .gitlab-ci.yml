@@ -172,6 +172,12 @@ e2e_api_test:
     - pnpm -C tests/e2e install
   script:
     - pnpm -C tests/e2e run test:api
+  rules:
+    # e2e 只在 main / 手动触发时跑 —— MR pipeline 上 staging 还没 deploy，必然 fail
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - when: manual
+      allow_failure: true
 
 e2e_ui_test:
   stage: e2e
@@ -185,6 +191,11 @@ e2e_ui_test:
     - pnpm -C tests/e2e exec playwright install chromium
   script:
     - pnpm -C tests/e2e run test:ui
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - when: manual
+      allow_failure: true
 
 e2e_migration_state_test:
   stage: e2e
@@ -256,6 +267,12 @@ e2e_migration_state_test:
   after_script:
     - '[[ -s /tmp/tunnel.pid ]] && kill "$(cat /tmp/tunnel.pid)" 2>/dev/null || true'
   allow_failure: false
+  rules:
+    # needs: [deploy] 在 MR 上 deploy 不跑会 fail；e2e_migration 同样要在有 staging 时才跑
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - when: manual
+      allow_failure: true
 
 # ── Build caching ──
 # Docker build / cache 配置均在各服务的 Dockerfile 中（dependencies → builder → runner），
@@ -404,12 +421,19 @@ deploy:
   script:
     # 1. 同步源码（排除 .git / target / node_modules / 前端 dist）
     - 'eval "$SSH_CMD" "mkdir -p $STAGING_PROJECT_DIR"'
-    - 'rsync -az --delete
-        --exclude=.git --exclude=target --exclude=node_modules
-        --exclude=frontend/node_modules --exclude=frontend/dist
-        --exclude=.mvn --exclude=Cargo.lock.bak
-        -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new"
-        ./ "$STAGING_DEPLOY_USER@$STAGING_HOST:$STAGING_PROJECT_DIR/"'
+    # rsync 多行写法在 GitLab Runner 把整段交给 `bash -c` 时会因为换行被当作
+    # 语句分隔符、导致 --exclude 被当成独立命令。这里强制单行 + \ 续行。
+    - |
+      rsync -az --delete \
+        --exclude=.git \
+        --exclude=target \
+        --exclude=node_modules \
+        --exclude=frontend/node_modules \
+        --exclude=frontend/dist \
+        --exclude=.mvn \
+        --exclude=Cargo.lock.bak \
+        -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new" \
+        ./ "$STAGING_DEPLOY_USER@$STAGING_HOST:$STAGING_PROJECT_DIR/"
     # 2. 远程跑 deploy 脚本（自动检测 prod overlay，启用 prod mode 校验）
     - 'eval "$SSH_CMD" "cd $STAGING_PROJECT_DIR && bash infrastructure/scripts/deploy-remote.sh"'
     # 3. runner 端 post-deploy：frontend:8080/health 必须是 200
