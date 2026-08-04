@@ -450,8 +450,12 @@ deploy:
     name: staging
     url: $STAGING_BASE_URL
   before_script:
-    # node:20 自带 ssh client（libssl 由 openssl 包兜底），无需额外 apt
-    - 'which ssh-agent || (apt-get update && apt-get install -y --no-install-recommends openssh-client rsync)'
+    # node:20 自带 ssh client（libssl 由 openssl 包兜底）。
+    # ssh-agent 和 rsync 必须分别检测——之前 `which ssh-agent || apt-get install ... rsync`
+    # 一旦 ssh-agent 已存在（node:20 默认装了），`||` short-circuit，整个
+    # apt-get install 跳过 → rsync 缺失导致 deploy 报 "rsync: command not found"。
+    - 'if ! command -v ssh-agent > /dev/null; then apt-get update && apt-get install -y --no-install-recommends openssh-client; fi'
+    - 'if ! command -v rsync > /dev/null; then apt-get update && apt-get install -y --no-install-recommends rsync; fi'
     - mkdir -p ~/.ssh && chmod 700 ~/.ssh
     # SSH 主机指纹（GitLab Variables 注入；不存在则 ssh-keyscan 兜底）
     - if [ -n "$SSH_KNOWN_HOSTS" ]; then printf "%s\n" "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; fi
