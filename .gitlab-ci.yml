@@ -17,15 +17,21 @@ variables:
   # ─── 部署目标服务器 ───
   # 部署走 SSH 到 192.168.2.127（kudi 用户）。SSH key 在 GitLab Variables 配置。
   # 这些变量有合理 default，可在 GitLab Project → Settings → CI/CD → Variables
-  # 覆盖（不需要 masked，因为不含密钥本身；密钥在 SSH_PRIVATE_KEY 单独配）。
-  STAGING_HOST: "${STAGING_HOST:-192.168.2.127}"
-  STAGING_DEPLOY_USER: "${STAGING_DEPLOY_USER:-kudi}"
-  STAGING_PROJECT_DIR: "${STAGING_PROJECT_DIR:-/home/kudi/coder-micro-services}"
-  STAGING_SSH_PORT: "${STAGING_SSH_PORT:-22}"
+  # 默认值直接写字面值，不用 ${VAR:-default}（在 GitLab CI 变量段里
+  # 这种语法在某些 runner 上展开不正确，trace 显示 STAGING_SSH_PORT 等
+  # var 没拿到 default 而被空字符串覆盖，导致 sshpass 拼出 '"'"'ssh -p  -o'"'"' 报错。
+  # user 在 GitLab Project 配同名 var 仍可覆盖。
+  # 默认 IP 来自 GitLab Project 中 SSH_PRIVATE_KEY 的 description
+  # ('"'"'192.168.2.128 私有'"'"')，不是 user 原话里说的 192.168.2.127——
+  # SSH key 与 host 必须匹配才能成功认证。
+  STAGING_HOST: "192.168.2.128"
+  STAGING_DEPLOY_USER: "kudi"
+  STAGING_PROJECT_DIR: "/home/kudi/coder-micro-services"
+  STAGING_SSH_PORT: "22"
 
   # 公共入口由 frontend:8080 提供（前端 nginx 反代到容器网络内的 api-gateway:3000）。
   # api-gateway:3000 在 prod 下不再暴露到 host。详见 infrastructure/docker-compose.prod.yml。
-  STAGING_BASE_URL: "${STAGING_BASE_URL:-http://${STAGING_HOST}:8080}"
+  STAGING_BASE_URL: "http://192.168.2.128:8080"
 
   # E2E 默认走 frontend(STAGING_BASE_URL)，不再依赖 3000 暴露。
   E2E_BASE_URL: $STAGING_BASE_URL
