@@ -169,6 +169,10 @@ export default defineConfig({
             {
               text: 'ADR-007 · 项目重命名为 Digua',
               link: '/decisions/ADR-007-rename-to-digua'
+            },
+            {
+              text: 'ADR-008 · commit 7b62f8c 混入 gh-proxy 修改的记录',
+              link: '/decisions/ADR-008-rsync-commit-includes-gh-proxy'
             }
           ]
         }
