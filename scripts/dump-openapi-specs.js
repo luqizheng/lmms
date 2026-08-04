@@ -7,7 +7,8 @@
  * dump step validates the committed spec is present.
  *
  * CI usage:
- *   node scripts/dump-openapi-specs.js && git diff --exit-code -- 'services/*/openapi.yaml'
+ *   node scripts/dump-openapi-specs.js
+ *   git diff --exit-code -- 'services/<star>openapi.yaml'
  *
  * Equivalent to the former scripts/dump-openapi-specs.sh
  */
