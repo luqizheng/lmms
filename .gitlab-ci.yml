@@ -34,6 +34,12 @@ variables:
   # E2E_DB_PASSWORD 通过 GitLab CI/CD Variables 注入（type: env_var, masked）
   E2E_DB_NAME: superpowers
 
+  # ─── CI 镜像：项目 builder 镜像（与 services/<svc>/Dockerfile 一致）──
+  # zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl 镜像预装
+  # 了 rustfmt + clippy + curl 等 toolchain，CI 不再 apt-get 装。
+  # 命名约定：见 .gitlab-ci.yml 顶部 CODER_BUILDER_REGISTRY。
+  BUILDER_RUST_IMAGE: "${CODER_BUILDER_REGISTRY}/rust:1.96-slim-musl"
+
   # ─── utoipa-swagger-ui build.rs 拉 zip：CI runner 直连 GitHub 不通，
   #     走 gh-proxy.org 代理（项目网络规则 AGENTS.md「网络规则」节）。
   #     本地开发改用 `pnpm run assets:download` 把 zip 下到
@@ -58,15 +64,13 @@ rust_test:
   stage: test
   tags:
     - docker
-  image: $BASE_REGISTRY/rust:1.96-slim
+  image: $BUILDER_RUST_IMAGE
   variables:
     REDIS_URL: redis://192.168.2.130:6379
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    # rust:1.96-slim 不带 curl；utoipa-swagger-ui build.rs 用 curl 下 swagger-ui zip
-    # SWAGGER_UI_DOWNLOAD_URL 顶部变量已指向 gh-proxy.org 镜像（项目网络规则）
-    - apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev curl
+    # BUILDER_RUST_IMAGE 已预装 rustfmt/clippy/curl；用顶部 SWAGGER_UI_DOWNLOAD_URL 走 gh-proxy 镜像
   script:
     - cargo test --workspace --lib --verbose
 
@@ -100,12 +104,12 @@ contracts_check:
 spec_generate:
   stage: test
   tags: [docker]
-  image: $BASE_REGISTRY/rust:1.96-slim
+  image: $BUILDER_RUST_IMAGE
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    # rust:1.96-slim 镜像不带 node；dump-openapi-specs.js 调 cargo run 又需要 cargo
-    - apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev nodejs
+    # BUILDER_RUST_IMAGE 是 Rust builder，没有 node；dump-openapi-specs.js 需要 node
+    - apt-get update && apt-get install -y --no-install-recommends nodejs
   script:
     - node scripts/dump-openapi-specs.js
     - git diff --exit-code -- 'services/*/openapi.yaml'
@@ -149,15 +153,12 @@ java_sdk_drift_check:
 cargo_clippy:
   stage: test
   tags: [docker]
-  image: $BASE_REGISTRY/rust:1.96-slim
+  image: $BUILDER_RUST_IMAGE
   variables:
     REDIS_URL: redis://192.168.2.130:6379
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    # rust:1.96-slim 镜像不带 clippy / fmt / node / curl 这些 toolchain，需要显式装
-    - rustup component add clippy rustfmt
-    - apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev curl nodejs
   script:
     - cargo clippy --workspace --all-targets -- -D warnings
   allow_failure: false
@@ -165,12 +166,10 @@ cargo_clippy:
 cargo_fmt_check:
   stage: test
   tags: [docker]
-  image: $BASE_REGISTRY/rust:1.96-slim
+  image: $BUILDER_RUST_IMAGE
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    # zhcoder-docker-registry.com:8000/official/rust:1.96-slim 镜像不带 rustfmt component
-    - rustup component add rustfmt
   script:
     - cargo fmt --check
   allow_failure: false
@@ -509,7 +508,7 @@ sdk_publish:
 rust_publish:
   stage: publish
   tags: [docker]
-  image: $BASE_REGISTRY/rust:1.96-slim
+  image: $BUILDER_RUST_IMAGE
   variables:
     CARGO_REGISTRIES_KELLNR_TOKEN: "${KELLNR_TOKEN}"
     CARGO_REGISTRIES_KELLNR_INDEX: "sparse+http://192.168.2.12:16444/api/v1/crates/"
@@ -517,7 +516,8 @@ rust_publish:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    - apt-get update && apt-get install -y pkg-config libssl-dev
+    # BUILDER_RUST_IMAGE 没有 node；publish-*.js 是 node 脚本
+    - apt-get update && apt-get install -y --no-install-recommends nodejs
   script:
     - node scripts/publish-libs.js "${SDK_VERSION}" --registry kellnr
     - node scripts/publish-rust-sdks.js "${SDK_VERSION}" --registry kellnr
@@ -606,11 +606,10 @@ release:dist:
 cargo_audit:
   stage: test
   tags: [docker]
-  image: $BASE_REGISTRY/rust:1.96-slim
+  image: $BUILDER_RUST_IMAGE
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    - apt-get update && apt-get install -y pkg-config libssl-dev
     - cargo install cargo-audit --locked
   script:
     - cargo audit
@@ -624,11 +623,10 @@ cargo_audit:
 cargo_deny:
   stage: test
   tags: [docker]
-  image: $BASE_REGISTRY/rust:1.96-slim
+  image: $BUILDER_RUST_IMAGE
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    - apt-get update && apt-get install -y pkg-config libssl-dev
     - cargo install cargo-deny --locked
   script:
     - cargo deny check
