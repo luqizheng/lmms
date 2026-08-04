@@ -21,11 +21,18 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
-# Ensure docker compose plugin is in PATH (Docker 20.10+ installs the
-# plugin to /usr/libexec/docker/cli-plugins but the directory is NOT
-# always added to the user's PATH by default, so `docker compose`
-# fails with "command not found" even when the binary is on disk).
-# Probe a few common locations and prepend the first that exists.
+# Ensure docker compose plugin is installed AND in PATH. Docker
+# 20.10+ ships `docker compose` as a CLI plugin (debian package
+# `docker-compose-plugin`) installed to /usr/libexec/docker/cli-plugins
+# but the directory is NOT always added to the user's PATH by
+# default. This block:
+#   1. probes common plugin directories and prepends the first hit
+#   2. if no plugin binary is found anywhere, installs the
+#      `docker-compose-plugin` debian package via sudo apt-get
+#      and re-probes; verifies PATH after install
+# Without this, fresh staging hosts (especially the apt-installed
+# `docker.io` package without `docker-compose-plugin`) fail with
+# "FATAL: docker compose not available in PATH" at STEP 0.
 for _plugin_dir in \
     /usr/libexec/docker/cli-plugins \
     /usr/local/libexec/docker/cli-plugins \
@@ -35,6 +42,28 @@ for _plugin_dir in \
     break
   fi
 done
+
+if ! command -v docker-compose >/dev/null 2>&1 \
+   && ! command -v docker >/dev/null 2>&1; then
+  echo "[deploy-remote] FATAL: docker CLI not found at all; cannot install compose plugin" >&2
+  exit 10
+fi
+
+if ! command -v docker-compose >/dev/null 2>&1 && ! docker compose version >/dev/null 2>&1; then
+  echo "[deploy-remote] docker compose plugin not found; attempting apt install"
+  if command -v sudo >/dev/null 2>&1; then
+    sudo -n apt-get update -qq && sudo -n apt-get install -y docker-compose-plugin 2>&1 | tail -5 || true
+  fi
+  # re-probe after install
+  for _plugin_dir in \
+      /usr/libexec/docker/cli-plugins \
+      /usr/local/libexec/docker/cli-plugins; do
+    if [ -x "$_plugin_dir/docker-compose" ]; then
+      export PATH="$_plugin_dir:$PATH"
+      break
+    fi
+  done
+fi
 
 cd "$PROJECT_ROOT" || { echo "[deploy-remote] FATAL: cannot cd to $PROJECT_ROOT" >&2; exit 10; }
 
