@@ -2,7 +2,7 @@
 /**
  * Dump OpenAPI specs for every backend service.
  *
- * Rust services expose a `dump-openapi` bin which writes services/<name>/openapi.yaml.
+ * Rust services expose a `dump_openapi` bin which writes services/<name>/openapi.yaml.
  * Java/Spring Boot services expose `openapi.yaml` via springdoc at runtime; the
  * dump step validates the committed spec is present.
  *
@@ -36,13 +36,15 @@ const SERVICES = [
 ];
 
 /**
- * Dump OpenAPI spec for a Rust service via `cargo run --bin dump-openapi`.
+ * Dump OpenAPI spec for a Rust service via `cargo run --bin dump_openapi`.
+ * The bin name in every service's Cargo.toml is `dump_openapi` (underscore),
+ * since Cargo rewrites hyphenated `[[bin]] name` to underscore on disk.
  */
 function dumpRust(svc) {
   const dir = path.join(ROOT_DIR, 'services', svc);
-  console.log(`=== Dumping OpenAPI for ${svc} (rust via dump-openapi bin) ===`);
+  console.log(`=== Dumping OpenAPI for ${svc} (rust via dump_openapi bin) ===`);
   try {
-    execSync('cargo run --bin dump-openapi', {
+    execSync('cargo run --bin dump_openapi', {
       cwd: dir,
       stdio: 'inherit',
       timeout: 300_000, // 5 min per service
