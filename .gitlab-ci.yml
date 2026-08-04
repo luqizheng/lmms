@@ -77,6 +77,15 @@ rust_test:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
     # BUILDER_RUST_IMAGE 已预装 rustfmt/clippy/curl；用顶部 SWAGGER_UI_DOWNLOAD_URL 走 gh-proxy 镜像
+    # Free target/ before running. Pipeline 6238 failed with
+    # `ld terminated with signal 7 [Bus error]` + `No space left on
+    # device (os error 28)` because previous runs accumulated
+    # target/debug/. Cargo clean drops the build cache; on-disk
+    # incremental rebuild takes ~5 min. This is a workaround
+    # until ops expands the runner disk quota or project
+    # switches to a Cargo remote cache config.
+    - df -h /builds
+    - cargo clean 2>/dev/null || true
   script:
     - cargo test --workspace --lib --verbose
 
