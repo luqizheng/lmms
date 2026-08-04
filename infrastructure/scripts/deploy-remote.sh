@@ -21,6 +21,21 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
+# Ensure docker compose plugin is in PATH (Docker 20.10+ installs the
+# plugin to /usr/libexec/docker/cli-plugins but the directory is NOT
+# always added to the user's PATH by default, so `docker compose`
+# fails with "command not found" even when the binary is on disk).
+# Probe a few common locations and prepend the first that exists.
+for _plugin_dir in \
+    /usr/libexec/docker/cli-plugins \
+    /usr/local/libexec/docker/cli-plugins \
+    "$HOME/.docker/cli-plugins"; do
+  if [ -x "$_plugin_dir/docker-compose" ]; then
+    export PATH="$_plugin_dir:$PATH"
+    break
+  fi
+done
+
 cd "$PROJECT_ROOT" || { echo "[deploy-remote] FATAL: cannot cd to $PROJECT_ROOT" >&2; exit 10; }
 
 # ─────────────────────────────────────────────────────────────────────────────
