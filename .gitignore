@@ -64,6 +64,13 @@ apps/pm/**/target/
 # 但模板本身（脚本/compose/Makefile/README）需要入 git
 /release/dist-template/secrets/*.pem
 /release/dist-template/.env
+
+# Prod env / secrets — 由 start-prod.sh 加载；含 MYSQL_ROOT_PASSWORD / DB_PASSWORD /
+# service-jwt bootstrap tokens 等敏感值。运维在 staging server 上手填，不入 git。
+# `.env.prod.example` 是模板，已被 git 跟踪；`.env.prod` 是填充后的实际值。
+/infrastructure/.env.prod
+/infrastructure/.env.dev
+/infrastructure/prod-secrets/
 # frontend/ 由 release.sh 从 dev frontend/ 动态复制到分发包输出目录，不入 git；
 # CI 通过 build-frontend.sh 直接用 dev frontend/ 构建镜像，不依赖此目录快照
 /release/dist-template/frontend/

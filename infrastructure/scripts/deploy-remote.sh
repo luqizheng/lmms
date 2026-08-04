@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# infrastructure/scripts/deploy-remote.sh
+# ─────────────────────────────────────────────────────────────────────────────
+# Remote deployment orchestrator. 由 .gitlab-ci.yml 的 deploy job 通过 SSH
+# 调用；也可直接由 ops `./deploy-remote.sh` 触发同等流程。
+#
+# 行为：
+#   1. preflight 检查（docker compose version + 关键 env vars + 是否有 prod overlay）
+#   2. pull images
+#   3. 按依赖顺序逐服务 `up -d --no-deps`，每个容器等 healthcheck（或启动窗口）通过
+#   4. 清理 dangling images
+#
+# 退出码：
+#   0   全部服务健康通过
+#   10  preflight fail（compose 版本 / 关键 vars 缺失）
+#   20+ pull fail
+#   30+ 滚动重启中某服务 health timeout
+# ─────────────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+
+cd "$PROJECT_ROOT" || { echo "[deploy-remote] FATAL: cannot cd to $PROJECT_ROOT" >&2; exit 10; }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Compose 文件集：base + 可选 prod overlay
+# ─────────────────────────────────────────────────────────────────────────────
+COMPOSE_BASE="$PROJECT_ROOT/infrastructure/docker-compose.yml"
+COMPOSE_PROD="$PROJECT_ROOT/infrastructure/docker-compose.prod.yml"
+DOCKER_COMPOSE=(docker compose -f "$COMPOSE_BASE")
+if [[ -f "$COMPOSE_PROD" ]]; then
+  DOCKER_COMPOSE+=(-f "$COMPOSE_PROD")
+  DEPLOY_MODE="prod"
+else
+  DEPLOY_MODE="dev"
+fi
+
+log() { echo "[deploy-remote $DEPLOY_MODE] $*"; }
+die() { echo "[deploy-remote $DEPLOY_MODE] FATAL: $*" >&2; exit "${2:-10}"; }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 0 — preflight
+# ─────────────────────────────────────────────────────────────────────────────
+log "STEP 0/4  preflight checks"
+
+# 0a. compose 版本
+if ! docker compose version >/dev/null 2>&1; then
+  die "docker compose not available in PATH" 10
+fi
+COMPOSE_VER="$(docker compose version --short 2>/dev/null || docker compose version | head -1)"
+log "  docker compose version: $COMPOSE_VER"
+
+if [[ "$DEPLOY_MODE" == "prod" ]]; then
+  # 0b. !override 标签需要 v2.20+
+  if ! docker compose version | grep -qE 'v?2\.(2[0-9]|[3-9][0-9])'; then
+    die "docker compose v2.20+ required for !override tag (found: $COMPOSE_VER)" 10
+  fi
+
+  # 0c. 关键 .env.prod 变量必须存在且非默认值
+  REQUIRED=(
+    MYSQL_ROOT_PASSWORD MYSQL_USER MYSQL_PASSWORD DATABASE_URL
+    RABBITMQ_DEFAULT_PASS
+    IAM_DEV_BT TOKEN_DEV_BT NOTIFICATION_DEV_BT AUDIT_DEV_BT
+    PRUE_DEV_BT GATEWAY_DEV_BT CONFIG_DEV_BT FILE_DEV_BT
+  )
+  for v in "${REQUIRED[@]}"; do
+    if [[ -z "${!v:-}" ]]; then
+      die "required env var $v is empty (set in .env.prod)" 10
+    fi
+    if [[ "${!v}" == "__SET_BY_OPS__" ]]; then
+      die "env var $v is still placeholder __SET_BY_OPS__ (fill .env.prod)" 10
+    fi
+    if [[ "${!v}" == dev-bt-* ]]; then
+      die "env var $v looks like a dev fallback value (fill .env.prod)" 10
+    fi
+  done
+
+  # 0d. compose config 必须能成功渲染（!override 标签崩溃会让 compose config 报错）
+  log "  docker compose config (validate rendered tree)"
+  if ! "${DOCKER_COMPOSE[@]}" config --quiet >/dev/null 2>&1; then
+    die "docker compose config failed — check docker-compose.prod.yml syntax / !override" 10
+  fi
+fi
+
+# 0e. 待重启的服务列表（顺序 = 依赖顺序：基础设施依赖优先，业务服务最后）
+SERVICES=(config-service file-service \
+           token-service iam-service iam-outbox-publisher \
+           notification-service notification-outbox-publisher \
+           audit-service prue_backend \
+           api-gateway frontend)
+
+log "  compose files: ${DOCKER_COMPOSE[*]}"
+log "  services (in order): ${SERVICES[*]}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 1 — pull images
+# ─────────────────────────────────────────────────────────────────────────────
+log "STEP 1/4  docker compose pull"
+if ! "${DOCKER_COMPOSE[@]}" pull; then
+  die "docker compose pull failed" 20
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 2 — rolling restart by service
+# ─────────────────────────────────────────────────────────────────────────────
+log "STEP 2/4  rolling restart (infra untouched)"
+
+HEALTH_TIMEOUT_SECS="${HEALTH_TIMEOUT_SECS:-60}"
+HEALTH_POLL_INTERVAL_SECS="${HEALTH_POLL_INTERVAL_SECS:-5}"
+HEALTH_MAX_POLLS=$((HEALTH_TIMEOUT_SECS / HEALTH_POLL_INTERVAL_SECS))
+
+for svc in "${SERVICES[@]}"; do
+  log "  → rolling $svc"
+  if ! "${DOCKER_COMPOSE[@]}" up -d --no-deps "$svc"; then
+    die "compose up failed for $svc" 30
+  fi
+
+  ok=0
+  for i in $(seq 1 "$HEALTH_MAX_POLLS"); do
+    sleep "$HEALTH_POLL_INTERVAL_SECS"
+    health="$(docker inspect --format='{{.State.Health.Status}}' "$svc" 2>/dev/null || echo starting)"
+    log "    health[$i/$HEALTH_MAX_POLLS]: $health"
+    case "$health" in
+      healthy)
+        ok=1; break ;;
+      none|starting)
+        # 无 HEALTHCHECK 指令（outbox-publisher 类）：给启动窗口 10s 后视为 ok
+        if [[ "$health" == "none" ]]; then
+          sleep 10
+          ok=1; break
+        fi
+        ;;
+    esac
+  done
+
+  if [[ "$ok" -eq 0 ]]; then
+    log "  ✘ $svc 未通过健康检查（超时 ${HEALTH_TIMEOUT_SECS}s），最近 60 条日志：" >&2
+    docker logs --tail=60 "$svc" >&2 || true
+    die "service $svc healthcheck timeout" 31
+  fi
+done
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 3 — entrypoint verification（验证公共入口可访问）
+# ─────────────────────────────────────────────────────────────────────────────
+log "STEP 3/4  entrypoint verification"
+# frontend:8080 是公共入口；其容器内 nginx 用 `location /health` 返回 200
+HEALTH_URL="${HEALTH_URL:-http://localhost:8080/health}"
+HEALTH_OK=0
+for i in $(seq 1 12); do
+  sleep 5
+  if curl -fsS --max-time 3 "$HEALTH_URL" >/dev/null 2>&1; then
+    log "    ✓ $HEALTH_URL returned 2xx (attempt $i/12)"
+    HEALTH_OK=1; break
+  fi
+  log "    · $HEALTH_URL not yet (attempt $i/12)"
+done
+if [[ "$HEALTH_OK" -eq 0 ]]; then
+  die "frontend health probe failed at $HEALTH_URL" 32
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 4 — image prune
+# ─────────────────────────────────────────────────────────────────────────────
+log "STEP 4/4  docker image prune -f"
+docker image prune -f || true
+
+log "DONE — all services healthy on port 8080"

@@ -4,12 +4,10 @@ use digua_http_client::client::KudiWebClient;
 use digua_http_client::{transport::HttpResponse, SdkError};
 
 use crate::model::{
-    BatchGetUsersRequest, BatchGetUsersResponse, ChangePasswordRequest, CreateOrgUnitRequest,
-    CreateRoleRequest, CreateUserRequest, ListRolesQuery, ListUsersQuery, LoginRequest,
-    LoginResponse, OrgUnitResponse, PermissionListResponse,
-    QueryUsersByOrgAndRoleRequest, RefreshRequest, RefreshResponse, RoleListResponse,
-    RoleResponse, UpdateOrgUnitRequest, UpdateRoleRequest, UpdateUserRequest, UserListResponse,
-    UserResponse,
+    ChangePasswordRequest, CreateRoleRequest, CreateUserRequest, ListRolesQuery,
+    ListUsersQuery, LoginRequest, LoginResponse, PermissionListResponse, RefreshRequest,
+    RefreshResponse, RoleListResponse, RoleResponse, UpdateRoleRequest, UpdateUserRequest,
+    UserListResponse, UserResponse,
 };
 
 type BearerSupplier = Arc<dyn Fn() -> Option<String> + Send + Sync>;
@@ -204,98 +202,13 @@ impl IamClient {
             .map_err(|e| SdkError::Network(format!("decode PermissionListResponse: {}", e)))
     }
 
-    // ── Org-Unit ──
+    // ── Org-Unit + BatchGetUsers / ListUsersByOrgAndRole methods
+    //     were removed (commit feb15f2): those endpoints are service-internal
+    //     (require service-jwt, not user bearer through gateway) and the SDK
+    //     contract is public user-facing APIs only. See services/iam-service
+    //     for internal callers — the OpenAPI public schema does not expose
+    //     these routes.
 
-    pub async fn list_org_units(&self) -> Result<Vec<OrgUnitResponse>, SdkError> {
-        let url = format!("{}/iam/org-units", self.base_url);
-        let resp = self.http.get(&url, (self.bearer)().as_deref()).await?;
-        ensure_success(&resp, "iam list_org_units")?;
-        serde_json::from_str(&resp.body)
-            .map_err(|e| SdkError::Network(format!("decode OrgUnitResponse: {}", e)))
-    }
-
-    pub async fn create_org_unit(
-        &self,
-        req: &CreateOrgUnitRequest,
-    ) -> Result<OrgUnitResponse, SdkError> {
-        let url = format!("{}/iam/org-units", self.base_url);
-        let body = serde_json::to_string(req)
-            .map_err(|e| SdkError::Network(format!("serialize CreateOrgUnitRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
-        ensure_success(&resp, "iam create_org_unit")?;
-        serde_json::from_str(&resp.body)
-            .map_err(|e| SdkError::Network(format!("decode OrgUnitResponse: {}", e)))
-    }
-
-    pub async fn update_org_unit(
-        &self,
-        org_unit_id: &str,
-        req: &UpdateOrgUnitRequest,
-    ) -> Result<OrgUnitResponse, SdkError> {
-        let url = format!(
-            "{}/iam/org-units/{}",
-            self.base_url,
-            url_encode_path(org_unit_id)
-        );
-        let body = serde_json::to_string(req)
-            .map_err(|e| SdkError::Network(format!("serialize UpdateOrgUnitRequest: {}", e)))?;
-        let resp = self
-            .http
-            .post(&url, &body, (self.bearer)().as_deref())
-            .await?;
-        ensure_success(&resp, "iam update_org_unit")?;
-        serde_json::from_str(&resp.body)
-            .map_err(|e| SdkError::Network(format!("decode OrgUnitResponse: {}", e)))
-    }
-
-    /// Batch-fetch users by ID list. Requires tenant_id query param.
-    /// Internal endpoint — needs service-jwt or direct service URL, not user bearer through gateway.
-    pub async fn batch_get_users(
-        &self,
-        user_ids: &[String],
-        tenant_id: i64,
-    ) -> Result<BatchGetUsersResponse, SdkError> {
-        let url = format!(
-            "{}/iam/internal/users/by-ids?tenant_id={}",
-            self.base_url, tenant_id
-        );
-        let req = BatchGetUsersRequest {
-            user_ids: user_ids.to_vec(),
-        };
-        let body = serde_json::to_string(&req)
-            .map_err(|e| SdkError::Network(format!("serialize BatchGetUsersRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
-        ensure_success(&resp, "iam batch_get_users")?;
-        serde_json::from_str(&resp.body)
-            .map_err(|e| SdkError::Network(format!("decode BatchGetUsersResponse: {}", e)))
-    }
-
-    /// List users by org path and role name. Requires tenant_id query param.
-    /// Internal endpoint — needs service-jwt or direct service URL.
-    pub async fn list_users_by_org_and_role(
-        &self,
-        org_path: &str,
-        role_name: &str,
-        tenant_id: i64,
-    ) -> Result<BatchGetUsersResponse, SdkError> {
-        let url = format!(
-            "{}/iam/internal/users/by-org-and-role?tenant_id={}",
-            self.base_url, tenant_id
-        );
-        let req = QueryUsersByOrgAndRoleRequest {
-            org_path: org_path.to_string(),
-            role_name: role_name.to_string(),
-        };
-        let body = serde_json::to_string(&req)
-            .map_err(|e| SdkError::Network(format!(
-                "serialize QueryUsersByOrgAndRoleRequest: {}",
-                e
-            )))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
-        ensure_success(&resp, "iam list_users_by_org_and_role")?;
-        serde_json::from_str(&resp.body)
-            .map_err(|e| SdkError::Network(format!("decode BatchGetUsersResponse: {}", e)))
-    }
     /// List users by role id with full user details (bearer_auth, not service-jwt).
     pub async fn list_users_by_role(
         &self,

@@ -196,9 +196,9 @@
 
 ---
 
-## 5. CI 与本地差距（2026-07-30 重写）
+## 5. CI 与本地差距（2026-08 重写）
 
-来源：`.gitlab-ci.yml` 已核对全文（2026-07-29，commit `e24a3f4` + `f4374f5` + `849b4b2`）。`stages` 现在 5 段：`test / build / deploy / publish / release`。
+来源：`.gitlab-ci.yml` 已核对全文（含 2026-08 的 SSH-deployed 重构）。`stages` 现在 6 段：`test / build / deploy / e2e / publish / release`。
 
 ### 5.1 CI 当前行为
 
@@ -209,32 +209,44 @@
 | `test` | `spec_check` | 所有 pipeline | `node scripts/check-spec.js` | [正常] |
 | `test` | `contracts_check` | 所有 pipeline | `node scripts/contracts-gen.js --check` | [正常] |
 | `test` | `spec_generate` | 所有 pipeline | `node scripts/dump-openapi-specs.js` + `git diff --exit-code` | [正常] 守 openapi drift |
-| `test` | `doc_links_check` | 所有 pipeline | `node scripts/check-doc-links.js` | [正常]（P0-1 加） |
-| `test` | `cargo_clippy` | 所有 pipeline | `cargo clippy --workspace --all-targets -- -D warnings` | [正常] |
-| `test` | `cargo_fmt_check` | 所有 pipeline | `cargo fmt --check` | [正常] |
-| `test` | `frontend_lint` | `changes: frontend/**/*` | `pnpm -C frontend run lint:eslint` | [正常] `allow_failure: true` |
-| `test` | `e2e_api_test` | 所有 pipeline | `pnpm -C tests/e2e run test:api` | [正常] |
-| `test` | `e2e_ui_test` | 所有 pipeline | `pnpm -C tests/e2e run test:ui`（Playwright） | [正常] 需前端容器 |
-| `test` | `e2e_migration_state_test` | 所有 pipeline | `docker compose up -d` + `node scripts/e2e-migration-state.js` | [正常] 7 服务 × service-jwt 校验 |
-| `test` | `java_sdk_drift_check` | `changes: sdk/java/**/*` 或 `services/*/openapi.yaml` | `node scripts/check-java-sdk-drift.js` | [部分] `allow_failure: true`（12 处 KNOWN-DRIFT 尚未修） |
-| `test` | `cargo_audit` | `main` push 或 schedule | `cargo audit` | [正常] |
-| `test` | `cargo_deny` | `main` push 或 schedule | `cargo deny check` | [正常] |
-| `test` | `java_sdk_test` | `changes: sdk/java/**` | `mvn -B verify` | [正常] |
-| `build` | `build_<svc>`（9 个） | `changes: services/<svc>/**/*` 等 | `.rust_svc_build` 模板 + `docker push` | [正常]（9 服务 × `.rust_svc_build` 继承模板） |
-| `build` | `build_frontend` | `changes: frontend/**` | frontend Dockerfile → push | [正常] |
-| `deploy` | `deploy` | `only: main` | 滚动重启 11 个业务服务 + healthcheck 门禁 | [正常] **不再是 stop-the-world**（每个服务独立 `up -d --no-deps` + 60s healthcheck 门禁；基础设施全程不 down） |
-| `publish` | `sdk_publish` | tag | Java SDK 发到内网 Maven 仓库 | [正常] |
-| `publish` | `rust_publish` | tag | Rust libs + SDK 发到 kellnr | [正常] |
-| `release` | `release:dist` | tag | `release/dist-template/` 离线分发包 | [正常] |
+| `test` | `doc_links_check` | 所有 pipeline | `node scripts/check-doc-links.js` | [正常] |
+| `test` | `cargo_clippy` / `cargo_fmt_check` / `cargo_audit` / `cargo_deny` / `frontend_lint` / `java_sdk_test` / `java_sdk_drift_check` / `i18n_namespace_check` | 条件 | 各自脚本 | [正常] |
+| `deploy` | `deploy` | `only: main` | **SSH 到 `STAGING_HOST` + 远程 `deploy-remote.sh` 滚动重启 + 端点验证** | [正常] 不再依赖专属 runner；走 `tags: [docker]` + SSH key |
+| `deploy` | `deploy_smoke` | `needs: deploy` | `curl $STAGING_BASE_URL/health = {"status":"ok"}` | [正常] `allow_failure: true` |
+| `e2e` | `e2e_api_test` | `needs: deploy` | 走 `STAGING_BASE_URL=http://192.168.2.127:8080`（frontend → api-gateway） | [正常] 不再依赖 3000 暴露 |
+| `e2e` | `e2e_ui_test` | 同上 | Playwright 走 frontend:8080 | [正常] |
+| `e2e` | `e2e_migration_state_test` | `needs: deploy` | 通过 SSH-tunnel（19xxx 端口）直连业务后端 | [正常] 7 端口 × service-jwt |
+| `build` | `build_<svc>`（9 个）+ `build_frontend` | `changes:` 条件 | `.rust_svc_build` 模板 + `docker push` | [正常] |
+| `publish` / `release` | `sdk_publish` / `rust_publish` / `release:dist` | tag | 内网 Maven / kellnr / 离线分发包 | [正常] |
 
-### 5.2 凭据管理（已合规，2026-07-29）
+### 5.2 凭据管理（合规且对齐，2026-08 更新）
 
 `.gitlab-ci.yml` 中所有凭据**已迁移至 GitLab CI/CD Variables**（masked + protected），yml 仅引用 `${VAR_NAME}`：
-- `DEPLOY_SERVER` / `DEPLOY_USER` / `DEPLOY_PASSWORD` —— 由 GitLab 注入
-- `E2E_DB_PASSWORD` —— 由 GitLab 注入
-- `IAM_DEV_BT` / `TOKEN_DEV_BT` / 等 7 个服务 bootstrap token —— 由 GitLab 注入
-- `KELLNR_TOKEN` —— 由 GitLab 注入
-- `MAVEN_REPO_URL` / `NUGET_REPO_URL` —— 内网地址，无敏感
+- `SSH_PRIVATE_KEY` —— **必填**，部署机 ed25519 私钥
+- `SSH_KNOWN_HOSTS` —— 可选，推荐填
+- `IAM_DEV_BT` / `TOKEN_DEV_BT` / 等 7 个 service-jwt bootstrap token —— masked GitLab 注入
+- `E2E_DB_PASSWORD` —— masked GitLab 注入
+- `KELLNR_TOKEN` / `MAVEN_USERNAME` / `MAVEN_PASSWORD` / `NPM_TOKEN` —— Rust/SDK 发布用
+- `STAGING_HOST` / `STAGING_DEPLOY_USER` / `STAGING_PROJECT_DIR` / `STAGING_SSH_PORT` / `STAGING_BASE_URL` —— 有 default，`${VAR:-default}` 形式
+- 旧死代码：`DEPLOY_SERVER` / `DEPLOY_USER` / `DEPLOY_PASSWORD` —— **已在 2026-08 重构中删除**
+
+**完整回填清单**：见 `infrastructure/scripts/CI_VARIABLES.md`（按表填即可，5 分钟）。
+
+### 5.3 部署模型（prod overlay，2026-08 落地）
+
+按 `docs/superpowers/specs/2026-07-06-prod-compose-overlay-design.md` 落地：
+
+- 唯一 host 公开端口：`frontend:8080`（仅此而已）
+- `api-gateway:3000` / 业务后端 8081-8087 / `mysql` / `redis` / `rabbitmq` / `consul` host port 全部清掉（`!override []`）
+- observability 端口（Prom 9090 / Grafana 3001 / Jaeger 16686 / Otel 4317-4318 / Alertmanager 9093）保留（ops 直连）
+- 全部长跑组件 `restart: unless-stopped`
+- 起停入口：`infrastructure/scripts/{start-prod.sh, stop-prod.sh}`（fail-fast compose v2.20+ + env 分层加载 + 关键 vars 必填校验）
+- 远程部署编排：`infrastructure/scripts/deploy-remote.sh`（preflight + pull + rolling restart + healthcheck 门禁 + frontend:8080/health 端点 + image prune）
+
+**门禁**：
+- `.gitlab-ci.yml` `deploy` job SSH 用 `StrictHostKeyChecking=accept-new` + `ExitOnForwardFailure=yes`
+- `deploy-remote.sh` exit code 10/20/30/31/32 区分 preflight / pull / 重启 / health / 端点验证 fail
+- 旧 `micro-service-runner` tag 假设已替换为通用 `[docker]` executor + SSH
 
 **门禁**：`.pre-commit-config.yaml` 已加 gitleaks hook（commit `68ce9d0`）防止再次明文提交。
 
