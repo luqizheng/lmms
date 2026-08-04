@@ -475,18 +475,17 @@ deploy:
     # 1. 同步源码（排除 .git / target / node_modules / 前端 dist）
     - 'eval "$SSH_CMD" "mkdir -p $STAGING_PROJECT_DIR"'
     # rsync 多行写法在 GitLab Runner 把整段交给 `bash -c` 时会因为换行被当作
-    # 语句分隔符、导致 --exclude 被当成独立命令。这里强制单行 + \ 续行。
+    # tar over ssh 替代 rsync：rsync over ssh 需要 staging 端 PATH 里能 spawn 到
+    # `rsync` binary，但 trace 显示 staging 上虽然 apt-get install 装上（Setting up
+    # rsync 3.2.7），CI runner 通过 ssh 在远端 spawn 时仍报 "rsync: 未找到命令"
+    # ——说明 rsync 装到 PATH 之外（如 /usr/local/bin 而非 /usr/bin）。tar 是 OpenSSH
+    # 自带工具，CI runner tar 打包 + 远端 tar 解包，**两端零额外依赖**。
     - |
-      rsync -az --delete \
-        --exclude=.git \
-        --exclude=target \
-        --exclude=node_modules \
-        --exclude=frontend/node_modules \
-        --exclude=frontend/dist \
-        --exclude=.mvn \
-        --exclude=Cargo.lock.bak \
-        -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new" \
-        ./ "$STAGING_DEPLOY_USER@$STAGING_HOST:$STAGING_PROJECT_DIR/"
+      tar czf - --exclude=.git --exclude=target --exclude=node_modules \
+        --exclude=frontend/node_modules --exclude=frontend/dist \
+        --exclude=.mvn --exclude=Cargo.lock.bak \
+        . | "$STAGING_DEPLOY_USER@$STAGING_HOST" \
+        "cd $STAGING_PROJECT_DIR && tar xzf -"
     # 2. 远程跑 deploy 脚本（自动检测 prod overlay，启用 prod mode 校验）
     - 'eval "$SSH_CMD" "cd $STAGING_PROJECT_DIR && bash infrastructure/scripts/deploy-remote.sh"'
     # 3. runner 端 post-deploy：frontend:8080/health 必须是 200
