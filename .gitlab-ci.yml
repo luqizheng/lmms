@@ -465,9 +465,12 @@ deploy:
     - if [ -n "$SSH_PRIVATE_KEY" ]; then printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key; chmod 600 ~/.ssh/deploy_key; fi
     # sshpass 兜底：当只有 DEPLOY_PASSWORD（无 SSH_PRIVATE_KEY）时改用密码登录
     - 'if [ -z "$SSH_PRIVATE_KEY" ] && [ -n "$DEPLOY_PASSWORD" ]; then apt-get update && apt-get install -y --no-install-recommends sshpass; export SSHPASS="$DEPLOY_PASSWORD"; SSH_OPTS="-o StrictHostKeyChecking=accept-new"; echo "[deploy] warning: using DEPLOY_PASSWORD fallback (recommend switching to SSH_PRIVATE_KEY)"; fi'
-    # 先 ping 一遍，确认 SSH 通路 + 目标机有 docker（首次部署可能需要拉 compose 文件）
+    # 先 ping 一遍，确认 SSH 通路 + 目标机有 docker（首次部署可能需要拉 compose 文件）。
+    # 同时确保 staging 端有 rsync（rsync over ssh 协议需要两端都装）——staging
+    # 是 apt-based (debian bookworm 见 trace `Get: ... trixie-security InRelease` 的
+    # bookworm)，用 apt-get install rsync；如果非 apt 系统（alpine 等）则 skip。
     - 'if [ -n "$SSH_PRIVATE_KEY" ]; then SSH_CMD="ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new $STAGING_DEPLOY_USER@$STAGING_HOST"; else SSH_CMD="sshpass -e ssh -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new $STAGING_DEPLOY_USER@$STAGING_HOST"; fi'
-    - 'eval "$SSH_CMD" "docker --version && ls -d $STAGING_PROJECT_DIR 2>/dev/null || mkdir -p $STAGING_PROJECT_DIR"'
+    - 'eval "$SSH_CMD" "docker --version && (command -v rsync >/dev/null 2>&1 || (sudo -n apt-get update && sudo -n apt-get install -y rsync) 2>/dev/null || true) && ls -d $STAGING_PROJECT_DIR 2>/dev/null || mkdir -p $STAGING_PROJECT_DIR"'
   script:
     # 1. 同步源码（排除 .git / target / node_modules / 前端 dist）
     - 'eval "$SSH_CMD" "mkdir -p $STAGING_PROJECT_DIR"'
@@ -649,6 +652,10 @@ cargo_audit:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    # 国内无法直连 github.com：把 GitHub 拉取改写到 gh-proxy（AGENTS.md「网络规则」）。
+    # 配合 .cargo/config.toml 的 `git-fetch-with-cli = true`，cargo-audit 拉
+    # RustSec/advisory-db 时会经此重写走 gh-proxy。
+    - git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "https://github.com/"
     - cargo install cargo-audit --locked
   script:
     - cargo audit
@@ -671,6 +678,8 @@ cargo_deny:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    # 同 cargo_audit：国内无法直连 github.com，改写 GitHub 拉取走 gh-proxy。
+    - git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "https://github.com/"
     - cargo install cargo-deny --locked
   script:
     - cargo deny check
