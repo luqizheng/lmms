@@ -433,74 +433,25 @@ build_frontend:
       when: on_success
     - when: never
 
-# ─────────── Rolling deploy via SSH ───────────
-# 工作流（runner 在 gitlab 上，部署机在 192.168.2.127）：
-#   1. runner 拿到 SSH_PRIVATE_KEY / SSH_KNOWN_HOSTS，写到 ~/.ssh/（不打印）
-#   2. rsync 同步仓库源码到部署机 STAGING_PROJECT_DIR（排除 .git / target / node_modules）
-#   3. ssh 到部署机运行 infrastructure/scripts/deploy-remote.sh：
-#        - preflight 检查（compose v2.20+、关键 vars 非空）
-#        - docker compose pull
-#        - 滚动 up + healthcheck 门禁
-#        - frontend:8080/health 端点级验证
-#        - docker image prune
-#   4. runner 自己再 curl 一次 frontend:8080/health 验证整体可访问
+# ─────────── Rolling deploy on staging shell runner ───────────
+# 工作流（staging 上以 kudi 身份注册的 shell runner, tag=deploy-staging）：
+#   1. runner 自动 git checkout 到 build_dir
+#   2. bash infrastructure/scripts/deploy-remote.sh（preflight + 滚动 up +
+#      healthcheck 门禁 + image prune）
+#   3. runner 端 post-deploy：frontend:8080/health 必须是 {"status":"ok"}
 #
-# 关键设计：
-#   - api-gateway:3000 在 prod 下不暴露到 host（被 docker-compose.prod.yml 的 !override [] 清掉）；
-#     唯一公共入口是 frontend:8080，e2e 自动路由。
-#   - 不依赖 `micro-service-runner` 这种专属 shell runner tag，跟 build/e2e 一样用 [docker] tag，
-#     通过 SSH key 透明连到目标机。
-#   - DEPLOY_PASSWORD 旧变量已废弃（不再引用）；如需 sshpass 兜底，见下面 SSH_OPTIONS 的 DEPLOY_PASSWORD 分支。
+# 关键：runner 必须在 staging 上以 kudi 身份注册，kudi 已在 docker 组 → 直接
+# 访问 /var/run/docker.sock。注册步骤见 infrastructure/scripts/CI_VARIABLES.md。
+# tags 回退为 [docker] 可回滚到 SSH 路径（image 字段保留以兼容）。
 deploy:
   stage: deploy
-  tags: [docker]
-  image: $BASE_REGISTRY/node:20
+  tags: [deploy-staging]
+  image: $BASE_REGISTRY/node:20  # 仅在 tags=[docker] 时生效；保留以兼容回滚
   environment:
     name: staging
     url: $STAGING_BASE_URL
-  before_script:
-    # node:20 自带 ssh client（libssl 由 openssl 包兜底）。
-    # ssh-agent 和 rsync 必须分别检测——之前 `which ssh-agent || apt-get install ... rsync`
-    # 一旦 ssh-agent 已存在（node:20 默认装了），`||` short-circuit，整个
-    # apt-get install 跳过 → rsync 缺失导致 deploy 报 "rsync: command not found"。
-    - 'if ! command -v ssh-agent > /dev/null; then apt-get update && apt-get install -y --no-install-recommends openssh-client; fi'
-    - 'if ! command -v rsync > /dev/null; then apt-get update && apt-get install -y --no-install-recommends rsync; fi'
-    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
-    # SSH 主机指纹（GitLab Variables 注入；不存在则 ssh-keyscan 兜底）
-    - if [ -n "$SSH_KNOWN_HOSTS" ]; then printf "%s\n" "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; fi
-    - ssh-keyscan -H -p "$STAGING_SSH_PORT" "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-    - chmod 644 ~/.ssh/known_hosts
-    # 写入 SSH 私钥（GitLab Variables → masked+protected）
-    - if [ -n "$SSH_PRIVATE_KEY" ]; then printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key; chmod 600 ~/.ssh/deploy_key; fi
-    # sshpass 兜底：当只有 DEPLOY_PASSWORD（无 SSH_PRIVATE_KEY）时改用密码登录
-    - 'if [ -z "$SSH_PRIVATE_KEY" ] && [ -n "$DEPLOY_PASSWORD" ]; then apt-get update && apt-get install -y --no-install-recommends sshpass; export SSHPASS="$DEPLOY_PASSWORD"; SSH_OPTS="-o StrictHostKeyChecking=accept-new"; echo "[deploy] warning: using DEPLOY_PASSWORD fallback (recommend switching to SSH_PRIVATE_KEY)"; fi'
-    # 先 ping 一遍，确认 SSH 通路 + 目标机有 docker（首次部署可能需要拉 compose 文件）。
-    # 同时确保 staging 端有 rsync（rsync over ssh 协议需要两端都装）——staging
-    # 是 apt-based (debian bookworm 见 trace `Get: ... trixie-security InRelease` 的
-    # bookworm)，用 apt-get install rsync；如果非 apt 系统（alpine 等）则 skip。
-    - 'if [ -n "$SSH_PRIVATE_KEY" ]; then SSH_CMD="ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new $STAGING_DEPLOY_USER@$STAGING_HOST"; else SSH_CMD="sshpass -e ssh -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new $STAGING_DEPLOY_USER@$STAGING_HOST"; fi'
-    - 'eval "$SSH_CMD" "docker --version && (command -v rsync >/dev/null 2>&1 || (sudo -n apt-get update && sudo -n apt-get install -y rsync) 2>/dev/null || true) && ls -d $STAGING_PROJECT_DIR 2>/dev/null || mkdir -p $STAGING_PROJECT_DIR"'
   script:
-    # 1. 同步源码（排除 .git / target / node_modules / 前端 dist）
-    - 'eval "$SSH_CMD" "mkdir -p $STAGING_PROJECT_DIR"'
-    # rsync 多行写法在 GitLab Runner 把整段交给 `bash -c` 时会因为换行被当作
-    # tar over ssh 替代 rsync：rsync over ssh 需要 staging 端 PATH 里能 spawn 到
-    # `rsync` binary，但 trace 显示 staging 上虽然 apt-get install 装上（Setting up
-    # rsync 3.2.7），CI runner 通过 ssh 在远端 spawn 时仍报 "rsync: 未找到命令"
-    # ——说明 rsync 装到 PATH 之外（如 /usr/local/bin 而非 /usr/bin）。tar 是 OpenSSH
-    # 自带工具，CI runner tar 打包 + 远端 tar 解包，**两端零额外依赖**。
-    # 完整 ssh 调用必须显式写 `ssh -i ... user@host "cmd"`，不能漏 ssh。
-    - |
-      tar czf - --exclude=.git --exclude=target --exclude=node_modules \
-        --exclude=frontend/node_modules --exclude=frontend/dist \
-        --exclude=.mvn --exclude=Cargo.lock.bak \
-        . | ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT \
-              -o StrictHostKeyChecking=accept-new \
-              "$STAGING_DEPLOY_USER@$STAGING_HOST" \
-              "cd $STAGING_PROJECT_DIR && tar xzf -"
-    # 2. 远程跑 deploy 脚本（自动检测 prod overlay，启用 prod mode 校验）
-    - 'eval "$SSH_CMD" "cd $STAGING_PROJECT_DIR && bash infrastructure/scripts/deploy-remote.sh"'
-    # 3. runner 端 post-deploy：frontend:8080/health 必须是 200
+    - bash infrastructure/scripts/deploy-remote.sh
     - 'curl -fsS --max-time 10 "$STAGING_BASE_URL/health" | tee /tmp/post-deploy-health.txt'
     - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "frontend health body mismatch"; exit 1; }'
   only:
@@ -513,7 +464,7 @@ deploy:
 # 同 stage 内 needs 要求对方存在；用 optional: true 让 MR pipeline 上 deploy 不跑时跳过此 job。
 deploy_smoke:
   stage: deploy
-  tags: [docker]
+  tags: [deploy-staging]
   image: $BASE_REGISTRY/node:20
   needs:
     - job: deploy
