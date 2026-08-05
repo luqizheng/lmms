@@ -8,13 +8,14 @@
 ## 1. 设计要点速览
 
 ```
-GitLab runner（docker executor）
-    │
-    │  ssh + rsync  （用 SSH_PRIVATE_KEY）
-    ▼
-kudi@192.168.2.127 (STAGING_HOST)
+GitLab runner（deploy-staging, shell executor）
+        ▲
+        │  runner 进程本地 g it checkout + 直接执行 deploy-remote.sh
+        │
+kudi@192.168.2.128 (STAGING_HOST) —— runner host = deploy host
     │
     │  跑 infrastructure/scripts/deploy-remote.sh
+    │    ├─ preflight（docker compose v2.20+、关键 vars 非空、PATH 探测）
     │    ├─ docker compose pull (prod overlay)
     │    ├─ 滚动 up + healthcheck 门禁
     │    ├─ frontend:8080/health 端点验证
@@ -26,11 +27,15 @@ frontend (8080:80)  ←── 唯一 host 公开端口
                           → token-service / iam-service / 等
 ```
 
-- **公共入口**：仅 `http://192.168.2.127:8080`（frontend nginx → api-gateway:3000 内部反代）
+- **公共入口**：仅 `http://192.168.2.128:8080`（frontend nginx → api-gateway:3000 内部反代）
 - **api-gateway:3000 在 prod 下不暴露 host**（被 `docker-compose.prod.yml` 的 `!override []` 清掉）
 - **业务后端端口**（8081/8082/8083/...）：同理，仅容器内部可达
 - **mysql / redis / rabbitmq / consul**：内部组件，host 完全不可达
 - **observability 端口**（9090/3001/16686/4317/4318/9093）：保留（ops 直连用）
+- **CI 拓扑**：deploy / deploy_smoke 跑在 staging 上以 `kudi` 注册的 shell runner；
+  test / build / e2e 仍在 gitlab-ci-04 共享 docker runner 上。E2E 通过
+  `setsid ssh -N` 反向隧道访问业务端口（需要 SSH_PRIVATE_KEY 仍用于
+  gitlab-ci-04 一侧）。
 
 ---
 
@@ -40,12 +45,12 @@ frontend (8080:80)  ←── 唯一 host 公开端口
 
 | Key | Type | Masked | Protected | 默认值（可不填） | 说明 |
 |---|---|---|---|---|---|
-| `SSH_PRIVATE_KEY` | Variable | ✅ | ✅ | — | **必填**。`kudi@192.168.2.127` 的 SSH 私钥（OPENSSH/PEM 格式）。从部署机 `~/.ssh/...` 读 |
-| `SSH_KNOWN_HOSTS` | Variable | ❌ | ✅ | — | 推荐填，ssh-keyscan 输出。避免首次 deploy 任务中 trusted-host 提示 |
-| `STAGING_HOST` | Variable | ❌ | ✅ | `192.168.2.127` | 部署目标 IP/域名 |
-| `STAGING_DEPLOY_USER` | Variable | ❌ | ✅ | `kudi` | SSH 用户 |
-| `STAGING_PROJECT_DIR` | Variable | ❌ | ✅ | `/home/kudi/coder-micro-services` | 部署机上存放代码的目录 |
-| `STAGING_SSH_PORT` | Variable | ❌ | ✅ | `22` | SSH 端口 |
+| `SSH_PRIVATE_KEY` | Variable | ✅ | ✅ | — | **自 deploy-staging shell runner 切换后已不需要**。旧 SSH-based deploy 用的私钥（OPENSSH/PEM 格式）。保留仅作回滚兜底，可清理。 |
+| `SSH_KNOWN_HOSTS` | Variable | ❌ | ✅ | — | **自 deploy-staging shell runner 切换后已不需要**。保留仅作回滚兜底，可清理。 |
+| `STAGING_HOST` | Variable | ❌ | ✅ | `192.168.2.128` | runner host IP/域名；E2E job 经 SSH 隧道时仍用 |
+| `STAGING_DEPLOY_USER` | Variable | ❌ | ✅ | `kudi` | **deprecated**：deploy job 现在直接跑在 staging 本机，不再 SSH。保留仅作回滚兜底 |
+| `STAGING_PROJECT_DIR` | Variable | ❌ | ✅ | `/home/kudi/coder-micro-services` | **deprecated**：shell runner 自动 git checkout 到 build_dir，不再用这个目录。保留仅作历史兼容 |
+| `STAGING_SSH_PORT` | Variable | ❌ | ✅ | `22` | E2E setsid ssh -N 隧道用，仍需要 |
 | `STAGING_BASE_URL` | Variable | ❌ | ✅ | `http://${STAGING_HOST}:8080` | frontend 公共入口；e2e 全部走这个 |
 | `IAM_DEV_BT` | Variable | ✅ | ✅ | — | iam-service 的 service-jwt bootstrap token（prod 强随机） |
 | `TOKEN_DEV_BT` | Variable | ✅ | ✅ | — | token-service bootstrap |
@@ -72,43 +77,87 @@ frontend (8080:80)  ←── 唯一 host 公开端口
 
 ---
 
-## 3. 部署机一次性的初始化
+## 3. 注册 deploy-staging shell runner
 
-在 `kudi@192.168.2.127` 上以用户身份（不是 root）：
+> **必做一次。** deploy job（`tags: [deploy-staging]`）现在直接跑在 staging 本机上，不再 SSH 跨主机；没有这个 runner 时 deploy job 会一直 pending。
+
+在 `kudi@192.168.2.128` 上以 `kudi` 身份（**不是 root**）：
 
 ```bash
-# 1. 准备代码目录
-mkdir -p ~/coder-micro-services
-cd ~/coder-micro-services
-# 后续由 CI 通过 rsync 同步，无需手动 git clone。
+# 1. 安装 gitlab-runner（Debian/Ubuntu；用项目内网的 apt 镜像）
+#    GitLab 官方 repo 也可：https://docs.gitlab.com/runner/install/linux-repository.html
+sudo apt-get update
+sudo apt-get install -y gitlab-runner
+# 注意：要保持 gitlab-runner 版本 ≥ 17.x，与 GitLab 19.x 兼容
 
-# 2. 准备 .env.prod
+# 2. 注册 runner
+sudo gitlab-runner register
+# 提示输入：
+#   GitLab URL      : https://gitlab.example.com/   (或本仓库对应内网 GitLab URL)
+#   Registration token: Settings → CI/CD → Runners → Register an instance runner
+#   Description      : deploy-staging on 192.168.2.128
+#   Tags             : deploy-staging   ← 关键，只接 deploy/deploy_smoke 两个 job
+#   Executor         : shell
+#   Default image    : (空)
+
+# 3. 验证 kudi 在 docker 组里（kudi 已加入组则跳过）
+id kudi | tr ',' '\n' | grep -q docker || sudo usermod -aG docker kudi
+# 重新登录让 group 生效
+
+# 4. 验证 runner 在线
+sudo gitlab-runner list
+sudo gitlab-runner verify
+# 状态显示 "Active" 且 tag=deploy-staging 即 OK
+```
+
+注册之后，runner 默认以 `gitlab-runner` 用户运行；如要让它以 `kudi` 身份跑（与 `id kudi` 的 docker 组匹配，需进入 ~/.ssh + docker.sock），修改 `/etc/systemd/system/gitlab-runner.service.d/override.conf`：
+
+```ini
+[Service]
+User=kudi
+Group=kudi
+```
+
+然后 `sudo systemctl daemon-reload && sudo systemctl restart gitlab-runner`。
+
+## 4. 部署机一次性的初始化
+
+在 `kudi@192.168.2.128` 上以用户身份（不是 root）：
+
+```bash
+# 1. 准备 .env.prod（runner 会 cd 到 build_dir 并 PROJECT_ROOT 推断到 git 根）
+#    不再需要手动 mkdir ~/coder-micro-services —— git checkout 自动落到
+#    /home/kudi/builds/template/low-memory-micro-services/
 cp infrastructure/.env.prod.example infrastructure/.env.prod
 $EDITOR infrastructure/.env.prod
 # 填入所有 __SET_BY_OPS__ 占位（密码、强随机的 bootstrap token）
 
-# 3. 确认 docker compose v2.20+
+# 2. 确认 docker compose v2.20+
 docker compose version | head -1
 # v2.20+ 才有 !override 标签支持。
 
-# 4. 预拉镜像（可选，部署首次也会再 pull）
+# 3. 预拉镜像（可选，部署首次也会再 pull）
 docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.prod.yml pull
 ```
 
 CI 第一次跑 deploy job 会做：
-- rsync 把代码同步到 `~/coder-micro-services`
-- 远程跑 `bash infrastructure/scripts/deploy-remote.sh`（首次会 `pull` 所有镜像）
+- gitlab-runner 自动 git checkout 到 build_dir
+- 在 staging 本机跑 `bash infrastructure/scripts/deploy-remote.sh`（首次会 `pull` 所有镜像）
 
 ---
 
-## 4. SSH key 配对（部署机侧）
+## 5. SSH key 配对（部署机侧） — **deprecated**
 
-`.gitlab-ci.yml` 的 deploy job 使用 `SSH_PRIVATE_KEY`（含在你这次贴给我的私钥）。该私钥对应 `kudi@micro-server` 主机签名。
+> 自 deploy-staging shell runner 切换后，deploy job 不再使用 SSH key。
+> 本节保留仅为回滚到 `tags: [docker]` SSH 模式时参考。E2E 段 `setsid ssh -N`
+> 仍可能需要 SSH key（GitLab Runner 在 gitlab-ci-04 上，未迁移）。
+
+`.gitlab-ci.yml` 的 deploy job 旧路径使用 `SSH_PRIVATE_KEY`（含在你这次贴给我的私钥）。该私钥对应 `kudi@micro-server` 主机签名。
 
 **把公钥写进部署机**：
 ```bash
-# 在部署机（kudi@192.168.2.127）：
-ssh-keyscan -H 192.168.2.127 > ~/.ssh/known_hosts_192   # 可选；本地信任
+# 在部署机（kudi@192.168.2.128）：
+ssh-keyscan -H 192.168.2.128 > ~/.ssh/known_hosts_192   # 可选；本地信任
 # 推荐用 deploy key：在部署机的 ~/.ssh/authorized_keys 加入对应公钥
 ```
 
@@ -125,7 +174,7 @@ ssh-keyscan -H 192.168.2.127 > ~/.ssh/known_hosts_192   # 可选；本地信任
 
 ---
 
-## 5. 验证流水线
+## 6. 验证流水线
 
 **主线（push 到 `main` 分支）**：
 
@@ -153,7 +202,7 @@ ssh-keyscan -H 192.168.2.127 > ~/.ssh/known_hosts_192   # 可选；本地信任
 
 ---
 
-## 6. 紧急回滚
+## 7. 紧急回滚
 
 prod overlay 是 dev base 的**叠加**层。单独 rm 它并不会停服务：
 ```bash
@@ -170,7 +219,7 @@ sudo /home/kudi/coder-micro-services/infrastructure/scripts/stop-prod.sh
 
 ---
 
-## 7. 已知未覆盖（留待后续阶段）
+## 8. 已知未覆盖（留待后续阶段）
 
 - **nginx TLS terminator**（443/SSL）：当前仅 8080/HTTP。spec `2026-07-06-prod-compose-overlay-design.md` 写明推到 staging 后再做。
 - **K8s / Helm**：完全 out-of-scope。
