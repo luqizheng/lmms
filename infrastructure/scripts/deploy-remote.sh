@@ -21,40 +21,71 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
-for _plugin_dir in \
-    /usr/libexec/docker/cli-plugins \
-    /usr/local/libexec/docker/cli-plugins \
-    "$HOME/.docker/cli-plugins"; do
-  if [ -x "$_plugin_dir/docker-compose" ]; then
-    export PATH="$_plugin_dir:$PATH"
-    break
+_prepend_docker_paths() {
+  local _d _found=""
+  for _d in /usr/bin /usr/local/bin /snap/bin /opt/docker/bin; do
+    [ -x "$_d/docker" ] && _found="$_d:$_found"
+  done
+  for _d in /usr/libexec/docker/cli-plugins \
+            /usr/local/libexec/docker/cli-plugins \
+            "$HOME/.docker/cli-plugins"; do
+    [ -x "$_d/docker-compose" ] && _found="$_d:$_found"
+  done
+  [ -n "$_found" ] && export PATH="${_found}${PATH}"
+}
+_prepend_docker_paths
+
+_sudo_apt_install() {
+  # 先探 sudo -n 是否可用，避免把无密码提示的失败当成 install 成功吞掉。
+  if ! command -v sudo >/dev/null 2>&1; then
+    echo "[deploy-remote] no sudo binary on PATH — cannot self-install" >&2
+    return 1
   fi
-done
+  if ! sudo -n true 2>/dev/null; then
+    echo "[deploy-remote] sudo -n denied (NOPASSWD not configured); cannot self-install" >&2
+    return 1
+  fi
+  sudo -n apt-get update -qq && sudo -n apt-get install -y "$@"
+}
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "[deploy-remote] docker CLI not found; attempting apt install docker.io"
-  if command -v sudo >/dev/null 2>&1; then
-    sudo -n apt-get update -qq && sudo -n apt-get install -y docker.io 2>&1 | tail -5 || true
-  fi
+  _sudo_apt_install docker.io || true
 fi
 
 if ! command -v docker-compose >/dev/null 2>&1 && ! docker compose version >/dev/null 2>&1; then
   echo "[deploy-remote] docker compose plugin not found; attempting apt install"
-  if command -v sudo >/dev/null 2>&1; then
-    sudo -n apt-get update -qq && sudo -n apt-get install -y docker-compose-plugin 2>&1 | tail -5 || true
-  fi
-  for _plugin_dir in \
-      /usr/libexec/docker/cli-plugins \
-      /usr/local/libexec/docker/cli-plugins; do
-    if [ -x "$_plugin_dir/docker-compose" ]; then
-      export PATH="$_plugin_dir:$PATH"
-      break
-    fi
-  done
+  _sudo_apt_install docker-compose-plugin || true
+  _prepend_docker_paths
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "[deploy-remote] FATAL: docker CLI still not found after apt install attempt" >&2
+  {
+    echo "[deploy-remote] FATAL: docker CLI not available on PATH"
+    echo "  --- diagnostic dump ---"
+    printf '  whoami     : %s\n' "$(whoami 2>/dev/null || echo unknown)"
+    printf '  groups     : %s\n' "$(groups 2>/dev/null | tr ' ' ',' || echo unknown)"
+    printf '  PATH       : %s\n' "$PATH"
+    printf '  docker     : %s\n' "$(command -v docker 2>/dev/null || echo '<NOT FOUND>')"
+    printf '  compose-v2 : %s\n' "$(docker compose version 2>/dev/null || echo '<NOT FOUND>')"
+    printf '  candidates :\n'
+    for _c in /usr/bin/docker /usr/local/bin/docker /snap/bin/docker \
+              /usr/libexec/docker/cli-plugins/docker-compose \
+              /usr/local/libexec/docker/cli-plugins/docker-compose \
+              "$HOME/.docker/cli-plugins/docker-compose"; do
+      if [ -e "$_c" ]; then
+        printf '    %s (mode %s owner %s)\n' "$_c" \
+          "$(stat -c '%a' "$_c" 2>/dev/null || echo '?')" \
+          "$(stat -c '%U:%G' "$_c" 2>/dev/null || echo '?')"
+      else
+        printf '    %s (missing)\n' "$_c"
+      fi
+    done
+    echo "  --- end diagnostic ---"
+    echo "  hint: 在 staging 上以 kudi 身份登录后跑"
+    echo "    command -v docker; type docker; echo \"\$PATH\""
+    echo "  并比对 SSH login-shell 与 non-login-shell 的 PATH。"
+  } >&2
   exit 10
 fi
 
