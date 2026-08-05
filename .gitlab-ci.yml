@@ -11,7 +11,7 @@ variables:
   DOCKER_REPO: micro-server
   BASE_REGISTRY: zhcoder-docker-registry.com:8000/official
   IMAGE_TAG: $CI_COMMIT_SHORT_SHA
-  MAVEN_REPO_URL: http://mvn.kudi.repos/repository/maven-releases/
+  MAVEN_REPO_URL: http://192.168.2.12:18181/releases
   NUGET_REPO_URL: http://nuget.kudi.repos/v3/index.json
 
   # ─── 部署目标服务器 ───
@@ -534,6 +534,9 @@ java_sdk_test:
   stage: test
   tags: [docker]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
+  before_script:
+    - mkdir -p ~/.m2
+    - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
     - cd sdk/java && mvn -B verify
   rules:
@@ -546,6 +549,9 @@ sdk_publish:
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   variables:
     SDK_VERSION: "${CI_COMMIT_TAG#v}"
+  before_script:
+    - mkdir -p ~/.m2
+    - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
     - node scripts/publish-maven-release.js --version "${SDK_VERSION}"
   rules:
@@ -663,6 +669,10 @@ cargo_audit:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    # BUILDER_RUST_IMAGE 是 Rust builder，没有 git；但下面要用 `git config --global`
+    # 改写 GitHub URL（配合 .cargo/config.toml 的 git-fetch-with-cli=true，让
+    # cargo-audit 拉 RustSec/advisory-db 走 gh-proxy）。
+    - apt-get update && apt-get install -y --no-install-recommends git ca-certificates
     # 国内无法直连 github.com：把 GitHub 拉取改写到 gh-proxy（AGENTS.md「网络规则」）。
     # 配合 .cargo/config.toml 的 `git-fetch-with-cli = true`，cargo-audit 拉
     # RustSec/advisory-db 时会经此重写走 gh-proxy。
@@ -689,6 +699,8 @@ cargo_deny:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
+    # 同 cargo_audit：BUILDER_RUST_IMAGE 没有 git，要先装好才能用 `git config --global`。
+    - apt-get update && apt-get install -y --no-install-recommends git ca-certificates
     # 同 cargo_audit：国内无法直连 github.com，改写 GitHub 拉取走 gh-proxy。
     - git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "https://github.com/"
     - cargo install cargo-deny --locked
