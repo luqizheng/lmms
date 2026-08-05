@@ -272,8 +272,6 @@ paths:
           description: missing or invalid tenant_id
         '401':
           description: mesh intention denied
-        '404':
-          description: org unit or role not found
   /iam/internal/users/by-role/{role_id}:
     get:
       tags:
@@ -1337,7 +1335,6 @@ components:
       - level
       - sort_order
       - status
-      - path
       - created_at
       - updated_at
       - children
@@ -1362,8 +1359,6 @@ components:
           type:
           - string
           - 'null'
-        path:
-          type: string
         sort_order:
           type: integer
           format: int32
@@ -1470,10 +1465,8 @@ components:
       properties:
         org_path:
           type: string
-          description: 组织路径，如 "珠海分公司/销售部"
         role_name:
           type: string
-          description: 角色名称，如 "部门经理"
     RefreshRequest:
       type: object
       required:
