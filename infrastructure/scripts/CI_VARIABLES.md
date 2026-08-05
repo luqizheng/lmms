@@ -61,11 +61,11 @@ frontend (8080:80)  ←── 唯一 host 公开端口
 | Key | Type | Masked | Protected | 默认值 | 说明 |
 |---|---|---|---|---|---|
 | `KELLNR_TOKEN` | Variable | ✅ | ✅ | — | Rust crates 发布到 kellnr (`http://192.168.2.12:16444`) 的凭证 |
-| `MAVEN_USERNAME` | Variable | ❌ | ✅ | `reposilite` | Java SDK 发到内网 maven (`http://mvn.kudi.repos`) — 一般填 `reposilite` |
+| `MAVEN_USERNAME` | Variable | ❌ | ✅ | `reposilite` | Java SDK 发到内网 Reposilite (`http://192.168.2.12:18181/releases`) — 一般填 `reposilite` |
 | `MAVEN_PASSWORD` | Variable | ✅ | ✅ | — | 同上密码 |
 | `NPM_TOKEN` | Variable | ✅ | ✅ | — | `@digua/dist-tools` 发到内网 npm (`http://npm.kudi.repos`) 的凭证 |
 
-> `MAVEN_REPO_URL` / `NUGET_REPO_URL` 是内网地址，无敏感，已在 yaml 顶部硬编码；如需调整改 yaml。
+> `MAVEN_REPO_URL` / `NUGET_REPO_URL` 是内网地址，无敏感，已在 yaml 顶部硬编码；如需调整改 yaml。Java job 通过 `cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml` 注入到 Maven，凭证走 `${env.MAVEN_USERNAME}` / `${env.MAVEN_PASSWORD}` 插值（详见 `.gitlab/ci-maven-settings.xml`）。
 
 > **完全不需要** `DEPLOY_PASSWORD`（已删除）；密钥直接走 `SSH_PRIVATE_KEY`。
 > DEPLOY_SERVER / DEPLOY_USER 旧名也已删除。

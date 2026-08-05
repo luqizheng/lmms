@@ -11,7 +11,7 @@ variables:
   DOCKER_REPO: micro-server
   BASE_REGISTRY: zhcoder-docker-registry.com:8000/official
   IMAGE_TAG: $CI_COMMIT_SHORT_SHA
-  MAVEN_REPO_URL: http://mvn.kudi.repos/repository/maven-releases/
+  MAVEN_REPO_URL: http://192.168.2.12:18181/releases
   NUGET_REPO_URL: http://nuget.kudi.repos/v3/index.json
 
   # ─── 部署目标服务器 ───
@@ -534,6 +534,9 @@ java_sdk_test:
   stage: test
   tags: [docker]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
+  before_script:
+    - mkdir -p ~/.m2
+    - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
     - cd sdk/java && mvn -B verify
   rules:
@@ -546,6 +549,9 @@ sdk_publish:
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   variables:
     SDK_VERSION: "${CI_COMMIT_TAG#v}"
+  before_script:
+    - mkdir -p ~/.m2
+    - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
     - node scripts/publish-maven-release.js --version "${SDK_VERSION}"
   rules:
