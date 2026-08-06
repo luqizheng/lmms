@@ -166,6 +166,8 @@ if (EXPORT_IMAGES === 1) {
 console.log('[release] -> 同步分发包运行时骨架...');
 const distEntries = require('fs').readdirSync(ROOT);
 for (const entry of distEntries) {
+  // 'scripts' 故意保留排除：上面 readdir 循环会递归自我嵌入 release.js 自身，
+  // 改用下方"显式 cp(ROOT/scripts, DIST_DIR/scripts)"段单独同步 release 脚本。
   if (['scripts', 'release', 'images', 'secrets'].includes(entry)) continue;
   const src = path.join(ROOT, entry);
   const dst = path.join(DIST_DIR, entry);
@@ -175,6 +177,20 @@ mkdirSync(path.join(DIST_DIR, 'secrets'), { recursive: true });
 const gitkeep = path.join(DIST_DIR, 'secrets', '.gitkeep');
 if (!existsSync(gitkeep)) writeFileSync(gitkeep, '');
 console.log('[release]   ✓ dist-template skeleton copied');
+
+// ── 同步发布脚本子集（绕过上述 readdir 循环的 scripts 排除，让 airgap 产物能复打）────
+// 'scripts' 在上文骨架同步被显式排除，原因：readdirSync(ROOT) 含 'scripts' 自身，
+// 若递归拷贝会让 release.js 把自己的副本嵌入自己的副本里。
+// 这里以"显式单次 cp"绕过：源 = release/dist-template/scripts（一个目录），
+// 目标 = DIST_DIR/scripts（尚未存在），只复制 release.js / transform-compose.js /
+// release-transforms.js / release-deploy.js 等发布脚本，不涉及 readdir 循环的递归。
+// 下游 cms-sync 拿到产物后能把 scripts/ 同步进自己仓库，从而继续打 patch 版本。
+const RELEASE_SCRIPTS_SRC = path.join(ROOT, 'scripts');
+const RELEASE_SCRIPTS_DST = path.join(DIST_DIR, 'scripts');
+if (existsSync(RELEASE_SCRIPTS_SRC)) {
+  cp(RELEASE_SCRIPTS_SRC, RELEASE_SCRIPTS_DST);
+  console.log(`[release]   ✓ dist-template/scripts/ → DIST_DIR/scripts/ (含 ${require('fs').readdirSync(RELEASE_SCRIPTS_DST).filter(f => !f.endsWith('.test.js')).join(', ')})`);
+}
 
 // ── 同步开发骨架 ──────────────────────────────────────────────────────────────
 console.log('[release] -> 同步开发骨架（contracts/scripts/skills/frontend/services/infrastructure）...');
@@ -308,6 +324,16 @@ if (!existsSync(svcCompose)) {
 }
 sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${svcCompose}" "${REGISTRY}" "${VERSION}"`);
 console.log('[release]   ✓ docker-compose-services.yml: build → image 转换完成');
+
+// 主 docker-compose.yml 同样要把 frontend 的 build: 块转成 image:（release-deploy.js 也做这件事）
+// — 之前 release.js 只转了 services.yml，结果产物中 frontend 仍是 build: 导致
+//   `docker compose up` 现场构建失败（dist 包不带 frontend 源码）。
+//   现与 release-deploy.js 行为对齐：两个 compose 文件都跑 transform-compose。
+const mainCompose = path.join(DIST_DIR, 'infrastructure', 'docker-compose.yml');
+if (existsSync(mainCompose)) {
+  sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${mainCompose}" "${REGISTRY}" "${VERSION}"`);
+  console.log('[release]   ✓ docker-compose.yml: frontend build → image 转换完成');
+}
 
 // 卷重映射 + 配置复制
 const SERVICE_SLUGS = {

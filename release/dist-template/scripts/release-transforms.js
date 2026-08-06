@@ -76,6 +76,7 @@ function buildManifest({
   gitBranch = 'unknown',
   exportImages,
   images,
+  target,                  // optional: 'airgap' | 'deploy' | undefined. Omitted from output when falsy.
 }) {
   if (!version) throw new Error('buildManifest: version is required');
   if (!registry) throw new Error('buildManifest: registry is required');
@@ -86,7 +87,10 @@ function buildManifest({
   if (!Array.isArray(images)) {
     throw new TypeError('buildManifest: images must be an array');
   }
-  return {
+  if (target !== undefined && !['airgap', 'deploy'].includes(target)) {
+    throw new TypeError(`buildManifest: target must be 'airgap' or 'deploy' when provided, got ${JSON.stringify(target)}`);
+  }
+  const out = {
     version,
     registry,
     built_at: builtAt,
@@ -95,6 +99,8 @@ function buildManifest({
     export_images: exportImages === true || exportImages === 1 ? 1 : 0,
     images: [...images],
   };
+  if (target) out.target = target;
+  return out;
 }
 
 // ─── rewriteAgentsMd ──────────────────────────────────────────────────────
