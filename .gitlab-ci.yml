@@ -368,10 +368,15 @@ frontend_lint:
 build_images:pre-staging:
   stage: build
   tags: [shell]
+  # `tags: [shell]` runner 没有 node_modules，但 scripts/build-docker.js 顶层
+  # require('prompts') / require('chalk') 会立即 NODE_NOT_FOUND。
+  # before_script 装好 devDependencies（含 prompts/chalk/js-yaml）。
+  before_script:
+    - npm ci --silent --no-audit --no-fund
   script:
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
     - echo "=== build_images:pre-staging — VERSION=${VERSION} ==="
-    # 确保 buildx 就绪（首次需创建）
+    # 确保 buildx 就备（首次需创建）
     - sudo docker buildx create --name xbuilder --use 2>/dev/null || sudo docker buildx use xbuilder
     - sudo docker buildx inspect --bootstrap
     # 9 个服务 + frontend（显式列出避免 build-docker.js 默认包含 docs-site）
@@ -461,7 +466,11 @@ deploy:pre-staging:
     - export STAGING_COMMIT="$CI_COMMIT_SHORT_SHA"
     - export STAGING_DIST="release/staging-$CI_COMMIT_SHORT_SHA"
     - export REMOTE_DIR="$STAGING_PROJECT_DIR/pre-staging/$CI_COMMIT_SHORT_SHA"
+    - export STAGING_DIST_PARENT="$(dirname "$REMOTE_DIR")"
     - "[[ -d \"$STAGING_DIST\" ]] || { echo \"pre-staging artifact missing: $STAGING_DIST\"; exit 1; }"
+    # rsync 不会自动创建 dest 父目录；先 ssh mkdir -p 显式建好
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p \"$STAGING_DIST_PARENT\""
     # rsync：--delete 确保 staging 上旧版本残留被清掉
     - rsync -a --delete
         -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new"
@@ -548,10 +557,13 @@ rust_publish:
 build_images:tagged:
   stage: publish
   tags: [shell]
+  # 同 build_images:pre-staging：[shell] runner 没有 node_modules，需 npm ci
+  before_script:
+    - npm ci --silent --no-audit --no-fund
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== build_images:tagged — VERSION=${VERSION} ==="
-    # 确保 buildx 就绪（首次需创建）
+    # 确保 buildx 就备（首次需创建）
     - sudo docker buildx create --name xbuilder --use 2>/dev/null || sudo docker buildx use xbuilder
     - sudo docker buildx inspect --bootstrap
     - node scripts/build-docker.js -v "${VERSION}" --push
