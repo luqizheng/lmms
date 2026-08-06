@@ -539,6 +539,7 @@ const BUILT_AT = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 writeFileSync(path.join(DIST_DIR, 'MANIFEST.json'), JSON.stringify({
   target: 'deploy',                                  // 区分 release.js 产物的 'airgap'
+  staging_swap_target: VERSION,                      // deploy:staging job 读这个字段做 atomic symlink swap；与 version 相同但语义明确
   version: VERSION,
   registry: REGISTRY,
   built_at: BUILT_AT,
@@ -548,7 +549,7 @@ writeFileSync(path.join(DIST_DIR, 'MANIFEST.json'), JSON.stringify({
   images_count: ALL_IMAGES.length,
   images: ALL_IMAGES,
 }, null, 2));
-console.log(`[release-deploy]   ✓ MANIFEST.json (target=deploy, ${VERSION} @ ${GIT_SHA.substring(0, 7)})`);
+console.log(`[release-deploy]   ✓ MANIFEST.json (target=deploy, staging_swap_target=${VERSION}, @ ${GIT_SHA.substring(0, 7)})`);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 打包 tar.gz
