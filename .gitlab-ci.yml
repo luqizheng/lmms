@@ -352,134 +352,139 @@ frontend_lint:
     - when: never
   allow_failure: true
 
-# ── Build anchor: 复用 docker build + push 模式 ──
-.svc_build:
-  stage: build
-  tags: [shell]
-  script:
-    - sudo docker build -f "$SVC_DOCKERFILE" -t "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:$IMAGE_TAG" .
-    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:$IMAGE_TAG"
-    - sudo docker tag "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:$IMAGE_TAG" "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:latest"
-    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/$SVC_NAME:latest"
-
-# ── Rust 服务 build helper ──
-.rust_svc_build:
-  extends: .svc_build
-  variables:
-    SVC_DOCKERFILE: "services/${SVC_NAME}/Dockerfile"
-  rules:
-    - changes:
-        - "services/${SVC_NAME}/**/*"
-        - "libs/**/*"
-        - "Cargo.toml"
-        - "Cargo.lock"
-      when: on_success
-    - when: never
-
-# ── 9 个服务 build job ──
-build_api-gateway:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "api-gateway"
-
-build_token-service:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "token-service"
-
-build_iam-service:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "iam-service"
-
-build_notification-service:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "notification-service"
-
-build_audit-service:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "audit-service"
-
-build_config-service:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "config-service"
-
-build_file-service:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "file-service"
-
-build_prue_backend:
-  extends: .rust_svc_build
-  variables:
-    SVC_NAME: "prue_backend"
-
-build_frontend:
-  stage: build
-  tags: [shell]
-  variables:
-    SVC_NAME: "frontend"
-  script:
-    - sudo docker build -f frontend/Dockerfile -t "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:$IMAGE_TAG" frontend/
-    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:$IMAGE_TAG"
-    - sudo docker tag "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:$IMAGE_TAG" "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:latest"
-    - sudo docker push "$DOCKER_REGISTRY/$DOCKER_REPO/frontend:latest"
-  rules:
-    - changes:
-        - "frontend/**/*"
-      when: on_success
-    - when: never
-
-# ─────────── Rolling deploy on staging shell runner ───────────
-# 工作流（staging 上以 kudi 身份注册的 shell runner, tag=deploy-staging）：
-#   1. runner 自动 git checkout 到 build_dir
-#   2. bash infrastructure/scripts/deploy-remote.sh（preflight + 滚动 up +
-#      healthcheck 门禁 + image prune）
-#   3. runner 端 post-deploy：frontend:8080/health 必须是 {"status":"ok"}
+# ─────────── Pre-staging 构建：把所有 9 个服务 + frontend 镜像按 commit SHA 推 registry ───────────
+# 单一 job 重建所有镜像（无 changes: 增量规则），保证 release:pre-staging 引用
+# 的每个 commit SHA tag 都真实存在。9 个镜像：
+#   api-gateway / token-service / iam-service / notification-service /
+#   audit-service / config-service / file-service / prue-admin-backend / frontend
+# （prue_backend 源码目录的镜像 tag 是 prue-admin-backend；frontend 上下文是 frontend/）
 #
-# 关键：runner 必须在 staging 上以 kudi 身份注册，kudi 已在 docker 组 → 直接
-# 访问 /var/run/docker.sock。注册步骤见 infrastructure/scripts/CI_VARIABLES.md。
-# tags 回退为 [docker] 可回滚到 SSH 路径（image 字段保留以兼容）。
-deploy:
+# 复用 scripts/build-docker.js（与本地 pnpm run docker:build 完全一致）：
+#   -v <version>      → 同时打 :<version> 与 :latest
+#   --push            → buildx --push（不留本地镜像）
+#
+# 触发：main 全跑；MR 手动（按需验证）；tag 也跑（用 commit SHA 而不是 v*.*.*）
+# 失败：阻塞后续 release:pre-staging（无 commit SHA tag 就无法生成目录）。
+build_images:pre-staging:
+  stage: build
+  tags: [shell]
+  script:
+    - export VERSION="${CI_COMMIT_SHORT_SHA}"
+    - echo "=== build_images:pre-staging — VERSION=${VERSION} ==="
+    # 确保 buildx 就绪（首次需创建）
+    - sudo docker buildx create --name xbuilder --use 2>/dev/null || sudo docker buildx use xbuilder
+    - sudo docker buildx inspect --bootstrap
+    # 9 个服务 + frontend（显式列出避免 build-docker.js 默认包含 docs-site）
+    - node scripts/build-docker.js -v "${VERSION}" --push \
+        api-gateway token-service iam-service notification-service \
+        audit-service config-service file-service prue-admin-backend \
+        frontend
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+      allow_failure: true
+  allow_failure: false
+
+# ─────────── Pre-staging: 把 commit SHA pinned 的镜像打成 self-contained 目录 ───────────
+# 工作流：
+#   1. build_images:pre-staging 已按 $CI_COMMIT_SHORT_SHA 推全部 9 个 + frontend 镜像
+#   2. release:pre-staging 把 infrastructure/ + compose（build → image 转换）+ deploy 脚本
+#      打成 release/staging-<sha>/ 目录作为 artifact 输出
+#   3. 下一个 stage 的 deploy:pre-staging 任务把目录 rsync 到 staging，调脚本起服
+#   4. 之后 e2e_* 任务直接打 STAGING_BASE_URL（commit-pinned 的稳定部署）
+#
+# 关键文件：scripts/release-staging.js（不做 SSH、不 / 镜像构建）+ infrastructure/scripts/deploy-staging.sh
+# 手动流程（CI 太慢时）：build-docker.js → release-staging.js → rsync + ssh（详见 scripts/release-staging.js 顶部注释）
+release:pre-staging:
+  stage: build
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  needs:
+    - job: build_images:pre-staging
+  variables:
+    STAGING_COMMIT: $CI_COMMIT_SHORT_SHA
+  script:
+    - node scripts/release-staging.js
+      --commit "$CI_COMMIT_SHORT_SHA"
+      --output "release/staging-$CI_COMMIT_SHORT_SHA"
+      --registry "$DOCKER_REGISTRY"
+      --repo "$DOCKER_REPO"
+    - ls -la "release/staging-$CI_COMMIT_SHORT_SHA/"
+  artifacts:
+    name: "staging-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - release/staging-$CI_COMMIT_SHORT_SHA/
+    expire_in: 3 days
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+      allow_failure: true
+  allow_failure: false
+
+# ─────────── Pre-staging deploy：rsync 目录到 staging 并起服 ───────────
+# 工作流：
+#   1. SSH_PRIVATE_KEY / STAGING_HOST 等已配 GitLab CI Variables（见
+#      .gitlab-ci.yml 顶部「部署目标服务器」注释段，与原 deploy 共用同一组 var）
+#   2. rsync release/staging-<sha>/ → <staging>:<dir>/pre-staging/<sha>/
+#   3. SSH 调 scripts/deploy-staging.sh（pull + rolling up + health gate）
+#   4. post-deploy：STAGING_BASE_URL/health 必须是 {"status":"ok"}
+#
+# 与原 deploy 任务的区别：
+#   - 用 commit-pinned 镜像（不是 :latest 也不是源码 build），每次部署可复现
+#   - 用普通 SSH（不依赖 staging 上的 shell runner），更便携
+#   - 目录完全 self-contained（不依赖 git checkout），离线也好排查
+deploy:pre-staging:
   stage: deploy
-  tags: [deploy-staging]
-  image: $BASE_REGISTRY/node:20  # 仅在 tags=[docker] 时生效；保留以兼容回滚
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  needs:
+    - job: release:pre-staging
+      optional: true
   environment:
     name: staging
     url: $STAGING_BASE_URL
+  before_script:
+    - 'which ssh || (apt-get update && apt-get install -y --no-install-recommends openssh-client rsync)'
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - '[[ -n "$SSH_PRIVATE_KEY" ]] || { echo "SSH_PRIVATE_KEY required for deploy:pre-staging"; exit 1; }'
+    - printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H -p "$STAGING_SSH_PORT" "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
   script:
-    - bash infrastructure/scripts/deploy-remote.sh
+    - export STAGING_COMMIT="$CI_COMMIT_SHORT_SHA"
+    - export STAGING_DIST="release/staging-$CI_COMMIT_SHORT_SHA"
+    - export REMOTE_DIR="$STAGING_PROJECT_DIR/pre-staging/$CI_COMMIT_SHORT_SHA"
+    - "[[ -d \"$STAGING_DIST\" ]] || { echo \"pre-staging artifact missing: $STAGING_DIST\"; exit 1; }"
+    # rsync：--delete 确保 staging 上旧版本残留被清掉
+    - rsync -a --delete
+        -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new"
+        "$STAGING_DIST/"
+        "$STAGING_DEPLOY_USER@$STAGING_HOST:$REMOTE_DIR/"
+    # 部署：pull commit-pinned 镜像 + 滚动 up + health gate
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST"
+        "STAGING_COMMIT=$CI_COMMIT_SHORT_SHA bash $REMOTE_DIR/scripts/deploy-staging.sh"
+    # post-deploy：frontend:8080/health 必须是 {"status":"ok"}
     - 'curl -fsS --max-time 10 "$STAGING_BASE_URL/health" | tee /tmp/post-deploy-health.txt'
     - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "frontend health body mismatch"; exit 1; }'
-  only:
-    - main
-  when: on_success
+    - echo "[deploy:pre-staging] done — commit=$CI_COMMIT_SHORT_SHA staging=$STAGING_HOST"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+      allow_failure: true
   allow_failure: false
   retry: 1
-
-# 与 deploy 配套：每次部署后快速 smoke 验证（deploy_smoke 仅当 deploy 跑了才存在）
-# 同 stage 内 needs 要求对方存在；用 optional: true 让 MR pipeline 上 deploy 不跑时跳过此 job。
-deploy_smoke:
-  stage: deploy
-  tags: [deploy-staging]
-  image: $BASE_REGISTRY/node:20
-  needs:
-    - job: deploy
-      optional: true
-  variables:
-    PROBE_URL: $STAGING_BASE_URL
-  script:
-    - 'for i in 1 2 3 4 5; do
-        if curl -fsS --max-time 5 "$PROBE_URL/health" >/dev/null 2>&1; then
-          echo "smoke ok on attempt $i"; exit 0;
-        fi;
-        sleep 5;
-      done;
-      echo "smoke failed"; exit 1'
-  allow_failure: true
 
 java_sdk_test:
   stage: test
