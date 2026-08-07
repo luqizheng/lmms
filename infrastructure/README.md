@@ -84,6 +84,10 @@ pnpm check:env
 | --- | --- |
 | `pnpm run docker:compose:build` | 构建所有服务的镜像（走 `docker compose build`）。 |
 | `pnpm run docker:compose:build:<svc>` | 仅构建某一个服务，例如 `docker:compose:build:iam-service`。 |
+| `pnpm run release:build` | 产出完整离线分发包（airgap）：镜像 tar + compose + dev 骨架。 |
+| `pnpm run release:deploy` | 产出纯部署包（deploy）：镜像 tar + compose + 精简 ops 脚本（无 dev 工具）。 |
+| `pnpm run release:deploy:test` | dry-run：`EXPORT_IMAGES=0` 跑 release-deploy.js，验证骨架结构（不实际 build/save 镜像）。 |
+| `pnpm run release:all` | 一次性跑 release:build + release:deploy。 |
 | `pnpm run docker:build` | 走 `scripts/build-docker.js`，构建所有镜像。无参数=交互式；参数式支持 `-v <ver>` / `--push` / `--load-and-push` / `--platform linux/amd64,linux/arm64`。详见 `node scripts/build-docker.js --help`。 |
 | `pnpm run docker:build:<svc>` | 单服务构建（= `node scripts/build-docker.js <svc>`，参数式默认不推送）。 |
 | `pnpm run docker:build:clean` | prune dangling images 释放磁盘。 |
@@ -194,6 +198,91 @@ pnpm run dev:infra
 pnpm run dev:down                       # 停容器，保留 volumes
 pnpm run docker:build:clean             # prune dangling 镜像
 ```
+
+## Staging 持续部署（GitLab CI）
+
+`.gitlab-ci.yml` 新增 **continuous staging flow**（与 pre-staging 并存）。merge to main 后自动跑：build → release → deploy → e2e，失败自动回滚。
+
+### 关键设计
+
+| 维度 | 选择 | 原因 |
+| --- | --- | --- |
+| 镜像 tag | **`$CI_COMMIT_SHORT_SHA`**（per-commit，不变） | 无 race；每个 commit 都有 immutable 版本；保留历史便于回滚 |
+| 部署模式 | **atomic symlink swap** | `staging-active -> staging-<sha>` 唯一可变，其他不可变 |
+| 并发控制 | `resource_group: staging` | GitLab 串行化所有 staging job（防御性，per-SHA 本就不 race）|
+| 镜像传递 | **registry pull**（不用 tarball） | artifact ~1MB vs 10GB；省 GitLab artifact 配额 |
+| 失败回滚 | `after_script` swap 回 `staging-prev` | e2e 失败 → 上一版本立刻恢复 |
+
+### Staging server 目录结构（192.168.2.128）
+
+```
+/home/kudi/coder-micro-services/
+├── staging-active -> staging-<current-sha>      # 原子软链，CI deploy 后指新版本
+├── staging-prev   -> staging-<previous-sha>     # 上一版 active，e2e 失败时回滚锚点
+├── staging-abc1234/                             # immutable per-SHA 目录
+├── staging-def5678/                             # immutable per-SHA 目录
+└── ...
+```
+
+每个 `staging-<sha>/` 是 self-contained 部署目录（来自 release-deploy.js 的产物 rsync 上去）。GC 由 `infrastructure/scripts/staging-gc.sh` 在 cron.daily 清理老目录（保留最近 5 个 + 永远保护 active/prev）。
+
+### CI flow 4 个 job（详见 `.gitlab-ci.yml` 第 498 行起）
+
+```
+build_images:staging → release:staging → deploy:staging → e2e:staging
+                                              ↓ (失败)
+                                         swap 回 staging-prev
+```
+
+| Job | 阶段 | 关键命令 |
+| --- | --- | --- |
+| `build_images:staging` | build | `pnpm run docker:build -- -v $CI_COMMIT_SHORT_SHA --load-and-push ...`（9 服务）|
+| `release:staging` | build | `node release/dist-template/scripts/release-deploy.js $SHA --no-images`（产骨架）|
+| `deploy:staging` | deploy | rsync → `load-images.js --mode=pull` → `swap-staging-active.sh` |
+| `e2e:staging` | e2e | SSH 反向隧道 + `pnpm run test:e2e:api/ui`；失败 swap 回 prev |
+
+### 手动操作（CI 不可用时 fallback）
+
+```bash
+# 查看当前 active 版本
+ssh kudi@192.168.2.128 "readlink -f /home/kudi/coder-micro-services/staging-active"
+
+# 查看所有已部署版本
+ssh kudi@192.168.2.128 "ls -lt /home/kudi/coder-micro-services/staging-* | head -10"
+
+# 手动部署一个 SHA（替代 CI）
+ssh kudi@192.168.2.128 "
+  REMOTE=/home/kudi/coder-micro-services/staging-<sha>
+  cd \$REMOTE && \
+  IMAGE_TAG=<sha> node bin/load-images.js --mode=pull && \
+  STAGING_BASE_DIR=/home/kudi/coder-micro-services bash infrastructure/scripts/swap-staging-active.sh <sha>
+"
+
+# 手动 rollback
+ssh kudi@192.168.2.128 "
+  STAGING_BASE_DIR=/home/kudi/coder-micro-services \
+    bash /home/kudi/coder-micro-services/staging-<old-sha>/infrastructure/scripts/swap-staging-active.sh <old-sha>
+"
+
+# 清理老目录（默认保留最近 5 个 + 保护 active/prev）
+ssh kudi@192.168.2.128 "bash infrastructure/scripts/staging-gc.sh"
+ssh kudi@192.168.2.128 "bash infrastructure/scripts/staging-gc.sh --keep 10"  # 改阈值
+
+# 安装 GC 到 cron
+ssh kudi@192.168.2.128 "sudo install -m755 infrastructure/scripts/staging-gc.sh /etc/cron.daily/staging-gc"
+```
+
+### 与 pre-staging 流程的对比
+
+| 维度 | pre-staging | continuous staging |
+| --- | --- | --- |
+| 触发 | 手动 / MR pipeline | merge to main 自动 |
+| 工具 | `scripts/release-staging.js` + `deploy-staging.sh` | `release-deploy.js --no-images` + `swap-staging-active.sh` |
+| 部署目录 | `pre-staging/<sha>/` | `staging-<sha>/`（带 active symlink）|
+| 多版本共存 | 不支持（旧版本被覆盖） | 支持（per-SHA immutable + active swap）|
+| 自动回滚 | 无 | e2e 失败自动 swap 回 staging-prev |
+
+两个流程并存：pre-staging 用于"手动预演 + 任意 MR 验证"，continuous staging 用于"main 自动验证"。
 
 ## 故障排查
 

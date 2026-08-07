@@ -2,6 +2,12 @@
 /**
  * start.js — 启动所有容器（含 healthcheck 等待）
  * 等价于原 release/dist-template/bin/start.sh
+ *
+ * flag：
+ *   --deploy    跳过 build-frontend（部署包用户场景：frontend 已预构建在镜像中）
+ *
+ * 默认 dev/二次开发场景会从 ./frontend 源码构建 nginx 镜像；deploy 场景跳过这一步
+ * 直接 `docker compose up` 因为 frontend image 已通过 node bin/load-images.js 加载。
  */
 const { execSync } = require('child_process');
 const path = require('path');
@@ -9,8 +15,15 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 process.chdir(ROOT);
 
-// 1. 确保 frontend 镜像存在
-execSync(`node "${path.join(ROOT, 'bin', 'build-frontend.js')}"`, { stdio: 'inherit' });
+const args = process.argv.slice(2);
+const isDeploy = args.includes('--deploy');
+
+if (isDeploy) {
+  console.log('[start] --deploy 模式：跳过 build-frontend（镜像已预构建并 load 进本地 docker）');
+} else {
+  // 1. 确保 frontend 镜像存在（dev/二次开发场景）
+  execSync(`node "${path.join(ROOT, 'bin', 'build-frontend.js')}"`, { stdio: 'inherit' });
+}
 
 // 2. 启动所有容器
 console.log('[start] → docker compose up -d');

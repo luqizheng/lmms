@@ -171,6 +171,43 @@ test('buildManifest: images array is copied, not aliased', () => {
   assert.deepEqual(m.images, ['a', 'b']);
 });
 
+test('buildManifest: target=deploy 字段被写入；target 不传则字段不存在（向后兼容 airgap）', () => {
+  const deployM = buildManifest({
+    version: 'v1.1.0',
+    registry: 'r.example.com:8000',
+    builtAt: '2026-08-06T19:00:00Z',
+    gitSha: 'abc1234',
+    exportImages: true,
+    images: ['r/a:v1'],
+    target: 'deploy',
+  });
+  assert.equal(deployM.target, 'deploy');
+
+  const airgapM = buildManifest({
+    version: 'v1.0.0',
+    registry: 'r.example.com:8000',
+    builtAt: '2026-08-06T19:00:00Z',
+    gitSha: 'abc1234',
+    exportImages: true,
+    images: ['r/a:v1'],
+  });
+  assert.equal(airgapM.target, undefined, 'airgap 包不应有 target 字段（backward compat）');
+  assert.ok(!('target' in airgapM));
+});
+
+test('buildManifest: target=airgap 显式也接受', () => {
+  const m = buildManifest({
+    version: 'v', registry: 'r', builtAt: 't', exportImages: true, images: [], target: 'airgap',
+  });
+  assert.equal(m.target, 'airgap');
+});
+
+test('buildManifest: 非法 target 值被 reject', () => {
+  assert.throws(() => buildManifest({
+    version: 'v', registry: 'r', builtAt: 't', exportImages: true, images: [], target: 'invalid',
+  }), /target must be/);
+});
+
 // ─── rewriteAgentsMd ─────────────────────────────────────────────────────
 
 test('rewriteAgentsMd: replaces .trae/rules/ → .agents/rules/', () => {

@@ -495,6 +495,169 @@ deploy:pre-staging:
   allow_failure: false
   retry: 1
 
+# ═════════════════════════════════════════════════════════════════════════════
+# Continuous staging flow（per-commit SHA + atomic symlink swap）
+# ═════════════════════════════════════════════════════════════════════════════
+# 与 pre-staging 的关键差异：
+#   - 只跑 main branch（不在 MR pipeline 上跑，省 build 时间）
+#   - 用 release-deploy.js --no-images 产骨架（artifact ~1MB，镜像不打包）
+#   - 镜像由 staging server 走 docker pull（registry 直拉，免 tar 体积）
+#   - 部署走 atomic symlink swap：staging-active -> staging-<sha>，无 race
+#   - resource_group: staging 串行化（保护 symlink swap 原子性）
+#   - e2e:staging 失败自动 rollback 到 staging-prev
+#
+# staging server 目录结构（192.168.2.128）：
+#   /home/kudi/coder-micro-services/
+#     staging-active -> staging-<current-sha>     # 原子软链，唯一可变状态
+#     staging-prev   -> staging-<previous-sha>    # rollback 锚点
+#     staging-<sha>/                              # immutable per-SHA 目录
+#
+# 关键文件：
+#   - infrastructure/scripts/swap-staging-active.sh — 原子 swap（deploy:staging / e2e:staging rollback）
+#   - infrastructure/scripts/staging-gc.sh — 清理老 staging-<sha>（cron.daily）
+#   - release/dist-template/scripts/release-deploy.js --no-images — 产骨架
+#   - release/dist-template/bin/load-images.js --mode=pull — 从 registry 拉镜像
+
+build_images:staging:
+  stage: build
+  tags: [shell]
+  resource_group: staging
+  before_script:
+    - npm ci --silent --no-audit --no-fund
+  script:
+    - export VERSION="${CI_COMMIT_SHORT_SHA}"
+    - echo "=== build_images:staging — VERSION=${VERSION} ==="
+    - sudo docker buildx create --name xbuilder --use 2>/dev/null || sudo docker buildx use xbuilder
+    - sudo docker buildx inspect --bootstrap
+    # --load-and-push：本地留镜像（staging server pull 需要）+ 推 registry（备份 / 跨环境可拉）
+    - node scripts/build-docker.js -v "${VERSION}" --load-and-push \
+        api-gateway token-service iam-service notification-service \
+        audit-service config-service file-service prue-admin-backend \
+        frontend
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  allow_failure: false
+
+release:staging:
+  stage: build
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  resource_group: staging
+  needs:
+    - job: build_images:staging
+  script:
+    - export VERSION="${CI_COMMIT_SHORT_SHA}"
+    # --no-images：只产骨架（artifact ~1MB），镜像由 staging server pull
+    - node release/dist-template/scripts/release-deploy.js "${VERSION}" --no-images
+    - export DIST_DIR="release/dist-template/release/coder-micro-services-${VERSION}-deploy"
+    - "[[ -d \"$DIST_DIR\" ]] || { echo \"staging deploy skeleton missing: $DIST_DIR\"; exit 1; }"
+    - "[[ -f \"$DIST_DIR/MANIFEST.json\" ]] || { echo \"MANIFEST.json missing\"; exit 1; }"
+  artifacts:
+    name: "staging-deploy-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - release/dist-template/release/coder-micro-services-${CI_COMMIT_SHORT_SHA}-deploy/
+    expire_in: 3 days
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  allow_failure: false
+
+deploy:staging:
+  stage: deploy
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  resource_group: staging
+  needs:
+    - job: release:staging
+  environment:
+    name: staging
+    url: $STAGING_BASE_URL
+  before_script:
+    - 'which ssh || (apt-get update && apt-get install -y --no-install-recommends openssh-client rsync)'
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - '[[ -n "$SSH_PRIVATE_KEY" ]] || { echo "SSH_PRIVATE_KEY required for deploy:staging"; exit 1; }'
+    - printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H -p "$STAGING_SSH_PORT" "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+  script:
+    - export STAGING_SHA="${CI_COMMIT_SHORT_SHA}"
+    - export DIST_DIR="release/dist-template/release/coder-micro-services-${STAGING_SHA}-deploy"
+    - export REMOTE_DIR="${STAGING_PROJECT_DIR}/staging-${STAGING_SHA}"
+    # 从 MANIFEST.json 读 staging_swap_target 字段（release-deploy.js 写入）
+    # 用 node 解析而非 jq（避免 runner 缺 jq）
+    - export SWAP_TARGET="$(node -e "console.log(JSON.parse(require('fs').readFileSync('${DIST_DIR}/MANIFEST.json')).staging_swap_target)")"
+    - '[[ "${SWAP_TARGET}" == "${STAGING_SHA}" ]] || { echo "MANIFEST staging_swap_target=${SWAP_TARGET} != ${STAGING_SHA}"; exit 1; }'
+    # rsync 骨架到 staging server（先 ssh 建好父目录）
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p '${STAGING_PROJECT_DIR}'"
+    - rsync -a --delete
+        -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new"
+        "$DIST_DIR/"
+        "$STAGING_DEPLOY_USER@$STAGING_HOST:$REMOTE_DIR/"
+    # 镜像从 registry pull（替代 tar load）—— mode=pull 扫 compose 中 image: 引用替换 :<ver> 为 :<sha>
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST"
+        "cd '${REMOTE_DIR}' && IMAGE_TAG='${STAGING_SHA}' node bin/load-images.js --mode=pull"
+    # atomic swap staging-active 软链到 staging-<sha>（同时把旧 active 退到 staging-prev）
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST"
+        "STAGING_BASE_DIR='${STAGING_PROJECT_DIR}' bash '${REMOTE_DIR}/infrastructure/scripts/swap-staging-active.sh' '${STAGING_SHA}'"
+    # post-deploy health gate
+    - 'curl -fsS --max-time 10 "$STAGING_BASE_URL/health" | tee /tmp/post-deploy-health.txt'
+    - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "frontend health body mismatch"; exit 1; }'
+    - echo "[deploy:staging] done — sha=${STAGING_SHA} active=staging-${STAGING_SHA}"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  allow_failure: false
+  retry: 1
+
+e2e:staging:
+  stage: e2e
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  resource_group: staging
+  needs:
+    - job: deploy:staging
+  variables:
+    STAGING_SHA: $CI_COMMIT_SHORT_SHA
+  before_script:
+    - 'which ssh || (apt-get update && apt-get install -y --no-install-recommends openssh-client)'
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - '[[ -n "$SSH_PRIVATE_KEY" ]] || { echo "SSH_PRIVATE_KEY required for e2e:staging"; exit 1; }'
+    - printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H -p "$STAGING_SSH_PORT" "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+    # SSH 反向隧道：把 staging 的端口拉到 runner 本地（与现有 e2e 模式一致）
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new -N -f
+        -R 3000:localhost:3000 -R 8080:localhost:8080 -R 8500:localhost:8500
+        "$STAGING_DEPLOY_USER@$STAGING_HOST"
+    - cd tests/e2e && pnpm install --frozen-lockfile
+  script:
+    # e2e 跑刚部署的 SHA（active 已 swap 到 ${STAGING_SHA}，staging server 上跑的就是它）
+    - pnpm run test:e2e:api -- --base-url=http://localhost:8080
+    - pnpm run test:e2e:ui  -- --base-url=http://localhost:8080
+  # 失败时 rollback：swap 回 staging-prev（deploy:staging 已把旧版退到 prev）
+  after_script:
+    - |
+      if [ "$CI_JOB_STATUS" == "failed" ]; then
+        echo "[e2e:staging] FAILED — rolling back via staging-prev"
+        ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new \
+          "$STAGING_DEPLOY_USER@$STAGING_HOST" \
+          "PREV_LINK='${STAGING_PROJECT_DIR}/staging-prev'
+           if [ -L \"\$PREV_LINK\" ]; then
+             PREV_SHA=\$(basename \$(readlink -f \"\$PREV_LINK\") | sed 's/^staging-//')
+             echo \"[rollback] swap 回 staging-\$PREV_SHA\"
+             STAGING_BASE_DIR='${STAGING_PROJECT_DIR}' bash '${STAGING_PROJECT_DIR}/staging-'\"\$PREV_SHA\"'/infrastructure/scripts/swap-staging-active.sh' \"\$PREV_SHA\" || true
+             echo '[e2e:staging] rolled back'
+           else
+             echo '[e2e:staging] no staging-prev link, leaving active as-is'
+           fi"
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  allow_failure: false
+
 java_sdk_test:
   stage: test
   tags: [docker]
