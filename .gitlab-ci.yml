@@ -380,10 +380,12 @@ build_images:pre-staging:
     - sudo docker buildx create --name xbuilder --use 2>/dev/null || sudo docker buildx use xbuilder
     - sudo docker buildx inspect --bootstrap
     # 9 个服务 + frontend（显式列出避免 build-docker.js 默认包含 docs-site）
-    - node scripts/build-docker.js -v "${VERSION}" --push \
-        api-gateway token-service iam-service notification-service \
-        audit-service config-service file-service prue-admin-backend \
-        frontend
+    # 用变量传递避免 YAML 多行 `\<newline>` + 缩进导致 bash 把缩进当作 arg 前缀
+    #（见 pipeline 6287 中 build-docker.js 报 "忽略未知参数: api-gateway, audit-service, frontend"）
+    - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend frontend"
+    # sudo -E：[shell] runner 上 gitlab-runner user 不在 docker group（/var/run/docker.sock 是 root:docker 0660），
+    # 但 sudoers 配了 NOPASSWD: ALL。node scripts/build-docker.js 内部 spawnSync('docker', ...) 需要 daemon socket 访问。
+    - sudo -E node scripts/build-docker.js -v "${VERSION}" --push $BUILD_SERVICES
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
@@ -530,10 +532,10 @@ build_images:staging:
     - sudo docker buildx create --name xbuilder --use 2>/dev/null || sudo docker buildx use xbuilder
     - sudo docker buildx inspect --bootstrap
     # --load-and-push：本地留镜像（staging server pull 需要）+ 推 registry（备份 / 跨环境可拉）
-    - node scripts/build-docker.js -v "${VERSION}" --load-and-push \
-        api-gateway token-service iam-service notification-service \
-        audit-service config-service file-service prue-admin-backend \
-        frontend
+    # 用变量传递避免 YAML 多行 `\<newline>` + 缩进导致 bash 把缩进当作 arg 前缀
+    - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend frontend"
+    # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
+    - sudo -E node scripts/build-docker.js -v "${VERSION}" --load-and-push $BUILD_SERVICES
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
@@ -729,7 +731,8 @@ build_images:tagged:
     # 确保 buildx 就备（首次需创建）
     - sudo docker buildx create --name xbuilder --use 2>/dev/null || sudo docker buildx use xbuilder
     - sudo docker buildx inspect --bootstrap
-    - node scripts/build-docker.js -v "${VERSION}" --push
+    # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
+    - sudo -E node scripts/build-docker.js -v "${VERSION}" --push
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
