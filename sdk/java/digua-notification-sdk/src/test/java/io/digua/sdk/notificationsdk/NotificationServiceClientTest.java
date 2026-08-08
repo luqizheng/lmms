@@ -120,7 +120,7 @@ class NotificationServiceClientTest {
         client.markAsRead(99L);
         RecordedRequest req = server.takeRequest();
         assertEquals("POST", req.getMethod());
-        assertEquals("/v1/notification/notifications/99/read", req.getPath());
+        assertEquals("/v1/notification/announcements/99/read", req.getPath());
     }
 
     @Test
