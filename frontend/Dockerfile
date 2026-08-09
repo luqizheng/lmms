@@ -12,8 +12,8 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY package.json pnpm-lock.yaml* .npmrc* ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts --network-timeout=300000 || \
-    pnpm install --ignore-scripts --network-timeout=300000
+    pnpm install --frozen-lockfile --ignore-scripts --fetch-timeout=300000 || \
+    pnpm install --ignore-scripts --fetch-timeout=300000
 
 COPY . .
 
