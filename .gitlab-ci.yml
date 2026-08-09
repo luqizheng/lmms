@@ -71,9 +71,14 @@ variables:
 # build_images 空转（ENOTFOUND 重试循环）会堆积 buildx 缓存撑满 runner 磁盘
 # （pipeline 6307 实证：rust_test 连续 No space left on device）。pipelineDestroy
 # 只删 GitLab 记录，不清理 runner 主机实际缓存，故在此显式 prune。
+# parallel: 2 —— 两台 shell runner（192.168.2.69 / 192.168.2.31）都可能被
+# build_images 或 rust_test(docker volume) 撑满；单实例只清被调度到的那台
+# （pipeline 6319 实证：cleanup 清了 69，rust_test 在 31 仍 No space）。
+# 两个实例并行分到两台，各 prune 一次。
 cleanup:buildx:
   stage: cleanup
   tags: [shell]
+  parallel: 2
   before_script:
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
   script:
