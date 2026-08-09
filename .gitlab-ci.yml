@@ -387,7 +387,7 @@ build_images:pre-staging:
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
     - node scripts/download-swagger-ui.js
-    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
+    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
   script:
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
     - echo "=== build_images:pre-staging — VERSION=${VERSION} ==="
@@ -554,7 +554,7 @@ build_images:staging:
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
     - node scripts/download-swagger-ui.js
-    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
+    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
   script:
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
     - echo "=== build_images:staging — VERSION=${VERSION} ==="
@@ -767,7 +767,7 @@ build_images:tagged:
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
     - node scripts/download-swagger-ui.js
-    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
+    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== build_images:tagged — VERSION=${VERSION} ==="
