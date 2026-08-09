@@ -374,7 +374,7 @@ build_images:pre-staging:
   # 并登录内网 docker registry 以便 buildx push。
   before_script:
     - npm ci --silent --no-audit --no-fund
-    - echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin
+    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
   script:
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
     - echo "=== build_images:pre-staging — VERSION=${VERSION} ==="
@@ -528,7 +528,7 @@ build_images:staging:
   resource_group: staging
   before_script:
     - npm ci --silent --no-audit --no-fund
-    - echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin
+    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
   script:
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
     - echo "=== build_images:staging — VERSION=${VERSION} ==="
@@ -728,7 +728,7 @@ build_images:tagged:
   # 同 build_images:pre-staging：[shell] runner 没有 node_modules，需 npm ci
   before_script:
     - npm ci --silent --no-audit --no-fund
-    - echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin
+    - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== build_images:tagged — VERSION=${VERSION} ==="
