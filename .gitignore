@@ -33,9 +33,11 @@ reports/
 /.worktrees/
 /.omo/
 
-# utoipa-swagger-ui build.rs 依赖的 vendor zip；pnpm setup 时自动下载，
-# 大文件不进 git。需要时跑 `pnpm run assets:download` 恢复。
-/infrastructure/vendor/
+# utoipa-swagger-ui build.rs 依赖的 vendor zip；已提交进 git（4.4MB），
+# 避免 shell runner 无本地缓存时现场从 gh-proxy.org 下载超时
+# （runner 50 实证 download timeout 120s）。升级时重下并重新提交。
+/infrastructure/vendor/*
+!/infrastructure/vendor/swagger-ui-v5.17.14.zip
 
 # Docker registry 来源由 `pnpm run setup` 交互式向导写入（scripts/setup-wizard.js），
 # 本地配置不入 git；CI 可用 CODER_BASE_REGISTRY / CODER_BUILDER_REGISTRY 环境变量覆盖。
