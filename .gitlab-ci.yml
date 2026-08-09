@@ -79,7 +79,7 @@ cleanup:buildx:
   script:
     - sudo docker buildx prune -af 2>/dev/null || true
     - sudo docker system prune -af --volumes 2>/dev/null || true
-    - df -h /builds | tail -1
+    - df -h / | tail -1
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
