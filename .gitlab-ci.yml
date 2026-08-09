@@ -374,6 +374,17 @@ build_images:pre-staging:
   # 并登录内网 docker registry 以便 buildx push。
   before_script:
     - npm ci --silent --no-audit --no-fund
+    # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
+    # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
+    # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    - |
+      echo "registry=${CODER_NPM_REGISTRY}" > .npmrc
+      echo "strict-ssl=false" >> .npmrc
+      if [ -n "$CODER_NPM_TOKEN" ]; then
+        echo "//${CODER_NPM_REGISTRY#*://}/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
+      fi
+    # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
+    - node scripts/download-swagger-ui.js
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
   script:
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
@@ -528,6 +539,17 @@ build_images:staging:
   resource_group: staging
   before_script:
     - npm ci --silent --no-audit --no-fund
+    # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
+    # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
+    # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    - |
+      echo "registry=${CODER_NPM_REGISTRY}" > .npmrc
+      echo "strict-ssl=false" >> .npmrc
+      if [ -n "$CODER_NPM_TOKEN" ]; then
+        echo "//${CODER_NPM_REGISTRY#*://}/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
+      fi
+    # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
+    - node scripts/download-swagger-ui.js
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
   script:
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
@@ -728,6 +750,17 @@ build_images:tagged:
   # 同 build_images:pre-staging：[shell] runner 没有 node_modules，需 npm ci
   before_script:
     - npm ci --silent --no-audit --no-fund
+    # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
+    # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
+    # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    - |
+      echo "registry=${CODER_NPM_REGISTRY}" > .npmrc
+      echo "strict-ssl=false" >> .npmrc
+      if [ -n "$CODER_NPM_TOKEN" ]; then
+        echo "//${CODER_NPM_REGISTRY#*://}/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
+      fi
+    # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
+    - node scripts/download-swagger-ui.js
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then echo "$DOCKER_REGISTRY_PASSWORD" | sudo docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" --password-stdin; fi'
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
