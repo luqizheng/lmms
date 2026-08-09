@@ -377,11 +377,13 @@ build_images:pre-staging:
     # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
     # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
     # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    # 用 IP 直连而非 ${CODER_NPM_REGISTRY}（域名 npm.kudi.repos）：buildx 容器内该
+    # 域名 DNS 解析失败（ENOTFOUND，pipeline 6307 实证），IP 直连不受 DNS 影响。
     - |
-      echo "registry=${CODER_NPM_REGISTRY}" > .npmrc
+      echo "registry=http://192.168.2.12:14873" > .npmrc
       echo "strict-ssl=false" >> .npmrc
       if [ -n "$CODER_NPM_TOKEN" ]; then
-        echo "//${CODER_NPM_REGISTRY#*://}/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
+        echo "//192.168.2.12:14873/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
     - node scripts/download-swagger-ui.js
@@ -542,11 +544,13 @@ build_images:staging:
     # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
     # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
     # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    # 用 IP 直连而非 ${CODER_NPM_REGISTRY}（域名 npm.kudi.repos）：buildx 容器内该
+    # 域名 DNS 解析失败（ENOTFOUND，pipeline 6307 实证），IP 直连不受 DNS 影响。
     - |
-      echo "registry=${CODER_NPM_REGISTRY}" > .npmrc
+      echo "registry=http://192.168.2.12:14873" > .npmrc
       echo "strict-ssl=false" >> .npmrc
       if [ -n "$CODER_NPM_TOKEN" ]; then
-        echo "//${CODER_NPM_REGISTRY#*://}/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
+        echo "//192.168.2.12:14873/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
     - node scripts/download-swagger-ui.js
@@ -753,11 +757,13 @@ build_images:tagged:
     # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
     # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
     # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    # 用 IP 直连而非 ${CODER_NPM_REGISTRY}（域名 npm.kudi.repos）：buildx 容器内该
+    # 域名 DNS 解析失败（ENOTFOUND，pipeline 6307 实证），IP 直连不受 DNS 影响。
     - |
-      echo "registry=${CODER_NPM_REGISTRY}" > .npmrc
+      echo "registry=http://192.168.2.12:14873" > .npmrc
       echo "strict-ssl=false" >> .npmrc
       if [ -n "$CODER_NPM_TOKEN" ]; then
-        echo "//${CODER_NPM_REGISTRY#*://}/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
+        echo "//192.168.2.12:14873/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
     - node scripts/download-swagger-ui.js
