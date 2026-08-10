@@ -646,11 +646,11 @@ deploy:staging:
         "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p '$REMOTE_DIR'"
     - tar -C "$DIST_DIR" -cf - . | ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST" "tar -C '$REMOTE_DIR' -xf -"
-    # 远端 192.168.2.128 没装 node；用 docker run node:20-slim 跑 load-images.js
-    # （官方镜像已在 runner 端 pull，tar 包已同步到远端；远端只需 docker pull node:20-slim 然后 docker run 挂载目录）
+    # 远端 192.168.2.128 没装 node 也无法访问 Docker Hub；用内网 registry 的 node:20 跑
+    # load-images.js（远端已能拉内网 registry 的 image；之前用 node:20-slim 拉 Docker Hub 超时）
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
-        "cd '${REMOTE_DIR}' && IMAGE_TAG='${STAGING_SHA}' docker run --rm -v '${REMOTE_DIR}:/app' -w /app node:20-slim bin/load-images.js --mode=pull"
+        "cd '${REMOTE_DIR}' && IMAGE_TAG='${STAGING_SHA}' docker run --rm -v '${REMOTE_DIR}:/app' -w /app zhcoder-docker-registry.com:8000/official/node:20-slim bin/load-images.js --mode=pull"
     # atomic swap staging-active 软链到 staging-<sha>（同时把旧 active 退到 staging-prev）
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
