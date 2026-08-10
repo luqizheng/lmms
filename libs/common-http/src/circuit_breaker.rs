@@ -82,18 +82,58 @@ impl CircuitBreaker {
                     .compare_exchange(1, 2, Ordering::SeqCst, Ordering::SeqCst)
                 {
                     Ok(_) => {
-                        self.half_open_calls.store(0, Ordering::SeqCst);
                         self.success_count.store(0, Ordering::SeqCst);
-                        self.half_open_calls.fetch_add(1, Ordering::SeqCst)
-                            < self.half_open_max_calls
+                        // CAS winner. Atomically claim the first slot via
+                        // compare_exchange(0, 1) — only succeeds if the counter is
+                        // still 0 (i.e., no other thread has slipped in with a
+                        // stale-value fetch_add). Pre-fix bug: the original code
+                        // did store(0) then fetch_add(1) as two separate ops, so a
+                        // loser's fetch_add(1) running between them could see 0
+                        // and admit before the winner's store(0) completed,
+                        // then the winner's fetch_add(1) saw 1+ and also admitted
+                        // — admitting 6+ threads instead of half_open_max_calls.
+                        // Post-fix: only the winner whose CAS(0,1) wins holds the
+                        // first slot; losers fall through to the Err branch and
+                        // see the already-incremented counter.
+                        if self
+                            .half_open_calls
+                            .compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst)
+                            .is_ok()
+                        {
+                            return true;
+                        }
+                        // Winner but the counter was already bumped by a loser
+                        // (rare: the loser raced ahead of our CAS(0,1) in the
+                        // window between state.compare_exchange success and our
+                        // half_open_calls CAS). Fall through to the Err branch
+                        // logic to claim an incremental slot.
                     }
                     Err(actual) => {
                         debug_assert!(
                             actual == 2,
                             "unexpected state during Open->HalfOpen race: {actual}"
                         );
-                        self.half_open_calls.fetch_add(1, Ordering::SeqCst)
-                            < self.half_open_max_calls
+                    }
+                }
+                // Shared half-open admission path (CAS winner that lost the
+                // counter race, plus all CAS losers). Atomically claim a slot
+                // via compare_exchange; reject if already at half_open_max_calls.
+                loop {
+                    let current = self.half_open_calls.load(Ordering::SeqCst);
+                    if current >= self.half_open_max_calls {
+                        return false;
+                    }
+                    if self
+                        .half_open_calls
+                        .compare_exchange(
+                            current,
+                            current + 1,
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                        )
+                        .is_ok()
+                    {
+                        return true;
                     }
                 }
             }
