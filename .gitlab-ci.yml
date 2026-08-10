@@ -502,7 +502,6 @@ deploy:pre-staging:
     name: staging
     url: $STAGING_BASE_URL
   before_script:
-    - 'which rsync || (apt-get update && apt-get install -y --no-install-recommends rsync)'
     - mkdir -p ~/.ssh && chmod 700 ~/.ssh
     - '[[ -n "$SSH_PRIVATE_KEY" ]] || { echo "SSH_PRIVATE_KEY required for deploy:pre-staging"; exit 1; }'
     - printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
@@ -513,14 +512,11 @@ deploy:pre-staging:
     - export REMOTE_DIR="$STAGING_PROJECT_DIR/pre-staging/$CI_COMMIT_SHORT_SHA"
     - export STAGING_DIST_PARENT="$(dirname "$REMOTE_DIR")"
     - "[[ -d \"$STAGING_DIST\" ]] || { echo \"pre-staging artifact missing: $STAGING_DIST\"; exit 1; }"
-    # rsync 不会自动创建 dest 父目录；先 ssh mkdir -p 显式建好
+    # tar over ssh 传输（远端无需 rsync；--delete 改为 rm -rf 替代）
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
-        "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p \"$STAGING_DIST_PARENT\""
-    # rsync：--delete 确保 staging 上旧版本残留被清掉
-    - rsync -a --delete
-        -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new"
-        "$STAGING_DIST/"
-        "$STAGING_DEPLOY_USER@$STAGING_HOST:$REMOTE_DIR/"
+        "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p \"$STAGING_DIST_PARENT\" && rm -rf '$REMOTE_DIR' && mkdir -p '$REMOTE_DIR'"
+    - tar -C "$STAGING_DIST" -cf - . | ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST" "tar -C '$REMOTE_DIR' -xf -"
     # 部署：pull commit-pinned 镜像 + 滚动 up + health gate
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
@@ -633,7 +629,6 @@ deploy:staging:
     name: staging
     url: $STAGING_BASE_URL
   before_script:
-    - 'which rsync || (apt-get update && apt-get install -y --no-install-recommends rsync)'
     - mkdir -p ~/.ssh && chmod 700 ~/.ssh
     - '[[ -n "$SSH_PRIVATE_KEY" ]] || { echo "SSH_PRIVATE_KEY required for deploy:staging"; exit 1; }'
     - printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
@@ -646,13 +641,11 @@ deploy:staging:
     # 用 node 解析而非 jq（避免 runner 缺 jq）
     - export SWAP_TARGET="$(node -e "console.log(JSON.parse(require('fs').readFileSync('${DIST_DIR}/MANIFEST.json')).staging_swap_target)")"
     - '[[ "${SWAP_TARGET}" == "${STAGING_SHA}" ]] || { echo "MANIFEST staging_swap_target=${SWAP_TARGET} != ${STAGING_SHA}"; exit 1; }'
-    # rsync 骨架到 staging server（先 ssh 建好父目录）
+    # tar over ssh 传输（远端无需 rsync；MR !37 修了 runner 端但 192.168.2.128 没 rsync）
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
-        "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p '${STAGING_PROJECT_DIR}'"
-    - rsync -a --delete
-        -e "ssh -i ~/.ssh/deploy_key -p $STAGING_SSH_PORT -o StrictHostKeyChecking=accept-new"
-        "$DIST_DIR/"
-        "$STAGING_DEPLOY_USER@$STAGING_HOST:$REMOTE_DIR/"
+        "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p '$REMOTE_DIR'"
+    - tar -C "$DIST_DIR" -cf - . | ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST" "tar -C '$REMOTE_DIR' -xf -"
     # 镜像从 registry pull（替代 tar load）—— mode=pull 扫 compose 中 image: 引用替换 :<ver> 为 :<sha>
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
