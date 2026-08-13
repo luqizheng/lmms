@@ -14,6 +14,18 @@
 | `coder-migrate-db` | 加数据库迁移（MySQL + SQLite） |
 | `coder-new-service` | 从零搭一个新的 Rust 微服务 |
 
+### 质量与诊断 Skill（`.agents/skills/`，按场景触发）
+
+| Skill | 何时调用 |
+|-------|---------|
+| `coder-openapi-contracts-sync` | 改完路由后，跑 5 道契约门禁（dump spec → contracts 校对 → 跑 gates） |
+| `coder-ci-diagnose` | CI 红灯时，按报错映射到根因 + 一键修复命令 |
+| `coder-rust-unit-test` | 给 Rust service 加 `#[cfg(test)]` / testcontainers MySQL / wiremock / Principal 测试桩 |
+| `coder-microservice-review-checklist` | PR 合规审查（X-User-* 禁用 / 表名前缀 / 错误码契约 / outbox 等 12 项 grep 必查） |
+| `coder-perf-profile` | 慢/卡顿/内存涨时，做 CPU/内存火焰图、heaptrack、RSS baseline 对比 |
+| `coder-contract-trace` | 跨服务事件追踪（RabbitMQ + transactional outbox 4 阶段定位「事件卡在哪」） |
+| `coder-migration-rollback` | 线上迁移出错的应急回滚（forward-only 补偿迁移决策树） |
+
 ### 平台 Skill（`.trae/skills/`）
 
 | Skill | 何时调用 |
@@ -35,7 +47,7 @@ AI Agent 会根据你触碰的路径自动加载 Skill：
 
 | 路径 | 自动加载 |
 |------|----------|
-| `services/*/src/routes/*.rs` | `coder-add-route`（新增路由时） |
+| `services/*/src/routes/*.rs` | `coder-add-route`（新增路由时），改完后跑 `coder-openapi-contracts-sync` |
 | `services/*/migrations/**` | `coder-migrate-db`（新增迁移时） |
 | `services/*/openapi.yaml` | **警告：禁止手改**，跑 `node scripts/dump-openapi-specs.js` |
 | `contracts/**` | 跑 `node scripts/contracts-gen.js` 重新生成 |
@@ -128,3 +140,8 @@ CI 用 `git diff --exit-code -- 'services/*/openapi.yaml'` 检测漂移。
 | 跑契约审计 | `node scripts/contracts-gen.js --check` |
 | 同步基础镜像 | `node scripts/base-images-sync.js` |
 | 跑 E2E | `node scripts/run-e2e-local.js` |
+| CI 失败诊断 | `.agents/skills/coder-ci-diagnose/SKILL.md` |
+| PR 合规审查 | `.agents/skills/coder-microservice-review-checklist/SKILL.md` |
+| 跨服务事件追踪 | `.agents/skills/coder-contract-trace/SKILL.md` |
+| 性能/内存 profile | `.agents/skills/coder-perf-profile/SKILL.md` |
+| 迁移应急回滚 | `.agents/skills/coder-migration-rollback/SKILL.md` |
