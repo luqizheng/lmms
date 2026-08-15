@@ -1,4 +1,5 @@
 use digua_common_db::init_pool;
+use digua_common_jwt::{JwksConfig, JWKSCache};
 use prue_backend::{
     db,
     dto::{CreateMenuConfigRequest, UpdateMenuConfigRequest},
@@ -7,11 +8,21 @@ use prue_backend::{
     state::AppState,
 };
 use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
 
 async fn fresh_service() -> MenuConfigService {
     let pool = init_pool("sqlite::memory:").await.expect("init pool");
     db::ensure_schema(&pool).await.expect("ensure schema");
-    let state = AppState::new(pool);
+    let jwks = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: "http://localhost:0/.well-known/jwks.json".into(),
+            refresh_interval: Duration::from_secs(3600),
+            request_timeout: Duration::from_secs(5),
+        },
+        reqwest::Client::new(),
+    ));
+    let state = AppState::new(pool, jwks);
     MenuConfigService::new(state)
 }
 
@@ -184,4 +195,41 @@ async fn active_routes_strips_menu_field_recursively() {
     let still_has_menu = svc.get(&detail.id).await.unwrap();
     let detail_serialized = serde_json::to_string(&still_has_menu.routes_json).unwrap();
     assert!(detail_serialized.contains("_menu"));
+}
+
+#[tokio::test]
+async fn create_after_soft_delete_does_not_rewind_version() {
+    // Regression: version counter must not rewind over soft-deleted rows
+    // (used to collide with UNIQUE(version) after all rows were deleted).
+    let svc = fresh_service().await;
+
+    let first = svc
+        .create(CreateMenuConfigRequest {
+            name: "first".into(),
+            description: None,
+            routes_json: json!([{ "path": "/a", "name": "A" }]),
+            created_by: None,
+        })
+        .await
+        .expect("first create");
+    assert_eq!(first.version, 1);
+
+    svc.delete(&first.id).await.expect("soft delete first");
+
+    let second = svc
+        .create(CreateMenuConfigRequest {
+            name: "second".into(),
+            description: None,
+            routes_json: json!([{ "path": "/b", "name": "B" }]),
+            created_by: None,
+        })
+        .await
+        .expect("create after soft delete must not duplicate version");
+
+    assert!(
+        second.version > first.version,
+        "version must advance past soft-deleted rows, got {} <= {}",
+        second.version,
+        first.version
+    );
 }

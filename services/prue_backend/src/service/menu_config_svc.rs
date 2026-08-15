@@ -296,7 +296,9 @@ impl MenuConfigService {
     }
 
     async fn next_version(&self) -> AppResult<i64> {
-        let sql = "SELECT COALESCE(MAX(version), 0) FROM prue_menu_configs WHERE deleted_at IS NULL";
+        // Includes soft-deleted rows: version never reuses a number, otherwise
+        // rewind-after-delete collides with UNIQUE(version).
+        let sql = "SELECT COALESCE(MAX(version), 0) FROM prue_menu_configs";
         let current: (i64,) = match self.state.db.as_ref() {
             DbPool::Mysql(pool) => sqlx::query_as(sql).fetch_one(pool).await?,
             DbPool::Sqlite(pool) => sqlx::query_as(sql).fetch_one(pool).await?,

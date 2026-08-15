@@ -51,12 +51,15 @@ impl IntoResponse for AppError {
                     "updated_at": updated_at,
                 })),
             ),
-            AppError::Database(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                500,
-                "internal error".to_string(),
-                None,
-            ),
+            AppError::Database(ref e) => {
+                tracing::error!(error = %e, "database error");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    500,
+                    "internal error".to_string(),
+                    None,
+                )
+            }
         };
 
         (
