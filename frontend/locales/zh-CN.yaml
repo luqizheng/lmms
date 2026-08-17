@@ -685,6 +685,8 @@ status:
   pureNoNotify: 暂无通知
   pureNoTodo: 暂无待办
 login:
+  pureLogin: 登录
+  pureBack: 返回
   pureUsername: 账号
   purePassword: 密码
   pureVerifyCode: 验证码

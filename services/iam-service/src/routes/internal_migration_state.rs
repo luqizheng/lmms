@@ -26,6 +26,8 @@ impl MigrationState for IamMigrationState {
             MigrationDescriptor { version: "V003", name: "tenants", marker_table: "iam_tenants" },
             MigrationDescriptor { version: "V004", name: "tenant_business_tables", marker_table: "iam_migration_v004_applied" },
             MigrationDescriptor { version: "V005", name: "platform_admin_role", marker_table: "iam_migration_v005_applied" },
+            MigrationDescriptor { version: "V006", name: "org_unit_path", marker_table: "iam_migration_v006_applied" },
+            MigrationDescriptor { version: "V007", name: "system_menu_permission", marker_table: "iam_migration_v007_applied" },
         ]
     }
 }
@@ -85,14 +87,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn iam_has_five_migrations() {
+    fn iam_has_seven_migrations() {
         let s = IamMigrationState;
         assert_eq!(s.service_name(), "iam-service");
         assert_eq!(s.dialect(), "mysql");
-        assert_eq!(s.migrations().len(), 5);
+        assert_eq!(s.migrations().len(), 7);
         assert_eq!(s.migrations()[0].version, "V001");
-        assert_eq!(s.migrations()[4].version, "V005");
+        assert_eq!(s.migrations()[6].version, "V007");
         assert_eq!(s.migrations()[0].marker_table, "iam_users");
-        assert_eq!(s.migrations()[4].marker_table, "iam_migration_v005_applied");
+        assert_eq!(s.migrations()[5].marker_table, "iam_migration_v006_applied");
+        assert_eq!(s.migrations()[6].marker_table, "iam_migration_v007_applied");
     }
 }

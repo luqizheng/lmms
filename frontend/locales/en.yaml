@@ -685,6 +685,8 @@ status:
   pureNoNotify: No Notify
   pureNoTodo: No Todo
 login:
+  pureLogin: Login
+  pureBack: Back
   pureUsername: Username
   purePassword: Password
   pureVerifyCode: VerifyCode
