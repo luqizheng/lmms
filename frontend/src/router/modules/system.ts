@@ -20,7 +20,8 @@ export default {
       meta: {
         title: $t("menus.systemUser"),
         icon: "ep/user",
-        keepAlive: true
+        keepAlive: true,
+        roles: ["platform_admin"]
       }
     },
     {
@@ -30,7 +31,8 @@ export default {
       meta: {
         title: $t("menus.systemRole"),
         icon: "ep/user-filled",
-        keepAlive: true
+        keepAlive: true,
+        roles: ["platform_admin"]
       }
     },
     {
@@ -40,7 +42,8 @@ export default {
       meta: {
         title: $t("menus.systemPermission"),
         icon: "ep/lock",
-        keepAlive: true
+        keepAlive: true,
+        roles: ["platform_admin"]
       }
     },
     {
@@ -87,13 +90,36 @@ export default {
       }
     },
     {
+      path: "/system/menu",
+      name: "SystemMenu",
+      component: () => import("@/views/system/menu/index.vue"),
+      meta: {
+        title: $t("menus.systemMenu"),
+        icon: "ep/menu",
+        keepAlive: true,
+        roles: ["platform_admin"]
+      }
+    },
+    {
+      path: "/system/tenant",
+      name: "SystemTenant",
+      component: () => import("@/views/system/tenant/index.vue"),
+      meta: {
+        title: $t("menus.systemTenant"),
+        icon: "ep/office-building",
+        keepAlive: true,
+        roles: ["platform_admin"]
+      }
+    },
+    {
       path: "/system/dept",
       name: "SystemDept",
       component: () => import("@/views/system/dept/index.vue"),
       meta: {
         title: $t("menus.pureDept"),
         icon: "ep/office-building",
-        keepAlive: true
+        keepAlive: true,
+        roles: ["platform_admin"]
       }
     }
   ]
