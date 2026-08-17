@@ -142,6 +142,121 @@ export default {
 - `frontend/locales/zh-CN.ts` 加 `menus.foo` + `menus.fooIndex` 翻译
 - `frontend/locales/en.yaml` 同样
 
+#### 3.2.3 菜单级权限：仅特定角色可见
+
+> 适用：希望某条路由（顶级菜单或子页面）**只对特定角色**显示，其它角色侧边栏看不到、强进 URL 跳 `/error/403`。
+> 与 §3.2 的按钮级 `auths`（`meta.auths` / `v-perms`）**正交**——可同时配。
+> 关联：`docs/superpowers/specs/2026-08-17-system-menu-permission-design.md` 完整设计 spec。
+
+| 维度 | 菜单级（`meta.roles`）| 按钮级（`meta.auths` / `v-perms`）|
+|---|---|---|
+| 控制目标 | 整条路由是否可见 / 可访问 | 单个按钮 / 区域是否渲染 |
+| 字段值 | `iam_roles.code` 角色 code 列表 | `iam_permissions.code` 权限码列表 |
+| framework 触发点 | `filterNoPermissionTree`（菜单）+ `router/index.ts:154` 路由守卫 | `v-perms` 指令 / `<Auth>` 组件 |
+| iam 表 `category` | （**不**直接 seed，靠目标角色自带的权限）| `api` / `button` / `menu` |
+| 默认行为（缺字段时）| 全员可见（framework 历史行为，详见 §4 故障表）| 全员不可见 |
+
+**framework 现状**：菜单过滤和路由守卫都已就位，只需给 router module 配 `meta.roles` + 后端 seed 权限码绑给目标角色。
+
+##### 步骤 1：router module 加 `meta.roles`
+
+`frontend/src/router/modules/<svc>.ts`：
+
+```ts
+{
+  path: "/system/menu",
+  name: "SystemMenu",
+  component: () => import("@/views/system/menu/index.vue"),
+  meta: {
+    title: $t("menus.systemMenu"),
+    icon: "ep/menu",
+    keepAlive: true,
+    roles: ["platform_admin"]   // 仅 platform_admin 角色可见
+  }
+}
+```
+
+`meta.roles` 是 `Array<string>`，值是 `iam_roles.code` 字段（**不是** `iam_permissions.code`）。
+
+framework 行为（已实现，无需扩展）：
+
+- `frontend/src/router/utils.ts:filterNoPermissionTree`（line 87）按 `meta.roles` 比对当前用户的 `user.roles`：
+  - 非命中 → 菜单项从 `wholeMenus` 过滤掉
+  - 父路由 children 全部被过滤 → `filterChildrenTree` 联动过滤父目录
+- `frontend/src/router/index.ts:154` 路由守卫：直接 URL 跳转 /system/* 时，命中失败跳 `/error/403`
+
+**父路由的 `meta.roles`**：受 `frontend/types/router.d.ts:RouteConfigsTable`（line 82-104）类型限制（父路由 meta 仅含 `title`/`icon`/`showLink`/`rank`），**不需要**显式加——子路由加 `roles` 即可由 `filterChildrenTree` 联动。
+
+##### 步骤 2：iam seed 权限码 + 绑给目标角色
+
+新建 `services/iam-service/migrations/mysql/V00N__<feature>_menu_permission.sql`（V 号选未被占用的下一个，**先** `ls services/iam-service/migrations/mysql/` 确认）：
+
+```sql
+-- 菜单级权限码 seed
+-- id 用确定性字符串便于 ON DUPLICATE KEY UPDATE
+INSERT INTO iam_permissions (id, code, name, description, category, resource, action, sort_order, status, created_at, updated_at)
+VALUES (
+  'perm-<feature>-read',
+  'IAM_<FEATURE>_READ',
+  '<feature> 菜单',
+  '<feature>（xxx/yyy/zzz）菜单入口',
+  'menu',                       -- 关键：category=menu（与 button/api 区分）
+  '<feature>',
+  'read',
+  50,
+  'enabled',
+  NOW(), NOW()
+)
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  description = VALUES(description),
+  sort_order = VALUES(sort_order),
+  updated_at = NOW();
+
+-- 显式绑给目标角色
+-- V005 的 INSERT IGNORE ... FROM iam_permissions WHERE status = 'enabled'
+-- 是 V005 一次性动作，V00X 新加的权限码不会被自动绑——必须显式写
+INSERT IGNORE INTO iam_role_permissions (role_id, permission_id, created_at)
+SELECT '<role-id>', 'perm-<feature>-read', NOW();
+```
+
+**同时**改 2 处 iam 启动时 schema 注册（forward-only，V005 / V006 是先例）：
+
+1. `services/iam-service/src/db.rs` —— 加 `V00N_SQL` 常量 + `V00N_MARKER_TABLE` 常量 + 在 `ensure_schema` 末尾追加 apply 块
+2. `services/iam-service/src/routes/internal_migration_state.rs` —— `IamMigrationState.migrations()` 数组加新 descriptor；如有 `iam_has_*_migrations` 测试更新断言（个数 + 末位 version / marker_table）
+
+##### 步骤 3：验证
+
+```bash
+# 1. 后端编译 + 单测
+node scripts/run-tests-docker.js iam-service
+# 期望：14/14 单测通过（含 iam_has_*_migrations）
+
+# 2. 真 MySQL apply（验证 SQL 语法 + role binding）
+docker exec -i infrastructure-mysql-1 mysql -uroot -prootpass iam_smoke \
+  < services/iam-service/migrations/mysql/V00N__*.sql
+docker exec infrastructure-mysql-1 mysql -uroot -prootpass iam_smoke \
+  -e "SELECT p.code FROM iam_role_permissions rp JOIN iam_permissions p ON rp.permission_id=p.id WHERE rp.role_id='<role-id>';"
+# 期望：看到 IAM_<FEATURE>_READ
+
+# 3. 前端单测（路由结构 + framework 行为规约）
+cd frontend && pnpm exec vitest run src/router/utils.test.ts
+# 期望：6 个子路由 meta.roles 断言通过 + filterNoPermissionTree 规约通过
+
+# 4. 5 个 CI 门禁
+node scripts/check-service-standard.js
+node scripts/check-spec.js
+node scripts/contracts-gen.js --check
+node scripts/check-db-naming.js
+node scripts/dump-openapi-specs.js
+git diff --exit-code -- 'services/*/openapi.yaml'
+
+# 5. 端到端
+# - admin 用户（绑 platform_admin）登录 → 侧边栏看到目标菜单
+# - 新建一个非 platform_admin 角色 + 用户 → 侧边栏看不到目标菜单
+# - 直接 URL 访问 /<svc>/<feature> → 跳 /error/403
+```
+
 ### 3.3 CI 拦截
 
 新 view 上线前**必跑**：
@@ -255,6 +370,7 @@ curl：步骤 5 的最后一步即 publish。
 
 | 现象 | 原因 | 修复 |
 |---|---|---|
+| **system / notification 等管理菜单对非管理员也全员显示** | router module 没配 `meta.roles`；framework `isOneOfArray(undefined, currentRoles)` 缺省返回 true（历史行为）| 配 `meta.roles: ['<role-code>']` + iam seed 权限码 + 绑给目标角色（§3.2.3）|
 | sidebar 不出现 | 未 publish / publish 后没重新登录 | 检查 `/system/menu` 列表的 `is_active` 标记；强制退出重登 |
 | sidebar 出现但点击白屏 | router module 没注册 / path 不一致 | 跑 `check:router-modules`；核对 router module children 的 `path` |
 | 重新登录后仍不出现 | 该菜单项 `showLink: false` | 显式 URL 访问（深链），或改 `showLink: true`（适合作为顶级菜单）；保留 `showLink: false`（适合只通过父菜单跳转） |
@@ -291,4 +407,4 @@ cd frontend && pnpm run lint
 
 ---
 
-_最后更新：2026-07-08_
+_最后更新：2026-08-17（新增 §3.2.3 菜单级权限配置 + §4 "管理菜单全员显示" 故障条目）_
