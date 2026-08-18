@@ -1,0 +1,37 @@
+apiVersion: 1
+
+# Loki datasource — staging only.
+# Auto-loaded by Grafana via ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+# mounted in infrastructure/docker-compose-observability.yml (grafana service, volumes).
+#
+# Companion config:
+#   - infrastructure/config/loki/loki-staging.yaml  (Loki server config, ADR-007)
+#   - infrastructure/scripts/*                       (Loki + Promtail docker-compose services, T2)
+#
+# Trace correlation: derivedFields extract trace_id from each JSON log line
+# (matching the http_access event format introduced in f04fa8e) and turn the
+# value into a clickable link that jumps into Jaeger.
+#
+# NOTE on datasourceUid: Jaeger is not currently provisioned as a Grafana
+# datasource. Grafana auto-resolves the built-in Jaeger data source by name,
+# so we set datasourceUid to "jaeger" and let Grafana's built-in provision
+# (or future jaeger.yaml provisioning) satisfy the reference. When/if we
+# provision an explicit Jaeger datasource, replace this with that file's uid.
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: false
+    uid: loki-staging
+    jsonData:
+      # Where to look for the trace_id within a log line.
+      # Access-log JSON example: {"event":"http_access","trace_id":"a1b2c3..."}
+      derivedFields:
+        - datasourceUid: jaeger
+          matcherRegex: '"trace_id":"([0-9a-f]{32})"'
+          name: trace_id
+          # $$ is YAML-escape for a literal $, then ${__value.raw} expands
+          # to the captured trace_id at runtime in Grafana.
+          url: '$${__value.raw}'
