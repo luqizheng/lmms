@@ -22,13 +22,14 @@
 //! iam-service starting in parallel. Empty/blank `database.url` after the
 //! merge → hard error at startup.
 
+mod metrics;
 mod outbox_archive;
 
 use std::io::{ErrorKind, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, anyhow};
 use digua_common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
@@ -133,6 +134,8 @@ async fn main() -> anyhow::Result<()> {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(100);
+    let metrics_path = std::env::var("METRICS_FILE_PATH")
+        .unwrap_or_else(|_| "/var/run/prometheus/iam_outbox.prom".to_string());
 
     let pool = MySqlPoolOptions::new()
         .max_connections(8)
@@ -180,8 +183,17 @@ async fn main() -> anyhow::Result<()> {
 
     let poll_interval = Duration::from_millis(poll_ms);
     let mut publisher: Option<RabbitMqPublisher> = None;
+    let metrics_path_buf = Path::new(&metrics_path).to_path_buf();
+    let mut last_poll_start: Option<Instant> = None;
 
     while !shutdown.load(Ordering::SeqCst) {
+        let poll_start = Instant::now();
+        let lag_seconds = last_poll_start
+            .map(|prev| poll_start.duration_since(prev).as_secs_f64())
+            .unwrap_or(0.0);
+        metrics::record_poll_lag(lag_seconds);
+        last_poll_start = Some(poll_start);
+
         // Ensure the publisher is connected. On broker bounce, this rebuilds.
         if publisher.is_none() {
             match RabbitMqPublisher::new(&event_bus_url, &exchange).await {
@@ -191,7 +203,9 @@ async fn main() -> anyhow::Result<()> {
                 }
                 Err(e) => {
                     warn!(error = %e, "connect rabbitmq failed, will retry");
+                    metrics::record_error("broker_connect");
                     tokio::time::sleep(poll_interval).await;
+                    metrics::flush_to_file(&metrics_path_buf);
                     continue;
                 }
             }
@@ -203,12 +217,16 @@ async fn main() -> anyhow::Result<()> {
             Ok(b) => b,
             Err(e) => {
                 warn!(error = %e, "claim_batch failed, will retry");
+                metrics::record_error("claim_batch");
                 tokio::time::sleep(poll_interval).await;
+                metrics::flush_to_file(&metrics_path_buf);
                 continue;
             }
         };
+        metrics::record_batch_size(batch.len());
         if batch.is_empty() {
             tokio::time::sleep(poll_interval).await;
+            metrics::flush_to_file(&metrics_path_buf);
             continue;
         }
 
@@ -222,6 +240,7 @@ async fn main() -> anyhow::Result<()> {
                 Ok(b) => b,
                 Err(e) => {
                     warn!(error = %e, id = row.id, "skipping unserializable row");
+                    metrics::record_error("serialize");
                     continue;
                 }
             };
@@ -232,6 +251,7 @@ async fn main() -> anyhow::Result<()> {
                 Ok(()) => published_ids.push(row.id),
                 Err(e) => {
                     warn!(error = %e, id = row.id, "publish failed, will reconnect");
+                    metrics::record_error("publish");
                     broker_failed = true;
                     break;
                 }
@@ -241,8 +261,10 @@ async fn main() -> anyhow::Result<()> {
         if !published_ids.is_empty() {
             if let Err(e) = repo.mark_published(&published_ids).await {
                 warn!(error = %e, "mark_published failed; rows will be reclaimed");
+                metrics::record_error("mark_published");
             } else {
                 info!(published = published_ids.len(), "published outbox batch");
+                metrics::record_published(published_ids.len());
             }
         }
 
@@ -250,8 +272,10 @@ async fn main() -> anyhow::Result<()> {
             publisher = None; // force reconnect next cycle
             tokio::time::sleep(poll_interval).await;
         }
+        metrics::flush_to_file(&metrics_path_buf);
     }
 
+    metrics::flush_to_file(&metrics_path_buf);
     info!("outbox publisher exited cleanly");
     Ok(())
 }
