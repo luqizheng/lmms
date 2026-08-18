@@ -1755,7 +1755,7 @@ name = "digua_audit_sdk"
 version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1978,6 +1978,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
+ "tokio 1.52.3",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -2012,7 +2013,7 @@ name = "digua_config_sdk"
 version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2025,7 +2026,7 @@ name = "digua_file_sdk"
 version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2048,24 +2049,6 @@ dependencies = [
  "tokio 1.52.3",
  "tracing",
  "wiremock",
-]
-
-[[package]]
-name = "digua_http_client"
-version = "1.1.0"
-source = "sparse+http://192.168.2.12:16444/api/v1/crates/"
-checksum = "e5506d1579e1e008ce324b305a1bb5bbf9b396b521e11ef78f1a8e122bf11fc8"
-dependencies = [
- "async-trait",
- "hex",
- "reqwest",
- "rustls 0.23.40",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
- "tokio 1.52.3",
- "tracing",
 ]
 
 [[package]]
@@ -2073,7 +2056,7 @@ name = "digua_iam_sdk"
 version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2104,7 +2087,7 @@ name = "digua_notification_sdk"
 version = "1.1.0"
 dependencies = [
  "chrono",
- "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2116,7 +2099,7 @@ dependencies = [
 name = "digua_token_sdk"
 version = "1.1.0"
 dependencies = [
- "digua_http_client 1.1.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_http_client",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -3216,7 +3199,6 @@ dependencies = [
  "hyper-util",
  "mockall",
  "nanoid",
- "opentelemetry",
  "prometheus 0.13.4",
  "prometheus_exporter",
  "rand 0.8.6",
@@ -3235,7 +3217,6 @@ dependencies = [
  "tower 0.5.3",
  "tower-http",
  "tracing",
- "tracing-opentelemetry",
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",

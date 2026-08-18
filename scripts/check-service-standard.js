@@ -126,6 +126,25 @@ function hasSwagger(serviceDir) {
   return hasSwaggerRust(serviceDir) || hasSwaggerJava(serviceDir);
 }
 
+/**
+ * OTel otlp feature 静态守门（iam-service P0 回归防线）。
+ *
+ * 背景：workspace 用 resolver="2"，服务 Dockerfile 单独 `cargo build -p <svc>`，
+ * 依赖闭包内 digua_common_telemetry 的 feature 只由该服务自己的声明决定。
+ * iam-service 曾漏写 `features = ["otlp"]` → init_tracing 的 `#[cfg(feature = "otlp")]`
+ * exporter 注册分支被整体编译掉 → span 永远到不了 Jaeger。
+ *
+ * 规则：凡声明 digua_common_telemetry / digua_common_telemetry_axum 依赖的
+ * Rust 服务，每个声明必须显式带 otlp feature。豁免在 AGENTS.md `## 豁免` 段
+ * 写 `OTel otlp feature`。
+ */
+function hasOtlpFeatureRust(serviceDir) {
+  const cargo = readSafe(path.join(serviceDir, 'Cargo.toml'));
+  const deps = cargo.match(/digua_common_telemetry(?:[-_]axum)?\s*=\s*\{([^}]*)\}/g) || [];
+  if (deps.length === 0) return true; // 不依赖则不要求
+  return deps.every(dep => /features\s*=\s*\[[^\]]*otlp/.test(dep));
+}
+
 function hasTests(serviceDir) {
   const lang = detectLanguage(serviceDir);
   if (lang === 'java' || lang === 'mixed') {
@@ -182,6 +201,15 @@ function main() {
     }
 
     const exemptions = parseExemptions(fs.readFileSync(agentsPath, 'utf-8'));
+
+    if (lang === 'rust' && !exemptions.has('OTel otlp feature')) {
+      if (hasOtlpFeatureRust(svcDir)) {
+        console.log('✓ OTel otlp feature（digua_common_telemetry 显式开启）');
+      } else {
+        console.log('⚠️  缺失: OTel otlp feature（digua_common_telemetry 依赖须显式 features = ["otlp"]，防 iam-service P0 回归）');
+        failed = true;
+      }
+    }
 
     for (const comp of REQUIRED) {
       if (exemptions.has(comp)) {

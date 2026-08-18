@@ -100,3 +100,47 @@ pub fn shutdown() {
 
 mod trace_id;
 pub use trace_id::current_trace_id;
+
+#[cfg(all(test, feature = "otlp"))]
+mod otlp_exporter_registration_tests {
+    use super::init_tracing;
+
+    /// P0 守门测试：`otlp` feature + `OTEL_EXPORTER_OTLP_ENDPOINT` 时，
+    /// `init_tracing` 必须真正走 OTLP 分支——注册 exporter pipeline 并安装
+    /// W3C TraceContext 传播器。
+    ///
+    /// 背景（2026-08 iam-service P0）：workspace 用 resolver="2"，iam-service
+    /// 的 Dockerfile 单独 `cargo build -p iam_service`，依赖闭包内只有它自己
+    /// 声明 digua_common_telemetry（曾漏掉 `features = ["otlp"]`），导致
+    /// `#[cfg(feature = "otlp")]` 分支被整体编译掉，span 永远到不了 Jaeger。
+    /// 若未来再有服务摘掉 otlp feature 声明，此测试会被 cfg 静默排除——
+    /// 因此配合 scripts/check-service-standard.js 的静态守门双保险。
+    ///
+    /// 断言依据：`global::set_text_map_propagator(TraceContextPropagator)`
+    /// 只在 otlp 分支执行（见 init_tracing），且 install_batch() 失败会 panic。
+    /// 走到 propagator 断言 ⇒ exporter pipeline 构建成功。
+    #[tokio::test(flavor = "multi_thread")]
+    async fn init_tracing_registers_otlp_pipeline() {
+        // 指向不可达地址：install_batch() 不阻塞（exporter 后台重试），
+        // 只要能完成安装即证明 OTLP pipeline 已接线。
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:1");
+
+        init_tracing("telemetry-test-svc");
+
+        let otlp_pipeline_registered = opentelemetry::global::get_text_map_propagator(|p| {
+            // W3C TraceContextPropagator.fields() == ["traceparent", "tracestate"]；
+            // 未注册时为 no-op propagator，fields() 为空。
+            p.fields().map(|f| f.to_string()).collect::<Vec<_>>()
+        });
+        assert_eq!(
+            otlp_pipeline_registered,
+            ["traceparent", "tracestate"],
+            "init_tracing with otlp feature + OTEL_EXPORTER_OTLP_ENDPOINT must register the \
+             OTLP pipeline (TraceContextPropagator + exporter); otherwise spans never reach \
+             Jaeger (iam-service P0 regression)"
+        );
+
+        super::shutdown();
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}

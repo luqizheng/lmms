@@ -52,7 +52,7 @@
 |---|---|---|---|---|
 | `api-gateway` | JWT 验签、Redis 黑名单、路由、限流 | 显式 `otlp` | 已设 `OTEL_EXPORTER_OTLP_ENDPOINT` | 唯一对外 HTTP 入口；容器 + 宿主机端口均 3000 |
 | `token-service` | access/refresh/service-jwt 签发 | 显式 `otlp` | 已设 | `/tokens/.well-known/jwks.json` |
-| `iam-service` | 用户 / 角色 / 权限 / 部门 / 租户；事件生产者 | **`digua_common-telemetry` 未显式启用 `otlp`**；直接依赖 `opentelemetry` + `tracing-opentelemetry` 但 exporter 注册未独立核验 | 已设 | `iam_outbox_events` 表；`/iam/internal/*` 端点验 `aud="iam-service"`；OTel 实际导出行为待 §8 第 5 条说明 |
+| `iam-service` | 用户 / 角色 / 权限 / 部门 / 租户；事件生产者 | 显式 `otlp` | 已设 | `iam_outbox_events` 表；`/iam/internal/*` 端点验 `aud="iam-service"`；2026-08 P0 修复：补开 `otlp` feature（此前 resolver=2 + 单独 `cargo build -p iam_service` 下 exporter 注册分支被编译掉），守门见 §8 第 5 条 |
 | `iam-outbox-publisher`（独立 publisher crate） | 轮询 `iam_outbox_events` → RabbitMQ | 显式 `otlp`（`default-features = false` + `["otlp"]`） | 未设 | 独立 crate（Phase 6-A T2-fu3 拆出），仅依赖 sqlx + digua_common-event + digua_common-telemetry + serde_yaml；compose 复用 `iam-service` Dockerfile 切 CMD；无 HTTP / 无 openapi.yaml / 无 migrations / 无 tests / 无自有 Dockerfile |
 | `notification-service` | 公告 CRUD + WebSocket 推送 + 本地 user membership 投影 | 显式 `otlp` | 已设 | 同 crate 内另含 `[[bin]] ntf-outbox-publisher`（轮询 `ntf_outbox_events` → RabbitMQ；OTel 未设 env）；订阅 `iam.user.*` / `iam.permission.changed` / `notification.announcement.published` |
 | `audit-service` | 操作日志 + 登录日志；事件消费者 | 显式 `otlp` | 未设 | RabbitMQ consumer；envelope.trace_id → span parent |
@@ -264,7 +264,7 @@
 | SLO 文档 | **✅ 新增** `docs-site/slo.md`：8 服务 SLO 表 + SLI 公式 + 错误预算策略 + 告警规则对应 | [正常] |
 | Performance baseline | **✅ 新增** `docs-site/perf-baseline.md`：S1 health check 已实测（RPS 91.2 / p50 105.5ms / 0 errors / gw CPU 10.44%）；S2-S7 待 k6 安装后补全 | [正常] |
 | runbooks | **✅ 3 份**（旧版本只 1 份）：`secret-rotation.md` + `backup.md`（P0-4 覆盖 MySQL/Redis/RabbitMQ/Consul 4 组件手动 SOP）+ `mysql-replication.md`（P0-4 剩余，主从 GTID 复制 + Failover） | [正常] |
-| OTel 端到端 trace | 9 个 crate 显式开 `otlp` feature；iam-service 未显式开（直接依赖 `opentelemetry`/`tracing-opentelemetry`，但 exporter 注册未核验）；compose 只对 6 个 Rust HTTP 服务 + 2 个 Java 服务设置 `OTEL_EXPORTER_OTLP_ENDPOINT` | [纠正] 区分"代码接入"与"compose 实际导出配置"；详见 §1.1 表格 |
+| OTel 端到端 trace | 10 个 crate 全部显式开 `otlp` feature（2026-08 P0 修复 iam-service：补 `digua_common-telemetry` + `-axum` 的 `features = ["otlp"]`，删冗余直接依赖 `opentelemetry`/`tracing-opentelemetry`）；compose 只对 6 个 Rust HTTP 服务 + 2 个 Java 服务设置 `OTEL_EXPORTER_OTLP_ENDPOINT` | [正常] 区分"代码接入"与"compose 实际导出配置"；详见 §1.1 表格 |
 
 
 ---
@@ -277,7 +277,7 @@ PM Platform 已于 2026-07-19 移除（commit 在 git 历史）。仅保留 `pm-
 
 ### 7.2 ~~OTel 覆盖 vs compose env 不一致~~ → [已收敛]
 
-旧 ai-context §7 第 11 条列的 audit/config/file/prue_backend OTel "—" 已全部纠正——它们确实开了 `digua_common-telemetry` 的 `otlp` feature。**剩余不确定项**：iam-service `Cargo.toml` 未显式开 feature（直接依赖 `opentelemetry` / `tracing-opentelemetry`），exporter 注册未独立核验（详见 §1.1 表格 + §8 关键约定第 5 条）。
+旧 ai-context §7 第 11 条列的 audit/config/file/prue_backend OTel "—" 已全部纠正——它们确实开了 `digua_common-telemetry` 的 `otlp` feature。**剩余不确定项已清零（2026-08 P0）**：iam-service 曾漏开 feature（直接依赖 `opentelemetry` / `tracing-opentelemetry` 但无使用点，exporter 注册分支被 resolver=2 + 单独构建编译掉），已补 `features = ["otlp"]` 并删冗余依赖；守门见 §1.1 表格 + §8 关键约定第 5 条。
 
 ### 7.3 ~~部署 compose 路径漂移~~ → [已修复]
 
@@ -306,8 +306,9 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 4. **手写 `openapi.yaml` 已废止**：全部 10 份由 utoipa / springdoc 自动生成。改 spec 改代码（`#[utoipa::path]` / `@Operation`），再跑 `node scripts/dump-openapi-specs.js`。**不要直接编辑 yaml**。
 
 5. **OTel traces 靠 env + feature 双开**（口径已按 Cargo.toml + compose 实际校准）：
-   - `iam-service` 走另一路径：`digua_common-telemetry` 与 `digua_common-telemetry-axum` 依赖未显式开 `otlp` feature；`Cargo.toml` 自身直接依赖 `opentelemetry = "0.24"` + `tracing-opentelemetry = "0.25"`，**但是否实际注册 OTLP exporter 尚未独立核验**。
-   - 任意一端（feature 或 env）缺失 → 进程不导出 span 到 OTel collector（iam-service 是否导出于实际 init 路径未独立核验）。判定方法：启动后查日志是否出现 `OTLP exporter` / tracer provider 初始化行；或在 Jaeger UI 搜不到对应 service / binary。
+   - 全部 10 个 Rust crate 已显式开 `otlp` feature（2026-08 P0：iam-service 曾漏开——workspace `resolver = "2"` 下 Dockerfile 单独 `cargo build -p iam_service` 时依赖闭包内 feature 只由服务自身声明决定，`digua_common-telemetry` / `-axum` 未带 `features = ["otlp"]` 导致 `init_tracing` 的 `#[cfg(feature = "otlp")]` exporter 注册分支被整体编译掉，span 永远到不了 Jaeger；已修复并删除冗余直接依赖 `opentelemetry` / `tracing-opentelemetry`）。
+   - 任意一端（feature 或 env）缺失 → 进程不导出 span 到 OTel collector。判定方法：启动后查日志是否出现 `OTel tracing enabled → <endpoint>` 行；或在 Jaeger UI 搜不到对应 service / binary。
+   - **守门**：`scripts/check-service-standard.js` 强制每个 Rust 服务声明 `digua_common_telemetry` 时显式带 `otlp` feature（豁免：AGENTS.md `## 豁免` 写 `OTel otlp feature`）；`libs/common-telemetry` 内 `otlp_exporter_registration_tests`（`#[cfg(feature = "otlp")]`，CI `cargo test --workspace --lib` 下 feature union 启用）验证 `init_tracing` 设 endpoint 后真实注册 OTLP pipeline。
 
 6. **迁移是 forward-only**：不要编辑已发布迁移；新增 `V{N+1}__*.sql`。`scripts/check-prue-migrations-parity.sh` 守 prue_backend MySQL/SQLite parity。
 
