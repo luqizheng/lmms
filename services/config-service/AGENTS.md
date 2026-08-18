@@ -39,13 +39,20 @@
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|
 
-## 已知缺口 — 敏感字段掩码
+## 敏感字段掩码（reveal policy，已落地）
 
-`ConfigItem.is_secret` 字段已存在（`models/config_item.rs:13`），但当前 `get_config_item` / `query_config_items` / `export_config` 全部返回明文，未对 `CFG_CONFIG_REVEAL` 权限做强校验。**前端掩码仅为 UX**，调用方仍有 API 路径可读明文。后端需补：
+`ConfigItem.is_secret=true` 的配置项对无 `CFG_CONFIG_REVEAL` 权限的调用方**强制掩码**：value 置为 `MASK = "********"`，`value_masked=true`。持有该权限的调用方返回明文。
 
-- `get_config_item`：`is_secret=true` 时若 caller 无 `CFG_CONFIG_REVEAL`，返回 `value=""` + `value_masked=true` 字段；
-- `query_config_items`：同上策略，列表场景；
-- `export_config`：默认导出调用方无 reveal 时全部 mask，否则全明文。
+- 权限码注册：`contracts/permissions.yaml:70`（`CFG_CONFIG_REVEAL`），Rust 常量 `libs/digua_authz/src/perms.rs:57`。
+- 实现：`src/routes/config.rs` 内 `apply_reveal_policy(&mut item, &principal)` + 常量 `REVEAL_PERM`，在以下 5 个 handler 调用点应用：
+  - `create_config_item`（POST /config/item 返回值）
+  - `query_config_items`（GET /config/item 列表中每个 item）
+  - `get_config_item`（GET /config/item/{id}）
+  - `update_config_item`（PUT /config/item/{id} 返回更新后回读值）
+  - `export_config`（GET /config/export/{namespace_id} 整 namespace 导出）
+- 不应用点：`delete_config_item`（删除不返回 value）、`import_config`（强制 `is_secret=false`）。
+- 契约测试：5 个 handler-context case 在 `src/routes/config.rs` `#[cfg(test)] mod tests`；4 个 baseline case（函数本身）在 `tests/reveal_policy_test.rs`。
+- 默认绑定：仅 `platform_admin` / `tenant_admin` 角色自动拥有（`services/iam-service/migrations/mysql/V005__platform_admin_role.sql` + `V004__tenant_business_tables.sql` seed）。普通用户默认无此权限——**前端掩码不是唯一防线**，API 层会强制返回 MASK。
 
 
 ## 内部端点 /cfg/internal/*
