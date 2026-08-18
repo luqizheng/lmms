@@ -27,3 +27,4 @@ otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", 
 opentelemetry = { version = "0.24", features = ["trace"] }
 opentelemetry_sdk = { version = "0.24", features = ["rt-tokio", "testing"] }
 tracing-opentelemetry = "0.25"
+tokio.workspace = true
