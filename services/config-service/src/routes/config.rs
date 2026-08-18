@@ -221,3 +221,122 @@ pub async fn import_config(
 
     Ok(Json(serde_json::json!({ "success": true, "count": count })))
 }
+
+#[cfg(test)]
+mod tests {
+    //! 5 个 handler 调用点的 reveal policy 契约测试：
+    //! create / query / get / update / export。已知边界：本测试直接调函数，
+    //! 不跑真实 handler 路径，因此**不能**捕获「有人删掉 handler 内的
+    //! apply_reveal_policy 行」。完整端到端（mock AppState + tower::oneshot）
+    //! 集成测试 Phase 10 后用 testcontainers 完成。
+    //! 函数本身的 baseline 测试见 `tests/reveal_policy_test.rs`。
+
+    use super::*;
+    use chrono::Utc;
+    use digua_jwt_ctx::Principal;
+    use std::collections::HashSet;
+
+    fn make_item(is_secret: bool, value: &str) -> ConfigItem {
+        ConfigItem {
+            id: "i1".into(),
+            namespace_id: "ns1".into(),
+            key: "k".into(),
+            value: value.into(),
+            value_type: "string".into(),
+            is_secret,
+            description: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            value_masked: false,
+        }
+    }
+
+    fn make_principal(perms: &[&str]) -> Principal {
+        Principal {
+            jti: "test".into(),
+            user_id: "u1".into(),
+            user_code: "u1".into(),
+            tenant_id: 1,
+            cross_tenant: false,
+            dept_id: None,
+            roles: vec!["admin".into()],
+            permissions: perms.iter().map(|s| s.to_string()).collect::<HashSet<_>>(),
+        }
+    }
+
+    #[test]
+    fn handler_create_masks_secret_when_caller_lacks_perm() {
+        let mut item = make_item(true, "raw-secret");
+        let principal = make_principal(&["CFG_CONFIG_CREATE"]);
+        apply_reveal_policy(&mut item, &principal);
+        assert_eq!(item.value, "********");
+        assert!(item.value_masked);
+    }
+
+    #[test]
+    fn handler_query_masks_each_secret_in_list_when_caller_lacks_perm() {
+        let principal = make_principal(&["CFG_CONFIG_READ"]);
+        let mut items = vec![
+            make_item(true, "secret-a"),
+            make_item(false, "plain-b"),
+            make_item(true, "secret-c"),
+        ];
+        for item in items.iter_mut() {
+            apply_reveal_policy(item, &principal);
+        }
+        assert_eq!(items[0].value, "********");
+        assert!(items[0].value_masked);
+        assert_eq!(items[1].value, "plain-b");
+        assert!(!items[1].value_masked);
+        assert_eq!(items[2].value, "********");
+        assert!(items[2].value_masked);
+    }
+
+    #[test]
+    fn handler_get_masks_secret_when_caller_lacks_perm() {
+        let mut item = make_item(true, "raw-secret");
+        let principal = make_principal(&["CFG_CONFIG_READ"]);
+        apply_reveal_policy(&mut item, &principal);
+        assert_eq!(item.value, "********");
+        assert!(item.value_masked);
+    }
+
+    #[test]
+    fn handler_update_masks_secret_when_caller_lacks_perm() {
+        let mut item = make_item(true, "new-value");
+        let principal = make_principal(&["CFG_CONFIG_UPDATE"]);
+        apply_reveal_policy(&mut item, &principal);
+        assert_eq!(item.value, "********");
+        assert!(item.value_masked);
+    }
+
+    #[test]
+    fn handler_export_masks_all_secrets_when_caller_lacks_perm() {
+        let principal = make_principal(&["CFG_NAMESPACE_EXPORT"]);
+        let mut items = vec![
+            make_item(true, "secret-1"),
+            make_item(true, "secret-2"),
+            make_item(false, "plain-3"),
+        ];
+        for item in items.iter_mut() {
+            apply_reveal_policy(item, &principal);
+        }
+        assert_eq!(items[0].value, "********");
+        assert!(items[0].value_masked);
+        assert_eq!(items[1].value, "********");
+        assert!(items[1].value_masked);
+        assert_eq!(items[2].value, "plain-3");
+        assert!(!items[2].value_masked);
+    }
+
+    #[test]
+    fn reveal_perm_passes_through_all_handler_paths() {
+        let principal = make_principal(&["CFG_CONFIG_REVEAL"]);
+        for value in ["secret-x", "secret-y"] {
+            let mut item = make_item(true, value);
+            apply_reveal_policy(&mut item, &principal);
+            assert_eq!(item.value, value);
+            assert!(!item.value_masked);
+        }
+    }
+}
