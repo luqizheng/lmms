@@ -25,3 +25,11 @@ tracing-opentelemetry = { version = "0.25", optional = true }
 [features]
 default = []
 otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
+
+[dev-dependencies]
+# Used by tests/access_log_trace_id.rs to spin up a minimal axum router
+# and capture JSON log output via a custom MakeWriter.
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tower = { workspace = true, features = ["util"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+regex = "1"

@@ -33,6 +33,7 @@ mod otlp_impl {
 
         let span = tracing::info_span!(
             "http_request",
+            trace_id = tracing::field::Empty,
             http.method = %method,
             http.path = %path,
             http.status_code = tracing::field::Empty,
@@ -73,6 +74,19 @@ mod otlp_impl {
 
         span.record("http.status_code", response.status().as_u16() as i64);
         span.record("duration_ms", elapsed_ms as i64);
+        span.record("trace_id", trace_id.as_str());
+
+        // Emit one access-log event per HTTP request with trace_id as a top-level
+        // field. Promtail parses JSON and Loki indexes `trace_id` directly.
+        tracing::info!(
+            target: "http_access",
+            trace_id = %trace_id,
+            http.method = %method,
+            http.path = %path,
+            http.status_code = response.status().as_u16(),
+            duration_ms = elapsed_ms,
+            "request completed"
+        );
 
         if !trace_id.is_empty() {
             if let Ok(hv) = HeaderValue::from_str(&trace_id) {
@@ -102,6 +116,7 @@ mod fallback_impl {
         let path = request.uri().path().to_string();
         let span = tracing::info_span!(
             "http_request",
+            trace_id = tracing::field::Empty,
             http.method = %method,
             http.path = %path,
             http.status_code = tracing::field::Empty,
@@ -113,6 +128,20 @@ mod fallback_impl {
         let trace_id = hex::encode(rand::random::<[u8; 16]>());
         span.record("http.status_code", response.status().as_u16() as i64);
         span.record("duration_ms", elapsed_ms as i64);
+        span.record("trace_id", trace_id.as_str());
+
+        // Emit one access-log event per HTTP request with trace_id as a top-level
+        // field. Promtail parses JSON and Loki indexes `trace_id` directly.
+        tracing::info!(
+            target: "http_access",
+            trace_id = %trace_id,
+            http.method = %method,
+            http.path = %path,
+            http.status_code = response.status().as_u16(),
+            duration_ms = elapsed_ms,
+            "request completed"
+        );
+
         if let Ok(hv) = HeaderValue::from_str(&trace_id) {
             response.headers_mut().insert("X-Trace-Id", hv);
         }

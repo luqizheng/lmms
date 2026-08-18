@@ -6,6 +6,12 @@ x-svc-registrator-labels-config: &svc-reg-labels-config
   - "SERVICE_8081_CHECK_HTTP=/health"
   - "SERVICE_8081_CHECK_INTERVAL=15s"
   - "SERVICE_8081_CHECK_TIMEOUT=3s"
+  # Loki scrape opt-in (see ADR-007 D2). Promtail's docker_sd filter
+  # only picks containers with `logging=loki`; this keeps loki free of
+  # registrator / consul-template / infra noise.
+  - "logging=loki"
+  - "service=config-service"
+  - "env=staging"
 
 x-svc-registrator-labels-file: &svc-reg-labels-file
   - "SERVICE_NAME=file-service"
@@ -15,6 +21,9 @@ x-svc-registrator-labels-file: &svc-reg-labels-file
   - "SERVICE_8082_CHECK_HTTP=/health"
   - "SERVICE_8082_CHECK_INTERVAL=15s"
   - "SERVICE_8082_CHECK_TIMEOUT=3s"
+  - "logging=loki"
+  - "service=file-service"
+  - "env=staging"
 
 x-svc-registrator-labels-gateway: &svc-reg-labels-gateway
   - "SERVICE_NAME=api-gateway"
@@ -24,6 +33,9 @@ x-svc-registrator-labels-gateway: &svc-reg-labels-gateway
   - "SERVICE_3000_CHECK_HTTP=/health"
   - "SERVICE_3000_CHECK_INTERVAL=15s"
   - "SERVICE_3000_CHECK_TIMEOUT=3s"
+  - "logging=loki"
+  - "service=api-gateway"
+  - "env=staging"
 
 x-svc-registrator-labels-token: &svc-reg-labels-token
   - "SERVICE_NAME=token-service"
@@ -33,6 +45,9 @@ x-svc-registrator-labels-token: &svc-reg-labels-token
   - "SERVICE_8082_CHECK_HTTP=/health"
   - "SERVICE_8082_CHECK_INTERVAL=15s"
   - "SERVICE_8082_CHECK_TIMEOUT=3s"
+  - "logging=loki"
+  - "service=token-service"
+  - "env=staging"
 
 x-svc-registrator-labels-iam: &svc-reg-labels-iam
   - "SERVICE_NAME=iam-service"
@@ -42,6 +57,9 @@ x-svc-registrator-labels-iam: &svc-reg-labels-iam
   - "SERVICE_8081_CHECK_HTTP=/health"
   - "SERVICE_8081_CHECK_INTERVAL=15s"
   - "SERVICE_8081_CHECK_TIMEOUT=3s"
+  - "logging=loki"
+  - "service=iam-service"
+  - "env=staging"
 
 x-svc-registrator-labels-prue: &svc-reg-labels-prue
   - "SERVICE_NAME=prue_backend"
@@ -51,6 +69,9 @@ x-svc-registrator-labels-prue: &svc-reg-labels-prue
   - "SERVICE_8087_CHECK_HTTP=/health"
   - "SERVICE_8087_CHECK_INTERVAL=15s"
   - "SERVICE_8087_CHECK_TIMEOUT=3s"
+  - "logging=loki"
+  - "service=prue_backend"
+  - "env=staging"
 
 x-svc-registrator-labels-notify: &svc-reg-labels-notify
   - "SERVICE_NAME=notification-service"
@@ -60,6 +81,9 @@ x-svc-registrator-labels-notify: &svc-reg-labels-notify
   - "SERVICE_8083_CHECK_HTTP=/health"
   - "SERVICE_8083_CHECK_INTERVAL=30s"
   - "SERVICE_8083_CHECK_TIMEOUT=3s"
+  - "logging=loki"
+  - "service=notification-service"
+  - "env=staging"
 
 x-svc-registrator-labels-audit: &svc-reg-labels-audit
   - "SERVICE_NAME=audit-service"
@@ -69,6 +93,9 @@ x-svc-registrator-labels-audit: &svc-reg-labels-audit
   - "SERVICE_8084_CHECK_HTTP=/health"
   - "SERVICE_8084_CHECK_INTERVAL=30s"
   - "SERVICE_8084_CHECK_TIMEOUT=3s"
+  - "logging=loki"
+  - "service=audit-service"
+  - "env=staging"
 
 
 
@@ -296,6 +323,10 @@ services:
     # `executable file not found in $PATH`.
     command: ["iam_outbox_publisher"]
     restart: unless-stopped
+    labels:
+      - "logging=loki"
+      - "service=iam-outbox-publisher"
+      - "env=staging"
     # dev-only bind mount: shares the seeded config.yaml with iam-service.
     # Not :ro — both processes race to seed; create_new picks one winner
     # (see services/iam-outbox-publisher/src/main.rs::seed_if_absent).
@@ -405,6 +436,10 @@ services:
     # `executable file not found in $PATH`.
     command: ["ntf_outbox_publisher"]
     restart: unless-stopped
+    labels:
+      - "logging=loki"
+      - "service=notification-outbox-publisher"
+      - "env=staging"
     environment:
       DATABASE_URL: "${DATABASE_URL}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"

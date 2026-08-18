@@ -1,0 +1,62 @@
+# Loki + Promtail staging overlay
+# Brings up a single-binary Loki (filesystem backend, 14d retention) and a
+# Promtail that scrapes any container carrying the `logging=loki` label
+# (added in docker-compose-services.yml). No S3/GCS, no microservices mode —
+# staging-only overlay; production would replace this with the chunked
+# distributor/querier/ingester split.
+#
+# Bring everything up with:
+#   docker compose -f infrastructure/docker-compose.yml \
+#                  -f infrastructure/docker-compose-observability.staging.yml \
+#                  up -d
+#
+# Then:
+#   Loki HTTP API:     http://localhost:3100
+#   Promtail targets:  http://localhost:9080/targets
+#   Grafana datasource: add Loki URL http://loki:3100 (already inside the
+#   `superpowers` network via the base compose; Grafana sidecar provisioning
+#   added in T3 will wire it from the UI side).
+
+services:
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: loki-staging
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-staging.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+      - ./config/loki/loki-staging.yaml:/etc/loki/loki-staging.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "-O", "/dev/null", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    container_name: promtail-staging
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-staging.yaml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/loki/promtail-staging.yaml:/etc/promtail/promtail-staging.yaml:ro
+      - promtail-positions:/tmp/promtail
+    depends_on:
+      loki:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+volumes:
+  loki-data:
+  promtail-positions:
+
+networks:
+  # Reuses the base `superpowers` network defined in docker-compose.yml so
+  # Promtail (this file) + the business services (docker-compose-services.yml)
+  # all share one DNS namespace and Loki is reachable at `loki:3100`.
+  superpowers:
