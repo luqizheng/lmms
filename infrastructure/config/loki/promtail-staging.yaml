@@ -1,0 +1,59 @@
+# Promtail scrape config — docker_sd_configs + CRI JSON parsing
+# See ADR-007 D2/D3
+#
+# Scopes discovery to containers carrying label logging=loki (D2 — opt-in
+# filtering avoids scraping noise from infrastructure/registrator/observability
+# containers). Parses CRI-format stdout (`cri: {}`) first, then a `json:`
+# stage pulls known JSON keys from our Rust middleware (T1 commit f04fa8e):
+#   - level/service/trace_id/tenant_id/user_id/timestamp/message
+# Only low-cardinality fields become Loki labels (level, service, env).
+# trace_id/tenant_id/user_id stay as parsed JSON metadata in the log line
+# — promoting them to labels would explode stream cardinality (D3).
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    batchsize: 1048576
+    batchtimeout: 10s
+
+positions:
+  filename: /tmp/promtail/positions.yaml
+
+scrape_configs:
+  - job_name: microservices
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values:
+              - logging=loki
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+      - source_labels: [__meta_docker_container_label_service]
+        target_label: service
+      - source_labels: [__meta_docker_container_label_env]
+        target_label: env
+      - action: drop
+        source_labels: [__meta_docker_container_label_env]
+        regex: '^$'
+    pipeline_stages:
+      - cri: {}
+      - json:
+          expressions:
+            level: level
+            service: service
+            trace_id: trace_id
+            tenant_id: tenant_id
+            user_id: user_id
+            timestamp: timestamp
+            message: message
+      - labels:
+          - level
+          - service
+          - env
+          # trace_id/tenant_id/user_id are HIGH-CARDINALITY → metadata, NOT labels (D3)

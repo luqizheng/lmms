@@ -1,0 +1,40 @@
+# Loki single-binary mode for staging — 14-day retention
+# See ADR-007 D1/D4
+#
+# Staging uses filesystem storage + single binary (no microservices mode,
+# no S3/GCS backend). Keeps the overlay light: only loki + promtail.
+# Production would add schema_config backends (S3/GCS) and the distributor/querier/ingester split.
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  instance_addr: 127.0.0.1
+
+limits_config:
+  retention_period: 336h  # 14 days
+  max_global_streams_per_user: 0
+
+compactor:
+  retention_enabled: true
+  delete_delay: 2h
+  working_directory: /loki/compactor
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+ruler:
+  alertmanager_url: []
