@@ -3,7 +3,7 @@
 > **文档性质**：状态快照 + AI 协作入口（**不是**架构教程或历史流水账）。
 > AI 协作者在本仓库工作前**必须先读**本文件；它把当前事实、漂移点、未完成项收口到一处。
 >
-> **最后核验日期**：2026-07-30
+> **最后核验日期**：2026-08-18
 >
 > **事实来源**（已核对）：
 > - `docs-site/ai-context.md`（本文旧版本）
@@ -18,7 +18,7 @@
 > - `services/config-service/src/routes/config.rs`（reveal policy 调用点）
 > - `services/notification-service/src/bin/outbox_publisher.rs`（ntf-outbox-publisher binary）
 > - `services/iam-outbox-publisher/AGENTS.md`（`/metrics` 显式豁免；用 process exporter）
-> - `docs-site/guides/migrations-state.md`、`docs-site/runbooks/{secret-rotation,backup,mysql-replication}.md`
+> - `docs-site/guides/migrations-state.md`、`docs-site/runbooks/{secret-rotation,backup,mysql-replication,log-aggregation}.md`（log-aggregation 新增于 2026-08-18）
 > - `docs-site/decisions/{ADR-005-shared-db-vs-per-service-db,ADR-006-gateway-long-term-strategy,CONVENTIONS-libs-crate-strategy,frontend-e2e-coverage-eval,test-case-migration-eval}.md`
 > - `docs-site/{slo,perf-baseline}.md`、`docs-site/plans/k3s-decision-review.md`
 > - `sdk/java/KNOWN-DRIFT.md`（12 处 SDK/OpenAPI 端点漂移）
@@ -175,6 +175,7 @@
 | P2-5 | test-case 迁移评估 | ✅ | `test-case-migration-eval.md` |
 | P2-6 | Java SDK drift | ✅ | `scripts/check-java-sdk-drift.js` + `KNOWN-DRIFT.md`（12 处 drift） |
 | P2-7 | i18n namespace | ✅ | commit `c2d23b4`：10 keys 迁移、zh/en 各 586 对称 |
+| P2-8 | 集中式日志（Loki + Promtail） | ✅ | commit `f04fa8e` (T1 access log + trace_id) + `112b8a7` (iam-service otlp) + `434c6b7` (ADR-007) + `2026-08-18` runbook/e2e drill/log-format CI gate |
 
 
 ### 4.2 Onboarding / 运维 [待推进]
@@ -182,7 +183,7 @@
 来自 `docs/onboarding/` 系列 TODO：
 - 内网仓库凭证申请流程（Docker Registry / Maven）—— 待运维补充
 - 生产数据迁移 SOP（备份 / 回滚 / 灰度验证）—— 待运维补充
-- 集中式日志收集方案（ELK / Loki / 阿里云 SLS）—— 待运维补充
+- 集中式日志收集方案（ELK / Loki / 阿里云 SLS）—— ✅ **[完成]**（2026-08-18）：Loki 单 binary staging + Promtail docker_sd 已落地；commit `f04fa8e` (T1 access log 带 trace_id) + `112b8a7` (iam-service otlp feature) + `434c6b7` (ADR-007)；新增 `docs-site/runbooks/log-aggregation.md` 5 步 SOP、`scripts/e2e-log-traceability.js` drill、`scripts/check-log-format.sh` CI gate
 - 求救渠道 / on-call 值班表 —— 待团队负责人补充
 - commit message 规范（是否走 Conventional Commits / PR 标题 / issue 关联）—— 待规范人补充
 - config-service 使用方式 —— 待熟悉 config-service 的开发者补充
@@ -252,7 +253,7 @@
 
 ---
 
-## 6. 可观测性现状（2026-07-30 重写）
+## 6. 可观测性现状（2026-08-18 重写）
 
 | 组件 | 当前实际 | 状态 |
 |---|---|---|
@@ -261,10 +262,12 @@
 | Alert rules | **✅ 新增**（`infrastructure/config/prometheus/alerts.yml`）5 条：ServiceDown critical / HighErrorRate critical / HighLatency warning / OutboxBacklog warning / HighRateLimit warning | [正常] |
 | Grafana dashboards | **✅ 7 个**（commit `e24a3f4`，旧版本只 1 个 gateway）：`gateway.json` + `iam-service.json` + `notification-service.json` + `audit-service.json` + `config-service.json` + `file-service.json` + `prue_backend.json`。每个含 `service` template var + 4 panel（Request Rate / Latency p50/p95/p99 / Error Rate / Health） | [正常] |
 | Grafana provisioning | `datasources/prometheus.yml` + `dashboards/dashboards.yml`（watch `/etc/grafana/dashboards` 自动加载） | [正常] |
+| **Loki** | **✅ 新增**（2026-08-18，Phase 6-A T2）：`infrastructure/config/loki/loki-staging.yaml`（单 binary + 本地 filesystem，**14 天 retention**，无 S3 backend）；容器端口 3100；labels 仅 `level / service / env`（低基数）；trace_id / tenant_id / user_id 走 JSON metadata（ADR-007 D3） | [正常] |
+| **Promtail** | **✅ 新增**（2026-08-18）：`infrastructure/config/loki/promtail-staging.yaml`；`docker_sd_configs` 5s 周期，过滤 `logging=loki` container label（ADR-007 D2）；pipeline `cri: {}` + `json:` 抽出 trace_id / tenant_id / user_id（commit `f04fa8e` 注入） | [正常] |
 | SLO 文档 | **✅ 新增** `docs-site/slo.md`：8 服务 SLO 表 + SLI 公式 + 错误预算策略 + 告警规则对应 | [正常] |
 | Performance baseline | **✅ 新增** `docs-site/perf-baseline.md`：S1 health check 已实测（RPS 91.2 / p50 105.5ms / 0 errors / gw CPU 10.44%）；S2-S7 待 k6 安装后补全 | [正常] |
-| runbooks | **✅ 3 份**（旧版本只 1 份）：`secret-rotation.md` + `backup.md`（P0-4 覆盖 MySQL/Redis/RabbitMQ/Consul 4 组件手动 SOP）+ `mysql-replication.md`（P0-4 剩余，主从 GTID 复制 + Failover） | [正常] |
-| OTel 端到端 trace | 10 个 crate 全部显式开 `otlp` feature（2026-08 P0 修复 iam-service：补 `digua_common-telemetry` + `-axum` 的 `features = ["otlp"]`，删冗余直接依赖 `opentelemetry`/`tracing-opentelemetry`）；compose 只对 6 个 Rust HTTP 服务 + 2 个 Java 服务设置 `OTEL_EXPORTER_OTLP_ENDPOINT` | [正常] 区分"代码接入"与"compose 实际导出配置"；详见 §1.1 表格 |
+ | runbooks | **✅ 4 份**（旧 3 份 + log-aggregation，2026-08-18）：`secret-rotation.md` + `backup.md`（P0-4 覆盖 MySQL/Redis/RabbitMQ/Consul 4 组件手动 SOP）+ `mysql-replication.md`（P0-4 剩余，主从 GTID 复制 + Failover）+ **`log-aggregation.md`**（Phase 6-A T2 Loki/Promtail 5 步故障排查 SOP） | [正常] |
+ | OTel 端到端 trace | 10 个 crate 全部显式开 `otlp` feature（2026-08 P0 修复 iam-service：补 `digua_common-telemetry` + `-axum` 的 `features = ["otlp"]`，删冗余直接依赖 `opentelemetry`/`tracing-opentelemetry`）；compose 只对 6 个 Rust HTTP 服务 + 2 个 Java 服务设置 `OTEL_EXPORTER_OTLP_ENDPOINT` | [正常] 区分"代码接入"与"compose 实际导出配置"；详见 §1.1 表格 |
 
 
 ---
@@ -430,4 +433,4 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 
 ---
 
-_最后核验：2026-07-30。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：P0/P1/P2 全部勾选 + 9 服务 CI build + Alertmanager + 7 Grafana dashboard + SLO 文档 + ADR-005/006 + MySQL 主从 + Java SDK drift check + i18n namespace 修复 + file/index.vue typecheck 顺手修。_
+_最后核验：2026-08-18。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：§6 加 Loki/Promtail 行 + §4.2 集中式日志收集方案 [完成] + runbooks 4 份；新增 `docs-site/runbooks/log-aggregation.md` 5 步 SOP、`scripts/e2e-log-traceability.js` drill、`scripts/check-log-format.sh` CI gate。_
