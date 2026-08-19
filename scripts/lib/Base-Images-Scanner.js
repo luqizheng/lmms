@@ -10,11 +10,30 @@ const path = require('node:path');
 const FROM_REGEX = /^FROM\s+(\S+)/gm;
 const ARG_REGEX = /^ARG\s+(\w+)\s*=\s*(\S+)/gm;
 const IMAGE_LINE_REGEX = /^\s*image:\s*(\S+)/gm;
+const ENV_LINE_REGEX = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=\s*(['"]?)(.*?)\2\s*$/;
 
 const CI_VAR_LINE_REGEX = /^\s{2,}(\w+):\s*(\S+)/;
 const VARIABLES_BLOCK_START = /^variables:\s*$/;
 
 const SKIP_DIRS = new Set(['target', 'node_modules', '.git', 'reports', '.codegraph']);
+
+// Parse a docker-compose `.env`-style file (KEY=VALUE, optional `export ` prefix,
+// optional single/double quotes, `#` comments, blank lines). Values are trimmed.
+// Returns a Map<string,string> with first occurrence winning; subsequent
+// duplicates are ignored (docker compose / dotenv semantics).
+function parseEnvFile(content) {
+  const vars = new Map();
+  for (const raw of content.split('\n')) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line || line.trimStart().startsWith('#')) continue;
+    const m = line.match(ENV_LINE_REGEX);
+    if (!m) continue;
+    const name = m[1];
+    if (vars.has(name)) continue;
+    vars.set(name, m[3]);
+  }
+  return vars;
+}
 
 function parseDockerArgs(content) {
   const args = new Map();
@@ -55,9 +74,19 @@ function parseGitlabVariables(content) {
 }
 
 function substituteVars(ref, vars) {
-  return ref
-    .replace(/\$\{(\w+)\}/g, (_, name) => (vars.has(name) ? vars.get(name) : `\${${name}}`))
-    .replace(/\$(\w+)/g, (_, name) => (vars.has(name) ? vars.get(name) : `$${name}`));
+  // Iterate to a fixed point so transitive references resolve
+  // (e.g. `image: $BUILDER_RUST_IMAGE` where BUILDER_RUST_IMAGE itself
+  // contains `${CODER_BUILDER_REGISTRY}/...`). Cap at 10 iterations to
+  // defend against accidental self-referential cycles.
+  let prev = null;
+  let cur = ref;
+  for (let i = 0; cur !== prev && i < 10; i++) {
+    prev = cur;
+    cur = cur
+      .replace(/\$\{(\w+)\}/g, (_, name) => (vars.has(name) ? vars.get(name) : `\${${name}}`))
+      .replace(/\$(\w+)/g, (_, name) => (vars.has(name) ? vars.get(name) : `$${name}`));
+  }
+  return cur;
 }
 
 function parseDockerfile(content) {
@@ -91,7 +120,7 @@ function parseImageLines(content, vars) {
   return refs;
 }
 
-function parseCompose(content) {
+function parseCompose(content, envVars) {
   // Compose files may declare `build:` for services whose image is built
   // locally (not pulled from a registry). Those images should be excluded
   // from the pull manifest — they'll be built by `docker compose build`.
@@ -127,9 +156,13 @@ function parseCompose(content) {
       const m = trimmed.match(/^image:\s*(\S+)/);
       if (m) {
         const raw = m[1].replace(/['"]/g, '');
-        if (raw && !seen.has(raw)) {
-          seen.add(raw);
-          refs.push(raw);
+        // Substitute ${VAR} / $VAR from the surrounding .env so a ref like
+        // `${BASE_REGISTRY}mysql:8.0` collapses to the short form `mysql:8.0`
+        // and the writer can re-prefix it with the mirror.
+        const ref = envVars ? substituteVars(raw, envVars) : raw;
+        if (ref && !seen.has(ref)) {
+          seen.add(ref);
+          refs.push(ref);
         }
       }
     }
@@ -188,6 +221,14 @@ function scanProject(root) {
   const composeSources = collectFiles(root, ['infrastructure']);
   const gitlabCiPath = path.join(root, '.gitlab-ci.yml');
 
+  // Docker compose looks for `.env` next to the compose file; mirror that here
+  // so ${BASE_REGISTRY}mysql:8.0 etc. collapse to short refs. Falls back to
+  // empty map if the file is absent (older setups without BASE_REGISTRY).
+  const envPath = path.join(root, 'infrastructure', '.env');
+  const composeEnv = fs.existsSync(envPath)
+    ? parseEnvFile(fs.readFileSync(envPath, 'utf8'))
+    : new Map();
+
   const seen = new Map();
 
   const ingest = (filePath, refs) => {
@@ -202,7 +243,7 @@ function scanProject(root) {
     ingest(f, parseDockerfile(fs.readFileSync(f, 'utf8')));
   }
   for (const f of composeSources) {
-    ingest(f, parseCompose(fs.readFileSync(f, 'utf8')));
+    ingest(f, parseCompose(fs.readFileSync(f, 'utf8'), composeEnv));
   }
   if (fs.existsSync(gitlabCiPath)) {
     ingest(gitlabCiPath, parseGitlabCi(fs.readFileSync(gitlabCiPath, 'utf8')));
@@ -215,6 +256,7 @@ module.exports = {
   parseDockerfile,
   parseCompose,
   parseGitlabCi,
+  parseEnvFile,
   parseDockerArgs,
   parseGitlabVariables,
   substituteVars,

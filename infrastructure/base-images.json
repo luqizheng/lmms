@@ -1,15 +1,10 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-01T02:57:03.171Z",
+  "generatedAt": "2026-08-19T08:59:30.368Z",
   "images": [
     {
       "ref": "alpine:3.21",
       "source": "services/api-gateway/Dockerfile",
-      "mirror": "zhcoder-docker-registry.com:8000/official"
-    },
-    {
-      "ref": "docker:24-cli",
-      "source": ".gitlab-ci.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
@@ -20,6 +15,21 @@
     {
       "ref": "grafana/grafana:10.4.0",
       "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "grafana/k6:0.57.0",
+      "source": ".gitlab-ci.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "grafana/loki:3.3.2",
+      "source": "infrastructure/docker-compose-observability.staging.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "grafana/promtail:3.3.2",
+      "source": "infrastructure/docker-compose-observability.staging.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
@@ -90,11 +100,6 @@
     {
       "ref": "redis:7-alpine",
       "source": "infrastructure/docker-compose-infra.yml",
-      "mirror": "zhcoder-docker-registry.com:8000/official"
-    },
-    {
-      "ref": "rust:1.96-slim",
-      "source": ".gitlab-ci.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
