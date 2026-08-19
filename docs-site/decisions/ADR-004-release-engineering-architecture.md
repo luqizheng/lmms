@@ -3,9 +3,9 @@
 > 日期：2026-07-23
 > 状态：已采纳（追认 7 月发行工程链路）
 > 关联：
-> - [release-dist-template spec](../superpowers/specs/2026-07-23-release-dist-template-design.md)
-> - [setup-wizard spec](../superpowers/specs/2026-07-23-setup-wizard-design.md)
-> - [SDK publishing spec](../superpowers/specs/2026-07-23-sdk-publishing-design.md)
+> - [release-dist-template spec](../../docs/superpowers/specs/2026-07-23-release-dist-template-design.md)
+> - [setup-wizard spec](../../docs/superpowers/specs/2026-07-23-setup-wizard-design.md)
+> - [SDK publishing spec](../../docs/superpowers/specs/2026-07-23-sdk-publishing-design.md)
 
 ## 上下文
 
