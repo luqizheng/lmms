@@ -159,18 +159,28 @@ for (const f of COMPOSE_FILES) {
 console.log(`[release-staging] ✓ infrastructure/docker-compose*.yml (${composeCopied} 个)`);
 
 const svcCompose = path.join(infraDst, 'docker-compose-services.yml');
+const infraCompose = path.join(infraDst, 'docker-compose-infra.yml');
 if (!fs.existsSync(svcCompose)) {
   console.error('[release-staging] ✗ docker-compose-services.yml 不存在（无法 transform）');
   process.exit(1);
 }
-try {
-  execSync(`node "${TRANSFORM_SCRIPT}" "${svcCompose}" "${registry}" "${commit}"`, {
-    stdio: 'inherit',
-  });
-  console.log(`[release-staging] ✓ services.yml: build 全部转为 image: ${registry}/${repo}/<svc>:${commit}`);
-} catch (e) {
-  console.error('[release-staging] ✗ transform-compose 失败');
-  process.exit(1);
+// infra compose 也 transform：mysql-replica 含 build: 块需转为 registry image;
+// 其余 infra 服务仅声明 image:，IMAGE_MAP 不含它们，transform-compose 原样保留。
+const composeToTransform = [svcCompose, infraCompose];
+for (const f of composeToTransform) {
+  if (!fs.existsSync(f)) {
+    console.warn(`[release-staging] ⚠ 跳过不存在的 compose: ${path.basename(f)}`);
+    continue;
+  }
+  try {
+    execSync(`node "${TRANSFORM_SCRIPT}" "${f}" "${registry}" "${commit}"`, {
+      stdio: 'inherit',
+    });
+    console.log(`[release-staging] ✓ ${path.basename(f)}: build 转为 image: ${registry}/${repo}/<svc>:${commit}`);
+  } catch (e) {
+    console.error(`[release-staging] ✗ transform-compose 失败: ${path.basename(f)}`);
+    process.exit(1);
+  }
 }
 
 for (const d of ['config', 'mysql-init', 'nginx', 'vendor']) {
