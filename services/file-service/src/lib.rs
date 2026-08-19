@@ -7,5 +7,5 @@ pub mod routes;
 pub mod services;
 pub mod storage;
 
-pub use config::AppConfig;
+pub use config::{AppConfig, StorageBackend};
 pub use error::{AppError, AppResult};

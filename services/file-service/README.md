@@ -46,14 +46,29 @@ curl -X DELETE http://localhost:8082/file/{id}
 - DATABASE_URL: 数据库连接
 - SERVER_ADDR: 监听地址（默认 0.0.0.0:8082）
 - RUST_LOG: 日志级别（默认 info）
-- STORAGE_PATH: 文件存储路径（默认 ./data/files）
+- FILE_STORAGE_BACKEND: `local` / `rustfs` / `s3`，决定 storage driver（默认 `local`）
+- STORAGE_PATH: 本地存储路径（默认 ./data/files；非 local 后端忽略）
+- S3_ENDPOINT: S3 endpoint（rustfs 必填，如 http://rustfs:9000；AWS / Aliyun 可不填自动推断）
+- S3_BUCKET: 桶名（默认 `coder-files`）
+- S3_REGION: 区域（默认 `us-east-1`）
+- S3_ACCESS_KEY / S3_SECRET_KEY: 凭据（rustfs / s3 必填）
+- S3_PATH_STYLE: true/false（rustfs 自动 true；AWS / Aliyun 不需要）
+- S3_AUTO_CREATE_BUCKET: true/false（默认 true；启动时尝试创建 bucket，失败仅 warn）
 
 ## 存储后端
 
-默认使用本地文件系统，可通过 ObjectStore trait 扩展：
-- LocalStorage: 本地文件系统
-- S3Storage: AWS S3（待实现）
-- RustfsStorage: rustfs（待实现）
+通过 `ObjectStore` trait 抽象，运行时按 `FILE_STORAGE_BACKEND` env 选择 — 同一镜像支持多 driver：
+
+| backend | 用途 | 典型场景 |
+|---------|------|----------|
+| `local`  | 本地文件系统（dev 默认）| 单机开发 / 单机测试 |
+| `rustfs` | RustFS（S3 协议 + path-style）| **私有化部署推荐**（与本仓库"多客户用同一镜像"目标一致）|
+| `s3`     | AWS S3 / Aliyun OSS / 腾讯 COS | 公有云部署 |
+
+实现：
+- `src/storage/local.rs` — 本地文件系统
+- `src/storage/s3.rs` — 统一 S3 协议 driver，覆盖 RustFS / MinIO / AWS S3 / Aliyun OSS；
+  通过 `S3Config`（bucket/region/endpoint/path_style/access_key/secret_key）区分 driver，**无代码分支差异**
 
 ## 数据模型
 

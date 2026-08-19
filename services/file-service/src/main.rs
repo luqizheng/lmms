@@ -1,8 +1,8 @@
 use file_service::{
-    config::AppConfig,
+    config::{AppConfig, StorageBackend},
     db::{ensure_schema, init_pool},
     routes::{self, create_state},
-    storage::LocalStorage,
+    storage::{LocalStorage, S3Storage},
 };
 use digua_common_jwt::{JWKSCache, JwksConfig};
 use digua_common_telemetry::init_tracing;
@@ -15,19 +15,45 @@ async fn main() -> anyhow::Result<()> {
     init_tracing("file-service");
 
     let config = AppConfig::from_env()?;
-    tracing::info!("Starting file-service on {}", config.server_addr);
+    let backend = config.backend()?;
+    tracing::info!(
+        "file-service starting on {} with backend={}",
+        config.server_addr,
+        backend.as_str()
+    );
 
-    std::fs::create_dir_all(&config.storage_path).expect("Failed to create storage directory");
+    if matches!(backend, StorageBackend::Local) {
+        std::fs::create_dir_all(&config.storage_path)
+            .expect("failed to create storage directory");
+    }
 
     let pool = init_pool(&config.database_url)
         .await
-        .expect("Failed to initialize database pool");
+        .expect("failed to initialize database pool");
 
     ensure_schema(&pool)
         .await
         .expect("ensure_schema failed");
 
-    let storage = Arc::new(LocalStorage::new(&config.storage_path));
+    let storage: Arc<dyn file_service::storage::object_store::ObjectStore> = match backend {
+        StorageBackend::Local => {
+            tracing::info!("using LocalStorage at {}", config.storage_path);
+            Arc::new(LocalStorage::new(&config.storage_path))
+        }
+        StorageBackend::Rustfs | StorageBackend::S3 => {
+            let s3_cfg = config.s3_config()?;
+            tracing::info!(
+                "using S3Storage backend={} bucket={} endpoint={:?} path_style={} auto_create={}",
+                backend.as_str(),
+                s3_cfg.bucket_name,
+                s3_cfg.endpoint,
+                s3_cfg.path_style,
+                s3_cfg.auto_create_bucket
+            );
+            Arc::new(S3Storage::new(s3_cfg)?)
+        }
+    };
+
     let base_url = format!("http://localhost:8082/file/");
 
     // Phase 5-B: JWKS cache.
@@ -71,9 +97,9 @@ async fn main() -> anyhow::Result<()> {
         app
     };
 
-    let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");
+    let addr: SocketAddr = config.server_addr.parse().expect("invalid server address");
 
-    let listener = tokio::net::TcpListener::bind(&addr).await.expect("Failed to bind");
+    let listener = tokio::net::TcpListener::bind(&addr).await.expect("failed to bind");
     tracing::info!("file-service listening on {}", addr);
 
     tokio::spawn(async move {
@@ -85,6 +111,6 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(0);
     });
 
-    axum::serve(listener, app).await.expect("Server error");
+    axum::serve(listener, app).await.expect("server error");
     Ok(())
 }
