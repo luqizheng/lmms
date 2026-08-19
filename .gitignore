@@ -43,6 +43,12 @@ reports/
 # 本地配置不入 git；CI 可用 CODER_BASE_REGISTRY / CODER_BUILDER_REGISTRY 环境变量覆盖。
 /infrastructure/.docker-registry.json
 
+# SSH deploy key（用于 CI 部署到 STAGING_HOST / 192.168.2.31 等）。
+# 公钥 + 私钥均不入 git；公钥部署到目标服务器 ~/.ssh/authorized_keys，
+# 私钥放 GitLab Project → Settings → CI/CD → Variables 的 SSH_PRIVATE_KEY。
+# 重置流程：ssh-keygen -t ed25519 -N "" -f infrastructure/keys/deploy-<host>
+/infrastructure/keys/
+
 # .cargo/credentials.toml 由 setup-wizard.js 写入（crates.io / mirror 的 auth token），
 # 含敏感信息，本地配置不入 git；CI 可用 CODER_CRATE_TOKEN 环境变量覆盖。
 /.cargo/credentials.toml
