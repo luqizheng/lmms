@@ -19,12 +19,13 @@
 > - `services/notification-service/src/bin/outbox_publisher.rs`（ntf-outbox-publisher binary）
 > - `services/iam-outbox-publisher/AGENTS.md`（`/metrics` 显式豁免；用 process exporter）
 > - `docs-site/guides/migrations-state.md`、`docs-site/runbooks/{secret-rotation,backup,mysql-replication,log-aggregation}.md`（log-aggregation 新增于 2026-08-18）
-> - `docs-site/decisions/{ADR-005-shared-db-vs-per-service-db,ADR-006-gateway-long-term-strategy,CONVENTIONS-libs-crate-strategy,frontend-e2e-coverage-eval,test-case-migration-eval}.md`
+> - `docs-site/decisions/{ADR-003-multi-tenancy-architecture,ADR-004-release-engineering-architecture,ADR-005-shared-db-vs-per-service-db,ADR-006-gateway-long-term-strategy,CONVENTIONS-libs-crate-strategy,frontend-e2e-coverage-eval,test-case-migration-eval}.md`
 > - `docs-site/{slo,perf-baseline}.md`、`docs-site/plans/k3s-decision-review.md`
 > - `sdk/java/KNOWN-DRIFT.md`（12 处 SDK/OpenAPI 端点漂移）
 > - `scripts/check-{java-sdk-drift,i18n-namespace,doc-links,service-standard,spec,db-naming,reconcile-todo-docs}.js`
 > - `tests/load/baseline.js`（k6 基线脚本）
 > - `docs/superpowers/plans/2026-06-25-overall-roadmap.md`
+> - `docs/superpowers/specs/2026-07-23-{release-dist-template,setup-wizard,sdk-publishing}-design.md`（P1 文档基建追认，commit `28d0aead`）
 >
 > **状态口径**（全文使用，不混用其他表述）：
 > - `[完成]`：代码合并 + CI 跑通 + 文档同步
@@ -185,7 +186,7 @@
 | P2-8 | 集中式日志（Loki + Promtail） | ✅ | commit `f04fa8e` (T1 access log + trace_id) + `112b8a7` (iam-service otlp) + `434c6b7` (ADR-007) + `2026-08-18` runbook/e2e drill/log-format CI gate |
 
 
-### 4.2 Onboarding / 运维 [待推进]
+### 4.3 Onboarding / 运维 [待推进]
 
 来自 `docs/onboarding/` 系列 TODO：
 - 内网仓库凭证申请流程（Docker Registry / Maven）—— 待运维补充
@@ -196,11 +197,90 @@
 - config-service 使用方式 —— 待熟悉 config-service 的开发者补充
 - 前端登录态刷新机制细节 —— 待前端负责人确认
 
-### 4.3 Roadmap 2.0 [待推进]
+#### 4.3.1 多租户注意事项（来自 [ADR-003](../decisions/ADR-003-multi-tenancy-architecture.md)）
+
+> 完整论证见 ADR-003；本节为 AI 协作者快速执行清单。
+
+**1. JWT `tid` 必填**
+- 所有 JWT（access / refresh / user / service）必带 `tid` claim，缺失硬拒 401
+- `ct: true` claim 表示 platform_admin 跨租户能力（不替代 `tid`）
+- Gateway 只检查 `tid` 存在性，**不解析** request body / path params 决定租户隔离 —— 跨租户过滤由下游 SQL `WHERE tenant_id = ?` 兜底
+
+**2. 三层防线（任一挡住即不泄露）**
+1. JWT `tid` claim（认证层）
+2. `TenantScope` extractor（业务入口，`libs/jwt-ctx::scope`）
+3. SQL `AND tenant_id = ?`（数据层，`QueryBuilder::and_tenant(&scope)`）
+
+**3. 新表设计硬规则**
+- **租户拥有资源**：`tenant_id BIGINT UNSIGNED NOT NULL DEFAULT 1` + 索引（例: `iam_users`, `iam_roles`, `iam_org_units`, `ntf_announcements`, `cfg_namespaces`, `file_files`, `audit_operation_logs`）
+- **全局资源**：不加 `tenant_id`（例: `iam_permissions`, `iam_menus`, `prue_menu_configs`）
+- **事件流**：`tenant_id BIGINT UNSIGNED NULL`（consumer 容错历史事件）
+- **唯一键必须包含 `tenant_id`**（如 `UNIQUE KEY (tenant_id, name)`）
+- **跨服务不建 FK**：仅 `iam_*` 表 FK → `iam_tenants(id)`；其他服务用裸列 + 索引
+
+**4. handler 拿 `TenantScope` → service 强制 `and_tenant`**
+- `libs/digua_common-db/src/scope.rs` 提供 `QueryBuilder::and_tenant(&scope)`：`Single(tid)` → 追加过滤；`CrossTenant` → no-op
+- `scripts/check-tenant-scope.js` 启发式扫描：handler 拿了 `TenantScope` 但 SQL 无 `tenant_id` 时 exit 1 阻断 push
+- 误报可加 `// check-tenant-scope: delegated` 豁免注释（沿用模式）
+
+**5. Roles 拆分**
+- `iam_permissions`：**全局**（权限码定义全平台统一）
+- `iam_roles`：**租户内**（每租户可自定义 role → permission 映射）
+- 新租户注册时同事务创建 per-tenant `tenant_admin` + 绑定全部全局权限 + 赋给注册用户
+- `platform_admin` 是**全局角色**，签发时 JWT 带 `ct: true`
+
+**变更时机提醒**：新增租户拥有业务表 → 必须遵循 §3 分类 + 加索引 + tenant-included unique key；新 handler → 必须 extractor `TenantScope` + service 层 `and_tenant`；新 JWT 签发路径 → 必须带 `tid`；新 event envelope → 必须带 `tenant_id`。
+
+### 4.4 Roadmap 2.0 [待推进]
 
 - R2.1 基础设施层 TLS（RabbitMQ AMQP / MySQL / Redis）
 - R2.2 TLS termination（alb / nginx 终结）
 - 阻塞条件统一：1.0 落地 + 至少 1 个外部租户实际接入并提出合规需求
+
+#### 4.4.1 发行工程打包流程（来自 [ADR-004](../decisions/ADR-004-release-engineering-architecture.md)）
+
+> 完整论证见 ADR-004；本节为 AI 协作者快速执行清单。关联 spec: [release-dist-template](../../docs/superpowers/specs/2026-07-23-release-dist-template-design.md) / [setup-wizard](../../docs/superpowers/specs/2026-07-23-setup-wizard-design.md) / [sdk-publishing](../../docs/superpowers/specs/2026-07-23-sdk-publishing-design.md)。
+
+**1. 分发形态：v2「平台镜像 + 开发骨架」**
+- 核心平台以 Docker 镜像交付，`services/` 目录为空供用户自建业务服务
+- 单包 `coder-micro-services-<version>-airgap.tar.gz` ≈ 10-15 GB（镜像） + MB 级（骨架）
+- 包含：bin / compose / config / images / frontend / skills / contracts / scripts / Cargo.toml / docker-compose.yml / Makefile / .env.example
+- **放弃"服务源码全打包"路径**（太重、更新不便）
+
+**2. 打包命令**
+```bash
+bash release/dist-template/scripts/release.sh v1.0.0
+# 骨架 only（跳过 docker pull + save）：
+EXPORT_IMAGES=0 bash release/dist-template/scripts/release.sh v2.0.0
+```
+- 8 个核心服务镜像清单硬编码在脚本中（新增服务需同时改 `release.sh` + `compose/services.yml` + `openapi.yaml`）
+
+**3. 4 类 mirror registry（全部可留空走官方源）**
+| 类别 | 官方源 | 替代 |
+|---|---|---|
+| Docker 基础镜像 | Docker Hub | Nexus / Harbor（`baseRegistry`） |
+| Docker builder 镜像 | 官方 | 内网 registry（默认 `zhcoder-docker-registry.com:8000`） |
+| Cargo crates | crates.io | rsproxy / kellnr 私有 registry |
+| Maven | Maven Central | Nexus / Reposilite（`token` / `userpass` 认证） |
+| npm | npmjs | 镜像仓库 |
+
+**4. SDK 发布策略**
+| SDK | 目标仓库 | 认证 |
+|---|---|---|
+| Rust libs（`libs/`）+ SDK（`sdk/rust/`） | 私有 kellnr | `.cargo/credentials.toml` 中 token |
+| Java SDK（`sdk/java/`） | 私有 Reposilite（`192.168.2.12:18181`） | `.mvn/settings.xml` 中 servers |
+| **.NET SDK** | ❌ **已废弃**（7 月清理） | — |
+
+- Java SDK 0.3.0 起独立版本号，与平台版本解耦
+- Rust SDK 版本策略未固化（ADR-004 已知未做）
+
+**5. Setup wizard（零信任本地化配置）**
+- 首次 clone 后跑一次：`node scripts/setup-wizard.js`，支持 `--non-interactive` / `--defaults` / `--show` / `--dry-run`
+- 全部输出文件**不入 git**（个人/团队/CI 隔离）
+- 同步部分选项到 `.gitlab-ci.yml` 的 `CODER_*` 变量
+- ⚠️ `.cargo/config.toml` 被 wizard 覆盖式重写 → 用户手改的其他配置会丢（保留手工改 configs 前**先备份**）
+
+**变更时机提醒**：新服务发布 → 改 `release.sh` 镜像清单 + `compose/services.yml` + `openapi.yaml`；新依赖源 → `setup-wizard.js` 加交互 + 生成对应配置；SDK 破坏性变更 → 升 major 版本 + `sdk/README.md` 记录 migration guide；v2 骨架结构调整 → 改 `release.sh` 复制清单 + `release/dist-template/README.md`。
 
 ---
 
@@ -398,12 +478,15 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 | 备份与恢复 | `docs-site/runbooks/backup.md` |
 | MySQL 主从管理 | `docs-site/runbooks/mysql-replication.md` |
 | 凭据轮换 SOP | `docs-site/runbooks/secret-rotation.md` |
-| ADR（架构决策记录） | `docs-site/decisions/ADR-{001..006}*.md` + `CONVENTIONS-libs-crate-strategy.md` |
+| ADR（架构决策记录） | `docs-site/decisions/ADR-{001..008}*.md` + `CONVENTIONS-libs-crate-strategy.md` |
+| 多租户注意事项快查 | §4.3.1（[ADR-003](../decisions/ADR-003-multi-tenancy-architecture.md)） |
+| 发行工程打包流程快查 | §4.4.1（[ADR-004](../decisions/ADR-004-release-engineering-architecture.md) + 3 份 2026-07-23 spec） |
 | K3s / 2.0 路线 | `docs-site/plans/k3s-decision-review.md` |
 | E2E 覆盖率评估 | `docs-site/decisions/frontend-e2e-coverage-eval.md` |
 | test-case 迁移评估 | `docs-site/decisions/test-case-migration-eval.md` |
 | Java SDK 已知漂移 | `sdk/java/KNOWN-DRIFT.md` |
 | 阶段总览 | `docs/superpowers/plans/2026-06-25-overall-roadmap.md` + `pre-v1-todo.md` + `done.md` |
+| 设计 spec 目录 | `docs/superpowers/specs/`（含 2026-07-23 release-dist-template / setup-wizard / sdk-publishing 3 份发行工程追认） |
 | 新人入门 | `docs-site/onboarding/README.md` |
 
 ---
@@ -440,4 +523,7 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 
 ---
 
-_最后核验：2026-08-19。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：§4.1 第 1/2 条修正为"已闭合"（migration-state 三项 + application.yml 死代码移除）；新增 `scripts/reconcile-todo-docs.js` 漂移检测器（R1 父行 vs 子项 / R2 guide 状态行）+ CI `reconcile_todo_docs_check` job（`feat/reconcile-todo-docs` 分支 commits `ba3310b` / `57ae894` / `7f4f601`）。_
+_最后核验：2026-08-19。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：
+
+- **2026-08-19（合并 feat/centralized-logging + P1 收口）**：§4.1 第 1/2 条修正为"已闭合"（migration-state 三项 + application.yml 死代码移除）；新增 `scripts/reconcile-todo-docs.js` 漂移检测器（R1 父行 vs 子项 / R2 guide 状态行）+ CI `reconcile_todo_docs_check` job（`feat/reconcile-todo-docs` 分支 commits `ba3310b` / `57ae894` / `7f4f601`）。
+- **2026-08-19（8 月 P1 文档基建收口）**：① 修复 §4.2 编号 duplicate bug（`### 4.2 Onboarding / 运维` → `### 4.3 Onboarding / 运维`，后续 4.3 → 4.4 顺延）；② 新增 §4.3.1 多租户注意事项（从 ADR-003 提取 5 条执行要点 + 与 §4.1 现有 tenant-scope 上下文衔接）；③ 新增 §4.4.1 发行工程打包流程（从 ADR-004 提取 5 条执行要点 + 链接 3 份 2026-07-23 spec 追认）；④ 顶部"事实来源"清单补 ADR-003/004 + 3 份 spec；⑤ §10 导航地图补 ADR-{001..008} + spec 目录入口 + §4.3.1/§4.4.1 跳板。ADR-003/004 本身已由 commit `28d0aead`（2026-07-26）落地，本轮仅做"事实化"收口。_
