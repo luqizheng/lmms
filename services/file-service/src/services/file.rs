@@ -1,11 +1,9 @@
 use crate::error::{AppError, AppErrorExt, AppResult};
 use crate::models::file_info::{FileInfo, PagedFiles, QueryFiles, UploadFileMeta};
 use crate::models::presign_url::{CreatePresignUrl, PresignUrl, PresignUrlResponse};
-use crate::storage::local::LocalStorage;
 use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
 use digua_common_db::WithTenantScope;
-use digua_common_jwt::JWKSCache;
 use digua_jwt_ctx::TenantScope;
 use sqlx::{MySqlPool, QueryBuilder};
 use std::sync::Arc;
@@ -14,7 +12,7 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub struct FileService {
     pool: MySqlPool,
-    storage: Arc<LocalStorage>,
+    storage: Arc<dyn ObjectStore>,
     base_url: String,
     max_file_size: u64,
     /// Phase 5-B: JWKS cache for verifying inbound user-jwt.
@@ -24,7 +22,7 @@ pub struct FileService {
 impl FileService {
     pub fn new(
         pool: MySqlPool,
-        storage: Arc<LocalStorage>,
+        storage: Arc<dyn ObjectStore>,
         base_url: String,
         max_file_size: u64,
         jwks: Arc<digua_common_jwt::JWKSCache>,
@@ -97,18 +95,30 @@ impl FileService {
 
     // check-tenant-scope: delegated (and_tenant applied inside get_file_info)
     pub async fn create_presign_url(&self, req: CreatePresignUrl, scope: &TenantScope) -> AppResult<PresignUrlResponse> {
-        let _info = self.get_file_info(&req.file_id, scope).await?;
+        let info = self.get_file_info(&req.file_id, scope).await?;
 
         let expires_in = req.expires_in_seconds.unwrap_or(3600);
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
 
-        let url = format!(
-            "{}{}?expires={}&token={}",
-            self.base_url,
-            req.file_id,
-            expires_at.timestamp(),
-            Uuid::new_v4()
-        );
+        let url = match req.operation.as_str() {
+            "put" => self
+                .storage
+                .presign_put(&info.storage_path, expires_in.max(0) as u64)
+                .await?,
+            _ => self
+                .storage
+                .presign_get(&info.storage_path, expires_in.max(0) as u64)
+                .await?,
+        }
+        .unwrap_or_else(|| {
+            format!(
+                "{}{}?expires={}&token={}",
+                self.base_url,
+                req.file_id,
+                expires_at.timestamp(),
+                Uuid::new_v4()
+            )
+        });
 
         let presign = PresignUrl {
             id: Uuid::new_v4().to_string(),

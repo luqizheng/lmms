@@ -21,6 +21,10 @@ utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tokio-util = { version = "0.7", features = ["io"] }
 async-trait = "0.1"
+# S3-protocol client (RustFS / AWS S3 / Aliyun OSS / MinIO 等 S3-compatible 后端).
+# 默认 features 禁用走 native-tls，配 tokio-rustls-tls + with-tokio 与本仓库 musl + rustls 策略一致。
+rust-s3 = { version = "0.37", default-features = false, features = ["tokio-rustls-tls", "with-tokio"] }
+hmac = "0.12"
 digua_common_error = { path = "../../libs/common-error" }
 digua_common_db = { path = "../../libs/common-db", features = ["mysql", "openapi"] }
 digua_authz = { path = "../../libs/authz" }

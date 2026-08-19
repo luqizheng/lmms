@@ -3,17 +3,20 @@
 //! Validates that the file-service correctly applies tenant_id filter:
 //! - platform_admin (cross_tenant=true) sees files from any tenant
 //! - regular tenant-scoped user only sees files in their own tenant
-mod digua_common;
+mod common;
 
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use file_service::routes::{self, create_state};
+use digua_common_jwt::{JWKSCache, JwksConfig};
 use digua_jwt_ctx::Principal;
+use file_service::routes::{self, create_state};
+use file_service::storage::ObjectStore;
 use jwt_simple::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration as StdDuration;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -23,7 +26,7 @@ struct Ctx {
 }
 
 async fn setup() -> Ctx {
-    let h = digua_common::spawn_mysql().await;
+    let h = common::spawn_mysql().await;
     let pool = h.pool;
     let app = build_app(pool.clone(), h.storage);
     Ctx { app, pool }
@@ -31,9 +34,22 @@ async fn setup() -> Ctx {
 
 fn build_app(
     pool: sqlx::MySqlPool,
-    storage: Arc<file_service::storage::LocalStorage>,
+    storage: Arc<dyn ObjectStore>,
 ) -> axum::Router {
-    let state = create_state(pool, storage, "http://test/file/".into(), 100 * 1024 * 1024);
+    // 测试中 jwt 由测试代码用临时生成的 RSA key 签发，jwks 不参与验签链路；
+    // 仅为了让 create_state 满足 5 参签名。
+    let http = reqwest::Client::builder()
+        .timeout(StdDuration::from_secs(1))
+        .build()
+        .unwrap();
+    let jwks = Arc::new(JWKSCache::new(JwksConfig::default(), http));
+    let state = create_state(
+        pool,
+        storage,
+        "http://test/file/".into(),
+        100 * 1024 * 1024,
+        jwks,
+    );
     routes::routes(state)
 }
 
@@ -69,8 +85,8 @@ fn make_token(user_id: &str, tenant_id: i64, cross_tenant: bool) -> String {
 
     let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
     claims.subject = Some(user_id.to_string());
-    claims.issued_at = Some(Duration::from_secs(now));
-    claims.expires_at = Some(Duration::from_secs(now + 3600));
+    claims.issued_at = Some(coarsetime::Duration::from_secs(now));
+    claims.expires_at = Some(coarsetime::Duration::from_secs(now + 3600));
     claims.custom = custom;
 
     key_pair.sign(claims).unwrap()

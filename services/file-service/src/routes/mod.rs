@@ -56,7 +56,7 @@ async fn metrics() -> axum::response::Html<String> {
 
 pub fn create_state(
     pool: sqlx::MySqlPool,
-    storage: Arc<crate::storage::local::LocalStorage>,
+    storage: Arc<dyn crate::storage::object_store::ObjectStore>,
     base_url: String,
     max_file_size: u64,
     jwks: Arc<JWKSCache>,
