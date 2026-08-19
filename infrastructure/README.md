@@ -31,7 +31,9 @@
 - **灾备 failover**：主库宕机时 promote 从库为新主库，切换业务连接串后恢复服务
 - **读写分离预留**：2.0 规划将只读查询路由到从库，分担主库压力
 
-**从库镜像是本地构建的**，不走 registry 拉取。`docker compose build` 时从 `infrastructure/mysql-replica/Dockerfile` 构建，entrypoint 启动时自动等主库可达 → `CHANGE MASTER TO` → `START SLAVE`，无需手动 dump/restore。
+**从库镜像**：本地 dev 走 `docker compose build` 从 `infrastructure/mysql-replica/Dockerfile` 构建（compose 里同时声明了 `build:` 与 `image: coder/mysql-replica:8.0` 作为本地 tag）；CI pre-staging 由 `.gitlab-ci.yml` 的 `build_images:pre-staging` 单独 buildx --push 到 `zhcoder-docker-registry.com:8000/micro-server/mysql-replica:<sha>`，`release:pre-staging` 阶段 `transform-compose` 把 compose 的 `build:` 块替换为该 registry image 引用。
+
+entrypoint 启动时自动等主库可达 → `CHANGE MASTER TO` → `START SLAVE`，无需手动 dump/restore。
 
 ```bash
 # 启动从库（自动同步）

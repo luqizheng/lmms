@@ -4,7 +4,8 @@
 # Build context: this directory (infrastructure/mysql-replica/)
 # Run as part of docker-compose: services.mysql-replica.image is built from here.
 
-FROM mysql:8.0
+ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
+FROM ${BASE_REGISTRY}/mysql:8.0
 
 # Replicate binlog settings from docker-compose-infra.yml mysql service.
 # These must match the primary's settings or GTID auto-positioning will fail.

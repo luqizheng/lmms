@@ -32,11 +32,21 @@ const IMAGE_MAP = {
   'iam-service':                 'micro-server/iam-service',
   'iam-outbox-publisher':        'micro-server/iam-service',
   'notification-service':        'micro-server/notification-service',
-  'notification-outbox-publisher': 'micro-server/notification-service',
+  'notification-outbox-publisher':'micro-server/notification-service',
   'audit-service':               'micro-server/audit-service',
   'prue_backend':                'micro-server/prue-admin-backend',
   'frontend':                    'micro-server/frontend',
+  'mysql-replica':               'micro-server/mysql-replica',
 };
+
+// 跳过与 build: 块共存的 image: 行（mysql-replica 同时声明 build: + image:
+// 作为本地 tag；transform 后必须丢弃，否则 compose 拿到两个 image: 报错）。
+function skipCoexistingImageTag(lines, i) {
+  if (i + 1 < lines.length && /^ {4}image:\s+/.test(lines[i + 1])) {
+    return i + 1;
+  }
+  return i;
+}
 
 // ── 主逻辑 ─────────────────────────────────────────────────────────────
 function main() {
@@ -103,6 +113,8 @@ function main() {
         break;
       }
     }
+
+    i = skipCoexistingImageTag(lines, i);
 
     // 替换为 image: 行（与 build: 同缩进，4 空格）
     output.push(`    image: ${registry}/${imageKey}:${version}`);
