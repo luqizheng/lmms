@@ -16,6 +16,7 @@ const { mergeMirror, writeManifest, DEFAULT_BUILDER_REGISTRY, isBuilderRef, rewr
 
 const MANIFEST = path.join(ROOT, 'infrastructure', 'base-images.json');
 const REGISTRY_CONFIG = path.join(ROOT, 'infrastructure', '.docker-registry.json');
+const COMPOSE_ENV = path.join(ROOT, 'infrastructure', '.env');
 
 function parseArgs(argv) {
   const out = { command: null };
@@ -82,10 +83,62 @@ function cmdSync(checkOnly) {
     return;
   }
   writeManifest(MANIFEST, merged);
+  syncComposeEnv(cfg.baseRegistry);
   const baseSrc = cfg.baseRegistry || '(docker hub)';
   console.log(chalk.green(`[sync] wrote ${merged.length} images to ${MANIFEST}`));
   console.log(`[sync] base registry:    ${baseSrc}`);
   console.log(`[sync] builder registry: ${cfg.builderRegistry}`);
+}
+
+// Mirror cfg.baseRegistry into infrastructure/.env as `BASE_REGISTRY=<value>/` so
+// docker compose's ${BASE_REGISTRY}<image> interpolation matches the mirror we
+// just wrote into base-images.json. Without this, re-running setup-wizard with
+// a new baseRegistry would update .docker-registry.json but leave docker compose
+// pulling from the previous registry.
+//
+//   - Empty baseRegistry => `BASE_REGISTRY=` (compose refs collapse to short
+//     names — bare docker hub behavior).
+//   - Trailing slash is always added so compose refs like
+//     `${BASE_REGISTRY}mysql:8.0` concatenate without an extra slash.
+//
+// Idempotent: replaces the existing BASE_REGISTRY line in place, or appends a
+// well-commented block if the line is missing. Other lines in .env are
+// preserved byte-for-byte.
+function syncComposeEnv(baseRegistry) {
+  if (!fs.existsSync(COMPOSE_ENV)) {
+    // No .env — nothing to do. docker compose will fail loudly on missing vars,
+    // which is the correct signal for the user to run `pnpm run setup`.
+    return;
+  }
+  const want = baseRegistry ? `${baseRegistry}/` : '';
+  const lines = fs.readFileSync(COMPOSE_ENV, 'utf8').split('\n');
+  // Allow `export BASE_REGISTRY=...` form (defensive — `.env` doesn't use it,
+  // but if a user copy-pastes from a shell script it shouldn't break sync).
+  const re = /^(export\s+)?(BASE_REGISTRY)\s*=\s*(.*?)\s*$/;
+  let lineIdx = -1;
+  let current = null;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(re);
+    if (m) {
+      lineIdx = i;
+      current = m[3];
+      break;
+    }
+  }
+  const has = (v) => v === want;
+  if (lineIdx >= 0 && has(current)) return; // already in sync
+  const newLine = `BASE_REGISTRY=${want}`;
+  if (lineIdx >= 0) {
+    lines[lineIdx] = newLine;
+    fs.writeFileSync(COMPOSE_ENV, lines.join('\n'));
+    console.log(chalk.dim(`[sync] updated infrastructure/.env: ${newLine}`));
+  } else {
+    // Append at end with a small header so future readers know where this came from.
+    const sep = (lines.length && lines[lines.length - 1] !== '') ? '\n' : '';
+    const block = `${sep}# BASE_REGISTRY — mirror for compose image refs (managed by pnpm run images:sync)\n${newLine}\n`;
+    fs.writeFileSync(COMPOSE_ENV, lines.join('\n') + block);
+    console.log(chalk.dim(`[sync] appended BASE_REGISTRY to infrastructure/.env`));
+  }
 }
 
 function cmdSetMirror(ref, mirror) {

@@ -3,7 +3,7 @@
 # and resource limits are applied via override/prod compose files.
 services:
   consul:
-    image: hashicorp/consul:2.0.1
+    image: ${BASE_REGISTRY}hashicorp/consul:2.0.1
     hostname: consul
     ports:
       - "8500:8500"
@@ -20,7 +20,7 @@ services:
       - superpowers
 
   registrator:
-    image: gliderlabs/registrator:master
+    image: ${BASE_REGISTRY}gliderlabs/registrator:master
     depends_on:
       consul:
         condition: service_healthy
@@ -35,7 +35,7 @@ services:
       - superpowers
 
   redis:
-    image: redis:7-alpine
+    image: ${BASE_REGISTRY}redis:7-alpine
     hostname: ${REDIS_HOST}
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -52,7 +52,7 @@ services:
       - superpowers
 
   mysql:
-    image: mysql:8.0
+    image: ${BASE_REGISTRY}mysql:8.0
     hostname: ${MYSQL_HOST}
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -128,7 +128,7 @@ services:
       - superpowers
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: ${BASE_REGISTRY}rabbitmq:3.13-management-alpine
     hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}

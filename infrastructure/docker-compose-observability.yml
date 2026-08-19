@@ -9,7 +9,7 @@
 
 services:
   prometheus:
-    image: prom/prometheus:v2.51.0
+    image: ${BASE_REGISTRY}prom/prometheus:v2.51.0
     container_name: observability-prometheus
     ports:
       - "9090:9090"
@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: ${BASE_REGISTRY}prom/alertmanager:v0.27.0
     container_name: observability-alertmanager
     ports:
       - "9093:9093"
@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:10.4.0
+    image: ${BASE_REGISTRY}grafana/grafana:10.4.0
     container_name: observability-grafana
     ports:
       - "3001:3000"
@@ -67,7 +67,7 @@ services:
   # Canary routing: watches Consul for service tag changes
   # and re-renders nginx config to split traffic stable/canary
   consul-template:
-    image: hashicorp/consul-template:0.32.0
+    image: ${BASE_REGISTRY}hashicorp/consul-template:0.32.0
     container_name: observability-consul-template
     user: "0:0"
     volumes:
@@ -83,7 +83,7 @@ services:
   # OpenTelemetry Collector — receives OTLP from services,
   # exports traces to Jaeger (UI at :16686) and metrics to Prometheus
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.96.0
+    image: ${BASE_REGISTRY}otel/opentelemetry-collector-contrib:0.96.0
     container_name: observability-otel-collector
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
@@ -104,7 +104,7 @@ services:
   # SPM (Service Performance Monitoring) on the Monitor tab is wired to
   # Prometheus, which is fed by the spanmetrics connector in otel-collector.
   jaeger:
-    image: jaegertracing/all-in-one:1.55
+    image: ${BASE_REGISTRY}jaegertracing/all-in-one:1.55
     container_name: observability-jaeger
     environment:
       - COLLECTOR_OTLP_ENABLED=true
