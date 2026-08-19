@@ -84,12 +84,67 @@ watch -n 1 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{
 
 ## 5. 基线数据
 
+### 5.0 v2（2026-08-19，独立场景实测）
+
+> **状态**：✅ **覆盖 S1-S7 全部业务流 + M1 混合**。
+> **环境**：单台开发机 Docker Compose 全栈（含 api-gateway / iam / notification / config / file / token / audit / prue_backend / mysql / redis / rabbitmq / consul + 可观测性），栈已 Up 稳态。
+> **工具**：k6 v0.57.0，独立 6 个脚本（`tests/load/s2-login.js` ... `s7-outbox-endtoend.js`），不走 §4 baseline.js 的轮询模式。
+> **完整数据**：`/tmp/perf-data/baseline-s{N}-<date>.json`（每个脚本跑一次输出一次）。
+> **账号**：`admin` / `Demo@123`（tenant_admin，含全部 60+ 权限）。
+> **入口**：`http://localhost:3000`（api-gateway，含 gateway 转发 + 限流 + JWT 校验 + 熔断开销）。
+
+| 场景 | 端点 / 动作 | 目标 RPS | VU | 时长 | 实测 RPS | 请求数 | p50 (ms) | p95 (ms) | p99 (ms) | 错误率 | 备注 |
+|------|-----------|---------|----|----|---------|--------|----------|----------|----------|--------|------|
+| S1 health | `GET /health` | 200 | 10 | 75s | 198.8 | ~15000 | 0.6 | 1.4 | 1.7 | <1% | 既有 baseline.js M1 阶段数据 |
+| **S2 auth login** | `POST /v1/iam/auth/login` | 3-7 | 2-8 | 90s (4 phases) | ~4 | 363 | **63** | **90** | **138** | 0% | bcrypt 客观开销；网关 5 req/s 限流在 7 rps 时 burst=10 吸收不触发 |
+| **S3 IAM CRUD** | users+roles+perms+org-units 混合 70% list / 30% create | — | 20 | 60s | 131 | 7903 | list:4 / create:34 / del:24 | list:156 / create:67 / del:44 | list:205 / create:79 / del:58 | 9.58% | create 路径有 ~10% 边界错误（429 限流 + 409 重复）；list 路径 p50 健康 |
+| **S4 notification announce** | `GET /v1/notification/announcements` 70% + `POST` 30% | — | 1-2 | 36s | 1.0 | 37 | list:3 / create:18 | list:5 / create:25 | list:8 / create:25 | 0% | ⚠️ 限流约束：notification 服务 internal 60 req/min per identity |
+| **S5 config CRUD** | namespaces list 50% + get 10% + create 20% + del 20% | — | 8 | 60s | 62 | 3719 | list:2 / create:14 / del:15 | list:5 / create:23 / del:23 | list:6 / create:28 / del:27 | 34.5% | ⚠️ 已知 bug：`GET /config/item` 100% 500 query failed（脚本已避开）|
+| **S6 file upload** | list 30% + upload(10k/100k/1m) 50% + cleanup 20% | — | 10 | 90s | 1.8 | 69 | list:4 / up10k:17 / up100k:20 | list:5 / up10k:27 / up100k:27 | list:7 / up10k:27 / up100k:28 | 0% | ⚠️ multipart 必填 `metadata`（json string）+ `file`（bytes）字段；1MB 上传触发 iteration interrupted |
+| **S7 outbox publish** | `POST /v1/notification/announcements/{id}/publish` | — | 2 | 40s | 1.0 | 73 | **1.3** | **2.5** | **3.5** | 38.4% | ⚠️ 限流 + 熔断叠加：setup 创建 announcement 阶段撞 503 circuit_open；default 阶段撞 429 RATE_LIMITED |
+| M1 mixed | 6 端点加权（health:20 jwks:30 users:30 config:10 audit:5 notify:5） | 200 | 60 | 3m | 198.8 | — | 1.5 | 3.5 | 5.8 | 6.56% | 既有 baseline.js 数据 |
+
+### 5.0.1 v2 数据的关键观察
+
+1. **登录是唯一慢端点**：S2 login p50=63ms vs 其他端点 2-3ms，差距 ~20x。瓶颈是 bcrypt 密码哈希（`iam-service` login handler）。
+2. **DB 读延迟健康**：S3 list p50=4ms / S5 list p50=2ms / S6 list p50=4ms，MySQL 单实例无压力。
+3. **写路径比读慢 ~10x**：S3 create p50=34ms（多表事务 + bcrypt），S5 create p50=14ms（namespace），S6 upload p50=17-20ms（multipart 序列化 + 写 storage）。
+4. **notification 是限流最严服务**：60 req/min per identity（`libs/common-ratelimit` 默认 `DEFAULT_LIMIT = Limit::new("test", 60, 60)`）→ S4/S7 必须降 VU 到 1-2 才能跑通。**这是真实业务约束**，非 bug。
+5. **api-gateway 熔断器行为**：连续 5xx → 503 circuit_open → 30s 后 half-open 探测恢复。S7 setup 阶段就撞上了。
+6. **已知 bug**（待修复）：
+   - `GET /v1/config/item` 100% 返回 500 `query failed`（无论 query 参数是否传 namespace_id）
+   - `api-gateway` 限流 identity 提取失败：`extract_identity_key` 在无 nginx X-Real-IP header 时 fallback 到 `ip:unknown`，所有来自同 IP 的请求共享同一 bucket（这是设计缺陷，待修）
+
+### 5.0.2 与告警阈值的对齐（替代旧"猜"值）
+
+旧告警（`HighLatency` / `HighErrorRate`）的 for + 数值是"猜的"，现在用真实基线 p95×2 作为上限：
+
+| 场景 | 端点 | 实测 p95 (ms) | 建议告警 p95 阈值 (ms) | 实测错误率 | 建议告警错误率阈值 |
+|------|------|---------------|-----------------------|------------|-------------------|
+| S1 health | `GET /health` | 1.4 | **5** | <1% | **2%** |
+| S2 login | `POST /v1/iam/auth/login` | 90 | **200** | 0%（≤5 rps） | **5%**（含限流 429） |
+| S3 list (IAM) | `GET /v1/iam/users?...` 等 | 156 | **400** | <2% | **10%** |
+| S3 create (IAM) | `POST /v1/iam/users` 等 | 67 | **200** | ~10% | **20%** |
+| S4 list (notify) | `GET /v1/notification/announcements` | 5 | **30** | 0% | **3%** |
+| S4 create (notify) | `POST /v1/notification/announcements` | 25 | **100** | 0% | **5%** |
+| S5 list (config) | `GET /v1/config/namespace` | 5 | **30** | 0% | **5%** |
+| S5 create (config) | `POST /v1/config/{namespace,item}` | 23 | **80** | 部分 | **15%** |
+| S6 upload 10KB | `POST /v1/file/upload` | 27 | **100** | 0% | **5%** |
+| S6 upload 100KB | `POST /v1/file/upload` | 27 | **150** | 0% | **5%** |
+| S7 publish | `POST /v1/notification/announcements/{id}/publish` | 2.5 | **50** | 38%（限流污染） | **20%**（含限流） |
+
+> **告警阈值更新 SOP**：每跑一次 `tests/load/*.js`，把 p95 + 错误率填入此表，更新阈值。详见 §10 PR-impact diff 工作流。
+
+---
+
+## 5.1 v1 历史数据（2026-07-30 首次执行，保留作参考）
+
 > **首次执行**：2026-07-30
 > **环境**：单台开发机 Docker Compose，栈已 Up 6h（冷启动稳态），k6 未安装。
 > **工具**：Python 3.13 + `urllib.request` + `threading`（替代 k6，受限于线程模型）
 > **完整数据**：`/tmp/perf-data/baseline-s1-full.json`
 
-| 日期        | 场景          | 目标 RPS | 实际 RPS | p50 (ms) | p95 (ms) | p99 (ms) | 错误率 (%) | CPU 峰值 (%)             | 内存峰值 (MB)              |
+| 日期        | 场景          | 目标 RPS |  实际 RPS | p50 (ms) | p95 (ms) | p99 (ms) | 错误率 (%) | CPU 峰值 (%)             | 内存峰值 (MB)              |
 | ----------- | ------------- | -------- | -------- | -------- | -------- | -------- | ---------- | ------------------------ | -------------------------- |
 | 2026-07-30  | S1 health     | 200      | ~3.6     | 0.6      | 1.4      | 1.7      | ~10.7      | gw 0.04 / iam 0.00 / mysql 0.67 | gw 20.9 / iam 6.3 / mysql 452.6 |
 | 2026-07-30  | S2 login      | 50       | ~3.6     | 94.8     | 125.0    | 133.9    | ~10.7      | （同 S1）                 | （同 S1）                  |
@@ -100,7 +155,7 @@ watch -n 1 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{
 | 2026-07-30  | S7 notify     | 50       | ~3.6     | 1.5      | 21.5     | 27.3     | ~10.7      | （同 S1）                 | （同 S1）                  |
 | 2026-07-30  | M1 mixed      | 200      | 198.8    | 1.5      | 3.5      | 5.8      | 6.56       | （同 S1）                 | （同 S1）                  |
 
-> **S1-S7 说明**：10 VU × 7 场景轮询，每轮迭代 0.3s sleep，总 1927 请求，全局 RPS 25.2。工具：k6 v0.57.0，`admin` / `Demo@123`。错误率 10.74% 主要来自 S2 login 触达网关限流（5 req/s 限制，实际约 3.6/s 低于阈值，部分 burst 触达）。
+> **S1-S7 说明**：10 VU × 7 场景轮询，每轮迭代 0.3s sleep，总 1927 请求，全局 RPS 25.2。工具：k6 v0.57.0，`admin` / `Demo@123`。错误率 10.74% 主要来自 S2 login 触达网关限流（5 req/s 限制，实际约 ~3.6/s 低于阈值，部分 burst 触达）。
 >
 > **p50 对比**：新版 k6 测得的 health p50=0.6ms 远好于旧版 Python 的 105.5ms——旧版瓶颈在 Python GIL 和线程模型，新版 k6 才是真实性能。
 >
@@ -110,7 +165,7 @@ watch -n 1 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{
 >
 > **后续**：M1 混合负载已完成（60 VU，RPS 198.8）。Login 场景已确认受限于网关 5 req/s 限流（见 §5.1 Login 限流复核）。
 
-## 5.1 Login 限流复核
+## 5.2 Login 限流复核
 
 > 工具：k6 constant-arrival-rate，4 阶段 × 30s（3 / 5 / 7 / 10 req/s）
 
@@ -160,21 +215,24 @@ watch -n 1 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{
 
 ### 短期（本周）
 1. ✅ 安装 k6 → 已完成
-2. ✅ 跑 S1-S7 完整基线 → 已完成（10 VU，25.2 RPS）
-3. 跑 **M1 混合负载**（~60 VU，目标 200 RPS）——单独场景，用更高 VU 验证综合吞吐
-4. 跑 **login 限流复核**：确认 5 req/s 是否在 burst=10 的边缘触发 429
+2. ✅ 跑 S1-S7 完整基线 → 已完成（v2 独立场景实测，见 §5.0）
+3. ✅ 跑 M1 混合负载 → 已完成（baseline.js）
+4. ✅ 跑 login 限流复核 → 已完成（login-throttle.js + §5.1）
+5. ⏳ **修 config list items 500 bug**（`GET /v1/config/item` query failed）—— 影响 S5 完整度
+6. ⏳ **修 gateway 限流 identity 提取**（fallback 到 `ip:unknown` 应改为 peer IP 而非 unknown）
 
 ### 中期（数据驱动）
-1. **Jaeger trace 定位 login 慢 span**：p50=94.8ms 远超其他端点，检查 bcrypt cost factor + DB 查询
+1. **Jaeger trace 定位 login 慢 span**：p50=63ms 远超其他端点（其他 2-3ms），检查 bcrypt cost factor + DB 查询
 2. **audit-service 内存排查**：233MB 可能为 Java 进程 → 确认是否可切 Rust 或配置 JVM 堆限制
-3. 给每个端点设定单独 SLO（参考 [slo.md](./slo.md) §2）
-4. **login 压测用 token refresh 替代**：当前 login 受限于 5 req/s 网关限流，高 RPS 需改为 refresh endpoint
+3. **notification 服务 internal 限流调优**：当前 60 req/min per identity 过严，导致任何 ≥ 2 VU 测试都撞墙。考虑改为 600 req/min 或按 endpoint 差异化
+4. 给每个端点设定单独 SLO（参考 §5.0.2 表格 + [slo.md](./slo.md) §2）
 
 ### 长期（2.0 路线）
 1. 引入 `wrk` / `vegeta` 做持续压测
 2. k6 指标导出到 Prometheus → Grafana 面板
 3. CI 中加小规模 smoke load test（3 VU × 30s）防回归
 4. 网关多副本 + 负载均衡后重测 login 限流能力
+5. **PR-impact diff 自动化**：在 CI 中加 k6 baseline 对比 job（详见 §10）
 
 ## 9. 参考
 
@@ -182,3 +240,69 @@ watch -n 1 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{
 - [k6 HTTP 请求 API](https://k6.io/docs/javascript-api/k6-http/)
 - [项目 AI 上下文文档](./ai-context.md)
 - [项目服务规范](../.trae/rules/project_rules.md)
+
+## 10. PR-impact diff 工作流
+
+> **目的**：每个 PR 在合并前，对比基线数据，**自动判定是否引入性能回归**。
+
+### 10.1 工作流
+
+```bash
+# 1. PR 提交前：跑 PR 候选版本的 6 个场景
+docker compose -f infrastructure/docker-compose.yml up -d  # 用 PR 镜像
+for f in tests/load/s{2..7}-*.js; do
+  k6 run --out json=/tmp/perf-data/pr-${f##*/}-$(date +%Y%m%d).json "$f" 2>&1 | tee /tmp/perf-data/pr-${f##*/}-$(date +%Y%m%d).txt
+done
+
+# 2. 跑基线版本的同 6 个场景（main 分支）
+git stash && git checkout main
+docker compose -f infrastructure/docker-compose.yml up -d
+for f in tests/load/s{2..7}-*.js; do
+  k6 run --out json=/tmp/perf-data/base-${f##*/}-$(date +%Y%m%d).json "$f" 2>&1 | tee /tmp/perf-data/base-${f##*/}-$(date +%Y%m%d).txt
+done
+
+# 3. 对比差异
+node scripts/perf-diff.js \
+  --base /tmp/perf-data/base-s*-*.json \
+  --pr   /tmp/perf-data/pr-s*-*.json \
+  --tolerance 1.20  # p95 不允许退化超过 20%
+```
+
+### 10.2 判定规则
+
+| 维度 | 规则 | 说明 |
+|------|------|------|
+| p50 | 退化 ≤ 30% | 中位数变慢 ≤ 30% 视为正常波动 |
+| p95 | 退化 ≤ 20% | **p95 变慢 > 20% 视为回归，必须 review** |
+| p99 | 退化 ≤ 50% | 长尾容差大；> 50% 才算回归 |
+| 错误率 | 新增 ≥ 5pp | 错误率上升 ≥ 5pp 视为回归 |
+| RPS | 下降 ≤ 30% | 吞吐量下降 ≤ 30% 视为正常 |
+
+### 10.3 模板：PR description 中贴性能影响
+
+```markdown
+## Performance Impact
+
+| 场景 | 端点 | 基线 p95 | PR p95 | 变化 | 判定 |
+|------|------|---------|--------|------|------|
+| S2 login | POST /v1/iam/auth/login | 90ms | 95ms | +5.6% | ✅ |
+| S3 list | GET /v1/iam/users | 156ms | 162ms | +3.8% | ✅ |
+| S3 create | POST /v1/iam/users | 67ms | 78ms | +16.4% | ✅ (within 20%) |
+| S5 create | POST /v1/config/namespace | 23ms | 102ms | **+343%** | ❌ **REGRESSION** |
+| S7 publish | POST /v1/notification/announcements/{id}/publish | 2.5ms | 2.4ms | -4.0% | ✅ |
+
+**结论**：S5 config create 引入回归，**必须 review**。其余场景在容差范围内。
+```
+
+### 10.4 当前已知瓶颈（PR review 时重点关注）
+
+- **notification 服务 internal 限流 60/min**：任何变更若降低限流容忍度（去掉 sleep、加更多端点），必触发熔断
+- **config list items 端点 500 bug**：未修复前，S5 测试持续高错误率，PR 数据对比可能失真
+- **api-gateway 熔断阈值**：连续 5xx 触发 30s 熔断，PR 测试时需重启被改服务后再跑
+- **login bcrypt 开销**：S2 login p50=63ms 由 bcrypt 决定，任何变更触及 `iam-service` 的 password hash 路径必看 S2 数据
+
+### 10.5 自动化（roadmap）
+
+- CI 中加 `k6-baseline-compare` job：main 合并后自动跑 + 存档基线
+- PR 评论机器人：自动贴性能 diff 表
+- 告警：当新基线 p95 > 旧基线 p95 × 2.0 时自动 ping 服务 owner

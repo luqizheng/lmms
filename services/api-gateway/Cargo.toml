@@ -15,6 +15,7 @@ bytes.workspace = true
 digua_common = { path = "../../libs/common" }
 digua_common_event = { path = "../../libs/common-event" }
 digua_common_http = { path = "../../libs/common-http" }
+uuid = { workspace = true }
 futures.workspace = true
 bytes.workspace = true
 digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }

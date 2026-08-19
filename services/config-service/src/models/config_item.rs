@@ -15,9 +15,13 @@ pub struct ConfigItem {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     /// 服务端在 is_secret=true 且调用者无 CFG_CONFIG_REVEAL 时填 true，
-    /// 同时把 value 置空。客户端据此决定是否走「显示明文」按钮。
+    /// 同时把 value 置为 `MASK = "********"`（见 routes/config.rs）。
+    /// 客户端据此决定是否走「显示明文」按钮。
     /// DB SELECT 总是返回 false（手动在 routes 里覆盖）。
+    /// `value_masked` 不存于 cfg_config_items 表，由 routes 层覆盖；
+    /// sqlx 反序列化遇到缺列时用默认 false 兜底，避免 500。
     #[serde(default)]
+    #[sqlx(default)]
     pub value_masked: bool,
 }
 

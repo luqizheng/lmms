@@ -4,6 +4,7 @@ stages:
   - build
   - deploy
   - e2e
+  - perf
   - publish
   - release
 
@@ -918,3 +919,48 @@ cargo_deny:
       allow_failure: true
   allow_failure: true
 
+
+# ─── perf baseline ──────────────────────────────────────────────────────
+# 在 staging 部署 + e2e 跑通后，采集 k6 baseline 存档 90 天。
+# Perf diff 工作流见 docs-site/perf-baseline.md §10。
+k6_baseline:
+  stage: perf
+  tags: [docker]
+  image: grafana/k6:0.57.0
+  resource_group: perf
+  needs:
+    - job: e2e:staging
+      artifacts: false
+  variables:
+    BASE_URL: $STAGING_BASE_URL
+  before_script:
+    - 'which ssh || (apt-get update && apt-get install -y --no-install-recommends openssh-client)'
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - '[[ -n "$SSH_PRIVATE_KEY" ]] || { echo "SSH_PRIVATE_KEY required for k6_baseline"; exit 1; }'
+    - printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H -p "$STAGING_SSH_PORT" "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+    # 反向隧道把 staging 端口拉到 runner 本地（与 e2e:staging 一致）
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new -N -f
+        -R 3000:localhost:3000 -R 8080:localhost:8080
+        "$STAGING_DEPLOY_USER@$STAGING_HOST"
+    # k6 镜像内 Node 不一定可用，shell 循环跑即可
+  script:
+    - mkdir -p /tmp/perf-data
+    - |
+      DATE=$(date +%Y%m%d)
+      cd /home/kudi/coder-micro-services
+      for f in tests/load/s{2..7}-*.js; do
+        name=$(basename "$f" .js)
+        echo "=== running $name ==="
+        k6 run --quiet --summary-export "/tmp/perf-data/main-${name}-${DATE}.json" "$f" || true
+      done
+    - ls -la /tmp/perf-data/
+  artifacts:
+    when: always
+    paths:
+      - /tmp/perf-data/
+    expire_in: 90 days
+    name: k6-baseline-$CI_COMMIT_SHORT_SHA
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
