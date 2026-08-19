@@ -455,7 +455,7 @@
   - [x] `pom.xml` 补 `spring-boot-starter-test` test scope
   - [x] `config/application.yml` 移除死代码 datasource 段（compose 注 `SPRING_DATASOURCE_*`）
   - [x] `Dockerfile` 的 maven-settings.xml 改为 `ARG MAVEN_SETTINGS` build-arg，移除 `-Dmaven.test.skip`
-- 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`） — **G3 7/7 端点接入完成（待集成测试 + 文档同步）**
+- 数据库 schema 当前版本/历史查询端点（`/internal/migrations/state`） — **G3 7/7 端点接入完成**
   - [x] spec `docs/superpowers/specs/2026-07-08-migrations-state-endpoint-design.md`
   - [x] `libs/digua_common-db::MigrationState` trait + `build_response`（commit `61d4b0c`）
   - [x] iam-service 接入（commit `bcb5bcf`，5 migrations）
@@ -468,7 +468,7 @@
   - [x] 集成测试 + 文档同步 — CI job `e2e_migration_state_test` 已接入（`.gitlab-ci.yml`）；AGENTS.md 7/7 已有端点条目；`docs-site/guides/migrations-state.md` 已完整
 - [x] 密钥轮换机制 SOP（JWT 私钥、DB 密码、API key） — runbook `docs-site/runbooks/secret-rotation.md`。覆盖：① JWT 私钥（含 kid + JWKS 路线图），② MySQL root 密码，③ Redis 密码；含手动 SOP 命令与未来自动化路线。
 - [x] gateway 限流统一走 Redis，淘汰 in-memory 实现避免双实现困惑（commit `ddf44a0`）
-- [ ] 评估自研 router 替换为 Envoy / Pingora 的成本/收益
+- [x] 评估自研 router 替换为 Envoy / Pingora 的成本/收益 — ADR-006 已落，决策保留自研 router（`docs-site/decisions/ADR-006-gateway-long-term-strategy.md`，状态：已采纳；commit `e24a3f4`）
 - [x] **iam-service `dump-openapi` binary 栈溢出**（阻塞 openapi.yaml 自动同步）
   - **根因**：`services/iam-service/src/dto/org_unit.rs:OrgUnitResponse` 有 `children: Vec<OrgUnitResponse>` 自引用字段，utoipa `ToSchema` derive 展开时无限递归内联，导致 `openapi()` / `to_yaml()` / Drop 均在主线程栈溢出。
   - **修复**：`#[schema(no_recursion)]` 属性宏加到 `children` 字段，告知 utoipa 用 `$ref` 引用而非内联展开。这是 utoipa 官方处理自引用 schema 的标准方式，运行时的 JSON 序列化不受影响。
@@ -514,7 +514,7 @@
 
 - [ ] **内网仓库凭证申请**：Docker Registry (`zhcoder-docker-registry.com:8000`)、Maven (`http://mvn.kudi.repos`) 的账号申请流程 — **待运维补充**
 - [ ] **生产数据迁移 SOP**：生产环境数据库迁移的备份、回滚、灰度验证标准流程 — **待运维补充**
-- [ ] **集中式日志收集**：生产环境日志收集方案（ELK / Loki / 阿里云 SLS）、查询入口、权限申请 — **待运维补充**
+- [x] **集中式日志收集**：生产环境日志收集方案（ELK / Loki / 阿里云 SLS）、查询入口、权限申请 — runbook `docs-site/runbooks/log-aggregation.md` 已落地（status: 可执行，Phase 6-A T2 落地后）
 
 ### 团队规范
 
