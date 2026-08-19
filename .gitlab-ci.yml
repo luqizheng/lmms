@@ -180,6 +180,26 @@ doc_links_check:
   script:
     - node scripts/check-doc-links.js
 
+reconcile_todo_docs_check:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  # TODO.md ↔ docs-site/guides/* ↔ docs-site/decisions/* ↔ docs-site/runbooks/* 状态行漂移检测。
+  # R1（HARD）：TODO.md 父行末尾含"待..."但全部子项已 [x]。
+  # R2（HARD）：关联 guide / decision / runbook 顶部状态行已标记落地（v\d+ / 可执行 / 落地 /
+  #              approved / 已采纳 / closed），但 TODO.md 对应项仍 [ ]。
+  # 退出码：0=clean/advisory，1=至少一条 HARD drift；MR 阻断。
+  # 仅 Node 内置依赖（fs / path），无需 npm install；与 check-doc-links.js 同一执行环境。
+  script:
+    - node scripts/reconcile-todo-docs.js
+  rules:
+    - changes:
+        - TODO.md
+        - docs-site/**/*.{md,vue}
+        - scripts/reconcile-todo-docs.js
+      when: on_success
+    - when: never
+
 i18n_namespace_check:
   stage: test
   tags: [docker]

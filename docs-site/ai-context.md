@@ -3,7 +3,7 @@
 > **文档性质**：状态快照 + AI 协作入口（**不是**架构教程或历史流水账）。
 > AI 协作者在本仓库工作前**必须先读**本文件；它把当前事实、漂移点、未完成项收口到一处。
 >
-> **最后核验日期**：2026-08-18
+> **最后核验日期**：2026-08-19
 >
 > **事实来源**（已核对）：
 > - `docs-site/ai-context.md`（本文旧版本）
@@ -22,7 +22,7 @@
 > - `docs-site/decisions/{ADR-005-shared-db-vs-per-service-db,ADR-006-gateway-long-term-strategy,CONVENTIONS-libs-crate-strategy,frontend-e2e-coverage-eval,test-case-migration-eval}.md`
 > - `docs-site/{slo,perf-baseline}.md`、`docs-site/plans/k3s-decision-review.md`
 > - `sdk/java/KNOWN-DRIFT.md`（12 处 SDK/OpenAPI 端点漂移）
-> - `scripts/check-{java-sdk-drift,i18n-namespace,doc-links,service-standard,spec,db-naming}.js`
+> - `scripts/check-{java-sdk-drift,i18n-namespace,doc-links,service-standard,spec,db-naming,reconcile-todo-docs}.js`
 > - `tests/load/baseline.js`（k6 基线脚本）
 > - `docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 >
@@ -132,12 +132,19 @@
 ### 4.1 Phase 10 [部分完成]（TODO.md 现存 15 项中按主题归类）
 
 **健康检查**：
-- migration-state 端点（`/<svc>/internal/migrations/state`）：**已核对 `docs-site/guides/migrations-state.md` 为 v1，Phase 10 G3 落地**，列 7 个 Rust 服务（iam V001-V005 / notification V001-V003 / token / audit / config V001-V002 / file V001-V002 / prue_backend V001 × 2 dialects）。`TODO.md` 仍把"集成测试 + 文档同步"列在 [ ] — 矛盾点：guide 已存在但 TODO 未勾选。**待核对**：① 各服务端点集成测试是否补；② `TODO.md` 该条目是否同步勾选；③ 各服务 `AGENTS.md` 是否引用 guide。
+- migration-state 端点（`/<svc>/internal/migrations/state`）：**已核对 `docs-site/guides/migrations-state.md` 为 v1，Phase 10 G3 落地**，列 7 个 Rust 服务（iam V001-V005 / notification V001-V003 / token / audit / config V001-V002 / file V001-V002 / prue_backend V001 × 2 dialects）。三项均已闭合（2026-08-19）：
+  - ① 集成测试：CI job `e2e_migration_state_test`（`.gitlab-ci.yml`）+ `scripts/check-migration-state.js` 本地脚本（7 服务 × HTTP 200 + dialect + applied ≥ min + in_sync + current_version 非空）
+  - ② TODO.md 已勾选（commit 在 `feat/reconcile-todo-docs` 分支 `57ae894`，与 `scripts/reconcile-todo-docs.js` 同步）
+  - ③ 各服务 `AGENTS.md` 端点条目 + guide 引用由 `docs-site/guides/token-service-overview.md:265` 反链引导
+- 漂移守护：`scripts/reconcile-todo-docs.js`（R1 = 父行"待 XXX"但子项全 [x]；R2 = guide 状态行已落地但 TODO [ ]）；CI `reconcile_todo_docs_check` job，TODO.md / docs-site/** 改动时触发，1 条 HARD 即 fail MR。
 
-- 外部 `config/application.yml` 用 `${DATABASE_URL}` / `${DB_USER}` / `${DB_PASSWORD}` 占位符，但 Spring 实际读 `SPRING_DATASOURCE_*` 环境变量，两个 `${}` 是死代码。
+- 外部 `config/application.yml` 死代码：原 `${DATABASE_URL}` / `${DB_USER}` / `${DB_PASSWORD}` 占位符（Spring 实际读 `SPRING_DATASOURCE_*`）已移除（TODO.md Phase 10 第 456 行 `[x]` 勾选；当前 `examples/java8-webapi/demo-webapp/src/main/resources/application.yml` 不再含该段）。
 
-**config-service 缺口**（实际代码复核需跟进）：
-- `services/config-service/src/routes/config.rs` 已实现 `apply_reveal_policy` + 常量 `REVEAL_PERM = "CFG_CONFIG_REVEAL"`，在 6 个 handler（list / create / get / patch / delete 等）调用点对 `is_secret=true` 项做掩码，`principal.has_permission(REVEAL_PERM)` 决定是否透明。代码侧 reveal policy 已落地。**风险点（需独立核对）**：① `CFG_CONFIG_REVEAL` 权限码是否已在 `contracts/permissions.yaml` 注册并与 iam-service role 绑定；② `apply_reveal_policy` 在所有 6 个调用点的集成测试是否补；③ `config-service/AGENTS.md` 是否同步说明该行为。
+**config-service 缺口**（实际代码复核已完成，2026-08-19）：
+- `services/config-service/src/routes/config.rs` 已实现 `apply_reveal_policy` + 常量 `REVEAL_PERM = "CFG_CONFIG_REVEAL"`，在 **5 个 handler**（`create / query / get / update / export`）调用点对 `is_secret=true` 项做掩码，`principal.has_permission(REVEAL_PERM)` 决定是否透明；**不调用**点：`delete_config_item`（无 value 返回）、`import_config`（强制 `is_secret=false`）。代码侧 reveal policy 已落地。三项独立核对结果（2026-08-19）：
+  - ① **已闭合**：`contracts/permissions.yaml:70` 注册（`description: 查看敏感配置项明文`）；iam 绑定走 `services/iam-service/migrations/mysql/V005__platform_admin_role.sql` + `V004__tenant_business_tables.sql` 的 `INSERT IGNORE ... SELECT id FROM iam_permissions WHERE status='enabled'` 机制（V005 L10-11 / V004 L46 全选 enabled），因此 `platform_admin` 与 `tenant_admin` 自动持有 `CFG_CONFIG_REVEAL`。后续若 `disable` 该 perm，admin 自动丢失——依赖链清晰。
+  - ② **已闭合（2026-08-19）**：新增 `services/config-service/tests/reveal_handler_e2e_test.rs`，仿 `tenant_isolation_test.rs` 范式用 `tower::ServiceExt::oneshot` + testcontainers MySQL 走真实 axum router（**不**走内部函数），覆盖 5 handler × {无 REVEAL → MASK、有 REVEAL → 明文} = 10 case，**外加** 401 反向防御与 non_secret 不受影响 2 个 boundary case。in-source 函数级 6 case 仍保留在 `src/routes/config.rs` `#[cfg(test)] mod tests`，baseline 4 case 在 `tests/reveal_policy_test.rs`。三层覆盖（内部函数 / 路由 wire-level / 反向）从 §4.1 之前遗留漂移转为 **[完成]**。
+  - ③ **已闭合**：`services/config-service/AGENTS.md` "敏感字段掩码（reveal policy，已落地）" 段落同步了 5 handler 调用点 + 2 不应用点 + 权限码位置 + 默认绑定机制（V005/V004 全选 enabled）+ 测试入口（in-source / baseline / e2e 三层）。
 
 **file-service 存储层缺口**：
 - 实际仅实现 `LocalStorage`（实现 `storage/object_store::ObjectStore` trait）；`S3Storage` / `RustfsStorage` / 其他 object store adapter **尚未实现**。生产部署若需 S3 兼容对象存储，需补对应 implementation 并在 `services/file-service/src/storage/{s3,rustfs}.rs` 实现 trait + 注册到 `storage/mod.rs`。
@@ -433,4 +440,4 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 
 ---
 
-_最后核验：2026-08-18。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：§6 加 Loki/Promtail 行 + §4.2 集中式日志收集方案 [完成] + runbooks 4 份；新增 `docs-site/runbooks/log-aggregation.md` 5 步 SOP、`scripts/e2e-log-traceability.js` drill、`scripts/check-log-format.sh` CI gate。_
+_最后核验：2026-08-19。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：§4.1 第 1/2 条修正为"已闭合"（migration-state 三项 + application.yml 死代码移除）；新增 `scripts/reconcile-todo-docs.js` 漂移检测器（R1 父行 vs 子项 / R2 guide 状态行）+ CI `reconcile_todo_docs_check` job（`feat/reconcile-todo-docs` 分支 commits `ba3310b` / `57ae894` / `7f4f601`）。_
