@@ -451,11 +451,12 @@ build_images:pre-staging:
     # 但 sudoers 配了 NOPASSWD: ALL。node scripts/build-docker.js 内部 spawnSync('docker', ...) 需要 daemon socket 访问。
     - sudo -E node scripts/build-docker.js -v "${VERSION}" --push $BUILD_SERVICES
     # mysql-replica 位于 infrastructure/mysql-replica/，不在 build-docker.js 服务清单里，单独 buildx --push
-    - sudo docker buildx build \
-        --platform linux/amd64 \
-        --tag "zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}" \
-        --push \
-        "infrastructure/mysql-replica/"
+    # 用变量传递避免 YAML plain scalar 把 `\<newline>` 折叠成 `\ `（保留字面反斜杠）后 bash 把 `\` 当作普通
+    # arg，所有 flag 都被前导空格污染、docker buildx 找不到 PATH → "requires 1 argument"
+    #（pipeline 23487 build_images:pre-staging 实证）。与本 job 上方 BUILD_SERVICES 模式一致。
+    - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
+    - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
+    - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
