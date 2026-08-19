@@ -24,16 +24,16 @@ variables:
   # var 没拿到 default 而被空字符串覆盖，导致 sshpass 拼出 '"'"'ssh -p  -o'"'"' 报错。
   # user 在 GitLab Project 配同名 var 仍可覆盖。
   # 默认 IP 来自 GitLab Project 中 SSH_PRIVATE_KEY 的 description
-  # ('"'"'192.168.2.128 私有'"'"')，不是 user 原话里说的 192.168.2.127——
+  # ('"'"'192.168.2.31 私有'"'"')，不是 user 原话里说的 192.168.2.127——
   # SSH key 与 host 必须匹配才能成功认证。
-  STAGING_HOST: "192.168.2.128"
+  STAGING_HOST: "192.168.2.31"
   STAGING_DEPLOY_USER: "kudi"
   STAGING_PROJECT_DIR: "/home/kudi/coder-micro-services"
   STAGING_SSH_PORT: "22"
 
   # 公共入口由 frontend:8080 提供（前端 nginx 反代到容器网络内的 api-gateway:3000）。
   # api-gateway:3000 在 prod 下不再暴露到 host。详见 infrastructure/docker-compose.prod.yml。
-  STAGING_BASE_URL: "http://192.168.2.128:8080"
+  STAGING_BASE_URL: "http://192.168.2.31:8080"
 
   # E2E 默认走 frontend(STAGING_BASE_URL)，不再依赖 3000 暴露。
   E2E_BASE_URL: $STAGING_BASE_URL
@@ -568,7 +568,7 @@ deploy:pre-staging:
 #   - resource_group: staging 串行化（保护 symlink swap 原子性）
 #   - e2e:staging 失败自动 rollback 到 staging-prev
 #
-# staging server 目录结构（192.168.2.128）：
+# staging server 目录结构（192.168.2.31）：
 #   /home/kudi/coder-micro-services/
 #     staging-active -> staging-<current-sha>     # 原子软链，唯一可变状态
 #     staging-prev   -> staging-<previous-sha>    # rollback 锚点
@@ -662,12 +662,12 @@ deploy:staging:
     # 用 node 解析而非 jq（避免 runner 缺 jq）
     - export SWAP_TARGET="$(node -e "console.log(JSON.parse(require('fs').readFileSync('${DIST_DIR}/MANIFEST.json')).staging_swap_target)")"
     - '[[ "${SWAP_TARGET}" == "${STAGING_SHA}" ]] || { echo "MANIFEST staging_swap_target=${SWAP_TARGET} != ${STAGING_SHA}"; exit 1; }'
-    # tar over ssh 传输（远端无需 rsync；MR !37 修了 runner 端但 192.168.2.128 没 rsync）
+    # tar over ssh 传输（远端无需 rsync；MR !37 修了 runner 端但 192.168.2.31 没 rsync）
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p '$REMOTE_DIR'"
     - tar -C "$DIST_DIR" -cf - . | ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST" "tar -C '$REMOTE_DIR' -xf -"
-    # 远端 192.168.2.128 没装 node 也无法访问 Docker Hub；用内网 registry 实际有的
+    # 远端 192.168.2.31 没装 node 也无法访问 Docker Hub；用内网 registry 实际有的
     # node:20 跑 load-images.js（-slim 不在内网 registry 会 internal server error）
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
@@ -984,3 +984,4 @@ k6_baseline:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_PIPELINE_SOURCE == "schedule"
+
