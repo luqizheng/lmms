@@ -325,7 +325,9 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         spawn_admin_server(admin_port, routes_dir.clone(), route_table.clone()).await;
     }
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
+        .await
+        .unwrap();
 }
 
 async fn spawn_admin_server(

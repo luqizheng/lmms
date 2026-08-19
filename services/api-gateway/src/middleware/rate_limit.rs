@@ -148,6 +148,7 @@ pub async fn rate_limit_middleware(
 }
 
 fn extract_identity_key(request: &Request<Body>) -> String {
+    // 1. X-Real-IP header (set by nginx reverse proxy when present)
     if let Some(ip) = request
         .headers()
         .get("X-Real-IP")
@@ -155,9 +156,18 @@ fn extract_identity_key(request: &Request<Body>) -> String {
     {
         return format!("ip:{}", ip);
     }
-    request
+    // 2. Peer socket address (ConnectInfo middleware — must be wired in main.rs
+    //    via into_make_service_with_connect_info for this to be Some).
+    if let Some(c) = request
         .extensions()
         .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
-        .map(|c| format!("ip:{}", c.0.ip()))
-        .unwrap_or_else(|| "ip:unknown".to_string())
+    {
+        return format!("ip:{}", c.0.ip());
+    }
+    // 3. Last-resort fallback: NEVER fall back to a shared literal ("ip:unknown")
+    //    that would let every IP-less request share one bucket and starve
+    //    legitimate traffic. Use a per-request token so anonymous requests
+    //    do not collide. Operators should ensure ConnectInfo is wired up to
+    //    avoid this fallback in production (see main.rs::serve).
+    format!("anon:{}", uuid::Uuid::new_v4())
 }
