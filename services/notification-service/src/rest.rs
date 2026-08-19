@@ -35,6 +35,10 @@ impl PrincipalStateProvider for RestState {
 const RL_CREATE_ANNOUNCEMENT: &str = "POST /notification/announcements";
 const RL_PUBLISH_ANNOUNCEMENT: &str = "POST /notification/announcements/{id}/publish";
 const RL_REVOKE_ANNOUNCEMENT: &str = "POST /notification/announcements/{id}/revoke";
+const RL_LIST_MINE: &str = "GET /notification/announcements";
+const RL_GET_ANNOUNCEMENT: &str = "GET /notification/announcements/{id}";
+const RL_READ_ONE: &str = "POST /notification/announcements/{id}/read";
+const RL_UNREAD_COUNT: &str = "GET /notification/unread-count";
 
 /// Notification-service rate limit table.
 ///
@@ -43,6 +47,10 @@ const RL_REVOKE_ANNOUNCEMENT: &str = "POST /notification/announcements/{id}/revo
 /// - This: business-logic limits (e.g. 5 announcements per admin per minute)
 ///
 /// Use `service:ratelimit:enabled=false` env to disable all service-side limits.
+///
+/// Read endpoints (list_mine / detail / read_one / unread-count) get
+/// generous limits so dashboards / polling clients don't trip the
+/// fallback DEFAULT_LIMIT (60 req/min — see common-ratelimit).
 pub fn default_limits() -> Vec<Limit> {
     vec![
         // Anti-spam: max 5 announcements per admin per minute
@@ -50,6 +58,12 @@ pub fn default_limits() -> Vec<Limit> {
         // Reasonable rate for publish/revoke operations
         Limit::new(RL_PUBLISH_ANNOUNCEMENT, 10, 60),
         Limit::new(RL_REVOKE_ANNOUNCEMENT, 10, 60),
+        // Read endpoints — explicit generous limits; without these they fall
+        // back to the default 60/60 and starve any client polling list_mine.
+        Limit::new(RL_LIST_MINE, 200, 60),
+        Limit::new(RL_GET_ANNOUNCEMENT, 200, 60),
+        Limit::new(RL_READ_ONE, 100, 60),
+        Limit::new(RL_UNREAD_COUNT, 200, 60),
     ]
 }
 
