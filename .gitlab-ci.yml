@@ -577,9 +577,10 @@ deploy:pre-staging:
     - tar -C "$STAGING_DIST" -cf - . | ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST" "tar -C '$REMOTE_DIR' -xf -"
     # fail-fast: confirm ops-managed env file exists before invoking deploy script
-    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
-        "$STAGING_DEPLOY_USER@$STAGING_HOST"
-        "test -f '$STAGING_ENV_FILE' || { echo \"[deploy:pre-staging] missing env file on host: $STAGING_ENV_FILE — populate it from infrastructure/.env.example before retrying\"; exit 11; }"
+    - >-
+      ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+      "$STAGING_DEPLOY_USER@$STAGING_HOST"
+      "test -f '$STAGING_ENV_FILE' || { echo '[deploy:pre-staging] missing env file on host ($STAGING_ENV_FILE) — populate it from infrastructure/.env.prod.example before retrying'; exit 11; }"
     # 部署：pull commit-pinned 镜像 + 滚动 up + health gate
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
