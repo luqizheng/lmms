@@ -266,7 +266,7 @@ if (existsSync(path.join(REPO_INFRA, 'config'))) {
   console.log('[release-deploy]   ✓ infrastructure/config/ (非 seed 目录)');
 }
 
-for (const d of ['mysql-init', 'nginx', 'vendor']) {
+for (const d of ['mysql-init', 'nginx', 'scripts', 'vendor']) {
   copyIfExists(path.join(REPO_INFRA, d), path.join(DIST_DIR, 'infrastructure', d),
     `infrastructure/${d}/`);
 }
