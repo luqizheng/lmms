@@ -53,8 +53,12 @@ const structDefs = Object.entries(events).map(([rk, def]) => {
     `}`,
     ``,
     `impl Event for ${NAME} {`,
-    `    fn event_type() -> &'static str { "${rk}" }`,
-    `    fn schema_version() -> u32 { ${version} }`,
+    `    fn event_type() -> &'static str {
+        "${rk}"
+    }`,
+    `    fn schema_version() -> u32 {
+        ${version}
+    }`,
     `}`,
   ].join('\n');
 });

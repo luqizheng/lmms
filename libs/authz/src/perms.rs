@@ -117,115 +117,62 @@ pub mod perms {
 
 /// Check if permission code is valid
 pub fn is_valid(perm: &str) -> bool {
-    matches!(perm,
+    matches!(
+        perm,
         "IAM_USER_CREATE"
-        |
-        "IAM_USER_READ"
-        |
-        "IAM_USER_UPDATE"
-        |
-        "IAM_USER_DELETE"
-        |
-        "IAM_USER_EXPORT"
-        |
-        "IAM_USER_IMPORT"
-        |
-        "IAM_ROLE_CREATE"
-        |
-        "IAM_ROLE_READ"
-        |
-        "IAM_ROLE_UPDATE"
-        |
-        "IAM_ROLE_DELETE"
-        |
-        "IAM_PERM_READ"
-        |
-        "IAM_PERM_ASSIGN"
-        |
-        "IAM_MENU_CREATE"
-        |
-        "IAM_MENU_READ"
-        |
-        "IAM_MENU_UPDATE"
-        |
-        "IAM_MENU_DELETE"
-        |
-        "IAM_ORG_CREATE"
-        |
-        "IAM_ORG_READ"
-        |
-        "IAM_ORG_UPDATE"
-        |
-        "IAM_ORG_DELETE"
-        |
-        "IAM_TENANT_CREATE"
-        |
-        "CFG_CONFIG_CREATE"
-        |
-        "CFG_CONFIG_READ"
-        |
-        "CFG_CONFIG_UPDATE"
-        |
-        "CFG_CONFIG_DELETE"
-        |
-        "CFG_CONFIG_REVEAL"
-        |
-        "CFG_NAMESPACE_CREATE"
-        |
-        "CFG_NAMESPACE_READ"
-        |
-        "CFG_NAMESPACE_UPDATE"
-        |
-        "CFG_NAMESPACE_DELETE"
-        |
-        "CFG_NAMESPACE_EXPORT"
-        |
-        "CFG_NAMESPACE_IMPORT"
-        |
-        "AUD_LOG_READ"
-        |
-        "AUD_LOG_EXPORT"
-        |
-        "NTF_TEMPLATE_CREATE"
-        |
-        "NTF_TEMPLATE_READ"
-        |
-        "NTF_TEMPLATE_UPDATE"
-        |
-        "NTF_TEMPLATE_DELETE"
-        |
-        "NTF_MESSAGE_READ"
-        |
-        "FILE_UPLOAD"
-        |
-        "FILE_DOWNLOAD"
-        |
-        "FILE_DELETE"
-        |
-        "FILE_READ"
-        |
-        "SYS_SETTING_READ"
-        |
-        "SYS_SETTING_UPDATE"
-        |
-        "PM_PROJECT_CREATE"
-        |
-        "PM_PROJECT_READ"
-        |
-        "PM_PROJECT_UPDATE"
-        |
-        "PM_PROJECT_DELETE"
-        |
-        "PM_MILESTONE_CREATE"
-        |
-        "PM_MILESTONE_READ"
-        |
-        "PM_MILESTONE_UPDATE"
-        |
-        "PM_MILESTONE_DELETE"
-        |
-        "PM_TASK_UPDATE"
-        |
-        "PM_LLM_ASSIST"
+            | "IAM_USER_READ"
+            | "IAM_USER_UPDATE"
+            | "IAM_USER_DELETE"
+            | "IAM_USER_EXPORT"
+            | "IAM_USER_IMPORT"
+            | "IAM_ROLE_CREATE"
+            | "IAM_ROLE_READ"
+            | "IAM_ROLE_UPDATE"
+            | "IAM_ROLE_DELETE"
+            | "IAM_PERM_READ"
+            | "IAM_PERM_ASSIGN"
+            | "IAM_MENU_CREATE"
+            | "IAM_MENU_READ"
+            | "IAM_MENU_UPDATE"
+            | "IAM_MENU_DELETE"
+            | "IAM_ORG_CREATE"
+            | "IAM_ORG_READ"
+            | "IAM_ORG_UPDATE"
+            | "IAM_ORG_DELETE"
+            | "IAM_TENANT_CREATE"
+            | "CFG_CONFIG_CREATE"
+            | "CFG_CONFIG_READ"
+            | "CFG_CONFIG_UPDATE"
+            | "CFG_CONFIG_DELETE"
+            | "CFG_CONFIG_REVEAL"
+            | "CFG_NAMESPACE_CREATE"
+            | "CFG_NAMESPACE_READ"
+            | "CFG_NAMESPACE_UPDATE"
+            | "CFG_NAMESPACE_DELETE"
+            | "CFG_NAMESPACE_EXPORT"
+            | "CFG_NAMESPACE_IMPORT"
+            | "AUD_LOG_READ"
+            | "AUD_LOG_EXPORT"
+            | "NTF_TEMPLATE_CREATE"
+            | "NTF_TEMPLATE_READ"
+            | "NTF_TEMPLATE_UPDATE"
+            | "NTF_TEMPLATE_DELETE"
+            | "NTF_MESSAGE_READ"
+            | "FILE_UPLOAD"
+            | "FILE_DOWNLOAD"
+            | "FILE_DELETE"
+            | "FILE_READ"
+            | "SYS_SETTING_READ"
+            | "SYS_SETTING_UPDATE"
+            | "PM_PROJECT_CREATE"
+            | "PM_PROJECT_READ"
+            | "PM_PROJECT_UPDATE"
+            | "PM_PROJECT_DELETE"
+            | "PM_MILESTONE_CREATE"
+            | "PM_MILESTONE_READ"
+            | "PM_MILESTONE_UPDATE"
+            | "PM_MILESTONE_DELETE"
+            | "PM_TASK_UPDATE"
+            | "PM_LLM_ASSIST"
     )
 }

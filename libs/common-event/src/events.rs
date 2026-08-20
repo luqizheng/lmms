@@ -15,8 +15,12 @@ pub struct IamUserCreated {
 }
 
 impl Event for IamUserCreated {
-    fn event_type() -> &'static str { "iam.user.created" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.user.created"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamUserDeleted {
@@ -25,8 +29,12 @@ pub struct IamUserDeleted {
 }
 
 impl Event for IamUserDeleted {
-    fn event_type() -> &'static str { "iam.user.deleted" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.user.deleted"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamUserRoleAssigned {
@@ -38,8 +46,12 @@ pub struct IamUserRoleAssigned {
 }
 
 impl Event for IamUserRoleAssigned {
-    fn event_type() -> &'static str { "iam.user.role.assigned" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.user.role.assigned"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamUserRoleUnassigned {
@@ -51,8 +63,12 @@ pub struct IamUserRoleUnassigned {
 }
 
 impl Event for IamUserRoleUnassigned {
-    fn event_type() -> &'static str { "iam.user.role.unassigned" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.user.role.unassigned"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamUserDeptChanged {
@@ -64,8 +80,12 @@ pub struct IamUserDeptChanged {
 }
 
 impl Event for IamUserDeptChanged {
-    fn event_type() -> &'static str { "iam.user.dept.changed" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.user.dept.changed"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamLoginSucceeded {
@@ -76,8 +96,12 @@ pub struct IamLoginSucceeded {
 }
 
 impl Event for IamLoginSucceeded {
-    fn event_type() -> &'static str { "iam.login.succeeded" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.login.succeeded"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamLoginFailed {
@@ -89,8 +113,12 @@ pub struct IamLoginFailed {
 }
 
 impl Event for IamLoginFailed {
-    fn event_type() -> &'static str { "iam.login.failed" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.login.failed"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NotificationAnnouncementPublished {
@@ -102,8 +130,12 @@ pub struct NotificationAnnouncementPublished {
 }
 
 impl Event for NotificationAnnouncementPublished {
-    fn event_type() -> &'static str { "notification.announcement.published" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "notification.announcement.published"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamPermissionChanged {
@@ -113,8 +145,12 @@ pub struct IamPermissionChanged {
 }
 
 impl Event for IamPermissionChanged {
-    fn event_type() -> &'static str { "iam.permission.changed" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.permission.changed"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IamTenantCreated {
@@ -125,8 +161,12 @@ pub struct IamTenantCreated {
 }
 
 impl Event for IamTenantCreated {
-    fn event_type() -> &'static str { "iam.tenant.created" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "iam.tenant.created"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FileUploaded {
@@ -138,8 +178,12 @@ pub struct FileUploaded {
 }
 
 impl Event for FileUploaded {
-    fn event_type() -> &'static str { "file.uploaded" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "file.uploaded"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FileDeleted {
@@ -148,8 +192,12 @@ pub struct FileDeleted {
 }
 
 impl Event for FileDeleted {
-    fn event_type() -> &'static str { "file.deleted" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "file.deleted"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConfigItemChanged {
@@ -163,8 +211,12 @@ pub struct ConfigItemChanged {
 }
 
 impl Event for ConfigItemChanged {
-    fn event_type() -> &'static str { "config.item.changed" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "config.item.changed"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
