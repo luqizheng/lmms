@@ -87,7 +87,7 @@ onMounted(async () => {
             class="h-full flex items-center px-(--el-menu-base-level-padding)"
           >
             <IconifyIconOffline :icon="leftLine" />
-            <span class="ml-2">{{ t("menus.pureBack") }}</span>
+            <span class="ml-2">{{ t("login.pureBack") }}</span>
           </div>
         </div>
         <div class="flex items-center ml-8 my-4">

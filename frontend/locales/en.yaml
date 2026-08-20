@@ -81,7 +81,6 @@ panel:
   pureMultiTagsCache: MultiTags Cache
 menus:
   pureHome: Home
-  pureLogin: Login
   pureEmpty: Empty Page
   pureTable: Table
   pureSysManagement: System Manage
@@ -673,8 +672,6 @@ menus:
   permsDemoTitle3: Directive permission check
 
   permsDemoTitle3Note: "(cannot dynamically update permissions)"
-
-  pureBack: Back
 
 status:
   pureLoad: Loading...

@@ -81,7 +81,6 @@ panel:
   pureMultiTagsCache: 页签持久化
 menus:
   pureHome: 首页
-  pureLogin: 登录
   pureEmpty: 无Layout页
   pureTable: 表格
   pureSysManagement: 系统管理
@@ -673,8 +672,6 @@ menus:
   permsDemoTitle3: 指令方式判断权限
 
   permsDemoTitle3Note: "（该方式不能动态修改权限）"
-
-  pureBack: 返回
 
 status:
   pureLoad: 加载中...
