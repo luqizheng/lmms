@@ -43,10 +43,10 @@ variables:
   E2E_DB_NAME: superpowers
 
   # ─── CI 镜像：项目 builder 镜像（与 services/<svc>/Dockerfile 一致）──
-  # zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl 镜像预装
-  # 了 rustfmt + clippy + curl 等 toolchain，CI 不再 apt-get 装。
+  # zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl-v3 镜像预装
+  # 了 rustfmt + clippy + node 20.x + c build deps，CI 不再 apt-get 装。
   # 命名约定：见 .gitlab-ci.yml 顶部 CODER_BUILDER_REGISTRY。
-  BUILDER_RUST_IMAGE: "${CODER_BUILDER_REGISTRY}/rust:1.96-slim-musl"
+  BUILDER_RUST_IMAGE: "${CODER_BUILDER_REGISTRY}/rust:1.96-slim-musl-v3"
 
   # ─── utoipa-swagger-ui build.rs 拉 zip：CI runner 直连 GitHub 不通，
   #     走 gh-proxy.org 代理（项目网络规则 AGENTS.md「网络规则」节）。
@@ -114,11 +114,6 @@ rust_ci:
   image: $BUILDER_RUST_IMAGE
   variables:
     REDIS_URL: redis://192.168.2.130:6379
-  before_script:
-    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
-    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.repos/rustup
-    - unset RUSTUP_DIST_SERVER RUSTUP_UPDATE_ROOT
-    - rustup component add rustfmt clippy
   script:
     - cargo fmt --check --all 2>&1 | tee cargo-fmt.log
     # clippy 编出 workspace 全量；dump_openapi / test 都复用其 artifact
@@ -782,8 +777,6 @@ rust_publish:
   before_script:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
-    # BUILDER_RUST_IMAGE 没有 node；publish-*.js 是 node 脚本
-    - apt-get update && apt-get install -y --no-install-recommends nodejs
   script:
     - node scripts/publish-libs.js "${SDK_VERSION}" --registry kellnr
     - node scripts/publish-rust-sdks.js "${SDK_VERSION}" --registry kellnr
