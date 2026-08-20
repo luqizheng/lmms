@@ -33,7 +33,7 @@ where
 {
     move |State(state), req, next| {
         let fut = async move {
-            let (mut parts, body) = req.into_parts();
+            let (parts, body) = req.into_parts();
             let token = match parts
                 .headers
                 .get("Authorization")
