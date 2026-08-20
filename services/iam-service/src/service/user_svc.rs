@@ -16,6 +16,7 @@ use nanoid::nanoid;
 use sqlx::{mysql::MySqlQueryResult, FromRow, QueryBuilder};
 
 #[derive(FromRow)]
+#[allow(dead_code)] // sqlx FromRow deserializes all selected columns; unused ones are filtered by SELECT.
 struct UserRow {
     id: String,
     tenant_id: u64,
@@ -35,6 +36,17 @@ struct UserRow {
     created_at: chrono::DateTime<Utc>,
     updated_at: chrono::DateTime<Utc>,
     deleted_at: Option<chrono::DateTime<Utc>>,
+}
+
+/// Subset of `iam_users` columns used by `UserService::get_claims`.
+/// Aliased here so callers don't have to read a bare 5-tuple type.
+#[derive(FromRow)]
+struct UserClaimsRow {
+    id: String,
+    username: String,
+    email: Option<String>,
+    phone: Option<String>,
+    nickname: String,
 }
 
 pub struct UserService {
@@ -573,15 +585,13 @@ impl UserService {
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL AND status = 'active'");
-        let user: Option<(String, String, Option<String>, Option<String>, String)> = qb
-            .build_query_as::<(String, String, Option<String>, Option<String>, String)>()
+        let user: Option<UserClaimsRow> = qb
+            .build_query_as::<UserClaimsRow>()
             .fetch_optional(&self.state.db)
             .await?;
 
-        let (uid, username, email, phone, nickname) = match user {
-            Some(u) => u,
-            None => return Err(IamError::UserNotFound),
-        };
+        let UserClaimsRow { id: uid, username, email, phone, nickname } =
+            user.ok_or(IamError::UserNotFound)?;
 
         let roles: Vec<String> = sqlx::query_scalar(
             "SELECT r.code FROM iam_roles r JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.tenant_id = ? AND r.deleted_at IS NULL"

@@ -24,6 +24,7 @@ struct RoleRow {
     status: String,
     created_at: chrono::DateTime<Utc>,
     updated_at: chrono::DateTime<Utc>,
+    #[allow(dead_code)] // sqlx FromRow needs the column; queries filter on `deleted_at IS NULL`.
     deleted_at: Option<chrono::DateTime<Utc>>,
 }
 
@@ -279,7 +280,7 @@ impl RoleService {
                 .await?;
 
         let mut tx = self.state.db.begin().await?;
-        let tid = scope.tenant_id().unwrap_or(1) as u64;
+        let _tid = scope.tenant_id().unwrap_or(1) as u64;
         sqlx::query("DELETE FROM iam_role_permissions WHERE role_id = ?")
             .bind(role_id)
             .execute(&mut *tx)

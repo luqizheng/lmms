@@ -10,6 +10,8 @@ tower = { version = "0.5", features = ["util"] }
 hyper = "1"
 tempfile = "3"
 bytes.workspace = true
+jwt-simple.workspace = true
+base64 = "0.22"
 
 [dependencies]
 digua_common = { path = "../../libs/common" }

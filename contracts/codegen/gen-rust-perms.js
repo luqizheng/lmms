@@ -38,7 +38,8 @@ function generateRust(data) {
     '// DO NOT EDIT MANUALLY',
     '',
     '/// Permission code constants',
-    'pub mod perms {',
+    "#[allow(clippy::module_inception)]",
+    "pub mod perms {",
   ];
 
   for (const [perm, info] of perms) {

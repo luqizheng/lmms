@@ -113,7 +113,7 @@ async fn main() {
     middleware::rate_limit::init_metrics();
 
     let cli = Cli::parse();
-    let result = match cli.cmd {
+    match cli.cmd {
         Cmd::Validate { routes } => match routes_loader::load_routes(&routes) {
             Ok(t) => {
                 println!("OK: {} routes from {}", t.routes.len(), routes.display());
@@ -129,7 +129,6 @@ async fn main() {
     };
 
     digua_common_telemetry::shutdown();
-    result
 }
 
 async fn serve(routes_dir: PathBuf, admin_port: u16) {

@@ -33,6 +33,7 @@ pub async fn save(
 /// 原子两步 consume：
 ///   1. UPDATE ... SET consumed_at = NOW() WHERE 未消费 + 未过期
 ///   2. SELECT user_id
+///
 /// 返回 Some(user_id) 当且仅当第一步成功。
 pub async fn consume(pool: &DbPool, code: &str) -> Result<Option<String>, sqlx::Error> {
     match pool {

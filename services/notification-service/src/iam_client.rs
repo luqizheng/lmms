@@ -61,6 +61,7 @@ impl IamMemberClient {
     /// `ntf_user_projection`). Kept for `CrossTenant` (platform-admin) reads
     /// where local projection is single-tenant only. Removal planned for
     /// Roadmap 2.0 cleanup phase.
+    #[allow(clippy::deprecated_semver)] // `5B-fu3` is an internal phase tag, not a crate version.
     #[deprecated(
         since = "5B-fu3",
         note = "use db.resolve_users_by_scopes (local projection); kept for CrossTenant (platform admin) only"
@@ -75,6 +76,7 @@ impl IamMemberClient {
     }
 
     /// DEPRECATED (Phase 5B-fu3): see `by_role`.
+    #[allow(clippy::deprecated_semver)] // `5B-fu3` is an internal phase tag, not a crate version.
     #[deprecated(
         since = "5B-fu3",
         note = "use db.resolve_users_by_scopes (local projection); kept for CrossTenant (platform admin) only"
@@ -89,6 +91,7 @@ impl IamMemberClient {
     }
 
     /// DEPRECATED (Phase 5B-fu3): wraps the deprecated `by_role`/`by_dept`.
+    #[allow(clippy::deprecated_semver)] // `5B-fu3` is an internal phase tag, not a crate version.
     #[deprecated(
         since = "5B-fu3",
         note = "use db.resolve_users_by_scopes (local projection)"

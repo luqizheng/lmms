@@ -37,9 +37,7 @@ pub async fn enqueue_permission_changed(
                 .map_err(|e| IamError::Internal(e.to_string()))?;
         row.map(|(t,)| t as i64).into_iter().collect()
     } else {
-        let placeholders: Vec<String> = std::iter::repeat("?".to_string())
-            .take(user_ids.len())
-            .collect();
+        let placeholders: Vec<String> = std::iter::repeat_n("?".to_string(), user_ids.len()).collect();
         let sql = format!(
             "SELECT DISTINCT tenant_id FROM iam_users WHERE id IN ({}) AND deleted_at IS NULL",
             placeholders.join(",")

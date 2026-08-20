@@ -74,18 +74,16 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
         #[cfg(feature = "mysql")]
         DbPool::Mysql(_p) => {
             // 迁移路径需在编译期已知，运行期路径迁移请使用 sqlx::migrate::Migrator
-            return Err(AppError::internal(
+            Err(AppError::internal(
                 "DB_MIGRATE",
                 "runtime migration path not supported; use embedded Migrator",
-            ));
+            ))
         }
         #[cfg(feature = "sqlite")]
-        DbPool::Sqlite(_p) => {
-            return Err(AppError::internal(
-                "DB_MIGRATE",
-                "runtime migration path not supported; use embedded Migrator",
-            ));
-        }
+        DbPool::Sqlite(_p) => Err(AppError::internal(
+            "DB_MIGRATE",
+            "runtime migration path not supported; use embedded Migrator",
+        )),
     }
 }
 

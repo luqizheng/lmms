@@ -1,7 +1,6 @@
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
 use digua_common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
-use digua_common_telemetry;
 use iam_service::{
     config::load_config, db, openapi::ApiDoc, routes, service::TokenForwardClient, state::AppState,
 };

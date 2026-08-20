@@ -132,6 +132,5 @@ pub fn flush_to_file(path: &Path) {
             error = %e,
             "rename metrics into place failed"
         );
-        return;
     }
 }

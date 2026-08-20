@@ -1,7 +1,5 @@
 use axum::extract::FromRequestParts;
 use axum::http::{HeaderValue, Request};
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
 use digua_common_jwt::{sign_token, JWKSCache};
 use digua_jwt_ctx::{PrincipalStateProvider, TenantScope};
 use std::sync::Arc;

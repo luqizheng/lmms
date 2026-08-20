@@ -207,8 +207,8 @@ pub async fn export_config(
         data.insert(item.key.clone(), item.value.clone());
     }
 
-    Ok(serde_json::to_string_pretty(&data)
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "serialize failed"))?)
+    serde_json::to_string_pretty(&data)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "serialize failed"))
 }
 
 #[utoipa::path(
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn handler_query_masks_each_secret_in_list_when_caller_lacks_perm() {
         let principal = make_principal(&["CFG_CONFIG_READ"]);
-        let mut items = vec![
+        let mut items = [
             make_item(true, "secret-a"),
             make_item(false, "plain-b"),
             make_item(true, "secret-c"),
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn handler_export_masks_all_secrets_when_caller_lacks_perm() {
         let principal = make_principal(&["CFG_NAMESPACE_EXPORT"]);
-        let mut items = vec![
+        let mut items = [
             make_item(true, "secret-1"),
             make_item(true, "secret-2"),
             make_item(false, "plain-3"),

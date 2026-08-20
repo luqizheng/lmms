@@ -87,7 +87,7 @@ async fn tampered_signature_returns_invalid_signature() {
     });
     let token = sign_token(TEST_PRIVATE_PEM, &claims, Duration::from_secs(60)).unwrap();
     // Tamper: flip a byte in the signature segment.
-    let mut parts: Vec<&str> = token.split('.').collect();
+    let parts: Vec<&str> = token.split('.').collect();
     let sig = parts[2].to_string();
     let flipped_char = sig
         .chars()

@@ -9,7 +9,7 @@ use testcontainers::ContainerAsync;
 use testcontainers_modules::rabbitmq::RabbitMq;
 
 async fn rabbit_url() -> (String, ContainerAsync<RabbitMq>) {
-    let c = RabbitMq::default().start().await.unwrap();
+    let c = RabbitMq.start().await.unwrap();
     let host = c.get_host().await.unwrap();
     let port = c.get_host_port_ipv4(5672).await.unwrap();
     (format!("amqp://guest:guest@{}:{}/%2f", host, port), c)

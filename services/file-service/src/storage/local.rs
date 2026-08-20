@@ -64,7 +64,7 @@ impl ObjectStore for LocalStorage {
 
         let stream = tokio_util::io::ReaderStream::new(file);
         Ok(Box::pin(stream.map(|r| {
-            r.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            r.map_err(std::io::Error::other)
         })))
     }
 

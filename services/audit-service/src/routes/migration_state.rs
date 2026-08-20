@@ -9,8 +9,6 @@ use digua_common_db::migration_state::{
 use serde_json::json;
 use utoipa::path as to_path;
 
-use super::AppServices;
-
 pub struct AuditMigrationState;
 
 impl MigrationState for AuditMigrationState {

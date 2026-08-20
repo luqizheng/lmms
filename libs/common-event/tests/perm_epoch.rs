@@ -3,7 +3,7 @@ use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner}
 
 #[tokio::test]
 async fn set_if_greater_is_monotonic() {
-    let c = Redis::default().start().await.unwrap();
+    let c = Redis.start().await.unwrap();
     let port = c.get_host_port_ipv4(6379).await.unwrap();
     let host = c.get_host().await.unwrap();
     let client = redis::Client::open(format!("redis://{host}:{port}")).unwrap();

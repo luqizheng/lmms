@@ -10,6 +10,10 @@
 //!
 //! 所有测试共享一个 RabbitMQ 容器（ OnceCell ），串行执行（ Mutex ），
 //! 每测结束后清理队列，避免容器泄漏和测试间干扰。
+//!
+//! `lock_test_mutex()` 持锁跨 await 是有意的：每个测试独占容器 + 队列清理，
+//! 避免并发污染。`tokio::sync::Mutex` 反而会拖慢 `#[tokio::test]` 调度且无实际收益。
+#![allow(clippy::await_holding_lock)]
 
 use digua_common_event::consumer::republish_with_incremented_count;
 use digua_common_event::{Consumer, Envelope, Event, HandlerError, RabbitMqConsumer};
@@ -51,7 +55,7 @@ static RABBIT_URL: OnceCell<String> = OnceCell::const_new();
 async fn shared_rabbit_url() -> &'static String {
     RABBIT_URL
         .get_or_init(|| async {
-            let container = RabbitMq::default().start().await.unwrap();
+            let container = RabbitMq.start().await.unwrap();
             let host = container.get_host().await.unwrap();
             let port = container.get_host_port_ipv4(5672).await.unwrap();
             let url = format!("amqp://guest:guest@{}:{}/%2f", host, port);
@@ -194,15 +198,12 @@ async fn publish_one(url: &str, body: &[u8], headers: FieldTable) {
 async fn drain_dlq(conn: &Connection) -> Vec<Vec<u8>> {
     let ch = conn.create_channel().await.unwrap();
     let mut bodies = vec![];
-    loop {
-        match ch
-            .basic_get(DLQ, BasicGetOptions { no_ack: true })
-            .await
-            .unwrap()
-        {
-            Some(msg) => bodies.push(msg.delivery.data.clone()),
-            None => break,
-        }
+    while let Some(msg) = ch
+        .basic_get(DLQ, BasicGetOptions { no_ack: true })
+        .await
+        .unwrap()
+    {
+        bodies.push(msg.delivery.data.clone());
     }
     bodies
 }
@@ -428,7 +429,7 @@ async fn republish_confirm_nack_does_not_ack_original() {
     // Verify message is not lost: either requeued (msg_count > 0) or in DLQ.
     let dlq_bodies = drain_dlq(&conn).await;
     assert!(
-        msg_count >= 1 || dlq_bodies.len() >= 1,
+        msg_count >= 1 || !dlq_bodies.is_empty(),
         "message should be either requeued (count={}) or in DLQ (count={})",
         msg_count,
         dlq_bodies.len()

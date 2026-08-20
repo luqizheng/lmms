@@ -94,7 +94,7 @@ async fn test_blacklist_multiple_tokens() {
 
     let _: () = conn
         .del(
-            &jtis
+            jtis
                 .iter()
                 .map(|jti| format!("{}blacklist:{}", prefix, jti))
                 .collect::<Vec<_>>(),
@@ -126,7 +126,7 @@ async fn test_blacklist_false_positive() {
     let _: () = conn.set_ex(&key_blacklisted, "1", 300u64).await.unwrap();
 
     let exists_not_blacklisted: bool = conn
-        .exists(&format!("{}blacklist:{}", prefix, jti_not_blacklisted))
+        .exists(format!("{}blacklist:{}", prefix, jti_not_blacklisted))
         .await
         .unwrap();
     let exists_blacklisted: bool = conn.exists(&key_blacklisted).await.unwrap();

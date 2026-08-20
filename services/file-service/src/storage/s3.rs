@@ -231,10 +231,7 @@ impl ObjectStore for S3Storage {
         let inner = std::mem::replace(&mut stream.bytes, Box::pin(futures::stream::empty()));
         let mapped = inner.map(|item| match item {
             Ok(bytes) => Ok(bytes),
-            Err(e) => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            )),
+            Err(e) => Err(std::io::Error::other(e)),
         });
         Ok(Box::pin(mapped))
     }

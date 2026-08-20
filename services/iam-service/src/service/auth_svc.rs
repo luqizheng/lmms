@@ -1,7 +1,6 @@
 use crate::{
     dto::{ChangePasswordRequest, LoginRequest, LoginResponse, UserInfo},
     error::IamError,
-    models::user::UserStatus,
     models::RefreshToken,
     models::User,
     state::AppState,
@@ -9,7 +8,7 @@ use crate::{
 use chrono::{Duration, Utc};
 use digua_common_crypto::password::{hash, verify};
 use digua_common_event::events::{IamLoginFailed, IamLoginSucceeded};
-use digua_common_event::{Envelope, OutboxRepo};
+use digua_common_event::Envelope;
 use nanoid::nanoid;
 use redis::AsyncCommands;
 use sha2::{Digest, Sha256};
@@ -119,7 +118,7 @@ impl AuthService {
         let permissions = self.get_user_permissions(&user.id).await?;
 
         let cross_tenant = roles.iter().any(|r| r == "platform_admin");
-        let ttl_secs = (self.state.config.jwt.access_token_ttl_minutes * 60) as u64;
+        let ttl_secs = self.state.config.jwt.access_token_ttl_minutes * 60;
         let claims = serde_json::json!({
             "tid": user.tenant_id as i64,
             "ct": cross_tenant,
@@ -254,7 +253,7 @@ impl AuthService {
         let permissions = self.get_user_permissions(&user.id).await?;
 
         let cross_tenant = roles.iter().any(|r| r == "platform_admin");
-        let ttl_secs = (self.state.config.jwt.access_token_ttl_minutes * 60) as u64;
+        let ttl_secs = self.state.config.jwt.access_token_ttl_minutes * 60;
         let claims = serde_json::json!({
             "tid": user.tenant_id as i64,
             "ct": cross_tenant,
@@ -392,6 +391,7 @@ impl AuthService {
         Ok(permissions.into_iter().map(|(code,)| code).collect())
     }
 
+    #[allow(clippy::too_many_arguments)] // Audit-log event: one row per login attempt; coalescing into a struct would obscure the call site.
     async fn record_login_log(
         &self,
         user_id: &str,

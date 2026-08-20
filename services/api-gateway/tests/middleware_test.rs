@@ -9,6 +9,7 @@ fn route(upstream: &str, downstream: &str, service: &str, public: bool) -> Route
         public,
         ws: false,
         headers: Default::default(),
+        timeout_ms: None,
     }
 }
 

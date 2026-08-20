@@ -5,6 +5,7 @@
 //! Two subscriptions, two top-level reconnect loops, ONE persist handler:
 //! - iam routing-key subspace → queue `audit.iam-events`, routing_keys `iam.#`
 //! - pmd routing-key subspace → queue `audit.pmd-events`, routing_keys `pmd.#`
+//!
 //! Adding a new subdomain = new queue + new `run_*` + new spawn in main.rs;
 //! `persist()` is unchanged.
 //!

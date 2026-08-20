@@ -41,6 +41,7 @@ function generateRust(data) {
     '// DO NOT EDIT MANUALLY',
     '',
     '/// Error code constants',
+    '#[allow(clippy::module_inception)]',
     'pub mod codes {',
   ];
 

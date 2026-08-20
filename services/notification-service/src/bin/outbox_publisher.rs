@@ -116,7 +116,6 @@ mod metrics {
                 error = %e,
                 "rename metrics into place failed"
             );
-            return;
         }
     }
 }

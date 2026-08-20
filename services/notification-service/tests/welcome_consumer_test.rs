@@ -23,7 +23,7 @@ static REDIS: OnceCell<RedisFixture> = OnceCell::const_new();
 async fn redis_cli() -> RedisCli {
     REDIS
         .get_or_init(|| async {
-            let c = Redis::default().start().await.unwrap();
+            let c = Redis.start().await.unwrap();
             let host = c.get_host().await.unwrap();
             let port = c.get_host_port_ipv4(6379).await.unwrap();
             let url = format!("redis://{host}:{port}");

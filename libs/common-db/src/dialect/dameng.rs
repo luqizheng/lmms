@@ -5,7 +5,7 @@
 /// 2. 关键字差异（如 USER、SESSION 等）
 /// 3. JSON 函数差异
 /// 4. 分页与 MySQL 相同
-
+///
 /// 达梦保留字
 pub const DAMENG_RESERVED_WORDS: &[&str] = &[
     "USER",       /* 用户相关 */

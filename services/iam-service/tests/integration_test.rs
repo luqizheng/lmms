@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
+    use iam_service::service::token_forward::TokenForwardClient;
     use digua_common_cache::MemoryCache;
     use digua_common_event::MySqlOutboxRepo;
-    use digua_common_jwt;
-    use iam_service::{config::load_config, db, state::AppState};
+    use iam_service::{config::load_config, state::AppState};
     use std::sync::Arc;
 
     #[tokio::test]
@@ -42,6 +42,7 @@ mod tests {
             reqwest::Client::new(),
             String::new(),
         ));
+        let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
         let state = AppState::new(
             pool,
             cache,
@@ -50,6 +51,7 @@ mod tests {
             outbox_repo,
             jwks,
             service_jwt,
+            token_forward,
         );
         assert!(state.config.app.name == config.app.name);
     }

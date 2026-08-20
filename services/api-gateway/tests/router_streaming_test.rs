@@ -29,7 +29,7 @@ async fn streaming_forward_passes_chunks_through() {
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    let base = format!("http://{addr}");
+    let _base = format!("http://{addr}");
 
     let cfg = api_gateway::router::RouterConfig {
         resilient: Arc::new(digua_common_http::ResilientClient::new(
@@ -56,6 +56,7 @@ async fn streaming_forward_passes_chunks_through() {
         "test",
         "/stream",
         true, // ws=true → streaming path
+        None,  // timeout_ms (use global default)
     )
     .await;
 
@@ -111,6 +112,7 @@ async fn non_ws_forward_buffers_response() {
         "test",
         "/x",
         false, // ws=false → buffered
+        None,  // timeout_ms (use global default)
     )
     .await;
 

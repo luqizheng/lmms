@@ -7,12 +7,12 @@ use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use digua_common_db::WithTenantScope;
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::{
     CreateOrgUnitRequest, CreateRoleRequest, CreateTenantRequest, CreateUserRequest, LoginRequest, RoleQuery, UserQuery,
 };
@@ -71,7 +71,8 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
+    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
     let app = build_router(state.clone());
 
     Ctx { state, app, _mysql: mysql_h.container, _key_file: key_file }

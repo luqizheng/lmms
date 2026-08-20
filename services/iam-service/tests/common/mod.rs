@@ -15,6 +15,7 @@ pub type MysqlContainer = testcontainers::ContainerAsync<Mysql>;
 
 pub struct MysqlHandle {
     pub pool: MySqlPool,
+    #[allow(dead_code)] // exposed for integration tests that need to assert on the URL; not all suites read it.
     pub url: String,
     /// `None` 表示共享模式（容器由 `run-tests-docker.js` 管理生命周期）。
     pub container: Option<MysqlContainer>,

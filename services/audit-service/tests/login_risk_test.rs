@@ -12,12 +12,12 @@ use testcontainers_modules::{
 
 #[tokio::test]
 async fn risk_counter_reaches_threshold() {
-    let rabbit = RabbitMq::default().start().await.unwrap();
+    let rabbit = RabbitMq.start().await.unwrap();
     let amqp_port = rabbit.get_host_port_ipv4(5672).await.unwrap();
     let amqp_host = rabbit.get_host().await.unwrap();
     let amqp_url = format!("amqp://guest:guest@{amqp_host}:{amqp_port}/%2f");
 
-    let redis_c = Redis::default().start().await.unwrap();
+    let redis_c = Redis.start().await.unwrap();
     let redis_port = redis_c.get_host_port_ipv4(6379).await.unwrap();
     let redis_host = redis_c.get_host().await.unwrap();
     let redis_url = format!("redis://{redis_host}:{redis_port}");

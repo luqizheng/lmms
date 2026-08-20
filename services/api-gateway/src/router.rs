@@ -163,7 +163,7 @@ async fn forward_streaming(
             let mapped = stream
                 .body
                 .bytes_stream()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+                .map_err(|e| std::io::Error::other(e.to_string()));
             builder
                 .body(Body::from_stream(mapped))
                 .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())

@@ -46,9 +46,7 @@ pub async fn init_pool(cfg: &DatabaseCfg) -> Result<DbPool> {
 
 /// 启动时跑 migrations/mysql/V001__init.sql；表已存在则忽略，保证重启幂等。
 pub async fn init_schema(pool: &DbPool) -> Result<(), sqlx::Error> {
-    let p = match pool {
-        DbPool::Mysql(p) => p,
-    };
+    let DbPool::Mysql(p) = pool;
     for stmt in INIT_SQL.split(';') {
         // 剥掉段内的纯行注释，再 trim 判空（注释行后可能紧跟 DDL）
         let cleaned: String = stmt

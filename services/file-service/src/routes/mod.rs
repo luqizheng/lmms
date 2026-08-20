@@ -47,6 +47,7 @@ async fn health() -> &'static str {
     "OK"
 }
 
+#[allow(dead_code)] // kept for future use; suppression avoids dead_code lint until wired
 async fn metrics() -> axum::response::Html<String> {
     let encoder = TextEncoder::new();
     let metric_families = prometheus::gather();

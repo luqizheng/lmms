@@ -89,9 +89,9 @@ impl AuditService {
         let size = query.size.unwrap_or(20);
         let offset = ((page - 1) * size) as i64;
 
-        let user_id_ref = query.user_id.as_ref().map(|s| s.as_str());
-        let action_ref = query.action.as_ref().map(|s| s.as_str());
-        let resource_ref = query.resource.as_ref().map(|s| s.as_str());
+        let user_id_ref = query.user_id.as_deref();
+        let action_ref = query.action.as_deref();
+        let resource_ref = query.resource.as_deref();
 
         let total = self
             .count_operation_logs(user_id_ref, action_ref, resource_ref)
@@ -152,7 +152,7 @@ impl AuditService {
         let size = query.size.unwrap_or(20);
         let offset = ((page - 1) * size) as i64;
 
-        let username_ref = query.username.as_ref().map(|s| s.as_str());
+        let username_ref = query.username.as_deref();
 
         let total = self.count_login_logs(username_ref, query.success).await?;
 
@@ -261,6 +261,7 @@ impl AuditService {
         Ok(count.0)
     }
 
+    #[allow(clippy::too_many_arguments)] // Public query API: callers pass filters + pagination directly.
     pub async fn query_logs(
         &self,
         user_id: Option<&str>,

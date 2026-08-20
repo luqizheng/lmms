@@ -10,6 +10,7 @@ use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::{CreateUserRequest, LoginRequest};
 use iam_service::error::IamError;
 use iam_service::service::{AuthService, TenantService, UserService};
@@ -88,7 +89,8 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
+    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
     Ctx {
         state,
         _mysql: mysql_h.container,

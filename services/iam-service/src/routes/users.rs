@@ -8,7 +8,7 @@ use crate::{
 };
 use axum::{
     extract::{Json, Path, Query, State},
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use digua_jwt_ctx::TenantScope;

@@ -9,7 +9,7 @@
 /// 6. 当前时间：GETUTCDATE()
 /// 7. TOP 子句：SELECT TOP N 而非 LIMIT
 /// 8. 排序规则：COLLATE
-
+///
 /// MSSQL 保留字
 pub const MSSQL_RESERVED_WORDS: &[&str] = &[
     "ADD",
@@ -222,7 +222,7 @@ pub fn top_sql(limit: u32) -> String {
 /// 3. 关键字差异
 /// 4. JSON 函数差异
 /// 5. 分页与 MySQL 相同（LIMIT OFFSET）
-
+///
 /// 达梦保留字
 pub const DAMENG_RESERVED_WORDS: &[&str] = &[
     "USER",
@@ -254,10 +254,7 @@ pub const DAMENG_RESERVED_WORDS: &[&str] = &[
 
 /// 达梦序列语法
 pub fn sequence_sql(table: &str, column: &str) -> String {
-    format!(
-        "CREATE SEQUENCE {}_SEQ START WITH 1 INCREMENT BY 1",
-        format!("{}_{}", table, column)
-    )
+    format!("CREATE SEQUENCE {table}_{column}_SEQ START WITH 1 INCREMENT BY 1")
 }
 
 /// 达梦当前时间

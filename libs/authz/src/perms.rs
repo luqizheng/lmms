@@ -2,6 +2,7 @@
 // DO NOT EDIT MANUALLY
 
 /// Permission code constants
+#[allow(clippy::module_inception)]
 pub mod perms {
     /// 创建用户
     pub const IAM_USER_CREATE: &str = "IAM_USER_CREATE";

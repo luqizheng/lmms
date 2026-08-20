@@ -108,9 +108,7 @@ fn upstream_matches(upstream: &str, path: &str) -> bool {
 fn extract_token_from_query(uri: &axum::http::Uri) -> Option<String> {
     uri.query().and_then(|q| {
         q.split('&').find_map(|kv| {
-            let mut parts = kv.splitn(2, '=');
-            let k = parts.next()?;
-            let v = parts.next()?;
+            let (k, v) = kv.split_once('=')?;
             if k == "token" && !v.is_empty() {
                 url_decode(v)
             } else {

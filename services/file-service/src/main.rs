@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let base_url = format!("http://localhost:8082/file/");
+    let base_url = "http://localhost:8082/file/".to_string();
 
     // Phase 5-B: JWKS cache.
     let http_for_jwt = reqwest::Client::builder()

@@ -20,6 +20,7 @@ struct OrgUnitRow {
     status: String,
     created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
+    #[allow(dead_code)] // sqlx FromRow needs the column; queries filter on `deleted_at IS NULL`.
     deleted_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -116,7 +117,7 @@ impl OrgService {
 
         let org_unit = org_unit.ok_or(IamError::OrgUnitNotFound)?;
 
-        let children = self.get_children(&org_unit_id, scope).await?;
+        let children = self.get_children(org_unit_id, scope).await?;
 
         Ok(self.to_response(&org_unit, children))
     }
@@ -291,7 +292,7 @@ impl OrgService {
         scope: &TenantScope,
     ) -> Result<(), IamError> {
         self.get(org_unit_id, scope).await?;
-        let tid = scope.tenant_id().unwrap_or(1) as i64;
+        let tid = scope.tenant_id().unwrap_or(1);
 
         let mut tx = self.state.db.begin().await?;
         sqlx::query("DELETE FROM iam_user_org_units WHERE org_unit_id = ?")

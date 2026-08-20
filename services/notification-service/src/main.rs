@@ -206,13 +206,6 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let port: u16 = cfg
-        .server
-        .http_addr
-        .rsplit(':')
-        .next()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(8080);
     tokio::spawn(async move {
         tokio::signal::ctrl_c()
             .await

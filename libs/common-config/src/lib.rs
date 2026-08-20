@@ -170,9 +170,11 @@ fn load_from_consul(url: &str, key: &str) -> AppResult<String> {
     Err(AppError::external("CFG_CONSUL_EMPTY", "consul value empty"))
 }
 
+type HotConfigCallback<T> = Box<dyn Fn(&T) + Send + Sync>;
+
 pub struct HotConfig<T> {
     inner: Arc<RwLock<T>>,
-    callbacks: Arc<RwLock<Vec<Box<dyn Fn(&T) + Send + Sync>>>>,
+    callbacks: Arc<RwLock<Vec<HotConfigCallback<T>>>>,
 }
 
 impl<T: DeserializeOwned + Clone + Send + Sync + 'static> HotConfig<T> {
@@ -233,6 +235,12 @@ impl<T> Secret<T> {
 
 pub struct SensitiveFields {
     fields: HashMap<String, bool>,
+}
+
+impl Default for SensitiveFields {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SensitiveFields {

@@ -54,8 +54,10 @@ fn test_jwt_sign_and_verify_valid_token() {
     let token = key_pair.sign(claims).unwrap();
 
     let public_key = RS256PublicKey::from_pem(&public_key_pem).unwrap();
-    let mut options = VerificationOptions::default();
-    options.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
+    let options = VerificationOptions {
+        allowed_issuers: Some(HashSet::from([issuer.to_string()])),
+        ..Default::default()
+    };
 
     let result =
         public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
@@ -88,8 +90,10 @@ fn test_jwt_expired_token_rejected() {
     let token = key_pair.sign(claims).unwrap();
 
     let public_key = RS256PublicKey::from_pem(&public_key_pem).unwrap();
-    let mut options = VerificationOptions::default();
-    options.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
+    let options = VerificationOptions {
+        allowed_issuers: Some(HashSet::from([issuer.to_string()])),
+        ..Default::default()
+    };
 
     let result =
         public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
@@ -104,8 +108,10 @@ fn test_jwt_wrong_issuer_rejected() {
     let token = key_pair.sign(claims).unwrap();
 
     let public_key = RS256PublicKey::from_pem(&public_key_pem).unwrap();
-    let mut options = VerificationOptions::default();
-    options.allowed_issuers = Some(HashSet::from(["correct-issuer".to_string()]));
+    let options = VerificationOptions {
+        allowed_issuers: Some(HashSet::from(["correct-issuer".to_string()])),
+        ..Default::default()
+    };
 
     let result =
         public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
@@ -167,8 +173,10 @@ fn test_jwt_custom_claims_extraction() {
     let token = key_pair.sign(claims).unwrap();
 
     let public_key = RS256PublicKey::from_pem(&public_key_pem).unwrap();
-    let mut options = VerificationOptions::default();
-    options.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
+    let options = VerificationOptions {
+        allowed_issuers: Some(HashSet::from([issuer.to_string()])),
+        ..Default::default()
+    };
 
     let verified = public_key
         .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options))
@@ -235,17 +243,21 @@ fn test_jwt_future_token_with_accept_future() {
 
     let public_key = RS256PublicKey::from_pem(&public_key_pem).unwrap();
 
-    let mut options_no_future = VerificationOptions::default();
-    options_no_future.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
-    options_no_future.accept_future = false;
-    options_no_future.time_tolerance = Some(Duration::from_secs(0));
+    let options_no_future = VerificationOptions {
+        allowed_issuers: Some(HashSet::from([issuer.to_string()])),
+        accept_future: false,
+        time_tolerance: Some(Duration::from_secs(0)),
+        ..Default::default()
+    };
     let result = public_key
         .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options_no_future));
     assert!(result.is_err());
 
-    let mut options_with_future = VerificationOptions::default();
-    options_with_future.allowed_issuers = Some(HashSet::from([issuer.to_string()]));
-    options_with_future.accept_future = true;
+    let options_with_future = VerificationOptions {
+        allowed_issuers: Some(HashSet::from([issuer.to_string()])),
+        accept_future: true,
+        ..Default::default()
+    };
     let result = public_key
         .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options_with_future));
     assert!(result.is_ok());

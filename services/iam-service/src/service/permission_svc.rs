@@ -27,6 +27,7 @@ struct PermissionRow {
     status: String,
     created_at: chrono::DateTime<Utc>,
     updated_at: chrono::DateTime<Utc>,
+    #[allow(dead_code)] // sqlx FromRow needs the column; queries filter on `deleted_at IS NULL`.
     deleted_at: Option<chrono::DateTime<Utc>>,
 }
 

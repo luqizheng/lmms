@@ -558,7 +558,7 @@ database:
         )
         .unwrap();
         // No env at all → validation should fail with jwt / issuer / user_service_url absent.
-        let err = load_config_with_env(path.to_str().unwrap(), &env_from(&[])).unwrap_err();
+        let err = load_config_with_env(path.to_str().unwrap(), env_from(&[])).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("database.url"), "err: {msg}");
         assert!(msg.contains("issuer"), "err: {msg}");

@@ -1,4 +1,4 @@
-use digua_common_log::{AuditClient, AuditEvent};
+use digua_common_log::AuditClient;
 
 #[tokio::test]
 async fn audit_client_buffers_event_when_no_endpoint() {

@@ -1,10 +1,9 @@
 use crate::error::{AppError, AppResult};
-use crate::models::ExportFormat;
 use crate::routes::AppState;
 use axum::{
     extract::{Path, State},
-    http::{header, HeaderMap},
-    Json, Router,
+    http::header,
+    Router,
 };
 
 pub fn routes(state: AppState) -> Router {

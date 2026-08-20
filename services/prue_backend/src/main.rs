@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to bind");
 
-    let consul_addr =
+    let _consul_addr =
         std::env::var("CONSUL_ADDR").unwrap_or_else(|_| "http://consul:8500".to_string());
     tokio::spawn(async move {
         tokio::signal::ctrl_c()
