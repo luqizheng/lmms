@@ -58,12 +58,26 @@ async fn count(pool: &sqlx::MySqlPool, table: &str) -> i64 {
 #[tokio::test]
 async fn archive_moves_published_rows_older_than_24h() {
     let ctx = setup().await;
-    insert_outbox_row(&ctx.pool, "ev.old", Some(Utc::now() - ChronoDuration::hours(25))).await;
-    insert_outbox_row(&ctx.pool, "ev.recent", Some(Utc::now() - ChronoDuration::hours(1))).await;
+    insert_outbox_row(
+        &ctx.pool,
+        "ev.old",
+        Some(Utc::now() - ChronoDuration::hours(25)),
+    )
+    .await;
+    insert_outbox_row(
+        &ctx.pool,
+        "ev.recent",
+        Some(Utc::now() - ChronoDuration::hours(1)),
+    )
+    .await;
 
     outbox_archive::run_once(&ctx.pool).await.unwrap();
 
-    assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 1, "old row archived, recent row kept");
+    assert_eq!(
+        count(&ctx.pool, "iam_outbox_events").await,
+        1,
+        "old row archived, recent row kept"
+    );
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 1);
 }
 
@@ -74,7 +88,11 @@ async fn archive_skips_unpublished_rows() {
 
     outbox_archive::run_once(&ctx.pool).await.unwrap();
 
-    assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 1, "unpublished row must not be archived");
+    assert_eq!(
+        count(&ctx.pool, "iam_outbox_events").await,
+        1,
+        "unpublished row must not be archived"
+    );
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 0);
 }
 
@@ -82,12 +100,21 @@ async fn archive_skips_unpublished_rows() {
 async fn archive_batches_at_1000() {
     let ctx = setup().await;
     for _ in 0..2500 {
-        insert_outbox_row(&ctx.pool, "ev.bulk", Some(Utc::now() - ChronoDuration::hours(25))).await;
+        insert_outbox_row(
+            &ctx.pool,
+            "ev.bulk",
+            Some(Utc::now() - ChronoDuration::hours(25)),
+        )
+        .await;
     }
 
     outbox_archive::run_once(&ctx.pool).await.unwrap();
 
-    assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 0, "all 2500 rows archived");
+    assert_eq!(
+        count(&ctx.pool, "iam_outbox_events").await,
+        0,
+        "all 2500 rows archived"
+    );
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 2500);
 }
 
@@ -95,7 +122,12 @@ async fn archive_batches_at_1000() {
 async fn archive_get_lock_prevents_concurrent_runs() {
     let ctx = Arc::new(setup().await);
     // 插入一条 25h 前的行，应被归档
-    insert_outbox_row(&ctx.pool, "ev.blocked", Some(Utc::now() - ChronoDuration::hours(25))).await;
+    insert_outbox_row(
+        &ctx.pool,
+        "ev.blocked",
+        Some(Utc::now() - ChronoDuration::hours(25)),
+    )
+    .await;
 
     // 另一连接持锁，模拟并发副本
     let mut held_conn = ctx.pool.acquire().await.unwrap();
@@ -107,7 +139,11 @@ async fn archive_get_lock_prevents_concurrent_runs() {
     // run_once 应观察到 acquired=0 → 跳过
     outbox_archive::run_once(&ctx.pool).await.unwrap();
     // 关键断言：行未被归档（锁阻止了 run_once 进入）
-    assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 1, "row must NOT be archived while lock held");
+    assert_eq!(
+        count(&ctx.pool, "iam_outbox_events").await,
+        1,
+        "row must NOT be archived while lock held"
+    );
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 0);
 
     // 释放锁
@@ -156,7 +192,11 @@ async fn purge_deletes_old_archive_rows() {
 
     outbox_archive::run_once(&ctx.pool).await.unwrap();
 
-    assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 0, "31-day-old row purged");
+    assert_eq!(
+        count(&ctx.pool, "iam_outbox_events_archive").await,
+        0,
+        "31-day-old row purged"
+    );
 }
 
 #[tokio::test]
@@ -165,8 +205,18 @@ async fn archive_window_picks_up_late_published() {
     // 由于二次 WHERE 包含 published_at < NOW(3) - INTERVAL 24 HOUR，
     // 该行此刻 published_at 仍 < 25h ago，会被一并归档
     let ctx = setup().await;
-    let _old_id = insert_outbox_row(&ctx.pool, "ev.late", Some(Utc::now() - ChronoDuration::hours(25))).await;
-    let new_id = insert_outbox_row(&ctx.pool, "ev.fresh", Some(Utc::now() - ChronoDuration::hours(1))).await;
+    let _old_id = insert_outbox_row(
+        &ctx.pool,
+        "ev.late",
+        Some(Utc::now() - ChronoDuration::hours(25)),
+    )
+    .await;
+    let new_id = insert_outbox_row(
+        &ctx.pool,
+        "ev.fresh",
+        Some(Utc::now() - ChronoDuration::hours(1)),
+    )
+    .await;
 
     // 第一次 run_once 搬运 old
     outbox_archive::run_once(&ctx.pool).await.unwrap();

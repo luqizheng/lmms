@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use iam_service::service::token_forward::TokenForwardClient;
     use digua_common_cache::MemoryCache;
     use digua_common_event::MySqlOutboxRepo;
+    use iam_service::service::token_forward::TokenForwardClient;
     use iam_service::{config::load_config, state::AppState};
     use std::sync::Arc;
 

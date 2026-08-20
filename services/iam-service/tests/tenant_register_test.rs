@@ -14,9 +14,9 @@ use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::CreateTenantRequest;
 use iam_service::error::IamError;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::service::TenantService;
 use iam_service::state::AppState;
 use std::sync::Arc;
@@ -83,8 +83,18 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        None,
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
     Ctx {
         state,
         _mysql: mysql_h.container,
@@ -107,7 +117,10 @@ async fn register_tenant_creates_tenant_and_admin_and_outbox() {
     let svc = TenantService::new(ctx.state.clone());
 
     let resp = svc.register(sample_req("acme", "admin")).await.unwrap();
-    assert!(resp.tenant_id > 1, "tenant_id must be > 1 (default=1 reserved)");
+    assert!(
+        resp.tenant_id > 1,
+        "tenant_id must be > 1 (default=1 reserved)"
+    );
     assert!(!resp.admin_user_id.is_empty());
 
     // tenant row
@@ -119,13 +132,12 @@ async fn register_tenant_creates_tenant_and_admin_and_outbox() {
     assert_eq!(slug, "acme");
 
     // admin user row with tenant_id
-    let (tid, username): (u64, String) = sqlx::query_as(
-        "SELECT tenant_id, username FROM iam_users WHERE id = ?",
-    )
-    .bind(&resp.admin_user_id)
-    .fetch_one(&ctx.state.db)
-    .await
-    .unwrap();
+    let (tid, username): (u64, String) =
+        sqlx::query_as("SELECT tenant_id, username FROM iam_users WHERE id = ?")
+            .bind(&resp.admin_user_id)
+            .fetch_one(&ctx.state.db)
+            .await
+            .unwrap();
     assert_eq!(tid as i64, resp.tenant_id);
     assert_eq!(username, "admin");
 
@@ -245,7 +257,10 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
     .fetch_one(&ctx.state.db)
     .await
     .unwrap();
-    assert_eq!(pn, total, "seed tenant_admin must have all enabled permissions");
+    assert_eq!(
+        pn, total,
+        "seed tenant_admin must have all enabled permissions"
+    );
 
     // unique key rebuilt: uk_tenant_role_code (tenant_id, code) present, old code index gone
     let (uk_cnt,): (i64,) = sqlx::query_as(
@@ -255,7 +270,10 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
     .fetch_one(&ctx.state.db)
     .await
     .unwrap();
-    assert_eq!(uk_cnt, 2, "uk_tenant_role_code must be a composite (tenant_id, code) index");
+    assert_eq!(
+        uk_cnt, 2,
+        "uk_tenant_role_code must be a composite (tenant_id, code) index"
+    );
 
     let (old_code_cnt,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM information_schema.statistics \
@@ -264,17 +282,17 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
     .fetch_one(&ctx.state.db)
     .await
     .unwrap();
-    assert_eq!(old_code_cnt, 0, "old single-column 'code' unique index must be dropped");
+    assert_eq!(
+        old_code_cnt, 0,
+        "old single-column 'code' unique index must be dropped"
+    );
 }
 
 #[tokio::test]
 async fn register_creates_per_tenant_admin_role_with_permissions() {
     let ctx = setup().await;
     let svc = TenantService::new(ctx.state.clone());
-    let resp = svc
-        .register(sample_req("acme", "admin"))
-        .await
-        .unwrap();
+    let resp = svc.register(sample_req("acme", "admin")).await.unwrap();
 
     // per-tenant tenant_admin role exists
     let (role_id, tid): (String, i64) = sqlx::query_as(
@@ -287,29 +305,33 @@ async fn register_creates_per_tenant_admin_role_with_permissions() {
     assert_eq!(tid, resp.tenant_id);
 
     // role has all enabled global permissions
-    let (pn,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM iam_role_permissions WHERE role_id = ?",
-    )
-    .bind(&role_id)
-    .fetch_one(&ctx.state.db)
-    .await
-    .unwrap();
+    let (pn,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM iam_role_permissions WHERE role_id = ?")
+            .bind(&role_id)
+            .fetch_one(&ctx.state.db)
+            .await
+            .unwrap();
     let (total,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM iam_permissions WHERE status = 'enabled' AND deleted_at IS NULL",
     )
     .fetch_one(&ctx.state.db)
     .await
     .unwrap();
-    assert_eq!(pn, total, "per-tenant tenant_admin must have all enabled perms");
+    assert_eq!(
+        pn, total,
+        "per-tenant tenant_admin must have all enabled perms"
+    );
 
     // admin user bound to the per-tenant role
-    let (bound,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM iam_user_roles WHERE user_id = ? AND role_id = ?",
-    )
-    .bind(&resp.admin_user_id)
-    .bind(&role_id)
-    .fetch_one(&ctx.state.db)
-    .await
-    .unwrap();
-    assert_eq!(bound, 1, "admin must be bound to per-tenant tenant_admin role");
+    let (bound,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM iam_user_roles WHERE user_id = ? AND role_id = ?")
+            .bind(&resp.admin_user_id)
+            .bind(&role_id)
+            .fetch_one(&ctx.state.db)
+            .await
+            .unwrap();
+    assert_eq!(
+        bound, 1,
+        "admin must be bound to per-tenant tenant_admin role"
+    );
 }

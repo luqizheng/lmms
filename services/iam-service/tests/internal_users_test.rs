@@ -14,8 +14,8 @@ use digua_common_jwt::sign_token;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::routes::build_router;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::state::AppState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,7 +23,8 @@ use tower::ServiceExt;
 
 // Test fixture: matches the production token-service private key (regenerated
 // for tests; production uses the baked-in PEM).
-const TEST_TOKEN_PRIVATE_PEM: &str = include_str!("../../token-service/tests/fixtures/test_token_private.pem");
+const TEST_TOKEN_PRIVATE_PEM: &str =
+    include_str!("../../token-service/tests/fixtures/test_token_private.pem");
 
 struct Ctx {
     app: axum::Router,
@@ -37,22 +38,41 @@ async fn setup() -> Ctx {
     let url = mysql_h.url;
 
     let config = Config {
-        app: AppConfig { name: "iam-service".into(), host: "0.0.0.0".into(), port: 8080 },
-        database: DatabaseConfig { url: url.clone(), max_connections: 5, min_connections: 1 },
-        redis: RedisConfig { url: "redis://x".into(), ttl_sec: 86400, prefix: "test:".into() },
+        app: AppConfig {
+            name: "iam-service".into(),
+            host: "0.0.0.0".into(),
+            port: 8080,
+        },
+        database: DatabaseConfig {
+            url: url.clone(),
+            max_connections: 5,
+            min_connections: 1,
+        },
+        redis: RedisConfig {
+            url: "redis://x".into(),
+            ttl_sec: 86400,
+            prefix: "test:".into(),
+        },
         jwt: JwtConfig {
             private_key_path: "/dev/null".into(),
             public_key_path: "/dev/null".into(),
             access_token_ttl_minutes: 15,
             refresh_token_ttl_days: 7,
         },
-        consul: ConsulConfig { host: "consul".into(), port: 8500, service_name: "iam-service".into() },
+        consul: ConsulConfig {
+            host: "consul".into(),
+            port: 8500,
+            service_name: "iam-service".into(),
+        },
     };
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(
-        include_str!("../../token-service/tests/fixtures/test_token_public.pem"),
-    ).expect("test public key must parse"));
+    let jwks = std::sync::Arc::new(
+        digua_common_jwt::JWKSCache::from_pem(include_str!(
+            "../../token-service/tests/fixtures/test_token_public.pem"
+        ))
+        .expect("test public key must parse"),
+    );
     let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
         digua_common_jwt::ServiceJwtConfig {
             token_service_url: "http://localhost:0".into(),
@@ -64,11 +84,25 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        None,
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
 
     let app = build_router(state.clone());
-    Ctx { app, state, _mysql: mysql_h.container }
+    Ctx {
+        app,
+        state,
+        _mysql: mysql_h.container,
+    }
 }
 
 async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
@@ -77,8 +111,12 @@ async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
          VALUES (?, ?, ?, 'active', NOW(), NOW()) \
          ON DUPLICATE KEY UPDATE id = id",
     )
-    .bind(id).bind(slug).bind(slug)
-    .execute(&state.db).await.unwrap();
+    .bind(id)
+    .bind(slug)
+    .bind(slug)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn seed_tenant_user(state: &AppState, tenant: i64, uid: &str) {
@@ -95,8 +133,12 @@ async fn seed_role(state: &AppState, rid: &str) {
         "INSERT INTO iam_roles (id, name, code, data_scope, status, created_at, updated_at) \
          VALUES (?, ?, ?, 'self', 'active', NOW(), NOW())",
     )
-    .bind(rid).bind(rid).bind(rid)
-    .execute(&state.db).await.unwrap();
+    .bind(rid)
+    .bind(rid)
+    .bind(rid)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn seed_org(state: &AppState, oid: &str) {
@@ -104,14 +146,21 @@ async fn seed_org(state: &AppState, oid: &str) {
         "INSERT INTO iam_org_units (id, name, code, parent_id, created_at, updated_at) \
          VALUES (?, ?, ?, NULL, NOW(), NOW())",
     )
-    .bind(oid).bind(oid).bind(oid)
-    .execute(&state.db).await.unwrap();
+    .bind(oid)
+    .bind(oid)
+    .bind(oid)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn bind_user_to_role(state: &AppState, uid: &str, rid: &str) {
     sqlx::query("INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())")
-        .bind(uid).bind(rid)
-        .execute(&state.db).await.unwrap();
+        .bind(uid)
+        .bind(rid)
+        .execute(&state.db)
+        .await
+        .unwrap();
 }
 
 async fn bind_user_to_org(state: &AppState, uid: &str, oid: &str) {
@@ -119,8 +168,11 @@ async fn bind_user_to_org(state: &AppState, uid: &str, oid: &str) {
         "INSERT INTO iam_user_org_units (user_id, org_unit_id, is_primary, created_at) \
          VALUES (?, ?, TRUE, NOW())",
     )
-    .bind(uid).bind(oid)
-    .execute(&state.db).await.unwrap();
+    .bind(uid)
+    .bind(oid)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn call(app: axum::Router, path: &str, tenant_id: i64) -> (StatusCode, serde_json::Value) {
@@ -172,7 +224,8 @@ async fn internal_users_by_role_returns_member_user_ids() {
     let (status, body) = call(ctx.app, "/iam/internal/users/by-role/r1", 1).await;
     assert_eq!(status, StatusCode::OK);
     let mut items: Vec<String> = body["items"]
-        .as_array().unwrap()
+        .as_array()
+        .unwrap()
         .iter()
         .map(|v| v.as_str().unwrap().to_string())
         .collect();
@@ -208,7 +261,8 @@ async fn internal_users_tenant_isolation() {
     let (status, body) = call(ctx.app, "/iam/internal/users/by-role/r1", 2).await;
     assert_eq!(status, StatusCode::OK);
     let items: Vec<String> = body["items"]
-        .as_array().unwrap()
+        .as_array()
+        .unwrap()
         .iter()
         .map(|v| v.as_str().unwrap().to_string())
         .collect();
@@ -226,14 +280,17 @@ async fn missing_tenant_id_returns_400() {
         "iss": "token-service", "sub": "test-caller", "aud": "iam-service",
         "tid": 1i64, "iat": now, "exp": now + 3600, "roles": ["service"],
     });
-    let service_jwt = sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600)).unwrap();
-    let resp = ctx.app
+    let service_jwt =
+        sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600)).unwrap();
+    let resp = ctx
+        .app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/iam/internal/users/by-role/r1")
                 .header("Authorization", format!("Bearer {}", service_jwt))
-                .body(Body::empty()).unwrap()
+                .body(Body::empty())
+                .unwrap(),
         )
         .await
         .unwrap();
@@ -249,14 +306,17 @@ async fn non_numeric_tenant_id_returns_400() {
         "iss": "token-service", "sub": "test-caller", "aud": "iam-service",
         "tid": 1i64, "iat": now, "exp": now + 3600, "roles": ["service"],
     });
-    let service_jwt = sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600)).unwrap();
-    let resp = ctx.app
+    let service_jwt =
+        sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600)).unwrap();
+    let resp = ctx
+        .app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/iam/internal/users/by-role/r1?tenant_id=abc")
                 .header("Authorization", format!("Bearer {}", service_jwt))
-                .body(Body::empty()).unwrap()
+                .body(Body::empty())
+                .unwrap(),
         )
         .await
         .unwrap();

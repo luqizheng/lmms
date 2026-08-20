@@ -590,8 +590,13 @@ impl UserService {
             .fetch_optional(&self.state.db)
             .await?;
 
-        let UserClaimsRow { id: uid, username, email, phone, nickname } =
-            user.ok_or(IamError::UserNotFound)?;
+        let UserClaimsRow {
+            id: uid,
+            username,
+            email,
+            phone,
+            nickname,
+        } = user.ok_or(IamError::UserNotFound)?;
 
         let roles: Vec<String> = sqlx::query_scalar(
             "SELECT r.code FROM iam_roles r JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.tenant_id = ? AND r.deleted_at IS NULL"

@@ -94,8 +94,7 @@ async fn test_blacklist_multiple_tokens() {
 
     let _: () = conn
         .del(
-            jtis
-                .iter()
+            jtis.iter()
                 .map(|jti| format!("{}blacklist:{}", prefix, jti))
                 .collect::<Vec<_>>(),
         )

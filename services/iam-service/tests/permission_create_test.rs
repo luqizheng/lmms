@@ -17,15 +17,15 @@
 
 mod common;
 
+use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::permission::CreatePermissionRequest;
 use iam_service::service::permission_svc::PermissionService;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::state::AppState;
-use digua_common_cache::MemoryCache;
 use std::sync::Arc;
 
 struct Ctx {
@@ -88,8 +88,18 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        None,
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
     Ctx {
         state,
         _mysql: mysql_h.container,
@@ -111,7 +121,10 @@ async fn create_permission_round_trip() {
         sort_order: Some(0),
     };
 
-    let resp = svc.create(req, None).await.expect("create should succeed under MySQL 8.0");
+    let resp = svc
+        .create(req, None)
+        .await
+        .expect("create should succeed under MySQL 8.0");
     assert!(!resp.id.is_empty(), "id must be populated");
     assert_eq!(resp.status, "enabled");
     assert_eq!(resp.name, "Test permission");

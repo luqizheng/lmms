@@ -15,7 +15,8 @@ pub type MysqlContainer = testcontainers::ContainerAsync<Mysql>;
 
 pub struct MysqlHandle {
     pub pool: MySqlPool,
-    #[allow(dead_code)] // exposed for integration tests that need to assert on the URL; not all suites read it.
+    #[allow(dead_code)]
+    // exposed for integration tests that need to assert on the URL; not all suites read it.
     pub url: String,
     /// `None` 表示共享模式（容器由 `run-tests-docker.js` 管理生命周期）。
     pub container: Option<MysqlContainer>,
@@ -44,10 +45,12 @@ async fn spawn_shared(host: String, port: String) -> MysqlHandle {
     let admin = MySqlPool::connect(&admin_url)
         .await
         .expect("admin connect to shared mysql");
-    sqlx::query(&format!("CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4"))
-        .execute(&admin)
-        .await
-        .expect("create test database");
+    sqlx::query(&format!(
+        "CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4"
+    ))
+    .execute(&admin)
+    .await
+    .expect("create test database");
     admin.close().await;
 
     let url = format!("mysql://root@{host}:{port}/{db_name}");

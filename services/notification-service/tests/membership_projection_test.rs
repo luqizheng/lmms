@@ -66,7 +66,9 @@ async fn apply_role_unassigned_removes_role_from_json_array() {
 async fn apply_role_unassigned_on_missing_user_is_noop() {
     let (db, _c) = setup().await;
     // user never had any role events — unassign should not error
-    db.apply_role_unassigned("ghost", "r1", 1, 100).await.unwrap();
+    db.apply_role_unassigned("ghost", "r1", 1, 100)
+        .await
+        .unwrap();
     let out = db
         .resolve_users_by_scopes(
             &[(notification_service::models::ScopeType::Role, "r1".into())],
@@ -81,8 +83,12 @@ async fn apply_role_unassigned_on_missing_user_is_noop() {
 async fn apply_dept_changed_updates_dept_id() {
     let (db, _c) = setup().await;
     db.apply_role_assigned("u1", "r1", 1, 100).await.unwrap();
-    db.apply_dept_changed("u1", Some("d1"), 1, 200).await.unwrap();
-    db.apply_dept_changed("u1", Some("d2"), 1, 300).await.unwrap();
+    db.apply_dept_changed("u1", Some("d1"), 1, 200)
+        .await
+        .unwrap();
+    db.apply_dept_changed("u1", Some("d2"), 1, 300)
+        .await
+        .unwrap();
 
     let d1 = db
         .resolve_users_by_scopes(
@@ -105,7 +111,9 @@ async fn apply_dept_changed_updates_dept_id() {
 #[tokio::test]
 async fn apply_dept_changed_to_none_clears_dept() {
     let (db, _c) = setup().await;
-    db.apply_dept_changed("u1", Some("d1"), 1, 100).await.unwrap();
+    db.apply_dept_changed("u1", Some("d1"), 1, 100)
+        .await
+        .unwrap();
     db.apply_dept_changed("u1", None, 1, 200).await.unwrap();
 
     let d1 = db
@@ -124,15 +132,22 @@ async fn apply_dept_changed_to_none_clears_dept() {
 async fn out_of_order_event_does_not_overwrite_newer_state() {
     let (db, _c) = setup().await;
     db.apply_role_assigned("u1", "r1", 1, 100).await.unwrap();
-    db.apply_dept_changed("u1", Some("d_new"), 1, 200).await.unwrap();
+    db.apply_dept_changed("u1", Some("d_new"), 1, 200)
+        .await
+        .unwrap();
 
     // Replay older events with smaller ts — must be ignored
     db.apply_role_assigned("u1", "r_old", 1, 50).await.unwrap();
-    db.apply_dept_changed("u1", Some("d_old"), 1, 50).await.unwrap();
+    db.apply_dept_changed("u1", Some("d_old"), 1, 50)
+        .await
+        .unwrap();
 
     let r_old = db
         .resolve_users_by_scopes(
-            &[(notification_service::models::ScopeType::Role, "r_old".into())],
+            &[(
+                notification_service::models::ScopeType::Role,
+                "r_old".into(),
+            )],
             &TenantScope::Single(1),
         )
         .await
@@ -146,14 +161,20 @@ async fn out_of_order_event_does_not_overwrite_newer_state() {
         .unwrap();
     let d_old = db
         .resolve_users_by_scopes(
-            &[(notification_service::models::ScopeType::Dept, "d_old".into())],
+            &[(
+                notification_service::models::ScopeType::Dept,
+                "d_old".into(),
+            )],
             &TenantScope::Single(1),
         )
         .await
         .unwrap();
     let d_new = db
         .resolve_users_by_scopes(
-            &[(notification_service::models::ScopeType::Dept, "d_new".into())],
+            &[(
+                notification_service::models::ScopeType::Dept,
+                "d_new".into(),
+            )],
             &TenantScope::Single(1),
         )
         .await
@@ -169,7 +190,9 @@ async fn out_of_order_event_does_not_overwrite_newer_state() {
 #[tokio::test]
 async fn replace_projection_wipes_and_reinserts_for_tenant() {
     let (db, _c) = setup().await;
-    db.apply_role_assigned("u_stale", "r1", 1, 100).await.unwrap();
+    db.apply_role_assigned("u_stale", "r1", 1, 100)
+        .await
+        .unwrap();
     let stale = db
         .resolve_users_by_scopes(
             &[(notification_service::models::ScopeType::Role, "r1".into())],

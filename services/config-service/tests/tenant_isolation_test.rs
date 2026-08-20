@@ -10,8 +10,8 @@ use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use digua_common_jwt::JWKSCache;
 use config_service::routes::{self, create_state};
+use digua_common_jwt::JWKSCache;
 use digua_jwt_ctx::Principal;
 use jwt_simple::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -42,9 +42,8 @@ fn test_public_pem() -> &'static str {
 }
 
 fn build_app(pool: sqlx::MySqlPool) -> axum::Router {
-    let jwks = Arc::new(
-        JWKSCache::from_pem(test_public_pem()).expect("test public PEM must parse"),
-    );
+    let jwks =
+        Arc::new(JWKSCache::from_pem(test_public_pem()).expect("test public PEM must parse"));
     let state = create_state(pool, jwks);
     routes::routes(state)
 }
@@ -279,10 +278,7 @@ async fn tenant_scoped_list_filters_cross_tenant() {
         "tenant-1 list must return 200 (was 500 before WHERE 1=1 fix): body={:?}",
         info
     );
-    let items = info["items"]
-        .as_array()
-        .expect("items array")
-        .clone();
+    let items = info["items"].as_array().expect("items array").clone();
     assert!(
         !items.is_empty(),
         "tenant-1 list must include own seeded namespaces"
@@ -346,10 +342,7 @@ async fn tenant_scoped_list_filters_cross_tenant() {
         "tenant-2 list must return 200: body={:?}",
         info
     );
-    let items = info["items"]
-        .as_array()
-        .expect("items array")
-        .clone();
+    let items = info["items"].as_array().expect("items array").clone();
     assert!(
         !items.is_empty(),
         "tenant-2 list must include own seeded namespace"

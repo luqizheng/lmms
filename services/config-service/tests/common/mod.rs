@@ -43,10 +43,12 @@ async fn spawn_shared(host: String, port: String) -> MysqlHandle {
     let admin = MySqlPool::connect(&admin_url)
         .await
         .expect("admin connect to shared mysql");
-    sqlx::query(&format!("CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4"))
-        .execute(&admin)
-        .await
-        .expect("create test database");
+    sqlx::query(&format!(
+        "CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4"
+    ))
+    .execute(&admin)
+    .await
+    .expect("create test database");
     admin.close().await;
 
     let url = format!("mysql://root@{host}:{port}/{db_name}");
@@ -70,9 +72,7 @@ async fn spawn_local() -> MysqlHandle {
     let host = c.get_host().await.expect("mysql host");
     let port = c.get_host_port_ipv4(3306).await.expect("mysql port");
     let url = format!("mysql://root@{host}:{port}/test");
-    let pool = MySqlPool::connect(&url)
-        .await
-        .expect("connect local mysql");
+    let pool = MySqlPool::connect(&url).await.expect("connect local mysql");
     db::ensure_schema(&pool).await.expect("ensure cfg schema");
 
     MysqlHandle {

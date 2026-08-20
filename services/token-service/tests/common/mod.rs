@@ -55,10 +55,12 @@ async fn spawn_shared(host: String, port: String) -> DbPool {
     let admin = MySqlPool::connect(&admin_url)
         .await
         .expect("admin connect to shared mysql");
-    sqlx::query(&format!("CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4"))
-        .execute(&admin)
-        .await
-        .expect("create test database");
+    sqlx::query(&format!(
+        "CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4"
+    ))
+    .execute(&admin)
+    .await
+    .expect("create test database");
     admin.close().await;
 
     let url = format!("mysql://root@{host}:{port}/{db_name}");

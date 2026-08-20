@@ -19,8 +19,8 @@ use digua_common_jwt::{sign_token, JWKSCache, ServiceJwtCache, ServiceJwtConfig}
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::routes::build_router;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::state::AppState;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -44,20 +44,37 @@ async fn setup() -> Ctx {
     let url = mysql_h.url;
 
     let config = Config {
-        app: AppConfig { name: "iam-service".into(), host: "0.0.0.0".into(), port: 8080 },
-        database: DatabaseConfig { url: url.clone(), max_connections: 5, min_connections: 1 },
-        redis: RedisConfig { url: "redis://x".into(), ttl_sec: 86400, prefix: "test:".into() },
+        app: AppConfig {
+            name: "iam-service".into(),
+            host: "0.0.0.0".into(),
+            port: 8080,
+        },
+        database: DatabaseConfig {
+            url: url.clone(),
+            max_connections: 5,
+            min_connections: 1,
+        },
+        redis: RedisConfig {
+            url: "redis://x".into(),
+            ttl_sec: 86400,
+            prefix: "test:".into(),
+        },
         jwt: JwtConfig {
             private_key_path: "/dev/null".into(),
             public_key_path: "/dev/null".into(),
             access_token_ttl_minutes: 15,
             refresh_token_ttl_days: 7,
         },
-        consul: ConsulConfig { host: "consul".into(), port: 8500, service_name: "iam-service".into() },
+        consul: ConsulConfig {
+            host: "consul".into(),
+            port: 8500,
+            service_name: "iam-service".into(),
+        },
     };
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let jwks = Arc::new(JWKSCache::from_pem(TEST_TOKEN_PUBLIC_PEM).expect("test public key must parse"));
+    let jwks =
+        Arc::new(JWKSCache::from_pem(TEST_TOKEN_PUBLIC_PEM).expect("test public key must parse"));
     let service_jwt = Arc::new(ServiceJwtCache::new(
         ServiceJwtConfig {
             token_service_url: "http://localhost:0".into(),
@@ -71,9 +88,22 @@ async fn setup() -> Ctx {
         String::new(),
     ));
     let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        None,
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
     let app = build_router(state.clone());
-    Ctx { app, state, _mysql: mysql_h.container }
+    Ctx {
+        app,
+        state,
+        _mysql: mysql_h.container,
+    }
 }
 
 async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
@@ -82,8 +112,12 @@ async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
          VALUES (?, ?, ?, 'active', NOW(), NOW()) \
          ON DUPLICATE KEY UPDATE id = id",
     )
-    .bind(id).bind(slug).bind(slug)
-    .execute(&state.db).await.unwrap();
+    .bind(id)
+    .bind(slug)
+    .bind(slug)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn seed_user(state: &AppState, tenant: i64, uid: &str) {
@@ -100,8 +134,12 @@ async fn seed_role(state: &AppState, rid: &str) {
         "INSERT INTO iam_roles (id, name, code, data_scope, status, created_at, updated_at) \
          VALUES (?, ?, ?, 'self', 'active', NOW(), NOW())",
     )
-    .bind(rid).bind(rid).bind(rid)
-    .execute(&state.db).await.unwrap();
+    .bind(rid)
+    .bind(rid)
+    .bind(rid)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn seed_org(state: &AppState, oid: &str) {
@@ -109,14 +147,21 @@ async fn seed_org(state: &AppState, oid: &str) {
         "INSERT INTO iam_org_units (id, name, code, parent_id, created_at, updated_at) \
          VALUES (?, ?, ?, NULL, NOW(), NOW())",
     )
-    .bind(oid).bind(oid).bind(oid)
-    .execute(&state.db).await.unwrap();
+    .bind(oid)
+    .bind(oid)
+    .bind(oid)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn bind_user_to_role(state: &AppState, uid: &str, rid: &str) {
     sqlx::query("INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())")
-        .bind(uid).bind(rid)
-        .execute(&state.db).await.unwrap();
+        .bind(uid)
+        .bind(rid)
+        .execute(&state.db)
+        .await
+        .unwrap();
 }
 
 async fn bind_user_to_org(state: &AppState, uid: &str, oid: &str, is_primary: bool) {
@@ -124,8 +169,12 @@ async fn bind_user_to_org(state: &AppState, uid: &str, oid: &str, is_primary: bo
         "INSERT INTO iam_user_org_units (user_id, org_unit_id, is_primary, created_at) \
          VALUES (?, ?, ?, NOW())",
     )
-    .bind(uid).bind(oid).bind(is_primary)
-    .execute(&state.db).await.unwrap();
+    .bind(uid)
+    .bind(oid)
+    .bind(is_primary)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 fn mint_service_jwt(tid: i64) -> String {
@@ -188,23 +237,35 @@ async fn membership_bootstrap_returns_full_mapping() {
     assert_eq!(mappings.len(), 3);
 
     let u1 = &mappings["u1"];
-    let mut u1_roles: Vec<String> = u1["role_ids"].as_array().unwrap()
-        .iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let mut u1_roles: Vec<String> = u1["role_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     u1_roles.sort();
     assert_eq!(u1_roles, vec!["r1"]);
     assert_eq!(u1["dept_id"], "d1");
 
     let u2 = &mappings["u2"];
-    let mut u2_roles: Vec<String> = u2["role_ids"].as_array().unwrap()
-        .iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let mut u2_roles: Vec<String> = u2["role_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     u2_roles.sort();
     assert_eq!(u2_roles, vec!["r1", "r2"]);
     assert_eq!(u2["dept_id"], "d2");
 
     // u3 has no role / no dept
     let u3 = &mappings["u3"];
-    let u3_roles: Vec<String> = u3["role_ids"].as_array().unwrap()
-        .iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let u3_roles: Vec<String> = u3["role_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(u3_roles.is_empty());
     assert!(u3["dept_id"].is_null());
 }
@@ -250,7 +311,9 @@ async fn membership_bootstrap_skips_deleted_users() {
     seed_user(&ctx.state, 1, "u_dead").await;
     sqlx::query("UPDATE iam_users SET deleted_at = NOW() WHERE id = ?")
         .bind("u_dead")
-        .execute(&ctx.state.db).await.unwrap();
+        .execute(&ctx.state.db)
+        .await
+        .unwrap();
 
     let (status, body) = call(ctx.app, 1).await;
     assert_eq!(status, StatusCode::OK);
@@ -279,12 +342,14 @@ async fn membership_bootstrap_rejects_wrong_aud() {
         "tid": 1, "iat": now, "exp": now + 3600, "roles": ["service"],
     });
     let bad_jwt = sign_token(TEST_TOKEN_PRIVATE_PEM, &claims, Duration::from_secs(3600)).unwrap();
-    let resp = ctx.app
+    let resp = ctx
+        .app
         .oneshot(
             Request::builder()
                 .uri("/iam/internal/membership-bootstrap")
                 .header("Authorization", format!("Bearer {}", bad_jwt))
-                .body(Body::empty()).unwrap()
+                .body(Body::empty())
+                .unwrap(),
         )
         .await
         .unwrap();
@@ -294,11 +359,13 @@ async fn membership_bootstrap_rejects_wrong_aud() {
 #[tokio::test]
 async fn membership_bootstrap_rejects_missing_auth() {
     let ctx = setup().await;
-    let resp = ctx.app
+    let resp = ctx
+        .app
         .oneshot(
             Request::builder()
                 .uri("/iam/internal/membership-bootstrap")
-                .body(Body::empty()).unwrap()
+                .body(Body::empty())
+                .unwrap(),
         )
         .await
         .unwrap();
@@ -307,4 +374,6 @@ async fn membership_bootstrap_rejects_missing_auth() {
 
 // Suppress unused-import warnings for HashMap (test fixture consistency)
 #[allow(dead_code)]
-fn _unused() -> HashMap<String, String> { HashMap::new() }
+fn _unused() -> HashMap<String, String> {
+    HashMap::new()
+}
