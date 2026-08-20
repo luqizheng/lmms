@@ -5,8 +5,8 @@ use digua_jwt_ctx::Principal;
 use std::time::Duration;
 
 const TEST_PRIVATE_PEM: &str =
-    include_str!("../../digua_common-jwt/tests/fixtures/test_private.pem");
-const TEST_PUBLIC_PEM: &str = include_str!("../../digua_common-jwt/tests/fixtures/test_public.pem");
+    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str = include_str!("../../common-jwt/tests/fixtures/test_public.pem");
 
 fn mock_jwks() -> JWKSCache {
     JWKSCache::from_pem(TEST_PUBLIC_PEM).expect("test public key")

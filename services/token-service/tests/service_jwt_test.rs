@@ -11,8 +11,10 @@ use digua_common_jwt::verify_token;
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
-const TEST_PRIVATE_PEM: &str = include_str!("../../../libs/common-jwt/tests/fixtures/test_private.pem");
-const TEST_PUBLIC_PEM: &str = include_str!("../../../libs/common-jwt/tests/fixtures/test_public.pem");
+const TEST_PRIVATE_PEM: &str =
+    include_str!("../../../libs/common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str =
+    include_str!("../../../libs/common-jwt/tests/fixtures/test_public.pem");
 
 fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServerState {
     let pool = sqlx::mysql::MySqlPool::connect_lazy("mysql://placeholder").unwrap();
