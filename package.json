@@ -48,6 +48,7 @@
     "docker:build:clean": "node scripts/build-docker.js prune",
     "docker:demo:data": "node scripts/demo-data.js",
     "release:test": "node --test release/dist-template/scripts/release-transforms.test.js",
+    "test:scripts": "node --test scripts/setup-wizard.test.js",
     "release:build": "node release/dist-template/scripts/release.js",
     "sdk:test:java": "mvn -B test -f sdk/java/pom.xml",
     "sdk:test:java:8": "mvn -B test -f sdk/java/pom.xml -P java8",

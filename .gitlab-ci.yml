@@ -123,7 +123,13 @@ service_standard_check:
   tags: [docker]
   image: $BASE_REGISTRY/node:20
   script:
-    - node scripts/check-service-standard.js
+    - node scripts/check-service-standard.js 2>&1 | tee service-standard.log
+  artifacts:
+    when: always
+    name: "service-standard-check-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - service-standard.log
+    expire_in: 1 day
 
 spec_check:
   stage: test
@@ -133,7 +139,13 @@ spec_check:
     - npm config set registry https://registry.npmmirror.com/
     - npm install --prefix /tmp/deps js-yaml@^5.2.1
   script:
-    - NODE_PATH=/tmp/deps/node_modules node scripts/check-spec.js
+    - NODE_PATH=/tmp/deps/node_modules node scripts/check-spec.js 2>&1 | tee spec-check.log
+  artifacts:
+    when: always
+    name: "spec-check-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - spec-check.log
+    expire_in: 1 day
 
 contracts_check:
   stage: test
@@ -255,7 +267,7 @@ cargo_fmt_check:
     - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
     - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
   script:
-    - cargo fmt --check
+    - cargo fmt --check 2>&1 | tee cargo-fmt.log
   # cargo-fmt / clippy components are not in the project builder image
   # AND not in crates.kudi.repos mirror (404 on dist/2026-06-30/{rustfmt,clippy}-1.96.0-...).
   # allow_failure=true: lint gate runs but does not block MR or main.
@@ -266,6 +278,12 @@ cargo_fmt_check:
     - when: manual
       allow_failure: true
   allow_failure: true
+  artifacts:
+    when: always
+    name: "cargo-fmt-check-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - cargo-fmt.log
+    expire_in: 1 day
 
 e2e_api_test:
   stage: e2e
@@ -934,7 +952,7 @@ cargo_audit:
     - git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "https://github.com/"
     - cargo install cargo-audit --locked
   script:
-    - cargo audit
+    - cargo audit 2>&1 | tee cargo-audit.log
   # RUSTSEC advisories are reported as vulnerabilities and the job is set
   # allow_failure=true: known transitive CVE backlog (event-listener 5.4.1,
   # hyper 0.12.36, spin 0.9.8, lock_api, memoffset, etc.) is owned by ops
@@ -946,6 +964,12 @@ cargo_audit:
     - when: manual
       allow_failure: true
   allow_failure: true
+  artifacts:
+    when: always
+    name: "cargo-audit-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - cargo-audit.log
+    expire_in: 1 day
 
 cargo_deny:
   stage: test
@@ -960,7 +984,7 @@ cargo_deny:
     - git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "https://github.com/"
     - cargo install cargo-deny --locked
   script:
-    - cargo deny check
+    - cargo deny check 2>&1 | tee cargo-deny.log
   # deny.toml uses old cargo-deny syntax (e.g. unmaintained = "warn",
   # skip-tree = []) from cargo-deny 0.14 era. CI installs 0.20.2 which
   # rejects these with "unexpected value" / "unexpected keys" errors.
@@ -973,6 +997,12 @@ cargo_deny:
     - when: manual
       allow_failure: true
   allow_failure: true
+  artifacts:
+    when: always
+    name: "cargo-deny-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - cargo-deny.log
+    expire_in: 1 day
 
 
 # ─── perf baseline ──────────────────────────────────────────────────────
@@ -1019,4 +1049,5 @@ k6_baseline:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_PIPELINE_SOURCE == "schedule"
+
 

@@ -871,11 +871,22 @@ function applyNpmConfig(cfg) {
   fs.writeFileSync(NPMRC_PATH, renderNpmrc(cfg.npmRegistry, cfg.npmToken));
 }
 
+// 把 lines 末尾的空白行（空字符串或只含 whitespace 的行）全部去掉。
+// wizard 重跑 sync 时如果不去掉，split('\n') 末尾的空字符串会保留，
+// 每跑一次末尾就多一个 '\n'，'git diff' 永久脏。这一层规范化是幂等性的关键。
+function normalizeLines(lines) {
+  const out = lines.slice();
+  while (out.length > 0 && out[out.length - 1].trim() === '') {
+    out.pop();
+  }
+  return out;
+}
+
 // 生成需要写入 .gitlab-ci.yml variables 段的 CODER_* 行。
 // 空值字段跳过；sensitive 字段写 "$CI_VAR" 引用，非 sensitive 写明文。
-function generateCILines(cfg) {
+function generateCILines(cfg, ciFieldMap = CI_FIELD_MAP) {
   const lines = ['  # --- setup-wizard 同步（敏感值引用 GitLab CI Variables）---'];
-  for (const m of CI_FIELD_MAP) {
+  for (const m of ciFieldMap) {
     const val = cfg[m.field];
     if (!val) continue;
     if (m.sensitive) {
@@ -889,13 +900,8 @@ function generateCILines(cfg) {
 
 // 修改 .gitlab-ci.yml 的 variables: 段，替换其中所有 CODER_* 行。
 // 保留段内其他变量和注释；用逐行处理避免 YAML 序列化丢格式。
-function applyGitlabCI(cfg) {
-  if (!fs.existsSync(GITLAB_CI_PATH)) {
-    console.log(chalk.yellow(`[wizard] .gitlab-ci.yml not found, skipping CI sync.`));
-    return false;
-  }
-
-  const content = fs.readFileSync(GITLAB_CI_PATH, 'utf8');
+// 纯函数：返回 { newContent, changed, missingSection }，方便单测。
+function syncGitlabCI(content, cfg, ciFieldMap = CI_FIELD_MAP) {
   const lines = content.split('\n');
 
   // 定位 variables: 段范围（行首 variables: 到下一个行首非空行）
@@ -911,8 +917,7 @@ function applyGitlabCI(cfg) {
   }
 
   if (varStart < 0) {
-    console.log(chalk.yellow(`[wizard] no "variables:" section in .gitlab-ci.yml, skipping CI sync.`));
-    return false;
+    return { newContent: content, changed: false, missingSection: true };
   }
 
   // 保留 variables 段内非 CODER_ 的行（含注释和空行）
@@ -922,11 +927,31 @@ function applyGitlabCI(cfg) {
   const newLines = [
     ...lines.slice(0, varStart + 1),
     ...kept,
-    ...generateCILines(cfg),
+    ...generateCILines(cfg, ciFieldMap),
     ...lines.slice(varEnd),
   ];
 
-  fs.writeFileSync(GITLAB_CI_PATH, newLines.join('\n') + '\n');
+  // 规范化：去掉末尾所有空白行，再 join + 单个 '\n'，保证文件以一个换行结尾。
+  const normalized = normalizeLines(newLines);
+  const newContent = normalized.length > 0 ? normalized.join('\n') + '\n' : '';
+  return { newContent, changed: newContent !== content, missingSection: false };
+}
+
+function applyGitlabCI(cfg, ciPath = GITLAB_CI_PATH) {
+  if (!fs.existsSync(ciPath)) {
+    console.log(chalk.yellow(`[wizard] .gitlab-ci.yml not found, skipping CI sync.`));
+    return false;
+  }
+
+  const content = fs.readFileSync(ciPath, 'utf8');
+  const { newContent, changed, missingSection } = syncGitlabCI(content, cfg);
+  if (missingSection) {
+    console.log(chalk.yellow(`[wizard] no "variables:" section in .gitlab-ci.yml, skipping CI sync.`));
+    return false;
+  }
+  if (!changed) return false;
+
+  fs.writeFileSync(ciPath, newContent);
   return true;
 }
 
@@ -974,8 +999,18 @@ async function main() {
   showSummary(result.cfg, result.source, ciSynced);
 }
 
-main().catch((err) => {
-  console.error(chalk.red(`[wizard] crashed: ${err.message}`));
-  if (err.stack) console.error(err.stack);
-  process.exit(1);
-});
+module.exports = {
+  syncGitlabCI,
+  normalizeLines,
+  applyGitlabCI,
+  generateCILines,
+  CI_FIELD_MAP,
+};
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(chalk.red(`[wizard] crashed: ${err.message}`));
+    if (err.stack) console.error(err.stack);
+    process.exit(1);
+  });
+}
