@@ -566,16 +566,24 @@ deploy:pre-staging:
     - export STAGING_DIST="release/staging-$CI_COMMIT_SHORT_SHA"
     - export REMOTE_DIR="$STAGING_PROJECT_DIR/pre-staging/$CI_COMMIT_SHORT_SHA"
     - export STAGING_DIST_PARENT="$(dirname "$REMOTE_DIR")"
+    # ops-managed env file on staging host (out-of-band, not in release tarball).
+    # deploy-staging.sh reads it via --env-file so ${DATABASE_URL}/${JWKS_URL}/etc.
+    # in docker-compose-services.yml interpolate to real values instead of empty.
+    - export STAGING_ENV_FILE="${STAGING_ENV_FILE:-$STAGING_PROJECT_DIR/.env.pre-staging}"
     - "[[ -d \"$STAGING_DIST\" ]] || { echo \"pre-staging artifact missing: $STAGING_DIST\"; exit 1; }"
     # tar over ssh 传输（远端无需 rsync；--delete 改为 rm -rf 替代）
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST" "mkdir -p \"$STAGING_DIST_PARENT\" && rm -rf '$REMOTE_DIR' && mkdir -p '$REMOTE_DIR'"
     - tar -C "$STAGING_DIST" -cf - . | ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST" "tar -C '$REMOTE_DIR' -xf -"
+    # fail-fast: confirm ops-managed env file exists before invoking deploy script
+    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
+        "$STAGING_DEPLOY_USER@$STAGING_HOST"
+        "test -f '$STAGING_ENV_FILE' || { echo \"[deploy:pre-staging] missing env file on host: $STAGING_ENV_FILE — populate it from infrastructure/.env.example before retrying\"; exit 11; }"
     # 部署：pull commit-pinned 镜像 + 滚动 up + health gate
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
-        "STAGING_COMMIT=$CI_COMMIT_SHORT_SHA bash $REMOTE_DIR/scripts/deploy-staging.sh"
+        "STAGING_COMMIT=$CI_COMMIT_SHORT_SHA STAGING_ENV_FILE='$STAGING_ENV_FILE' bash $REMOTE_DIR/scripts/deploy-staging.sh"
     # post-deploy：frontend:8080/health 必须是 {"status":"ok"}
     - 'curl -fsS --max-time 10 "$STAGING_BASE_URL/health" | tee /tmp/post-deploy-health.txt'
     - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "frontend health body mismatch"; exit 1; }'
