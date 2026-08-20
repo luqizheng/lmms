@@ -3,6 +3,7 @@
 //! Validates that the file-service correctly applies tenant_id filter:
 //! - platform_admin (cross_tenant=true) sees files from any tenant
 //! - regular tenant-scoped user only sees files in their own tenant
+#![allow(deprecated)]
 mod common;
 
 use axum::{

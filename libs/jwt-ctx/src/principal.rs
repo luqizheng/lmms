@@ -88,6 +88,10 @@ impl Principal {
         })
     }
 
+    /// Downstream-service path: pure decode without signature verification.
+    /// Trusts api-gateway has already verified the JWT (RSA + blacklist + exp).
+    /// See `.trae/rules/auth-rules.md`.
+    #[allow(deprecated)]
     pub fn from_headers(h: &axum::http::HeaderMap) -> Result<Self, PrincipalError> {
         let auth_header = h
             .get("Authorization")

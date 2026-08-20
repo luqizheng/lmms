@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use digua_jwt_ctx::{Principal, PrincipalError};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;

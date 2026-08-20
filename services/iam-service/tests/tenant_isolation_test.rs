@@ -1,5 +1,6 @@
 //! Phase 8.2: cross-tenant isolation for iam business tables (roles / orgs / users).
 //! Phase 8.3-fu1: platform_admin cross-tenant point query (HTTP path).
+#![allow(deprecated)]
 mod digua_common;
 
 use axum::{

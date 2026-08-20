@@ -3,6 +3,7 @@
 //! Validates that the config-service correctly applies tenant_id filter:
 //! - platform_admin (cross_tenant=true) sees namespaces from any tenant
 //! - regular tenant-scoped user only sees namespaces in their own tenant
+#![allow(deprecated)]
 mod digua_common;
 
 use axum::{

@@ -1,5 +1,6 @@
 //! Phase 8.3: tenant hardening — JWT tid enforcement, cross_tenant flag,
 //! TenantScope resolution, and get_claims tenant scoping.
+#![allow(deprecated)]
 mod digua_common;
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
