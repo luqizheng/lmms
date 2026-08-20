@@ -59,6 +59,21 @@ if (mode === 'load') {
 // ── mode=pull: 从 registry 拉所有 compose 中 image: 引用 ──
 console.log(`[load-images] mode=pull：扫描 compose 中 image: 引用并 docker pull（tag=${tagOverride}）`);
 const INFRA_DIR = path.join(ROOT, 'infrastructure');
+
+// compose 里基础设施层 / observability 层用 ${BASE_REGISTRY} / ${REGISTRY}
+// 占位符（不是字面 registry），load-images 不能像 compose 那样从 .env 读。
+// 内置 fallback：CI 已 export 这两个 ENV；本地手跑时用项目惯用值。
+const REGISTRY_FALLBACK = process.env.REGISTRY || process.env.DOCKER_REGISTRY || 'zhcoder-docker-registry.com:8000';
+const BASE_REGISTRY_FALLBACK = process.env.BASE_REGISTRY || (REGISTRY_FALLBACK + '/official');
+const VAR_INTERPOLATION = {
+  REGISTRY: REGISTRY_FALLBACK,
+  BASE_REGISTRY: BASE_REGISTRY_FALLBACK,
+};
+function interpolateVars(raw) {
+  return raw.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (m, name) =>
+    Object.prototype.hasOwnProperty.call(VAR_INTERPOLATION, name) ? VAR_INTERPOLATION[name] : m
+  );
+}
 if (!existsSync(INFRA_DIR)) {
   console.error(`[load-images] ✗ ${INFRA_DIR} 不存在`);
   process.exit(1);
@@ -81,12 +96,15 @@ if (composeFiles.length === 0) {
 const imageSet = new Set();
 for (const f of composeFiles) {
   const text = readFileSync(path.join(INFRA_DIR, f), 'utf8');
-  for (const m of text.matchAll(/^[[:space:]]+image:[[:space:]]+(.+)$/gm)) {
+  for (const m of text.matchAll(/^[ \t]+image:[ \t]+(.+)$/gm)) {
     const raw = m[1].trim().replace(/^["']|["']$/g, '');
-    if (raw.includes('${')) continue;          // skip ${VAR} refs
     if (raw.startsWith('#')) continue;
+    // inline 替换已知占位符（REGISTRY / BASE_REGISTRY），未知变量保留原样
+    // 后再过滤——防御性，避免漏下的未知占位符污染 image 列表。
+    const interpolated = interpolateVars(raw);
+    if (interpolated.includes('${')) continue;
     // 把 :<ver> 替换成 :tagOverride
-    const resolved = raw.replace(/:v?\d+\.\d+\.\d+(?:[-.][\w.-]+)*$/, ':' + tagOverride);
+    const resolved = interpolated.replace(/:v?\d+\.\d+\.\d+(?:[-.][\w.-]+)*$/, ':' + tagOverride);
     imageSet.add(resolved);
   }
 }
