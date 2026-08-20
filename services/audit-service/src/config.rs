@@ -1,4 +1,4 @@
-use anyhow::{Context, bail};
+use anyhow::{bail, Context};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -44,10 +44,16 @@ fn default_redis_url() -> String {
     std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string())
 }
 fn default_login_risk_threshold() -> i64 {
-    std::env::var("LOGIN_RISK_THRESHOLD").ok().and_then(|v| v.parse().ok()).unwrap_or(5)
+    std::env::var("LOGIN_RISK_THRESHOLD")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(5)
 }
 fn default_login_risk_window_secs() -> usize {
-    std::env::var("LOGIN_RISK_WINDOW_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(300)
+    std::env::var("LOGIN_RISK_WINDOW_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(300)
 }
 
 impl AppConfig {

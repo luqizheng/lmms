@@ -1,13 +1,13 @@
 use crate::{
+    dto::{AssignUsersRequest, CreateOrgUnitRequest, OrgUnitResponse, UpdateOrgUnitRequest},
     error::IamError,
     state::AppState,
-    dto::{CreateOrgUnitRequest, UpdateOrgUnitRequest, OrgUnitResponse, AssignUsersRequest},
 };
+use chrono::Utc;
 use digua_common_db::WithTenantScope;
 use digua_jwt_ctx::TenantScope;
 use nanoid::nanoid;
-use sqlx::{FromRow, QueryBuilder, mysql::MySqlQueryResult};
-use chrono::Utc;
+use sqlx::{mysql::MySqlQueryResult, FromRow, QueryBuilder};
 
 #[derive(FromRow)]
 struct OrgUnitRow {
@@ -32,14 +32,21 @@ impl OrgService {
         Self { state }
     }
 
-    pub async fn create(&self, req: CreateOrgUnitRequest, scope: &TenantScope) -> Result<OrgUnitResponse, IamError> {
+    pub async fn create(
+        &self,
+        req: CreateOrgUnitRequest,
+        scope: &TenantScope,
+    ) -> Result<OrgUnitResponse, IamError> {
         let tid = scope.tenant_id().unwrap_or(1) as u64;
 
         let mut qb = QueryBuilder::new("SELECT id FROM iam_org_units WHERE code = ");
         qb.push_bind(&req.code);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let exists: Option<(String,)> = qb.build_query_as::<(String,)>().fetch_optional(&self.state.db).await?;
+        let exists: Option<(String,)> = qb
+            .build_query_as::<(String,)>()
+            .fetch_optional(&self.state.db)
+            .await?;
 
         if exists.is_some() {
             return Err(IamError::DuplicateOrgUnit);
@@ -52,7 +59,10 @@ impl OrgService {
             qb.push_bind(parent_id);
             qb.and_tenant(scope);
             qb.push(" AND deleted_at IS NULL");
-            let parent: Option<OrgUnitRow> = qb.build_query_as::<OrgUnitRow>().fetch_optional(&self.state.db).await?;
+            let parent: Option<OrgUnitRow> = qb
+                .build_query_as::<OrgUnitRow>()
+                .fetch_optional(&self.state.db)
+                .await?;
 
             let parent = parent.ok_or(IamError::OrgUnitNotFound)?;
             parent.level + 1
@@ -80,19 +90,29 @@ impl OrgService {
         );
         qb.push_bind(&org_unit_id);
         qb.and_tenant(scope);
-        let org_unit: OrgUnitRow = qb.build_query_as::<OrgUnitRow>().fetch_one(&self.state.db).await?;
+        let org_unit: OrgUnitRow = qb
+            .build_query_as::<OrgUnitRow>()
+            .fetch_one(&self.state.db)
+            .await?;
 
         Ok(self.to_response(&org_unit, vec![]))
     }
 
-    pub async fn get(&self, org_unit_id: &str, scope: &TenantScope) -> Result<OrgUnitResponse, IamError> {
+    pub async fn get(
+        &self,
+        org_unit_id: &str,
+        scope: &TenantScope,
+    ) -> Result<OrgUnitResponse, IamError> {
         let mut qb = QueryBuilder::new(
             "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = "
         );
         qb.push_bind(org_unit_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let org_unit: Option<OrgUnitRow> = qb.build_query_as::<OrgUnitRow>().fetch_optional(&self.state.db).await?;
+        let org_unit: Option<OrgUnitRow> = qb
+            .build_query_as::<OrgUnitRow>()
+            .fetch_optional(&self.state.db)
+            .await?;
 
         let org_unit = org_unit.ok_or(IamError::OrgUnitNotFound)?;
 
@@ -120,7 +140,13 @@ impl OrgService {
         Ok(result)
     }
 
-    fn get_children<'a>(&'a self, parent_id: &'a str, scope: &'a TenantScope) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<OrgUnitResponse>, IamError>> + Send + 'a>> {
+    fn get_children<'a>(
+        &'a self,
+        parent_id: &'a str,
+        scope: &'a TenantScope,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Vec<OrgUnitResponse>, IamError>> + Send + 'a>,
+    > {
         Box::pin(async move {
             let mut qb = QueryBuilder::new(
                 "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE parent_id = "
@@ -128,7 +154,10 @@ impl OrgService {
             qb.push_bind(parent_id);
             qb.and_tenant(scope);
             qb.push(" AND deleted_at IS NULL ORDER BY sort_order");
-            let children: Vec<OrgUnitRow> = qb.build_query_as::<OrgUnitRow>().fetch_all(&self.state.db).await?;
+            let children: Vec<OrgUnitRow> = qb
+                .build_query_as::<OrgUnitRow>()
+                .fetch_all(&self.state.db)
+                .await?;
 
             let mut result = Vec::new();
             for child in children {
@@ -140,14 +169,22 @@ impl OrgService {
         })
     }
 
-    pub async fn update(&self, org_unit_id: &str, req: UpdateOrgUnitRequest, scope: &TenantScope) -> Result<OrgUnitResponse, IamError> {
+    pub async fn update(
+        &self,
+        org_unit_id: &str,
+        req: UpdateOrgUnitRequest,
+        scope: &TenantScope,
+    ) -> Result<OrgUnitResponse, IamError> {
         let mut qb = QueryBuilder::new(
             "SELECT id, parent_id, name, code, level, sort_order, status, created_at, updated_at, deleted_at FROM iam_org_units WHERE id = "
         );
         qb.push_bind(org_unit_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let existing: Option<OrgUnitRow> = qb.build_query_as::<OrgUnitRow>().fetch_optional(&self.state.db).await?;
+        let existing: Option<OrgUnitRow> = qb
+            .build_query_as::<OrgUnitRow>()
+            .fetch_optional(&self.state.db)
+            .await?;
 
         let existing = existing.ok_or(IamError::OrgUnitNotFound)?;
 
@@ -157,9 +194,7 @@ impl OrgService {
         let sort_order = req.sort_order.unwrap_or(existing.sort_order);
         let status = req.status.unwrap_or(existing.status);
 
-        let mut qb = QueryBuilder::new(
-            "UPDATE iam_org_units SET parent_id = "
-        );
+        let mut qb = QueryBuilder::new("UPDATE iam_org_units SET parent_id = ");
         qb.push_bind(&parent_id);
         qb.push(", name = ");
         qb.push_bind(&name);
@@ -181,7 +216,10 @@ impl OrgService {
         qb.push_bind(org_unit_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let org_unit: OrgUnitRow = qb.build_query_as::<OrgUnitRow>().fetch_one(&self.state.db).await?;
+        let org_unit: OrgUnitRow = qb
+            .build_query_as::<OrgUnitRow>()
+            .fetch_one(&self.state.db)
+            .await?;
 
         Ok(self.to_response(&org_unit, vec![]))
     }
@@ -198,13 +236,14 @@ impl OrgService {
         .await?;
 
         if has_children.0 > 0 {
-            return Err(IamError::Conflict("Cannot delete org unit with children".to_string()));
+            return Err(IamError::Conflict(
+                "Cannot delete org unit with children".to_string(),
+            ));
         }
 
         let mut tx = self.state.db.begin().await?;
-        let mut qb = QueryBuilder::new(
-            "UPDATE iam_org_units SET deleted_at = NOW(), updated_at = NOW()",
-        );
+        let mut qb =
+            QueryBuilder::new("UPDATE iam_org_units SET deleted_at = NOW(), updated_at = NOW()");
         qb.where_id(org_unit_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
@@ -214,19 +253,16 @@ impl OrgService {
             return Err(IamError::OrgUnitNotFound);
         }
 
-        let affected_user_ids: Vec<String> = sqlx::query_scalar(
-            "SELECT user_id FROM iam_user_org_units WHERE org_unit_id = ?",
-        )
-        .bind(org_unit_id)
-        .fetch_all(&mut *tx)
-        .await?;
+        let affected_user_ids: Vec<String> =
+            sqlx::query_scalar("SELECT user_id FROM iam_user_org_units WHERE org_unit_id = ?")
+                .bind(org_unit_id)
+                .fetch_all(&mut *tx)
+                .await?;
 
-        sqlx::query(
-            "DELETE FROM iam_user_org_units WHERE org_unit_id = ?"
-        )
-        .bind(org_unit_id)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("DELETE FROM iam_user_org_units WHERE org_unit_id = ?")
+            .bind(org_unit_id)
+            .execute(&mut *tx)
+            .await?;
 
         let ts = Utc::now().timestamp();
         for uid in &affected_user_ids {
@@ -248,17 +284,20 @@ impl OrgService {
     }
 
     // check-tenant-scope: delegated
-    pub async fn assign_users(&self, org_unit_id: &str, req: AssignUsersRequest, scope: &TenantScope) -> Result<(), IamError> {
+    pub async fn assign_users(
+        &self,
+        org_unit_id: &str,
+        req: AssignUsersRequest,
+        scope: &TenantScope,
+    ) -> Result<(), IamError> {
         self.get(org_unit_id, scope).await?;
         let tid = scope.tenant_id().unwrap_or(1) as i64;
 
         let mut tx = self.state.db.begin().await?;
-        sqlx::query(
-            "DELETE FROM iam_user_org_units WHERE org_unit_id = ?"
-        )
-        .bind(org_unit_id)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("DELETE FROM iam_user_org_units WHERE org_unit_id = ?")
+            .bind(org_unit_id)
+            .execute(&mut *tx)
+            .await?;
 
         let ts = Utc::now().timestamp();
         for user_id in &req.user_ids {
@@ -287,7 +326,11 @@ impl OrgService {
         Ok(())
     }
 
-    fn to_response(&self, org_unit: &OrgUnitRow, children: Vec<OrgUnitResponse>) -> OrgUnitResponse {
+    fn to_response(
+        &self,
+        org_unit: &OrgUnitRow,
+        children: Vec<OrgUnitResponse>,
+    ) -> OrgUnitResponse {
         OrgUnitResponse {
             id: org_unit.id.clone(),
             parent_id: org_unit.parent_id.clone(),

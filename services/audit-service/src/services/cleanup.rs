@@ -27,15 +27,14 @@ impl CleanupService {
         let warm_cutoff = policy.warm_cutoff();
         let cold_cutoff = policy.cold_cutoff();
 
-        let hot: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at >= ?"
-        )
-        .bind(hot_cutoff)
-        .fetch_one(&self.pool)
-        .await?;
+        let hot: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM audit_operation_logs WHERE created_at >= ?")
+                .bind(hot_cutoff)
+                .fetch_one(&self.pool)
+                .await?;
 
         let warm: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ? AND created_at >= ?"
+            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ? AND created_at >= ?",
         )
         .bind(hot_cutoff)
         .bind(warm_cutoff)
@@ -43,19 +42,18 @@ impl CleanupService {
         .await?;
 
         let cold: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ? AND created_at >= ?"
+            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ? AND created_at >= ?",
         )
         .bind(warm_cutoff)
         .bind(cold_cutoff)
         .fetch_one(&self.pool)
         .await?;
 
-        let expired: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ?"
-        )
-        .bind(cold_cutoff)
-        .fetch_one(&self.pool)
-        .await?;
+        let expired: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM audit_operation_logs WHERE created_at < ?")
+                .bind(cold_cutoff)
+                .fetch_one(&self.pool)
+                .await?;
 
         Ok(RetentionStats {
             hot_count: hot.0,
@@ -71,12 +69,10 @@ impl CleanupService {
         let policy = self.policy.read().await;
         let cold_cutoff = policy.cold_cutoff();
 
-        let result = sqlx::query(
-            "DELETE FROM audit_operation_logs WHERE created_at < ?"
-        )
-        .bind(cold_cutoff)
-        .execute(&self.pool)
-        .await?;
+        let result = sqlx::query("DELETE FROM audit_operation_logs WHERE created_at < ?")
+            .bind(cold_cutoff)
+            .execute(&self.pool)
+            .await?;
 
         let deleted_count = result.rows_affected() as i64;
 
@@ -102,32 +98,30 @@ impl CleanupService {
 
         tokio::spawn(async move {
             let mut ticker = interval(Duration::from_secs(interval_secs));
-            
+
             loop {
                 ticker.tick().await;
-                
+
                 let should_stop = {
                     let r = running.read().await;
                     !*r
                 };
-                
+
                 if should_stop {
                     break;
                 }
 
                 info!("Running scheduled cleanup task");
-                
+
                 let cutoff = {
                     let p = policy.read().await;
                     p.cold_cutoff()
                 };
 
-                let result = sqlx::query(
-                    "DELETE FROM audit_operation_logs WHERE created_at < ?"
-                )
-                .bind(cutoff)
-                .execute(&pool)
-                .await;
+                let result = sqlx::query("DELETE FROM audit_operation_logs WHERE created_at < ?")
+                    .bind(cutoff)
+                    .execute(&pool)
+                    .await;
 
                 if let Ok(r) = result {
                     let deleted = r.rows_affected() as i64;

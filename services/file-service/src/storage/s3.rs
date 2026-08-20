@@ -68,12 +68,10 @@ impl S3Storage {
             None,
             None,
         )
-        .map_err(|e| {
-            AppError::internal("FILE_STORAGE_5003", format!("build credentials: {e}"))
-        })?;
+        .map_err(|e| AppError::internal("FILE_STORAGE_5003", format!("build credentials: {e}")))?;
 
-        let raw_bucket: Box<Bucket> = Bucket::new(&config.bucket_name, region.clone(), credentials.clone())
-            .map_err(|e| {
+        let raw_bucket: Box<Bucket> =
+            Bucket::new(&config.bucket_name, region.clone(), credentials.clone()).map_err(|e| {
                 AppError::internal("FILE_STORAGE_5004", format!("create bucket handle: {e}"))
             })?;
         let bucket: Bucket = match config.path_style {
@@ -82,7 +80,10 @@ impl S3Storage {
         };
         let bucket = Arc::new(bucket);
 
-        let s = Self { bucket, bucket_name: config.bucket_name.clone() };
+        let s = Self {
+            bucket,
+            bucket_name: config.bucket_name.clone(),
+        };
         if config.auto_create_bucket {
             // ensure_bucket 不阻塞启动,失败记 warn(运维可预先建好)。
             let region_for_create = region.clone();
@@ -196,7 +197,9 @@ impl ObjectStore for S3Storage {
             .map_err(|e| map_s3_err("s3 get_object", e))?;
         let code = resp.status_code();
         if code == 404 {
-            return Err(AppError::file_not_found(format!("s3 key not found: {path}")));
+            return Err(AppError::file_not_found(format!(
+                "s3 key not found: {path}"
+            )));
         }
         if code >= 300 {
             let body = String::from_utf8_lossy(resp.as_slice()).into_owned();
@@ -215,7 +218,9 @@ impl ObjectStore for S3Storage {
             .await
             .map_err(|e| map_s3_err("s3 get_object_stream", e))?;
         if stream.status_code == 404 {
-            return Err(AppError::file_not_found(format!("s3 key not found: {path}")));
+            return Err(AppError::file_not_found(format!(
+                "s3 key not found: {path}"
+            )));
         }
         if stream.status_code >= 300 {
             return Err(AppError::internal(
@@ -226,7 +231,10 @@ impl ObjectStore for S3Storage {
         let inner = std::mem::replace(&mut stream.bytes, Box::pin(futures::stream::empty()));
         let mapped = inner.map(|item| match item {
             Ok(bytes) => Ok(bytes),
-            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+            Err(e) => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            )),
         });
         Ok(Box::pin(mapped))
     }
@@ -262,7 +270,9 @@ impl ObjectStore for S3Storage {
             .await
             .map_err(|e| map_s3_err("s3 head_object", e))?;
         if status == 404 {
-            return Err(AppError::file_not_found(format!("s3 key not found: {path}")));
+            return Err(AppError::file_not_found(format!(
+                "s3 key not found: {path}"
+            )));
         }
         head.content_length.ok_or_else(|| {
             AppError::internal(

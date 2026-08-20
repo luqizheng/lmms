@@ -4,7 +4,7 @@
 //!
 //! 鉴权：service-jwt `aud=iam-service`（与 `iam/internal/*` 一致）。
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
 use digua_common_db::migration_state::{
     self, MigrationDescriptor, MigrationState, MigrationStateResponse,
 };
@@ -17,17 +17,49 @@ use crate::state::AppState;
 pub struct IamMigrationState;
 
 impl MigrationState for IamMigrationState {
-    fn service_name(&self) -> &'static str { "iam-service" }
-    fn dialect(&self) -> &'static str { "mysql" }
+    fn service_name(&self) -> &'static str {
+        "iam-service"
+    }
+    fn dialect(&self) -> &'static str {
+        "mysql"
+    }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
         &[
-            MigrationDescriptor { version: "V001", name: "init", marker_table: "iam_users" },
-            MigrationDescriptor { version: "V002", name: "outbox_archive", marker_table: "iam_outbox_events_archive" },
-            MigrationDescriptor { version: "V003", name: "tenants", marker_table: "iam_tenants" },
-            MigrationDescriptor { version: "V004", name: "tenant_business_tables", marker_table: "iam_migration_v004_applied" },
-            MigrationDescriptor { version: "V005", name: "platform_admin_role", marker_table: "iam_migration_v005_applied" },
-            MigrationDescriptor { version: "V006", name: "org_unit_path", marker_table: "iam_migration_v006_applied" },
-            MigrationDescriptor { version: "V007", name: "system_menu_permission", marker_table: "iam_migration_v007_applied" },
+            MigrationDescriptor {
+                version: "V001",
+                name: "init",
+                marker_table: "iam_users",
+            },
+            MigrationDescriptor {
+                version: "V002",
+                name: "outbox_archive",
+                marker_table: "iam_outbox_events_archive",
+            },
+            MigrationDescriptor {
+                version: "V003",
+                name: "tenants",
+                marker_table: "iam_tenants",
+            },
+            MigrationDescriptor {
+                version: "V004",
+                name: "tenant_business_tables",
+                marker_table: "iam_migration_v004_applied",
+            },
+            MigrationDescriptor {
+                version: "V005",
+                name: "platform_admin_role",
+                marker_table: "iam_migration_v005_applied",
+            },
+            MigrationDescriptor {
+                version: "V006",
+                name: "org_unit_path",
+                marker_table: "iam_migration_v006_applied",
+            },
+            MigrationDescriptor {
+                version: "V007",
+                name: "system_menu_permission",
+                marker_table: "iam_migration_v007_applied",
+            },
         ]
     }
 }
@@ -54,9 +86,7 @@ async fn probe_applied_mysql(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Erro
     security(("bearer_auth" = [])),
     tag = "internal",
 )]
-pub async fn migration_state_handler(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn migration_state_handler(State(state): State<AppState>) -> impl IntoResponse {
     let pool = state.db.clone();
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =
         match probe_applied_mysql(&pool).await {
@@ -78,7 +108,10 @@ pub async fn migration_state_handler(
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
-        .route("/iam/internal/migrations/state", get(migration_state_handler))
+        .route(
+            "/iam/internal/migrations/state",
+            get(migration_state_handler),
+        )
         .with_state(state)
 }
 

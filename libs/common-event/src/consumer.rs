@@ -71,7 +71,10 @@ pub async fn republish_with_incremented_count(
         .basic_publish(
             exchange,
             routing_key,
-            BasicPublishOptions { mandatory: true, ..Default::default() },
+            BasicPublishOptions {
+                mandatory: true,
+                ..Default::default()
+            },
             body,
             props,
         )
@@ -284,11 +287,7 @@ impl RabbitMqConsumer {
                             let count = get_redelivery_count(d.properties.headers());
                             let routing_key = d.routing_key.as_str().to_string();
                             let body = d.data.clone();
-                            let mid = d
-                                .properties
-                                .message_id()
-                                .as_ref()
-                                .map(|m| m.to_string());
+                            let mid = d.properties.message_id().as_ref().map(|m| m.to_string());
                             match handler(env).await {
                                 Ok(_) => {
                                     let _ = d.ack(BasicAckOptions::default()).await;
@@ -296,7 +295,10 @@ impl RabbitMqConsumer {
                                 Err(HandlerError::Permanent(msg)) => {
                                     tracing::warn!(error = %msg, "handler permanent error → DLQ");
                                     let _ = d
-                                        .nack(BasicNackOptions { requeue: false, ..Default::default() })
+                                        .nack(BasicNackOptions {
+                                            requeue: false,
+                                            ..Default::default()
+                                        })
                                         .await;
                                 }
                                 Err(HandlerError::Transient(msg)) => {
@@ -307,7 +309,10 @@ impl RabbitMqConsumer {
                                             "transient exceeded redelivery limit → DLQ"
                                         );
                                         let _ = d
-                                            .nack(BasicNackOptions { requeue: false, ..Default::default() })
+                                            .nack(BasicNackOptions {
+                                                requeue: false,
+                                                ..Default::default()
+                                            })
                                             .await;
                                     } else {
                                         match republish_with_incremented_count(
@@ -342,7 +347,10 @@ impl RabbitMqConsumer {
                         Err(e) => {
                             tracing::warn!(error = %e, "envelope deserialization failed → DLQ");
                             let _ = d
-                                .nack(BasicNackOptions { requeue: false, ..Default::default() })
+                                .nack(BasicNackOptions {
+                                    requeue: false,
+                                    ..Default::default()
+                                })
                                 .await;
                         }
                     },

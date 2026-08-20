@@ -1,8 +1,8 @@
 #[cfg(feature = "config-service")]
 pub mod provider;
 
-use digua_common_error::{AppError, AppResult};
 use config::{Config, Environment, File};
+use digua_common_error::{AppError, AppResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -91,20 +91,20 @@ impl Loader {
         #[cfg(feature = "consul")]
         if let (Some(url), Some(key)) = (self.consul_url, self.consul_key) {
             let consul_value = load_from_consul(&url, &key)?;
-            builder = builder.add_source(
-                config::Value::new(None, serde_json::from_str(&consul_value).map_err(|e| {
-                    AppError::internal("CFG_CONSUL_PARSE", e.to_string())
-                })?),
-            );
+            builder = builder.add_source(config::Value::new(
+                None,
+                serde_json::from_str(&consul_value)
+                    .map_err(|e| AppError::internal("CFG_CONSUL_PARSE", e.to_string()))?,
+            ));
         }
 
         let config = builder
             .build()
             .map_err(|e| AppError::internal("CFG_BUILD", e.to_string()))?;
 
-        config.try_deserialize::<T>().map_err(|e| {
-            AppError::internal("CFG_PARSE", e.to_string())
-        })
+        config
+            .try_deserialize::<T>()
+            .map_err(|e| AppError::internal("CFG_PARSE", e.to_string()))
     }
 }
 

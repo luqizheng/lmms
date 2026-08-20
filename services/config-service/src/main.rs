@@ -1,4 +1,8 @@
-use config_service::{config::AppConfig, db::{ensure_schema, init_pool}, routes::{self, create_state}};
+use config_service::{
+    config::AppConfig,
+    db::{ensure_schema, init_pool},
+    routes::{self, create_state},
+};
 use digua_common_jwt::{JWKSCache, JwksConfig};
 use digua_common_telemetry::init_tracing;
 use std::net::SocketAddr;
@@ -16,9 +20,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to initialize database pool");
 
-    ensure_schema(&pool)
-        .await
-        .expect("ensure_schema failed");
+    ensure_schema(&pool).await.expect("ensure_schema failed");
 
     // Phase 5-B: JWKS cache.
     let http_for_jwt = reqwest::Client::builder()
@@ -53,17 +55,19 @@ async fn main() -> anyhow::Result<()> {
         use utoipa::OpenApi;
         use utoipa_swagger_ui::SwaggerUi;
         tracing::info!("swagger ui enabled at /swagger-ui");
-        app.merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", config_service::openapi::ApiDoc::openapi()),
-        )
+        app.merge(SwaggerUi::new("/swagger-ui").url(
+            "/api-docs/openapi.json",
+            config_service::openapi::ApiDoc::openapi(),
+        ))
     } else {
         app
     };
 
     let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");
 
-    let listener = tokio::net::TcpListener::bind(&addr).await.expect("Failed to bind");
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
+        .expect("Failed to bind");
     tracing::info!("config-service listening on {}", addr);
 
     tokio::spawn(async move {

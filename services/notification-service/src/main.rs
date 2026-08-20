@@ -9,27 +9,27 @@ mod iam_client;
 mod migration_state_route;
 mod models;
 mod recipient_resolver;
-mod service;
 mod redis_cli;
 mod rest;
 mod scheduler;
+mod service;
 mod ws;
 mod ws_hub;
 
 use axum::routing::get;
 use axum::Router;
-use digua_common_http::{NoopObserver, ResilientClient, ResilienceConfig};
-use digua_common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
 use config::AppConfig;
 use db::Db;
+use digua_common_http::{NoopObserver, ResilienceConfig, ResilientClient};
+use digua_common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
 use iam_client::IamMemberClient;
-use redis_cli::RedisCli;
-use ws_hub::WsHub;
 use prometheus::{Encoder, TextEncoder};
+use redis_cli::RedisCli;
 use std::sync::Arc;
 use std::time::Duration;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use ws_hub::WsHub;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -80,7 +80,9 @@ async fn main() -> anyhow::Result<()> {
                 .expect("SERVICE_BOOTSTRAP_TOKEN required"),
             caller_service_name: "notification-service".into(),
             caller_tenant: std::env::var("TENANT_ID")
-                .ok().and_then(|s| s.parse().ok()).unwrap_or(1i64),
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(1i64),
             refresh_skew: Duration::from_secs(60),
             request_timeout: Duration::from_secs(5),
         },
@@ -131,24 +133,21 @@ async fn main() -> anyhow::Result<()> {
         axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
-
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
         .map(|v| v != "false" && v != "0")
         .unwrap_or(true);
 
     let mut app = Router::new()
         .nest("/notification", rest::router(rest_state.clone()))
-        .merge(
-            migration_state_route::routes(rest_state.clone())
-                .layer(axum::middleware::from_fn_with_state(
-                    rest_state.clone(),
-                    digua_authz::verify_aud_principal_middleware::<rest::RestState>("notification-service"),
-                )),
-        )
-        .route(
-            "/notification/ws",
-            get(ws::upgrade).with_state(ws_state),
-        )
+        .merge(migration_state_route::routes(rest_state.clone()).layer(
+            axum::middleware::from_fn_with_state(
+                rest_state.clone(),
+                digua_authz::verify_aud_principal_middleware::<rest::RestState>(
+                    "notification-service",
+                ),
+            ),
+        ))
+        .route("/notification/ws", get(ws::upgrade).with_state(ws_state))
         .route(
             "/health",
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
@@ -159,10 +158,10 @@ async fn main() -> anyhow::Result<()> {
         ));
 
     if swagger_enabled {
-        app = app.merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", notification_service::openapi::ApiDoc::openapi()),
-        );
+        app = app.merge(SwaggerUi::new("/swagger-ui").url(
+            "/api-docs/openapi.json",
+            notification_service::openapi::ApiDoc::openapi(),
+        ));
         tracing::info!("swagger ui enabled at /swagger-ui");
     }
 
@@ -201,7 +200,8 @@ async fn main() -> anyhow::Result<()> {
     let db_for_membership = db.clone();
     let membership_event_bus_url = cfg.event_bus.url.clone();
     tokio::spawn(async move {
-        if let Err(e) = consumer::membership::run(db_for_membership, membership_event_bus_url).await {
+        if let Err(e) = consumer::membership::run(db_for_membership, membership_event_bus_url).await
+        {
             tracing::warn!("membership consumer exited: {}", e);
         }
     });

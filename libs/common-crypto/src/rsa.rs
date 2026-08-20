@@ -1,6 +1,8 @@
 use digua_common_error::{AppError, AppResult};
 use rsa::pkcs1v15::{Signature, SigningKey, VerifyingKey};
-use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding};
+use rsa::pkcs8::{
+    DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding,
+};
 use rsa::sha2::Sha256;
 use rsa::signature::{RandomizedSigner, SignatureEncoding, Verifier};
 use rsa::traits::PublicKeyParts as _;
@@ -153,7 +155,9 @@ mod tests {
         let signature = keypair.sign(message, RsaScheme::Pkcs1Sha256).unwrap();
 
         let public_key = RsaPublicKey::from_pem(&keypair.public_key_pem().unwrap()).unwrap();
-        let valid = public_key.verify(message, &signature, RsaScheme::Pkcs1Sha256).unwrap();
+        let valid = public_key
+            .verify(message, &signature, RsaScheme::Pkcs1Sha256)
+            .unwrap();
 
         assert!(valid);
     }

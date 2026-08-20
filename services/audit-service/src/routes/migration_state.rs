@@ -2,8 +2,10 @@
 //!
 //! Phase 10 G3 接入。
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
-use digua_common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use digua_common_db::migration_state::{
+    self, MigrationDescriptor, MigrationState, MigrationStateResponse,
+};
 use serde_json::json;
 use utoipa::path as to_path;
 
@@ -12,10 +14,18 @@ use super::AppServices;
 pub struct AuditMigrationState;
 
 impl MigrationState for AuditMigrationState {
-    fn service_name(&self) -> &'static str { "audit-service" }
-    fn dialect(&self) -> &'static str { "mysql" }
+    fn service_name(&self) -> &'static str {
+        "audit-service"
+    }
+    fn dialect(&self) -> &'static str {
+        "mysql"
+    }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
-        &[MigrationDescriptor { version: "V001", name: "init", marker_table: "audit_operation_logs" }]
+        &[MigrationDescriptor {
+            version: "V001",
+            name: "init",
+            marker_table: "audit_operation_logs",
+        }]
     }
 }
 
@@ -35,8 +45,14 @@ pub async fn handler(State(state): State<super::AppState>) -> impl IntoResponse 
     let pool = state.audit.pool();
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =
         match migration_state::probe_marker_mysql(pool, "audit_operation_logs").await {
-            Ok(true) => Ok(migration_state::build_response(&AuditMigrationState, vec!["V001".into()])),
-            Ok(false) => Ok(migration_state::build_response(&AuditMigrationState, vec![])),
+            Ok(true) => Ok(migration_state::build_response(
+                &AuditMigrationState,
+                vec!["V001".into()],
+            )),
+            Ok(false) => Ok(migration_state::build_response(
+                &AuditMigrationState,
+                vec![],
+            )),
             Err(e) => Err((
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({

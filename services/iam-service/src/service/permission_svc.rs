@@ -1,11 +1,14 @@
 use crate::{
+    dto::{
+        CreatePermissionRequest, PermissionListResponse, PermissionQuery, PermissionResponse,
+        UpdatePermissionRequest,
+    },
     error::IamError,
     state::AppState,
-    dto::{CreatePermissionRequest, UpdatePermissionRequest, PermissionQuery, PermissionResponse, PermissionListResponse},
 };
 use chrono::Utc;
 use nanoid::nanoid;
-use sqlx::{FromRow, mysql::MySqlQueryResult};
+use sqlx::{mysql::MySqlQueryResult, FromRow};
 
 pub struct PermissionService {
     state: AppState,
@@ -146,12 +149,16 @@ impl PermissionService {
             .await?
         };
 
-        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_permissions WHERE deleted_at IS NULL")
-            .fetch_one(&self.state.db)
-            .await?;
+        let total: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM iam_permissions WHERE deleted_at IS NULL")
+                .fetch_one(&self.state.db)
+                .await?;
 
         Ok(PermissionListResponse {
-            items: permissions.into_iter().map(|p| self.to_response(&p)).collect(),
+            items: permissions
+                .into_iter()
+                .map(|p| self.to_response(&p))
+                .collect(),
             total: total.0 as u64,
             page: query.page,
             size: query.size,
@@ -232,7 +239,11 @@ impl PermissionService {
         Ok(self.to_response(&result))
     }
 
-    pub async fn delete(&self, permission_id: &str, actor_id: Option<&str>) -> Result<(), IamError> {
+    pub async fn delete(
+        &self,
+        permission_id: &str,
+        actor_id: Option<&str>,
+    ) -> Result<(), IamError> {
         // Expand affected users via the join BEFORE we delete the
         // iam_role_permissions rows we are joining on.
         let user_ids: Vec<String> = sqlx::query_scalar(

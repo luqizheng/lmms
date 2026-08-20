@@ -7,25 +7,22 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
 use clap::Parser;
+use prometheus::{Encoder, TextEncoder};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use prometheus::{Encoder, TextEncoder};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use utoipa::OpenApi;
 
+use api_gateway::resilience_metrics::GatewayMetricsObserver;
 use api_gateway::template::Template;
 use api_gateway::{
     blacklist, config as gw_config, middleware, router, routes_loader, AppState, GatewayConfig,
     RouteConfig, RouteTable, RouterConfig,
 };
-use api_gateway::resilience_metrics::GatewayMetricsObserver;
 use cli::{Cli, Cmd};
 use digua_common_http::ResilientClient;
 
-fn find_and_render(
-    routes: &[RouteConfig],
-    path_and_query: &str,
-) -> Option<(RouteConfig, String)> {
+fn find_and_render(routes: &[RouteConfig], path_and_query: &str) -> Option<(RouteConfig, String)> {
     for r in routes {
         let up = match Template::parse(&r.upstream) {
             Ok(t) => t,
@@ -177,12 +174,15 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     println!("========================================");
 
     let http_client = reqwest::Client::new();
-    use digua_common_jwt::{JwksConfig, JWKSCache};
+    use digua_common_jwt::{JWKSCache, JwksConfig};
 
-    let jwks_cache = Arc::new(JWKSCache::new(JwksConfig {
-        url: cfg.jwks_url.clone(),
-        ..Default::default()
-    }, http_client.clone()));
+    let jwks_cache = Arc::new(JWKSCache::new(
+        JwksConfig {
+            url: cfg.jwks_url.clone(),
+            ..Default::default()
+        },
+        http_client.clone(),
+    ));
     // Block up to 30s on startup retry + spawn periodic refresh loop.
     // Fixes docker-compose boot race: token-service may not be listening yet
     // when api-gateway comes up; previously a single failed `refresh()` was
@@ -232,21 +232,21 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
 
     let state = Arc::new(AppState {
         jwks_cache,
-        perm_epoch_cache: api_gateway::perm_epoch_cache::PermEpochCache::new(std::time::Duration::from_secs(5)),
+        perm_epoch_cache: api_gateway::perm_epoch_cache::PermEpochCache::new(
+            std::time::Duration::from_secs(5),
+        ),
         redis_conn,
         redis_prefix: cfg.redis.prefix.clone(),
         router_cfg: router_cfg.clone(),
         route_table: route_table.clone(),
         route_limiters: {
             let rate_limit_cfg = load_rate_limit_config();
-            let redis_client = redis::Client::open(cfg.redis.url.as_str()).expect("invalid redis url");
+            let redis_client =
+                redis::Client::open(cfg.redis.url.as_str()).expect("invalid redis url");
             let rate_limit_conn = redis::aio::ConnectionManager::new(redis_client)
                 .await
                 .expect("failed to create redis connection manager for rate limiter");
-            middleware::rate_limit::RouteLimiterSet::new(
-                rate_limit_conn,
-                &rate_limit_cfg,
-            )
+            middleware::rate_limit::RouteLimiterSet::new(rate_limit_conn, &rate_limit_cfg)
         },
     });
 
@@ -314,8 +314,10 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
     tracing::info!("api-gateway listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
-        tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.expect("failed to listen for ctrl-c");
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to listen for ctrl-c");
         tracing::info!("received shutdown signal");
         let _ = jwks_shutdown.send(true);
         std::process::exit(0);
@@ -325,9 +327,12 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         spawn_admin_server(admin_port, routes_dir.clone(), route_table.clone()).await;
     }
 
-    axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
-        .await
-        .unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }
 
 async fn spawn_admin_server(
@@ -420,10 +425,21 @@ async fn proxy_handler(State(state): State<Arc<AppState>>, mut request: Request)
                 }
             }
         }
-        propagator.inject_context(&tracing::Span::current().context(), &mut Hd(request.headers_mut()));
+        propagator.inject_context(
+            &tracing::Span::current().context(),
+            &mut Hd(request.headers_mut()),
+        );
     });
 
-    router::forward_to_service(state.router_cfg.clone(), request, &route.service, &target, route.ws, route.timeout_ms).await
+    router::forward_to_service(
+        state.router_cfg.clone(),
+        request,
+        &route.service,
+        &target,
+        route.ws,
+        route.timeout_ms,
+    )
+    .await
 }
 
 #[cfg(test)]

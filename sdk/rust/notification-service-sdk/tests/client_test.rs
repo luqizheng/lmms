@@ -1,9 +1,7 @@
-use std::sync::{Arc, Mutex};
 use chrono::Utc;
-use digua_notification_sdk::{
-    CreateAnnouncement, ListAnnouncementsQuery, NotificationClient,
-};
+use digua_notification_sdk::{CreateAnnouncement, ListAnnouncementsQuery, NotificationClient};
 use serde_json::json;
+use std::sync::{Arc, Mutex};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

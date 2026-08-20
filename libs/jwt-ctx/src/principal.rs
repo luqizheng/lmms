@@ -54,7 +54,10 @@ impl Principal {
     /// Phase 5-A-2 path: pure decode, no signature verification.
     /// Kept for unit tests / mock contexts where the test owns the
     /// private key. Production code should use `from_token`.
-    #[deprecated(since = "0.1.0", note = "use `from_token` for production; this function performs no signature verification")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "use `from_token` for production; this function performs no signature verification"
+    )]
     pub fn from_jwt_payload(token: &str) -> Result<Self, PrincipalError> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
@@ -128,10 +131,7 @@ impl Principal {
             .and_then(|v| v.as_i64())
             .ok_or(PrincipalError::MissingTenantId)?;
 
-        let cross_tenant = payload
-            .get("ct")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let cross_tenant = payload.get("ct").and_then(|v| v.as_bool()).unwrap_or(false);
 
         let dept_id = payload.get("dept_id").and_then(|v| v.as_i64());
 
@@ -207,11 +207,9 @@ where
             .and_then(|v| v.strip_prefix("Bearer "))
             .ok_or(axum::http::StatusCode::UNAUTHORIZED)?;
         let cache = state.jwks();
-        Self::from_token(token, &cache, None)
-            .await
-            .map_err(|err| {
-                tracing::warn!(error = %err, "jwt verification failed, returning 401");
-                axum::http::StatusCode::UNAUTHORIZED
-            })
+        Self::from_token(token, &cache, None).await.map_err(|err| {
+            tracing::warn!(error = %err, "jwt verification failed, returning 401");
+            axum::http::StatusCode::UNAUTHORIZED
+        })
     }
 }

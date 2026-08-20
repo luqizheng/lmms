@@ -1,11 +1,11 @@
+use digua_common_jwt::{JWKSCache, JwksConfig};
+use digua_common_telemetry::init_tracing;
 use file_service::{
     config::{AppConfig, StorageBackend},
     db::{ensure_schema, init_pool},
     routes::{self, create_state},
     storage::{LocalStorage, S3Storage},
 };
-use digua_common_jwt::{JWKSCache, JwksConfig};
-use digua_common_telemetry::init_tracing;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,17 +23,14 @@ async fn main() -> anyhow::Result<()> {
     );
 
     if matches!(backend, StorageBackend::Local) {
-        std::fs::create_dir_all(&config.storage_path)
-            .expect("failed to create storage directory");
+        std::fs::create_dir_all(&config.storage_path).expect("failed to create storage directory");
     }
 
     let pool = init_pool(&config.database_url)
         .await
         .expect("failed to initialize database pool");
 
-    ensure_schema(&pool)
-        .await
-        .expect("ensure_schema failed");
+    ensure_schema(&pool).await.expect("ensure_schema failed");
 
     let storage: Arc<dyn file_service::storage::object_store::ObjectStore> = match backend {
         StorageBackend::Local => {
@@ -89,17 +86,19 @@ async fn main() -> anyhow::Result<()> {
         use utoipa::OpenApi;
         use utoipa_swagger_ui::SwaggerUi;
         tracing::info!("swagger ui enabled at /swagger-ui");
-        app.merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", file_service::openapi::ApiDoc::openapi()),
-        )
+        app.merge(SwaggerUi::new("/swagger-ui").url(
+            "/api-docs/openapi.json",
+            file_service::openapi::ApiDoc::openapi(),
+        ))
     } else {
         app
     };
 
     let addr: SocketAddr = config.server_addr.parse().expect("invalid server address");
 
-    let listener = tokio::net::TcpListener::bind(&addr).await.expect("failed to bind");
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
+        .expect("failed to bind");
     tracing::info!("file-service listening on {}", addr);
 
     tokio::spawn(async move {

@@ -10,7 +10,7 @@ async fn hot_config_get_returns_initial_value() {
 #[tokio::test]
 async fn hot_config_update_changes_value() {
     let config = HotConfig::new(10u32).await;
-    
+
     config.update(20).await;
     assert_eq!(config.get().await, 20);
 }
@@ -20,14 +20,16 @@ async fn hot_config_callback_invoked_on_update() {
     let config = HotConfig::new(100u32).await;
     let call_count = Arc::new(AtomicUsize::new(0));
     let call_count_clone = call_count.clone();
-    
-    config.on_change(move |val| {
-        call_count_clone.fetch_add(1, Ordering::SeqCst);
-        assert_eq!(*val, 200);
-    }).await;
-    
+
+    config
+        .on_change(move |val| {
+            call_count_clone.fetch_add(1, Ordering::SeqCst);
+            assert_eq!(*val, 200);
+        })
+        .await;
+
     config.update(200).await;
-    
+
     assert_eq!(call_count.load(Ordering::SeqCst), 1);
 }
 
@@ -38,12 +40,20 @@ async fn hot_config_multiple_callbacks() {
     let count2 = Arc::new(AtomicUsize::new(0));
     let c1 = count1.clone();
     let c2 = count2.clone();
-    
-    config.on_change(move |_| { c1.fetch_add(1, Ordering::SeqCst); }).await;
-    config.on_change(move |_| { c2.fetch_add(1, Ordering::SeqCst); }).await;
-    
+
+    config
+        .on_change(move |_| {
+            c1.fetch_add(1, Ordering::SeqCst);
+        })
+        .await;
+    config
+        .on_change(move |_| {
+            c2.fetch_add(1, Ordering::SeqCst);
+        })
+        .await;
+
     config.update("updated".to_string()).await;
-    
+
     assert_eq!(count1.load(Ordering::SeqCst), 1);
     assert_eq!(count2.load(Ordering::SeqCst), 1);
 }
@@ -80,7 +90,7 @@ fn sensitive_fields_add_marks_field() {
     let mut fields = SensitiveFields::new();
     fields.add("password");
     fields.add("secret_key");
-    
+
     assert!(fields.is_sensitive("password"));
     assert!(fields.is_sensitive("secret_key"));
     assert!(!fields.is_sensitive("username"));
@@ -90,7 +100,7 @@ fn sensitive_fields_add_marks_field() {
 fn sensitive_fields_mask_value() {
     let fields = SensitiveFields::new();
     fields.add("password");
-    
+
     assert_eq!(fields.mask_value("password", "secret123"), "******");
     assert_eq!(fields.mask_value("username", "john"), "john");
 }

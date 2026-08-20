@@ -1,10 +1,10 @@
 pub mod blacklist;
 pub mod config;
 pub mod middleware;
-pub mod perm_epoch_cache;
 pub mod openapi;
 pub mod perm_consumer;
 pub mod perm_epoch;
+pub mod perm_epoch_cache;
 pub mod resilience_metrics;
 pub mod router;
 pub mod routes_loader;

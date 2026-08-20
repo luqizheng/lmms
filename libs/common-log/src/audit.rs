@@ -77,7 +77,10 @@ impl AuditClient {
             .map_err(|e| AppError::external("AUDIT_HTTP", e.to_string()))?;
 
         if !res.status().is_success() {
-            return Err(AppError::external("AUDIT_RESPONSE", format!("{}", res.status())));
+            return Err(AppError::external(
+                "AUDIT_RESPONSE",
+                format!("{}", res.status()),
+            ));
         }
         Ok(())
     }

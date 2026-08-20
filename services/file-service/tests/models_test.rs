@@ -1,8 +1,4 @@
-use file_service::models::{
-    UploadFileMeta,
-    QueryFiles,
-    CreatePresignUrl,
-};
+use file_service::models::{CreatePresignUrl, QueryFiles, UploadFileMeta};
 
 #[test]
 fn upload_file_meta_serialization() {

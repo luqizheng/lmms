@@ -2,22 +2,32 @@
 //!
 //! Phase 10 G3 接入。
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
-use digua_common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use digua_common_db::migration_state::{
+    self, MigrationDescriptor, MigrationState, MigrationStateResponse,
+};
 use serde_json::json;
 use sqlx::MySqlPool;
 use utoipa::path as to_path;
 
-use crate::TokenServerState;
 use crate::db::DbPool;
+use crate::TokenServerState;
 
 pub struct TokenMigrationState;
 
 impl MigrationState for TokenMigrationState {
-    fn service_name(&self) -> &'static str { "token-service" }
-    fn dialect(&self) -> &'static str { "mysql" }
+    fn service_name(&self) -> &'static str {
+        "token-service"
+    }
+    fn dialect(&self) -> &'static str {
+        "mysql"
+    }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
-        &[MigrationDescriptor { version: "V001", name: "init", marker_table: "token_oauth_clients" }]
+        &[MigrationDescriptor {
+            version: "V001",
+            name: "init",
+            marker_table: "token_oauth_clients",
+        }]
     }
 }
 
@@ -48,7 +58,10 @@ pub async fn handler(State(state): State<TokenServerState>) -> impl IntoResponse
     let DbPool::Mysql(pool) = state.db;
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =
         match probe_applied(&pool).await {
-            Ok(applied) => Ok(migration_state::build_response(&TokenMigrationState, applied)),
+            Ok(applied) => Ok(migration_state::build_response(
+                &TokenMigrationState,
+                applied,
+            )),
             Err(e) => Err((
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({

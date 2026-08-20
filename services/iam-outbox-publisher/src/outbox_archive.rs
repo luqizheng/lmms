@@ -13,7 +13,8 @@
 use sqlx::{Acquire, MySqlConnection, MySqlPool};
 use std::time::Duration;
 use tokio::time::interval;
-#[allow(unused_imports)] use tracing::{debug, error, info, warn};
+#[allow(unused_imports)]
+use tracing::{debug, error, info, warn};
 
 const ARCHIVE_BATCH: i64 = 1000;
 const ARCHIVE_TICK: Duration = Duration::from_secs(300); // 5 min
@@ -80,7 +81,7 @@ async fn archive_loop(conn: &mut MySqlConnection) -> sqlx::Result<u64> {
                WHERE published_at IS NOT NULL \
                  AND published_at < NOW(3) - INTERVAL ? HOUR \
                ORDER BY id ASC LIMIT ? \
-             ) sub"
+             ) sub",
         )
         .bind(RETENTION_HOURS)
         .bind(ARCHIVE_BATCH)
@@ -114,7 +115,7 @@ async fn archive_loop(conn: &mut MySqlConnection) -> sqlx::Result<u64> {
             "DELETE FROM iam_outbox_events \
              WHERE id BETWEEN ? AND ? \
                AND published_at IS NOT NULL \
-               AND published_at < NOW(3) - INTERVAL ? HOUR"
+               AND published_at < NOW(3) - INTERVAL ? HOUR",
         )
         .bind(min_id)
         .bind(max_id)
@@ -139,7 +140,7 @@ async fn purge_loop(conn: &mut MySqlConnection) -> sqlx::Result<u64> {
                SELECT id FROM iam_outbox_events_archive \
                WHERE archived_at < NOW(3) - INTERVAL ? DAY \
                ORDER BY id ASC LIMIT ? \
-             ) sub"
+             ) sub",
         )
         .bind(PURGE_DAYS)
         .bind(ARCHIVE_BATCH)
@@ -155,7 +156,7 @@ async fn purge_loop(conn: &mut MySqlConnection) -> sqlx::Result<u64> {
         let res = sqlx::query(
             "DELETE FROM iam_outbox_events_archive \
              WHERE id BETWEEN ? AND ? \
-               AND archived_at < NOW(3) - INTERVAL ? DAY"
+               AND archived_at < NOW(3) - INTERVAL ? DAY",
         )
         .bind(min_id)
         .bind(max_id)

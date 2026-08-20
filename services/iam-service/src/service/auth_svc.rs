@@ -1,18 +1,18 @@
 use crate::{
+    dto::{ChangePasswordRequest, LoginRequest, LoginResponse, UserInfo},
     error::IamError,
     models::user::UserStatus,
-    models::User,
     models::RefreshToken,
+    models::User,
     state::AppState,
-    dto::{LoginRequest, LoginResponse, ChangePasswordRequest, UserInfo},
 };
+use chrono::{Duration, Utc};
 use digua_common_crypto::password::{hash, verify};
-use digua_common_event::events::{IamLoginSucceeded, IamLoginFailed};
+use digua_common_event::events::{IamLoginFailed, IamLoginSucceeded};
 use digua_common_event::{Envelope, OutboxRepo};
-use chrono::{Utc, Duration};
 use nanoid::nanoid;
 use redis::AsyncCommands;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 pub struct AuthService {
     state: AppState,
@@ -23,18 +23,29 @@ impl AuthService {
         Self { state }
     }
 
-    pub async fn login(&self, req: LoginRequest, ip_address: &str, user_agent: &str) -> Result<LoginResponse, IamError> {
+    pub async fn login(
+        &self,
+        req: LoginRequest,
+        ip_address: &str,
+        user_agent: &str,
+    ) -> Result<LoginResponse, IamError> {
         let tenant_slug = req.tenant_slug.as_deref().unwrap_or("default");
-        let tenant: Option<(u64,)> = sqlx::query_as(
-            "SELECT id FROM iam_tenants WHERE slug = ? AND status = 'active'"
-        )
-        .bind(tenant_slug)
-        .fetch_optional(&self.state.db)
-        .await?;
+        let tenant: Option<(u64,)> =
+            sqlx::query_as("SELECT id FROM iam_tenants WHERE slug = ? AND status = 'active'")
+                .bind(tenant_slug)
+                .fetch_optional(&self.state.db)
+                .await?;
         let tenant_id = match tenant {
             Some((id,)) => id,
             None => {
-                self.record_login_failure(&req.username, None, ip_address, user_agent, "tenant_not_found").await?;
+                self.record_login_failure(
+                    &req.username,
+                    None,
+                    ip_address,
+                    user_agent,
+                    "tenant_not_found",
+                )
+                .await?;
                 return Err(IamError::InvalidCredentials);
             }
         };
@@ -50,28 +61,56 @@ impl AuthService {
         let user = match user {
             Some(u) => u,
             None => {
-                self.record_login_failure(&req.username, None, ip_address, user_agent, "user_not_found").await?;
+                self.record_login_failure(
+                    &req.username,
+                    None,
+                    ip_address,
+                    user_agent,
+                    "user_not_found",
+                )
+                .await?;
                 return Err(IamError::InvalidCredentials);
             }
         };
 
         if !user.status.is_active() {
-            self.record_login_failure(&user.username, Some(&user.id), ip_address, user_agent, "user_disabled").await?;
+            self.record_login_failure(
+                &user.username,
+                Some(&user.id),
+                ip_address,
+                user_agent,
+                "user_disabled",
+            )
+            .await?;
             return Err(IamError::UserDisabled);
         }
 
         if let Some(expired_at) = user.password_expired_at {
             if expired_at < Utc::now() {
-                self.record_login_failure(&user.username, Some(&user.id), ip_address, user_agent, "password_expired").await?;
+                self.record_login_failure(
+                    &user.username,
+                    Some(&user.id),
+                    ip_address,
+                    user_agent,
+                    "password_expired",
+                )
+                .await?;
                 return Err(IamError::PasswordExpired);
             }
         }
 
-        let valid = verify(&req.password, &user.password_hash)
-            .map_err(|e| IamError::Jwt(e.to_string()))?;
-        
+        let valid =
+            verify(&req.password, &user.password_hash).map_err(|e| IamError::Jwt(e.to_string()))?;
+
         if !valid {
-            self.record_login_failure(&user.username, Some(&user.id), ip_address, user_agent, "bad_password").await?;
+            self.record_login_failure(
+                &user.username,
+                Some(&user.id),
+                ip_address,
+                user_agent,
+                "bad_password",
+            )
+            .await?;
             return Err(IamError::InvalidCredentials);
         }
 
@@ -123,8 +162,16 @@ impl AuthService {
         .await?;
 
         // 记录登录成功
-        self.record_login_log(&user.id, &user.username, ip_address, user_agent, "password", true, None)
-            .await?;
+        self.record_login_log(
+            &user.id,
+            &user.username,
+            ip_address,
+            user_agent,
+            "password",
+            true,
+            None,
+        )
+        .await?;
 
         // 发布 iam.login.succeeded 事件（事务性 outbox）
         {
@@ -139,9 +186,13 @@ impl AuthService {
                 },
             )
             .with_tenant_id(user.tenant_id.to_string());
-            digua_common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
-                .await
-                .map_err(|e| IamError::Internal(e.to_string()))?;
+            digua_common_event::OutboxRepo::enqueue(
+                self.state.outbox_repo.as_ref(),
+                &mut tx,
+                &mut envelope,
+            )
+            .await
+            .map_err(|e| IamError::Internal(e.to_string()))?;
             tx.commit().await?;
         }
 
@@ -167,7 +218,7 @@ impl AuthService {
 
     pub async fn refresh(&self, refresh_token: &str) -> Result<LoginResponse, IamError> {
         let token_hash = Self::hash_token(refresh_token);
-        
+
         let token: Option<RefreshToken> = sqlx::query_as(
             "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE token_hash = ?"
         )
@@ -262,7 +313,7 @@ impl AuthService {
 
     pub async fn revoke_session(&self, session_id: &str) -> Result<(), IamError> {
         sqlx::query(
-            "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE id = ?"
+            "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE id = ?",
         )
         .bind(session_id)
         .execute(&self.state.db)
@@ -282,7 +333,11 @@ impl AuthService {
         Ok(tokens)
     }
 
-    pub async fn change_password(&self, user_id: &str, req: ChangePasswordRequest) -> Result<(), IamError> {
+    pub async fn change_password(
+        &self,
+        user_id: &str,
+        req: ChangePasswordRequest,
+    ) -> Result<(), IamError> {
         let user: Option<User> = sqlx::query_as(
             "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
         )
@@ -294,13 +349,12 @@ impl AuthService {
 
         let valid = verify(&req.old_password, &user.password_hash)
             .map_err(|e| IamError::Jwt(e.to_string()))?;
-        
+
         if !valid {
             return Err(IamError::InvalidCredentials);
         }
 
-        let new_hash = hash(&req.new_password)
-            .map_err(|e| IamError::Jwt(e.to_string()))?;
+        let new_hash = hash(&req.new_password).map_err(|e| IamError::Jwt(e.to_string()))?;
 
         // 更新密码并将密码设置为 90 天后过期
         let password_expired_at = Utc::now() + Duration::days(90);
@@ -400,9 +454,13 @@ impl AuthService {
             },
         )
         .with_tenant_id("1");
-        digua_common_event::OutboxRepo::enqueue(self.state.outbox_repo.as_ref(), &mut tx, &mut envelope)
-            .await
-            .map_err(|e| IamError::Internal(e.to_string()))?;
+        digua_common_event::OutboxRepo::enqueue(
+            self.state.outbox_repo.as_ref(),
+            &mut tx,
+            &mut envelope,
+        )
+        .await
+        .map_err(|e| IamError::Internal(e.to_string()))?;
         tx.commit().await?;
         Ok(())
     }

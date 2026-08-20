@@ -25,12 +25,10 @@ async fn tick_once(db: &Db) -> anyhow::Result<()> {
 }
 
 pub async fn publish_one(db: &Db, ann_id: u64) -> anyhow::Result<()> {
-    let tenant_id: i64 = sqlx::query_scalar(
-        "SELECT tenant_id FROM ntf_announcements WHERE id=?",
-    )
-    .bind(ann_id)
-    .fetch_one(&db.pool)
-    .await?;
+    let tenant_id: i64 = sqlx::query_scalar("SELECT tenant_id FROM ntf_announcements WHERE id=?")
+        .bind(ann_id)
+        .fetch_one(&db.pool)
+        .await?;
     let scope = TenantScope::Single(tenant_id);
     db.publish_announcement(ann_id, &scope).await?;
     Ok(())

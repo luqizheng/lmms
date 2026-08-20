@@ -1,18 +1,18 @@
 pub mod compliance;
-pub mod operation;
 pub mod login;
 pub mod migration_state;
+pub mod operation;
 pub mod retention;
 
-use std::sync::Arc;
-use crate::services::{AuditService, CleanupService};
-use crate::models::RetentionPolicy;
 use crate::error::AppResult;
-use axum::{Router, middleware as axum_mw, routing::get};
+use crate::models::RetentionPolicy;
+use crate::services::{AuditService, CleanupService};
+use axum::{middleware as axum_mw, routing::get, Router};
 use digua_common_jwt::JWKSCache;
 use digua_jwt_ctx::PrincipalStateProvider;
-use sqlx::mysql::MySqlPool;
 use prometheus::{Encoder, TextEncoder};
+use sqlx::mysql::MySqlPool;
+use std::sync::Arc;
 
 pub type AppState = Arc<AppServices>;
 
@@ -29,7 +29,11 @@ impl AppServices {
         let audit = AuditService::new(&pool);
         let cleanup = CleanupService::new(&pool, policy);
 
-        Ok(Self { audit, cleanup, jwks })
+        Ok(Self {
+            audit,
+            cleanup,
+            jwks,
+        })
     }
 
     pub async fn get_operation_logs_by_filter(
@@ -53,8 +57,8 @@ impl PrincipalStateProvider for AppServices {
 }
 
 pub fn routes(state: AppState) -> Router {
-    let migration_state_with_authz = migration_state::routes(state.clone())
-        .layer(axum_mw::from_fn_with_state(
+    let migration_state_with_authz =
+        migration_state::routes(state.clone()).layer(axum_mw::from_fn_with_state(
             state.clone(),
             digua_authz::verify_aud_principal_middleware::<AppState>("audit-service"),
         ));
@@ -67,7 +71,9 @@ pub fn routes(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/audit/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(
+            digua_common_telemetry_axum::trace_request_middleware,
+        ))
 }
 
 async fn health() -> &'static str {

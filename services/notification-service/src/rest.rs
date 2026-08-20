@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use digua_common_jwt::JWKSCache;
-use digua_common_ratelimit::{Limit, RateLimiter, rate_limit_middleware};
+use digua_common_ratelimit::{rate_limit_middleware, Limit, RateLimiter};
 use digua_jwt_ctx::{PrincipalStateProvider, TenantScope};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -131,7 +131,9 @@ pub async fn publish(
         return Err(AppError::Forbidden);
     }
     let user_ids = s.db.publish_announcement(id, &scope).await?;
-    Ok(Json(serde_json::json!({ "id": id, "status": "published", "user_count": user_ids.len() })))
+    Ok(Json(
+        serde_json::json!({ "id": id, "status": "published", "user_count": user_ids.len() }),
+    ))
 }
 
 #[utoipa::path(

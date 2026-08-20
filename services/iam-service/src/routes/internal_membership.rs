@@ -64,25 +64,41 @@ pub async fn membership_bootstrap(
     .await
     .map_err(|e| {
         tracing::error!(error = %e, tenant_id, "membership-bootstrap query failed");
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string())
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "internal error".to_string(),
+        )
     })?;
 
     let mut mappings = HashMap::with_capacity(rows.len());
     for row in rows {
-        let user_id: String = row.try_get("id").map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        let user_id: String = row
+            .try_get("id")
+            .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         let dept_id: Option<String> = row.try_get("dept_id").ok();
         let role_ids_str: Option<String> = row.try_get("role_ids").ok();
         let role_ids: Vec<String> = role_ids_str
-            .map(|s| s.split(',').filter(|x| !x.is_empty()).map(String::from).collect())
+            .map(|s| {
+                s.split(',')
+                    .filter(|x| !x.is_empty())
+                    .map(String::from)
+                    .collect()
+            })
             .unwrap_or_default();
         mappings.insert(user_id, UserMembership { role_ids, dept_id });
     }
 
-    Ok(Json(MembershipBootstrap { tenant_id, mappings }))
+    Ok(Json(MembershipBootstrap {
+        tenant_id,
+        mappings,
+    }))
 }
 
 pub fn routes(state: AppState) -> axum::Router {
     axum::Router::new()
-        .route("/iam/internal/membership-bootstrap", axum::routing::get(membership_bootstrap))
+        .route(
+            "/iam/internal/membership-bootstrap",
+            axum::routing::get(membership_bootstrap),
+        )
         .with_state(state)
 }

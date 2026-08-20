@@ -3,10 +3,7 @@ use std::collections::HashMap;
 pub fn render_template(template: &str, vars: &HashMap<&'static str, String>) -> String {
     let mut out = template.to_string();
     for (k, v) in vars {
-        let patterns = [
-            format!("{{{{{}}}}}", k),
-            format!("{{{{ {} }}}}", k),
-        ];
+        let patterns = [format!("{{{{{}}}}}", k), format!("{{{{ {} }}}}", k)];
         for p in &patterns {
             out = out.replace(p, v);
         }

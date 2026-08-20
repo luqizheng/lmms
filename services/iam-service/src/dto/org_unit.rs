@@ -1,7 +1,7 @@
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
-use chrono::DateTime;
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateOrgUnitRequest {

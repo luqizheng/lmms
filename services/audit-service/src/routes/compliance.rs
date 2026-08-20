@@ -1,17 +1,26 @@
+use crate::error::{AppError, AppResult};
+use crate::models::ExportFormat;
+use crate::routes::AppState;
 use axum::{
     extract::{Path, State},
     http::{header, HeaderMap},
     Json, Router,
 };
-use crate::error::{AppError, AppResult};
-use crate::models::ExportFormat;
-use crate::routes::AppState;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
-        .route("/export/compliance/operation/csv/{user_id}", axum::routing::get(export_operation_csv))
-        .route("/export/compliance/operation/json/{user_id}", axum::routing::get(export_operation_json))
-        .route("/export/compliance/login/csv/{user_id}", axum::routing::get(export_login_csv))
+        .route(
+            "/export/compliance/operation/csv/{user_id}",
+            axum::routing::get(export_operation_csv),
+        )
+        .route(
+            "/export/compliance/operation/json/{user_id}",
+            axum::routing::get(export_operation_json),
+        )
+        .route(
+            "/export/compliance/login/csv/{user_id}",
+            axum::routing::get(export_login_csv),
+        )
         .with_state(state)
 }
 
@@ -32,8 +41,9 @@ pub async fn export_operation_csv(
     Path(user_id): Path<String>,
 ) -> AppResult<impl axum::response::IntoResponse> {
     let logs = state.audit.get_user_operation_logs(&user_id, 10000).await?;
-    
-    let mut csv = String::from("id,user_id,action,resource,resource_id,request_id,ip_address,created_at\n");
+
+    let mut csv =
+        String::from("id,user_id,action,resource,resource_id,request_id,ip_address,created_at\n");
     for log in logs {
         csv.push_str(&format!(
             "{},{},{},{},{},{},{},{}\n",
@@ -48,10 +58,7 @@ pub async fn export_operation_csv(
         ));
     }
 
-    Ok((
-        [(header::CONTENT_TYPE, "text/csv; charset=utf-8")],
-        csv,
-    ))
+    Ok(([(header::CONTENT_TYPE, "text/csv; charset=utf-8")], csv))
 }
 
 #[utoipa::path(
@@ -74,10 +81,7 @@ pub async fn export_operation_json(
     let json = serde_json::to_string_pretty(&logs)
         .map_err(|e| AppError::internal("EXPORT_JSON", e.to_string()))?;
 
-    Ok((
-        [(header::CONTENT_TYPE, "application/json")],
-        json,
-    ))
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
 
 #[utoipa::path(
@@ -97,7 +101,7 @@ pub async fn export_login_csv(
     Path(user_id): Path<String>,
 ) -> AppResult<impl axum::response::IntoResponse> {
     let logs = state.audit.get_user_login_logs(&user_id, 10000).await?;
-    
+
     let mut csv = String::from("id,user_id,username,success,fail_reason,ip_address,location,user_agent,request_id,created_at\n");
     for log in logs {
         csv.push_str(&format!(
@@ -115,8 +119,5 @@ pub async fn export_login_csv(
         ));
     }
 
-    Ok((
-        [(header::CONTENT_TYPE, "text/csv; charset=utf-8")],
-        csv,
-    ))
+    Ok(([(header::CONTENT_TYPE, "text/csv; charset=utf-8")], csv))
 }

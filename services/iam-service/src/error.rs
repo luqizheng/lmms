@@ -5,70 +5,70 @@ use thiserror::Error;
 pub enum IamError {
     #[error("invalid credentials")]
     InvalidCredentials,
-    
+
     #[error("user not found")]
     UserNotFound,
-    
+
     #[error("user disabled")]
     UserDisabled,
-    
+
     #[error("password expired")]
     PasswordExpired,
-    
+
     #[error("token expired")]
     TokenExpired,
-    
+
     #[error("token revoked")]
     TokenRevoked,
-    
+
     #[error("invalid token")]
     InvalidToken,
-    
+
     #[error("permission denied")]
     PermissionDenied,
-    
+
     #[error("role not found")]
     RoleNotFound,
-    
+
     #[error("invalid role ids: {0:?}")]
     InvalidRoleIds(Vec<String>),
-    
+
     #[error("permission not found")]
     PermissionNotFound,
-    
+
     #[error("menu not found")]
     MenuNotFound,
-    
+
     #[error("org unit not found")]
     OrgUnitNotFound,
-    
+
     #[error("duplicate user")]
     DuplicateUser,
-    
+
     #[error("duplicate role")]
     DuplicateRole,
-    
+
     #[error("duplicate permission")]
     DuplicatePermission,
-    
+
     #[error("duplicate menu")]
     DuplicateMenu,
-    
+
     #[error("duplicate org unit")]
     DuplicateOrgUnit,
-    
+
     #[error("tenant slug already exists")]
     DuplicateTenant,
-    
+
     #[error("conflict: {0}")]
     Conflict(String),
-    
+
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
-    
+
     #[error("jwt error: {0}")]
     Jwt(String),
-    
+
     #[error("validation error: {0}")]
     Validation(#[from] validator::ValidationErrors),
 

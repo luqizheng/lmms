@@ -1,4 +1,4 @@
-use anyhow::{Context, bail};
+use anyhow::{bail, Context};
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {

@@ -8,7 +8,9 @@ pub struct EventBusConfig {
     pub publish_confirms: bool,
 }
 
-fn default_publish_confirms() -> bool { true }
+fn default_publish_confirms() -> bool {
+    true
+}
 
 impl Default for EventBusConfig {
     fn default() -> Self {

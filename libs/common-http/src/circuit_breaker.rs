@@ -61,7 +61,7 @@ impl CircuitBreaker {
     }
 
     // Open -> HalfOpen 跃迁由 is_available() 内的 CAS 直接完成，
-// 不再单独抽出 helper（避免多个调用点各自非原子地清计数）。
+    // 不再单独抽出 helper（避免多个调用点各自非原子地清计数）。
 
     pub fn is_available(&self) -> bool {
         match self.state() {
@@ -125,12 +125,7 @@ impl CircuitBreaker {
                     }
                     if self
                         .half_open_calls
-                        .compare_exchange(
-                            current,
-                            current + 1,
-                            Ordering::SeqCst,
-                            Ordering::SeqCst,
-                        )
+                        .compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::SeqCst)
                         .is_ok()
                     {
                         return true;
@@ -271,7 +266,10 @@ mod tests {
                 admitted += 1;
             }
         }
-        assert_eq!(admitted, 5, "admitted {admitted}, expected exactly half_open_max_calls");
+        assert_eq!(
+            admitted, 5,
+            "admitted {admitted}, expected exactly half_open_max_calls"
+        );
     }
 
     // Phase 5-B review #1: Open -> HalfOpen transition race.

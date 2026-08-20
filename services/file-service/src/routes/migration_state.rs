@@ -1,7 +1,11 @@
 //! GET /file/internal/migrations/state — file-service schema 状态查询。
 
-use axum::{extract::Extension, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
-use digua_common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
+use axum::{
+    extract::Extension, http::StatusCode, response::IntoResponse, routing::get, Json, Router,
+};
+use digua_common_db::migration_state::{
+    self, MigrationDescriptor, MigrationState, MigrationStateResponse,
+};
 use serde_json::json;
 use sqlx::MySqlPool;
 use utoipa::path as to_path;
@@ -11,12 +15,24 @@ use crate::services::FileService;
 pub struct FileMigrationState;
 
 impl MigrationState for FileMigrationState {
-    fn service_name(&self) -> &'static str { "file-service" }
-    fn dialect(&self) -> &'static str { "mysql" }
+    fn service_name(&self) -> &'static str {
+        "file-service"
+    }
+    fn dialect(&self) -> &'static str {
+        "mysql"
+    }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
         &[
-            MigrationDescriptor { version: "V001", name: "init", marker_table: "file_files" },
-            MigrationDescriptor { version: "V002", name: "file_tenant_reconcile", marker_table: "file_migration_v002_applied" },
+            MigrationDescriptor {
+                version: "V001",
+                name: "init",
+                marker_table: "file_files",
+            },
+            MigrationDescriptor {
+                version: "V002",
+                name: "file_tenant_reconcile",
+                marker_table: "file_migration_v002_applied",
+            },
         ]
     }
 }
@@ -57,7 +73,8 @@ pub async fn handler(Extension(pool): Extension<MySqlPool>) -> impl IntoResponse
                 "error": "db_unreachable",
                 "detail": e.to_string(),
             })),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }
 
@@ -81,6 +98,9 @@ mod tests {
         assert_eq!(s.migrations()[0].version, "V001");
         assert_eq!(s.migrations()[1].version, "V002");
         assert_eq!(s.migrations()[0].marker_table, "file_files");
-        assert_eq!(s.migrations()[1].marker_table, "file_migration_v002_applied");
+        assert_eq!(
+            s.migrations()[1].marker_table,
+            "file_migration_v002_applied"
+        );
     }
 }

@@ -12,15 +12,14 @@ use std::sync::{Arc, OnceLock};
 pub static RATE_LIMITED_TOTAL: OnceLock<IntCounterVec> = OnceLock::new();
 
 pub fn init_metrics() {
-    RATE_LIMITED_TOTAL
-        .get_or_init(|| {
-            prometheus::register_int_counter_vec!(
-                "gateway_rate_limited_total",
-                "Total HTTP requests rejected by rate limiter",
-                &["route"]
-            )
-            .unwrap()
-        });
+    RATE_LIMITED_TOTAL.get_or_init(|| {
+        prometheus::register_int_counter_vec!(
+            "gateway_rate_limited_total",
+            "Total HTTP requests rejected by rate limiter",
+            &["route"]
+        )
+        .unwrap()
+    });
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -81,21 +80,19 @@ pub struct RouteLimiterSet {
 }
 
 impl RouteLimiterSet {
-    pub fn new(
-        conn: redis::aio::ConnectionManager,
-        cfg: &RateLimitConfig,
-    ) -> Self {
+    pub fn new(conn: redis::aio::ConnectionManager, cfg: &RateLimitConfig) -> Self {
         use digua_common_ratelimit::Limit;
         let mut limits: HashMap<String, Limit> = HashMap::new();
         for (pattern, rule) in &cfg.routes {
-            let route: &'static str = Box::leak(
-                format!("gateway:{}", pattern).into_boxed_str()
+            let route: &'static str = Box::leak(format!("gateway:{}", pattern).into_boxed_str());
+            limits.insert(
+                pattern.clone(),
+                Limit {
+                    route,
+                    max: rule.burst,
+                    window_secs: 1,
+                },
             );
-            limits.insert(pattern.clone(), Limit {
-                route,
-                max: rule.burst,
-                window_secs: 1,
-            });
         }
         let default_route: &'static str = Box::leak("gateway:default".to_string().into_boxed_str());
         Self {
@@ -110,7 +107,8 @@ impl RouteLimiterSet {
     }
 
     pub async fn check(&self, path: &str, identity: &str) -> Result<(), ()> {
-        let limit = self.limits
+        let limit = self
+            .limits
             .iter()
             .find(|(p, _)| path_matches(p, path))
             .map(|(_, l)| l)
@@ -127,7 +125,12 @@ pub async fn rate_limit_middleware(
     let path = request.uri().path().to_string();
     let identity_key = extract_identity_key(&request);
 
-    if state.route_limiters.check(&path, &identity_key).await.is_err() {
+    if state
+        .route_limiters
+        .check(&path, &identity_key)
+        .await
+        .is_err()
+    {
         if let Some(counter) = RATE_LIMITED_TOTAL.get() {
             counter.with_label_values(&[&path]).inc();
         }
@@ -138,10 +141,9 @@ pub async fn rate_limit_middleware(
             "retry_after_ms": 1000u64,
         });
         let mut response = (StatusCode::TOO_MANY_REQUESTS, axum::Json(body)).into_response();
-        response.headers_mut().insert(
-            "Retry-After",
-            HeaderValue::from_static("1"),
-        );
+        response
+            .headers_mut()
+            .insert("Retry-After", HeaderValue::from_static("1"));
         return response;
     }
     next.run(request).await

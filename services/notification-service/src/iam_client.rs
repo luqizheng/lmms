@@ -65,11 +65,7 @@ impl IamMemberClient {
         since = "5B-fu3",
         note = "use db.resolve_users_by_scopes (local projection); kept for CrossTenant (platform admin) only"
     )]
-    pub async fn by_role(
-        &self,
-        role_id: &str,
-        tenant_id: i64,
-    ) -> Result<Vec<String>, AppError> {
+    pub async fn by_role(&self, role_id: &str, tenant_id: i64) -> Result<Vec<String>, AppError> {
         warn!(target: "deprecated", "IamMemberClient::by_role called; migrate to ntf_user_projection. Removal planned Roadmap 2.0.");
         let url = format!(
             "{}/iam/internal/users/by-role/{}?size=1000&tenant_id={}",
@@ -83,11 +79,7 @@ impl IamMemberClient {
         since = "5B-fu3",
         note = "use db.resolve_users_by_scopes (local projection); kept for CrossTenant (platform admin) only"
     )]
-    pub async fn by_dept(
-        &self,
-        dept_id: &str,
-        tenant_id: i64,
-    ) -> Result<Vec<String>, AppError> {
+    pub async fn by_dept(&self, dept_id: &str, tenant_id: i64) -> Result<Vec<String>, AppError> {
         warn!(target: "deprecated", "IamMemberClient::by_dept called; migrate to ntf_user_projection. Removal planned Roadmap 2.0.");
         let url = format!(
             "{}/iam/internal/users/by-dept/{}?size=1000&tenant_id={}",
@@ -154,9 +146,8 @@ impl IamMemberClient {
                 format!("status {}", resp.status.as_u16()),
             ));
         }
-        let body: MembershipBootstrap = serde_json::from_slice(&resp.body).map_err(|e| {
-            AppError::external("IAM_FAIL", format!("decode response: {}", e))
-        })?;
+        let body: MembershipBootstrap = serde_json::from_slice(&resp.body)
+            .map_err(|e| AppError::external("IAM_FAIL", format!("decode response: {}", e)))?;
         Ok(body)
     }
 
@@ -185,9 +176,8 @@ impl IamMemberClient {
             ));
         }
 
-        let body: UserList = serde_json::from_slice(&resp.body).map_err(|e| {
-            AppError::external("IAM_FAIL", format!("decode response: {}", e))
-        })?;
+        let body: UserList = serde_json::from_slice(&resp.body)
+            .map_err(|e| AppError::external("IAM_FAIL", format!("decode response: {}", e)))?;
         Ok(body.items)
     }
 }

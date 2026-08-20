@@ -9,8 +9,12 @@ pub struct UserListQuery {
     pub size: u32,
 }
 
-fn default_page() -> u32 { 1 }
-fn default_size() -> u32 { 100 }
+fn default_page() -> u32 {
+    1
+}
+fn default_size() -> u32 {
+    100
+}
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct UserIdListResponse {

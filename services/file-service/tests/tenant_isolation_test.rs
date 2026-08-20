@@ -33,10 +33,7 @@ async fn setup() -> Ctx {
     Ctx { app, pool }
 }
 
-fn build_app(
-    pool: sqlx::MySqlPool,
-    storage: Arc<dyn ObjectStore>,
-) -> axum::Router {
+fn build_app(pool: sqlx::MySqlPool, storage: Arc<dyn ObjectStore>) -> axum::Router {
     // 测试中 jwt 由测试代码用临时生成的 RSA key 签发，jwks 不参与验签链路；
     // 仅为了让 create_state 满足 5 参签名。
     let http = reqwest::Client::builder()
@@ -132,7 +129,12 @@ async fn platform_admin_cross_tenant_file() {
             String::from_utf8_lossy(&body)
         )
     });
-    assert_eq!(st, StatusCode::OK, "platform_admin must read t1 file: body={:?}", info);
+    assert_eq!(
+        st,
+        StatusCode::OK,
+        "platform_admin must read t1 file: body={:?}",
+        info
+    );
     assert_eq!(info["tenant_id"], 1);
 
     let resp = ctx
@@ -194,7 +196,11 @@ async fn platform_admin_cross_tenant_file() {
         )
         .await
         .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK, "tenant-1 user reads own file");
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "tenant-1 user reads own file"
+    );
 
     // 4. tenant-2 user cannot read t1 file
     let t2_token = make_token("user-2", 2, false);

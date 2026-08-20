@@ -79,7 +79,10 @@ impl JWKSCache {
     }
 
     pub fn get(&self, kid: &str) -> Option<DecodingKey> {
-        self.inner.try_read().ok().and_then(|g| g.keys.get(kid).cloned())
+        self.inner
+            .try_read()
+            .ok()
+            .and_then(|g| g.keys.get(kid).cloned())
     }
 
     /// Convenience: get the key with kid="default". None if not present.
@@ -103,10 +106,7 @@ impl JWKSCache {
         Ok(())
     }
 
-    pub fn spawn_refresh_loop(
-        self: Arc<Self>,
-        mut shutdown: tokio::sync::watch::Receiver<bool>,
-    ) {
+    pub fn spawn_refresh_loop(self: Arc<Self>, mut shutdown: tokio::sync::watch::Receiver<bool>) {
         tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -211,8 +211,8 @@ pub fn parse_jwks(json: &str) -> Result<HashMap<String, DecodingKey>, JwksError>
         n: Option<String>,
         e: Option<String>,
     }
-    let parsed: Jwks = serde_json::from_str(json)
-        .map_err(|e| JwksError::ParseFailed(e.to_string()))?;
+    let parsed: Jwks =
+        serde_json::from_str(json).map_err(|e| JwksError::ParseFailed(e.to_string()))?;
     let mut out = HashMap::new();
     for jwk in parsed.keys {
         if jwk.kty != "RSA" {

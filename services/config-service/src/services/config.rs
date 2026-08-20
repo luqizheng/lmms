@@ -1,6 +1,10 @@
 use crate::error::{AppError, AppErrorExt, AppResult};
-use crate::models::config_item::{ConfigItem, CreateConfigItem, PagedConfigItems, QueryConfigItems, UpdateConfigItem};
-use crate::models::namespace::{CreateNamespace, Namespace, PagedNamespaces, QueryNamespaces, UpdateNamespace};
+use crate::models::config_item::{
+    ConfigItem, CreateConfigItem, PagedConfigItems, QueryConfigItems, UpdateConfigItem,
+};
+use crate::models::namespace::{
+    CreateNamespace, Namespace, PagedNamespaces, QueryNamespaces, UpdateNamespace,
+};
 use crate::models::version::{ConfigVersion, PagedVersions, QueryVersions};
 use digua_common_db::WithTenantScope;
 use digua_common_jwt::JWKSCache;
@@ -21,9 +25,15 @@ impl ConfigService {
         Self { pool, jwks }
     }
 
-    pub fn pool_ref(&self) -> &MySqlPool { &self.pool }
+    pub fn pool_ref(&self) -> &MySqlPool {
+        &self.pool
+    }
 
-    pub async fn create_namespace(&self, ns: CreateNamespace, scope: &TenantScope) -> AppResult<Namespace> {
+    pub async fn create_namespace(
+        &self,
+        ns: CreateNamespace,
+        scope: &TenantScope,
+    ) -> AppResult<Namespace> {
         let tenant_id = scope.tenant_id().unwrap_or(1) as u64;
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
@@ -56,7 +66,11 @@ impl ConfigService {
         })
     }
 
-    pub async fn query_namespaces(&self, query: QueryNamespaces, scope: &TenantScope) -> AppResult<PagedNamespaces> {
+    pub async fn query_namespaces(
+        &self,
+        query: QueryNamespaces,
+        scope: &TenantScope,
+    ) -> AppResult<PagedNamespaces> {
         let page = query.page.unwrap_or(1).max(1);
         let size = query.size.unwrap_or(20).min(100);
         let offset = (page - 1) * size;
@@ -68,10 +82,18 @@ impl ConfigService {
         qb.push(" OFFSET ");
         qb.push_bind(offset);
 
-        let namespaces: Vec<Namespace> = qb.build_query_as::<Namespace>().fetch_all(&self.pool).await?;
+        let namespaces: Vec<Namespace> = qb
+            .build_query_as::<Namespace>()
+            .fetch_all(&self.pool)
+            .await?;
         let total = namespaces.len() as i64;
 
-        Ok(PagedNamespaces { items: namespaces, total, page, size })
+        Ok(PagedNamespaces {
+            items: namespaces,
+            total,
+            page,
+            size,
+        })
     }
 
     pub async fn get_namespace(&self, id: &str, scope: &TenantScope) -> AppResult<Namespace> {
@@ -79,12 +101,20 @@ impl ConfigService {
         qb.where_id(id);
         qb.and_tenant(scope);
 
-        let ns: Option<Namespace> = qb.build_query_as::<Namespace>().fetch_optional(&self.pool).await?;
+        let ns: Option<Namespace> = qb
+            .build_query_as::<Namespace>()
+            .fetch_optional(&self.pool)
+            .await?;
 
         ns.ok_or_else(|| AppError::namespace_not_found(id))
     }
 
-    pub async fn update_namespace(&self, id: &str, update: UpdateNamespace, scope: &TenantScope) -> AppResult<Namespace> {
+    pub async fn update_namespace(
+        &self,
+        id: &str,
+        update: UpdateNamespace,
+        scope: &TenantScope,
+    ) -> AppResult<Namespace> {
         let now = chrono::Utc::now();
 
         let mut qb = QueryBuilder::new("UPDATE cfg_namespaces SET description = ");
@@ -106,12 +136,19 @@ impl ConfigService {
         Ok(())
     }
 
-    pub async fn create_config_item(&self, item: CreateConfigItem, scope: &TenantScope) -> AppResult<ConfigItem> {
+    pub async fn create_config_item(
+        &self,
+        item: CreateConfigItem,
+        scope: &TenantScope,
+    ) -> AppResult<ConfigItem> {
         // check-tenant-scope: delegated (namespace ownership enforced by and_tenant in get/verify)
         let mut qb = QueryBuilder::new("SELECT id FROM cfg_namespaces");
         qb.where_id(&item.namespace_id);
         qb.and_tenant(scope);
-        let exists: Option<(String,)> = qb.build_query_as::<(String,)>().fetch_optional(&self.pool).await?;
+        let exists: Option<(String,)> = qb
+            .build_query_as::<(String,)>()
+            .fetch_optional(&self.pool)
+            .await?;
         if exists.is_none() {
             return Err(AppError::namespace_not_found(&item.namespace_id));
         }
@@ -150,7 +187,11 @@ impl ConfigService {
         })
     }
 
-    pub async fn query_config_items(&self, query: QueryConfigItems, scope: &TenantScope) -> AppResult<PagedConfigItems> {
+    pub async fn query_config_items(
+        &self,
+        query: QueryConfigItems,
+        scope: &TenantScope,
+    ) -> AppResult<PagedConfigItems> {
         let page = query.page.unwrap_or(1).max(1);
         let size = query.size.unwrap_or(20).min(100);
         let offset = (page - 1) * size;
@@ -177,10 +218,18 @@ impl ConfigService {
         qb.push(" OFFSET ");
         qb.push_bind(offset);
 
-        let items: Vec<ConfigItem> = qb.build_query_as::<ConfigItem>().fetch_all(&self.pool).await?;
+        let items: Vec<ConfigItem> = qb
+            .build_query_as::<ConfigItem>()
+            .fetch_all(&self.pool)
+            .await?;
         let total = items.len() as i64;
 
-        Ok(PagedConfigItems { items, total, page, size })
+        Ok(PagedConfigItems {
+            items,
+            total,
+            page,
+            size,
+        })
     }
 
     pub async fn get_config_item(&self, id: &str, scope: &TenantScope) -> AppResult<ConfigItem> {
@@ -197,12 +246,20 @@ impl ConfigService {
             TenantScope::CrossTenant => {}
         }
 
-        let item: Option<ConfigItem> = qb.build_query_as::<ConfigItem>().fetch_optional(&self.pool).await?;
+        let item: Option<ConfigItem> = qb
+            .build_query_as::<ConfigItem>()
+            .fetch_optional(&self.pool)
+            .await?;
 
         item.ok_or_else(|| AppError::config_not_found(id))
     }
 
-    pub async fn update_config_item(&self, id: &str, update: UpdateConfigItem, scope: &TenantScope) -> AppResult<ConfigItem> {
+    pub async fn update_config_item(
+        &self,
+        id: &str,
+        update: UpdateConfigItem,
+        scope: &TenantScope,
+    ) -> AppResult<ConfigItem> {
         let now = chrono::Utc::now();
 
         let mut qb = QueryBuilder::new(
@@ -248,7 +305,11 @@ impl ConfigService {
         Ok(())
     }
 
-    pub async fn query_versions(&self, query: QueryVersions, scope: &TenantScope) -> AppResult<PagedVersions> {
+    pub async fn query_versions(
+        &self,
+        query: QueryVersions,
+        scope: &TenantScope,
+    ) -> AppResult<PagedVersions> {
         let page = query.page.unwrap_or(1).max(1);
         let size = query.size.unwrap_or(20).min(100);
         let offset = (page - 1) * size;
@@ -275,9 +336,17 @@ impl ConfigService {
         qb.push(" OFFSET ");
         qb.push_bind(offset);
 
-        let versions: Vec<ConfigVersion> = qb.build_query_as::<ConfigVersion>().fetch_all(&self.pool).await?;
+        let versions: Vec<ConfigVersion> = qb
+            .build_query_as::<ConfigVersion>()
+            .fetch_all(&self.pool)
+            .await?;
         let total = versions.len() as i64;
 
-        Ok(PagedVersions { items: versions, total, page, size })
+        Ok(PagedVersions {
+            items: versions,
+            total,
+            page,
+            size,
+        })
     }
 }

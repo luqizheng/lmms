@@ -21,7 +21,12 @@ pub struct RetryPolicy {
 
 impl RetryPolicy {
     pub fn new(max_attempts: u32, base_delay: Duration, max_delay: Duration, jitter: f64) -> Self {
-        Self { max_attempts, base_delay, max_delay, jitter }
+        Self {
+            max_attempts,
+            base_delay,
+            max_delay,
+            jitter,
+        }
     }
 
     pub fn delay_for(&self, attempt: u32) -> Duration {
@@ -100,12 +105,14 @@ mod tests {
         assert!(!p.should_retry_status(1, StatusCode::BAD_GATEWAY, &Method::POST)); // 非幂等
         assert!(!p.should_retry_status(1, StatusCode::INTERNAL_SERVER_ERROR, &Method::GET)); // 500
         assert!(!p.should_retry_status(1, StatusCode::OK, &Method::GET)); // 2xx
-        assert!(!p.should_retry_status(1, StatusCode::BAD_REQUEST, &Method::GET)); // 4xx
+        assert!(!p.should_retry_status(1, StatusCode::BAD_REQUEST, &Method::GET));
+        // 4xx
     }
 
     #[test]
     fn exhausted_attempts_no_retry() {
         let p = p();
-        assert!(!p.should_retry_err(3, &ResilientError::Timeout, &Method::GET)); // attempt==max
+        assert!(!p.should_retry_err(3, &ResilientError::Timeout, &Method::GET));
+        // attempt==max
     }
 }

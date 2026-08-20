@@ -1,6 +1,6 @@
-use sqlx::{FromRow, Type};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, Type};
 use std::fmt;
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
@@ -30,12 +30,24 @@ pub struct User {
 pub struct UserStatus(pub String);
 
 impl UserStatus {
-    pub fn active() -> Self { Self("active".to_string()) }
-    pub fn disabled() -> Self { Self("disabled".to_string()) }
-    pub fn locked() -> Self { Self("locked".to_string()) }
-    pub fn is_active(&self) -> bool { self.0 == "active" }
-    pub fn is_disabled(&self) -> bool { self.0 == "disabled" }
-    pub fn is_locked(&self) -> bool { self.0 == "locked" }
+    pub fn active() -> Self {
+        Self("active".to_string())
+    }
+    pub fn disabled() -> Self {
+        Self("disabled".to_string())
+    }
+    pub fn locked() -> Self {
+        Self("locked".to_string())
+    }
+    pub fn is_active(&self) -> bool {
+        self.0 == "active"
+    }
+    pub fn is_disabled(&self) -> bool {
+        self.0 == "disabled"
+    }
+    pub fn is_locked(&self) -> bool {
+        self.0 == "locked"
+    }
 }
 
 impl fmt::Display for UserStatus {

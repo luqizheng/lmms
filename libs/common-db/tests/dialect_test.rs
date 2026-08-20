@@ -2,12 +2,18 @@ use digua_common_db::dialect::DialectKind;
 
 #[test]
 fn dialect_from_dameng_url() {
-    assert_eq!(DialectKind::from_url("dameng://user:pwd@host:5236/db"), DialectKind::Dameng);
+    assert_eq!(
+        DialectKind::from_url("dameng://user:pwd@host:5236/db"),
+        DialectKind::Dameng
+    );
 }
 
 #[test]
 fn dialect_from_mssql_url() {
-    assert_eq!(DialectKind::from_url("mssql://sa:pwd@host:1433/master"), DialectKind::Mssql);
+    assert_eq!(
+        DialectKind::from_url("mssql://sa:pwd@host:1433/master"),
+        DialectKind::Mssql
+    );
 }
 
 #[test]
@@ -39,25 +45,37 @@ fn dialect_now_expr() {
 #[test]
 fn dialect_escape_identifier_mysql() {
     assert_eq!(DialectKind::Mysql.escape_identifier("user"), "`user`");
-    assert_eq!(DialectKind::Mysql.escape_identifier("user`name"), "`user``name`");
+    assert_eq!(
+        DialectKind::Mysql.escape_identifier("user`name"),
+        "`user``name`"
+    );
 }
 
 #[test]
 fn dialect_escape_identifier_sqlite() {
     assert_eq!(DialectKind::Sqlite.escape_identifier("user"), "\"user\"");
-    assert_eq!(DialectKind::Sqlite.escape_identifier("user\"name"), "\"user\"\"name\"");
+    assert_eq!(
+        DialectKind::Sqlite.escape_identifier("user\"name"),
+        "\"user\"\"name\""
+    );
 }
 
 #[test]
 fn dialect_escape_identifier_mssql() {
     assert_eq!(DialectKind::Mssql.escape_identifier("user"), "[user]");
-    assert_eq!(DialectKind::Mssql.escape_identifier("user]name"), "[user]]name]");
+    assert_eq!(
+        DialectKind::Mssql.escape_identifier("user]name"),
+        "[user]]name]"
+    );
 }
 
 #[test]
 fn dialect_escape_identifier_dameng() {
     assert_eq!(DialectKind::Dameng.escape_identifier("user"), "\"user\"");
-    assert_eq!(DialectKind::Dameng.escape_identifier("user\"name"), "\"user\"\"name\"");
+    assert_eq!(
+        DialectKind::Dameng.escape_identifier("user\"name"),
+        "\"user\"\"name\""
+    );
 }
 
 #[test]

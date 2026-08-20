@@ -169,7 +169,6 @@ fn wrong_issuer_fails_verification() {
     let public_key = RS256PublicKey::from_pem(&public_pem).unwrap();
     let mut options = VerificationOptions::default();
     options.allowed_issuers = Some(HashSet::from(["other-issuer".to_string()]));
-    let res = public_key
-        .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
+    let res = public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
     assert!(res.is_err(), "issuer 不匹配必须验签失败");
 }

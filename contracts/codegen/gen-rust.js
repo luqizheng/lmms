@@ -76,6 +76,7 @@ function generateRust(data) {
   lines.push('        _ => ErrorKind::Internal,');
   lines.push('    }');
   lines.push('}');
+  lines.push('');
 
   return lines.join('\n');
 }

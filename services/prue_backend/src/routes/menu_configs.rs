@@ -19,7 +19,10 @@ use crate::{
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/get-async-routes", get(get_async_routes))
-        .route("/pure/menu-configs", get(list_menu_configs).post(create_menu_config))
+        .route(
+            "/pure/menu-configs",
+            get(list_menu_configs).post(create_menu_config),
+        )
         .route(
             "/pure/menu-configs/{id}",
             get(get_menu_config)
@@ -40,7 +43,9 @@ pub fn routes(state: AppState) -> Router {
     ),
     tag = "menu-configs"
 )]
-pub async fn get_async_routes(State(state): State<AppState>) -> AppResult<Json<ApiResponse<Value>>> {
+pub async fn get_async_routes(
+    State(state): State<AppState>,
+) -> AppResult<Json<ApiResponse<Value>>> {
     let service = MenuConfigService::new(state);
     let routes = service.active_routes().await?;
     Ok(Json(ApiResponse::ok(routes)))

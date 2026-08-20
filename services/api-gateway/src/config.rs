@@ -98,12 +98,15 @@ pub struct EgressTarget {
 
 fn default_egress_map() -> HashMap<String, EgressTarget> {
     let mut m = HashMap::new();
-    let svc = |host: &str| EgressTarget { host: host.into(), port: 8080 };
-    m.insert("iam-service".into(),          svc("iam-service"));
-    m.insert("token-service".into(),        svc("token-service"));
+    let svc = |host: &str| EgressTarget {
+        host: host.into(),
+        port: 8080,
+    };
+    m.insert("iam-service".into(), svc("iam-service"));
+    m.insert("token-service".into(), svc("token-service"));
     m.insert("notification-service".into(), svc("notification-service"));
-    m.insert("audit-service".into(),        svc("audit-service"));
-    m.insert("prue_backend".into(),         svc("prue_backend"));
+    m.insert("audit-service".into(), svc("audit-service"));
+    m.insert("prue_backend".into(), svc("prue_backend"));
     m
 }
 
@@ -152,8 +155,8 @@ impl Default for GatewayConfig {
 /// paths (e.g. `/etc/gateway/api-gateway.toml`). Uses `File::from` so the
 /// format is auto-detected from the file extension.
 pub fn load_config(path: impl AsRef<std::path::Path>) -> Result<GatewayConfig, String> {
-    let builder = ::config::Config::builder()
-        .add_source(::config::File::from(path.as_ref()).required(false));
+    let builder =
+        ::config::Config::builder().add_source(::config::File::from(path.as_ref()).required(false));
     let cfg = builder
         .build()
         .map_err(|e| format!("api-gateway config build failed: {e}"))?
@@ -284,7 +287,10 @@ mod tests {
         let cfg: RouteFile = toml::from_str(toml).unwrap();
         let r = &cfg.route[0];
         assert!(r.ws);
-        assert_eq!(r.headers.get("X-Source").map(String::as_str), Some("gateway"));
+        assert_eq!(
+            r.headers.get("X-Source").map(String::as_str),
+            Some("gateway")
+        );
     }
 
     #[test]
@@ -321,7 +327,10 @@ mod tests {
             ("GW_REDIS_URL", "redis://r/2"),
             ("GW_REDIS_PREFIX", "gw:"),
             ("GW_CONSUL_ADDR", "http://consul:8500"),
-            ("GW_JWKS_URL", "http://token-service:8082/.well-known/jwks.json"),
+            (
+                "GW_JWKS_URL",
+                "http://token-service:8082/.well-known/jwks.json",
+            ),
             ("GW_ISSUER", "acme"),
             ("GW_ROUTES_DIR", "/etc/gw/routes"),
             ("GW_EVENT_BUS_URL", "amqp://user:pw@rmq:5672/%2f"),
@@ -333,7 +342,10 @@ mod tests {
         assert_eq!(cfg.redis.url, "redis://r/2");
         assert_eq!(cfg.redis.prefix, "gw:");
         assert_eq!(cfg.consul_addr, "http://consul:8500");
-        assert_eq!(cfg.jwks_url, "http://token-service:8082/.well-known/jwks.json");
+        assert_eq!(
+            cfg.jwks_url,
+            "http://token-service:8082/.well-known/jwks.json"
+        );
         assert_eq!(cfg.issuer, "acme");
         assert_eq!(cfg.routes_dir, "/etc/gw/routes");
         assert_eq!(cfg.event_bus_url, "amqp://user:pw@rmq:5672/%2f");

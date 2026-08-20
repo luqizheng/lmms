@@ -76,7 +76,13 @@ pub async fn forward_to_service(
         }
         None => {
             cfg.resilient
-                .call(service_name, parts.method, &target_url, &parts.headers, bytes)
+                .call(
+                    service_name,
+                    parts.method,
+                    &target_url,
+                    &parts.headers,
+                    bytes,
+                )
                 .await
         }
     };
@@ -175,7 +181,11 @@ async fn forward_streaming(
             (StatusCode::GATEWAY_TIMEOUT, "upstream timeout").into_response()
         }
         Err(ResilientError::Connect(e)) => {
-            tracing::warn!("streaming forward to {} connect error: {:?}", service_name, e);
+            tracing::warn!(
+                "streaming forward to {} connect error: {:?}",
+                service_name,
+                e
+            );
             (StatusCode::BAD_GATEWAY, "upstream error").into_response()
         }
     }

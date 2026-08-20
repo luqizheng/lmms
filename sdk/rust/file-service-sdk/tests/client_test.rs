@@ -1,6 +1,6 @@
-use std::sync::{Arc, Mutex};
 use digua_file_sdk::{CreatePresignUrl, FileClient, ListFilesQuery};
 use serde_json::json;
+use std::sync::{Arc, Mutex};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -64,7 +64,10 @@ async fn list_files_builds_query_and_parses_paged_response() {
         .unwrap();
     assert_eq!(page.total, 1);
     assert_eq!(page.items[0].filename, "report.pdf");
-    assert_eq!(page.items[0].content_type.as_deref(), Some("application/pdf"));
+    assert_eq!(
+        page.items[0].content_type.as_deref(),
+        Some("application/pdf")
+    );
 }
 
 #[tokio::test]
@@ -105,7 +108,10 @@ async fn presign_401_maps_to_auth_error() {
         operation: "upload".into(),
         expires_in_seconds: None,
     };
-    let err = client.create_presign(&req).await.expect_err("expected Auth");
+    let err = client
+        .create_presign(&req)
+        .await
+        .expect_err("expected Auth");
     match err {
         digua_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
         other => panic!("expected Auth, got {:?}", other),

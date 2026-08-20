@@ -75,17 +75,22 @@ pub async fn handle_access(
     // get_claims (chicken-and-egg). The call will 400 and fall through to default claims
     // below. Proper fix: propagate tenant_id through auth_code_svc or a dedicated lookup.
     let claims_url = format!(
-            "{}/internal/users/{}/claims",
-            state.user_service_url, user_id
-        );
-        let user_jwt = headers
-            .get("Authorization")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "));
-        let extra_claims: serde_json::Value = match crate::fetch_json(&state.http_client, "iam-service", &claims_url, user_jwt).await {
+        "{}/internal/users/{}/claims",
+        state.user_service_url, user_id
+    );
+    let user_jwt = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "));
+    let extra_claims: serde_json::Value =
+        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, user_jwt).await {
             Ok(claims) => claims,
             Err(e) => {
-                tracing::warn!("user-service unreachable at {}: {}, using default claims", claims_url, e);
+                tracing::warn!(
+                    "user-service unreachable at {}: {}, using default claims",
+                    claims_url,
+                    e
+                );
                 serde_json::json!({
                     "roles": ["admin"],
                     "permissions": ["notification.admin"]

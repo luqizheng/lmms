@@ -1,8 +1,8 @@
+pub use aes_gcm::Aes256Gcm;
 use aes_gcm::{
     aead::{Aead as _, AeadCore, KeyInit, OsRng},
     Key, Nonce,
 };
-pub use aes_gcm::Aes256Gcm;
 use digua_common_error::{AppError, AppResult};
 
 pub fn gen_key() -> [u8; 32] {

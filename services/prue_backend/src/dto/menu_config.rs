@@ -119,7 +119,9 @@ fn validate_route(
     }
 
     if let Some(children) = obj.get("children") {
-        let child_routes = children.as_array().ok_or("route.children must be an array")?;
+        let child_routes = children
+            .as_array()
+            .ok_or("route.children must be an array")?;
         for child in child_routes {
             validate_route(child, paths, names)?;
         }

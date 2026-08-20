@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use digua_common_jwt;
-    use iam_service::{config::load_config, db, state::AppState};
     use digua_common_cache::MemoryCache;
     use digua_common_event::MySqlOutboxRepo;
+    use digua_common_jwt;
+    use iam_service::{config::load_config, db, state::AppState};
     use std::sync::Arc;
 
     #[tokio::test]
@@ -18,7 +18,9 @@ mod tests {
         // 测试 AppState 创建
         let config = load_config().unwrap();
         let cache = MemoryCache::new(10000);
-        let pool = sqlx::mysql::MySqlPool::connect_lazy("mysql://root:password@localhost:3306/test").unwrap();
+        let pool =
+            sqlx::mysql::MySqlPool::connect_lazy("mysql://root:password@localhost:3306/test")
+                .unwrap();
         let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
         let jwks = Arc::new(digua_common_jwt::JWKSCache::new(
             digua_common_jwt::JwksConfig {
@@ -41,7 +43,13 @@ mod tests {
             String::new(),
         ));
         let state = AppState::new(
-            pool, cache, config.clone(), None, outbox_repo, jwks, service_jwt,
+            pool,
+            cache,
+            config.clone(),
+            None,
+            outbox_repo,
+            jwks,
+            service_jwt,
         );
         assert!(state.config.app.name == config.app.name);
     }

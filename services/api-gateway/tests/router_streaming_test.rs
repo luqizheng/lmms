@@ -79,10 +79,7 @@ async fn non_ws_forward_buffers_response() {
     use axum::routing::get;
     use tokio::net::TcpListener;
 
-    let app = axum::Router::new().route(
-        "/x",
-        get(|| async { (StatusCode::OK, "hello") }),
-    );
+    let app = axum::Router::new().route("/x", get(|| async { (StatusCode::OK, "hello") }));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {

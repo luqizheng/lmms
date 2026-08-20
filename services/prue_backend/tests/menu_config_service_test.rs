@@ -1,5 +1,5 @@
 use digua_common_db::init_pool;
-use digua_common_jwt::{JwksConfig, JWKSCache};
+use digua_common_jwt::{JWKSCache, JwksConfig};
 use prue_backend::{
     db,
     dto::{CreateMenuConfigRequest, UpdateMenuConfigRequest},

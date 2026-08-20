@@ -1,4 +1,4 @@
-use anyhow::{Context, bail};
+use anyhow::{bail, Context};
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
@@ -111,7 +111,9 @@ impl AppConfig {
             max_file_size: default_max_file_size(),
             s3_bucket: default_s3_bucket(),
             s3_region: default_s3_region(),
-            s3_endpoint: std::env::var("S3_ENDPOINT").ok().filter(|v| !v.trim().is_empty()),
+            s3_endpoint: std::env::var("S3_ENDPOINT")
+                .ok()
+                .filter(|v| !v.trim().is_empty()),
             s3_access_key: std::env::var("S3_ACCESS_KEY")
                 .ok()
                 .filter(|v| !v.trim().is_empty()),

@@ -49,8 +49,14 @@ fn rule_for_supports_wildcard_suffix() {
         },
         routes,
     };
-    assert_eq!(cfg.rule_for("/v1/pure/menu-configs").requests_per_second, 20);
-    assert_eq!(cfg.rule_for("/v1/pure/anything/deep").requests_per_second, 20);
+    assert_eq!(
+        cfg.rule_for("/v1/pure/menu-configs").requests_per_second,
+        20
+    );
+    assert_eq!(
+        cfg.rule_for("/v1/pure/anything/deep").requests_per_second,
+        20
+    );
     // Non-matching path falls back
     assert_eq!(cfg.rule_for("/v1/iam/users").requests_per_second, 100);
 }

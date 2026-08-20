@@ -187,7 +187,10 @@ pub async fn handle_create(
         .0
         .into_iter()
         .next()
-        .ok_or((StatusCode::INTERNAL_SERVER_ERROR, "client missing after insert"))?;
+        .ok_or((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "client missing after insert",
+        ))?;
 
     Ok(Json(CreateResponse {
         client_id,

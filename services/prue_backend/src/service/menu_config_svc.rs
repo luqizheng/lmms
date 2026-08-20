@@ -122,7 +122,9 @@ impl MenuConfigService {
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty())
-            .ok_or_else(|| AppError::Validation("if_match_etag is required for updates".to_string()))?;
+            .ok_or_else(|| {
+                AppError::Validation("if_match_etag is required for updates".to_string())
+            })?;
 
         if if_match != existing.routes_etag {
             return Err(AppError::EtagConflict {
@@ -183,9 +185,11 @@ impl MenuConfigService {
         match self.state.db.as_ref() {
             DbPool::Mysql(pool) => {
                 let mut tx = pool.begin().await?;
-                sqlx::query("UPDATE prue_menu_configs SET is_active = false WHERE deleted_at IS NULL")
-                    .execute(&mut *tx)
-                    .await?;
+                sqlx::query(
+                    "UPDATE prue_menu_configs SET is_active = false WHERE deleted_at IS NULL",
+                )
+                .execute(&mut *tx)
+                .await?;
                 sqlx::query("UPDATE prue_menu_configs SET status = 'published', is_active = true, published_at = NOW(), updated_at = NOW() WHERE id = ? AND deleted_at IS NULL")
                     .bind(id)
                     .execute(&mut *tx)
@@ -317,8 +321,18 @@ impl MenuConfigService {
             SELECT_FIELDS_SQLITE
         );
         let row: Option<MenuConfigRow> = match self.state.db.as_ref() {
-            DbPool::Mysql(pool) => sqlx::query_as(&mysql_sql).bind(id).fetch_optional(pool).await?,
-            DbPool::Sqlite(pool) => sqlx::query_as(&sqlite_sql).bind(id).fetch_optional(pool).await?,
+            DbPool::Mysql(pool) => {
+                sqlx::query_as(&mysql_sql)
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?
+            }
+            DbPool::Sqlite(pool) => {
+                sqlx::query_as(&sqlite_sql)
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?
+            }
         };
 
         row.ok_or(AppError::NotFound)

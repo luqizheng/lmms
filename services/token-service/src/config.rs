@@ -126,8 +126,9 @@ impl Default for Config {
 /// dev instance if every deployment-critical field is provided via env).
 pub fn load_config(path: &str) -> Result<Config> {
     match fs::read_to_string(path) {
-        Ok(raw) => serde_yaml::from_str::<Config>(&raw)
-            .with_context(|| format!("parse config {path}")),
+        Ok(raw) => {
+            serde_yaml::from_str::<Config>(&raw).with_context(|| format!("parse config {path}"))
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             tracing::warn!(
                 path = path,
@@ -557,8 +558,7 @@ database:
         )
         .unwrap();
         // No env at all → validation should fail with jwt / issuer / user_service_url absent.
-        let err =
-            load_config_with_env(path.to_str().unwrap(), &env_from(&[])).unwrap_err();
+        let err = load_config_with_env(path.to_str().unwrap(), &env_from(&[])).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("database.url"), "err: {msg}");
         assert!(msg.contains("issuer"), "err: {msg}");

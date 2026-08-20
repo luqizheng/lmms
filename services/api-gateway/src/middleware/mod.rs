@@ -3,8 +3,8 @@ use crate::AppState;
 use crate::RouteConfig;
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum::http::Request;
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use digua_common_jwt;
@@ -37,24 +37,54 @@ fn extract_claims_from_value(claims: &Value) -> JwtClaims {
     let client_id = claims["client_id"].as_str().unwrap_or("").to_string();
     let permissions: Vec<String> = claims["permissions"]
         .as_array()
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let roles: Vec<String> = claims["roles"]
         .as_array()
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let custom: HashMap<String, Value> = claims
         .as_object()
         .map(|obj| {
             obj.iter()
                 .filter(|(k, _)| {
-                    !matches!(k.as_str(), "sub" | "jti" | "iss" | "iat" | "exp" | "scope" | "client_id" | "permissions" | "roles")
+                    !matches!(
+                        k.as_str(),
+                        "sub"
+                            | "jti"
+                            | "iss"
+                            | "iat"
+                            | "exp"
+                            | "scope"
+                            | "client_id"
+                            | "permissions"
+                            | "roles"
+                    )
                 })
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect()
         })
         .unwrap_or_default();
-    JwtClaims { sub, jti, iss, iat, exp, scope, client_id, permissions, roles, custom }
+    JwtClaims {
+        sub,
+        jti,
+        iss,
+        iat,
+        exp,
+        scope,
+        client_id,
+        permissions,
+        roles,
+        custom,
+    }
 }
 
 pub mod rate_limit;
@@ -142,11 +172,13 @@ pub async fn auth_middleware(
 
     let token = match token {
         Some(t) => t,
-        None => return (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization header or ?token= query",
-        )
-            .into_response(),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                "Missing Authorization header or ?token= query",
+            )
+                .into_response()
+        }
     };
 
     let claims_value = match digua_common_jwt::verify_token(&token, &state.jwks_cache, None).await {
@@ -164,13 +196,14 @@ pub async fn auth_middleware(
     }
 
     let mut conn: MultiplexedConnection = state.redis_conn.clone();
-    let blacklisted = match crate::blacklist::is_blacklisted(&mut conn, &state.redis_prefix, &claims.jti).await {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::warn!(error = %e, "blacklist check error, failing open");
-            false
-        }
-    };
+    let blacklisted =
+        match crate::blacklist::is_blacklisted(&mut conn, &state.redis_prefix, &claims.jti).await {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!(error = %e, "blacklist check error, failing open");
+                false
+            }
+        };
     if blacklisted {
         return (StatusCode::UNAUTHORIZED, "Token revoked").into_response();
     }
@@ -180,12 +213,23 @@ pub async fn auth_middleware(
     let epoch = if hit {
         cached_epoch
     } else {
-        let epoch = digua_common_event::perm_epoch::get_perm_epoch(&mut conn, &state.redis_prefix, &claims.sub).await.ok().flatten();
+        let epoch = digua_common_event::perm_epoch::get_perm_epoch(
+            &mut conn,
+            &state.redis_prefix,
+            &claims.sub,
+        )
+        .await
+        .ok()
+        .flatten();
         state.perm_epoch_cache.set(sub_parsed, epoch);
         epoch
     };
     if crate::perm_epoch::is_revoked(epoch, claims.iat) {
-        return (StatusCode::UNAUTHORIZED, "permissions changed, re-authenticate").into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            "permissions changed, re-authenticate",
+        )
+            .into_response();
     }
 
     tracing::debug!(

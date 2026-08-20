@@ -1,4 +1,4 @@
-use audit_service::{config::AppConfig, routes, create_state};
+use audit_service::{config::AppConfig, create_state, routes};
 use digua_common::db::connect;
 use digua_common_jwt::{JWKSCache, JwksConfig};
 use digua_common_telemetry::init_tracing;
@@ -19,7 +19,10 @@ async fn ensure_schema(pool: &sqlx::mysql::MySqlPool) -> anyhow::Result<()> {
     .fetch_one(pool)
     .await?;
     if row.0 > 0 {
-        info!(marker = SCHEMA_MARKER_TABLE, "audit schema present, skip migration");
+        info!(
+            marker = SCHEMA_MARKER_TABLE,
+            "audit schema present, skip migration"
+        );
         return Ok(());
     }
 
@@ -131,7 +134,9 @@ async fn main() -> anyhow::Result<()> {
     let state = create_state(pool, jwks);
 
     let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("Failed to bind");
     info!("audit-service listening on {}", addr);
 
     let app = routes::routes(state);
@@ -143,15 +148,14 @@ async fn main() -> anyhow::Result<()> {
         use utoipa::OpenApi;
         use utoipa_swagger_ui::SwaggerUi;
         info!("swagger ui enabled at /swagger-ui");
-        app.merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", audit_service::openapi::ApiDoc::openapi()),
-        )
+        app.merge(SwaggerUi::new("/swagger-ui").url(
+            "/api-docs/openapi.json",
+            audit_service::openapi::ApiDoc::openapi(),
+        ))
     } else {
         app
     };
 
-    
     tokio::spawn(async move {
         tokio::signal::ctrl_c()
             .await

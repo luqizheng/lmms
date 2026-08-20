@@ -53,10 +53,10 @@ async fn main() -> anyhow::Result<()> {
         use utoipa::OpenApi;
         use utoipa_swagger_ui::SwaggerUi;
         tracing::info!("swagger ui enabled at /swagger-ui");
-        app.merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", prue_backend::openapi::ApiDoc::openapi()),
-        )
+        app.merge(SwaggerUi::new("/swagger-ui").url(
+            "/api-docs/openapi.json",
+            prue_backend::openapi::ApiDoc::openapi(),
+        ))
     } else {
         app
     };
@@ -66,9 +66,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to bind");
 
-    let consul_addr = std::env::var("CONSUL_ADDR")
-        .unwrap_or_else(|_| "http://consul:8500".to_string());
-        tokio::spawn(async move {
+    let consul_addr =
+        std::env::var("CONSUL_ADDR").unwrap_or_else(|_| "http://consul:8500".to_string());
+    tokio::spawn(async move {
         tokio::signal::ctrl_c()
             .await
             .expect("failed to listen for ctrl-c");
@@ -77,8 +77,6 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(0);
     });
 
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
+    axum::serve(listener, app).await.expect("Server error");
     Ok(())
 }

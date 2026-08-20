@@ -4,9 +4,9 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RetentionPolicy {
-    pub hot_days: u32,       // 热数据保留天数（在线）
-    pub warm_days: u32,     // 温数据保留天数（近线）
-    pub cold_days: u32,     // 冷数据保留天数（归档）
+    pub hot_days: u32,  // 热数据保留天数（在线）
+    pub warm_days: u32, // 温数据保留天数（近线）
+    pub cold_days: u32, // 冷数据保留天数（归档）
     pub archive_enabled: bool,
     pub purge_enabled: bool,
 }
@@ -64,9 +64,9 @@ impl RetentionPolicy {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum DataStage {
-    Hot,    // 在线，可查询
-    Warm,   // 近线，归档中
-    Cold,   // 冷归档，查询需恢复
+    Hot,     // 在线，可查询
+    Warm,    // 近线，归档中
+    Cold,    // 冷归档，查询需恢复
     Expired, // 已过期，待清理
 }
 
@@ -146,12 +146,12 @@ mod tests {
     #[test]
     fn test_retention_policy_stages() {
         let policy = RetentionPolicy::default();
-        
+
         let now = Utc::now();
         let recent = now - Duration::days(30);
         let old = now - Duration::days(100);
         let very_old = now - Duration::days(400);
-        
+
         assert_eq!(policy.stage(recent), DataStage::Hot);
         assert_eq!(policy.stage(old), DataStage::Warm);
         assert_eq!(policy.stage(very_old), DataStage::Cold);
@@ -161,17 +161,17 @@ mod tests {
     fn test_retention_stats() {
         let manager = RetentionManager::new();
         let policy = RetentionPolicy::default();
-        
+
         let now = Utc::now();
         let records = vec![
-            now - Duration::days(30), // hot
-            now - Duration::days(30), // hot
+            now - Duration::days(30),  // hot
+            now - Duration::days(30),  // hot
             now - Duration::days(100), // warm
             now - Duration::days(400), // cold
         ];
-        
+
         let stats = manager.classify_records(&records, &policy);
-        
+
         assert_eq!(stats.hot_count, 2);
         assert_eq!(stats.warm_count, 1);
         assert_eq!(stats.cold_count, 1);

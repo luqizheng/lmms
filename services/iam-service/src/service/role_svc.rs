@@ -1,13 +1,13 @@
 use crate::{
+    dto::{CreateRoleRequest, RoleListResponse, RoleQuery, RoleResponse, UpdateRoleRequest},
     error::IamError,
     state::AppState,
-    dto::{CreateRoleRequest, UpdateRoleRequest, RoleQuery, RoleResponse, RoleListResponse},
 };
 use chrono::Utc;
 use digua_common_db::WithTenantScope;
 use digua_jwt_ctx::TenantScope;
 use nanoid::nanoid;
-use sqlx::{FromRow, QueryBuilder, mysql::MySqlQueryResult};
+use sqlx::{mysql::MySqlQueryResult, FromRow, QueryBuilder};
 use std::collections::{BTreeSet, HashSet};
 
 pub struct RoleService {
@@ -32,7 +32,11 @@ impl RoleService {
         Self { state }
     }
 
-    pub async fn create(&self, req: CreateRoleRequest, scope: &TenantScope) -> Result<RoleResponse, IamError> {
+    pub async fn create(
+        &self,
+        req: CreateRoleRequest,
+        scope: &TenantScope,
+    ) -> Result<RoleResponse, IamError> {
         let role_id = nanoid!();
         let data_scope_str = data_scope_to_str(req.data_scope);
         let tid = scope.tenant_id().unwrap_or(1) as u64;
@@ -60,7 +64,10 @@ impl RoleService {
         qb.push_bind(role_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let role: Option<RoleRow> = qb.build_query_as::<RoleRow>().fetch_optional(&self.state.db).await?;
+        let role: Option<RoleRow> = qb
+            .build_query_as::<RoleRow>()
+            .fetch_optional(&self.state.db)
+            .await?;
 
         match role {
             Some(r) => Ok(self.to_response(&r)),
@@ -68,7 +75,11 @@ impl RoleService {
         }
     }
 
-    pub async fn list(&self, query: RoleQuery, scope: &TenantScope) -> Result<RoleListResponse, IamError> {
+    pub async fn list(
+        &self,
+        query: RoleQuery,
+        scope: &TenantScope,
+    ) -> Result<RoleListResponse, IamError> {
         let offset = ((query.page - 1) * query.size) as i64;
         let limit = query.size as i64;
         let tid = scope.tenant_id().unwrap_or(1) as u64;
@@ -96,10 +107,12 @@ impl RoleService {
             .await?
         };
 
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ?")
-            .bind(tid)
-            .fetch_one(&self.state.db)
-            .await?;
+        let count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM iam_roles WHERE deleted_at IS NULL AND tenant_id = ?",
+        )
+        .bind(tid)
+        .fetch_one(&self.state.db)
+        .await?;
 
         Ok(RoleListResponse {
             items: roles.into_iter().map(|r| self.to_response(&r)).collect(),
@@ -122,7 +135,10 @@ impl RoleService {
         qb.push_bind(role_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let role: Option<RoleRow> = qb.build_query_as::<RoleRow>().fetch_optional(&self.state.db).await?;
+        let role: Option<RoleRow> = qb
+            .build_query_as::<RoleRow>()
+            .fetch_optional(&self.state.db)
+            .await?;
 
         let role = match role {
             Some(r) => r,
@@ -149,9 +165,7 @@ impl RoleService {
 
         let mut tx = self.state.db.begin().await?;
         let tid = scope.tenant_id().unwrap_or(1) as u64;
-        let mut qb = QueryBuilder::new(
-            "UPDATE iam_roles SET name = "
-        );
+        let mut qb = QueryBuilder::new("UPDATE iam_roles SET name = ");
         qb.push_bind(&name);
         qb.push(", description = ");
         qb.push_bind(&description);
@@ -196,7 +210,12 @@ impl RoleService {
         self.get(role_id, scope).await
     }
 
-    pub async fn delete(&self, role_id: &str, actor_id: Option<&str>, scope: &TenantScope) -> Result<(), IamError> {
+    pub async fn delete(
+        &self,
+        role_id: &str,
+        actor_id: Option<&str>,
+        scope: &TenantScope,
+    ) -> Result<(), IamError> {
         let user_ids: Vec<String> =
             sqlx::query_scalar("SELECT user_id FROM iam_user_roles WHERE role_id = ?")
                 .bind(role_id)
@@ -205,9 +224,8 @@ impl RoleService {
 
         let mut tx = self.state.db.begin().await?;
         let tid = scope.tenant_id().unwrap_or(1) as u64;
-        let mut qb = QueryBuilder::new(
-            "UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW()",
-        );
+        let mut qb =
+            QueryBuilder::new("UPDATE iam_roles SET deleted_at = NOW(), updated_at = NOW()");
         qb.where_id(role_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
@@ -312,7 +330,10 @@ impl RoleService {
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL FOR UPDATE");
-        let exists: Option<(String,)> = qb.build_query_as::<(String,)>().fetch_optional(&mut *tx).await?;
+        let exists: Option<(String,)> = qb
+            .build_query_as::<(String,)>()
+            .fetch_optional(&mut *tx)
+            .await?;
         if exists.is_none() {
             return Err(IamError::UserNotFound);
         }
@@ -334,7 +355,8 @@ impl RoleService {
             }
             qb.push(") AND status='active' AND deleted_at IS NULL");
             qb.and_tenant(scope);
-            let found: Vec<(String,)> = qb.build_query_as::<(String,)>().fetch_all(&mut *tx).await?;
+            let found: Vec<(String,)> =
+                qb.build_query_as::<(String,)>().fetch_all(&mut *tx).await?;
             let found_set: HashSet<&str> = found.iter().map(|(s,)| s.as_str()).collect();
             let invalid: Vec<String> = dedup
                 .iter()
@@ -347,12 +369,11 @@ impl RoleService {
         }
 
         // 3) read old set → diff-skip
-        let old: Vec<(String,)> = sqlx::query_as(
-            "SELECT role_id FROM iam_user_roles WHERE user_id = ?",
-        )
-        .bind(user_id)
-        .fetch_all(&mut *tx)
-        .await?;
+        let old: Vec<(String,)> =
+            sqlx::query_as("SELECT role_id FROM iam_user_roles WHERE user_id = ?")
+                .bind(user_id)
+                .fetch_all(&mut *tx)
+                .await?;
         let old_set: BTreeSet<String> = old.into_iter().map(|(r,)| r).collect();
         let new_set: BTreeSet<String> = dedup.iter().cloned().collect();
         if old_set == new_set {

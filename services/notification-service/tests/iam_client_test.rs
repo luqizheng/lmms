@@ -1,4 +1,4 @@
-use digua_common_http::{ResilientClient, ResilienceConfig};
+use digua_common_http::{ResilienceConfig, ResilientClient};
 use digua_common_jwt::{ServiceJwtCache, ServiceJwtConfig};
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;

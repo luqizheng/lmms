@@ -1,21 +1,27 @@
-use axum::{Router, routing::{get, put}, extract::{Json, Path, Query, State}};
-use digua_jwt_ctx::{Principal, TenantScope};
 use crate::{
-    state::AppState,
     dto::{
-        CreateRoleRequest, UpdateRoleRequest, RoleQuery, RoleUsersQuery,
-        RoleResponse, RoleListResponse,
         AssignPermissionsRequest, AssignUserRolesRequest, AssignUserRolesResponse,
-        UserListResponse,
+        CreateRoleRequest, RoleListResponse, RoleQuery, RoleResponse, RoleUsersQuery,
+        UpdateRoleRequest, UserListResponse,
     },
-    service::{RoleService, UserService},
     error::IamError,
+    service::{RoleService, UserService},
+    state::AppState,
 };
+use axum::{
+    extract::{Json, Path, Query, State},
+    routing::{get, put},
+    Router,
+};
+use digua_jwt_ctx::{Principal, TenantScope};
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/iam/roles", get(list_roles).post(create_role))
-        .route("/iam/roles/{role_id}", get(get_role).put(update_role).delete(delete_role))
+        .route(
+            "/iam/roles/{role_id}",
+            get(get_role).put(update_role).delete(delete_role),
+        )
         .route("/iam/roles/{role_id}/permissions", put(assign_permissions))
         .route("/iam/roles/{role_id}/users", get(list_users_by_role))
         .route("/iam/users/{user_id}/roles", put(assign_user_roles))
@@ -37,7 +43,12 @@ async fn list_roles(
     Query(query): Query<RoleQuery>,
 ) -> Result<Json<RoleListResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.list(query, &scope).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    let response = service.list(query, &scope).await.map_err(|_| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "internal error",
+        )
+    })?;
     Ok(Json(response))
 }
 
@@ -59,11 +70,14 @@ async fn create_role(
     Json(req): Json<CreateRoleRequest>,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.create(req, &scope).await.map_err(|e| {
-        match e {
-            crate::error::IamError::DuplicateRole => (axum::http::StatusCode::CONFLICT, "duplicate role"),
-            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
+    let response = service.create(req, &scope).await.map_err(|e| match e {
+        crate::error::IamError::DuplicateRole => {
+            (axum::http::StatusCode::CONFLICT, "duplicate role")
         }
+        _ => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "internal error",
+        ),
     })?;
     Ok(Json(response))
 }
@@ -86,11 +100,14 @@ async fn get_role(
     scope: TenantScope,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.get(&role_id, &scope).await.map_err(|e| {
-        match e {
-            crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
-            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
+    let response = service.get(&role_id, &scope).await.map_err(|e| match e {
+        crate::error::IamError::RoleNotFound => {
+            (axum::http::StatusCode::NOT_FOUND, "role not found")
         }
+        _ => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "internal error",
+        ),
     })?;
     Ok(Json(response))
 }
@@ -115,12 +132,18 @@ async fn update_role(
     Json(req): Json<UpdateRoleRequest>,
 ) -> Result<Json<RoleResponse>, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    let response = service.update(&role_id, req, Some(p.as_str()), &scope).await.map_err(|e| {
-        match e {
-            crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
-            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
-        }
-    })?;
+    let response = service
+        .update(&role_id, req, Some(p.as_str()), &scope)
+        .await
+        .map_err(|e| match e {
+            crate::error::IamError::RoleNotFound => {
+                (axum::http::StatusCode::NOT_FOUND, "role not found")
+            }
+            _ => (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "internal error",
+            ),
+        })?;
     Ok(Json(response))
 }
 
@@ -142,12 +165,18 @@ async fn delete_role(
     scope: TenantScope,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    service.delete(&role_id, Some(p.as_str()), &scope).await.map_err(|e| {
-        match e {
-            crate::error::IamError::RoleNotFound => (axum::http::StatusCode::NOT_FOUND, "role not found"),
-            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
-        }
-    })?;
+    service
+        .delete(&role_id, Some(p.as_str()), &scope)
+        .await
+        .map_err(|e| match e {
+            crate::error::IamError::RoleNotFound => {
+                (axum::http::StatusCode::NOT_FOUND, "role not found")
+            }
+            _ => (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "internal error",
+            ),
+        })?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
@@ -171,7 +200,15 @@ async fn assign_permissions(
     Json(req): Json<AssignPermissionsRequest>,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, &'static str)> {
     let service = RoleService::new(state);
-    service.assign_permissions(&role_id, req.permission_ids, Some(p.as_str()), &scope).await.map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    service
+        .assign_permissions(&role_id, req.permission_ids, Some(p.as_str()), &scope)
+        .await
+        .map_err(|_| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "internal error",
+            )
+        })?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
@@ -196,14 +233,23 @@ async fn assign_user_roles(
     Json(req): Json<AssignUserRolesRequest>,
 ) -> Result<Json<AssignUserRolesResponse>, (axum::http::StatusCode, String)> {
     let svc = RoleService::new(state);
-    let role_ids = svc.assign_user_roles(&user_id, req.role_ids, Some(p.as_str()), &scope).await.map_err(|e| match e {
-        IamError::UserNotFound => (axum::http::StatusCode::NOT_FOUND, "user not found".to_string()),
-        IamError::InvalidRoleIds(v) => (
-            axum::http::StatusCode::BAD_REQUEST,
-            serde_json::json!({ "error": "invalid role_ids", "detail": v }).to_string(),
-        ),
-        _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string()),
-    })?;
+    let role_ids = svc
+        .assign_user_roles(&user_id, req.role_ids, Some(p.as_str()), &scope)
+        .await
+        .map_err(|e| match e {
+            IamError::UserNotFound => (
+                axum::http::StatusCode::NOT_FOUND,
+                "user not found".to_string(),
+            ),
+            IamError::InvalidRoleIds(v) => (
+                axum::http::StatusCode::BAD_REQUEST,
+                serde_json::json!({ "error": "invalid role_ids", "detail": v }).to_string(),
+            ),
+            _ => (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "internal error".to_string(),
+            ),
+        })?;
     Ok(Json(AssignUserRolesResponse { user_id, role_ids }))
 }
 
@@ -228,9 +274,15 @@ async fn list_users_by_role(
     Query(query): Query<RoleUsersQuery>,
 ) -> Result<Json<UserListResponse>, (axum::http::StatusCode, &'static str)> {
     let svc = UserService::new(state);
-    let (items, total) = svc.list_users_by_role_with_details(&role_id, query.page, query.size, &scope)
+    let (items, total) = svc
+        .list_users_by_role_with_details(&role_id, query.page, query.size, &scope)
         .await
-        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+        .map_err(|_| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "internal error",
+            )
+        })?;
     Ok(Json(UserListResponse {
         items,
         total: total as u64,

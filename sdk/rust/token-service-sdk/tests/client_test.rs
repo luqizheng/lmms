@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex};
 use digua_token_sdk::{
     AccessRequest, CreateApiKeyRequest, ListApiKeysQuery, RefreshRequest, RevokeRequest,
     TokenClient,
 };
+use serde_json::json;
+use std::sync::{Arc, Mutex};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use serde_json::json;
 
 fn bearer_client(server: &MockServer, token: &str) -> TokenClient {
     let token = Arc::new(Mutex::new(Some(token.to_string())));

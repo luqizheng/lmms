@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
 use digua_config_sdk::{
     ConfigClient, CreateConfigItem, CreateNamespace, ListItemsQuery, ListNamespacesQuery,
 };
 use serde_json::json;
+use std::sync::{Arc, Mutex};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

@@ -100,8 +100,7 @@ fn default_iam_base_url() -> String {
 
 impl AppConfig {
     pub fn load() -> anyhow::Result<Self> {
-        let path =
-            std::env::var("CONFIG_PATH").unwrap_or_else(|_| DEFAULT_CONFIG_PATH.to_string());
+        let path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| DEFAULT_CONFIG_PATH.to_string());
         Self::load_with_env(&path, |k| std::env::var(k).ok())
     }
 
@@ -175,7 +174,11 @@ where
         cfg.mysql.url = v;
     }
     if let Some(v) = env("DATABASE_MAX_CONNECTIONS") {
-        parse_or_warn("DATABASE_MAX_CONNECTIONS", &v, &mut cfg.mysql.max_connections);
+        parse_or_warn(
+            "DATABASE_MAX_CONNECTIONS",
+            &v,
+            &mut cfg.mysql.max_connections,
+        );
     }
 
     if let Some(v) = env("REDIS_URL") {
@@ -382,10 +385,7 @@ mod tests {
     #[test]
     fn validate_passes_when_urls_provided_via_env() {
         let mut cfg: AppConfig = serde_yaml::from_str(DEFAULT_YAML).unwrap();
-        let env = env_from(&[
-            ("DATABASE_URL", "mysql://x"),
-            ("REDIS_URL", "redis://x"),
-        ]);
+        let env = env_from(&[("DATABASE_URL", "mysql://x"), ("REDIS_URL", "redis://x")]);
         apply_env_overrides(&mut cfg, &env);
         validate_all_fields_present(&cfg).expect("all fields present after env merge");
     }

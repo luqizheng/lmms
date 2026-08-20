@@ -61,7 +61,13 @@ async fn call_streaming_returns_chunks_without_buffer() {
     headers.insert("accept", "text/event-stream".parse().unwrap());
 
     let res = rc
-        .call_streaming("test", Method::GET, &format!("{base}/stream"), &headers, Bytes::new())
+        .call_streaming(
+            "test",
+            Method::GET,
+            &format!("{base}/stream"),
+            &headers,
+            Bytes::new(),
+        )
         .await
         .expect("stream call ok");
     assert!(res.status.is_success());
@@ -80,7 +86,10 @@ async fn call_streaming_returns_chunks_without_buffer() {
         collected.push(chunk.unwrap());
     }
     let joined: Vec<u8> = collected.iter().flat_map(|b| b.iter().copied()).collect();
-    assert_eq!(String::from_utf8(joined).unwrap(), "chunk1\nchunk2\nchunk3\n");
+    assert_eq!(
+        String::from_utf8(joined).unwrap(),
+        "chunk1\nchunk2\nchunk3\n"
+    );
 }
 
 /// 上游 5xx 不应 retry（流式已 no-retry 策略），仅第一次响应计入 breaker。
@@ -106,7 +115,13 @@ async fn call_streaming_records_5xx_failure_without_retry() {
     headers.insert("accept", "*/*".parse().unwrap());
 
     let res = rc
-        .call_streaming("test", Method::GET, &format!("{base}/bad"), &headers, Bytes::new())
+        .call_streaming(
+            "test",
+            Method::GET,
+            &format!("{base}/bad"),
+            &headers,
+            Bytes::new(),
+        )
         .await
         .expect("stream call returns 5xx as Ok");
     assert_eq!(res.status.as_u16(), 500);

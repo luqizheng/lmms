@@ -274,16 +274,15 @@ impl Db {
     ) -> AppResult<Vec<String>> {
         let (title, pinned, popover) = {
             let mut tx = self.pool.begin().await?;
-            let mut qb = QueryBuilder::new(
-                "SELECT title, status, pinned, popover FROM ntf_announcements",
-            );
+            let mut qb =
+                QueryBuilder::new("SELECT title, status, pinned, popover FROM ntf_announcements");
             qb.where_id(ann_id);
             qb.and_tenant(scope);
             qb.push(" FOR UPDATE");
-            let row: Option<(String, String, i8, i8)> =
-                qb.build_query_as::<(String, String, i8, i8)>()
-                    .fetch_optional(&mut *tx)
-                    .await?;
+            let row: Option<(String, String, i8, i8)> = qb
+                .build_query_as::<(String, String, i8, i8)>()
+                .fetch_optional(&mut *tx)
+                .await?;
             match row {
                 Some((title, status, pinned, popover)) => {
                     if status == "published" || status == "revoked" {
@@ -313,10 +312,8 @@ impl Db {
         qb.where_id(ann_id);
         qb.and_tenant(scope);
         qb.push(" FOR UPDATE");
-        let (status_again,): (String,) = qb
-            .build_query_as::<(String,)>()
-            .fetch_one(&mut *tx)
-            .await?;
+        let (status_again,): (String,) =
+            qb.build_query_as::<(String,)>().fetch_one(&mut *tx).await?;
         if status_again == "published" || status_again == "revoked" {
             return Ok(user_ids_vec);
         }
@@ -324,9 +321,7 @@ impl Db {
         let mut qb = QueryBuilder::new("UPDATE ntf_announcements SET status='published'");
         qb.where_id(ann_id);
         qb.and_tenant(scope);
-        qb.build()
-            .execute(&mut *tx)
-            .await?;
+        qb.build().execute(&mut *tx).await?;
         let mut envelope = Envelope::new(
             "notification-service",
             NotificationAnnouncementPublished {
@@ -640,7 +635,13 @@ mod tests {
     #[test]
     fn init_sql_outbox_columns() {
         let upper = INIT_SQL.to_uppercase();
-        for col in ["EVENT_ID", "EVENT_TYPE", "ROUTING_KEY", "ENVELOPE_JSON", "PUBLISHED_AT"] {
+        for col in [
+            "EVENT_ID",
+            "EVENT_TYPE",
+            "ROUTING_KEY",
+            "ENVELOPE_JSON",
+            "PUBLISHED_AT",
+        ] {
             assert!(upper.contains(col), "outbox missing column {col}");
         }
     }

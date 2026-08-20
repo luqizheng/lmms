@@ -1,14 +1,21 @@
+use crate::{
+    dto::{
+        ChangePasswordRequest, CreateUserRequest, LoginRequest, LoginResponse, RefreshRequest,
+        UserResponse,
+    },
+    error::IamError,
+    service::AuthService,
+    state::AppState,
+};
 use axum::{
-    Router,
-    routing::{get, post, put, delete},
     extract::{Json, Path, State},
     http::{HeaderMap, StatusCode},
-    Json as AxumJson,
+    routing::{delete, get, post, put},
+    Json as AxumJson, Router,
 };
-use crate::{state::AppState, dto::{LoginRequest, RefreshRequest, ChangePasswordRequest, LoginResponse, CreateUserRequest, UserResponse}, service::AuthService, error::IamError};
 use digua_jwt_ctx::{Principal, TenantScope};
-use sqlx;
 use serde_json;
+use sqlx;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -128,11 +135,9 @@ pub async fn change_password(
     service
         .change_password(&principal.user_id, req)
         .await
-        .map_err(|e| {
-            match e {
-                IamError::InvalidCredentials => (StatusCode::UNAUTHORIZED, "invalid credentials"),
-                _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
-            }
+        .map_err(|e| match e {
+            IamError::InvalidCredentials => (StatusCode::UNAUTHORIZED, "invalid credentials"),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
         })?;
     Ok(StatusCode::OK)
 }
@@ -210,15 +215,14 @@ async fn register(
     State(state): State<AppState>,
     Json(req): Json<CreateUserRequest>,
 ) -> Result<(StatusCode, AxumJson<UserResponse>), (StatusCode, &'static str)> {
-    let user_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
-    )
-    .fetch_one(&state.db)
-    .await
-    .map_err(|e| {
-        tracing::error!("count users failed: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
-    })?;
+    let user_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL")
+            .fetch_one(&state.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("count users failed: {:?}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
+            })?;
 
     if user_count.0 > 0 {
         return Err((StatusCode::FORBIDDEN, "registration closed"));
@@ -226,16 +230,13 @@ async fn register(
 
     let service = crate::service::UserService::new(state);
     let scope = TenantScope::Single(1);
-    let response = service
-        .create(req, &scope)
-        .await
-        .map_err(|e| {
-            tracing::error!("create user failed: {:?}", e);
-            match e {
-                IamError::DuplicateUser => (StatusCode::CONFLICT, "username already exists"),
-                _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
-            }
-        })?;
+    let response = service.create(req, &scope).await.map_err(|e| {
+        tracing::error!("create user failed: {:?}", e);
+        match e {
+            IamError::DuplicateUser => (StatusCode::CONFLICT, "username already exists"),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
+        }
+    })?;
     Ok((StatusCode::CREATED, AxumJson(response)))
 }
 
@@ -248,12 +249,11 @@ async fn register(
 async fn setup_status(
     State(state): State<AppState>,
 ) -> Result<AxumJson<serde_json::Value>, (StatusCode, &'static str)> {
-    let user_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
-    )
-    .fetch_one(&state.db)
-    .await
-    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    let user_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL")
+            .fetch_one(&state.db)
+            .await
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
 
     Ok(AxumJson(serde_json::json!({
         "setup_required": user_count.0 == 0,

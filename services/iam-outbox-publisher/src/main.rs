@@ -31,7 +31,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, anyhow};
+use anyhow::{anyhow, Context};
 use digua_common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
 use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
@@ -39,8 +39,7 @@ use tracing::{info, warn};
 /// Shared with iam-service; compile-time embedded. Both processes seed this
 /// same content, and `create_new` in `seed_if_absent` guarantees exactly one
 /// writer wins the race.
-const DEFAULT_YAML: &str =
-    include_str!("../../iam-service/config/config.default.yaml");
+const DEFAULT_YAML: &str = include_str!("../../iam-service/config/config.default.yaml");
 
 const DEFAULT_CONFIG_PATH: &str = "/etc/iam-service/config.yaml";
 
@@ -179,7 +178,10 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    info!(poll_ms, batch_size, "outbox publisher ready, entering poll loop");
+    info!(
+        poll_ms,
+        batch_size, "outbox publisher ready, entering poll loop"
+    );
 
     let poll_interval = Duration::from_millis(poll_ms);
     let mut publisher: Option<RabbitMqPublisher> = None;

@@ -21,10 +21,10 @@
 
 use std::time::Duration;
 
-use digua_common_event::events::{
-    IamUserDeptChanged, IamUserRoleAssigned, IamUserRoleUnassigned,
+use digua_common_event::events::{IamUserDeptChanged, IamUserRoleAssigned, IamUserRoleUnassigned};
+use digua_common_event::{
+    span_from_envelope_trace_id, Consumer, Envelope, HandlerError, RabbitMqConsumer,
 };
-use digua_common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
 use tracing::{error, info, warn, Instrument};
 
 use crate::db::Db;
@@ -62,10 +62,7 @@ async fn try_subscribe(db: Db, event_bus_url: &str) -> anyhow::Result<RabbitMqCo
             move |env: Envelope<IamUserRoleAssigned>| {
                 let db = db_assigned.clone();
                 let span = span_from_envelope_trace_id(&env, "notification.membership-events");
-                async move {
-                    handle_role_assigned(&db, &env).await
-                }
-                .instrument(span)
+                async move { handle_role_assigned(&db, &env).await }.instrument(span)
             },
         )
         .await?;
@@ -77,10 +74,7 @@ async fn try_subscribe(db: Db, event_bus_url: &str) -> anyhow::Result<RabbitMqCo
             move |env: Envelope<IamUserRoleUnassigned>| {
                 let db = db_unassigned.clone();
                 let span = span_from_envelope_trace_id(&env, "notification.membership-events");
-                async move {
-                    handle_role_unassigned(&db, &env).await
-                }
-                .instrument(span)
+                async move { handle_role_unassigned(&db, &env).await }.instrument(span)
             },
         )
         .await?;
@@ -92,10 +86,7 @@ async fn try_subscribe(db: Db, event_bus_url: &str) -> anyhow::Result<RabbitMqCo
             move |env: Envelope<IamUserDeptChanged>| {
                 let db = db_dept.clone();
                 let span = span_from_envelope_trace_id(&env, "notification.membership-events");
-                async move {
-                    handle_dept_changed(&db, &env).await
-                }
-                .instrument(span)
+                async move { handle_dept_changed(&db, &env).await }.instrument(span)
             },
         )
         .await?;

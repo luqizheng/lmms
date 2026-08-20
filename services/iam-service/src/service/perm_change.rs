@@ -29,16 +29,17 @@ pub async fn enqueue_permission_changed(
         return Ok(());
     }
     let distinct_tids: Vec<i64> = if user_ids.len() == 1 {
-        let row: Option<(u64,)> = sqlx::query_as(
-            "SELECT tenant_id FROM iam_users WHERE id = ? AND deleted_at IS NULL",
-        )
-        .bind(&user_ids[0])
-        .fetch_optional(&mut **tx)
-        .await
-        .map_err(|e| IamError::Internal(e.to_string()))?;
+        let row: Option<(u64,)> =
+            sqlx::query_as("SELECT tenant_id FROM iam_users WHERE id = ? AND deleted_at IS NULL")
+                .bind(&user_ids[0])
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(|e| IamError::Internal(e.to_string()))?;
         row.map(|(t,)| t as i64).into_iter().collect()
     } else {
-        let placeholders: Vec<String> = std::iter::repeat("?".to_string()).take(user_ids.len()).collect();
+        let placeholders: Vec<String> = std::iter::repeat("?".to_string())
+            .take(user_ids.len())
+            .collect();
         let sql = format!(
             "SELECT DISTINCT tenant_id FROM iam_users WHERE id IN ({}) AND deleted_at IS NULL",
             placeholders.join(",")
@@ -47,11 +48,17 @@ pub async fn enqueue_permission_changed(
         for uid in user_ids {
             q = q.bind(uid);
         }
-        let rows: Vec<(u64,)> = q.fetch_all(&mut **tx).await
+        let rows: Vec<(u64,)> = q
+            .fetch_all(&mut **tx)
+            .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
         rows.into_iter().map(|(t,)| t as i64).collect()
     };
-    debug_assert!(distinct_tids.len() <= 1, "perm_change across tenants: users={:?}", user_ids);
+    debug_assert!(
+        distinct_tids.len() <= 1,
+        "perm_change across tenants: users={:?}",
+        user_ids
+    );
     if distinct_tids.len() > 1 {
         tracing::warn!(users = ?user_ids, tids = ?distinct_tids, "perm_change event spans multiple tenants; using first tenant for envelope");
     }

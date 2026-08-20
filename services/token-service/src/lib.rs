@@ -73,8 +73,8 @@ pub use config::{
     apply_env_overrides, load_config, load_config_with_env, validate_all_fields_present,
     Config as TokenServerConfig, DatabaseCfg, DbType, DEFAULT_CONFIG_PATH,
 };
+pub use digua_common_jwt;
 pub use issuer::TokenIssuer;
 pub use routes::service_jwt::{
     handle_service_jwt, routes as service_jwt_routes, ServiceJwtRequest, ServiceJwtResponse,
 };
-pub use digua_common_jwt;

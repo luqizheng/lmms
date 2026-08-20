@@ -33,7 +33,10 @@ fn validate_slug(s: &str) -> Result<(), ValidationError> {
     {
         return Err(ValidationError::new("slug_edge"));
     }
-    if !s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+    if !s
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
         return Err(ValidationError::new("slug_char"));
     }
     Ok(())

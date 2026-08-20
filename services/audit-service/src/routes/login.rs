@@ -1,7 +1,7 @@
-use axum::{extract::State, Json, extract::Query, Router};
 use crate::error::AppResult;
-use crate::models::login::{QueryLoginLogs, PagedLoginLogs};
+use crate::models::login::{PagedLoginLogs, QueryLoginLogs};
 use crate::routes::AppState;
+use axum::{extract::Query, extract::State, Json, Router};
 
 pub fn routes(state: AppState) -> Router {
     Router::new()

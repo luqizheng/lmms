@@ -38,12 +38,7 @@ async fn query_login_logs_sends_get_and_parses_paged_response() {
 
     let client = client_with_bearer(&server, "test.jwt");
     let page = client
-        .query_login_logs(
-            &LoginLogQuery::new()
-                .username("alice")
-                .page(0)
-                .size(20),
-        )
+        .query_login_logs(&LoginLogQuery::new().username("alice").page(0).size(20))
         .await
         .unwrap();
 
@@ -88,7 +83,10 @@ async fn query_operation_logs_sends_get_and_parses_paged_response() {
 
     assert_eq!(page.total, 1);
     assert_eq!(page.items[0].user_id, "u-1");
-    assert_eq!(page.items[0].after_value.as_deref(), Some("{\"name\":\"new\"}"));
+    assert_eq!(
+        page.items[0].after_value.as_deref(),
+        Some("{\"name\":\"new\"}")
+    );
     assert_eq!(page.items[0].resource_id.as_deref(), Some("u-123"));
 }
 

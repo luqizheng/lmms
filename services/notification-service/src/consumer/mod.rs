@@ -6,7 +6,9 @@ pub mod placeholder;
 use std::time::Duration;
 
 use digua_common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
-use digua_common_event::{Consumer, Envelope, MySqlOutboxRepo, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::{
+    span_from_envelope_trace_id, Consumer, Envelope, MySqlOutboxRepo, RabbitMqConsumer,
+};
 use sqlx::mysql::MySqlPool;
 use std::sync::Arc;
 use tracing::{info, warn, Instrument};
@@ -26,7 +28,14 @@ pub async fn run(
 ) -> anyhow::Result<()> {
     let backoff = Duration::from_secs(5);
     loop {
-        match try_subscribe(pool.clone(), redis.clone(), outbox_repo.clone(), &event_bus_url).await {
+        match try_subscribe(
+            pool.clone(),
+            redis.clone(),
+            outbox_repo.clone(),
+            &event_bus_url,
+        )
+        .await
+        {
             Ok(consumer) => {
                 // Hold the consumer (and thus its durable queue + connection)
                 // alive, polling connection health. Re-subscribe ONLY on an
@@ -64,19 +73,17 @@ async fn try_subscribe(
                 let outbox_repo = outbox_repo.clone();
                 let span = span_from_envelope_trace_id(&env, "notification.iam-events");
                 async move {
-                    iam_events::handle_iam_user_created(
-                        &pool,
-                        &redis,
-                        outbox_repo.as_ref(),
-                        &env,
-                    )
-                    .await
+                    iam_events::handle_iam_user_created(&pool, &redis, outbox_repo.as_ref(), &env)
+                        .await
                 }
                 .instrument(span)
             },
         )
         .await?;
-    info!("notification consumer subscribed to {} ({})", QUEUE_NAME, BINDING);
+    info!(
+        "notification consumer subscribed to {} ({})",
+        QUEUE_NAME, BINDING
+    );
     Ok(consumer)
 }
 
@@ -111,11 +118,13 @@ async fn ann_try_subscribe(hub: WsHub, event_bus_url: &str) -> anyhow::Result<Ra
             move |env: Envelope<NotificationAnnouncementPublished>| {
                 let hub = hub.clone();
                 let span = span_from_envelope_trace_id(&env, "notification.announcement-ws");
-                async move { announcement_events::handle(&hub, &env).await }
-                    .instrument(span)
+                async move { announcement_events::handle(&hub, &env).await }.instrument(span)
             },
         )
         .await?;
-    info!("announcement consumer subscribed (ephemeral) to {}", ANN_BINDING);
+    info!(
+        "announcement consumer subscribed (ephemeral) to {}",
+        ANN_BINDING
+    );
     Ok(consumer)
 }

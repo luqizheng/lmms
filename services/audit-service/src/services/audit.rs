@@ -1,5 +1,7 @@
 use crate::error::AppResult;
-use crate::models::{OperationLog, LoginLog, QueryOperationLogs, QueryLoginLogs, PagedOperationLogs, PagedLoginLogs};
+use crate::models::{
+    LoginLog, OperationLog, PagedLoginLogs, PagedOperationLogs, QueryLoginLogs, QueryOperationLogs,
+};
 use sqlx::mysql::MySqlPool;
 
 pub struct AuditService {
@@ -11,9 +13,15 @@ impl AuditService {
         Self { pool: pool.clone() }
     }
 
-    pub fn pool(&self) -> &MySqlPool { &self.pool }
+    pub fn pool(&self) -> &MySqlPool {
+        &self.pool
+    }
 
-    pub async fn get_user_operation_logs(&self, user_id: &str, limit: i64) -> AppResult<Vec<OperationLog>> {
+    pub async fn get_user_operation_logs(
+        &self,
+        user_id: &str,
+        limit: i64,
+    ) -> AppResult<Vec<OperationLog>> {
         let logs = sqlx::query_as::<_, OperationLog>(
             r#"
             SELECT * FROM audit_operation_logs 
@@ -73,7 +81,10 @@ impl AuditService {
         Ok(log)
     }
 
-    pub async fn query_operation_logs(&self, query: QueryOperationLogs) -> AppResult<PagedOperationLogs> {
+    pub async fn query_operation_logs(
+        &self,
+        query: QueryOperationLogs,
+    ) -> AppResult<PagedOperationLogs> {
         let page = query.page.unwrap_or(1);
         let size = query.size.unwrap_or(20);
         let offset = ((page - 1) * size) as i64;
@@ -82,7 +93,9 @@ impl AuditService {
         let action_ref = query.action.as_ref().map(|s| s.as_str());
         let resource_ref = query.resource.as_ref().map(|s| s.as_str());
 
-        let total = self.count_operation_logs(user_id_ref, action_ref, resource_ref).await?;
+        let total = self
+            .count_operation_logs(user_id_ref, action_ref, resource_ref)
+            .await?;
 
         let mut sql = String::from("SELECT * FROM audit_operation_logs WHERE 1=1");
 
@@ -187,7 +200,12 @@ impl AuditService {
         })
     }
 
-    async fn count_operation_logs(&self, user_id: Option<&str>, action: Option<&str>, resource: Option<&str>) -> AppResult<i64> {
+    async fn count_operation_logs(
+        &self,
+        user_id: Option<&str>,
+        action: Option<&str>,
+        resource: Option<&str>,
+    ) -> AppResult<i64> {
         let mut sql = String::from("SELECT COUNT(*) FROM audit_operation_logs WHERE 1=1");
 
         if user_id.is_some() {
@@ -216,7 +234,11 @@ impl AuditService {
         Ok(count.0)
     }
 
-    async fn count_login_logs(&self, username: Option<&str>, success: Option<bool>) -> AppResult<i64> {
+    async fn count_login_logs(
+        &self,
+        username: Option<&str>,
+        success: Option<bool>,
+    ) -> AppResult<i64> {
         let mut sql = String::from("SELECT COUNT(*) FROM audit_login_logs WHERE 1=1");
 
         if username.is_some() {

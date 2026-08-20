@@ -25,6 +25,12 @@ fn openapi_has_bearer_security_scheme() {
         .pointer("/components/securitySchemes/bearer_auth")
         .expect("bearer_auth scheme present");
     assert_eq!(scheme.get("type").and_then(|v| v.as_str()), Some("http"));
-    assert_eq!(scheme.get("scheme").and_then(|v| v.as_str()), Some("bearer"));
-    assert_eq!(scheme.get("bearerFormat").and_then(|v| v.as_str()), Some("JWT"));
+    assert_eq!(
+        scheme.get("scheme").and_then(|v| v.as_str()),
+        Some("bearer")
+    );
+    assert_eq!(
+        scheme.get("bearerFormat").and_then(|v| v.as_str()),
+        Some("JWT")
+    );
 }

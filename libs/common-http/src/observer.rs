@@ -37,7 +37,10 @@ mod tests {
             self.states.lock().unwrap().push((service.into(), state));
         }
         fn on_outcome(&self, service: &str, outcome: Outcome) {
-            self.outcomes.lock().unwrap().push((service.into(), outcome));
+            self.outcomes
+                .lock()
+                .unwrap()
+                .push((service.into(), outcome));
         }
         fn on_retry(&self, service: &str) {
             self.retries.lock().unwrap().push(service.into());
