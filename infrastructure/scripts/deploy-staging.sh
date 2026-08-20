@@ -63,14 +63,56 @@ for f in "${COMPOSE_BASE}" "${PROJECT_ROOT}/infrastructure/docker-compose-servic
   [[ -f "${f}" ]] || die "missing compose file: ${f}" 10
 done
 
+# ─── env-file：compose 插值用，缺失会导致 ${DATABASE_URL} 等落成空串，
+#     应用 panic "DATABASE_URL is set but empty"（pipeline 6533 / job 23772）。
+#     PROJECT_ROOT/.env（随包）+ STAGING_ENV_FILE（CI/ops 覆盖，后者优先）。
+ENV_FILES=()
+if [[ -f "${PROJECT_ROOT}/.env" ]]; then
+  ENV_FILES+=(--env-file "${PROJECT_ROOT}/.env")
+  log "  env-file: ${PROJECT_ROOT}/.env (bundled)"
+fi
+if [[ -n "${STAGING_ENV_FILE:-}" ]]; then
+  if [[ -f "${STAGING_ENV_FILE}" ]]; then
+    ENV_FILES+=(--env-file "${STAGING_ENV_FILE}")
+    log "  env-file: ${STAGING_ENV_FILE} (STAGING_ENV_FILE)"
+  else
+    die "STAGING_ENV_FILE set but not found: ${STAGING_ENV_FILE}" 10
+  fi
+fi
+if [[ ${#ENV_FILES[@]} -eq 0 ]]; then
+  log "  ⚠ no --env-file; relying on exported shell env"
+fi
+DOCKER_COMPOSE+=("${ENV_FILES[@]}")
+
+# Fail-fast：缺关键 env 直接退出，比 60s 健康检查超时好定位。
+REQUIRED_VARS=(DATABASE_URL JWKS_URL)
+if [[ "${DEPLOY_MODE}" == "prod" ]]; then
+  REQUIRED_VARS+=(MYSQL_HOST MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE)
+fi
+for ef in "${ENV_FILES[@]}"; do
+  [[ "$ef" == "--env-file" ]] && continue
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# || "$line" != *=* ]] && continue
+    key="${line%%=*}"
+    val="${line#*=}"
+    val="${val%\"}"; val="${val#\"}"; val="${val%\'}"; val="${val#\'}"
+    if [[ -z "${!key:-}" ]]; then
+      printf -v "$key" '%s' "$val"
+    fi
+  done < "$ef"
+done
+for v in "${REQUIRED_VARS[@]}"; do
+  if [[ -z "${!v:-}" ]]; then
+    die "required env ${v} empty — set it in STAGING_ENV_FILE or PROJECT_ROOT/.env (template: infrastructure/.env.prod.example)" 10
+  fi
+done
+log "  env check: ${REQUIRED_VARS[*]} all set"
+
 # dev compose（pre-staging 用 prod 模式：prod overlay 存在时走 prod；否则 dev）。
 # 不叠加 docker-compose-infra.dev.yml（dev 端口暴露仅本地开发用，staging 走默认网络）。
 case "${DEPLOY_MODE}" in
   prod)
     log "  compose files: ${DOCKER_COMPOSE[*]}"
-    log "  ⚠ prod mode: required env vars will be validated by upstream preflight (deploy-remote.sh logic skipped here)"
-    # prod 模式不强制校验 .env.prod（pre-staging 不一定有 .env.prod）。
-    # 若上游 CI 没注入关键 var，容器启动失败即可由 healthcheck 捕获。
     ;;
   dev)
     log "  compose files: ${DOCKER_COMPOSE[*]}"
