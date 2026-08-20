@@ -103,7 +103,7 @@
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl",
+      "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl-v3",
       "source": "services/api-gateway/Dockerfile",
       "mirror": null
     }
