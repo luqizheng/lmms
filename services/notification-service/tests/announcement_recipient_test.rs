@@ -2,13 +2,13 @@
 //! ntf_user_projection (replaces 4.3-fu2 wiremock-iam path).
 //! Membership event apply / bootstrap / out-of-order covered in
 //! membership_projection_test.rs (T8).
-mod digua_common;
+mod common;
 
 use digua_jwt_ctx::TenantScope;
 use notification_service::db::Db;
 
-async fn setup() -> (Db, Option<digua_common::MysqlContainer>) {
-    let h = digua_common::spawn_db().await;
+async fn setup() -> (Db, Option<common::MysqlContainer>) {
+    let h = common::spawn_db().await;
     (h.db, h.container)
 }
 

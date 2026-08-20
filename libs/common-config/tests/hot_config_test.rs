@@ -62,19 +62,19 @@ use std::sync::Arc;
 
 #[test]
 fn secret_display_is_masked() {
-    let secret = Secret("my_password".to_string());
+    let secret = Secret::new("my_password".to_string());
     assert_eq!(format!("{}", secret), "******");
 }
 
 #[test]
 fn secret_debug_is_masked() {
-    let secret = Secret("my_password".to_string());
+    let secret = Secret::new("my_password".to_string());
     assert_eq!(format!("{:?}", secret), "Secret(******)");
 }
 
 #[test]
 fn secret_inner_returns_original() {
-    let secret = Secret("my_password".to_string());
+    let secret = Secret::new("my_password".to_string());
     assert_eq!(secret.inner(), "my_password");
 }
 
@@ -98,7 +98,7 @@ fn sensitive_fields_add_marks_field() {
 
 #[test]
 fn sensitive_fields_mask_value() {
-    let fields = SensitiveFields::new();
+    let mut fields = SensitiveFields::new();
     fields.add("password");
 
     assert_eq!(fields.mask_value("password", "secret123"), "******");

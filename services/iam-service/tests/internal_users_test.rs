@@ -2,7 +2,7 @@
 //! Mesh intentions enforce service identity (Phase 5-A);
 //! tenant_id from query param; cross-tenant reads forbidden.
 
-mod digua_common;
+mod common;
 
 use axum::{
     body::{to_bytes, Body},
@@ -27,11 +27,11 @@ const TEST_TOKEN_PRIVATE_PEM: &str = include_str!("../../token-service/tests/fix
 struct Ctx {
     app: axum::Router,
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 

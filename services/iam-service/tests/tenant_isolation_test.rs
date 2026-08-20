@@ -1,7 +1,7 @@
 //! Phase 8.2: cross-tenant isolation for iam business tables (roles / orgs / users).
 //! Phase 8.3-fu1: platform_admin cross-tenant point query (HTTP path).
 #![allow(deprecated)]
-mod digua_common;
+mod common;
 
 use axum::{
     body::{to_bytes, Body},
@@ -28,12 +28,12 @@ use tower::ServiceExt;
 struct Ctx {
     state: AppState,
     app: axum::Router,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
     _key_file: tempfile::NamedTempFile,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 

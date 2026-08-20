@@ -7,7 +7,7 @@
 //! - role_ids empty when user has no role bindings
 //! - 401 when service-jwt is missing or invalid (aud mismatch)
 
-mod digua_common;
+mod common;
 
 use axum::{
     body::{to_bytes, Body},
@@ -34,11 +34,11 @@ const TEST_TOKEN_PUBLIC_PEM: &str =
 struct Ctx {
     app: axum::Router,
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 

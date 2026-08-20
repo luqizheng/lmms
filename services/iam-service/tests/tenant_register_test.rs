@@ -7,7 +7,7 @@
 //!   3) `(tenant_id, username)` unique → 双 tenant admin 同名不冲突
 //!   4) outbox envelope.tenant_id 正确填值（i64.to_string()）
 
-mod digua_common;
+mod common;
 
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
@@ -24,11 +24,11 @@ const PREFIX: &str = "superpowers:";
 
 struct Ctx {
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 

@@ -1,7 +1,7 @@
 //! Phase 8.3: tenant hardening — JWT tid enforcement, cross_tenant flag,
 //! TenantScope resolution, and get_claims tenant scoping.
 #![allow(deprecated)]
-mod digua_common;
+mod common;
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
@@ -23,12 +23,12 @@ const PREFIX: &str = "superpowers:";
 
 struct Ctx {
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
     _key_file: tempfile::NamedTempFile,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 

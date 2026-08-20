@@ -6,7 +6,7 @@
 //! 与 Redis perm_epoch（值≈now、TTL>0）。
 //!
 //! 注意：多 MySQL 容器并发易 StartupTimeout，用 `--test-threads=1` 串行。
-mod digua_common;
+mod common;
 
 use digua_common_cache::MemoryCache;
 use digua_common_crypto::password::hash as hash_password;
@@ -29,12 +29,12 @@ const PREFIX: &str = "superpowers:";
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
     _redis: testcontainers::ContainerAsync<Redis>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 

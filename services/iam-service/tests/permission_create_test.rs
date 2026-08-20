@@ -15,7 +15,7 @@
 //! (sqlx returns PoolTimedOut instead of reconnecting). This is the same
 //! gotcha that `permission_changed_test.rs` works around with `Ctx`.
 
-mod digua_common;
+mod common;
 
 use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
@@ -29,11 +29,11 @@ use std::sync::Arc;
 
 struct Ctx {
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 

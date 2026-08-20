@@ -22,3 +22,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 wiremock = "0.6"
+[[test]]
+name = "provider_test"
+required-features = ["config-service"]

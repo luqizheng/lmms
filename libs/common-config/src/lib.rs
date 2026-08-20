@@ -207,6 +207,12 @@ impl<T: DeserializeOwned + Clone + Send + Sync + 'static> HotConfig<T> {
 #[derive(Serialize, Deserialize)]
 pub struct Secret<T>(T);
 
+impl<T> Secret<T> {
+    pub fn new(value: T) -> Self {
+        Self(value)
+    }
+}
+
 impl<T: std::fmt::Display> std::fmt::Display for Secret<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "******")

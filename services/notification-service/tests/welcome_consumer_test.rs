@@ -1,4 +1,4 @@
-mod digua_common;
+mod common;
 
 use chrono::Utc;
 use digua_common_event::events::IamUserCreated;
@@ -79,7 +79,7 @@ async fn latest_ann_id(db: &Db) -> u64 {
 
 #[tokio::test]
 async fn welcome_idempotent_and_renders_template() {
-    let h = digua_common::spawn_db().await;
+    let h = common::spawn_db().await;
     let redis = redis_cli().await;
     let db = h.db;
 
@@ -111,7 +111,7 @@ async fn welcome_idempotent_and_renders_template() {
 
 #[tokio::test]
 async fn welcome_enqueues_outbox_event_in_same_tx() {
-    let h = digua_common::spawn_db().await;
+    let h = common::spawn_db().await;
     let redis = redis_cli().await;
     let db = h.db;
 
@@ -141,7 +141,7 @@ async fn welcome_enqueues_outbox_event_in_same_tx() {
 
 #[tokio::test]
 async fn welcome_redelivery_does_not_double_enqueue_outbox() {
-    let h = digua_common::spawn_db().await;
+    let h = common::spawn_db().await;
     let redis = redis_cli().await;
     let db = h.db;
 
