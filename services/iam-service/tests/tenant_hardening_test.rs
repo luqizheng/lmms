@@ -7,15 +7,15 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
+use digua_jwt_ctx::{Principal, TenantScope};
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::{CreateUserRequest, LoginRequest};
 use iam_service::error::IamError;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::service::{AuthService, TenantService, UserService};
 use iam_service::state::AppState;
-use digua_jwt_ctx::{Principal, TenantScope};
 use jwt_simple::prelude::*;
 use std::io::Write;
 use std::sync::Arc;
@@ -89,8 +89,18 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        None,
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
     Ctx {
         state,
         _mysql: mysql_h.container,
@@ -179,7 +189,10 @@ async fn cross_tenant_and_get_claims() {
         .unwrap();
 
     let principal = Principal::from_jwt_payload(&login.access_token).unwrap();
-    assert!(principal.cross_tenant, "platform_admin must have cross_tenant=true");
+    assert!(
+        principal.cross_tenant,
+        "platform_admin must have cross_tenant=true"
+    );
     assert_eq!(principal.user_id, admin.id);
 
     let scope = if principal.cross_tenant {
@@ -203,18 +216,16 @@ async fn cross_tenant_and_get_claims() {
     assert!(matches!(globex, IamError::DuplicateTenant));
 
     // fetch tenant ids
-    let (acme_tid,): (i64,) = sqlx::query_as(
-        "SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'acme'",
-    )
-    .fetch_one(&ctx.state.db)
-    .await
-    .unwrap();
-    let (globex_tid,): (i64,) = sqlx::query_as(
-        "SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'globex'",
-    )
-    .fetch_one(&ctx.state.db)
-    .await
-    .unwrap();
+    let (acme_tid,): (i64,) =
+        sqlx::query_as("SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'acme'")
+            .fetch_one(&ctx.state.db)
+            .await
+            .unwrap();
+    let (globex_tid,): (i64,) =
+        sqlx::query_as("SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'globex'")
+            .fetch_one(&ctx.state.db)
+            .await
+            .unwrap();
 
     let acme_user = user_svc
         .create(
@@ -246,5 +257,8 @@ async fn cross_tenant_and_get_claims() {
         .await
         .unwrap();
     assert_eq!(claims.user_id, acme_user.id);
-    assert!(!claims.cross_tenant, "regular user must not have cross_tenant=true");
+    assert!(
+        !claims.cross_tenant,
+        "regular user must not have cross_tenant=true"
+    );
 }

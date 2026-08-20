@@ -28,10 +28,7 @@ async fn redis_cli() -> RedisCli {
             let port = c.get_host_port_ipv4(6379).await.unwrap();
             let url = format!("redis://{host}:{port}");
             let cli = RedisCli::connect(&url).await.unwrap();
-            RedisFixture {
-                _container: c,
-                cli,
-            }
+            RedisFixture { _container: c, cli }
         })
         .await
         .cli
@@ -100,7 +97,10 @@ async fn welcome_idempotent_and_renders_template() {
     assert!(created, "first call should create the announcement");
 
     let list = db.list_for_user(user_id.clone()).await.unwrap();
-    assert!(!list.is_empty(), "user should have at least one announcement");
+    assert!(
+        !list.is_empty(),
+        "user should have at least one announcement"
+    );
     let last = list.first().unwrap();
     assert!(
         last.title.contains("Alice"),

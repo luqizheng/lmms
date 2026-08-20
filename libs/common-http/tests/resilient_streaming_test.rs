@@ -24,7 +24,6 @@ fn cfg() -> ResilienceConfig {
         breaker_failure_threshold: 3,
         breaker_open_timeout_ms: 100,
         breaker_half_open_max_calls: 1,
-
     }
 }
 

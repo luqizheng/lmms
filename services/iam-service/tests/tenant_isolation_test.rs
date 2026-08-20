@@ -9,17 +9,18 @@ use axum::{
 };
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
+use digua_jwt_ctx::{Principal, TenantScope};
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::{
-    CreateOrgUnitRequest, CreateRoleRequest, CreateTenantRequest, CreateUserRequest, LoginRequest, RoleQuery, UserQuery,
+    CreateOrgUnitRequest, CreateRoleRequest, CreateTenantRequest, CreateUserRequest, LoginRequest,
+    RoleQuery, UserQuery,
 };
 use iam_service::routes::build_router;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::service::{AuthService, OrgService, RoleService, TenantService, UserService};
 use iam_service::state::AppState;
-use digua_jwt_ctx::{Principal, TenantScope};
 use jwt_simple::prelude::*;
 use std::io::Write;
 use std::sync::Arc;
@@ -45,21 +46,38 @@ async fn setup() -> Ctx {
     key_file.flush().unwrap();
 
     let config = Config {
-        app: AppConfig { name: "iam-service".into(), host: "0.0.0.0".into(), port: 8080 },
-        database: DatabaseConfig { url: url.clone(), max_connections: 5, min_connections: 1 },
-        redis: RedisConfig { url: "redis://x".into(), ttl_sec: 86400, prefix: "test:".into() },
+        app: AppConfig {
+            name: "iam-service".into(),
+            host: "0.0.0.0".into(),
+            port: 8080,
+        },
+        database: DatabaseConfig {
+            url: url.clone(),
+            max_connections: 5,
+            min_connections: 1,
+        },
+        redis: RedisConfig {
+            url: "redis://x".into(),
+            ttl_sec: 86400,
+            prefix: "test:".into(),
+        },
         jwt: JwtConfig {
             private_key_path: key_file.path().to_path_buf(),
             public_key_path: "/dev/null".into(),
             access_token_ttl_minutes: 15,
             refresh_token_ttl_days: 7,
         },
-        consul: ConsulConfig { host: "consul".into(), port: 8500, service_name: "iam-service".into() },
+        consul: ConsulConfig {
+            host: "consul".into(),
+            port: 8500,
+            service_name: "iam-service".into(),
+        },
     };
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(&public_pem)
-        .expect("test public key must parse"));
+    let jwks = std::sync::Arc::new(
+        digua_common_jwt::JWKSCache::from_pem(&public_pem).expect("test public key must parse"),
+    );
     let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
         digua_common_jwt::ServiceJwtConfig {
             token_service_url: "http://localhost:0".into(),
@@ -71,11 +89,26 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        None,
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
     let app = build_router(state.clone());
 
-    Ctx { state, app, _mysql: mysql_h.container, _key_file: key_file }
+    Ctx {
+        state,
+        app,
+        _mysql: mysql_h.container,
+        _key_file: key_file,
+    }
 }
 
 async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
@@ -84,8 +117,12 @@ async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
          VALUES (?, ?, ?, 'active', NOW(), NOW()) \
          ON DUPLICATE KEY UPDATE id = id",
     )
-    .bind(id).bind(slug).bind(slug)
-    .execute(&state.db).await.unwrap();
+    .bind(id)
+    .bind(slug)
+    .bind(slug)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -111,15 +148,43 @@ async fn roles_are_tenant_isolated() {
         .unwrap();
 
     // tenant 2 list sees it
-    let list_t2 = svc.list(RoleQuery { page: 1, size: 50, keyword: None, status: None }, &TenantScope::Single(2)).await.unwrap();
+    let list_t2 = svc
+        .list(
+            RoleQuery {
+                page: 1,
+                size: 50,
+                keyword: None,
+                status: None,
+            },
+            &TenantScope::Single(2),
+        )
+        .await
+        .unwrap();
     assert!(list_t2.items.iter().any(|r| r.id == created.id));
 
     // tenant 3 list does NOT see it
-    let list_t3 = svc.list(RoleQuery { page: 1, size: 50, keyword: None, status: None }, &TenantScope::Single(3)).await.unwrap();
-    assert!(!list_t3.items.iter().any(|r| r.id == created.id), "cross-tenant role leak");
+    let list_t3 = svc
+        .list(
+            RoleQuery {
+                page: 1,
+                size: 50,
+                keyword: None,
+                status: None,
+            },
+            &TenantScope::Single(3),
+        )
+        .await
+        .unwrap();
+    assert!(
+        !list_t3.items.iter().any(|r| r.id == created.id),
+        "cross-tenant role leak"
+    );
 
     // tenant 3 get by id -> RoleNotFound
-    let err = svc.get(&created.id, &TenantScope::Single(3)).await.unwrap_err();
+    let err = svc
+        .get(&created.id, &TenantScope::Single(3))
+        .await
+        .unwrap_err();
     assert!(matches!(err, iam_service::error::IamError::RoleNotFound));
 }
 
@@ -146,9 +211,15 @@ async fn org_units_are_tenant_isolated() {
     let tree_t2 = svc.list(&TenantScope::Single(2)).await.unwrap();
     assert!(tree_t2.iter().any(|o| o.id == created.id));
     let tree_t3 = svc.list(&TenantScope::Single(3)).await.unwrap();
-    assert!(!tree_t3.iter().any(|o| o.id == created.id), "cross-tenant org leak");
+    assert!(
+        !tree_t3.iter().any(|o| o.id == created.id),
+        "cross-tenant org leak"
+    );
 
-    let err = svc.get(&created.id, &TenantScope::Single(3)).await.unwrap_err();
+    let err = svc
+        .get(&created.id, &TenantScope::Single(3))
+        .await
+        .unwrap_err();
     assert!(matches!(err, iam_service::error::IamError::OrgUnitNotFound));
 }
 
@@ -176,12 +247,42 @@ async fn users_are_tenant_isolated() {
         .await
         .unwrap();
 
-    let l2 = svc.list(UserQuery { page: 1, size: 50, keyword: None, status: None, org_unit_id: None }, &TenantScope::Single(2)).await.unwrap();
+    let l2 = svc
+        .list(
+            UserQuery {
+                page: 1,
+                size: 50,
+                keyword: None,
+                status: None,
+                org_unit_id: None,
+            },
+            &TenantScope::Single(2),
+        )
+        .await
+        .unwrap();
     assert!(l2.items.iter().any(|u| u.id == created.id));
-    let l3 = svc.list(UserQuery { page: 1, size: 50, keyword: None, status: None, org_unit_id: None }, &TenantScope::Single(3)).await.unwrap();
-    assert!(!l3.items.iter().any(|u| u.id == created.id), "cross-tenant user leak in /iam/users");
+    let l3 = svc
+        .list(
+            UserQuery {
+                page: 1,
+                size: 50,
+                keyword: None,
+                status: None,
+                org_unit_id: None,
+            },
+            &TenantScope::Single(3),
+        )
+        .await
+        .unwrap();
+    assert!(
+        !l3.items.iter().any(|u| u.id == created.id),
+        "cross-tenant user leak in /iam/users"
+    );
 
-    let err = svc.get(&created.id, &TenantScope::Single(3)).await.unwrap_err();
+    let err = svc
+        .get(&created.id, &TenantScope::Single(3))
+        .await
+        .unwrap_err();
     assert!(matches!(err, iam_service::error::IamError::UserNotFound));
 
     let dup = svc
@@ -200,7 +301,10 @@ async fn users_are_tenant_isolated() {
         .await
         .unwrap();
     assert_eq!(dup.username, "u-t2");
-    assert_ne!(dup.id, created.id, "same username in different tenants must succeed");
+    assert_ne!(
+        dup.id, created.id,
+        "same username in different tenants must succeed"
+    );
 }
 
 fn tenant_req(slug: &str, admin: &str) -> CreateTenantRequest {
@@ -218,7 +322,10 @@ async fn platform_admin_point_query_cross_tenant() {
     let ctx = setup().await;
 
     let tenant_svc = TenantService::new(ctx.state.clone());
-    let acme = tenant_svc.register(tenant_req("acme", "acme_admin")).await.unwrap();
+    let acme = tenant_svc
+        .register(tenant_req("acme", "acme_admin"))
+        .await
+        .unwrap();
 
     let user_svc = UserService::new(ctx.state.clone());
     let acme_user = user_svc
@@ -277,8 +384,14 @@ async fn platform_admin_point_query_cross_tenant() {
         .unwrap();
 
     let principal = Principal::from_jwt_payload(&login.access_token).unwrap();
-    assert!(principal.cross_tenant, "platform_admin must have cross_tenant=true");
-    assert_eq!(principal.tenant_id, 1, "default_admin must have tenant_id=1");
+    assert!(
+        principal.cross_tenant,
+        "platform_admin must have cross_tenant=true"
+    );
+    assert_eq!(
+        principal.tenant_id, 1,
+        "default_admin must have tenant_id=1"
+    );
 
     let resp = ctx
         .app
@@ -296,7 +409,10 @@ async fn platform_admin_point_query_cross_tenant() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body_bytes = to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
     let body: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-    assert_eq!(body["id"], acme_user.id, "platform_admin must read cross-tenant user via id");
+    assert_eq!(
+        body["id"], acme_user.id,
+        "platform_admin must read cross-tenant user via id"
+    );
     assert_eq!(body["username"], "acme_user");
     let _ = acme.tenant_id;
 }

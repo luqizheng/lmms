@@ -42,13 +42,23 @@ async fn outbox_count(db: &Db, ann_id: u64) -> i64 {
 async fn publish_inserts_deliveries_status_and_outbox() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1"), ("user", "u2")]).await;
-    let users = db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
+    let users = db
+        .publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
     assert_eq!(users.len(), 2);
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
-        .bind(id).fetch_one(&db.pool).await.unwrap();
+        .bind(id)
+        .fetch_one(&db.pool)
+        .await
+        .unwrap();
     assert_eq!(st, "published");
-    let (d,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
-        .bind(id).fetch_one(&db.pool).await.unwrap();
+    let (d,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
+            .bind(id)
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
     assert_eq!(d, 2);
     assert_eq!(outbox_count(&db, id).await, 1);
 }
@@ -58,8 +68,13 @@ async fn publish_inserts_deliveries_status_and_outbox() {
 async fn publish_is_idempotent_no_duplicate_outbox() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1")]).await;
-    db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
-    let again = db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
+    db.publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
+    let again = db
+        .publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
     assert!(again.is_empty(), "second publish should be no-op");
     assert_eq!(outbox_count(&db, id).await, 1, "no duplicate outbox row");
 }
@@ -69,10 +84,17 @@ async fn publish_is_idempotent_no_duplicate_outbox() {
 async fn publish_with_mixed_scopes_user_only() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1"), ("user", "u2")]).await;
-    let users = db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
+    let users = db
+        .publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
     assert_eq!(users.len(), 2);
-    let (d,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
-        .bind(id).fetch_one(&db.pool).await.unwrap();
+    let (d,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
+            .bind(id)
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
     assert_eq!(d, 2);
 }
 
@@ -81,12 +103,22 @@ async fn publish_with_mixed_scopes_user_only() {
 async fn publish_with_no_user_scopes_does_nothing() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[]).await;
-    let users = db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
+    let users = db
+        .publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
     assert!(users.is_empty());
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
-        .bind(id).fetch_one(&db.pool).await.unwrap();
+        .bind(id)
+        .fetch_one(&db.pool)
+        .await
+        .unwrap();
     assert_eq!(st, "published");
-    assert_eq!(outbox_count(&db, id).await, 1, "event enqueued even with empty user_ids");
+    assert_eq!(
+        outbox_count(&db, id).await,
+        1,
+        "event enqueued even with empty user_ids"
+    );
 }
 
 // I: reload 兜底 — 发布后(无 WS)，list_for_user 仍返回公告
@@ -94,9 +126,14 @@ async fn publish_with_no_user_scopes_does_nothing() {
 async fn published_announcement_visible_on_reload_without_ws() {
     let (db, _c) = setup_db().await;
     let id = seed_announcement(&db, &[("user", "u1")]).await;
-    db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
+    db.publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
     let list = db.list_for_user("u1".to_string()).await.unwrap();
-    assert!(list.iter().any(|a| a.id == id), "announcement must be visible on reload via deliveries");
+    assert!(
+        list.iter().any(|a| a.id == id),
+        "announcement must be visible on reload via deliveries"
+    );
 }
 
 // Phase 5B-fu3: role scope 走本地 ntf_user_projection JSON_CONTAINS
@@ -110,12 +147,19 @@ async fn publish_role_scope_uses_local_projection() {
     ).execute(&db.pool).await.unwrap();
 
     let id = seed_announcement(&db, &[("role", "r1")]).await;
-    let users = db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
+    let users = db
+        .publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
     let mut sorted = users.clone();
     sorted.sort();
     assert_eq!(sorted, vec!["u1", "u2"]);
-    let (d,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
-        .bind(id).fetch_one(&db.pool).await.unwrap();
+    let (d,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
+            .bind(id)
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
     assert_eq!(d, 2);
 }
 
@@ -129,7 +173,10 @@ async fn publish_dept_scope_uses_local_projection() {
     ).execute(&db.pool).await.unwrap();
 
     let id = seed_announcement(&db, &[("dept", "d1")]).await;
-    let users = db.publish_announcement(id, &TenantScope::Single(1)).await.unwrap();
+    let users = db
+        .publish_announcement(id, &TenantScope::Single(1))
+        .await
+        .unwrap();
     let mut sorted = users.clone();
     sorted.sort();
     assert_eq!(sorted, vec!["u10", "u11"]);

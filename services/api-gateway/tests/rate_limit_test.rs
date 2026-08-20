@@ -69,7 +69,10 @@ fn rule_for_supports_wildcard_suffix() {
 #[allow(unused_variables, dead_code)]
 fn limiter_allows_within_burst_then_throttles_disabled() {
     // body removed: see git history
-    let _ = (HashMap::<String, RateLimitRule>::new(), RateLimitConfig::default());
+    let _ = (
+        HashMap::<String, RateLimitRule>::new(),
+        RateLimitConfig::default(),
+    );
 }
 
 #[test]

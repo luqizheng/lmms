@@ -63,9 +63,7 @@ impl ObjectStore for LocalStorage {
             .map_err(|e| AppError::not_found("FILE_ITEM_1001", e.to_string()))?;
 
         let stream = tokio_util::io::ReaderStream::new(file);
-        Ok(Box::pin(stream.map(|r| {
-            r.map_err(std::io::Error::other)
-        })))
+        Ok(Box::pin(stream.map(|r| r.map_err(std::io::Error::other))))
     }
 
     async fn delete(&self, path: &str) -> AppResult<()> {

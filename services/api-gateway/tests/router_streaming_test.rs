@@ -56,7 +56,7 @@ async fn streaming_forward_passes_chunks_through() {
         "test",
         "/stream",
         true, // ws=true → streaming path
-        None,  // timeout_ms (use global default)
+        None, // timeout_ms (use global default)
     )
     .await;
 

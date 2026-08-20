@@ -68,7 +68,9 @@ async fn list_with_pagination_and_keyword() {
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
     // 全量
-    let (rows, total) = oauth_client_svc::list(&pool, None, None, 1, 50).await.unwrap();
+    let (rows, total) = oauth_client_svc::list(&pool, None, None, 1, 50)
+        .await
+        .unwrap();
     assert_eq!(total, 4);
     assert_eq!(rows.len(), 4);
 
@@ -84,15 +86,16 @@ async fn list_with_pagination_and_keyword() {
         .await
         .unwrap();
     assert_eq!(total_active, 4);
-    let (rows, total_disabled) =
-        oauth_client_svc::list(&pool, None, Some("disabled"), 1, 50)
-            .await
-            .unwrap();
+    let (rows, total_disabled) = oauth_client_svc::list(&pool, None, Some("disabled"), 1, 50)
+        .await
+        .unwrap();
     assert_eq!(total_disabled, 0);
     assert!(rows.is_empty());
 
     // 分页：size=2 第二页
-    let (rows, total) = oauth_client_svc::list(&pool, None, None, 2, 2).await.unwrap();
+    let (rows, total) = oauth_client_svc::list(&pool, None, None, 2, 2)
+        .await
+        .unwrap();
     assert_eq!(total, 4);
     assert_eq!(rows.len(), 2);
 }
@@ -137,7 +140,9 @@ async fn update_unknown_returns_false() {
         refresh_token_ttl_sec: None,
         status: None,
     };
-    let ok = oauth_client_svc::update(&pool, "ghost", &patch).await.unwrap();
+    let ok = oauth_client_svc::update(&pool, "ghost", &patch)
+        .await
+        .unwrap();
     assert!(!ok);
 }
 
@@ -146,7 +151,9 @@ async fn delete_removes_client() {
     let pool = common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
-    let ok = oauth_client_svc::delete(&pool, "api-gateway").await.unwrap();
+    let ok = oauth_client_svc::delete(&pool, "api-gateway")
+        .await
+        .unwrap();
     assert!(ok);
     let got = oauth_client_svc::find_by_id(&pool, "api-gateway")
         .await
@@ -154,7 +161,9 @@ async fn delete_removes_client() {
     assert!(got.is_none());
 
     // 再次删除返回 false
-    let ok2 = oauth_client_svc::delete(&pool, "api-gateway").await.unwrap();
+    let ok2 = oauth_client_svc::delete(&pool, "api-gateway")
+        .await
+        .unwrap();
     assert!(!ok2);
 }
 
@@ -185,7 +194,9 @@ async fn reset_secret_returns_new_plain_and_changes_hash() {
 #[tokio::test]
 async fn reset_secret_unknown_returns_none() {
     let pool = common::spawn_mysql().await;
-    let res = oauth_client_svc::reset_secret(&pool, "ghost").await.unwrap();
+    let res = oauth_client_svc::reset_secret(&pool, "ghost")
+        .await
+        .unwrap();
     assert!(res.is_none());
 }
 

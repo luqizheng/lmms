@@ -12,13 +12,13 @@ use digua_common_cache::MemoryCache;
 use digua_common_crypto::password::hash as hash_password;
 use digua_common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
 use digua_common_event::MySqlOutboxRepo;
+use digua_jwt_ctx::TenantScope;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::LoginRequest;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::service::{AuthService, PermissionService, RoleService};
-use digua_jwt_ctx::TenantScope;
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -96,7 +96,16 @@ async fn setup() -> Ctx {
         String::new(),
     ));
     let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo, jwks, service_jwt, token_forward);
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        Some(mgr.clone()),
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
     Ctx {
         state,
         redis: mgr,
@@ -172,8 +181,12 @@ async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
          VALUES (?, ?, ?, 'active', NOW(), NOW()) \
          ON DUPLICATE KEY UPDATE id = id",
     )
-    .bind(id).bind(slug).bind(slug)
-    .execute(&state.db).await.unwrap();
+    .bind(id)
+    .bind(slug)
+    .bind(slug)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn seed_tenant_user(state: &AppState, tenant: i64, uid: &str, password_hash: &str) {
@@ -275,7 +288,12 @@ async fn assign_permissions_emits_event_and_stamps_epochs() {
 
     let before = chrono::Utc::now().timestamp();
     RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p2".into()], None, &TenantScope::Single(1i64))
+        .assign_permissions(
+            "r1",
+            vec!["p1".into(), "p2".into()],
+            None,
+            &TenantScope::Single(1i64),
+        )
         .await
         .unwrap();
 
@@ -295,7 +313,10 @@ async fn role_delete_emits_role_deleted() {
     assign_user_to_role(&ctx.state, "u1", "r1").await;
 
     let before = chrono::Utc::now().timestamp();
-    RoleService::new(ctx.state.clone()).delete("r1", None, &TenantScope::Single(1i64)).await.unwrap();
+    RoleService::new(ctx.state.clone())
+        .delete("r1", None, &TenantScope::Single(1i64))
+        .await
+        .unwrap();
 
     let (reason, users) = single_outbox_reason_and_users(&ctx.state).await;
     assert_eq!(reason, "role_deleted");
@@ -394,12 +415,17 @@ async fn assign_permissions_with_no_users_emits_nothing() {
         .await
         .unwrap();
 
-    assert_eq!(outbox_count(&ctx.state).await, 0, "no outbox row for empty user set");
+    assert_eq!(
+        outbox_count(&ctx.state).await,
+        0,
+        "no outbox row for empty user set"
+    );
     // role_permissions still applied (assignment itself succeeds)
-    let (n,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_role_permissions WHERE role_id = 'r1'")
-        .fetch_one(&ctx.state.db)
-        .await
-        .unwrap();
+    let (n,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM iam_role_permissions WHERE role_id = 'r1'")
+            .fetch_one(&ctx.state.db)
+            .await
+            .unwrap();
     assert_eq!(n, 1);
     assert_no_epoch(&mut ctx, "u1").await;
 }
@@ -419,7 +445,12 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
 
     // duplicate p1 → second INSERT hits PK (role_id, permission_id)
     let res = RoleService::new(ctx.state.clone())
-        .assign_permissions("r1", vec!["p1".into(), "p1".into()], None, &TenantScope::Single(1i64))
+        .assign_permissions(
+            "r1",
+            vec!["p1".into(), "p1".into()],
+            None,
+            &TenantScope::Single(1i64),
+        )
         .await;
     assert!(res.is_err(), "duplicate permission_id must fail the tx");
 
@@ -434,7 +465,11 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
         set_of(&["p_existing"]),
         "rolled-back tx must leave role_permissions untouched"
     );
-    assert_eq!(outbox_count(&ctx.state).await, 0, "no outbox row on rollback");
+    assert_eq!(
+        outbox_count(&ctx.state).await,
+        0,
+        "no outbox row on rollback"
+    );
     assert_no_epoch(&mut ctx, "u1").await;
 }
 
@@ -506,7 +541,10 @@ async fn permission_changed_event_carries_real_tenant_id() {
     .fetch_one(&ctx.state.db)
     .await
     .unwrap();
-    assert_eq!(env_tenant, "2", "permission.changed envelope must carry real tenant_id");
+    assert_eq!(
+        env_tenant, "2",
+        "permission.changed envelope must carry real tenant_id"
+    );
 }
 
 #[tokio::test]
@@ -522,9 +560,7 @@ async fn login_succeeded_event_carries_real_tenant_id() {
         password: "password".into(),
         tenant_slug: Some("tenant-2".into()),
     };
-    auth.login(req, "127.0.0.1", "test-agent")
-        .await
-        .unwrap();
+    auth.login(req, "127.0.0.1", "test-agent").await.unwrap();
 
     let (env_tenant,): (String,) = sqlx::query_as(
         "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.tenant_id')) AS CHAR) \
@@ -533,5 +569,8 @@ async fn login_succeeded_event_carries_real_tenant_id() {
     .fetch_one(&ctx.state.db)
     .await
     .unwrap();
-    assert_eq!(env_tenant, "2", "login.succeeded envelope must carry real tenant_id");
+    assert_eq!(
+        env_tenant, "2",
+        "login.succeeded envelope must carry real tenant_id"
+    );
 }

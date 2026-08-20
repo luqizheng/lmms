@@ -10,14 +10,14 @@ mod common;
 use digua_common_cache::MemoryCache;
 use digua_common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
 use digua_common_event::MySqlOutboxRepo;
+use digua_jwt_ctx::TenantScope;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
-use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::error::IamError;
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::service::RoleService;
 use iam_service::state::AppState;
-use digua_jwt_ctx::TenantScope;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
@@ -43,11 +43,32 @@ async fn setup() -> Ctx {
     let mgr = redis::aio::ConnectionManager::new(client).await.unwrap();
 
     let config = Config {
-        app: AppConfig { name: "iam-service".into(), host: "0.0.0.0".into(), port: 8080 },
-        database: DatabaseConfig { url: url.clone(), max_connections: 5, min_connections: 1 },
-        redis: RedisConfig { url: format!("redis://{r_host}:{r_port}"), ttl_sec: 86400, prefix: PREFIX.into() },
-        jwt: JwtConfig { private_key_path: "/app/keys/private.pem".into(), public_key_path: "/app/keys/public.pem".into(), access_token_ttl_minutes: 15, refresh_token_ttl_days: 7 },
-        consul: ConsulConfig { host: "consul".into(), port: 8500, service_name: "iam-service".into() },
+        app: AppConfig {
+            name: "iam-service".into(),
+            host: "0.0.0.0".into(),
+            port: 8080,
+        },
+        database: DatabaseConfig {
+            url: url.clone(),
+            max_connections: 5,
+            min_connections: 1,
+        },
+        redis: RedisConfig {
+            url: format!("redis://{r_host}:{r_port}"),
+            ttl_sec: 86400,
+            prefix: PREFIX.into(),
+        },
+        jwt: JwtConfig {
+            private_key_path: "/app/keys/private.pem".into(),
+            public_key_path: "/app/keys/public.pem".into(),
+            access_token_ttl_minutes: 15,
+            refresh_token_ttl_days: 7,
+        },
+        consul: ConsulConfig {
+            host: "consul".into(),
+            port: 8500,
+            service_name: "iam-service".into(),
+        },
     };
 
     let cache = MemoryCache::new(10000);
@@ -73,8 +94,22 @@ async fn setup() -> Ctx {
         String::new(),
     ));
     let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo, jwks, service_jwt, token_forward);
-    Ctx { state, redis: mgr, _mysql: mysql_h.container, _redis: redis_c }
+    let state = AppState::new(
+        pool,
+        cache,
+        config,
+        Some(mgr.clone()),
+        outbox_repo,
+        jwks,
+        service_jwt,
+        token_forward,
+    );
+    Ctx {
+        state,
+        redis: mgr,
+        _mysql: mysql_h.container,
+        _redis: redis_c,
+    }
 }
 
 // ---- seed helpers (copied from permission_changed_test.rs) ----
@@ -90,19 +125,35 @@ async fn seed_role(state: &AppState, id: &str) {
     sqlx::query(
         "INSERT INTO iam_roles (id, name, code, data_scope, status, created_at, updated_at) \
          VALUES (?, ?, ?, 'self', 'active', NOW(), NOW())",
-    ).bind(id).bind(id).bind(id).execute(&state.db).await.unwrap();
+    )
+    .bind(id)
+    .bind(id)
+    .bind(id)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn seed_disabled_role(state: &AppState, id: &str) {
     sqlx::query(
         "INSERT INTO iam_roles (id, name, code, data_scope, status, created_at, updated_at) \
          VALUES (?, ?, ?, 'self', 'disabled', NOW(), NOW())",
-    ).bind(id).bind(id).bind(id).execute(&state.db).await.unwrap();
+    )
+    .bind(id)
+    .bind(id)
+    .bind(id)
+    .execute(&state.db)
+    .await
+    .unwrap();
 }
 
 async fn assign_user_to_role(state: &AppState, user_id: &str, role_id: &str) {
     sqlx::query("INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())")
-        .bind(user_id).bind(role_id).execute(&state.db).await.unwrap();
+        .bind(user_id)
+        .bind(role_id)
+        .execute(&state.db)
+        .await
+        .unwrap();
 }
 
 // ---- outbox helpers ----
@@ -110,35 +161,57 @@ async fn assign_user_to_role(state: &AppState, user_id: &str, role_id: &str) {
 async fn outbox_count(state: &AppState) -> i64 {
     let (n,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
-    ).fetch_one(&state.db).await.unwrap();
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap();
     n
 }
 
 async fn single_outbox_reason_and_users(state: &AppState) -> (String, BTreeSet<String>) {
-    assert_eq!(outbox_count(state).await, 1, "expected exactly one iam.permission.changed row");
+    assert_eq!(
+        outbox_count(state).await,
+        1,
+        "expected exactly one iam.permission.changed row"
+    );
     let (reason, users_json): (String, String) = sqlx::query_as(
         "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.payload.reason')) AS CHAR), \
                 CAST(JSON_EXTRACT(envelope_json, '$.payload.user_ids') AS CHAR) \
          FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
-    ).fetch_one(&state.db).await.unwrap();
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap();
     let users: Vec<String> = serde_json::from_str(&users_json).unwrap();
     (reason, users.into_iter().collect())
 }
 
 async fn user_roles(state: &AppState, user_id: &str) -> BTreeSet<String> {
-    let rows: Vec<(String,)> = sqlx::query_as(
-        "SELECT role_id FROM iam_user_roles WHERE user_id = ?"
-    ).bind(user_id).fetch_all(&state.db).await.unwrap();
+    let rows: Vec<(String,)> =
+        sqlx::query_as("SELECT role_id FROM iam_user_roles WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_all(&state.db)
+            .await
+            .unwrap();
     rows.into_iter().map(|(r,)| r).collect()
 }
 
 async fn assert_epoch_fresh(ctx: &mut Ctx, uid: &str, before: i64) {
-    let epoch = get_perm_epoch(&mut ctx.redis, PREFIX, uid).await.unwrap()
+    let epoch = get_perm_epoch(&mut ctx.redis, PREFIX, uid)
+        .await
+        .unwrap()
         .unwrap_or_else(|| panic!("perm_epoch missing for {uid}"));
     let after = chrono::Utc::now().timestamp();
-    assert!(epoch >= before && epoch <= after, "epoch {epoch} for {uid} not in [{before}, {after}]");
+    assert!(
+        epoch >= before && epoch <= after,
+        "epoch {epoch} for {uid} not in [{before}, {after}]"
+    );
     let key = perm_epoch_key(PREFIX, uid);
-    let ttl: i64 = redis::cmd("TTL").arg(&key).query_async(&mut ctx.redis).await.unwrap();
+    let ttl: i64 = redis::cmd("TTL")
+        .arg(&key)
+        .query_async(&mut ctx.redis)
+        .await
+        .unwrap();
     assert!(ttl > 0, "expected TTL > 0 for {key}, got {ttl}");
 }
 
@@ -164,7 +237,12 @@ async fn assign_user_roles_replaces_and_emits_event() {
 
     let before = chrono::Utc::now().timestamp();
     let ret = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, &TenantScope::Single(1i64))
+        .assign_user_roles(
+            "u1",
+            vec!["r1".into(), "r2".into()],
+            None,
+            &TenantScope::Single(1i64),
+        )
         .await
         .unwrap();
 
@@ -211,7 +289,12 @@ async fn assign_user_roles_no_change_skips_write() {
 
     // Reorder input; result should be identical set.
     RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r2".into(), "r1".into()], None, &TenantScope::Single(1i64))
+        .assign_user_roles(
+            "u1",
+            vec!["r2".into(), "r1".into()],
+            None,
+            &TenantScope::Single(1i64),
+        )
         .await
         .unwrap();
 
@@ -228,7 +311,12 @@ async fn assign_user_roles_rejects_invalid_role_id() {
     assign_user_to_role(&ctx.state, "u1", "r1").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r_ghost".into()], None, &TenantScope::Single(1i64))
+        .assign_user_roles(
+            "u1",
+            vec!["r1".into(), "r_ghost".into()],
+            None,
+            &TenantScope::Single(1i64),
+        )
         .await
         .unwrap_err();
     match err {
@@ -249,7 +337,12 @@ async fn assign_user_roles_rejects_disabled_role() {
     seed_disabled_role(&ctx.state, "r2").await;
 
     let err = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r2".into()], None, &TenantScope::Single(1i64))
+        .assign_user_roles(
+            "u1",
+            vec!["r1".into(), "r2".into()],
+            None,
+            &TenantScope::Single(1i64),
+        )
         .await
         .unwrap_err();
     match err {
@@ -284,7 +377,12 @@ async fn assign_user_roles_dedups_input() {
 
     let before = chrono::Utc::now().timestamp();
     let ret = RoleService::new(ctx.state.clone())
-        .assign_user_roles("u1", vec!["r1".into(), "r1".into(), "r2".into()], None, &TenantScope::Single(1i64))
+        .assign_user_roles(
+            "u1",
+            vec!["r1".into(), "r1".into(), "r2".into()],
+            None,
+            &TenantScope::Single(1i64),
+        )
         .await
         .unwrap();
 

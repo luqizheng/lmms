@@ -5,8 +5,7 @@ use digua_jwt_ctx::{PrincipalStateProvider, TenantScope};
 use std::sync::Arc;
 use std::time::Duration;
 
-const TEST_PRIVATE_PEM: &str =
-    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
+const TEST_PRIVATE_PEM: &str = include_str!("../../common-jwt/tests/fixtures/test_private.pem");
 const TEST_PUBLIC_PEM: &str = include_str!("../../common-jwt/tests/fixtures/test_public.pem");
 
 #[derive(Clone)]
