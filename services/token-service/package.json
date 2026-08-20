@@ -7,7 +7,7 @@
     "lint": "cargo clippy --all-targets --all-features",
     "lint:fix": "cargo clippy --all-targets --all-features --fix",
     "check": "cargo check",
-    "test": "cargo test",
+    "test": "node ../../scripts/run-cargo-test.js",
     "clean": "cargo clean",
     "run": "cargo run --bin token-server",
     "run:release": "cargo run --bin token-server --release token-server"

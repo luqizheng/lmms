@@ -1,5 +1,5 @@
 // requires: cargo test --test-threads=1
-mod digua_common;
+mod common;
 
 use token_service::models::oauth_client::Client;
 use token_service::service::oauth_client_svc::{
@@ -21,7 +21,7 @@ fn sample_client(id: &str) -> Client {
 
 #[tokio::test]
 async fn seed_then_find_by_id() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     let n = oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     assert_eq!(n, 4); // api-gateway / token-service / user-service / notification-service
 
@@ -36,7 +36,7 @@ async fn seed_then_find_by_id() {
 
 #[tokio::test]
 async fn seed_is_idempotent() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     let n1 = oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     let n2 = oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     assert_eq!(n1, 4);
@@ -45,7 +45,7 @@ async fn seed_is_idempotent() {
 
 #[tokio::test]
 async fn find_unknown_returns_none() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
     let c = oauth_client_svc::find_by_id(&pool, "ghost").await.unwrap();
     assert!(c.is_none());
@@ -53,7 +53,7 @@ async fn find_unknown_returns_none() {
 
 #[tokio::test]
 async fn insert_new_client() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     let c = sample_client("svc-new");
     oauth_client_svc::insert(&pool, &c).await.unwrap();
     let got = oauth_client_svc::find_by_id(&pool, "svc-new")
@@ -64,7 +64,7 @@ async fn insert_new_client() {
 
 #[tokio::test]
 async fn list_with_pagination_and_keyword() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
     // 全量
@@ -99,7 +99,7 @@ async fn list_with_pagination_and_keyword() {
 
 #[tokio::test]
 async fn update_patches_only_provided_fields() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
     let patch = ClientPatch {
@@ -128,7 +128,7 @@ async fn update_patches_only_provided_fields() {
 
 #[tokio::test]
 async fn update_unknown_returns_false() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     let patch = ClientPatch {
         name: Some("x".into()),
         permissions: None,
@@ -143,7 +143,7 @@ async fn update_unknown_returns_false() {
 
 #[tokio::test]
 async fn delete_removes_client() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
     let ok = oauth_client_svc::delete(&pool, "api-gateway").await.unwrap();
@@ -160,7 +160,7 @@ async fn delete_removes_client() {
 
 #[tokio::test]
 async fn reset_secret_returns_new_plain_and_changes_hash() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     oauth_client_svc::seed_default_clients(&pool).await.unwrap();
 
     let old = oauth_client_svc::find_by_id(&pool, "api-gateway")
@@ -184,7 +184,7 @@ async fn reset_secret_returns_new_plain_and_changes_hash() {
 
 #[tokio::test]
 async fn reset_secret_unknown_returns_none() {
-    let pool = digua_common::spawn_mysql().await;
+    let pool = common::spawn_mysql().await;
     let res = oauth_client_svc::reset_secret(&pool, "ghost").await.unwrap();
     assert!(res.is_none());
 }
