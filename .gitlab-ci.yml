@@ -774,9 +774,6 @@ rust_publish:
     CARGO_REGISTRIES_KELLNR_TOKEN: "${KELLNR_TOKEN}"
     CARGO_REGISTRIES_KELLNR_INDEX: "sparse+http://192.168.2.12:16444/api/v1/crates/"
     SDK_VERSION: "${CI_COMMIT_TAG#v}"
-  before_script:
-    - export RUSTUP_DIST_SERVER=http://crates.kudi.repos
-    - export RUSTUP_UPDATE_ROOT=http://crates.kudi.reposrustup
   script:
     - node scripts/publish-libs.js "${SDK_VERSION}" --registry kellnr
     - node scripts/publish-rust-sdks.js "${SDK_VERSION}" --registry kellnr
