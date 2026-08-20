@@ -10,9 +10,9 @@ pub mod users;
 
 pub use internal_users::TenantIdQuery;
 
-use axum::{Router, middleware as axum_mw, routing::get};
-use digua_authz::verify_aud_principal_middleware;
 use crate::state::AppState;
+use axum::{middleware as axum_mw, routing::get, Router};
+use digua_authz::verify_aud_principal_middleware;
 use prometheus::{Encoder, TextEncoder};
 
 pub fn build_router(state: AppState) -> Router {
@@ -24,20 +24,19 @@ pub fn build_router(state: AppState) -> Router {
         axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
-    let internal_users = internal_users::routes(state.clone())
-        .layer(axum_mw::from_fn_with_state(
+    let internal_users = internal_users::routes(state.clone()).layer(axum_mw::from_fn_with_state(
+        state.clone(),
+        verify_aud_principal_middleware::<AppState>("iam-service"),
+    ));
+
+    let internal_membership =
+        internal_membership::routes(state.clone()).layer(axum_mw::from_fn_with_state(
             state.clone(),
             verify_aud_principal_middleware::<AppState>("iam-service"),
         ));
 
-    let internal_membership = internal_membership::routes(state.clone())
-        .layer(axum_mw::from_fn_with_state(
-            state.clone(),
-            verify_aud_principal_middleware::<AppState>("iam-service"),
-        ));
-
-    let internal_migration_state = internal_migration_state::routes(state.clone())
-        .layer(axum_mw::from_fn_with_state(
+    let internal_migration_state =
+        internal_migration_state::routes(state.clone()).layer(axum_mw::from_fn_with_state(
             state.clone(),
             verify_aud_principal_middleware::<AppState>("iam-service"),
         ));
@@ -54,7 +53,9 @@ pub fn build_router(state: AppState) -> Router {
         .merge(internal_migration_state)
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(
+            digua_common_telemetry_axum::trace_request_middleware,
+        ))
 }
 
 async fn health() -> &'static str {

@@ -43,7 +43,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use prometheus::{IntCounterVec, register_int_counter_vec};
+use prometheus::{register_int_counter_vec, IntCounterVec};
 use redis::aio::ConnectionManager;
 use std::sync::{Arc, OnceLock};
 
@@ -77,7 +77,11 @@ pub struct Limit {
 
 impl Limit {
     pub const fn new(route: &'static str, max: u32, window_secs: u32) -> Self {
-        Self { route, max, window_secs }
+        Self {
+            route,
+            max,
+            window_secs,
+        }
     }
 }
 
@@ -94,7 +98,10 @@ pub struct RateLimiter {
 
 impl RateLimiter {
     pub fn new(conn: ConnectionManager, limits: Vec<Limit>) -> Self {
-        Self { conn, limits: Arc::new(limits) }
+        Self {
+            conn,
+            limits: Arc::new(limits),
+        }
     }
 
     pub fn with_defaults(conn: ConnectionManager) -> Self {
@@ -176,7 +183,7 @@ pub async fn rate_limit_middleware(
     let identity = extract_identity(&request);
     let limit = limiter.limit_for(&route_key);
 
-    match limiter.check(&identity, &limit).await {
+    match limiter.check(&identity, limit).await {
         Ok(()) => next.run(request).await,
         Err(()) => {
             if let Some(counter) = RATE_LIMITED_TOTAL.get() {

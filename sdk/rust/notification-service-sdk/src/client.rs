@@ -3,9 +3,7 @@ use std::sync::Arc;
 use digua_http_client::client::KudiWebClient;
 use digua_http_client::{transport::HttpResponse, SdkError};
 
-use crate::model::{
-    Announcement, CreateAnnouncement, ListAnnouncementsQuery, PagedAnnouncements,
-};
+use crate::model::{Announcement, CreateAnnouncement, ListAnnouncementsQuery, PagedAnnouncements};
 
 type BearerSupplier = Arc<dyn Fn() -> Option<String> + Send + Sync>;
 
@@ -65,22 +63,34 @@ impl NotificationClient {
         let url = format!("{}/notification/announcements", self.base_url);
         let body = serde_json::to_string(req)
             .map_err(|e| SdkError::Network(format!("serialize CreateAnnouncement: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "notification create_announcement")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode Announcement: {}", e)))
     }
 
     pub async fn publish(&self, id: i64) -> Result<(), SdkError> {
-        let url = format!("{}/notification/announcements/{}/publish", self.base_url, id);
-        let resp = self.http.post(&url, "{}", (self.bearer)().as_deref()).await?;
+        let url = format!(
+            "{}/notification/announcements/{}/publish",
+            self.base_url, id
+        );
+        let resp = self
+            .http
+            .post(&url, "{}", (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "notification publish")?;
         Ok(())
     }
 
     pub async fn revoke(&self, id: i64) -> Result<(), SdkError> {
         let url = format!("{}/notification/announcements/{}/revoke", self.base_url, id);
-        let resp = self.http.post(&url, "{}", (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, "{}", (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "notification revoke")?;
         Ok(())
     }
@@ -105,10 +115,25 @@ fn ensure_success(resp: &HttpResponse, op: &str) -> Result<(), SdkError> {
     let body = resp.body.clone();
     let msg = format!("{}: HTTP {}", op, status);
     Err(match status {
-        401 | 403 => SdkError::Auth { status, message: msg, details: Some(body) },
-        429 => SdkError::RateLimit { message: msg, details: Some(body) },
-        400 | 422 => SdkError::Validation { status, message: msg, details: Some(body) },
-        500..=599 => SdkError::Server { status, message: msg, details: Some(body) },
+        401 | 403 => SdkError::Auth {
+            status,
+            message: msg,
+            details: Some(body),
+        },
+        429 => SdkError::RateLimit {
+            message: msg,
+            details: Some(body),
+        },
+        400 | 422 => SdkError::Validation {
+            status,
+            message: msg,
+            details: Some(body),
+        },
+        500..=599 => SdkError::Server {
+            status,
+            message: msg,
+            details: Some(body),
+        },
         _ => SdkError::Network(format!("{}: unexpected status {}", op, status)),
     })
 }

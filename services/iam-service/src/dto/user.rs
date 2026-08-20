@@ -109,8 +109,12 @@ pub struct UserClaimsResponse {
     pub cross_tenant: bool,
 }
 
-fn default_page() -> u32 { 1 }
-fn default_size() -> u32 { 20 }
+fn default_page() -> u32 {
+    1
+}
+fn default_size() -> u32 {
+    20
+}
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct BatchGetUsersRequest {

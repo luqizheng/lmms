@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use validator::Validate;
 use chrono::DateTime;
+use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
+use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateRoleRequest {
@@ -40,8 +40,12 @@ pub struct RoleUsersQuery {
     pub size: u32,
 }
 
-fn default_page() -> u32 { 1 }
-fn default_page_size() -> u32 { 20 }
+fn default_page() -> u32 {
+    1
+}
+fn default_page_size() -> u32 {
+    20
+}
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RoleResponse {

@@ -1,8 +1,5 @@
 use config_service::models::{
-    CreateNamespace, 
-    CreateConfigItem, 
-    QueryNamespaces,
-    QueryConfigItems,
+    CreateConfigItem, CreateNamespace, QueryConfigItems, QueryNamespaces,
 };
 
 #[test]

@@ -1,6 +1,6 @@
-use sqlx::{FromRow, Type};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, Type};
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct LoginLog {

@@ -90,10 +90,7 @@ pub fn record_published(n: usize) {
 
 /// Increment `outbox_error_total{error_type=<error_type>}`.
 pub fn record_error(error_type: &str) {
-    metrics()
-        .error_total
-        .with_label_values(&[error_type])
-        .inc();
+    metrics().error_total.with_label_values(&[error_type]).inc();
 }
 
 /// Encode the current registry snapshot to Prometheus text format and
@@ -135,6 +132,5 @@ pub fn flush_to_file(path: &Path) {
             error = %e,
             "rename metrics into place failed"
         );
-        return;
     }
 }

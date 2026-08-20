@@ -7,13 +7,14 @@
 //!   3) `(tenant_id, username)` unique → 双 tenant admin 同名不冲突
 //!   4) outbox envelope.tenant_id 正确填值（i64.to_string()）
 
-mod digua_common;
+mod common;
 
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::CreateTenantRequest;
 use iam_service::error::IamError;
 use iam_service::service::TenantService;
@@ -24,11 +25,11 @@ const PREFIX: &str = "superpowers:";
 
 struct Ctx {
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
@@ -82,7 +83,8 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
+    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
     Ctx {
         state,
         _mysql: mysql_h.container,

@@ -5,7 +5,7 @@
 //! perm_epoch. Serial execution via --test-threads=1 (see Cargo.toml or
 //! run-tests-docker.js).
 
-mod digua_common;
+mod common;
 
 use digua_common_cache::MemoryCache;
 use digua_common_event::perm_epoch::{get_perm_epoch, perm_epoch_key};
@@ -13,13 +13,13 @@ use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::error::IamError;
 use iam_service::service::RoleService;
 use iam_service::state::AppState;
 use digua_jwt_ctx::TenantScope;
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use testcontainers::ImageExt;
 use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
 
 const PREFIX: &str = "superpowers:";
@@ -27,16 +27,16 @@ const PREFIX: &str = "superpowers:";
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
     _redis: testcontainers::ContainerAsync<Redis>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
-    let redis_c = Redis::default().start().await.unwrap();
+    let redis_c = Redis.start().await.unwrap();
     let r_port = redis_c.get_host_port_ipv4(6379).await.unwrap();
     let r_host = redis_c.get_host().await.unwrap();
     let client = redis::Client::open(format!("redis://{r_host}:{r_port}")).unwrap();
@@ -71,7 +71,9 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo, jwks, service_jwt);
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo, jwks, service_jwt, token_forward);
     Ctx { state, redis: mgr, _mysql: mysql_h.container, _redis: redis_c }
 }
 

@@ -5,8 +5,8 @@ use digua_jwt_ctx::Principal;
 use std::time::Duration;
 
 const TEST_PRIVATE_PEM: &str =
-    include_str!("../../digua_common-jwt/tests/fixtures/test_private.pem");
-const TEST_PUBLIC_PEM: &str = include_str!("../../digua_common-jwt/tests/fixtures/test_public.pem");
+    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str = include_str!("../../common-jwt/tests/fixtures/test_public.pem");
 
 fn mock_jwks() -> JWKSCache {
     JWKSCache::from_pem(TEST_PUBLIC_PEM).expect("test public key")
@@ -35,7 +35,9 @@ async fn from_token_with_expected_aud_succeeds() {
         "aud": "iam-service",
     });
     let token = sign_token(TEST_PRIVATE_PEM, &claims, Duration::from_secs(60)).unwrap();
-    let p = Principal::from_token(&token, &cache, Some("iam-service")).await.unwrap();
+    let p = Principal::from_token(&token, &cache, Some("iam-service"))
+        .await
+        .unwrap();
     assert_eq!(p.user_id, "service-x");
 }
 
@@ -58,6 +60,11 @@ async fn from_token_with_tampered_signature_fails() {
     parts[2] = &new_sig;
     token = parts.join(".");
 
-    let err = Principal::from_token(&token, &cache, None).await.unwrap_err();
-    assert!(matches!(err, digua_jwt_ctx::PrincipalVerifyError::VerifyFailed(_)));
+    let err = Principal::from_token(&token, &cache, None)
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        digua_jwt_ctx::PrincipalVerifyError::VerifyFailed(_)
+    ));
 }

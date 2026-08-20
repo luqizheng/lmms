@@ -1,12 +1,10 @@
+use crate::models::file_info::{with_url, FileInfo, PagedFiles, QueryFiles, UploadFileMeta};
+use crate::routes::AppState;
 use axum::{
     extract::{Multipart, Path, Query, State},
     http::StatusCode,
     Json,
 };
-use crate::models::file_info::{
-    with_url, FileInfo, PagedFiles, QueryFiles, UploadFileMeta,
-};
-use crate::routes::AppState;
 use bytes::Bytes;
 use digua_jwt_ctx::TenantScope;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -132,27 +130,46 @@ pub async fn download_file(
     scope: TenantScope,
 ) -> Result<(axum::http::HeaderMap, Vec<u8>), (StatusCode, &'static str)> {
     let data = state.download(&id, &scope).await.map_err(|e| {
-        if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "download failed") }
+        if e.code() == "FILE_ITEM_1001" {
+            (StatusCode::NOT_FOUND, "file not found")
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, "download failed")
+        }
     })?;
 
     let info = state.get_file_info(&id, &scope).await.map_err(|e| {
-        if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get file info failed") }
+        if e.code() == "FILE_ITEM_1001" {
+            (StatusCode::NOT_FOUND, "file not found")
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, "get file info failed")
+        }
     })?;
 
-    let content_type = info.content_type.clone().unwrap_or_else(|| "application/octet-stream".to_string());
+    let content_type = info
+        .content_type
+        .clone()
+        .unwrap_or_else(|| "application/octet-stream".to_string());
 
     let mut headers = axum::http::HeaderMap::new();
-    headers.insert(axum::http::header::CONTENT_TYPE, content_type.parse().unwrap());
+    headers.insert(
+        axum::http::header::CONTENT_TYPE,
+        content_type.parse().unwrap(),
+    );
     // 强制作为附件下载，避免浏览器把文本/图片内联渲染
     let filename_ascii: String = info
         .filename
         .chars()
-        .map(|c| if c.is_ascii() && !matches!(c, '\r' | '\n' | '"' | '\\') { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii() && !matches!(c, '\r' | '\n' | '"' | '\\') {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let filename_utf8 = utf8_percent_encode(&info.filename, NON_ALPHANUMERIC).to_string();
-    let disposition = format!(
-        "attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{filename_utf8}"
-    );
+    let disposition =
+        format!("attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{filename_utf8}");
     if let Ok(v) = disposition.parse() {
         headers.insert(axum::http::header::CONTENT_DISPOSITION, v);
     }
@@ -178,7 +195,11 @@ pub async fn delete_file(
     scope: TenantScope,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
     state.delete(&id, &scope).await.map_err(|e| {
-        if e.code() == "FILE_ITEM_1001" { (StatusCode::NOT_FOUND, "file not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "delete failed") }
+        if e.code() == "FILE_ITEM_1001" {
+            (StatusCode::NOT_FOUND, "file not found")
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, "delete failed")
+        }
     })?;
     Ok(Json(serde_json::json!({ "success": true })))
 }

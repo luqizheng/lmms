@@ -1,6 +1,6 @@
-use axum::{extract::State, extract::Query, http::StatusCode};
-use digua_jwt_ctx::TenantScope;
 use crate::routes::AppState;
+use axum::{extract::Query, extract::State, http::StatusCode};
+use digua_jwt_ctx::TenantScope;
 use serde::Deserialize;
 use std::time::Duration;
 use utoipa::IntoParams;

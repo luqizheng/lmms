@@ -19,7 +19,9 @@ async fn sign_then_verify_roundtrip_succeeds() {
         "tid": 1,
     });
     let token = sign_token(TEST_PRIVATE_PEM, &claims, Duration::from_secs(60)).unwrap();
-    let verified = verify_token(&token, &cache, Some("iam-service")).await.unwrap();
+    let verified = verify_token(&token, &cache, Some("iam-service"))
+        .await
+        .unwrap();
     assert_eq!(verified["sub"], "user-1");
     assert_eq!(verified["aud"], "iam-service");
 }
@@ -44,7 +46,9 @@ async fn expired_token_returns_expired_error() {
         "exp": now - 3600,
     });
     let token = encode(&header, &claims, &key).unwrap();
-    let err = verify_token(&token, &cache, Some("iam-service")).await.unwrap_err();
+    let err = verify_token(&token, &cache, Some("iam-service"))
+        .await
+        .unwrap_err();
     assert!(matches!(err, VerifyError::Expired), "got {:?}", err);
 }
 
@@ -60,8 +64,14 @@ async fn wrong_audience_returns_mismatch() {
         "exp": now + 60,
     });
     let token = sign_token(TEST_PRIVATE_PEM, &claims, Duration::from_secs(60)).unwrap();
-    let err = verify_token(&token, &cache, Some("iam-service")).await.unwrap_err();
-    assert!(matches!(err, VerifyError::AudienceMismatch { .. }), "got {:?}", err);
+    let err = verify_token(&token, &cache, Some("iam-service"))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, VerifyError::AudienceMismatch { .. }),
+        "got {:?}",
+        err
+    );
 }
 
 #[tokio::test]
@@ -77,13 +87,23 @@ async fn tampered_signature_returns_invalid_signature() {
     });
     let token = sign_token(TEST_PRIVATE_PEM, &claims, Duration::from_secs(60)).unwrap();
     // Tamper: flip a byte in the signature segment.
-    let mut parts: Vec<&str> = token.split('.').collect();
+    let parts: Vec<&str> = token.split('.').collect();
     let sig = parts[2].to_string();
-    let flipped_char = sig.chars().next().map(|c| if c == 'A' { 'B' } else { 'A' }).unwrap();
+    let flipped_char = sig
+        .chars()
+        .next()
+        .map(|c| if c == 'A' { 'B' } else { 'A' })
+        .unwrap();
     let new_sig = format!("{}{}", flipped_char, &sig[1..]);
     let tampered = format!("{}.{}.{}", parts[0], parts[1], new_sig);
-    let err = verify_token(&tampered, &cache, Some("iam-service")).await.unwrap_err();
-    assert!(matches!(err, VerifyError::SignatureInvalid), "got {:?}", err);
+    let err = verify_token(&tampered, &cache, Some("iam-service"))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, VerifyError::SignatureInvalid),
+        "got {:?}",
+        err
+    );
 }
 
 #[tokio::test]
@@ -102,6 +122,8 @@ async fn unknown_kid_returns_malformed() {
     });
     let token = encode(&header, &claims, &key).unwrap();
     let cache = mock_jwks();
-    let err = verify_token(&token, &cache, Some("iam-service")).await.unwrap_err();
+    let err = verify_token(&token, &cache, Some("iam-service"))
+        .await
+        .unwrap_err();
     assert!(matches!(err, VerifyError::Malformed(_)), "got {:?}", err);
 }

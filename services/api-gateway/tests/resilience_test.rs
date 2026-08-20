@@ -33,11 +33,19 @@ fn rc() -> ResilientClient {
 
 #[tokio::test]
 async fn retry_exhausted_5xx_passes_through_body() {
-    let app = axum::Router::new()
-        .route("/x", axum::routing::get(|| async { (StatusCode::SERVICE_UNAVAILABLE, "down") }));
+    let app = axum::Router::new().route(
+        "/x",
+        axum::routing::get(|| async { (StatusCode::SERVICE_UNAVAILABLE, "down") }),
+    );
     let base = spawn(app).await;
     let resp = rc()
-        .call("svc", Method::GET, &format!("{base}/x"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/x"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect("ok upstream");
     assert_eq!(resp.status, StatusCode::SERVICE_UNAVAILABLE);
@@ -47,7 +55,13 @@ async fn retry_exhausted_5xx_passes_through_body() {
 #[tokio::test]
 async fn connect_error_maps_to_502_class() {
     let err = rc()
-        .call("svc", Method::GET, "http://127.0.0.1:1/none", &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            "http://127.0.0.1:1/none",
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect_err("connect err");
     assert!(matches!(err, ResilientError::Connect(_)));
@@ -64,7 +78,13 @@ async fn timeout_maps_to_504_class() {
     );
     let base = spawn(app).await;
     let err = rc()
-        .call("svc", Method::GET, &format!("{base}/slow"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/slow"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect_err("timeout");
     assert!(matches!(err, ResilientError::Timeout));

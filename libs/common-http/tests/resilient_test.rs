@@ -60,7 +60,13 @@ async fn success_returns_owned_body_and_records_success() {
     let rec = Arc::new(Recorder::default());
     let c = client(cfg(), rec.clone());
     let resp = c
-        .call("svc", Method::GET, &format!("{base}/ok"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/ok"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect("ok");
     assert_eq!(resp.status, StatusCode::OK);
@@ -86,7 +92,13 @@ async fn retries_502_for_idempotent_then_exhausts() {
     let rec = Arc::new(Recorder::default());
     let c = client(cfg(), rec.clone());
     let resp = c
-        .call("svc", Method::GET, &format!("{base}/bad"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/bad"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect("ok upstream resp");
     assert_eq!(resp.status, StatusCode::BAD_GATEWAY); // 重试耗尽后透传 502（5A）
@@ -111,7 +123,13 @@ async fn post_502_not_retried() {
     let base = spawn_server(app).await;
     let c = client(cfg(), Arc::new(NoopObserver));
     let _ = c
-        .call("svc", Method::POST, &format!("{base}/bad"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::POST,
+            &format!("{base}/bad"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await;
     assert_eq!(hits.load(Ordering::SeqCst), 1); // 非幂等不重试
 }
@@ -131,7 +149,13 @@ async fn overall_deadline_caps_retries() {
     let c = client(cfg(), rec.clone());
     let start = Instant::now();
     let err = c
-        .call("svc", Method::GET, &format!("{base}/slow"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/slow"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect_err("should time out");
     let elapsed = start.elapsed();
@@ -141,8 +165,10 @@ async fn overall_deadline_caps_retries() {
 
 #[tokio::test]
 async fn breaker_opens_then_short_circuits() {
-    let app = axum::Router::new()
-        .route("/bad", axum::routing::get(|| async { StatusCode::SERVICE_UNAVAILABLE }));
+    let app = axum::Router::new().route(
+        "/bad",
+        axum::routing::get(|| async { StatusCode::SERVICE_UNAVAILABLE }),
+    );
     let base = spawn_server(app).await;
     let rec = Arc::new(Recorder::default());
     let mut c = cfg();
@@ -150,11 +176,23 @@ async fn breaker_opens_then_short_circuits() {
     let client = client(c, rec.clone());
     for _ in 0..3 {
         let _ = client
-            .call("svc", Method::GET, &format!("{base}/bad"), &HeaderMap::new(), Bytes::new())
+            .call(
+                "svc",
+                Method::GET,
+                &format!("{base}/bad"),
+                &HeaderMap::new(),
+                Bytes::new(),
+            )
             .await;
     }
     let err = client
-        .call("svc", Method::GET, &format!("{base}/bad"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/bad"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect_err("circuit open");
     assert!(matches!(err, ResilientError::CircuitOpen));
@@ -185,18 +223,36 @@ async fn breaker_recovers_after_open_timeout() {
     let client = client(c, Arc::new(NoopObserver));
     for _ in 0..3 {
         let _ = client
-            .call("svc", Method::GET, &format!("{base}/flap"), &HeaderMap::new(), Bytes::new())
+            .call(
+                "svc",
+                Method::GET,
+                &format!("{base}/flap"),
+                &HeaderMap::new(),
+                Bytes::new(),
+            )
             .await;
     }
     fail.store(false, Ordering::SeqCst); // 下游恢复
     tokio::time::sleep(Duration::from_millis(250)).await; // 过 open_timeout(200ms)
     let r1 = client
-        .call("svc", Method::GET, &format!("{base}/flap"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/flap"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect("halfopen probe");
     assert_eq!(r1.status, StatusCode::OK);
     let r2 = client
-        .call("svc", Method::GET, &format!("{base}/flap"), &HeaderMap::new(), Bytes::new())
+        .call(
+            "svc",
+            Method::GET,
+            &format!("{base}/flap"),
+            &HeaderMap::new(),
+            Bytes::new(),
+        )
         .await
         .expect("recovered");
     assert_eq!(r2.status, StatusCode::OK);

@@ -9,7 +9,7 @@ pub mod model;
 
 pub use crate::client::ConfigClient;
 pub use crate::model::{
-    ConfigItem, CreateConfigItem, CreateNamespace, ListItemsQuery, ListNamespacesQuery,
-    Namespace, PagedConfigItems, PagedNamespaces,
+    ConfigItem, CreateConfigItem, CreateNamespace, ListItemsQuery, ListNamespacesQuery, Namespace,
+    PagedConfigItems, PagedNamespaces,
 };
 pub use digua_http_client::SdkError;

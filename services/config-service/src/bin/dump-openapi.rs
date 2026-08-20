@@ -1,6 +1,6 @@
-use utoipa::OpenApi;
 use config_service::openapi::ApiDoc;
 use std::fs;
+use utoipa::OpenApi;
 
 fn main() {
     let yaml = ApiDoc::openapi()

@@ -1,9 +1,9 @@
-use digua_common_log::{AuditClient, AuditEvent};
+use digua_common_log::AuditClient;
 
 #[tokio::test]
 async fn audit_client_buffers_event_when_no_endpoint() {
     let client = AuditClient::new(None, None);
-    
+
     client
         .log(
             "user.create",
@@ -20,7 +20,7 @@ async fn audit_client_buffers_event_when_no_endpoint() {
 #[tokio::test]
 async fn audit_event_contains_all_fields() {
     let client = AuditClient::new(None, None);
-    
+
     client
         .log(
             "role.update",
@@ -37,7 +37,7 @@ async fn audit_event_contains_all_fields() {
 #[tokio::test]
 async fn audit_event_with_optional_user() {
     let client = AuditClient::new(None, None);
-    
+
     client
         .log(
             "system.config",

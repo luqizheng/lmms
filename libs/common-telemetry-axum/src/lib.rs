@@ -15,11 +15,7 @@ mod otlp_impl {
     //! OTel implementation. Matches the original
     //! `digua_common-telemetry::middleware::otlp_impl` 1:1.
     use axum::{
-        body::Body,
-        extract::Request,
-        http::HeaderValue,
-        middleware::Next,
-        response::Response,
+        body::Body, extract::Request, http::HeaderValue, middleware::Next, response::Response,
     };
     use opentelemetry::global;
     use opentelemetry::trace::{TraceContextExt, TraceId};
@@ -102,11 +98,7 @@ mod otlp_impl {
 mod fallback_impl {
     //! No-OTel fallback: root span + random 128-bit hex trace id.
     use axum::{
-        body::Body,
-        extract::Request,
-        http::HeaderValue,
-        middleware::Next,
-        response::Response,
+        body::Body, extract::Request, http::HeaderValue, middleware::Next, response::Response,
     };
     use std::time::Instant;
     use tracing::Instrument;

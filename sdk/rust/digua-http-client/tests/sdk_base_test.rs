@@ -45,11 +45,7 @@ impl HttpTransport for CountingTransport {
         })
     }
 
-    async fn get(
-        &self,
-        _url: &str,
-        _bearer: Option<&str>,
-    ) -> Result<HttpResponse, KudiHttpError> {
+    async fn get(&self, _url: &str, _bearer: Option<&str>) -> Result<HttpResponse, KudiHttpError> {
         Ok(HttpResponse {
             status: 200,
             body: "{}".into(),

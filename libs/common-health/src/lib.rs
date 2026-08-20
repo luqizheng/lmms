@@ -1,12 +1,6 @@
 //! Health probes (live + ready) and graceful-shutdown shared state.
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
 use once_cell::sync::Lazy;
 use prometheus::{register_int_gauge_vec, IntGauge, IntGaugeVec};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -81,7 +75,10 @@ impl HealthState {
     pub fn mark_shutting_down(&self) {
         self.shutting_down.store(true, Ordering::SeqCst);
         self.ready_gauge.set(0);
-        tracing::info!(service = self.service_name, "marked NOT ready (shutting down)");
+        tracing::info!(
+            service = self.service_name,
+            "marked NOT ready (shutting down)"
+        );
     }
 
     pub fn is_shutting_down(&self) -> bool {

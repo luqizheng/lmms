@@ -8,9 +8,7 @@ use utoipa::OpenApi;
         description = "API Gateway for coder-micro-services. Proxies requests to downstream services. \
                       For per-service OpenAPI specs, see the respective service's Swagger UI."
     ),
-    paths(
-    ),
-    components(
-    )
+    paths(),
+    components()
 )]
 pub struct ApiDoc;

@@ -6,7 +6,7 @@
 //! 与 Redis perm_epoch（值≈now、TTL>0）。
 //!
 //! 注意：多 MySQL 容器并发易 StartupTimeout，用 `--test-threads=1` 串行。
-mod digua_common;
+mod common;
 
 use digua_common_cache::MemoryCache;
 use digua_common_crypto::password::hash as hash_password;
@@ -15,13 +15,13 @@ use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::LoginRequest;
 use iam_service::service::{AuthService, PermissionService, RoleService};
 use digua_jwt_ctx::TenantScope;
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use testcontainers::ImageExt;
 use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
 
 const PREFIX: &str = "superpowers:";
@@ -29,16 +29,16 @@ const PREFIX: &str = "superpowers:";
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
     _redis: testcontainers::ContainerAsync<Redis>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
-    let redis_c = Redis::default().start().await.unwrap();
+    let redis_c = Redis.start().await.unwrap();
     let r_port = redis_c.get_host_port_ipv4(6379).await.unwrap();
     let r_host = redis_c.get_host().await.unwrap();
     let client = redis::Client::open(format!("redis://{r_host}:{r_port}")).unwrap();
@@ -94,7 +94,9 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo, jwks, service_jwt);
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, Some(mgr.clone()), outbox_repo, jwks, service_jwt, token_forward);
     Ctx {
         state,
         redis: mgr,
@@ -440,7 +442,7 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
 
 #[tokio::test]
 async fn permission_changed_event_carries_actor_id() {
-    let mut ctx = setup().await;
+    let ctx = setup().await;
     // Seed: admin + role + a target user under that role.
     // The admin user_id = "admin_actor".
     seed_user(&ctx.state, "admin_actor").await;
@@ -483,7 +485,7 @@ async fn permission_changed_event_carries_actor_id() {
 
 #[tokio::test]
 async fn permission_changed_event_carries_real_tenant_id() {
-    let mut ctx = setup().await;
+    let ctx = setup().await;
     seed_tenant(&ctx.state, 2, "tenant-2").await;
     let hash = hash_password("password").unwrap();
     seed_tenant_user(&ctx.state, 2, "u_tenant2", &hash).await;
@@ -509,7 +511,7 @@ async fn permission_changed_event_carries_real_tenant_id() {
 
 #[tokio::test]
 async fn login_succeeded_event_carries_real_tenant_id() {
-    let mut ctx = setup().await;
+    let ctx = setup().await;
     seed_tenant(&ctx.state, 2, "tenant-2").await;
     let hash = hash_password("password").unwrap();
     seed_tenant_user(&ctx.state, 2, "u_tenant2", &hash).await;

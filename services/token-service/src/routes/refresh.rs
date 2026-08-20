@@ -60,7 +60,13 @@ fn decode_refresh_token(
         .and_then(|v| v.as_i64())
         .unwrap_or(1);
 
-    Ok(RefreshTokenInfo { sub, jti, exp, iat, tid })
+    Ok(RefreshTokenInfo {
+        sub,
+        jti,
+        exp,
+        iat,
+        tid,
+    })
 }
 
 #[utoipa::path(

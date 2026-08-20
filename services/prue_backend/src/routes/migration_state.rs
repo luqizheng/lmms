@@ -4,17 +4,13 @@
 //! 1 migration × 2 dialects：V001 init (marker: prue_menu_configs)。
 
 use axum::{
-    extract::Extension,
-    http::StatusCode,
-    response::IntoResponse,
-    Json, Router,
-    routing::get,
+    extract::Extension, http::StatusCode, response::IntoResponse, routing::get, Json, Router,
 };
+use digua_common_db::migration_state::MigrationStateResponse;
 use digua_common_db::{
     migration_state::{self, MigrationDescriptor, MigrationState},
     DbPool,
 };
-use digua_common_db::migration_state::MigrationStateResponse;
 use serde_json::json;
 use std::sync::Arc;
 use utoipa::path as to_path;
@@ -22,10 +18,18 @@ use utoipa::path as to_path;
 pub struct PrueMigrationState;
 
 impl MigrationState for PrueMigrationState {
-    fn service_name(&self) -> &'static str { "prue_backend" }
-    fn dialect(&self) -> &'static str { "mysql+sqlite" }
+    fn service_name(&self) -> &'static str {
+        "prue_backend"
+    }
+    fn dialect(&self) -> &'static str {
+        "mysql+sqlite"
+    }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
-        &[MigrationDescriptor { version: "V001", name: "init", marker_table: "prue_menu_configs" }]
+        &[MigrationDescriptor {
+            version: "V001",
+            name: "init",
+            marker_table: "prue_menu_configs",
+        }]
     }
 }
 
@@ -69,7 +73,8 @@ pub async fn handler(Extension(pool): Extension<Arc<DbPool>>) -> impl IntoRespon
                 "error": "db_unreachable",
                 "detail": e.to_string(),
             })),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }
 

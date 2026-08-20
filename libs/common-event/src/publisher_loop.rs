@@ -50,8 +50,8 @@ impl<R: OutboxRepo, P: Publisher> OutboxPublisher<R, P> {
         }
         let mut published_ids = Vec::with_capacity(batch.len());
         for row in &batch {
-            let body =
-                serde_json::to_vec(&row.envelope_json).map_err(|e| RunError::Publish(e.to_string()))?;
+            let body = serde_json::to_vec(&row.envelope_json)
+                .map_err(|e| RunError::Publish(e.to_string()))?;
             self.publisher
                 .publish_raw(&row.routing_key, &row.event_id.to_string(), &body)
                 .await

@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use std::time::Duration;
 use thiserror::Error;
 
-use crate::cache::{JwksError, JWKSCache};
+use crate::cache::{JWKSCache, JwksError};
 
 #[derive(Error, Debug)]
 pub enum VerifyError {

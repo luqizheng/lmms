@@ -7,7 +7,7 @@
 //! - role_ids empty when user has no role bindings
 //! - 401 when service-jwt is missing or invalid (aud mismatch)
 
-mod digua_common;
+mod common;
 
 use axum::{
     body::{to_bytes, Body},
@@ -19,6 +19,7 @@ use digua_common_jwt::{sign_token, JWKSCache, ServiceJwtCache, ServiceJwtConfig}
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::routes::build_router;
 use iam_service::state::AppState;
 use std::collections::HashMap;
@@ -34,11 +35,11 @@ const TEST_TOKEN_PUBLIC_PEM: &str =
 struct Ctx {
     app: axum::Router,
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
@@ -69,7 +70,8 @@ async fn setup() -> Ctx {
         reqwest::Client::new(),
         String::new(),
     ));
-    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
     let app = build_router(state.clone());
     Ctx { app, state, _mysql: mysql_h.container }
 }

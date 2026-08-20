@@ -64,7 +64,11 @@ pub fn generate_client_id(name: &str) -> String {
         .collect::<String>()
         .to_lowercase();
     let trimmed = slug.trim_matches('-');
-    let base = if trimmed.is_empty() { "client" } else { trimmed };
+    let base = if trimmed.is_empty() {
+        "client"
+    } else {
+        trimmed
+    };
     format!("{}-{}", base, suffix)
 }
 
@@ -318,20 +322,18 @@ pub async fn delete(pool: &DbPool, client_id: &str) -> Result<bool, sqlx::Error>
 }
 
 /// 重置 secret，返回明文 secret；未找到客户端时返回 None。
-pub async fn reset_secret(
-    pool: &DbPool,
-    client_id: &str,
-) -> Result<Option<String>, sqlx::Error> {
+pub async fn reset_secret(pool: &DbPool, client_id: &str) -> Result<Option<String>, sqlx::Error> {
     let plain = generate_client_secret();
     let hash = hash_client_secret(&plain);
     match pool {
         DbPool::Mysql(p) => {
-            let res =
-                sqlx::query("UPDATE token_oauth_clients SET client_secret_hash = ? WHERE client_id = ?")
-                    .bind(&hash)
-                    .bind(client_id)
-                    .execute(p)
-                    .await?;
+            let res = sqlx::query(
+                "UPDATE token_oauth_clients SET client_secret_hash = ? WHERE client_id = ?",
+            )
+            .bind(&hash)
+            .bind(client_id)
+            .execute(p)
+            .await?;
             if res.rows_affected() == 0 {
                 Ok(None)
             } else {

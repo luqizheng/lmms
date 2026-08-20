@@ -14,9 +14,8 @@ use std::time::Duration;
 use tower::ServiceExt;
 
 const TEST_PRIVATE_PEM: &str =
-    include_str!("../../digua_common-jwt/tests/fixtures/test_private.pem");
-const TEST_PUBLIC_PEM: &str =
-    include_str!("../../digua_common-jwt/tests/fixtures/test_public.pem");
+    include_str!("../../common-jwt/tests/fixtures/test_private.pem");
+const TEST_PUBLIC_PEM: &str = include_str!("../../common-jwt/tests/fixtures/test_public.pem");
 
 #[derive(Clone)]
 struct State {
@@ -67,7 +66,10 @@ async fn valid_aud_passes_through() {
     let app = make_app("iam-service");
     let req = Request::builder()
         .uri("/")
-        .header(header::AUTHORIZATION, format!("Bearer {}", make_token("iam-service")))
+        .header(
+            header::AUTHORIZATION,
+            format!("Bearer {}", make_token("iam-service")),
+        )
         .body(Body::empty())
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();

@@ -1,4 +1,4 @@
-use digua_common_db::dialect::DialectKind;
+use digua_common_db::dialect::{DialectKind, Paginate};
 
 #[test]
 fn dialect_from_sqlite_url() {

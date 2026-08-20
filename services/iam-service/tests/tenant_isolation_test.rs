@@ -1,18 +1,18 @@
 //! Phase 8.2: cross-tenant isolation for iam business tables (roles / orgs / users).
 //! Phase 8.3-fu1: platform_admin cross-tenant point query (HTTP path).
 #![allow(deprecated)]
-mod digua_common;
+mod common;
 
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use digua_common_db::WithTenantScope;
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::{
     CreateOrgUnitRequest, CreateRoleRequest, CreateTenantRequest, CreateUserRequest, LoginRequest, RoleQuery, UserQuery,
 };
@@ -28,12 +28,12 @@ use tower::ServiceExt;
 struct Ctx {
     state: AppState,
     app: axum::Router,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
     _key_file: tempfile::NamedTempFile,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
@@ -71,7 +71,8 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
+    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
     let app = build_router(state.clone());
 
     Ctx { state, app, _mysql: mysql_h.container, _key_file: key_file }

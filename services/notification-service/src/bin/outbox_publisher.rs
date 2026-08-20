@@ -78,10 +78,7 @@ mod metrics {
     }
 
     pub fn record_error(error_type: &str) {
-        metrics()
-            .error_total
-            .with_label_values(&[error_type])
-            .inc();
+        metrics().error_total.with_label_values(&[error_type]).inc();
     }
 
     /// Encode the current registry snapshot to Prometheus text format and
@@ -119,7 +116,6 @@ mod metrics {
                 error = %e,
                 "rename metrics into place failed"
             );
-            return;
         }
     }
 }
@@ -137,8 +133,14 @@ async fn main() -> anyhow::Result<()> {
     let event_bus_url = std::env::var("EVENT_BUS_URL")
         .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672/%2f".to_string());
     let exchange = std::env::var("EVENT_BUS_EXCHANGE").unwrap_or_else(|_| "events".to_string());
-    let poll_ms: u64 = std::env::var("OUTBOX_POLL_INTERVAL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(1000);
-    let batch_size: u32 = std::env::var("OUTBOX_BATCH_SIZE").ok().and_then(|s| s.parse().ok()).unwrap_or(100);
+    let poll_ms: u64 = std::env::var("OUTBOX_POLL_INTERVAL_MS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1000);
+    let batch_size: u32 = std::env::var("OUTBOX_BATCH_SIZE")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(100);
     let metrics_path = std::env::var("METRICS_FILE_PATH")
         .unwrap_or_else(|_| "/var/run/prometheus/ntf_outbox.prom".to_string());
     let metrics_path_buf: PathBuf = Path::new(&metrics_path).to_path_buf();
@@ -161,7 +163,9 @@ async fn main() -> anyhow::Result<()> {
                 tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = term.recv() => {} }
             }
             #[cfg(not(unix))]
-            { let _ = tokio::signal::ctrl_c().await; }
+            {
+                let _ = tokio::signal::ctrl_c().await;
+            }
             warn!("shutdown signal received, finishing current batch then exiting");
             shutdown.store(true, Ordering::SeqCst);
         });
@@ -182,7 +186,10 @@ async fn main() -> anyhow::Result<()> {
 
         if publisher.is_none() {
             match RabbitMqPublisher::new(&event_bus_url, &exchange).await {
-                Ok(p) => { info!("connected to RabbitMQ"); publisher = Some(p); }
+                Ok(p) => {
+                    info!("connected to RabbitMQ");
+                    publisher = Some(p);
+                }
                 Err(e) => {
                     warn!(error = %e, "connect rabbitmq failed, retry");
                     metrics::record_error("broker_connect");
@@ -221,7 +228,10 @@ async fn main() -> anyhow::Result<()> {
                     continue;
                 }
             };
-            match pub_ref.publish_raw(&row.routing_key, &row.event_id.to_string(), &body).await {
+            match pub_ref
+                .publish_raw(&row.routing_key, &row.event_id.to_string(), &body)
+                .await
+            {
                 Ok(()) => published_ids.push(row.id),
                 Err(e) => {
                     warn!(error = %e, id = row.id, "publish failed, reconnect");
@@ -236,7 +246,10 @@ async fn main() -> anyhow::Result<()> {
                 warn!(error = %e, "mark_published failed; rows will be reclaimed");
                 metrics::record_error("mark_published");
             } else {
-                info!(published = published_ids.len(), "published ntf outbox batch");
+                info!(
+                    published = published_ids.len(),
+                    "published ntf outbox batch"
+                );
                 metrics::record_published(published_ids.len());
             }
         }

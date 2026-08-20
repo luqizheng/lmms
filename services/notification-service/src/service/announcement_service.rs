@@ -179,10 +179,15 @@ mod tests {
             email: None,
             org_unit_id: None,
         };
-        let mut vars: std::collections::HashMap<&'static str, String> = std::collections::HashMap::new();
+        let mut vars: std::collections::HashMap<&'static str, String> =
+            std::collections::HashMap::new();
         vars.insert(
             "username",
-            if payload.username.is_empty() { "New User".into() } else { payload.username.clone() },
+            if payload.username.is_empty() {
+                "New User".into()
+            } else {
+                payload.username.clone()
+            },
         );
         vars.insert(
             "dept_name",

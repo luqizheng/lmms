@@ -8,7 +8,9 @@
 use std::time::Duration;
 
 use digua_common_event::events::IamLoginFailed;
-use digua_common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::{
+    span_from_envelope_trace_id, Consumer, Envelope, HandlerError, RabbitMqConsumer,
+};
 use prometheus::{register_int_counter_vec, IntCounterVec};
 use std::sync::OnceLock;
 use tracing::{info, warn, Instrument};
@@ -71,7 +73,11 @@ async fn count_dimension(
     }
 }
 
-async fn handle(redis: &RedisCli, env: &Envelope<IamLoginFailed>, opts: &RiskOptions) -> Result<(), HandlerError> {
+async fn handle(
+    redis: &RedisCli,
+    env: &Envelope<IamLoginFailed>,
+    opts: &RiskOptions,
+) -> Result<(), HandlerError> {
     let p = &env.payload;
     if !p.username.is_empty() {
         count_dimension(redis, "user", &p.username, opts).await?;
@@ -95,7 +101,11 @@ pub async fn run(redis: RedisCli, event_bus_url: String, opts: RiskOptions) -> a
     }
 }
 
-async fn try_subscribe(redis: RedisCli, event_bus_url: &str, opts: RiskOptions) -> anyhow::Result<()> {
+async fn try_subscribe(
+    redis: RedisCli,
+    event_bus_url: &str,
+    opts: RiskOptions,
+) -> anyhow::Result<()> {
     let consumer = RabbitMqConsumer::new(event_bus_url).await?;
     consumer
         .subscribe::<IamLoginFailed, _, _>(

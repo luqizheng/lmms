@@ -10,9 +10,13 @@
 //!
 //! 所有测试共享一个 RabbitMQ 容器（ OnceCell ），串行执行（ Mutex ），
 //! 每测结束后清理队列，避免容器泄漏和测试间干扰。
+//!
+//! `lock_test_mutex()` 持锁跨 await 是有意的：每个测试独占容器 + 队列清理，
+//! 避免并发污染。`tokio::sync::Mutex` 反而会拖慢 `#[tokio::test]` 调度且无实际收益。
+#![allow(clippy::await_holding_lock)]
 
-use digua_common_event::{Consumer, Envelope, Event, HandlerError, RabbitMqConsumer};
 use digua_common_event::consumer::republish_with_incremented_count;
+use digua_common_event::{Consumer, Envelope, Event, HandlerError, RabbitMqConsumer};
 use lapin::{
     options::{
         BasicGetOptions, BasicPublishOptions, ExchangeDeclareOptions, QueueBindOptions,
@@ -51,7 +55,7 @@ static RABBIT_URL: OnceCell<String> = OnceCell::const_new();
 async fn shared_rabbit_url() -> &'static String {
     RABBIT_URL
         .get_or_init(|| async {
-            let container = RabbitMq::default().start().await.unwrap();
+            let container = RabbitMq.start().await.unwrap();
             let host = container.get_host().await.unwrap();
             let port = container.get_host_port_ipv4(5672).await.unwrap();
             let url = format!("amqp://guest:guest@{}:{}/%2f", host, port);
@@ -64,23 +68,44 @@ async fn shared_rabbit_url() -> &'static String {
             ch.exchange_declare(
                 EXCHANGE,
                 ExchangeKind::Topic,
-                ExchangeDeclareOptions { durable: true, ..Default::default() },
+                ExchangeDeclareOptions {
+                    durable: true,
+                    ..Default::default()
+                },
                 FieldTable::default(),
-            ).await.unwrap();
+            )
+            .await
+            .unwrap();
             ch.exchange_declare(
                 DLX,
                 ExchangeKind::Topic,
-                ExchangeDeclareOptions { durable: true, ..Default::default() },
+                ExchangeDeclareOptions {
+                    durable: true,
+                    ..Default::default()
+                },
                 FieldTable::default(),
-            ).await.unwrap();
+            )
+            .await
+            .unwrap();
             ch.queue_declare(
                 DLQ,
-                QueueDeclareOptions { durable: true, ..Default::default() },
+                QueueDeclareOptions {
+                    durable: true,
+                    ..Default::default()
+                },
                 FieldTable::default(),
-            ).await.unwrap();
-            ch.queue_bind(DLQ, DLX, "#", QueueBindOptions::default(), FieldTable::default())
-                .await
-                .unwrap();
+            )
+            .await
+            .unwrap();
+            ch.queue_bind(
+                DLQ,
+                DLX,
+                "#",
+                QueueBindOptions::default(),
+                FieldTable::default(),
+            )
+            .await
+            .unwrap();
 
             // 保留 container 生命周期：forget 防止 drop 关闭容器
             std::mem::forget(container);
@@ -110,12 +135,23 @@ async fn setup_test() -> (String, Connection) {
     );
     ch.queue_declare(
         QUEUE,
-        QueueDeclareOptions { durable: true, ..Default::default() },
+        QueueDeclareOptions {
+            durable: true,
+            ..Default::default()
+        },
         q_args,
-    ).await.unwrap();
-    ch.queue_bind(QUEUE, EXCHANGE, BINDING, QueueBindOptions::default(), FieldTable::default())
-        .await
-        .unwrap();
+    )
+    .await
+    .unwrap();
+    ch.queue_bind(
+        QUEUE,
+        EXCHANGE,
+        BINDING,
+        QueueBindOptions::default(),
+        FieldTable::default(),
+    )
+    .await
+    .unwrap();
 
     (url, conn)
 }
@@ -162,15 +198,12 @@ async fn publish_one(url: &str, body: &[u8], headers: FieldTable) {
 async fn drain_dlq(conn: &Connection) -> Vec<Vec<u8>> {
     let ch = conn.create_channel().await.unwrap();
     let mut bodies = vec![];
-    loop {
-        match ch
-            .basic_get(DLQ, BasicGetOptions { no_ack: true })
-            .await
-            .unwrap()
-        {
-            Some(msg) => bodies.push(msg.delivery.data.clone()),
-            None => break,
-        }
+    while let Some(msg) = ch
+        .basic_get(DLQ, BasicGetOptions { no_ack: true })
+        .await
+        .unwrap()
+    {
+        bodies.push(msg.delivery.data.clone());
     }
     bodies
 }
@@ -188,7 +221,9 @@ async fn poll_dlq(conn: &Connection, expected: usize, deadline: Duration) -> Vec
         if start.elapsed() > deadline {
             panic!(
                 "timeout after {:?}: expected {} messages in DLQ, got {}",
-                deadline, expected, bodies.len()
+                deadline,
+                expected,
+                bodies.len()
             );
         }
         sleep(Duration::from_millis(200)).await;
@@ -204,7 +239,9 @@ async fn handler_permanent_goes_to_dlq() {
     let body = serde_json::to_vec(&env).unwrap();
     publish_one(&url, &body, FieldTable::default()).await;
 
-    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE).await.unwrap();
+    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE)
+        .await
+        .unwrap();
     consumer
         .subscribe::<TestPayload, _, _>(QUEUE, &[BINDING], |_env: Envelope<TestPayload>| async {
             Err(HandlerError::Permanent("reject".into()))
@@ -227,24 +264,22 @@ async fn handler_transient_requeues_then_succeeds() {
     let body = serde_json::to_vec(&env).unwrap();
     publish_one(&url, &body, FieldTable::default()).await;
 
-    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE).await.unwrap();
+    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE)
+        .await
+        .unwrap();
     let counter_for_handler = counter.clone();
     consumer
-        .subscribe::<TestPayload, _, _>(
-            QUEUE,
-            &[BINDING],
-            move |_env: Envelope<TestPayload>| {
-                let counter = counter_for_handler.clone();
-                async move {
-                    let n = counter.fetch_add(1, Ordering::SeqCst);
-                    if n == 0 {
-                        Err(HandlerError::Transient("first try".into()))
-                    } else {
-                        Ok(())
-                    }
+        .subscribe::<TestPayload, _, _>(QUEUE, &[BINDING], move |_env: Envelope<TestPayload>| {
+            let counter = counter_for_handler.clone();
+            async move {
+                let n = counter.fetch_add(1, Ordering::SeqCst);
+                if n == 0 {
+                    Err(HandlerError::Transient("first try".into()))
+                } else {
+                    Ok(())
                 }
-            },
-        )
+            }
+        })
         .await
         .unwrap();
 
@@ -261,8 +296,16 @@ async fn handler_transient_requeues_then_succeeds() {
     }
 
     let bodies = drain_dlq(&conn).await;
-    assert_eq!(bodies.len(), 0, "expected DLQ to be empty after retry success");
-    assert_eq!(counter.load(Ordering::SeqCst), 2, "handler should run twice");
+    assert_eq!(
+        bodies.len(),
+        0,
+        "expected DLQ to be empty after retry success"
+    );
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        2,
+        "handler should run twice"
+    );
 }
 
 #[tokio::test]
@@ -273,7 +316,9 @@ async fn handler_transient_upgrades_to_dlq_after_3_redeliveries() {
     let body = serde_json::to_vec(&env).unwrap();
     publish_one(&url, &body, FieldTable::default()).await;
 
-    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE).await.unwrap();
+    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE)
+        .await
+        .unwrap();
     consumer
         .subscribe::<TestPayload, _, _>(QUEUE, &[BINDING], |_env: Envelope<TestPayload>| async {
             Err(HandlerError::Transient("always fail".into()))
@@ -294,7 +339,9 @@ async fn deserialization_failure_goes_to_dlq() {
     // publish invalid JSON that cannot deserialize to Envelope<TestPayload>
     publish_one(&url, b"not-a-valid-envelope", FieldTable::default()).await;
 
-    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE).await.unwrap();
+    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE)
+        .await
+        .unwrap();
     consumer
         .subscribe::<TestPayload, _, _>(QUEUE, &[BINDING], |_env: Envelope<TestPayload>| async {
             Ok(())
@@ -320,7 +367,15 @@ async fn republish_confirm_nack_does_not_ack_original() {
 
     const TMP_BIND: &str = "test.republish-fail";
     let ch = conn.create_channel().await.unwrap();
-    ch.queue_bind(QUEUE, EXCHANGE, TMP_BIND, QueueBindOptions::default(), FieldTable::default()).await.unwrap();
+    ch.queue_bind(
+        QUEUE,
+        EXCHANGE,
+        TMP_BIND,
+        QueueBindOptions::default(),
+        FieldTable::default(),
+    )
+    .await
+    .unwrap();
 
     // Publish one message.
     let env = Envelope::new("test", TestPayload { value: 42 });
@@ -328,15 +383,13 @@ async fn republish_confirm_nack_does_not_ack_original() {
     publish_one(&url, &body, FieldTable::default()).await;
 
     // Start consumer that returns Transient (will trigger republish).
-    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE).await.unwrap();
+    let consumer = RabbitMqConsumer::with_exchange(&url, EXCHANGE)
+        .await
+        .unwrap();
     consumer
-        .subscribe::<TestPayload, _, _>(
-            QUEUE,
-            &[TMP_BIND],
-            |_env: Envelope<TestPayload>| async {
-                Err(HandlerError::Transient("force republish".into()))
-            },
-        )
+        .subscribe::<TestPayload, _, _>(QUEUE, &[TMP_BIND], |_env: Envelope<TestPayload>| async {
+            Err(HandlerError::Transient("force republish".into()))
+        })
         .await
         .unwrap();
 
@@ -344,7 +397,9 @@ async fn republish_confirm_nack_does_not_ack_original() {
     sleep(Duration::from_millis(500)).await;
 
     // Now unbind the routing-key so the upcoming republish will fail.
-    ch.queue_unbind(QUEUE, EXCHANGE, TMP_BIND, FieldTable::default()).await.unwrap();
+    ch.queue_unbind(QUEUE, EXCHANGE, TMP_BIND, FieldTable::default())
+        .await
+        .unwrap();
 
     // Wait for republish to attempt and fail (consumer retries every few seconds
     // internally, but the first republish should happen soon after handler returns).
@@ -358,7 +413,14 @@ async fn republish_confirm_nack_does_not_ack_original() {
     // Check queue state.
     let ch2 = conn.create_channel().await.unwrap();
     let info = ch2
-        .queue_declare(QUEUE, QueueDeclareOptions { passive: true, ..Default::default() }, FieldTable::default())
+        .queue_declare(
+            QUEUE,
+            QueueDeclareOptions {
+                passive: true,
+                ..Default::default()
+            },
+            FieldTable::default(),
+        )
         .await
         .unwrap();
     let msg_count = info.message_count();
@@ -367,7 +429,7 @@ async fn republish_confirm_nack_does_not_ack_original() {
     // Verify message is not lost: either requeued (msg_count > 0) or in DLQ.
     let dlq_bodies = drain_dlq(&conn).await;
     assert!(
-        msg_count >= 1 || dlq_bodies.len() >= 1,
+        msg_count >= 1 || !dlq_bodies.is_empty(),
         "message should be either requeued (count={}) or in DLQ (count={})",
         msg_count,
         dlq_bodies.len()
@@ -378,8 +440,12 @@ async fn republish_confirm_nack_does_not_ack_original() {
 async fn republish_fails_on_unroutable_routing_key() {
     let _guard = lock_test_mutex();
     let (url, _conn) = setup_test().await;
-    let ch = Connection::connect(&url, ConnectionProperties::default()).await.unwrap()
-        .create_channel().await.unwrap();
+    let ch = Connection::connect(&url, ConnectionProperties::default())
+        .await
+        .unwrap()
+        .create_channel()
+        .await
+        .unwrap();
 
     // Declare an exchange but don't bind any queue to "test.unbound"
     ch.exchange_declare(
@@ -387,17 +453,15 @@ async fn republish_fails_on_unroutable_routing_key() {
         ExchangeKind::Direct,
         ExchangeDeclareOptions::default(),
         FieldTable::default(),
-    ).await.unwrap();
-
-    let result = republish_with_incremented_count(
-        &ch,
-        "test.direct",
-        "test.unbound",
-        b"{}",
-        0,
-        None,
     )
-    .await;
+    .await
+    .unwrap();
 
-    assert!(result.is_err(), "republish to unroutable routing-key should fail (Basic.Return)");
+    let result =
+        republish_with_incremented_count(&ch, "test.direct", "test.unbound", b"{}", 0, None).await;
+
+    assert!(
+        result.is_err(),
+        "republish to unroutable routing-key should fail (Basic.Return)"
+    );
 }

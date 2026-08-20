@@ -91,7 +91,7 @@ pub fn load_routes(dir: &Path) -> Result<RouteTable, LoadError> {
     }
 
     // 字面量长度降序：更具体的优先匹配
-    routes.sort_by(|a, b| literal_len(&b.upstream).cmp(&literal_len(&a.upstream)));
+    routes.sort_by_key(|b| std::cmp::Reverse(literal_len(&b.upstream)));
 
     Ok(RouteTable { routes })
 }

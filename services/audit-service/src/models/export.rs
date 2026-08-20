@@ -52,8 +52,7 @@ pub fn export_to_csv<T: Exportable>(records: &[T]) -> Result<Vec<u8>, AppError> 
 }
 
 pub fn export_to_json<T: Serialize>(records: &[T]) -> Result<Vec<u8>, AppError> {
-    serde_json::to_vec_pretty(records)
-        .map_err(|e| AppError::internal("EXPORT_JSON", e.to_string()))
+    serde_json::to_vec_pretty(records).map_err(|e| AppError::internal("EXPORT_JSON", e.to_string()))
 }
 
 pub fn generate_file_name(prefix: &str) -> String {

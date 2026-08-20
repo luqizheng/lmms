@@ -27,12 +27,25 @@ impl FileService {
         max_file_size: u64,
         jwks: Arc<digua_common_jwt::JWKSCache>,
     ) -> Self {
-        Self { pool, storage, base_url, max_file_size, jwks }
+        Self {
+            pool,
+            storage,
+            base_url,
+            max_file_size,
+            jwks,
+        }
     }
 
-    pub fn pool_ref(&self) -> &MySqlPool { &self.pool }
+    pub fn pool_ref(&self) -> &MySqlPool {
+        &self.pool
+    }
 
-    pub async fn upload(&self, data: Bytes, meta: UploadFileMeta, scope: &TenantScope) -> AppResult<FileInfo> {
+    pub async fn upload(
+        &self,
+        data: Bytes,
+        meta: UploadFileMeta,
+        scope: &TenantScope,
+    ) -> AppResult<FileInfo> {
         if (data.len() as u64) > self.max_file_size {
             return Err(AppError::file_too_large(format!(
                 "file too large: {} > {} bytes",
@@ -46,7 +59,9 @@ impl FileService {
         let data_len = data.len();
         let tenant_id = scope.tenant_id().unwrap_or(1) as u64;
 
-        let expires_at = meta.expires_in_seconds.map(|secs| now + chrono::Duration::seconds(secs));
+        let expires_at = meta
+            .expires_in_seconds
+            .map(|secs| now + chrono::Duration::seconds(secs));
 
         let info = FileInfo {
             url: String::new(),
@@ -94,21 +109,27 @@ impl FileService {
     }
 
     // check-tenant-scope: delegated (and_tenant applied inside get_file_info)
-    pub async fn create_presign_url(&self, req: CreatePresignUrl, scope: &TenantScope) -> AppResult<PresignUrlResponse> {
+    pub async fn create_presign_url(
+        &self,
+        req: CreatePresignUrl,
+        scope: &TenantScope,
+    ) -> AppResult<PresignUrlResponse> {
         let info = self.get_file_info(&req.file_id, scope).await?;
 
         let expires_in = req.expires_in_seconds.unwrap_or(3600);
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
 
         let url = match req.operation.as_str() {
-            "put" => self
-                .storage
-                .presign_put(&info.storage_path, expires_in.max(0) as u64)
-                .await?,
-            _ => self
-                .storage
-                .presign_get(&info.storage_path, expires_in.max(0) as u64)
-                .await?,
+            "put" => {
+                self.storage
+                    .presign_put(&info.storage_path, expires_in.max(0) as u64)
+                    .await?
+            }
+            _ => {
+                self.storage
+                    .presign_get(&info.storage_path, expires_in.max(0) as u64)
+                    .await?
+            }
         }
         .unwrap_or_else(|| {
             format!(
@@ -139,7 +160,11 @@ impl FileService {
         })
     }
 
-    pub async fn query_files(&self, query: QueryFiles, scope: &TenantScope) -> AppResult<PagedFiles> {
+    pub async fn query_files(
+        &self,
+        query: QueryFiles,
+        scope: &TenantScope,
+    ) -> AppResult<PagedFiles> {
         let page = query.page.unwrap_or(1).max(1);
         let size = query.size.unwrap_or(20).min(100);
         let offset = (page - 1) * size;
@@ -151,10 +176,18 @@ impl FileService {
         qb.push(" OFFSET ");
         qb.push_bind(offset);
 
-        let files: Vec<FileInfo> = qb.build_query_as::<FileInfo>().fetch_all(&self.pool).await?;
+        let files: Vec<FileInfo> = qb
+            .build_query_as::<FileInfo>()
+            .fetch_all(&self.pool)
+            .await?;
         let total = files.len() as i64;
 
-        Ok(PagedFiles { items: files, total, page, size })
+        Ok(PagedFiles {
+            items: files,
+            total,
+            page,
+            size,
+        })
     }
 
     pub async fn get_file_info(&self, id: &str, scope: &TenantScope) -> AppResult<FileInfo> {
@@ -162,7 +195,10 @@ impl FileService {
         qb.where_id(id);
         qb.and_tenant(scope);
 
-        let info: Option<FileInfo> = qb.build_query_as::<FileInfo>().fetch_optional(&self.pool).await?;
+        let info: Option<FileInfo> = qb
+            .build_query_as::<FileInfo>()
+            .fetch_optional(&self.pool)
+            .await?;
 
         info.ok_or_else(|| AppError::file_not_found(id))
     }

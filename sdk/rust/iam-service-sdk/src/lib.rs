@@ -29,9 +29,9 @@ pub mod model;
 
 pub use crate::client::IamClient;
 pub use crate::model::{
-    ChangePasswordRequest, CreateRoleRequest, CreateUserRequest, ListRolesQuery,
-    ListUsersQuery, LoginRequest, LoginResponse, PermissionListResponse, RefreshRequest,
-    RefreshResponse, RoleListResponse, RoleResponse, UpdateRoleRequest, UpdateUserRequest,
-    UserInfo, UserListResponse, UserResponse,
+    ChangePasswordRequest, CreateRoleRequest, CreateUserRequest, ListRolesQuery, ListUsersQuery,
+    LoginRequest, LoginResponse, PermissionListResponse, RefreshRequest, RefreshResponse,
+    RoleListResponse, RoleResponse, UpdateRoleRequest, UpdateUserRequest, UserInfo,
+    UserListResponse, UserResponse,
 };
 pub use digua_http_client::SdkError;

@@ -1,11 +1,11 @@
-use sqlx::mysql::MySqlPool;
+use crate::config::Config;
+use crate::service::TokenForwardClient;
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
 use digua_common_jwt::{JWKSCache, ServiceJwtCache};
 use digua_jwt_ctx::PrincipalStateProvider;
+use sqlx::mysql::MySqlPool;
 use std::sync::Arc;
-use crate::config::Config;
-use crate::service::TokenForwardClient;
 
 #[derive(Clone)]
 pub struct AppState {

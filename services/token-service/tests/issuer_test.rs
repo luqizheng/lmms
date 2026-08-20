@@ -15,8 +15,10 @@ fn build_issuer() -> (TokenIssuer, String) {
 
 fn verify(token: &str, public_pem: &str) -> JWTClaims<HashMap<String, serde_json::Value>> {
     let public_key = RS256PublicKey::from_pem(public_pem).unwrap();
-    let mut options = VerificationOptions::default();
-    options.allowed_issuers = Some(HashSet::from([TEST_ISSUER.to_string()]));
+    let options = VerificationOptions {
+        allowed_issuers: Some(HashSet::from([TEST_ISSUER.to_string()])),
+        ..Default::default()
+    };
     public_key
         .verify_token::<HashMap<String, serde_json::Value>>(token, Some(options))
         .expect("verify token")
@@ -42,7 +44,7 @@ fn issue_access_token_contains_scope_and_client() {
 
     assert_eq!(claims.subject.as_deref(), Some("user-123"));
     assert_eq!(claims.issuer.as_deref(), Some(TEST_ISSUER));
-    assert!(claims.jwt_id.unwrap().len() > 0);
+    assert!(!claims.jwt_id.unwrap().is_empty());
     assert_eq!(
         claims.custom.get("scope").and_then(|v| v.as_str()),
         Some("access")
@@ -128,9 +130,9 @@ fn issue_user_jwt_sets_audience_and_filters_reserved() {
         Some("acme")
     );
     // reserved 字段不应进 custom
-    assert!(claims.custom.get("iss").is_none());
-    assert!(claims.custom.get("sub").is_none());
-    assert!(claims.custom.get("exp").is_none());
+    assert!(!claims.custom.contains_key("iss"));
+    assert!(!claims.custom.contains_key("sub"));
+    assert!(!claims.custom.contains_key("exp"));
 }
 
 #[test]
@@ -167,9 +169,10 @@ fn wrong_issuer_fails_verification() {
         .issue_access_token("u", "c", serde_json::json!({}), 3600)
         .unwrap();
     let public_key = RS256PublicKey::from_pem(&public_pem).unwrap();
-    let mut options = VerificationOptions::default();
-    options.allowed_issuers = Some(HashSet::from(["other-issuer".to_string()]));
-    let res = public_key
-        .verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
+    let options = VerificationOptions {
+        allowed_issuers: Some(HashSet::from(["other-issuer".to_string()])),
+        ..Default::default()
+    };
+    let res = public_key.verify_token::<HashMap<String, serde_json::Value>>(&token, Some(options));
     assert!(res.is_err(), "issuer 不匹配必须验签失败");
 }

@@ -76,7 +76,13 @@ pub async fn forward_to_service(
         }
         None => {
             cfg.resilient
-                .call(service_name, parts.method, &target_url, &parts.headers, bytes)
+                .call(
+                    service_name,
+                    parts.method,
+                    &target_url,
+                    &parts.headers,
+                    bytes,
+                )
                 .await
         }
     };
@@ -157,7 +163,7 @@ async fn forward_streaming(
             let mapped = stream
                 .body
                 .bytes_stream()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+                .map_err(|e| std::io::Error::other(e.to_string()));
             builder
                 .body(Body::from_stream(mapped))
                 .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
@@ -175,7 +181,11 @@ async fn forward_streaming(
             (StatusCode::GATEWAY_TIMEOUT, "upstream timeout").into_response()
         }
         Err(ResilientError::Connect(e)) => {
-            tracing::warn!("streaming forward to {} connect error: {:?}", service_name, e);
+            tracing::warn!(
+                "streaming forward to {} connect error: {:?}",
+                service_name,
+                e
+            );
             (StatusCode::BAD_GATEWAY, "upstream error").into_response()
         }
     }

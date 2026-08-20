@@ -63,7 +63,10 @@ fn iam_login_failed_codegen_present() {
     use digua_common_event::events::IamLoginFailed;
     assert_eq!(IamLoginFailed::event_type(), "iam.login.failed");
     assert_eq!(IamLoginFailed::schema_version(), 1);
-    assert_eq!(digua_common_event::routing_keys::IAM_LOGIN_FAILED, "iam.login.failed");
+    assert_eq!(
+        digua_common_event::routing_keys::IAM_LOGIN_FAILED,
+        "iam.login.failed"
+    );
     let _ = IamLoginFailed {
         username: "u".into(),
         user_id: Some("id".into()),

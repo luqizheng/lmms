@@ -1,7 +1,11 @@
 //! GET /cfg/internal/migrations/state — config-service schema 状态查询。
 
-use axum::{extract::Extension, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
-use digua_common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
+use axum::{
+    extract::Extension, http::StatusCode, response::IntoResponse, routing::get, Json, Router,
+};
+use digua_common_db::migration_state::{
+    self, MigrationDescriptor, MigrationState, MigrationStateResponse,
+};
 use serde_json::json;
 use sqlx::MySqlPool;
 use utoipa::path as to_path;
@@ -11,12 +15,24 @@ use crate::services::ConfigService;
 pub struct ConfigMigrationState;
 
 impl MigrationState for ConfigMigrationState {
-    fn service_name(&self) -> &'static str { "config-service" }
-    fn dialect(&self) -> &'static str { "mysql" }
+    fn service_name(&self) -> &'static str {
+        "config-service"
+    }
+    fn dialect(&self) -> &'static str {
+        "mysql"
+    }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
         &[
-            MigrationDescriptor { version: "V001", name: "init", marker_table: "cfg_namespaces" },
-            MigrationDescriptor { version: "V002", name: "tenant_cfg", marker_table: "cfg_migration_v002_applied" },
+            MigrationDescriptor {
+                version: "V001",
+                name: "init",
+                marker_table: "cfg_namespaces",
+            },
+            MigrationDescriptor {
+                version: "V002",
+                name: "tenant_cfg",
+                marker_table: "cfg_migration_v002_applied",
+            },
         ]
     }
 }
@@ -57,7 +73,8 @@ pub async fn handler(Extension(pool): Extension<MySqlPool>) -> impl IntoResponse
                 "error": "db_unreachable",
                 "detail": e.to_string(),
             })),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }
 

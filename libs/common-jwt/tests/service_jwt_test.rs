@@ -33,10 +33,14 @@ fn cache() -> ServiceJwtCache {
 async fn sign_local_roundtrip_works_for_service_jwt() {
     // Use the local-sign path (production is HTTP; tests use local for speed).
     let c = cache();
-    let jwt = c.sign_local("iam-service", Duration::from_secs(120)).unwrap();
+    let jwt = c
+        .sign_local("iam-service", Duration::from_secs(120))
+        .unwrap();
     // Verify using digua_common_jwt (with the matching public key).
     let jwks = jwks();
-    let verified = verify_token(&jwt, &jwks, Some("iam-service")).await.unwrap();
+    let verified = verify_token(&jwt, &jwks, Some("iam-service"))
+        .await
+        .unwrap();
     assert_eq!(verified["aud"], "iam-service");
     assert_eq!(verified["sub"], "test-svc");
     assert_eq!(verified["roles"][0], "service");

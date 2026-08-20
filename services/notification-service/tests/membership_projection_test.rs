@@ -6,15 +6,15 @@
 //! - resolve_users_by_scopes by role (JSON_CONTAINS) + by dept
 //! - replace_projection (bootstrap path) — DELETE + INSERT batch
 
-mod digua_common;
+mod common;
 
 use digua_jwt_ctx::TenantScope;
 use notification_service::db::Db;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-async fn setup() -> (Db, Option<digua_common::MysqlContainer>) {
-    let h = digua_common::spawn_db().await;
+async fn setup() -> (Db, Option<common::MysqlContainer>) {
+    let h = common::spawn_db().await;
     (h.db, h.container)
 }
 

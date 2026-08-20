@@ -7,14 +7,23 @@ struct TestEvent {
 }
 
 impl Event for TestEvent {
-    fn event_type() -> &'static str { "test.event" }
-    fn schema_version() -> u32 { 1 }
+    fn event_type() -> &'static str {
+        "test.event"
+    }
+    fn schema_version() -> u32 {
+        1
+    }
 }
 
 #[test]
 fn envelope_new_fills_event_id_and_occurred_at() {
     let before = chrono::Utc::now();
-    let env = Envelope::new("test-producer", TestEvent { user_id: "u1".to_string() });
+    let env = Envelope::new(
+        "test-producer",
+        TestEvent {
+            user_id: "u1".to_string(),
+        },
+    );
     let after = chrono::Utc::now();
 
     assert_eq!(env.event_type, "test.event");
@@ -30,7 +39,12 @@ fn envelope_new_fills_event_id_and_occurred_at() {
 
 #[test]
 fn envelope_serializes_to_json_with_event_type() {
-    let env = Envelope::new("p1", TestEvent { user_id: "u1".to_string() });
+    let env = Envelope::new(
+        "p1",
+        TestEvent {
+            user_id: "u1".to_string(),
+        },
+    );
     let json = serde_json::to_value(&env).unwrap();
     assert_eq!(json["event_type"], "test.event");
     assert_eq!(json["producer"], "p1");
@@ -40,7 +54,12 @@ fn envelope_serializes_to_json_with_event_type() {
 
 #[test]
 fn envelope_round_trip_through_json() {
-    let env = Envelope::new("p1", TestEvent { user_id: "u1".to_string() });
+    let env = Envelope::new(
+        "p1",
+        TestEvent {
+            user_id: "u1".to_string(),
+        },
+    );
     let json = serde_json::to_string(&env).unwrap();
     let back: Envelope<TestEvent> = serde_json::from_str(&json).unwrap();
     assert_eq!(back.payload, env.payload);

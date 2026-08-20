@@ -1,4 +1,9 @@
-use digua_common_http::{ResilientClient, ResilienceConfig};
+//! Smoke tests for the deprecated `IamMemberClient::by_role` / `by_dept` /
+//! `expand_scopes` methods — kept alive during the Phase 5B-fu3 migration
+//! for `CrossTenant` reads until local `ntf_user_projection` covers them.
+#![allow(deprecated)]
+
+use digua_common_http::{ResilienceConfig, ResilientClient};
 use digua_common_jwt::{ServiceJwtCache, ServiceJwtConfig};
 use notification_service::iam_client::IamMemberClient;
 use std::sync::Arc;

@@ -49,10 +49,7 @@ pub trait MigrationState: Send + Sync {
 }
 
 /// 探测 MySQL 端单张 marker table 是否存在。
-pub async fn probe_marker_mysql(
-    pool: &sqlx::MySqlPool,
-    table: &str,
-) -> Result<bool, sqlx::Error> {
+pub async fn probe_marker_mysql(pool: &sqlx::MySqlPool, table: &str) -> Result<bool, sqlx::Error> {
     let row: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM information_schema.tables \
          WHERE table_schema = DATABASE() AND table_name = ?",
@@ -134,15 +131,20 @@ pub fn build_response<S: MigrationState + ?Sized>(
     let mut extra: Vec<String> = Vec::new();
     for v in &applied {
         if known.contains(v.as_str()) {
-            applied_known.push(migrations.iter().find(|m| m.version == v.as_str()).unwrap().version);
+            applied_known.push(
+                migrations
+                    .iter()
+                    .find(|m| m.version == v.as_str())
+                    .unwrap()
+                    .version,
+            );
         } else {
             extra.push(v.clone());
         }
     }
 
     // missing = migrations 中 applied 不包含的
-    let applied_set: std::collections::BTreeSet<&str> =
-        applied_known.iter().copied().collect();
+    let applied_set: std::collections::BTreeSet<&str> = applied_known.iter().copied().collect();
     let missing: Vec<String> = migrations
         .iter()
         .filter(|m| !applied_set.contains(m.version))
@@ -157,8 +159,7 @@ pub fn build_response<S: MigrationState + ?Sized>(
     let in_sync = missing.is_empty() && extra.is_empty();
 
     // applied 字段 = 合并 known + extra，按 version 升序，去重
-    let mut all_applied_sorted: Vec<String> =
-        applied_known.iter().map(|s| s.to_string()).collect();
+    let mut all_applied_sorted: Vec<String> = applied_known.iter().map(|s| s.to_string()).collect();
     all_applied_sorted.extend(extra.clone());
     all_applied_sorted.sort();
     all_applied_sorted.dedup();
@@ -181,13 +182,29 @@ mod tests {
 
     struct TestState;
     impl MigrationState for TestState {
-        fn service_name(&self) -> &'static str { "test-svc" }
-        fn dialect(&self) -> &'static str { "mysql" }
+        fn service_name(&self) -> &'static str {
+            "test-svc"
+        }
+        fn dialect(&self) -> &'static str {
+            "mysql"
+        }
         fn migrations(&self) -> &'static [MigrationDescriptor] {
             &[
-                MigrationDescriptor { version: "V001", name: "init", marker_table: "t1" },
-                MigrationDescriptor { version: "V002", name: "two", marker_table: "t2" },
-                MigrationDescriptor { version: "V003", name: "three", marker_table: "t3" },
+                MigrationDescriptor {
+                    version: "V001",
+                    name: "init",
+                    marker_table: "t1",
+                },
+                MigrationDescriptor {
+                    version: "V002",
+                    name: "two",
+                    marker_table: "t2",
+                },
+                MigrationDescriptor {
+                    version: "V003",
+                    name: "three",
+                    marker_table: "t3",
+                },
             ]
         }
     }
@@ -226,7 +243,10 @@ mod tests {
         let s = TestState;
         let r = build_response(&s, vec![]);
         assert!(!r.in_sync);
-        assert_eq!(r.missing, vec!["V001".to_string(), "V002".to_string(), "V003".to_string()]);
+        assert_eq!(
+            r.missing,
+            vec!["V001".to_string(), "V002".to_string(), "V003".to_string()]
+        );
         assert_eq!(r.current_version, None);
     }
 

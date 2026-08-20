@@ -58,7 +58,11 @@ pub struct ResilientClient {
 }
 
 impl ResilientClient {
-    pub fn new(inner: Client, cfg: ResilienceConfig, observer: Arc<dyn ResilienceObserver>) -> Self {
+    pub fn new(
+        inner: Client,
+        cfg: ResilienceConfig,
+        observer: Arc<dyn ResilienceObserver>,
+    ) -> Self {
         let retry = cfg.retry_policy();
         Self {
             inner,
@@ -95,7 +99,8 @@ impl ResilientClient {
         headers: &HeaderMap,
         body: Bytes,
     ) -> Result<UpstreamResponse, ResilientError> {
-        self.call_inner(service, method, url, headers, body, None).await
+        self.call_inner(service, method, url, headers, body, None)
+            .await
     }
 
     /// Per-call 超时覆盖：当 `timeout_opt = Some(t)` 时，该次调用的单次发送超时与
@@ -196,7 +201,11 @@ impl ResilientClient {
 
                     self.observer.on_outcome(
                         service,
-                        if is_failure { Outcome::UpstreamError } else { Outcome::Success },
+                        if is_failure {
+                            Outcome::UpstreamError
+                        } else {
+                            Outcome::Success
+                        },
                     );
                     return Ok(UpstreamResponse {
                         status,
@@ -327,7 +336,11 @@ impl ResilientClient {
                     // 流式不重试 status —— 已订立的流不可 replay
                     self.observer.on_outcome(
                         service,
-                        if is_failure { Outcome::UpstreamError } else { Outcome::Success },
+                        if is_failure {
+                            Outcome::UpstreamError
+                        } else {
+                            Outcome::Success
+                        },
                     );
 
                     return Ok(UpstreamStream {
@@ -378,8 +391,8 @@ mod timeout_override_tests {
     use axum::{routing::post, Json, Router};
     use bytes::Bytes;
     use std::net::SocketAddr;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
 
     async fn spawn_slow_server(delay: Duration) -> (SocketAddr, Arc<AtomicU64>) {
         let hits = Arc::new(AtomicU64::new(0));
@@ -440,7 +453,11 @@ mod timeout_override_tests {
         assert!(matches!(result, Err(ResilientError::Timeout)));
         // POST 不重试 → 只 1 次 attempt，500ms override 应触发立即 Timeout
         assert!(elapsed < Duration::from_secs(2), "elapsed={elapsed:?}");
-        assert_eq!(hits.load(Ordering::SeqCst), 0, "server should not have completed");
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            0,
+            "server should not have completed"
+        );
     }
 
     #[tokio::test]

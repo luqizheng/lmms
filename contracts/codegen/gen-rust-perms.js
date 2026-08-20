@@ -38,7 +38,8 @@ function generateRust(data) {
     '// DO NOT EDIT MANUALLY',
     '',
     '/// Permission code constants',
-    'pub mod perms {',
+    "#[allow(clippy::module_inception)]",
+    "pub mod perms {",
   ];
 
   for (const [perm, info] of perms) {
@@ -52,18 +53,19 @@ function generateRust(data) {
   // 生成检查函数
   lines.push('/// Check if permission code is valid');
   lines.push('pub fn is_valid(perm: &str) -> bool {');
-  lines.push('    matches!(perm,');
+  lines.push('    matches!(');
+  lines.push('        perm,');
   for (let i = 0; i < perms.length; i++) {
     const [perm, _] = perms[i];
-    if (i === perms.length - 1) {
+    if (i === 0) {
       lines.push(`        "${perm}"`);
     } else {
-      lines.push(`        "${perm}"`);
-      lines.push('        |');
+      lines.push(`            | "${perm}"`);
     }
   }
   lines.push('    )');
   lines.push('}');
+  lines.push('');
 
   return lines.join('\n');
 }

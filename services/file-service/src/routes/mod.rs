@@ -2,12 +2,12 @@ pub mod file;
 pub mod migration_state;
 pub mod presign;
 
-use axum::{Router, middleware as axum_mw, routing::get};
+use crate::services::FileService;
+use axum::{middleware as axum_mw, routing::get, Router};
 use digua_common_jwt::JWKSCache;
 use digua_jwt_ctx::PrincipalStateProvider;
-use std::sync::Arc;
-use crate::services::FileService;
 use prometheus::{Encoder, TextEncoder};
+use std::sync::Arc;
 
 pub type AppState = FileService;
 
@@ -30,15 +30,16 @@ pub fn routes(state: AppState) -> Router {
         .nest("/file", file::routes(state.clone()))
         .nest("/file", presign::routes(state.clone()))
         .merge(
-            migration_state::routes(state.clone())
-                .layer(axum_mw::from_fn_with_state(
-                    state.clone(),
-                    digua_authz::verify_aud_principal_middleware::<AppState>("file-service"),
-                )),
+            migration_state::routes(state.clone()).layer(axum_mw::from_fn_with_state(
+                state.clone(),
+                digua_authz::verify_aud_principal_middleware::<AppState>("file-service"),
+            )),
         )
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(
+            digua_common_telemetry_axum::trace_request_middleware,
+        ))
         .with_state(state)
 }
 
@@ -46,6 +47,7 @@ async fn health() -> &'static str {
     "OK"
 }
 
+#[allow(dead_code)] // kept for future use; suppression avoids dead_code lint until wired
 async fn metrics() -> axum::response::Html<String> {
     let encoder = TextEncoder::new();
     let metric_families = prometheus::gather();

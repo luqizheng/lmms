@@ -1,18 +1,22 @@
 use crate::{
+    dto::{
+        CreateUserRequest, UpdateUserRequest, UserClaimsResponse, UserListResponse, UserQuery,
+        UserResponse, UserSimpleListResponse, UserSimpleQuery, UserSimpleResponse,
+    },
     error::IamError,
     state::AppState,
-    dto::{CreateUserRequest, UpdateUserRequest, UserQuery, UserResponse, UserListResponse, UserSimpleQuery, UserSimpleResponse, UserSimpleListResponse, UserClaimsResponse},
 };
+use chrono::Utc;
 use digua_common_crypto::password::hash;
 use digua_common_db::WithTenantScope;
 use digua_common_event::events::{IamUserCreated, IamUserDeleted};
 use digua_common_event::{Envelope, OutboxRepo};
-use chrono::Utc;
 use digua_jwt_ctx::TenantScope;
 use nanoid::nanoid;
-use sqlx::{FromRow, QueryBuilder, mysql::MySqlQueryResult};
+use sqlx::{mysql::MySqlQueryResult, FromRow, QueryBuilder};
 
 #[derive(FromRow)]
+#[allow(dead_code)] // sqlx FromRow deserializes all selected columns; unused ones are filtered by SELECT.
 struct UserRow {
     id: String,
     tenant_id: u64,
@@ -34,6 +38,17 @@ struct UserRow {
     deleted_at: Option<chrono::DateTime<Utc>>,
 }
 
+/// Subset of `iam_users` columns used by `UserService::get_claims`.
+/// Aliased here so callers don't have to read a bare 5-tuple type.
+#[derive(FromRow)]
+struct UserClaimsRow {
+    id: String,
+    username: String,
+    email: Option<String>,
+    phone: Option<String>,
+    nickname: String,
+}
+
 pub struct UserService {
     state: AppState,
 }
@@ -43,12 +58,16 @@ impl UserService {
         Self { state }
     }
 
-    pub async fn create(&self, req: CreateUserRequest, scope: &TenantScope) -> Result<UserResponse, IamError> {
+    pub async fn create(
+        &self,
+        req: CreateUserRequest,
+        scope: &TenantScope,
+    ) -> Result<UserResponse, IamError> {
         let tenant_id = scope.tenant_id().unwrap_or(1);
         let tid = tenant_id as u64;
 
         let exists: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM iam_users WHERE username = ? AND tenant_id = ? AND deleted_at IS NULL"
+            "SELECT id FROM iam_users WHERE username = ? AND tenant_id = ? AND deleted_at IS NULL",
         )
         .bind(&req.username)
         .bind(tid)
@@ -59,17 +78,15 @@ impl UserService {
             return Err(IamError::DuplicateUser);
         }
 
-        let password_hash = hash(&req.password)
-            .map_err(|e| IamError::Jwt(e.to_string()))?;
+        let password_hash = hash(&req.password).map_err(|e| IamError::Jwt(e.to_string()))?;
 
         let user_id = nanoid!();
         let salt = nanoid!(32);
 
-        let user_count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
-        )
-        .fetch_one(&self.state.db)
-        .await?;
+        let user_count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL")
+                .fetch_one(&self.state.db)
+                .await?;
         let mut role_ids = req.role_ids.clone().unwrap_or_default();
         if user_count.0 == 0 {
             let role_id = nanoid!();
@@ -117,7 +134,9 @@ impl UserService {
             },
         )
         .with_tenant_id(tenant_id.to_string());
-        self.state.outbox_repo.clone()
+        self.state
+            .outbox_repo
+            .clone()
             .enqueue(&mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
@@ -144,7 +163,10 @@ impl UserService {
         );
         qb.where_id(&user_id);
         qb.and_tenant(scope);
-        let user: UserRow = qb.build_query_as::<UserRow>().fetch_one(&self.state.db).await?;
+        let user: UserRow = qb
+            .build_query_as::<UserRow>()
+            .fetch_one(&self.state.db)
+            .await?;
 
         Ok(self.to_response(&user))
     }
@@ -156,7 +178,10 @@ impl UserService {
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let user: Option<UserRow> = qb.build_query_as::<UserRow>().fetch_optional(&self.state.db).await?;
+        let user: Option<UserRow> = qb
+            .build_query_as::<UserRow>()
+            .fetch_optional(&self.state.db)
+            .await?;
 
         match user {
             Some(u) => Ok(self.to_response(&u)),
@@ -164,7 +189,11 @@ impl UserService {
         }
     }
 
-    pub async fn list(&self, query: UserQuery, scope: &TenantScope) -> Result<UserListResponse, IamError> {
+    pub async fn list(
+        &self,
+        query: UserQuery,
+        scope: &TenantScope,
+    ) -> Result<UserListResponse, IamError> {
         let offset = ((query.page - 1) * query.size) as i64;
         let limit = query.size as i64;
         let tid = scope.tenant_id().unwrap_or(1) as u64;
@@ -193,10 +222,12 @@ impl UserService {
             .await?
         };
 
-        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM iam_users WHERE tenant_id = ? AND deleted_at IS NULL")
-            .bind(tid)
-            .fetch_one(&self.state.db)
-            .await?;
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM iam_users WHERE tenant_id = ? AND deleted_at IS NULL",
+        )
+        .bind(tid)
+        .fetch_one(&self.state.db)
+        .await?;
 
         Ok(UserListResponse {
             items: users.into_iter().map(|u| self.to_response(&u)).collect(),
@@ -206,14 +237,22 @@ impl UserService {
         })
     }
 
-    pub async fn update(&self, user_id: &str, req: UpdateUserRequest, scope: &TenantScope) -> Result<UserResponse, IamError> {
+    pub async fn update(
+        &self,
+        user_id: &str,
+        req: UpdateUserRequest,
+        scope: &TenantScope,
+    ) -> Result<UserResponse, IamError> {
         let mut qb = QueryBuilder::new(
             "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users",
         );
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let existing: Option<UserRow> = qb.build_query_as::<UserRow>().fetch_optional(&self.state.db).await?;
+        let existing: Option<UserRow> = qb
+            .build_query_as::<UserRow>()
+            .fetch_optional(&self.state.db)
+            .await?;
 
         let existing = match existing {
             Some(u) => u,
@@ -240,10 +279,7 @@ impl UserService {
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        qb.build()
-            .execute(&self.state.db)
-            .await
-            .map(|_| ())?;
+        qb.build().execute(&self.state.db).await.map(|_| ())?;
 
         let mut qb = QueryBuilder::new(
             "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users",
@@ -251,7 +287,10 @@ impl UserService {
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
-        let user: UserRow = qb.build_query_as::<UserRow>().fetch_one(&self.state.db).await?;
+        let user: UserRow = qb
+            .build_query_as::<UserRow>()
+            .fetch_one(&self.state.db)
+            .await?;
 
         Ok(self.to_response(&user))
     }
@@ -260,7 +299,8 @@ impl UserService {
         let tenant_id = scope.tenant_id().unwrap_or(1);
 
         let mut tx = self.state.db.begin().await?;
-        let mut qb = QueryBuilder::new("UPDATE iam_users SET deleted_at = NOW(), updated_at = NOW()");
+        let mut qb =
+            QueryBuilder::new("UPDATE iam_users SET deleted_at = NOW(), updated_at = NOW()");
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
@@ -278,7 +318,9 @@ impl UserService {
             },
         )
         .with_tenant_id(tenant_id.to_string());
-        self.state.outbox_repo.clone()
+        self.state
+            .outbox_repo
+            .clone()
             .enqueue(&mut tx, &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
@@ -287,7 +329,11 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn list_simple(&self, query: UserSimpleQuery, scope: &TenantScope) -> Result<UserSimpleListResponse, IamError> {
+    pub async fn list_simple(
+        &self,
+        query: UserSimpleQuery,
+        scope: &TenantScope,
+    ) -> Result<UserSimpleListResponse, IamError> {
         let offset = ((query.page - 1) * query.size) as i64;
         let limit = query.size as i64;
         let tid = scope.tenant_id().unwrap_or(1) as u64;
@@ -348,7 +394,11 @@ impl UserService {
         }
     }
 
-    pub async fn batch_get_by_ids(&self, user_ids: &[String], scope: &TenantScope) -> Result<Vec<UserResponse>, IamError> {
+    pub async fn batch_get_by_ids(
+        &self,
+        user_ids: &[String],
+        scope: &TenantScope,
+    ) -> Result<Vec<UserResponse>, IamError> {
         if user_ids.is_empty() {
             return Ok(vec![]);
         }
@@ -365,7 +415,10 @@ impl UserService {
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL");
 
-        let users: Vec<UserRow> = qb.build_query_as::<UserRow>().fetch_all(&self.state.db).await?;
+        let users: Vec<UserRow> = qb
+            .build_query_as::<UserRow>()
+            .fetch_all(&self.state.db)
+            .await?;
         Ok(users.iter().map(|u| self.to_response(u)).collect())
     }
 
@@ -519,25 +572,26 @@ impl UserService {
         Ok((items, total.0, truncated))
     }
 
-    pub async fn get_claims(&self, user_id: &str, scope: &TenantScope) -> Result<UserClaimsResponse, IamError> {
+    pub async fn get_claims(
+        &self,
+        user_id: &str,
+        scope: &TenantScope,
+    ) -> Result<UserClaimsResponse, IamError> {
         let tenant_id = scope.tenant_id().unwrap_or(1);
         let tid = tenant_id as u64;
 
-        let mut qb = QueryBuilder::new(
-            "SELECT id, username, email, phone, nickname FROM iam_users",
-        );
+        let mut qb =
+            QueryBuilder::new("SELECT id, username, email, phone, nickname FROM iam_users");
         qb.where_id(user_id);
         qb.and_tenant(scope);
         qb.push(" AND deleted_at IS NULL AND status = 'active'");
-        let user: Option<(String, String, Option<String>, Option<String>, String)> = qb
-            .build_query_as::<(String, String, Option<String>, Option<String>, String)>()
+        let user: Option<UserClaimsRow> = qb
+            .build_query_as::<UserClaimsRow>()
             .fetch_optional(&self.state.db)
             .await?;
 
-        let (uid, username, email, phone, nickname) = match user {
-            Some(u) => u,
-            None => return Err(IamError::UserNotFound),
-        };
+        let UserClaimsRow { id: uid, username, email, phone, nickname } =
+            user.ok_or(IamError::UserNotFound)?;
 
         let roles: Vec<String> = sqlx::query_scalar(
             "SELECT r.code FROM iam_roles r JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.tenant_id = ? AND r.deleted_at IS NULL"

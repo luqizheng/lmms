@@ -1,5 +1,5 @@
-use sqlx::mysql::MySqlPool;
 use crate::config::DatabaseConfig;
+use sqlx::mysql::MySqlPool;
 use tracing::{info, warn};
 
 const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
@@ -29,7 +29,10 @@ pub async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
         apply_sql_script(pool, INIT_SQL).await?;
         info!("iam initial migration applied");
     } else {
-        info!(marker = SCHEMA_MARKER_TABLE, "iam schema present, skip V001");
+        info!(
+            marker = SCHEMA_MARKER_TABLE,
+            "iam schema present, skip V001"
+        );
     }
 
     if !table_exists(pool, V002_MARKER_TABLE).await? {

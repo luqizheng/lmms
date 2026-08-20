@@ -2,12 +2,8 @@ use utoipa::OpenApi;
 
 use crate::{
     models::{
-        config_item::{
-            ConfigItem, CreateConfigItem, PagedConfigItems, UpdateConfigItem,
-        },
-        namespace::{
-            CreateNamespace, Namespace, PagedNamespaces, UpdateNamespace,
-        },
+        config_item::{ConfigItem, CreateConfigItem, PagedConfigItems, UpdateConfigItem},
+        namespace::{CreateNamespace, Namespace, PagedNamespaces, UpdateNamespace},
     },
     routes::{config as cfg_route, migration_state, namespace as ns_route, watch},
 };

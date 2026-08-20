@@ -40,7 +40,10 @@ impl TokenClient {
         let url = format!("{}/tokens/access", self.base_url);
         let body = serde_json::to_string(req)
             .map_err(|e| SdkError::Network(format!("serialize AccessRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "token access")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode AccessResponse: {}", e)))
@@ -50,7 +53,10 @@ impl TokenClient {
         let url = format!("{}/tokens/refresh", self.base_url);
         let body = serde_json::to_string(req)
             .map_err(|e| SdkError::Network(format!("serialize RefreshRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "token refresh")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode RefreshResponse: {}", e)))
@@ -60,7 +66,10 @@ impl TokenClient {
         let url = format!("{}/tokens/revoke", self.base_url);
         let body = serde_json::to_string(req)
             .map_err(|e| SdkError::Network(format!("serialize RevokeRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "token revoke")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode RevokeResponse: {}", e)))
@@ -84,7 +93,10 @@ impl TokenClient {
         let url = format!("{}/api-keys", self.base_url);
         let body = serde_json::to_string(req)
             .map_err(|e| SdkError::Network(format!("serialize CreateApiKeyRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "token create_api_key")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode ApiKeyCreated: {}", e)))
@@ -99,10 +111,25 @@ fn ensure_success(resp: &HttpResponse, op: &str) -> Result<(), SdkError> {
     let body = resp.body.clone();
     let msg = format!("{}: HTTP {}", op, status);
     Err(match status {
-        401 | 403 => SdkError::Auth { status, message: msg, details: Some(body) },
-        429 => SdkError::RateLimit { message: msg, details: Some(body) },
-        400 | 422 => SdkError::Validation { status, message: msg, details: Some(body) },
-        500..=599 => SdkError::Server { status, message: msg, details: Some(body) },
+        401 | 403 => SdkError::Auth {
+            status,
+            message: msg,
+            details: Some(body),
+        },
+        429 => SdkError::RateLimit {
+            message: msg,
+            details: Some(body),
+        },
+        400 | 422 => SdkError::Validation {
+            status,
+            message: msg,
+            details: Some(body),
+        },
+        500..=599 => SdkError::Server {
+            status,
+            message: msg,
+            details: Some(body),
+        },
         _ => SdkError::Network(format!("{}: unexpected status {}", op, status)),
     })
 }

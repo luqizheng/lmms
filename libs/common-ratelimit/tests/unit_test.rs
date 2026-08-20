@@ -1,6 +1,6 @@
 //! Unit tests for digua_common-ratelimit that don't need Redis.
 
-use digua_common_ratelimit::{DEFAULT_LIMIT, Limit, RateLimiter};
+use digua_common_ratelimit::{Limit, DEFAULT_LIMIT};
 
 // We can't actually construct a RateLimiter in unit tests (needs Redis),
 // but we can test the limit_for logic with a mock if we structure it right.

@@ -70,12 +70,11 @@ async fn enqueue_writes_caller_supplied_trace_id_to_db() {
     repo.enqueue(&mut tx, &mut env).await.unwrap();
     tx.commit().await.unwrap();
 
-    let row: (serde_json::Value,) = sqlx::query_as(
-        "SELECT envelope_json FROM iam_outbox_events ORDER BY id DESC LIMIT 1",
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let row: (serde_json::Value,) =
+        sqlx::query_as("SELECT envelope_json FROM iam_outbox_events ORDER BY id DESC LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
 
     let parsed = row.0;
     assert_eq!(

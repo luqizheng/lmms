@@ -15,6 +15,7 @@ pub type MysqlContainer = testcontainers::ContainerAsync<Mysql>;
 pub struct DbHandle {
     pub db: Db,
     /// `None` 表示共享模式（容器由 `run-tests-docker.js` 管理生命周期）。
+    #[allow(dead_code)] // held to keep the local testcontainer alive past the spawn function.
     pub container: Option<MysqlContainer>,
 }
 

@@ -5,6 +5,7 @@
 //! Two subscriptions, two top-level reconnect loops, ONE persist handler:
 //! - iam routing-key subspace → queue `audit.iam-events`, routing_keys `iam.#`
 //! - pmd routing-key subspace → queue `audit.pmd-events`, routing_keys `pmd.#`
+//!
 //! Adding a new subdomain = new queue + new `run_*` + new spawn in main.rs;
 //! `persist()` is unchanged.
 //!
@@ -16,7 +17,9 @@
 
 use std::time::Duration;
 
-use digua_common_event::{Consumer, Envelope, HandlerError, RabbitMqConsumer, span_from_envelope_trace_id};
+use digua_common_event::{
+    span_from_envelope_trace_id, Consumer, Envelope, HandlerError, RabbitMqConsumer,
+};
 use sqlx::mysql::MySqlPool;
 use tracing::{info, warn, Instrument};
 
@@ -54,7 +57,10 @@ async fn subscribe_loop(
                 while consumer.connection().status().connected() {
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
-                warn!(queue = queue_name, "audit consumer connection lost, resubscribing");
+                warn!(
+                    queue = queue_name,
+                    "audit consumer connection lost, resubscribing"
+                );
             }
             Err(e) => {
                 warn!(error = %e, queue = queue_name, "audit consumer subscribe failed, retry in 5s");
@@ -85,7 +91,11 @@ async fn try_subscribe(
             },
         )
         .await?;
-    info!(queue = queue_name, ?routing_keys, "audit consumer subscribed");
+    info!(
+        queue = queue_name,
+        ?routing_keys,
+        "audit consumer subscribed"
+    );
     Ok(consumer)
 }
 

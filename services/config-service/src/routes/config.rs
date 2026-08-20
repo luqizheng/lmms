@@ -1,7 +1,9 @@
-use axum::{extract::State, Json, extract::Path, extract::Query, http::StatusCode};
-use digua_jwt_ctx::{Principal, TenantScope};
-use crate::models::config_item::{ConfigItem, CreateConfigItem, PagedConfigItems, QueryConfigItems, UpdateConfigItem};
+use crate::models::config_item::{
+    ConfigItem, CreateConfigItem, PagedConfigItems, QueryConfigItems, UpdateConfigItem,
+};
 use crate::routes::AppState;
+use axum::{extract::Path, extract::Query, extract::State, http::StatusCode, Json};
+use digua_jwt_ctx::{Principal, TenantScope};
 
 /// 掩码的常量 —— 与前端 `api/config/masking.ts` `MASK` 保持一致
 const MASK: &str = "********";
@@ -46,7 +48,10 @@ pub async fn create_config_item(
     scope: TenantScope,
     Json(item): Json<CreateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let mut result = state.create_config_item(item, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
+    let mut result = state
+        .create_config_item(item, &scope)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "create failed"))?;
     apply_reveal_policy(&mut result, &principal);
     Ok(Json(result))
 }
@@ -68,7 +73,10 @@ pub async fn query_config_items(
     principal: Principal,
     scope: TenantScope,
 ) -> Result<Json<PagedConfigItems>, (StatusCode, &'static str)> {
-    let mut result = state.query_config_items(query, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
+    let mut result = state
+        .query_config_items(query, &scope)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "query failed"))?;
     for item in result.items.iter_mut() {
         apply_reveal_policy(item, &principal);
     }
@@ -94,7 +102,11 @@ pub async fn get_config_item(
     scope: TenantScope,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
     let mut result = state.get_config_item(&id, &scope).await.map_err(|e| {
-        if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "get failed") }
+        if e.code() == "CFG_ITEM_1001" {
+            (StatusCode::NOT_FOUND, "config item not found")
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, "get failed")
+        }
     })?;
     apply_reveal_policy(&mut result, &principal);
     Ok(Json(result))
@@ -120,9 +132,16 @@ pub async fn update_config_item(
     scope: TenantScope,
     Json(update): Json<UpdateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
-    let mut result = state.update_config_item(&id, update, &scope).await.map_err(|e| {
-        if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "update failed") }
-    })?;
+    let mut result = state
+        .update_config_item(&id, update, &scope)
+        .await
+        .map_err(|e| {
+            if e.code() == "CFG_ITEM_1001" {
+                (StatusCode::NOT_FOUND, "config item not found")
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, "update failed")
+            }
+        })?;
     apply_reveal_policy(&mut result, &principal);
     Ok(Json(result))
 }
@@ -145,7 +164,11 @@ pub async fn delete_config_item(
     scope: TenantScope,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
     state.delete_config_item(&id, &scope).await.map_err(|e| {
-        if e.code() == "CFG_ITEM_1001" { (StatusCode::NOT_FOUND, "config item not found") } else { (StatusCode::INTERNAL_SERVER_ERROR, "delete failed") }
+        if e.code() == "CFG_ITEM_1001" {
+            (StatusCode::NOT_FOUND, "config item not found")
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, "delete failed")
+        }
     })?;
     Ok(Json(serde_json::json!({ "success": true })))
 }
@@ -173,7 +196,10 @@ pub async fn export_config(
         size: Some(10000),
         key: None,
     };
-    let mut result = state.query_config_items(query, &scope).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "export failed"))?;
+    let mut result = state
+        .query_config_items(query, &scope)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "export failed"))?;
 
     let mut data = std::collections::HashMap::new();
     for item in result.items.iter_mut() {
@@ -181,7 +207,8 @@ pub async fn export_config(
         data.insert(item.key.clone(), item.value.clone());
     }
 
-    Ok(serde_json::to_string_pretty(&data).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "serialize failed"))?)
+    serde_json::to_string_pretty(&data)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "serialize failed"))
 }
 
 #[utoipa::path(
@@ -204,7 +231,8 @@ pub async fn import_config(
     Path(namespace_id): Path<String>,
     body: String,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
-    let configs: std::collections::HashMap<String, String> = serde_json::from_str(&body).map_err(|_| (StatusCode::BAD_REQUEST, "invalid json"))?;
+    let configs: std::collections::HashMap<String, String> =
+        serde_json::from_str(&body).map_err(|_| (StatusCode::BAD_REQUEST, "invalid json"))?;
     let count = configs.len();
 
     for (key, value) in configs {
@@ -276,7 +304,7 @@ mod tests {
     #[test]
     fn handler_query_masks_each_secret_in_list_when_caller_lacks_perm() {
         let principal = make_principal(&["CFG_CONFIG_READ"]);
-        let mut items = vec![
+        let mut items = [
             make_item(true, "secret-a"),
             make_item(false, "plain-b"),
             make_item(true, "secret-c"),
@@ -313,7 +341,7 @@ mod tests {
     #[test]
     fn handler_export_masks_all_secrets_when_caller_lacks_perm() {
         let principal = make_principal(&["CFG_NAMESPACE_EXPORT"]);
-        let mut items = vec![
+        let mut items = [
             make_item(true, "secret-1"),
             make_item(true, "secret-2"),
             make_item(false, "plain-3"),

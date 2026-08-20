@@ -11,7 +11,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(db: DbPool, jwks: Arc<JWKSCache>) -> Self {
-        Self { db: Arc::new(db), jwks }
+        Self {
+            db: Arc::new(db),
+            jwks,
+        }
     }
 }
 

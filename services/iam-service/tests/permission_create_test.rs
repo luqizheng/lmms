@@ -15,12 +15,13 @@
 //! (sqlx returns PoolTimedOut instead of reconnecting). This is the same
 //! gotcha that `permission_changed_test.rs` works around with `Ctx`.
 
-mod digua_common;
+mod common;
 
 use digua_common_event::MySqlOutboxRepo;
 use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
+use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::dto::permission::CreatePermissionRequest;
 use iam_service::service::permission_svc::PermissionService;
 use iam_service::state::AppState;
@@ -29,13 +30,13 @@ use std::sync::Arc;
 
 struct Ctx {
     state: AppState,
-    _mysql: Option<digua_common::MysqlContainer>,
+    _mysql: Option<common::MysqlContainer>,
 }
 
 async fn setup() -> Ctx {
-    let mysql_h = digua_common::spawn_mysql().await;
+    let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
-    let url = mysql_h.url;
+    let _url = mysql_h.url;
 
     let config = Config {
         app: AppConfig {
@@ -87,7 +88,8 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
         String::new(),
-    ));    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt);
+    ));    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let state = AppState::new(pool, cache, config, None, outbox_repo, jwks, service_jwt, token_forward);
     Ctx {
         state,
         _mysql: mysql_h.container,

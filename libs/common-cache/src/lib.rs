@@ -17,11 +17,17 @@ pub trait Cache: Send + Sync {
     async fn del(&self, key: &str) -> AppResult<()>;
     async fn incr(&self, key: &str) -> AppResult<i64> {
         let _ = key;
-        Err(digua_common_error::AppError::internal("CACHE_NOT_SUPPORTED", "incr not supported"))
+        Err(digua_common_error::AppError::internal(
+            "CACHE_NOT_SUPPORTED",
+            "incr not supported",
+        ))
     }
     async fn mget(&self, keys: &[&str]) -> AppResult<Vec<Option<Vec<u8>>>> {
         let _ = keys;
-        Err(digua_common_error::AppError::internal("CACHE_NOT_SUPPORTED", "mget not supported"))
+        Err(digua_common_error::AppError::internal(
+            "CACHE_NOT_SUPPORTED",
+            "mget not supported",
+        ))
     }
 }
 
@@ -45,12 +51,12 @@ impl Cache for TieredCache {
         if let Some(val) = self.local.get(key).await? {
             return Ok(Some(val));
         }
-        
+
         if let Some(val) = self.remote.get(key).await? {
             self.local.set(key, val.clone(), None).await?;
             return Ok(Some(val));
         }
-        
+
         Ok(None)
     }
 

@@ -3,8 +3,10 @@
 //! Phase 10 G3 接入。复用 digua_common-db::MigrationState trait。
 //! 鉴权：service-jwt `aud=notification-service`（与 Phase 5-B 一致）。
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json, Router, routing::get};
-use digua_common_db::migration_state::{self, MigrationDescriptor, MigrationState, MigrationStateResponse};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use digua_common_db::migration_state::{
+    self, MigrationDescriptor, MigrationState, MigrationStateResponse,
+};
 use serde_json::json;
 use sqlx::MySqlPool;
 use utoipa::path as to_path;
@@ -14,13 +16,29 @@ use crate::rest::RestState;
 pub struct NotificationMigrationState;
 
 impl MigrationState for NotificationMigrationState {
-    fn service_name(&self) -> &'static str { "notification-service" }
-    fn dialect(&self) -> &'static str { "mysql" }
+    fn service_name(&self) -> &'static str {
+        "notification-service"
+    }
+    fn dialect(&self) -> &'static str {
+        "mysql"
+    }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
         &[
-            MigrationDescriptor { version: "V001", name: "init", marker_table: "ntf_announcements" },
-            MigrationDescriptor { version: "V002", name: "ntf_tenant", marker_table: "ntf_migration_v002_applied" },
-            MigrationDescriptor { version: "V003", name: "ntf_membership_projection", marker_table: "ntf_migration_v003_applied" },
+            MigrationDescriptor {
+                version: "V001",
+                name: "init",
+                marker_table: "ntf_announcements",
+            },
+            MigrationDescriptor {
+                version: "V002",
+                name: "ntf_tenant",
+                marker_table: "ntf_migration_v002_applied",
+            },
+            MigrationDescriptor {
+                version: "V003",
+                name: "ntf_membership_projection",
+                marker_table: "ntf_migration_v003_applied",
+            },
         ]
     }
 }
@@ -52,7 +70,10 @@ pub async fn handler(State(state): State<RestState>) -> impl IntoResponse {
     let pool = state.db.pool.clone();
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =
         match probe_applied(&pool).await {
-            Ok(applied) => Ok(migration_state::build_response(&NotificationMigrationState, applied)),
+            Ok(applied) => Ok(migration_state::build_response(
+                &NotificationMigrationState,
+                applied,
+            )),
             Err(e) => Err((
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({

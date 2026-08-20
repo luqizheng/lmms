@@ -25,9 +25,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 /// digua_common_telemetry::init_tracing("audit-service");
 /// ```
 pub fn init_tracing(service_name: &'static str) {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        EnvFilter::new("info,sqlx=warn,hyper=warn,reqwest=warn,tower=warn")
-    });
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info,sqlx=warn,hyper=warn,reqwest=warn,tower=warn"));
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
@@ -40,8 +39,8 @@ pub fn init_tracing(service_name: &'static str) {
 
     #[cfg(feature = "otlp")]
     {
-        use opentelemetry::{global, KeyValue};
         use opentelemetry::trace::TracerProvider as _;
+        use opentelemetry::{global, KeyValue};
         use opentelemetry_otlp::WithExportConfig;
         use opentelemetry_sdk::{propagation::TraceContextPropagator, trace as sdktrace, Resource};
         use tracing_opentelemetry::OpenTelemetryLayer;

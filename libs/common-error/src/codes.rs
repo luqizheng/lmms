@@ -2,6 +2,7 @@
 // DO NOT EDIT MANUALLY
 
 /// Error code constants
+#[allow(clippy::module_inception)]
 pub mod codes {
     /// internal server error
     pub const SYS_INTERNAL_0001: &str = "SYS_INTERNAL_0001";

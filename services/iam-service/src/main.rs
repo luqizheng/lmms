@@ -1,12 +1,13 @@
-use iam_service::{config::load_config, db, openapi::ApiDoc, routes, service::TokenForwardClient, state::AppState};
-use digua_common_telemetry;
 use digua_common_cache::MemoryCache;
 use digua_common_event::MySqlOutboxRepo;
 use digua_common_jwt::{JWKSCache, JwksConfig, ServiceJwtCache, ServiceJwtConfig};
-use tracing::{info, warn};
+use iam_service::{
+    config::load_config, db, openapi::ApiDoc, routes, service::TokenForwardClient, state::AppState,
+};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::{info, warn};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -66,7 +67,9 @@ async fn main() -> anyhow::Result<()> {
                 .expect("SERVICE_BOOTSTRAP_TOKEN required"),
             caller_service_name: "iam-service".into(),
             caller_tenant: std::env::var("TENANT_ID")
-                .ok().and_then(|s| s.parse().ok()).unwrap_or(1i64),
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(1i64),
             refresh_skew: Duration::from_secs(60),
             request_timeout: Duration::from_secs(5),
         },
@@ -74,12 +77,11 @@ async fn main() -> anyhow::Result<()> {
         std::env::var("IAM_PRIVATE_KEY_PEM_PATH")
             .ok()
             .and_then(|p| std::fs::read_to_string(p).ok())
-            .unwrap_or_default(),  // not used for self-mint
+            .unwrap_or_default(), // not used for self-mint
     ));
     let token_forward = Arc::new(TokenForwardClient::new(
         service_jwt.clone(),
-        std::env::var("TOKEN_SERVICE_URL")
-            .unwrap_or_else(|_| "http://token-service:8082".into()),
+        std::env::var("TOKEN_SERVICE_URL").unwrap_or_else(|_| "http://token-service:8082".into()),
     ));
     let state = AppState::new(
         db_pool,
@@ -101,17 +103,14 @@ async fn main() -> anyhow::Result<()> {
         // TODO(iam/swagger-segfault): 25 端点 + 1797 行 spec 触发 utoipa-swagger-ui v9 SIGSEGV 139（其他服务正常，疑似 schemas 循环引用）。Box 化未解决，临时禁 swagger。
         tracing::warn!("iam swagger ui DISABLED (SIGSEGV 139 in utoipa-swagger-ui merge); see TODO(iam/swagger-segfault)");
     } else {
-        app = app.merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", ApiDoc::openapi()),
-        );
+        app = app
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
         info!("swagger ui enabled at /swagger-ui");
     }
 
     let addr: SocketAddr = format!("{}:{}", config.app.host, config.app.port).parse()?;
     info!("Starting iam-service on {}", addr);
-    
-        
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     tokio::spawn(async move {
@@ -122,8 +121,12 @@ async fn main() -> anyhow::Result<()> {
         let _ = jwks_shutdown.send(true);
         std::process::exit(0);
     });
-    
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
-    
+
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
+
     Ok(())
 }

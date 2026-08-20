@@ -109,7 +109,9 @@ where
             let _ = fs::create_dir_all(parent);
         }
         match seed_if_absent(path) {
-            Ok(true) => tracing::info!(path = %config_path, "seeded config.yaml from embedded default"),
+            Ok(true) => {
+                tracing::info!(path = %config_path, "seeded config.yaml from embedded default")
+            }
             Ok(false) => {} // peer won the race, fine
             Err(e) => tracing::warn!(
                 error = %e,
@@ -184,10 +186,18 @@ where
         cfg.database.url = v;
     }
     if let Some(v) = env("DATABASE_MAX_CONNECTIONS") {
-        parse_or_warn("DATABASE_MAX_CONNECTIONS", &v, &mut cfg.database.max_connections);
+        parse_or_warn(
+            "DATABASE_MAX_CONNECTIONS",
+            &v,
+            &mut cfg.database.max_connections,
+        );
     }
     if let Some(v) = env("DATABASE_MIN_CONNECTIONS") {
-        parse_or_warn("DATABASE_MIN_CONNECTIONS", &v, &mut cfg.database.min_connections);
+        parse_or_warn(
+            "DATABASE_MIN_CONNECTIONS",
+            &v,
+            &mut cfg.database.min_connections,
+        );
     }
 
     // ── redis ──
@@ -321,8 +331,14 @@ mod tests {
         let cfg: Config = serde_yaml::from_str(DEFAULT_YAML).expect("DEFAULT_YAML parses");
         assert_eq!(cfg.app.name, "iam-service");
         assert_eq!(cfg.app.port, 8081);
-        assert!(cfg.database.url.is_empty(), "database.url is a placeholder in default");
-        assert!(cfg.redis.url.is_empty(), "redis.url is a placeholder in default");
+        assert!(
+            cfg.database.url.is_empty(),
+            "database.url is a placeholder in default"
+        );
+        assert!(
+            cfg.redis.url.is_empty(),
+            "redis.url is a placeholder in default"
+        );
         assert_eq!(cfg.jwt.access_token_ttl_minutes, 15);
     }
 
@@ -376,7 +392,10 @@ mod tests {
         let yaml_port = cfg.app.port;
         let env = env_from(&[("SERVER_PORT", "not-a-number")]);
         apply_env_overrides(&mut cfg, &env);
-        assert_eq!(cfg.app.port, yaml_port, "malformed env is ignored, yaml wins");
+        assert_eq!(
+            cfg.app.port, yaml_port,
+            "malformed env is ignored, yaml wins"
+        );
     }
 
     #[test]
@@ -400,10 +419,7 @@ mod tests {
     #[test]
     fn validate_passes_when_urls_provided_via_env() {
         let mut cfg: Config = serde_yaml::from_str(DEFAULT_YAML).unwrap();
-        let env = env_from(&[
-            ("DATABASE_URL", "mysql://x"),
-            ("REDIS_URL", "redis://x"),
-        ]);
+        let env = env_from(&[("DATABASE_URL", "mysql://x"), ("REDIS_URL", "redis://x")]);
         apply_env_overrides(&mut cfg, &env);
         validate_all_fields_present(&cfg).expect("all fields present after env merge");
     }
@@ -476,8 +492,7 @@ mod tests {
             ("REDIS_URL", "redis://r/0"),
             ("SERVER_PORT", "12345"),
         ]);
-        let cfg =
-            load_config_with_env(path.to_str().unwrap(), &env).expect("load should succeed");
+        let cfg = load_config_with_env(path.to_str().unwrap(), &env).expect("load should succeed");
         assert_eq!(cfg.app.port, 12345);
         assert_eq!(cfg.database.url, "mysql://u:p@h/db");
         assert_eq!(cfg.redis.url, "redis://r/0");

@@ -4,7 +4,7 @@
 //! - platform_admin (cross_tenant=true) sees namespaces from any tenant
 //! - regular tenant-scoped user only sees namespaces in their own tenant
 #![allow(deprecated)]
-mod digua_common;
+mod common;
 
 use axum::{
     body::{to_bytes, Body},
@@ -25,7 +25,7 @@ struct Ctx {
 }
 
 async fn setup() -> Ctx {
-    let h = digua_common::spawn_mysql().await;
+    let h = common::spawn_mysql().await;
     let pool = h.pool;
     let app = build_app(pool.clone());
     Ctx { app, pool }

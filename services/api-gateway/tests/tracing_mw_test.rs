@@ -30,12 +30,7 @@ fn app() -> Router {
 #[tokio::test]
 async fn response_includes_trace_id_header() {
     let res = app()
-        .oneshot(
-            Request::builder()
-                .uri("/test")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
@@ -53,21 +48,11 @@ async fn response_includes_trace_id_header() {
 #[tokio::test]
 async fn each_request_gets_unique_trace_id() {
     let res1 = app()
-        .oneshot(
-            Request::builder()
-                .uri("/test")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
         .await
         .unwrap();
     let res2 = app()
-        .oneshot(
-            Request::builder()
-                .uri("/test")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
         .await
         .unwrap();
     let id1 = res1.headers().get("X-Trace-Id").unwrap().to_str().unwrap();

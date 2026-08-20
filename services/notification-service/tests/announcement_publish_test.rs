@@ -4,13 +4,13 @@
 //! role/dept scope (User scope 直接用 scope_id; role/dept 走 JSON_CONTAINS /
 //! dept_id lookup)。本文件覆盖 user-scope 路径; role/dept 路径由
 //! membership_projection_test.rs (T8) + bootstrap 集成覆盖。
-mod digua_common;
+mod common;
 
 use digua_jwt_ctx::TenantScope;
 use notification_service::db::Db;
 
-async fn setup_db() -> (Db, Option<digua_common::MysqlContainer>) {
-    let h = digua_common::spawn_db().await;
+async fn setup_db() -> (Db, Option<common::MysqlContainer>) {
+    let h = common::spawn_db().await;
     (h.db, h.container)
 }
 

@@ -1,8 +1,8 @@
+use digua_http_client::SdkError;
 use digua_iam_sdk::{
     CreateRoleRequest, CreateUserRequest, IamClient, ListRolesQuery, ListUsersQuery,
     UpdateUserRequest,
 };
-use digua_http_client::SdkError;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 use wiremock::matchers::{header, method, path};
@@ -35,11 +35,16 @@ async fn login_posts_credentials_and_returns_tokens() {
         .mount(&server)
         .await;
 
-    let (client, login) = IamClient::login(server.uri(), "alice", "secret").await.unwrap();
+    let (client, login) = IamClient::login(server.uri(), "alice", "secret")
+        .await
+        .unwrap();
     assert_eq!(login.access_token, "at-1");
     assert_eq!(login.user.username, "alice");
     assert_eq!(login.user.id, "u-1");
-    assert_eq!(client.base_url().trim_end_matches('/'), server.uri().trim_end_matches('/'));
+    assert_eq!(
+        client.base_url().trim_end_matches('/'),
+        server.uri().trim_end_matches('/')
+    );
 }
 
 #[tokio::test]

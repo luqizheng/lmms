@@ -1,8 +1,8 @@
 #[cfg(feature = "config-service")]
 pub mod provider;
 
-use digua_common_error::{AppError, AppResult};
 use config::{Config, Environment, File};
+use digua_common_error::{AppError, AppResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -91,20 +91,20 @@ impl Loader {
         #[cfg(feature = "consul")]
         if let (Some(url), Some(key)) = (self.consul_url, self.consul_key) {
             let consul_value = load_from_consul(&url, &key)?;
-            builder = builder.add_source(
-                config::Value::new(None, serde_json::from_str(&consul_value).map_err(|e| {
-                    AppError::internal("CFG_CONSUL_PARSE", e.to_string())
-                })?),
-            );
+            builder = builder.add_source(config::Value::new(
+                None,
+                serde_json::from_str(&consul_value)
+                    .map_err(|e| AppError::internal("CFG_CONSUL_PARSE", e.to_string()))?,
+            ));
         }
 
         let config = builder
             .build()
             .map_err(|e| AppError::internal("CFG_BUILD", e.to_string()))?;
 
-        config.try_deserialize::<T>().map_err(|e| {
-            AppError::internal("CFG_PARSE", e.to_string())
-        })
+        config
+            .try_deserialize::<T>()
+            .map_err(|e| AppError::internal("CFG_PARSE", e.to_string()))
     }
 }
 
@@ -170,9 +170,11 @@ fn load_from_consul(url: &str, key: &str) -> AppResult<String> {
     Err(AppError::external("CFG_CONSUL_EMPTY", "consul value empty"))
 }
 
+type HotConfigCallback<T> = Box<dyn Fn(&T) + Send + Sync>;
+
 pub struct HotConfig<T> {
     inner: Arc<RwLock<T>>,
-    callbacks: Arc<RwLock<Vec<Box<dyn Fn(&T) + Send + Sync>>>>,
+    callbacks: Arc<RwLock<Vec<HotConfigCallback<T>>>>,
 }
 
 impl<T: DeserializeOwned + Clone + Send + Sync + 'static> HotConfig<T> {
@@ -207,6 +209,12 @@ impl<T: DeserializeOwned + Clone + Send + Sync + 'static> HotConfig<T> {
 #[derive(Serialize, Deserialize)]
 pub struct Secret<T>(T);
 
+impl<T> Secret<T> {
+    pub fn new(value: T) -> Self {
+        Self(value)
+    }
+}
+
 impl<T: std::fmt::Display> std::fmt::Display for Secret<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "******")
@@ -227,6 +235,12 @@ impl<T> Secret<T> {
 
 pub struct SensitiveFields {
     fields: HashMap<String, bool>,
+}
+
+impl Default for SensitiveFields {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SensitiveFields {

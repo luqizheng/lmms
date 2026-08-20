@@ -1,14 +1,14 @@
-pub mod namespace;
 pub mod config;
 pub mod migration_state;
+pub mod namespace;
 pub mod watch;
 
-use axum::{Router, middleware as axum_mw, routing::get};
+use crate::services::ConfigService;
+use axum::{middleware as axum_mw, routing::get, Router};
 use digua_common_jwt::JWKSCache;
 use digua_jwt_ctx::PrincipalStateProvider;
-use std::sync::Arc;
-use crate::services::ConfigService;
 use prometheus::{Encoder, TextEncoder};
+use std::sync::Arc;
 
 pub type AppState = ConfigService;
 
@@ -19,8 +19,8 @@ impl PrincipalStateProvider for ConfigService {
 }
 
 pub fn routes(state: AppState) -> Router {
-    let migration_state_with_authz = migration_state::routes(state.clone())
-        .layer(axum_mw::from_fn_with_state(
+    let migration_state_with_authz =
+        migration_state::routes(state.clone()).layer(axum_mw::from_fn_with_state(
             state.clone(),
             digua_authz::verify_aud_principal_middleware::<AppState>("config-service"),
         ));
@@ -31,7 +31,9 @@ pub fn routes(state: AppState) -> Router {
         .merge(migration_state_with_authz)
         .route("/health", get(health))
         .route("/metrics", get(metrics))
-        .route_layer(axum_mw::from_fn(digua_common_telemetry_axum::trace_request_middleware))
+        .route_layer(axum_mw::from_fn(
+            digua_common_telemetry_axum::trace_request_middleware,
+        ))
         .with_state(state)
 }
 

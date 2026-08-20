@@ -55,9 +55,7 @@ impl sqlx::Encode<'_, sqlx::MySql> for Status {
 }
 
 impl<'r> sqlx::Decode<'r, sqlx::MySql> for Status {
-    fn decode(
-        value: sqlx::mysql::MySqlValueRef<'r>,
-    ) -> Result<Self, sqlx::error::BoxDynError> {
+    fn decode(value: sqlx::mysql::MySqlValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <&str as sqlx::Decode<sqlx::MySql>>::decode(value)?;
         Status::from_db_str(s).ok_or_else(|| format!("invalid announcement status: {s}").into())
     }

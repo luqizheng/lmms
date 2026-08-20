@@ -90,7 +90,10 @@ impl ServiceJwtCache {
         // For testability, we support a "test mode" where the bootstrap_token
         // is itself a pre-signed JWT — see tests for that path. In production
         // bootstrap_token is opaque and we always POST.
-        let url = format!("{}/tokens/service-jwt", self.config.token_service_url.trim_end_matches('/'));
+        let url = format!(
+            "{}/tokens/service-jwt",
+            self.config.token_service_url.trim_end_matches('/')
+        );
         let body = serde_json::json!({
             "aud": target,
             "tid": self.config.caller_tenant,
@@ -113,7 +116,8 @@ impl ServiceJwtCache {
             .map_err(|e| ServiceJwtError::ParseFailed(e.to_string()))?;
         let expires_at = Instant::now() + Duration::from_secs(parsed.expires_in.max(0) as u64);
         let mut g = self.inner.write().await;
-        g.tokens.insert(target.to_string(), parsed.access_token.clone());
+        g.tokens
+            .insert(target.to_string(), parsed.access_token.clone());
         g.expires_at.insert(target.to_string(), expires_at);
         Ok(parsed.access_token)
     }
@@ -138,11 +142,7 @@ impl ServiceJwtCache {
     /// Sign a local service-jwt using the same private key as token-service.
     /// Used for testing; in production, always go through the HTTP path.
     #[doc(hidden)]
-    pub fn sign_local(
-        &self,
-        target: &str,
-        ttl: Duration,
-    ) -> Result<String, crate::SignError> {
+    pub fn sign_local(&self, target: &str, ttl: Duration) -> Result<String, crate::SignError> {
         let now = chrono::Utc::now().timestamp();
         let claims = serde_json::json!({
             "iss": "token-service",
@@ -156,10 +156,7 @@ impl ServiceJwtCache {
         sign_token(&self.private_key_pem, &claims, ttl)
     }
 
-    pub fn spawn_refresh_loop(
-        self: Arc<Self>,
-        mut shutdown: tokio::sync::watch::Receiver<bool>,
-    ) {
+    pub fn spawn_refresh_loop(self: Arc<Self>, mut shutdown: tokio::sync::watch::Receiver<bool>) {
         tokio::spawn(async move {
             let interval = self.config.refresh_skew / 2;
             loop {

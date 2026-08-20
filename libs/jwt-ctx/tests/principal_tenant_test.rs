@@ -1,7 +1,7 @@
 #![allow(deprecated)]
-use digua_jwt_ctx::{Principal, PrincipalError};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use digua_jwt_ctx::{Principal, PrincipalError};
 
 fn make_token(payload: serde_json::Value) -> String {
     let header_b64 = URL_SAFE_NO_PAD.encode(br#"{"alg":"RS256","typ":"JWT"}"#);

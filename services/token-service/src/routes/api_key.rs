@@ -121,15 +121,9 @@ pub async fn handle_list_api_keys(
 ) -> Result<Json<ListApiKeysResponse>, (StatusCode, &'static str)> {
     let page = q.page.unwrap_or(1);
     let size = q.size.unwrap_or(20);
-    let (rows, total) = oauth_client_svc::list(
-        &state.db,
-        q.keyword.as_deref(),
-        None,
-        page,
-        size,
-    )
-    .await
-    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "list failed"))?;
+    let (rows, total) = oauth_client_svc::list(&state.db, q.keyword.as_deref(), None, page, size)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "list failed"))?;
 
     Ok(Json(ListApiKeysResponse {
         items: rows.into_iter().map(ApiKeySummary::from).collect(),

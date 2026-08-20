@@ -1,4 +1,4 @@
-use sha2::{Sha256 as RustSha256, Digest};
+use sha2::{Digest, Sha256 as RustSha256};
 
 pub trait Hash {
     fn hash(data: &[u8]) -> Vec<u8>;

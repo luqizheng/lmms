@@ -34,10 +34,7 @@ mod tests {
             { "path": "/a", "meta": { "title": "A", "_menu": { "id": 1 } } }
         ]);
         strip_internal_fields(&mut v);
-        assert_eq!(
-            v,
-            json!([{ "path": "/a", "meta": { "title": "A" } }])
-        );
+        assert_eq!(v, json!([{ "path": "/a", "meta": { "title": "A" } }]));
     }
 
     #[test]

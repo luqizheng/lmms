@@ -4,7 +4,10 @@ use utoipa::{
 };
 
 use crate::dto;
-use crate::routes::{auth, internal_membership, internal_migration_state, internal_users, org_units, permissions, roles, tenants, users};
+use crate::routes::{
+    auth, internal_membership, internal_migration_state, internal_users, org_units, permissions,
+    roles, tenants, users,
+};
 
 pub struct SecurityAddon;
 

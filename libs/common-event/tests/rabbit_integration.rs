@@ -28,7 +28,7 @@ CREATE TABLE outbox_events (
 "#;
 
 async fn rabbit_url() -> (String, ContainerAsync<RabbitMq>) {
-    let c = RabbitMq::default().start().await.unwrap();
+    let c = RabbitMq.start().await.unwrap();
     let host = c.get_host().await.unwrap();
     let port = c.get_host_port_ipv4(5672).await.unwrap();
     (format!("amqp://guest:guest@{}:{}/%2f", host, port), c)
@@ -154,5 +154,8 @@ async fn outbox_loop_publishes_and_consumer_receives() {
     // The published row should not be re-claimed.
     let repo2 = MySqlOutboxRepo::with_table(pool.clone(), "outbox_events");
     let remaining = repo2.claim_batch(10).await.unwrap();
-    assert!(remaining.is_empty(), "published row must be marked, not re-claimed");
+    assert!(
+        remaining.is_empty(),
+        "published row must be marked, not re-claimed"
+    );
 }

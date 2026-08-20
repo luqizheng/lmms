@@ -4,10 +4,10 @@ use digua_http_client::client::KudiWebClient;
 use digua_http_client::{transport::HttpResponse, SdkError};
 
 use crate::model::{
-    ChangePasswordRequest, CreateRoleRequest, CreateUserRequest, ListRolesQuery,
-    ListUsersQuery, LoginRequest, LoginResponse, PermissionListResponse, RefreshRequest,
-    RefreshResponse, RoleListResponse, RoleResponse, UpdateRoleRequest, UpdateUserRequest,
-    UserListResponse, UserResponse,
+    ChangePasswordRequest, CreateRoleRequest, CreateUserRequest, ListRolesQuery, ListUsersQuery,
+    LoginRequest, LoginResponse, PermissionListResponse, RefreshRequest, RefreshResponse,
+    RoleListResponse, RoleResponse, UpdateRoleRequest, UpdateUserRequest, UserListResponse,
+    UserResponse,
 };
 
 type BearerSupplier = Arc<dyn Fn() -> Option<String> + Send + Sync>;
@@ -70,7 +70,10 @@ impl IamClient {
 
     pub async fn logout(&self) -> Result<(), SdkError> {
         let url = format!("{}/iam/auth/logout", self.base_url);
-        let resp = self.http.post(&url, "{}", (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, "{}", (self.bearer)().as_deref())
+            .await?;
         if resp.status == 401 || resp.status == 403 {
             return Ok(());
         }
@@ -85,7 +88,10 @@ impl IamClient {
         };
         let body = serde_json::to_string(&req)
             .map_err(|e| SdkError::Network(format!("serialize RefreshRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "iam refresh")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode RefreshResponse: {}", e)))
@@ -103,7 +109,10 @@ impl IamClient {
         };
         let body = serde_json::to_string(&req)
             .map_err(|e| SdkError::Network(format!("serialize ChangePasswordRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "iam change_password")?;
         Ok(())
     }
@@ -128,7 +137,10 @@ impl IamClient {
         let url = format!("{}/iam/users", self.base_url);
         let body = serde_json::to_string(req)
             .map_err(|e| SdkError::Network(format!("serialize CreateUserRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "iam create_user")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode UserResponse: {}", e)))
@@ -171,7 +183,10 @@ impl IamClient {
         let url = format!("{}/iam/roles", self.base_url);
         let body = serde_json::to_string(req)
             .map_err(|e| SdkError::Network(format!("serialize CreateRoleRequest: {}", e)))?;
-        let resp = self.http.post(&url, &body, (self.bearer)().as_deref()).await?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
         ensure_success(&resp, "iam create_role")?;
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode RoleResponse: {}", e)))
@@ -238,10 +253,25 @@ fn ensure_success(resp: &HttpResponse, op: &str) -> Result<(), SdkError> {
     let body = resp.body.clone();
     let msg = format!("{}: HTTP {}", op, status);
     Err(match status {
-        401 | 403 => SdkError::Auth { status, message: msg, details: Some(body) },
-        429 => SdkError::RateLimit { message: msg, details: Some(body) },
-        400 | 422 => SdkError::Validation { status, message: msg, details: Some(body) },
-        500..=599 => SdkError::Server { status, message: msg, details: Some(body) },
+        401 | 403 => SdkError::Auth {
+            status,
+            message: msg,
+            details: Some(body),
+        },
+        429 => SdkError::RateLimit {
+            message: msg,
+            details: Some(body),
+        },
+        400 | 422 => SdkError::Validation {
+            status,
+            message: msg,
+            details: Some(body),
+        },
+        500..=599 => SdkError::Server {
+            status,
+            message: msg,
+            details: Some(body),
+        },
         _ => SdkError::Network(format!("{}: unexpected status {}", op, status)),
     })
 }
