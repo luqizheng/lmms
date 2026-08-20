@@ -108,7 +108,16 @@ for svc in "${SERVICES[@]}"; do
   ok=0
   for i in $(seq 1 "${HEALTH_MAX_POLLS}"); do
     sleep "${HEALTH_POLL_INTERVAL_SECS}"
-    health="$(docker inspect --format='{{.State.Health.Status}}' "${svc}" 2>/dev/null || echo starting)"
+    # docker compose v2 默认容器名是 `<project>-<service>-<replica>`，不是 `${svc}` 本身。
+    # 直接 `docker inspect "${svc}"` 永远找不到容器（staging 实际容器名形如
+    # `infrastructure-config-service-1`），导致 health 一直是空串、12 轮全超时。
+    # 用 `docker compose ps -q` 拿容器 ID，对 project 命名约定不敏感。
+    container_id="$("${DOCKER_COMPOSE[@]}" ps -q "${svc}" 2>/dev/null | head -n1 || true)"
+    if [[ -z "${container_id}" ]]; then
+      health="starting"  # 容器还没起：继续轮询
+    else
+      health="$(docker inspect --format='{{.State.Health.Status}}' "${container_id}" 2>/dev/null || echo starting)"
+    fi
     log "    health[$i/${HEALTH_MAX_POLLS}]: ${health}"
     case "${health}" in
       healthy)
@@ -128,7 +137,13 @@ for svc in "${SERVICES[@]}"; do
 
   if [[ "${ok}" -eq 0 ]]; then
     log "  ✘ ${svc} 未通过健康检查（超时 ${HEALTH_TIMEOUT_SECS}s），最近 60 条日志：" >&2
-    docker logs --tail=60 "${svc}" >&2 || true
+    # 同样用容器 ID 拉日志（service 名不会在 docker 里找得到）
+    container_id="$("${DOCKER_COMPOSE[@]}" ps -q "${svc}" 2>/dev/null | head -n1 || true)"
+    if [[ -n "${container_id}" ]]; then
+      docker logs --tail=60 "${container_id}" >&2 || true
+    else
+      echo "    (容器 ${svc} 不存在 — compose up -d 可能失败)" >&2
+    fi
     die "service ${svc} healthcheck timeout" 31
   fi
 done
