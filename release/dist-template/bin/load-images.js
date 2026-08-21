@@ -101,7 +101,19 @@ if (composeFiles.length === 0) {
 
 // 扫描 image: 引用；用 <ver> 模板替换
 const imageSet = new Set();
+// 只有业务镜像 compose 里的 image: tag 才替换成 $IMAGE_TAG（per-commit SHA）。
+// 这两个文件里的 build: 块在 release 时被 transform-compose.js 转成
+// micro-server/<svc>:<version>，正是需要按本次部署 SHA 拉取的平台镜像。
+// docker-compose-infra.yml / docker-compose-observability.yml 里全是第三方
+// 基础镜像（grafana / consul / prometheus / mysql / redis ...），tag 固定为
+// 上游版本号，在镜像仓库里真实存在，绝不能被 SHA 覆盖，否则会去拉
+// .../grafana/grafana:<sha> 这种根本不存在的 tag。
+const TAG_REPLACE_FILES = new Set([
+  'docker-compose.yml',
+  'docker-compose-services.yml',
+]);
 for (const f of composeFiles) {
+  const replaceTag = TAG_REPLACE_FILES.has(f);
   const text = readFileSync(path.join(INFRA_DIR, f), 'utf8');
   for (const m of text.matchAll(/^[ \t]+image:[ \t]+(.+)$/gm)) {
     const raw = m[1].trim().replace(/^["']|["']$/g, '');
@@ -110,9 +122,13 @@ for (const f of composeFiles) {
     // 后再过滤——防御性，避免漏下的未知占位符污染 image 列表。
     const interpolated = interpolateVars(raw);
     if (interpolated.includes('${')) continue;
-    // 把 :<ver> 替换成 :tagOverride
-    const resolved = interpolated.replace(/:v?\d+\.\d+\.\d+(?:[-.][\w.-]+)*$/, ':' + tagOverride);
-    imageSet.add(resolved);
+    if (replaceTag) {
+      // 把 :<ver> 替换成 :tagOverride
+      const resolved = interpolated.replace(/:v?\d+\.\d+\.\d+(?:[-.][\w.-]+)*$/, ':' + tagOverride);
+      imageSet.add(resolved);
+    } else {
+      imageSet.add(interpolated);
+    }
   }
 }
 

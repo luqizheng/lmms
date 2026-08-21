@@ -84,49 +84,6 @@ services:
     networks:
       - superpowers
 
-  # MySQL replica — read-only hot standby of the primary.
-  # Provisioned via GTID auto-positioning: starts with empty data dir, the
-  # custom entrypoint configures CHANGE MASTER TO and START SLAVE, then MySQL
-  # clones the missing transactions automatically. No mysqldump bootstrap.
-  #
-  # Horizontally scalable: add more replicas by appending `mysql-replica-2`,
-  # `mysql-replica-3` etc. Each gets a unique server-id from the hostname.
-  # See docs-site/runbooks/mysql-replication.md for failover / promote procedure.
-  mysql-replica:
-    build:
-      context: ./mysql-replica
-      dockerfile: Dockerfile
-    image: coder/mysql-replica:8.0
-    hostname: mysql-replica
-    # Do NOT publish 3306 externally — replica is internal. Override in
-    # docker-compose-infra.dev.yml or a manual override for ad-hoc debugging.
-    expose:
-      - "3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_PRIMARY_HOST: ${MYSQL_PRIMARY_HOST:-mysql}
-      MYSQL_PRIMARY_PORT: ${MYSQL_PRIMARY_PORT:-3306}
-      MYSQL_REPL_USER: ${MYSQL_REPL_USER:-repl}
-      MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD:-replpass}
-    volumes:
-      - mysql_replica_data:/var/lib/mysql
-    depends_on:
-      mysql:
-        condition: service_healthy
-    healthcheck:
-      test:
-        - "CMD-SHELL"
-        - "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" \
-           && mysql -uroot -p\"$$MYSQL_ROOT_PASSWORD\" -e \"SHOW SLAVE STATUS\\G\" \
-           | grep -E 'Slave_IO_Running: Yes|Slave_SQL_Running: Yes'"
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - superpowers
-
   rabbitmq:
     image: ${BASE_REGISTRY}rabbitmq:3.13-management-alpine
     hostname: rabbitmq
@@ -149,7 +106,6 @@ volumes:
   consul_data:
   redis_data:
   mysql_data:
-  mysql_replica_data:
   rabbitmq_data:
 
 networks:
