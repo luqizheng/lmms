@@ -120,13 +120,25 @@ case "${DEPLOY_MODE}" in
 esac
 
 # 待重启的服务列表（顺序 = 依赖顺序：基础设施优先，业务服务最后）。
-# 与 deploy-remote.sh 保持一致；outbox-publisher 类无 healthcheck 用启动窗口判断。
+# 与 deploy-remote.sh 保持一致。
 SERVICES=(config-service file-service \
            token-service iam-service iam-outbox-publisher \
            notification-service notification-outbox-publisher \
            audit-service prue_backend \
            api-gateway frontend)
 log "  services (in order): ${SERVICES[*]}"
+
+# 后台 worker 服务：无 HTTP 端口，不复用 HTTP 服务的 HEALTHCHECK 判定。
+# outbox-publisher 复用 iam-service/notification-service 的 Dockerfile（带针对
+# /health 的 HEALTHCHECK），但跑的是不同二进制、不监听端口，继承的 HEALTHCHECK 必然
+# 失败 → 容器永远 unhealthy，导致部署超时。对这类服务只验证容器处于 running 状态，
+# 给一个启动窗口即视为就绪。
+is_worker_service() {
+  case "$1" in
+    iam-outbox-publisher|notification-outbox-publisher) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 # ─── pull images ──────────────────────────────────────────────────────────────
 log "STEP 1/5  docker compose pull (commit=${STAGING_COMMIT})"
@@ -199,12 +211,24 @@ for svc in "${SERVICES[@]}"; do
     else
       health="$(docker inspect --format='{{.State.Health.Status}}' "${container_id}" 2>/dev/null || echo starting)"
     fi
+
+    # 后台 worker 无 HTTP 端口：不依赖继承的 HEALTHCHECK（必然 unhealthy），
+    # 只确认容器进入 running 状态即视为就绪。
+    if is_worker_service "${svc}"; then
+      state="$(docker inspect --format='{{.State.Running}}' "${container_id}" 2>/dev/null || echo false)"
+      log "    worker[$i/${HEALTH_MAX_POLLS}]: running=${state} (health=${health})"
+      if [[ "${state}" == "true" ]]; then
+        ok=1; break
+      fi
+      continue
+    fi
+
     log "    health[$i/${HEALTH_MAX_POLLS}]: ${health}"
     case "${health}" in
       healthy)
         ok=1; break ;;
       none)
-        # outbox-publisher 类无 HEALTHCHECK 指令：给启动窗口 10s 后视为 ok
+        # 无 HEALTHCHECK 指令：给启动窗口 10s 后视为 ok
         sleep 10
         ok=1; break ;;
       starting)
