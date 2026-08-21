@@ -74,6 +74,7 @@ pnpm check:env
 | 命令 | 做什么 |
 | --- | --- |
 | `pnpm run dev:infra` | 只起基础设施（Consul / Redis / MySQL / RabbitMQ）。服务进程跑宿主机时用这个。 |
+| `pnpm run dev:infra:e2e` | 同上，**额外叠加** `docker-compose-infra.dev.yml` 把 3306 等端口发布到宿主机。本机跑 `tests/e2e`（Vitest + supertest 直连 mysql 重置库）时**必须用这个**。 |
 | `pnpm run dev` | 起基础设施 + 各 workspace 包的 `dev` 任务并行（前端 dev server 等）。 |
 | `pnpm run dev:ps` | `docker compose ps`，看容器状态与 healthcheck。 |
 | `pnpm run dev:logs` | tail 所有容器日志。退出用 Ctrl-C。 |
