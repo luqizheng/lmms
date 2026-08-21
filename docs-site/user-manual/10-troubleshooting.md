@@ -96,8 +96,7 @@ docker exec <container> netstat -tlnp 2>/dev/null || ss -tlnp
 - 端口被占
 - 配置文件路径错（绝对 vs 相对）
 - 依赖服务（MySQL/Redis/Consul）未就绪就启动 → 等健康
-- sidecar 没注册到 Consul / mTLS 握手失败 → 看 `<svc>-sidecar` 容器日志
-- `ConsulRegistrar` UDP probe fallback 到 hostname，Consul DNS 解析不到 → 手动更新注册地址或 rebuild `libs/consul-registrar`
+- 业务容器未出现在 Consul → 看 `infrastructure-registrator-1` 日志；`docker inspect <container>` 验证 `SERVICE_*` labels 齐全；详见 [`docs-site/guides/service-registration.md`](../guides/service-registration.md) §5
 
 ---
 
