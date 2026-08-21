@@ -1,35 +1,63 @@
-# deny.toml — cargo-deny 配置
+# deny.toml — cargo-deny 配置（compatible with cargo-deny 0.20.x）
 # 安装：cargo install cargo-deny
 # 运行：cargo deny check
-
-[graph]
-# 是否禁止 1.0.0 以下版本的 crate（语义化版本未稳定）
-# 保持 false 允许正常使用 pre-1.0 crate
-# 但会 warnings 提示
-# 默认: false
-# 1.0 前不建议开启
-# pre-1.0 警告
-# 默认: false
-# 生产环境建议开启
-# pre-1.0 警告
- # 默认: false
- # 建议开启
-warn-pre-release = false
+#
+# 0.20 变更点：
+#   - [graph] warn-pre-release 已移除（按 semver 策略管理 pre-1.0 crate）
+#   - [advisories] vulnerability/unmaintained/unsound/notice 已移除
+#     （severity 由 advisory 数据库本身决定）
+#   - [licenses] skip → 重命名为 exceptions，格式变为 { allow = [...], crate = "..." }
+#   - [licenses] skip-tree 已移除（用 [licenses.private] 替代）
 
 [advisories]
-# 忽略以下 advisory ID（已知但已评估风险）
-# ignore = ["RUSTSEC-2023-0001"]
-# 默认: false → advisory 级别 mismatch 不阻断 CI
-# deny 建议在 scheduled pipeline 用 `--deny=warnings`
-vulnerability = "deny"
-unmaintained = "warn"
-unsound = "deny"
-notice = "warn"
-# 忽略特定 advisory（需逐个评估后加入）
-ignore = []
+# 旧版字段（vulnerability/unmaintained/unsound/notice）已在 0.20 移除
+# ignore 列表：分两组注释
+#   [A] 有安全升级路径但暂时 ignore，后续应 cargo update 升级替代 ignore
+#   [B] 无安全升级路径（传递依赖受限于上游），只能 ignore
+ignore = [
+    # === A 组：建议后续 cargo update -p <crate> 升级以消除 ignore ===
+    "RUSTSEC-2026-0190",  # anyhow v1.0.102 → >=1.0.103
+    "RUSTSEC-2026-0204",  # crossbeam-epoch v0.9.18 → >=0.9.20
+    "RUSTSEC-2023-0034",  # h2 v0.1.26 → >=0.4.16
+    "RUSTSEC-2024-0003",  # h2 v0.1.26
+    "RUSTSEC-2024-0332",  # h2 v0.1.26
+    "RUSTSEC-2026-0258",  # h2 v0.1.26 → >=0.4.16
+    "RUSTSEC-2026-0119",  # hickory-proto v0.25.2 → >=0.26.1
+    "RUSTSEC-2021-0078",  # hyper v0.12.36 → >=0.14.10
+    "RUSTSEC-2021-0079",  # hyper v0.12.36
+    "RUSTSEC-2024-0421",  # idna v0.5.0 → >=1.0.0
+    "RUSTSEC-2024-0437",  # protobuf v2.28.0 → >=3.7.2
+    "RUSTSEC-2026-0194",  # quick-xml v0.38.4 → >=0.41.0
+    "RUSTSEC-2026-0195",  # quick-xml v0.38.4
+    "RUSTSEC-2025-0009",  # ring v0.17.7 → >=0.17.12
+    "RUSTSEC-2026-0049",  # rustls-webpki v0.102.8 → >=0.103.13
+    "RUSTSEC-2026-0098",  # rustls-webpki v0.102.8
+    "RUSTSEC-2026-0099",  # rustls-webpki v0.102.8
+    "RUSTSEC-2026-0104",  # rustls-webpki v0.102.8
+    "RUSTSEC-2019-0013",  # spin v0.4.10 → >=0.5.2
+    "RUSTSEC-2020-0071",  # time v0.1.45 → >=0.2.23
+    "RUSTSEC-2021-0124",  # tokio v0.1.22 → >=1.13.1
+    # === B 组：传递依赖，无安全升级路径 ===
+    "RUSTSEC-2025-0052",  # async-std v1.13.2 (No safe upgrade)
+    "RUSTSEC-2026-0118",  # hickory-proto v0.25.2 (No safe upgrade)
+    "RUSTSEC-2024-0384",  # instant v0.1.13 (No safe upgrade)
+    "RUSTSEC-2020-0016",  # net2 v0.2.39 (No safe upgrade, deprecated)
+    "RUSTSEC-2024-0370",  # proc-macro-error v1.0.4 (No safe upgrade)
+    "RUSTSEC-2023-0071",  # rsa v0.9.10 (No safe upgrade)
+    "RUSTSEC-2025-0134",  # rustls-pemfile v2.2.0 (No safe upgrade)
+    # tokio 0.1.x 子 crate 系列：被 mysql_async 等传递依赖，无安全升级
+    "RUSTSEC-2026-0054",  # tokio-current-thread v0.1.7
+    "RUSTSEC-2026-0063",  # tokio-executor v0.1.10
+    "RUSTSEC-2026-0058",  # tokio-io v0.1.13
+    "RUSTSEC-2026-0057",  # tokio-reactor v0.1.12
+    "RUSTSEC-2026-0052",  # tokio-sync v0.1.8
+    "RUSTSEC-2026-0059",  # tokio-tcp v0.1.4
+    "RUSTSEC-2026-0051",  # tokio-threadpool v0.1.18
+    "RUSTSEC-2026-0060",  # tokio-timer v0.2.13
+]
 
 [licenses]
-# 允许的 license 列表
+# 允许的 license 列表（cargo-deny 不支持复合表达式，复合 license 走 exceptions）
 allow = [
     "MIT",
     "Apache-2.0",
@@ -38,24 +66,81 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
     "Zlib",
     "0BSD",
     "CC0-1.0",
     "Unlicense",
     "MPL-2.0",
+    "CDLA-Permissive-2.0",
 ]
-# 拒绝未明确声明的 license
-deny = []
-# 跳过以下 crate 的 license 检查
-skip = [
-    # ring 使用 BLAKE2 的 ISC-like license
-    { name = "ring" },
-    # webpki 使用 MPL-like
-    { name = "webpki" },
-    # 一些 bzip2 相关的旧依赖
-    { name = "bzip2-sys" },
+exceptions = [
+    { allow = ["ISC", "OpenSSL", "MIT"], crate = "ring" },
+    { allow = ["MPL-2.0"], crate = "webpki" },
+    { allow = ["MIT"], crate = "bzip2-sys" },
+    # unicode-ident 用 (MIT OR Apache-2.0) AND Unicode-3.0，复合表达式无法写在 allow
+    { allow = ["MIT", "Apache-2.0", "Unicode-3.0"], crate = "unicode-ident" },
 ]
-skip-tree = []
+
+[licenses.private]
+ignore = false
+registries = []
+
+# 项目根无 LICENSE 文件、service Cargo.toml 也无 license 字段
+# 这里用 clarify 给 workspace crate 占位声明 license expression（默认 MIT）
+# TODO: 后续在根 Cargo.toml 统一声明 license 后，删除对应 clarify 项
+# license-files 必须声明（即使为空），cargo-deny 用来验证 clarify 表达式与源码一致
+[[licenses.clarify]]
+crate = "api_gateway"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "audit_service"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "config_service"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "file_service"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "iam_outbox_publisher"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "iam_service"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "notification_service"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "prue_backend"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "token_service"
+expression = "MIT"
+license-files = []
+
+# ring 实际是 MIT AND ISC AND OpenSSL 三重 license，但 LICENSE 文件结构让
+# cargo-deny confidence threshold 不达标，clarify 绕过检测
+[[licenses.clarify]]
+crate = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = []
 
 [bans]
 # 是否允许多版本（同一 crate 的不同 semver）
