@@ -134,8 +134,47 @@ if ! "${DOCKER_COMPOSE[@]}" pull; then
   die "docker compose pull failed — check registry reachability / image:${STAGING_COMMIT} tag exists" 20
 fi
 
+# ─── infra warm-up ──────────────────────────────────────────────────────────
+# Fresh pre-staging/<sha> dirs have no running containers. Rolling restart
+# below uses `--no-deps` (so it never touches infra), which means the business
+# services would otherwise come up before mysql/redis/consul/rabbitmq and
+# crash-loop with "Name does not resolve" (job 24677: config-service DNS
+# failure on `mysql`). Bring infra up first and block on mysql healthcheck —
+# this is idempotent on an existing deployment (already-healthy containers
+# are no-ops).
+log "STEP 2/6  ensuring infrastructure services (mysql/redis/consul/rabbitmq)"
+if ! "${DOCKER_COMPOSE[@]}" up -d mysql redis consul rabbitmq; then
+  die "compose up failed for infrastructure services" 25
+fi
+
+# Wait for mysql healthy (config-service / iam-service depend on it via
+# depends_on: condition: service_healthy; --no-deps below bypasses that gate).
+INFRA_TIMEOUT_SECS="${INFRA_TIMEOUT_SECS:-120}"
+INFRA_POLL_INTERVAL_SECS="${INFRA_POLL_INTERVAL_SECS:-5}"
+INFRA_MAX_POLLS=$((INFRA_TIMEOUT_SECS / INFRA_POLL_INTERVAL_SECS))
+mysql_ok=0
+for i in $(seq 1 "${INFRA_MAX_POLLS}"); do
+  sleep "${INFRA_POLL_INTERVAL_SECS}"
+  mysql_id="$("${DOCKER_COMPOSE[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
+  if [[ -z "${mysql_id}" ]]; then
+    log "    mysql[$i/${INFRA_MAX_POLLS}]: container not found yet"
+    continue
+  fi
+  mysql_health="$(docker inspect --format='{{.State.Health.Status}}' "${mysql_id}" 2>/dev/null || echo starting)"
+  log "    mysql[$i/${INFRA_MAX_POLLS}]: ${mysql_health}"
+  if [[ "${mysql_health}" == "healthy" ]]; then
+    mysql_ok=1; break
+  fi
+done
+if [[ "${mysql_ok}" -eq 0 ]]; then
+  log "  ✘ mysql 未在 ${INFRA_TIMEOUT_SECS}s 内就绪，最近 40 条日志：" >&2
+  mysql_id="$("${DOCKER_COMPOSE[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
+  [[ -n "${mysql_id}" ]] && docker logs --tail=40 "${mysql_id}" >&2 || true
+  die "mysql infrastructure not healthy within ${INFRA_TIMEOUT_SECS}s" 26
+fi
+
 # ─── rolling restart ─────────────────────────────────────────────────────────
-log "STEP 2/5  rolling restart (infra untouched)"
+log "STEP 3/6  rolling restart (business services)"
 
 HEALTH_TIMEOUT_SECS="${HEALTH_TIMEOUT_SECS:-60}"
 HEALTH_POLL_INTERVAL_SECS="${HEALTH_POLL_INTERVAL_SECS:-5}"
@@ -191,7 +230,7 @@ for svc in "${SERVICES[@]}"; do
 done
 
 # ─── entrypoint verification ─────────────────────────────────────────────────
-log "STEP 3/5  entrypoint verification"
+log "STEP 4/6  entrypoint verification"
 HEALTH_URL="${HEALTH_URL:-http://localhost:8080/health}"
 HEALTH_OK=0
 for i in $(seq 1 12); do
@@ -207,11 +246,11 @@ if [[ "${HEALTH_OK}" -eq 0 ]]; then
 fi
 
 # ─── image prune ──────────────────────────────────────────────────────────────
-log "STEP 4/5  docker image prune -f"
+log "STEP 5/6  docker image prune -f"
 docker image prune -f || true
 
 # ─── 总结 ────────────────────────────────────────────────────────────────────
-log "STEP 5/5  done"
+log "STEP 6/6  done"
 log "  commit: ${STAGING_COMMIT}"
 log "  frontend health: ${HEALTH_URL}"
 log "DONE — pre-staging 已就绪（commit=${STAGING_COMMIT}）"

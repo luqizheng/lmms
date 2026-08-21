@@ -170,9 +170,45 @@ if ! "${DOCKER_COMPOSE[@]}" pull; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
+# STEP 1.5 — infra warm-up (mysql / redis / consul / rabbitmq)
+#   Fresh installs or hosts where `docker compose down` was run will have no
+#   infra containers. The rolling restart below uses --no-deps, so without
+#   this step business services crash-loop on "Name does not resolve" for
+#   `mysql` (see deploy-staging job 24677). Idempotent on healthy hosts.
+# ─────────────────────────────────────────────────────────────────────────────
+log "STEP 2/5  ensuring infrastructure services (mysql/redis/consul/rabbitmq)"
+if ! "${DOCKER_COMPOSE[@]}" up -d mysql redis consul rabbitmq; then
+  die "compose up failed for infrastructure services" 25
+fi
+
+INFRA_TIMEOUT_SECS="${INFRA_TIMEOUT_SECS:-120}"
+INFRA_POLL_INTERVAL_SECS="${INFRA_POLL_INTERVAL_SECS:-5}"
+INFRA_MAX_POLLS=$((INFRA_TIMEOUT_SECS / INFRA_POLL_INTERVAL_SECS))
+mysql_ok=0
+for i in $(seq 1 "$INFRA_MAX_POLLS"); do
+  sleep "$INFRA_POLL_INTERVAL_SECS"
+  mysql_id="$("${DOCKER_COMPOSE[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
+  if [[ -z "${mysql_id}" ]]; then
+    log "    mysql[$i/$INFRA_MAX_POLLS]: container not found yet"
+    continue
+  fi
+  mysql_health="$(docker inspect --format='{{.State.Health.Status}}' "${mysql_id}" 2>/dev/null || echo starting)"
+  log "    mysql[$i/$INFRA_MAX_POLLS]: $mysql_health"
+  if [[ "$mysql_health" == "healthy" ]]; then
+    mysql_ok=1; break
+  fi
+done
+if [[ "$mysql_ok" -eq 0 ]]; then
+  log "  ✘ mysql 未在 ${INFRA_TIMEOUT_SECS}s 内就绪，最近 40 条日志：" >&2
+  mysql_id="$("${DOCKER_COMPOSE[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
+  [[ -n "$mysql_id" ]] && docker logs --tail=40 "$mysql_id" >&2 || true
+  die "mysql infrastructure not healthy within ${INFRA_TIMEOUT_SECS}s" 26
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # STEP 2 — rolling restart by service
 # ─────────────────────────────────────────────────────────────────────────────
-log "STEP 2/4  rolling restart (infra untouched)"
+log "STEP 3/5  rolling restart (business services)"
 
 HEALTH_TIMEOUT_SECS="${HEALTH_TIMEOUT_SECS:-60}"
 HEALTH_POLL_INTERVAL_SECS="${HEALTH_POLL_INTERVAL_SECS:-5}"
@@ -225,9 +261,9 @@ for svc in "${SERVICES[@]}"; do
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 3 — entrypoint verification（验证公共入口可访问）
+# STEP 4 — entrypoint verification（验证公共入口可访问）
 # ─────────────────────────────────────────────────────────────────────────────
-log "STEP 3/4  entrypoint verification"
+log "STEP 4/5  entrypoint verification"
 # frontend:8080 是公共入口；其容器内 nginx 用 `location /health` 返回 200
 HEALTH_URL="${HEALTH_URL:-http://localhost:8080/health}"
 HEALTH_OK=0
@@ -244,9 +280,9 @@ if [[ "$HEALTH_OK" -eq 0 ]]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 4 — image prune
+# STEP 5 — image prune
 # ─────────────────────────────────────────────────────────────────────────────
-log "STEP 4/4  docker image prune -f"
+log "STEP 5/5  docker image prune -f"
 docker image prune -f || true
 
 log "DONE — all services healthy on port 8080"
