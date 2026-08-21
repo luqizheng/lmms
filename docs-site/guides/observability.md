@@ -223,13 +223,13 @@ span 上会携带：
 │  ├─ auth_middleware
 │  ├─ rate_limit_middleware (pass)
 │  └─ proxy_handler
-│     └─ (HTTP to iam-service:6002)
+│     └─ (HTTP to iam-service:8081)         ← 容器内端口；host 直连用 9081
 │
 ├─ http_request [iam-service]
 │  ├─ validate_user
 │  ├─ bcrypt_verify
 │  └─ mint_token
-│     └─ (HTTP to token-service:6001)
+│     └─ (HTTP to token-service:8082)       ← 容器内端口；host 直连用 8082
 │
 └─ http_request [token-service]
    ├─ load_keys
@@ -375,7 +375,7 @@ OTEL_TRACES_SAMPLER_ARG=0.1
   ```
 - 直接访问服务的 `/metrics`：
   ```bash
-  curl http://localhost:6002/metrics
+  curl http://localhost:9081/metrics  # iam-service compose host 端口
   ```
 
 ### 7.3 “trace 里没有 span”

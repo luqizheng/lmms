@@ -114,7 +114,7 @@ curl http://localhost:8500/v1/health/service/iam-service
 docker exec api-gateway curl -v http://localhost:8081/health
 ```
 
-### 2.2 token-service（端口 6001/8082）
+### 2.2 token-service（compose host 8082 / 容器内 8082）
 
 #### Token 生成失败
 
@@ -145,7 +145,7 @@ docker exec token-service cat /app/keys/public.pem
 docker compose -f infrastructure/docker-compose-services.yml restart token-service
 ```
 
-### 2.3 iam-service（端口 6002/8081）
+### 2.3 iam-service（compose host 9081 / 容器内 8081）
 
 #### 登录失败
 
@@ -181,7 +181,7 @@ grep -r "CFG_CONFIG_REVEAL" services/config-service/src/
 docker logs iam-service 2>&1 | grep -i "permission"
 ```
 
-### 2.4 notification-service（端口 6003/8083）
+### 2.4 notification-service（compose host 8083 / 容器内 8083）
 
 #### WebSocket 连接失败
 
