@@ -13,10 +13,11 @@
 
 ## 启动与运行
 
+> ⚠️ **基础设施必须用 `pnpm run dev:infra:e2e` 启动**（仓库根运行）——它在主入口之上叠加 `docker-compose-infra.dev.yml`，把 3306 等端口发布到宿主。e2e 的 `globalSetup` 从宿主机直连 `localhost:3306` 重置库，**只跑 `docker compose up -d` 会卡在 ECONNREFUSED**。等价 docker 命令见脚本定义（`package.json` → `scripts.dev:infra:e2e`）。
+
 ```powershell
 # 1. 启动 infrastructure 基础设施（consul / redis / mysql / api-gateway / token / iam / notification）
-cd D:\projects\coder-micro-services\infrastructure
-docker compose up -d
+pnpm run dev:infra:e2e
 
 # 2. 确认服务端口
 # api-gateway  3000
