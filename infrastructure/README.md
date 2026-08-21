@@ -31,7 +31,7 @@
 - **灾备 failover**：主库宕机时 promote 从库为新主库，切换业务连接串后恢复服务
 - **读写分离预留**：2.0 规划将只读查询路由到从库，分担主库压力
 
-**从库镜像**：本地 dev 走 `docker compose build` 从 `infrastructure/mysql-replica/Dockerfile` 构建（compose 里同时声明了 `build:` 与 `image: coder/mysql-replica:8.0` 作为本地 tag）；CI pre-staging 由 `.gitlab-ci.yml` 的 `build_images:pre-staging` 单独 buildx --push 到 `zhcoder-docker-registry.com:8000/micro-server/mysql-replica:<sha>`，`release:pre-staging` 阶段 `transform-compose` 把 compose 的 `build:` 块替换为该 registry image 引用。
+**从库镜像**：本地 dev 走 `docker compose build` 从 `infrastructure/mysql-replica/Dockerfile` 构建（compose 里同时声明了 `build:` 与 `image: coder/mysql-replica:8.0` 作为本地 tag）；CI 由 `.gitlab-ci.yml` 的 `build_images:staging` 单独 buildx --push 到 `zhcoder-docker-registry.com:8000/micro-server/mysql-replica:<sha>`，`release:staging` 阶段 `transform-compose` 把 compose 的 `build:` 块替换为该 registry image 引用。
 
 entrypoint 启动时自动等主库可达 → `CHANGE MASTER TO` → `START SLAVE`，无需手动 dump/restore。
 
@@ -204,7 +204,7 @@ pnpm run docker:build:clean             # prune dangling 镜像
 
 ## Staging 持续部署（GitLab CI）
 
-`.gitlab-ci.yml` 新增 **continuous staging flow**（与 pre-staging 并存）。merge to main 后自动跑：build → release → deploy → e2e，失败自动回滚。
+`.gitlab-ci.yml` 新增 **continuous staging flow**。merge to main 后自动跑：build → release → deploy → e2e，失败自动回滚。
 
 ### 关键设计
 
@@ -216,7 +216,7 @@ pnpm run docker:build:clean             # prune dangling 镜像
 | 镜像传递 | **registry pull**（不用 tarball） | artifact ~1MB vs 10GB；省 GitLab artifact 配额 |
 | 失败回滚 | `after_script` swap 回 `staging-prev` | e2e 失败 → 上一版本立刻恢复 |
 
-### Staging server 目录结构（192.168.2.128）
+### Staging server 目录结构（192.168.2.31）
 
 ```
 /home/kudi/coder-micro-services/
@@ -229,7 +229,7 @@ pnpm run docker:build:clean             # prune dangling 镜像
 
 每个 `staging-<sha>/` 是 self-contained 部署目录（来自 release-deploy.js 的产物 rsync 上去）。GC 由 `infrastructure/scripts/staging-gc.sh` 在 cron.daily 清理老目录（保留最近 5 个 + 永远保护 active/prev）。
 
-### CI flow 4 个 job（详见 `.gitlab-ci.yml` 第 498 行起）
+### CI flow 4 个 job（详见 `.gitlab-ci.yml` 第 372 行起）
 
 ```
 build_images:staging → release:staging → deploy:staging → e2e:staging
@@ -239,22 +239,22 @@ build_images:staging → release:staging → deploy:staging → e2e:staging
 
 | Job | 阶段 | 关键命令 |
 | --- | --- | --- |
-| `build_images:staging` | build | `pnpm run docker:build -- -v $CI_COMMIT_SHORT_SHA --load-and-push ...`（9 服务）|
+| `build_images:staging` | build | `pnpm run docker:build -- -v $CI_COMMIT_SHORT_SHA --load-and-push ...`（9 服务 + frontend + mysql-replica）|
 | `release:staging` | build | `node release/dist-template/scripts/release-deploy.js $SHA --no-images`（产骨架）|
-| `deploy:staging` | deploy | rsync → `load-images.js --mode=pull` → `swap-staging-active.sh` |
+| `deploy:staging` | deploy | tar over ssh → `load-images.js --mode=pull` → `swap-staging-active.sh` |
 | `e2e:staging` | e2e | SSH 反向隧道 + `pnpm run test:e2e:api/ui`；失败 swap 回 prev |
 
 ### 手动操作（CI 不可用时 fallback）
 
 ```bash
 # 查看当前 active 版本
-ssh kudi@192.168.2.128 "readlink -f /home/kudi/coder-micro-services/staging-active"
+ssh kudi@192.168.2.31 "readlink -f /home/kudi/coder-micro-services/staging-active"
 
 # 查看所有已部署版本
-ssh kudi@192.168.2.128 "ls -lt /home/kudi/coder-micro-services/staging-* | head -10"
+ssh kudi@192.168.2.31 "ls -lt /home/kudi/coder-micro-services/staging-* | head -10"
 
 # 手动部署一个 SHA（替代 CI）
-ssh kudi@192.168.2.128 "
+ssh kudi@192.168.2.31 "
   REMOTE=/home/kudi/coder-micro-services/staging-<sha>
   cd \$REMOTE && \
   IMAGE_TAG=<sha> node bin/load-images.js --mode=pull && \
@@ -262,30 +262,18 @@ ssh kudi@192.168.2.128 "
 "
 
 # 手动 rollback
-ssh kudi@192.168.2.128 "
+ssh kudi@192.168.2.31 "
   STAGING_BASE_DIR=/home/kudi/coder-micro-services \
     bash /home/kudi/coder-micro-services/staging-<old-sha>/infrastructure/scripts/swap-staging-active.sh <old-sha>
 "
 
 # 清理老目录（默认保留最近 5 个 + 保护 active/prev）
-ssh kudi@192.168.2.128 "bash infrastructure/scripts/staging-gc.sh"
-ssh kudi@192.168.2.128 "bash infrastructure/scripts/staging-gc.sh --keep 10"  # 改阈值
+ssh kudi@192.168.2.31 "bash infrastructure/scripts/staging-gc.sh"
+ssh kudi@192.168.2.31 "bash infrastructure/scripts/staging-gc.sh --keep 10"  # 改阈值
 
 # 安装 GC 到 cron
-ssh kudi@192.168.2.128 "sudo install -m755 infrastructure/scripts/staging-gc.sh /etc/cron.daily/staging-gc"
+ssh kudi@192.168.2.31 "sudo install -m755 infrastructure/scripts/staging-gc.sh /etc/cron.daily/staging-gc"
 ```
-
-### 与 pre-staging 流程的对比
-
-| 维度 | pre-staging | continuous staging |
-| --- | --- | --- |
-| 触发 | 手动 / MR pipeline | merge to main 自动 |
-| 工具 | `scripts/release-staging.js` + `deploy-staging.sh` | `release-deploy.js --no-images` + `swap-staging-active.sh` |
-| 部署目录 | `pre-staging/<sha>/` | `staging-<sha>/`（带 active symlink）|
-| 多版本共存 | 不支持（旧版本被覆盖） | 支持（per-SHA immutable + active swap）|
-| 自动回滚 | 无 | e2e 失败自动 swap 回 staging-prev |
-
-两个流程并存：pre-staging 用于"手动预演 + 任意 MR 验证"，continuous staging 用于"main 自动验证"。
 
 ## 故障排查
 
