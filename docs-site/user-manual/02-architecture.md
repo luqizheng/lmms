@@ -172,7 +172,12 @@ CI 门禁：`node scripts/check-spec.js` 校验 yaml 合法性 + `git diff --exi
 
 ## 2.6 Consul Connect 服务网格（Phase 5-A）
 
-> Phase 5-A 已落地，详见 spec [`docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md`](../superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md)。本节只记架构要点。
+> ⚠️ **历史 / 已下线**。Phase 5-A-2（2026-07-07）撤掉了 Consul Connect，改用单一 `gliderlabs/registrator` 容器做项目级服务注册；服务间走明文 HTTP + `Authorization: Bearer <jwt>` 透传。本节保留作历史参考，**不要按本节落地新工作**。
+>
+> - 当前状态详见 [`docs-site/guides/service-registration.md`](../guides/service-registration.md) 与 spec [`docs/superpowers/specs/2026-07-07-deprecate-consul-connect-use-registrator-design.md`](../superpowers/specs/2026-07-07-deprecate-consul-connect-use-registrator-design.md)。
+> - 被本节替代的 Phase 5-A spec（带「Superseded by 2026-07-07」banner）：[`docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md`](../superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md)。
+>
+> 以下为历史记录：
 
 ### 目的
 
@@ -227,20 +232,13 @@ consul intention create -deny '*' '*'                # 默认拒绝（必须放�
 
 应用代码完全无感知 — 授权是网络层决策。
 
-### Sidecar 健康检查
+### Sidecar 健康检查（已下线）
 
-`ConsulRegistrar` 在 UDP probe 失败时 fallback 到 hostname，Consul DNS 可能解析不到。当前**临时修复**是服务启动后手动更新注册地址；永久修复需 rebuild `libs/consul-registrar`。详见 [10 故障排查 §10.5](./10-troubleshooting.md)。
+> Phase 5-A-2 已撤 sidecar；本节描述的 `ConsulRegistrar` UDP probe fallback 路径不再存在。当前健康检查由 registrator 从 `SERVICE_<PORT>_CHECK_HTTP` labels 自动创建，详见 [`docs-site/guides/service-registration.md`](../guides/service-registration.md) §2.2。
 
-### 添加新 mesh 服务
+### 添加新 mesh 服务（已下线）
 
-完整步骤见 [`docs-site/guides/mesh-service-onboarding.md`](../guides/mesh-service-onboarding.md)，要点：
-
-1. 分配新端口对（`18085 / 9085` 等）
-2. compose 加 `*-sidecar` 容器 + 主服务 `network_mode: "service:<svc>-sidecar"`
-3. 主服务绑 `127.0.0.1:180xx`，`SERVER_PORT` env 覆盖 yaml 默认值
-4. 调用方 sidecar 加 `-upstream <new-svc>:9085`
-5. 调用方 `egress_map` / `iam_base_url` 等配置改本地 `127.0.0.1:9085`
-6. `scripts/consul-intentions.sh` 加 allow 规则
+> mesh 方案不再适用；新服务通过 docker labels 自动注册，详见 [`docs-site/guides/add-new-service.md`](../guides/add-new-service.md) §6.1 与 [`docs-site/guides/service-registration.md`](../guides/service-registration.md)。
 
 ---
 
