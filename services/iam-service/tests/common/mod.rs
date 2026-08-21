@@ -16,6 +16,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// Test private key for service-jwt signing (token-service fixtures).
+#[allow(dead_code)]
 const TEST_TOKEN_PRIVATE_PEM: &str =
     include_str!("../../../token-service/tests/fixtures/test_token_private.pem");
 
@@ -27,6 +28,7 @@ pub struct MysqlHandle {
     // exposed for integration tests that need to assert on the URL; not all suites read it.
     pub url: String,
     /// `None` 表示共享模式（容器由 `run-tests-docker.js` 管理生命周期）。
+    #[allow(dead_code)]
     pub container: Option<MysqlContainer>,
 }
 
@@ -103,6 +105,7 @@ async fn spawn_local() -> MysqlHandle {
 ///
 /// `sub` 是 stub 返回 user-jwt 的 `sub` claim，应该 = 测试用例 seed
 /// 出的 `iam_users.id`（不是 username）。
+#[allow(dead_code)]
 pub async fn stub_token_service(sub: &str, tenant_id: i64, cross_tenant: bool) -> (String, String) {
     use serde_json::json;
     let now = chrono::Utc::now().timestamp();

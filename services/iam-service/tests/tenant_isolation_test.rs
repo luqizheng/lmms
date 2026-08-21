@@ -78,7 +78,7 @@ async fn setup() -> Ctx {
     let cache = MemoryCache::new(10000);
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
     let jwks = std::sync::Arc::new(
-        digua_common_jwt::JWKSCache::from_pem(&public_pem).expect("test public key must parse"),
+        digua_common_jwt::JWKSCache::from_pem(public_pem).expect("test public key must parse"),
     );
     let (server_uri, _) = common::stub_token_service("default_admin", 1, true).await;
     let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
