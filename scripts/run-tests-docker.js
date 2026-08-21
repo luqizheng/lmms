@@ -34,6 +34,10 @@ const SERVICE_DIRS = {
   'prue_backend': 'services/prue_backend',
 };
 const SERVICES = Object.keys(SERVICE_DIRS);
+// 仓库约定：[package].name 用下划线，目录名用横杠；cargo 不会自动规范化，传 -p 时需转换。
+const SERVICE_PKG = Object.fromEntries(
+  Object.keys(SERVICE_DIRS).map((svc) => [svc, svc.replaceAll('-', '_')]),
+);
 
 const CONCURRENCY_COMPILE = 4;
 const CONCURRENCY_RUN = 2;
@@ -41,6 +45,9 @@ const CONCURRENCY_RUN = 2;
 const MYSQL_CONTAINER_NAME = 'coder-test-mysql';
 const MYSQL_PORT = 33306;
 const MYSQL_IMAGE = 'mysql:8.0';
+const REDIS_CONTAINER_NAME = 'coder-test-redis';
+const REDIS_PORT = 6379;
+const REDIS_IMAGE = 'redis:7-alpine';
 // cargo-nextest 二进制 bind mount 到这个 volume，下次复用。
 const NEXTEST_BIN_VOLUME = 'coder-cargo-nextest-bin';
 
@@ -186,6 +193,50 @@ function stopSharedMysql() {
   // ponytail: 想要强制重建就手动 `docker rm -f coder-test-mysql`。
 }
 
+// service 集成测试（blacklist / perm_epoch / load_config 等）需 Redis。
+// 本地 docker compose 的 infrastructure-redis-1 默认不发布端口到宿主，所以单独起 host network 容器。
+function startSharedRedis() {
+  const inspect = spawnSync('docker', ['inspect', '--type=container', REDIS_CONTAINER_NAME], { encoding: 'utf8' });
+  if (inspect.status === 0) {
+    const ping = spawnSync('docker', ['exec', REDIS_CONTAINER_NAME, 'redis-cli', '-p', String(REDIS_PORT), 'ping'], { encoding: 'utf8' });
+    if (ping.status === 0 && /PONG/.test(ping.stdout || '')) {
+      console.log(chalk.green('✓'), `redis: reusing ${REDIS_CONTAINER_NAME} on host port ${REDIS_PORT}`);
+      return;
+    }
+  }
+  spawnSync('docker', ['rm', '-f', REDIS_CONTAINER_NAME], { stdio: 'ignore' });
+  const sp = spinner(`starting shared ${REDIS_IMAGE} on host port ${REDIS_PORT} ...`).start();
+  const run = spawnSync('docker', [
+    'run', '-d',
+    '--name', REDIS_CONTAINER_NAME,
+    '--network', 'host',
+    REDIS_IMAGE,
+    '--port', String(REDIS_PORT),
+    '--save', '',
+    '--appendonly', 'no',
+  ], { encoding: 'utf8' });
+  if (run.status !== 0) {
+    sp.fail(`docker run failed: ${run.stderr}`);
+    throw new Error('start shared redis failed');
+  }
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const ping = spawnSync('docker', ['exec', REDIS_CONTAINER_NAME, 'redis-cli', '-p', String(REDIS_PORT), 'ping'], { encoding: 'utf8' });
+    if (ping.status === 0 && /PONG/.test(ping.stdout || '')) {
+      sp.succeed(`redis ready on 127.0.0.1:${REDIS_PORT}`);
+      return;
+    }
+    spawnSync('sleep', ['1']);
+  }
+  sp.fail(`shared redis not ready in 30s`);
+  throw new Error(`shared redis not ready in 30s`);
+}
+
+function stopSharedRedis() {
+  // ponytail: 保留容器，下一次 run 走 reuse 路径省 ~10s 冷启。
+  // ponytail: 想要强制重建就手动 `docker rm -f coder-test-redis`。
+}
+
 // 列出当前所有 mysql:* / testcontainers ryuk 的容器 id（运行中 + 已退出）。
 // 用于在测试前后做差分，仅清理本次新生出来的 testcontainers 容器，避免误伤宿主上其它 mysql。
 function listTestContainerIds() {
@@ -219,7 +270,7 @@ function cleanupNewContainers(beforeIds) {
 function runCompile(svc, sharedEnv) {
   console.log(`\n[compile] ${svc}`);
   return dockerRun(svc, sharedEnv,
-    'cargo', 'nextest', 'run', '--no-run', '--target', TARGET, '-p', svc,
+    'cargo', 'nextest', 'run', '--no-run', '--target', TARGET, '-p', SERVICE_PKG[svc],
   );
 }
 
@@ -228,7 +279,7 @@ function runCompile(svc, sharedEnv) {
 function runRun(svc, sharedEnv) {
   console.log(`\n[run] ${svc}`);
   return dockerRun(svc, sharedEnv,
-    'cargo', 'nextest', 'run', '--target', TARGET, '-p', svc,
+    'cargo', 'nextest', 'run', '--target', TARGET, '-p', SERVICE_PKG[svc],
   );
 }
 
@@ -246,6 +297,12 @@ function dockerRun(svc, sharedEnv, ...cmd) {
   if (sharedEnv) {
     args.push('-e', `TEST_MYSQL_HOST=127.0.0.1`);
     args.push('-e', `TEST_MYSQL_PORT=${sharedEnv.port}`);
+    // 业务服务 config 加载需要这些 env：DATABASE_URL / REDIS_URL 是 iam 等的必填（yaml 默认空），
+    // REDIS_PREFIX / CONSUL_ADDR 是 api-gateway / iam 与 gateway 共用 key 前缀和服务发现的契约。
+    args.push('-e', `DATABASE_URL=mysql://root:@127.0.0.1:${MYSQL_PORT}/superpowers`);
+    args.push('-e', `REDIS_URL=redis://127.0.0.1:${REDIS_PORT}`);
+    args.push('-e', `REDIS_PREFIX=superpowers:`);
+    args.push('-e', `CONSUL_ADDR=http://localhost:8500`);
   }
   if (process.env[SWAGGER_UI_ENV_KEY] === undefined && fs.existsSync(SWAGGER_UI_ZIP_HOST)) {
     args.push('-v', `${SWAGGER_UI_ZIP_HOST}:${SWAGGER_UI_ZIP_CONTAINER}:ro`);
@@ -332,6 +389,7 @@ async function main() {
     cleaned = true;
     if (sharedMode) {
       try { stopSharedMysql(); } catch (e) { console.error('[cleanup] shared mysql stop failed:', e); }
+      try { stopSharedRedis(); } catch (e) { console.error('[cleanup] shared redis stop failed:', e); }
     } else {
       try { cleanupNewContainers(before); } catch (e) { console.error('[cleanup] failed:', e); }
     }
@@ -343,6 +401,7 @@ async function main() {
   ensureNextest();
   if (sharedMode) {
     sharedEnv = startSharedMysql();
+    startSharedRedis();
   }
 
   const failed = [];
