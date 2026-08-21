@@ -998,7 +998,10 @@ k6_baseline:
     expire_in: 90 days
     name: k6-baseline-$CI_COMMIT_SHORT_SHA
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+      allow_failure: true
+    - when: manual
+      allow_failure: true
 
 
