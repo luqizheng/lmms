@@ -221,13 +221,14 @@ cargo run -p api-gateway -- validate --routes infrastructure/config/api-gateway/
 
 ## 6. 服务发现与编排
 
-### 6.1 Consul 注册
+### 6.1 Consul 注册（registrator 项目级）
 
-所有 HTTP 监听服务都走 `libs/consul-registrar`，**已在 `coder-new-service` 模板里默认接入**。要点：
+业务进程**不直接调用 Consul**。`infrastructure/docker-compose-infra.yml` 中的 `gliderlabs/registrator` 容器挂 `/var/run/docker.sock`，从业务容器的 **Docker labels** 自动注册 / 注销到 Consul catalog。要点：
 
-- `service_id_file` 必须落在**持久卷**（不要 `/tmp`，容器重建会清，参见 [`service-registration.md`](service-registration.md) §3 与 §5）；
-- `register_discovered` 是 best-effort——失败 warn 但不阻塞启动（downstream 流量会切到其他健康实例）；
-- `deregister` 在收到 `ctrl_c` 时调用，`process::exit(0)` 后整个进程退出。
+- 给业务 service 加 `labels: *svc-reg-labels-<svc>` anchor（详见 [`service-registration.md`](service-registration.md) §2.2）；
+- labels 里的 `SERVICE_PORT` **必须是容器内端口**（不是 host 端口）；
+- `SERVICE_<PORT>_CHECK_HTTP` 的端口数字必须与 `SERVICE_PORT` 一致（例：`SERVICE_PORT=8081` ↔ `SERVICE_8081_CHECK_HTTP=/health`）；
+- 业务 `main.rs` 不需要任何 Consul 注册调用——Phase 5-A-2 已下线 `libs/consul-registrar`。
 
 ### 6.2 docker-compose 编排
 
@@ -368,8 +369,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 - [ ] 所有用户引用字段（`user_id` / `created_by` / `updated_by` / `operator_id` / `actor_id` / `owner_id`）为 `VARCHAR(64)`（SQLite 为 `TEXT`），**不是 `BIGINT`**
 - [ ] `contracts/error-codes.yaml` / `contracts/permissions.yaml` 加完且 `contracts-gen` 已重生成
 - [ ] `infrastructure/config/api-gateway/routes/<svc>.router.toml` 已加，`api-gateway validate` 通过
-- [ ] `infrastructure/docker-compose-services.yml` 加 service entry，host port 未占用
-- [ ] `ConsulRegistrar` 在 `main.rs` 注册（模板默认已加）
+- [ ] `infrastructure/docker-compose-services.yml` 加 service entry + `labels: *svc-reg-labels-<svc>` anchor，`SERVICE_PORT` 是容器内端口，host port 未占用
 - [ ] 若启用 OTel：`digua_common-telemetry` + `digua_common-telemetry-axum` 都有 `otlp` feature
 - [ ] `node scripts/check-service-standard.js` 8/8
 - [ ] `node scripts/check-spec.js` exit 0
@@ -388,7 +388,7 @@ cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre
 1. **忘了加 workspace member** — `cargo check` 找不到 crate。症状：`error[E0433]: failed to resolve: use of undeclared crate`。修：根 `Cargo.toml` 加进去。
 2. **`utoipa::OpenApi::to_yaml()` 编译失败** — `Cargo.toml` 的 `utoipa` 必须带 `yaml` feature（参见 `ai-context.md` §7 坑点 1）。
 3. **本地 `cargo build` 链接器报错** — 缺 `cc`。统一跑 `node scripts/run-tests-docker.js <svc>`，或在 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl` 容器内构建（参见 `ai-context.md` §7 坑点 2）。
-4. **服务起来了但 Consul 健康检查一直 critical** — `/health` 在容器内不可达。检查：port 是否 8080、handler 是否同步返回、是否在 health 里查 DB（参见 §7.3）。
+4. **服务起来了但 Consul 健康检查一直 critical** — registrator 自动从 `SERVICE_<PORT>_CHECK_HTTP` 创建 HTTP check。检查：① `SERVICE_PORT` 与 `SERVICE_<PORT>_CHECK_HTTP` 后缀端口一致；② handler 在容器内 `curl -sf http://127.0.0.1:<port><path>` 通；③ `/health` 不查 DB（参见 §7.3）；④ `docker inspect <container>` 的 labels 段里有 `SERVICE_*` 全部键。
 5. **改完 handler 注解但 swagger 没更新** — `openapi.yaml` 是 **utoipa 自动生成**的，改代码后必须跑 `node scripts/dump-openapi-specs.js`，CI 用 `git diff --exit-code` 守护。**禁止手改 yaml**（参见 `ai-context.md` §7 坑点 4）。
 6. **手改 `libs/digua_common-error/src/codes.rs`** — 该文件是 `contracts-gen.js` 生成品，改完下次跑就丢了。改 `contracts/error-codes.yaml` 再重生成（参见 `ai-context.md` §7 坑点 9）。
 7. **表名撞名** — 共库下所有表必须带前缀（参见 `contracts/db-conventions.md`）。`iam_users` 与历史的 `users` 同库内只能存在一个，违规由 `check-db-naming.js` 拦截。
