@@ -108,37 +108,42 @@ alias cms-e2e='cd tests/e2e && pnpm test:smoke'
 
 ---
 
-## 11.5 服务端口速查（Phase 5-A）
+## 11.5 服务端口速查（Phase 5-A-2 之后）
 
-> mesh 服务有**两个端口**：内端口（`127.0.0.1:180xx`，仅本 namespace）+ 外端口（`0.0.0.0:908x` 或 `3000`，mTLS 入口）。详见 [02 架构 §2.1 / §2.6](./02-architecture.md)。
+业务服务直连 HTTP，无 sidecar / 无 mesh。详细架构说明见 [02 架构 §2.1](./02-architecture.md)；服务注册 / 发现见 [`docs-site/guides/service-registration.md`](../guides/service-registration.md)。
 
-| 服务 | 内端口（compose） | 外端口（compose / host） | `cargo run` 默认端口 | mesh |
-|------|------------------|--------------------------|--------------------|------|
-| api-gateway | 18000 | 3000 | 3000 | ✅ |
-| iam-service | 18081 | 9081 | 8080 | ✅ |
-| token-service | 18082 | 9082 | 8080 | ✅ |
-| notification-service | 18083 | 9083 | 8080 | ✅ |
-| audit-service | 18084 | 9084 | 8080 | ✅ |
-| prue_backend | 18087 | 9087 | 8080 | ✅ |
-| file-service | — | 8082 | 8082 | ❌ |
-| config-service | — | 8081 | 8081 | ❌ |
-| frontend | — | 8080 → 80 | — | — |
+| 服务 | 容器内端口 | compose host 端口 | `cargo run` 默认 | Consul catalog | 备注 |
+|------|-----------|------------------|-----------------|---------------|------|
+| api-gateway | 3000 | 3000 | 3000 | ✅ | 网关入口，绑定 0.0.0.0 |
+| iam-service | 8081 | 9081¹ | 8081 | ✅ | ¹ host 端口 9081 是 mesh 时代 sidecar 外端口残留 |
+| token-service | 8082 | 8082 | 4000² | ✅ | ² code default 4000，compose 覆盖 8082 |
+| notification-service | 8083 | 8083 | 8083 | ✅ | |
+| audit-service | 8084 | 8084 | 8080² | ✅ | ² code default 8080，compose 覆盖 8084 |
+| prue_backend | 8087 | 8087 | 8080² | ✅ | ² code default 8080，compose 覆盖 8087 |
+| file-service | 8082 | 8086³ | 8082 | ✅ | ³ host 8086 消歧（容器内 8082 与 token 共享） |
+| config-service | 8081 | 8085³ | 8081 | ✅ | ³ host 8085 消歧（容器内 8081 与 iam 共享） |
+| iam-outbox-publisher | — | — | — | ❌ | worker，无 HTTP；不写 `SERVICE_*` labels |
+| notification-outbox-publisher | — | — | — | ❌ | worker，无 HTTP |
+| frontend | 80 | 8080 | — | ❌ | nginx 反代到 `api-gateway:3000` |
 
-| 基础设施 | 端口 | 协议 |
-|----------|------|------|
-| Nginx | 80 | HTTP |
-| Consul HTTP | 8500 | HTTP |
-| Consul Serf LAN | 8301 | TCP/UDP |
-| Consul Connect CA RPC | 8303 | TCP |
-| Consul Envoy stats | 8502 | HTTP |
-| Prometheus | 9090 | HTTP |
-| Grafana | 3001 | HTTP |
-| Jaeger UI | 16686 | HTTP |
-| OTel collector (OTLP gRPC) | 4317 | gRPC |
-| MySQL | 3306 | TCP |
-| Redis | 6379 | TCP |
-| RabbitMQ AMQP | 5672 | TCP |
-| RabbitMQ 管理 UI | 15672 | HTTP |
+> **关键事实**：跨服务调用走 **容器内端口**（`http://iam-service:8081`、`http://token-service:8082`），由 Docker `superpowers` 网络的 DNS 解析；`compose host 端口` 只为宿主机 `curl http://localhost:908x/swagger-ui` 之类开发联调用，gateway / 跨服务都不走 host 端口。
+
+| 基础设施 | 端口 | 协议 | 备注 |
+|----------|------|------|------|
+| Consul HTTP | 8500 | HTTP | 服务发现 / catalog / DNS |
+| Consul Serf LAN | 8301 | TCP/UDP | 集群 gossip |
+| Consul gRPC | 8502 | gRPC | |
+| registrator | — | — | 项目级注册容器，**挂 `/var/run/docker.sock`**，从 labels 自动注册业务服务（无独立端口） |
+| Prometheus | 9090 | HTTP | 指标 |
+| Grafana | 3001 | HTTP | admin/admin 首次登录改密 |
+| Jaeger UI | 16686 | HTTP | Trace UI |
+| OTel collector (OTLP gRPC) | 4317 | gRPC | |
+| OTel collector (OTLP HTTP) | 4318 | HTTP | |
+| MySQL | 3306 | TCP | |
+| Redis | 6379 | TCP | |
+| RabbitMQ AMQP | 5672 | TCP | |
+| RabbitMQ 管理 UI | 15672 | HTTP | guest/guest |
+| Nginx (frontend 容器内) | 80 | HTTP | frontend 容器 nginx 反代到 api-gateway:3000 |
 
 ---
 
