@@ -9,6 +9,7 @@ const V004_SQL: &str = include_str!("../migrations/mysql/V004__tenant_business_t
 const V005_SQL: &str = include_str!("../migrations/mysql/V005__platform_admin_role.sql");
 const V006_SQL: &str = include_str!("../migrations/mysql/V006__org_unit_path.sql");
 const V007_SQL: &str = include_str!("../migrations/mysql/V007__system_menu_permission.sql");
+const V008_SQL: &str = include_str!("../migrations/mysql/V008__rebind_tenant_admin_permissions.sql");
 const SCHEMA_MARKER_TABLE: &str = "iam_users";
 const V002_MARKER_TABLE: &str = "iam_outbox_events_archive";
 const V003_MARKER_TABLE: &str = "iam_tenants";
@@ -16,6 +17,7 @@ const V004_MARKER_TABLE: &str = "iam_migration_v004_applied";
 const V005_MARKER_TABLE: &str = "iam_migration_v005_applied";
 const V006_MARKER_TABLE: &str = "iam_migration_v006_applied";
 const V007_MARKER_TABLE: &str = "iam_migration_v007_applied";
+const V008_MARKER_TABLE: &str = "iam_migration_v008_applied";
 
 pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<MySqlPool> {
     let pool = digua_common::db::connect(&config.url, config.max_connections).await?;
@@ -89,6 +91,17 @@ pub async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
         .execute(pool)
         .await?;
         info!("iam V007 (system menu permission) applied");
+    }
+
+    if !table_exists(pool, V008_MARKER_TABLE).await? {
+        info!("iam V008 marker missing, applying V008");
+        apply_sql_script(pool, V008_SQL).await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS iam_migration_v008_applied (applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        )
+        .execute(pool)
+        .await?;
+        info!("iam V008 (rebind tenant_admin permissions) applied");
     }
 
     Ok(())
