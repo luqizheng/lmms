@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-- **token-service**（端口 6001）是 OAuth 2.0 令牌管理服务，负责 JWT 签发、JWKS 公钥分发、OAuth 客户端管理与 API Key 管理。
+- **token-service**（compose host 端口 8082 / 容器内 8082）是 OAuth 2.0 令牌管理服务，负责 JWT 签发、JWKS 公钥分发、OAuth 客户端管理与 API Key 管理。
 - **iam-service** 已合并部分 token 管理能力，用户登录/注册/刷新走 `/iam/auth/*`，不再经过 token-service。
 - **api-gateway** 依赖 token-service 的 JWKS 验签所有请求，是 token-service 最核心的消费者。
 - 其他服务（notification / audit / config / file）不直接调用 token-service，通过 gateway JWT 验签间接依赖。
@@ -17,7 +17,7 @@ token-service 是 Rust + Axum 构建的独立微服务，是系统中 **JWT 签�
 
 | 属性 | 值 |
 |---|---|
-| 端口 | 6001（宿主机）/ 8082（容器） |
+| 端口 | 8082（compose host = 容器内；直连本机：`http://localhost:8082`） |
 | 技术栈 | Rust / Axum 0.8 / SQLx / RS256 |
 | 数据库 | MySQL（共享 `superpowers` 库，表前缀 `token_`） |
 | 缓存 | Redis（黑名单） |

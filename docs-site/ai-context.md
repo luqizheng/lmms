@@ -92,7 +92,7 @@
 > - `docker-compose-services.yml`：8 个 Rust 服务 + frontend + 2 个 outbox publisher
 > - `docker-compose-observability.yml`：可观测性 overlay
 >
-> **端口两套并存**：宿主机直接 `cargo run` 默认 6001-6007（见根 README「服务端口与依赖」）；compose 容器内 808x-9081（见 `infrastructure/README.md`「端口映射」）。两套互不干扰。
+> **端口以 docker compose 为准**（host 端口 → 容器内端口 = `:PORT`）：api-gateway 3000:3000、token 8082:8082、iam 9081:8081（mesh 残留，待统一 8081:8081）、notification 8083:8083、audit 8084:8084、prue 8087:8087、config 8085:8081、file 8086:8082。`cargo run` 本地默认与 compose 不同（token 4000、audit/prue 8080、iam 8081）——需带 compose env 才落到 808x。完整表见 [`docs-site/user-manual/11-reference.md` §11.5](user-manual/11-reference.md#115-服务端口速查phase-5-a-2-之后) 与 [`docs-site/user-manual/02-architecture.md` §2.5](user-manual/02-architecture.md#25-swagger-ui-覆盖)。
 
 ---
 

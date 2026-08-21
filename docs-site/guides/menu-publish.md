@@ -309,7 +309,7 @@ prue_backend 端点表（来自 `services/prue_backend/AGENTS.md`）：
 | `/pure/menu-configs/{id}` | DELETE | 删除未发布草稿 |
 
 ```bash
-PRUE=http://localhost:6004
+PRUE=http://localhost:8087  # prue_backend compose host 端口（容器内也是 8087）
 
 # 1. 拿当前 active 配置 ID
 ACTIVE_ID=$(curl -s $PRUE/pure/menu-configs | jq -r '.data.list[] | select(.is_active) | .id')

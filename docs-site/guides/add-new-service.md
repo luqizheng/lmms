@@ -259,7 +259,7 @@ cargo run -p api-gateway -- validate --routes infrastructure/config/api-gateway/
 
 **注意**：
 
-- 端口对照（容器内 `8080`，host 映射各异）：gateway `3000:3000`、iam `6002:8080`、token `6001:8080`、notification `6003:8080`、prue `6004:8080`、audit `6005:8080`、config `8081:8081`、file `8082:8082`。新服务挑一个未被占用的 host port；
+- 端口对照（按 `infrastructure/docker-compose-services.yml` + `service-registration.md` §2.3）：容器内端口是服务进程实际监听的端口（8081/8082/8083/8084/8087/8085:8081/8086:8082 等）；host 端口为宿主机开发联调用。现有服务 host 端口：gateway `3000`、token `8082`、iam `9081`（mesh 残留，待统一 8081）、notification `8083`、prue `8087`、audit `8084`、config `8085`、file `8086`。新服务挑一个**未被占用**的 host port（建议 8xxx 段，避开 6000-6999 / 3000 / 8080-8087 / 9081 / 3001 / 8500 / 9090 等已被基础设施或可观测性占用的端口）；
 - 若需要独立卷（持久存储），加 `volumes:`；若不需要就别加；
 - 若同时有 `services/<svc>-outbox-publisher/` 这种配套 bin，**同一个镜像不同 CMD**，在同一文件里加第二个 service entry（参考 `iam-service` + `iam-outbox-publisher` 的写法）。
 

@@ -59,8 +59,8 @@ node scripts/run-tests-docker.js iam-service
 
 # 启动服务
 cargo run --bin iam-service
-# 监听 0.0.0.0:8080（`SERVER_PORT` 默认值）
-# Swagger UI：http://localhost:8080/swagger-ui（需 SWAGGER_ENABLED=true）
+# 监听 0.0.0.0:8081（`SERVER_PORT` 默认值；compose 下走 9081:8081 host 端口）
+# Swagger UI：http://localhost:8081/swagger-ui（需 SWAGGER_ENABLED=true）
 ```
 
 ### B. docker compose 全栈跑（接近生产）
@@ -69,9 +69,10 @@ cargo run --bin iam-service
 docker compose -f infrastructure/docker-compose-infra.yml up -d
 docker compose -f infrastructure/docker-compose-services.yml up -d
 
-# 服务在 mesh 里：内端口 :180xx + sidecar 外端口 :908x
+# 直连 HTTP（Phase 5-A-2 起无 mesh / 无 sidecar / 无 mTLS）：
 # 浏览器走 api-gateway：http://localhost:3000/v1/iam/health
 # Swagger UI 直连各服务，端口见 [02 §2.5](./02-architecture.md#25-swagger-ui-覆盖)
+# 完整拓扑与跨服务调用机制见 [02 §2.1](./02-architecture.md)
 ```
 
 ---

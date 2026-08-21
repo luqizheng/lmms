@@ -77,21 +77,28 @@ cargo run                        # 启动
 
 ### 服务端口与依赖
 
-| 服务                 | 外部端口 | 依赖                                      | OTel |
-| -------------------- | -------- | ----------------------------------------- | ---- |
-| api-gateway          | 3000     | token-service, iam-service（consul 发现） | ✅ |
-| token-service        | 6001     | MySQL / Redis / Consul                    | ✅ |
-| iam-service          | 6002     | MySQL / Consul                            | ✅ |
-| notification-service | 6003     | MySQL / Redis / Consul                    | ✅ |
-| prue_backend         | 6004     | SQLite / MySQL / Consul                   | ✅ |
-| audit-service        | 6005     | MySQL / Consul                            | ✅ |
-| config-service       | 6006     | MySQL / Consul                            | ✅ |
-| file-service         | 6007     | MySQL / Consul                            | ✅ |
-| consul               | 8500     | —                                         | — |
-| redis                | 6379     | —                                         | — |
-| mysql                | 3306     | root / rootpass                           | — |
+| 服务                 | compose host 端口 | `cargo run` 默认 | 依赖                                      | OTel |
+| -------------------- | ------------------ | ---------------- | ----------------------------------------- | ---- |
+| api-gateway          | 3000               | 3000             | token-service, iam-service（consul 发现） | ✅ |
+| token-service        | 8082               | 4000¹            | MySQL / Redis / Consul                    | ✅ |
+| iam-service          | 9081²              | 8081             | MySQL / Consul                            | ✅ |
+| notification-service | 8083               | 8083             | MySQL / Redis / Consul                    | ✅ |
+| prue_backend         | 8087               | 8080¹            | SQLite / MySQL / Consul                   | ✅ |
+| audit-service        | 8084               | 8080¹            | MySQL / Consul                            | ✅ |
+| config-service       | 8085³              | 8081             | MySQL / Consul                            | ✅ |
+| file-service         | 8086³              | 8082             | MySQL / Consul                            | ✅ |
+| consul               | 8500               | —                | —                                         | — |
+| redis                | 6379               | —                | —                                         | — |
+| mysql                | 3306               | —                | root / rootpass                           | — |
 
-> 服务内部端口统一为 8080，对外端口范围 6000-6999；api-gateway 对外/对内均为 3000。
+> ¹ **token-service / audit-service / prue_backend 的 `cargo run` 默认端口**与 compose 不一致——code default 是 8080（audit / prue_backend）或 4000（token-service），compose 显式 `SERVER_PORT=...` 覆盖。开发时直跑 cargo 不带 env 会撞 8080 / 4000；带 compose env 后才落到 808x。
+>
+> ² **iam-service compose host 端口 9081** 是 Phase 5-A mesh 时代 sidecar 外端口残留（容器内一直是 8081），spec §7.3 规划统一到 `8081:8081`，待落地。
+>
+> ³ **config-service / file-service 的 host 端口 8085 / 8086** 是 Phase 5-A-2 引入的消歧（容器内与 iam / token 同端口，靠 host 端口区分）。
+>
+> 跨服务调用走 **容器内端口**（`http://iam-service:8081` 等），由 Docker `superpowers` 网络 DNS 解析；host 端口只用于宿主机 `curl` 开发联调，gateway 不走 host 端口。详见 [`docs-site/user-manual/11-reference.md` §11.5](docs-site/user-manual/11-reference.md#115-服务端口速查phase-5-a-2-之后) 与 [`docs-site/user-manual/02-architecture.md` §2.5](docs-site/user-manual/02-architecture.md#25-swagger-ui-覆盖)。
+>
 > ✅ = 启用 OpenTelemetry traces（跨服务 trace 链在 Jaeger 可视化）
 
 ### 可观测性
@@ -108,17 +115,17 @@ docker compose -f infrastructure/docker-compose.yml up -d
 
 ### Swagger UI
 
-设置环境变量 `SWAGGER_ENABLED=true` 启动服务后，可访问以下地址查看 API 文档：
+设置环境变量 `SWAGGER_ENABLED=true` 启动服务后，可访问以下地址查看 API 文档（端口为 compose host 端口；`cargo run` 本地默认见上表）：
 
-| 服务                 | 外部端口 | Swagger UI                       | OpenAPI JSON                                |
-| -------------------- | -------- | -------------------------------- | ------------------------------------------- |
-| token-service        | 6001     | http://localhost:6001/swagger-ui | http://localhost:6001/api-docs/openapi.json |
-| iam-service          | 6002     | http://localhost:6002/swagger-ui | http://localhost:6002/api-docs/openapi.json |
-| notification-service | 6003     | http://localhost:6003/swagger-ui | http://localhost:6003/api-docs/openapi.json |
-| prue_backend         | 6004     | http://localhost:6004/swagger-ui | http://localhost:6004/api-docs/openapi.json |
-| audit-service        | 6005     | http://localhost:6005/swagger-ui | http://localhost:6005/api-docs/openapi.json |
-| config-service       | 6006     | http://localhost:6006/swagger-ui | http://localhost:6006/api-docs/openapi.json |
-| file-service         | 6007     | http://localhost:6007/swagger-ui | http://localhost:6007/api-docs/openapi.json |
+| 服务                 | compose host 端口 | Swagger UI                       | OpenAPI JSON                                |
+| -------------------- | ------------------ | -------------------------------- | ------------------------------------------- |
+| token-service        | 8082               | http://localhost:8082/swagger-ui  | http://localhost:8082/api-docs/openapi.json |
+| iam-service          | 9081               | http://localhost:9081/swagger-ui  | http://localhost:9081/api-docs/openapi.json |
+| notification-service | 8083               | http://localhost:8083/swagger-ui  | http://localhost:8083/api-docs/openapi.json |
+| prue_backend         | 8087               | http://localhost:8087/swagger-ui  | http://localhost:8087/api-docs/openapi.json |
+| audit-service        | 8084               | http://localhost:8084/swagger-ui  | http://localhost:8084/api-docs/openapi.json |
+| config-service       | 8085               | http://localhost:8085/swagger-ui  | http://localhost:8085/api-docs/openapi.json |
+| file-service         | 8086               | http://localhost:8086/swagger-ui  | http://localhost:8086/api-docs/openapi.json |
 
 > 全部 7 个业务服务的 openapi.yaml 都是 utoipa 自动生成的。`api-gateway` 是代理，无自有路由（详情见 `services/api-gateway/openapi.yaml`）。详见 `node scripts/dump-openapi-specs.js` 和 `.agents/skills/coder-new-service`。
 
