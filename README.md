@@ -49,10 +49,13 @@ docker compose -f infrastructure/docker-compose.yml down
 | 命令                              | 说明                                              |
 | --------------------------------- | ------------------------------------------------- |
 | `pnpm run test:e2e`               | 全量 e2e（Vitest + supertest，跨网关测真服务）    |
-| `pnpm run test:e2e:users` 等      | 按服务分组跑（auth/users/tokens/roles/... 见 package.json） |
 | `pnpm run test:e2e:api`           | 数据驱动 API 用例（Excel）                        |
 | `pnpm run test:e2e:ui`            | 数据驱动 UI 业务流（Playwright，需前端容器）      |
-| `node scripts/run-tests-docker.js [service]` | 容器内跑 Rust 单元测试（见 AGENTS.md） |
+| `pnpm run test:e2e:smoke`         | E2E smoke 子集（2 min，仅 API）                   |
+| `pnpm run test:e2e:smoke:ui`      | E2E smoke 子集（UI，`--grep @smoke`）             |
+| `pnpm run test:rust`              | 容器内跑 Rust 单元测试（可选 `[service]` 参数；底层 `scripts/run-tests-docker.js`） |
+| `pnpm run test:dist-tools`        | 跑 `release/dist-tools` 的 Node 单测             |
+| `pnpm run test:all`               | 一键跑 workspace + Rust + e2e + js 脚本 + sdk 全套 |
 | `pnpm run check:env` | 检查开发环境服务状态 |
 | `pnpm -C tests/e2e test:smoke` | E2E smoke 子集（2 min，8 API + 2 UI 用例） |
 | `node scripts/check-service-standard.js` | CI gate: 8-item 服务规范检查 |
