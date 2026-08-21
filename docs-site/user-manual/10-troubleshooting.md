@@ -75,11 +75,9 @@ docker logs iam-service 2>&1 | grep "$TRACE_ID"
 docker logs --tail 200 <container>
 
 # 2. 看健康端点（端口看场景）
-#    本地 cargo run：默认 :8080（如 iam、token 等）
-#    docker compose 内 mesh 服务：内端口 :180xx，需在 sidecar namespace 内
-docker exec iam-service-sidecar wget -qO- http://127.0.0.1:18081/health
-#    docker compose 内明文服务（file / config）：外端口
-curl -i http://localhost:8082/health   # file-service
+#    本地 cargo run：默认 :8080（如 iam、token 等；详见 [11 §11.5](./11-reference.md)）
+#    docker compose 内：业务容器内端口（详见 [02 §2.1](./02-architecture.md) + [11 §11.5](./11-reference.md)）
+docker exec iam-service wget -qO- http://127.0.0.1:8081/health   # iam-service 容器内端口示例
 #    走 api-gateway（任意场景都可用）：
 curl -i http://localhost:3000/v1/iam/health
 
