@@ -10,7 +10,7 @@ mod common;
 
 use chrono::{Duration as ChronoDuration, Utc};
 use iam_service::outbox_archive;
-use sqlx::Row;
+use sqlx::{QueryBuilder, Row};
 use std::sync::Arc;
 
 struct Ctx {
@@ -45,6 +45,30 @@ async fn insert_outbox_row(
     .await
     .unwrap();
     result.last_insert_id() as i64
+}
+
+/// Bulk-insert `count` outbox rows in a single roundtrip; 替代循环单行
+/// INSERT（archive_batches_at_1000 旧版 2500 次 roundtrip 在低内存环境
+/// 会触发 docker memory pressure）。
+async fn bulk_insert_outbox_rows(
+    pool: &sqlx::MySqlPool,
+    count: usize,
+    event_type: &str,
+    published_at: chrono::DateTime<Utc>,
+) {
+    let created_at = Utc::now();
+    let mut qb = QueryBuilder::new(
+        "INSERT INTO iam_outbox_events (event_id, event_type, routing_key, envelope_json, created_at, published_at) ",
+    );
+    qb.push_values(0..count, |mut b, _| {
+        b.push_bind(uuid::Uuid::new_v4().to_string())
+            .push_bind(event_type)
+            .push_bind("test.rk")
+            .push_bind("{}")
+            .push_bind(created_at)
+            .push_bind(published_at);
+    });
+    qb.build().execute(pool).await.unwrap();
 }
 
 async fn count(pool: &sqlx::MySqlPool, table: &str) -> i64 {
@@ -99,14 +123,13 @@ async fn archive_skips_unpublished_rows() {
 #[tokio::test]
 async fn archive_batches_at_1000() {
     let ctx = setup().await;
-    for _ in 0..2500 {
-        insert_outbox_row(
-            &ctx.pool,
-            "ev.bulk",
-            Some(Utc::now() - ChronoDuration::hours(25)),
-        )
-        .await;
-    }
+    bulk_insert_outbox_rows(
+        &ctx.pool,
+        2500,
+        "ev.bulk",
+        Utc::now() - ChronoDuration::hours(25),
+    )
+    .await;
 
     outbox_archive::run_once(&ctx.pool).await.unwrap();
 
