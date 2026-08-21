@@ -794,9 +794,13 @@ k6_baseline:
   tags: [docker]
   image: grafana/k6:0.57.0
   resource_group: perf
+  # e2e:staging 只在 main 分支跑；非 main 分支 manual 触发时该 job 不存在
+  # optional: true 让 needs 不强依赖；staging 不存在时 SSH 隧道会失败
+  # 但 allow_failure: true 保证不阻断 pipeline
   needs:
     - job: e2e:staging
       artifacts: false
+      optional: true
   variables:
     BASE_URL: $STAGING_BASE_URL
   before_script:
