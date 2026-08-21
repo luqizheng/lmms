@@ -40,7 +40,11 @@ async fn setup() -> Ctx {
 
     let key_pair = RS256KeyPair::generate(2048).unwrap();
     let pem = key_pair.to_pem().unwrap();
-    let public_pem = key_pair.public_key().to_pem().unwrap();
+    // 用 token-service fixture 的公钥 JWKS 验签：与 common::stub_token_service
+    // 签的 user-jwt 用同一私钥（test_token_private.pem）配对。
+    let public_pem = include_str!(
+        "../../token-service/tests/fixtures/test_token_public.pem"
+    );
     let mut key_file = tempfile::NamedTempFile::new().unwrap();
     key_file.write_all(pem.as_bytes()).unwrap();
     key_file.flush().unwrap();
@@ -78,9 +82,10 @@ async fn setup() -> Ctx {
     let jwks = std::sync::Arc::new(
         digua_common_jwt::JWKSCache::from_pem(&public_pem).expect("test public key must parse"),
     );
+    let (server_uri, _) = common::stub_token_service("default_admin", 1, true).await;
     let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
         digua_common_jwt::ServiceJwtConfig {
-            token_service_url: "http://localhost:0".into(),
+            token_service_url: server_uri.clone(),
             bootstrap_token: "test-bt".into(),
             caller_service_name: "iam-service".into(),
             caller_tenant: 1,
@@ -90,7 +95,7 @@ async fn setup() -> Ctx {
         reqwest::Client::new(),
         String::new(),
     ));
-    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), server_uri.clone()));
     let state = AppState::new(
         pool,
         cache,

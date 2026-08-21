@@ -65,6 +65,7 @@ mockall = "0.13"
 digua_common_jwt = { path = "../../libs/common-jwt" }
 jwt-simple.workspace = true
 base64 = "0.22"
+wiremock = "0.6"
 
 [[bin]]
 name = "iam_service"

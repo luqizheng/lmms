@@ -83,9 +83,10 @@ async fn setup() -> Ctx {
         },
         reqwest::Client::new(),
     ));
+    let (server_uri, _) = common::stub_token_service("u_tenant2", 2, false).await;
     let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
         digua_common_jwt::ServiceJwtConfig {
-            token_service_url: "http://localhost:0".into(),
+            token_service_url: server_uri.clone(),
             bootstrap_token: "test-bt".into(),
             caller_service_name: "iam-service".into(),
             caller_tenant: 1,
@@ -95,7 +96,7 @@ async fn setup() -> Ctx {
         reqwest::Client::new(),
         String::new(),
     ));
-    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), server_uri.clone()));
     let state = AppState::new(
         pool,
         cache,

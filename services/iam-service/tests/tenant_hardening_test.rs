@@ -16,97 +16,10 @@ use iam_service::error::IamError;
 use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::service::{AuthService, TenantService, UserService};
 use iam_service::state::AppState;
-use jwt_simple::prelude::*;
-use std::io::Write;
 use std::sync::Arc;
 
 const PREFIX: &str = "superpowers:";
 
-struct Ctx {
-    state: AppState,
-    _mysql: Option<common::MysqlContainer>,
-    _key_file: tempfile::NamedTempFile,
-}
-
-async fn setup() -> Ctx {
-    let mysql_h = common::spawn_mysql().await;
-    let pool = mysql_h.pool;
-    let url = mysql_h.url;
-
-    let key_pair = RS256KeyPair::generate(2048).unwrap();
-    let pem = key_pair.to_pem().unwrap();
-    let mut key_file = tempfile::NamedTempFile::new().unwrap();
-    key_file.write_all(pem.as_bytes()).unwrap();
-    key_file.flush().unwrap();
-
-    let config = Config {
-        app: AppConfig {
-            name: "iam-service".into(),
-            host: "0.0.0.0".into(),
-            port: 8080,
-        },
-        database: DatabaseConfig {
-            url: url.clone(),
-            max_connections: 5,
-            min_connections: 1,
-        },
-        redis: RedisConfig {
-            url: "redis://127.0.0.1:0".into(),
-            ttl_sec: 86400,
-            prefix: PREFIX.into(),
-        },
-        jwt: JwtConfig {
-            private_key_path: key_file.path().to_str().unwrap().to_string().into(),
-            public_key_path: "/dev/null".into(),
-            access_token_ttl_minutes: 15,
-            refresh_token_ttl_days: 7,
-        },
-        consul: ConsulConfig {
-            host: "consul".into(),
-            port: 8500,
-            service_name: "iam-service".into(),
-        },
-    };
-
-    let cache = MemoryCache::new(10000);
-    let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
-    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::new(
-        digua_common_jwt::JwksConfig {
-            url: "http://localhost:0/.well-known/jwks.json".into(),
-            refresh_interval: std::time::Duration::from_secs(3600),
-            request_timeout: std::time::Duration::from_secs(5),
-        },
-        reqwest::Client::new(),
-    ));
-    let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
-        digua_common_jwt::ServiceJwtConfig {
-            token_service_url: "http://localhost:0".into(),
-            bootstrap_token: "test-bt".into(),
-            caller_service_name: "iam-service".into(),
-            caller_tenant: 1,
-            refresh_skew: std::time::Duration::from_secs(60),
-            request_timeout: std::time::Duration::from_secs(5),
-        },
-        reqwest::Client::new(),
-        String::new(),
-    ));
-    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
-    let state = AppState::new(
-        pool,
-        cache,
-        config,
-        None,
-        outbox_repo,
-        jwks,
-        service_jwt,
-        token_forward,
-    );
-    Ctx {
-        state,
-        _mysql: mysql_h.container,
-        _key_file: key_file,
-    }
-}
 
 fn sample_req(slug: &str, admin_username: &str) -> iam_service::dto::CreateTenantRequest {
     iam_service::dto::CreateTenantRequest {
@@ -135,8 +48,82 @@ async fn tid_missing_returns_error() {
 
 #[tokio::test]
 async fn cross_tenant_and_get_claims() {
-    let ctx = setup().await;
-    let tenant_svc = TenantService::new(ctx.state.clone());
+    // inline setup skeleton：MySQL + jwks + cache + outbox + config
+    let mysql_h = common::spawn_mysql().await;
+    let pool = mysql_h.pool;
+    let config = Config {
+        app: AppConfig {
+            name: "iam-service".into(),
+            host: "0.0.0.0".into(),
+            port: 8080,
+        },
+        database: DatabaseConfig {
+            url: mysql_h.url.clone(),
+            max_connections: 5,
+            min_connections: 1,
+        },
+        redis: RedisConfig {
+            url: "redis://127.0.0.1:0".into(),
+            ttl_sec: 86400,
+            prefix: PREFIX.into(),
+        },
+        jwt: JwtConfig {
+            private_key_path: "/dev/null".into(),
+            public_key_path: "/dev/null".into(),
+            access_token_ttl_minutes: 15,
+            refresh_token_ttl_days: 7,
+        },
+        consul: ConsulConfig {
+            host: "consul".into(),
+            port: 8500,
+            service_name: "iam-service".into(),
+        },
+    };
+    let cache = MemoryCache::new(10000);
+    let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
+    let jwks = std::sync::Arc::new(
+        digua_common_jwt::JWKSCache::from_pem(include_str!(
+            "../../token-service/tests/fixtures/test_token_public.pem"
+        ))
+        .expect("test public key must parse"),
+    );
+    let mut state = AppState::new(
+        pool.clone(),
+        MemoryCache::new(10000),
+        config.clone(),
+        None,
+        outbox_repo.clone(),
+        jwks.clone(),
+        std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
+            digua_common_jwt::ServiceJwtConfig {
+                token_service_url: "http://placeholder".into(),
+                bootstrap_token: "test-bt".into(),
+                caller_service_name: "iam-service".into(),
+                caller_tenant: 1,
+                refresh_skew: std::time::Duration::from_secs(60),
+                request_timeout: std::time::Duration::from_secs(5),
+            },
+            reqwest::Client::new(),
+            String::new(),
+        )),
+        Arc::new(TokenForwardClient::new(
+            std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
+                digua_common_jwt::ServiceJwtConfig {
+                    token_service_url: "http://placeholder".into(),
+                    bootstrap_token: "test-bt".into(),
+                    caller_service_name: "iam-service".into(),
+                    caller_tenant: 1,
+                    refresh_skew: std::time::Duration::from_secs(60),
+                    request_timeout: std::time::Duration::from_secs(5),
+                },
+                reqwest::Client::new(),
+                String::new(),
+            )),
+            "http://placeholder".into(),
+        )),
+    );
+
+    let tenant_svc = TenantService::new(state.clone());
 
     tenant_svc
         .register(sample_req("acme", "admin"))
@@ -147,8 +134,9 @@ async fn cross_tenant_and_get_claims() {
         .await
         .unwrap();
 
-    // cross_tenant_scope: login as user with platform_admin role
-    let user_svc = UserService::new(ctx.state.clone());
+    // 创建 admin：必须在 stub 之前，因为 stub 返回的 user-jwt `sub`
+    // claim 必须 = admin.id（断言 `principal.user_id == admin.id`）。
+    let user_svc = UserService::new(state.clone());
     let admin = user_svc
         .create(
             CreateUserRequest {
@@ -170,11 +158,38 @@ async fn cross_tenant_and_get_claims() {
          VALUES (?, 'role-platform-admin-seed', NOW())",
     )
     .bind(&admin.id)
-    .execute(&ctx.state.db)
+    .execute(&state.db)
     .await
     .unwrap();
 
-    let auth_svc = AuthService::new(ctx.state.clone());
+    let (server_uri, _) = common::stub_token_service(&admin.id, 1, true).await;
+    let service_jwt = std::sync::Arc::new(digua_common_jwt::ServiceJwtCache::new(
+        digua_common_jwt::ServiceJwtConfig {
+            token_service_url: server_uri.clone(),
+            bootstrap_token: "test-bt".into(),
+            caller_service_name: "iam-service".into(),
+            caller_tenant: 1,
+            refresh_skew: std::time::Duration::from_secs(60),
+            request_timeout: std::time::Duration::from_secs(5),
+        },
+        reqwest::Client::new(),
+        String::new(),
+    ));
+    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), server_uri.clone()));
+    // 替换 placeholder service_jwt + token_forward 为 stub-server 指向的真实例。
+    let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
+    state = AppState::new(
+        pool.clone(),
+        cache,
+        config.clone(),
+        None,
+        outbox_repo,
+        jwks.clone(),
+        service_jwt,
+        token_forward,
+    );
+
+    let auth_svc = AuthService::new(state.clone());
     let login = auth_svc
         .login(
             LoginRequest {
@@ -218,12 +233,12 @@ async fn cross_tenant_and_get_claims() {
     // fetch tenant ids
     let (acme_tid,): (i64,) =
         sqlx::query_as("SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'acme'")
-            .fetch_one(&ctx.state.db)
+            .fetch_one(&state.db)
             .await
             .unwrap();
     let (globex_tid,): (i64,) =
         sqlx::query_as("SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'globex'")
-            .fetch_one(&ctx.state.db)
+            .fetch_one(&state.db)
             .await
             .unwrap();
 
