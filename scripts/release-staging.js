@@ -61,6 +61,13 @@ const TRANSFORM_SCRIPT = path.join(
   'scripts',
   'transform-compose.js',
 );
+const RELEASE_TRANSFORMS_SCRIPT = path.join(
+  ROOT,
+  'release',
+  'dist-template',
+  'scripts',
+  'release-transforms.js',
+);
 
 const DEFAULT_REGISTRY = 'zhcoder-docker-registry.com:8000';
 const DEFAULT_REPO = 'micro-server';
@@ -181,6 +188,55 @@ for (const f of composeToTransform) {
   } catch (e) {
     console.error(`[release-staging] ✗ transform-compose 失败: ${path.basename(f)}`);
     process.exit(1);
+  }
+}
+
+// ── services config 重映射 ───────────────────────────────────────────────────
+// compose 里业务服务用 dev 相对路径挂载 config（如 ../services/token-service/config:/app/config）。
+// 在 staging 产物里必须重写成 ./config/<slug>，否则容器以 root 在 REMOTE_DIR 外创建
+// ../services/<svc>/config 并写入 root-owned 文件，下次部署 rm -rf REMOTE_DIR 时
+// 部署用户删不掉 → Permission denied（job 24792）。与 release-deploy.js 行为对齐。
+const SERVICE_SLUGS = {
+  'iam-service': 'iam',
+  'notification-service': 'notification',
+  'token-service': 'token',
+};
+
+const servicesDir = path.join(ROOT, 'services');
+if (fs.existsSync(servicesDir)) {
+  const servicesCsv = [];
+  const slugMapCsv = [];
+  for (const ent of fs.readdirSync(servicesDir, { withFileTypes: true })) {
+    if (!ent.isDirectory()) continue;
+    const svc = ent.name;
+    if (!fs.existsSync(path.join(servicesDir, svc, 'config'))) continue;
+    const slug = SERVICE_SLUGS[svc] || svc.replace(/-service$/, '');
+    servicesCsv.push(svc);
+    slugMapCsv.push(`${svc}=${slug}`);
+  }
+
+  if (servicesCsv.length > 0) {
+    execSync(
+      `node "${RELEASE_TRANSFORMS_SCRIPT}" remap-volume ` +
+        `--file "${svcCompose}" ` +
+        `--services "${servicesCsv.join(',')}" ` +
+        `--slug-map "${slugMapCsv.join(',')}"`,
+      { stdio: 'inherit' },
+    );
+    console.log('[release-staging] ✓ services.yml: dev mount ../services/<svc>/config → ./config/<slug>');
+
+    const destConfigBase = path.join(infraDst, 'config');
+    for (const ent of fs.readdirSync(servicesDir, { withFileTypes: true })) {
+      if (!ent.isDirectory()) continue;
+      const svc = ent.name;
+      const configSrc = path.join(servicesDir, svc, 'config');
+      if (!fs.existsSync(configSrc)) continue;
+      const slug = SERVICE_SLUGS[svc] || svc.replace(/-service$/, '');
+      const destConfig = path.join(destConfigBase, slug);
+      fs.mkdirSync(destConfig, { recursive: true });
+      fs.cpSync(configSrc, destConfig, { recursive: true });
+      console.log(`[release-staging] ✓ infrastructure/config/${slug}/ (from services/${svc}/config/)`);
+    }
   }
 }
 
