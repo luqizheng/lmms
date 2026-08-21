@@ -76,7 +76,12 @@ async fn seed_file(pool: &sqlx::MySqlPool, tenant_id: i64) -> String {
 }
 
 /// Build a JWT with the given tenant_id and cross_tenant flag.
-fn make_token(key_pair: &RS256KeyPair, user_id: &str, tenant_id: i64, cross_tenant: bool) -> String {
+fn make_token(
+    key_pair: &RS256KeyPair,
+    user_id: &str,
+    tenant_id: i64,
+    cross_tenant: bool,
+) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()

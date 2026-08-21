@@ -96,7 +96,10 @@ async fn setup() -> Ctx {
         reqwest::Client::new(),
         String::new(),
     ));
-    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), server_uri.clone()));
+    let token_forward = Arc::new(TokenForwardClient::new(
+        service_jwt.clone(),
+        server_uri.clone(),
+    ));
     let state = AppState::new(
         pool,
         cache,

@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 const PREFIX: &str = "superpowers:";
 
-
 fn sample_req(slug: &str, admin_username: &str) -> iam_service::dto::CreateTenantRequest {
     iam_service::dto::CreateTenantRequest {
         tenant_slug: slug.to_string(),
@@ -175,7 +174,10 @@ async fn cross_tenant_and_get_claims() {
         reqwest::Client::new(),
         String::new(),
     ));
-    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), server_uri.clone()));
+    let token_forward = Arc::new(TokenForwardClient::new(
+        service_jwt.clone(),
+        server_uri.clone(),
+    ));
     // 替换 placeholder service_jwt + token_forward 为 stub-server 指向的真实例。
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
     state = AppState::new(

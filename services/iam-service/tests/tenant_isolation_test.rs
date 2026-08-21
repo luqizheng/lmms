@@ -42,9 +42,7 @@ async fn setup() -> Ctx {
     let pem = key_pair.to_pem().unwrap();
     // 用 token-service fixture 的公钥 JWKS 验签：与 common::stub_token_service
     // 签的 user-jwt 用同一私钥（test_token_private.pem）配对。
-    let public_pem = include_str!(
-        "../../token-service/tests/fixtures/test_token_public.pem"
-    );
+    let public_pem = include_str!("../../token-service/tests/fixtures/test_token_public.pem");
     let mut key_file = tempfile::NamedTempFile::new().unwrap();
     key_file.write_all(pem.as_bytes()).unwrap();
     key_file.flush().unwrap();
@@ -95,7 +93,10 @@ async fn setup() -> Ctx {
         reqwest::Client::new(),
         String::new(),
     ));
-    let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), server_uri.clone()));
+    let token_forward = Arc::new(TokenForwardClient::new(
+        service_jwt.clone(),
+        server_uri.clone(),
+    ));
     let state = AppState::new(
         pool,
         cache,

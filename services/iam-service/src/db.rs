@@ -9,7 +9,8 @@ const V004_SQL: &str = include_str!("../migrations/mysql/V004__tenant_business_t
 const V005_SQL: &str = include_str!("../migrations/mysql/V005__platform_admin_role.sql");
 const V006_SQL: &str = include_str!("../migrations/mysql/V006__org_unit_path.sql");
 const V007_SQL: &str = include_str!("../migrations/mysql/V007__system_menu_permission.sql");
-const V008_SQL: &str = include_str!("../migrations/mysql/V008__rebind_tenant_admin_permissions.sql");
+const V008_SQL: &str =
+    include_str!("../migrations/mysql/V008__rebind_tenant_admin_permissions.sql");
 const SCHEMA_MARKER_TABLE: &str = "iam_users";
 const V002_MARKER_TABLE: &str = "iam_outbox_events_archive";
 const V003_MARKER_TABLE: &str = "iam_tenants";

@@ -16,9 +16,8 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// Test private key for service-jwt signing (token-service fixtures).
-const TEST_TOKEN_PRIVATE_PEM: &str = include_str!(
-    "../../../token-service/tests/fixtures/test_token_private.pem"
-);
+const TEST_TOKEN_PRIVATE_PEM: &str =
+    include_str!("../../../token-service/tests/fixtures/test_token_private.pem");
 
 pub type MysqlContainer = testcontainers::ContainerAsync<Mysql>;
 
@@ -104,11 +103,7 @@ async fn spawn_local() -> MysqlHandle {
 ///
 /// `sub` 是 stub 返回 user-jwt 的 `sub` claim，应该 = 测试用例 seed
 /// 出的 `iam_users.id`（不是 username）。
-pub async fn stub_token_service(
-    sub: &str,
-    tenant_id: i64,
-    cross_tenant: bool,
-) -> (String, String) {
+pub async fn stub_token_service(sub: &str, tenant_id: i64, cross_tenant: bool) -> (String, String) {
     use serde_json::json;
     let now = chrono::Utc::now().timestamp();
 
@@ -121,8 +116,12 @@ pub async fn stub_token_service(
         "exp": now + 3600,
         "roles": ["service"],
     });
-    let service_jwt =
-        sign_token(TEST_TOKEN_PRIVATE_PEM, &svc_claims, Duration::from_secs(3600)).expect("sign svc-jwt");
+    let service_jwt = sign_token(
+        TEST_TOKEN_PRIVATE_PEM,
+        &svc_claims,
+        Duration::from_secs(3600),
+    )
+    .expect("sign svc-jwt");
 
     let user_claims = json!({
         "iss": "token-service",
@@ -134,8 +133,12 @@ pub async fn stub_token_service(
         "user_code": sub,
         "roles": ["user"],
     });
-    let user_jwt =
-        sign_token(TEST_TOKEN_PRIVATE_PEM, &user_claims, Duration::from_secs(3600)).expect("sign user-jwt");
+    let user_jwt = sign_token(
+        TEST_TOKEN_PRIVATE_PEM,
+        &user_claims,
+        Duration::from_secs(3600),
+    )
+    .expect("sign user-jwt");
 
     let server = MockServer::start().await;
     let svc_clone = service_jwt.clone();
