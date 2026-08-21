@@ -63,8 +63,15 @@ const INFRA_DIR = path.join(ROOT, 'infrastructure');
 // compose 里基础设施层 / observability 层用 ${BASE_REGISTRY} / ${REGISTRY}
 // 占位符（不是字面 registry），load-images 不能像 compose 那样从 .env 读。
 // 内置 fallback：CI 已 export 这两个 ENV；本地手跑时用项目惯用值。
-const REGISTRY_FALLBACK = process.env.REGISTRY || process.env.DOCKER_REGISTRY || 'zhcoder-docker-registry.com:8000';
-const BASE_REGISTRY_FALLBACK = process.env.BASE_REGISTRY || (REGISTRY_FALLBACK + '/official');
+//
+// 统一保证尾斜杠：
+//   - compose 约定 ${BASE_REGISTRY}mysql:8.0（占位符紧贴镜像名，不带额外 /）
+//   - 若 CI 变量漏写尾斜杠（如 .../official 而非 .../official/），字符串插值会拼出
+//     .../officialmysql 这种畸形引用。normalize 一步消除该类事故。
+const REGISTRY_FALLBACK = (process.env.REGISTRY || process.env.DOCKER_REGISTRY || 'zhcoder-docker-registry.com:8000')
+  .replace(/\/+$/, '') + '/';
+const BASE_REGISTRY_FALLBACK = (process.env.BASE_REGISTRY || (REGISTRY_FALLBACK + 'official'))
+  .replace(/\/+$/, '') + '/';
 const VAR_INTERPOLATION = {
   REGISTRY: REGISTRY_FALLBACK,
   BASE_REGISTRY: BASE_REGISTRY_FALLBACK,
