@@ -4,9 +4,10 @@
 use notification_service::rest;
 
 #[test]
-fn default_limits_include_three_routes() {
+fn default_limits_include_seven_routes() {
     let limits = rest::default_limits();
-    assert_eq!(limits.len(), 3);
+    // 3 write (create/publish/revoke) + 4 read (list_mine/get/read_one/unread_count).
+    assert_eq!(limits.len(), 7);
 }
 
 #[test]
