@@ -159,14 +159,15 @@ for (const f of COMPOSE_FILES) {
 console.log(`[release-staging] ✓ infrastructure/docker-compose*.yml (${composeCopied} 个)`);
 
 const svcCompose = path.join(infraDst, 'docker-compose-services.yml');
-const infraCompose = path.join(infraDst, 'docker-compose-infra.yml');
+const mainCompose = path.join(infraDst, 'docker-compose.yml');
 if (!fs.existsSync(svcCompose)) {
   console.error('[release-staging] ✗ docker-compose-services.yml 不存在（无法 transform）');
   process.exit(1);
 }
-// infra compose 也 transform：mysql-replica 含 build: 块需转为 registry image;
-// 其余 infra 服务仅声明 image:，IMAGE_MAP 不含它们，transform-compose 原样保留。
-const composeToTransform = [svcCompose, infraCompose];
+// 主 docker-compose.yml 也 transform：mysql-replica 与 frontend 含 build: 块需转为 registry image；
+// 它已从 docker-compose-infra.yml 迁至主 compose。其余 infra/observability 服务仅声明
+// 固定版本的第三方 image:，IMAGE_MAP 不含它们，transform-compose 原样保留。
+const composeToTransform = [svcCompose, mainCompose];
 for (const f of composeToTransform) {
   if (!fs.existsSync(f)) {
     console.warn(`[release-staging] ⚠ 跳过不存在的 compose: ${path.basename(f)}`);
