@@ -1,7 +1,7 @@
 # 02. 架构总览
 
 > 回答三个问题：有哪些服务、怎么分层、一次请求怎么走。
-> 上次更新：2026-07-06（修正端口表 + 新增 §2.6 Consul Connect mTLS 服务网格）
+> 上次更新：2026-08-21（删除过时的 §2.6 Consul Connect 整段；注册 / 服务发现请改读 [`docs-site/guides/service-registration.md`](../guides/service-registration.md)）
 
 ---
 
@@ -64,7 +64,7 @@
   - **内端口** `180xx`：`127.0.0.1:180xx`，服务进程监听，**只在本 network namespace 内可达**
   - **外端口** `908x`（gateway 是 `3000`）：sidecar 的 `consul connect proxy` 监听，docker 映射到 host
 - 主服务与 sidecar 共享网络栈（`network_mode: "service:<svc>-sidecar"`）
-- api-gateway sidecar 显式 `allow_untlsed_inbound=true`（让浏览器 / e2e 不被 mTLS 握手拦截；其他 sidecar 行为参考 §2.6）
+- api-gateway sidecar 显式 `allow_untlsed_inbound=true`（让浏览器 / e2e 不被 mTLS 握手拦截；其他 sidecar 行为参考 [Phase 5-A spec §1.6](../superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md)，该 spec 已被 Phase 5-A-2 撤销）
 
 ---
 
@@ -170,80 +170,6 @@ CI 门禁：`node scripts/check-spec.js` 校验 yaml 合法性 + `git diff --exi
 
 ---
 
-## 2.6 Consul Connect 服务网格（Phase 5-A）
-
-> Phase 5-A 已落地，详见 spec [`docs/superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md`](../superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md)。本节只记架构要点。
-
-### 目的
-
-- **零信任身份认证**：服务身份由 Consul CA 颁发的证书声明
-- **传输加密**：服务间 HTTP 流量经 sidecar 终止 / 发起 mTLS
-- **声明式授权**：Consul Intentions 声明「谁可以调谁」
-- **可观测性**：sidecar 暴露握手 / 意图 / 连接指标
-
-### Sidecar 模型（dev 模式默认开启）
-
-每个 mesh 服务获得一个 `consul connect proxy` 容器（Consul 1.15 内置 Go TCP proxy；不用 Envoy，因为受限网络下 Envoy 二进制不可用，且 1.15 的 `consul connect envoy -sidecar-for` 有 UUID 后缀解析 bug）。
-
-```
-┌─────────────────────────────────────────┐
-│  <svc>-sidecar 容器                      │
-│  consul connect proxy                    │
-│    -listen :<外端口>      ← 入站          │
-│    -service-addr 127.0.0.1:<内端口>      │
-│    -upstream <其他服务>:<外端口> ...     │  ← 出站
-│    -register (自动注册到 Consul)          │
-└─────────────────────────────────────────┘
-        ▲ shared network namespace (network_mode)
-        │
-┌─────────────────────────────────────────┐
-│  <svc> 主服务容器                         │
-│  绑定 127.0.0.1:<内端口>                 │
-│  零感知：进程不知道 mTLS、不知道证书      │
-└─────────────────────────────────────────┘
-```
-
-**两个端口为什么不能合并**：同一 network namespace 内不能有两个进程监听同一端口。proxy 占外端口（0.0.0.0:908x，对外），主服务占内端口（127.0.0.1:180xx，对内），通过 `network_mode` 共享网络栈让 `127.0.0.1` 互通。
-
-### 证书生命周期
-
-- Consul 内置 CA 自动初始化（`consul connect ca init`，docker-compose 场景下足够）
-- leaf 证书 TTL **72 小时**，到期前自动轮换
-- 证书通过 Consul SDS（Secret Discovery Service）下发，**应用进程不接触证书文件**
-- 生产环境后续可切到 Vault PKI / 外部 CA（`consul connect ca set-config` 热切换），本期不涉及
-
-### Consul Intentions（mesh 授权）
-
-声明式授权策略，sidecar 在 mTLS 握手后强制执行。配置在 `scripts/consul-intentions.sh`：
-
-```bash
-consul intention create api-gateway iam-service     # allow
-consul intention create api-gateway token-service
-consul intention create token-service iam-service
-consul intention create notification-service iam-service
-# ...
-consul intention create -deny '*' '*'                # 默认拒绝（必须放最后）
-```
-
-应用代码完全无感知 — 授权是网络层决策。
-
-### Sidecar 健康检查
-
-`ConsulRegistrar` 在 UDP probe 失败时 fallback 到 hostname，Consul DNS 可能解析不到。当前**临时修复**是服务启动后手动更新注册地址；永久修复需 rebuild `libs/consul-registrar`。详见 [10 故障排查 §10.5](./10-troubleshooting.md)。
-
-### 添加新 mesh 服务
-
-完整步骤见 [`docs-site/guides/mesh-service-onboarding.md`](../guides/mesh-service-onboarding.md)，要点：
-
-1. 分配新端口对（`18085 / 9085` 等）
-2. compose 加 `*-sidecar` 容器 + 主服务 `network_mode: "service:<svc>-sidecar"`
-3. 主服务绑 `127.0.0.1:180xx`，`SERVER_PORT` env 覆盖 yaml 默认值
-4. 调用方 sidecar 加 `-upstream <new-svc>:9085`
-5. 调用方 `egress_map` / `iam_base_url` 等配置改本地 `127.0.0.1:9085`
-6. `scripts/consul-intentions.sh` 加 allow 规则
-
----
-
 ## 2.7 后台 worker：outbox publisher
 
 2 个 outbox publisher worker 跑事务性发件箱模式：
@@ -265,5 +191,5 @@ consul intention create -deny '*' '*'                # 默认拒绝（必须放�
 
 - ADR-001 API Gateway 多文件路由配置
 - ADR-002 8 项服务标准
-- [Phase 5-A spec](../superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md) Consul Connect mTLS（已落地）
+- [Phase 5-A spec](../superpowers/specs/2026-07-03-phase5a-consul-connect-mtls-design.md) Consul Connect mTLS（已撤销；保留作历史考古，被 Phase 5-A-2 registrator 方案替代）
 - 完整索引见 [`docs-site/decisions/`](../decisions/)
