@@ -610,10 +610,17 @@ build_images:staging:
     - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend frontend"
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
     - sudo -E node scripts/build-docker.js -v "${VERSION}" --load-and-push $BUILD_SERVICES
+    # mysql-replica 位于 infrastructure/mysql-replica/，不在 build-docker.js 服务清单里，单独 buildx --push。
+    # 它在 docker-compose.yml（非 infra.yml）中，release 时 transform-compose 转成
+    # micro-server/mysql-replica:<sha>，load-images --mode=pull 会拉它，必须在此构建推送。
+    - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
+    - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
+    - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
   allow_failure: false
+
 
 release:staging:
   stage: build
