@@ -10,37 +10,43 @@ use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use digua_common_jwt::{JWKSCache, JwksConfig};
+use digua_common_jwt::JWKSCache;
 use digua_jwt_ctx::Principal;
 use file_service::routes::{self, create_state};
 use file_service::storage::ObjectStore;
 use jwt_simple::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration as StdDuration;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 struct Ctx {
     app: axum::Router,
     pool: sqlx::MySqlPool,
+    key_pair: Arc<RS256KeyPair>,
 }
 
 async fn setup() -> Ctx {
     let h = common::spawn_mysql().await;
     let pool = h.pool;
-    let app = build_app(pool.clone(), h.storage);
-    Ctx { app, pool }
+    let key_pair = Arc::new(RS256KeyPair::generate(2048).unwrap());
+    // 注册公钥到 JWKSCache：HTTP 路径上 Principal::from_request_parts 会
+    // verify_token，cache 找不到公钥就 401。
+    let public_pem = key_pair.public_key().to_pem().unwrap();
+    let jwks = Arc::new(JWKSCache::from_pem(&public_pem).unwrap());
+    let app = build_app(pool.clone(), h.storage, jwks);
+    Ctx {
+        app,
+        pool,
+        key_pair,
+    }
 }
 
-fn build_app(pool: sqlx::MySqlPool, storage: Arc<dyn ObjectStore>) -> axum::Router {
-    // 测试中 jwt 由测试代码用临时生成的 RSA key 签发，jwks 不参与验签链路；
-    // 仅为了让 create_state 满足 5 参签名。
-    let http = reqwest::Client::builder()
-        .timeout(StdDuration::from_secs(1))
-        .build()
-        .unwrap();
-    let jwks = Arc::new(JWKSCache::new(JwksConfig::default(), http));
+fn build_app(
+    pool: sqlx::MySqlPool,
+    storage: Arc<dyn ObjectStore>,
+    jwks: Arc<JWKSCache>,
+) -> axum::Router {
     let state = create_state(
         pool,
         storage,
@@ -70,8 +76,7 @@ async fn seed_file(pool: &sqlx::MySqlPool, tenant_id: i64) -> String {
 }
 
 /// Build a JWT with the given tenant_id and cross_tenant flag.
-fn make_token(user_id: &str, tenant_id: i64, cross_tenant: bool) -> String {
-    let key_pair = RS256KeyPair::generate(2048).unwrap();
+fn make_token(key_pair: &RS256KeyPair, user_id: &str, tenant_id: i64, cross_tenant: bool) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -105,7 +110,7 @@ async fn platform_admin_cross_tenant_file() {
     let t2_file = seed_file(&ctx.pool, 2).await;
 
     // 1. platform_admin (cross_tenant=true) reads both files
-    let admin_token = make_token("platform_admin", 1, true);
+    let admin_token = make_token(&ctx.key_pair, "platform_admin", 1, true);
     verify_principal(&admin_token, 1, true);
 
     let resp = ctx
@@ -162,7 +167,7 @@ async fn platform_admin_cross_tenant_file() {
     assert_eq!(info["tenant_id"], 2);
 
     // 2. tenant-1 user cannot read t2 file (and_tenant filter)
-    let t1_token = make_token("user-1", 1, false);
+    let t1_token = make_token(&ctx.key_pair, "user-1", 1, false);
     verify_principal(&t1_token, 1, false);
 
     let resp = ctx
@@ -203,7 +208,7 @@ async fn platform_admin_cross_tenant_file() {
     );
 
     // 4. tenant-2 user cannot read t1 file
-    let t2_token = make_token("user-2", 2, false);
+    let t2_token = make_token(&ctx.key_pair, "user-2", 2, false);
     verify_principal(&t2_token, 2, false);
 
     let resp = ctx
