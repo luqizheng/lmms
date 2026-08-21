@@ -16,9 +16,6 @@
 | 是否启用 Swagger UI | `SWAGGER_ENABLED` | `false`（注释默认值） | `false` |
 | OpenTelemetry 端点 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | — |
 | 服务名（通用标识） | `SERVICE_NAME` | `audit-service` | `audit-service` |
-| 服务实例 ID | `SERVICE_ID` | `audit-service` | `audit-service` |
-| 服务端口（注册探测） | `SERVICE_PORT` | `8084` | `8080` |
-| 健康检查路径 | `SERVICE_HEALTH_PATH` | `/health` | `/health` |
 
 ## 配置字段（config.rs `default_*` 函数可覆盖）
 

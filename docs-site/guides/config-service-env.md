@@ -15,8 +15,5 @@
 | 是否启用 Swagger UI | `SWAGGER_ENABLED` | `false`（注释默认值） | `false` |
 | OpenTelemetry 端点 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | — |
 | 服务名（通用标识） | `SERVICE_NAME` | `config-service` | `config-service` |
-| 服务实例 ID | `SERVICE_ID` | `config-service` | `config-service` |
-| 服务端口（注册探测） | `SERVICE_PORT` | `8081` | `8080` |
-| 健康检查路径 | `SERVICE_HEALTH_PATH` | `/health` | `/health` |
 
 > **注意**：`SERVICE_BOOTSTRAP_TOKEN`、`TENANT_ID`、`TOKEN_SERVICE_URL` 在 config-service 代码中**未使用**，已从 docker-compose 移除。

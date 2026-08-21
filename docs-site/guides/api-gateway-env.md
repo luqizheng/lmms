@@ -28,9 +28,6 @@
 | 日志级别 | `RUST_LOG` | `api_gateway=trace,info` | `info` |
 | OpenTelemetry 端点 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | — |
 | 服务名（通用标识） | `SERVICE_NAME` | `api-gateway` | `api-gateway` |
-| 服务实例 ID | `SERVICE_ID` | `api-gateway` | `api-gateway` |
-| 服务端口（注册探测） | `SERVICE_PORT` | `3000` | `3000` |
-| 健康检查路径 | `SERVICE_HEALTH_PATH` | `/health` | `/health` |
 
 > **注意**：`SERVICE_BOOTSTRAP_TOKEN`、`TENANT_ID`、`TOKEN_SERVICE_URL`、`JWKS_URL` 在 api-gateway 代码中**未使用**（使用 `GW_*` 前缀替代），已从 docker-compose 移除。
 >

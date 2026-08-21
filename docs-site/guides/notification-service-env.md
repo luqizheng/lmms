@@ -22,9 +22,6 @@
 | Swagger UI 开关 | `SWAGGER_ENABLED` | `true` | `true` |
 | OpenTelemetry 端点 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | — |
 | 服务名 | `SERVICE_NAME` | `notification-service` | `notification-service` |
-| 服务实例 ID | `SERVICE_ID` | `notification-service` | `notification-service` |
-| 注册探测端口 | `SERVICE_PORT` | `8083` | `8080` |
-| 健康检查路径 | `SERVICE_HEALTH_PATH` | `/health` | `/health` |
 
 ## 2. 覆盖 yaml 的 env（yaml 缺失或留空时必填）
 

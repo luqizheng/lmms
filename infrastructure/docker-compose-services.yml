@@ -114,9 +114,6 @@ services:
       RUST_LOG: "info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "config-service"
-      SERVICE_ID: "config-service"
-      SERVICE_PORT: "8081"
-      SERVICE_HEALTH_PATH: "/health"
       # SERVER_ADDR: "0.0.0.0:8081"   # 默认值，取消注释可覆盖
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
@@ -144,9 +141,6 @@ services:
       RUST_LOG: "info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "file-service"
-      SERVICE_ID: "file-service"
-      SERVICE_PORT: "8082"
-      SERVICE_HEALTH_PATH: "/health"
       # SERVER_ADDR: "0.0.0.0:8082"   # 默认值，取消注释可覆盖
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
@@ -184,9 +178,6 @@ services:
       RUST_LOG: "api_gateway=trace,info"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "api-gateway"
-      SERVICE_ID: "api-gateway"
-      SERVICE_PORT: "3000"
-      SERVICE_HEALTH_PATH: "/health"
     volumes:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
       - ./config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
@@ -234,9 +225,6 @@ services:
       TENANT_ID: "${TENANT_ID}"
       SWAGGER_ENABLED: "true"
       SERVICE_NAME: "token-service"
-      SERVICE_ID: "token-service"
-      SERVICE_PORT: "8082"
-      SERVICE_HEALTH_PATH: "/health"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       # CONFIG_SERVICE_URL: ""       # 可选：远程配置中心地址
       # CONFIG_SERVICE_NAMESPACE: "" # 可选：远程配置中心命名空间
@@ -293,9 +281,6 @@ services:
       CONFIG_PATH: "/etc/iam-service/config.yaml"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "iam-service"
-      SERVICE_ID: "iam-service"
-      SERVICE_PORT: "8081"
-      SERVICE_HEALTH_PATH: "/health"
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
       # SERVER_HOST: "0.0.0.0"
@@ -362,9 +347,6 @@ services:
       RUST_LOG: "info"
       # CONSUL_ADDR: "http://consul:8500"  # 默认值，取消注释可覆盖
       SERVICE_NAME: "prue_backend"
-      SERVICE_ID: "prue_backend"
-      SERVICE_PORT: "8087"
-      SERVICE_HEALTH_PATH: "/health"
 
       SERVER_PORT: "8087"         # 非默认值（代码默认 8080），必须显式设置
 
@@ -406,9 +388,6 @@ services:
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       SERVICE_NAME: "notification-service"
-      SERVICE_ID: "notification-service"
-      SERVICE_PORT: "8083"
-      SERVICE_HEALTH_PATH: "/health"
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
       # SWAGGER_ENABLED: "true"
@@ -472,9 +451,6 @@ services:
       # CONSUL_SERVICE_NAME: "audit-service"  # 默认值，取消注释可覆盖
       RUST_LOG: "info"
       SERVICE_NAME: "audit-service"
-      SERVICE_ID: "audit-service"
-      SERVICE_PORT: "8084"
-      SERVICE_HEALTH_PATH: "/health"
 
       SERVER_PORT: "8084"         # 非默认值（代码默认 8080），必须显式设置
 

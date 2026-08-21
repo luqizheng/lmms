@@ -15,9 +15,6 @@
 | Consul 地址 | `CONSUL_ADDR` | `http://consul:8500`（注释默认值） | `http://consul:8500` |
 | OpenTelemetry 端点 | `OTEL_EXPORTER_OTLP_ENDPOINT` | — | — |
 | 服务名（通用标识） | `SERVICE_NAME` | `prue_backend` | `prue_backend` |
-| 服务实例 ID | `SERVICE_ID` | `prue_backend` | `prue_backend` |
-| 服务端口（注册探测） | `SERVICE_PORT` | `8087` | `8080` |
-| 健康检查路径 | `SERVICE_HEALTH_PATH` | `/health` | `/health` |
 
 ## 配置字段（config.rs `default_*` 函数可覆盖）
 
