@@ -546,6 +546,58 @@ curl -X POST http://localhost:3000/__admin/reload
 # 修改配置后 reload
 ```
 
+### 8.4 staging deploy fail：swap 无操作 + 健康门 0ms refused
+
+#### 症状
+`deploy:staging` CI job 健康门 fail：
+
+```text
+curl: (7) Failed to connect to 192.168.2.31 port 3000/8080 after 0 ms: Couldn't connect to server
+```
+
+且同一 job 上一 step（`swap-staging-active.sh`）日志含 `[swap] ⚠ active 已指向 X，无操作`。
+
+#### 根因（两个独立 bug 叠加）
+1. **`swap-staging-active.sh` 原幂等分支漏检容器存活**——active 已是目标 SHA 时直接 `exit 0`，不重启容器。若容器栈因 OOM / reboot / manual stop / 上次 deploy 中 `start.js --deploy` 部分失败等原因停摆，swap 过、健康门撞 0ms refused。
+2. **`STAGING_BASE_URL` 在 GitLab Variables 里被 override 到 `:3000`**（api-gateway 直连 host 端口），但 staging 当前架构不暴露 api-gateway:3000 到 host（参见 `infrastructure/scripts/start-prod.sh:83` / yml:34-35 注释）。
+
+两个 bug 任一都会触发本症状。MR !82 合并后 #2 已 drift-proof（health gate 永远打 `:8080` 架构公共入口），#1 已加 alive 探针（同 SHA 时探 status.js；不健康 fall through 重起）—— 即便如此，容器真挂的场景仍需本节止血。
+
+#### Triage（192.168.2.31 上）
+```bash
+# 1) active 指向 OK？
+readlink -f /home/kudi/coder-micro-services/staging-active
+
+# 2) 容器是否在跑（status.js 即 swap 探针数据源）
+cd /home/kudi/coder-micro-services/staging-active
+node bin/status.js
+
+# 3) 直连架构公共入口（frontend 容器内）
+docker exec -it $(cd /home/kudi/coder-micro-services/staging-active && \
+  docker compose -f infrastructure/docker-compose.yml ps -q frontend) \
+  curl -fsS http://localhost/health
+```
+
+#### 立刻止血（无需 redeploy）
+```bash
+ssh kudi@192.168.2.31 'cd /home/kudi/coder-micro-services/staging-active \
+  && node bin/stop.js \
+  && node bin/start.js --deploy'
+```
+
+`start.js --deploy` 内部 `docker compose up -d` + 等关键服务 healthy（最多 120s）。
+
+#### 永久修复
+合并 MR !82 后两条 commit 落地：
+- `43a5d0a` `swap-staging-active.sh` alive probe（same-SHA 分支探 status.js，都 alive 仍 exit 0；不健康 或 `--force` fall through）
+- `3c36f77` `deploy:staging` health gate 钉到 `http://${STAGING_HOST}:8080/health`（drift-proof）
+
+配套：清理 GitLab Variables 里 `STAGING_BASE_URL=:3000` override（commit 已免疫，但避免误导后续 ops）。
+
+设计文档：
+- `docs/superpowers/specs/2026-08-22-swap-staging-active-alive-probe-design.md`
+- `docs/superpowers/specs/2026-08-22-staging-health-gate-architecture-pin-design.md`
+
 ---
 
 ## 9. 关联
