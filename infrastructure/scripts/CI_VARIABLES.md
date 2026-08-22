@@ -241,6 +241,41 @@ docker push zhcoder-docker-registry.com:8000/official/prom/alertmanager:v0.27.0
 - 点 `deploy:staging` → **Retry**
 - 想跑完整 `deploy → e2e` 链路：pipeline 页右上角 **Retry** 下拉 → **Retry with same variables**
 
+### 已知用过的第三方基础镜像清单
+
+`load-images.js --mode=pull` 在 staging 实际拉取的第三方基础镜像共 **11 个**（compose 文件 → 镜像名）：
+
+| Compose 文件 | 镜像 |
+|---|---|
+| `docker-compose-infra.yml` | `hashicorp/consul:2.0.1`、`gliderlabs/registrator:master`、`redis:7-alpine`、`mysql:8.0`、`rabbitmq:3.13-management-alpine` |
+| `docker-compose-observability.yml` | `prom/prometheus:v2.51.0`、`prom/alertmanager:v0.27.0`、`grafana/grafana:10.4.0`、`hashicorp/consul-template:0.32.0`、`otel/opentelemetry-collector-contrib:0.96.0`、`jaegertracing/all-in-one:1.55` |
+
+不在 sync 范围：
+- **业务服务镜像**（`micro-server/<svc>:<sha>` 共 9 个 + `coder/mysql-replica:8.0`）—— `build_images:staging` 自己 push，sync 脚本不动它们
+- **`grafana/loki:3.3.2` / `grafana/promtail:3.3.2`** —— 在 `docker-compose-observability.staging.yml` 里，但 `load-images.js` 当前不扫此文件，由 ops 手动 `up -d` 时拉
+
+### 批量同步（防患于未然）
+
+staging 服务器 (192.168.2.31) 上一行命令把 11 个第三方基础镜像全跑一遍（幂等，已在内网的自动跳过）：
+
+```bash
+bash infrastructure/scripts/sync-staging-images.sh --images "
+  hashicorp/consul:2.0.1
+  gliderlabs/registrator:master
+  redis:7-alpine
+  mysql:8.0
+  rabbitmq:3.13-management-alpine
+  prom/prometheus:v2.51.0
+  prom/alertmanager:v0.27.0
+  grafana/grafana:10.4.0
+  hashicorp/consul-template:0.32.0
+  otel/opentelemetry-collector-contrib:0.96.0
+  jaegertracing/all-in-one:1.55
+"
+```
+
+新增第三方镜像时（往 `docker-compose-infra.yml` / `docker-compose-observability.yml` 加 `image:` 行）：先 `--check` 一次确认在内网，不在则 sync；并把新镜像加到上面清单里（保持文档与 compose 同步）。
+
 ---
 
 ## 7. 紧急回滚
