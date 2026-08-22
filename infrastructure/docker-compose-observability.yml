@@ -27,7 +27,9 @@ services:
     restart: unless-stopped
 
   alertmanager:
-    image: ${BASE_REGISTRY}prom/alertmanager:v0.27.0
+    # TEMPORARY: 内网 registry 缺 prom/alertmanager:v0.27.0 (job 24913)。
+    # TODO(revert): 内网补齐后改回 ${BASE_REGISTRY}prom/alertmanager:v0.27.0
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/prom/alertmanager:v0.27.0
     container_name: observability-alertmanager
     ports:
       - "9093:9093"
