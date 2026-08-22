@@ -188,7 +188,62 @@ ssh kudi@192.168.2.31 "sudo install -m755 infrastructure/scripts/staging-gc.sh /
 
 ---
 
-## 6. 紧急回滚
+## 6. 镜像缺失同步 SOP
+
+`deploy:staging` 在 staging 服务器上跑 `release/dist-template/bin/load-images.js --mode=pull`，从内网 registry (`${STAGING_REGISTRY}/${STAGING_BASE_PATH}`) 拉取 compose 里所有 `image:` 引用。**任一缺失即整个 deploy job fail (exit 1)**——这是 hard fail 设计：业务服务镜像缺失必须 fail-fast。
+
+但**第三方基础镜像**（prometheus / alertmanager / grafana / jaeger / otel-collector / consul / mysql / redis / rabbitmq 等）偶尔会因镜像仓库 GC / 重置出现 tag 不在仓库里，且与本次 PR 内容**无关**。这种场景的修复 SOP 在此。
+
+> 历史案例：[job 24913](http://192.168.2.16/template/low-memory-micro-services/-/jobs/24913)（commit c63679fc）— `prom/alertmanager:v0.27.0` 在内网仓库缺失，整个 deploy 红标但与 cargo-deny 升级无关。
+
+**一键同步（推荐）**：
+
+`infrastructure/scripts/sync-staging-images.sh` 把"缺什么 → 一行命令补上"沉淀为 ops 资产。**在 staging 服务器 (192.168.2.31) 上执行**：
+
+```bash
+# 1) 先 dry-run 看会做什么（不实际拉/推）
+bash infrastructure/scripts/sync-staging-images.sh --dry-run \
+    --images "prom/alertmanager:v0.27.0"
+
+# 2) 实际同步
+bash infrastructure/scripts/sync-staging-images.sh \
+    --images "prom/alertmanager:v0.27.0"
+
+# 3) 也可以从 stdin 喂入（方便从 CI 失败日志批量提取）
+bash infrastructure/scripts/sync-staging-images.sh <<'EOF'
+prom/alertmanager:v0.27.0
+mysql:8.0
+EOF
+```
+
+脚本行为：
+- **幂等**：先 `docker manifest inspect` 内网仓库，已在则跳过；不存在才 pull + tag + push
+- **默认上游** `docker.io`，可通过 `UPSTREAM_REGISTRY` env 覆盖
+- **模式**：默认 `sync`；支持 `--check`（只检查不推）/ `--dry-run`（只看不执行）/ `--from-tar <file>`（staging 服务器不通 docker.io 时用离线 tarball 喂入）
+
+**手动 fallback（无脚本可用时）**：
+
+```bash
+# 在 staging 服务器，三行命令即可
+docker pull prom/alertmanager:v0.27.0
+docker tag prom/alertmanager:v0.27.0 \
+  zhcoder-docker-registry.com:8000/official/prom/alertmanager:v0.27.0
+docker push zhcoder-docker-registry.com:8000/official/prom/alertmanager:v0.27.0
+```
+
+注意 `${BASE_REGISTRY}` 默认展开为 `zhcoder-docker-registry.com:8000/official/`（带尾斜杠后 `official/`，不要拼成 `officialprom`）。
+
+**同步后重跑 deploy**：
+
+镜像补齐后去 GitLab UI 重跑失败的 job 即可，**不需要新 commit**：
+
+- 打开失败的 pipeline（[示例](http://192.168.2.16/template/low-memory-micro-services/-/pipelines/6621)）
+- 点 `deploy:staging` → **Retry**
+- 想跑完整 `deploy → e2e` 链路：pipeline 页右上角 **Retry** 下拉 → **Retry with same variables**
+
+---
+
+## 7. 紧急回滚
 
 **Continuous staging 自动回滚**：e2e 失败时 `swap-staging-active.sh` 会把 staging-prev 重新链为 active，无需人工介入。
 
@@ -220,7 +275,7 @@ sudo /home/kudi/coder-micro-services/infrastructure/scripts/stop-prod.sh
 
 ---
 
-## 7. 已知未覆盖（留待后续阶段）
+## 8. 已知未覆盖（留待后续阶段）
 
 - **nginx TLS terminator**（443/SSL）：当前仅 8080/HTTP。spec `2026-07-06-prod-compose-overlay-design.md` 写明推到 staging 后再做。
 - **K8s / Helm**：完全 out-of-scope。
