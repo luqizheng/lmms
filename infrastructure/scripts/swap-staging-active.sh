@@ -74,7 +74,13 @@ if [ "${DRY_RUN}" = "1" ]; then
   echo "[swap]   prev=${PREV:-<none>}"
   echo "[swap]   new=${NEW_DIR}"
   echo "[swap]   same-dir=${SAME_DIR}（1=active 已指 NEW_DIR，跳 step 2/3）"
-  echo "[swap]   复用 prev secrets/ + .env 到 new"
+  if [ -n "${PREV}" ] && [ -d "${PREV}" ]; then
+    echo "[swap]   复用 prev secrets/ + .env 到 new"
+  elif [ ! -f "${NEW_DIR}/.env" ] && [ -f "${NEW_DIR}/.env.example" ]; then
+    echo "[swap]   从 ${NEW_DIR}/.env.example 初始化 .env（首次部署，无 prev 可复用）"
+  else
+    echo "[swap]   new 已存在 .env，跳过初始化"
+  fi
   echo "[swap]   ln -sfn ${PREV:-<none>} ${PREV_LINK}"
   echo "[swap]   ln -sfn ${NEW_DIR} ${ACTIVE_LINK}"
   echo "[swap]   cd ${NEW_DIR} && node bin/stop.js && node bin/start.js --deploy"
@@ -91,6 +97,14 @@ if [ "${SAME_DIR}" = "0" ] && [ -n "${PREV}" ] && [ -d "${PREV}" ]; then
     cp -a "${PREV}/.env" "${NEW_DIR}/.env" 2>/dev/null || true
     echo "[swap] ✓ 复用 .env from prev"
   fi
+fi
+
+# 2.5 首次部署 fallback：没有 prev 可复用，从 .env.example 兜底一份 .env，
+# 否则 bin/start.js 的 `docker compose --env-file .env` 会立刻失败。
+# secrets/ 暂留空（待运维手工跑 `make secrets` 替换 __CHANGE_ME__）。
+if [ -z "${PREV}" ] && [ ! -f "${NEW_DIR}/.env" ] && [ -f "${NEW_DIR}/.env.example" ]; then
+  cp -a "${NEW_DIR}/.env.example" "${NEW_DIR}/.env"
+  echo "[swap] ✓ 从 .env.example 初始化 .env（staging 首次部署，需后续跑 make secrets 替换占位符）"
 fi
 
 # 3. 把当前 active 退到 staging-prev（rollback 锚点）
