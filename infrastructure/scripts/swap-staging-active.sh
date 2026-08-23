@@ -99,12 +99,13 @@ if [ "${SAME_DIR}" = "0" ] && [ -n "${PREV}" ] && [ -d "${PREV}" ]; then
   fi
 fi
 
-# 2.5 首次部署 fallback：没有 prev 可复用，从 .env.example 兜底一份 .env，
-# 否则 bin/start.js 的 `docker compose --env-file .env` 会立刻失败。
+# 2.5 .env 兜底：NEW_DIR 缺 .env 时无条件从 .env.example 复制（job 25200 踩到 PREV==NEW_DIR
+# fallthrough + SAME_DIR=1 跳过 step 2 的边界；首次部署 PREV="" 也走这里）。
+# 否则 bin/start.js / bin/stop.js 的 `docker compose --env-file .env` 会立刻失败。
 # secrets/ 暂留空（待运维手工跑 `make secrets` 替换 __CHANGE_ME__）。
-if [ -z "${PREV}" ] && [ ! -f "${NEW_DIR}/.env" ] && [ -f "${NEW_DIR}/.env.example" ]; then
+if [ ! -f "${NEW_DIR}/.env" ] && [ -f "${NEW_DIR}/.env.example" ]; then
   cp -a "${NEW_DIR}/.env.example" "${NEW_DIR}/.env"
-  echo "[swap] ✓ 从 .env.example 初始化 .env（staging 首次部署，需后续跑 make secrets 替换占位符）"
+  echo "[swap] ✓ 从 .env.example 兜底 .env（占位符需后续跑 make secrets 替换）"
 fi
 
 # 3. 把当前 active 退到 staging-prev（rollback 锚点）
