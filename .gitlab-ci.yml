@@ -535,6 +535,9 @@ e2e:staging:
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new -N -f
         -R 3000:localhost:3000 -R 8080:localhost:8080 -R 8500:localhost:8500
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
+    # node:20 镜像不自带 pnpm；corepack 激活 pnpm@9（对齐 lockfileVersion 9.0）
+    - corepack enable
+    - corepack prepare pnpm@9 --activate
     - cd tests/e2e && pnpm install --frozen-lockfile
   script:
     # e2e 跑刚部署的 SHA（active 已 swap 到 ${STAGING_SHA}，staging server 上跑的就是它）
