@@ -507,8 +507,8 @@ deploy:staging:
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
         "STAGING_BASE_DIR='${STAGING_PROJECT_DIR}' bash '${REMOTE_DIR}/infrastructure/scripts/swap-staging-active.sh' '${STAGING_SHA}'"
     # post-deploy health gate
-    - 'curl -fsS --max-time 10 "http://${STAGING_HOST}:8080/health" | tee /tmp/post-deploy-health.txt'
-    - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "frontend health body mismatch"; exit 1; }'
+    - 'curl -fsS --max-time 10 "http://${STAGING_HOST}:3000/health" | tee /tmp/post-deploy-health.txt'
+    - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "api-gateway health body mismatch"; exit 1; }'
     - echo "[deploy:staging] done — sha=${STAGING_SHA} active=staging-${STAGING_SHA}"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
