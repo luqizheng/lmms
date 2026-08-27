@@ -510,14 +510,11 @@ deploy:staging:
     - 'curl -fsS --max-time 10 "http://${STAGING_HOST}:3000/health" | tee /tmp/post-deploy-health.txt'
     - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "api-gateway health body mismatch"; exit 1; }'
     - echo "[deploy:staging] done — sha=${STAGING_SHA} active=staging-${STAGING_SHA}"
-    # 抓 MySQL root 密码生成 dotenv artifact（make secrets 每次 deploy 重生成，CI 无法 hardcode）
+    # 抓 MySQL root 密码生成 dotenv artifact（make secrets 每次 deploy 重生成）。
+    # SSH 远端只 cat + 管道 awk（避开远端 bash 引号嵌套坑）。
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
-        "$STAGING_DEPLOY_USER@$STAGING_HOST"
-        "awk -F= '/^MYSQL_ROOT_PASSWORD=/ {print \"E2E_DB_PASSWORD=\" \$2}' '${REMOTE_DIR}/.env' > '${REMOTE_DIR}/.staging-secrets"
-    - scp -i ~/.ssh/deploy_key -P "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
-        "$STAGING_DEPLOY_USER@$STAGING_HOST:${REMOTE_DIR}/.staging-secrets" .staging-secrets
-    - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
-        "$STAGING_DEPLOY_USER@$STAGING_HOST" "rm -f '${REMOTE_DIR}/.staging-secrets'"
+        "$STAGING_DEPLOY_USER@$STAGING_HOST" "cat '${REMOTE_DIR}/.env'"
+        | awk -F= '/^MYSQL_ROOT_PASSWORD=/ {print "E2E_DB_PASSWORD=" $2}' > .staging-secrets
   artifacts:
     reports:
       dotenv: .staging-secrets
