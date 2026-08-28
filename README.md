@@ -244,6 +244,10 @@ docker run --rm `
 | `coder-add-route` | 给现有 service 加路由（含 utoipa 注解 + openapi.rs 注册） |
 | `coder-migrate-db` | 加迁移（MySQL + SQLite 双版本） |
 | `coder-new-service` | 脚手架新 Rust microservice（满足 8-item 服务规范） |
+| `coder-sdk-publish-npm` | 发布 `@digua/dist-tools` 到 `npm.kudi.repos` 私有 registry（含 preflight + tag） |
+| `coder-sdk-publish-rust` | 发布 Rust crates 到 kellnr 私有 registry（libs/* 17 + sdk/rust/* 7，含拓扑顺序与 dry-run） |
+| `coder-sdk-publish-maven` | 发布 Java SDK 到 Reposilite（release + snapshot，含 `mvn versions:set` 自动 bump + curl 上传模式 + 4 级凭证 fallback） |
+| `coder-service-release` | 服务镜像 release（`docker:build` + `release:build` + `release:deploy`，含 compose `command:` 命名扫描与 L1/L2 loop 校验） |
 
 完整 L4 触发器规则见 `.trae/rules/project_rules.md`。
 
