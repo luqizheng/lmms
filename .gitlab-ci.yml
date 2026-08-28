@@ -550,8 +550,12 @@ e2e:staging:
     - cd tests/e2e && pnpm install --frozen-lockfile
   script:
     # e2e 跑刚部署的 SHA（active 已 swap 到 ${STAGING_SHA}，staging server 上跑的就是它）
-    - pnpm run test:e2e:api -- --base-url=http://localhost:8080
-    - pnpm run test:e2e:ui  -- --base-url=http://localhost:8080
+    # before_script 已 cd tests/e2e + pnpm install --frozen-lockfile，所以 pnpm 在当前目录
+    # 的 package.json 找 scripts；tests/e2e/package.json 只有 test:api / test:ui，没有
+    # test:e2e:api（那是 root package.json 里的 alias，定义是 pnpm -C tests/e2e test:api，
+    # 在 tests/e2e 子目录跑会报 ERR_PNPM_NO_SCRIPT）。
+    - pnpm run test:api -- --base-url=http://localhost:8080
+    - pnpm run test:ui  -- --base-url=http://localhost:8080
   # 失败时 rollback：swap 回 staging-prev（deploy:staging 已把旧版退到 prev）
   after_script:
     - |
