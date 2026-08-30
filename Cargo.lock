@@ -1735,7 +1735,7 @@ dependencies = [
 
 [[package]]
 name = "digua_authz"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "axum 0.8.9",
  "base64 0.22.1",
@@ -1751,7 +1751,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -1770,7 +1770,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_cache"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "async-trait",
  "digua_common_error",
@@ -1781,7 +1781,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_config"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "base64 0.22.1",
  "config",
@@ -1796,7 +1796,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_crypto"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1813,7 +1813,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_db"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1829,7 +1829,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_error"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "axum 0.8.9",
  "reqwest",
@@ -1841,7 +1841,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_event"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1865,7 +1865,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_health"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "axum 0.8.9",
  "http-body-util",
@@ -1882,7 +1882,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_http"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "axum 0.8.9",
  "bytes",
@@ -1899,7 +1899,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_jwt"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "chrono",
  "jsonwebtoken",
@@ -1913,7 +1913,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_log"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "axum 0.8.9",
  "digua_common_error",
@@ -1929,7 +1929,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_ratelimit"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "axum 0.8.9",
  "chrono",
@@ -1943,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
@@ -1956,7 +1956,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry_axum"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "axum 0.8.9",
  "digua_common_telemetry",
@@ -1975,7 +1975,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_validator"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "digua_common_error",
  "validator",
@@ -2039,7 +2039,7 @@ dependencies = [
 
 [[package]]
 name = "digua_jwt_ctx"
-version = "1.1.0"
+version = "1.5.0"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
