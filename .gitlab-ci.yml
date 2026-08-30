@@ -604,7 +604,9 @@ sdk_publish:
   before_script:
     # maven 镜像不带 node，但发布脚本是 node 实现；CI variables 段不支持
     # bash 的 ${CI_COMMIT_TAG#v} 展开，版本号必须在 script 的 shell 里算。
+    # 脚本 require('chalk')/('ora') 等仓库根 dependencies，maven 镜像没 node_modules，需先装。
     - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs)
+    - npm ci --silent --no-audit --no-fund
     - mkdir -p ~/.m2
     - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
