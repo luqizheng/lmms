@@ -650,6 +650,9 @@ build_images:tagged:
   # [shell] runner 没有 node_modules，需 npm ci
   before_script:
     - npm ci --silent --no-audit --no-fund
+    # docs-site 镜像 pre-build 在宿主机跑 `pnpm docs:build`（vitepress，依赖装在仓库根），
+    # shell runner 默认无 pnpm，需全局安装；否则 spawnSync('pnpm') 立即 ENOENT。
+    - npm install -g pnpm
     # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
     # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
     # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。

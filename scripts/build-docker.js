@@ -323,8 +323,12 @@ function buildService(name, ctx) {
   if (name === 'docs-site') {
     console.log(`${chalk.dim(`[pre-build]`)} pnpm docs:build (生成静态站点)`);
     const r = spawnSync('pnpm', ['docs:build'], { cwd: ROOT_DIR, stdio: 'inherit', shell: false });
+    if (r.error) {
+      console.log(`${FAIL} [pre-build-fail] docs-site: 无法执行 pnpm: ${r.error.message}`);
+      return false;
+    }
     if (r.status !== 0) {
-      console.log(`${FAIL} [pre-build-fail] docs-site: pnpm docs:build 失败`);
+      console.log(`${FAIL} [pre-build-fail] docs-site: pnpm docs:build 失败 (exit ${r.status})`);
       return false;
     }
   }
