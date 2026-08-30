@@ -601,13 +601,16 @@ sdk_publish:
   stage: publish
   tags: [docker]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
-  variables:
-    SDK_VERSION: "${CI_COMMIT_TAG#v}"
   before_script:
+    # maven 镜像不带 node，但发布脚本是 node 实现；CI variables 段不支持
+    # bash 的 ${CI_COMMIT_TAG#v} 展开，版本号必须在 script 的 shell 里算。
+    - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs)
     - mkdir -p ~/.m2
     - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
-    - node scripts/publish-maven-release.js --version "${SDK_VERSION}"
+    - export VERSION="${CI_COMMIT_TAG#v}"
+    - echo "=== sdk_publish (maven) — VERSION=${VERSION} ==="
+    - node scripts/publish-maven-release.js --version "${VERSION}"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -617,7 +620,7 @@ sdk_publish:
 # libs/ 17 个 crate（common-error / common-db / common-jwt / authz 等）按拓扑顺序发布
 # sdk/rust/ 7 个 crate（digua-http-client + 6 个 service SDK）按依赖顺序发布
 # 发布顺序由各自脚本内部处理（path 依赖临时替换为 version 依赖，发布完恢复）
-# VERSION 由 ${CI_COMMIT_TAG#v} 注入（与 sdk_publish 共享同一 VERSION 语义）
+# VERSION 在 script 的 shell 里从 CI_COMMIT_TAG 去 v 前缀得到（CI variables 段不支持 bash 展开）
 rust_publish:
   stage: publish
   tags: [docker]
@@ -625,10 +628,11 @@ rust_publish:
   variables:
     CARGO_REGISTRIES_KELLNR_TOKEN: "${KELLNR_TOKEN}"
     CARGO_REGISTRIES_KELLNR_INDEX: "sparse+http://192.168.2.12:16444/api/v1/crates/"
-    SDK_VERSION: "${CI_COMMIT_TAG#v}"
   script:
-    - node scripts/publish-libs.js "${SDK_VERSION}" --registry kellnr
-    - node scripts/publish-rust-sdks.js "${SDK_VERSION}" --registry kellnr
+    - export VERSION="${CI_COMMIT_TAG#v}"
+    - echo "=== rust_publish — VERSION=${VERSION} ==="
+    - node scripts/publish-libs.js "${VERSION}" --registry kellnr
+    - node scripts/publish-rust-sdks.js "${VERSION}" --registry kellnr
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -684,17 +688,19 @@ build_images:tagged:
 # 把 release/dist-tools 包发到内网 npm registry（http://npm.kudi.repos/）。
 # 凭证由 NPM_TOKEN CI Variable 注入；目标 registry 在 dist-tools/package.json 的
 # publishConfig.registry 已写好。
+# 版本号 / registry host 都在 script 的 shell 里计算 —— CI variables 段不支持
+# bash 的 ${CI_COMMIT_TAG#v} / ${VAR:-default} 展开，写在 variables: 里会得到空值。
 publish_npm:
   stage: publish
   tags: [docker]
   image: $BASE_REGISTRY/node:20
-  variables:
-    NPM_REGISTRY_HOST: "${NPM_REGISTRY_HOST:-npm.kudi.repos}"
-    DIST_TOOLS_VERSION: "${CI_COMMIT_TAG#v}"
   before_script:
+    - export NPM_REGISTRY_HOST="${NPM_REGISTRY_HOST:-npm.kudi.repos}"
     - 'echo "//${NPM_REGISTRY_HOST}/:_authToken=${NPM_TOKEN}" > ~/.npmrc'
     - npm config set registry "http://${NPM_REGISTRY_HOST}"
   script:
+    - export DIST_TOOLS_VERSION="${CI_COMMIT_TAG#v}"
+    - echo "=== publish_npm — VERSION=${DIST_TOOLS_VERSION} (registry http://${NPM_REGISTRY_HOST}) ==="
     - cd release/dist-tools
     - npm version "${DIST_TOOLS_VERSION}" --no-git-tag-version --allow-same-version
     - npm publish --access public

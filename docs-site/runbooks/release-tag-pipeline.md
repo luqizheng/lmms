@@ -79,7 +79,7 @@ GitLab UI：`http://192.168.2.16/template/low-memory-micro-services/-/pipelines?
 | Stage | Job | 期望用时 | 看什么 |
 |---|---|---|---|
 | test | rust_test 等 14 个 | 8-15 min | 全部 PASS |
-| build | 9 个 build_<svc> + build_frontend | 5-15 min | 全部 PASS（与 e2e 同标签流水线 build 一次即可） |
+| build | 9 个 `build_<svc>` + build_frontend | 5-15 min | 全部 PASS（与 e2e 同标签流水线 build 一次即可） |
 | deploy | deploy + deploy_smoke | 3-5 min | SSH 通；frontend:8080/health = `{"status":"ok"}` |
 | e2e | 3 个 e2e_* | 5-15 min | e2e_ui_test 用 Playwright 跑前需 STAGING 可用 |
 | **publish** | **4 个并行** ⭐ | **5-20 min** | 见下表 |

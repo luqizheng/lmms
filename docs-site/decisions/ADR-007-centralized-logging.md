@@ -230,7 +230,7 @@ docker exec promtail wget -qO- http://localhost:9080/ready
 # → 返回 "ready"
 ```
 
-Loki UI（http://<staging-host>:3100）能查询到所有服务的 JSON 日志。
+Loki UI（`http://<staging-host>:3100`）能查询到所有服务的 JSON 日志。
 
 ### 阶段 A3 — Grafana 集成（半天）
 
