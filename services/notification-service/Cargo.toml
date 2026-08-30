@@ -34,7 +34,6 @@ futures = "0.3"
 config = { workspace = true }
 serde_yaml = "0.9"
 prometheus = "0.13"
-prometheus_exporter = "0.1"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 opentelemetry = "0.24"
