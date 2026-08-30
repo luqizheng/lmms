@@ -292,7 +292,7 @@ e2e_migration_state_test:
     FILE_DEV_BT: "${FILE_DEV_BT}"
     PRUE_DEV_BT: "${PRUE_DEV_BT}"
   before_script:
-    - 'which ssh || (apt-get update && apt-get install -y --no-install-recommends openssh-client)'
+    - 'which ssh && which nc || (apt-get update && apt-get install -y --no-install-recommends openssh-client netcat-openbsd)'
     - mkdir -p ~/.ssh && chmod 700 ~/.ssh
     - if [ -n "$SSH_PRIVATE_KEY" ]; then printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key; fi
     - ssh-keyscan -H -p "$STAGING_SSH_PORT" "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
