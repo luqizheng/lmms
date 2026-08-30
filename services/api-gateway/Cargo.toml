@@ -43,7 +43,6 @@ clap = { version = "4", features = ["derive"] }
 toml = "0.8"
 glob = "0.3"
 prometheus = "0.13"
-prometheus_exporter = "0.1"
 utoipa = { version = "5", features = ["axum_extras", "yaml"] }
 
 opentelemetry = "0.24"

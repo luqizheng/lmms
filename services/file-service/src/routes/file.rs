@@ -151,10 +151,10 @@ pub async fn download_file(
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
     let mut headers = axum::http::HeaderMap::new();
-    headers.insert(
-        axum::http::header::CONTENT_TYPE,
-        content_type.parse().unwrap(),
-    );
+    let parsed_content_type = content_type
+        .parse()
+        .unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream"));
+    headers.insert(axum::http::header::CONTENT_TYPE, parsed_content_type);
     // 强制作为附件下载，避免浏览器把文本/图片内联渲染
     let filename_ascii: String = info
         .filename

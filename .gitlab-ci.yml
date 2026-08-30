@@ -105,9 +105,8 @@ cleanup:buildx:
 # 绕过 mirror 走默认 upstream（static.rust-lang.org，runner 出网可达）
 # 临时装上两 component；后续 ops 把组件 bake 进镜像后可去掉这两行。
 #
-# OpenAPI drift 检查保留原 spec_generate 的 allow_failure=true 语义
-# （不阻断 strict lint/test；现有 iam-service/openapi.yaml 与 api-gateway/yaml
-# 行尾差异是已知 follow-up，不在本次合并范围内）。
+# OpenAPI drift 检查现在是阻断式：历史的 iam/api-gateway openapi.yaml 行尾差异已解决，
+# 重新生成后 8 个服务 spec 与代码完全一致，`git diff --exit-code` 恢复拦截漂移。
 rust_ci:
   stage: test
   tags: [docker]
@@ -120,8 +119,8 @@ rust_ci:
     - cargo clippy --workspace --all-targets -- -D warnings
     # dump_openapi bin target 在 clippy --all-targets 时已编过，增量 0 成本
     - node scripts/dump-openapi-specs.js
-    # openapi drift 单独判定（保留原 spec_generate allow_failure=true 语义）
-    - git diff --exit-code -- 'services/*/openapi.yaml' || echo "[rust_ci] openapi drift — non-blocking"
+    # openapi drift 阻断式：spec 与代码不一致时 job 失败
+    - git diff --exit-code -- 'services/*/openapi.yaml'
     # test 增量复用 clippy 编过的 lib
     - cargo test --workspace --lib --verbose
   artifacts:
@@ -777,19 +776,18 @@ cargo_deny:
     - git config --global url."https://gh-proxy.org/https://github.com/".insteadOf "https://github.com/"
     - cargo install cargo-deny --locked
   script:
-    - cargo deny check 2>&1 | tee cargo-deny.log
-  # deny.toml uses old cargo-deny syntax (e.g. unmaintained = "warn",
-  # skip-tree = []) from cargo-deny 0.14 era. CI installs 0.20.2 which
-  # rejects these with "unexpected value" / "unexpected keys" errors.
-  # allow_failure=true so the gate runs but doesn't block pushes.
-  # Follow-up: rewrite deny.toml against cargo-deny 0.20.x schema.
+    - set -o pipefail && cargo deny check 2>&1 | tee cargo-deny.log
+  # deny.toml 已在 commit 746600d 迁移到 cargo-deny 0.20.x schema，本地 `cargo deny check`
+  # 全绿（advisories/bans/licenses/sources 均 ok），门禁恢复阻断。
+  # 注意：cargo_audit 仍 allow_failure=true（RustSec advisory-db 依赖 gh-proxy 联网拉取，
+  # 网络抖动会误挂）；cargo_deny 用本地 Cargo.lock + 打包进镜像的离线 db，无此问题。
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: on_success
     - when: manual
       allow_failure: true
-  allow_failure: true
+  allow_failure: false
   artifacts:
     when: always
     name: "cargo-deny-$CI_COMMIT_SHORT_SHA"

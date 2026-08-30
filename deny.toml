@@ -16,15 +16,11 @@
 #   [B] 无安全升级路径（传递依赖受限于上游），只能 ignore
 ignore = [
     # === A 组：建议后续 cargo update -p <crate> 升级以消除 ignore ===
+    # prometheus_exporter 死依赖移除后，hyper 0.12 / h2 0.1 / tokio 0.1 / net2 /
+    # time 0.1 等老依赖（及其 RUSTSEC ignore）已随依赖树裁剪消失，未再列出。
     "RUSTSEC-2026-0190",  # anyhow v1.0.102 → >=1.0.103
     "RUSTSEC-2026-0204",  # crossbeam-epoch v0.9.18 → >=0.9.20
-    "RUSTSEC-2023-0034",  # h2 v0.1.26 → >=0.4.16
-    "RUSTSEC-2024-0003",  # h2 v0.1.26
-    "RUSTSEC-2024-0332",  # h2 v0.1.26
-    "RUSTSEC-2026-0258",  # h2 v0.1.26 → >=0.4.16
     "RUSTSEC-2026-0119",  # hickory-proto v0.25.2 → >=0.26.1
-    "RUSTSEC-2021-0078",  # hyper v0.12.36 → >=0.14.10
-    "RUSTSEC-2021-0079",  # hyper v0.12.36
     "RUSTSEC-2024-0421",  # idna v0.5.0 → >=1.0.0
     "RUSTSEC-2024-0437",  # protobuf v2.28.0 → >=3.7.2
     "RUSTSEC-2026-0194",  # quick-xml v0.38.4 → >=0.41.0
@@ -34,26 +30,13 @@ ignore = [
     "RUSTSEC-2026-0098",  # rustls-webpki v0.102.8
     "RUSTSEC-2026-0099",  # rustls-webpki v0.102.8
     "RUSTSEC-2026-0104",  # rustls-webpki v0.102.8
-    "RUSTSEC-2019-0013",  # spin v0.4.10 → >=0.5.2
-    "RUSTSEC-2020-0071",  # time v0.1.45 → >=0.2.23
-    "RUSTSEC-2021-0124",  # tokio v0.1.22 → >=1.13.1
     # === B 组：传递依赖，无安全升级路径 ===
     "RUSTSEC-2025-0052",  # async-std v1.13.2 (No safe upgrade)
     "RUSTSEC-2026-0118",  # hickory-proto v0.25.2 (No safe upgrade)
     "RUSTSEC-2024-0384",  # instant v0.1.13 (No safe upgrade)
-    "RUSTSEC-2020-0016",  # net2 v0.2.39 (No safe upgrade, deprecated)
     "RUSTSEC-2024-0370",  # proc-macro-error v1.0.4 (No safe upgrade)
     "RUSTSEC-2023-0071",  # rsa v0.9.10 (No safe upgrade)
     "RUSTSEC-2025-0134",  # rustls-pemfile v2.2.0 (No safe upgrade)
-    # tokio 0.1.x 子 crate 系列：被 mysql_async 等传递依赖，无安全升级
-    "RUSTSEC-2026-0054",  # tokio-current-thread v0.1.7
-    "RUSTSEC-2026-0063",  # tokio-executor v0.1.10
-    "RUSTSEC-2026-0058",  # tokio-io v0.1.13
-    "RUSTSEC-2026-0057",  # tokio-reactor v0.1.12
-    "RUSTSEC-2026-0052",  # tokio-sync v0.1.8
-    "RUSTSEC-2026-0059",  # tokio-tcp v0.1.4
-    "RUSTSEC-2026-0051",  # tokio-threadpool v0.1.18
-    "RUSTSEC-2026-0060",  # tokio-timer v0.2.13
 ]
 
 [licenses]
