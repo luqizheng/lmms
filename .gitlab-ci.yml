@@ -602,10 +602,11 @@ sdk_publish:
   tags: [docker]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   before_script:
-    # maven 镜像不带 node，但发布脚本是 node 实现；CI variables 段不支持
+    # maven 镜像不带 node/npm，但发布脚本是 node 实现；CI variables 段不支持
     # bash 的 ${CI_COMMIT_TAG#v} 展开，版本号必须在 script 的 shell 里算。
-    # 脚本 require('chalk')/('ora') 等仓库根 dependencies，maven 镜像没 node_modules，需先装。
-    - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs)
+    # 脚本 require('chalk')/('ora') 等仓库根 dependencies，maven 镜像没 node_modules，需 npm ci。
+    # Ubuntu nodejs 包不含 npm，必须连同 npm 包一起装。
+    - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs npm)
     - npm ci --silent --no-audit --no-fund
     - mkdir -p ~/.m2
     - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
@@ -652,7 +653,8 @@ build_images:tagged:
     - npm ci --silent --no-audit --no-fund
     # docs-site 镜像 pre-build 在宿主机跑 `pnpm docs:build`（vitepress，依赖装在仓库根），
     # shell runner 默认无 pnpm，需全局安装；否则 spawnSync('pnpm') 立即 ENOENT。
-    - npm install -g pnpm
+    # shell runner 以 gitlab-runner 用户执行，npm 全局目录 /usr/lib 需要 sudo（docker 命令同理）。
+    - sudo npm install -g pnpm
     # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
     # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
     # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
