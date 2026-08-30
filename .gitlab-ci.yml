@@ -698,7 +698,16 @@ publish_npm:
   image: $BASE_REGISTRY/node:20
   before_script:
     - export NPM_REGISTRY_HOST="${NPM_REGISTRY_HOST:-npm.kudi.repos}"
-    - 'echo "//${NPM_REGISTRY_HOST}/:_authToken=${NPM_TOKEN}" > ~/.npmrc'
+    # npm.kudi.repos 用 Verdaccio，认证走 basic auth：_auth = base64(user:pass)，
+    # 不是 _authToken。优先 NPM_USERNAME/NPM_PASSWORD；无用户名时回退 NPM_TOKEN。
+    - |
+      if [ -n "$NPM_USERNAME" ] && [ -n "$NPM_PASSWORD" ]; then
+        AUTH=$(printf '%s:%s' "$NPM_USERNAME" "$NPM_PASSWORD" | base64 | tr -d '\n')
+        printf '//%s/:_auth=%s\n' "$NPM_REGISTRY_HOST" "$AUTH" > ~/.npmrc
+        printf 'always-auth=true\n' >> ~/.npmrc
+      else
+        printf '//%s/:_authToken=%s\n' "$NPM_REGISTRY_HOST" "$NPM_TOKEN" > ~/.npmrc
+      fi
     - npm config set registry "http://${NPM_REGISTRY_HOST}"
   script:
     - export DIST_TOOLS_VERSION="${CI_COMMIT_TAG#v}"
