@@ -244,8 +244,11 @@ e2e_api_test:
     - pnpm -C tests/e2e run test:api
   rules:
     # e2e 只在 main / 手动触发时跑 —— MR pipeline 上 staging 还没 deploy，必然 fail
+    # tag pipeline 不部署 staging（deploy:staging 只在 main 跑），e2e 测的是 main 部署的旧
+    # staging，与本次发布产物无关；tag 上放行为非阻断，避免旧 staging 状态卡住 publish/release。
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      allow_failure: true
     - when: manual
       allow_failure: true
 
@@ -262,8 +265,10 @@ e2e_ui_test:
   script:
     - pnpm -C tests/e2e run test:ui
   rules:
+    # tag pipeline 不部署 staging，e2e 测的是 main 部署的旧 staging，与发布产物无关，非阻断
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      allow_failure: true
     - when: manual
       allow_failure: true
 
@@ -335,11 +340,13 @@ e2e_migration_state_test:
       node scripts/e2e-migration-state.js
   after_script:
     - '[[ -s /tmp/tunnel.pid ]] && kill "$(cat /tmp/tunnel.pid)" 2>/dev/null || true'
-  allow_failure: false
   rules:
-    # needs: [deploy] 在 MR 上 deploy 不跑会 fail；e2e_migration 同样要在有 staging 时才跑
+    # needs: [deploy] 在 MR 上 deploy 不跑会 fail；e2e_migration 同样要在有 staging 时才跑。
+    # main 分支为阻断（staging 由 main 的 deploy:staging 部署）；tag pipeline 不部署 staging，
+    # 隧道连的是 main 部署的旧 staging、与发布产物无关，tag 上放非阻断避免卡住 publish/release。
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      allow_failure: true
     - when: manual
       allow_failure: true
 
