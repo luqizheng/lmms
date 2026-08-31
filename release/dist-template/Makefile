@@ -1,7 +1,8 @@
 .PHONY: help secrets up down status logs verify reset-data seed-demo build-frontend load-images upgrade
 
 REGISTRY ?= zhcoder-docker-registry.com:8000
-IMAGE_TAG ?= v1.0.0
+# 镜像 tag 不带 v（git tag 带 v、镜像 tag 不带 v；CI 用 ${CI_COMMIT_TAG#v} 剥 v）
+IMAGE_TAG ?= 1.0.0
 
 help:
 	@echo "coder-micro-services v1.0.0 — 可用命令："
