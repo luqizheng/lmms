@@ -25,7 +25,12 @@ if (!TAG) {
     } catch { /* ignore */ }
   }
 }
-TAG = TAG || 'v1.0.0';
+// 默认镜像 tag 不带 v：git tag 带 v（v1.5.0），CI 用 ${CI_COMMIT_TAG#v} 剥 v 后
+// 推送，registry 里实际存在的是 micro-server/frontend:1.5.0。
+TAG = TAG || '1.0.0';
+// 防御性归一化：用户可能照 git tag 习惯填 v1.5.0，统一剥掉前导 v，
+// 否则镜像检测会 miss 到不存在的 :v1.5.0，白跑 1-2 分钟源码构建。
+TAG = TAG.replace(/^v/, '');
 
 const IMG = `${REGISTRY}/micro-server/frontend:${TAG}`;
 

@@ -94,12 +94,16 @@ const IMAGES = [
   `${REGISTRY}/micro-server/audit-service:${VERSION}`,
   `${REGISTRY}/micro-server/prue-admin-backend:${VERSION}`,
   `${REGISTRY}/micro-server/frontend:${VERSION}`,
+  // mysql-replica 由 CI 单独 buildx 推送（不在 build-docker.js 清单），但主 compose
+  // 引用 micro-server/mysql-replica:<version>，离线全包必须导出，否则 air-gap 缺从库镜像。
+  `${REGISTRY}/micro-server/mysql-replica:${VERSION}`,
   'hashicorp/consul:2.0.1',
   'gliderlabs/registrator:master',
   'redis:7-alpine',
   'mysql:8.0',
   'rabbitmq:3.13-management-alpine',
   'prom/prometheus:v2.51.0',
+  'prom/alertmanager:v0.27.0',
   'grafana/grafana:10.4.0',
   'hashicorp/consul-template:0.32.0',
   'otel/opentelemetry-collector-contrib:0.96.0',
