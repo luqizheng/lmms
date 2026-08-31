@@ -522,9 +522,18 @@ deploy:staging:
     - ssh -i ~/.ssh/deploy_key -p "$STAGING_SSH_PORT" -o StrictHostKeyChecking=accept-new
         "$STAGING_DEPLOY_USER@$STAGING_HOST"
         "STAGING_BASE_DIR='${STAGING_PROJECT_DIR}' bash '${REMOTE_DIR}/infrastructure/scripts/swap-staging-active.sh' '${STAGING_SHA}'"
-    # post-deploy health gate
-    - 'curl -fsS --max-time 10 "http://${STAGING_HOST}:3000/health" | tee /tmp/post-deploy-health.txt'
-    - '[ "$(cat /tmp/post-deploy-health.txt)" = "{\"status\":\"ok\"}" ] || { echo "api-gateway health body mismatch"; exit 1; }'
+    # post-deploy health gate：轮询而非单次探测——全空卷冷启动时 MySQL 初始化 +
+    # 服务 migration/seed 需数分钟，单次 curl 会过早超时（pipeline 6749 实证）。
+    - |
+      for i in $(seq 1 30); do
+        body="$(curl -fsS --max-time 10 "http://${STAGING_HOST}:3000/health" 2>/dev/null || true)"
+        if [ "$body" = '{"status":"ok"}' ]; then
+          echo "[deploy:staging] api-gateway healthy after $((i*10))s"
+          break
+        fi
+        [ "$i" = "30" ] && { echo "api-gateway health gate timeout (300s)"; exit 1; }
+        sleep 10
+      done
     - echo "[deploy:staging] done — sha=${STAGING_SHA} active=staging-${STAGING_SHA}"
     # 抓 MySQL root 密码生成 dotenv artifact（make secrets 每次 deploy 重生成）。
     # SSH 远端只 cat + 管道 awk（避开远端 bash 引号嵌套坑）。
