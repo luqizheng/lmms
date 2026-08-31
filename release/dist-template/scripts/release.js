@@ -103,6 +103,7 @@ const IMAGES = [
   'mysql:8.0',
   'rabbitmq:3.13-management-alpine',
   'prom/prometheus:v2.51.0',
+  'prom/alertmanager:v0.27.0',
   'grafana/grafana:10.4.0',
   'hashicorp/consul-template:0.32.0',
   'otel/opentelemetry-collector-contrib:0.96.0',
