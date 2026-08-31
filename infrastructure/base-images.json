@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-19T08:59:30.368Z",
+  "generatedAt": "2026-08-31T05:56:01.134Z",
   "images": [
     {
       "ref": "alpine:3.21",
@@ -83,11 +83,6 @@
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "prom/alertmanager:v0.27.0",
-      "source": "infrastructure/docker-compose-observability.yml",
-      "mirror": "zhcoder-docker-registry.com:8000/official"
-    },
-    {
       "ref": "prom/prometheus:v2.51.0",
       "source": "infrastructure/docker-compose-observability.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
@@ -103,8 +98,18 @@
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl-v3",
+      "ref": "swr.cn-north-4.myhuaweicloud.com/ddn-k8s/quay.io/prometheus/alertmanager:v0.27.0",
+      "source": "infrastructure/docker-compose-observability.yml",
+      "mirror": "zhcoder-docker-registry.com:8000/official"
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl",
       "source": "services/api-gateway/Dockerfile",
+      "mirror": null
+    },
+    {
+      "ref": "zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl-v3",
+      "source": ".gitlab-ci.yml",
       "mirror": null
     }
   ]

@@ -27,7 +27,10 @@ services:
     restart: unless-stopped
 
   alertmanager:
-    image: ${BASE_REGISTRY}prom/alertmanager:v0.27.0
+    # 有意走公网镜像代理（quay.io/prometheus 是 alertmanager 官方发布渠道），
+    # 与同文件其他组件走 ${BASE_REGISTRY} 不同：内网 registry 不同步该镜像，
+    # airgap tar 有网环境 pull/save、离线 load，勿改回内网 official/ 路径。
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/quay.io/prometheus/alertmanager:v0.27.0
     container_name: observability-alertmanager
     ports:
       - "9093:9093"
