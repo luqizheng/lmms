@@ -103,7 +103,9 @@ const IMAGES = [
   'mysql:8.0',
   'rabbitmq:3.13-management-alpine',
   'prom/prometheus:v2.51.0',
-  'prom/alertmanager:v0.27.0',
+  // alertmanager 内网 registry 未同步，走公网镜像代理（与 compose 引用一致），
+  // 有网环境 pull/save 进 tar，离线 load 使用，必须用完整地址。
+  'swr.cn-north-4.myhuaweicloud.com/ddn-k8s/quay.io/prometheus/alertmanager:v0.27.0',
   'grafana/grafana:10.4.0',
   'hashicorp/consul-template:0.32.0',
   'otel/opentelemetry-collector-contrib:0.96.0',
