@@ -218,30 +218,34 @@ Java SDK 由 CI 在 `v*.*.*` tag 触发时推送到私有 Maven 仓库。业务 
 所有核心服务镜像统一版本：`${IMAGE_TAG}`
 Registry：`${REGISTRY}`
 
-## 离线镜像打包
+## 离线镜像打包（打离线下发包）
+
+在**开发仓库根目录**、有网环境执行（建议 16GB+ 磁盘）。注意：**传入的是 no-v 版本**（git tag 是 `v1.0.0`，但镜像 tag / 产物名都不带 `v`）：
 
 ```bash
-# 在有网络的环境执行（建议 16GB+ 磁盘）
-bash scripts/release.sh
+node release/dist-template/scripts/release.js 1.0.0     # 早期 shell 版 release.sh 已迁 Node 删除
+pnpm run release:build                                  # 等价：默认版本（no-v）
 
 # 输出：
-#   release/coder-micro-services-v1.0.0-airgap.tar.gz
-#   release/coder-micro-services-v1.0.0/
+#   release/coder-micro-services-1.0.0-airgap.tar.gz
+#   release/coder-micro-services-1.0.0/
 ```
 
 ### 选项
 
 | 用法 | 行为 |
 | --- | --- |
-| `bash scripts/release.sh [VERSION]` | 默认：pull + save 全部镜像 + 同步开发骨架 |
-| `bash scripts/release.sh v1.2.0 --no-images` | 跳过 docker pull/save，仅打文档/配置/骨架包 |
-| `EXPORT_IMAGES=0 bash scripts/release.sh [VERSION]` | 等价 `--no-images`（环境变量风格） |
-| `bash scripts/release.sh --images [VERSION]` | 显式导出镜像（与默认等价，便于 CI 声明） |
-| `bash scripts/release.sh --help` | 打印完整用法 |
+| `node release/dist-template/scripts/release.js [VERSION]` | 默认：pull + save 全部镜像 + 同步开发骨架 |
+| `node release/dist-template/scripts/release.js v1.2.0 --no-images` | 跳过 docker pull/save，仅打文档/配置/骨架包 |
+| `EXPORT_IMAGES=0 node release/dist-template/scripts/release.js [VERSION]` | 等价 `--no-images`（环境变量风格） |
+| `node release/dist-template/scripts/release.js --images [VERSION]` | 显式导出镜像（与默认等价，便于 CI 声明） |
+| `node release/dist-template/scripts/release.js --help` | 打印完整用法 |
 
-- `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 bash scripts/release.sh`。
+- `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 node release/dist-template/scripts/release.js`。
 - flag 优先级高于 `EXPORT_IMAGES` 环境变量；`REGISTRY` 环境变量可覆盖默认仓库。
-- v2 新增：release.sh 自动从开发仓库同步 `contracts/` / `skills/` / `scripts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `services/`（空）+ `Cargo.toml` / `.cargo/config.toml` / `pnpm-workspace.yaml` / `package.json` / `AGENTS.md` 到发布包。**`libs/` 和 `sdk/` 均不打包进分发包**：libs/*（17 个平台基础设施 crate）和 sdk/rust/*（7 个 Rust SDK crate）由 CI rust_publish job 发布到私有 kellnr registry（`http://192.168.2.12:16444`），sdk/java/* 发布到私有 Maven 仓库；业务服务通过 `cargo add --registry kellnr` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 用 `sed` 过滤掉了 `libs/*` 和 `sdk/rust/*` 行以避免指向不存在的目录。`frontend/` 是 compose/services.yml 中 frontend 服务的 build context，离线镜像缺失时供本地 docker build 兜底。
+- v2 新增：release.js 自动从开发仓库同步 `.agents/skills/` + `.agents/rules/` / `scripts/` / `contracts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `tests/e2e`（清理产物）+ `services/`（空骨架 + agents-template.md）+ `Cargo.toml` 到发布包。**`libs/` 和 `sdk/` 均不打包进分发包**：libs/*（17 个平台基础设施 crate）和 sdk/rust/*（7 个 Rust SDK crate）由 CI rust_publish job 发布到私有 kellnr registry，sdk/java/* 发布到私有 Maven 仓库；业务服务通过 `cargo add --registry kellnr` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 被过滤掉 `libs/*` 和 `sdk/rust/*` 行以避免指向不存在的目录。compose（services 与主入口）已统一转成 `image:` 引用且离线包含 `micro-server/frontend:<ver>` 镜像，启动无需现场构建前端；`frontend/` 源码保留在 airgap 骨架里供二次开发改完前端后用源码方式重打镜像。
+- **镜像 tag no-v**：git tag 带 `v`（v1.5.0），发布镜像 tag 不带 v（`1.5.0`）；以下 `IMAGE_TAG` / 下游升级引用的都是 no-v 值。
+- skills 稳定成 `.agents/skills/`（保留点开头，release.js 不再去点；agent 默认 discovery 路径即此）。
 
 ## 升级
 

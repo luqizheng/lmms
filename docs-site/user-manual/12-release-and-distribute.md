@@ -66,7 +66,7 @@ node release/dist-template/scripts/release.js v1.0.0
 #   release/coder-micro-services-v1.0.0/                ← 同上解压版（供本机预览）
 ```
 
-> **路径注意**：脚本位于 `release/dist-template/scripts/release.js`。根 README §离线分发包曾写 `bash scripts/release.sh`，**路径缺了 `release/dist-template/` 前缀**，按那个路径会找不到脚本。请用本节给出的完整路径。
+> **路径注意**：脚本位于 `release/dist-template/scripts/release.js`（早期 shell 版 `release.sh` 已迁 Node 删除）。别用缺了 `release/dist-template/` 前缀的写法；打包在 dev 仓库**根目录**跑 `node release/dist-template/scripts/release.js`。
 
 ### 脚本做了什么
 
@@ -79,26 +79,29 @@ node release/dist-template/scripts/release.js v1.0.0
    - `sdk/`（Java + Rust SDK）
    - `contracts/`（错误码 / 权限码 / 事件 / 约定）
    - `scripts/`（CI 门禁脚本）
-   - `.agents/skills/` → `skills/`（**注意：去掉点开头，详见 §12.8 ⚠️**）
+   - `.agents/skills/` + `.agents/rules/`（**保留点开头，详见 §12.8**）
    - `services/` 骨架（空目录 + `agents-template.md` 模板）
    - `Cargo.toml`（剥掉 services/\* members，业务服务动态加入）
    - `pnpm-workspace.yaml` + `package.json`（根调度脚本）
    - `AGENTS.md`（协作约定）
 4. `tar -czf coder-micro-services-${VERSION}-airgap.tar.gz` 打总包
 
-### 关键选项
+### 关键选项（`node release/dist-template/scripts/release.js`）
 
 | 命令 | 行为 |
 |------|------|
-| `bash scripts/release.sh v1.0.0` | 默认：pull + save 全部镜像 + 同步骨架 |
-| `bash scripts/release.sh v1.0.0 --no-images` | 跳过 docker pull/save，仅打骨架包（供已有镜像的升级包） |
-| `EXPORT_IMAGES=0 bash scripts/release.sh v1.0.0` | 同上（环境变量风格） |
-| `bash scripts/release.sh --images v1.0.0` | 显式导出镜像（与默认等价，便于 CI 声明） |
-| `bash scripts/release.sh --help` | 打印完整用法 |
+| `node release/dist-template/scripts/release.js v1.0.0` | 默认：pull + save 全部镜像 + 同步骨架 |
+| `node release/dist-template/scripts/release.js v1.0.0 --no-images` | 跳过 docker pull/save，仅打骨架包（供已有镜像的升级包） |
+| `EXPORT_IMAGES=0 node release/dist-template/scripts/release.js v1.0.0` | 同上（环境变量风格） |
+| `node release/dist-template/scripts/release.js --images v1.0.0` | 显式导出镜像（与默认等价，便于 CI 声明） |
+| `node release/dist-template/scripts/release.js --help` | 打印完整用法 |
+
+> 早期 shell 版 `release.sh` 已于 2026-08 迁 Node 删除（同一逻辑 = 现役 `release.js`）。以下"脚本做了什么/选项表格"按现役 JS 描述。
+> `pnpm run release:build` = 上述 `release.js`（无参取默认版本）；单测 `pnpm run release:test`。
 
 ### CI 触发（**当前未自动化**）
 
-`.gitlab-ci.yml` 的 `release:dist` job（line 216-241）tag 触发（`v\d+\.\d+\.\d+$`），但**只跑 `node bin/build-frontend.js` + 把 dist-template 当 artifact 上传**——**不自动调 `scripts/release.sh` 产出 airgap tar.gz**。job 内注释（line 232-233）明示：「实际 release 由运维在有网环境执行」。
+`.gitlab-ci.yml` 的 `release:dist` job（line 216-241）tag 触发（`v\d+\.\d+\.\d+$`），但**只跑 `node bin/build-frontend.js` + 把 dist-template 当 artifact 上传**——**不自动调 `release.js` 产出 airgap tar.gz**。job 内注释（line 232-233）明示：「实际 release 由运维在有网环境执行」。
 
 **改进方向**：在 `release:dist` job 的 `script:` 末尾追加 `node release/dist-template/scripts/release.js $CI_COMMIT_TAG`，artifact 同时上传 `release/coder-micro-services-${CI_COMMIT_TAG}-airgap.tar.gz`，即可 tag → 自动出包。改前需在 GitLab Runner 上验证 `docker save` 磁盘空间。
 
@@ -122,9 +125,9 @@ node release/dist-template/scripts/release.js v1.0.0
 
 | 维度 | dev 仓库 | dist 包 |
 |------|----------|---------|
-| Compose 路径 | `infrastructure/docker-compose-services.yml` | `infrastructure/docker-compose-services.yml`（**与 dev 一致**，release.sh sed 重写 volume 挂载源路径） |
+| Compose 路径 | `infrastructure/docker-compose-services.yml` | `infrastructure/docker-compose-services.yml`（**与 dev 一致**，release.js 经 `release-transforms.js remap-volume` 重写 volume 挂载源路径） |
 | 主入口 | `infrastructure/docker-compose.yml`（include 子文件） | `infrastructure/docker-compose.yml`（**与 dev 一致**，`bin/*.sh` 用 `-f infrastructure/docker-compose.yml` 调用） |
-| Skill 路径 | `.agents/skills/` | `skills/`（**去掉了点开头**，AI 工具默认不识别，§12.8 ⚠️） |
+| Skill / rules 路径 | `.agents/skills/` + `.agents/rules/` | `.agents/skills/` + `.agents/rules/`（**与 dev 一致，保留点开头**；release.js 拷 `.agents/rules`，缺时回退 `.trae/rules`） |
 | `services/` | 含 8 个核心服务 + agents-template.md | **空目录** + `agents-template.md`（业务服务动态创建） |
 | `Cargo.toml` members | `services/*` 全列 | `services/*` 被 `sed` 剥掉，由 skill 创建时动态加入 |
 | API Gateway 路由 | `infrastructure/config/api-gateway/routes/*.router.toml` | `infrastructure/config/api-gateway/routes/*.router.toml`（**与 dev 一致**） |
@@ -174,7 +177,7 @@ make verify                  # 端到端冒烟测试
 
 `make help` 看全部 12 个 make 命令。
 
-> **重新配置镜像来源**：dist 包自带 `scripts/setup-wizard.js`（由 release.sh 从 dev 仓库同步）。若需切换 Docker registry 来源（如从 Docker Hub 切到内网 mirror），跑：
+> **重新配置镜像来源**：dist 包自带 `scripts/setup-wizard.js`（由 release.js 从 dev 仓库同步）。若需切换 Docker registry 来源（如从 Docker Hub 切到内网 mirror），跑：
 > ```bash
 > pnpm install && pnpm run setup:wizard   # 交互式配置
 > pnpm run images:sync                    # 重新生成 base-images.json
@@ -197,66 +200,57 @@ make verify                  # 端到端冒烟测试
 
 ---
 
-## 12.7 在 dist 包上创建业务微服务（端到端 8 步）
+## 12.7 在 dist 包上创建业务微服务（端到端 7 步）
 
 dist 包的 `services/` 是空的。客户创建第一个业务微服务的完整流程：
 
 ```
 1.  启动平台                            # make up + make verify（§12.6）
-2.  修正 skill 路径（详见 §12.8 ⚠️）     # ln -s skills .agents/skills
-3.  AI 触发 skill                         # 对 AI 说："新增 order-service"
-4.  skill 自动注册                         # Cargo.toml + compose/services.yml + api-gateway routes
-5.  编写业务代码 + 迁移                    # 按 skill 给出的 10 文件骨架填充
-6.  跑 4 道 CI 门禁                        # §12.9
-7.  构建并启动业务服务                     # docker compose -f docker-compose.yml up -d order-service
-8.  verify 业务服务可访问                  # curl http://localhost:8080/v1/order/...
+2.  AI 触发 skill                         # 对 AI 说："新增 order-service"（skills/rules 已在 .agents/，无需手动修正，§12.8）
+3.  skill 自动注册                         # Cargo.toml + compose/services.yml + api-gateway routes
+4.  编写业务代码 + 迁移                    # 按 skill 给出的 10 文件骨架填充
+5.  跑 4 道 CI 门禁                        # §12.9
+6.  构建并启动业务服务                     # docker compose -f docker-compose.yml up -d order-service
+7.  verify 业务服务可访问                  # curl http://localhost:8080/v1/order/...
 ```
 
 ### 第 3 步的 skill 选择
 
 | 业务服务栈 | Skill | 产出 |
 |-----------|-------|------|
-| **Rust**（推荐，路径最成熟） | `skills/coder-new-service/SKILL.md` | 10 文件最小集（main.rs / lib.rs / config.rs / openapi.rs / routes/ ...）+ 3 步自动注册 |
-| **Java**（Spring Boot 3 + JDK 21） | `skills/coder-new-java-service/SKILL.md` | 多模块 Maven：`<svc>-bootstrap` / `<svc>-api` / `<svc>-domain` / `<svc>-infrastructure` |
+| **Rust**（推荐，路径最成熟） | `.agents/skills/coder-new-service/SKILL.md` | 10 文件最小集（main.rs / lib.rs / config.rs / openapi.rs / routes/ ...）+ 3 步自动注册 |
+| **Java**（Spring Boot 3 + JDK 21） | `.agents/skills/coder-new-java-service/SKILL.md` | 多模块 Maven：`<svc>-bootstrap` / `<svc>-api` / `<svc>-domain` / `<svc>-infrastructure` |
 
 加路由 / 加迁移：
 
 | 场景 | Rust skill | Java skill |
 |------|-----------|-----------|
-| 加新 REST 端点 | `skills/coder-add-route/SKILL.md` | `skills/coder-add-java-route/SKILL.md` |
-| 加新数据库迁移（双版本：MySQL + SQLite） | `skills/coder-migrate-db/SKILL.md` | `skills/coder-migrate-java-db/SKILL.md` |
+| 加新 REST 端点 | `.agents/skills/coder-add-route/SKILL.md` | `.agents/skills/coder-add-java-route/SKILL.md` |
+| 加新数据库迁移（双版本：MySQL + SQLite） | `.agents/skills/coder-migrate-db/SKILL.md` | `.agents/skills/coder-migrate-java-db/SKILL.md` |
 
 **完整业务接入指南**（决策树 / 命名约定 / API Gateway 接入 / 服务发现 / 可观测性 / 11 步上线 checklist / 12 个常见坑）见 [`docs-site/guides/add-new-service`](../guides/add-new-service.md)，本文不重复。
 
 ---
 
-## 12.8 ⚠️ dist 包的 skill 路径修正（必读）
+## 12.8 dist 包的 skills / rules 路径（现值，无需改动）
 
-`scripts/release.sh` 第 156-159 行把 dev 仓库的 `.agents/skills/` **拷成了 `skills/`**（去掉了点开头）。这是为了让 git 不忽略、tar 看得见。
+`release.js` 打包时把 dev 仓库的 `.agents/skills/` 与 `.agents/rules/` **原样拷进 dist 包（保留点开头）**；`.agents/rules/` 缺失时回退 `.trae/rules/`。因此 dist 包里 AI 工具的 skill / rules 发现路径与 dev 仓库一致，**拿到即用、无需手动 symlink**。
 
-但 **AI 工具（Claude Code / Cursor / OpenCode）默认从 `.agents/skills/` 加载 skill**，拿到 dist 包后**直接用会找不到 skill**。
+> 历史：早期 shell 版 `release.sh` 曾把 skills 去点拷成 `skills/`，导致 AI 工具默认 `.agents/skills/` 找不到、需 `ln -s skills .agents/skills`。该问题随迁 Node 消失——现役 `release.js` 保留 `.agents/` 前缀。
 
-**修正方法**（在 dist 包根目录执行一次）：
-
+**自检**（确认两目录都在、AI 工具能发现）：
 ```bash
-# 选项 A：symlink（推荐，零拷贝）
-ln -s skills .agents/skills
-
-# 选项 B：重命名
-mv skills .agents/skills
+ls .agents/skills/   # 应含全部 skill 的 SKILL.md
+ls .agents/rules/    # auth-rules.md / project_rules.md / ...
 ```
 
-> 修正后 AI 工具可正常加载所有 6 个 skill。同理，若用 `claude` / `cursor` / `opencode` 等命令，确认它们的 skill discovery 路径（一般同 `.agents/skills/`，详见各工具文档）。
+### agents-template.md 在 dist 包内
 
-### 顺带核对：`services/agents-template.md` 是否在 dist 包内
-
-`scripts/release.sh` 第 163-165 行在 `${REPO_ROOT}/services/agents-template.md` 存在时拷贝。`coder-new-service` skill 用这个文件作为新服务的 AGENTS.md 模板（rust 路径）。**如果 dist 包内缺这个文件**，skill 会报错：
-
+`release.js` 在 `${REPO_ROOT}/services/agents-template.md` 存在时将其拷入 dist 包的 `services/agents-template.md`（`coder-new-service` skill 用该文件作为新服务的 AGENTS.md 模板）。假如缺失，skill 会报错：
 ```bash
-ls services/agents-template.md      # 必存在
+ls services/agents-template.md   # dist 包内应存在
 ```
-
-若缺失，回到 dev 仓库确认该文件存在，重新跑 `scripts/release.sh`。
+若缺失：回到 dev 仓库确认该文件存在，再重新跑 `release.js`。
 
 ---
 
@@ -414,8 +408,8 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 
 ### 客户（消费）
 
-- [ ] 解压后 `ls -L skills/ agents-template.md` 等关键文件可读
-- [ ] 修正 skill 路径（`ln -s skills .agents/skills`，§12.8）
+- [ ] 解压后 `ls -L .agents/skills/ .agents/rules/ services/agents-template.md` 等关键文件可读
+- [ ] skills / rules 无需改路径——已在 `.agents/` 前缀下（§12.8）
 - [ ] `make secrets` 生成的 `.env` 已填入实际值（`__CHANGE_ME__` 全替换）
 - [ ] `make up && make verify` 通过
 - [ ] 创建第一个业务服务后跑通 §12.9 全部 4 道 CI 门禁
@@ -426,10 +420,9 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| `bash scripts/release.sh` 找不到 | 根 README 路径错（少 `release/dist-template/` 前缀） | 用完整路径：`node release/dist-template/scripts/release.js v1.0.0` |
-| `release:dist` CI job 没产出 tar.gz | 该 job 只 build frontend，**不调** release.sh | 手动跑 `scripts/release.sh`，或在 CI job `script:` 末尾追加该命令（§12.3） |
-| 解压后 AI 找不到 skill | skill 路径是 `skills/` 而非 `.agents/skills/` | `ln -s skills .agents/skills`（§12.8） |
-| `coder-new-service` 报"找不到 agents-template.md" | dist 包内缺该模板 | 回到 dev 仓库确认 `services/agents-template.md` 存在，重跑 release.sh |
+| 打包命令找不到 / 报未知参数 | 用错路径或把 git tag 的 `v1.5.0` 当镜像 tag（registry 里是 no-v `1.5.0`） | 用完整路径 `node release/dist-template/scripts/release.js <git-tag>`；离线引用/下游 `IMAGE_TAG` 用 no-v（§12.3） |
+| `release:dist` CI job 没产出 tar.gz | 该 job 只 build frontend，**不调** `release.js` | 手动跑 `node release/dist-template/scripts/release.js $CI_COMMIT_TAG`，或在 CI job `script:` 末尾追加该命令（§12.3） |
+| `coder-new-service` 报"找不到 agents-template.md" | dist 包内缺该模板 | 回到 dev 仓库确认 `services/agents-template.md` 存在，重跑 `release.js` |
 | 业务服务 `docker compose up` 找不到 service | skill 把服务加到了错误的 compose 路径 | dev 仓库内 skill 改 `infrastructure/docker-compose-services.yml`；dist 包内要改 `compose/services.yml` —— 当前 skill **硬编码** dev 仓库路径，在 dist 包内**跑 skill 不会自动注册到 compose**，需手动复制 service entry（已知缺口，见 ai-context §5 待补） |
 | `make verify` 失败 | 镜像未启动 / 端口冲突 / Consul 未发现 | `docker compose ps` 看 healthcheck；`make logs` 看启动日志；`curl http://localhost:8500/v1/catalog/services` 看注册情况 |
 | `make upgrade` 后业务服务连接断开 | 容器 IP 变了，env 缓存了旧地址 | `make restart <svc>` 重启业务服务；长期方案：业务服务全部走 Consul DNS / env 注入 |

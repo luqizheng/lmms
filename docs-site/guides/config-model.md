@@ -40,9 +40,9 @@
 | 环境 | 挂载路径 | 配置文件位置 |
 |------|---------|-------------|
 | dev（`infrastructure/docker-compose-services.yml`） | `../services/<svc>/config:/etc/<svc>`（iam/notification 无 `:ro`） | 宿主机 `services/<svc>/config/`（seed 产物 gitignore） |
-| 分发包（release.sh sed 后） | `./config/<slug>:/etc/<svc>` | 分发包内 `infrastructure/config/<slug>/` |
+| 分发包（`release.js` 经 `transform-compose` volume remap 后） | `./config/<slug>:/etc/<svc>` | 分发包内 `infrastructure/config/<slug>/` |
 
-slug 映射（`release/dist-template/scripts/release.sh::SERVICE_SLUGS`）：
+slug 映射（`release/dist-template/scripts/release.js::SERVICE_SLUGS`，供 `release-transforms.js remap-volume` 使用）：
 
 | 服务 | slug | 分发包内路径 |
 |------|------|-------------|
@@ -73,7 +73,7 @@ slug 映射（`release/dist-template/scripts/release.sh::SERVICE_SLUGS`）：
    - `apply_env_overrides(&mut cfg, env_lookup)` 纯函数式覆盖
    - `validate_all_fields_present(&cfg)?` fail-fast
 3. compose 挂载 `../services/<svc>/config:/etc/<svc>`（不加 `:ro`）
-4. `release/dist-template/scripts/release.sh` 的 `SERVICE_SLUGS` 加一行 `<svc>=<slug>`
+4. `release/dist-template/scripts/release.js` 的 `SERVICE_SLUGS`（及需要时 `infrastructure/config/<slug>/` 导出）加一行 `<svc>=<slug>`
 5. `.gitignore` 加 `services/<svc>/config/config.yaml`
 
 参考实现：`services/iam-service/src/config.rs`（13 个单测覆盖 race / fail-fast / env 覆盖 / seed 幂等）。

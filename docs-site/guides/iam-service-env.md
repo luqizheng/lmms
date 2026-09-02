@@ -53,7 +53,7 @@ yaml 由首启 seed 自 `services/iam-service/config/config.default.yaml`，合�
 | 环境 | compose 挂载 | 说明 |
 |------|-------------|------|
 | dev (`infrastructure/docker-compose-services.yml`) | `../services/iam-service/config:/etc/iam-service`（无 `:ro`） | 首启把 seed 后的 yaml 落回宿主机 `services/iam-service/config/config.yaml`（已 gitignore） |
-| 分发包（release.sh sed 后） | `./config/iam:/etc/iam-service` | 内聚到 `infrastructure/config/iam/`；运维可编辑，env 仍最上层 |
+| 分发包（`release.js` remap 后） | `./config/iam:/etc/iam-service` | 内聚到 `infrastructure/config/iam/`；运维可编辑，env 仍最上层 |
 
 改 yaml 重启容器立即生效（env 依然覆盖之）；要重新走 seed 删掉 yaml 即可。
 

@@ -19,20 +19,19 @@
 git clone <repo-url>
 git checkout v1.0.0
 
-# 执行打包脚本
-cd release/dist-template
-bash scripts/release.sh v1.0.0
+# 执行打包脚本（开发仓库 根目录；镜像 tag 用 no-v: git tag `v1.0.0` → 镜像 tag `1.0.0`）
+node release/dist-template/scripts/release.js 1.0.0   # 早期 shell 版 release.sh 已迁 Node 删除
 ```
 
 输出文件：
-- `release/coder-micro-services-v1.0.0-airgap.tar.gz` — 完整离线包（含镜像 tar）
-- `release/coder-micro-services-v1.0.0/` — 解压后的目录
+- `release/coder-micro-services-1.0.0-airgap.tar.gz` — 完整离线包（含镜像 tar）
+- `release/coder-micro-services-1.0.0/` — 解压后的目录
 
 ### 第二步：传输到目标机器
 
 ```bash
 # 方式 1：SCP
-scp coder-micro-services-v1.0.0-airgap.tar.gz user@target:/opt/
+scp coder-micro-services-1.0.0-airgap.tar.gz user@target:/opt/
 
 # 方式 2：USB 拷贝
 # 把 tar.gz 拷贝到 USB 盘，插到目标机器
@@ -46,8 +45,8 @@ ssh user@target-server
 
 # 解压
 cd /opt
-tar -xzf coder-micro-services-v1.0.0-airgap.tar.gz
-cd coder-micro-services-v1.0.0
+tar -xzf coder-micro-services-1.0.0-airgap.tar.gz
+cd coder-micro-services-1.0.0
 
 # 加载 Docker 镜像（约 10-15GB，需 5-10 分钟）
 node bin/load-images.js
@@ -69,10 +68,8 @@ make secrets
 ### 第五步：启动服务
 
 ```bash
-# 前端构建（约 2 分钟，后续命中 cache 秒级）
-node bin/build-frontend.js
-
-# 启动所有容器
+# 启动所有服务——release.js 已把 compose（service + 主入口）中 frontend 的 build: 转成引用
+# `micro-server/frontend` 镜像，且离线包已含该镜像，因此**无需现场编译前端**：
 node bin/start.js
 ```
 
@@ -87,7 +84,7 @@ node bin/verify.js
 ## 目录结构
 
 ```
-coder-micro-services-v1.0.0/
+coder-micro-services-1.0.0/
 ├── docker-compose.yml      # 主入口
 ├── .env                   # 环境变量（make secrets 生成）
 ├── compose/               # compose 模块
