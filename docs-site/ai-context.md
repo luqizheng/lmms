@@ -243,17 +243,20 @@
 
 **1. 分发形态：v2「平台镜像 + 开发骨架」**
 - 核心平台以 Docker 镜像交付，`services/` 目录为空供用户自建业务服务
-- 单包 `coder-micro-services-<version>-airgap.tar.gz` ≈ 10-15 GB（镜像） + MB 级（骨架）
+- 单包 `coder-micro-services-<VERSION>-airgap.tar.gz` ≈ 10-15 GB（镜像） + MB 级（骨架）
 - 包含：bin / compose / config / images / frontend / skills / contracts / scripts / Cargo.toml / docker-compose.yml / Makefile / .env.example
 - **放弃"服务源码全打包"路径**（太重、更新不便）
 
-**2. 打包命令**
+**2. 打包命令（`release.sh` 已于 2026-08 迁 Node 删除）**
 ```bash
-bash release/dist-template/scripts/release.sh v1.0.0
+node release/dist-template/scripts/release.js v1.0.0
 # 骨架 only（跳过 docker pull + save）：
-EXPORT_IMAGES=0 bash release/dist-template/scripts/release.sh v2.0.0
+EXPORT_IMAGES=0 node release/dist-template/scripts/release.js v2.0.0
+# 或 pnpm run release:build（= release.js，无参取默认版本）；单测 pnpm run release:test
 ```
-- 8 个核心服务镜像清单硬编码在脚本中（新增服务需同时改 `release.sh` + `compose/services.yml` + `openapi.yaml`）
+- 平台服务 + 基础镜像清单硬编码在 `release.js` 的 `IMAGES` 数组：**9 个 micro-server（api-gateway/config/file/token/iam/notification/audit/prue-admin-backend/frontend）+ `micro-server/mysql-replica` + 基础镜像**。新增服务需同时改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`。
+- **git tag 带 `v`，发布镜像 tag 不带 v**：`build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v，registry 里是 `micro-server/<svc>:<no-v>`。离线下发/下游升级引用/对账命令里的 tag 一律 no-v（`v1.5.0` 是 git tag，镜像 tag 是 `1.5.0`）。
+- airgap 全包依赖 `mysql-replica` 与 `alertmanager`：前者 CI tag pipeline buildx 单独推送并在离线包导出（主 compose 引用），后者走公网镜像代理完整地址（内网 registry 未同步）。离线缺镜像先查 `IMAGES` 是否漏导。
 
 **3. 4 类 mirror registry（全部可留空走官方源）**
 | 类别 | 官方源 | 替代 |
@@ -280,7 +283,7 @@ EXPORT_IMAGES=0 bash release/dist-template/scripts/release.sh v2.0.0
 - 同步部分选项到 `.gitlab-ci.yml` 的 `CODER_*` 变量
 - ⚠️ `.cargo/config.toml` 被 wizard 覆盖式重写 → 用户手改的其他配置会丢（保留手工改 configs 前**先备份**）
 
-**变更时机提醒**：新服务发布 → 改 `release.sh` 镜像清单 + `compose/services.yml` + `openapi.yaml`；新依赖源 → `setup-wizard.js` 加交互 + 生成对应配置；SDK 破坏性变更 → 升 major 版本 + `sdk/README.md` 记录 migration guide；v2 骨架结构调整 → 改 `release.sh` 复制清单 + `release/dist-template/README.md`。
+**变更时机提醒**：新服务发布 → 改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`；新依赖源 → `setup-wizard.js` 加交互 + 生成对应配置；SDK 破坏性变更 → 升 major 版本 + `sdk/README.md` 记录 migration guide；v2 骨架结构调整 → 改 `release.js` 复制清单 + `release/dist-template/README.md`。
 
 ---
 
@@ -338,6 +341,19 @@ EXPORT_IMAGES=0 bash release/dist-template/scripts/release.sh v2.0.0
 
 **门禁**：`.pre-commit-config.yaml` 已加 gitleaks hook（commit `68ce9d0`）防止再次明文提交。
 
+### 5.4 CI / deploy 修补基线（2026-08-22 … 08-31，HEAD `69f6ecda`）
+
+迭代加固记录（多为 `fix:` 小步，合并进 main、经常互为 revert/改道），用于理解当前 `.gitlab-ci.yml` 形状而非逐条背诵：
+
+- **发布管道是三轨**：日常 `main` / MR pipeline 只跑 test+build+deploy:e2e；**tag（release）pipeline** 另跑 `sdk_publish` / `rust_publish` / `maven_publish` / `release:dist` + `build_images:tagged`（剥 v 推镜像）。tag e2e jobs 设为**非阻塞**（`allow_failure`，release 不被回归阻塞）；`.pre-staging` 链已废弃，只留 continuous `deploy:staging`。
+- **staging 冷启动 health gate 用轮询**（commit `075b8af0`）：`api-gateway:3000/health` 每 10s 一次、最多 30 次（300s）；全空卷冷启动时 MySQL 初始化 + migration/seed 需数分钟，单次 curl 会过早超时。deploy + e2e:staging 依赖端口是 **api-gateway:3000（不是 8080）**。
+- **runner 是 shell / `[docker]` executor + SSH 部署**（root-owned workspace）：多次根因是 `sudo docker` 产物 root-owned → compose/buildx 后续 clean 失败。当前已自愈：`cleanup:buildx` 重新 `chown` workspace、build 后 `chown` 回文件、`release-staging` 重映射挂载避开 root-owned 残留。
+- **tag 发布类 job（shell executor）**：需要在 maven 镜像里补装 pnpm/Node；publish npm 走 Verdaccio basic auth（user:pass，非 authToken）；`deploy:staging` 的 .env 首启从 `.env.example` 兜底、health gate 探针、ssh 远端用 `cat` 避开 bash 引号嵌套等已逐条修平。
+- **staging 相关修复点**：`frontend` 加 `extra_hosts pm=127.0.0.1` 让 nginx 启动过；大 swap 重启前先 warm up 基础服务（修 DNS）；`staging-${SHA}` swap 探活探针边界修正。观察性 runbook 增补见 commit `7ca144d5`（§6=staging 第三方基础镜像清单）与 `9d54beba`（§8.4 swap-noop + health gate 0ms refused，写在 `docs-site/runbooks/troubleshooting.md`）。
+- **tag/release 产物规范**：`dist-template` 的 `IMAGE_TAG` 统一 **no-v**（git tag `v1.5.0` ≠ 镜像 tag `1.5.0`）；tag pipeline buildx 单独构建并推送 `micro-server/mysql-replica`（主 compose 引用、离线包需导出）；`mysql-replica` / `alertmanager` 镜像对 tag pipeline 的构建/推送是新增职责。
+- **门禁**：缺失/漂移时对照 §5.1 现行 gate 脚本（`*.js`，勿再依赖旧 `.sh`）。
+- 运维侧 CD/canary/发布机制文档见 `docs-site/runbooks/release-tag-pipeline.md` 等。
+
 ---
 
 ## 6. 可观测性现状（2026-08-18 重写）
@@ -345,7 +361,7 @@ EXPORT_IMAGES=0 bash release/dist-template/scripts/release.sh v2.0.0
 | 组件 | 当前实际 | 状态 |
 |---|---|---|
 | Prometheus | `infrastructure/config/prometheus/prometheus.yml`（consul SD + 自抓 + otel-collector）；**alerting 块启用** + `rule_files: ['alerts.yml']` | [正常] |
-| Alertmanager | **✅ 新增**（commit `e24a3f4`）：`prom/alertmanager:v0.27.0`，端口 9093，volume `alertmanager_data`；配置 `infrastructure/config/alertmanager/alertmanager.yml`（route + receivers + inhibit_rules） | [正常] |
+| Alertmanager | **✅ 新增**（commit `e24a3f4`）：镜像**用公网代理 `swr.cn-north-4.myhuaweicloud.com/ddn-k8s/quay.io/prometheus/alertmanager:v0.27.0`**（内网 registry 未同步，勿改回内网路径，见 commit `a77fba3c`/`b6547112`），端口 9093，volume `alertmanager_data`；配置 `infrastructure/config/alertmanager/alertmanager.yml`（route + receivers + inhibit_rules）。离线 airgap 须导出此完整地址 | [正常] |
 | Alert rules | **✅ 新增**（`infrastructure/config/prometheus/alerts.yml`）5 条：ServiceDown critical / HighErrorRate critical / HighLatency warning / OutboxBacklog warning / HighRateLimit warning | [正常] |
 | Grafana dashboards | **✅ 7 个**（commit `e24a3f4`，旧版本只 1 个 gateway）：`gateway.json` + `iam-service.json` + `notification-service.json` + `audit-service.json` + `config-service.json` + `file-service.json` + `prue_backend.json`。每个含 `service` template var + 4 panel（Request Rate / Latency p50/p95/p99 / Error Rate / Health） | [正常] |
 | Grafana provisioning | `datasources/prometheus.yml` + `dashboards/dashboards.yml`（watch `/etc/grafana/dashboards` 自动加载） | [正常] |

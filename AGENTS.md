@@ -99,6 +99,10 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 | 跑 E2E | `.trae/skills/coder-e2e-test` | `node scripts/run-e2e-local.js` |
 | 升级通用库 | `.trae/skills/coder-lib-upgrade` | `cargo upgrade -p <lib>` |
 | 引导开发环境 | `.trae/skills/coder-dev-bootstrap` | — |
+| 发布 npm SDK | `.agents/skills/coder-sdk-publish-npm` | `pnpm run sdk:publish:npm` |
+| 发布 Rust SDK | `.agents/skills/coder-sdk-publish-rust` | `pnpm run sdk:publish:rust -- <VERSION>` |
+| 发布 Java SDK | `.agents/skills/coder-sdk-publish-maven` | `pnpm run sdk:publish:release` |
+| 打离线分发包 / 服务镜像 | `.agents/skills/coder-service-release` | `pnpm run release:build` |
 
 ## 网络规则
 
@@ -130,13 +134,19 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 docker-compose `command:` 字段**必须**用下划线。常见踩坑：把 `ntf-outbox-publisher`(kebab)直接抄进 compose（`["ntf-outbox-publisher"]`），启动时 OCI runtime 在 `$PATH` 中找不到对应名，容器创建失败。
 
+### 发布命令与镜像 tag 约定（v1.5.0 校准）
+
+- 离线分发包统一入口：`node release/dist-template/scripts/release.js <VERSION>`（原 `release.sh` 已于 2026-08 迁 Node 删除）；只打配置/骨架包加 `--no-images`。单测：`pnpm run release:test`。
+- **git tag 带 `v`，发布镜像 tag 不带 v**：CI `build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v 后推送，registry 里实际存在的是 `micro-server/<svc>:1.5.0`（**不是** `:v1.5.0`）。下游 dist-template `.env` 的 `IMAGE_TAG` 必须填 no-v 值，填 `v1.5.0` 会 pull 不到镜像。
+- airgap bundle 导出清单见 `release.js` 内 `IMAGES` 数组：除 9 个平台服务外，**v1.5.0 起还含 `mysql-replica`**（tag pipeline 由 CI buildx 单独推送，主 compose 引用它）与 **alertmanager**（公网代理完整地址，内网 registry 未同步）。离线环境报缺镜像 → 先查该清单是否漏导。
+
 ### 发布前对账 SOP
 
 ```bash
 # 1) 渲染离线下发包 compose（不变 command:）
-node scripts/transform-compose.js \
+node release/dist-template/scripts/transform-compose.js \
   ./infrastructure/docker-compose-services.yml \
-  zhcoder-docker-registry.com:8000 v1.0.0
+  zhcoder-docker-registry.com:8000 1.5.0
 
 # 2) 列出真实二进制名（与 compose 的 command: 字段交叉对账）
 docker run --rm --entrypoint sh \
@@ -155,6 +165,9 @@ docker run --rm --entrypoint sh \
 | npm 包 (`@digua/dist-tools`) | `pnpm run sdk:publish:npm` | `npm.kudi.repos` |
 | Rust 通用库 (17 crates) | `pnpm run sdk:publish:libs -- <VERSION>` | `kellnr` |
 | Rust SDK (7 crates) | `pnpm run sdk:publish:rust -- <VERSION>` | `kellnr` |
+| Java SDK (Maven) | `pnpm run sdk:publish:release` / `:snapshot` | 私有 Reposilite |
+
+> step-by-step 发布 playbook（含 dry-run / 认证细节）见 `.agents/skills/coder-sdk-publish-{npm,rust,maven}`；离线分发包见 `coder-service-release`。
 
 > `target/` 目录是 docker volume root-owned，发布 Rust crate 时必须设置 `CARGO_TARGET_DIR`：
 > ```bash
