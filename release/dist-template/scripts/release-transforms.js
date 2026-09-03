@@ -110,11 +110,18 @@ function buildManifest({
 //   3. `.trae/skills/` → `.agents/skills/`
 //   4. Drop rows in the skills table that reference `.trae/skills/` (they
 //      are dev-only platform skills, absent from the dist).
+//   5. When `downstreamSkills` (whitelist) is provided, drop every table row
+//      that references `.agents/skills/<name>` outside the whitelist — the
+//      dist ships only the whitelisted scaffold skills, so the bundled
+//      AGENTS.md must not point at skills the package does not contain.
+//      This runs AFTER the prefix rewrites so rows that started as
+//      `.trae/skills/` are normalized to `.agents/skills/` first and are
+//      filtered by the same rule.
 //
 // Order matters: skip-rows must run BEFORE prefix rewrites, otherwise the
 // prefix rewrite would already have turned `.trae/skills/` into
 // `.agents/skills/` and the drop pattern would miss.
-function rewriteAgentsMd(md) {
+function rewriteAgentsMd(md, downstreamSkills) {
   if (typeof md !== 'string') {
     throw new TypeError('rewriteAgentsMd: md must be a string');
   }
@@ -131,6 +138,20 @@ function rewriteAgentsMd(md) {
     .split('.trae/rules/').join('.agents/rules/')
     .split('.trae/rule/').join('.agents/rules/')
     .split('.trae/skills/').join('.agents/skills/');
+  if (Array.isArray(downstreamSkills) && downstreamSkills.length > 0) {
+    const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const allowed = downstreamSkills.map(escapeRegExp).join('|');
+    // Table rows only (`^|`); the name must be followed by a closing
+    // backtick, `|`, whitespace, or end-of-row so `coder-new-service` never
+    // accidentally shields `coder-new-service-extra`.
+    const dropNonWhitelisted = new RegExp(
+      '^\\|[^\\n]*\\.agents\\/skills\\/(?!' +
+        allowed +
+        '(?:[`|\\s]|$))[a-z0-9_-]+[^\\n]*\\r?\\n',
+      'gm'
+    );
+    out = out.replace(dropNonWhitelisted, '');
+  }
   return out;
 }
 
@@ -227,12 +248,16 @@ function cliManifest(args) {
   fs.writeFileSync(opts.out, JSON.stringify(manifest, null, 2) + '\n');
 }
 
-// rewrite-agents --file <path>
+// rewrite-agents --file <path> [--downstream-skills <csv>]
 function cliRewriteAgents(args) {
   const opts = parseKv(args);
   if (!opts.file) throw new Error('rewrite-agents: --file required');
+  const downstreamSkills = (opts['downstream-skills'] || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   const before = fs.readFileSync(opts.file, 'utf8');
-  fs.writeFileSync(opts.file, rewriteAgentsMd(before));
+  fs.writeFileSync(opts.file, rewriteAgentsMd(before, downstreamSkills));
 }
 
 // filter-cargo-members --in <path> --out <path>

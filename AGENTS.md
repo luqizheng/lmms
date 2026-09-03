@@ -86,23 +86,41 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 ## Skill 目录
 
-项目 skill 在 `.agents/skills/`，平台 skill 在 `.trae/skills/`（路径触发器见 `project_rules.md` §4）：
+Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路径触发器见 `project_rules.md` §4。白名单权威在 `release.js::DOWNSTREAM_SKILL_WHITELIST`（仓库 `.agents/skills/` 始终全量保留，发布副本只带下列下游项）。
+
+### ① 下游（downstream）——发布分发包 `.agents/skills/` 只带这 6 个，供下游创建/维护 Java & Rust 业务微服务
+
+| 意图 | Skill（仓库 `.agents/skills/…`） | 备注 / 常用命令 |
+| --- | --- | --- |
+| 新建 Rust 服务 | `coder-new-service` | 8-item 服务标准 |
+| 加路由 | `coder-add-route` | 改完跑 `node scripts/dump-openapi-specs.js` |
+| 加迁移 | `coder-migrate-db` | Rust 双（MySQL/SQLite）语义迁移 |
+| 新建 Java 服务 | `coder-new-java-service` | Spring Boot 3 + JDK 21 |
+| 加路由 | `coder-add-java-route` | 加 Controller/DTO |
+| 加迁移 | `coder-migrate-java-db` | Java Flyway 迁移 |
+
+### ② 仓库 repo-local / 平台（本仓开发用，**不随 dist 分发**；给下游新增需先在 `DOWNSTREAM_SKILL_WHITELIST` 追加）
 
 | 意图 | Skill | 常用命令 |
 | --- | --- | --- |
-| 加路由 | `.agents/skills/coder-add-route` | 改完跑 `node scripts/dump-openapi-specs.js` |
-| 加迁移 | `.agents/skills/coder-migrate-db` | — |
-| 新建服务 | `.agents/skills/coder-new-service` | — |
-| 审查计划 | `.agents/skills/plan-eng-review` | — |
-| 同步基础镜像 | `.trae/skills/coder-base-images-sync` | `node scripts/base-images-sync.js` |
-| 审计服务规范 | `.trae/skills/coder-service-audit` | `node scripts/check-service-standard.js` |
-| 跑 E2E | `.trae/skills/coder-e2e-test` | `node scripts/run-e2e-local.js` |
-| 升级通用库 | `.trae/skills/coder-lib-upgrade` | `cargo upgrade -p <lib>` |
-| 引导开发环境 | `.trae/skills/coder-dev-bootstrap` | — |
 | 发布 npm SDK | `.agents/skills/coder-sdk-publish-npm` | `pnpm run sdk:publish:npm` |
 | 发布 Rust SDK | `.agents/skills/coder-sdk-publish-rust` | `pnpm run sdk:publish:rust -- <VERSION>` |
 | 发布 Java SDK | `.agents/skills/coder-sdk-publish-maven` | `pnpm run sdk:publish:release` |
-| 打离线分发包 / 服务镜像 | `.agents/skills/coder-service-release` | `pnpm run release:build` |
+| 打离线分发包 / 服务镜像 | `.agents/skills/coder-service-release` | `pnpm run release:build` / `node release/dist-template/scripts/release.js` |
+| CI 红标诊断 | `.agents/skills/coder-ci-diagnose` | — |
+| 跨服务事件链路 | `.agents/skills/coder-contract-trace` | — |
+| 迁移回滚 | `.agents/skills/coder-migration-rollback` | 紧急 forward-only 回滚 |
+| OpenAPI/契约校验 | `.agents/skills/coder-openapi-contracts-sync` | 改路由后跑 5 门禁 |
+| 纯/Rust 单测 | `.agents/skills/coder-rust-unit-test` | — |
+| 性能剖析 | `.agents/skills/coder-perf-profile` | — |
+| 审查 PR | `.agents/skills/coder-microservice-review-checklist` | — |
+| 通用编码守则 | `.agents/skills/karpathy-guidelines` | — |
+| 审查计划 | `.agents/skills/plan-eng-review` | — |
+| 同步基础镜像 | `.trae/skills/coder-base-images-sync`（平台） | `node scripts/base-images-sync.js` |
+| 审计服务规范 | `.trae/skills/coder-service-audit`（平台） | `node scripts/check-service-standard.js` |
+| 跑 E2E | `.trae/skills/coder-e2e-test`（平台） | `node scripts/run-e2e-local.js` |
+| 升级通用库 | `.trae/skills/coder-lib-upgrade`（平台） | `cargo upgrade -p <lib>` |
+| 引导开发环境 | `.trae/skills/coder-dev-bootstrap`（平台） | — |
 
 ## 网络规则
 
