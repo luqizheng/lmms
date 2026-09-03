@@ -9,7 +9,7 @@
 | 形态 | 产物 | 适用场景 | 触发命令 |
 |------|------|----------|----------|
 | **A. 镜像推内网 registry** | 9 个 Docker 镜像（8 核心服务 + frontend），打 `:<version>` + `:latest` tag，推到 `zhcoder-docker-registry.com:8000/micro-server/*` | 内网有 registry、能联网拉镜像的环境 | `pnpm docker:build -- -v <ver> --push` |
-| **B. 离线分发包（air-gap tar.gz）** | `coder-micro-services-${VERSION}-airgap.tar.gz`（约 10–15 GB）+ 同步 libs/sdk/contracts/skills/scripts/services 骨架 | 客户环境无网络 / 涉密 / 私有化部署 | `node release/dist-template/scripts/release.js v1.0.0` |
+| **B. 离线分发包（air-gap tar.gz）** | `coder-micro-services-${VERSION}-airgap.tar.gz`（约 10–15 GB 镜像）+ 骨架（`.agents/skills/` 仅 6 个 scaffold、`.agents/rules/`、scripts、contracts、frontend、services 空骨架；libs/sdk 不发）| 客户环境无网络 / 涉密 / 私有化部署 | `node release/dist-template/scripts/release.js <no-v-version>` |
 | **C. SSH 直接部署** | `docker compose down && pull && up` 到 192.168.2.128 | 单一固定生产主机（**已知路径错**，[风险] 见 §12.4） | 由 `.gitlab-ci.yml` 的 `deploy` job 自动触发 |
 
 > 大多数场景用 **形态 B**（私有化）或 **形态 A**（内网微服务）。形态 C 是早期遗留，建议迁移到形态 A。
@@ -75,15 +75,14 @@ node release/dist-template/scripts/release.js v1.0.0
 1. `docker pull` 9 个核心服务镜像（registry 默认 `zhcoder-docker-registry.com:8000`，可用 `REGISTRY` 环境变量覆盖）
 2. `docker save` 每镜像成 tar，放进 `${DIST_DIR}/images/`
 3. 同步开发骨架（**从 dev 仓库根**复制到 dist 包）：
-   - `libs/`（Rust 共享库）
-   - `sdk/`（Java + Rust SDK）
    - `contracts/`（错误码 / 权限码 / 事件 / 约定）
    - `scripts/`（CI 门禁脚本）
-   - `.agents/skills/` + `.agents/rules/`（**保留点开头，详见 §12.8**）
-   - `services/` 骨架（空目录 + `agents-template.md` 模板）
-   - `Cargo.toml`（剥掉 services/\* members，业务服务动态加入）
-   - `pnpm-workspace.yaml` + `package.json`（根调度脚本）
-   - `AGENTS.md`（协作约定）
+   - `tests/e2e`（清理 node_modules / artifacts）
+   - `.agents/skills/`（**仅白名单 6 个 scaffold**：new-service / add-route / migrate-db × Java+Rust；仓库其余 repo-local skill 不外发。保留点开头，详见 §12.8）
+   - `.agents/rules/`（全量；缺时回退 `.trae/rules/`）
+   - `frontend/` 源码（剔除 cache）; `services/` 空骨架 + `agents-template.md`
+   - `Cargo.toml`（剥掉 `libs/*` / `sdk/*` / `services/*` members）；`pnpm-workspace.yaml` / `package.json` / `AGENTS.md`
+   - ⚠ **`libs/` 与 `sdk/` 不打包**：17 个 libs crate 与 Rust/Java SDK 由 CI 发到私有 kellnr / Maven（§12.2）
 4. `tar -czf coder-micro-services-${VERSION}-airgap.tar.gz` 打总包
 
 ### 关键选项（`node release/dist-template/scripts/release.js`）
@@ -127,7 +126,7 @@ node release/dist-template/scripts/release.js v1.0.0
 |------|----------|---------|
 | Compose 路径 | `infrastructure/docker-compose-services.yml` | `infrastructure/docker-compose-services.yml`（**与 dev 一致**，release.js 经 `release-transforms.js remap-volume` 重写 volume 挂载源路径） |
 | 主入口 | `infrastructure/docker-compose.yml`（include 子文件） | `infrastructure/docker-compose.yml`（**与 dev 一致**，`bin/*.sh` 用 `-f infrastructure/docker-compose.yml` 调用） |
-| Skill / rules 路径 | `.agents/skills/` + `.agents/rules/` | `.agents/skills/` + `.agents/rules/`（**与 dev 一致，保留点开头**；release.js 拷 `.agents/rules`，缺时回退 `.trae/rules`） |
+| Skill / rules 路径 | 仓库：`.agents/skills/`（全量 repo-local）+ `.agents/rules/` | dist：`.agents/skills/`（**仅白名单 6 个 scaffold**）+ `.agents/rules/`（全量；缺时回退 `.trae/rules/`），保留点开头；release.js 额外写 `.agents/README.downstream.md` 说明其余不外发 |
 | `services/` | 含 8 个核心服务 + agents-template.md | **空目录** + `agents-template.md`（业务服务动态创建） |
 | `Cargo.toml` members | `services/*` 全列 | `services/*` 被 `sed` 剥掉，由 skill 创建时动态加入 |
 | API Gateway 路由 | `infrastructure/config/api-gateway/routes/*.router.toml` | `infrastructure/config/api-gateway/routes/*.router.toml`（**与 dev 一致**） |
@@ -234,14 +233,21 @@ dist 包的 `services/` 是空的。客户创建第一个业务微服务的完�
 
 ## 12.8 dist 包的 skills / rules 路径（现值，无需改动）
 
-`release.js` 打包时把 dev 仓库的 `.agents/skills/` 与 `.agents/rules/` **原样拷进 dist 包（保留点开头）**；`.agents/rules/` 缺失时回退 `.trae/rules/`。因此 dist 包里 AI 工具的 skill / rules 发现路径与 dev 仓库一致，**拿到即用、无需手动 symlink**。
+`release.js` 打包时把 dev 仓库的 skills / rules **选择性拷进 dist 包（均保留点开头）**：
+
+- `.agents/skills/` → **仅白名单 6 个 scaffold skill**（`DOWNSTREAM_SKILL_WHITELIST`，见 `release/dist-template/scripts/release.js`）：Java 侧 `coder-new-java-service` / `coder-add-java-route` / `coder-migrate-java-db`、Rust 侧 `coder-new-service` / `coder-add-route` / `coder-migrate-db`。
+- 仓库其余 repo-local skill（SDK 发布、CI 诊断、性能剖析等）**不外发**；release.js 另写一份 `.agents/README.downstream.md` 说明 + 指向 `DOWNSTREAM_SKILL_WHITELIST` 追加方式。
+- `.agents/rules/` 全量拷贝；缺失时回退 `.trae/rules/`。
+
+因此 dist 包内 AI 工具在 `.agents/skills/`、`.agents/rules/` 下能直接发现的正是这份白名单骨架，**拿到即用、无需手动 symlink**（下游只需用这 6 个 scaffold 创建/维护业务微服务）。
 
 > 历史：早期 shell 版 `release.sh` 曾把 skills 去点拷成 `skills/`，导致 AI 工具默认 `.agents/skills/` 找不到、需 `ln -s skills .agents/skills`。该问题随迁 Node 消失——现役 `release.js` 保留 `.agents/` 前缀。
 
-**自检**（确认两目录都在、AI 工具能发现）：
+**自检**（确认白名单与规则目录齐全）：
 ```bash
-ls .agents/skills/   # 应含全部 skill 的 SKILL.md
-ls .agents/rules/    # auth-rules.md / project_rules.md / ...
+ls .agents/skills/        # 应恰为上面 6 个 scaffold（≠ dev 仓库全量）
+ls .agents/README.downstream.md
+ls .agents/rules/         # auth-rules.md / project_rules.md / ...
 ```
 
 ### agents-template.md 在 dist 包内

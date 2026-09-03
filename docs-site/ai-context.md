@@ -244,14 +244,14 @@
 **1. 分发形态：v2「平台镜像 + 开发骨架」**
 - 核心平台以 Docker 镜像交付，`services/` 目录为空供用户自建业务服务
 - 单包 `coder-micro-services-<VERSION>-airgap.tar.gz` ≈ 10-15 GB（镜像） + MB 级（骨架）
-- 包含：bin / compose / config / images / frontend / skills / contracts / scripts / Cargo.toml / docker-compose.yml / Makefile / .env.example
+- 包含：bin / compose / config / images / frontend / `.agents/`(skills 仅白名单 6 scaffold + rules) / contracts / scripts / Cargo.toml / docker-compose.yml / Makefile / .env.example
 - **放弃"服务源码全打包"路径**（太重、更新不便）
 
-**2. 打包命令（`release.sh` 已于 2026-08 迁 Node 删除）**
+**2. 打包命令（`release.sh` 已于 2026-08 迁 Node 删除；↓ 传入/示例均为 **no-v** 版本，git tag 才带 `v`）**
 ```bash
-node release/dist-template/scripts/release.js v1.0.0
+node release/dist-template/scripts/release.js 1.0.0
 # 骨架 only（跳过 docker pull + save）：
-EXPORT_IMAGES=0 node release/dist-template/scripts/release.js v2.0.0
+EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 # 或 pnpm run release:build（= release.js，无参取默认版本）；单测 pnpm run release:test
 ```
 - 平台服务 + 基础镜像清单硬编码在 `release.js` 的 `IMAGES` 数组：**9 个 micro-server（api-gateway/config/file/token/iam/notification/audit/prue-admin-backend/frontend）+ `micro-server/mysql-replica` + 基础镜像**。新增服务需同时改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`。
@@ -284,6 +284,8 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js v2.0.0
 - ⚠️ `.cargo/config.toml` 被 wizard 覆盖式重写 → 用户手改的其他配置会丢（保留手工改 configs 前**先备份**）
 
 **变更时机提醒**：新服务发布 → 改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`；新依赖源 → `setup-wizard.js` 加交互 + 生成对应配置；SDK 破坏性变更 → 升 major 版本 + `sdk/README.md` 记录 migration guide；v2 骨架结构调整 → 改 `release.js` 复制清单 + `release/dist-template/README.md`。
+
+> **下游技能白名单**：发布产物 `.agents/skills/` 仅入 `DOWNSTREAM_SKILL_WHITELIST`（`release.js`）的 6 个 scaffold（Java/Rust × new-service / add-route / migrate-db）；仓库其余 repo-local skill 与`.trae/skills` 不随包下发，dist 另写 `.agents/README.downstream.md`。新增想随包分发的 skill → 在 `DOWNSTREAM_SKILL_WHITELIST` 追加条目后重新发包（勿在本仓把全部 skill 下沉）。
 
 ---
 
