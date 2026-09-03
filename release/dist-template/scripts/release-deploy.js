@@ -89,10 +89,22 @@ const IMAGES_DIR = path.join(DIST_DIR, 'images');
 
 // ── 前置检查 ──────────────────────────────────────────────────────────────────
 function checkDep(name) {
+  // POSIX: which; Windows: where。command -v 是 shell builtin，
+  // 在 Windows cmd.exe 上必失败，在 /bin/sh + nvm 装的 node 下
+  // 也可能因 PATH 没继承而失败，改用外部命令 + PATH 手动遍历 fallback。
+  const cmd = process.platform === 'win32' ? 'where' : 'which';
   try {
-    execSync(`command -v ${name}`, { stdio: 'pipe' });
+    execSync(`${cmd} ${name}`, { stdio: 'pipe' });
     return true;
   } catch {
+    const pathEnv = process.env.PATH || '';
+    const sep = process.platform === 'win32' ? ';' : ':';
+    const exts = process.platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : [''];
+    for (const dir of pathEnv.split(sep)) {
+      for (const ext of exts) {
+        if (existsSync(path.join(dir, name + ext))) return true;
+      }
+    }
     console.error(`[release-deploy] ✗ missing prerequisite: ${name}`);
     return false;
   }
@@ -557,13 +569,17 @@ console.log(`[release-deploy]   ✓ MANIFEST.json (target=deploy, staging_swap_t
 console.log('[release-deploy] -> 打包 tar.gz...');
 const releaseDir = path.join(ROOT, 'release');
 const coderDir = `coder-micro-services-${VERSION}-deploy`;
-sh(`tar -czf "coder-micro-services-${VERSION}-deploy.tar.gz" "${coderDir}/"`,
+// 不带结尾 /：Windows bsdtar 把 "dir/" 解析成 dir + 空字符串两参数，
+// 报 "tar: : Couldn't visit directory"；GNU tar (Linux/macOS) 对不带 / 的目录参数等价。
+sh(`tar -czf "coder-micro-services-${VERSION}-deploy.tar.gz" "${coderDir}"`,
    { cwd: releaseDir });
 
 console.log('[release-deploy] ✓ 完成！\n');
 console.log('输出：');
-sh(`ls -lh "${DIST_DIR}/"`, { cwd: releaseDir });
-sh(`ls -lh "${DIST_ARCHIVE}"`, { cwd: releaseDir });
+// 跨平台：Windows 用 dir，POSIX 用 ls -lh（Windows 无 ls 命令）
+const listCmd = process.platform === 'win32' ? 'dir' : 'ls -lh';
+sh(`${listCmd} "${DIST_DIR}"`, { cwd: releaseDir });
+sh(`${listCmd} "${DIST_ARCHIVE}"`, { cwd: releaseDir });
 
 if (EXPORT_IMAGES === 1) {
   console.log('\n部署步骤：');

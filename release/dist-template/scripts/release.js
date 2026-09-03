@@ -65,13 +65,25 @@ const IMAGES_DIR = path.join(DIST_DIR, 'images');
 
 // ── 前置检查 ──────────────────────────────────────────────────────────────────
 function checkDep(name) {
+  // POSIX: which; Windows: where。command -v 是 shell builtin，
+  // 在 Windows cmd.exe 上必失败，在 /bin/sh + nvm 装的 node 下
+  // 也可能因 PATH 没继承而失败，改用外部命令 + PATH 手动遍历 fallback。
+  const cmd = process.platform === 'win32' ? 'where' : 'which';
   try {
-    execSync(`command -v ${name}`, { stdio: 'pipe' });
+    execSync(`${cmd} ${name}`, { stdio: 'pipe' });
+    return true;
   } catch {
+    const pathEnv = process.env.PATH || '';
+    const sep = process.platform === 'win32' ? ';' : ':';
+    const exts = process.platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : [''];
+    for (const dir of pathEnv.split(sep)) {
+      for (const ext of exts) {
+        if (existsSync(path.join(dir, name + ext))) return true;
+      }
+    }
     console.error(`[release] ✗ missing prerequisite: ${name}`);
     return false;
   }
-  return true;
 }
 
 let missing = 0;
@@ -226,19 +238,20 @@ if (existsSync(path.join(REPO_ROOT, 'scripts'))) {
 // tests/e2e
 if (existsSync(path.join(REPO_ROOT, 'tests', 'e2e'))) {
   mkdirSync(path.join(DIST_DIR, 'tests'), { recursive: true });
-  cp(path.join(REPO_ROOT, 'tests', 'e2e'), path.join(DIST_DIR, 'tests', 'e2e'));
-  // 清理 node_modules / test-results / playwright-report
-  for (const dir of ['node_modules', 'test-results', 'playwright-report']) {
-    const p = path.join(DIST_DIR, 'tests', 'e2e', dir);
-    if (existsSync(p)) rmSync(p, { recursive: true, force: true });
-  }
-  // 清理报告文件
-  const reportGlob = path.join(DIST_DIR, 'tests', 'e2e', 'shared', 'report');
-  if (existsSync(reportGlob)) {
-    try { rmSync(path.join(reportGlob, 'report-*.xlsx'), { force: true }); } catch {}
-  }
-  const lastErr = path.join(DIST_DIR, 'tests', 'e2e', 'ui', 'dev', 'last-error.png');
-  try { rmSync(lastErr, { force: true }); } catch {}
+  // 使用 filter 在复制时跳过 node_modules / test-results / playwright-report 等重目录，
+  // 避免「先全量复制再删除」在 Windows 上因海量小文件复制极慢的问题。
+  const E2E_EXCLUDE_DIRS = new Set(['node_modules', 'test-results', 'playwright-report']);
+  cpSync(path.join(REPO_ROOT, 'tests', 'e2e'), path.join(DIST_DIR, 'tests', 'e2e'), {
+    recursive: true,
+    filter: (src) => {
+      const name = path.basename(src);
+      if (E2E_EXCLUDE_DIRS.has(name)) return false;
+      // 跳过报告文件
+      if (name === 'last-error.png' || /^report-.*\.xlsx$/.test(name)) return false;
+      return true;
+    },
+  });
+  // 清理 errors 目录下的报告文件（filter 只跳过文件名匹配，errors 目录本身保留）
   const errDir = path.join(DIST_DIR, 'tests', 'e2e', 'shared', 'report', 'errors');
   if (existsSync(errDir)) {
     for (const f of require('fs').readdirSync(errDir)) {
@@ -322,24 +335,20 @@ if (existsSync(path.join(REPO_ROOT, '.agents', 'rules'))) {
 
 // frontend/
 if (existsSync(path.join(REPO_ROOT, 'frontend'))) {
-  cp(path.join(REPO_ROOT, 'frontend'), path.join(DIST_DIR, 'frontend'));
-  // 清理不需要的目录和文件
-  for (const dir of ['node_modules', 'dist', 'dist-ssr', 'coverage']) {
-    const p = path.join(DIST_DIR, 'frontend', dir);
-    if (existsSync(p)) rmSync(p, { recursive: true, force: true });
-  }
-  for (const file of ['.eslintcache', 'report.html']) {
-    try {
-      const walk = (dir) => {
-        for (const entry of require('fs').readdirSync(dir, { withFileTypes: true })) {
-          const full = path.join(dir, entry.name);
-          if (entry.isDirectory()) walk(full);
-          else if (entry.name === file || entry.name.endsWith('.local')) rmSync(full, { force: true });
-        }
-      };
-      walk(path.join(DIST_DIR, 'frontend'));
-    } catch {}
-  }
+  // 使用 filter 在复制时直接跳过 node_modules / dist / dist-ssr / coverage 等重目录，
+  // 避免「先全量复制再删除」在 Windows 上因海量小文件复制极慢的问题。
+  // cpSync filter 返回 false 时不会递归进入该目录，从根本上跳过复制。
+  const FRONTEND_EXCLUDE_DIRS = new Set(['node_modules', 'dist', 'dist-ssr', 'coverage']);
+  cpSync(path.join(REPO_ROOT, 'frontend'), path.join(DIST_DIR, 'frontend'), {
+    recursive: true,
+    filter: (src) => {
+      const name = path.basename(src);
+      if (FRONTEND_EXCLUDE_DIRS.has(name)) return false;
+      if (name === '.eslintcache' || name === 'report.html') return false;
+      if (name.endsWith('.local')) return false;
+      return true;
+    },
+  });
   console.log('[release]   ✓ frontend/ (node_modules / dist / dist-ssr / coverage / lint-cache excluded)');
 } else {
   console.log('[release]   ⚠ frontend/ not found — 前端容器镜像缺失时将无法本地构建');
@@ -546,12 +555,16 @@ console.log('[release] ✓ 开发骨架同步完成\n');
 console.log('[release] -> 打包 tar.gz...');
 const releaseDir = path.join(ROOT, 'release');
 const coderDir = `coder-micro-services-${VERSION}`;
-sh(`tar -czf "coder-micro-services-${VERSION}-airgap.tar.gz" "${coderDir}/"`, { cwd: releaseDir });
+// 不带结尾 /：Windows bsdtar 把 "dir/" 解析成 dir + 空字符串两参数，
+// 报 "tar: : Couldn't visit directory"；GNU tar (Linux/macOS) 对不带 / 的目录参数等价。
+sh(`tar -czf "coder-micro-services-${VERSION}-airgap.tar.gz" "${coderDir}"`, { cwd: releaseDir });
 
 console.log('[release] ✓ 完成！\n');
 console.log('输出文件：');
-sh(`ls -lh "${DIST_DIR}/"`, { cwd: releaseDir });
-sh(`ls -lh "${DIST_ARCHIVE}"`, { cwd: releaseDir });
+// 跨平台：Windows 用 dir，POSIX 用 ls -lh（Windows 无 ls 命令）
+const listCmd = process.platform === 'win32' ? 'dir' : 'ls -lh';
+sh(`${listCmd} "${DIST_DIR}"`, { cwd: releaseDir });
+sh(`${listCmd} "${DIST_ARCHIVE}"`, { cwd: releaseDir });
 console.log('');
 
 if (EXPORT_IMAGES === 1) {

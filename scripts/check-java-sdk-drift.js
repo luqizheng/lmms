@@ -187,9 +187,15 @@ function run() {
       // Reverse check: OpenAPI paths not wrapped by SDK (informational)
       const sdkPathSet = new Set(sdkPaths);
       const missing = [];
+      // 豁免路径片段：这些端点不属于业务 SDK 范畴
+      const SKIP_PATH_FRAGMENTS = [
+        "/internal/", // service-jwt 鉴权 (service-to-service)，用户 SDK 不应 wrap
+        "/auth/",    // 用户认证流端点 (login/logout/refresh/register)，前端直接调，不走业务 SDK
+      ];
       for (const o of openApiPaths) {
         if (!sdkPathSet.has(o) && !o.includes("{")) {
           // skip path params to avoid false positives
+          if (SKIP_PATH_FRAGMENTS.some((frag) => o.includes(frag))) continue;
           missing.push(o);
         }
       }
