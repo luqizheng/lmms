@@ -87,8 +87,10 @@ cleanup:buildx:
   before_script:
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
   script:
-    # 自愈历史污染：归还 root-owned 文件所有权，让后续需源码的 job git clean 能删。
-    - 'if [ -d "$CI_PROJECT_DIR" ]; then sudo chown -R "$(id -u):$(id -g)" "$CI_PROJECT_DIR/docs-site" "$CI_PROJECT_DIR/node_modules" 2>/dev/null || true; fi'
+    # 自愈历史污染：整个工作区 chown 归还 sudo 期间 root 写入的所有文件（docs-site、
+    # 根/frontend node_modules、target 等都可能被 build-docker.js 宿主机预构建写成
+    # root-owned），让后续 checkout 的 git clean 能删。chown 整个 build dir 一劳永逸。
+    - 'sudo chown -R "$(id -u):$(id -g)" "$CI_PROJECT_DIR" 2>/dev/null || true'
     - sudo docker buildx prune -af 2>/dev/null || true
     - sudo docker system prune -af --volumes 2>/dev/null || true
     - df -h / | tail -1
@@ -451,10 +453,11 @@ build_images:staging:
     - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
     - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
     - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
-    # 归还所有权：sudo -E node build-docker.js（docs-site pre-build 的 pnpm docs:build）
-    # 以 root 写出 root-owned 的 docs-site/.vitepress/dist 与 node_modules/，不 chown 回来
-    # 会让后续 gitlab-runner 用户 checkout 时 git clean 失败（pipeline 6742 实证）。
-    - sudo chown -R "$(id -u):$(id -g)" docs-site node_modules 2>/dev/null || true
+    # 归还所有权：sudo -E node build-docker.js（docs-site/frontend 宿主机预构建）
+    # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根/frontend node_modules
+    # 等），不 chown 回来会让后续 gitlab-runner 用户 checkout 时 git clean 失败
+    # （Permission denied，pipeline 6742/6753 实证）。chown 整个工作区一次覆盖。
+    - sudo chown -R "$(id -u):$(id -g)" "$(pwd)" 2>/dev/null || true
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
@@ -712,10 +715,11 @@ build_images:tagged:
     - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
     - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
     - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
-    # 归还所有权：sudo -E node build-docker.js（docs-site pre-build 的 pnpm docs:build）
-    # 以 root 写出 root-owned 的 docs-site/.vitepress/dist 与 node_modules/，不 chown 回来
-    # 会让后续 gitlab-runner 用户 checkout 时 git clean 失败（pipeline 6742 实证）。
-    - sudo chown -R "$(id -u):$(id -g)" docs-site node_modules 2>/dev/null || true
+    # 归还所有权：sudo -E node build-docker.js（docs-site/frontend 宿主机预构建）
+    # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根/frontend node_modules
+    # 等），不 chown 回来会让后续 gitlab-runner 用户 checkout 时 git clean 失败
+    # （Permission denied，pipeline 6742/6753 实证）。chown 整个工作区一次覆盖。
+    - sudo chown -R "$(id -u):$(id -g)" "$(pwd)" 2>/dev/null || true
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
