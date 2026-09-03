@@ -1,6 +1,6 @@
 # coder-micro-services v1.0.0 - 离线分发包
 
-> **v2 架构**：本包采用「平台镜像 + 开发骨架」模式。8 个核心服务以 Docker 镜像发布（已推送仓库），`services/` 目录为空，用户通过 `skills/` 下的 6 个 skill 自助创建 Rust 或 Java 业务微服务。
+> **v2 架构**：本包采用「平台镜像 + 开发骨架」模式。8 个核心服务以 Docker 镜像发布（已推送仓库），`services/` 目录为空，用户通过 `.agents/skills/` 下的 6 个 scaffold skill 自助创建 Rust 或 Java 业务微服务。
 
 ## 目录结构
 
@@ -23,7 +23,7 @@ coder-micro-services/
 ├── ── v2 开发骨架 ──
 │
 ├── services/               # 空 - 用户在此创建业务微服务
-├── skills/                 # 6 个 AI skill（3 Rust + 3 Java）
+├── .agents/skills/          # 6 个下游 scaffold skill（3 Rust + 3 Java）
 ├── .cargo/                 # Cargo registry 配置（kellnr 私有 registry + rsproxy 镜像）
 ├── contracts/              # 契约层（error-codes / permissions / events / conventions）
 ├── scripts/                # CI 门禁脚本（check-service-standard / check-db-naming / ...）
@@ -50,23 +50,23 @@ node bin/load-images.js && make secrets && make up && make verify
 
 ### 2. 创建业务微服务
 
-获取发布包后，`services/` 目录为空。通过 skills 创建业务微服务：
+获取发布包后，`services/` 目录为空。通过 `.agents/skills/` 下的 scaffold skill 创建业务微服务：
 
 **Rust 业务服务**：
 ```
 # skill 生成服务骨架 + 自动追加 Cargo.toml member / docker-compose / 网关路由
-# 详见 skills/coder-new-service/SKILL.md
+# 详见 .agents/skills/coder-new-service/SKILL.md
 ```
 
 **Java 业务服务**（Spring Boot 3 + JDK 21）：
 ```
 # skill 生成多模块 Maven 骨架 + 自动追加 docker-compose / 网关路由 / 表前缀白名单
-# 详见 skills/coder-new-java-service/SKILL.md
+# 详见 .agents/skills/coder-new-java-service/SKILL.md
 ```
 
 **加路由 / 迁移**：
-- Rust：`skills/coder-add-route/` + `skills/coder-migrate-db/`
-- Java：`skills/coder-add-java-route/` + `skills/coder-migrate-java-db/`
+- Rust：`.agents/skills/coder-add-route/` + `.agents/skills/coder-migrate-db/`
+- Java：`.agents/skills/coder-add-java-route/` + `.agents/skills/coder-migrate-java-db/`
 
 ### 3. CI 门禁（创建业务服务后必须通过）
 
@@ -243,9 +243,10 @@ pnpm run release:build                                  # 等价：默认版本�
 
 - `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 node release/dist-template/scripts/release.js`。
 - flag 优先级高于 `EXPORT_IMAGES` 环境变量；`REGISTRY` 环境变量可覆盖默认仓库。
-- v2 新增：release.js 自动从开发仓库同步 `.agents/skills/` + `.agents/rules/` / `scripts/` / `contracts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `tests/e2e`（清理产物）+ `services/`（空骨架 + agents-template.md）+ `Cargo.toml` 到发布包。**`libs/` 和 `sdk/` 均不打包进分发包**：libs/*（17 个平台基础设施 crate）和 sdk/rust/*（7 个 Rust SDK crate）由 CI rust_publish job 发布到私有 kellnr registry，sdk/java/* 发布到私有 Maven 仓库；业务服务通过 `cargo add --registry kellnr` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 被过滤掉 `libs/*` 和 `sdk/rust/*` 行以避免指向不存在的目录。compose（services 与主入口）已统一转成 `image:` 引用且离线包含 `micro-server/frontend:<ver>` 镜像，启动无需现场构建前端；`frontend/` 源码保留在 airgap 骨架里供二次开发改完前端后用源码方式重打镜像。
+- v2 新增：release.js 自动从开发仓库同步开发骨架到发布包——`.agents/skills/`（**仅 6 个下游 scaffold 白名单**，SDK 发布 / CI 诊断等 repo-local skill 不进包，清单见 release.js 内 `DOWNSTREAM_SKILL_WHITELIST` 与包内 `.agents/README.downstream.md`）+ `.agents/rules/` / `scripts/` / `contracts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `tests/e2e`（清理产物）+ `services/`（空骨架 + agents-template.md）+ `Cargo.toml`。**`libs/` 和 `sdk/` 均不打包进分发包**：libs/*（17 个平台基础设施 crate）和 sdk/rust/*（7 个 Rust SDK crate）由 CI rust_publish job 发布到私有 kellnr registry，sdk/java/* 发布到私有 Maven 仓库；业务服务通过 `cargo add --registry kellnr` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 被过滤掉 `libs/*` 和 `sdk/rust/*` 行以避免指向不存在的目录。compose（services 与主入口）已统一转成 `image:` 引用且离线包含 `micro-server/frontend:<ver>` 镜像，启动无需现场构建前端；`frontend/` 源码保留在 airgap 骨架里供二次开发改完前端后用源码方式重打镜像。
 - **镜像 tag no-v**：git tag 带 `v`（v1.5.0），发布镜像 tag 不带 v（`1.5.0`）；以下 `IMAGE_TAG` / 下游升级引用的都是 no-v 值。
 - skills 稳定成 `.agents/skills/`（保留点开头，release.js 不再去点；agent 默认 discovery 路径即此）。
+- **下游 skills 白名单**：分发包 `.agents/skills/` 只含 6 个 scaffold —— `coder-new-service` / `coder-add-route` / `coder-migrate-db`（Rust）与 `coder-new-java-service` / `coder-add-java-route` / `coder-migrate-java-db`（Java）；修改 scaffold 正文仍以开发仓库 `.agents/skills/` 为单一真相源，重新发包即带最新内容。
 
 ## 升级
 

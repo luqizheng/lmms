@@ -248,12 +248,66 @@ if (existsSync(path.join(REPO_ROOT, 'tests', 'e2e'))) {
   console.log('[release]   ✓ tests/e2e/ (node_modules / reports / playwright artifacts excluded)');
 }
 
-// .agents/skills
-if (existsSync(path.join(REPO_ROOT, '.agents', 'skills'))) {
-  mkdirSync(path.join(DIST_DIR, '.agents'), { recursive: true });
-  cp(path.join(REPO_ROOT, '.agents', 'skills'), path.join(DIST_DIR, '.agents', 'skills'));
-  console.log('[release]   ✓ .agents/skills/');
-}
+// .agents/skills — 下游白名单（单一真相源：本仓 .agents/skills）
+//
+// v1.x 排序：分发包只携带下游创建/维护业务微服务要用的 scaffold skill，
+// repo-local（SDK 发布 / CI 诊断 / 平台工程…）一概不封包，以减少下游
+// cms-sync three-way-merge 噪音、避免误用本仓发布技能。
+// 增加条目即可把新 skill 纳入分发（仍需同步统一 dist README 的描述）。
+const DOWNSTREAM_SKILL_WHITELIST = [
+  // Rust 业务服务脚手架
+  'coder-new-service',
+  'coder-add-route',
+  'coder-migrate-db',
+  // Java 业务服务脚手架
+  'coder-new-java-service',
+  'coder-add-java-route',
+  'coder-migrate-java-db',
+];
+
+(function syncDownstreamSkills() {
+  const skillsSrcDir = path.join(REPO_ROOT, '.agents', 'skills');
+  const skillsDstDir = path.join(DIST_DIR, '.agents', 'skills');
+  if (!existsSync(skillsSrcDir)) return;
+  mkdirSync(skillsDstDir, { recursive: true });
+
+  let copied = 0;
+  for (const name of DOWNSTREAM_SKILL_WHITELIST) {
+    const src = path.join(skillsSrcDir, name);
+    if (!existsSync(src)) {
+      console.log(`[release]   ⚠ whitelisted skill missing: ${name}`);
+      continue;
+    }
+    cp(src, path.join(skillsDstDir, name));
+    copied++;
+  }
+  console.log(`[release]   ✓ .agents/skills/ (白名单 ${copied}/${DOWNSTREAM_SKILL_WHITELIST.length} 个 scaffold)`);
+
+  // 说明：其余 repo-local skill 属框架仓，不外发。
+  const readmePath = path.join(DIST_DIR, '.agents', 'README.downstream.md');
+  writeFileSync(
+    readmePath,
+`# 本包 .agents/skills 说明（下游开发用）
+
+本分发包的 \`.agents/skills/\` 仅包含下游「创建 / 维护 Java / Rust 业务微服务」要用的 6 个 scaffold：
+
+| skill | 语言 | 用途 |
+| --- | --- | --- |
+| coder-new-service | Rust | 新建 Rust 业务微服务骨架（8-item 规范） |
+| coder-add-route | Rust | Rust 服务加路由 / OpenAPI |
+| coder-migrate-db | Rust | Rust 双（MySQL/SQLite）语义迁移 |
+| coder-new-java-service | Java | 新建 Java(Spring Boot 3 + JDK 21) 业务微服务骨架 + compose/网关注册 |
+| coder-add-java-route | Java | Java 服务加 Controller/DTO |
+| coder-migrate-java-db | Java | Java Flyway 迁移 |
+
+其余 repo-local skill（SDK 发布、CI 诊断、性能剖析、平台工程等）属于框架源码仓库自身开发用，**不进本包**。
+
+如你的下游需要的是这些框架侧能力，请到框架开发仓库使用；若确有必要把某个 skill 随包分发给下游，由框架维护者在开发仓库的
+\`DOWNSTREAM_SKILL_WHITELIST\`（\`release/dist-template/scripts/release.js\`）追加条目后重新发包。
+`
+  );
+  console.log('[release]   ✓ .agents/README.downstream.md (repo-local skills 不外发说明)');
+})();
 
 // .agents/rules (优先 .agents/rules，其次 .trae/rules)
 if (existsSync(path.join(REPO_ROOT, '.agents', 'rules'))) {
@@ -453,8 +507,9 @@ console.log('[release]   ✓ pnpm-workspace.yaml + package.json');
 if (existsSync(path.join(REPO_ROOT, 'AGENTS.md'))) {
   cp(path.join(REPO_ROOT, 'AGENTS.md'), path.join(DIST_DIR, 'AGENTS.md'));
   sh(`node "${path.join(ROOT, 'scripts', 'release-transforms.js')}" rewrite-agents \
-    --file "${path.join(DIST_DIR, 'AGENTS.md')}"`);
-  console.log("[release]   ✓ AGENTS.md (.trae/ references replaced with .agents/)");
+    --file "${path.join(DIST_DIR, 'AGENTS.md')}" \
+    --downstream-skills "${DOWNSTREAM_SKILL_WHITELIST.join(',')}"`);
+  console.log("[release]   ✓ AGENTS.md (.trae/ replaced with .agents/; non-whitelisted skill rows dropped)");
 }
 
 // ── MANIFEST.json ────────────────────────────────────────────────────────────

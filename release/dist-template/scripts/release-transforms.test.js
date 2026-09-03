@@ -260,6 +260,57 @@ test('rewriteAgentsMd: drop-rows execute BEFORE prefix rewrite (order safety)', 
   assert.ok(after.includes('.agents/skills/other-skill'));
 });
 
+test('rewriteAgentsMd: drops non-whitelisted .agents/skills rows when downstreamSkills given', () => {
+  const whitelist = [
+    'coder-new-service',
+    'coder-add-route',
+    'coder-migrate-db',
+    'coder-new-java-service',
+    'coder-add-java-route',
+    'coder-migrate-java-db',
+  ];
+  const before = [
+    '| Skill | Path |',
+    '|---|---|',
+    '| 新建服务 | `.agents/skills/coder-new-service` |',
+    '| 加路由 | `.agents/skills/coder-add-route` |',
+    '| 发布 npm SDK | `.agents/skills/coder-sdk-publish-npm` |',
+    '| 打离线分发包 | `.agents/skills/coder-service-release` |',
+    '| 审查计划 | `.agents/skills/plan-eng-review` |',
+    '| 其他 | keep |',
+    '',
+  ].join('\n');
+  const after = rewriteAgentsMd(before, whitelist);
+  assert.ok(after.includes('新建服务'), `whitelisted row dropped: ${after}`);
+  assert.ok(after.includes('加路由'));
+  assert.ok(!after.includes('coder-sdk-publish-npm'), `repo-local row kept: ${after}`);
+  assert.ok(!after.includes('coder-service-release'));
+  assert.ok(!after.includes('plan-eng-review'));
+  assert.ok(after.includes('其他 | keep'));
+});
+
+test('rewriteAgentsMd: no downstreamSkills arg keeps .agents rows (backward compat)', () => {
+  const before = '| 审查计划 | `.agents/skills/plan-eng-review` |\n';
+  const after = rewriteAgentsMd(before);
+  assert.ok(after.includes('plan-eng-review'));
+});
+
+test('rewriteAgentsMd: normalized .trae rows are dropped when outside whitelist', () => {
+  // `.trae/skills/` is rewritten to `.agents/skills/` first, then the
+  // non-whitelist row filter removes it — the dist ships no platform skills.
+  const before = '| 跑 E2E | ref .trae/skills/coder-e2e-test |\n' +
+                 '| 其他 | keep |\n';
+  const after = rewriteAgentsMd(before, ['coder-new-service']);
+  assert.ok(!after.includes('coder-e2e-test'));
+  assert.ok(after.includes('其他 | keep'));
+});
+
+test('rewriteAgentsMd: whitelist name never shields a longer skill name', () => {
+  const before = '| x | `.agents/skills/coder-new-service-extra` |\n';
+  const after = rewriteAgentsMd(before, ['coder-new-service']);
+  assert.ok(!after.includes('coder-new-service-extra'));
+});
+
 test('rewriteAgentsMd: rejects non-string', () => {
   assert.throws(() => rewriteAgentsMd(null), /must be a string/);
 });
