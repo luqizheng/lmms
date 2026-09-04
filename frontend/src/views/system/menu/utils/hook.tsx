@@ -12,7 +12,7 @@ import type {
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { cloneDeep, isAllEmpty, deviceDetection } from "@pureadmin/utils";
 import { listIamRoles } from "@/api/iam";
-import { constantMenus } from "@/router";
+import { dynamicMenus } from "@/router";
 import { buildStaticMenuSeed } from "@/router/menu-merge";
 import {
   listMenuConfigs,
@@ -163,9 +163,9 @@ export function useMenu() {
       return;
     }
 
-    // 首次使用：用前端静态菜单生成种子草稿（demo 异常页/引导页默认隐藏），
-    // 管理员在此基础上调整可见性/角色后发布
-    const seed = buildStaticMenuSeed(constantMenus as any[]);
+    // 首次使用：用前端动态菜单（不含 remaining 常驻页）生成种子草稿（demo 异常页/
+    // 引导页默认隐藏），管理员在此基础上调整可见性/角色后发布
+    const seed = buildStaticMenuSeed(dynamicMenus as any[]);
     const created = await createMenuConfig({
       name: `菜单草稿 ${new Date().toLocaleString()}`,
       description: "由静态菜单初始化",
