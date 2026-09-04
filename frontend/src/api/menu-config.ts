@@ -21,6 +21,7 @@ interface UpdateMenuConfigRequest {
   name?: string;
   description?: string;
   routes_json?: unknown[];
+  if_match_etag: string;
 }
 
 export const listMenuConfigs = () => {
@@ -47,7 +48,10 @@ export const getMenuConfig = (id: string) => {
   );
 };
 
-export const updateMenuConfig = (id: string, data: UpdateMenuConfigRequest) => {
+export const updateMenuConfig = (
+  id: string,
+  data: UpdateMenuConfigRequest
+) => {
   return http.request<ApiResponse<MenuConfigDetail>>(
     "put",
     `/v1/pure/menu-configs/${id}`,
