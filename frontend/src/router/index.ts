@@ -64,10 +64,16 @@ export const constantRoutes: Array<RouteRecordRaw> = formatTwoStageRoutes(
 /** 初始的静态路由，用于退出登录时重置路由 */
 const initConstantRoutes: Array<RouteRecordRaw> = cloneDeep(constantRoutes);
 
-/** 用于渲染菜单，保持原始层级 */
-export const constantMenus: Array<RouteComponent> = ascending(
+/** 动态模块菜单（src/router/modules/*，不含常驻路由 remaining.ts），保持原始层级。
+ *  菜单管理的静态种子只用它；remaining.ts 的常驻页不参与侧边栏，混入后会与动态模块
+ *  同名 path（如 /account-settings 在 account.ts 与 remaining.ts 各一份）冲突。 */
+export const dynamicMenus: Array<RouteComponent> = ascending(
   routes.flat(Infinity)
-).concat(...remainingRouter);
+);
+
+/** 用于渲染菜单，保持原始层级（动态模块 + 常驻路由） */
+export const constantMenus: Array<RouteComponent> =
+  dynamicMenus.concat(...remainingRouter);
 
 /** 不参与菜单的路由 */
 export const remainingPaths = Object.keys(remainingRouter).map(v => {

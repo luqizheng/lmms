@@ -97,6 +97,32 @@ describe("buildStaticMenuSeed", () => {
     expect(welcome.meta?.showLink).toBe(true);
     expect(welcome.meta?.title).toBe("首页");
   });
+
+  it("同一 path 在树中只保留首个（去重，规避后端 duplicate route.path）", () => {
+    const duplicated: OverlayRouteNode[] = [
+      ...staticRoutes,
+      {
+        path: "/system",
+        name: "SystemDuplicate",
+        meta: { title: "重复系统" },
+        children: [{ path: "/system/user", name: "DupUser" }]
+      },
+      { path: "/login", name: "Login", meta: { showLink: false } }
+    ];
+    const seed = buildStaticMenuSeed(duplicated);
+
+    const allPaths: string[] = [];
+    const walk = (nodes: OverlayRouteNode[]) =>
+      nodes.forEach(n => {
+        allPaths.push(n.path);
+        if (n.children) walk(n.children);
+      });
+    walk(seed);
+
+    expect(allPaths.filter(p => p === "/system")).toHaveLength(1);
+    expect(allPaths.filter(p => p === "/system/user")).toHaveLength(1);
+    expect(seed.find(n => n.path === "/system")?.meta?.title).toBe("系统管理");
+  });
 });
 
 describe("mergeMenus", () => {

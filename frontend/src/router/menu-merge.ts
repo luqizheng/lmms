@@ -48,25 +48,29 @@ export function isStaticMenuPath(
 /**
  * 从静态菜单树生成可存入 DB 的种子（纯数据，无组件函数）。
  * /error/** 与 /guide/** 默认 showLink=false，其余保留静态 meta。
+ * 按 path 全局去重（同一 path 只保留首个，例如动态模块与 remaining 常驻页
+ * 都定义了 /account-settings），避免后端 routes_json 校验报 duplicate route.path。
  */
 export function buildStaticMenuSeed(
   staticRoutes: OverlayRouteNode[]
 ): OverlayRouteNode[] {
+  const seen = new Set<string>();
   const seed = (nodes: OverlayRouteNode[]): OverlayRouteNode[] =>
-    (nodes ?? [])
-      .filter(node => node && node.path)
-      .map(node => {
-        const meta: Record<string, any> = cloneDeep(node.meta ?? {});
-        if (isDemoPath(node.path)) {
-          meta.showLink = false;
-        }
-        const out: OverlayRouteNode = { path: node.path, meta };
-        if (node.name) out.name = node.name;
-        if (node.redirect) out.redirect = node.redirect;
-        const children = seed(node.children ?? []);
-        if (children.length) out.children = children;
-        return out;
-      });
+    (nodes ?? []).flatMap(node => {
+      if (!node || !node.path || seen.has(node.path)) return [];
+      seen.add(node.path);
+
+      const meta: Record<string, any> = cloneDeep(node.meta ?? {});
+      if (isDemoPath(node.path)) {
+        meta.showLink = false;
+      }
+      const out: OverlayRouteNode = { path: node.path, meta };
+      if (node.name) out.name = node.name;
+      if (node.redirect) out.redirect = node.redirect;
+      const children = seed(node.children ?? []);
+      if (children.length) out.children = children;
+      return [out];
+    });
   return seed(staticRoutes);
 }
 

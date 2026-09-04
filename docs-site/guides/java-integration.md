@@ -2,6 +2,8 @@
 
 > 用 Java 应用接入本微服务系统（api-gateway + iam-service + token-service + 其它业务服务）的完整说明。
 > 最近更新：2026-06-26
+>
+> 本篇讲的是**外部 Java 应用作为客户端**调本平台 API。若你要在**本仓库 `services/` 内新建一个 Java（Spring Boot）业务微服务** → 见 [新增 Java 服务](./add-java-service)。
 
 本文档目标读者：
 
@@ -535,6 +537,8 @@ agent 会自动给 `java.net.http.HttpClient` / OkHttp / RestTemplate / WebClien
 ## 9. SDK 现状
 
 `sdk/java/` 共 6 个 Maven 模块（`digua_common` / `digua-user-user-sdk` / `digua-user-client-sdk` / `digua-token-user-sdk` / `digua-token-client-sdk` / `digua-http-client`）。**`0.2.0` 起已对齐当前 `api-gateway` 的 v1 路由与 JSON 请求体**，可以正式用于新接入。
+
+> 📦 **审计 / 通知 / 用户信息 / 文件 / 动态配置**等平台能力，在 **Spring Boot 服务内**的 Bean 装配与调用示例（`AuditServiceClient`、`NotificationServiceClient`、`UserServiceClientClient`、`/v1/file/*`、`/v1/config/*`），见 [新增 Java 服务 · §7 调用平台能力](./add-java-service#7-调用平台能力审计--通知--用户信息)。本节只讲客户端登录 / 拿 token / 发 HTTP 的基础接入。
 
 ### 9.1 已对齐
 
