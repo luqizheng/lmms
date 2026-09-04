@@ -359,9 +359,12 @@ const USERS = [
 async function registerUsers(conn) {
   // iam /iam/auth/register 公开接口只允许注册首用户（自动变 tenant_admin）；
   // 后续用户必须 admin 鉴权后通过 POST /iam/users 创建。
-  const [{ c: userCount }] = await conn.query(
+  // query() 按 mysql2 约定返回 [rows, fields]，需双层解构；docker-exec 回退
+  // 通道下 COUNT 值为字符串，Number() 归一化否则 '0' === 0 为 false。
+  const [countRows] = await conn.query(
     "SELECT COUNT(*) c FROM iam_users WHERE deleted_at IS NULL"
   );
+  const userCount = Number(countRows[0].c);
 
   const mustClearSeedRoles = userCount === 0;
   if (mustClearSeedRoles) {

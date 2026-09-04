@@ -21,7 +21,7 @@ export default {
         title: $t("menus.systemUser"),
         icon: "ep/user",
         keepAlive: true,
-        roles: ["platform_admin"]
+        roles: ["tenant_admin", "platform_admin"]
       }
     },
     {
@@ -32,7 +32,7 @@ export default {
         title: $t("menus.systemRole"),
         icon: "ep/user-filled",
         keepAlive: true,
-        roles: ["platform_admin"]
+        roles: ["tenant_admin", "platform_admin"]
       }
     },
     {
@@ -43,7 +43,7 @@ export default {
         title: $t("menus.systemPermission"),
         icon: "ep/lock",
         keepAlive: true,
-        roles: ["platform_admin"]
+        roles: ["tenant_admin", "platform_admin"]
       }
     },
     {
@@ -97,7 +97,7 @@ export default {
         title: $t("menus.systemMenu"),
         icon: "ep/menu",
         keepAlive: true,
-        roles: ["platform_admin"]
+        roles: ["tenant_admin", "platform_admin"]
       }
     },
     {
@@ -108,7 +108,7 @@ export default {
         title: $t("menus.systemTenant"),
         icon: "ep/office-building",
         keepAlive: true,
-        roles: ["platform_admin"]
+        roles: ["tenant_admin", "platform_admin"]
       }
     },
     {
@@ -119,7 +119,7 @@ export default {
         title: $t("menus.pureDept"),
         icon: "ep/office-building",
         keepAlive: true,
-        roles: ["platform_admin"]
+        roles: ["tenant_admin", "platform_admin"]
       }
     }
   ]

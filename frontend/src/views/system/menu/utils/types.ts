@@ -23,11 +23,19 @@ interface FormItemProps {
   fixedTag: boolean;
   showLink: boolean;
   showParent: boolean;
+  /** 可见角色 code 数组；空数组/undefined = 所有人可见 */
+  roles?: string[];
   children?: FormItemProps[];
+}
+
+interface RoleOption {
+  label: string;
+  value: string;
 }
 
 interface FormProps {
   formInline: FormItemProps;
+  roleOptions?: RoleOption[];
 }
 
 interface MenuConfigSummary {
@@ -41,6 +49,8 @@ interface MenuConfigSummary {
   created_at: string;
   updated_at: string;
   published_at?: string | null;
+  /** 乐观锁：routes_json 内容的 etag，更新草稿时需原样回传 */
+  routes_etag: string;
 }
 
 interface MenuConfigDetail extends MenuConfigSummary {
@@ -55,6 +65,7 @@ interface MenuConfigListResponse {
 export type {
   FormItemProps,
   FormProps,
+  RoleOption,
   MenuConfigSummary,
   MenuConfigDetail,
   MenuConfigListResponse

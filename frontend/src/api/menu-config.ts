@@ -21,6 +21,7 @@ interface UpdateMenuConfigRequest {
   name?: string;
   description?: string;
   routes_json?: unknown[];
+  if_match_etag: string;
 }
 
 export const listMenuConfigs = () => {

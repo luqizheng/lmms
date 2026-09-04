@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import ReCol from "@/components/ReCol";
 import { formRules } from "./utils/rule";
@@ -42,12 +42,14 @@ const props = withDefaults(defineProps<FormProps>(), {
     hiddenTag: false,
     fixedTag: false,
     showLink: true,
-    showParent: false
+    showParent: false,
+    roles: []
   })
 });
 
 const ruleFormRef = ref();
 const newFormInline = ref(props.formInline);
+const roleOptions = computed(() => props.roleOptions ?? []);
 
 function getRef() {
   return ruleFormRef.value;
@@ -257,6 +259,33 @@ defineExpose({ getRef });
               }
             "
           />
+        </el-form-item>
+      </re-col>
+
+      <re-col
+        v-show="newFormInline.menuType !== 3"
+        :value="12"
+        :xs="24"
+        :sm="24"
+      >
+        <el-form-item label="可见角色">
+          <el-select
+            v-model="newFormInline.roles"
+            class="w-full"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            clearable
+            placeholder="留空 = 所有人可见"
+          >
+            <el-option
+              v-for="r in roleOptions"
+              :key="r.value"
+              :label="r.label"
+              :value="r.value"
+            />
+          </el-select>
         </el-form-item>
       </re-col>
 

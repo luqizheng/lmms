@@ -42,12 +42,12 @@ const makeSystemTree = () => [
     name: "System",
     meta: { title: "系统管理", icon: "ep/set-up" },
     children: [
-      { path: "/system/user", name: "SystemUser", meta: { title: "用户", icon: "ep/user", roles: ["platform_admin"] } },
-      { path: "/system/role", name: "SystemRole", meta: { title: "角色", icon: "ep/user-filled", roles: ["platform_admin"] } },
-      { path: "/system/permission", name: "SystemPermission", meta: { title: "权限", icon: "ep/lock", roles: ["platform_admin"] } },
-      { path: "/system/menu", name: "SystemMenu", meta: { title: "菜单", icon: "ep/menu", roles: ["platform_admin"] } },
-      { path: "/system/tenant", name: "SystemTenant", meta: { title: "租户", icon: "ep/office-building", roles: ["platform_admin"] } },
-      { path: "/system/dept", name: "SystemDept", meta: { title: "部门", icon: "ep/office-building", roles: ["platform_admin"] } }
+      { path: "/system/user", name: "SystemUser", meta: { title: "用户", icon: "ep/user", roles: ["tenant_admin", "platform_admin"] } },
+      { path: "/system/role", name: "SystemRole", meta: { title: "角色", icon: "ep/user-filled", roles: ["tenant_admin", "platform_admin"] } },
+      { path: "/system/permission", name: "SystemPermission", meta: { title: "权限", icon: "ep/lock", roles: ["tenant_admin", "platform_admin"] } },
+      { path: "/system/menu", name: "SystemMenu", meta: { title: "菜单", icon: "ep/menu", roles: ["tenant_admin", "platform_admin"] } },
+      { path: "/system/tenant", name: "SystemTenant", meta: { title: "租户", icon: "ep/office-building", roles: ["tenant_admin", "platform_admin"] } },
+      { path: "/system/dept", name: "SystemDept", meta: { title: "部门", icon: "ep/office-building", roles: ["tenant_admin", "platform_admin"] } }
     ]
   },
   { path: "/dashboard", name: "Dashboard", meta: { title: "首页", icon: "ep/home-filled" } }
@@ -72,26 +72,32 @@ describe("system routes — meta.roles coverage on 6 sub routes", () => {
     "/system/tenant",
     "/system/dept"
   ])("declares roles on %s", path => {
-    expect(getChildMeta(path).roles).toEqual(["platform_admin"]);
+    expect(getChildMeta(path).roles).toEqual([
+      "tenant_admin",
+      "platform_admin"
+    ]);
   });
 });
 
 describe("filterNoPermissionTree — system menu gating (framework behavior contract)", () => {
-  it("keeps system parent + 6 sub routes for platform_admin", () => {
-    const filtered = runFilter(["platform_admin"]) as any[];
-    const systemNode = filtered.find(n => n.path === "/system");
-    expect(systemNode).toBeDefined();
-    expect(systemNode.children).toHaveLength(6);
-    const childNames = systemNode.children.map((c: any) => c.name).sort();
-    expect(childNames).toEqual([
-      "SystemDept",
-      "SystemMenu",
-      "SystemPermission",
-      "SystemRole",
-      "SystemTenant",
-      "SystemUser"
-    ]);
-  });
+  it.each([["tenant_admin"], ["platform_admin"]])(
+    "keeps system parent + 6 sub routes for %s",
+    role => {
+      const filtered = runFilter([role]) as any[];
+      const systemNode = filtered.find(n => n.path === "/system");
+      expect(systemNode).toBeDefined();
+      expect(systemNode.children).toHaveLength(6);
+      const childNames = systemNode.children.map((c: any) => c.name).sort();
+      expect(childNames).toEqual([
+        "SystemDept",
+        "SystemMenu",
+        "SystemPermission",
+        "SystemRole",
+        "SystemTenant",
+        "SystemUser"
+      ]);
+    }
+  );
 
   it("keeps top-level menus that have no meta.roles (e.g. /dashboard)", () => {
     const filtered = runFilter(["platform_admin"]) as any[];

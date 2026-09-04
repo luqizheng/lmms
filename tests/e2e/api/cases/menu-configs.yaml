@@ -9,6 +9,7 @@ cases:
     expect:
       - $.code==0
       - $.data.items exists
+      - $.data.items is array
 
   - caseId: MENU-002
     desc: 创建草稿菜单配置
@@ -27,16 +28,12 @@ cases:
             title: E2E 菜单
             auths: [e2e:menu:list]
             rank: 99
-          _menu:
-            id: 900001
-            parentId: 0
-            menuType: 0
-            auths: e2e:menu:list
     expectStatus: [200, 201]
     expect:
       - $.code==0
       - $.data.status==draft
       - $.data.id exists
+      - $.data.routes_etag exists
 
   - caseId: MENU-003
     desc: 获取菜单配置详情
@@ -46,27 +43,64 @@ cases:
     expect:
       - $.code==0
       - $.data.id==${MENU-002.data.id}
+      - $.data.routes_etag==${MENU-002.data.routes_etag}
 
   - caseId: MENU-004
-    desc: 更新 routes_json
+    desc: 携带正确 etag 更新草稿成功
+    smoke: true
     method: PUT
     path: /v1/pure/menu-configs/${MENU-002.data.id}
     body:
+      if_match_etag: ${MENU-002.data.routes_etag}
       routes_json:
-        - path: /e2e-menu-${rand}
+        - path: /e2e-menu-upd-${rand}
           name: E2eMenuUpd${rand}
           component: system/menu/index
           meta:
             title: E2E 菜单已更新
             auths: [e2e:menu:list]
+            roles: [platform_admin]
             rank: 99
     expectStatus: 200
     expect:
       - $.code==0
       - $.data.routes_json contains E2E 菜单已更新
+      - $.data.routes_json contains platform_admin
+      - $.data.routes_etag exists
 
   - caseId: MENU-005
+    desc: 更新草稿缺 if_match_etag 返回 400
+    method: PUT
+    path: /v1/pure/menu-configs/${MENU-002.data.id}
+    body:
+      routes_json:
+        - path: /e2e-menu-noetag-${rand}
+          name: E2eMenuNoEtag${rand}
+          meta:
+            title: 缺少 etag
+    expectStatus: 400
+    expect:
+      - $.code==400
+
+  - caseId: MENU-006
+    desc: 更新草稿携带错误 etag 返回 409 并回传 current_etag
+    method: PUT
+    path: /v1/pure/menu-configs/${MENU-002.data.id}
+    body:
+      if_match_etag: stale-etag-${rand}
+      routes_json:
+        - path: /e2e-menu-badetag-${rand}
+          name: E2eMenuBadEtag${rand}
+          meta:
+            title: 错误 etag
+    expectStatus: 409
+    expect:
+      - $.code==409
+      - $.data.current_etag exists
+
+  - caseId: MENU-007
     desc: 发布菜单配置
+    smoke: true
     method: POST
     path: /v1/pure/menu-configs/${MENU-002.data.id}/publish
     expectStatus: 200
@@ -75,8 +109,24 @@ cases:
       - $.data.status==published
       - $.data.is_active==true
 
-  - caseId: MENU-006
-    desc: get-async-routes 暴露已发布路由
+  - caseId: MENU-008
+    desc: 已发布版本不可再更新（status 非 draft）返回 409
+    method: PUT
+    path: /v1/pure/menu-configs/${MENU-002.data.id}
+    body:
+      if_match_etag: ${MENU-004.data.routes_etag}
+      routes_json:
+        - path: /e2e-menu-published-${rand}
+          name: E2eMenuPublished${rand}
+          meta:
+            title: 已发布不可改
+    expectStatus: 409
+    expect:
+      - $.code==409
+
+  - caseId: MENU-009
+    desc: get-async-routes 暴露已发布路由且 roles 透传
+    smoke: true
     method: GET
     path: /v1/pure/get-async-routes
     expectStatus: 200
@@ -84,9 +134,10 @@ cases:
       - $.code==0
       - $.data is array
       - $.data contains E2E 菜单已更新
+      - $.data contains platform_admin
 
   - caseId: MENU-CLONE-001
-    desc: 菜单克隆（POST /pure/menu-configs/:id/clone，生成新 draft）
+    desc: 菜单克隆生成新 draft
     smoke: true
     method: POST
     path: /v1/pure/menu-configs/${MENU-002.data.id}/clone
@@ -95,3 +146,15 @@ cases:
       - $.code==0
       - $.data.id exists
       - $.data.status==draft
+
+  - caseId: MENU-DEL-DRAFT-001
+    desc: 删除克隆出的草稿成功（204）
+    method: DELETE
+    path: /v1/pure/menu-configs/${MENU-CLONE-001.data.id}
+    expectStatus: 204
+
+  - caseId: MENU-DEL-PUB-001
+    desc: 已发布版本不可删除返回 409
+    method: DELETE
+    path: /v1/pure/menu-configs/${MENU-002.data.id}
+    expectStatus: 409

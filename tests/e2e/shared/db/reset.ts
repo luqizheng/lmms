@@ -22,6 +22,7 @@ const BUSINESS_TABLES = [
   'ntf_announcement_reads',
   'ntf_announcement_recipients',
   'ntf_announcements',
+  'prue_menu_configs',
 ];
 
 // 权限相关表：整轮测试前清空

@@ -23,14 +23,14 @@ export const usePermissionStore = defineStore("pure-permission", {
     cachePageList: []
   }),
   actions: {
-    /** 组装整体路由生成的菜单 */
+    /** 组装整体路由生成的菜单。
+     *  routes 已是「DB 为主 merge 静态」后的完整菜单树（由 router/utils 的 mergeMenus 产出），
+     *  直接渲染，不再额外拼接 constantMenus（否则静态菜单会重复）。 */
     handleWholeMenus(routes: any[]) {
       this.wholeMenus = filterNoPermissionTree(
-        filterTree(ascending(this.constantMenus.concat(routes)))
+        filterTree(ascending(routes ?? []))
       );
-      this.flatteningRoutes = formatFlatteningRoutes(
-        this.constantMenus.concat(routes) as any
-      );
+      this.flatteningRoutes = formatFlatteningRoutes((routes ?? []) as any);
     },
     /** 监听缓存页面是否存在于标签页，不存在则删除 */
     clearCache() {

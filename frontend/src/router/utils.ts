@@ -28,6 +28,8 @@ const modulesRoutes = import.meta.glob("/src/views/**/*.{vue,tsx}");
 
 // 动态路由
 import { getAsyncRoutes } from "@/api/routes";
+import { constantMenus } from "./index";
+import { mergeMenus } from "./menu-merge";
 
 const PAGE_NOT_FOUND_ROUTE_NAME = "PageNotFound" as const;
 
@@ -155,37 +157,80 @@ function addPathMatch() {
   });
 }
 
-/** 处理动态路由（后端返回的路由） */
-function handleAsyncRoutes(routeList) {
-  if (routeList.length === 0) {
-    usePermissionStoreHook().handleWholeMenus(routeList);
-  } else {
-    formatFlatteningRoutes(addAsyncRoutes(routeList)).map(
-      (v: RouteRecordRaw) => {
-        // 防止重复添加路由
-        if (
-          router.options.routes[0].children.findIndex(
-            value => value.path === v.path
-          ) !== -1
-        ) {
-          return;
-        } else {
-          // 切记将路由push到routes后还需要使用addRoute，这样路由才能正常跳转
-          router.options.routes[0].children.push(v);
-          // 最终路由进行升序
-          ascending(router.options.routes[0].children);
-          if (!router.hasRoute(v?.name)) router.addRoute(v);
-          const flattenRouters: any = router
-            .getRoutes()
-            .find(n => n.path === "/");
-          // 保持router.options.routes[0].children与path为"/"的children一致，防止数据不一致导致异常
-          flattenRouters.children = router.options.routes[0].children;
-          router.addRoute(flattenRouters);
-        }
-      }
+/** 把 DB 覆盖的 meta（roles/showLink/title 等）同步到已注册的静态路由，
+ *  保证直接输入 URL 访问时路由守卫 beforeEach 的 roles 判断也以 DB 配置为准 */
+function syncStaticRouteMeta(nodes: any[]) {
+  for (const node of nodes ?? []) {
+    if (!node?._static) {
+      if (node?.children) syncStaticRouteMeta(node.children);
+      continue;
+    }
+    const rootChildren = router.options.routes[0]?.children ?? [];
+    const matched = findRouteByPath(
+      node.path,
+      rootChildren as RouteRecordRaw[]
     );
-    usePermissionStoreHook().handleWholeMenus(routeList);
+    if (matched && node.meta) {
+      Object.assign(matched.meta, node.meta);
+    }
+    if (node.children) syncStaticRouteMeta(node.children);
   }
+}
+
+/** 收集需要动态注册组件的自定义节点根（外链/iframe/自定义页面）。
+ *  静态节点自身不注册；静态父节点 children 里的自定义根会被收集，其后代由
+ *  addAsyncRoutes 递归处理，避免重复收集。 */
+function collectCustomRoots(nodes: any[], acc: any[] = []): any[] {
+  for (const node of nodes ?? []) {
+    if (!node) continue;
+    if (node._static) {
+      if (node.children) collectCustomRoots(node.children, acc);
+    } else {
+      acc.push(node);
+    }
+  }
+  return acc;
+}
+
+/** 处理后端返回的动态路由：以 DB 为主 merge 静态菜单后，静态菜单同步 DB 覆盖的
+ *  meta、自定义菜单解析组件并动态注册，最终组装侧边栏。 */
+function handleAsyncRoutes(rawRoutes) {
+  // DB 为主、静态兜底合并；未发布（空数组）时退化为纯静态菜单
+  const routeList = mergeMenus(rawRoutes ?? [], constantMenus as any[]);
+
+  // 静态菜单的组件已由 constantRoutes 注册，这里只把 DB 覆盖的 meta（roles/showLink 等）
+  // 同步到已注册路由，保证直接输入 URL 时路由守卫也按 DB 权限判断
+  syncStaticRouteMeta(routeList);
+
+  // 仅自定义节点需要解析组件并动态注册
+  const customRoutes = addAsyncRoutes(collectCustomRoots(routeList));
+  if (customRoutes && customRoutes.length) {
+    formatFlatteningRoutes(customRoutes).map((v: RouteRecordRaw) => {
+      // 防止重复添加路由
+      if (
+        router.options.routes[0].children.findIndex(
+          value => value.path === v.path
+        ) !== -1
+      ) {
+        return;
+      } else {
+        // 切记将路由push到routes后还需要使用addRoute，这样路由才能正常跳转
+        router.options.routes[0].children.push(v);
+        // 最终路由进行升序
+        ascending(router.options.routes[0].children);
+        if (!router.hasRoute(v?.name)) router.addRoute(v);
+        const flattenRouters: any = router
+          .getRoutes()
+          .find(n => n.path === "/");
+        // 保持router.options.routes[0].children与path为"/"的children一致，防止数据不一致导致异常
+        flattenRouters.children = router.options.routes[0].children;
+        router.addRoute(flattenRouters);
+      }
+    });
+  }
+
+  usePermissionStoreHook().handleWholeMenus(routeList);
+
   if (!useMultiTagsStoreHook().getMultiTagsCache) {
     useMultiTagsStoreHook().handleTags("equal", [
       ...routerArrays,

@@ -17,13 +17,15 @@ const routeTree: RouteNode[] = [
       rank: 1,
       auths: ["system:view"],
       showLink: true,
-      showParent: true
+      showParent: true,
+      roles: []
     },
     _menu: {
       id: 1,
       parentId: 0,
       menuType: 0,
-      auths: "system:view"
+      auths: "system:view",
+      roles: []
     },
     children: [
       {
@@ -36,13 +38,15 @@ const routeTree: RouteNode[] = [
           rank: 2,
           auths: ["system:menu:list"],
           showLink: true,
-          showParent: false
+          showParent: false,
+          roles: []
         },
         _menu: {
           id: 2,
           parentId: 1,
           menuType: 0,
-          auths: "system:menu:list"
+          auths: "system:menu:list",
+          roles: []
         }
       }
     ]
