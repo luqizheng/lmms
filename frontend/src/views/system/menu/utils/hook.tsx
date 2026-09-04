@@ -4,7 +4,11 @@ import { message } from "@/utils/message";
 import { transformI18n } from "@/plugins/i18n";
 import { addDialog } from "@/components/ReDialog";
 import { reactive, ref, onMounted, h, computed } from "vue";
-import type { FormItemProps, MenuConfigSummary, RoleOption } from "../utils/types";
+import type {
+  FormItemProps,
+  MenuConfigSummary,
+  RoleOption
+} from "../utils/types";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { cloneDeep, isAllEmpty, deviceDetection } from "@pureadmin/utils";
 import { listIamRoles } from "@/api/iam";

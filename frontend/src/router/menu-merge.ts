@@ -28,9 +28,7 @@ export interface OverlayRouteNode {
 /** pure-admin demo 页：异常页与引导页，种子里默认不在侧边栏显示 */
 function isDemoPath(path: string): boolean {
   return (
-    path === "/guide" ||
-    path.startsWith("/guide/") ||
-    path.startsWith("/error")
+    path === "/guide" || path.startsWith("/guide/") || path.startsWith("/error")
   );
 }
 
@@ -101,10 +99,7 @@ export function mergeMenus(
   // 已被静态骨架消费的自定义 DB 节点（挂在静态父下的），顶层追加时去重用
   const consumedCustom = new Set<string>();
 
-  const mergeNode = (
-    staticNode: OverlayRouteNode,
-    staticSiblings: OverlayRouteNode[]
-  ): OverlayRouteNode => {
+  const mergeNode = (staticNode: OverlayRouteNode): OverlayRouteNode => {
     const node: OverlayRouteNode = cloneDeep(staticNode);
     node._static = true;
     const overlay = dbByPath.get(staticNode.path);
@@ -120,7 +115,7 @@ export function mergeMenus(
 
     // 静态子节点：递归（各自从全局 DB 索引取覆盖）
     for (const child of staticChildren) {
-      children.push(mergeNode(child, staticChildren));
+      children.push(mergeNode(child));
     }
     // DB overlay 里的自定义子节点（静态没有同 path）：挂到该静态父下
     for (const dbChild of dbChildren) {
@@ -138,7 +133,7 @@ export function mergeMenus(
 
   const result = (staticRoutes ?? [])
     .filter(n => n && n.path)
-    .map(n => mergeNode(n, staticRoutes));
+    .map(n => mergeNode(n));
 
   // 顶层 DB 自定义节点（静态骨架完全没有的，且未作为静态父的子节点被消费）
   const collectTopCustom = (nodes: OverlayRouteNode[]) => {

@@ -166,7 +166,10 @@ function syncStaticRouteMeta(nodes: any[]) {
       continue;
     }
     const rootChildren = router.options.routes[0]?.children ?? [];
-    const matched = findRouteByPath(node.path, rootChildren as RouteRecordRaw[]);
+    const matched = findRouteByPath(
+      node.path,
+      rootChildren as RouteRecordRaw[]
+    );
     if (matched && node.meta) {
       Object.assign(matched.meta, node.meta);
     }

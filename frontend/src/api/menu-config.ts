@@ -48,10 +48,7 @@ export const getMenuConfig = (id: string) => {
   );
 };
 
-export const updateMenuConfig = (
-  id: string,
-  data: UpdateMenuConfigRequest
-) => {
+export const updateMenuConfig = (id: string, data: UpdateMenuConfigRequest) => {
   return http.request<ApiResponse<MenuConfigDetail>>(
     "put",
     `/v1/pure/menu-configs/${id}`,
