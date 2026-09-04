@@ -2,6 +2,8 @@
 
 > 端到端实战手册：从「我想加个新服务」到「CI 全绿、可上线」。  
 > 配套 skill：`.agents/skills/coder-new-service/`（AI 用的脚手架细节）。本文档面向**人 + AI 协作**，给流程、给决策、给坑，不重复模板。
+>
+> 本篇讲 **Rust + Axum** 服务。要新增 **Java / Spring Boot** 业务服务 → [新增 Java 服务](./add-java-service)。
 
 ## 0. 何时该新建一个服务（决策树）
 
