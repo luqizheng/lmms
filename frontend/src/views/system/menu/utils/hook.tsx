@@ -4,9 +4,12 @@ import { message } from "@/utils/message";
 import { transformI18n } from "@/plugins/i18n";
 import { addDialog } from "@/components/ReDialog";
 import { reactive, ref, onMounted, h, computed } from "vue";
-import type { FormItemProps, MenuConfigSummary } from "../utils/types";
+import type { FormItemProps, MenuConfigSummary, RoleOption } from "../utils/types";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { cloneDeep, isAllEmpty, deviceDetection } from "@pureadmin/utils";
+import { listIamRoles } from "@/api/iam";
+import { constantMenus } from "@/router";
+import { buildStaticMenuSeed } from "@/router/menu-merge";
 import {
   listMenuConfigs,
   createMenuConfig,
@@ -29,8 +32,20 @@ export function useMenu() {
   const selectedConfigId = ref("");
   const currentConfig = ref<MenuConfigSummary | null>(null);
   const flatMenuList = ref<FormItemProps[]>([]);
+  const roleOptions = ref<RoleOption[]>([]);
 
   const isEditable = computed(() => currentConfig.value?.status === "draft");
+
+  async function loadRoleOptions() {
+    try {
+      const resp = await listIamRoles({ page: 1, size: 200 });
+      roleOptions.value = (resp?.items ?? [])
+        .filter((r: any) => !r.status || r.status === "active")
+        .map((r: any) => ({ label: r.name, value: r.code }));
+    } catch {
+      roleOptions.value = [];
+    }
+  }
 
   const getMenuType = (type, text = false) => {
     switch (type) {
@@ -90,6 +105,13 @@ export function useMenu() {
       prop: "auths"
     },
     {
+      label: "可见角色",
+      prop: "roles",
+      minWidth: 140,
+      formatter: ({ roles }) =>
+        !roles || roles.length === 0 ? "所有人" : roles.join(",")
+    },
+    {
       label: "排序",
       prop: "rank",
       width: 100
@@ -137,10 +159,13 @@ export function useMenu() {
       return;
     }
 
+    // 首次使用：用前端静态菜单生成种子草稿（demo 异常页/引导页默认隐藏），
+    // 管理员在此基础上调整可见性/角色后发布
+    const seed = buildStaticMenuSeed(constantMenus as any[]);
     const created = await createMenuConfig({
       name: `菜单草稿 ${new Date().toLocaleString()}`,
-      description: "前端菜单管理自动创建",
-      routes_json: []
+      description: "由静态菜单初始化",
+      routes_json: seed
     });
     selectedConfigId.value = created.data.id;
     await loadConfigList();
@@ -189,22 +214,45 @@ export function useMenu() {
       return false;
     }
 
-    const routes_json = formItemsToRoutes(flatMenuList.value);
-    const {
-      code,
-      data,
-      message: msg
-    } = await updateMenuConfig(selectedConfigId.value, { routes_json });
-
-    if (code !== 0) {
-      message(msg || "保存菜单失败", { type: "error" });
+    const etag = currentConfig.value?.routes_etag;
+    if (!etag) {
+      message("菜单版本状态缺失，请重新打开菜单管理", { type: "error" });
       return false;
     }
 
-    currentConfig.value = data;
-    flatMenuList.value = routesToFormItems(data.routes_json as any[]);
-    await onSearch();
-    return true;
+    const routes_json = formItemsToRoutes(flatMenuList.value);
+    try {
+      const {
+        code,
+        data,
+        message: msg
+      } = await updateMenuConfig(selectedConfigId.value, {
+        routes_json,
+        if_match_etag: etag
+      });
+
+      if (code !== 0) {
+        message(msg || "保存菜单失败", { type: "error" });
+        return false;
+      }
+
+      currentConfig.value = data;
+      flatMenuList.value = routesToFormItems(data.routes_json as any[]);
+      await onSearch();
+      return true;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 409) {
+        message("菜单草稿已被他人修改，已加载最新版本，请重新编辑", {
+          type: "warning"
+        });
+        await loadSelectedConfig(selectedConfigId.value);
+        return false;
+      }
+      const serverMsg = err?.response?.data?.message;
+      message(serverMsg || "保存菜单失败", { type: "error" });
+      return false;
+    }
   }
 
   function removeMenuAndChildren(id: number) {
@@ -240,6 +288,7 @@ export function useMenu() {
     addDialog({
       title: `${title}菜单`,
       props: {
+        roleOptions: roleOptions.value,
         formInline: {
           menuType: row?.menuType ?? 0,
           higherMenuOptions: formatHigherMenuOptions(cloneDeep(dataList.value)),
@@ -256,6 +305,7 @@ export function useMenu() {
           leaveTransition: row?.leaveTransition ?? "",
           activePath: row?.activePath ?? "",
           auths: row?.auths ?? "",
+          roles: row?.roles ? [...row.roles] : [],
           frameSrc: row?.frameSrc ?? "",
           frameLoading: row?.frameLoading ?? true,
           keepAlive: row?.keepAlive ?? false,
@@ -376,6 +426,7 @@ export function useMenu() {
   }
 
   onMounted(() => {
+    loadRoleOptions();
     loadConfigList();
   });
 
@@ -388,6 +439,7 @@ export function useMenu() {
     selectedConfigId,
     currentConfig,
     isEditable,
+    roleOptions,
     onSearch,
     resetForm,
     openDialog,

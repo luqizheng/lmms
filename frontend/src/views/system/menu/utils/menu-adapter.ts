@@ -25,6 +25,7 @@ export interface RouteMenuCompat {
   parentId?: number;
   menuType?: number;
   auths?: string;
+  roles?: string[];
 }
 
 export interface RouteNode {
@@ -92,7 +93,8 @@ function toFormItem(route: RouteNode, parentId: number): FormItemProps[] {
     hiddenTag: meta.hiddenTag ?? false,
     fixedTag: meta.fixedTag ?? false,
     showLink: meta.showLink ?? true,
-    showParent: meta.showParent ?? false
+    showParent: meta.showParent ?? false,
+    roles: route._menu?.roles ?? meta.roles ?? []
   };
 
   const children =
@@ -122,6 +124,9 @@ function itemToRoute(item: FormItemProps, children: RouteNode[]): RouteNode {
     showParent: item.showParent
   };
 
+  const roles = Array.isArray(item.roles) ? item.roles : [];
+  meta.roles = roles;
+
   const auths = splitAuths(item.auths);
   if (auths) meta.auths = auths;
 
@@ -143,7 +148,8 @@ function itemToRoute(item: FormItemProps, children: RouteNode[]): RouteNode {
       id: item.id,
       parentId: item.parentId,
       menuType: item.menuType,
-      auths: item.auths
+      auths: item.auths,
+      roles
     }
   };
 
