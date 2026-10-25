@@ -1,0 +1,175 @@
+/* ============================================================================
+ * PRISM 设计系统 — token 层（唯一真源）
+ *
+ * 权威来源：D:\Workspace\web-concept\design\phase1-visual-direction.md
+ *   · 「附录：CSS 变量速查」逐字转录 → 主体
+ *   · Phase 1R 正文中内联的数值 → 「PRISM 补充 token」段（逐条标注来源）
+ *
+ * 规则：
+ *   1. 组件源码禁止出现裸色值，一切颜色必须引用本文件的变量。
+ *   2. 数值变更必须回到视觉侧确认，不得在组件层就地改写。
+ *   3. 「PRISM 补充 token」是对正文内联数值的提取，不是新增设计。
+ * ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------------
+   * Surface — Phase 1R §2.2
+   * 层级：ink ≪ sunken < base < raised = overlay(白)
+   * ------------------------------------------------------------------- */
+  --surface-sunken: #F0F0EC;
+  --surface-base: #F7F7F4;
+  --surface-raised: #FFFFFF;
+  --surface-overlay: #FFFFFF;
+  --surface-hover-veil: rgba(23, 24, 28, 0.04);
+  --surface-active-veil: rgba(23, 24, 28, 0.07);
+  --surface-ink: #17181C;
+  --ink-hover-veil: rgba(255, 255, 255, 0.08);
+  --ink-active-veil: rgba(255, 255, 255, 0.12);
+
+  /* ---------------------------------------------------------------------
+   * Text — Phase 1R §2.3
+   * ------------------------------------------------------------------- */
+  --text-primary: #17181C;
+  --text-secondary: #52535B;
+  --text-tertiary: #6A6B73;
+  --text-disabled: #9C9DA5;
+  --text-inverse: #FFFFFF;
+
+  /* ---------------------------------------------------------------------
+   * Border — Phase 1R §2.4
+   * ------------------------------------------------------------------- */
+  --border-subtle: #EDEDE9;
+  --border-default: #E3E3DE;
+  --border-strong: #D4D4CE;
+  --border-data: #8A8B93;
+  --border-accent-glow: rgba(46, 91, 255, 0.3);
+
+  /* ---------------------------------------------------------------------
+   * Accent (Cobalt) — Phase 1R §2.5
+   * ------------------------------------------------------------------- */
+  --accent: #2E5BFF;
+  --accent-hover: #3D67FF;
+  --accent-pressed: #1F44D6;
+  --accent-deep: #2447CC;
+  --accent-subtle: #EBF0FF;
+  --accent-wash: rgba(46, 91, 255, 0.08);
+  --accent-gradient: linear-gradient(180deg, #2E5BFF 0%, #2750E6 100%);
+  --accent-contrast-text: #FFFFFF;
+
+  /* ---------------------------------------------------------------------
+   * Semantic — Phase 1R §2.6
+   * subtle 底上的正文文字一律用 strong 档
+   * ------------------------------------------------------------------- */
+  --success: #15803D;
+  --success-strong: #166534;
+  --success-subtle: #ECF8F0;
+  --warning: #B45309;
+  --warning-strong: #92400E;
+  --warning-subtle: #FCF3E3;
+  --danger: #DC2626;
+  --danger-strong: #B91C1C;
+  --danger-subtle: #FDEDED;
+  --info: #0F766E;
+  --info-strong: #115E59;
+  --info-subtle: #E6F4F2;
+
+  /* ---------------------------------------------------------------------
+   * Shadow — Phase 1R §5.1（暖黑低透明度三档 + 钴蓝主按钮专属）
+   * ------------------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(23, 24, 28, 0.04);
+  --shadow-sm: 0 1px 2px rgba(23, 24, 28, 0.05), 0 2px 6px rgba(23, 24, 28, 0.05);
+  --shadow-md: 0 2px 6px rgba(23, 24, 28, 0.06), 0 12px 24px rgba(23, 24, 28, 0.09);
+  --shadow-lg: 0 4px 12px rgba(23, 24, 28, 0.08), 0 24px 48px rgba(23, 24, 28, 0.14);
+  --shadow-accent: 0 1px 2px rgba(30, 64, 175, 0.24), 0 4px 12px rgba(46, 91, 255, 0.22);
+  --shadow-accent-lg: 0 2px 4px rgba(30, 64, 175, 0.28), 0 8px 20px rgba(46, 91, 255, 0.28);
+
+  /* ---------------------------------------------------------------------
+   * Radius — Phase 1R §4.4
+   * ------------------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+
+  /* ---------------------------------------------------------------------
+   * Spacing — Phase 1R §4.2（4px 基数）
+   * ------------------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ---------------------------------------------------------------------
+   * Duration / Easing — Phase 1R §7.1（全站仅两支曲线）
+   * ------------------------------------------------------------------- */
+  --duration-instant: 80ms;
+  --duration-fast: 150ms;
+  --duration-medium: 240ms;
+  --duration-slow: 320ms;
+  --ease-decelerate: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------------------------------------------------------------------
+   * Font — Phase 1R §3.1
+   * ------------------------------------------------------------------- */
+  --font-ui: "Inter", "MiSans", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC",
+    "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Roboto Mono", "Consolas",
+    "Noto Sans Mono CJK SC", monospace;
+
+  /* ---------------------------------------------------------------------
+   * 字阶 — Phase 1R §3.2 / §3.3
+   * 每级两个变量：--text-<level> 为 font 简写，--tracking-<level> 为字距
+   * ------------------------------------------------------------------- */
+  --text-display: 650 56px/68px var(--font-ui);
+  --tracking-display: -0.015em;
+  --text-h1: 650 40px/52px var(--font-ui);
+  --tracking-h1: -0.01em;
+  --text-h2: 600 28px/38px var(--font-ui);
+  --tracking-h2: -0.005em;
+  --text-h3: 600 20px/28px var(--font-ui);
+  --tracking-h3: 0;
+  --text-h4: 600 16px/24px var(--font-ui);
+  --tracking-h4: 0;
+  --text-body: 400 15px/26px var(--font-ui);
+  --tracking-body: 0;
+  --text-body-strong: 550 15px/26px var(--font-ui);
+  --tracking-body-strong: 0;
+  --text-small: 400 13px/20px var(--font-ui);
+  --tracking-small: 0;
+  --text-caption: 450 12px/18px var(--font-ui);
+  --tracking-caption: 0.025em;
+  --text-mono-num: 500 15px/22px var(--font-mono);
+  --tracking-mono-num: 0;
+
+  /* =====================================================================
+   * PRISM 补充 token —— Phase 1R 正文中内联数值的提取，非新增设计
+   * ===================================================================== */
+
+  /* 来源：Phase 1R §6.1 按钮五态 */
+  --accent-gradient-hover: linear-gradient(180deg, #3D67FF 0%, #2E5BFF 100%);
+  --accent-gradient-pressed: linear-gradient(180deg, #1F44D6 0%, #1940BE 100%);
+  --border-hover-strong: #B9B9B1;
+  --surface-disabled: #EFEFEB;
+
+  /* 来源：Phase 1R §7.1 骨架屏 */
+  --skeleton-base: #FAFAF8;
+  --skeleton-shimmer: rgba(23, 24, 28, 0.04);
+
+  /* 来源：Phase 1R §5.5 焦点环 / §6.2 输入框聚焦 */
+  --focus-glow: rgba(46, 91, 255, 0.18);
+  --input-focus-glow: rgba(46, 91, 255, 0.15);
+  --danger-focus-glow: rgba(220, 38, 38, 0.12);
+}
