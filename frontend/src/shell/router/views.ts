@@ -24,6 +24,20 @@ function candidates(component: string): string[] {
 }
 
 /**
+ * 遗留视图解析器（可选）。
+ *
+ * 业务系统里尚未迁移到 PRISM 组件的旧页面，可以在这里挂一个兜底解析器，
+ * 让菜单里的 component 字段仍能指向旧页面。壳自身不注册该钩子。
+ */
+let legacyResolver: ((component: string) => RouteComponent | undefined) | undefined;
+
+export function setLegacyViewResolver(
+  resolver: ((component: string) => RouteComponent | undefined) | undefined
+) {
+  legacyResolver = resolver;
+}
+
+/**
  * 解析组件。找不到时返回 undefined —— 调用方给出「页面建设中」占位，
  * 而不是伪造一个空页面。
  */
@@ -33,7 +47,7 @@ export function resolveView(component?: string): RouteComponent | undefined {
     const loader = shellViews[key];
     if (loader) return loader as RouteComponent;
   }
-  return undefined;
+  return legacyResolver?.(component);
 }
 
 export function hasView(component?: string): boolean {
