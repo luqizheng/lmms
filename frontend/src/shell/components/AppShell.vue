@@ -4,6 +4,7 @@ import { RouterView, useRoute, useRouter } from "vue-router";
 import { Menu as MenuIcon, PanelLeft } from "lucide-vue-next";
 import { Sheet } from "@/components/ui/sheet";
 import { Command, type CommandItem } from "@/components/ui/command";
+import { ToastHost } from "@/components/ui/toast";
 import Sidebar from "./Sidebar.vue";
 import Topbar from "./Topbar.vue";
 import TabBar, { type TabItem } from "./TabBar.vue";
@@ -224,6 +225,9 @@ function closeTab(path: string) {
       :items="commandItems"
       @select="onCommandSelect"
     />
+
+    <!-- 全局提示宿主：页面通过 useToast() 触发 -->
+    <ToastHost />
   </div>
 </template>
 

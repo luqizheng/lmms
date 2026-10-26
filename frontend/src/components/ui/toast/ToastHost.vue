@@ -1,15 +1,8 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { provide, ref } from "vue";
 import Toast, { type ToastVariant } from "./Toast.vue";
+import { TOAST_HOST_KEY, type ToastApi, type ToastOptions } from "./useToast";
 
-export interface ToastOptions {
-  variant?: ToastVariant;
-  title: string;
-  description?: string;
-  closable?: boolean;
-  closeLabel?: string;
-  duration?: number;
-}
 
 /**
  * Toast 宿主：同屏最多 1 条，新 toast 替换旧 toast（Phase 2 §6.3）。
@@ -30,6 +23,9 @@ function dismiss() {
 }
 
 defineExpose({ toast, dismiss });
+
+// 让页面通过 useToast() 拿到同一个宿主
+provide(TOAST_HOST_KEY, { toast, dismiss } satisfies ToastApi);
 </script>
 
 <template>

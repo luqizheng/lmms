@@ -2,6 +2,7 @@ export { default as AppShell } from "./AppShell.vue";
 export { default as DataTable } from "./DataTable.vue";
 export type { QueryField, TableColumn } from "./DataTable.vue";
 export { default as FormDialog } from "./FormDialog.vue";
+export { default as PageHeader } from "./PageHeader.vue";
 export { default as Sidebar } from "./Sidebar.vue";
 export { default as SidebarMenuItem } from "./SidebarMenuItem.vue";
 export { resolveIcon } from "./icons";
