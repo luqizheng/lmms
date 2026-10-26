@@ -276,6 +276,11 @@ const DOWNSTREAM_SKILL_WHITELIST = [
   'coder-new-java-service',
   'coder-add-java-route',
   'coder-migrate-java-db',
+  // PRISM 前端（admin-ui）
+  'prism-design',
+  'scaffold',
+  'update-shell',
+  'gen-page',
 ];
 
 (function syncDownstreamSkills() {
@@ -302,7 +307,8 @@ const DOWNSTREAM_SKILL_WHITELIST = [
     readmePath,
 `# 本包 .agents/skills 说明（下游开发用）
 
-本分发包的 \`.agents/skills/\` 仅包含下游「创建 / 维护 Java / Rust 业务微服务」要用的 6 个 scaffold：
+本分发包的 \`.agents/skills/\` 仅包含下游「创建 / 维护 Java / Rust 业务微服务」与
+「开发 PRISM admin 前端」要用的 scaffold：
 
 | skill | 语言 | 用途 |
 | --- | --- | --- |
@@ -312,6 +318,10 @@ const DOWNSTREAM_SKILL_WHITELIST = [
 | coder-new-java-service | Java | 新建 Java(Spring Boot 3 + JDK 21) 业务微服务骨架 + compose/网关注册 |
 | coder-add-java-route | Java | Java 服务加 Controller/DTO |
 | coder-migrate-java-db | Java | Java Flyway 迁移 |
+| prism-design | 前端 | PRISM 设计系统与前端代码约束（写 UI 前必读） |
+| scaffold | 前端 | 用 PRISM 壳初始化新的业务系统前端（拷贝壳 + 装基础包 + 品牌化） |
+| update-shell | 前端 | 把上游壳的更新同步到下游（diff + 人工裁决定制区） |
+| gen-page | 前端 | 按后端契约生成列表页 / 弹框编辑页 |
 
 其余 repo-local skill（SDK 发布、CI 诊断、性能剖析、平台工程等）属于框架源码仓库自身开发用，**不进本包**。
 

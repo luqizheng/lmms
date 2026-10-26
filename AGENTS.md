@@ -115,6 +115,10 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 | 性能剖析 | `.agents/skills/coder-perf-profile` | — |
 | 审查 PR | `.agents/skills/coder-microservice-review-checklist` | — |
 | 通用编码守则 | `.agents/skills/karpathy-guidelines` | — |
+| **PRISM 设计约束** | `.agents/skills/prism-design` | 写任何前端 UI 前必读 |
+| **新业务系统前端** | `.agents/skills/scaffold` | 拷贝壳 + 装基础包 + 品牌化 |
+| **壳升级同步** | `.agents/skills/update-shell` | 上游壳 diff 同步到下游 |
+| **生成业务页面** | `.agents/skills/gen-page` | 列表页 + 弹框编辑页 |
 | 审查计划 | `.agents/skills/plan-eng-review` | — |
 | 同步基础镜像 | `.trae/skills/coder-base-images-sync`（平台） | `node scripts/base-images-sync.js` |
 | 审计服务规范 | `.trae/skills/coder-service-audit`（平台） | `node scripts/check-service-standard.js` |
