@@ -96,7 +96,10 @@
     "check:prism-tokens": "node scripts/check-prism-tokens.js",
     "docs:dev": "vitepress dev docs-site",
     "docs:build": "vitepress build docs-site",
-    "docs:preview": "vitepress preview docs-site"
+    "docs:preview": "vitepress preview docs-site",
+    "packages:build": "pnpm --filter @digua/contracts --filter @digua/http run build",
+    "packages:check": "node scripts/check-packages-publish.js",
+    "packages:publish": "pnpm run packages:build && node scripts/check-packages-publish.js && npm publish --prefix packages/contracts && npm publish --prefix packages/http"
   },
   "dependencies": {
     "argon2": "^0.44.0"

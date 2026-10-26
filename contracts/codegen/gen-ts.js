@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 从 error-codes.yaml 和 permissions.yaml 生成 TypeScript 类型
- * 输出：frontend/src/contracts/error-codes.ts 和 permissions.ts
+ * 输出：packages/contracts/src/error-codes.ts 和 permissions.ts
  * 当前预留，待 frontend 目录建立后启用
  */
 
@@ -72,11 +72,11 @@ function generateTsPerms(data) {
 }
 
 function main() {
-  // 预留：待 frontend 目录建立后启用
-  const frontendDir = path.resolve(__dirname, '../../frontend/src/contracts');
-  if (!fs.existsSync(frontendDir)) {
-    console.log('frontend directory not found, skipping TypeScript generation');
-    console.log('To enable: create frontend/src/contracts/ directory');
+  // 输出目标：@digua/contracts 包
+  const contractsDir = path.resolve(__dirname, '../../packages/contracts/src');
+  if (!fs.existsSync(contractsDir)) {
+    console.log('packages/contracts directory not found, skipping TypeScript generation');
+    console.log('To enable: create packages/contracts/src/ directory');
     return;
   }
 
@@ -87,11 +87,11 @@ function main() {
   const permData = parseYaml(permYaml);
 
   fs.writeFileSync(
-    path.join(frontendDir, 'error-codes.ts'),
+    path.join(contractsDir, 'error-codes.ts'),
     generateTsErrors(errorData)
   );
   fs.writeFileSync(
-    path.join(frontendDir, 'permissions.ts'),
+    path.join(contractsDir, 'permissions.ts'),
     generateTsPerms(permData)
   );
 

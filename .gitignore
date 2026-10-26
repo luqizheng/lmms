@@ -86,3 +86,6 @@ apps/pm/**/target/
 /release/dist-*.tar.gz
 /release/images-*.tar.gz
 /release/dist-template/frontend-source-*.tar.gz
+
+# npm 包的构建产物（由 pnpm run packages:build 生成）
+packages/*/dist

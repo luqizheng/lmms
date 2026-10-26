@@ -2,8 +2,7 @@
 // 默认 zh-CN；找不到时退回英文 ErrorMessages，最后退回 code 自身。
 // 视图侧 catch (err) { message(translateError(err.code)) } 使用。
 
-import { ErrorMessages } from "@/contracts/error-codes";
-import { ErrorMessagesZhCN } from "@/contracts/error-codes.zh-CN";
+import { ErrorMessages, ErrorMessagesZhCN } from "@digua/contracts";
 
 export type Locale = "zh-CN" | "en";
 

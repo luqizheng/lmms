@@ -56,7 +56,7 @@ if (isCheck) {
   console.log('');
   console.log('5. Checking for drift...');
   try {
-    execSync('git diff --exit-code -- libs/common-error libs/authz libs/common-event frontend/src/contracts', {
+    execSync('git diff --exit-code -- libs/common-error libs/authz libs/common-event packages/contracts/src', {
       cwd: repoRoot,
       stdio: 'inherit',
     });

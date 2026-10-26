@@ -1,0 +1,41 @@
+{
+  "name": "@digua/http",
+  "version": "0.1.0",
+  "description": "框架无关的 HTTP 客户端：token 注入 / 单飞刷新 / 错误码转文案",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rimraf dist",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "pnpm run build"
+  },
+  "dependencies": {
+    "axios": "^1.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED",
+  "private": false,
+  "publishConfig": {
+    "registry": "http://npm.kudi.repos/"
+  }
+}

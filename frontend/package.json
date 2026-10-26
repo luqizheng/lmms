@@ -4,17 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
+    "dev": "pnpm run build:packages && NODE_OPTIONS=--max-old-space-size=4096 vite",
     "serve": "pnpm dev",
-    "build": "rimraf dist && NODE_OPTIONS=--max-old-space-size=8192 vite build && generate-version-file",
-    "build:staging": "rimraf dist && vite build --mode staging",
+    "build": "pnpm run build:packages && rimraf dist && NODE_OPTIONS=--max-old-space-size=8192 vite build && generate-version-file",
+    "build:staging": "pnpm run build:packages && rimraf dist && vite build --mode staging",
     "report": "rimraf dist && vite build",
     "preview": "vite preview",
     "preview:build": "pnpm build && vite preview",
-    "typecheck": "vue-tsc --noEmit --skipLibCheck",
+    "typecheck": "pnpm run build:packages && vue-tsc --noEmit --skipLibCheck",
     "check:vitest-coverage": "node ../scripts/check-vitest-coverage.js",
     "check:prism-tokens": "node ../scripts/check-prism-tokens.js",
-    "test:unit": "vitest run --reporter=verbose",
+    "test:unit": "pnpm run build:packages && vitest run --reporter=verbose",
     "test:coverage": "vitest run --coverage",
     "test:unit:watch": "vitest",
     "test:unit:menu": "vitest run src/views/system/menu/utils/menu-adapter.test.ts",
@@ -25,7 +25,8 @@
     "lint:stylelint": "stylelint --cache --fix \"**/*.{html,vue,css,scss}\" --cache-location node_modules/.cache/stylelint/",
     "lint": "pnpm lint:eslint && pnpm lint:prettier && pnpm lint:stylelint",
     "prepare": "husky",
-    "preinstall": "npx only-allow pnpm"
+    "preinstall": "npx only-allow pnpm",
+    "build:packages": "pnpm --filter @digua/contracts --filter @digua/http run build"
   },
   "keywords": [
     "vue-pure-admin",
@@ -54,6 +55,8 @@
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
+    "@digua/contracts": "workspace:*",
+    "@digua/http": "workspace:*",
     "@howdyjs/mouse-menu": "^2.1.7",
     "@pureadmin/descriptions": "^1.2.1",
     "@pureadmin/table": "^3.3.0",
