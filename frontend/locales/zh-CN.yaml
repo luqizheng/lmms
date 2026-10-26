@@ -803,6 +803,43 @@ system:
   profile:
     title: 个人设置
     roles: 角色
+  permission:
+    title: 权限管理
+    caption: 权限列表
+    searchPlaceholder: 搜索权限码
+    code: 权限码
+    name: 权限名
+    description: 描述
+    category: 分类
+  session:
+    title: 会话管理
+    caption: 会话列表
+    searchPlaceholder: 搜索用户
+    user: 用户
+    ip: IP 地址
+    current: 当前会话
+    currentSession: 当前
+    otherSession: 其他
+    expiresAt: 过期时间
+  file:
+    title: 文件管理
+    caption: 文件列表
+    searchPlaceholder: 搜索文件名
+    filename: 文件名
+    contentType: 类型
+    size: 大小
+  dept:
+    title: 组织架构
+    caption: 组织单元列表
+    name: 名称
+    code: 编码
+    level: 层级
+  token:
+    title: 令牌与客户端
+    caption: API Key 列表
+    searchPlaceholder: 搜索名称
+    name: 名称
+    permissions: 权限
   dashboard:
     title: 概览
     activeUsers: 活跃用户
