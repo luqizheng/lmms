@@ -2,7 +2,13 @@
 import { computed } from "vue";
 import { cn } from "@/lib/cn";
 
-export type BadgeVariant = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
+export type BadgeVariant =
+  | "neutral"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "accent";
 
 interface Props {
   /** 语义变体 — Phase 1R §6.6：subtle 底上的文字一律用 strong 档 */

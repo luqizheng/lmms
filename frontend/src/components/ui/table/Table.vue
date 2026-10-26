@@ -10,7 +10,11 @@ withDefaults(defineProps<Props>(), { caption: undefined });
 <template>
   <div class="ui-table__wrapper">
     <table class="ui-table">
-      <caption v-if="caption" class="sr-only">{{ caption }}</caption>
+      <caption v-if="caption" class="sr-only">
+        {{
+          caption
+        }}
+      </caption>
       <slot />
     </table>
   </div>

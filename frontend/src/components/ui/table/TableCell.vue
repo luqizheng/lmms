@@ -9,7 +9,9 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { numeric: false });
 
-const classes = computed(() => cn("ui-table__td", { "is-numeric": props.numeric }));
+const classes = computed(() =>
+  cn("ui-table__td", { "is-numeric": props.numeric })
+);
 </script>
 
 <template>

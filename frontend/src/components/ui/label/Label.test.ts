@@ -20,6 +20,8 @@ describe("Label", () => {
 
   it("必填标记对读屏隐藏，仅装饰", () => {
     const w = mount(Label, { props: { required: true } });
-    expect(w.find(".ui-label__required").attributes("aria-hidden")).toBe("true");
+    expect(w.find(".ui-label__required").attributes("aria-hidden")).toBe(
+      "true"
+    );
   });
 });

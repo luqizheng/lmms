@@ -9,7 +9,9 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { sortable: false });
 
-const classes = computed(() => cn("ui-table__th", { "is-sortable": props.sortable }));
+const classes = computed(() =>
+  cn("ui-table__th", { "is-sortable": props.sortable })
+);
 </script>
 
 <template>

@@ -19,7 +19,9 @@ describe("Card", () => {
 
   it("interactive 附加交互态类", () => {
     expect(mount(Card).classes()).not.toContain("is-interactive");
-    expect(mount(Card, { props: { interactive: true } }).classes()).toContain("is-interactive");
+    expect(mount(Card, { props: { interactive: true } }).classes()).toContain(
+      "is-interactive"
+    );
   });
 
   it("无 footer 插槽时不渲染 footer 容器", () => {

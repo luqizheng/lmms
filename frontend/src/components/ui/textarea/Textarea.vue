@@ -21,7 +21,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
-const classes = computed(() => cn("ui-textarea", { "is-invalid": props.invalid }));
+const classes = computed(() =>
+  cn("ui-textarea", { "is-invalid": props.invalid })
+);
 
 function onInput(event: Event) {
   emit("update:modelValue", (event.target as HTMLTextAreaElement).value);

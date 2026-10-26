@@ -9,7 +9,9 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { interactive: false });
 
-const classes = computed(() => cn("ui-card", { "is-interactive": props.interactive }));
+const classes = computed(() =>
+  cn("ui-card", { "is-interactive": props.interactive })
+);
 </script>
 
 <template>

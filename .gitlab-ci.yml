@@ -225,6 +225,21 @@ i18n_namespace_check:
       when: on_success
     - when: never
 
+prism_tokens_check:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  allow_failure: false
+  script:
+    - node scripts/check-prism-tokens.js
+  rules:
+    - changes:
+        - frontend/src/components/ui/**/*
+        - frontend/src/styles/prism/**/*
+        - scripts/check-prism-tokens.js
+      when: on_success
+    - when: never
+
 java_sdk_drift_check:
   stage: test
   tags: [docker]

@@ -30,18 +30,26 @@ describe("Button", () => {
 
   it("type 默认 button，可覆盖为 submit", () => {
     expect(mount(Button).attributes("type")).toBe("button");
-    expect(mount(Button, { props: { type: "submit" } }).attributes("type")).toBe("submit");
+    expect(
+      mount(Button, { props: { type: "submit" } }).attributes("type")
+    ).toBe("submit");
   });
 
   it("variant 与 size 全部映射到约定类名", () => {
-    expect(mount(Button, { props: { variant: "secondary" } }).classes()).toContain(
-      "ui-button--secondary"
-    );
+    expect(
+      mount(Button, { props: { variant: "secondary" } }).classes()
+    ).toContain("ui-button--secondary");
     expect(mount(Button, { props: { variant: "ghost" } }).classes()).toContain(
       "ui-button--ghost"
     );
-    expect(mount(Button, { props: { size: "sm" } }).classes()).toContain("ui-button--sm");
-    expect(mount(Button, { props: { size: "lg" } }).classes()).toContain("ui-button--lg");
-    expect(mount(Button, { props: { size: "icon" } }).classes()).toContain("ui-button--icon");
+    expect(mount(Button, { props: { size: "sm" } }).classes()).toContain(
+      "ui-button--sm"
+    );
+    expect(mount(Button, { props: { size: "lg" } }).classes()).toContain(
+      "ui-button--lg"
+    );
+    expect(mount(Button, { props: { size: "icon" } }).classes()).toContain(
+      "ui-button--icon"
+    );
   });
 });

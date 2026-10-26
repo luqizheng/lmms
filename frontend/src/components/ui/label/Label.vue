@@ -14,13 +14,17 @@ const props = withDefaults(defineProps<Props>(), {
   required: false
 });
 
-const classes = computed(() => cn("ui-label", { "is-required": props.required }));
+const classes = computed(() =>
+  cn("ui-label", { "is-required": props.required })
+);
 </script>
 
 <template>
   <label :for="props.for" :class="classes">
     <slot />
-    <span v-if="props.required" class="ui-label__required" aria-hidden="true">*</span>
+    <span v-if="props.required" class="ui-label__required" aria-hidden="true"
+      >*</span
+    >
   </label>
 </template>
 

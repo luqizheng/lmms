@@ -35,12 +35,11 @@ const isDisabled = computed(() => props.disabled || props.loading);
     :type="type"
     :disabled="isDisabled"
     :aria-busy="loading ? 'true' : undefined"
-    :class="cn(
-      'ui-button',
-      `ui-button--${variant}`,
-      `ui-button--${size}`,
-      { 'is-loading': loading }
-    )"
+    :class="
+      cn('ui-button', `ui-button--${variant}`, `ui-button--${size}`, {
+        'is-loading': loading
+      })
+    "
   >
     <span v-if="loading" class="ui-button__spinner" aria-hidden="true" />
     <slot />

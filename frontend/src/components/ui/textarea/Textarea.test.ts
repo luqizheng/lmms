@@ -16,10 +16,14 @@ describe("Textarea", () => {
   });
 
   it("invalid 时附加错误描边类", () => {
-    expect(mount(Textarea, { props: { invalid: true } }).classes()).toContain("is-invalid");
+    expect(mount(Textarea, { props: { invalid: true } }).classes()).toContain(
+      "is-invalid"
+    );
   });
 
   it("disabled 透传到原生元素", () => {
-    expect(mount(Textarea, { props: { disabled: true } }).attributes("disabled")).toBeDefined();
+    expect(
+      mount(Textarea, { props: { disabled: true } }).attributes("disabled")
+    ).toBeDefined();
   });
 });

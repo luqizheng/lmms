@@ -11,8 +11,17 @@ describe("Badge", () => {
   });
 
   it("六种变体均可渲染", () => {
-    for (const v of ["neutral", "success", "warning", "danger", "info", "accent"]) {
-      expect(mount(Badge, { props: { variant: v } }).classes()).toContain(`ui-badge--${v}`);
+    for (const v of [
+      "neutral",
+      "success",
+      "warning",
+      "danger",
+      "info",
+      "accent"
+    ]) {
+      expect(mount(Badge, { props: { variant: v } }).classes()).toContain(
+        `ui-badge--${v}`
+      );
     }
   });
 

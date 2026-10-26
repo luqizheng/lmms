@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(resolve(process.cwd(), "src/styles/prism/tokens.css"), "utf8");
+const css = readFileSync(
+  resolve(process.cwd(), "src/styles/prism/tokens.css"),
+  "utf8"
+);
 
 function token(name: string): string {
   const m = css.match(new RegExp(`--${name}:\\s*([^;]+);`));
@@ -92,9 +95,16 @@ describe("PRISM token 契约", () => {
       "mono-num"
     ];
     for (const level of levels) {
-      expect(token(`font-size-${level}`), `缺少 --font-size-${level}`).not.toBe("");
-      expect(token(`line-height-${level}`), `缺少 --line-height-${level}`).not.toBe("");
-      expect(token(`tracking-${level}`), `缺少 --tracking-${level}`).not.toBe("");
+      expect(token(`font-size-${level}`), `缺少 --font-size-${level}`).not.toBe(
+        ""
+      );
+      expect(
+        token(`line-height-${level}`),
+        `缺少 --line-height-${level}`
+      ).not.toBe("");
+      expect(token(`tracking-${level}`), `缺少 --tracking-${level}`).not.toBe(
+        ""
+      );
     }
   });
 

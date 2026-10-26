@@ -13,6 +13,7 @@
     "preview:build": "pnpm build && vite preview",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
     "check:vitest-coverage": "node ../scripts/check-vitest-coverage.js",
+    "check:prism-tokens": "node ../scripts/check-prism-tokens.js",
     "test:unit": "vitest run --reporter=verbose",
     "test:coverage": "vitest run --coverage",
     "test:unit:watch": "vitest",

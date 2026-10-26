@@ -23,7 +23,9 @@ describe("FormField", () => {
   });
 
   it("有 error 时根元素进入错误态", () => {
-    expect(mount(FormField, { props: { error: "x" } }).classes()).toContain("is-invalid");
+    expect(mount(FormField, { props: { error: "x" } }).classes()).toContain(
+      "is-invalid"
+    );
     expect(mount(FormField).classes()).not.toContain("is-invalid");
   });
 
@@ -34,9 +36,9 @@ describe("FormField", () => {
 
   it("description 存在时渲染说明", () => {
     expect(
-      mount(FormField, { props: { description: "用于登录" } }).find(
-        ".ui-form-field__description"
-      ).exists()
+      mount(FormField, { props: { description: "用于登录" } })
+        .find(".ui-form-field__description")
+        .exists()
     ).toBe(true);
   });
 

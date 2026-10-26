@@ -23,17 +23,26 @@ const props = withDefaults(defineProps<Props>(), {
   htmlFor: undefined
 });
 
-const classes = computed(() => cn("ui-form-field", { "is-invalid": Boolean(props.error) }));
+const classes = computed(() =>
+  cn("ui-form-field", { "is-invalid": Boolean(props.error) })
+);
 </script>
 
 <template>
   <div :class="classes">
     <label v-if="props.label" class="ui-form-field__label" :for="props.htmlFor">
       <span>{{ props.label }}</span>
-      <span v-if="props.required" class="ui-form-field__required" aria-hidden="true">*</span>
+      <span
+        v-if="props.required"
+        class="ui-form-field__required"
+        aria-hidden="true"
+        >*</span
+      >
     </label>
     <slot />
-    <p v-if="props.error" class="ui-form-field__error" role="alert">{{ props.error }}</p>
+    <p v-if="props.error" class="ui-form-field__error" role="alert">
+      {{ props.error }}
+    </p>
     <p v-else-if="props.description" class="ui-form-field__description">
       {{ props.description }}
     </p>

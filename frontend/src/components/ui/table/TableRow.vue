@@ -9,7 +9,9 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { selected: false });
 
-const classes = computed(() => cn("ui-table__row", { "is-selected": props.selected }));
+const classes = computed(() =>
+  cn("ui-table__row", { "is-selected": props.selected })
+);
 </script>
 
 <template>

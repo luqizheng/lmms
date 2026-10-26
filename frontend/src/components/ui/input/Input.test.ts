@@ -13,16 +13,24 @@ describe("Input", () => {
 
   it("invalid 时附加错误描边类", () => {
     expect(mount(Input).classes()).not.toContain("is-invalid");
-    expect(mount(Input, { props: { invalid: true } }).classes()).toContain("is-invalid");
+    expect(mount(Input, { props: { invalid: true } }).classes()).toContain(
+      "is-invalid"
+    );
   });
 
   it("disabled 透传到原生元素", () => {
-    expect(mount(Input, { props: { disabled: true } }).attributes("disabled")).toBeDefined();
+    expect(
+      mount(Input, { props: { disabled: true } }).attributes("disabled")
+    ).toBeDefined();
   });
 
   it("尺寸映射到约定类名", () => {
-    expect(mount(Input, { props: { size: "sm" } }).classes()).toContain("ui-input--sm");
-    expect(mount(Input, { props: { size: "lg" } }).classes()).toContain("ui-input--lg");
+    expect(mount(Input, { props: { size: "sm" } }).classes()).toContain(
+      "ui-input--sm"
+    );
+    expect(mount(Input, { props: { size: "lg" } }).classes()).toContain(
+      "ui-input--lg"
+    );
     expect(mount(Input).classes()).toContain("ui-input--md");
   });
 });

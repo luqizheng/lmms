@@ -39,7 +39,9 @@ describe("Table", () => {
   });
 
   it("可排序表头带 is-sortable 类", () => {
-    expect(mount(TableHeader, { props: { sortable: true } }).classes()).toContain("is-sortable");
+    expect(
+      mount(TableHeader, { props: { sortable: true } }).classes()
+    ).toContain("is-sortable");
     expect(mount(TableHeader).classes()).not.toContain("is-sortable");
   });
 

@@ -93,6 +93,7 @@
     "check:frontend-i18n": "node scripts/check-i18n-hardcode.js",
     "check:frontend-i18n:report": "node scripts/check-i18n-hardcode.js --all",
     "check:frontend-v-perms": "node scripts/check-v-perms.js",
+    "check:prism-tokens": "node scripts/check-prism-tokens.js",
     "docs:dev": "vitepress dev docs-site",
     "docs:build": "vitepress build docs-site",
     "docs:preview": "vitepress preview docs-site"
