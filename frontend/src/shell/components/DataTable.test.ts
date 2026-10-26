@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { mountShell } from "../test-utils";
 import DataTable from "./DataTable.vue";
@@ -30,12 +30,28 @@ describe("DataTable", () => {
     expect(w.find(".ui-data-table__empty").text()).toBe("还没有记录");
   });
 
-  it("加载中时显示骨架而不是旧数据", () => {
+  it("加载超过 300ms 才显示骨架（Phase 2 §7.1 阈值）", async () => {
+    vi.useFakeTimers();
     const w = mountShell(DataTable, {
       props: { columns, rows: [{ username: "admin" }], loading: true }
     });
+    // 300ms 内不闪骨架
+    expect(w.find(".ui-skeleton").exists()).toBe(false);
+    await vi.advanceTimersByTimeAsync(300);
     expect(w.find(".ui-skeleton").exists()).toBe(true);
     expect(w.text()).not.toContain("admin");
+    vi.useRealTimers();
+  });
+
+  it("加载在 300ms 内结束则不出现骨架", async () => {
+    vi.useFakeTimers();
+    const w = mountShell(DataTable, {
+      props: { columns, rows: [{ username: "admin" }], loading: true }
+    });
+    await w.setProps({ loading: false });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(w.find(".ui-skeleton").exists()).toBe(false);
+    vi.useRealTimers();
   });
 
   it("查询条件提交时回传参数", async () => {

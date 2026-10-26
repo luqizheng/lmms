@@ -8,8 +8,13 @@ const css = readFileSync(resolve(PRISM_DIR, "tokens.css"), "utf8");
 const brandPath = resolve(PRISM_DIR, "tokens.brand.css");
 const brandCss = existsSync(brandPath) ? readFileSync(brandPath, "utf8") : "";
 
+/** 去掉 CSS 注释：tokens.brand.css 里的示例写在注释里，不能当成真实覆盖值 */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
 function token(name: string, source = css): string {
-  const m = source.match(new RegExp(`--${name}:\\s*([^;]+);`));
+  const m = stripComments(source).match(new RegExp(`--${name}:\\s*([^;]+);`));
   return m ? m[1].trim() : "";
 }
 
@@ -351,6 +356,16 @@ describe("PRISM token 契约", () => {
       expect(
         ratio,
         `白字 on ${stop} 对比度 ${ratio.toFixed(2)}:1 < 4.5:1`
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("主按钮在 hover / pressed 态的白字对比度 ≥ 4.5:1（Phase 1R §2.7）", () => {
+    for (const name of ["accent-hover", "accent-pressed"]) {
+      const ratio = contrast("#FFFFFF", firstHex(name));
+      expect(
+        ratio,
+        `白字 on ${name} 对比度 ${ratio.toFixed(2)}:1 < 4.5:1`
       ).toBeGreaterThanOrEqual(4.5);
     }
   });

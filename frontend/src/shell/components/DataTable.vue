@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -84,6 +84,29 @@ const totalPages = computed(() =>
 );
 
 /** 当前排序列与方向（Phase 2 §5.3：排序状态必须通过 aria-sort 暴露） */
+/** 骨架屏出现阈值 300ms（Phase 2 §7.1）：请求更快返回时不闪骨架 */
+const SKELETON_DELAY = 300;
+const showSkeleton = ref(false);
+let skeletonTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(
+  () => props.loading,
+  loading => {
+    clearTimeout(skeletonTimer);
+    skeletonTimer = undefined;
+    if (!loading) {
+      showSkeleton.value = false;
+      return;
+    }
+    skeletonTimer = setTimeout(() => {
+      showSkeleton.value = true;
+    }, SKELETON_DELAY);
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => clearTimeout(skeletonTimer));
+
 const sortProp = ref<string | undefined>(undefined);
 const sortOrder = ref<"ascending" | "descending">("ascending");
 
@@ -160,11 +183,13 @@ function onSort(column: TableColumn) {
         </TableRow>
       </TableHead>
       <TableBody>
-        <TableRow v-if="props.loading">
-          <TableCell v-for="column in props.columns" :key="column.prop">
-            <Skeleton />
-          </TableCell>
-        </TableRow>
+        <template v-if="showSkeleton">
+          <TableRow v-for="line in 6" :key="`skeleton-${line}`">
+            <TableCell v-for="column in props.columns" :key="column.prop">
+              <Skeleton />
+            </TableCell>
+          </TableRow>
+        </template>
         <TableRow v-else-if="!props.rows.length">
           <TableCell
             :colspan="props.columns.length"
@@ -193,10 +218,10 @@ function onSort(column: TableColumn) {
 
     <!-- 窄屏（<640）表格卡片化：Phase 2 §4.2 的结论，无第二方案 -->
     <ul class="ui-data-table__cards">
-      <template v-if="props.loading">
+      <template v-if="showSkeleton">
         <li
-          v-for="column in props.columns"
-          :key="column.prop"
+          v-for="line in 6"
+          :key="`skeleton-${line}`"
           class="ui-data-table__card"
         >
           <Skeleton />
