@@ -145,8 +145,17 @@ cd .. && node scripts/check-prism-tokens.js
 
 ## 第 8 步：接 DB 菜单
 
-新系统的菜单来自后端 `GET /v1/iam/menus`（不是前端写死路由）。
-菜单项的 `component` 字段对应 `src/shell/views/<路径>`。详见 `gen-page` skill。
+新系统的菜单来自后端 `GET /v1/pure/get-async-routes`（不是前端写死路由）。
+返回 `{ code, message, data: RouteNode[] }`，`data` 是**已激活**菜单配置版本里的路由树，
+每个节点形如 `{ path, name, component, meta: { title, icon, showLink, ... }, children }`。
+
+- 菜单可见性由 `meta.showLink` 决定（`false` 则不进侧栏，但路由仍注册、可直接访问）。
+- 节点的 `component` 字段对应 `src/shell/views/<路径>`（如 `component: "system/user"`
+  → `src/shell/views/system/user/index.vue`）。解析不到会显示「该页面正在迁移」占位。
+- 菜单配置版本本身由 `/v1/pure/menu-configs` 管理（列表 / 新建 / 编辑 / publish / clone），
+  与路由树装载是**两件事**。
+
+详见 `gen-page` skill。
 
 ## 交付检查清单
 

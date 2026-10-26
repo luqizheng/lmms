@@ -39,7 +39,8 @@
 - **部署环境**：内网 + air-gap；内网 npm registry 时有失联（需 WireGuard），发包与装包链路必须有 registry 不可用时的兜底（pnpm 支持 file:/tarball/git 依赖，或离线 store）。
 - **包管理**：pnpm workspace（上游仓库已建立，`frontend` 是成员）。
 - **上游-下游结构**：low-memory-micro-services（框架上游）↔ project-manager（业务下游）。壳的真源在上游仓库；下游通过 skill 拷贝获得。现 cms-sync 同步 pure-admin 的职责由 `update-shell` skill 接管（对象从"整份肥壳"变为"薄壳 diff"）。
-- **后端 API 固定**：壳消费的后端接口面不变（见 §5），含菜单协议 `/v1/pure/menu-configs` 的 CRUD/publish/clone 生命周期与 `/v1/iam/menus` 动态菜单装载。
+- **后端 API 固定**：壳消费的后端接口面不变（见 §5），含菜单协议 `/v1/pure/get-async-routes`（当前激活的动态路由树）与 `/v1/pure/menu-configs` 的 CRUD/publish/clone 生命周期。
+  > **2026-10-26 修正**：本文早期版本写的是 `/v1/iam/menus` —— 该接口**在后端不存在**（`iam-service` 无 menus 路由，且 `swagger_test.rs` 明确断言其不存在）。真实协议在 prue_backend：`GET /v1/pure/get-async-routes` → `{ code, message, data: RouteNode[] }`，`data` 是已激活菜单配置版本里的路由树；菜单的可见性由 `meta.showLink` 决定（**不是** `visible` / `status` 字段）。
 - **图标**：Lucide（PRISM 规范点名）。
 - **移动端是 v1 必须项**（商户会用手机/平板访问后台）。Phase 2 响应式降级链全量落地为绑定契约：侧边栏 <640 抽屉式 / ≥768 图标栏 / ≥1024 完整展开（用户折叠状态 localStorage 持久化）；列表页 <640 表格卡片化、≥640 横向滚动；顶栏搜索 + ⌘K 命令面板按 Phase 2 §3.2 实现。**多标签栏为桌面专属，<768 隐藏**（移动端靠返回与面包屑）——PRISM 补充设计。
 - **质量门禁延续现有 AGENTS.md 政策**：每个视图 ≥1 条 vitest 用例、视图禁止硬编码中文、写操作按钮必须带权限校验；门禁脚本（check-vitest-coverage / check-i18n-hardcode / check-v-perms）重写适配 shadcn-vue 组件形态，`gen-page` 产物默认必须过门禁。
@@ -53,7 +54,7 @@
 | 认证 | 登录/登出/刷新/注册/改密/会话管理、首次初始化状态引导 | `/v1/iam/auth/*`、setup-status |
 | IAM 管理 | 用户、角色、权限、部门（组织单元嵌在部门表单内管理，不设独立页）、租户、菜单管理页、会话 | `/v1/iam/users·roles·permissions·dept·org-units·tenants·menus` |
 | Token 管理 | access / api_key / refresh / resource / revoke + OAuth 客户端（同在 token-client 页管理，与 api-keys 同表） | `/v1/tokens/*`、`/v1/admin/oauth-clients` |
-| 动态菜单 | DB 菜单 + 静态路由合并、按角色与租户控可见性、菜单配置 CRUD/publish/clone | `/v1/pure/menu-configs`、get-async-routes |
+| 动态菜单 | 后端下发的已激活路由树装载、按 `meta.showLink` 控可见性、菜单配置版本 CRUD/publish/clone | `/v1/pure/get-async-routes`、`/v1/pure/menu-configs` |
 | 审计 | 登录日志、操作日志、保留策略、合规导出 CSV/JSON | `/v1/audit/*` |
 | 配置中心 | namespace / item 两级管理页 | `/v1/config/*` |
 | 文件 | 上传 / 预签名 / 列表 | `/v1/file/*` |
@@ -113,6 +114,6 @@ skill 归属上游仓库的 skill 目录体系（与现有 skills-lock/catalog �
 - **移动端抬高 gen-page 与壳的复杂度**：每张列表页两套形态（表格 + 卡片化）、抽屉侧栏、命令面板都是新增面。实现计划应把桌面形态先行、移动变体紧随同页交付，避免积压到收尾。
 - **Phase 2 从"概念页规范"升格为绑定契约**（响应式链、命令面板、反馈节奏）：如与 Phase 1R 数值冲突，仍以 Phase 1R 为准并回报。
 - **shadcn-vue 是社区移植**，组件覆盖少于 React 版。所需均为核心组件（button/input/select/dialog/table/tabs 等），风险可控；缺的按 PRISM 语言自写。
-- **菜单协议是核心资产**：动态菜单 + 角色/租户可见性 + publish/clone 是最近投入的功能，迁移时按现协议重写装载逻辑，接口不变。
+- **菜单协议是核心资产**：动态路由树装载 + `meta.showLink` 可见性 + publish/clone 是最近投入的功能，迁移时按现协议重写装载逻辑，接口不变。
 - **两份 pure-admin 的删除时机**：新壳就绪 → pm 迁移 → 删除，按此顺序，避免中间态双轨过长。
 - **PRISM 规范原文按 React 概念项目撰写**：token 与视觉语言与框架无关，按 Vue 实现不构成冲突；如实现中发现规范数值互相矛盾，以 Phase 1R（视觉规范）为准并回报。
