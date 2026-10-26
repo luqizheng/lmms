@@ -28,9 +28,34 @@ const totalPages = computed(() =>
   Math.max(1, Math.ceil(props.total / props.pageSize))
 );
 
-const pages = computed(() =>
-  Array.from({ length: totalPages.value }, (_, index) => index + 1)
-);
+/**
+ * 页码窗口（总数大时不能把每一页都渲染出来）。
+ *
+ * 形如 1 … 4 5 [6] 7 8 … 20：首尾各留一格，当前页左右各两格。
+ */
+const pages = computed<(number | "gap")[]>(() => {
+  const total = totalPages.value;
+  const current = props.page;
+  const window = 2;
+
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+
+  const result: (number | "gap")[] = [];
+  const keep = new Set<number>([1, total]);
+  for (let i = current - window; i <= current + window; i++) {
+    if (i >= 1 && i <= total) keep.add(i);
+  }
+
+  let previous = 0;
+  for (const page of [...keep].sort((a, b) => a - b)) {
+    if (previous && page - previous > 1) result.push("gap");
+    result.push(page);
+    previous = page;
+  }
+  return result;
+});
 
 function go(page: number) {
   if (page < 1 || page > totalPages.value || page === props.page) return;
@@ -49,18 +74,22 @@ function go(page: number) {
     >
       ‹
     </button>
-    <button
-      v-for="p in pages"
-      :key="p"
-      type="button"
-      class="ui-pagination__button ui-pagination__button--page"
-      :class="{ 'is-current': p === props.page }"
-      :aria-current="p === props.page ? 'page' : undefined"
-      :aria-label="`第 ${p} 页`"
-      @click="go(p)"
-    >
-      {{ p }}
-    </button>
+    <template v-for="(p, index) in pages" :key="`${p}-${index}`">
+      <span v-if="p === 'gap'" class="ui-pagination__gap" aria-hidden="true"
+        >…</span
+      >
+      <button
+        v-else
+        type="button"
+        class="ui-pagination__button ui-pagination__button--page"
+        :class="{ 'is-current': p === props.page }"
+        :aria-current="p === props.page ? 'page' : undefined"
+        :aria-label="`第 ${p} 页`"
+        @click="go(p)"
+      >
+        {{ p }}
+      </button>
+    </template>
     <button
       type="button"
       class="ui-pagination__button"
@@ -112,6 +141,11 @@ function go(page: number) {
 .ui-pagination__button:disabled {
   color: var(--text-disabled);
   cursor: not-allowed;
+}
+
+.ui-pagination__gap {
+  padding: 0 var(--space-1);
+  color: var(--text-tertiary);
 }
 
 .ui-pagination__button.is-current {

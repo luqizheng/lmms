@@ -60,6 +60,38 @@ describe("DataTable", () => {
     expect(w.findAll("td.is-numeric").length).toBe(1);
   });
 
+  it("可排序表头输出 aria-sort=none，点击后变为 ascending（Phase 2 §5.3）", async () => {
+    const w = mountShell(DataTable, {
+      props: {
+        columns: [{ label: "名称", prop: "name", sortable: true }],
+        rows: [{ name: "a" }]
+      }
+    });
+    const header = w.find("th");
+    expect(header.attributes("aria-sort")).toBe("none");
+    await header.trigger("click");
+    await nextTick();
+    expect(w.find("th").attributes("aria-sort")).toBe("ascending");
+    expect(w.emitted("sort")?.[0]).toEqual(["name", "ascending"]);
+  });
+
+  it("窄屏卡片变体渲染字段名与值（Phase 2 §4.2）", () => {
+    const w = mountShell(DataTable, {
+      props: {
+        columns: [
+          { label: "名称", prop: "name" },
+          { label: "大小", prop: "size", numeric: true }
+        ],
+        rows: [{ name: "报告.pdf", size: "1.2MB" }]
+      }
+    });
+    const cards = w.findAll(".ui-data-table__card");
+    expect(cards.length).toBe(1);
+    expect(cards[0].text()).toContain("名称");
+    expect(cards[0].text()).toContain("报告.pdf");
+    expect(w.find(".ui-data-table__card-value.is-numeric").exists()).toBe(true);
+  });
+
   it("分页变化时回传页码", async () => {
     const w = mountShell(DataTable, {
       props: { columns, rows: [], total: 100, pageSize: 10, page: 1 }

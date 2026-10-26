@@ -26,6 +26,8 @@ const { isTablet, isDesktop } = useResponsive();
 const { collapsed, toggle } = useSidebarCollapsed();
 
 const drawerOpen = ref(false);
+const mainRef = ref<HTMLElement | null>(null);
+const liveMessage = ref("");
 const commandOpen = ref(false);
 const tabs = ref<TabItem[]>([]);
 
@@ -91,6 +93,16 @@ function onKeydown(event: KeyboardEvent) {
 
 onMounted(() => window.addEventListener("keydown", onKeydown));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
+
+// 路由切换：焦点移到主内容 + 礼貌区播报新页标题（Phase 2 §5.2）
+watch(
+  () => route.fullPath,
+  () => {
+    const title = (route.meta?.title as string | undefined) ?? "";
+    liveMessage.value = title;
+    mainRef.value?.focus();
+  }
+);
 
 // 打开过的页面进标签栏
 watch(
@@ -183,9 +195,17 @@ function closeTab(path: string) {
         @close="closeTab"
       />
 
-      <main id="main-content" class="ui-app-shell__main" tabindex="-1">
+      <main
+        id="main-content"
+        ref="mainRef"
+        class="ui-app-shell__main"
+        tabindex="-1"
+      >
         <RouterView />
       </main>
+      <p class="ui-sr-only" role="status" aria-live="polite">
+        {{ liveMessage }}
+      </p>
     </div>
 
     <!-- 移动端顶栏的菜单按钮 -->

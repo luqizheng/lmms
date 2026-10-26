@@ -50,3 +50,25 @@ describe("Pagination", () => {
     expect(labels).toContain("10");
   });
 });
+
+describe("Pagination 页码窗口", () => {
+  it("总页数不多时渲染全部页码", () => {
+    const w = mount(Pagination, {
+      props: { page: 1, total: 50, pageSize: 10 }
+    });
+    const labels = w.findAll(".ui-pagination__button--page").map(b => b.text());
+    expect(labels).toEqual(["1", "2", "3", "4", "5"]);
+  });
+
+  it("总页数很多时只渲染窗口页码与省略号", () => {
+    const w = mount(Pagination, {
+      props: { page: 50, total: 1000, pageSize: 10 }
+    });
+    const labels = w.findAll(".ui-pagination__button--page").map(b => b.text());
+    expect(labels.length).toBeLessThan(10);
+    expect(labels).toContain("1");
+    expect(labels).toContain("50");
+    expect(labels).toContain("100");
+    expect(w.findAll(".ui-pagination__gap").length).toBeGreaterThan(0);
+  });
+});

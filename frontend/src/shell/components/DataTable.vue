@@ -73,7 +73,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   search: [params: Record<string, string>];
   "update:page": [page: number];
-  sort: [prop: string];
+  sort: [prop: string, order: "ascending" | "descending"];
 }>();
 
 const keywords = ref<Record<string, string>>({});
@@ -83,12 +83,32 @@ const totalPages = computed(() =>
   Math.max(1, Math.ceil(props.total / props.pageSize))
 );
 
+/** 当前排序列与方向（Phase 2 §5.3：排序状态必须通过 aria-sort 暴露） */
+const sortProp = ref<string | undefined>(undefined);
+const sortOrder = ref<"ascending" | "descending">("ascending");
+
+function sortOf(
+  column: TableColumn
+): "none" | "ascending" | "descending" | undefined {
+  if (!column.sortable) return undefined;
+  if (sortProp.value !== column.prop) return "none";
+  return sortOrder.value;
+}
+
 function onSearch() {
   emit("search", { ...keywords.value, ...selectValues.value });
 }
 
 function onSort(column: TableColumn) {
-  if (column.sortable) emit("sort", column.prop);
+  if (!column.sortable) return;
+  if (sortProp.value === column.prop) {
+    sortOrder.value =
+      sortOrder.value === "ascending" ? "descending" : "ascending";
+  } else {
+    sortProp.value = column.prop;
+    sortOrder.value = "ascending";
+  }
+  emit("sort", column.prop, sortOrder.value);
 }
 </script>
 
@@ -109,6 +129,7 @@ function onSort(column: TableColumn) {
             :model-value="selectValues[field.prop] ?? ''"
             :options="field.options ?? []"
             :placeholder="field.placeholder"
+            :aria-label="field.placeholder"
             @update:model-value="
               value => (selectValues[field.prop] = value as string)
             "
@@ -118,6 +139,7 @@ function onSort(column: TableColumn) {
           v-else
           v-model="keywords[field.prop]"
           :placeholder="field.placeholder"
+          :aria-label="field.placeholder"
         />
       </div>
       <Button type="submit">{{ t("system.common.search") }}</Button>
@@ -130,6 +152,7 @@ function onSort(column: TableColumn) {
             v-for="column in props.columns"
             :key="column.prop"
             :sortable="column.sortable"
+            :sort="sortOf(column)"
             @click="onSort(column)"
           >
             {{ column.label }}
@@ -168,6 +191,52 @@ function onSort(column: TableColumn) {
       </TableBody>
     </Table>
 
+    <!-- 窄屏（<640）表格卡片化：Phase 2 §4.2 的结论，无第二方案 -->
+    <ul class="ui-data-table__cards">
+      <template v-if="props.loading">
+        <li
+          v-for="column in props.columns"
+          :key="column.prop"
+          class="ui-data-table__card"
+        >
+          <Skeleton />
+        </li>
+      </template>
+      <li
+        v-else-if="!props.rows.length"
+        class="ui-data-table__card ui-data-table__card--empty"
+      >
+        {{ props.emptyText ?? t("system.common.empty") }}
+      </li>
+      <template v-else>
+        <li
+          v-for="(row, index) in props.rows"
+          :key="index"
+          class="ui-data-table__card"
+        >
+          <div
+            v-for="column in props.columns"
+            :key="column.prop"
+            class="ui-data-table__card-field"
+          >
+            <span class="ui-data-table__card-label">{{ column.label }}</span>
+            <span
+              class="ui-data-table__card-value"
+              :class="{ 'is-numeric': column.numeric }"
+            >
+              <slot
+                :name="column.slot ?? column.prop"
+                :row="row"
+                :value="row[column.prop]"
+              >
+                {{ row[column.prop] ?? "-" }}
+              </slot>
+            </span>
+          </div>
+        </li>
+      </template>
+    </ul>
+
     <footer class="ui-data-table__footer">
       <span class="ui-data-table__count">{{
         t("system.common.total", { count: props.total })
@@ -198,6 +267,65 @@ function onSort(column: TableColumn) {
 
 .ui-data-table__field {
   width: 220px;
+}
+
+.ui-data-table__cards {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-data-table__card {
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.ui-data-table__card--empty {
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.ui-data-table__card-field {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.ui-data-table__card-label {
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--text-tertiary);
+}
+
+.ui-data-table__card-value {
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.ui-data-table__card-value.is-numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* <640：表格换卡片（Phase 2 §4.2） */
+@media (max-width: 639px) {
+  .ui-data-table__cards {
+    display: flex;
+  }
+
+  .ui-data-table :deep(.ui-table__wrapper) {
+    display: none;
+  }
 }
 
 .ui-data-table__empty {

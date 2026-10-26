@@ -3,6 +3,8 @@ export { default as DataTable } from "./DataTable.vue";
 export type { QueryField, TableColumn } from "./DataTable.vue";
 export { default as FormDialog } from "./FormDialog.vue";
 export { default as Sidebar } from "./Sidebar.vue";
+export { default as SidebarMenuItem } from "./SidebarMenuItem.vue";
+export { resolveIcon } from "./icons";
 export { default as TabBar } from "./TabBar.vue";
 export type { TabItem } from "./TabBar.vue";
 export { default as Topbar } from "./Topbar.vue";

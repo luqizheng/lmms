@@ -12,7 +12,7 @@
 | 2 | PRISM 交互组件集 | dialog/select/dropdown/tabs/toast/command/sheet/switch 等 16 个组件 | 1 | 已完成 |
 | 3 | 基础包发包 | `@digua/contracts`、`@digua/http` 两个 npm 包 + 发布前检查链路 | 1 | 已完成 |
 | 4 | 壳骨架 | 布局（侧栏/顶栏/标签栏/命令面板）、路由、动态菜单、权限、登录页、i18n、响应式降级链 | 1,2,3 | 已完成 |
-| 5 | 框架系统页 | 设计文档 §5 全部页面（认证/IAM/token/菜单/审计/配置/文件/通知/dashboard/account-settings） | 4 | 进行中（已完成 用户/角色/菜单/审计/配置/公告/dashboard/profile/登录；待补 token-client/部门/文件） |
+| 5 | 框架系统页 | 设计文档 §5 全部页面（认证/IAM/token/菜单/审计/配置/文件/通知/dashboard/account-settings） | 4 | 已完成（登录/用户/角色/权限/菜单/组织架构/会话/令牌客户端/审计日志/配置项/文件/公告/dashboard/profile） |
 | 6 | 四个 skill | `prism-design` / `scaffold` / `update-shell` / `gen-page` | 1,2,4 | 已完成 |
 | 7 | pm 迁移与退役 | project-manager 业务页面迁移 + 两仓 pure-admin 删除 | 5,6 | 未开始 |
 
