@@ -78,21 +78,41 @@ describe("PRISM token 契约", () => {
     }
   });
 
-  it("字阶十级齐全（Phase 1R §3.2）", () => {
-    for (const name of [
-      "text-display",
-      "text-h1",
-      "text-h2",
-      "text-h3",
-      "text-h4",
-      "text-body",
-      "text-body-strong",
-      "text-small",
-      "text-caption",
-      "text-mono-num"
-    ]) {
-      expect(token(name), `缺少 token --${name}`).not.toBe("");
+  it("字阶四族齐全（Phase 1R §3.2）", () => {
+    const levels = [
+      "display",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "body",
+      "body-strong",
+      "small",
+      "caption",
+      "mono-num"
+    ];
+    for (const level of levels) {
+      expect(token(`font-size-${level}`), `缺少 --font-size-${level}`).not.toBe("");
+      expect(token(`line-height-${level}`), `缺少 --line-height-${level}`).not.toBe("");
+      expect(token(`tracking-${level}`), `缺少 --tracking-${level}`).not.toBe("");
     }
+  });
+
+  it("字重四档齐全且上限 650（Phase 1R §3.3）", () => {
+    expect(token("weight-regular")).toBe("400");
+    expect(token("weight-medium")).toBe("500");
+    expect(token("weight-semibold")).toBe("600");
+    expect(token("weight-bold")).toBe("650");
+  });
+
+  it("字阶数值与 Phase 1R §3.2 一致", () => {
+    expect(token("font-size-body")).toBe("15px");
+    expect(token("line-height-body")).toBe("26px");
+    expect(token("font-size-small")).toBe("13px");
+    expect(token("line-height-small")).toBe("20px");
+    expect(token("font-size-caption")).toBe("12px");
+    expect(token("line-height-caption")).toBe("18px");
+    expect(token("tracking-caption")).toBe("0.025em");
   });
 
   it("每个变量声明完整闭合，不留悬空冒号", () => {

@@ -131,27 +131,46 @@
 
   /* ---------------------------------------------------------------------
    * 字阶 — Phase 1R §3.2 / §3.3
-   * 每级两个变量：--text-<level> 为 font 简写，--tracking-<level> 为字距
+   * 拆为 font-size / line-height / weight / tracking 四族：
+   * 组件改尺寸时不会连带重置字重（font 简写做不到这点）。
    * ------------------------------------------------------------------- */
-  --text-display: 650 56px/68px var(--font-ui);
+  --font-size-display: 56px;
+  --font-size-h1: 40px;
+  --font-size-h2: 28px;
+  --font-size-h3: 20px;
+  --font-size-h4: 16px;
+  --font-size-body: 15px;
+  --font-size-body-strong: 15px;
+  --font-size-small: 13px;
+  --font-size-caption: 12px;
+  --font-size-mono-num: 15px;
+
+  --line-height-display: 68px;
+  --line-height-h1: 52px;
+  --line-height-h2: 38px;
+  --line-height-h3: 28px;
+  --line-height-h4: 24px;
+  --line-height-body: 26px;
+  --line-height-body-strong: 26px;
+  --line-height-small: 20px;
+  --line-height-caption: 18px;
+  --line-height-mono-num: 22px;
+
+  /* 字重上限 650（Phase 1R §3.3：浅色下粗字重在白底会糊） */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 650;
+
   --tracking-display: -0.015em;
-  --text-h1: 650 40px/52px var(--font-ui);
   --tracking-h1: -0.01em;
-  --text-h2: 600 28px/38px var(--font-ui);
   --tracking-h2: -0.005em;
-  --text-h3: 600 20px/28px var(--font-ui);
   --tracking-h3: 0;
-  --text-h4: 600 16px/24px var(--font-ui);
   --tracking-h4: 0;
-  --text-body: 400 15px/26px var(--font-ui);
   --tracking-body: 0;
-  --text-body-strong: 550 15px/26px var(--font-ui);
   --tracking-body-strong: 0;
-  --text-small: 400 13px/20px var(--font-ui);
   --tracking-small: 0;
-  --text-caption: 450 12px/18px var(--font-ui);
   --tracking-caption: 0.025em;
-  --text-mono-num: 500 15px/22px var(--font-mono);
   --tracking-mono-num: 0;
 
   /* =====================================================================

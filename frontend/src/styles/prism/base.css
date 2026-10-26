@@ -25,7 +25,10 @@ body {
   margin: 0;
   background-color: var(--surface-base);
   color: var(--text-primary);
-  font: var(--text-body);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--weight-regular);
   letter-spacing: var(--tracking-body);
 }
 
@@ -88,7 +91,9 @@ samp {
   background: var(--surface-raised);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
-  font: var(--text-small);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
   color: var(--text-primary);
   transform: translateY(-200%);
 }
