@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 静态扫描 frontend/src/views/ 下的 .vue，验证每个 view 在同目录或任意子目录
+ * 静态扫描 frontend/src/shell/views/ 下的 .vue，验证每个 view 在同目录或任意子目录
  * 有 *.test.{ts,tsx} 伴随。
  *
  * 配套 frontend/AGENTS.md「测试规范」强制：任一新增 src/views/ 下的 view
@@ -27,10 +27,11 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const REPO_ROOT = path.resolve(__dirname, "..");
-const VIEWS_DIR = "frontend/src/views";
+const VIEWS_DIR = "frontend/src/shell/views";
 const TEST_GLOB = /\.test\.(ts|tsx)$/;
 const REPORT_MODE = process.argv.includes("--all");
 
+// 保留字段名以兼容既有脚本调用；新壳没有演示目录
 const PURE_ADMIN_DEMO_DIRS = [
   "about",
   "able",

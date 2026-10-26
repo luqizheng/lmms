@@ -19,7 +19,7 @@ description: |
 
 1. **`.agents/skills/prism-design/SKILL.md`** —— 全部视觉与可访问性约束。
 2. 后端契约：优先读 `services/<svc>/openapi.yaml`（路径 / 方法 / 字段）；
-   其次读 `packages/contracts` 里的错误码与权限码。
+   其次读 `frontend/packages/contracts` 里的错误码与权限码。
 3. 已有的同类页面作参考（`frontend/src/shell/views/`）。
 
 ## 第 1 步：确定接口与字段

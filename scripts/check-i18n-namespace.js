@@ -1,175 +1,125 @@
 #!/usr/bin/env node
 /**
- * check-i18n-namespace.js — i18n namespace 错位门禁
+ * i18n key 存在性门禁。
  *
- * 防止 P2-7 已修复的"menus.* 调用方 vs yaml namespace"错位 bug 回归。
- * 扫描 frontend/src 下所有 .vue 和 .ts 文件中的 t('menus.X') 调用，
- * 校验 X 必须定义在 frontend/locales 下 zh-CN.yaml 与 en.yaml 的
- * `menus:` namespace 下。
+ * 扫描 frontend/src 下所有 .vue / .ts 文件里的 `t("xxx")` / `$t("xxx")` 调用，
+ * 校验 `shell.` / `system.` 前缀的 key 在 zh-CN.yaml 与 en.yaml 中**都存在**。
  *
- * 2026-07-30 首次建立——背景是 P2-7 修复了 10 处 namespace 错位
- * （commit c2d23b4），需要 CI gate 防止后续 commit 再引入。
- *
- * 退出码：
- *   0 — 通过（无错位）
- *   1 — 有硬失败（menus.* 调用但 key 不在 menus: namespace 或 yaml 中缺失）
- *   2 — 配置错误
+ * 背景：PRISM 壳不再有 pure-admin 的 `menus.*` 命名空间（菜单文案来自 DB），
+ * 原门禁失去对象，改为校验真正会写错的 key 拼写。
  *
  * 用法：node scripts/check-i18n-namespace.js
- *      node scripts/check-i18n-namespace.js --json
+ * 退出码：0 通过；1 有 key 缺失。
  */
-
 const fs = require("node:fs");
 const path = require("node:path");
 
-const REPO_ROOT = path.resolve(__dirname, "..");
-const FRONTEND_SRC = path.join(REPO_ROOT, "frontend/src");
-const LOCALES_DIR = path.join(REPO_ROOT, "frontend/locales");
-const YAML_FILES = ["zh-CN.yaml", "en.yaml"].map((f) =>
-  path.join(LOCALES_DIR, f)
-);
+const ROOT = path.resolve(__dirname, "..");
+const FRONTEND_SRC = path.join(ROOT, "frontend/src");
+const LOCALES_DIR = path.join(ROOT, "frontend/locales");
 
-const JSON_MODE = process.argv.includes("--json");
+/** 只校验这些前缀（其他命名空间由各自业务仓维护） */
+const CHECKED_PREFIXES = ["shell.", "system."];
 
-// Match t('menus.X') or t("menus.X") or $t('menus.X')
-// Also catches vue-i18n-composable's useI18n().t('menus.X')
-const CALL_PATTERN = /[t$]\(\s*['"]menus\.([A-Za-z][A-Za-z0-9_]*)['"]/g;
+/* ── YAML 解析：极简缩进解析，够用即可（避免引入 yaml 依赖） ────────── */
 
-// Top-level namespace: e.g. "menus:", "buttons:", "login:"
-const NS_RE = /^([a-zA-Z][a-zA-Z0-9_-]*):\s*$/;
-// Key line under namespace: "  keyName: value"
-const KEY_RE = /^  ([A-Za-z][A-Za-z0-9_]*):\s*/;
+function parseYaml(text) {
+  const root = {};
+  const stack = [{ indent: -1, node: root }];
 
-function walk(dir, exts) {
-  const out = [];
-  if (!fs.existsSync(dir)) return out;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      out.push(...walk(full, exts));
-    } else if (entry.isFile() && exts.some((e) => entry.name.endsWith(e))) {
-      out.push(full);
+  for (const rawLine of text.split("\n")) {
+    if (!rawLine.trim() || rawLine.trim().startsWith("#")) continue;
+    const indent = rawLine.length - rawLine.trimStart().length;
+    const line = rawLine.trim();
+    const match = line.match(/^([^:]+):\s*(.*)$/);
+    if (!match) continue;
+
+    const [, key, rawValue] = match;
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
     }
+    const parent = stack[stack.length - 1].node;
+
+    if (rawValue === "") {
+      const child = {};
+      parent[key] = child;
+      stack.push({ indent, node: child });
+    } else {
+      parent[key] = rawValue.replace(/^["']|["']$/g, "");
+    }
+  }
+
+  return root;
+}
+
+function hasKey(node, key) {
+  let current = node;
+  for (const part of key.split(".")) {
+    if (!current || typeof current !== "object" || !(part in current)) return false;
+    current = current[part];
+  }
+  return current !== undefined;
+}
+
+/* ── 扫描源码里的 t() 调用 ──────────────────────────────────────────── */
+
+function walk(dir, out = []) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir);
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry);
+    if (fs.statSync(full).isDirectory()) walk(full, out);
+    else if (/\.(vue|ts|tsx)$/.test(entry) && !/\.test\.ts$/.test(entry)) out.push(full);
   }
   return out;
 }
 
-function collectCalledKeys() {
-  const called = new Map(); // key → [{ file, line }]
-  for (const file of walk(FRONTEND_SRC, [".vue", ".ts"])) {
-    const content = fs.readFileSync(file, "utf-8");
-    const rel = path.relative(REPO_ROOT, file);
-    const lines = content.split("\n");
-    lines.forEach((line, idx) => {
-      const re = new RegExp(CALL_PATTERN.source, "g");
-      let m;
-      while ((m = re.exec(line)) !== null) {
-        const key = m[1];
-        if (!called.has(key)) called.set(key, []);
-        called.get(key).push({ file: rel, line: idx + 1 });
-      }
-    });
+const CALL_RE = /\b(?:t|\$t)\(\s*["']([^"']+)["']/g;
+
+const usedKeys = new Map();
+for (const file of walk(FRONTEND_SRC)) {
+  const source = fs.readFileSync(file, "utf8");
+  for (const match of source.matchAll(CALL_RE)) {
+    const key = match[1];
+    if (!CHECKED_PREFIXES.some(prefix => key.startsWith(prefix))) continue;
+    const rel = path.relative(ROOT, file);
+    if (!usedKeys.has(key)) usedKeys.set(key, new Set());
+    usedKeys.get(key).add(rel);
   }
-  return called;
 }
 
-function loadYamlNamespaceMap(yamlPath) {
-  // Returns { key: namespace }
-  const result = {};
-  let curNs = null;
-  const content = fs.readFileSync(yamlPath, "utf-8");
-  for (const line of content.split("\n")) {
-    const stripped = line.replace(/\r$/, "");
-    const nsMatch = NS_RE.exec(stripped);
-    if (nsMatch) {
-      curNs = nsMatch[1];
-      continue;
-    }
-    const keyMatch = KEY_RE.exec(stripped);
-    if (keyMatch && curNs) {
-      result[keyMatch[1]] = curNs;
-    }
-  }
-  return result;
+if (usedKeys.size === 0) {
+  console.log("[check-i18n-namespace] 没有需要校验的 i18n key");
+  process.exit(0);
 }
 
-function run() {
-  // Validate config
-  for (const yf of YAML_FILES) {
-    if (!fs.existsSync(yf)) {
-      console.error(`FATAL: locale file missing: ${yf}`);
-      process.exit(2);
-    }
+const zh = parseYaml(fs.readFileSync(path.join(LOCALES_DIR, "zh-CN.yaml"), "utf8"));
+const en = parseYaml(fs.readFileSync(path.join(LOCALES_DIR, "en.yaml"), "utf8"));
+
+const missingZh = [];
+const missingEn = [];
+
+for (const [key, files] of usedKeys) {
+  if (!hasKey(zh, key)) missingZh.push(`${key}  （${[...files].join(", ")}）`);
+  if (!hasKey(en, key)) missingEn.push(`${key}  （${[...files].join(", ")}）`);
+}
+
+console.log(`[check-i18n-namespace] 校验 ${usedKeys.size} 个 key`);
+
+if (missingZh.length || missingEn.length) {
+  if (missingZh.length) {
+    console.error("\n✗ zh-CN.yaml 缺少：");
+    for (const item of missingZh) console.error(`  - ${item}`);
   }
-
-  const called = collectCalledKeys();
-  if (called.size === 0) {
-    console.error(
-      `FATAL: no t('menus.X') calls found under ${path.relative(REPO_ROOT, FRONTEND_SRC)}`
-    );
-    process.exit(2);
+  if (missingEn.length) {
+    console.error("\n✗ en.yaml 缺少：");
+    for (const item of missingEn) console.error(`  - ${item}`);
   }
-
-  const namespaces = YAML_FILES.map((p) => ({
-    path: p,
-    name: path.basename(p),
-    map: loadYamlNamespaceMap(p),
-  }));
-
-  // Cross-check: for each called key, verify it lives under menus: in BOTH yaml files.
-  const issues = [];
-  for (const [key, refs] of called.entries()) {
-    for (const ns of namespaces) {
-      const where = ns.map[key];
-      if (where === undefined) {
-        issues.push({
-          type: "missing-in-yaml",
-          key,
-          file: path.relative(REPO_ROOT, ns.path),
-          sampleRef: refs[0],
-        });
-      } else if (where !== "menus") {
-        issues.push({
-          type: "wrong-namespace",
-          key,
-          file: path.relative(REPO_ROOT, ns.path),
-          currentNs: where,
-          sampleRef: refs[0],
-        });
-      }
-    }
-  }
-
-  // Report
-  if (JSON_MODE) {
-    console.log(JSON.stringify({ called: called.size, issues }, null, 2));
-  } else if (issues.length === 0) {
-    console.log(
-      `✓ i18n namespace check passed: ${called.size} unique menus.* keys all defined under 'menus:' in zh-CN / en`
-    );
-    process.exit(0);
-  } else {
-    console.error(
-      `✗ i18n namespace check failed: ${issues.length} issue(s) across ${called.size} called keys\n`
-    );
-    for (const i of issues) {
-      const loc = `${i.sampleRef.file}:${i.sampleRef.line}`;
-      if (i.type === "wrong-namespace") {
-        console.error(
-          `  [wrong-namespace] ${i.key} → defined under '${i.currentNs}:' in ${i.file} (expected 'menus:')\n    first call site: ${loc}`
-        );
-      } else {
-        console.error(
-          `  [missing-in-yaml] ${i.key} → not defined in ${i.file}\n    first call site: ${loc}`
-        );
-      }
-    }
-    console.error(
-      "\nFix: move the key into 'menus:' namespace (or under its actual usage namespace) in both yaml files."
-    );
-  }
-
   process.exit(1);
 }
 
-run();
+console.log("✓ 所有引用的 i18n key 在两个语言文件中都存在");

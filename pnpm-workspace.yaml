@@ -1,8 +1,8 @@
 packages:
   - "services/token-service"
   - "frontend"
-  - "packages/contracts"
-  - "packages/http"
+  - "frontend/packages/contracts"
+  - "frontend/packages/http"
 allowBuilds:
   '@parcel/watcher': true
   argon2: true

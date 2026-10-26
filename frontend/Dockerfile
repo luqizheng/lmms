@@ -9,17 +9,16 @@ ENV CI=true
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
+# workspace 成员的 manifest 必须在 install 之前就位，否则 pnpm 解析 workspace:* 依赖会失败
 COPY package.json pnpm-lock.yaml* .npmrc* ./
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/http/package.json packages/http/
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts --fetch-timeout=300000 || \
     pnpm install --ignore-scripts --fetch-timeout=300000
 
 COPY . .
-
-# 测试环境可通过 build arg 禁用登录图形验证码（默认空=启用，生产构建不传则不受影响）
-ARG VITE_DISABLE_CAPTCHA
-ENV VITE_DISABLE_CAPTCHA=$VITE_DISABLE_CAPTCHA
 
 RUN pnpm build
 

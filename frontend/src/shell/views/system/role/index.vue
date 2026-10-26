@@ -30,7 +30,7 @@ const columns: TableColumn[] = [
   { label: t("system.role.name"), prop: "name" },
   { label: t("system.role.code"), prop: "code" },
   { label: t("system.role.description"), prop: "description" },
-  { label: t("system.user.status"), prop: "status", slot: "status" },
+  { label: t("system.common.status"), prop: "status", slot: "status" },
   { label: t("system.user.createdAt"), prop: "created_at", numeric: true }
 ];
 

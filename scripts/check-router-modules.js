@@ -12,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
+// PRISM 壳的路由由 DB 动态菜单装载，没有前端路由模块目录 —— 本门禁随之退役。
 const MODULES_DIR = path.resolve(__dirname, "../frontend/src/router/modules");
 
 if (!fs.existsSync(MODULES_DIR)) {

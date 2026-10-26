@@ -1,7 +1,7 @@
 packages:
   - "."
-  - "../packages/contracts"
-  - "../packages/http"
+  - "packages/contracts"
+  - "packages/http"
 
 shellEmulator: true
 shamefullyHoist: true

@@ -10,7 +10,7 @@ import "@/styles/prism/index.css";
 /**
  * PRISM 壳的应用入口。
  *
- * 与 legacy 的 `src/main.ts` 并存：Plan 7 删除 pure-admin 时，连带删除 legacy 入口。
+ * 这个前端是独立工程：没有 legacy 入口，没有模板框架的运行时。
  */
 const app = createApp(ShellApp);
 const pinia = createPinia();
