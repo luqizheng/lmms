@@ -145,6 +145,7 @@
   --font-size-small: 13px;
   --font-size-caption: 12px;
   --font-size-mono-num: 15px;
+  --font-size-kbd: 11px;
 
   --line-height-display: 68px;
   --line-height-h1: 52px;
@@ -186,7 +187,9 @@
   --border-hover-strong: #B9B9B1;
   --surface-disabled: #EFEFEB;
   --surface-highlight: rgba(255, 255, 255, 0.18);
+  --accent-disabled: rgba(46, 91, 255, 0.4);
   --scale-press: 0.98;
+  --scale-menu-enter: 0.96;
 
   /* 来源：Phase 1R §4.3 全局框架尺寸 / §6 组件尺寸 */
   --size-control-sm: 32px;
@@ -202,6 +205,20 @@
   --size-focus-ring: 2px;
   --size-focus-halo: 4px;
   --size-input-halo: 3px;
+  --size-indicator: 2px;
+  --size-menu-min-width: 200px;
+  --size-menu-padding: 6px;
+  --size-icon-xs: 16px;
+  --size-icon-lg: 18px;
+  --size-switch-track: 44px;
+  --size-switch-thumb: 20px;
+  --size-switch-thumb-press: 24px;
+  --size-checkbox: 16px;
+
+  /* 来源：Phase 1R §4.5 边框宽度 */
+  --border-1: 1px;
+  --border-2: 2px;
+  --hairline: 1px;
   --size-sidebar: 240px;
   --size-sidebar-collapsed: 64px;
   --size-topbar: 56px;
@@ -212,6 +229,7 @@
   --skeleton-shimmer: rgba(23, 24, 28, 0.04);
   --duration-shimmer: 1600ms;
   --duration-spinner: 800ms;
+  --duration-switch: 180ms;
 
   /* 来源：Phase 1R §5.5 焦点环 / §6.2 输入框聚焦 */
   --focus-glow: rgba(46, 91, 255, 0.18);

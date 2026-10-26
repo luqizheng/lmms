@@ -156,7 +156,7 @@ describe("PRISM token 契约", () => {
     const orphans = defined.filter(
       name =>
         !appendixSet.has(name) &&
-        !/^(font-size|line-height|weight|tracking|space|size|duration-|scale-|surface-|focus-|input-focus|danger-focus|skeleton-|accent-gradient-|border-hover)/.test(
+        !/^(font-size|line-height|weight|tracking|space|size|duration-|scale-|surface-|focus-|input-focus|danger-focus|skeleton-|accent-|border-|hairline$)/.test(
           name
         )
     );
@@ -278,6 +278,23 @@ describe("PRISM token 契约", () => {
       "size-focus-ring",
       "size-focus-halo",
       "size-input-halo",
+      "size-indicator",
+      "size-menu-min-width",
+      "size-menu-padding",
+      "size-icon-xs",
+      "size-icon-lg",
+      "size-badge",
+      "size-switch-track",
+      "size-switch-thumb",
+      "size-switch-thumb-press",
+      "size-checkbox",
+      "accent-disabled",
+      "duration-switch",
+      "border-1",
+      "border-2",
+      "hairline",
+      "scale-menu-enter",
+      "scale-press",
       "duration-shimmer",
       "duration-spinner",
       "scale-press"

@@ -22,6 +22,7 @@
    * --accent-deep: #4C1D95;
    * --accent-subtle: #F3EEFF;
    * --accent-wash: rgba(124, 58, 237, 0.08);
+   * --accent-disabled: rgba(124, 58, 237, 0.4);
    * --accent-gradient: linear-gradient(180deg, #7C3AED 0%, #6D28D9 100%);
    * --accent-gradient-hover: linear-gradient(180deg, #8B5CF6 0%, #7C3AED 100%);
    * --accent-gradient-pressed: linear-gradient(180deg, #5B21B6 0%, #4C1D95 100%);
