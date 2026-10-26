@@ -10,7 +10,7 @@ withDefaults(defineProps<Props>(), { caption: undefined });
 <template>
   <div class="ui-table__wrapper">
     <table class="ui-table">
-      <caption v-if="caption" class="sr-only">
+      <caption v-if="caption" class="ui-sr-only">
         {{
           caption
         }}
@@ -35,5 +35,18 @@ withDefaults(defineProps<Props>(), { caption: undefined });
   font-weight: var(--weight-regular);
   letter-spacing: var(--tracking-body);
   color: var(--text-primary);
+}
+
+/* 读屏专用文本 —— 组件自带，不依赖尚未引入的全局 base.css */
+.ui-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 </style>

@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import FormField from "./FormField.vue";
+import Input from "../input/Input.vue";
 
 describe("FormField", () => {
   it("渲染标签并关联控件", () => {
@@ -48,5 +49,22 @@ describe("FormField", () => {
     });
     expect(w.find(".ui-form-field__error").exists()).toBe(true);
     expect(w.find(".ui-form-field__description").exists()).toBe(false);
+  });
+
+  it("错误文案带 id，可被控件的 aria-describedby 引用", () => {
+    const w = mount(FormField, { props: { error: "填错了" } });
+    expect(w.find(".ui-form-field__error").attributes("id")).toBeTruthy();
+  });
+
+  it("错误态下控件自动获得 aria-describedby 与 aria-invalid", async () => {
+    const w = mount({
+      components: { FormField, Input },
+      template: `<FormField label="邮箱" error="格式不对"><Input /></FormField>`
+    });
+    await flushPromises();
+    const input = w.find("input");
+    const errorId = w.find(".ui-form-field__error").attributes("id");
+    expect(input.attributes("aria-describedby")).toBe(errorId);
+    expect(input.attributes("aria-invalid")).toBe("true");
   });
 });

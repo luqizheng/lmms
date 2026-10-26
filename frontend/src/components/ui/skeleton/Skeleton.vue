@@ -33,7 +33,16 @@ const style = computed(() => ({
     transparent
   );
   background-size: 200% 100%;
-  animation: ui-skeleton-shimmer 1600ms linear infinite;
+  animation: ui-skeleton-shimmer var(--duration-shimmer) linear infinite;
+}
+
+/* 减少动效 — Phase 2 §5.4 #3：骨架屏静止为静态色块 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton {
+    animation: none;
+    background-image: none;
+    background-color: var(--surface-raised);
+  }
 }
 
 @keyframes ui-skeleton-shimmer {

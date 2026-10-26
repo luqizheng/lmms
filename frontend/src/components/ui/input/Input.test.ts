@@ -33,4 +33,11 @@ describe("Input", () => {
     );
     expect(mount(Input).classes()).toContain("ui-input--md");
   });
+
+  it("invalid 时输出 aria-invalid=true", () => {
+    expect(
+      mount(Input, { props: { invalid: true } }).attributes("aria-invalid")
+    ).toBe("true");
+    expect(mount(Input).attributes("aria-invalid")).toBeUndefined();
+  });
 });

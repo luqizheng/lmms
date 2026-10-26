@@ -77,18 +77,24 @@ const isDisabled = computed(() => props.disabled || props.loading);
 .ui-button--primary {
   background: var(--accent-gradient);
   color: var(--accent-contrast-text);
-  box-shadow: var(--shadow-accent);
+  box-shadow:
+    inset 0 1px 0 0 var(--surface-highlight),
+    var(--shadow-accent);
 }
 
 .ui-button--primary:hover:not(:disabled) {
   background: var(--accent-gradient-hover);
-  box-shadow: var(--shadow-accent-lg);
+  box-shadow:
+    inset 0 1px 0 0 var(--surface-highlight),
+    var(--shadow-accent-lg);
 }
 
 .ui-button--primary:active:not(:disabled) {
   background: var(--accent-gradient-pressed);
-  box-shadow: var(--shadow-accent);
-  transform: scale(0.98);
+  box-shadow:
+    inset 0 1px 0 0 var(--surface-highlight),
+    var(--shadow-accent);
+  transform: scale(var(--scale-press));
 }
 
 .ui-button--primary:disabled {
@@ -111,7 +117,7 @@ const isDisabled = computed(() => props.disabled || props.loading);
 
 .ui-button--secondary:active:not(:disabled) {
   background: var(--surface-sunken);
-  transform: scale(0.98);
+  transform: scale(var(--scale-press));
 }
 
 .ui-button--secondary:disabled {
@@ -141,42 +147,59 @@ const isDisabled = computed(() => props.disabled || props.loading);
 
 /* 尺寸系 — Phase 1R §6.1 */
 .ui-button--sm {
-  height: 32px;
+  height: var(--size-control-sm);
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
   padding: 0 var(--space-3);
 }
 
 .ui-button--md {
-  height: 36px;
+  height: var(--size-control-md);
 }
 
 .ui-button--lg {
-  height: 40px;
+  height: var(--size-control-lg);
   font-size: var(--font-size-body-strong);
   line-height: var(--line-height-body-strong);
 }
 
 .ui-button--icon {
-  width: 36px;
-  height: 36px;
+  width: var(--size-icon-button);
+  height: var(--size-icon-button);
   padding: 0;
 }
 
-/* 加载指示 — Phase 1R §6.1：14px spinner，800ms 一圈 */
+/* 加载指示 — Phase 1R §6.1：14px spinner */
 .ui-button__spinner {
   flex: none;
-  width: 14px;
-  height: 14px;
+  width: var(--size-spinner);
+  height: var(--size-spinner);
   border: 2px solid currentcolor;
   border-right-color: transparent;
   border-radius: var(--radius-full);
-  animation: ui-button-spin 800ms linear infinite;
+  animation: ui-button-spin var(--duration-spinner) linear infinite;
+}
+
+/* Secondary / Ghost 的加载指示用 secondary 文字色（Phase 2 §6.1） */
+.ui-button--secondary .ui-button__spinner,
+.ui-button--ghost .ui-button__spinner {
+  color: var(--text-secondary);
 }
 
 @keyframes ui-button-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* 减少动效 — Phase 2 §5.4 #6：取消按压缩放，仅颜色变化 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-button:active:not(:disabled) {
+    transform: none;
+  }
+
+  .ui-button__spinner {
+    animation: none;
   }
 }
 </style>

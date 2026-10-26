@@ -27,6 +27,7 @@
   --surface-ink: #17181C;
   --ink-hover-veil: rgba(255, 255, 255, 0.08);
   --ink-active-veil: rgba(255, 255, 255, 0.12);
+  --focus-glow-ink: rgba(46, 91, 255, 0.32);
 
   /* ---------------------------------------------------------------------
    * Text — Phase 1R §2.3
@@ -159,6 +160,8 @@
   /* 字重上限 650（Phase 1R §3.3：浅色下粗字重在白底会糊） */
   --weight-regular: 400;
   --weight-medium: 500;
+  --weight-caption: 450;
+  --weight-body-strong: 550;
   --weight-semibold: 600;
   --weight-bold: 650;
 
@@ -182,10 +185,33 @@
   --accent-gradient-pressed: linear-gradient(180deg, #1F44D6 0%, #1940BE 100%);
   --border-hover-strong: #B9B9B1;
   --surface-disabled: #EFEFEB;
+  --surface-highlight: rgba(255, 255, 255, 0.18);
+  --scale-press: 0.98;
 
-  /* 来源：Phase 1R §7.1 骨架屏 */
+  /* 来源：Phase 1R §4.3 全局框架尺寸 / §6 组件尺寸 */
+  --size-control-sm: 32px;
+  --size-control-md: 36px;
+  --size-control-lg: 40px;
+  --size-icon-button: 36px;
+  --size-icon-sm: 18px;
+  --size-icon-md: 20px;
+  --size-row: 44px;
+  --size-header-cell: 40px;
+  --size-badge: 22px;
+  --size-spinner: 14px;
+  --size-focus-ring: 2px;
+  --size-focus-halo: 4px;
+  --size-input-halo: 3px;
+  --size-sidebar: 240px;
+  --size-sidebar-collapsed: 64px;
+  --size-topbar: 56px;
+  --size-header: 64px;
+
+  /* 来源：Phase 1R §7.1 骨架屏 / §6.1 加载指示 */
   --skeleton-base: #FAFAF8;
   --skeleton-shimmer: rgba(23, 24, 28, 0.04);
+  --duration-shimmer: 1600ms;
+  --duration-spinner: 800ms;
 
   /* 来源：Phase 1R §5.5 焦点环 / §6.2 输入框聚焦 */
   --focus-glow: rgba(46, 91, 255, 0.18);

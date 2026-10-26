@@ -10,6 +10,51 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-25-prism-admin-ui-design.md`（视觉与交互真源另见 `D:\Workspace\web-concept\design\phase1-visual-direction.md` 与 `phase2-ux-spec.md`）
 
+## 执行对账（2026-10-26 已执行完毕）
+
+本计划 8 个任务全部完成，产出在分支 `feat/prism-admin-ui`。下列偏离是执行中做出的裁决，**以本节为准**（下方任务正文保留原始形态，仅供追溯）：
+
+| # | 偏离 | 理由 | 代价 |
+|---|---|---|---|
+| 1 | **不建 `theme.css`（Tailwind `@theme` 映射）** | `@theme` 与 `:root` 同名变量会自引用（`--shadow-xs` 等），且颜色走 utility 就无法被裸色值校验器拦截 | 页面级布局仍用 Tailwind utility；颜色一律 scoped CSS + token 变量 |
+| 2 | **字阶 token 拆为四族**：`--font-size-*` / `--line-height-*` / `--weight-*` / `--tracking-*` | 原计划的 `--text-<level>` font 简写会在尺寸覆盖类中连带重置字重（sm 尺寸下 600 权重丢失） | 组件需写 4 行排版属性 |
+| 3 | `tokens.css` 补入 **Phase 1R §3.2/§3.3 字阶** 与 **§4.2 间距阶梯** | 附录 CSS 速查未收录这两组，组件需要唯一真源 | 无 |
+| 4 | 补充 token 增补 `--skeleton-shimmer` | §7.1 骨架屏 shimmer 色在正文内联，裸 rgba 会被校验器拦截 | 无 |
+| 5 | token 契约测试用 `process.cwd()` 定位文件 | happy-dom 环境下 `import.meta.url` 非 file 协议 | 无 |
+| 6 | 变体常量文件 `button.css.ts` → `button.ts` | `.css.ts` 易被误认为样式文件 | 无 |
+| 7 | **Table 根元素为横向滚动包裹 DIV** | Phase 2 §4.2 要求 ≥640 表格横向滚动；测试断言相应改为校验内层 `table` | 调用方需注意根元素是 div |
+| 8 | CI 接入方式：新增独立阻断 job `prism_tokens_check` | 不改动既有 `frontend_lint`（`allow_failure: true`）的语义，避免影响无关 lint | 多一个 CI job |
+| 9 | 校验器排除 `*.test.ts`、`tokens.css` 允许裸色值；新增 `ALLOWED_VAR_PREFIXES` 白名单 | 测试文件与 token 定义处本身含 hex 是正常的 | 第三方库变量需在白名单登记 |
+| 10 | `FormField` 中 `error` 优先于 `description`，二者不同时渲染 | 错误态下同时展示说明会误导 | 无 |
+
+**已知遗留**：`frontend/src/views/notification/admin/utils/hook.test.ts` 在 main 分支上即已失败（视图新增第 5 列后测试未同步），与本计划无关，该目录将在 Plan 7 随 pure-admin 一并删除。
+
+## 评审修复轮（2026-10-26，整分支评审后）
+
+独立评审 agent 对 `main...feat/prism-admin-ui` 做了整分支评审，发现 2 个 Critical + 11 个 Important。已全部修复（每项均先写复现测试并观察其失败）：
+
+| 编号 | 问题 | 修复 |
+|---|---|---|
+| C1 | `tokens.css` 漏抄附录成员 `--focus-glow-ink`，且"逐字转录"未被断言保护 | 补齐该 token；新增**附录变量集合断言**与**逐个值等价断言**（忽略空白，规避 prettier 规范化） |
+| C2 | 对比度护栏根本没测对比度；且换肤时该测试会挡住换肤 | 新增 `tokens.brand.css` 品牌覆盖层（默认空，业务系统只改这一个文件）；新增按**有效值**计算的 WCAG 对比度断言（正文/accent/语义色/墨底），换肤后依然生效 |
+| I1 | 组件里仍有裸尺寸与时长（44px 行高、1600ms shimmer、scale(0.98)…） | 补 `--size-*` / `--duration-shimmer` / `--duration-spinner` / `--scale-press` 等补充 token，组件全部改用 token |
+| I2 | 表头字重实为 400，规范是 450 | 补 `--weight-caption: 450` 与 `--weight-body-strong: 550`，表头改用 450 档 |
+| I3 | 校验器可被 `red` / `hsl()` / `oklch()` 绕过 | 校验器扩展：具名色黑名单 + 全部颜色函数正则；只对颜色类属性检查具名色以避免误报 |
+| I4 | 校验器对跨行块注释误报（阻断式 CI 会假红） | 改为逐字符剥离注释并保留换行，行号不变 |
+| I5 | 前端单测从不进 CI —— 计划声称的"测试覆盖"在 CI 里不生效 | 新增阻断式 job `frontend_test`（`pnpm -C frontend run test:unit`） |
+| I6 | 组件依赖尚未引入的全局 `base.css`（caption 变可见、Input 失去焦点环） | Table 自带 `.ui-sr-only`；Input/Textarea 自带 outline + 光晕，不依赖全局样式 |
+| I7 | reduced-motion 只降级了全局时长，未逐项覆盖 | Button（取消按压缩放、停 spinner）与 Skeleton（静止色块）各自加 `@media (prefers-reduced-motion: reduce)` |
+| I8 | TableHeader 无 `aria-sort`、排序键盘不可达 | 新增 `sort` prop 输出 `aria-sort`；`sortable` 时内容渲染为可聚焦按钮 |
+| I9 | 表单错误与控件无程序化关联 | FormField 通过 provide 暴露错误 id；Input/Textarea 自动获得 `aria-describedby` 与 `aria-invalid` |
+| I10 | 校验器扫描范围靠人记得扩展 | 扫描根与 CI rules 集中声明；`tokens.brand.css` 与 `tokens.css` 一并列入定义处白名单 |
+| I11 | 一批"只断言类名"的弱断言 | 新增 `ui.contract.test.ts`：直接断言组件样式源码中的关键声明，删样式即红 |
+| M1–M6 | Button 缺顶部 inset 高光 / Input 错误态缺常驻光晕 / 表头字重 / 行 hover 分隔线 / spinner 颜色 / label 字重 | 全部补齐（Button 高光用 `--surface-highlight` token） |
+| M7 | `rgba()` 内空格与附录非逐字 | 改为**值等价**断言（prettier 会规范化空格，字面逐字不可持续），已在上文说明 |
+| M8 | 路线图仍写"Tailwind 映射" | 路线图交付物描述已同步 |
+| 既有失败 | `notification/admin/utils/hook.test.ts` 在 main 即失败（列数 5≠4） | 测试名说"includes 4 base columns"但断言写成"恰好 4 列"；改为 `arrayContaining` 断言基础四列，保留原意。阻断式单测 CI 需要它绿 |
+
+新增文件：`scripts/check-prism-tokens.test.js`（校验器自测，11 例）——校验器本身是护栏，必须有测试。
+
 ## Global Constraints
 
 以下约束对每个任务生效，任务内不再重复：

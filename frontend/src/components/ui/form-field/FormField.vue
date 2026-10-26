@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, provide, useId } from "vue";
 import { cn } from "@/lib/cn";
+import { FORM_FIELD_ERROR_ID } from "./context";
 
 interface Props {
   /** 字段名（传入已翻译文案） */
@@ -26,6 +27,12 @@ const props = withDefaults(defineProps<Props>(), {
 const classes = computed(() =>
   cn("ui-form-field", { "is-invalid": Boolean(props.error) })
 );
+
+const errorId = useId();
+const activeErrorId = computed(() => (props.error ? errorId : undefined));
+
+// 供 slot 内的控件（Input / Textarea / Select …）自动关联错误信息
+provide(FORM_FIELD_ERROR_ID, activeErrorId);
 </script>
 
 <template>
@@ -40,7 +47,12 @@ const classes = computed(() =>
       >
     </label>
     <slot />
-    <p v-if="props.error" class="ui-form-field__error" role="alert">
+    <p
+      v-if="props.error"
+      :id="errorId"
+      class="ui-form-field__error"
+      role="alert"
+    >
       {{ props.error }}
     </p>
     <p v-else-if="props.description" class="ui-form-field__description">
@@ -50,7 +62,7 @@ const classes = computed(() =>
 </template>
 
 <style scoped>
-/* Phase 1R §6.2：错误文案 12px/18px danger，距框 6px */
+/* Phase 1R §6.2：错误文案 12px/18px danger */
 .ui-form-field {
   display: flex;
   flex-direction: column;

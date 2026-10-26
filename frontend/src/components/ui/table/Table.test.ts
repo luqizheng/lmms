@@ -55,4 +55,24 @@ describe("Table", () => {
     expect(mount(TableCell).element.tagName).toBe("TD");
     expect(mount(TableRow).element.tagName).toBe("TR");
   });
+
+  it("排序状态输出 aria-sort（Phase 2 §5.3）", () => {
+    expect(
+      mount(TableHeader, { props: { sort: "ascending" } }).attributes(
+        "aria-sort"
+      )
+    ).toBe("ascending");
+    expect(
+      mount(TableHeader, { props: { sort: "descending" } }).attributes(
+        "aria-sort"
+      )
+    ).toBe("descending");
+    expect(mount(TableHeader).attributes("aria-sort")).toBeUndefined();
+  });
+
+  it("可排序表头内含可聚焦按钮，键盘可达（Phase 2 §9.4）", () => {
+    const w = mount(TableHeader, { props: { sortable: true } });
+    expect(w.find("button").exists()).toBe(true);
+    expect(w.find("button").attributes("type")).toBe("button");
+  });
 });

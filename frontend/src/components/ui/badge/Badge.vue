@@ -31,7 +31,7 @@ const classes = computed(() => cn("ui-badge", `ui-badge--${props.variant}`));
 .ui-badge {
   display: inline-flex;
   align-items: center;
-  height: 22px;
+  height: var(--size-badge);
   padding: 0 var(--space-2);
   border-radius: var(--radius-full);
   font-family: var(--font-ui);

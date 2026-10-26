@@ -66,9 +66,10 @@ describe("useAdmin shape", () => {
 
   it("columns includes 4 base columns", () => {
     const api = useAdmin();
-    expect(api.columns.length).toBe(4);
     const labels = api.columns.map((c: any) => c.label);
-    expect(labels).toEqual(["ID", "标题", "状态", "发布时间"]);
+    // 基础四列必须齐全；其后的操作列等扩展列不参与本断言
+    expect(labels).toEqual(expect.arrayContaining(["ID", "标题", "状态", "发布时间"]));
+    expect(labels.slice(0, 4)).toEqual(["ID", "标题", "状态", "发布时间"]);
   });
 });
 

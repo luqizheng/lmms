@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, inject } from "vue";
 import { cn } from "@/lib/cn";
+import { FORM_FIELD_ERROR_ID } from "../form-field/context";
 
 interface Props {
   modelValue?: string;
   placeholder?: string;
   disabled?: boolean;
-  /** 错误态：danger 描边 + 焦点光晕 */
+  /** 错误态：danger 描边 + 光晕，并输出 aria-invalid */
   invalid?: boolean;
   rows?: number;
 }
@@ -21,8 +22,14 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
+// 位于 FormField 内时自动关联错误文案
+const fieldErrorId = inject(FORM_FIELD_ERROR_ID, undefined);
+
+const isInvalid = computed(() => props.invalid || Boolean(fieldErrorId?.value));
+const describedBy = computed(() => fieldErrorId?.value);
+
 const classes = computed(() =>
-  cn("ui-textarea", { "is-invalid": props.invalid })
+  cn("ui-textarea", { "is-invalid": isInvalid.value })
 );
 
 function onInput(event: Event) {
@@ -36,6 +43,8 @@ function onInput(event: Event) {
     :placeholder="placeholder"
     :rows="rows"
     :disabled="disabled"
+    :aria-invalid="isInvalid ? 'true' : undefined"
+    :aria-describedby="describedBy"
     :class="classes"
     @input="onInput"
   />
@@ -45,6 +54,7 @@ function onInput(event: Event) {
 /* Phase 1R §6.2 */
 .ui-textarea {
   width: 100%;
+  min-height: var(--size-control-md);
   padding: var(--space-2) var(--space-3);
   font-family: var(--font-ui);
   font-size: var(--font-size-body);
@@ -70,17 +80,20 @@ function onInput(event: Event) {
 }
 
 .ui-textarea:focus-visible {
-  outline: none;
+  outline: var(--size-focus-ring) solid var(--accent);
+  outline-offset: var(--size-focus-ring);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--input-focus-glow);
+  box-shadow: 0 0 0 var(--size-input-halo) var(--input-focus-glow);
 }
 
 .ui-textarea.is-invalid {
   border-color: var(--danger);
+  box-shadow: 0 0 0 var(--size-input-halo) var(--danger-focus-glow);
 }
 
 .ui-textarea.is-invalid:focus-visible {
-  box-shadow: 0 0 0 3px var(--danger-focus-glow);
+  outline-color: var(--danger);
+  box-shadow: 0 0 0 var(--size-input-halo) var(--danger-focus-glow);
 }
 
 .ui-textarea:disabled {
