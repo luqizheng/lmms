@@ -76,7 +76,9 @@ const emit = defineEmits<{
 const keywords = ref<Record<string, string>>({});
 const selectValues = ref<Record<string, string>>({});
 
-const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)));
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(props.total / props.pageSize))
+);
 
 function onSearch() {
   emit("search", { ...keywords.value, ...selectValues.value });
@@ -89,14 +91,24 @@ function onSort(column: TableColumn) {
 
 <template>
   <section class="ui-data-table">
-    <form v-if="props.query.length" class="ui-data-table__query" @submit.prevent="onSearch">
-      <div v-for="field in props.query" :key="field.prop" class="ui-data-table__field">
+    <form
+      v-if="props.query.length"
+      class="ui-data-table__query"
+      @submit.prevent="onSearch"
+    >
+      <div
+        v-for="field in props.query"
+        :key="field.prop"
+        class="ui-data-table__field"
+      >
         <template v-if="field.type === 'select'">
           <Select
             :model-value="selectValues[field.prop] ?? ''"
             :options="field.options ?? []"
             :placeholder="field.placeholder"
-            @update:model-value="value => (selectValues[field.prop] = value as string)"
+            @update:model-value="
+              value => (selectValues[field.prop] = value as string)
+            "
           />
         </template>
         <Input
@@ -128,13 +140,24 @@ function onSort(column: TableColumn) {
           </TableCell>
         </TableRow>
         <TableRow v-else-if="!props.rows.length">
-          <TableCell :colspan="props.columns.length" class="ui-data-table__empty">
+          <TableCell
+            :colspan="props.columns.length"
+            class="ui-data-table__empty"
+          >
             {{ props.emptyText }}
           </TableCell>
         </TableRow>
         <TableRow v-for="(row, index) in props.rows" v-else :key="index">
-          <TableCell v-for="column in props.columns" :key="column.prop" :numeric="column.numeric">
-            <slot :name="column.slot ?? column.prop" :row="row" :value="row[column.prop]">
+          <TableCell
+            v-for="column in props.columns"
+            :key="column.prop"
+            :numeric="column.numeric"
+          >
+            <slot
+              :name="column.slot ?? column.prop"
+              :row="row"
+              :value="row[column.prop]"
+            >
               {{ row[column.prop] ?? "-" }}
             </slot>
           </TableCell>

@@ -43,7 +43,12 @@ const isOpen = computed({
 </script>
 
 <template>
-  <Dialog v-model:open="isOpen" :title="props.title" :size="props.size" :close-label="props.closeLabel">
+  <Dialog
+    v-model:open="isOpen"
+    :title="props.title"
+    :size="props.size"
+    :close-label="props.closeLabel"
+  >
     <form class="ui-form-dialog" novalidate @submit.prevent="emit('submit')">
       <div class="ui-form-dialog__body">
         <slot />
@@ -52,7 +57,9 @@ const isOpen = computed({
         <Button variant="secondary" type="button" @click="emit('cancel')">
           {{ props.cancelLabel }}
         </Button>
-        <Button type="submit" :loading="props.submitting">{{ props.submitLabel }}</Button>
+        <Button type="submit" :loading="props.submitting">{{
+          props.submitLabel
+        }}</Button>
       </footer>
     </form>
   </Dialog>

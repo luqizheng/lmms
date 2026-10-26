@@ -792,3 +792,87 @@ shell:
     backHome: Back to overview
     comingSoonTitle: This page is being migrated
     comingSoonHint: This menu entry has no PRISM version yet
+
+# ── Framework system pages ─────────────────────────────────────────────
+system:
+  common:
+    search: Search
+    create: Create
+    edit: Edit
+    save: Save
+    cancel: Cancel
+    delete: Delete
+    confirmDelete: Delete this record? This cannot be undone
+    total: "{count} in total"
+    empty: No records yet
+    caption: "{name} list"
+  user:
+    title: Users
+    create: Create user
+    edit: Edit user
+    caption: User list
+    searchPlaceholder: Search username
+    statusPlaceholder: All statuses
+    statusActive: Active
+    statusDisabled: Disabled
+    username: Username
+    nickname: Display name
+    password: Password
+    email: Email
+    phone: Phone
+    createdAt: Created at
+  role:
+    title: Roles
+    create: Create role
+    edit: Edit role
+    caption: Role list
+    searchPlaceholder: Search role name
+    name: Role name
+    code: Role code
+    description: Description
+  menu:
+    title: Menus
+    create: Create menu
+    edit: Edit menu
+    caption: Menu list
+    name: Menu name
+    path: Path
+    component: Component
+    icon: Icon
+    sortOrder: Order
+    visible: Visible
+  audit:
+    title: Audit logs
+    loginLog: Login logs
+    operationLog: Operation logs
+    caption: Audit log list
+    searchPlaceholder: Search
+    actor: Actor
+    action: Action
+    target: Target
+    ip: IP address
+    result: Result
+    succeeded: Succeeded
+    failed: Failed
+    createdAt: Time
+  config:
+    title: Configuration
+    namespace: Namespaces
+    item: Items
+    caption: Config item list
+    searchPlaceholder: Search key
+    key: Key
+    value: Value
+    namespaceName: Namespace
+  notification:
+    title: Announcements
+    create: Create announcement
+    edit: Edit announcement
+    caption: Announcement list
+    searchPlaceholder: Search title
+    announcementTitle: Title
+    announcementBody: Body
+    status: Status
+    draft: Draft
+    published: Published
+    revoked: Revoked

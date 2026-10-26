@@ -47,5 +47,5 @@ export function listMenus() {
   return http.get<IamMenuListResponse>("/v1/iam/menus");
 }
 
-export { translateError } from "./client";
+export { http, translateError } from "./client";
 export type { LoginResult } from "./client";

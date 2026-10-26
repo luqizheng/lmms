@@ -13,7 +13,9 @@ afterEach(() => {
 });
 
 function mountDialog(props: Record<string, unknown> = {}) {
-  const wrapper = mountShell(FormDialog, { props: { open: true, title: "编辑用户", ...props } });
+  const wrapper = mountShell(FormDialog, {
+    props: { open: true, title: "编辑用户", ...props }
+  });
   wrappers.push(wrapper);
   return wrapper;
 }
@@ -39,7 +41,9 @@ describe("FormDialog", () => {
     await new Promise(resolve => setTimeout(resolve, 0));
     await nextTick();
     const form = document.querySelector("form");
-    form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    form?.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
+    );
     await nextTick();
     expect(w.emitted("submit")).toBeTruthy();
   });
@@ -49,7 +53,9 @@ describe("FormDialog", () => {
     await nextTick();
     await new Promise(resolve => setTimeout(resolve, 0));
     await nextTick();
-    const cancel = document.querySelector<HTMLElement>(".ui-form-dialog__footer button");
+    const cancel = document.querySelector<HTMLElement>(
+      ".ui-form-dialog__footer button"
+    );
     cancel?.click();
     await nextTick();
     expect(w.emitted("cancel")).toBeTruthy();

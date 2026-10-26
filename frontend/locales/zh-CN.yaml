@@ -792,3 +792,87 @@ shell:
     backHome: 返回概览
     comingSoonTitle: 该页面正在迁移
     comingSoonHint: 这个菜单指向的页面还没有 PRISM 版本
+
+# ── 框架系统页 ─────────────────────────────────────────────────────────
+system:
+  common:
+    search: 查询
+    create: 新建
+    edit: 编辑
+    save: 保存
+    cancel: 取消
+    delete: 删除
+    confirmDelete: 删除该记录？此操作不可撤销
+    total: 共 {count} 条
+    empty: 还没有记录
+    caption: "{name}列表"
+  user:
+    title: 用户管理
+    create: 新建用户
+    edit: 编辑用户
+    caption: 用户列表
+    searchPlaceholder: 搜索用户名
+    statusPlaceholder: 全部状态
+    statusActive: 启用
+    statusDisabled: 停用
+    username: 用户名
+    nickname: 昵称
+    password: 密码
+    email: 邮箱
+    phone: 手机号
+    createdAt: 创建时间
+  role:
+    title: 角色管理
+    create: 新建角色
+    edit: 编辑角色
+    caption: 角色列表
+    searchPlaceholder: 搜索角色名
+    name: 角色名
+    code: 角色编码
+    description: 描述
+  menu:
+    title: 菜单管理
+    create: 新建菜单
+    edit: 编辑菜单
+    caption: 菜单列表
+    name: 菜单名
+    path: 路由地址
+    component: 组件路径
+    icon: 图标
+    sortOrder: 排序
+    visible: 显示
+  audit:
+    title: 审计日志
+    loginLog: 登录日志
+    operationLog: 操作日志
+    caption: 审计日志列表
+    searchPlaceholder: 搜索
+    actor: 操作人
+    action: 操作
+    target: 对象
+    ip: IP 地址
+    result: 结果
+    succeeded: 成功
+    failed: 失败
+    createdAt: 时间
+  config:
+    title: 配置中心
+    namespace: 命名空间
+    item: 配置项
+    caption: 配置项列表
+    searchPlaceholder: 搜索配置键
+    key: 配置键
+    value: 配置值
+    namespaceName: 命名空间
+  notification:
+    title: 公告管理
+    create: 新建公告
+    edit: 编辑公告
+    caption: 公告列表
+    searchPlaceholder: 搜索标题
+    announcementTitle: 标题
+    announcementBody: 正文
+    status: 状态
+    draft: 草稿
+    published: 已发布
+    revoked: 已撤销

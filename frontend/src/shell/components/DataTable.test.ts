@@ -24,7 +24,9 @@ describe("DataTable", () => {
   });
 
   it("无数据时给出空态文案", () => {
-    const w = mountShell(DataTable, { props: { columns, rows: [], emptyText: "还没有记录" } });
+    const w = mountShell(DataTable, {
+      props: { columns, rows: [], emptyText: "还没有记录" }
+    });
     expect(w.find(".ui-data-table__empty").text()).toBe("还没有记录");
   });
 
