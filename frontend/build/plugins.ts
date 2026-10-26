@@ -8,7 +8,7 @@ import { pathResolve } from "./utils";
  * 刻意保持精简：PRISM 壳不引入 Tailwind / unplugin-icons / CDN 替换 / 代码检查器，
  * 样式一律是 scoped CSS + token 变量，图标一律 lucide-vue-next。
  */
-export async function getPluginsList() {
+export function getPluginsList() {
   return [
     vue(),
     // yaml 形式的 i18n 资源在构建期预编译

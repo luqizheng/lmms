@@ -141,11 +141,18 @@ function hasNextest(runner) {
   return res.status === 0;
 }
 
+/** 本地路径 → file:// URL（Windows 盘符路径要转成 /C:/... 形式）。 */
+function fileUrl(absPath) {
+  const posix = absPath.replace(/\\/g, '/');
+  return `file://${posix.startsWith('/') ? '' : '/'}${posix}`;
+}
+
 module.exports = {
   ROOT,
   resolveRunner,
   listWslDistros,
   pickWslDistro,
   toWslPath,
+  fileUrl,
   hasNextest,
 };

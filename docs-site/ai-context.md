@@ -407,7 +407,7 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 1. **`utoipa::OpenApi::to_yaml()` 需要 `yaml` feature**：`Cargo.toml` 必须 `utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }`。缺了 `ApiDoc::openapi().to_yaml()` 编译不过。
 
-2. **本地 `cargo` 编译可能因 `cc` 链接器缺失失败**：用 `node scripts/run-tests-docker.js <svc>` 或在 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl` 容器内构建。
+2. **本地 `cargo` 编译可能因 `cc` 链接器缺失失败**：用 `node scripts/run-tests-docker.js <svc>` 或在 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl` 容器内构建。Windows 上另有一条主机侧路径：`node scripts/run-tests-host.js <svc>`（在 WSL2 发行版里跑 cargo，数据库仍连 Docker 里的共享 MySQL/Redis）；Windows 原生 MSVC 走不通——`ring` / `aws-lc-sys` 的 C 依赖会报 `D8050 无法加载 c1.dll`。
 
 3. **`api-gateway` 黑名单测试是历史遗留失败**：它要求宿主机 Redis 在 `127.0.0.1:6379`；与任何在途改动无关。Docker 跑（用测试 Redis）可通过。
 
@@ -461,6 +461,9 @@ git diff --exit-code -- 'services/*/openapi.yaml'  # drift 守门
 
 # Rust 单元测试（docker 内）
 node scripts/run-tests-docker.js audit-service config-service file-service prue_backend iam-service notification-service token-service api-gateway
+
+# Rust 单元测试（主机侧；Windows 走 WSL2，Linux/macOS 走本机）
+node scripts/run-tests-host.js audit-service config-service file-service prue_backend iam-service notification-service token-service api-gateway
 
 # E2E
 pnpm -C tests/e2e install

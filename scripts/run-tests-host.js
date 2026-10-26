@@ -23,7 +23,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chalk, section } = require('./lib/ui.js');
-const { resolveRunner, hasNextest, toWslPath } = require('./lib/host-runner.js');
+const { resolveRunner, hasNextest, toWslPath, fileUrl } = require('./lib/host-runner.js');
 const { pickTargets, pickIncrementalTargets, SERVICE_PKG } = require('./lib/services.js');
 const { ensureMysql, ensureRedis } = require('./lib/shared-db.js');
 
@@ -85,7 +85,7 @@ function swaggerEnv(runner) {
     return {};
   }
   const abs = runner.backend === 'wsl' ? toWslPath(SWAGGER_UI_ZIP) : SWAGGER_UI_ZIP;
-  return { [SWAGGER_UI_ENV_KEY]: `file://${abs.startsWith('/') ? '' : '/'}${abs}` };
+  return { [SWAGGER_UI_ENV_KEY]: fileUrl(abs) };
 }
 
 // 解析 redis://host:port/db 形式的 URL。

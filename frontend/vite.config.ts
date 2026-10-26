@@ -75,7 +75,7 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
         clientFiles: ["./index.html", "./src/shell/**/*"]
       }
     },
-    plugins: await getPluginsList(),
+    plugins: getPluginsList(),
     // https://cn.vitejs.dev/config/dep-optimization-options.html#dep-optimization-options
     optimizeDeps: {
       include,
@@ -101,11 +101,6 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
           toleratedTransform: false
         }
       }
-    },
-    // vitest：部分测试用真实定时器，并行负载下 5s 默认超时不够
-    test: {
-      testTimeout: 20000,
-      hookTimeout: 20000
     },
     define: {
       __INTLIFY_PROD_DEVTOOLS__: false

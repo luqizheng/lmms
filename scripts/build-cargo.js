@@ -14,7 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chalk, section } = require('./lib/ui.js');
-const { resolveRunner, toWslPath } = require('./lib/host-runner.js');
+const { resolveRunner, toWslPath, fileUrl } = require('./lib/host-runner.js');
 const { SERVICE_DIRS, SERVICE_PKG } = require('./lib/services.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -59,7 +59,7 @@ function swaggerEnv(runner) {
     return {};
   }
   const abs = runner.backend === 'wsl' ? toWslPath(SWAGGER_UI_ZIP) : SWAGGER_UI_ZIP;
-  return { [SWAGGER_UI_ENV_KEY]: `file://${abs.startsWith('/') ? '' : '/'}${abs}` };
+  return { [SWAGGER_UI_ENV_KEY]: fileUrl(abs) };
 }
 
 async function main() {

@@ -70,7 +70,7 @@ const description = computed(() => options.value?.description ?? "");
 
 .ui-confirm__danger {
   background: var(--danger);
-  color: var(--danger-contrast-text, #ffffff);
+  color: var(--text-inverse);
 }
 
 .ui-confirm__danger:hover {
