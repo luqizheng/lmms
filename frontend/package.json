@@ -79,6 +79,7 @@
     "js-cookie": "^3.0.8",
     "jsbarcode": "^3.12.3",
     "localforage": "^1.10.0",
+    "lucide-vue-next": "^1.0.0",
     "md-editor-v3": "^6.5.3",
     "mint-filter": "^4.0.3",
     "mitt": "^3.0.1",

@@ -755,3 +755,40 @@ changePassword:
   passwordSameAsOld: "New password must differ from current"
   success: "Password changed, please log in again"
   failure: "Password change failed"
+
+# ── PRISM shell ────────────────────────────────────────────────────────
+shell:
+  skipToContent: Skip to main content
+  search:
+    placeholder: Search…
+  actions:
+    refresh: Refresh
+    notifications: Notifications
+    collapseSidebar: Collapse sidebar
+    expandSidebar: Expand sidebar
+    openNavigation: Open navigation
+    closeTab: Close tab
+  tabs:
+    label: Open pages
+  nav:
+    label: Main navigation
+    breadcrumb: Breadcrumb
+  user:
+    profile: Profile settings
+    logout: Sign out
+  login:
+    title: PRISM Console
+    subtitle: Sign in with your account
+    username: Username
+    usernamePlaceholder: Enter your username
+    password: Password
+    passwordPlaceholder: Enter your password
+    submit: Sign in
+    missingFields: Enter username and password
+    failed: Sign-in failed, check your username and password
+  status:
+    notFoundTitle: Page not found
+    notFoundHint: The address may have been moved or removed
+    backHome: Back to overview
+    comingSoonTitle: This page is being migrated
+    comingSoonHint: This menu entry has no PRISM version yet

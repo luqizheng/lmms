@@ -30,37 +30,27 @@
     },
     "types": [
       "node",
-      "vite/client",
-      "element-plus/global",
-      "@pureadmin/table/volar",
-      "unplugin-icons/types/vue",
-      "@pureadmin/descriptions/volar"
+      "vite/client"
     ]
   },
   "include": [
-    "mock/*.ts",
     "build/*.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.vue",
-    "types/*.d.ts",
+    "src/shell/**/*.ts",
+    "src/shell/**/*.vue",
+    "src/components/ui/**/*.ts",
+    "src/components/ui/**/*.vue",
+    "src/lib/**/*.ts",
+    "src/styles/**/*.ts",
+    "types/global.d.ts",
+    "types/router.d.ts",
+    "types/shims-vue.d.ts",
+    "types/index.d.ts",
     "vite.config.ts"
   ],
   "exclude": [
     "dist",
     "**/*.js",
     "node_modules",
-    "**/*.test.ts",
-    "src/views/about",
-    "src/views/able",
-    "src/views/empty",
-    "src/views/error",
-    "src/views/guide",
-    "src/views/list",
-    "src/views/menuoverflow",
-    "src/views/nested",
-    "src/views/result",
-    "src/views/table",
-    "src/views/tabs"
+    "**/*.test.ts"
   ]
 }

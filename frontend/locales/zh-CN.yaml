@@ -755,3 +755,40 @@ changePassword:
   passwordSameAsOld: "新密码不能与旧密码相同"
   success: "修改成功，请重新登录"
   failure: "修改失败"
+
+# ── PRISM 壳 ───────────────────────────────────────────────────────────
+shell:
+  skipToContent: 跳到主内容
+  search:
+    placeholder: 搜索…
+  actions:
+    refresh: 刷新
+    notifications: 通知
+    collapseSidebar: 收起侧边栏
+    expandSidebar: 展开侧边栏
+    openNavigation: 打开导航
+    closeTab: 关闭标签页
+  tabs:
+    label: 已打开页面
+  nav:
+    label: 主导航
+    breadcrumb: 面包屑
+  user:
+    profile: 个人设置
+    logout: 退出登录
+  login:
+    title: PRISM 控制台
+    subtitle: 使用你的账号登录
+    username: 用户名
+    usernamePlaceholder: 请输入用户名
+    password: 密码
+    passwordPlaceholder: 请输入密码
+    submit: 登录
+    missingFields: 请输入用户名与密码
+    failed: 登录失败，请检查用户名与密码
+  status:
+    notFoundTitle: 页面不存在
+    notFoundHint: 你访问的地址可能已被移动或删除
+    backHome: 返回概览
+    comingSoonTitle: 该页面正在迁移
+    comingSoonHint: 这个菜单指向的页面还没有 PRISM 版本

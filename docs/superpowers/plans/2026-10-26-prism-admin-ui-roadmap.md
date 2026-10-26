@@ -9,8 +9,8 @@
 | # | 计划 | 交付物 | 依赖 | 状态 |
 |---|---|---|---|---|
 | 1 | [PRISM 设计系统基座](2026-10-26-prism-design-system-base.md) | token 层（含品牌覆盖层）+ 核心组件集 + 设计约束校验器（含自测） | — | 已完成 |
-| 2 | PRISM 交互组件集 | dialog/select/dropdown/tabs/toast/command/sheet/switch 等 16 个组件 | 1 | 未开始 |
-| 3 | 基础包发包 | `@digua/contracts`、`@digua/http` 两个 npm 包 + 发布链路 | 1 | 未开始 |
+| 2 | PRISM 交互组件集 | dialog/select/dropdown/tabs/toast/command/sheet/switch 等 16 个组件 | 1 | 已完成 |
+| 3 | 基础包发包 | `@digua/contracts`、`@digua/http` 两个 npm 包 + 发布前检查链路 | 1 | 已完成 |
 | 4 | 壳骨架 | 布局（侧栏/顶栏/标签栏/命令面板）、路由、动态菜单、权限、登录页、i18n、响应式降级链 | 1,2,3 | 未开始 |
 | 5 | 框架系统页 | 设计文档 §5 全部页面（认证/IAM/token/菜单/审计/配置/文件/通知/dashboard/account-settings） | 4 | 未开始 |
 | 6 | 四个 skill | `prism-design` / `scaffold` / `update-shell` / `gen-page` | 1,2,4 | 未开始 |

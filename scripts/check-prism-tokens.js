@@ -29,7 +29,8 @@ const BRAND_FILE = join(FRONTEND_SRC, "styles", "prism", "tokens.brand.css");
  */
 const DEFAULT_SCAN_ROOTS = [
   join(FRONTEND_SRC, "components", "ui"),
-  join(FRONTEND_SRC, "styles", "prism")
+  join(FRONTEND_SRC, "styles", "prism"),
+  join(FRONTEND_SRC, "shell")
 ];
 
 const scanRootIndex = process.argv.indexOf("--scan-root");
