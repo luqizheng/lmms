@@ -46,11 +46,13 @@ system:
     latency: Average latency
     errorRate: Error rate
   common:
+    confirm: Confirm
+    cancel: Cancel
+    pageSize: Rows per page
     search: Search
     create: Create
     edit: Edit
     save: Save
-    cancel: Cancel
     delete: Delete
     confirmDelete: Delete this record? This cannot be undone
     total: "{count} in total"

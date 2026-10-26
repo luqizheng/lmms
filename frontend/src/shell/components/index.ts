@@ -1,4 +1,5 @@
 export { default as AppShell } from "./AppShell.vue";
+export { default as ConfirmHost } from "./ConfirmHost.vue";
 export { default as DataTable } from "./DataTable.vue";
 export type { QueryField, TableColumn } from "./DataTable.vue";
 export { default as FormDialog } from "./FormDialog.vue";

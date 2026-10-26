@@ -16,28 +16,18 @@ const fs = require('node:fs');
 const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { chalk, spinner, section } = require('./lib/ui.js');
+const {
+  SERVICE_DIRS,
+  SERVICE_PKG,
+  SERVICES,
+  pickTargets,
+  pickIncrementalTargets,
+} = require('./lib/services.js');
 
 const ROOT = path.join(__dirname, '..');
 
 const IMAGE = 'zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl';
 const TARGET = 'x86_64-unknown-linux-musl';
-
-// 每个 service 源码目录前缀；增量模式按这个匹配 git 改动文件。
-const SERVICE_DIRS = {
-  'api-gateway': 'services/api-gateway',
-  'token-service': 'services/token-service',
-  'iam-service': 'services/iam-service',
-  'notification-service': 'services/notification-service',
-  'audit-service': 'services/audit-service',
-  'config-service': 'services/config-service',
-  'file-service': 'services/file-service',
-  'prue_backend': 'services/prue_backend',
-};
-const SERVICES = Object.keys(SERVICE_DIRS);
-// 仓库约定：[package].name 用下划线，目录名用横杠；cargo 不会自动规范化，传 -p 时需转换。
-const SERVICE_PKG = Object.fromEntries(
-  Object.keys(SERVICE_DIRS).map((svc) => [svc, svc.replaceAll('-', '_')]),
-);
 
 const CONCURRENCY_COMPILE = 4;
 const CONCURRENCY_RUN = 2;
@@ -57,11 +47,6 @@ const SWAGGER_UI_ZIP_HOST = path.join(ROOT, 'infrastructure', 'vendor', 'swagger
 const SWAGGER_UI_ZIP_CONTAINER = '/tmp/swagger-ui.zip';
 const SWAGGER_UI_ENV_KEY = 'SWAGGER_UI_DOWNLOAD_URL';
 
-function pickTargets(args) {
-  const filtered = args.filter(s => SERVICES.includes(s));
-  return filtered.length > 0 ? filtered : SERVICES;
-}
-
 function pickSharedMysql(args) {
   return !args.includes('--no-shared-mysql');
 }
@@ -73,45 +58,7 @@ function pickSwaggerVendor(args) {
 }
 
 // 顶层 Cargo.toml / Cargo.lock / libs/ / scripts/ 改动 → 全部 service。
-const GLOBAL_PREFIXES = ['Cargo.toml', 'Cargo.lock', 'libs/', 'scripts/'];
-
-function pickIncrementalTargets(args) {
-  if (!args.includes('--incremental')) return null;
-
-  const status = spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8', cwd: ROOT });
-  if (status.status !== 0) return null;
-
-  const changedFiles = [];
-  for (const line of (status.stdout || '').split('\n')) {
-    if (!line) continue;
-    const m = line.match(/^[ ?!]{2}\s+(.+)$/);
-    if (!m) continue;
-    const f = m[1].includes(' -> ') ? m[1].split(' -> ').pop() : m[1];
-    changedFiles.push(f);
-  }
-
-  if (changedFiles.length === 0) {
-    console.log('[incremental] no changes detected, nothing to test');
-    return [];
-  }
-
-  const globalHit = changedFiles.some(f => GLOBAL_PREFIXES.some(p => f === p.slice(0, -1) || f.startsWith(p)));
-  if (globalHit) {
-    console.log('[incremental] global change detected, running all services');
-    return SERVICES.slice();
-  }
-
-  const targets = [];
-  for (const [svc, dir] of Object.entries(SERVICE_DIRS)) {
-    if (changedFiles.some(f => f === dir || f.startsWith(dir + '/'))) targets.push(svc);
-  }
-  if (targets.length === 0) {
-    console.log('[incremental] no service touched, nothing to test');
-    return [];
-  }
-  console.log('[incremental] changed services:', targets.join(', '));
-  return targets;
-}
+// 增量判定逻辑与 service 清单在 scripts/lib/services.js（与主机侧脚本共用）。
 
 function ensureNextest() {
   // 用独立 volume 持久化 cargo-nextest 二进制，避免每次重装。

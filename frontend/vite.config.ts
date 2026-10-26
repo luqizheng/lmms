@@ -102,6 +102,11 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
         }
       }
     },
+    // vitest：部分测试用真实定时器，并行负载下 5s 默认超时不够
+    test: {
+      testTimeout: 20000,
+      hookTimeout: 20000
+    },
     define: {
       __INTLIFY_PROD_DEVTOOLS__: false
     }

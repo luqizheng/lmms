@@ -19,6 +19,10 @@ interface Props {
   modelValue?: string;
   /** 选项列表 */
   options?: SelectOption[];
+  /** 允许清空：选中项可被清除并回到空值 */
+  clearable?: boolean;
+  /** 清空按钮的无障碍名称 */
+  clearLabel?: string;
   /** 未选中时的占位文案（由调用方注入 i18n） */
   placeholder?: string;
   /** 禁用整个控件 */
@@ -44,6 +48,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: undefined,
   options: () => [],
+  clearable: false,
+  clearLabel: "清除",
   placeholder: "",
   disabled: false,
   invalid: false,
@@ -61,6 +67,10 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 const selectedOption = computed(() =>
   props.options.find(option => option.value === props.modelValue)
 );
+
+function onClear() {
+  emit("update:modelValue", "");
+}
 
 function onUpdate(value: unknown) {
   emit("update:modelValue", String(value));
@@ -97,6 +107,22 @@ function onUpdate(value: unknown) {
           </slot>
         </template>
       </SelectValue>
+      <button
+        v-if="clearable && modelValue"
+        type="button"
+        class="ui-select__clear"
+        :aria-label="clearLabel"
+        @click.stop="onClear"
+      >
+        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+          <path
+            d="M4 4l8 8M12 4l-8 8"
+            stroke="currentcolor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
       <SelectIcon class="ui-select__icon" aria-hidden="true">
         <slot name="icon">
           <svg
@@ -235,6 +261,31 @@ function onUpdate(value: unknown) {
 /* 占位文案：--text-tertiary（§6.2） */
 .ui-select__value[data-placeholder] {
   color: var(--text-tertiary);
+}
+
+.ui-select__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.ui-select__clear:hover {
+  background: var(--surface-hover-veil);
+  color: var(--text-primary);
+}
+
+.ui-select__clear:focus-visible {
+  outline: var(--size-focus-ring) solid var(--accent);
+  outline-offset: var(--size-focus-ring);
 }
 
 .ui-select__icon {

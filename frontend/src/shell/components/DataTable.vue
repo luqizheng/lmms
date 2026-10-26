@@ -56,6 +56,8 @@ interface Props {
   total?: number;
   /** 表格标题（无障碍用） */
   caption?: string;
+  /** 可选的每页条数档位；给了就渲染切换器 */
+  pageSizes?: number[];
 }
 
 const { t } = useI18n();
@@ -67,13 +69,15 @@ const props = withDefaults(defineProps<Props>(), {
   page: 1,
   pageSize: 10,
   total: 0,
-  caption: undefined
+  caption: undefined,
+  pageSizes: () => []
 });
 
 const emit = defineEmits<{
   search: [params: Record<string, string>];
   "update:page": [page: number];
   sort: [prop: string, order: "ascending" | "descending"];
+  "update:pageSize": [pageSize: number];
 }>();
 
 const keywords = ref<Record<string, string>>({});
@@ -120,6 +124,13 @@ function sortOf(
 
 function onSearch() {
   emit("search", { ...keywords.value, ...selectValues.value });
+}
+
+function onPageSizeChange(event: Event) {
+  const size = Number((event.target as HTMLSelectElement).value);
+  if (Number.isFinite(size) && size !== props.pageSize) {
+    emit("update:pageSize", size);
+  }
 }
 
 function onSort(column: TableColumn) {
@@ -263,6 +274,21 @@ function onSort(column: TableColumn) {
     </ul>
 
     <footer class="ui-data-table__footer">
+      <div v-if="props.pageSizes.length" class="ui-data-table__size">
+        <label class="ui-data-table__size-label" for="ui-data-table-size">
+          {{ t("system.common.pageSize") }}
+        </label>
+        <select
+          id="ui-data-table-size"
+          class="ui-data-table__size-select"
+          :value="props.pageSize"
+          @change="onPageSizeChange"
+        >
+          <option v-for="size in props.pageSizes" :key="size" :value="size">
+            {{ size }}
+          </option>
+        </select>
+      </div>
       <span class="ui-data-table__count">{{
         t("system.common.total", { count: props.total })
       }}</span>
@@ -364,6 +390,30 @@ function onSort(column: TableColumn) {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+}
+
+.ui-data-table__size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ui-data-table__size-label {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--text-tertiary);
+}
+
+.ui-data-table__size-select {
+  height: var(--size-control-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-caption);
+  color: var(--text-primary);
 }
 
 .ui-data-table__count {

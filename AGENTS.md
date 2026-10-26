@@ -9,12 +9,26 @@ AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码�
 
 ## 开发环境
 
-- **集成测试（含 MySQL / testcontainers）跑容器**——CI 与本地缺依赖的 dev 唯一可靠路径：
+- **日常开发：编译 + 测试在主机上跑**（不进 Docker 编译容器，增量编译复用宿主 target 目录）：
+  ```bash
+  node scripts/run-tests-host.js                 # 全部服务
+  node scripts/run-tests-host.js iam-service     # 单个/多个服务
+  node scripts/run-tests-host.js --incremental   # 只跑 git 改动涉及的服务
+  node scripts/run-tests-host.js --no-db         # 纯单测，不连数据库
+  node scripts/build-cargo.js --debug            # 主机侧编译（--release 为默认）
+  ```
+  Windows 上默认在 **WSL2 发行版**里执行 cargo（`scripts/lib/host-runner.js` 负责选发行版、
+  转路径、注入 env）；Linux/macOS 直接本机 cargo（`--backend native` 可强制）。
+  WSL 与 Windows/Docker 的 TCP 在镜像网络下互通，测试直接连 Docker 里的共享 MySQL
+  （`127.0.0.1:33306`）与 Redis（`127.0.0.1:36379`），无需在 WSL 里另装数据库。
+  设计细节见 `docs/superpowers/specs/2026-10-27-host-native-build-test-design.md`。
+- **CI 与发布前回归：集成测试（含 MySQL / testcontainers）跑容器**：
   ```bash
   node scripts/run-tests-docker.js                 # 全部服务
   node scripts/run-tests-docker.js iam-service     # 单个/多个服务
   ```
   基础镜像 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`，target `x86_64-unknown-linux-musl`，源码 bind mount、`registry`/`git`/`target` 命名 volume 复用增量编译。TLS 统一 `reqwest 0.12 + rustls`，禁用 native-tls。
+  发布镜像（多架构 / musl）只能走 `node scripts/build-docker.js`，主机侧产物与之不等价。
 - **纯单元测试可以脱离容器跑**（前提：本机有 `cc`/`gcc` + `rustup target add x86_64-unknown-linux-gnu`，与 docker 共用的 `target/` 是 root-owned 时用独立 dir 绕开）：
   ```bash
   # 一次性：把 swagger-ui zip 预下载到 infrastructure/vendor/，避免 build.rs 触发网络
@@ -29,8 +43,9 @@ AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码�
   # run-tests-docker.js 已自动挂载 vendor zip，无需手设 ENV
   ```
   两个常见坑：
-  - `utoipa-swagger-ui` build.rs 默认直连 GitHub 拉 zip，本机 SSL 拦截 → 先跑 `pnpm run assets:download`，再设 `SWAGGER_UI_DOWNLOAD_URL=file://...`；`scripts/run-tests-docker.js` 在容器模式下会自动挂载并注入。
+  - `utoipa-swagger-ui` build.rs 默认直连 GitHub 拉 zip，本机 SSL 拦截 → 先跑 `pnpm run assets:download`，再设 `SWAGGER_UI_DOWNLOAD_URL=file://...`；`scripts/run-tests-docker.js` 与 `scripts/run-tests-host.js` 都会自动注入。
   - 不要 `sudo chown` repo 根目录的 `target/`——会被 docker volume `coder-cargo-target` 抢回去。用 `CARGO_TARGET_DIR` 指向用户-writable 目录。
+- **Windows 原生 MSVC 编译不可用**：`ring` / `aws-lc-sys` 的 C 依赖在 cargo build script 里调 `cl.exe` 会报 `D8050 无法加载 c1.dll`（不在 VS 开发环境里则 `C1083 stddef.h`）。Windows 上请走 WSL2 后端。
 - crates.io 已在 `.cargo/config` 替换为 `rsproxy.cn` 镜像；CI 走内网 `crates.kudi.repos`。
 - 起本地开发：`pnpm run dev:infra`（Consul/Redis/MySQL）→ `pnpm run dev`。`pnpm run check:env` 检查环境。
 
