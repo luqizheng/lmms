@@ -42,6 +42,10 @@ export function buildRoutes(menus: MenuNode[]): RouteRecordRaw[] {
  *   3. 已登录但菜单未装载 → 拉 DB 菜单并动态挂载路由
  */
 export function installAuthGuard(router: Router) {
+  // 只在第一次补齐路由后重解析一次：replace 会再次触发本守卫，
+  // 若无条件返回 replace 会造成无限重定向。
+  let routesRegistered = false;
+
   router.beforeEach(async to => {
     if (to.meta.public) return true;
 
@@ -51,7 +55,7 @@ export function installAuthGuard(router: Router) {
     }
 
     const menu = useMenuStore();
-    if (!menu.loaded) {
+    if (!menu.loaded && !routesRegistered) {
       try {
         const menus = await menu.load();
         const parent = router
@@ -61,6 +65,11 @@ export function installAuthGuard(router: Router) {
           for (const route of buildRoutes(menus)) {
             router.addRoute(parent.name as string, route);
           }
+          // 重新解析当前目标：新注册的路由此时才能被匹配上。
+          // vue-router 在进入 beforeEach 之前就已完成目标解析，
+          // 缺了这一步，深链（刷新页面 / 直接输地址）会落到 404。
+          routesRegistered = true;
+          return { ...to, replace: true };
         }
       } catch {
         // 菜单拉取失败时不阻断路由：页面会走 404，登录态仍可恢复

@@ -1,85 +1,76 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { flattenMenus, normalizeMenus, type MenuNode } from "./menu";
-import type { IamMenu } from "../api";
+import { flattenMenus, normalizeMenus } from "./menu";
+import type { RouteNode } from "../api";
 
-function menu(partial: Partial<IamMenu> & { id: string }): IamMenu {
+function node(partial: Partial<RouteNode> & { path: string }): RouteNode {
   return {
-    name: partial.id,
-    code: partial.id,
-    path: `/${partial.id}`,
-    sort_order: 0,
-    visible: true,
-    status: "active",
-    children: [],
+    name: partial.path,
+    meta: { title: partial.path },
     ...partial
-  } as IamMenu;
+  } as RouteNode;
 }
 
 describe("normalizeMenus", () => {
-  it("按 sort_order 升序排列", () => {
+  it("取 meta.title 作为菜单名", () => {
     const nodes = normalizeMenus([
-      menu({ id: "b", sort_order: 2 }),
-      menu({ id: "a", sort_order: 1 })
+      node({ path: "/user", meta: { title: "用户管理" } })
     ]);
-    expect(nodes.map(node => node.id)).toEqual(["a", "b"]);
+    expect(nodes[0].name).toBe("用户管理");
   });
 
-  it("过滤掉 visible=false 的节点", () => {
-    const nodes = normalizeMenus([menu({ id: "hidden", visible: false })]);
-    expect(nodes).toHaveLength(0);
+  it("meta 缺失时回退到 name / path", () => {
+    const nodes = normalizeMenus([{ path: "/user", name: "user" }]);
+    expect(nodes[0].name).toBe("user");
   });
 
-  it("过滤掉 status 非 active 的节点", () => {
+  it("showLink=false 的节点不进菜单", () => {
     const nodes = normalizeMenus([
-      menu({ id: "disabled", status: "disabled" })
+      node({ path: "/hidden", meta: { showLink: false } })
     ]);
     expect(nodes).toHaveLength(0);
   });
 
   it("保留 children 并递归处理", () => {
     const nodes = normalizeMenus([
-      menu({
-        id: "parent",
-        path: "/parent",
-        children: [menu({ id: "child", path: "/parent/child" })]
-      })
+      node({ path: "/parent", children: [node({ path: "/parent/child" })] })
     ]);
     expect(nodes[0].children).toHaveLength(1);
     expect(nodes[0].children[0].path).toBe("/parent/child");
   });
 
   it("没有路径也没有子节点的分组项不展示", () => {
-    const nodes = normalizeMenus([menu({ id: "group", path: "" })]);
+    const nodes = normalizeMenus([node({ path: "" })]);
     expect(nodes).toHaveLength(0);
   });
 
-  it("子节点被过滤后父节点仍保留", () => {
+  it("父节点被隐藏时其子树不展示（不做孤儿提升）", () => {
     const nodes = normalizeMenus([
-      menu({
-        id: "parent",
+      node({
         path: "/parent",
-        children: [menu({ id: "child", visible: false })]
+        meta: { showLink: false },
+        children: [node({ path: "/parent/child" })]
       })
     ]);
-    expect(nodes).toHaveLength(1);
-    expect(nodes[0].children).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
+  });
+
+  it("保留 component 字段供路由解析", () => {
+    const nodes = normalizeMenus([
+      node({ path: "/user", component: "system/user" })
+    ]);
+    expect(nodes[0].component).toBe("system/user");
   });
 });
 
 describe("flattenMenus", () => {
   it("把树展平成 path → 节点 的索引", () => {
-    const nodes: MenuNode[] = [
-      {
-        id: "p",
-        name: "父",
-        path: "/p",
-        children: [{ id: "c", name: "子", path: "/p/c", children: [] }]
-      }
-    ];
+    const nodes = normalizeMenus([
+      node({ path: "/p", children: [node({ path: "/p/c" })] })
+    ]);
     const index = flattenMenus(nodes);
-    expect(index.get("/p")?.id).toBe("p");
-    expect(index.get("/p/c")?.id).toBe("c");
+    expect(index.get("/p")?.id).toBe("/p");
+    expect(index.get("/p/c")?.id).toBe("/p/c");
   });
 
   it("没有 path 的节点不进索引", () => {

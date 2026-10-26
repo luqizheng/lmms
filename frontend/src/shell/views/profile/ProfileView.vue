@@ -3,6 +3,9 @@ import { computed } from "vue";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "../../store/auth";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const auth = useAuthStore();
 
@@ -12,19 +15,19 @@ const roles = computed(() => auth.user?.roles ?? []);
 
 <template>
   <section class="ui-profile">
-    <h1 class="ui-profile__title">个人设置</h1>
+    <h1 class="ui-profile__title">{{ t("system.profile.title") }}</h1>
     <Card>
       <dl class="ui-profile__list">
         <div class="ui-profile__row">
-          <dt>昵称</dt>
+          <dt>{{ t("system.common.nickname") }}</dt>
           <dd>{{ name }}</dd>
         </div>
         <div class="ui-profile__row">
-          <dt>邮箱</dt>
+          <dt>{{ t("system.common.email") }}</dt>
           <dd>{{ auth.user?.email || "—" }}</dd>
         </div>
         <div class="ui-profile__row">
-          <dt>角色</dt>
+          <dt>{{ t("system.profile.roles") }}</dt>
           <dd class="ui-profile__roles">
             <Badge v-for="role in roles" :key="role" variant="accent">{{
               role

@@ -53,11 +53,11 @@ const form = ref({
 });
 
 const columns: TableColumn[] = [
-  { label: "用户名", prop: "username" },
-  { label: "昵称", prop: "nickname" },
-  { label: "邮箱", prop: "email" },
-  { label: "状态", prop: "status", slot: "status" },
-  { label: "创建时间", prop: "created_at", numeric: true }
+  { label: t("system.common.username"), prop: "username" },
+  { label: t("system.common.nickname"), prop: "nickname" },
+  { label: t("system.common.email"), prop: "email" },
+  { label: t("system.common.status"), prop: "status", slot: "status" },
+  { label: t("system.common.createdAt"), prop: "created_at", numeric: true }
 ];
 
 const query: QueryField[] = [

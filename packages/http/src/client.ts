@@ -27,6 +27,7 @@ function readErrorBody(payload: unknown): ErrorBody {
   return {};
 }
 
+
 /**
  * 创建 HTTP 客户端。
  *
@@ -67,8 +68,26 @@ export function createHttp(options: HttpClientOptions = {}): HttpClient {
     reject: (error: unknown) => void;
   }> = [];
 
+  /** 把 axios 错误统一收口成 HttpError，保证调用方拿到的 code / message 一致 */
+  function buildError(
+    error: AxiosError<ErrorBody>,
+    body: ErrorBody,
+    status?: number
+  ): HttpError {
+    const code = body.code;
+    const rawMessage = body.message ?? body.msg ?? error.message ?? "请求失败";
+    const message = code ? (translateError?.(code) ?? rawMessage) : rawMessage;
+    return new HttpError(message, {
+      code,
+      status,
+      data: body.data ?? error.response?.data
+    });
+  }
+
   function isWhiteListed(url: string): boolean {
-    return authWhiteList.some(item => url.endsWith(item));
+    // 去掉 query string 再匹配，避免带参时白名单失效
+    const path = url.split("?")[0];
+    return authWhiteList.some(item => path.endsWith(item));
   }
 
   client.interceptors.request.use(config => {
@@ -105,14 +124,26 @@ export function createHttp(options: HttpClientOptions = {}): HttpClient {
   client.interceptors.response.use(
     response => response,
     async (error: AxiosError<ErrorBody>) => {
-      const original = error.config as (InternalAxiosRequestConfig & { skipAuth?: boolean }) | undefined;
+      const original = error.config as
+        | (InternalAxiosRequestConfig & { skipAuth?: boolean; _prismRetried?: boolean })
+        | undefined;
       const status = error.response?.status;
       const body = readErrorBody(error.response?.data);
 
-      // token 过期 / 未授权：刷新一次并重放原请求
-      const shouldRefresh = (status === 401 || status === 403) && !!original && !original.skipAuth;
+      // 只有 401（未认证）才刷新 token；403 是权限不足，刷新没有意义。
+      // 白名单与 skipAuth 的请求（登录、刷新）绝不参与刷新链路，否则会自锁。
+      const canRefresh =
+        status === 401 &&
+        !!original &&
+        !original.skipAuth &&
+        !original._prismRetried &&
+        !isWhiteListed(original.url ?? "") &&
+        !!refreshToken;
 
-      if (shouldRefresh && refreshToken) {
+      if (canRefresh) {
+        // 一个请求最多刷新重放一次，避免持续 401 时无限刷新直到 OOM
+        original._prismRetried = true;
+
         if (!refreshing) {
           refreshing = true;
           try {
@@ -122,32 +153,30 @@ export function createHttp(options: HttpClientOptions = {}): HttpClient {
               flushPending(token);
               return client.request(original);
             }
-            flushPending(undefined, error);
+            // 抛出的 HttpError 会被下面的 catch 统一收口（onUnauthorized 只在 catch 里调一次）
+            throw buildError(error, body, status);
           } catch (refreshError) {
-            flushPending(undefined, refreshError);
+            const failure =
+              refreshError instanceof HttpError
+                ? refreshError
+                : buildError(error, body, status);
+            flushPending(undefined, failure);
+            onUnauthorized?.();
+            throw failure;
           } finally {
             refreshing = false;
           }
-        } else {
-          const token = await new Promise<string | undefined | null>((resolve, reject) => {
-            pending.push({ resolve, reject });
-          });
-          original.headers.set("Authorization", `Bearer ${token}`);
-          return client.request(original);
         }
 
-        onUnauthorized?.();
+        // 已有刷新在进行：挂起，等刷新结果
+        const token = await new Promise<string | undefined | null>((resolve, reject) => {
+          pending.push({ resolve, reject });
+        });
+        original.headers.set("Authorization", `Bearer ${token}`);
+        return client.request(original);
       }
 
-      const code = body.code;
-      const rawMessage = body.message ?? body.msg ?? error.message ?? "请求失败";
-      const message = code ? (translateError?.(code) ?? rawMessage) : rawMessage;
-
-      throw new HttpError(message, {
-        code,
-        status,
-        data: body.data ?? error.response?.data
-      });
+      throw buildError(error, body, status);
     }
   );
 

@@ -41,7 +41,7 @@ function onSelect(item: DropdownMenuItemOption) {
 <template>
   <DropdownMenu
     :items="items"
-    :aria-label="props.user?.name ?? '用户'"
+    :aria-label="props.user?.name ?? t('shell.user.label')"
     align="end"
     @select="onSelect"
   >

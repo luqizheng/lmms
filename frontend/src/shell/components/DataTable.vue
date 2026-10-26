@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import { useI18n } from "vue-i18n";
 
 export interface TableColumn {
   /** 列标题 */
@@ -57,10 +58,12 @@ interface Props {
   caption?: string;
 }
 
+const { t } = useI18n();
+
 const props = withDefaults(defineProps<Props>(), {
   query: () => [],
   loading: false,
-  emptyText: "还没有记录",
+  emptyText: undefined,
   page: 1,
   pageSize: 10,
   total: 0,
@@ -117,7 +120,7 @@ function onSort(column: TableColumn) {
           :placeholder="field.placeholder"
         />
       </div>
-      <Button type="submit">查询</Button>
+      <Button type="submit">{{ t("system.common.search") }}</Button>
     </form>
 
     <Table :caption="props.caption">
@@ -144,7 +147,7 @@ function onSort(column: TableColumn) {
             :colspan="props.columns.length"
             class="ui-data-table__empty"
           >
-            {{ props.emptyText }}
+            {{ props.emptyText ?? t("system.common.empty") }}
           </TableCell>
         </TableRow>
         <TableRow v-for="(row, index) in props.rows" v-else :key="index">
@@ -166,7 +169,9 @@ function onSort(column: TableColumn) {
     </Table>
 
     <footer class="ui-data-table__footer">
-      <span class="ui-data-table__count">共 {{ props.total }} 条</span>
+      <span class="ui-data-table__count">{{
+        t("system.common.total", { count: props.total })
+      }}</span>
       <Pagination
         :page="props.page"
         :total="props.total"

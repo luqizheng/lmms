@@ -57,7 +57,11 @@ const commandItems = computed<CommandItem[]>(() => {
   const walk = (nodes: typeof menu.menus) => {
     for (const node of nodes) {
       if (node.path)
-        items.push({ id: node.path, label: node.name, group: "菜单" });
+        items.push({
+          id: node.path,
+          label: node.name,
+          group: t("shell.nav.group")
+        });
       if (node.children.length) walk(node.children);
     }
   };
@@ -119,14 +123,18 @@ function closeTab(path: string) {
     <div v-if="isTablet" class="ui-app-shell__sidebar">
       <Sidebar
         :menus="menu.menus"
-        :collapsed="collapsed && isDesktop"
+        :collapsed="isDesktop ? collapsed : true"
         :active-path="activePath"
         @select="path => router.push(path)"
       />
     </div>
 
     <!-- 移动端抽屉侧栏：<640 -->
-    <Sheet v-model:open="drawerOpen" title="导航" side="left">
+    <Sheet
+      v-model:open="drawerOpen"
+      :title="t('shell.drawer.title')"
+      side="left"
+    >
       <Sidebar
         :menus="menu.menus"
         :active-path="activePath"
@@ -143,7 +151,6 @@ function closeTab(path: string) {
       <Topbar
         :breadcrumbs="breadcrumbs"
         :user="user"
-        :search-placeholder="'搜索…'"
         @search="openCommand"
         @refresh="router.go(0)"
         @notifications="router.push('/notification')"

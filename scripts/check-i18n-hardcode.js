@@ -27,7 +27,9 @@ const path = require("node:path");
 const { execSync } = require("node:child_process");
 
 const REPO_ROOT = path.resolve(__dirname, "..");
-const VIEWS_DIR = "frontend/src/views";
+// 扫描范围：legacy 视图 + 新壳（PRISM 壳的视图与组件同样禁止硬编码中文）
+const SCAN_DIRS = ["frontend/src/views", "frontend/src/shell"];
+const VIEWS_DIR = SCAN_DIRS[0];
 const CJK_RE = /[\u3400-\u9fff]{2,}/g;
 // 匹配 $t(`...`) / t("...") / t('...') / t(`...`) 整段以便从文件内容里扣除
 const I18N_CALL_RE = /\b(?:t|\$t)\(\s*([`'""])(?:\\\\|\\\1|(?!\1)[\s\S])*?\1\s*(?:,[^)]*)?\)/g;
@@ -149,11 +151,13 @@ const base = getBaseRef();
 
 if (REPORT_MODE) {
   // --all 模式：扫所有 view 列历史债
-  const viewsDirAbs = path.join(REPO_ROOT, VIEWS_DIR);
   const all = [];
-  for (const v of walkAllViews(viewsDirAbs)) {
-    const rel = path.relative(REPO_ROOT, v);
-    if (!isPureAdminDemo(rel)) all.push(rel);
+  for (const dir of SCAN_DIRS) {
+    const dirAbs = path.join(REPO_ROOT, dir);
+    for (const v of walkAllViews(dirAbs)) {
+      const rel = path.relative(REPO_ROOT, v);
+      if (!isPureAdminDemo(rel)) all.push(rel);
+    }
   }
   const withHardcode = [];
   for (const rel of all) {
@@ -183,7 +187,7 @@ if (newFiles === null) process.exit(1);
 
 const newViews = newFiles.filter(
   (f) =>
-    f.startsWith(VIEWS_DIR + "/") &&
+    SCAN_DIRS.some(dir => f.startsWith(dir + "/")) &&
     f.endsWith(".vue") &&
     !isPureAdminDemo(f)
 );

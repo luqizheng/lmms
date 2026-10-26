@@ -186,4 +186,91 @@ describe("createHttp", () => {
     ).rejects.toBeInstanceOf(HttpError);
     expect(refreshToken).not.toHaveBeenCalled();
   });
+
+  it("持续 401 只刷新重放一次，不无限刷新", async () => {
+    const refreshToken = vi.fn().mockResolvedValue("new-token");
+    const { client } = makeClient(
+      [{ status: 401, data: { code: "IAM_AUTH_1001", message: "expired" } }],
+      { getToken: () => "old-token", refreshToken }
+    );
+
+    await expect(client.get("/v1/iam/users")).rejects.toBeInstanceOf(HttpError);
+    expect(refreshToken).toHaveBeenCalledTimes(1);
+  });
+
+  it("刷新端点自身 401 不会让客户端死锁", async () => {
+    // 场景：业务请求 401 → 触发刷新 → 刷新请求自己也 401
+    // 期望：刷新请求不参与刷新链路，原始请求以 HttpError 结束而不是永久挂起
+    const calls: string[] = [];
+    const refreshToken = vi.fn(async () => {
+      calls.push("refresh");
+      // 用同一个 client 发刷新请求，它会 401
+      try {
+        await clientRef.post("/v1/iam/auth/refresh", { refresh_token: "r" }, { skipAuth: true });
+      } catch {
+        return undefined;
+      }
+      return undefined;
+    });
+
+    const { adapter } = adapterFactory([
+      { status: 401, data: { code: "IAM_AUTH_1001", message: "expired" } },
+      { status: 401, data: { code: "IAM_AUTH_1001", message: "expired" } }
+    ]);
+    const instance = axios.create({ adapter });
+    const clientRef = createHttp({
+      instance,
+      getToken: () => "old-token",
+      refreshToken
+    });
+
+    await expect(
+      Promise.race([
+        clientRef.get("/v1/iam/users").catch((e) => e),
+        new Promise(resolve => setTimeout(() => resolve("TIMEOUT"), 2000))
+      ])
+    ).resolves.toBeInstanceOf(HttpError);
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it("403 不触发 token 刷新", async () => {
+    const refreshToken = vi.fn().mockResolvedValue("new-token");
+    const { client } = makeClient(
+      [{ status: 403, data: { code: "IAM_AUTH_1003", message: "forbidden" } }],
+      { getToken: () => "old-token", refreshToken }
+    );
+    await expect(client.get("/v1/iam/users")).rejects.toBeInstanceOf(HttpError);
+    expect(refreshToken).not.toHaveBeenCalled();
+  });
+
+  it("白名单路径带 query string 也不带 token", async () => {
+    const { client, calls } = makeClient([{ status: 200, data: {} }], {
+      getToken: () => "token-abc",
+      authWhiteList: ["/v1/iam/auth/login"]
+    });
+    await client.get("/v1/iam/auth/login?next=%2Fdashboard");
+    expect(calls[0].authorization).toBeUndefined();
+  });
+
+  it("并发失败时所有请求都拿到 HttpError", async () => {
+    const { client } = makeClient(
+      [
+        { status: 401, data: { code: "IAM_AUTH_1001", message: "expired" } },
+        { status: 401, data: { code: "IAM_AUTH_1001", message: "expired" } },
+        { status: 401, data: { code: "IAM_AUTH_1001", message: "expired" } }
+      ],
+      { getToken: () => "old-token", refreshToken: async () => undefined }
+    );
+
+    const results = await Promise.allSettled([
+      client.get("/v1/a"),
+      client.get("/v1/b")
+    ]);
+    for (const result of results) {
+      expect(result.status).toBe("rejected");
+      if (result.status === "rejected") {
+        expect(result.reason).toBeInstanceOf(HttpError);
+      }
+    }
+  });
 });

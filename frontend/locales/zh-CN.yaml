@@ -773,7 +773,12 @@ shell:
   nav:
     label: 主导航
     breadcrumb: 面包屑
+    group: 菜单
+  drawer:
+    title: 导航
+  title: PRISM 控制台
   user:
+    label: 用户
     profile: 个人设置
     logout: 退出登录
   login:
@@ -795,6 +800,15 @@ shell:
 
 # ── 框架系统页 ─────────────────────────────────────────────────────────
 system:
+  profile:
+    title: 个人设置
+    roles: 角色
+  dashboard:
+    title: 概览
+    activeUsers: 活跃用户
+    requests: 请求总量
+    latency: 平均延迟
+    errorRate: 错误率
   common:
     search: 查询
     create: 新建
@@ -805,6 +819,13 @@ system:
     confirmDelete: 删除该记录？此操作不可撤销
     total: 共 {count} 条
     empty: 还没有记录
+    username: 用户名
+    nickname: 昵称
+    email: 邮箱
+    phone: 手机号
+    status: 状态
+    createdAt: 创建时间
+    close: 关闭
     caption: "{name}列表"
   user:
     title: 用户管理
@@ -832,15 +853,14 @@ system:
     description: 描述
   menu:
     title: 菜单管理
-    create: 新建菜单
-    edit: 编辑菜单
-    caption: 菜单列表
+    caption: 菜单配置版本列表
     name: 菜单名
-    path: 路由地址
-    component: 组件路径
-    icon: 图标
-    sortOrder: 排序
-    visible: 显示
+    version: 版本
+    status: 状态
+    active: 已启用
+    draft: 草稿
+    publish: 启用
+    clone: 克隆
   audit:
     title: 审计日志
     loginLog: 登录日志

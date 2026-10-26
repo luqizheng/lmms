@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "vue-i18n";
 
 interface Props {
   /** 是否打开（v-model:open） */
@@ -20,13 +21,15 @@ interface Props {
   size?: "sm" | "md" | "lg";
 }
 
+const { t } = useI18n();
+
 const props = withDefaults(defineProps<Props>(), {
   open: false,
   title: undefined,
   submitting: false,
-  submitLabel: "保存",
-  cancelLabel: "取消",
-  closeLabel: "关闭",
+  submitLabel: undefined,
+  cancelLabel: undefined,
+  closeLabel: undefined,
   size: "md"
 });
 
@@ -47,7 +50,7 @@ const isOpen = computed({
     v-model:open="isOpen"
     :title="props.title"
     :size="props.size"
-    :close-label="props.closeLabel"
+    :close-label="props.closeLabel ?? t('system.common.close')"
   >
     <form class="ui-form-dialog" novalidate @submit.prevent="emit('submit')">
       <div class="ui-form-dialog__body">
@@ -55,7 +58,7 @@ const isOpen = computed({
       </div>
       <footer class="ui-form-dialog__footer">
         <Button variant="secondary" type="button" @click="emit('cancel')">
-          {{ props.cancelLabel }}
+          {{ props.cancelLabel ?? t("system.common.cancel") }}
         </Button>
         <Button type="submit" :loading="props.submitting">{{
           props.submitLabel

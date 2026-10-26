@@ -773,7 +773,12 @@ shell:
   nav:
     label: Main navigation
     breadcrumb: Breadcrumb
+    group: Menu
+  drawer:
+    title: Navigation
+  title: PRISM Console
   user:
+    label: User
     profile: Profile settings
     logout: Sign out
   login:
@@ -795,6 +800,15 @@ shell:
 
 # ── Framework system pages ─────────────────────────────────────────────
 system:
+  profile:
+    title: Profile settings
+    roles: Roles
+  dashboard:
+    title: Overview
+    activeUsers: Active users
+    requests: Total requests
+    latency: Average latency
+    errorRate: Error rate
   common:
     search: Search
     create: Create
@@ -805,6 +819,13 @@ system:
     confirmDelete: Delete this record? This cannot be undone
     total: "{count} in total"
     empty: No records yet
+    username: Username
+    nickname: Display name
+    email: Email
+    phone: Phone
+    status: Status
+    createdAt: Created at
+    close: Close
     caption: "{name} list"
   user:
     title: Users
@@ -832,15 +853,14 @@ system:
     description: Description
   menu:
     title: Menus
-    create: Create menu
-    edit: Edit menu
-    caption: Menu list
+    caption: Menu config version list
     name: Menu name
-    path: Path
-    component: Component
-    icon: Icon
-    sortOrder: Order
-    visible: Visible
+    version: Version
+    status: Status
+    active: Active
+    draft: Draft
+    publish: Activate
+    clone: Clone
   audit:
     title: Audit logs
     loginLog: Login logs

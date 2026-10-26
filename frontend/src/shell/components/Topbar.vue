@@ -36,7 +36,7 @@ const emit = defineEmits<{
 
 <template>
   <header class="ui-topbar">
-    <nav class="ui-topbar__crumbs" aria-label="面包屑">
+    <nav class="ui-topbar__crumbs" :aria-label="t('shell.nav.breadcrumb')">
       <ol class="ui-topbar__crumb-list">
         <li
           v-for="(crumb, index) in props.breadcrumbs"

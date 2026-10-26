@@ -237,6 +237,7 @@ prism_tokens_check:
     - changes:
         - frontend/src/components/ui/**/*
         - frontend/src/styles/prism/**/*
+        - frontend/src/shell/**/*
         - scripts/check-prism-tokens.js
         - scripts/check-prism-tokens.test.js
       when: on_success
@@ -255,6 +256,41 @@ frontend_test:
   rules:
     - changes:
         - frontend/**/*
+      when: on_success
+    - when: never
+
+packages_test:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  allow_failure: false
+  before_script:
+    - npm install -g pnpm
+    - pnpm install --no-frozen-lockfile
+  script:
+    - pnpm --filter @digua/http run test
+    - pnpm --filter @digua/contracts run typecheck
+  rules:
+    - changes:
+        - packages/**/*
+        - pnpm-lock.yaml
+      when: on_success
+    - when: never
+
+frontend_build:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  allow_failure: false
+  before_script:
+    - npm install -g pnpm
+    - pnpm -C frontend install --no-frozen-lockfile
+  script:
+    - pnpm -C frontend run build
+  rules:
+    - changes:
+        - frontend/**/*
+        - packages/**/*
       when: on_success
     - when: never
 

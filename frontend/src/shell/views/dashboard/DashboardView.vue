@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 interface Metric {
   label: string;
@@ -10,17 +13,22 @@ interface Metric {
 }
 
 const metrics: Metric[] = [
-  { label: "活跃用户", value: "12,480", trend: "+8.2%" },
-  { label: "请求总量", value: "1,284,930", trend: "+3.1%" },
-  { label: "平均延迟", value: "36 ms", tone: "accent" },
-  { label: "错误率", value: "0.42%", trend: "-0.08%", tone: "success" }
+  { label: t("system.dashboard.activeUsers"), value: "12,480", trend: "+8.2%" },
+  { label: t("system.dashboard.requests"), value: "1,284,930", trend: "+3.1%" },
+  { label: t("system.dashboard.latency"), value: "36ms", tone: "accent" },
+  {
+    label: t("system.dashboard.errorRate"),
+    value: "0.42%",
+    trend: "-0.08%",
+    tone: "success"
+  }
 ];
 </script>
 
 <template>
   <section class="ui-dashboard">
     <header class="ui-dashboard__header">
-      <h1 class="ui-dashboard__title">概览</h1>
+      <h1 class="ui-dashboard__title">{{ t("system.dashboard.title") }}</h1>
     </header>
 
     <div class="ui-dashboard__metrics">
