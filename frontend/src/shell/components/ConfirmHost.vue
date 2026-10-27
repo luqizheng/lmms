@@ -47,13 +47,13 @@ const description = computed(() => options.value?.description ?? "");
     <p v-if="description" class="ui-confirm__description">{{ description }}</p>
     <template #footer>
       <Button variant="secondary" @click="settle(false)">
-        {{ options?.cancelLabel ?? t("system.common.cancel") }}
+        {{ options?.cancelLabel ?? t("common.cancel") }}
       </Button>
       <Button
         :class="{ 'ui-confirm__danger': options?.danger }"
         @click="settle(true)"
       >
-        {{ options?.confirmLabel ?? t("system.common.confirm") }}
+        {{ options?.confirmLabel ?? t("common.confirm") }}
       </Button>
     </template>
   </Dialog>

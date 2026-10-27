@@ -276,7 +276,7 @@ function onSort(column: TableColumn) {
     <footer class="ui-data-table__footer">
       <div v-if="props.pageSizes.length" class="ui-data-table__size">
         <label class="ui-data-table__size-label" for="ui-data-table-size">
-          {{ t("system.common.pageSize") }}
+          {{ t("common.pageSize") }}
         </label>
         <select
           id="ui-data-table-size"
