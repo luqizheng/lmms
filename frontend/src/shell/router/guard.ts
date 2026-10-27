@@ -1,4 +1,5 @@
-import type { Router, RouteRecordRaw } from "vue-router";
+import { RouterView, type Router, type RouteRecordRaw } from "vue-router";
+import { defineComponent, h } from "vue";
 import { useAuthStore } from "../store/auth";
 import { useMenuStore, type MenuNode } from "../store/menu";
 import { resolveView } from "./views";
@@ -6,26 +7,45 @@ import { resolveView } from "./views";
 /** 动态菜单挂载点：与 staticRoutes 中 shell 路由同名 */
 const SHELL_ROUTE_NAME = "shell";
 
-/** 把菜单树转成路由记录 */
-export function buildRoutes(menus: MenuNode[]): RouteRecordRaw[] {
+/** 菜单分组节点：仅透传渲染子路由（分组节点在菜单数据里不带 component） */
+const MenuGroupLayout = defineComponent({
+  name: "MenuGroupLayout",
+  render: () => h(RouterView)
+});
+
+/**
+ * 把菜单树转成路由记录。
+ *
+ * `isTop` 为 true 时节点直接挂在 shell（path "/"）下，须用相对路径；
+ * 为 false 时是分组节点的子路由，保留绝对路径 —— vue-router 对以 "/" 开头的
+ * 子路由按绝对路径解析，否则会被拼成 `/pm/pm/...`。
+ */
+export function buildRoutes(
+  menus: MenuNode[],
+  isTop = true
+): RouteRecordRaw[] {
   const routes: RouteRecordRaw[] = [];
 
   for (const node of menus) {
     if (!node.path) continue;
     const component = resolveView(node.component);
     const children = node.children.length
-      ? buildRoutes(node.children)
+      ? buildRoutes(node.children, false)
       : undefined;
 
     const record = {
-      path: node.path.replace(/^\//, ""),
+      path: isTop ? node.path.replace(/^\//, "") : node.path,
       name: `menu-${node.id}`,
       meta: {
         title: node.name,
         icon: node.icon,
         permission: node.component
       },
-      component: component ?? (() => import("../views/ComingSoon.vue")),
+      component:
+        component ??
+        (children
+          ? MenuGroupLayout
+          : () => import("../views/ComingSoon.vue")),
       ...(children ? { children } : {})
     } as RouteRecordRaw;
 
