@@ -72,8 +72,7 @@ function makeRouter(): Router {
       {
         path: "/:pathMatch(.*)*",
         name: "not-found",
-        component: { template: "<div />" },
-        meta: { public: true }
+        component: { template: "<div />" }
       }
     ]
   });
@@ -147,6 +146,26 @@ describe("installAuthGuard", () => {
     expect(outcome).toBeTruthy();
     expect((outcome as { replace?: boolean }).replace).toBe(true);
     expect(router.hasRoute("menu-user")).toBe(true);
+  });
+
+  it("整页刷新深链命中 404 兜底时，仍加载菜单并重解析到动态路由", async () => {
+    getAsyncRoutes.mockResolvedValue([
+      {
+        path: "/pm/projects/list",
+        name: "projects-list",
+        component: "pm/projects/list",
+        meta: { title: "项目列表" }
+      }
+    ]);
+    const router = makeRouter();
+    installAuthGuard(router);
+
+    // 动态路由尚未注册，深链先落到 catch-all（not-found）
+    await router.push("/pm/projects/list");
+
+    expect(router.hasRoute("menu-projects-list")).toBe(true);
+    expect(router.currentRoute.value.path).toBe("/pm/projects/list");
+    expect(router.currentRoute.value.name).toBe("menu-projects-list");
   });
 
   it("菜单拉取失败时不阻断路由", async () => {

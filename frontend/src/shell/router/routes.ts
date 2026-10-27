@@ -35,6 +35,6 @@ export const staticRoutes: RouteRecordRaw[] = [
     path: "/:pathMatch(.*)*",
     name: "not-found",
     component: NotFound,
-    meta: { public: true, title: "页面不存在" }
+    meta: { title: "页面不存在" }
   }
 ];

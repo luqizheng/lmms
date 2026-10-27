@@ -88,8 +88,15 @@ export function installAuthGuard(router: Router) {
           // 重新解析当前目标：新注册的路由此时才能被匹配上。
           // vue-router 在进入 beforeEach 之前就已完成目标解析，
           // 缺了这一步，深链（刷新页面 / 直接输地址）会落到 404。
+          // 用 path/query/hash 重新导航，而非展开 `to`：刷新深链时 `to` 命中的
+          // 是 catch-all（not-found），展开会把它的 name 带回来，重解析后仍落 404。
           routesRegistered = true;
-          return { ...to, replace: true };
+          return {
+            path: to.path,
+            query: to.query,
+            hash: to.hash,
+            replace: true
+          };
         }
       } catch {
         // 菜单拉取失败时不阻断路由：页面会走 404，登录态仍可恢复
