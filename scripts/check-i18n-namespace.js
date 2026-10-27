@@ -61,6 +61,72 @@ function hasKey(node, key) {
   return current !== undefined;
 }
 
+/* ── 加载某个 locale 的全部文案 ──────────────────────────────────────── */
+
+/** 递归列出 locale 目录下的 yaml 文件。 */
+function listYamlFiles(dir) {
+  const out = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listYamlFiles(full));
+    else if (/\.ya?ml$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+/** 深合并（后加载的覆盖同名叶子）。 */
+function deepMerge(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    const bothObjects =
+      value && typeof value === "object" && !Array.isArray(value) &&
+      target[key] && typeof target[key] === "object" && !Array.isArray(target[key]);
+    if (bothObjects) deepMerge(target[key], value);
+    else target[key] = value;
+  }
+  return target;
+}
+
+/**
+ * 按 `frontend/src/shell/i18n.ts` 的语义加载某个 locale 的文案。
+ *
+ * 文案按命名空间分文件：`locales/<locale>/<namespace>.yaml`（namespace 可能是多级路径），
+ * 文件内容若只带命名空间自身的键（shell.yaml 里是 `shell:`）要解包一层。
+ */
+function loadLocaleMessages(locale) {
+  const localeDir = path.join(LOCALES_DIR, locale);
+  if (!fs.existsSync(localeDir)) {
+    console.error(`✗ 找不到 locale 目录: ${path.relative(ROOT, localeDir)}`);
+    process.exit(1);
+  }
+
+  const messages = {};
+  for (const file of listYamlFiles(localeDir)) {
+    const rel = path.relative(localeDir, file).replace(/\\/g, "/");
+    const namespace = rel.replace(/\.ya?ml$/, "").split("/").join(".");
+    const content = parseYaml(fs.readFileSync(file, "utf8"));
+
+    const keys = Object.keys(content);
+    const segments = namespace.split(".");
+    const lastSegment = segments[segments.length - 1];
+    const unwrapped =
+      keys.length === 1 && keys[0] === lastSegment ? content[lastSegment] : content;
+
+    let node = messages;
+    for (const segment of segments.slice(0, -1)) {
+      node[segment] = node[segment] ?? {};
+      node = node[segment];
+    }
+    node[lastSegment] = deepMerge(node[lastSegment] ?? {}, unwrapped);
+  }
+  return messages;
+}
+
 /* ── 扫描源码里的 t() 调用 ──────────────────────────────────────────── */
 
 function walk(dir, out = []) {
@@ -97,8 +163,8 @@ if (usedKeys.size === 0) {
   process.exit(0);
 }
 
-const zh = parseYaml(fs.readFileSync(path.join(LOCALES_DIR, "zh-CN.yaml"), "utf8"));
-const en = parseYaml(fs.readFileSync(path.join(LOCALES_DIR, "en.yaml"), "utf8"));
+const zh = loadLocaleMessages("zh-CN");
+const en = loadLocaleMessages("en");
 
 const missingZh = [];
 const missingEn = [];
