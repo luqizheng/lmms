@@ -95,7 +95,8 @@ function parseRedisUrl(url) {
   return { host: m[1], port: m[2] ? Number(m[2]) : 6379 };
 }
 
-function buildEnv(runner, opts) {  const env = { ...swaggerEnv(runner) };
+function buildEnv(runner, opts) {
+  const env = { ...swaggerEnv(runner) };
   if (!opts.useDb) return env;
   env.TEST_MYSQL_HOST = opts.mysqlHost;
   env.TEST_MYSQL_PORT = String(opts.mysqlPort);
@@ -104,6 +105,19 @@ function buildEnv(runner, opts) {  const env = { ...swaggerEnv(runner) };
   env.REDIS_PREFIX = `${DB_NAME}:`;
   env.CONSUL_ADDR = 'http://localhost:8500';
   return env;
+}
+
+// cargo-nextest：每个测试独立进程。必须用它——`cargo test` 在同一进程里并行跑，
+// api-gateway 的 resolve_routes_dir 测试会互相踩 env 变量而假失败。
+async function ensureNextest(runner) {
+  if (hasNextest(runner)) return true;
+  console.log(chalk.yellow('[nextest] 未安装 cargo-nextest，正在安装（首次约 3-5 分钟）...'));
+  const res = runner.run('cargo', ['install', 'cargo-nextest', '--locked'], {});
+  if (res.status !== 0) {
+    console.warn(chalk.yellow('[nextest] 安装失败，回退到 cargo test（env 类单测可能假失败）'));
+    return false;
+  }
+  return true;
 }
 
 async function main() {
@@ -162,7 +176,7 @@ service 列表：${Object.keys(SERVICE_PKG).join(', ')}
   }
 
   const env = buildEnv(runner, opts);
-  const useNextest = hasNextest(runner);
+  const useNextest = await ensureNextest(runner);
   console.log(`  runner  : cargo ${useNextest ? 'nextest' : 'test'}`);
 
   const failed = [];

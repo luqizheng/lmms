@@ -101,10 +101,23 @@ pnpm run test:rust:host [services...] [--incremental] [--no-db] [--backend wsl|n
 ## 3. 测试计划
 
 - [x] 主机侧编译：`node scripts/build-cargo.js config-service --debug` 通过
-- [x] 主机侧集成测试：`node scripts/run-tests-host.js config-service` 通过（连共享 MySQL）
+- [x] 主机侧集成测试：`node scripts/run-tests-host.js config-service` 通过（连共享 MySQL，含租户隔离集成测）
+- [x] 主机侧全量：`node scripts/run-tests-host.js` 8 个 service 全绿
 - [x] 增量模式：`node scripts/run-tests-host.js --incremental` 正确收敛到改动涉及的 service
-- [x] Docker 路径未回归：`node scripts/run-tests-docker.js --help` / service 选择参数行为不变
+- [x] Docker 路径未回归：service 清单与增量判定改为共用 `scripts/lib/services.js`，行为不变
 - [ ] CI 门禁复跑（合并前）：`node scripts/run-tests-docker.js`（全量）
+
+### 3.1 落地过程中踩到的两个环境坑（已写进代码）
+
+1. **必须用 cargo-nextest，不能用 `cargo test`**：`cargo test` 在同一进程里并行跑，
+   `api-gateway` 的 `resolve_routes_dir_tests`（改进程级 env）互相踩，导致假失败。
+   nextest 每个测试独立进程，与 Docker 路径语义一致。脚本在缺 nextest 时会自动
+   `cargo install cargo-nextest --locked`。
+2. **WSL 的 shell profile 里全局设了 `http_proxy`**，而 `no_proxy` 用的是 `127.*` 通配
+   ——reqwest 不认这种写法，会把发往 `127.0.0.1` 的请求也代理走，
+   `resilience_test::connect_error_maps_to_502_class` 因此拿到的是代理错误而不是
+   connection refused。runner 里统一追加精确条目
+   （`127.0.0.1,localhost,::1`）到 `no_proxy` / `NO_PROXY`，不覆盖原有列表。
 
 ---
 
@@ -138,6 +151,10 @@ pnpm run test:rust:host [services...] [--incremental] [--no-db] [--backend wsl|n
   （D8050）未解决，该分支仅在 Linux/macOS 或修好 MSVC 环境的机器上可用。
 - 主机侧编译产物是 `x86_64-unknown-linux-gnu`，与发布镜像的 musl 产物不同；发布镜像仍必须
   走 `build-docker.js`。
+- 主机侧需要 WSL 发行版里装有 cargo（脚本会自动挑一个装了 cargo 的发行版）；
+  首次运行会安装 cargo-nextest（约 3-5 分钟）。
+- 主机侧 target 目录在 WSL 原生盘（`~/.cache/cargo-target/...`），与 Windows 侧
+  `CARGO_TARGET_DIR` 不共享；换发行版要重新编译一遍。
 - 上游 `scripts/` 变更会随 cms-sync 穿透到下游 `project-manager`，下游无需改动即可继续用
   原有 Docker 路径；要用主机路径需自行确认 WSL 环境。
 

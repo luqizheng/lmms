@@ -121,6 +121,11 @@ function resolveRunner(opts = {}) {
       const envParts = Object.entries({ ...baseEnv, ...(options.env || {}) }).map(
         ([k, v]) => `export ${k}=${shQuote(v)}`,
       );
+      // WSL 的 shell profile 里全局设了 http_proxy，而 no_proxy 用的是 `127.*` 这种
+      // 通配写法——reqwest 不认，会把发往 127.0.0.1 的请求也代理走，导致「连接被
+      // 拒绝」类断言假失败。这里补精确条目（追加，不覆盖原有列表）。
+      envParts.push('export no_proxy="127.0.0.1,localhost,::1,${no_proxy:-}"');
+      envParts.push('export NO_PROXY="127.0.0.1,localhost,::1,${NO_PROXY:-}"');
       const cmdParts = [cmd, ...args].map(shQuote);
       const inner = [
         `cd ${shQuote(options.cwd || repoPath)}`,
