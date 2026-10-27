@@ -17,39 +17,7 @@ export default defineConfig([
   ]),
   {
     ...js.configs.recommended,
-    languageOptions: {
-      globals: {
-        // types/index.d.ts
-        RefType: "readonly",
-        EmitType: "readonly",
-        TargetContext: "readonly",
-        ComponentRef: "readonly",
-        ElRef: "readonly",
-        ForDataType: "readonly",
-        AnyFunction: "readonly",
-        PropType: "readonly",
-        Writable: "readonly",
-        Nullable: "readonly",
-        NonNullable: "readonly",
-        Recordable: "readonly",
-        ReadonlyRecordable: "readonly",
-        Indexable: "readonly",
-        DeepPartial: "readonly",
-        Without: "readonly",
-        Exclusive: "readonly",
-        TimeoutHandle: "readonly",
-        IntervalHandle: "readonly",
-        Effect: "readonly",
-        ChangeEvent: "readonly",
-        WheelEvent: "readonly",
-        ImportMetaEnv: "readonly",
-        Fn: "readonly",
-        PromiseFn: "readonly",
-        ComponentElRef: "readonly",
-        parseInt: "readonly",
-        parseFloat: "readonly"
-      }
-    },
+
     plugins: {
       prettier: pluginPrettier
     },
@@ -169,14 +137,6 @@ export default defineConfig([
         }
       ]
     }
-  },
-  {
-    files: ["**/*.vue", "**/*.tsx"],
-    plugins: {
-    },
-    rules: {
-    },
-    settings: {
-    }
+
   }
 ]);

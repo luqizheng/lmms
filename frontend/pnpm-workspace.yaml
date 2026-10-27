@@ -29,7 +29,4 @@ allowBuilds:
   core-js: true
   es5-ext: true
   esbuild: true
-  typeit: true
   vue-demi: true
-  '@tailwindcss/oxide': false
-  vue3-danmaku: false
