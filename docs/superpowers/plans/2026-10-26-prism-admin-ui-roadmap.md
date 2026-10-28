@@ -4,6 +4,8 @@
 > 设计文档：`docs/superpowers/specs/2026-10-25-prism-admin-ui-design.md`
 > 状态：进行中
 
+> **2026-10-28 注（追写，不改下文原文）**：下文「跨计划共享约束」里引用的 `D:\Workspace\web-concept\design\...` 已迁入本仓库 [`docs/prism/`](../../prism/README.md) 作为权威副本；该目录降级为设计侧草稿区。详见 `docs/superpowers/specs/2026-10-28-prism-spec-versioning-design.md`。
+
 本路线图把设计文档拆成 **7 个独立可交付的计划**。每个计划结束时都产出一个可运行、可测试、自身闭环的交付物；后一个计划只依赖前面计划已交付的接口。
 
 | # | 计划 | 交付物 | 依赖 | 状态 |

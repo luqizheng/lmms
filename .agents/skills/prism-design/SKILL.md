@@ -16,6 +16,10 @@ description: |
 所有颜色、间距、字号、圆角、阴影、时长、缓动**只能**来自
 `frontend/src/styles/prism/tokens.css`。
 
+> token 背后的规范原文在 `docs/prism/`（Phase 1R 视觉规范 + Phase 2 体验规范）。
+> 需要知道"这个数值为什么这么定"时读那里，不要猜。
+> `tokens.test.ts` 直接解析那份规范校验 `tokens.css`——**改数值先改规范**。
+
 | 类别 | 变量族 | 例 |
 |---|---|---|
 | 表面 | `--surface-*` | `--surface-base`（画布）、`--surface-raised`（白卡）、`--surface-sunken`（井/表头）、`--surface-ink`（墨色块） |

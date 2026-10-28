@@ -5,6 +5,8 @@
 > 上游输入：`D:\Workspace\web-concept\design\phase1-visual-direction.md`（PRISM v2.0 视觉规范）、`phase2-ux-spec.md`（Phase 2 v1.1 体验规范）
 > 范围：替换 `frontend/` 现有 vue-pure-admin 前端，建立公司自有 admin-ui 壳 + 基础包 + AI 开发 skill 体系
 
+> **2026-10-28 注（追写，不改上文原文）**：上面引用的 `D:\Workspace\web-concept\design\...` 已迁入本仓库 [`docs/prism/`](../../prism/README.md) 作为权威副本，散文契约自此纳入版本管理；该目录降级为设计侧草稿区。详见 `docs/superpowers/specs/2026-10-28-prism-spec-versioning-design.md`。
+
 ---
 
 ## 1. 意图与动机
