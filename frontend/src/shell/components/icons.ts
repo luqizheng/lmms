@@ -2,6 +2,7 @@ import type { Component } from "vue";
 import {
   Activity,
   Bell,
+  Bot,
   Boxes,
   Building2,
   Clock,
@@ -32,6 +33,7 @@ import {
 const ICONS: Record<string, Component> = {
   activity: Activity,
   bell: Bell,
+  bot: Bot,
   boxes: Boxes,
   building: Building2,
   "building-2": Building2,

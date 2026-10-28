@@ -28,6 +28,11 @@ WORKDIR /app
 COPY --from=builder /app/notification_service /usr/local/bin/notification_service
 COPY --from=builder /app/ntf_outbox_publisher /usr/local/bin/ntf_outbox_publisher
 
+# 角色感知健康探针：这张镜像同时承载服务端（notification_service，8083）与 worker
+# （ntf_outbox_publisher，无端口），单一 HEALTHCHECK 无法同时覆盖两者。
+COPY infrastructure/docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
 # Note: no COPY of config.yaml. The default config is embedded in the binary
 # via `include_str!("../config/config.default.yaml")` (see src/config.rs) and
 # is written to CONFIG_PATH on first boot if the file is absent. Runtime
@@ -35,7 +40,9 @@ COPY --from=builder /app/ntf_outbox_publisher /usr/local/bin/ntf_outbox_publishe
 
 EXPOSE 8083
 
+ENV HEALTHCHECK_PORT=8083
+
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
-  CMD wget --spider -q http://127.0.0.1:8083/health || exit 1
+  CMD /usr/local/bin/healthcheck.sh
 
 CMD ["notification_service"]

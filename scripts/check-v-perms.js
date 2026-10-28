@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable */
 /**
- * 静态扫描 frontend/src/views/{glob}.vue，标记未挂 v-perms / hasPerms 的写操作按钮。
+ * 静态扫描 frontend/src/shell/views/{glob}.vue，标记未挂 v-perms / hasPerms 的写操作按钮。
  *
  * 启发式（正则 + 上下文）：
  *   1. 文件以 <script setup> 开头、含 import { hasPerms } from "@/utils/auth"
@@ -19,7 +19,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const ROOT = path.resolve(__dirname, "../frontend/src/views");
+// PRISM 壳改造后视图迁到 frontend/src/shell/views；旧路径 frontend/src/views
+// 已随 legacy pure-admin 壳移除，脚本一运行就 ENOENT，门禁形同虚设。
+const ROOT = path.resolve(__dirname, "../frontend/src/shell/views");
 
 const WRITE_KEYWORDS = [
   "create", "update", "delete", "remove", "assign", "revoke", "post",

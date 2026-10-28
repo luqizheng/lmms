@@ -324,6 +324,21 @@ services:
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
+      METRICS_FILE_PATH: "/var/run/prometheus/iam_outbox.prom"
+    healthcheck:
+      # publisher 是无监听端口的 worker，而镜像内置的 HEALTHCHECK 探的是服务端端口
+      # （同一张镜像按 command: 切角色，HEALTHCHECK 却是镜像级的）→ 恒 unhealthy。
+      # 这里改查 Prometheus 指标文件的新鲜度：publisher 每轮轮询原子写一次该文件，
+      # mtime 新鲜即轮询循环存活，卡死则停更。
+      test:
+        - CMD-SHELL
+        - >-
+          f="$${METRICS_FILE_PATH:-/var/run/prometheus/iam_outbox.prom}";
+          [ -f "$$f" ] && [ $$(( $$(date +%s) - $$(stat -c %Y "$$f") )) -le 60 ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     depends_on:
       mysql:
         condition: service_healthy
@@ -425,6 +440,21 @@ services:
       EVENT_BUS_EXCHANGE: "events"
       OUTBOX_POLL_INTERVAL_MS: "1000"
       OUTBOX_BATCH_SIZE: "100"
+      METRICS_FILE_PATH: "/var/run/prometheus/ntf_outbox.prom"
+    healthcheck:
+      # publisher 是无监听端口的 worker，而镜像内置的 HEALTHCHECK 探的是服务端端口
+      # （同一张镜像按 command: 切角色，HEALTHCHECK 却是镜像级的）→ 恒 unhealthy。
+      # 这里改查 Prometheus 指标文件的新鲜度：publisher 每轮轮询原子写一次该文件，
+      # mtime 新鲜即轮询循环存活，卡死则停更。
+      test:
+        - CMD-SHELL
+        - >-
+          f="$${METRICS_FILE_PATH:-/var/run/prometheus/ntf_outbox.prom}";
+          [ -f "$$f" ] && [ $$(( $$(date +%s) - $$(stat -c %Y "$$f") )) -le 60 ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     depends_on:
       mysql:
         condition: service_healthy
