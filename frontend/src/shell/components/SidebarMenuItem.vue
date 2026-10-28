@@ -47,7 +47,10 @@ function toggle() {
 </script>
 
 <template>
-  <li class="ui-sidebar__group">
+  <li
+    class="ui-sidebar__group"
+    :class="{ 'is-group': props.node.children.length > 0 }"
+  >
     <button
       type="button"
       class="ui-sidebar__item"
@@ -95,12 +98,20 @@ export default { name: "SidebarMenuItem" };
 </script>
 
 <style scoped>
+/* 菜单节奏：同级项紧凑（4px），分组（带子列表的节点）前后各留 20px。
+   旧实现对所有兄弟节点一律 24px，项节奏被拉到 60px，且分组之间与同级项
+   之间没有区别——间距不再承载分组语义，一级菜单撑出一屏。 */
 .ui-sidebar__group + .ui-sidebar__group {
-  margin-top: var(--space-6);
+  margin-top: var(--space-1);
+}
+
+.ui-sidebar__group + .ui-sidebar__group.is-group,
+.ui-sidebar__group.is-group + .ui-sidebar__group {
+  margin-top: var(--space-5);
 }
 
 .ui-sidebar__sublist {
-  margin: var(--space-1) 0 0;
+  margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
 }
