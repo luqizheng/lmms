@@ -57,4 +57,14 @@ describe("Sidebar", () => {
     expect(resolveIcon(undefined)).toBeUndefined();
     expect(resolveIcon("users")).toBeTruthy();
   });
+
+  it("带子项的节点标记 is-group，用于区分分组间距与同级间距", () => {
+    const w = mountShell(Sidebar, {
+      props: { menus, activePath: "/system/user" }
+    });
+    const groups = w.findAll(".ui-sidebar__group.is-group");
+    // 「系统管理」和「用户管理」各带子项
+    expect(groups.length).toBe(2);
+    expect(groups.every(node => node.text().length > 0)).toBe(true);
+  });
 });
