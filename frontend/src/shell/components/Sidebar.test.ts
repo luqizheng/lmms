@@ -58,6 +58,10 @@ describe("Sidebar", () => {
     expect(resolveIcon("users")).toBeTruthy();
   });
 
+  it("AI 类图标名（bot）已登记，下游菜单可直接引用", () => {
+    expect(resolveIcon("bot")).toBeTruthy();
+  });
+
   it("带子项的节点标记 is-group，用于区分分组间距与同级间距", () => {
     const w = mountShell(Sidebar, {
       props: { menus, activePath: "/system/user" }
