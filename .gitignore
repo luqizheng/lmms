@@ -33,6 +33,13 @@ reports/
 /.worktrees/
 /.omo/
 
+# AI agent 的工作区记忆目录（本地运行数据，不属于项目源码，不入 git）
+/.workbuddy/
+
+# 一次性构建包装脚本与日志（如 .build-audit.bat / .audit-build.log）
+/.build-*.bat
+/*-build.log
+
 # utoipa-swagger-ui build.rs 依赖的 vendor zip；已提交进 git（4.4MB），
 # 避免 shell runner 无本地缓存时现场从 gh-proxy.org 下载超时
 # （runner 50 实证 download timeout 120s）。升级时重下并重新提交。
