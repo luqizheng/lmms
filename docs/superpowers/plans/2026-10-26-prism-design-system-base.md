@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-25-prism-admin-ui-design.md`（视觉与交互真源另见 `D:\Workspace\web-concept\design\phase1-visual-direction.md` 与 `phase2-ux-spec.md`）
 
+> **2026-10-28 注（追写，不改上文原文）**：上面引用的 `D:\Workspace\web-concept\design\...` 已迁入本仓库 [`docs/prism/`](../../prism/README.md) 作为权威副本；该目录降级为设计侧草稿区。详见 `docs/superpowers/specs/2026-10-28-prism-spec-versioning-design.md`。
+
 ## 执行对账（2026-10-26 已执行完毕）
 
 本计划 8 个任务全部完成，产出在分支 `feat/prism-admin-ui`。下列偏离是执行中做出的裁决，**以本节为准**（下方任务正文保留原始形态，仅供追溯）：

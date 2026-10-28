@@ -8,6 +8,42 @@ const css = readFileSync(resolve(PRISM_DIR, "tokens.css"), "utf8");
 const brandPath = resolve(PRISM_DIR, "tokens.brand.css");
 const brandCss = existsSync(brandPath) ? readFileSync(brandPath, "utf8") : "";
 
+/**
+ * PRISM 规范文档（仓库内权威副本）。
+ * 向上找 `docs/prism/`，兼容从仓库根或 frontend/ 两种 cwd 启动。
+ */
+function findPrismSpec(): string {
+  const candidates = [
+    resolve(process.cwd(), "..", "docs", "prism", "phase1-visual-direction.md"),
+    resolve(process.cwd(), "docs", "prism", "phase1-visual-direction.md")
+  ];
+  const found = candidates.find(candidate => existsSync(candidate));
+  if (!found) {
+    throw new Error(`找不到 PRISM 规范文档：${candidates.join(" / ")}`);
+  }
+  return found;
+}
+
+/**
+ * 解析规范附录「CSS 变量速查」里的 `:root` 变量表。
+ *
+ * 规范改了而 `tokens.css` 没改 → 下面的"逐个等价"断言变红。
+ * 这就是散文契约与代码契约的焊点：**不再手工誊抄一份附录**。
+ */
+function parseAppendixTokens(): Record<string, string> {
+  const doc = readFileSync(findPrismSpec(), "utf8");
+  const appendixIndex = doc.indexOf("## 附录");
+  if (appendixIndex === -1) throw new Error("规范里没有找到附录小节");
+  const fence = doc.slice(appendixIndex).match(/```css\n([\s\S]*?)\n```/);
+  if (!fence) throw new Error("规范附录里没有找到 css 围栏块");
+
+  const values: Record<string, string> = {};
+  for (const match of fence[1].matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
+    values[match[1]] = match[2].trim();
+  }
+  return values;
+}
+
 /** 去掉 CSS 注释：tokens.brand.css 里的示例写在注释里，不能当成真实覆盖值 */
 function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -51,99 +87,44 @@ function firstHex(name: string): string {
   return brand ?? hexesOf(name)[0] ?? "";
 }
 
-/* ── Phase 1R 附录 CSS 变量速查：变量名 → 期望值 ───────────────────────
- * 值比较忽略空白（prettier 会规范化 rgba 内的空格），保证"值等价"可被断言。
+/* ── Phase 1R 附录 CSS 变量速查：期望值直接取自规范文档 ───────────────
+ * 不再手工誊抄一份副本：规范改了而 tokens.css 没改，下面的等价断言会变红。
+ * 规范文档：docs/prism/phase1-visual-direction.md（仓库内权威副本）
  * ---------------------------------------------------------------------- */
 
-const APPENDIX_VALUES: Record<string, string> = {
-  // Surface
-  "surface-sunken": "#F0F0EC",
-  "surface-base": "#F7F7F4",
-  "surface-raised": "#FFFFFF",
-  "surface-overlay": "#FFFFFF",
-  "surface-hover-veil": "rgba(23,24,28,0.04)",
-  "surface-active-veil": "rgba(23,24,28,0.07)",
-  "surface-ink": "#17181C",
-  "ink-hover-veil": "rgba(255,255,255,0.08)",
-  "ink-active-veil": "rgba(255,255,255,0.12)",
-  "focus-glow-ink": "rgba(46,91,255,0.32)",
-  // Text
-  "text-primary": "#17181C",
-  "text-secondary": "#52535B",
-  "text-tertiary": "#6A6B73",
-  "text-disabled": "#9C9DA5",
-  "text-inverse": "#FFFFFF",
-  // Border
-  "border-subtle": "#EDEDE9",
-  "border-default": "#E3E3DE",
-  "border-strong": "#D4D4CE",
-  "border-data": "#8A8B93",
-  "border-accent-glow": "rgba(46,91,255,0.3)",
-  // Accent
-  accent: "#2E5BFF",
-  "accent-hover": "#3D67FF",
-  "accent-pressed": "#1F44D6",
-  "accent-deep": "#2447CC",
-  "accent-subtle": "#EBF0FF",
-  "accent-wash": "rgba(46,91,255,0.08)",
-  "accent-gradient": "linear-gradient(180deg,#2E5BFF 0%,#2750E6 100%)",
-  "accent-contrast-text": "#FFFFFF",
-  // Semantic
-  success: "#15803D",
-  "success-strong": "#166534",
-  "success-subtle": "#ECF8F0",
-  warning: "#B45309",
-  "warning-strong": "#92400E",
-  "warning-subtle": "#FCF3E3",
-  danger: "#DC2626",
-  "danger-strong": "#B91C1C",
-  "danger-subtle": "#FDEDED",
-  info: "#0F766E",
-  "info-strong": "#115E59",
-  "info-subtle": "#E6F4F2",
-  // Shadow
-  "shadow-xs": "0 1px 2px rgba(23,24,28,0.04)",
-  "shadow-sm": "0 1px 2px rgba(23,24,28,0.05),0 2px 6px rgba(23,24,28,0.05)",
-  "shadow-md": "0 2px 6px rgba(23,24,28,0.06),0 12px 24px rgba(23,24,28,0.09)",
-  "shadow-lg": "0 4px 12px rgba(23,24,28,0.08),0 24px 48px rgba(23,24,28,0.14)",
-  "shadow-accent":
-    "0 1px 2px rgba(30,64,175,0.24),0 4px 12px rgba(46,91,255,0.22)",
-  "shadow-accent-lg":
-    "0 2px 4px rgba(30,64,175,0.28),0 8px 20px rgba(46,91,255,0.28)",
-  // Radius
-  "radius-xs": "4px",
-  "radius-sm": "6px",
-  "radius-md": "8px",
-  "radius-lg": "12px",
-  "radius-xl": "16px",
-  "radius-full": "999px",
-  // Duration / Easing
-  "duration-instant": "80ms",
-  "duration-fast": "150ms",
-  "duration-medium": "240ms",
-  "duration-slow": "320ms",
-  "ease-decelerate": "cubic-bezier(0.16,1,0.3,1)",
-  "ease-standard": "cubic-bezier(0.4,0,0.2,1)",
-  // Font
-  "font-ui":
-    '"Inter","MiSans","PingFang SC","HarmonyOS Sans SC","Noto Sans SC","Microsoft YaHei UI","Segoe UI",system-ui,sans-serif',
-  "font-mono":
-    '"JetBrains Mono","SF Mono","Cascadia Code","Roboto Mono","Consolas","Noto Sans Mono CJK SC",monospace'
-};
-
+const APPENDIX_VALUES = parseAppendixTokens();
 const APPENDIX_TOKENS = Object.keys(APPENDIX_VALUES);
 
-/** 去掉所有空白，用于值等价比较（prettier 会规范化 rgba 内的空格） */
+/**
+ * 值等价比较的规范化：
+ *   1. 去全部空白 —— prettier 会规范化 `rgba()` 内外的空格；
+ *   2. 小数尾零归一 —— `0.30` 与 `0.3` 数值等价；
+ *   3. font-family 里标识符的引号可选 —— `Consolas` 与 `"Consolas"` 等价。
+ * 规范与 tokens.css 是"逐字转录"关系，但工具链（prettier）会做上述规范化，
+ * 所以比较的是**语义等价**，不是字节相同。
+ */
 function normalize(value: string): string {
-  return value.replace(/\s+/g, "");
+  return value
+    .replace(/\s+/g, "")
+    .replace(/\.(\d*?)0+(?=[,)])/g, ".$1")
+    .replace(/"([A-Za-z][\w-]*)"/g, "$1");
 }
 
 describe("PRISM token 契约", () => {
+  it("附录解析成功：拿到规范里的变量表（防解析静默失败）", () => {
+    const parsed = parseAppendixTokens();
+    expect(Object.keys(parsed).length).toBeGreaterThan(50);
+    // 关键变量必须解析到，否则说明文档结构变了、解析器失效
+    for (const key of ["--accent", "--surface-base", "--text-primary"]) {
+      const name = key.replace(/^--/, "");
+      expect(parsed[name]).toBeTruthy();
+    }
+  });
+
   it("附录 CSS 变量速查的每个变量都在 tokens.css 中定义", () => {
     const missing = APPENDIX_TOKENS.filter(name => token(name) === "");
     expect(missing).toEqual([]);
   });
-
   it("附录变量的值与 Phase 1R 速查逐个等价（忽略空白）", () => {
     const drifted: string[] = [];
     for (const [name, expected] of Object.entries(APPENDIX_VALUES)) {

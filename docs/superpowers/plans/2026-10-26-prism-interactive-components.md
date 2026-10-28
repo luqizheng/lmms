@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-25-prism-admin-ui-design.md`；视觉与交互真源 `D:\Workspace\web-concept\design\phase1-visual-direction.md`（PRISM v2.0）与 `phase2-ux-spec.md`（Phase 2 v1.1）
 
+> **2026-10-28 注（追写，不改上文原文）**：上面引用的 `D:\Workspace\web-concept\design\...` 已迁入本仓库 [`docs/prism/`](../../prism/README.md) 作为权威副本；该目录降级为设计侧草稿区。详见 `docs/superpowers/specs/2026-10-28-prism-spec-versioning-design.md`。
+
 ## 共享契约（所有组件必须遵守）
 
 1. **目录形态**：`frontend/src/components/ui/<kebab-name>/`，内含 `<Name>.vue`、`index.ts`（barrel）、`<Name>.test.ts`。

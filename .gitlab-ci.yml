@@ -233,13 +233,18 @@ prism_tokens_check:
   script:
     - node scripts/check-prism-tokens.js
     - node --test scripts/check-prism-tokens.test.js
+    - node scripts/check-prism-spec-sync.js
+    - node --test scripts/check-prism-spec-sync.test.js
   rules:
     - changes:
         - frontend/src/components/ui/**/*
         - frontend/src/styles/prism/**/*
         - frontend/src/shell/**/*
+        - docs/prism/**/*
         - scripts/check-prism-tokens.js
         - scripts/check-prism-tokens.test.js
+        - scripts/check-prism-spec-sync.js
+        - scripts/check-prism-spec-sync.test.js
       when: on_success
     - when: never
 
