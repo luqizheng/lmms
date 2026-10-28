@@ -28,6 +28,11 @@ RUN apk add --no-cache ca-certificates curl
 COPY --from=builder /app/iam_service /usr/local/bin/iam_service
 COPY --from=builder /app/iam_outbox_publisher /usr/local/bin/iam_outbox_publisher
 
+# 角色感知健康探针：这张镜像同时承载服务端（iam_service，8081）与 worker
+# （iam_outbox_publisher，无端口），单一 HEALTHCHECK 无法同时覆盖两者。
+COPY infrastructure/docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
 # Note: no COPY of config.yaml. The default config is embedded in the binary
 # via `include_str!("../config/config.default.yaml")` (see src/config.rs) and
 # is written to CONFIG_PATH on first boot if the file is absent. Runtime
@@ -35,7 +40,9 @@ COPY --from=builder /app/iam_outbox_publisher /usr/local/bin/iam_outbox_publishe
 
 EXPOSE 8081
 
+ENV HEALTHCHECK_PORT=8081
+
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
-  CMD wget --spider -q http://127.0.0.1:8081/health || exit 1
+  CMD /usr/local/bin/healthcheck.sh
 
 CMD ["iam_service"]
