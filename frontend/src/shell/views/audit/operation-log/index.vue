@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   DataTable,
+  UserLabel,
   type QueryField,
   type TableColumn
 } from "@/shell/components";
@@ -24,13 +25,18 @@ interface Row {
 }
 
 const columns: TableColumn[] = [
-  { label: t("system.audit.actor"), prop: "user_id" },
+  { label: t("system.audit.actor"), prop: "user_id", slot: "user" },
   { label: t("system.audit.action"), prop: "action" },
   { label: t("system.audit.target"), prop: "resource" },
   { label: t("system.audit.createdAt"), prop: "created_at", numeric: true }
 ];
 
 const query: QueryField[] = [];
+
+/** 表格插槽里的行是弱类型，取 userId 时只认字符串 */
+function userIdOf(row: Record<string, unknown>): string | undefined {
+  return typeof row.user_id === "string" ? row.user_id : undefined;
+}
 
 const rows = ref<Row[]>([]);
 const total = ref(0);
@@ -86,7 +92,11 @@ onMounted(load);
           load();
         }
       "
-    />
+    >
+      <template #user="{ row }">
+        <UserLabel :user-id="userIdOf(row)" />
+      </template>
+    </DataTable>
   </section>
 </template>
 

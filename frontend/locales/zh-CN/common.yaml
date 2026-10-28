@@ -10,6 +10,7 @@ common:
   create: 新建
   edit: 编辑
   detail: 详情
+  user: "用户 #{id}"
   pageSize: 每页条数
   total: "共 {count} 条"
   empty: 还没有记录

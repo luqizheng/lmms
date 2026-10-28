@@ -10,4 +10,5 @@ export { resolveIcon } from "./icons";
 export { default as TabBar } from "./TabBar.vue";
 export type { TabItem } from "./TabBar.vue";
 export { default as Topbar } from "./Topbar.vue";
+export { default as UserLabel } from "./UserLabel.vue";
 export { default as UserMenu } from "./UserMenu.vue";

@@ -5,6 +5,7 @@ import { http } from "@/shell/api";
 import { Badge } from "@/components/ui/badge";
 import {
   DataTable,
+  UserLabel,
   type QueryField,
   type TableColumn
 } from "@/shell/components";
@@ -29,7 +30,7 @@ const loading = ref(false);
 const keyword = ref("");
 
 const columns: TableColumn[] = [
-  { label: t("system.session.user"), prop: "user_id" },
+  { label: t("system.session.user"), prop: "user_id", slot: "user" },
   { label: t("system.session.ip"), prop: "client_ip" },
   { label: t("system.session.current"), prop: "is_current", slot: "current" },
   { label: t("system.session.expiresAt"), prop: "expires_at", numeric: true }
@@ -38,6 +39,11 @@ const columns: TableColumn[] = [
 const query: QueryField[] = [
   { prop: "keyword", placeholder: t("system.session.searchPlaceholder") }
 ];
+
+/** 表格插槽里的行是弱类型，取 userId 时只认字符串 */
+function userIdOf(row: Record<string, unknown>): string | undefined {
+  return typeof row.user_id === "string" ? row.user_id : undefined;
+}
 
 async function load() {
   loading.value = true;
@@ -86,6 +92,10 @@ onMounted(load);
         }
       "
     >
+      <template #user="{ row }">
+        <UserLabel :user-id="userIdOf(row)" />
+      </template>
+
       <template #current="{ row }">
         <Badge :variant="row.is_current ? 'accent' : 'neutral'">
           {{

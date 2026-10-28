@@ -170,6 +170,8 @@ describe("DropdownMenu", () => {
     );
     await flush();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    // 焦点归还同样是异步的：等它落到触发器上再断言
+    await waitForFocus(trigger);
     expect(document.activeElement).toBe(trigger);
   });
 
