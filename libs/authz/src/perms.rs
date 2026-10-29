@@ -114,6 +114,12 @@ pub mod perms {
     pub const PM_TASK_UPDATE: &str = "PM_TASK_UPDATE";
     /// 调用 LLM 细化需求（占位 provider）
     pub const PM_LLM_ASSIST: &str = "PM_LLM_ASSIST";
+    /// 通过 MCP 读取任务/需求/文档
+    pub const PM_MCP_READ: &str = "PM_MCP_READ";
+    /// 通过 MCP 推送文档并建立任务/需求关联
+    pub const PM_MCP_DOCUMENT_WRITE: &str = "PM_MCP_DOCUMENT_WRITE";
+    /// 通过 MCP 更新任务状态与工作日志
+    pub const PM_MCP_TASK_UPDATE: &str = "PM_MCP_TASK_UPDATE";
 }
 
 /// Check if permission code is valid
@@ -175,5 +181,8 @@ pub fn is_valid(perm: &str) -> bool {
             | "PM_MILESTONE_DELETE"
             | "PM_TASK_UPDATE"
             | "PM_LLM_ASSIST"
+            | "PM_MCP_READ"
+            | "PM_MCP_DOCUMENT_WRITE"
+            | "PM_MCP_TASK_UPDATE"
     )
 }

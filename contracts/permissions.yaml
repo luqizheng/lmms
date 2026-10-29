@@ -144,3 +144,11 @@ permissions:
   # === LLM 辅助 ===
   PM_LLM_ASSIST:
     description: "调用 LLM 细化需求（占位 provider）"
+
+  # === MCP（AI coding 工具接入，spec 2026-10-28-pm-mcp-coding-agent-integration §5.5）===
+  PM_MCP_READ:
+    description: "通过 MCP 读取任务/需求/文档"
+  PM_MCP_DOCUMENT_WRITE:
+    description: "通过 MCP 推送文档并建立任务/需求关联"
+  PM_MCP_TASK_UPDATE:
+    description: "通过 MCP 更新任务状态与工作日志"
