@@ -23,6 +23,8 @@ pub struct ClientView {
     pub access_token_ttl_sec: i64,
     pub refresh_token_ttl_sec: i64,
     pub status: String,
+    pub user_id: Option<String>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -37,6 +39,8 @@ impl From<ClientRow> for ClientView {
             access_token_ttl_sec: r.access_token_ttl_sec,
             refresh_token_ttl_sec: r.refresh_token_ttl_sec,
             status: r.status,
+            user_id: r.user_id,
+            expires_at: r.expires_at,
             created_at: r.created_at,
             updated_at: r.updated_at,
         }

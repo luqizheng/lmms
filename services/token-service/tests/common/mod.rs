@@ -108,3 +108,35 @@ async fn run_migrations(pool: &MySqlPool) {
         }
     }
 }
+
+/// 测试用 PEM（与 workspace 的 libs/common-jwt fixtures 同源）。
+pub const TEST_PRIVATE_PEM: &str =
+    include_str!("../../../../libs/common-jwt/tests/fixtures/test_private.pem");
+pub const TEST_PUBLIC_PEM: &str =
+    include_str!("../../../../libs/common-jwt/tests/fixtures/test_public.pem");
+
+/// 构造带真实 DB pool 的 TokenServerState（HTTP 级测试用，oneshot 房规）。
+/// `user_service_url` 指向不可达地址 → claims 拉取走降级路径。
+pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
+    let jwks = std::sync::Arc::new(
+        digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).expect("jwks from pem"),
+    );
+    token_service::TokenServerState {
+        db: pool,
+        issuer: std::sync::Arc::new(
+            token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer"),
+        ),
+        issuer_str: "test-issuer".into(),
+        jwt_public_key: TEST_PUBLIC_PEM.into(),
+        default_resource_ttl_sec: 3600,
+        http_client: std::sync::Arc::new(digua_common_http::ResilientClient::new(
+            reqwest::Client::new(),
+            digua_common_http::ResilienceConfig::default(),
+            std::sync::Arc::new(digua_common_http::NoopObserver),
+        )),
+        user_service_url: "http://iam-service:8081".into(),
+        private_key_pem: TEST_PRIVATE_PEM.into(),
+        bootstrap_tokens: vec![],
+        jwks,
+    }
+}
