@@ -71,4 +71,87 @@ describe("TabBar", () => {
     await navs[1].trigger("click");
     expect(scrollBy).toHaveBeenCalledWith({ left: 176, behavior: "smooth" });
   });
+
+  it("右键标签弹出上下文菜单，按位置禁用菜单项", async () => {
+    const w = mountTabBar();
+    expect(document.body.querySelector(".ui-tabbar__menu")).toBeNull();
+
+    await w.findAll(".ui-tabbar__tab")[0].trigger("contextmenu");
+    let items = menuItems();
+    expect(items).toHaveLength(5);
+    expect(items[0].disabled).toBe(false);
+    expect(items[1].disabled).toBe(true); // 目标已是第一个，无左侧可关
+    expect(items[2].disabled).toBe(false);
+    expect(items[3].disabled).toBe(false);
+    expect(items[4].disabled).toBe(false);
+
+    document.body
+      .querySelectorAll<HTMLElement>(".ui-tabbar__menu-item")[2]
+      .click();
+    await nextTick();
+    expect(w.emitted("closeRight")).toEqual([["/dashboard"]]);
+    expect(document.body.querySelector(".ui-tabbar__menu")).toBeNull();
+
+    await w.findAll(".ui-tabbar__tab")[1].trigger("contextmenu");
+    items = menuItems();
+    expect(items[1].disabled).toBe(false);
+    expect(items[2].disabled).toBe(true); // 目标已是最后一个，无右侧可关
+  });
+
+  it("点击关闭全部触发 closeAll 并收起菜单", async () => {
+    const w = mountTabBar();
+    await w.findAll(".ui-tabbar__tab")[0].trigger("contextmenu");
+    document.body
+      .querySelectorAll<HTMLElement>(".ui-tabbar__menu-item")[4]
+      .click();
+    await nextTick();
+    expect(w.emitted("closeAll")).toEqual([[]]);
+    expect(document.body.querySelector(".ui-tabbar__menu")).toBeNull();
+  });
+
+  it("不可关标签：关闭项禁用，批量项把它排除在外", async () => {
+    const w = mountShell(TabBar, {
+      props: {
+        tabs: [
+          { path: "/home", title: "首页", closable: false },
+          { path: "/a", title: "A" }
+        ],
+        activePath: "/a"
+      }
+    });
+    await w.findAll(".ui-tabbar__tab")[0].trigger("contextmenu");
+    const items = menuItems();
+    expect(items[0].disabled).toBe(true);
+    expect(items[3].disabled).toBe(false); // 还有可关的 /a
+
+    document.body
+      .querySelectorAll<HTMLElement>(".ui-tabbar__menu-item")[3]
+      .click();
+    await nextTick();
+    expect(w.emitted("closeOthers")).toEqual([["/home"]]);
+  });
+
+  it("Escape 关闭菜单", async () => {
+    const w = mountTabBar();
+    await w.findAll(".ui-tabbar__tab")[0].trigger("contextmenu");
+    expect(document.body.querySelector(".ui-tabbar__menu")).not.toBeNull();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await nextTick();
+    expect(document.body.querySelector(".ui-tabbar__menu")).toBeNull();
+  });
+
+  it("点击菜单外关闭菜单", async () => {
+    const w = mountTabBar();
+    await w.findAll(".ui-tabbar__tab")[0].trigger("contextmenu");
+    expect(document.body.querySelector(".ui-tabbar__menu")).not.toBeNull();
+    document.body.dispatchEvent(new MouseEvent("pointerdown"));
+    await nextTick();
+    expect(document.body.querySelector(".ui-tabbar__menu")).toBeNull();
+  });
 });
+
+function menuItems() {
+  return Array.from(
+    document.body.querySelectorAll<HTMLElement>(".ui-tabbar__menu-item")
+  );
+}

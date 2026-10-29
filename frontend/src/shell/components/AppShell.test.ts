@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import AppShell from "./AppShell.vue";
+import TabBar from "./TabBar.vue";
 import { mountShell } from "../test-utils";
 
 const push = vi.fn();
@@ -71,5 +72,23 @@ describe("AppShell", () => {
     const w = mountShell(AppShell);
     await nextTick();
     expect(w.findAll(".ui-tabbar__tab").length).toBeGreaterThan(0);
+  });
+
+  it("标签栏的关闭全部事件清空标签", async () => {
+    const w = mountShell(AppShell);
+    await nextTick();
+    expect(w.findAll(".ui-tabbar__tab").length).toBeGreaterThan(0);
+    w.findComponent(TabBar).vm.$emit("closeAll");
+    await nextTick();
+    expect(w.findAll(".ui-tabbar__tab")).toHaveLength(0);
+  });
+
+  it("关闭其他标签时保留目标标签", async () => {
+    const w = mountShell(AppShell);
+    await nextTick();
+    w.findComponent(TabBar).vm.$emit("closeOthers", "/dashboard");
+    await nextTick();
+    expect(w.findAll(".ui-tabbar__tab")).toHaveLength(1);
+    expect(w.find(".ui-tabbar__tab").text()).toContain("概览");
   });
 });

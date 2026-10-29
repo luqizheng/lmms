@@ -8,7 +8,8 @@ import { ToastHost } from "@/components/ui/toast";
 import ConfirmHost from "./ConfirmHost.vue";
 import Sidebar from "./Sidebar.vue";
 import Topbar from "./Topbar.vue";
-import TabBar, { type TabItem } from "./TabBar.vue";
+import TabBar from "./TabBar.vue";
+import { planTabClose, type TabItem } from "./tab-close";
 import { useAuthStore } from "../store/auth";
 import { useMenuStore } from "../store/menu";
 import {
@@ -119,13 +120,41 @@ watch(
   { immediate: true }
 );
 
+/** 标签关闭的统一入口：批量语义（含跳转回退）见 tab-close.ts 的 planTabClose */
+function applyTabClose(shouldClose: (tab: TabItem, index: number) => boolean) {
+  const { remaining, fallback } = planTabClose(
+    tabs.value,
+    shouldClose,
+    route.path
+  );
+  tabs.value = remaining;
+  if (fallback) router.push(fallback.path);
+}
+
 function closeTab(path: string) {
+  applyTabClose(tab => tab.path === path);
+}
+
+function closeLeftTabs(path: string) {
   const index = tabs.value.findIndex(tab => tab.path === path);
-  tabs.value = tabs.value.filter(tab => tab.path !== path);
-  if (path === route.path) {
-    const next = tabs.value[index - 1] ?? tabs.value[index];
-    if (next) router.push(next.path);
-  }
+  if (index === -1) return;
+  applyTabClose((tab, i) => i < index && tab.closable !== false);
+}
+
+function closeRightTabs(path: string) {
+  const index = tabs.value.findIndex(tab => tab.path === path);
+  if (index === -1) return;
+  applyTabClose((tab, i) => i > index && tab.closable !== false);
+}
+
+function closeOtherTabs(path: string) {
+  const index = tabs.value.findIndex(tab => tab.path === path);
+  if (index === -1) return;
+  applyTabClose((tab, i) => i !== index && tab.closable !== false);
+}
+
+function closeAllTabs() {
+  applyTabClose(tab => tab.closable !== false);
 }
 </script>
 
@@ -195,6 +224,10 @@ function closeTab(path: string) {
         :active-path="activePath"
         @select="path => router.push(path)"
         @close="closeTab"
+        @close-left="closeLeftTabs"
+        @close-right="closeRightTabs"
+        @close-others="closeOtherTabs"
+        @close-all="closeAllTabs"
       />
 
       <main

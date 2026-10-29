@@ -13,6 +13,11 @@ shell:
     label: 已打开页面
     scrollPrev: 向左翻页
     scrollNext: 向右翻页
+    close: 关闭
+    closeLeft: 关闭左侧
+    closeRight: 关闭右侧
+    closeOthers: 关闭其他
+    closeAll: 关闭全部
   nav:
     label: 主导航
     breadcrumb: 面包屑
