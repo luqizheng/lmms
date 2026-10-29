@@ -11,6 +11,10 @@ pub struct ClientRow {
     pub access_token_ttl_sec: i64,
     pub refresh_token_ttl_sec: i64,
     pub status: String,
+    /// 绑定的用户 id；NULL = 纯机器身份。
+    pub user_id: Option<String>,
+    /// API Key 自身过期时间；NULL = 不过期。
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -25,6 +29,10 @@ pub struct Client {
     pub access_token_ttl_sec: i64,
     pub refresh_token_ttl_sec: i64,
     pub status: String,
+    /// 绑定的用户 id；NULL = 纯机器身份。
+    pub user_id: Option<String>,
+    /// API Key 自身过期时间；NULL = 不过期。
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl ClientRow {
@@ -38,6 +46,8 @@ impl ClientRow {
             access_token_ttl_sec: self.access_token_ttl_sec,
             refresh_token_ttl_sec: self.refresh_token_ttl_sec,
             status: self.status,
+            user_id: self.user_id,
+            expires_at: self.expires_at,
         }
     }
 }

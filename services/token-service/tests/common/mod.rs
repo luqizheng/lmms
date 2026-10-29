@@ -12,7 +12,11 @@ use testcontainers::ImageExt;
 use testcontainers_modules::mysql::Mysql;
 use token_service::db::DbPool;
 
-pub const MIGRATION_SQL: &str = include_str!("../../migrations/mysql/V001__init.sql");
+/// 按序执行的迁移列表。直接复用生产代码的 `db::MIGRATIONS`，避免两份清单漂移。
+///
+/// 测试库每次都是新建的，所以这里无条件按序执行全部迁移，不需要 marker 判定
+/// （生产路径的 marker 逻辑由 `tests/migration_marker_test.rs` 单独覆盖）。
+pub use token_service::db::MIGRATIONS;
 
 pub async fn spawn_mysql() -> DbPool {
     if let (Ok(host), Ok(port)) = (
@@ -87,17 +91,20 @@ async fn build_pool(url: &str) -> MySqlPool {
 }
 
 async fn run_migrations(pool: &MySqlPool) {
-    // 先剥离整行注释，避免以 `--` 开头的语句被整条跳过导致建表缺失
-    let cleaned = MIGRATION_SQL
-        .lines()
-        .filter(|l| !l.trim_start().starts_with("--"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    for stmt in cleaned.split(';') {
-        let s = stmt.trim();
-        if s.is_empty() {
-            continue;
+    for m in MIGRATIONS {
+        // 先剥离整行注释，避免以 `--` 开头的语句被整条跳过导致建表缺失
+        let cleaned = m
+            .sql
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("--"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for stmt in cleaned.split(';') {
+            let s = stmt.trim();
+            if s.is_empty() {
+                continue;
+            }
+            sqlx::query(s).execute(pool).await.expect("run migration");
         }
-        sqlx::query(s).execute(pool).await.expect("run migration");
     }
 }

@@ -23,11 +23,22 @@ impl MigrationState for TokenMigrationState {
         "mysql"
     }
     fn migrations(&self) -> &'static [MigrationDescriptor] {
-        &[MigrationDescriptor {
-            version: "V001",
-            name: "init",
-            marker_table: "token_oauth_clients",
-        }]
+        &[
+            MigrationDescriptor {
+                version: "V001",
+                name: "init",
+                marker_table: "token_oauth_clients",
+            },
+            // V002 是 ALTER 型迁移：marker 用它自己的哨兵表
+            // （token_migration_v002_applied）。不能沿用 token_oauth_clients——
+            // 那张表 V001 已在每个存量库里建好，用它探测会把没跑过 V002 的库
+            // 误报成"V002 已应用"。
+            MigrationDescriptor {
+                version: "V002",
+                name: "add_client_user_and_expiry",
+                marker_table: "token_migration_v002_applied",
+            },
+        ]
     }
 }
 
@@ -88,12 +99,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn token_has_one_migration() {
+    fn token_has_two_migrations() {
         let s = TokenMigrationState;
         assert_eq!(s.service_name(), "token-service");
         assert_eq!(s.dialect(), "mysql");
-        assert_eq!(s.migrations().len(), 1);
+        assert_eq!(s.migrations().len(), 2);
         assert_eq!(s.migrations()[0].version, "V001");
         assert_eq!(s.migrations()[0].marker_table, "token_oauth_clients");
+        assert_eq!(s.migrations()[1].version, "V002");
+        assert_eq!(s.migrations()[1].marker_table, "token_migration_v002_applied");
+    }
+
+    /// 描述符必须与 `db::MIGRATIONS` 逐条对齐（版本 + marker），
+    /// 否则 `/internal/migrations/state` 会把未跑的迁移误报成已应用。
+    #[test]
+    fn migration_descriptors_match_db_migrations() {
+        let s = TokenMigrationState;
+        let descriptors = s.migrations();
+        assert_eq!(descriptors.len(), crate::db::MIGRATIONS.len());
+        for (d, m) in descriptors.iter().zip(crate::db::MIGRATIONS.iter()) {
+            assert_eq!(d.version, m.version);
+            assert_eq!(d.marker_table, m.marker_table);
+        }
     }
 }

@@ -90,6 +90,8 @@ pub async fn handle_create_api_key(
         access_token_ttl_sec: req.access_token_ttl_sec.unwrap_or(3600),
         refresh_token_ttl_sec: req.refresh_token_ttl_sec.unwrap_or(2592000),
         status: "active".into(),
+        user_id: None,
+        expires_at: None,
     };
 
     oauth_client_svc::insert(&state.db, &new_client)

@@ -176,6 +176,8 @@ pub async fn handle_create(
         access_token_ttl_sec: req.access_token_ttl_sec,
         refresh_token_ttl_sec: req.refresh_token_ttl_sec,
         status: req.status,
+        user_id: None,
+        expires_at: None,
     };
     oauth_client_svc::insert(&state.db, &model)
         .await
