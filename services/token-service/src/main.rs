@@ -165,23 +165,6 @@ async fn main() {
             "/.well-known/jwks.json",
             axum::routing::get(routes::jwks::handle_jwks),
         )
-        .route(
-            "/api-keys",
-            axum::routing::post(routes::api_key::handle_create_api_key)
-                .get(routes::api_key::handle_list_api_keys),
-        )
-        .route(
-            "/admin/oauth-clients",
-            axum::routing::get(routes::admin::handle_list).post(routes::admin::handle_create),
-        )
-        .route(
-            "/admin/oauth-clients/{client_id}",
-            axum::routing::put(routes::admin::handle_update).delete(routes::admin::handle_delete),
-        )
-        .route(
-            "/admin/oauth-clients/{client_id}/reset-secret",
-            axum::routing::post(routes::admin::handle_reset_secret),
-        )
         .route_layer(axum::middleware::from_fn(
             digua_common_telemetry_axum::trace_request_middleware,
         ))
@@ -192,6 +175,11 @@ async fn main() {
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
         tracing::info!("swagger ui enabled at /swagger-ui");
     }
+
+    // /api-keys 与 /admin/oauth-clients* 由各自的 routes() 构造器挂载——
+    // 内部带 service-jwt 鉴权中间件（aud=token-service）。
+    app = app.merge(routes::api_key::routes(state.clone()));
+    app = app.merge(routes::admin::routes(state.clone()));
 
     // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
     app = app.merge(token_service::service_jwt_routes(state.clone()));

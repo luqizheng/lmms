@@ -311,3 +311,32 @@ pub async fn handle_reset_secret(
         client_secret: plain,
     }))
 }
+
+/// `/admin/oauth-clients*` 路由（带 service-jwt 鉴权，aud=token-service）。
+///
+/// OAuth 客户端管理是凭据发放面，原先裸挂无鉴权（OpenAPI 注解里的
+/// `security(("bearer_auth" = []))` 只是文档声明，无中间件生效）。
+pub fn routes(state: crate::TokenServerState) -> axum::Router {
+    use axum::routing::{get, post};
+
+    axum::Router::new()
+        .route(
+            "/admin/oauth-clients",
+            get(handle_list).post(handle_create),
+        )
+        .route(
+            "/admin/oauth-clients/{client_id}",
+            axum::routing::put(handle_update).delete(handle_delete),
+        )
+        .route(
+            "/admin/oauth-clients/{client_id}/reset-secret",
+            post(handle_reset_secret),
+        )
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            digua_authz::verify_aud_principal_middleware::<crate::TokenServerState>(
+                "token-service",
+            ),
+        ))
+        .with_state(state)
+}

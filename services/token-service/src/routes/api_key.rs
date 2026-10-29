@@ -152,3 +152,21 @@ pub async fn handle_list_api_keys(
         size,
     }))
 }
+
+/// `/api-keys` 路由（带 service-jwt 鉴权，aud=token-service）。
+///
+/// 创建/列出 API Key 等于发放身份凭据，必须受鉴权保护——原先裸挂，
+/// 任何能访问本服务的人都能创建绑定任意用户的密钥（spec §3.5 附带发现）。
+pub fn routes(state: crate::TokenServerState) -> axum::Router {
+    use axum::routing::{get, post};
+
+    axum::Router::new()
+        .route("/api-keys", post(handle_create_api_key).get(handle_list_api_keys))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            digua_authz::verify_aud_principal_middleware::<crate::TokenServerState>(
+                "token-service",
+            ),
+        ))
+        .with_state(state)
+}
