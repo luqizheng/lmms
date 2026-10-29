@@ -11,6 +11,8 @@ shell:
     closeTab: 关闭标签页
   tabs:
     label: 已打开页面
+    scrollPrev: 向左翻页
+    scrollNext: 向右翻页
   nav:
     label: 主导航
     breadcrumb: 面包屑
