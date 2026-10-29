@@ -196,6 +196,30 @@ const gitkeep = path.join(DIST_DIR, 'secrets', '.gitkeep');
 if (!existsSync(gitkeep)) writeFileSync(gitkeep, '');
 console.log('[release]   ✓ dist-template skeleton copied');
 
+// ── 版本号注入：dist 内 Makefile / .env.example 的 IMAGE_TAG 对齐包版本 ─────────
+// 源头模板恒为 1.0.0；打包时把真实版本写入产物。配合 transform-compose.js 生成的
+// ${IMAGE_TAG:-<version>} 插值，make up 用包内默认值，bin/upgrade.js 升级时以
+// 进程环境变量 / .env 覆盖，两处版本永远有唯一出处。
+const IMAGE_TAG_VALUE = VERSION.replace(/^v/, '');
+function rewriteImageTag(relFile, applyFns) {
+  const abs = path.join(DIST_DIR, relFile);
+  if (!existsSync(abs)) return;
+  const before = readFileSync(abs, 'utf-8');
+  let after = before;
+  for (const fn of applyFns) after = fn(after);
+  if (after !== before) {
+    writeFileSync(abs, after);
+    console.log(`[release]   ✓ ${relFile}: IMAGE_TAG → ${IMAGE_TAG_VALUE}`);
+  }
+}
+rewriteImageTag('.env.example', [
+  (t) => t.replace(/^IMAGE_TAG=.*$/m, `IMAGE_TAG=${IMAGE_TAG_VALUE}`),
+]);
+rewriteImageTag('Makefile', [
+  (t) => t.replace(/^IMAGE_TAG[ \t]*\??=.*$/m, `IMAGE_TAG ?= ${IMAGE_TAG_VALUE}`),
+  (t) => t.replace(/(coder-micro-services )v\d+(?:\.\d+)*/, `$1v${IMAGE_TAG_VALUE}`),
+]);
+
 // ── 同步发布脚本子集（绕过上述 readdir 循环的 scripts 排除，让 airgap 产物能复打）────
 // 'scripts' 在上文骨架同步被显式排除，原因：readdirSync(ROOT) 含 'scripts' 自身，
 // 若递归拷贝会让 release.js 把自己的副本嵌入自己的副本里。

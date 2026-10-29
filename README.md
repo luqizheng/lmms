@@ -377,6 +377,22 @@ node release/dist-template/scripts/release.js v1.0.0
 >
 > 详见 [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md)
 
+### 发布 CLI（cms-release）
+
+上述「发镜像 → 升版本 → 打包 → 下游升级」的统一入口，零依赖 JS CLI（`release/release-cli/`，npm 包 `@digua/release-cli`）：
+
+```bash
+pnpm run release:cli -- status                        # git tag / Makefile / CHANGELOG 版本对账
+pnpm run release:cli -- bump --minor --tag            # 版本收口：改写 dist-template Makefile + 打 git tag
+pnpm run release:cli -- publish -v 1.5.2 --load-and-push   # 构建+推送镜像（委托 build-docker.js）
+pnpm run release:cli -- package -v 1.5.2              # 打离线包（委托 release.js）
+pnpm run release:cli -- upgrade <dist-dir> 1.5.3      # 下游分发包就地升级（委托 bin/upgrade.js）
+```
+
+`-v` 缺省取最新 git tag 去 v；所有命令支持 `--dry-run`。设计见
+[`docs/superpowers/specs/2026-10-29-release-cli-design.md`](docs/superpowers/specs/2026-10-29-release-cli-design.md)，
+用法详见 [`release/release-cli/README.md`](release/release-cli/README.md)。
+
 ## Infrastructure
 
 - **Consul**: Service discovery
