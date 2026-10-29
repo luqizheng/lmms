@@ -251,12 +251,18 @@ pnpm run release:build                                  # 等价：默认版本�
 ## 升级
 
 ```bash
-# 在线升级
+# 在线升级（v/1.x 两种写法都收）
 make upgrade TAG=v1.1.0
+node bin/upgrade.js 1.1.0
 
-# 离线升级：先加载新镜像 tar，再运行
+# 离线升级：先加载新镜像 tar，再运行同上命令
 make upgrade TAG=v1.1.0
 ```
+
+升级机制：compose 的镜像 tag 由打包时写成 `${IMAGE_TAG:-<打包版本>}`；
+`bin/upgrade.js` 会先把 `.env` 的 `IMAGE_TAG=` 行改写为新版本（持久化，后续 `make up` 沿用），
+再以 `IMAGE_TAG=<no-v 版本>` 环境变量执行 `docker compose pull && up -d`（volumes 保留）。
+上游框架侧可用 `cms-release upgrade <dist-dir> <ver>` 触发同一脚本（见 `release/release-cli/`）。
 
 ## 数据安全
 

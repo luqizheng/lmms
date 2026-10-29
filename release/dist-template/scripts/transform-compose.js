@@ -116,10 +116,12 @@ function main() {
 
     i = skipCoexistingImageTag(lines, i);
 
-    // 替换为 image: 行（与 build: 同缩进，4 空格）
-    output.push(`    image: ${registry}/${imageKey}:${version}`);
+    // 替换为 image: 行（与 build: 同缩进，4 空格）。
+    // tag 用 ${IMAGE_TAG:-<version>} 插值：默认值 = 打包版本（行为向后兼容），
+    // 升级时 upgrade.js 以进程环境变量 IMAGE_TAG 覆盖（compose 插值进程 env 优先于 --env-file）。
+    output.push(`    image: ${registry}/${imageKey}:\${IMAGE_TAG:-${version}}`);
     modified = true;
-    console.error(`[transform-compose]   ${serviceName}: build → image: ${registry}/${imageKey}:${version}`);
+    console.error(`[transform-compose]   ${serviceName}: build → image: ${registry}/${imageKey}:\${IMAGE_TAG:-${version}}`);
   }
 
   if (!modified) {
