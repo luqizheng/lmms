@@ -90,3 +90,4 @@ apps/pm/**/target/
 
 # npm 包的构建产物（由 pnpm run packages:build 生成）
 packages/*/dist
+sdk/iam-services/dist

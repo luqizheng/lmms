@@ -54,6 +54,18 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@24.19.2)(happy-dom@20.10.6)(jsdom@16.6.0)(lightningcss@1.32.0)(sass@1.101.0)
 
+  sdk/iam-services:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.2
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@24.19.2)(happy-dom@20.10.6)(jsdom@16.6.0)(lightningcss@1.32.0)(sass@1.101.0)
+
   services/token-service: {}
 
 packages:
@@ -1803,6 +1815,7 @@ packages:
 
   whatwg-encoding@1.0.5:
     resolution: {integrity: sha512-b5lim54JOPN9HtzvK9HFXvBma/rnfFeqsic0hSpjtDbVxR3dJKLc+KB4V6GgiGOvl7CY/KNh8rxSo9DKQrnUEw==}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@2.3.0:
     resolution: {integrity: sha512-M4yMwr6mAnQz76TbJm914+gPpB/nCwvZbJU28cUD6dR004SAxDLOOSUaB1JDRqLtaOV/vi0IC5lEAGFgrjGv/g==}

@@ -3,6 +3,7 @@ packages:
   - "packages/contracts"
   - "packages/http"
   - "packages/cli"
+  - "sdk/iam-services"
 allowBuilds:
   '@parcel/watcher': true
   argon2: true

@@ -8,6 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
+const { spawnSync } = require('node:child_process');
 const { makeExec } = require('./spawn.js');
 const { GuardError } = require('./errors.js');
 
@@ -21,6 +22,8 @@ const PACKAGES = [
   { dir: 'packages/contracts', name: '@digua/contracts', needsBuild: true },
   { dir: 'packages/http', name: '@digua/http', needsBuild: true },
   { dir: 'packages/cli', name: '@digua/cli', needsBuild: false },
+  // 例外（用户裁决 2026-10-31）：npm TS 包不按惯例放 packages/，而放 sdk/iam-services
+  { dir: 'sdk/iam-services', name: 'iam-services', needsBuild: true },
 ];
 
 function normalizeVersion(v) {

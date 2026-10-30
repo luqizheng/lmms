@@ -15,11 +15,14 @@ sdk/
     digua_http_client/            # 通用服务间 HTTP 客户端（client_credentials + Bearer 透传）
   rust/                          # Rust（workspace 成员）
     digua_http_client/            # 通用服务间 HTTP 客户端
+  iam-services/                  # npm TS 包（登录 / 用户管理 / token 管理，见下方例外说明）
   openapi/                       # 离线 OpenAPI 规范
   scripts/                       # openapi-generator 触发脚本
 ```
 
 > **npm TS 包**：浏览器 / Node 侧不放在 `sdk/`，而是仓库顶层 `packages/`（`@digua/contracts` + `@digua/http`，发布到私有 registry `http://npm.kudi.repos/`；发布用根目录 `pnpm run packages:publish`，发布前校验用 `pnpm run packages:check`；CI 在 `v*.*.*` tag 触发时由 `publish_packages` job 自动按 tag 版本发布）
+>
+> **例外**：`sdk/iam-services`（npm 包名 `iam-services`）是 npm TS 包放 `sdk/` 的唯一例外——经用户裁决（2026-10-31）落位于此，同样接入上述发布管线（已列入 `packages/cli/lib/npm-packages.js` 清单）。
 >
 > **C# SDK（`sdk/dotnet`）规划中**：目录尚未创建。
 
