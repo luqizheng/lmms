@@ -5,6 +5,7 @@ const { parseFlags } = require('../lib/args.js');
 const { collectStatus } = require('../lib/release-status.js');
 const { resolveTarget, bumpLedger, commitLedger } = require('../lib/release-bump.js');
 const { normalizeVersion } = require('../lib/version.js');
+const { publishMaven } = require('../lib/maven-publish.js');
 const repo = require('../lib/repo.js');
 const fs = require('node:fs');
 
@@ -105,6 +106,36 @@ const commands = {
         human: [`created ${tag} (local only, NOT pushed)`, 'after human confirmation run:', `  ${next}`],
         warnings: ['pushing the tag triggers the four-way publish pipeline — explicit confirmation required'],
       };
+    },
+  },
+
+  'release publish maven': {
+    summary: 'publish Java SDK to Reposilite (--kind release|snapshot, curl mode default)',
+    run: async (args, ctx) => {
+      if (!ctx.root) throw new UsageError('release publish maven requires a repo context (--cwd)');
+      const { flags } = parseFlags(args, {
+        '--version': 'value', '--kind': 'value', '--profile': 'value', '--modules': 'value',
+        '--user': 'value', '--pass': 'value', '--repo-id': 'value', '--repo-url': 'value',
+        '--mvn': 'flag', '--dry-run': 'flag',
+      });
+      const result = publishMaven({
+        root: ctx.root,
+        version: flags['--version'],
+        kind: flags['--kind'] ?? 'release',
+        profile: flags['--profile'] ?? 'java8',
+        modules: flags['--modules'] ?? '',
+        user: flags['--user'] ?? '',
+        pass: flags['--pass'] ?? '',
+        repoId: flags['--repo-id'] ?? '',
+        repoUrl: flags['--repo-url'] ?? '',
+        useMvn: Boolean(flags['--mvn']),
+        dryRun: Boolean(flags['--dry-run']),
+        out: ctx.out,
+      });
+      const human = result.dryRun
+        ? ['dry-run OK: pom bump planned, mvn clean verify passed, nothing deployed']
+        : [`deployed ${result.uploaded}/${result.modules} artifacts to ${result.repoId} @ ${result.repoUrl}`, 'pom.xml version change is NOT auto-committed: git add sdk/java && git commit -m "feat(sdk): bump"'];
+      return { data: result, human, warnings: result.dryRun ? [] : ['pom.xml change requires a follow-up commit (see above)'] };
     },
   },
 
