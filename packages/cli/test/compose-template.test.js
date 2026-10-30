@@ -47,7 +47,7 @@ test('collectTemplateFiles keeps compose layout and excludes secrets/session fil
   assert.ok(rel.includes('docker-compose-infra.yml'));
   assert.ok(rel.includes('base-images.json'));
   assert.ok(rel.includes('.env.prod.example'), 'whitelisted dotfile kept');
-  assert.ok(rel.includes('README.md'));
+  assert.ok(!rel.includes('README.md'), 'lmms-owned docs excluded — consumers write their own');
   assert.ok(rel.includes(path.join('config', 'prometheus', 'prometheus.yml').replaceAll('\\', '/')));
   assert.ok(rel.includes(path.join('scripts', 'deploy-remote.sh').replaceAll('\\', '/')));
   assert.ok(!rel.includes('.env'), 'real secrets excluded');

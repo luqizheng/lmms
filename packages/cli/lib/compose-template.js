@@ -7,8 +7,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-// Top-level names never shipped in a template bundle.
-const EXCLUDE_NAMES = new Set(['AGENTS.md', 'STATE.md', 'LOOP.md', 'vendor']);
+// Top-level names never shipped in a template bundle. README.md is lmms-owned
+// documentation — consuming repos write their own (ruling 2026-10-30: template
+// docs belong to the consuming project).
+const EXCLUDE_NAMES = new Set(['AGENTS.md', 'STATE.md', 'LOOP.md', 'README.md', 'vendor']);
 // Session/loop scratch notes at any depth.
 const EXCLUDE_PATTERNS = [/^loop-.*\.md$/];
 
