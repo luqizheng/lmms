@@ -6,6 +6,7 @@ const { collectStatus } = require('../lib/release-status.js');
 const { resolveTarget, bumpLedger, commitLedger } = require('../lib/release-bump.js');
 const { normalizeVersion } = require('../lib/version.js');
 const { publishMaven } = require('../lib/maven-publish.js');
+const { publishRust } = require('../lib/rust-publish.js');
 const repo = require('../lib/repo.js');
 const fs = require('node:fs');
 
@@ -136,6 +137,28 @@ const commands = {
         ? ['dry-run OK: pom bump planned, mvn clean verify passed, nothing deployed']
         : [`deployed ${result.uploaded}/${result.modules} artifacts to ${result.repoId} @ ${result.repoUrl}`, 'pom.xml version change is NOT auto-committed: git add sdk/java && git commit -m "feat(sdk): bump"'];
       return { data: result, human, warnings: result.dryRun ? [] : ['pom.xml change requires a follow-up commit (see above)'] };
+    },
+  },
+
+  'release publish rust': {
+    summary: 'publish libs/*(17) + sdk/rust/*(7) crates to the registry (--targets all|libs|sdks)',
+    run: async (args, ctx) => {
+      if (!ctx.root) throw new UsageError('release publish rust requires a repo context (--cwd)');
+      const { flags, positional } = parseFlags(args, { '--dry-run': 'flag', '--registry': 'value', '--targets': 'value' });
+      const version = positional[0];
+      if (!version && !flags['--dry-run']) throw new UsageError('RUST_VERSION_REQUIRED', 'a version positional is required (e.g. coder release publish rust 1.7.0)');
+      const result = publishRust({
+        root: ctx.root,
+        version: version ?? '',
+        registry: flags['--registry'] ?? 'kellnr',
+        targets: flags['--targets'] ?? 'all',
+        dryRun: Boolean(flags['--dry-run']),
+        out: ctx.out,
+      });
+      const human = result.dryRun
+        ? [`dry-run plan: ${result.plan.length} crates (nothing executed)`]
+        : [`published ${result.published.length} crates to ${flags['--registry'] ?? 'kellnr'}`, 'Cargo.toml path deps restored to originals'];
+      return { data: result, human };
     },
   },
 
