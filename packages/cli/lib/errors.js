@@ -14,16 +14,31 @@ class CoderError extends Error {
   }
 }
 
+// Subclass constructors accept either (message, details) — defaulting to the
+// class code — or (semanticCode, message, details) so guards can carry a
+// machine-readable code like 'VERSION_DRIFT' in the JSON envelope.
 class UsageError extends CoderError {
-  constructor(message, details) { super('USAGE', message, details); this.exitCode = EXIT.USAGE; }
+  constructor(a, b, c) {
+    if (typeof b === 'string') super(a, b, c);
+    else super('USAGE', a, b);
+    this.exitCode = EXIT.USAGE;
+  }
 }
 
 class GuardError extends CoderError {
-  constructor(message, details) { super('GUARD', message, details); this.exitCode = EXIT.GUARD; }
+  constructor(a, b, c) {
+    if (typeof b === 'string') super(a, b, c);
+    else super('GUARD', a, b);
+    this.exitCode = EXIT.GUARD;
+  }
 }
 
 class ExternalError extends CoderError {
-  constructor(message, details) { super('EXTERNAL', message, details); this.exitCode = EXIT.EXTERNAL; }
+  constructor(a, b, c) {
+    if (typeof b === 'string') super(a, b, c);
+    else super('EXTERNAL', a, b);
+    this.exitCode = EXIT.EXTERNAL;
+  }
 }
 
 module.exports = { EXIT, CoderError, UsageError, GuardError, ExternalError };
