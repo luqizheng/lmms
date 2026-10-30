@@ -322,7 +322,8 @@ function buildService(name, ctx) {
   // （vitepress lastUpdated 依赖完整 git 仓库，容器内无法获取真实最后更新时间）
   if (name === 'docs-site') {
     console.log(`${chalk.dim(`[pre-build]`)} pnpm docs:build (生成静态站点)`);
-    const r = spawnSync('pnpm', ['docs:build'], { cwd: ROOT_DIR, stdio: 'inherit', shell: false });
+    // Windows 上 pnpm 是 .cmd 垫片，spawnSync 无 shell 时解析不到 → ENOENT，需 shell:true
+    const r = spawnSync('pnpm', ['docs:build'], { cwd: ROOT_DIR, stdio: 'inherit', shell: process.platform === 'win32' });
     if (r.error) {
       console.log(`${FAIL} [pre-build-fail] docs-site: 无法执行 pnpm: ${r.error.message}`);
       return false;
