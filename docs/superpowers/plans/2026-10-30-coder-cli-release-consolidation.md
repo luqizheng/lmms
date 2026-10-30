@@ -561,9 +561,9 @@ git commit -m "feat(cli): absorb rust crate publishing with restore-on-failure g
 
 **Interfaces:**
 - Produces:
-  - `PACKAGES = [{ dir: 'packages/contracts', name: '@digua/contracts' }, { dir: 'packages/http', name: '@digua/http' }]`
-  - `checkPackages({ root, nextVersion, registryUrl = 'http://npm.kudi.repos/', httpGet, exec }) -> { ok, failures, notes }`：校验项与现有脚本一致（包存在、`version` 可被覆盖、registry 可达、dist 构建产物存在）
-  - `publishPackages({ root, version, dryRun, exec, check = checkPackages }) -> { published }`：`pnpm run packages:build` → `check(...)` → 每个包 `npm version <v> --no-git-tag-version` → `npm publish --prefix <dir>`
+  - `PACKAGES = [{ dir: 'packages/contracts', name: '@digua/contracts', needsBuild: true }, { dir: 'packages/http', name: '@digua/http', needsBuild: true }, { dir: 'packages/cli', name: '@digua/cli', needsBuild: false }]`（spec §二.6：publish_packages 路新增 @digua/cli；cli 纯 CJS 无构建，跳过 dist 产物检查，发布顺序最后）
+  - `checkPackages({ root, nextVersion, registryUrl = 'http://npm.kudi.repos/', httpGet, exec }) -> { ok, failures, notes }`：校验项与现有脚本一致（包存在、`version` 可被覆盖、registry 可达、`needsBuild` 包的 dist 构建产物存在；`needsBuild:false` 跳过产物项）
+  - `publishPackages({ root, version, dryRun, exec, check = checkPackages }) -> { published }`：`pnpm run packages:build` → `check(...)` → 每个包 `npm version <v> --no-git-tag-version` → `npm publish --prefix <dir>`（按 PACKAGES 顺序）
 - 命令：`coder release publish npm --version X [--dry-run]`。
 
 - [ ] **Step 1: 写失败测试**
