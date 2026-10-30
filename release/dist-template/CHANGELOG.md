@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.6.0 (2026-10-30)
+
+### Added
+- PRISM 前端壳：全新设计系统（token 层 / 排版基线 / 设计约束校验器接入 CI）替换 pure-admin
+- PRISM 组件库：Button/Input/Textarea/Label/FormField/Card/Badge/Skeleton/Table（44px 行高/数值列等宽）/交互组件集（dialog/sheet/command 等 16 个）
+- 框架系统页：用户/角色/菜单/审计日志/配置项/公告/权限/组织架构/会话/文件/令牌客户端
+- shell 能力：tab 右键菜单（关闭当前/左侧/右侧/其他/全部）、tab 滚动导航、bot icon 菜单注册、用户目录与 UserLabel（审计/会话页显示昵称）、PageHeader + useToast、动态菜单/响应式/登录页/i18n
+- `cms-release` 发布 CLI：发布镜像 / 打离线包 / 版本收口 / 下游升级统一入口
+- `@digua/contracts` 与 `@digua/http` 前端基础包（含发布前检查）
+- i18n 文案按命名空间分文件（locales/<locale>/<ns>.yaml），业务模块各占各的文件
+
+### Fixed
+- 分发包升级链路：`bin/upgrade.js <ver>` 现在真正改写 `.env` 的 IMAGE_TAG 并以其执行 compose pull/up（原先版本参数仅用于 echo，升级为空操作）
+- 双角色镜像的健康检查按角色分流
+- deep-link 刷新 404（router history 支持环境变量切换 h5 模式）
+- 嵌套菜单子路由保持绝对路径
+- http token 刷新死锁与无限重放；菜单协议对齐后端；壳可滚动
+- 侧栏菜单节奏（分组间距与同级间距分离）
+
+### Changed
+- 版本账本收口：dist Makefile IMAGE_TAG 1.0.0 → 1.6.0，与 git tag 对齐
+- 前端为源码分发（不含 node_modules），含 pnpm-lock.yaml（不变）
+
+### Notes
+- 镜像版本统一 1.6.0；支持原地升级（保留 volumes），升级入口 `make upgrade TAG=v1.6.0` 或分发包 `bin/upgrade.js`
+
 ## v1.0.0 (2026-07-12)
 
 ### Added
