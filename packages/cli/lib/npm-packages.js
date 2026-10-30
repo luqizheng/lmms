@@ -12,7 +12,8 @@ const { spawnSync } = require('node:child_process');
 const { makeExec } = require('./spawn.js');
 const { GuardError } = require('./errors.js');
 
-const REGISTRY = 'http://npm.kudi.repos/';
+// 发布目标（用户裁决 2026-10-31）：以 IP 形式为准；npm.kudi.repos 为同一 Verdaccio 的域名别名
+const REGISTRY = 'http://192.168.2.12:14873/';
 
 // pnpm/npm are .cmd shims on Windows — spawnSync without a shell can't resolve
 // them (same ENOENT the retired scripts hit); Linux CI unaffected.

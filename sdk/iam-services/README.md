@@ -9,7 +9,9 @@ lmms IAM SDK：**登录 / 用户管理 / token 管理**的 TypeScript 客户端�
 私有 registry（Verdaccio）发布，项目内建议先配 `.npmrc`：
 
 ```
-registry=http://npm.kudi.repos/
+@digua:registry=http://192.168.2.12:14873/
+registry=http://192.168.2.12:14873/
+//192.168.2.12:14873/:_authToken=<你的令牌>
 ```
 
 ```bash

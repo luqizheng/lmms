@@ -7,5 +7,5 @@
   "files": ["bin", "lib", "commands"],
   "engines": { "node": ">=18" },
   "scripts": { "test": "node --test \"test/*.test.js\"" },
-  "publishConfig": { "registry": "http://npm.kudi.repos/" }
+  "publishConfig": { "registry": "http://192.168.2.12:14873/" }
 }
