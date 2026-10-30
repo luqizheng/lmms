@@ -1,0 +1,116 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { SERVICES, DEFAULT_REGISTRY, parseBuildArgs, resolvePlan, buildImages, pruneBuildCache } = require('../lib/docker-build.js');
+
+function fixture() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coder-dockerbuild-'));
+  const df = path.join(dir, 'services', 'api-gateway', 'Dockerfile');
+  fs.mkdirSync(path.dirname(df), { recursive: true });
+  fs.writeFileSync(df, 'FROM scratch\n');
+  return dir;
+}
+
+const quietOut = { log() {}, warn() {}, error() {} };
+
+test('parseBuildArgs reads services, version and push flag', () => {
+  const a = parseBuildArgs(['api-gateway', 'token-service', '-v', '1.6.0', '--push']);
+  assert.deepEqual(a.services, ['api-gateway', 'token-service']);
+  assert.equal(a.version, '1.6.0');
+  assert.equal(a.push, true);
+  assert.equal(a.loadAndPush, false);
+});
+
+test('unknown positional names and flags are collected, not fatal', () => {
+  const a = parseBuildArgs(['bogus', 'api-gateway', '--wat']);
+  assert.deepEqual(a.services, ['api-gateway']);
+  assert.ok(a.unknown.includes('bogus') || a.unknown.includes('--wat'));
+});
+
+test('prune keyword switches to cache-clean mode', () => {
+  assert.equal(parseBuildArgs(['prune']).prune, true);
+  assert.equal(parseBuildArgs(['clean']).prune, true);
+  assert.equal(parseBuildArgs(['api-gateway']).prune, false);
+});
+
+test('resolvePlan non-TTY without flags falls back to local full build', () => {
+  const plan = resolvePlan({ args: parseBuildArgs([]), isTTY: false });
+  assert.equal(plan.mode, 'local');
+  assert.deepEqual(plan.services, SERVICES);
+  assert.equal(plan.version, null);
+});
+
+test('resolvePlan with explicit version and --push', () => {
+  const plan = resolvePlan({ args: parseBuildArgs(['api-gateway', '-v', '1.6.0', '--push']), isTTY: true });
+  assert.equal(plan.mode, 'push');
+  assert.deepEqual(plan.services, ['api-gateway']);
+  assert.equal(plan.version, '1.6.0');
+});
+
+test('resolvePlan multi-arch load-and-push falls back to push with warnings', () => {
+  const plan = resolvePlan({ args: parseBuildArgs(['--load-and-push', '-p', 'linux/amd64,linux/arm64']), isTTY: true });
+  assert.equal(plan.mode, 'push');
+  assert.ok(plan.warnings.length > 0);
+});
+
+test('buildImages local mode: one buildx build, versioned + latest tags, never push', () => {
+  const dir = fixture();
+  const calls = [];
+  const exec = (file, args) => { calls.push([file, ...args]); return { status: 0 }; };
+  const plan = resolvePlan({ args: parseBuildArgs(['api-gateway', '-v', '1.6.0']), isTTY: false });
+  const res = buildImages({ root: dir, plan, exec, out: quietOut });
+
+  assert.deepEqual(res.built.map((b) => b.service), ['api-gateway']);
+  assert.deepEqual(res.failed, []);
+  const build = calls.find((c) => c[0] === 'docker' && c[1] === 'buildx');
+  assert.ok(build, 'docker buildx build invoked');
+  const tags = build.filter((x, i) => build[i - 1] === '-t');
+  assert.deepEqual(tags, [
+    `${DEFAULT_REGISTRY}/micro-server/api-gateway:1.6.0`,
+    `${DEFAULT_REGISTRY}/micro-server/api-gateway:latest`,
+  ]);
+  assert.ok(build.includes('--load'), 'local mode uses --load');
+  assert.ok(!calls.some((c) => c.includes('push')), 'local mode never pushes');
+});
+
+test('buildImages load-and-push pushes each tag after a successful load', () => {
+  const dir = fixture();
+  const calls = [];
+  const exec = (file, args) => { calls.push([file, ...args]); return { status: 0 }; };
+  const plan = resolvePlan({ args: parseBuildArgs(['api-gateway', '-v', '1.6.0', '--load-and-push']), isTTY: true });
+  buildImages({ root: dir, plan, exec, out: quietOut });
+
+  const pushes = calls.filter((c) => c[0] === 'docker' && c[1] === 'push');
+  assert.equal(pushes.length, 2, 'one docker push per tag');
+  assert.ok(pushes[0].includes(`${DEFAULT_REGISTRY}/micro-server/api-gateway:1.6.0`));
+});
+
+test('buildImages collects failures without stopping the rest', () => {
+  const dir = fixture();
+  const calls = [];
+  const exec = (file, args) => {
+    calls.push([file, ...args]);
+    const isPrue = args.includes('services/prue_backend/Dockerfile');
+    return { status: isPrue ? 3 : 0 };
+  };
+  const plan = resolvePlan({ args: parseBuildArgs(['api-gateway', 'prue-admin-backend', '-v', '1.6.0']), isTTY: false });
+  const res = buildImages({ root: dir, plan, exec, out: quietOut });
+  assert.deepEqual(res.built.map((b) => b.service), ['api-gateway']);
+  assert.deepEqual(res.failed.map((f) => f.service), ['prue-admin-backend']);
+});
+
+test('pruneBuildCache targets cargo cache filters only', () => {
+  const calls = [];
+  const exec = (file, args) => { calls.push([file, ...args]); return { status: 0 }; };
+  pruneBuildCache({ exec, out: quietOut });
+  assert.equal(calls.length, 2);
+  for (const c of calls) {
+    assert.deepEqual(c.slice(0, 3), ['docker', 'buildx', 'prune']);
+    assert.ok(c.includes('--cache-filter'));
+    assert.ok(!c.includes('-af'), 'never nukes the whole buildx cache');
+  }
+});

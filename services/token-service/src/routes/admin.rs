@@ -34,6 +34,8 @@ pub struct ClientDto {
     pub grant_types: Vec<String>,
     pub access_token_ttl_sec: i64,
     pub refresh_token_ttl_sec: i64,
+    pub user_id: Option<String>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub status: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -49,6 +51,8 @@ impl From<ClientView> for ClientDto {
             access_token_ttl_sec: v.access_token_ttl_sec,
             refresh_token_ttl_sec: v.refresh_token_ttl_sec,
             status: v.status,
+            user_id: v.user_id,
+            expires_at: v.expires_at,
             created_at: v.created_at,
             updated_at: v.updated_at,
         }
@@ -76,6 +80,12 @@ pub struct CreateRequest {
     pub refresh_token_ttl_sec: i64,
     #[serde(default = "default_status")]
     pub status: String,
+    /// 绑定的用户 id；client_credentials 流程用它作为 token 的 sub。
+    #[serde(default)]
+    pub user_id: Option<String>,
+    /// API Key 自身过期时间（RFC3339）；缺省 = 不过期。
+    #[serde(default)]
+    pub expires_at: Option<String>,
 }
 
 fn default_access_ttl() -> i64 {
@@ -164,6 +174,14 @@ pub async fn handle_create(
     if req.name.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "name required"));
     }
+    let expires_at = match req.expires_at.as_deref() {
+        None => None,
+        Some(raw) => Some(
+            chrono::DateTime::parse_from_rfc3339(raw)
+                .map_err(|_| (StatusCode::BAD_REQUEST, "invalid expires_at"))?
+                .with_timezone(&chrono::Utc),
+        ),
+    };
     let plain_secret = generate_client_secret();
     let hash = hash_client_secret(&plain_secret);
     let client_id = generate_client_id(&req.name);
@@ -176,6 +194,8 @@ pub async fn handle_create(
         access_token_ttl_sec: req.access_token_ttl_sec,
         refresh_token_ttl_sec: req.refresh_token_ttl_sec,
         status: req.status,
+        user_id: req.user_id,
+        expires_at,
     };
     oauth_client_svc::insert(&state.db, &model)
         .await
@@ -290,4 +310,33 @@ pub async fn handle_reset_secret(
         client_id,
         client_secret: plain,
     }))
+}
+
+/// `/admin/oauth-clients*` 路由（带 service-jwt 鉴权，aud=token-service）。
+///
+/// OAuth 客户端管理是凭据发放面，原先裸挂无鉴权（OpenAPI 注解里的
+/// `security(("bearer_auth" = []))` 只是文档声明，无中间件生效）。
+pub fn routes(state: crate::TokenServerState) -> axum::Router {
+    use axum::routing::{get, post};
+
+    axum::Router::new()
+        .route(
+            "/admin/oauth-clients",
+            get(handle_list).post(handle_create),
+        )
+        .route(
+            "/admin/oauth-clients/{client_id}",
+            axum::routing::put(handle_update).delete(handle_delete),
+        )
+        .route(
+            "/admin/oauth-clients/{client_id}/reset-secret",
+            post(handle_reset_secret),
+        )
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            digua_authz::verify_aud_principal_middleware::<crate::TokenServerState>(
+                "token-service",
+            ),
+        ))
+        .with_state(state)
 }

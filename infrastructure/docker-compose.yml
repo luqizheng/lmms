@@ -4,24 +4,6 @@ include:
   - docker-compose-observability.yml
 
 services:
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_DISABLE_CAPTCHA: "true"
-    ports:
-      - "8080:80"
-    depends_on:
-      - api-gateway
-    networks:
-      - superpowers
-    # nginx default.conf hardcodes `proxy_pass http://pm:8088`（pm 平台模块未上
-    # compose 但 nginx 启动时立即 DNS 解析，host not found → exit 1）。
-    # 127.0.0.1 让 nginx 起得来，/pm-api/ 走 502 不影响主流程；pm 上线后改回。
-    extra_hosts:
-      - "pm:127.0.0.1"
-
   # MySQL replica — read-only hot standby of the primary.
   # Lives in the main compose (not docker-compose-infra.yml) because it is a
   # platform-built image (micro-server/mysql-replica) whose tag is replaced with

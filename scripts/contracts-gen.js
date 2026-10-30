@@ -37,7 +37,8 @@ console.log('3. Generating TypeScript contracts...');
 try {
   execSync(`node ${path.join(codegenDir, 'gen-ts.js')}`, { stdio: 'inherit' });
 } catch (e) {
-  console.log('TypeScript generation skipped (frontend not ready)');
+  console.error('Failed to generate TypeScript contracts');
+  process.exit(1);
 }
 
 console.log('');

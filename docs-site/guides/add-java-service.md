@@ -544,7 +544,7 @@ String approvalTimeoutDays = cache.get("approval.timeout.days");
   │  ③ 展示/下载     <img src=fileUrl(id)> 或 GET /v1/file/{id} ──▶ file-service 回源
 ```
 
-文件字节**不经过** contract-service —— 业务服务零文件 IO、零大 body 内存压力，存储/限额/权限全在 file-service。这是平台前端（`frontend/src/api/file.ts`）使用的模式。
+文件字节**不经过** contract-service —— 业务服务零文件 IO、零大 body 内存压力，存储/限额/权限全在 file-service。这是客户端（浏览器 / 业务仓前端，经 `packages/@digua/http` 客户端）直传 file-service 的模式。
 
 ### 8.2 file-service 接口速查（经网关 `/v1/file/*`）
 
@@ -559,39 +559,39 @@ String approvalTimeoutDays = cache.get("approval.timeout.days");
 
 关键事实（`services/file-service/src/`）：
 
-- **上传 meta**：`metadata` JSON 支持 `filename`、`content_type`、`is_temporary`、`expires_in_seconds`。`is_temporary=true` + `expires_in_seconds`（前端 60–86400）= 临时文件，到期自动失效，适合「先上传、表单还没提交」的场景。
-- **大小硬限 100MB**（`file-service/src/config.rs`）。前端在 `before-upload` 就要拦截超限文件，避免无意义上传。
+- **上传 meta**：`metadata` JSON 支持 `filename`、`content_type`、`is_temporary`、`expires_in_seconds`。`is_temporary=true` + `expires_in_seconds`（60–86400 秒）= 临时文件，到期自动失效，适合「先上传、表单还没提交」的场景。
+- **大小硬限 100MB**（`file-service/src/config.rs`）。客户端在上传前就应拦截超限文件，避免无意义上传。
 - **多租户隔离**：file-service 从 JWT 取 `tenant_id` 注入查询，跨租户访问不到；下载/详情/删除都带租户 scope。
 - **存储**：对象存储抽象（本地 / S3 兼容，`storage/s3.rs`），存储路径 `{file_id}-{filename}`；业务侧无需关心落盘位置。
 
-### 8.3 前端：上传 / 展示 / 下载
+### 8.3 客户端（业务仓前端）：上传 / 展示 / 下载
 
-平台前端已有封装 `frontend/src/api/file.ts`（axios，自动带 JWT）。新业务前端直接用同一套：
+业务仓前端用 `packages/@digua/http`（`createHttp`，自动带 JWT / 单飞刷新）直传网关 `/v1/file/*`：
 
 ```ts
-import { uploadFile, downloadFile, fileUrl } from "@/api/file";
+import { http } from "@/http";   // 业务仓内用 createHttp() 初始化的 @digua/http 实例
 
-// ① 上传（el-upload / input[type=file] 拿到 File 对象）
-const meta = await uploadFile(file, {
+// ① 上传（input[type=file] 拿到 File 对象），multipart 直传网关 /v1/file/upload
+const form = new FormData();
+form.set("metadata", JSON.stringify({
   content_type: file.type || "application/octet-stream",
   is_temporary: true,          // 表单未提交前先作临时文件
   expires_in_seconds: 86400
-});
-const fileId = meta.id;        // 拿这个 id 随业务表单提交
+}));
+form.set("file", file);
+const meta = await http.post("/v1/file/upload", form);
+const fileId = meta.data.id;   // 拿这个 id 随业务表单提交
 
 // ② 提交业务数据时把 fileId 一起发给合同服务
 await createContract({ title, attachmentFileId: fileId });
 
-// ③a 图片预览 / <img>：用 fileUrl() 拼绝对路径（<img> 不走 axios baseURL）
-<img :src="fileUrl('/v1/file/' + fileId)" />
-
-// ③b 触发下载
-await downloadFile(fileId);    // 或 <a :href="fileUrl('/v1/file/'+id)" target="_blank">
+// ③a 图片预览 / <img>：直接用预签名 URL（POST /v1/file/presign，operation=get）
+// ③b 触发下载：GET /v1/file/{id}（带 JWT；<a href> 场景用预签名 URL）
 ```
 
-前端守卫（`frontend/src/api/file/limits.ts`，新页面沿用）：上传前 `checkFileSize(<=100MB)`、`checkFileExtension`（拦截 `.exe/.bat/.sh/.js` 等高危扩展名，纯 UX 守卫、后端不强制）。按钮用 `hasPerms(['FILE_UPLOAD'])` 控制可见。
+客户端守卫（业务仓自实现，新页面沿用）：上传前校验大小（<=100MB）与扩展名（拦截 `.exe/.bat/.sh/.js` 等高危扩展名，纯 UX 守卫、后端不强制）。按钮按权限码 `FILE_UPLOAD` 控制可见（权限码清单见 `packages/@digua/contracts`）。
 
-> 为什么 `<img>` 要 `fileUrl()`：后端返回的是相对路径 `/v1/file/<id>`，axios 会自动加 baseURL 但 `<img src>` 不会；`fileUrl()` 用 `VITE_API_BASE`（默认 `/api`）拼成绝对 URL。预签名 URL（`http(s)://…`）会被原样返回。
+> 为什么 `<img>` 要用预签名 URL：后端返回的是相对路径 `/v1/file/<id>`，`<img src>` 不会自动带 baseURL 与 JWT；走 `POST /v1/file/presign` 换取 `http(s)://…` 预签名地址即可直连。
 
 ### 8.4 业务后端（Java）：存 id、做关联、返回信息
 

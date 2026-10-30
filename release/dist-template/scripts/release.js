@@ -105,7 +105,6 @@ const IMAGES = [
   `${REGISTRY}/micro-server/notification-service:${VERSION}`,
   `${REGISTRY}/micro-server/audit-service:${VERSION}`,
   `${REGISTRY}/micro-server/prue-admin-backend:${VERSION}`,
-  `${REGISTRY}/micro-server/frontend:${VERSION}`,
   // mysql-replica 由 CI 单独 buildx 推送（不在 build-docker.js 清单），但主 compose
   // 引用 micro-server/mysql-replica:<version>，离线全包必须导出，否则 air-gap 缺从库镜像。
   `${REGISTRY}/micro-server/mysql-replica:${VERSION}`,
@@ -226,7 +225,8 @@ rewriteImageTag('Makefile', [
 // 这里以"显式单次 cp"绕过：源 = release/dist-template/scripts（一个目录），
 // 目标 = DIST_DIR/scripts（尚未存在），只复制 release.js / transform-compose.js /
 // release-transforms.js / release-deploy.js 等发布脚本，不涉及 readdir 循环的递归。
-// 下游 cms-sync 拿到产物后能把 scripts/ 同步进自己仓库，从而继续打 patch 版本。
+// 下游新项目可复用它给后续版本重打离线包；已有项目的版本更新走包升级
+// （镜像 compose pull + pnpm/cargo/maven 升版本），不再做源码级同步。
 const RELEASE_SCRIPTS_SRC = path.join(ROOT, 'scripts');
 const RELEASE_SCRIPTS_DST = path.join(DIST_DIR, 'scripts');
 if (existsSync(RELEASE_SCRIPTS_SRC)) {
@@ -235,7 +235,7 @@ if (existsSync(RELEASE_SCRIPTS_SRC)) {
 }
 
 // ── 同步开发骨架 ──────────────────────────────────────────────────────────────
-console.log('[release] -> 同步开发骨架（contracts/scripts/skills/frontend/services/infrastructure）...');
+console.log('[release] -> 同步开发骨架（contracts/packages/scripts/skills/services/infrastructure）...');
 console.log('[release]   ⚠ libs/ skipped - 17 crates published to private kellnr registry');
 console.log('[release]   ⚠ sdk/ skipped — sdk/java -> Maven, sdk/rust -> kellnr');
 
@@ -251,7 +251,7 @@ if (existsSync(path.join(REPO_ROOT, 'scripts'))) {
   console.log('[release]   ✓ scripts/');
   // 从分发包中移除 demo/seed/mock 数据文件。
   // 这些文件仅供开发环境使用，下游仓库各自维护自己的 data-demo/ 目录。
-  // 移除它们避免 cms-sync three-way-merge 时覆盖下游自定义的 demo 数据。
+  // 移除它们避免下游各自维护的 demo 数据被发布包覆盖。
   for (const f of ['demo-data.js', 'mock-iam-server.js']) {
     const p = path.join(DIST_DIR, 'scripts', f);
     if (existsSync(p)) rmSync(p, { force: true });
@@ -288,8 +288,7 @@ if (existsSync(path.join(REPO_ROOT, 'tests', 'e2e'))) {
 // .agents/skills — 下游白名单（单一真相源：本仓 .agents/skills）
 //
 // v1.x 排序：分发包只携带下游创建/维护业务微服务要用的 scaffold skill，
-// repo-local（SDK 发布 / CI 诊断 / 平台工程…）一概不封包，以减少下游
-// cms-sync three-way-merge 噪音、避免误用本仓发布技能。
+// repo-local（SDK 发布 / CI 诊断 / 平台工程…）一概不封包，避免误用本仓发布技能。
 // 增加条目即可把新 skill 纳入分发（仍需同步统一 dist README 的描述）。
 const DOWNSTREAM_SKILL_WHITELIST = [
   // Rust 业务服务脚手架
@@ -367,25 +366,14 @@ if (existsSync(path.join(REPO_ROOT, '.agents', 'rules'))) {
   console.log('[release]   ✓ .agents/rules/ (migrated from .trae/rules/)');
 }
 
-// frontend/
-if (existsSync(path.join(REPO_ROOT, 'frontend'))) {
-  // 使用 filter 在复制时直接跳过 node_modules / dist / dist-ssr / coverage 等重目录，
-  // 避免「先全量复制再删除」在 Windows 上因海量小文件复制极慢的问题。
-  // cpSync filter 返回 false 时不会递归进入该目录，从根本上跳过复制。
-  const FRONTEND_EXCLUDE_DIRS = new Set(['node_modules', 'dist', 'dist-ssr', 'coverage']);
-  cpSync(path.join(REPO_ROOT, 'frontend'), path.join(DIST_DIR, 'frontend'), {
+// packages/ — 前端 TS 访问包（@digua/contracts / @digua/http），前端集成入口
+if (existsSync(path.join(REPO_ROOT, 'packages'))) {
+  const PKG_EXCLUDE_DIRS = new Set(['node_modules', 'dist']);
+  cpSync(path.join(REPO_ROOT, 'packages'), path.join(DIST_DIR, 'packages'), {
     recursive: true,
-    filter: (src) => {
-      const name = path.basename(src);
-      if (FRONTEND_EXCLUDE_DIRS.has(name)) return false;
-      if (name === '.eslintcache' || name === 'report.html') return false;
-      if (name.endsWith('.local')) return false;
-      return true;
-    },
+    filter: (src) => !PKG_EXCLUDE_DIRS.has(path.basename(src)),
   });
-  console.log('[release]   ✓ frontend/ (node_modules / dist / dist-ssr / coverage / lint-cache excluded)');
-} else {
-  console.log('[release]   ⚠ frontend/ not found — 前端容器镜像缺失时将无法本地构建');
+  console.log('[release]   ✓ packages/ (node_modules / dist excluded)');
 }
 
 // services/ (empty skeleton)
@@ -428,14 +416,13 @@ if (!existsSync(svcCompose)) {
 sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${svcCompose}" "${REGISTRY}" "${VERSION}"`);
 console.log('[release]   ✓ docker-compose-services.yml: build → image 转换完成');
 
-// 主 docker-compose.yml 同样要把 frontend 的 build: 块转成 image:（release-deploy.js 也做这件事）
-// — 之前 release.js 只转了 services.yml，结果产物中 frontend 仍是 build: 导致
-//   `docker compose up` 现场构建失败（dist 包不带 frontend 源码）。
+// 主 docker-compose.yml 同样要把 build: 块转成 image:（release-deploy.js 也做这件事）
+// — 产物 dist 包不带服务源码，build: 会导致 `docker compose up` 现场构建失败。
 //   现与 release-deploy.js 行为对齐：两个 compose 文件都跑 transform-compose。
 const mainCompose = path.join(DIST_DIR, 'infrastructure', 'docker-compose.yml');
 if (existsSync(mainCompose)) {
   sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${mainCompose}" "${REGISTRY}" "${VERSION}"`);
-  console.log('[release]   ✓ docker-compose.yml: frontend build → image 转换完成');
+  console.log('[release]   ✓ docker-compose.yml: build → image 转换完成');
 }
 
 // 卷重映射 + 配置复制

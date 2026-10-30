@@ -3,9 +3,12 @@
 跨 API Gateway 对真实微服务做端到端测试。全部用例数据驱动，写在 YAML，执行器遍历执行，产出 Excel 报告：
 
 - `api/`：直连 api-gateway，纯接口验证（Vitest + supertest）。
-- `ui/`：通过前端页面走业务流（Playwright）。
 
-两套共享底层设施 `shared/`（环境配置、数据库重置、YAML 读取、报告）。
+共享底层设施 `shared/`（环境配置、数据库重置、YAML 读取、报告）。
+
+> 历史说明：框架不再随附前端控制台（PRISM console 已移除），原 Playwright UI 测试套件已随
+> 之下线。业务方前端在自己的仓库里开发，用 `@digua/contracts` + `@digua/http`（`packages/`）
+> 或 `sdk/`（Java / Rust）访问本框架。
 
 ---
 
@@ -38,20 +41,9 @@ docker compose up -d --pull never
 
 ### 1.2 安装依赖
 
-`tests/e2e` 是独立 workspace（绕过 frontend 的 engines/pnpm 限制）。
-
 ```powershell
 pnpm -C tests/e2e install
 ```
-
-### 1.3 UI 测试额外要求
-
-- 前端就绪二选一：
-  - 前端容器（默认 `http://localhost:8080`），`ui/globalSetup.ts` 会做健康探测，失败即中止；
-  - 或 vite dev：`pnpm -C frontend dev`（8848 端口），运行时加 `E2E_FRONTEND_URL=http://localhost:8848`。
-- 前端必须禁用登录验证码：容器构建注入 `VITE_DISABLE_CAPTCHA=true`；frontend `.env.development` 已默认禁用。
-- Playwright 使用完整 chromium（`channel: 'chromium'`），首次需 `pnpm -C tests/e2e exec playwright install chromium`。
-- 无 sudo 的环境缺 chrome 系统依赖时：把 .deb 解包到 `~/playwright-libs/root` 并写 `~/playwright-libs/fonts.conf`，`ui/dev/env.ts` 会自动注入 `LD_LIBRARY_PATH` / `FONTCONFIG_FILE`（其他环境 no-op）。
 
 ---
 
@@ -60,7 +52,6 @@ pnpm -C tests/e2e install
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `E2E_BASE_URL` | `http://localhost:3000` | api-gateway 入口 |
-| `E2E_FRONTEND_URL` | `http://localhost:8080` | 前端入口（UI 测试用） |
 | `E2E_ADMIN_USER` | `e2eadmin` | globalSetup 自注册的 admin 用户名 |
 | `E2E_ADMIN_PASS` | `P@ssw0rd!` | admin 密码 |
 | `E2E_DEBUG` | `0` | `1` 输出每次请求/响应日志 |
@@ -82,14 +73,11 @@ pnpm -C tests/e2e install
 ### 3.1 数据驱动用例
 
 ```powershell
-# 全量（API + UI）
+# 全量
 pnpm -C tests/e2e test
 
 # API 数据驱动（遍历 api/cases/*.yaml）
 pnpm -C tests/e2e test:api
-
-# UI 业务流（遍历 ui/cases/*.yaml，需前端容器）
-pnpm -C tests/e2e test:ui
 ```
 
 ### 3.2 调试模式
@@ -113,25 +101,13 @@ tests/e2e/
     data/cases.ts            # readCases() 读 yaml + resolve() 深层占位符 + assertBody()
     report/
       writer.ts              # writeReport() 写 report-<时间戳>.xlsx；writeErrorJson() 写失败明细
-      errors/                # 失败明细（<caseId>.json，UI 附 <caseId>.png）
+      errors/                # 失败明细（<caseId>.json）
 
   api/                       # 数据驱动 - API
     cases/*.yaml             # 用例（group + cases 数组）
     globalSetup.ts           # resetBase + 注册并登录 admin，token 写 .token.json
     runner/run.e2e.test.ts   # 遍历 yaml 执行 + 断言 + 收集结果
     vitest.config.ts
-
-  ui/                        # 数据驱动 - UI
-    cases/*.yaml             # 用例（flow + params + expect）
-    pages/                   # Page Object（login.page.ts / user.page.ts）
-    flows/                   # 业务流编排，按域分文件：<domain>.ts 各自 export <domain>Flows
-    flows/index.ts           # 聚合注册表（新增域只加一行 spread）
-    dev/run-flow.ts          # 开发期单 flow 验证器（不清库）：npx tsx ui/dev/run-flow.ts <flow> '<params>'
-    dev/probe.ts             # 页面 DOM 探针：npx tsx ui/dev/probe.ts <url>
-    dev/env.ts               # 本机 chrome 依赖探测（~/playwright-libs，无 sudo 环境；他处 no-op）
-    globalSetup.ts           # resetBase + 重灌 iam_permissions + 注册 admin + 前端健康探测
-    runner/run.spec.ts       # 遍历 yaml 执行 flow + 校验 toast
-    playwright.config.ts
 ```
 
 ---
@@ -187,30 +163,11 @@ cases:
 - `$.field is array`：字段为数组（`$` 指根）。
 - `$.field contains 子串`：序列化后包含子串（`$` 指根）。
 
-### 6.4 UI 用例（YAML）
-
-文件 `ui/cases/*.yaml`，每个用例含 `caseId` / `desc` / `flow` / `params` / `expect` / `skip`。
-
-```yaml
-group: user
-cases:
-  - caseId: UI-USER-001
-    desc: 登录后建用户
-    flow: createUser        # 必须在 ui/flows/index.ts 注册
-    params:                 # 结构化对象，支持占位符
-      username: u${rand}
-    expect:
-      - toast=已新增用户      # 校验页面提示包含该子串
-```
-
-新增 flow：在对应域的 `flows/<domain>.ts` 加函数（复用 `pages/` 下 Page Object），`flows/index.ts` 已聚合各域，新域只需加一行 spread。开发期用 `ui/dev/run-flow.ts` 单独验证（不清库、可并发），通过后再跑整轮 `test:ui`。
-
-### 6.5 样例
+### 6.4 样例
 
 - [api/cases/iam-users.yaml](file:///d:/projects/coder-micro-services/tests/e2e/api/cases/iam-users.yaml)：创建→查详情→删除。
-- [ui/cases/user-flow.yaml](file:///d:/projects/coder-micro-services/tests/e2e/ui/cases/user-flow.yaml)：登录后建用户，校验 `toast=已新增用户`。
 
-修改后直接重跑 `test:api` / `test:ui`，无需改执行器代码。
+修改后直接重跑 `test:api`，无需改执行器代码。
 
 ---
 
@@ -220,7 +177,6 @@ cases:
 
 - `shared/report/report-<时间戳>.xlsx`：含 `detail`（每用例结果）和 `summary`（total/pass/fail/skip）两个 sheet。
 - 失败明细：`shared/report/errors/<caseId>.json`（含 request/response/expect/timestamp）。
-- UI 失败附截图：`shared/report/errors/<caseId>.png`。
 
 控制台结束时打印报告路径。
 

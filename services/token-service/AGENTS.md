@@ -47,7 +47,7 @@
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /tokens/access | POST | 签发 access_token + refresh_token（OAuth 2.0 client_credentials / authorization_code） |
+| /tokens/access | POST | 签发 access_token（authorization_code 签发 access+refresh；client_credentials 只签 access、不签 refresh，RFC 6749 §4.4.3） |
 | /tokens/refresh | POST | 刷新 token（refresh_token 单次使用，防重放） |
 | /tokens/revoke | POST | 撤销 token（写入 Redis 黑名单） |
 | /tokens/resource | POST | 签发受限资源令牌（自定义 TTL 与 scope） |
@@ -55,10 +55,10 @@
 | /tokens/service-jwt | POST | 签发 1h 服务间 JWT（Authorization: Bearer <SERVICE_BOOTSTRAP_TOKENS> 准入） |
 | /tokens/.well-known/jwks.json | GET | JWKS 公钥（kid="default"，RS256） |
 | /.well-known/jwks.json | GET | JWKS 别名 |
-| /api-keys | POST / GET | API Key 创建 / 列表 |
-| /admin/oauth-clients | POST / GET | OAuth 客户端创建（响应中一次性返回明文 client_secret） |
-| /admin/oauth-clients/{client_id} | PUT / DELETE | 更新 / 删除 |
-| /admin/oauth-clients/{client_id}/reset-secret | POST | 重置并返回新明文 client_secret |
+| /api-keys | POST / GET | API Key 创建 / 列表（service-jwt `aud=token-service` 准入） |
+| /admin/oauth-clients | POST / GET | OAuth 客户端创建（响应中一次性返回明文 client_secret；service-jwt 准入） |
+| /admin/oauth-clients/{client_id} | PUT / DELETE | 更新 / 删除（service-jwt 准入） |
+| /admin/oauth-clients/{client_id}/reset-secret | POST | 重置并返回新明文 client_secret（service-jwt 准入） |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（仅 SWAGGER_ENABLED=true 时暴露） |

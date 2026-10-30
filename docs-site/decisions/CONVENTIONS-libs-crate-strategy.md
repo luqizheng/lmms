@@ -79,7 +79,7 @@ digua_common-telemetry ←── digua_common-telemetry-axum
 | **Semver 策略** | 沿用 `cargo` 惯例：`0.y.z` 表示 unstable，minor bump 可 breaking |
 | **版本同步** | 不要求 17 个 crate 同版本号。仅当 API 变化时 bump |
 | **发布顺序** | 按拓扑顺序发布（leaf → root）：先发 `digua_common-error`、`digua_common-crypto`，再发依赖它们的 crate |
-| **自动化** | `libs/scripts/publish-libs.sh` 已处理拓扑排序 + path→version 依赖替换 |
+| **自动化** | `coder release publish rust --targets libs` 已处理拓扑排序 + path→version 依赖替换 |
 
 ## 5. 已知技术债
 

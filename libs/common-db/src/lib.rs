@@ -9,12 +9,20 @@ pub use scope::WithTenantScope;
 
 use dialect::DialectKind;
 use digua_common_error::{AppError, AppResult};
-use sqlx::{mysql::MySql, sqlite::Sqlite, Pool};
+#[cfg(feature = "mysql")]
+use sqlx::mysql::MySql;
+#[cfg(feature = "postgres")]
+use sqlx::postgres::Postgres;
+#[cfg(feature = "sqlite")]
+use sqlx::sqlite::Sqlite;
+use sqlx::Pool;
 
 #[derive(Debug)]
 pub enum DbPool {
     #[cfg(feature = "mysql")]
     Mysql(Pool<MySql>),
+    #[cfg(feature = "postgres")]
+    Postgres(Pool<Postgres>),
     #[cfg(feature = "sqlite")]
     Sqlite(Pool<Sqlite>),
 }
@@ -24,6 +32,8 @@ impl DbPool {
         match self {
             #[cfg(feature = "mysql")]
             Self::Mysql(_) => DialectKind::Mysql,
+            #[cfg(feature = "postgres")]
+            Self::Postgres(_) => DialectKind::Postgres,
             #[cfg(feature = "sqlite")]
             Self::Sqlite(_) => DialectKind::Sqlite,
         }
@@ -42,6 +52,15 @@ pub async fn init_pool(database_url: &str) -> AppResult<DbPool> {
                 .await
                 .map_err(|e| AppError::internal("DB_CONNECT", e.to_string()))?;
             Ok(DbPool::Mysql(pool))
+        }
+        #[cfg(feature = "postgres")]
+        DialectKind::Postgres => {
+            let pool = sqlx::postgres::PgPoolOptions::new()
+                .max_connections(10)
+                .connect(database_url)
+                .await
+                .map_err(|e| AppError::internal("DB_CONNECT", e.to_string()))?;
+            Ok(DbPool::Postgres(pool))
         }
         #[cfg(feature = "sqlite")]
         DialectKind::Sqlite => {
@@ -66,6 +85,7 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
         DialectKind::Dameng => "mysql", // 达梦兼容 MySQL 迁移
         DialectKind::Sqlite => "sqlite",
         DialectKind::Mssql => "mssql",
+        DialectKind::Postgres => "postgres",
     };
 
     let _ = format!("{}/{}", migrations_path, dialect_str);
@@ -79,6 +99,11 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
                 "runtime migration path not supported; use embedded Migrator",
             ))
         }
+        #[cfg(feature = "postgres")]
+        DbPool::Postgres(_p) => Err(AppError::internal(
+            "DB_MIGRATE",
+            "runtime migration path not supported; use embedded Migrator",
+        )),
         #[cfg(feature = "sqlite")]
         DbPool::Sqlite(_p) => Err(AppError::internal(
             "DB_MIGRATE",
@@ -90,9 +115,11 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
 pub struct Transaction<'a> {
     #[cfg(feature = "mysql")]
     mysql: Option<sqlx::Transaction<'a, MySql>>,
+    #[cfg(feature = "postgres")]
+    pg: Option<sqlx::Transaction<'a, Postgres>>,
     #[cfg(feature = "sqlite")]
     sqlite: Option<sqlx::Transaction<'a, Sqlite>>,
-    #[cfg(not(any(feature = "mysql", feature = "sqlite")))]
+    #[cfg(not(any(feature = "mysql", feature = "postgres", feature = "sqlite")))]
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -100,6 +127,12 @@ impl<'a> Transaction<'a> {
     pub async fn commit(mut self) -> AppResult<()> {
         #[cfg(feature = "mysql")]
         if let Some(tx) = self.mysql.take() {
+            tx.commit()
+                .await
+                .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
+        }
+        #[cfg(feature = "postgres")]
+        if let Some(tx) = self.pg.take() {
             tx.commit()
                 .await
                 .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
@@ -116,6 +149,12 @@ impl<'a> Transaction<'a> {
     pub async fn rollback(mut self) -> AppResult<()> {
         #[cfg(feature = "mysql")]
         if let Some(tx) = self.mysql.take() {
+            tx.rollback()
+                .await
+                .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;
+        }
+        #[cfg(feature = "postgres")]
+        if let Some(tx) = self.pg.take() {
             tx.rollback()
                 .await
                 .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;

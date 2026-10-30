@@ -164,7 +164,7 @@ feat(iam): add department tree API
 Add GET /v1/iam/org-units/tree endpoint that returns
 the full organization tree in a single response.
 
-This is more efficient for the frontend than making
+This is more efficient for clients than making
 multiple requests to the flat list endpoint.
 ```
 

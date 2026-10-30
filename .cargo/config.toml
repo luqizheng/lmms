@@ -12,3 +12,7 @@ registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
 
 [net]
 git-fetch-with-cli = true
+
+# 编译缓存加速 - 要求本机装有 sccache 且在 PATH, 没有的机器删掉本节即可
+[build]
+# rustc-wrapper = "sccache"  # Docker 构建容器内无 sccache，COPY .cargo 会带进去导致编译挂；宿主机需要时手动启用

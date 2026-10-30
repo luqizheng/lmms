@@ -1,6 +1,7 @@
 pub mod dameng;
 pub mod mssql;
 pub mod mysql;
+pub mod pg;
 pub mod sqlite;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -9,6 +10,7 @@ pub enum DialectKind {
     Dameng,
     Sqlite,
     Mssql,
+    Postgres,
 }
 
 pub trait Paginate {
@@ -32,6 +34,8 @@ impl DialectKind {
             Self::Dameng
         } else if url.starts_with("mssql:") {
             Self::Mssql
+        } else if url.starts_with("postgres:") || url.starts_with("postgresql:") {
+            Self::Postgres
         } else {
             Self::Mysql
         }
@@ -41,6 +45,7 @@ impl DialectKind {
         match self {
             Self::Sqlite => "CURRENT_TIMESTAMP",
             Self::Mssql => "GETUTCDATE()",
+            Self::Postgres => "now() AT TIME ZONE 'UTC'",
             _ => "UTC_TIMESTAMP()",
         }
     }
@@ -50,7 +55,7 @@ impl DialectKind {
             Self::Mssql => format!("[{}]", identifier.replace(']', "]]")),
             Self::Dameng => format!("\"{}\"", identifier.replace('"', "\"\"")),
             Self::Mysql => format!("`{}`", identifier.replace('`', "``")),
-            Self::Sqlite => format!("\"{}\"", identifier.replace('"', "\"\"")),
+            Self::Postgres | Self::Sqlite => format!("\"{}\"", identifier.replace('"', "\"\"")),
         }
     }
 
@@ -65,6 +70,7 @@ impl DialectKind {
                 upper.as_str(),
                 "USER" | "SESSION" | "TABLE" | "VIEW" | "INDEX"
             ),
+            Self::Postgres => pg::PG_RESERVED_WORDS.contains(&upper.as_str()),
             _ => false,
         }
     }

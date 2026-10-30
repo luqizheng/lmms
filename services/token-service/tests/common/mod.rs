@@ -12,7 +12,11 @@ use testcontainers::ImageExt;
 use testcontainers_modules::mysql::Mysql;
 use token_service::db::DbPool;
 
-pub const MIGRATION_SQL: &str = include_str!("../../migrations/mysql/V001__init.sql");
+/// 按序执行的迁移列表。直接复用生产代码的 `db::MIGRATIONS`，避免两份清单漂移。
+///
+/// 测试库每次都是新建的，所以这里无条件按序执行全部迁移，不需要 marker 判定
+/// （生产路径的 marker 逻辑由 `tests/migration_marker_test.rs` 单独覆盖）。
+pub use token_service::db::MIGRATIONS;
 
 pub async fn spawn_mysql() -> DbPool {
     if let (Ok(host), Ok(port)) = (
@@ -87,17 +91,52 @@ async fn build_pool(url: &str) -> MySqlPool {
 }
 
 async fn run_migrations(pool: &MySqlPool) {
-    // 先剥离整行注释，避免以 `--` 开头的语句被整条跳过导致建表缺失
-    let cleaned = MIGRATION_SQL
-        .lines()
-        .filter(|l| !l.trim_start().starts_with("--"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    for stmt in cleaned.split(';') {
-        let s = stmt.trim();
-        if s.is_empty() {
-            continue;
+    for m in MIGRATIONS {
+        // 先剥离整行注释，避免以 `--` 开头的语句被整条跳过导致建表缺失
+        let cleaned = m
+            .sql
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("--"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for stmt in cleaned.split(';') {
+            let s = stmt.trim();
+            if s.is_empty() {
+                continue;
+            }
+            sqlx::query(s).execute(pool).await.expect("run migration");
         }
-        sqlx::query(s).execute(pool).await.expect("run migration");
+    }
+}
+
+/// 测试用 PEM（与 workspace 的 libs/common-jwt fixtures 同源）。
+pub const TEST_PRIVATE_PEM: &str =
+    include_str!("../../../../libs/common-jwt/tests/fixtures/test_private.pem");
+pub const TEST_PUBLIC_PEM: &str =
+    include_str!("../../../../libs/common-jwt/tests/fixtures/test_public.pem");
+
+/// 构造带真实 DB pool 的 TokenServerState（HTTP 级测试用，oneshot 房规）。
+/// `user_service_url` 指向不可达地址 → claims 拉取走降级路径。
+pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
+    let jwks = std::sync::Arc::new(
+        digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).expect("jwks from pem"),
+    );
+    token_service::TokenServerState {
+        db: pool,
+        issuer: std::sync::Arc::new(
+            token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer"),
+        ),
+        issuer_str: "test-issuer".into(),
+        jwt_public_key: TEST_PUBLIC_PEM.into(),
+        default_resource_ttl_sec: 3600,
+        http_client: std::sync::Arc::new(digua_common_http::ResilientClient::new(
+            reqwest::Client::new(),
+            digua_common_http::ResilienceConfig::default(),
+            std::sync::Arc::new(digua_common_http::NoopObserver),
+        )),
+        user_service_url: "http://iam-service:8081".into(),
+        private_key_pem: TEST_PRIVATE_PEM.into(),
+        bootstrap_tokens: vec![],
+        jwks,
     }
 }

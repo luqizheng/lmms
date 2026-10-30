@@ -56,7 +56,6 @@
 | notification-service | 8085 |
 | audit-service | 8086 |
 | prue-backend | 8087 |
-| frontend | 3000 |
 
 ### Observability
 - Prometheus v2.51.0（15d retention）

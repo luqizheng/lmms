@@ -38,7 +38,6 @@ const checks = [
   ['token-service',  'http://localhost:8083/health'],
   ['iam-service',    'http://localhost:8084/health'],
   ['audit-service',  'http://localhost:8085/health'],
-  ['frontend',       'http://localhost:3000/'],
   ['prometheus',     'http://localhost:9090/-/healthy'],
   ['grafana',        'http://localhost:3001/api/health'],
 ];

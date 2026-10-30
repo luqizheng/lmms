@@ -326,7 +326,7 @@ test('filterCargoWorkspaceMembers: drops services/*, sdk/rust/*, libs/*', () => 
     '    "sdk/rust/audit-service-sdk",',
     '    "services/iam-service",',
     '    "services/iam-outbox-publisher",',
-    '    "frontend",',
+    '    "tools/legacy-tool",',
     '    "tests/e2e",',
     ']',
     '',
@@ -335,7 +335,7 @@ test('filterCargoWorkspaceMembers: drops services/*, sdk/rust/*, libs/*', () => 
   assert.ok(!after.includes('libs/'));
   assert.ok(!after.includes('sdk/rust/'));
   assert.ok(!after.includes('services/'));
-  assert.ok(after.includes('"frontend"'));
+  assert.ok(after.includes('"tools/legacy-tool"'));
   assert.ok(after.includes('"tests/e2e"'));
 });
 

@@ -4,14 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "pnpm run test:api && pnpm run test:ui",
+    "test": "pnpm run test:api",
     "test:api": "vitest run --config api/vitest.config.ts",
-    "test:ui": "playwright test --config ui/playwright.config.ts",
-    "test:smoke": "E2E_SMOKE=1 vitest run --config api/vitest.config.ts",
-    "test:smoke:ui": "playwright test --config ui/playwright.config.ts --grep @smoke"
+    "test:smoke": "E2E_SMOKE=1 vitest run --config api/vitest.config.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48",
     "@types/node": "^20",
     "@types/supertest": "^6",
     "mysql2": "^3.22.5",

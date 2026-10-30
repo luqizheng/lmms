@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 在主机上编译各 service 的 Rust 二进制（不进 Docker 编译容器）。
 //
-// 与 scripts/build-docker.js 的分工：
+// 与 coder build images 的分工：
 //   - build-docker.js 出的是发布镜像（Linux/musl，产物可直接进容器）。
 //   - build-cargo.js 出的是主机本地产物，用于本机跑服务 / 快速验证能否编译通过。
 //

@@ -22,11 +22,11 @@ in-house **Reposilite** Maven registry. Two pipelines:
 
 Underlying commands:
 
-- `pnpm run sdk:publish:release` → `node scripts/publish-maven-release.js --version X.Y.Z`
-- `pnpm run sdk:publish:snapshot` → `node scripts/publish-maven-snapshot.js --version X.Y.Z-SNAPSHOT`
+- `pnpm run sdk:publish:release` → `node packages/cli/bin/coder.js release publish maven --version X.Y.Z`
+- `pnpm run sdk:publish:snapshot` → `node packages/cli/bin/coder.js release publish maven --kind snapshot --version X.Y.Z-SNAPSHOT`
 - `pnpm run sdk:test:java` → `mvn -B test -f sdk/java/pom.xml` (default java8 profile)
 
-Both thin Node scripts delegate to `scripts/lib/maven-publish.js#runPublish(variant, argv)`.
+Both thin Node scripts delegate to the retired maven-publish lib#runPublish(variant, argv)`.
 
 ## Critical invariants (read before publishing)
 
@@ -252,7 +252,7 @@ agree:
 | --- | --- | --- |
 | `sdk/java/pom.xml` `<distributionManagement>` | `http://192.168.2.12:18181/releases` | `http://192.168.2.12:18181/snapshots` |
 | `sdk/java/README.md` "仓库" section | `http://mvn.kudi.repos/repository/maven-releases/` | `http://mvn.kudi.repos/repository/maven-snapshots/` |
-| `scripts/lib/maven-publish.js` `DEFAULT_REPO_URL` | `http://192.168.2.12:18181/releases` | `http://192.168.2.12:18181/snapshots` |
+| the retired maven-publish lib `DEFAULT_REPO_URL` | `http://192.168.2.12:18181/releases` | `http://192.168.2.12:18181/snapshots` |
 
 **Authoritative source is the pom.xml `<distributionManagement>` and
 the script's `DEFAULT_REPO_URL`** — both agree on
@@ -276,7 +276,7 @@ release artifacts.
 
 ## Cross-references
 
-- **npm SDK** (`@digua/dist-tools`): see `coder-sdk-publish-npm` skill
+- **npm TS packages** (`@digua/contracts` + `@digua/http`): `pnpm run packages:publish` / CI `publish_packages`
 - **Rust crates** (libs + sdks): see `coder-sdk-publish-rust` skill
 - **Service Docker images**: see `coder-service-release` skill
 - **CI auto-publish**: `.gitlab-ci.yml` (release tag → publish job)

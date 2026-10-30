@@ -41,19 +41,45 @@ fn dialect_from_mariadb_url() {
 }
 
 #[test]
-fn dialect_unknown_url_defaults_mysql() {
+fn dialect_pg_urls_are_explicit() {
     assert_eq!(
         DialectKind::from_url("postgresql://localhost/db"),
-        DialectKind::Mysql
+        DialectKind::Postgres
     );
     assert_eq!(
-        DialectKind::from_url("mssql://localhost/db"),
-        DialectKind::Mysql
+        DialectKind::from_url("postgres://localhost/db"),
+        DialectKind::Postgres
     );
+}
+
+#[test]
+fn dialect_from_mssql_url() {
+    // mssql 是已注册方言（dialect/mssql.rs），显式映射而非回退
+    assert_eq!(
+        DialectKind::from_url("mssql://localhost/db"),
+        DialectKind::Mssql
+    );
+}
+
+#[test]
+fn dialect_unknown_url_defaults_mysql() {
     assert_eq!(
         DialectKind::from_url("oracle://localhost/db"),
         DialectKind::Mysql
     );
+    assert_eq!(
+        DialectKind::from_url("some-random-scheme://host/db"),
+        DialectKind::Mysql
+    );
+}
+
+#[test]
+fn dialect_pg_has_explicit_utc_and_quoting() {
+    let d = DialectKind::Postgres;
+    assert_eq!(d.now_expr(), "now() AT TIME ZONE 'UTC'");
+    assert_eq!(d.escape_identifier("user"), "\"user\"");
+    assert!(d.is_reserved_keyword("SELECT"));
+    assert!(!d.is_reserved_keyword("coder_not_reserved"));
 }
 
 #[test]

@@ -16,6 +16,8 @@ fn sample_client(id: &str) -> Client {
         access_token_ttl_sec: 3600,
         refresh_token_ttl_sec: 2592000,
         status: "active".into(),
+        user_id: None,
+        expires_at: None,
     }
 }
 
@@ -198,6 +200,18 @@ async fn reset_secret_unknown_returns_none() {
         .await
         .unwrap();
     assert!(res.is_none());
+}
+
+#[tokio::test]
+async fn insert_client_with_user_id_and_expiry() {
+    let pool = common::spawn_mysql().await;
+    let mut c = sample_client("svc-bound");
+    c.user_id = Some("usr-abc123".to_string());
+    c.expires_at = Some(chrono::Utc::now() + chrono::Duration::days(30));
+    oauth_client_svc::insert(&pool, &c).await.unwrap();
+    let got = oauth_client_svc::find_by_id(&pool, "svc-bound").await.unwrap().unwrap();
+    assert_eq!(got.user_id.as_deref(), Some("usr-abc123"));
+    assert!(got.expires_at.is_some());
 }
 
 #[test]

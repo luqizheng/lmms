@@ -21,6 +21,12 @@ pub struct CreateApiKeyRequest {
     pub grant_types: Vec<String>,
     pub access_token_ttl_sec: Option<i64>,
     pub refresh_token_ttl_sec: Option<i64>,
+    /// 绑定的用户 id；client_credentials 流程用它作为 token 的 sub。
+    #[serde(default)]
+    pub user_id: Option<String>,
+    /// API Key 自身过期时间（RFC3339）；缺省 = 不过期。
+    #[serde(default)]
+    pub expires_at: Option<String>,
 }
 
 fn default_grant_types() -> Vec<String> {
@@ -48,6 +54,8 @@ pub struct ApiKeySummary {
     pub name: String,
     pub permissions: Vec<String>,
     pub status: String,
+    pub user_id: Option<String>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -58,6 +66,8 @@ impl From<oauth_client_svc::ClientView> for ApiKeySummary {
             name: v.name,
             permissions: v.permissions,
             status: v.status,
+            user_id: v.user_id,
+            expires_at: v.expires_at,
             created_at: v.created_at,
         }
     }
@@ -77,6 +87,14 @@ pub async fn handle_create_api_key(
     State(state): State<TokenServerState>,
     Json(req): Json<CreateApiKeyRequest>,
 ) -> Result<Json<ApiKeyCreated>, (StatusCode, &'static str)> {
+    let expires_at = match req.expires_at.as_deref() {
+        None => None,
+        Some(raw) => Some(
+            chrono::DateTime::parse_from_rfc3339(raw)
+                .map_err(|_| (StatusCode::BAD_REQUEST, "invalid expires_at"))?
+                .with_timezone(&chrono::Utc),
+        ),
+    };
     let client_id = uuid::Uuid::new_v4().to_string();
     let client_secret = uuid::Uuid::new_v4().to_string();
     let hash = crate::secret::hash_client_secret(&client_secret);
@@ -90,6 +108,8 @@ pub async fn handle_create_api_key(
         access_token_ttl_sec: req.access_token_ttl_sec.unwrap_or(3600),
         refresh_token_ttl_sec: req.refresh_token_ttl_sec.unwrap_or(2592000),
         status: "active".into(),
+        user_id: req.user_id,
+        expires_at,
     };
 
     oauth_client_svc::insert(&state.db, &new_client)
@@ -131,4 +151,22 @@ pub async fn handle_list_api_keys(
         page,
         size,
     }))
+}
+
+/// `/api-keys` 路由（带 service-jwt 鉴权，aud=token-service）。
+///
+/// 创建/列出 API Key 等于发放身份凭据，必须受鉴权保护——原先裸挂，
+/// 任何能访问本服务的人都能创建绑定任意用户的密钥（spec §3.5 附带发现）。
+pub fn routes(state: crate::TokenServerState) -> axum::Router {
+    use axum::routing::{get, post};
+
+    axum::Router::new()
+        .route("/api-keys", post(handle_create_api_key).get(handle_list_api_keys))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            digua_authz::verify_aud_principal_middleware::<crate::TokenServerState>(
+                "token-service",
+            ),
+        ))
+        .with_state(state)
 }

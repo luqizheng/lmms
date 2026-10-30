@@ -260,7 +260,7 @@ iam-service 启动时也从 token-service 拉取 JWKS（`main.rs:45-53`），用
 |---|---|
 | [token-service 环境变量](./token-service-env) | 完整 env 列表与默认值 |
 | [服务间认证](./service-to-service-auth) | service-jwt 的工作方式 |
-| [前端鉴权](./frontend-auth) | 前端如何与 token 系统交互 |
+| [前端鉴权](./frontend-auth) | 历史参考（PRISM console 已移除；token 交互机制原理仍适用） |
 | [API Gateway 路由配置](./api-gateway-routing) | 路由如何转发到 token-service |
 | [迁移状态端点](./migrations-state) | token-service 的迁移状态查询 |
 

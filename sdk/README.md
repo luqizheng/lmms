@@ -19,6 +19,10 @@ sdk/
   scripts/                       # openapi-generator 触发脚本
 ```
 
+> **npm TS 包**：浏览器 / Node 侧不放在 `sdk/`，而是仓库顶层 `packages/`（`@digua/contracts` + `@digua/http`，发布到私有 registry `http://npm.kudi.repos/`；发布用根目录 `pnpm run packages:publish`，发布前校验用 `pnpm run packages:check`；CI 在 `v*.*.*` tag 触发时由 `publish_packages` job 自动按 tag 版本发布）
+>
+> **C# SDK（`sdk/dotnet`）规划中**：目录尚未创建。
+
 > Java SDK 的 artifact ID 仍沿用历史命名（`user-service-*` / `token-server-*`），但 `0.2.0` 起内部已经对齐到合并后的 `iam-service`（`/v1/iam/...`）和 `token-service`（`/v1/tokens/...`、`/v1/api-keys`），请求体一律为 JSON。
 
 ## 选型矩阵
@@ -37,6 +41,8 @@ sdk/
 ## 仓库
 
 - Maven：`http://mvn.kudi.repos/#/`（Reposilite）
+- npm：`http://npm.kudi.repos/`（`@digua/contracts` / `@digua/http`，位于仓库顶层 `packages/`）
+- kellnr（Rust crates）：见 `sdk/rust` 发布脚本（`pnpm run sdk:publish:rust`）
 
 ## 重新生成
 

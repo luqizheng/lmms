@@ -189,7 +189,7 @@ git push origin main
 
 ### 8.2 路径 B：本地手动出镜像（hotfix / RC / 调试时用）
 
-`scripts/build-docker.js` 支持交互式 / 参数式两种模式，自带版本号 tag、多 CPU 架构、可选推送。
+`coder build images` 支持交互式 / 参数式两种模式，自带版本号 tag、多 CPU 架构、可选推送。
 
 ```bash
 # 交互式（无参数）：依次问 版本号 / 架构 / 是否推送 / 服务子集
@@ -206,13 +206,13 @@ pnpm docker:build -- --platform linux/amd64,linux/arm64 --push
 
 # 单服务子集
 pnpm docker:build -- api-gateway token-service -v 1.0.0 --push
-# = node scripts/build-docker.js api-gateway token-service -v 1.0.0 --push
+# = node packages/cli/bin/coder.js build images api-gateway token-service -v 1.0.0 --push
 ```
 
 | 工具 | 干啥 |
 |---|---|
-| [`scripts/build-docker.js`](../scripts/build-docker.js) | 批量构建 + 推送 micro-server 镜像。无参数=交互式；参数式支持 `-v <ver>`（同时打 `:<ver>` + `:latest`）、`--push`（buildx 直推）、`--load-and-push`（单架构本地留镜像 + 推送）、`-p/--platform linux/amd64,linux/arm64`（多架构，自动 `--push`）。默认 registry `zhcoder-docker-registry.com:8000/micro-server`。`node scripts/build-docker.js --help` 看全部选项。 |
-| [`scripts/build-docker.js clean`](../scripts/build-docker.js) | 清理 buildx cache（`cargo-registry`、`cargo-git`）。 |
+| [`coder build images`](../coder build images) | 批量构建 + 推送 micro-server 镜像。无参数=交互式；参数式支持 `-v <ver>`（同时打 `:<ver>` + `:latest`）、`--push`（buildx 直推）、`--load-and-push`（单架构本地留镜像 + 推送）、`-p/--platform linux/amd64,linux/arm64`（多架构，自动 `--push`）。默认 registry `zhcoder-docker-registry.com:8000/micro-server`。`node packages/cli/bin/coder.js build images --help` 看全部选项。 |
+| [`coder build images clean`](../coder build images) | 清理 buildx cache（`cargo-registry`、`cargo-git`）。 |
 
 **模式与默认值**：
 
@@ -314,9 +314,9 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 全部出镜像 | `pnpm docker:build` |
 | 出镜像并打版本号推送 | `pnpm docker:build -- -v 1.0.0 --push` |
 | 重新加载 gateway 路由 | `curl -X POST http://localhost:3000/__admin/reload` |
-| 发布 Rust libs (17 crates) | `CARGO_TARGET_DIR=/tmp/libs-target node scripts/publish-libs.js <VER>` |
-| 发布 Rust SDK (7 crates) | `CARGO_TARGET_DIR=/tmp/sdk-target node scripts/publish-rust-sdks.js <VER>` |
-| 发布 npm 包 (`@digua/dist-tools`) | `pnpm run sdk:publish:npm` |
+| 发布 Rust libs (17 crates) | `CARGO_TARGET_DIR=/tmp/libs-target node packages/cli/bin/coder.js release publish rust --targets libs <VER>` |
+| 发布 Rust SDK (7 crates) | `CARGO_TARGET_DIR=/tmp/sdk-target node packages/cli/bin/coder.js release publish rust <VER>` |
+| 发布 npm 包 (`@digua/contracts` + `@digua/http`) | `pnpm run packages:build && pnpm run packages:publish` |
 
 ---
 

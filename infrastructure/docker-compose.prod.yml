@@ -37,11 +37,11 @@ services:
 
   # ─────────────────────────────────────────────────────────────────────────
   #  业务后端 8 个服务：
-  #    - 清空 host port（外部不再直连；唯一公共入口是 frontend:8080）
+  #    - 除 api-gateway 外清空 host port（外部不再直连；唯一公共入口是
+  #      api-gateway:3000，客户端通过 sdk/* 或 packages/* 访问）
   #    - 加 restart: unless-stopped（容器内部端口仍可互通）
   # ─────────────────────────────────────────────────────────────────────────
   api-gateway:
-    ports: !override []
     restart: unless-stopped
   token-service:
     ports: !override []
@@ -69,12 +69,6 @@ services:
   #  outbox publishers（iam-outbox-publisher / notification-outbox-publisher）：
   #  已在 base 文件中有 restart: unless-stopped 且无 ports，本 overlay 不动。
   # ─────────────────────────────────────────────────────────────────────────
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  frontend：保留 host port 8080（唯一的公共 HTTP 入口）；加 restart
-  # ─────────────────────────────────────────────────────────────────────────
-  frontend:
-    restart: unless-stopped
 
   # ─────────────────────────────────────────────────────────────────────────
   #  observability（prometheus / grafana / jaeger / otel-collector / alertmanager

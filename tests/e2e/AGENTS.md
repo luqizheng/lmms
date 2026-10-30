@@ -6,7 +6,6 @@
 
 - Docker Compose：`infrastructure/docker-compose.yml`
 - 路由配置：`infrastructure/config/api-gateway/routes/`
-- nginx：`infrastructure/nginx/`
 - 镜像清单：`infrastructure/base-images.json`
 
 **禁止** 使用 `docker-example/`、`docker-compose.yml`（旧）等其它路径启动服务。容器名固定以 `infrastructure-` 前缀。
@@ -29,19 +28,19 @@ pnpm run dev:infra:e2e
 # mysql        3306
 # redis        6379
 
-# 3. 跑 e2e（独立 workspace，绕过 frontend engines.pnpm）
+# 3. 跑 e2e
 pnpm -C tests/e2e install
-pnpm -C tests/e2e test          # 全量：API + UI
+pnpm -C tests/e2e test          # 全量（API 数据驱动）
 pnpm -C tests/e2e test:api      # 仅 API 数据驱动
-pnpm -C tests/e2e test:ui       # 仅 UI（需前端容器）
 ```
+
+> 历史说明：框架不再随附前端控制台，原 Playwright UI 测试套件（`ui/`）已随 PRISM console 移除。
 
 ## 环境变量（指向 infrastructure）
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `E2E_BASE_URL` | `http://localhost:3000` | infrastructure-api-gateway |
-| `E2E_FRONTEND_URL` | `http://localhost:8080` | 前端容器（UI 测试） |
 | `E2E_ADMIN_USER` | `e2eadmin` | globalSetup 自注册 |
 | `E2E_ADMIN_PASS` | `P@ssw0rd!` | globalSetup 自注册 |
 | `E2E_DEBUG` | `0` | 1=请求/响应日志 |
@@ -52,20 +51,7 @@ pnpm -C tests/e2e test:ui       # 仅 UI（需前端容器）
 
 - `shared/` 共享设施：`config.ts` / `db/reset.ts`（resetBase/resetBusiness）/ `data/cases.ts`（读 yaml+占位符+断言）/ `report/writer.ts`（xlsx 报告）
 - `api/`：直连网关。`globalSetup.ts` 注册并登录 admin，`runner/run.e2e.test.ts` 遍历 `cases/*.yaml`
-- `ui/`：经前端。`runner/run.spec.ts` 遍历 `cases/*.yaml` 执行 `flows/` 编排；`globalSetup.ts` 额外从 `contracts/permissions.yaml` 重灌 `iam_permissions`（resetBase 会清权限表，角色分配权限等 UI 依赖权限树非空）
-- flow 注册按域分文件：`ui/flows/<domain>.ts` 各自 `export const <domain>Flows`，`flows/index.ts` 仅聚合。**新增 flow 只改自己域的文件，不动 index.ts**
-- 新增用例 = 编辑 `api/cases/*.yaml` 或 `ui/cases/*.yaml`，无需改执行器
-
-## UI flow 单独验证（开发期，不清库）
-
-```powershell
-# 前端用 vite dev（8848）时：
-$env:E2E_FRONTEND_URL="http://localhost:8848"
-npx tsx ui/dev/run-flow.ts <flowName> '<paramsJson>'   # FLOW_OK / FLOW_FAIL + ui/dev/last-error.png
-npx tsx ui/dev/probe.ts <url>                          # 探针：URL/title/body/input 列表
-```
-
-`ui/dev/env.ts` 自动探测 `~/playwright-libs`（无 sudo 环境的 chrome 依赖解包目录），其他环境 no-op。
+- 新增用例 = 编辑 `api/cases/*.yaml`，无需改执行器
 
 ## 调试
 

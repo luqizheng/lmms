@@ -3,7 +3,7 @@
 > **文档性质**：状态快照 + AI 协作入口（**不是**架构教程或历史流水账）。
 > AI 协作者在本仓库工作前**必须先读**本文件；它把当前事实、漂移点、未完成项收口到一处。
 >
-> **最后核验日期**：2026-08-19
+> **最后核验日期**：2026-10-30
 >
 > **事实来源**（已核对）：
 > - `docs-site/ai-context.md`（本文旧版本）
@@ -22,7 +22,7 @@
 > - `docs-site/decisions/{ADR-003-multi-tenancy-architecture,ADR-004-release-engineering-architecture,ADR-005-shared-db-vs-per-service-db,ADR-006-gateway-long-term-strategy,CONVENTIONS-libs-crate-strategy,frontend-e2e-coverage-eval,test-case-migration-eval}.md`
 > - `docs-site/{slo,perf-baseline}.md`、`docs-site/plans/k3s-decision-review.md`
 > - `sdk/java/KNOWN-DRIFT.md`（12 处 SDK/OpenAPI 端点漂移）
-> - `scripts/check-{java-sdk-drift,i18n-namespace,doc-links,service-standard,spec,db-naming,reconcile-todo-docs}.js`
+> - `scripts/check-{java-sdk-drift,doc-links,service-standard,spec,db-naming,reconcile-todo-docs}.js`（原 `check-i18n-namespace.js` 已随 PRISM console 移除而删除）
 > - `tests/load/baseline.js`（k6 基线脚本）
 > - `docs/superpowers/plans/2026-06-25-overall-roadmap.md`
 > - `docs/superpowers/specs/2026-07-23-{release-dist-template,setup-wizard,sdk-publishing}-design.md`（P1 文档基建追认，commit `28d0aead`）
@@ -89,7 +89,7 @@
 > - `docker-compose.yml`：主入口，`include` 下面三个
 > - `docker-compose-infra.yml`：基础设施基线（无端口发布、无 dev 覆盖）
 > - `docker-compose-infra.dev.yml`：dev overlay（加端口发布）
-> - `docker-compose-services.yml`：8 个 Rust 服务 + frontend + 2 个 outbox publisher
+> - `docker-compose-services.yml`：8 个 Rust 服务 + 2 个 outbox publisher（原 frontend 服务已随 PRISM console 移除）
 > - `docker-compose-observability.yml`：可观测性 overlay
 >
 > **端口以 docker compose 为准**（host 端口 → 容器内端口 = `:PORT`）：api-gateway 3000:3000、token 8082:8082、iam 9081:8081（mesh 残留，待统一 8081:8081）、notification 8083:8083、audit 8084:8084、prue 8087:8087、config 8085:8081、file 8086:8082。`cargo run` 本地默认与 compose 不同（token 4000、audit/prue 8080、iam 8081）——需带 compose env 才落到 808x。完整表见 [`docs-site/user-manual/11-reference.md` §11.5](user-manual/11-reference.md#115-服务端口速查phase-5-a-2-之后) 与 [`docs-site/user-manual/02-architecture.md` §2.5](user-manual/02-architecture.md#25-swagger-ui-覆盖)。
@@ -98,7 +98,8 @@
 
 ## 2. 关键事实速查（AI 5 分钟可读完）
 
-- **架构**：浏览器 → `api-gateway:3000` → Rust 业务服务；服务间调用 `Authorization: Bearer <service-jwt>` 透传（无 mTLS / 无 SPIFFE）；事件总线走 RabbitMQ + transactional outbox。
+- **架构**：客户端（业务仓前端 / 各语言 SDK）→ `api-gateway:3000` → Rust 业务服务；服务间调用 `Authorization: Bearer <service-jwt>` 透传（无 mTLS / 无 SPIFFE）；事件总线走 RabbitMQ + transactional outbox。
+- **前端**：**框架不随附前端控制台**（PRISM console 已于 2026-10 移除，`frontend/` 目录已删）。前端在业务仓集成：TS 走顶层 `packages/`（`@digua/contracts` + `@digua/http`，发布到私有 registry `npm.kudi.repos`，`pnpm run packages:publish`）；服务端走 `sdk/`（Java / Rust；C# `sdk/dotnet` 规划中）。
 - **JWT**：RS256；网关验签；下游用 `libs/digua_common-jwt::JWKSCache`；`Principal` extractor 取身份（`libs/jwt-ctx`）；**禁止读 `X-User-*` headers**。
 - **多租户**：共享 MySQL + `tenant_id` 列；JWT `tid` claim + `tenant_id` 必填（缺则 401）；`cross_tenant: bool` 给 platform-admin；`scripts/check-tenant-scope.js` lint 守门。
 - **契约层**：`contracts/error-codes.yaml` / `permissions.yaml` / `events.yaml` / `http-conventions.md` / `db-conventions.md` 单一真相源。`scripts/contracts-gen.js` 生成 `libs/digua_common-error/src/codes.rs`、`libs/digua_authz/src/perms.rs`；**禁止手改生成文件**。
@@ -120,7 +121,7 @@
 | 5-A（原始 mTLS 选型） | 撤并至 registrator | [完成]（撤销） | Phase 5-A-2 撤回后，spec `2026-07-03-phase5a-consul-connect-mtls-design.md` 仅作历史 |
 | 5-C | RabbitMQ/MySQL/Redis TLS | [待推进]（→ R2.1） | 1.0 不增加安全功能；R2.0 统一规划 |
 | 6-A | Trace 链闭环 + 事件总线生产化 | [完成] | T1 trace_id 自动注入 / T2 OTel 全覆盖 + tracing_mw 提取 / T3 transient/permanent + bounded redelivery / T4 24h archive；follow-up T2-fu1~4 + T3-fu1~4 + T4-fu1 已落，**P2 指标 `iam_outbox_archived_total` / `iam_outbox_purged_total` 因 outbox-publisher 无 `/metrics` 推迟** |
-| 6-B | config-service dogfooding | [完成]（既定范围） / [部分完成]（平台扩面） | T1 `ConfigServiceProvider` / T2 `Loader` + watch / T3 **token-service 首接入**落地；其余业务服务 / 独立 publisher / 前端尚未全面 dogfood，仍直接读 `config.yaml` / env |
+| 6-B | config-service dogfooding | [完成]（既定范围） / [部分完成]（平台扩面） | T1 `ConfigServiceProvider` / T2 `Loader` + watch / T3 **token-service 首接入**落地；其余业务服务 / 独立 publisher 尚未全面 dogfood，仍直接读 `config.yaml` / env |
 | 7 | K3s / 灰度发布升级 | [待推进] | chart/manifest 未写；三级探针待补；Argo Rollouts/Flagger 未评估 |
 | 8 | 多租户 | [完成] | 8.1 骨架 / 8.2 业务表 tenant_id 迁移 / 8.3 全面贯通 + cross_tenant flag / 8.3-fu1 iam 点查询 / 8.3-fu2 ntf/cfg/file 点查询；`scripts/check-tenant-scope.js` 启发式升级 [部分完成]（沿用 delegated 豁免） |
 | 10 | 小问题清单（收尾） | [部分完成] | 详见 §4.1 |
@@ -154,7 +155,7 @@
 - 评估自研 router 替换为 Envoy / Pingora 的成本/收益 — **ADR-006 已落**（`docs-site/decisions/ADR-006-gateway-long-term-strategy.md`，2.0 评估 Envoy vs Pingora 触发条件明确）。
 
 **前端遗留**：
-- ~~i18n 三个 key 缺失~~ → **✅ 已修复（commit `c2d23b4`）**：实际扫描发现 10 keys（8 from buttons + 2 from login 含 1 个三副本）调用 `menus.*` 但定义在错误 namespace。迁移后 zh-CN / en 各 586 keys 完美对称，0 个 menus.* 调用 fallback。完整扫描见 §4.2 commit `c2d23b4`。
+- ~~i18n 三个 key 缺失~~ → 当时已修复（commit `c2d23b4`）。**2026-10 起 PRISM console 已从框架整体移除**（前端迁业务仓，经 `packages/@digua/*` 与 `sdk/` 接入网关），i18n 守卫脚本（`check-i18n-namespace.js` 等）与 CI job 已删，本项仅存历史。
 
 **指标**：
 - `iam_outbox_archived_total` + `iam_outbox_purged_total` IntCounter [**豁免**] —— `iam-outbox-publisher/AGENTS.md` 显式声明 `/metrics` 豁免（无 HTTP；process exporter 抓 PID）。重新评估触发条件保留在 `done.md §P0-2 5 节`。
@@ -195,7 +196,6 @@
 - 求救渠道 / on-call 值班表 —— 待团队负责人补充
 - commit message 规范（是否走 Conventional Commits / PR 标题 / issue 关联）—— 待规范人补充
 - config-service 使用方式 —— 待熟悉 config-service 的开发者补充
-- 前端登录态刷新机制细节 —— 待前端负责人确认
 
 #### 4.3.1 多租户注意事项（来自 [ADR-003](../decisions/ADR-003-multi-tenancy-architecture.md)）
 
@@ -244,7 +244,7 @@
 **1. 分发形态：v2「平台镜像 + 开发骨架」**
 - 核心平台以 Docker 镜像交付，`services/` 目录为空供用户自建业务服务
 - 单包 `coder-micro-services-<VERSION>-airgap.tar.gz` ≈ 10-15 GB（镜像） + MB 级（骨架）
-- 包含：bin / compose / config / images / frontend / `.agents/`(skills 仅白名单 6 scaffold + rules) / contracts / scripts / Cargo.toml / docker-compose.yml / Makefile / .env.example
+- 包含：bin / compose / config / images / packages（前端 TS 集成包 `@digua/contracts` + `@digua/http`）/ `.agents/`(skills 仅白名单 6 scaffold + rules) / contracts / scripts / Cargo.toml / docker-compose.yml / Makefile / .env.example（原 frontend 骨架已随 PRISM console 移除）
 - **放弃"服务源码全打包"路径**（太重、更新不便）
 
 **2. 打包命令（`release.sh` 已于 2026-08 迁 Node 删除；↓ 传入/示例均为 **no-v** 版本，git tag 才带 `v`）**
@@ -254,7 +254,7 @@ node release/dist-template/scripts/release.js 1.0.0
 EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 # 或 pnpm run release:build（= release.js，无参取默认版本）；单测 pnpm run release:test
 ```
-- 平台服务 + 基础镜像清单硬编码在 `release.js` 的 `IMAGES` 数组：**9 个 micro-server（api-gateway/config/file/token/iam/notification/audit/prue-admin-backend/frontend）+ `micro-server/mysql-replica` + 基础镜像**。新增服务需同时改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`。
+- 平台服务 + 基础镜像清单硬编码在 `release.js` 的 `IMAGES` 数组：**8 个 micro-server（api-gateway/config/file/token/iam/notification/audit/prue-admin-backend）+ `micro-server/mysql-replica` + 基础镜像**（原 frontend 镜像已随 PRISM console 移除）。新增服务需同时改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`。
 - **git tag 带 `v`，发布镜像 tag 不带 v**：`build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v，registry 里是 `micro-server/<svc>:<no-v>`。离线下发/下游升级引用/对账命令里的 tag 一律 no-v（`v1.5.0` 是 git tag，镜像 tag 是 `1.5.0`）。
 - airgap 全包依赖 `mysql-replica` 与 `alertmanager`：前者 CI tag pipeline buildx 单独推送并在离线包导出（主 compose 引用），后者走公网镜像代理完整地址（内网 registry 未同步）。离线缺镜像先查 `IMAGES` 是否漏导。
 
@@ -272,7 +272,7 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 |---|---|---|
 | Rust libs（`libs/`）+ SDK（`sdk/rust/`） | 私有 kellnr | `.cargo/credentials.toml` 中 token |
 | Java SDK（`sdk/java/`） | 私有 Reposilite（`192.168.2.12:18181`） | `.mvn/settings.xml` 中 servers |
-| **.NET SDK** | ❌ **已废弃**（7 月清理） | — |
+| **.NET SDK** | ❌ 已废弃（2026-07 清理）；**C# SDK（`sdk/dotnet`）重新规划中，目录尚未创建** | — |
 
 - Java SDK 0.3.0 起独立版本号，与平台版本解耦
 - Rust SDK 版本策略未固化（ADR-004 已知未做）
@@ -303,14 +303,13 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 | `test` | `contracts_check` | 所有 pipeline | `node scripts/contracts-gen.js --check` | [正常] |
 | `test` | `spec_generate` | 所有 pipeline | `node scripts/dump-openapi-specs.js` + `git diff --exit-code` | [正常] 守 openapi drift |
 | `test` | `doc_links_check` | 所有 pipeline | `node scripts/check-doc-links.js` | [正常] |
-| `test` | `cargo_clippy` / `cargo_fmt_check` / `cargo_audit` / `cargo_deny` / `frontend_lint` / `java_sdk_test` / `java_sdk_drift_check` / `i18n_namespace_check` | 条件 | 各自脚本 | [正常] |
+| `test` | `cargo_clippy` / `cargo_fmt_check` / `cargo_audit` / `cargo_deny` / `packages_test`（`@digua/http` test + `@digua/contracts` typecheck）/ `java_sdk_test` / `java_sdk_drift_check` | 条件 | 各自脚本 | [正常]（原 `frontend_lint` / `i18n_namespace_check` 已随 PRISM console 移除删除） |
 | `deploy` | `deploy` | `only: main` | **SSH 到 `STAGING_HOST` + 远程 `deploy-remote.sh` 滚动重启 + 端点验证** | [正常] 不再依赖专属 runner；走 `tags: [docker]` + SSH key |
 | `deploy` | `deploy_smoke` | `needs: deploy` | `curl $STAGING_BASE_URL/health = {"status":"ok"}` | [正常] `allow_failure: true` |
-| `e2e` | `e2e_api_test` | `needs: deploy` | 走 `STAGING_BASE_URL=http://192.168.2.127:8080`（frontend → api-gateway） | [正常] 不再依赖 3000 暴露 |
-| `e2e` | `e2e_ui_test` | 同上 | Playwright 走 frontend:8080 | [正常] |
+| `e2e` | `e2e_api_test` | `needs: deploy` | 走 `STAGING_BASE_URL=http://192.168.2.31:3000`（直连 api-gateway，frontend 移除后的唯一公共入口） | [正常] |
 | `e2e` | `e2e_migration_state_test` | `needs: deploy` | 通过 SSH-tunnel（19xxx 端口）直连业务后端 | [正常] 7 端口 × service-jwt |
-| `build` | `build_<svc>`（9 个）+ `build_frontend` | `changes:` 条件 | `.rust_svc_build` 模板 + `docker push` | [正常] |
-| `publish` / `release` | `sdk_publish` / `rust_publish` / `release:dist` | tag | 内网 Maven / kellnr / 离线分发包 | [正常] |
+| `build` | `build_<svc>`（8 个） | `changes:` 条件 | `.rust_svc_build` 模板 + `docker push` | [正常]（原 `build_frontend` 已删） |
+| `publish` / `release` | `sdk_publish` / `rust_publish` / `publish_packages` / `release:dist` | tag | 内网 Maven / kellnr / npm（@digua 访问包）/ 离线分发包 | [正常] |
 
 ### 5.2 凭据管理（合规且对齐，2026-08 更新）
 
@@ -329,12 +328,12 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 
 按 `docs/superpowers/specs/2026-07-06-prod-compose-overlay-design.md` 落地：
 
-- 唯一 host 公开端口：`frontend:8080`（仅此而已）
-- `api-gateway:3000` / 业务后端 8081-8087 / `mysql` / `redis` / `rabbitmq` / `consul` host port 全部清掉（`!override []`）
+- 唯一 host 公开端口：`api-gateway:3000`（frontend 已移除，网关即唯一公共入口）
+- 业务后端 8081-8087 / `mysql` / `redis` / `rabbitmq` / `consul` host port 全部清掉（`!override []`）
 - observability 端口（Prom 9090 / Grafana 3001 / Jaeger 16686 / Otel 4317-4318 / Alertmanager 9093）保留（ops 直连）
 - 全部长跑组件 `restart: unless-stopped`
 - 起停入口：`infrastructure/scripts/{start-prod.sh, stop-prod.sh}`（fail-fast compose v2.20+ + env 分层加载 + 关键 vars 必填校验）
-- 远程部署编排：`infrastructure/scripts/deploy-remote.sh`（preflight + pull + rolling restart + healthcheck 门禁 + frontend:8080/health 端点 + image prune）
+- 远程部署编排：`infrastructure/scripts/deploy-remote.sh`（preflight + pull + rolling restart + healthcheck 门禁 + api-gateway:3000/health 端点 + image prune）
 
 **门禁**：
 - `.gitlab-ci.yml` `deploy` job SSH 用 `StrictHostKeyChecking=accept-new` + `ExitOnForwardFailure=yes`
@@ -347,11 +346,11 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 
 迭代加固记录（多为 `fix:` 小步，合并进 main、经常互为 revert/改道），用于理解当前 `.gitlab-ci.yml` 形状而非逐条背诵：
 
-- **发布管道是三轨**：日常 `main` / MR pipeline 只跑 test+build+deploy:e2e；**tag（release）pipeline** 另跑 `sdk_publish` / `rust_publish` / `maven_publish` / `release:dist` + `build_images:tagged`（剥 v 推镜像）。tag e2e jobs 设为**非阻塞**（`allow_failure`，release 不被回归阻塞）；`.pre-staging` 链已废弃，只留 continuous `deploy:staging`。
+- **发布管道是三轨**：日常 `main` / MR pipeline 只跑 test+build+deploy:e2e；**tag（release）pipeline** 另跑 `sdk_publish` / `rust_publish` / `publish_packages` / `release:dist` + `build_images:tagged`（剥 v 推镜像）——发版交付物 = 镜像 + 各语言包（Maven / kellnr crates / npm），四路全部成功才打离线包。下游更新全部走包升级；cms-sync（@digua/dist-tools）已停用并从仓库移除（2026-10-30）。tag e2e jobs 设为**非阻塞**（`allow_failure`，release 不被回归阻塞）；`.pre-staging` 链已废弃，只留 continuous `deploy:staging`。
 - **staging 冷启动 health gate 用轮询**（commit `075b8af0`）：`api-gateway:3000/health` 每 10s 一次、最多 30 次（300s）；全空卷冷启动时 MySQL 初始化 + migration/seed 需数分钟，单次 curl 会过早超时。deploy + e2e:staging 依赖端口是 **api-gateway:3000（不是 8080）**。
 - **runner 是 shell / `[docker]` executor + SSH 部署**（root-owned workspace）：多次根因是 `sudo docker` 产物 root-owned → compose/buildx 后续 clean 失败。当前已自愈：`cleanup:buildx` 重新 `chown` workspace、build 后 `chown` 回文件、`release-staging` 重映射挂载避开 root-owned 残留。
 - **tag 发布类 job（shell executor）**：需要在 maven 镜像里补装 pnpm/Node；publish npm 走 Verdaccio basic auth（user:pass，非 authToken）；`deploy:staging` 的 .env 首启从 `.env.example` 兜底、health gate 探针、ssh 远端用 `cat` 避开 bash 引号嵌套等已逐条修平。
-- **staging 相关修复点**：`frontend` 加 `extra_hosts pm=127.0.0.1` 让 nginx 启动过；大 swap 重启前先 warm up 基础服务（修 DNS）；`staging-${SHA}` swap 探活探针边界修正。观察性 runbook 增补见 commit `7ca144d5`（§6=staging 第三方基础镜像清单）与 `9d54beba`（§8.4 swap-noop + health gate 0ms refused，写在 `docs-site/runbooks/troubleshooting.md`）。
+- **staging 相关修复点**（历史，frontend 已移除）：曾给 `frontend` 加 `extra_hosts pm=127.0.0.1` 让 nginx 启动过；大 swap 重启前先 warm up 基础服务（修 DNS）；`staging-${SHA}` swap 探活探针边界修正。观察性 runbook 增补见 commit `7ca144d5`（§6=staging 第三方基础镜像清单）与 `9d54beba`（§8.4 swap-noop + health gate 0ms refused，写在 `docs-site/runbooks/troubleshooting.md`）。
 - **tag/release 产物规范**：`dist-template` 的 `IMAGE_TAG` 统一 **no-v**（git tag `v1.5.0` ≠ 镜像 tag `1.5.0`）；tag pipeline buildx 单独构建并推送 `micro-server/mysql-replica`（主 compose 引用、离线包需导出）；`mysql-replica` / `alertmanager` 镜像对 tag pipeline 的构建/推送是新增职责。
 - **门禁**：缺失/漂移时对照 §5.1 现行 gate 脚本（`*.js`，勿再依赖旧 `.sh`）。
 - 运维侧 CD/canary/发布机制文档见 `docs-site/runbooks/release-tag-pipeline.md` 等。
@@ -436,7 +435,7 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 14. **E2E Smoke 子集用 `E2E_SMOKE=1`**：只跑带 `smoke: true` 的用例，~2 分钟；CI 跑全量。详见 `docs-site/guides/testing.md`。
 
-15. **i18n namespace 约定 + CI gate**（commit `c2d23b4` 后）：`frontend/locales/{zh-CN,en}.yaml` 中 `menus.X` 的 X 必须定义在 `menus:` namespace 下，**不能在 `buttons:` / `login:` / `search:` / `panel:`**（即使前缀同名也不允许——这是 yaml duplicate key 错误来源）。**`scripts/check-i18n-namespace.js`**（commit `f7c7237`，2026-07-30）已在 CI 守门：扫描 `frontend/src` 下所有 .vue / .ts 中的 `t('menus.X')` 调用，对照 yaml `menus:` namespace 校验；hard-fail 退出码 1。CI job `i18n_namespace_check`（`.gitlab-ci.yml`）按 `frontend/src/**/*.{vue,ts}` 或 `frontend/locales/**/*.yaml` 变更触发。
+15. **i18n namespace 约定 + CI gate —— 已废止，仅存历史**：该约定与 `scripts/check-i18n-namespace.js`、CI job `i18n_namespace_check` 均随 PRISM console 从框架移除（2026-10）而删除。业务仓前端如沿用 i18n，请自行在业务仓建立等价校验。
 
 16. **事件总线 = RabbitMQ + transactional outbox**（Phase 4）。同事务写业务行 + `digua_common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new(...))`；独立 `*-outbox-publisher` 进程轮询发布；消费者按 `event_id` 幂等。**`Envelope<serde_json::Value>` 仅用于消费**，publish 必须用强类型 Event。
 
@@ -469,7 +468,6 @@ node scripts/run-tests-host.js audit-service config-service file-service prue_ba
 pnpm -C tests/e2e install
 pnpm -C tests/e2e test:smoke        # ~2 分钟 smoke
 pnpm -C tests/e2e test:api          # 全量 API（`e2e_api_test` job 无 rules，会进入 pipeline）
-pnpm -C tests/e2e test:ui           # 全量 UI（需前端容器）
 
 # 可观测性
 docker compose -f infrastructure/docker-compose.yml up -d
@@ -544,7 +542,8 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 
 ---
 
-_最后核验：2026-08-19。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：
+_最后核验：2026-10-30。事实来源以本文档顶部"事实来源"清单为准（顶部清单与末尾引用一一对应）。本轮重大变更：
 
+- **2026-10-30（PRISM console 前端移除）**：`frontend/` 整体删除，框架不再随附前端控制台；原 `frontend/packages/{contracts,http}` 上移为顶层 `packages/`（`@digua/contracts` + `@digua/http`，发布到 `npm.kudi.repos`，`pnpm run packages:publish`）。前端集成改为业务仓经 `packages/` 与 `sdk/` 接入 api-gateway:3000 唯一公共入口。同步失效项：compose/prod 的 frontend 服务、前端守卫脚本（check-frontend-dead-code / check-i18n-* / check-v-perms / check-prism-* / check-router-modules / check-vitest-coverage / split-locales）与 CI frontend job、e2e UI 套件（tests/e2e/ui）、STAGING_BASE_URL 改 `http://192.168.2.31:3000`、release.js 骨架改同步 `packages/`。
 - **2026-08-19（合并 feat/centralized-logging + P1 收口）**：§4.1 第 1/2 条修正为"已闭合"（migration-state 三项 + application.yml 死代码移除）；新增 `scripts/reconcile-todo-docs.js` 漂移检测器（R1 父行 vs 子项 / R2 guide 状态行）+ CI `reconcile_todo_docs_check` job（`feat/reconcile-todo-docs` 分支 commits `ba3310b` / `57ae894` / `7f4f601`）。
 - **2026-08-19（8 月 P1 文档基建收口）**：① 修复 §4.2 编号 duplicate bug（`### 4.2 Onboarding / 运维` → `### 4.3 Onboarding / 运维`，后续 4.3 → 4.4 顺延）；② 新增 §4.3.1 多租户注意事项（从 ADR-003 提取 5 条执行要点 + 与 §4.1 现有 tenant-scope 上下文衔接）；③ 新增 §4.4.1 发行工程打包流程（从 ADR-004 提取 5 条执行要点 + 链接 3 份 2026-07-23 spec 追认）；④ 顶部"事实来源"清单补 ADR-003/004 + 3 份 spec；⑤ §10 导航地图补 ADR-{001..008} + spec 目录入口 + §4.3.1/§4.4.1 跳板。ADR-003/004 本身已由 commit `28d0aead`（2026-07-26）落地，本轮仅做"事实化"收口。_

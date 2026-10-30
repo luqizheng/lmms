@@ -41,7 +41,6 @@
 | **notification-service** | 8083 | 通知服务，支持邮件/WebSocket |
 | **audit-service** | 8084 | 审计日志 |
 | **prue-backend** | 8087 | Prueba 后端（MySQL + SQLite）|
-| **frontend** | 8080 | Vue 3 前端，nginx 托管 |
 
 ## Outbox Pattern
 

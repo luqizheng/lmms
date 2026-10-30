@@ -30,7 +30,7 @@ $ git push origin v1.3.0
 | `KELLNR_TOKEN` | Rust crates 发布 | ✅ | `cargo login --registry kellnr` 的 token |
 | `MAVEN_USERNAME` | Java SDK 发到 maven | ❌ | 默认 `reposilite`（Reposilite 默认账号） |
 | `MAVEN_PASSWORD` | Java SDK 发到 maven | ✅ | Reposilite 密码 |
-| `NPM_TOKEN` | `@digua/dist-tools` 发到 npm | ✅ | 内网 npm registry 的 access token |
+| `NPM_TOKEN` | `@digua/contracts` + `@digua/http` 发到 npm | ✅ | 内网 npm registry 的 access token |
 
 > 详细回填表见 `infrastructure/scripts/CI_VARIABLES.md` §2。
 
@@ -78,10 +78,10 @@ GitLab UI：`http://192.168.2.16/template/low-memory-micro-services/-/pipelines?
 
 | Stage | Job | 期望用时 | 看什么 |
 |---|---|---|---|
-| test | rust_test 等 14 个 | 8-15 min | 全部 PASS |
-| build | 9 个 `build_<svc>` + build_frontend | 5-15 min | 全部 PASS（与 e2e 同标签流水线 build 一次即可） |
-| deploy | deploy + deploy_smoke | 3-5 min | SSH 通；frontend:8080/health = `{"status":"ok"}` |
-| e2e | 3 个 e2e_* | 5-15 min | e2e_ui_test 用 Playwright 跑前需 STAGING 可用 |
+| test | rust_ci 等全部 test job | 8-15 min | 全部 PASS |
+| build | `build_images:tagged` | 5-15 min | 8 个服务镜像（+ `mysql-replica`）全部推成 `:1.3.0` + `:latest`（frontend 镜像已随 PRISM console 移除） |
+| deploy | deploy:staging | 3-5 min | SSH 通；api-gateway:3000/health = `{"status":"ok"}`（唯一公共入口） |
+| e2e | e2e_api_test + e2e_migration_state_test | 5-15 min | 走 `STAGING_BASE_URL`（api-gateway:3000）；UI 套件已移除 |
 | **publish** | **4 个并行** ⭐ | **5-20 min** | 见下表 |
 | release | release:dist | 1-2 min | 等上面 4 个完成；下载 artifact |
 
@@ -91,22 +91,23 @@ publish stage 4 个并行 job 的关键观察点：
 |---|---|---|
 | `sdk_publish` | maven（`http://mvn.kudi.repos`）网络不通；`MAVEN_*` 凭证错 | 看 job 内 `mvn install -DskipTests` + curl 上传步骤输出 |
 | `rust_publish` | kellnr（`http://192.168.2.12:16444`）网络不通；`KELLNR_TOKEN` 错 | 看 `cargo login` 步骤；可手动 `cargo login --registry kellnr` 校验 |
-| `build_images:tagged` ⭐ | runner 上 docker buildx 没装；registry 推不进去 | 看 `docker buildx inspect --bootstrap` 输出；如果镜像已经 push 成功，会列 9 个 `:1.3.0` tag |
-| `publish_npm` ⭐ | 内网 npm registry (`http://npm.kudi.repos`) 不可达；`NPM_TOKEN` 错 | 看 `npm config get registry` + `npm publish` 步骤 |
+| `build_images:tagged` ⭐ | runner 上 docker buildx 没装；registry 推不进去 | 看 `docker buildx inspect --bootstrap` 输出；如果镜像已经 push 成功，会列 8 个服务 `:1.3.0` tag（另有 `mysql-replica:1.3.0` 单独 buildx 推送） |
+| `publish_packages` ⭐ | 内网 npm registry (`http://npm.kudi.repos`) 不可达；`NPM_TOKEN` 错；版本检查不过（`check-packages-publish.js`） | 看 `check-packages-publish.js` 输出（会列出全部阻断项）；`pnpm run packages:build` 失败看 tsc 报错 |
 
 ### 期望最终落地的 artifacts（registry 内可见）
 
 ```bash
 # Docker registry：zhcoder-docker-registry.com:8000/micro-server/*:1.3.0 + :latest
 # 例如：
-#   api-gateway:v1.3.0
-#   token-service:v1.3.0
+#   api-gateway:1.3.0
+#   token-service:1.3.0
 #   ...
-#   frontend:v1.3.0
+#   prue-admin-backend:1.3.0
+#   （frontend 镜像已随 PRISM console 移除，不再发布）
 #
 # Maven: io.digua.* / com.digua.* artifacts at v1.3.0
 # kellnr (Rust crates): 17 个 libs/* + 7 个 sdk/rust/* at v1.3.0
-# npm (内网): @digua/dist-tools@1.3.0
+# npm (内网): @digua/contracts@1.3.0 + @digua/http@1.3.0（publish_packages；@digua/dist-tools/cms-sync 已停用不再发布）
 ```
 
 ---
@@ -165,11 +166,11 @@ cd ~/coder-micro-services
 git pull
 
 # 跑对应 publish step（不需要 CI）：
-node scripts/publish-maven-release.js --version 1.3.0
-node scripts/publish-libs.js 1.3.0 --registry kellnr
-node scripts/publish-rust-sdks.js 1.3.0 --registry kellnr
-node scripts/build-docker.js -v 1.3.0 --push
-cd release/dist-tools && npm publish --registry http://npm.kudi.repos  # token 在 ops 本地 ~/.npmrc
+node packages/cli/bin/coder.js release publish maven --version 1.3.0
+node packages/cli/bin/coder.js release publish rust --targets libs 1.3.0 --registry kellnr
+node packages/cli/bin/coder.js release publish rust 1.3.0 --registry kellnr
+node packages/cli/bin/coder.js build images -v 1.3.0 --push
+pnpm run packages:build && pnpm run packages:publish  # @digua/contracts + @digua/http，token 在 ops 本地 ~/.npmrc
 ```
 
 ---

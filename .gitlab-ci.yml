@@ -31,11 +31,12 @@ variables:
   STAGING_PROJECT_DIR: "/home/kudi/coder-micro-services"
   STAGING_SSH_PORT: "22"
 
-  # 公共入口由 frontend:8080 提供（前端 nginx 反代到容器网络内的 api-gateway:3000）。
-  # api-gateway:3000 在 prod 下不再暴露到 host。详见 infrastructure/docker-compose.prod.yml。
-  STAGING_BASE_URL: "http://192.168.2.31:8080"
+  # 公共入口是 api-gateway:3000（prod 下直接暴露到 host；前端不再随框架提供，
+  # 客户端通过 sdk/*（Java/Rust）或 packages/*（npm TS 包）访问）。
+  # 详见 infrastructure/docker-compose.prod.yml。
+  STAGING_BASE_URL: "http://192.168.2.31:3000"
 
-  # E2E 默认走 frontend(STAGING_BASE_URL)，不再依赖 3000 暴露。
+  # E2E 走 api-gateway(STAGING_BASE_URL)。
   E2E_BASE_URL: $STAGING_BASE_URL
   E2E_DB_HOST: $STAGING_HOST
   E2E_DB_USER: root
@@ -88,7 +89,7 @@ cleanup:buildx:
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
   script:
     # 自愈历史污染：整个工作区 chown 归还 sudo 期间 root 写入的所有文件（docs-site、
-    # 根/frontend node_modules、target 等都可能被 build-docker.js 宿主机预构建写成
+    # 根 node_modules、target 等都可能被 build-docker.js 宿主机预构建写成
     # root-owned），让后续 checkout 的 git clean 能删。chown 整个 build dir 一劳永逸。
     - 'sudo chown -R "$(id -u):$(id -g)" "$CI_PROJECT_DIR" 2>/dev/null || true'
     - sudo docker buildx prune -af 2>/dev/null || true
@@ -212,58 +213,6 @@ reconcile_todo_docs_check:
       when: on_success
     - when: never
 
-i18n_namespace_check:
-  stage: test
-  tags: [docker]
-  image: $BASE_REGISTRY/node:20
-  script:
-    - node scripts/check-i18n-namespace.js
-  rules:
-    - changes:
-        - frontend/src/**/*.{vue,ts}
-        - frontend/locales/**/*.yaml
-      when: on_success
-    - when: never
-
-prism_tokens_check:
-  stage: test
-  tags: [docker]
-  image: $BASE_REGISTRY/node:20
-  allow_failure: false
-  script:
-    - node scripts/check-prism-tokens.js
-    - node --test scripts/check-prism-tokens.test.js
-    - node scripts/check-prism-spec-sync.js
-    - node --test scripts/check-prism-spec-sync.test.js
-  rules:
-    - changes:
-        - frontend/src/components/ui/**/*
-        - frontend/src/styles/prism/**/*
-        - frontend/src/shell/**/*
-        - docs/prism/**/*
-        - scripts/check-prism-tokens.js
-        - scripts/check-prism-tokens.test.js
-        - scripts/check-prism-spec-sync.js
-        - scripts/check-prism-spec-sync.test.js
-      when: on_success
-    - when: never
-
-frontend_test:
-  stage: test
-  tags: [docker]
-  image: $BASE_REGISTRY/node:20
-  allow_failure: false
-  before_script:
-    - npm install -g pnpm
-    - pnpm -C frontend install --no-frozen-lockfile
-  script:
-    - pnpm -C frontend run test:unit
-  rules:
-    - changes:
-        - frontend/**/*
-      when: on_success
-    - when: never
-
 packages_test:
   stage: test
   tags: [docker]
@@ -279,23 +228,6 @@ packages_test:
     - changes:
         - packages/**/*
         - pnpm-lock.yaml
-      when: on_success
-    - when: never
-
-frontend_build:
-  stage: test
-  tags: [docker]
-  image: $BASE_REGISTRY/node:20
-  allow_failure: false
-  before_script:
-    - npm install -g pnpm
-    - pnpm -C frontend install --no-frozen-lockfile
-  script:
-    - pnpm -C frontend run build
-  rules:
-    - changes:
-        - frontend/**/*
-        - packages/**/*
       when: on_success
     - when: never
 
@@ -328,26 +260,6 @@ e2e_api_test:
     # e2e 只在 main / 手动触发时跑 —— MR pipeline 上 staging 还没 deploy，必然 fail
     # tag pipeline 不部署 staging（deploy:staging 只在 main 跑），e2e 测的是 main 部署的旧
     # staging，与本次发布产物无关；tag 上放行为非阻断，避免旧 staging 状态卡住 publish/release。
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
-      allow_failure: true
-    - when: manual
-      allow_failure: true
-
-e2e_ui_test:
-  stage: e2e
-  tags: [docker]
-  image: mcr.microsoft.com/playwright:v1.48.0-jammy
-  variables:
-    E2E_BASE_URL: $STAGING_BASE_URL
-  before_script:
-    - npm install -g pnpm
-    - pnpm -C tests/e2e install
-    - pnpm -C tests/e2e exec playwright install chromium
-  script:
-    - pnpm -C tests/e2e run test:ui
-  rules:
-    # tag pipeline 不部署 staging，e2e 测的是 main 部署的旧 staging，与发布产物无关，非阻断
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
       allow_failure: true
@@ -438,22 +350,6 @@ e2e_migration_state_test:
 # 因此 build stage 中所有 .rust_svc_build 的 Dockerfile 内层缓存依赖 $BASE_REGISTRY/rust:1.96-slim。
 # 实际构建时 Docker BuildKit 层缓存落在 docker 宿主端，GitLab CI 不做额外缓存卷挂载。
 
-frontend_lint:
-  stage: test
-  tags: [docker]
-  image: $BASE_REGISTRY/node:20
-  before_script:
-    - npm install -g pnpm
-    - pnpm -C frontend install --no-frozen-lockfile
-  script:
-    - pnpm -C frontend run lint:eslint
-  rules:
-    - changes:
-        - frontend/**/*
-      when: on_success
-    - when: never
-  allow_failure: true
-
 # ═════════════════════════════════════════════════════════════════════════════
 # Continuous staging flow（per-commit SHA + atomic symlink swap）
 # ═════════════════════════════════════════════════════════════════════════════
@@ -488,8 +384,8 @@ build_images:staging:
   before_script:
     - npm ci --silent --no-audit --no-fund
     # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
-    # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
-    # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    # 重建根 .npmrc（docs-site 镜像构建的 pnpm install 在根上下文执行），让容器里
+    # 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
     # 用 IP 直连而非 ${CODER_NPM_REGISTRY}（域名 npm.kudi.repos）：buildx 容器内该
     # 域名 DNS 解析失败（ENOTFOUND，pipeline 6307 实证），IP 直连不受 DNS 影响。
     - |
@@ -499,7 +395,7 @@ build_images:staging:
         echo "//192.168.2.12:14873/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
-    - node scripts/download-swagger-ui.js
+    - node packages/cli/bin/coder.js assets download
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
     # buildkit 跑在 docker-container driver 的独立容器里，registry 协议决策独立于 host daemon 的
     # /etc/docker/daemon.json。把内网 HTTP registry 显式标记 http = true，否则 buildkit 默认 HTTPS
@@ -518,17 +414,17 @@ build_images:staging:
     - sudo docker buildx inspect --bootstrap
     # --load-and-push：本地留镜像（staging server pull 需要）+ 推 registry（备份 / 跨环境可拉）
     # 用变量传递避免 YAML 多行 `\<newline>` + 缩进导致 bash 把缩进当作 arg 前缀
-    - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend frontend"
+    - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend"
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
-    - sudo -E node scripts/build-docker.js -v "${VERSION}" --load-and-push $BUILD_SERVICES
+    - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --load-and-push $BUILD_SERVICES
     # mysql-replica 位于 infrastructure/mysql-replica/，不在 build-docker.js 服务清单里，单独 buildx --push。
     # 它在 docker-compose.yml（非 infra.yml）中，release 时 transform-compose 转成
     # micro-server/mysql-replica:<sha>，load-images --mode=pull 会拉它，必须在此构建推送。
     - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
     - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
     - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
-    # 归还所有权：sudo -E node build-docker.js（docs-site/frontend 宿主机预构建）
-    # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根/frontend node_modules
+    # 归还所有权：sudo -E node build-docker.js（docs-site 宿主机预构建）
+    # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根 node_modules
     # 等），不 chown 回来会让后续 gitlab-runner 用户 checkout 时 git clean 失败
     # （Permission denied，pipeline 6742/6753 实证）。chown 整个工作区一次覆盖。
     - sudo chown -R "$(id -u):$(id -g)" "$(pwd)" 2>/dev/null || true
@@ -698,18 +594,16 @@ sdk_publish:
   tags: [docker]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   before_script:
-    # maven 镜像不带 node/npm，但发布脚本是 node 实现；CI variables 段不支持
+    # maven 镜像不带 node，但 coder CLI 是 node 实现；CI variables 段不支持
     # bash 的 ${CI_COMMIT_TAG#v} 展开，版本号必须在 script 的 shell 里算。
-    # 脚本 require('chalk')/('ora') 等仓库根 dependencies，maven 镜像没 node_modules，需 npm ci。
-    # Ubuntu nodejs 包不含 npm，必须连同 npm 包一起装。
-    - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs npm)
-    - npm ci --silent --no-audit --no-fund
+    # coder CLI 零依赖（无 node_modules），maven 镜像只需 node 二进制，无需 npm ci。
+    - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs)
     - mkdir -p ~/.m2
     - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== sdk_publish (maven) — VERSION=${VERSION} ==="
-    - node scripts/publish-maven-release.js --version "${VERSION}"
+    - node packages/cli/bin/coder.js release publish maven --version "${VERSION}"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -730,17 +624,16 @@ rust_publish:
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== rust_publish — VERSION=${VERSION} ==="
-    - node scripts/publish-libs.js "${VERSION}" --registry kellnr
-    - node scripts/publish-rust-sdks.js "${VERSION}" --registry kellnr
+    - node packages/cli/bin/coder.js release publish rust "${VERSION}" --registry kellnr
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
     name: kellnr-releases
 
 # ─── Docker images with version tag ───
-# tag 触发时按版本号（如 1.3.0）构建并 push 全部 9 个服务 + frontend
+# tag 触发时按版本号（如 1.3.0）构建并 push 全部 8 个服务 + docs-site
 # 到 zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver> + :latest。
-# 用 scripts/build-docker.js（与本地 build 命令一致），pushMode=push 不留本地。
+# 用 coder build images（与本地 build 命令一致），pushMode=push 不留本地。
 build_images:tagged:
   stage: publish
   tags: [shell]
@@ -752,8 +645,8 @@ build_images:tagged:
     # shell runner 以 gitlab-runner 用户执行，npm 全局目录 /usr/lib 需要 sudo（docker 命令同理）。
     - sudo npm install -g pnpm
     # .npmrc 与 infrastructure/vendor/ 由 setup-wizard 生成且 gitignore，CI checkout 后缺失。
-    # 重建根 .npmrc（build-docker.js 会自动复制到 frontend/），让 Docker build 里
-    # frontend 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
+    # 重建根 .npmrc（docs-site 镜像构建的 pnpm install 在根上下文执行），让容器里
+    # 的 pnpm install 走内网 npm 镜像，避免外网 npmjs.org 慢速超时。
     # 用 IP 直连而非 ${CODER_NPM_REGISTRY}（域名 npm.kudi.repos）：buildx 容器内该
     # 域名 DNS 解析失败（ENOTFOUND，pipeline 6307 实证），IP 直连不受 DNS 影响。
     - |
@@ -763,7 +656,7 @@ build_images:tagged:
         echo "//192.168.2.12:14873/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
-    - node scripts/download-swagger-ui.js
+    - node packages/cli/bin/coder.js assets download
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
     # buildkit 跑在 docker-container driver 的独立容器里，registry 协议决策独立于 host daemon 的
     # /etc/docker/daemon.json。把内网 HTTP registry 显式标记 http = true，否则 buildkit 默认 HTTPS
@@ -781,7 +674,7 @@ build_images:tagged:
     - sudo docker buildx create --name xbuilder --driver docker-container --config /tmp/buildkitd.toml --use
     - sudo docker buildx inspect --bootstrap
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
-    - sudo -E node scripts/build-docker.js -v "${VERSION}" --push
+    - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --push
     # mysql-replica 不在 build-docker.js 服务清单（context 在 infrastructure/mysql-replica/），
     # 比照 build_images:staging 单独 buildx --push；v1.5.0 本段漏推导致缺语义版本 tag。
     # transform-compose 把主 compose 的 build: 块转成 micro-server/mysql-replica:<version>，
@@ -789,8 +682,8 @@ build_images:tagged:
     - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
     - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
     - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
-    # 归还所有权：sudo -E node build-docker.js（docs-site/frontend 宿主机预构建）
-    # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根/frontend node_modules
+    # 归还所有权：sudo -E node build-docker.js（docs-site 宿主机预构建）
+    # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根 node_modules
     # 等），不 chown 回来会让后续 gitlab-runner 用户 checkout 时 git clean 失败
     # （Permission denied，pipeline 6742/6753 实证）。chown 整个工作区一次覆盖。
     - sudo chown -R "$(id -u):$(id -g)" "$(pwd)" 2>/dev/null || true
@@ -799,20 +692,19 @@ build_images:tagged:
   environment:
     name: image-releases
 
-# ─── npm package (@digua/dist-tools) ───
-# 把 release/dist-tools 包发到内网 npm registry（http://npm.kudi.repos/）。
-# 凭证由 NPM_TOKEN CI Variable 注入；目标 registry 在 dist-tools/package.json 的
-# publishConfig.registry 已写好。
-# 版本号 / registry host 都在 script 的 shell 里计算 —— CI variables 段不支持
-# bash 的 ${CI_COMMIT_TAG#v} / ${VAR:-default} 展开，写在 variables: 里会得到空值。
-publish_npm:
+# ─── npm packages (@digua/contracts + @digua/http) ───
+# 前端 TS 访问包随 tag 一起发布到内网 npm registry（http://npm.kudi.repos/），
+# 版本号对齐 release tag（npm version ${VERSION}）——与镜像 / Maven / crates 同版本。
+# 认证走 Verdaccio basic auth（NPM_USERNAME/NPM_PASSWORD，
+# 回退 NPM_TOKEN）。发布前置检查走 coder release publish npm（registry 探活 +
+# 版本递增 + 包内无未提交改动），@digua/contracts + @digua/http + @digua/cli 顺序发布。
+publish_packages:
   stage: publish
   tags: [docker]
   image: $BASE_REGISTRY/node:20
   before_script:
     - export NPM_REGISTRY_HOST="${NPM_REGISTRY_HOST:-npm.kudi.repos}"
-    # npm.kudi.repos 用 Verdaccio，认证走 basic auth：_auth = base64(user:pass)，
-    # 不是 _authToken。优先 NPM_USERNAME/NPM_PASSWORD；无用户名时回退 NPM_TOKEN。
+    # Verdaccio basic auth 写入 ~/.npmrc
     - |
       if [ -n "$NPM_USERNAME" ] && [ -n "$NPM_PASSWORD" ]; then
         AUTH=$(printf '%s:%s' "$NPM_USERNAME" "$NPM_PASSWORD" | base64 | tr -d '\n')
@@ -822,12 +714,14 @@ publish_npm:
         printf '//%s/:_authToken=%s\n' "$NPM_REGISTRY_HOST" "$NPM_TOKEN" > ~/.npmrc
       fi
     - npm config set registry "http://${NPM_REGISTRY_HOST}"
+    # 包的 prepare = tsc build，依赖 typescript 在各自 devDependencies（pnpm workspace 安装）
+    - npm install -g pnpm
+    - pnpm install --no-frozen-lockfile
   script:
-    - export DIST_TOOLS_VERSION="${CI_COMMIT_TAG#v}"
-    - echo "=== publish_npm — VERSION=${DIST_TOOLS_VERSION} (registry http://${NPM_REGISTRY_HOST}) ==="
-    - cd release/dist-tools
-    - npm version "${DIST_TOOLS_VERSION}" --no-git-tag-version --allow-same-version
-    - npm publish --access public
+    - export VERSION="${CI_COMMIT_TAG#v}"
+    - echo "=== publish_packages — VERSION=${VERSION} (registry http://${NPM_REGISTRY_HOST}) ==="
+    - pnpm run packages:build
+    - node packages/cli/bin/coder.js release publish npm --version "${VERSION}"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -837,7 +731,9 @@ publish_npm:
 # Release stage — 打包离线分发包（仅 tag 触发）
 # 输出：release/coder-micro-services-${VERSION}/
 #       release/coder-micro-services-${VERSION}-airgap.tar.gz
-# 依赖：上面的 publish stage 全部成功（4 个 job 跑完 = sdk + rust + images + npm 都完成）
+# 依赖：上面的 publish stage 全部成功（4 个 job 跑完 = sdk + rust + images + npm 访问包
+#       都完成）。下游更新全部走包：镜像 compose pull、pnpm add / cargo / maven 升版本，
+#       cms-sync（@digua/dist-tools）已停用，不再随 tag 发布。
 # ─────────────────────────────────────────────────────────────────────────────
 release:dist:
   stage: release
@@ -846,7 +742,7 @@ release:dist:
     - sdk_publish
     - rust_publish
     - build_images:tagged
-    - publish_npm
+    - publish_packages
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== release:dist — VERSION=${VERSION} ==="

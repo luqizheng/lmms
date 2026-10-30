@@ -23,6 +23,8 @@ pub struct ClientView {
     pub access_token_ttl_sec: i64,
     pub refresh_token_ttl_sec: i64,
     pub status: String,
+    pub user_id: Option<String>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -37,6 +39,8 @@ impl From<ClientRow> for ClientView {
             access_token_ttl_sec: r.access_token_ttl_sec,
             refresh_token_ttl_sec: r.refresh_token_ttl_sec,
             status: r.status,
+            user_id: r.user_id,
+            expires_at: r.expires_at,
             created_at: r.created_at,
             updated_at: r.updated_at,
         }
@@ -77,7 +81,8 @@ pub async fn find_by_id(pool: &DbPool, client_id: &str) -> Result<Option<Client>
         DbPool::Mysql(p) => {
             let row: Option<ClientRow> = sqlx::query_as(
                 "SELECT client_id, client_secret_hash, name, permissions, grant_types, \
-                        access_token_ttl_sec, refresh_token_ttl_sec, status, created_at, updated_at \
+                        access_token_ttl_sec, refresh_token_ttl_sec, status, user_id, expires_at, \
+                        created_at, updated_at \
                  FROM token_oauth_clients WHERE client_id = ?",
             )
             .bind(client_id)
@@ -96,8 +101,8 @@ pub async fn insert(pool: &DbPool, c: &Client) -> Result<(), sqlx::Error> {
             sqlx::query(
                 "INSERT INTO token_oauth_clients \
                  (client_id, client_secret_hash, name, permissions, grant_types, \
-                  access_token_ttl_sec, refresh_token_ttl_sec, status) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                  access_token_ttl_sec, refresh_token_ttl_sec, status, user_id, expires_at) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(&c.client_id)
             .bind(&c.client_secret_hash)
@@ -107,6 +112,8 @@ pub async fn insert(pool: &DbPool, c: &Client) -> Result<(), sqlx::Error> {
             .bind(c.access_token_ttl_sec)
             .bind(c.refresh_token_ttl_sec)
             .bind(&c.status)
+            .bind(&c.user_id)
+            .bind(&c.expires_at)
             .execute(p)
             .await?;
             Ok(())
@@ -126,6 +133,8 @@ fn default_clients() -> Vec<Client> {
             access_token_ttl_sec: 3600,
             refresh_token_ttl_sec: 2592000,
             status: "active".into(),
+            user_id: None,
+            expires_at: None,
         },
         Client {
             client_id: "token-service".into(),
@@ -141,6 +150,8 @@ fn default_clients() -> Vec<Client> {
             access_token_ttl_sec: 3600,
             refresh_token_ttl_sec: 2592000,
             status: "active".into(),
+            user_id: None,
+            expires_at: None,
         },
         Client {
             client_id: "user-service".into(),
@@ -156,6 +167,8 @@ fn default_clients() -> Vec<Client> {
             access_token_ttl_sec: 3600,
             refresh_token_ttl_sec: 2592000,
             status: "active".into(),
+            user_id: None,
+            expires_at: None,
         },
         Client {
             client_id: "notification-service".into(),
@@ -166,6 +179,8 @@ fn default_clients() -> Vec<Client> {
             access_token_ttl_sec: 3600,
             refresh_token_ttl_sec: 2592000,
             status: "active".into(),
+            user_id: None,
+            expires_at: None,
         },
     ]
 }
@@ -208,7 +223,8 @@ pub async fn list(
             let (rows, total): (Vec<ClientRow>, i64) = if let Some(ref s) = st {
                 let rows: Vec<ClientRow> = sqlx::query_as(
                     "SELECT client_id, client_secret_hash, name, permissions, grant_types, \
-                            access_token_ttl_sec, refresh_token_ttl_sec, status, created_at, updated_at \
+                            access_token_ttl_sec, refresh_token_ttl_sec, status, user_id, expires_at, \
+                            created_at, updated_at \
                      FROM token_oauth_clients \
                      WHERE (client_id LIKE ? OR name LIKE ?) AND status = ? \
                      ORDER BY created_at DESC LIMIT ? OFFSET ?",
@@ -233,7 +249,8 @@ pub async fn list(
             } else {
                 let rows: Vec<ClientRow> = sqlx::query_as(
                     "SELECT client_id, client_secret_hash, name, permissions, grant_types, \
-                            access_token_ttl_sec, refresh_token_ttl_sec, status, created_at, updated_at \
+                            access_token_ttl_sec, refresh_token_ttl_sec, status, user_id, expires_at, \
+                            created_at, updated_at \
                      FROM token_oauth_clients \
                      WHERE client_id LIKE ? OR name LIKE ? \
                      ORDER BY created_at DESC LIMIT ? OFFSET ?",

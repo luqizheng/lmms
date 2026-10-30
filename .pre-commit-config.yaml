@@ -45,13 +45,6 @@ repos:
         language: node
         pass_filenames: false
 
-      - id: i18n-namespace-check
-        name: i18n Namespace Check (menus.* ↔ menus:)
-        entry: node scripts/check-i18n-namespace.js
-        language: node
-        pass_filenames: false
-        files: ^(frontend/src/.*\.(vue|ts)|frontend/locales/.*\.yaml)$
-
       - id: cargo-clippy
         name: Cargo Clippy
         entry: bash -c 'cargo clippy --workspace --all-targets -- -D warnings'

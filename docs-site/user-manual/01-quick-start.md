@@ -87,11 +87,9 @@ pnpm test:smoke
 
 # 全量 API 测试 — 约 5 分钟
 pnpm test:api
-
-# 全量 UI 测试 — 约 10 分钟（需要 frontend 容器）
-docker compose -f infrastructure/docker-compose.yml up -d frontend
-pnpm test:ui
 ```
+
+> E2E 只有数据驱动 API 测试，直接打 api-gateway:3000（原 Playwright UI 套件已随 PRISM console 移除删除）。
 
 ---
 

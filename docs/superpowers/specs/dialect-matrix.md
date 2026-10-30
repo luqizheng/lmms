@@ -1,8 +1,8 @@
 # 数据库方言差异矩阵
 
 > **STATUS: 📖 参考文档** — 记录 MySQL / 达梦 / MSSQL / SQLite 方言差异。
-> 当前项目仅使用 MySQL（生产）+ SQLite（prue_backend 单测）双方言。
-> 达梦 / MSSQL 为未来信创预留。保持此文作为参考。
+> 当前生产使用 MySQL，SQLite 用于 prue_backend 单测，PostgreSQL 为基础方言（2026-10-30 起，
+> 服务 ai-pm 的 PG+FTS 技术栈并作为通用基础支持）。达梦 / MSSQL 为未来信创预留。
 
 ## 支持的数据库
 
@@ -12,6 +12,7 @@
 | 达梦 | sqlx-mysql（DM MySQL 兼容模式） | `dameng` | 信创生产 | 每日定时 |
 | MSSQL | sqlx-mssql | `mssql` | 生产 | 每日定时 |
 | SQLite | sqlx-sqlite | `sqlite` | 单测专用 | PR 级别 |
+| PostgreSQL | sqlx-postgres | `postgres` | ai-pm 生产 + 通用基础 | PR 级别 |
 
 ## 方言差异对比
 
@@ -23,6 +24,7 @@
 | 达梦 | `LIMIT ? OFFSET ?` | `LIMIT 10 OFFSET 20` |
 | MSSQL | `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY` | `OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY` |
 | SQLite | `LIMIT ? OFFSET ?` | `LIMIT 10 OFFSET 20` |
+| PostgreSQL | `LIMIT ? OFFSET ?` | `LIMIT 10 OFFSET 20` |
 
 ### 2. 自增主键
 
@@ -32,6 +34,7 @@
 | 达梦 | `SEQUENCE` (需单独创建) |
 | MSSQL | `IDENTITY(1,1)` |
 | SQLite | `AUTOINCREMENT` |
+| PostgreSQL | `GENERATED ALWAYS AS IDENTITY`（PG 10+） |
 
 ### 3. 当前时间
 
@@ -41,6 +44,7 @@
 | 达梦 | `SYSDATE` (或 `UTC_TIMESTAMP()`) |
 | MSSQL | `GETUTCDATE()` |
 | SQLite | `CURRENT_TIMESTAMP` |
+| PostgreSQL | `now() AT TIME ZONE 'UTC'` |
 
 ### 4. 标识符转义
 
@@ -50,6 +54,7 @@
 | 达梦 | `"name"` | `"user"` |
 | MSSQL | `[name]` | `[user]` |
 | SQLite | `"name"` | `"user"` |
+| PostgreSQL | `"name"`（双写转义） | `"user"` |
 
 ### 5. 布尔字面量
 

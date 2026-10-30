@@ -4,8 +4,8 @@
  * 使用: node scripts/openapi-codegen.js <spec> <output> [lang]
  *
  * 示例:
- *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml frontend/src/api/audit
- *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml frontend/src/api/audit js
+ *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml packages/contracts/src/sdk/audit
+ *   node scripts/openapi-codegen.js services/audit-service/openapi.yaml packages/contracts/src/sdk/audit js
  *
  * 类型 & client 方法均来自 spec.components.schemas / spec.paths，
  * 不再硬编码业务实体（避免脚本与 spec 漂移）。
