@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
-const { spawnSync } = require('node:child_process');
+const { makeExec } = require('./spawn.js');
 const { GuardError } = require('./errors.js');
 
 const REGISTRY = 'http://npm.kudi.repos/';
@@ -116,7 +116,8 @@ async function publishPackages({
   root,
   version,
   dryRun = false,
-  exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }),
+  json = false,
+  exec = makeExec({ json }),
   check = checkPackages,
   registryUrl = REGISTRY,
   out = { log: (m) => console.log(m), warn: (m) => console.warn(m) },

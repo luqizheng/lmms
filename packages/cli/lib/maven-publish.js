@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
-const { spawnSync } = require('node:child_process');
+const { makeExec } = require('./spawn.js');
 const { UsageError, GuardError, ExternalError } = require('./errors.js');
 
 const DEFAULT_REPO_ID = {
@@ -141,7 +141,7 @@ function bumpPomVersion(root, targetVersion, { dryRun = false, exec, out, fsMod 
     out.log(`[bump]   (dry-run) would run: mvn versions:set -DnewVersion=${targetVersion} versions:commit`);
     return;
   }
-  const ok1 = exec('mvn', ['-f', pomPath, 'versions:set', `-DnewVersion=${targetVersion}`, 'versions:commit'], { cwd: root });
+  const ok1 = exec('mvn', ['-f', pomPath, 'versions:set', `-DnewVersion=${targetVersion}`, 'versions:commit'], { cwd: root, shell: process.platform === 'win32' });
   if (ok1.error || (ok1.status ?? 1) !== 0) {
     throw new ExternalError(`mvn versions:set failed (bump pom.xml <version> to ${targetVersion})`);
   }
@@ -153,7 +153,7 @@ function bumpPomVersion(root, targetVersion, { dryRun = false, exec, out, fsMod 
 }
 
 function requireBinary(name, hint, exec) {
-  const res = exec(name, ['--version'], { stdio: 'ignore' });
+  const res = exec(name, ['--version'], { stdio: 'ignore', shell: process.platform === 'win32' });
   if (res.error) throw new GuardError('MAVEN_BINARY_MISSING', `'${name}' not found on PATH. ${hint || ''}`.trim());
 }
 
@@ -222,6 +222,7 @@ function uploadFile(filePath, remoteBase, relPath, curlAuth, skipIfExists, exec,
 function publishMaven({
   root,
   version,
+  json = false,
   kind = 'release',
   profile = 'java8',
   modules = '',
@@ -232,7 +233,7 @@ function publishMaven({
   useMvn = false,
   dryRun = false,
   extraMvn = [],
-  exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }),
+  exec = makeExec({ json }),
   env = process.env,
   m2RepoRoot = path.join(os.homedir(), '.m2', 'repository'),
   settingsPath = path.join(os.homedir(), '.m2', 'settings.xml'),
@@ -274,7 +275,7 @@ function publishMaven({
 
     if (dryRun) {
       out.log('==> DRY RUN: running clean verify only.');
-      const ok = exec('mvn', [`-P${profile}`, ...settingsArgs, '-DskipTests', 'clean', 'verify'], { cwd: sdkDir });
+      const ok = exec('mvn', [`-P${profile}`, ...settingsArgs, '-DskipTests', 'clean', 'verify'], { cwd: sdkDir, shell: process.platform === 'win32' });
       if (ok.error || (ok.status ?? 1) !== 0) throw new ExternalError('dry-run mvn clean verify failed');
       return { dryRun: true, modules: 0, uploaded: 0, repoId: effectiveRepoId, repoUrl: effectiveUrl };
     }
@@ -284,7 +285,7 @@ function publishMaven({
       const mvnArgs = [`-P${profile}`, ...settingsArgs, '-DskipTests', `-DaltDeploymentRepository=${alt}`, `-DaltSnapshotDeploymentRepository=${alt}`];
       if (modules) mvnArgs.push('-pl', modules, '-am');
       if (extraMvn.length) mvnArgs.push(...extraMvn);
-      const ok = exec('mvn', [...mvnArgs, 'clean', 'deploy'], { cwd: sdkDir });
+      const ok = exec('mvn', [...mvnArgs, 'clean', 'deploy'], { cwd: sdkDir, shell: process.platform === 'win32' });
       if (ok.error || (ok.status ?? 1) !== 0) throw new ExternalError('mvn deploy failed');
       return { modules: 0, uploaded: 0, mode: 'mvn-deploy', repoId: effectiveRepoId, repoUrl: effectiveUrl };
     }
@@ -293,7 +294,7 @@ function publishMaven({
     const installArgs = [`-P${profile}`, ...settingsArgs, '-DskipTests', 'clean', 'install'];
     if (modules) installArgs.push('-pl', modules, '-am');
     if (extraMvn.length) mvnExtra(extraMvn, installArgs);
-    const okInstall = exec('mvn', installArgs, { cwd: sdkDir });
+    const okInstall = exec('mvn', installArgs, { cwd: sdkDir, shell: process.platform === 'win32' });
     if (okInstall.error || (okInstall.status ?? 1) !== 0) throw new ExternalError('mvn install failed');
 
     if (!creds) {

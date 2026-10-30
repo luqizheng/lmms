@@ -7,7 +7,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { makeExec } = require('./spawn.js');
 
 const DEFAULT_REGISTRY = 'zhcoder-docker-registry.com:8000';
 const DEFAULT_REPO = 'micro-server';
@@ -169,7 +169,7 @@ function buildService(name, plan, { root, exec, out }) {
 }
 
 // exec default mirrors the retired script: spawnSync with inherited stdio.
-function buildImages({ root, plan, exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }), out }) {
+function buildImages({ root, plan, json = false, exec = makeExec({ json }), out }) {
   const built = [];
   const failed = [];
   for (const name of plan.services) {
@@ -180,7 +180,7 @@ function buildImages({ root, plan, exec = (file, args, opts) => spawnSync(file, 
   return { built, failed };
 }
 
-function pruneBuildCache({ exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }), out }) {
+function pruneBuildCache({ json = false, exec = makeExec({ json }), out }) {
   const pruned = [];
   const failed = [];
   for (const id of ['cargo-registry', 'cargo-git']) {

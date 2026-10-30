@@ -55,7 +55,7 @@ const commands = {
       }
 
       if (parsed.prune) {
-        const result = pruneBuildCache({ out: ctx.out });
+        const result = pruneBuildCache({ json: ctx.json, out: ctx.out });
         return {
           data: result,
           human: [`pruned: ${result.pruned.join(', ') || '(none)'}`, ...(result.failed.length ? [`failed: ${result.failed.join(', ')}`] : [])],
@@ -69,7 +69,7 @@ const commands = {
       }
       for (const w of plan.warnings) ctx.out.warn(w);
 
-      const result = buildImages({ root: ctx.root, plan, out: ctx.out });
+      const result = buildImages({ root: ctx.root, plan, json: ctx.json, out: ctx.out });
       const human = [
         ...planLines(plan),
         `[done] built ${result.built.length}, failed ${result.failed.length}`,

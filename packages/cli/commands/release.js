@@ -121,6 +121,7 @@ const commands = {
         '--mvn': 'flag', '--dry-run': 'flag',
       });
       const result = publishMaven({
+        json: ctx.json,
         root: ctx.root,
         version: flags['--version'],
         kind: flags['--kind'] ?? 'release',
@@ -169,6 +170,7 @@ const commands = {
       if (!ctx.root) throw new UsageError('release publish npm requires a repo context (--cwd)');
       const { flags } = parseFlags(args, { '--version': 'value', '--dry-run': 'flag' });
       const result = await publishPackages({
+        json: ctx.json,
         root: ctx.root,
         version: flags['--version'],
         dryRun: Boolean(flags['--dry-run']),
