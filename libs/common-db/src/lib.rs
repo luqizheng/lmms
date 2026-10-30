@@ -9,7 +9,11 @@ pub use scope::WithTenantScope;
 
 use dialect::DialectKind;
 use digua_common_error::{AppError, AppResult};
-use sqlx::{mysql::MySql, sqlite::Sqlite, Pool};
+#[cfg(feature = "mysql")]
+use sqlx::mysql::MySql;
+#[cfg(feature = "sqlite")]
+use sqlx::sqlite::Sqlite;
+use sqlx::Pool;
 
 #[derive(Debug)]
 pub enum DbPool {

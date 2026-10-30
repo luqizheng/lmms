@@ -49,6 +49,7 @@ pub trait MigrationState: Send + Sync {
 }
 
 /// 探测 MySQL 端单张 marker table 是否存在。
+#[cfg(feature = "mysql")]
 pub async fn probe_marker_mysql(pool: &sqlx::MySqlPool, table: &str) -> Result<bool, sqlx::Error> {
     let row: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM information_schema.tables \
