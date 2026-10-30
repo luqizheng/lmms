@@ -7,6 +7,7 @@ const { resolveTarget, bumpLedger, commitLedger } = require('../lib/release-bump
 const { normalizeVersion } = require('../lib/version.js');
 const { publishMaven } = require('../lib/maven-publish.js');
 const { publishRust } = require('../lib/rust-publish.js');
+const { publishPackages } = require('../lib/npm-packages.js');
 const repo = require('../lib/repo.js');
 const fs = require('node:fs');
 
@@ -158,6 +159,24 @@ const commands = {
       const human = result.dryRun
         ? [`dry-run plan: ${result.plan.length} crates (nothing executed)`]
         : [`published ${result.published.length} crates to ${flags['--registry'] ?? 'kellnr'}`, 'Cargo.toml path deps restored to originals'];
+      return { data: result, human };
+    },
+  },
+
+  'release publish npm': {
+    summary: 'check + tag-version + publish @digua/contracts, @digua/http, @digua/cli',
+    run: async (args, ctx) => {
+      if (!ctx.root) throw new UsageError('release publish npm requires a repo context (--cwd)');
+      const { flags } = parseFlags(args, { '--version': 'value', '--dry-run': 'flag' });
+      const result = await publishPackages({
+        root: ctx.root,
+        version: flags['--version'],
+        dryRun: Boolean(flags['--dry-run']),
+        out: ctx.out,
+      });
+      const human = result.dryRun
+        ? ['dry-run: build + pre-publish checks passed, nothing published', ...result.planned.map((c) => `  $ ${c}`)]
+        : [`published: ${result.published.map((p) => `${p.name}@${p.version}`).join(', ')}`];
       return { data: result, human };
     },
   },
