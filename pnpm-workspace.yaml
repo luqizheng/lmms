@@ -2,6 +2,7 @@ packages:
   - "services/token-service"
   - "packages/contracts"
   - "packages/http"
+  - "packages/cli"
 allowBuilds:
   '@parcel/watcher': true
   argon2: true

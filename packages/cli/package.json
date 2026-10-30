@@ -1,0 +1,11 @@
+{
+  "name": "@digua/cli",
+  "version": "0.0.0",
+  "description": "coder — low-memory-micro-services 工程化外壳 CLI",
+  "bin": { "coder": "./bin/coder.js" },
+  "main": "./lib/cli.js",
+  "files": ["bin", "lib", "commands"],
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test \"test/*.test.js\"" },
+  "publishConfig": { "registry": "http://npm.kudi.repos/" }
+}
