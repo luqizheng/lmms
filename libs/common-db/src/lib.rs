@@ -70,6 +70,7 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
         DialectKind::Dameng => "mysql", // 达梦兼容 MySQL 迁移
         DialectKind::Sqlite => "sqlite",
         DialectKind::Mssql => "mssql",
+        DialectKind::Postgres => "postgres",
     };
 
     let _ = format!("{}/{}", migrations_path, dialect_str);
