@@ -1,30 +1,12 @@
 'use strict';
 
 const { EXIT, UsageError, GuardError } = require('../lib/errors.js');
+const { parseFlags } = require('../lib/args.js');
 const { collectStatus } = require('../lib/release-status.js');
 const { resolveTarget, bumpLedger, commitLedger } = require('../lib/release-bump.js');
 const { normalizeVersion } = require('../lib/version.js');
 const repo = require('../lib/repo.js');
 const fs = require('node:fs');
-
-function parseFlags(args, specs) {
-  const flags = {};
-  const positional = [];
-  for (let i = 0; i < args.length; i++) {
-    const token = args[i];
-    const spec = specs[token];
-    if (spec === 'value') {
-      const value = args[++i];
-      if (value == null) throw new UsageError(`${token} requires a value`);
-      flags[token] = value;
-    } else if (spec === 'flag') {
-      flags[token] = true;
-    } else {
-      positional.push(token);
-    }
-  }
-  return { flags, positional };
-}
 
 const commands = {
   'release status': {
