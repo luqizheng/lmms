@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_validator"
-version = "1.5.0"
+version = "1.6.0"
 license = "Apache-2.0"
 description = "Validation rules (Chinese phone, strong password) for KudiCoder services"
 edition = "2021"

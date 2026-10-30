@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_config"
-version = "1.5.0"
+version = "1.6.0"
 license = "Apache-2.0"
 description = "Configuration loading from env and files for KudiCoder services"
 edition = "2021"
