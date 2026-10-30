@@ -3,8 +3,8 @@
 // Command registry. Keys are full command names (space separated, e.g.
 // 'release status'); values are { summary, run(args, ctx) -> Result }.
 // Result = { data, human, exitCode?, warnings?, errors? }.
-// From Task 3 on, command modules in commands/ export { commands } and are
-// merged here; keep this file the single registry.
+// Command modules in commands/ export { commands } and are merged here —
+// this file stays the single registry.
 const COMMANDS = {
   version: {
     summary: 'print coder and node versions',
@@ -14,5 +14,7 @@ const COMMANDS = {
     }),
   },
 };
+
+Object.assign(COMMANDS, require('../commands/release.js').commands);
 
 module.exports = { COMMANDS };
