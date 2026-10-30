@@ -17,5 +17,6 @@ const COMMANDS = {
 
 Object.assign(COMMANDS, require('../commands/release.js').commands);
 Object.assign(COMMANDS, require('../commands/assets.js').commands);
+Object.assign(COMMANDS, require('../commands/build.js').commands);
 
 module.exports = { COMMANDS };

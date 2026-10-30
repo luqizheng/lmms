@@ -6,21 +6,27 @@ const { createOutput } = require('./output.js');
 const { COMMANDS } = require('./commands.js');
 const { detectContext } = require('./context.js');
 
-// Global flags are stripped wherever they appear; the remaining tokens are
-// matched against COMMANDS keys by longest command-name prefix.
+// Global flags apply only BEFORE the command name — after it, tokens belong
+// to the command (e.g. `release bump --version X` must not be hijacked).
+// Exception: --json is an output concern and is honored anywhere.
 function splitGlobals(argv, baseCwd) {
-  const args = [];
   let json = false;
   let dir = baseCwd;
   let wantHelp = false;
   let wantVersion = false;
-  for (let i = 0; i < argv.length; i++) {
+  let i = 0;
+  while (i < argv.length) {
     const token = argv[i];
-    if (token === '--json') json = true;
-    else if (token === '--cwd') dir = path.resolve(baseCwd, argv[++i] ?? '.');
-    else if (token === '--help' || token === '-h') wantHelp = true;
-    else if (token === '--version') wantVersion = true;
-    else args.push(token);
+    if (token === '--json') { json = true; i++; }
+    else if (token === '--cwd') { dir = path.resolve(baseCwd, argv[++i] ?? '.'); i++; }
+    else if (token === '--help' || token === '-h') { wantHelp = true; i++; }
+    else if (token === '--version') { wantVersion = true; i++; }
+    else break;
+  }
+  const args = [];
+  for (const token of argv.slice(i)) {
+    if (token === '--json') { json = true; continue; }
+    args.push(token);
   }
   return { args, json, dir, wantHelp, wantVersion };
 }
@@ -64,12 +70,15 @@ async function run(argv = [], { cwd = process.cwd(), stdout = process.stdout, st
     return result.exitCode ?? EXIT.OK;
   };
 
-  if (wantHelp) {
-    return finish('help', { data: null, human: helpLines() });
-  }
-
   const key = matchCommand(args);
   if (!key) {
+    if (wantVersion) {
+      stdout.write(require('../package.json').version + '\n');
+      return EXIT.OK;
+    }
+    if (wantHelp || args.length === 0) {
+      return finish('help', { data: null, human: helpLines(), exitCode: args.length === 0 && !wantHelp ? EXIT.USAGE : EXIT.OK });
+    }
     const err = new UsageError(`unknown command: ${args.join(' ') || '(none)'}`);
     const result = envelopeFor(err);
     if (!json) stderr.write(`✗ ${err.message}\n`);

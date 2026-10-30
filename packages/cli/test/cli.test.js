@@ -40,3 +40,21 @@ test('json mode keeps human logs off stdout', async () => {
   assert.equal(env.ok, true);
   assert.equal(typeof env.data.node, 'string');
 });
+
+test('global --version only applies before the command name', async () => {
+  const lead = capture();
+  const leadCode = await run(['--version', 'bogus'], { ...lead });
+  assert.equal(leadCode, EXIT.OK);
+  assert.match(lead.stdout.text.trim(), /^\d+\.\d+\.\d+/);
+
+  const trail = capture();
+  const trailCode = await run(['bogus', '--version'], { ...trail, stderr: trail.stderr });
+  assert.equal(trailCode, EXIT.USAGE, 'trailing --version belongs to the (unknown) command');
+});
+
+test('command-level --help reaches the command, not the global layer', async () => {
+  const io = capture();
+  const code = await run(['build', 'images', '--help'], { ...io });
+  assert.equal(code, EXIT.OK);
+  assert.match(io.stdout.text, /usage: coder build images/);
+});
