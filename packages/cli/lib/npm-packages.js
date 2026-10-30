@@ -151,7 +151,12 @@ async function publishPackages({
     if ((ver.status ?? 1) !== 0) throw new GuardError('NPM_VERSION_FAILED', `npm version failed for ${pkg.name}`);
     // npm>=11 的 `publish --prefix` 会从 cwd（仓库根）读 manifest，version 为 null 直接崩；
     // 改为在包目录内执行，manifest/publishConfig 均取包自身。
-    const pub = exec('npm', ['publish', '--access', 'public'], { cwd: path.join(root, pkg.dir), ...SHIM });
+    // 另：@scope:registry 配置（如 ~/.npmrc）优先级高于包内 publishConfig.registry，
+    // 这里显式钉死发布目标，保证与守卫校验的 REGISTRY 一致。
+    const publishArgs = ['publish', '--access', 'public', `--registry=${registryUrl}`];
+    const scope = /^(@[^/]+)\//.exec(pkg.name);
+    if (scope) publishArgs.push(`--${scope[1]}:registry=${registryUrl}`);
+    const pub = exec('npm', publishArgs, { cwd: path.join(root, pkg.dir), ...SHIM });
     if ((pub.status ?? 1) !== 0) throw new GuardError('NPM_PUBLISH_FAILED', `npm publish failed for ${pkg.name}`);
     published.push({ name: pkg.name, version: v });
   }
