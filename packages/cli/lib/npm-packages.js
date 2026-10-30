@@ -140,7 +140,7 @@ async function publishPackages({
   if (dryRun) {
     const planned = PACKAGES.flatMap((p) => [
       `npm --prefix ${p.dir} version ${v} --no-git-tag-version --allow-same-version`,
-      `npm --prefix ${p.dir} publish --access public`,
+      `npm publish --access public  (cwd=${p.dir})`,
     ]);
     return { published: [], planned, dryRun: true };
   }
@@ -149,7 +149,9 @@ async function publishPackages({
   for (const pkg of PACKAGES) {
     const ver = exec('npm', ['--prefix', pkg.dir, 'version', v, '--no-git-tag-version', '--allow-same-version'], { cwd: root, ...SHIM });
     if ((ver.status ?? 1) !== 0) throw new GuardError('NPM_VERSION_FAILED', `npm version failed for ${pkg.name}`);
-    const pub = exec('npm', ['--prefix', pkg.dir, 'publish', '--access', 'public'], { cwd: root, ...SHIM });
+    // npm>=11 的 `publish --prefix` 会从 cwd（仓库根）读 manifest，version 为 null 直接崩；
+    // 改为在包目录内执行，manifest/publishConfig 均取包自身。
+    const pub = exec('npm', ['publish', '--access', 'public'], { cwd: path.join(root, pkg.dir), ...SHIM });
     if ((pub.status ?? 1) !== 0) throw new GuardError('NPM_PUBLISH_FAILED', `npm publish failed for ${pkg.name}`);
     published.push({ name: pkg.name, version: v });
   }
