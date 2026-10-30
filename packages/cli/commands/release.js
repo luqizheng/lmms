@@ -8,8 +8,11 @@ const { normalizeVersion } = require('../lib/version.js');
 const { publishMaven } = require('../lib/maven-publish.js');
 const { publishRust } = require('../lib/rust-publish.js');
 const { publishPackages } = require('../lib/npm-packages.js');
+const { buildComposeTemplate } = require('../lib/compose-template.js');
+const { latestTag } = require('../lib/version.js');
 const repo = require('../lib/repo.js');
 const fs = require('node:fs');
+const nodePath = require('node:path');
 
 const commands = {
   'release status': {
@@ -180,6 +183,35 @@ const commands = {
         ? ['dry-run: build + pre-publish checks passed, nothing published', ...result.planned.map((c) => `  $ ${c}`)]
         : [`published: ${result.published.map((p) => `${p.name}@${p.version}`).join(', ')}`];
       return { data: result, human };
+    },
+  },
+
+  'release compose-template': {
+    summary: 'publish infrastructure/ as a versioned compose base template bundle',
+    run: async (args, ctx) => {
+      if (!ctx.root) throw new UsageError('release compose-template requires a repo context (--cwd)');
+      const { flags } = parseFlags(args, { '--version': 'value', '--out': 'value' });
+      let version = flags['--version'];
+      if (!version) {
+        const parsed = latestTag(repo.git(ctx.root, ['tag', '-l']));
+        version = parsed ? parsed.image : null;
+      }
+      if (!version) throw new UsageError('no v* tag found — pass --version <x.y.z>');
+
+      const outRoot = flags['--out'] ?? nodePath.join(ctx.root, 'release', 'compose-template');
+      const result = buildComposeTemplate({
+        infraDir: nodePath.join(ctx.root, 'infrastructure'),
+        outRoot,
+        version,
+      });
+      return {
+        data: { version, ...result },
+        human: [
+          `compose template v${version}: ${result.fileCount} files`,
+          `bundle: ${result.dir}`,
+          'downstream: copy this directory into your repo, adapt services, keep the infrastructure/ dir name to join the superpowers network',
+        ],
+      };
     },
   },
 

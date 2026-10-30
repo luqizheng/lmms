@@ -53,6 +53,7 @@
     "test:scripts": "node --test scripts/setup-wizard.test.js",
     "test:cli": "pnpm --filter @digua/cli test",
     "coder": "node packages/cli/bin/coder.js",
+    "compose:template": "node packages/cli/bin/coder.js release compose-template",
     "release:build": "node release/dist-template/scripts/release.js",
     "sdk:test:java": "mvn -B test -f sdk/java/pom.xml",
     "sdk:test:java:8": "mvn -B test -f sdk/java/pom.xml -P java8",
