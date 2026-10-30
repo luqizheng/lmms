@@ -42,7 +42,8 @@ function httpsGetBuffer(url) {
 }
 
 // mode 'ensure': download only when missing; 'check': CI guard; 'force': re-download.
-async function ensureAsset({ root, mode = 'ensure', fetchImpl = httpsGetBuffer, fs: nodeFs = fs } = {}) {
+// expectedSha256 is injectable for tests; production pins SWAGGER.SHA256.
+async function ensureAsset({ root, mode = 'ensure', fetchImpl = httpsGetBuffer, fs: nodeFs = fs, expectedSha256 = SWAGGER.SHA256 } = {}) {
   const dest = assetPath(root);
   const exists = nodeFs.existsSync(dest);
 
@@ -55,7 +56,7 @@ async function ensureAsset({ root, mode = 'ensure', fetchImpl = httpsGetBuffer, 
   }
 
   const buffer = await fetchImpl(SWAGGER.REMOTE_URL);
-  if (!verifySha256(buffer, SWAGGER.SHA256)) {
+  if (!verifySha256(buffer, expectedSha256)) {
     throw new GuardError('ASSET_SHA_MISMATCH', `sha256 mismatch for ${SWAGGER.ZIP_NAME} — refusing to write`, { dest });
   }
   nodeFs.mkdirSync(path.dirname(dest), { recursive: true });

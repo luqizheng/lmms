@@ -73,7 +73,9 @@ test('a downloaded payload with a bad sha256 is rejected and never written', asy
 test('force mode re-downloads and verifies a good payload', async () => {
   const dir = fixture({ withFile: true });
   let fetches = 0;
-  const result = await ensureAsset({ root: dir, mode: 'force', fetchImpl: () => { fetches += 1; return GOOD; } });
+  const result = await ensureAsset({ root: dir, mode: 'force', expectedSha256: GOOD_HEX, fetchImpl: () => { fetches += 1; return GOOD; } });
   assert.equal(fetches, 1);
   assert.equal(result.downloaded, true);
+  const dest = path.join(dir, 'infrastructure', 'vendor', SWAGGER.ZIP_NAME);
+  assert.deepEqual(fs.readFileSync(dest), GOOD);
 });
