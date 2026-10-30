@@ -110,7 +110,7 @@ function publishRust({
   out = { log: (m) => console.log(m), warn: (m) => console.warn(m) },
   fs: nodeFs = fs,
 } = {}) {
-  if (!version) throw new GuardError('RUST_VERSION_REQUIRED', 'a version argument is required (e.g. 1.7.0)');
+  if (!version && !dryRun) throw new GuardError('RUST_VERSION_REQUIRED', 'a version argument is required (e.g. 1.7.0)');
   const sequences = targets === 'libs' ? { libs: LIBS_ORDER }
     : targets === 'sdks' ? { sdks: SDKS_ORDER }
     : { libs: LIBS_ORDER, sdks: SDKS_ORDER };
