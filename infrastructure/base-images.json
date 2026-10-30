@@ -53,28 +53,18 @@
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
-      "ref": "mcr.microsoft.com/playwright:v1.48.0-jammy",
-      "source": ".gitlab-ci.yml",
-      "mirror": "zhcoder-docker-registry.com:8000/official"
-    },
-    {
       "ref": "mysql:8.0",
       "source": "infrastructure/docker-compose-infra.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
       "ref": "nginx:1.27-alpine",
-      "source": "frontend/Dockerfile",
+      "source": "docs-site/Dockerfile",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
       "ref": "node:20",
       "source": ".gitlab-ci.yml",
-      "mirror": "zhcoder-docker-registry.com:8000/official"
-    },
-    {
-      "ref": "node:22-alpine",
-      "source": "frontend/Dockerfile",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {

@@ -138,13 +138,13 @@
 |------|----------|------|
 | **crates.io mirror + token** | Dockerfile `COPY .cargo/` + `ENV CARGO_CREDENTIALS_PATH` | `.cargo/` 在构建上下文中 -> COPY 进镜像 -> `cargo build` 读取 |
 | **Maven mirror + auth** | `build-java-sdk-docker.js` volume mount | `.mvn/settings.xml` -> mount 到容器 `/root/.m2/settings.xml` -> `mvn` 读取 |
-| **npm mirror + token** | `build-docker.js` 临时复制 + Dockerfile COPY | 根 `.npmrc` -> 构建前复制到 `frontend/.npmrc` -> Dockerfile `COPY .npmrc*` -> `pnpm install` 读取 |
+| **npm mirror + token** | 根 `.npmrc`（wizard 生成，gitignored） | `.npmrc` -> 宿主机 / CI runner `pnpm install`（packages 构建、docs-site 预构建）读取；镜像构建不再 COPY `.npmrc`（原 frontend 镜像已随 PRISM console 移除） |
 | **Docker base/builder registry** | `base-images-sync.js` + `images-pull.js` | `.docker-registry.json` -> 更新 `base-images.json` -> 预拉镜像 -> Dockerfile `FROM` |
 
 关键点：
 - **Rust 服务**：8 个 Dockerfile 均设 `ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml`，让 cargo 在 `docker build` 时能读取项目级 credentials（路径不存在时 cargo 自动忽略）
 - **Java SDK**：`Dockerfile.builder` 是空壳镜像，实际 `mvn` 构建在 `build-java-sdk-docker.js` 的 volume mount 容器中跑
-- **frontend**：构建上下文是 `frontend/`，根 `.npmrc` 不在其中，由 `build-docker.js` 构建前临时复制、构建后清理
+- **docs-site**：宿主机先 `vitepress build` 出预构建产物，Dockerfile 只打包产物；`pnpm install` 走根 `.npmrc` 的 npm mirror（原 frontend 镜像的 `.npmrc` 复制链路已随之删除）
 
 ---
 
@@ -336,7 +336,7 @@ pnpm run setup
 
 Docker 构建时（`pnpm run docker:build`）：
 - Rust 服务：`.cargo/` 在构建上下文中，Dockerfile COPY + `ENV CARGO_CREDENTIALS_PATH` 让 mirror + token 生效
-- frontend：`build-docker.js` 构建前临时复制根 `.npmrc` 到 `frontend/`，Dockerfile `COPY .npmrc*` 拷入
+- docs-site：宿主机 `vitepress build` 预构建，`pnpm install` 读根 `.npmrc`（原 frontend 的 `.npmrc` 临时复制链路已删除）
 - Java SDK：`build-java-sdk-docker.js` 优先 mount 项目级 `.mvn/settings.xml`
 
 ---
@@ -438,7 +438,7 @@ test:
 | `scripts/base-images-sync.js` | 读取配置，生成 `base-images.json` |
 | `scripts/lib/Base-Images-Writer.js` | `mergeMirror` 逻辑（builder ref 重写 + base mirror） |
 | `scripts/images-pull.js` | 按 `base-images.json` 拉镜像（消费 mirror 字段） |
-| `scripts/build-docker.js` | Docker 构建；frontend 构建前临时复制 `.npmrc` |
+| `scripts/build-docker.js` | Docker 构建（8 服务 + docs-site；docs-site 宿主机预构建走根 `.npmrc`） |
 | `scripts/build-java-sdk-docker.js` | Java SDK 容器内构建；优先 mount `.mvn/settings.xml` |
 | `infrastructure/.docker-registry.json` | 本地配置文件（gitignored） |
 | `infrastructure/base-images.json` | 生成的镜像清单（入 git） |

@@ -276,7 +276,7 @@ release artifacts.
 
 ## Cross-references
 
-- **npm SDK** (`@digua/dist-tools`): see `coder-sdk-publish-npm` skill
+- **npm TS packages** (`@digua/contracts` + `@digua/http`): `pnpm run packages:publish` / CI `publish_packages`
 - **Rust crates** (libs + sdks): see `coder-sdk-publish-rust` skill
 - **Service Docker images**: see `coder-service-release` skill
 - **CI auto-publish**: `.gitlab-ci.yml` (release tag → publish job)

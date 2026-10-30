@@ -68,8 +68,8 @@ make secrets
 ### 第五步：启动服务
 
 ```bash
-# 启动所有服务——release.js 已把 compose（service + 主入口）中 frontend 的 build: 转成引用
-# `micro-server/frontend` 镜像，且离线包已含该镜像，因此**无需现场编译前端**：
+# 启动所有服务——release.js 已把 compose（service + 主入口）中的 build: 转成 image: 引用，
+# 且离线包已含全部镜像，无需现场构建：
 node bin/start.js
 ```
 
@@ -90,7 +90,6 @@ coder-micro-services-1.0.0/
 ├── compose/               # compose 模块
 ├── config/                # 配置文件
 ├── init-mysql/            # MySQL 初始化 SQL
-├── frontend/              # 前端源码
 ├── secrets/               # 密钥（不提交 git）
 ├── bin/                   # 运维脚本
 └── docs/                  # 本文档

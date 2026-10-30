@@ -1,10 +1,12 @@
 # Coder Micro Services
 
-> **新人入职？** 请先阅读 [`docs-site/onboarding/README.md`](docs-site/onboarding/README.md) — 从零开始的手把手入门指南（中文），覆盖环境准备、第一次跑通、日志排查、前后端联调。
+> **新人入职？** 请先阅读 [`docs-site/onboarding/README.md`](docs-site/onboarding/README.md) — 从零开始的手把手入门指南（中文），覆盖环境准备、第一次跑通、日志排查。
 
 ## Overview
 
 A microservices architecture for coder platform, built with Rust.
+
+**本框架不随附前端控制台**（PRISM console 已移除）。前端项目在各自业务仓中，通过 `packages/@digua/contracts` + `@digua/http`（npm TS 包，发布到私有 registry）或 `sdk/`（Java / Rust；C# 规划中）接入 api-gateway:3000 唯一公共入口。
 
 **Full documentation**: [`docs-site/user-manual/`](docs-site/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 
@@ -34,11 +36,10 @@ docker compose -f infrastructure/docker-compose.yml up -d
 # 3. 安装 e2e 依赖（独立 workspace）
 pnpm -C tests/e2e install
 
-# 4. 跑端到端测试
+# 4. 跑端到端测试（数据驱动 API 用例，直接打 api-gateway:3000）
 cd tests/e2e
 pnpm test:smoke        # 2 min smoke 子集
 pnpm test:api          # 5 min 全量 API
-pnpm test:ui           # 10 min UI（需前端容器）
 
 # 5. 停止基础设施
 docker compose -f infrastructure/docker-compose.yml down
@@ -50,14 +51,11 @@ docker compose -f infrastructure/docker-compose.yml down
 | --------------------------------- | ------------------------------------------------- |
 | `pnpm run test:e2e`               | 全量 e2e（Vitest + supertest，跨网关测真服务）    |
 | `pnpm run test:e2e:api`           | 数据驱动 API 用例（Excel）                        |
-| `pnpm run test:e2e:ui`            | 数据驱动 UI 业务流（Playwright，需前端容器）      |
 | `pnpm run test:e2e:smoke`         | E2E smoke 子集（2 min，仅 API）                   |
-| `pnpm run test:e2e:smoke:ui`      | E2E smoke 子集（UI，`--grep @smoke`）             |
 | `pnpm run test:rust`              | 容器内跑 Rust 单元测试（可选 `[service]` 参数；底层 `scripts/run-tests-docker.js`） |
-| `pnpm run test:dist-tools`        | 跑 `release/dist-tools` 的 Node 单测             |
 | `pnpm run test:all`               | 一键跑 workspace + Rust + e2e + js 脚本 + sdk 全套 |
 | `pnpm run check:env` | 检查开发环境服务状态 |
-| `pnpm -C tests/e2e test:smoke` | E2E smoke 子集（2 min，8 API + 2 UI 用例） |
+| `pnpm -C tests/e2e test:smoke` | E2E smoke 子集（2 min，仅 API 用例） |
 | `node scripts/check-service-standard.js` | CI gate: 8-item 服务规范检查 |
 | `node scripts/check-spec.js` | CI gate: OpenAPI / 错误码 / 权限码检查 |
 | `node scripts/contracts-gen.js --check` | CI gate: 契约生成代码与 YAML 一致性 |
@@ -244,7 +242,6 @@ docker run --rm `
 | `coder-add-route` | 给现有 service 加路由（含 utoipa 注解 + openapi.rs 注册） |
 | `coder-migrate-db` | 加迁移（MySQL + SQLite 双版本） |
 | `coder-new-service` | 脚手架新 Rust microservice（满足 8-item 服务规范） |
-| `coder-sdk-publish-npm` | 发布 `@digua/dist-tools` 到 `npm.kudi.repos` 私有 registry（含 preflight + tag） |
 | `coder-sdk-publish-rust` | 发布 Rust crates 到 kellnr 私有 registry（libs/* 17 + sdk/rust/* 7，含拓扑顺序与 dry-run） |
 | `coder-sdk-publish-maven` | 发布 Java SDK 到 Reposilite（release + snapshot，含 `mvn versions:set` 自动 bump + curl 上传模式 + 4 级凭证 fallback） |
 | `coder-service-release` | 服务镜像 release（`docker:build` + `release:build` + `release:deploy`，含 compose `command:` 命名扫描与 L1/L2 loop 校验） |
@@ -501,9 +498,10 @@ pnpm --filter token-service run build
 pnpm --filter token-service run test
 pnpm --filter token-service run run
 
-# frontend
-pnpm --filter @coder/frontend run dev
-pnpm --filter @coder/frontend run build
+# packages/（前端 TS 集成包：@digua/contracts + @digua/http）
+pnpm run packages:build      # 构建两个包
+pnpm run packages:check      # 发布前校验
+pnpm run packages:publish    # 发布到私有 registry npm.kudi.repos
 ```
 
 ### 常用工作流

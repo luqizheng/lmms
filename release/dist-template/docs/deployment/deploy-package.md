@@ -8,7 +8,7 @@
 
 | 包类型 | 产出脚本 | 内容 | 适用场景 | 产物 |
 |--------|----------|------|----------|------|
-| **airgap**（离+开发一体） | `node release/dist-template/scripts/release.js <ver>` | compose + 镜像 + 开发骨架（frontend 源码 / .agents/ skills / services 空骨架 …） | 二次开发 | `release/coder-micro-services-<ver>-airgap.tar.gz` |
+| **airgap**（离+开发一体） | `node release/dist-template/scripts/release.js <ver>` | compose + 镜像 + 开发骨架（packages/ TS 访问包 / .agents/ skills / services 空骨架 …） | 二次开发 | `release/coder-micro-services-<ver>-airgap.tar.gz` |
 | **deploy**（纯部署） | `node release/dist-template/scripts/release-deploy.js <ver>` | compose（已 image:）+ 镜像 + 部署运维 bin + Makefile + .env.example | 直接部署上线 | `release/coder-micro-services-<ver>-deploy.tar.gz` |
 
 > **镜像 tag 一律 no-v**：git tag 用 `v1.0.0`，打包传入/引用镜像 tag 用 `1.0.0`（registry 里不存 `:v1.0.0`）。
@@ -35,7 +35,7 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release-deploy.js 1.0.0
 
 脚本阶段：
 1. `EXPORT_IMAGES=1` 时调 `scripts/build-docker.js -v <ver> --no-push` 构建并加载全部镜像到本地；
-2. 拷贝 `infrastructure/` 并跑 `scripts/transform-compose.js`——把 services.yml 与主 `docker-compose.yml` 中 `build:`（含 frontend）统一转成 `image:` 引用（部署包不带 frontend 源码，无需现场构建）；
+2. 拷贝 `infrastructure/` 并跑 `scripts/transform-compose.js`——把 services.yml 与主 `docker-compose.yml` 中 `build:` 统一转成 `image:` 引用（部署包不带服务源码，无需现场构建）；
 3. `EXPORT_IMAGES=1` 时扫描所有 compose 的 `image:`，把未导出的 `docker save` 成 tar；
 4. 写入 deploy-only 运维子集（`bin/` 白名单 + deploy 专用 `Makefile` + `docs/deployment/` + `.env.example` + `secrets/`）并**内嵌发布脚本本体**（`release-deploy.js` / `transform-compose.js` / `release-transforms.js`）；
 5. 写 `MANIFEST.json`（`target=deploy`）并 `tar -czf` 打 `coder-micro-services-${ver}-deploy.tar.gz`。
@@ -58,7 +58,7 @@ make verify          # 冒烟
 ```
 coder-micro-services-1.0.0-deploy/
 ├── infrastructure/
-│   ├── docker-compose*.yml            # 均已 image: 化（frontend 引用 micro-server/frontend:<ver>）
+│   ├── docker-compose*.yml            # 均已 image: 化
 │   ├── config/                         # 运行时配置（<slug> 集中）
 │   └── …（compose include 的基础设施/配置）
 ├── images/                             # Docker 镜像 tar（EXPORT_IMAGES=1 时）
@@ -84,7 +84,6 @@ coder-micro-services-1.0.0-deploy/
 
 | 内容 | 原因 |
 |------|------|
-| `frontend/` 源码 | 前端已预构建为 `micro-server/frontend:<ver>` 镜像并 image: 化 |
 | `services/` | 服务源码用镜像 |
 | `contracts/` / `scripts/`（CI 门禁） | 仅开发时需要 |
 | `.agents/`（skills / rules） | AI 开发工具仅开发时需要 |

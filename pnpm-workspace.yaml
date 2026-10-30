@@ -1,13 +1,10 @@
 packages:
   - "services/token-service"
-  - "frontend"
-  - "frontend/packages/contracts"
-  - "frontend/packages/http"
+  - "packages/contracts"
+  - "packages/http"
 allowBuilds:
   '@parcel/watcher': true
   argon2: true
   core-js: true
   es5-ext: true
   esbuild: true
-  typeit: true
-  vue-demi: true

@@ -213,7 +213,7 @@ crates.io and kellnr both **forbid** deletion of a published version
 
 ## Cross-references
 
-- **npm SDK** (`@digua/dist-tools`): see `coder-sdk-publish-npm` skill
+- **npm TS packages** (`@digua/contracts` + `@digua/http`): `pnpm run packages:publish` / CI `publish_packages`
 - **Service Docker images**: see `coder-service-release` skill
 - **Maven SDK** (`sdk/java/**`): see `coder-sdk-publish-maven` skill
 - **Cargo workspace config**: `.cargo/config.toml` (kellnr + rsproxy mirror)

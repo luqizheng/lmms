@@ -1,9 +1,0 @@
-group: user
-cases:
-  - caseId: UI-USER-001
-    desc: 登录后建用户
-    flow: createUser
-    params:
-      username: u${rand}
-    expect:
-      - toast=已新增用户

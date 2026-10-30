@@ -9,7 +9,6 @@ node_modules
 *.exe
 mysql_data/
 redis_data/
-frontend/coverage/
 services/auth-service/bin/
 services/user-service/bin/
 release/dist-template/release/*
@@ -69,8 +68,6 @@ reports/
 # CI 可用 CODER_NPM_REGISTRY / CODER_NPM_TOKEN 覆盖。
 # 注意：只忽略项目根 .npmrc，不影响 tests/e2e/.npmrc 等子目录 .npmrc。
 /.npmrc
-# frontend/.npmrc 同样由 setup 脚本生成，含 npm mirror，本地配置不入 git
-/frontend/.npmrc
 
 apps/pm/**/target/
 /apps/pm/.gitignore
@@ -86,13 +83,10 @@ apps/pm/**/target/
 /infrastructure/.env.prod
 /infrastructure/.env.dev
 /infrastructure/prod-secrets/
-# frontend/ 由 release.sh 从 dev frontend/ 动态复制到分发包输出目录，不入 git；
-# CI 通过 build-frontend.sh 直接用 dev frontend/ 构建镜像，不依赖此目录快照
-/release/dist-template/frontend/
+
 /release/dist-template/release/
 /release/dist-*.tar.gz
 /release/images-*.tar.gz
-/release/dist-template/frontend-source-*.tar.gz
 
 # npm 包的构建产物（由 pnpm run packages:build 生成）
 packages/*/dist

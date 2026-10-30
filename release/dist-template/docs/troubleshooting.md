@@ -38,7 +38,7 @@ docker exec coder-micro-services-redis redis-cli -a <password> ping
 
 ```bash
 # 检查 nginx 是否正常运行
-docker logs coder-micro-services-frontend
+docker logs coder-micro-services-api-gateway
 
 # 检查 API 网关是否 healthy
 curl http://localhost:3000/health

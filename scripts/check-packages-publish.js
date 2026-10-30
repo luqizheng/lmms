@@ -13,8 +13,8 @@ const http = require("node:http");
 const ROOT = join(__dirname, "..");
 const REGISTRY = "http://npm.kudi.repos/";
 const PACKAGES = [
-  { dir: "frontend/packages/contracts", name: "@digua/contracts" },
-  { dir: "frontend/packages/http", name: "@digua/http" }
+  { dir: "packages/contracts", name: "@digua/contracts" },
+  { dir: "packages/http", name: "@digua/http" }
 ];
 
 const nextVersion = process.argv[2];

@@ -8,13 +8,8 @@
 ## 2.1 服务地图（Phase 5-A-2 之后）
 
 ```
-         browser / SDK
-               │  :8080 (frontend dev) / 浏览器直连 api-gateway :3000
-               ▼
-        ┌──────────────┐
-        │   frontend   │  :80 in container, nginx 反代到 api-gateway:3000
-        └──────┬───────┘
-               │  HTTP（明文；Authorization 透传）
+         客户端（业务仓前端 / SDK）
+               │  直连 api-gateway :3000（唯一公共入口）
                ▼
    ┌──────────────────────────────────────────┐
    │ api-gateway 容器 :3000                   │
@@ -76,7 +71,8 @@
 | **file-service** | 文件存储 / 下载（本地 `STORAGE_PATH`）| 跨服务调用 |
 | **config-service** | 通用配置中心（内网可信）| 跨服务调用 |
 | **outbox publisher** | 轮询 `*_outbox_events` 表 → 发 RabbitMQ exchange `events`（事务性发件箱）| 对外暴露 HTTP |
-| **frontend** | Vue 3 admin UI；nginx 反代到 api-gateway:3000 | 业务逻辑 |
+
+> 原 **frontend** 层（Vue 3 admin UI + nginx 反代）已随 PRISM console 从框架移除；客户端（业务仓前端 / SDK）直接访问 api-gateway:3000。
 
 **原则**：
 
@@ -89,8 +85,8 @@
 ## 2.3 典型请求链路（直连 HTTP，无 sidecar 跳）
 
 ```
-1. 浏览器 POST /api/v1/iam/auth/login 带凭据
-2. Nginx (:80) 代理到 api-gateway (:3000)；或浏览器直连 api-gateway
+1. 客户端（业务仓前端 / SDK）POST /api/v1/iam/auth/login 带凭据
+2. 客户端直连 api-gateway (:3000)（唯一公共入口；原 frontend nginx :80 反代层已移除）
 3. api-gateway 进程：
    a. trace 中间件：建根 span、抽取 W3C traceparent
    b. auth 中间件：JWT 验签（通过 jwks_url 拉 token-service 公钥）；Redis 黑名单 / perm_epoch 比对

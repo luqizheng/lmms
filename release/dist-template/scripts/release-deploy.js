@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * release-deploy.js — 打包"纯部署"分发包
- * 不含 dev 骨架（frontend 源码、services、contracts、scripts/skills、Cargo.toml 等）。
+ * 不含 dev 骨架（services、packages、contracts、scripts/skills、Cargo.toml 等）。
  * 默认包含所有 docker 镜像 tar + 已 image: 化的 compose + deploy-only bin 脚本。
  *
  * 与 release.js 的区别：
@@ -19,7 +19,7 @@
  * 行为：
  *   阶段一（EXPORT_IMAGES=1）：调 build-docker.js -v <ver> --no-push 构建+加载所有镜像到本地
  *   阶段二：拷贝 infrastructure/，跑 transform-compose 处理 services.yml + 主 docker-compose.yml
- *           （主文件的 frontend build → image，吸收 deploy.sh 内联 bash 逻辑）
+ *           （主文件的 build → image，吸收 deploy.sh 内联 bash 逻辑）
  *   阶段三（EXPORT_IMAGES=1）：扫所有 compose 文件的 image: 引用，docker save 成 tar
  *   阶段四：拷贝 deploy-only 子集（bin 白名单 + Makefile + docs/deployment + .env.example + secrets/）
  *           + 嵌入发布脚本本体（release-deploy.js + transform-compose.js + release-transforms.js）
@@ -162,7 +162,7 @@ if (EXPORT_IMAGES === 1) mkdirSync(IMAGES_DIR, { recursive: true });
 // 阶段一：build + load 镜像到本地（不推仓库，由其他 CI 脚本负责 push）
 // ══════════════════════════════════════════════════════════════════════════════
 if (EXPORT_IMAGES === 1) {
-  console.log('[release-deploy] -> 阶段一：构建所有核心服务镜像（含 frontend）到本地...');
+  console.log('[release-deploy] -> 阶段一：构建所有核心服务镜像到本地...');
   const buildDocker = path.join(REPO_ROOT, 'scripts', 'build-docker.js');
   try {
     sh(`node "${buildDocker}" -v "${VERSION}" --no-push`);
@@ -212,9 +212,9 @@ console.log('[release-deploy]   ✓ docker-compose-services.yml: build → image
 
 if (existsSync(mainCompose)) {
   sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${mainCompose}" "${REGISTRY}" "${VERSION}"`);
-  console.log('[release-deploy]   ✓ docker-compose.yml: frontend build → image 转换完成');
+  console.log('[release-deploy]   ✓ docker-compose.yml: build → image 转换完成');
 } else {
-  console.log('[release-deploy]   ⚠ docker-compose.yml 不存在，跳过 frontend 转换');
+  console.log('[release-deploy]   ⚠ docker-compose.yml 不存在，跳过转换');
 }
 
 // ── config/ 重映射 ──
@@ -369,7 +369,7 @@ const BIN_DEPLOY_WHITELIST = [
   'generate-secrets.js',
   'load-images.js',
   'logs.js',
-  'start.js',           // 已加 --deploy flag，跳过 build-frontend
+  'start.js',
   'status.js',
   'stop.js',
   'upgrade.js',
@@ -400,7 +400,7 @@ help:
 \t@echo "coder-micro-services \${IMAGE_TAG} — 纯部署包 (来自 release-deploy.js)"
 \t@echo ""
 \t@echo "  make secrets         生成 JWT 密钥 + 随机密码，初始化 .env"
-\t@echo "  make up              启动所有服务（用预构建镜像，无 build-frontend 步骤）"
+\t@echo "  make up              启动所有服务（用预构建镜像）"
 \t@echo "  make down            停止容器（保留数据卷）"
 \t@echo "  make status          列出容器状态"
 \t@echo "  make logs [svc=]     查看日志"
@@ -459,9 +459,9 @@ writeFileSync(path.join(DIST_DIR, 'README.md'), `# coder-micro-services ${VERSIO
 
 > 由 \`release/dist-template/scripts/release-deploy.js\` 在 dev 仓库内直接产出。
 > 与 airgap 包（\`coder-micro-services-${VERSION}-airgap.tar.gz\`）的区别：
->   - **不含** dev 工具（frontend 源码、services 骨架、contracts/skills、scripts/build-docker.js 等）
+>   - **不含** dev 工具（services 骨架、packages/contracts/skills、scripts/build-docker.js 等）
 >   - **包含** 预构建的 Docker 镜像 tar + compose + 精简 ops 脚本
->   - 体积约为 airgap 包的 1/3（无 node_modules / 无 skills / 无 frontend 源码）
+>   - 体积约为 airgap 包的 1/3（无 node_modules / 无 skills）
 
 ## 快速部署
 
@@ -498,11 +498,10 @@ make upgrade TAG=v1.0.X
 
 | 维度 | airgap（\`release.js\` 产物） | deploy（\`release-deploy.js\` 产物）|
 | --- | --- | --- |
-| 前端源码 | ✅ 含（\`frontend/\`） | ❌ 已预构建进镜像 |
 | services 骨架 | ✅ 空目录 + skill 模板 | ❌ 无 |
 | 镜像 tar | ✅（需消费方 load） | ✅（需消费方 load）|
 | 二次开发能力 | ✅ 用 skill 自助创建业务服务 | ❌ 仅部署 |
-| 体积 | ~ 大（含 frontend + skills）| ~ 小（仅 ops）|
+| 体积 | ~ 大（含 skills）| ~ 小（仅 ops）|
 
 如果需要二次开发能力，请同时拉 **airgap 包**。本包只面向"拿到了 tag、给个 compose、起服务"的运维场景。
 `);

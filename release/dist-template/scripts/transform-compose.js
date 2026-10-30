@@ -35,7 +35,6 @@ const IMAGE_MAP = {
   'notification-outbox-publisher':'micro-server/notification-service',
   'audit-service':               'micro-server/audit-service',
   'prue_backend':                'micro-server/prue-admin-backend',
-  'frontend':                    'micro-server/frontend',
   'mysql-replica':               'micro-server/mysql-replica',
 };
 

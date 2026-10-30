@@ -52,8 +52,8 @@ coder-micro-services/
 │       └── src/
 ├── libs/                           ← 共享 Rust crate
 │   └── digua_common-telemetry/           ← OTel 脚手架
-├── frontend/                       ← Vue 3 管理后台
-├── tests/e2e/                      ← Vitest + Playwright
+├── packages/                       ← 前端 TS 集成包（@digua/contracts + @digua/http）
+├── tests/e2e/                      ← Vitest（数据驱动 API 测试）
 ├── contracts/                      ← 单一真相源（YAML）
 ├── docs/                           ← 本手册 + 指南 + 复盘
 │   ├── user-manual/                ← ← 当前手册（拆分版）
@@ -94,7 +94,7 @@ alias cms-e2e='cd tests/e2e && pnpm test:smoke'
 | **Consul** | 服务发现 + 健康检查 |
 | **JWT** | JSON Web Token（RS256 签名） |
 | **OTel / OTLP** | OpenTelemetry / OpenTelemetry Protocol |
-| **Pure-admin** | 项目 fork 的 Vue 3 管理后台模板 |
+| **Pure-admin** | 业务仓前端常用的 Vue 3 管理后台模板（框架已不随附，历史参考） |
 | **prue_backend** | Pure-admin 菜单配置后端（Rust 重写） |
 | **smoke subset** | 关键路径冒烟测试子集（快速反馈） |
 | **trace_id** | 128-bit ID，经 W3C `traceparent` 透传 |
@@ -124,7 +124,8 @@ alias cms-e2e='cd tests/e2e && pnpm test:smoke'
 | config-service | 8081 | 8085³ | 8081 | ✅ | ³ host 8085 消歧（容器内 8081 与 iam 共享） |
 | iam-outbox-publisher | — | — | — | ❌ | worker，无 HTTP；不写 `SERVICE_*` labels |
 | notification-outbox-publisher | — | — | — | ❌ | worker，无 HTTP |
-| frontend | 80 | 8080 | — | ❌ | nginx 反代到 `api-gateway:3000` |
+
+> 原 frontend 行（容器 80 / host 8080，nginx 反代）已随 PRISM console 移除删除；api-gateway:3000 是唯一公共入口。
 
 > **关键事实**：跨服务调用走 **容器内端口**（`http://iam-service:8081`、`http://token-service:8082`），由 Docker `superpowers` 网络的 DNS 解析；`compose host 端口` 只为宿主机 `curl http://localhost:908x/swagger-ui` 之类开发联调用，gateway / 跨服务都不走 host 端口。
 
@@ -143,7 +144,6 @@ alias cms-e2e='cd tests/e2e && pnpm test:smoke'
 | Redis | 6379 | TCP | |
 | RabbitMQ AMQP | 5672 | TCP | |
 | RabbitMQ 管理 UI | 15672 | HTTP | guest/guest |
-| Nginx (frontend 容器内) | 80 | HTTP | frontend 容器 nginx 反代到 api-gateway:3000 |
 
 ---
 

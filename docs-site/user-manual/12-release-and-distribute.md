@@ -8,8 +8,8 @@
 
 | 形态 | 产物 | 适用场景 | 触发命令 |
 |------|------|----------|----------|
-| **A. 镜像推内网 registry** | 9 个 Docker 镜像（8 核心服务 + frontend），打 `:<version>` + `:latest` tag，推到 `zhcoder-docker-registry.com:8000/micro-server/*` | 内网有 registry、能联网拉镜像的环境 | `pnpm docker:build -- -v <ver> --push` |
-| **B. 离线分发包（air-gap tar.gz）** | `coder-micro-services-${VERSION}-airgap.tar.gz`（约 10–15 GB 镜像）+ 骨架（`.agents/skills/` 仅 6 个 scaffold、`.agents/rules/`、scripts、contracts、frontend、services 空骨架；libs/sdk 不发）| 客户环境无网络 / 涉密 / 私有化部署 | `node release/dist-template/scripts/release.js <no-v-version>` |
+| **A. 镜像推内网 registry** | 8 个 Docker 镜像（api-gateway 等 8 核心服务，frontend 已移除），打 `:<version>` + `:latest` tag，推到 `zhcoder-docker-registry.com:8000/micro-server/*` | 内网有 registry、能联网拉镜像的环境 | `pnpm docker:build -- -v <ver> --push` |
+| **B. 离线分发包（air-gap tar.gz）** | `coder-micro-services-${VERSION}-airgap.tar.gz`（约 10–15 GB 镜像）+ 骨架（`.agents/skills/` 仅 6 个 scaffold、`.agents/rules/`、scripts、contracts、packages（前端 TS 集成包）、services 空骨架；libs/sdk 不发）| 客户环境无网络 / 涉密 / 私有化部署 | `node release/dist-template/scripts/release.js <no-v-version>` |
 | **C. SSH 直接部署** | `docker compose down && pull && up` 到 192.168.2.128 | 单一固定生产主机（**已知路径错**，[风险] 见 §12.4） | 由 `.gitlab-ci.yml` 的 `deploy` job 自动触发 |
 
 > 大多数场景用 **形态 B**（私有化）或 **形态 A**（内网微服务）。形态 C 是早期遗留，建议迁移到形态 A。
@@ -21,7 +21,7 @@
 ### 命令
 
 ```bash
-# 构建全部 9 个服务镜像并推送到内网 registry
+# 构建全部 8 个服务镜像并推送到内网 registry
 pnpm docker:build -- -v 1.0.0 --push
 # = node scripts/build-docker.js -v 1.0.0 --push
 
@@ -35,7 +35,7 @@ pnpm docker:build -- --load-and-push -v 1.0.0
 pnpm docker:build -- --platform linux/amd64,linux/arm64 --push
 ```
 
-底层走 `scripts/build-docker.js`，集成构建 + 打 tag + 推送一体化流程，覆盖 9 个镜像（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service / prue-admin-backend / frontend）。
+底层走 `scripts/build-docker.js`，集成构建 + 打 tag + 推送一体化流程，覆盖 8 个镜像（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service / prue-admin-backend；原 frontend 镜像已随 PRISM console 移除删除）。
 
 ### tag 命名
 
@@ -72,7 +72,7 @@ node release/dist-template/scripts/release.js v1.0.0
 
 按顺序：
 
-1. `docker pull` 9 个核心服务镜像（registry 默认 `zhcoder-docker-registry.com:8000`，可用 `REGISTRY` 环境变量覆盖）
+1. `docker pull` 8 个核心服务镜像（registry 默认 `zhcoder-docker-registry.com:8000`，可用 `REGISTRY` 环境变量覆盖）
 2. `docker save` 每镜像成 tar，放进 `${DIST_DIR}/images/`
 3. 同步开发骨架（**从 dev 仓库根**复制到 dist 包）：
    - `contracts/`（错误码 / 权限码 / 事件 / 约定）
@@ -80,7 +80,7 @@ node release/dist-template/scripts/release.js v1.0.0
    - `tests/e2e`（清理 node_modules / artifacts）
    - `.agents/skills/`（**仅白名单 6 个 scaffold**：new-service / add-route / migrate-db × Java+Rust；仓库其余 repo-local skill 不外发。保留点开头，详见 §12.8）
    - `.agents/rules/`（全量；缺时回退 `.trae/rules/`）
-   - `frontend/` 源码（剔除 cache）; `services/` 空骨架 + `agents-template.md`
+   - `packages/`（前端 TS 集成包 `@digua/contracts` + `@digua/http`，剔除 node_modules / dist）; `services/` 空骨架 + `agents-template.md`
    - `Cargo.toml`（剥掉 `libs/*` / `sdk/*` / `services/*` members）；`pnpm-workspace.yaml` / `package.json` / `AGENTS.md`
    - ⚠ **`libs/` 与 `sdk/` 不打包**：17 个 libs crate 与 Rust/Java SDK 由 CI 发到私有 kellnr / Maven（§12.2）
 4. `tar -czf coder-micro-services-${VERSION}-airgap.tar.gz` 打总包
@@ -98,11 +98,9 @@ node release/dist-template/scripts/release.js v1.0.0
 > 早期 shell 版 `release.sh` 已于 2026-08 迁 Node 删除（同一逻辑 = 现役 `release.js`）。以下"脚本做了什么/选项表格"按现役 JS 描述。
 > `pnpm run release:build` = 上述 `release.js`（无参取默认版本）；单测 `pnpm run release:test`。
 
-### CI 触发（**当前未自动化**）
+### CI 触发
 
-`.gitlab-ci.yml` 的 `release:dist` job（line 216-241）tag 触发（`v\d+\.\d+\.\d+$`），但**只跑 `node bin/build-frontend.js` + 把 dist-template 当 artifact 上传**——**不自动调 `release.js` 产出 airgap tar.gz**。job 内注释（line 232-233）明示：「实际 release 由运维在有网环境执行」。
-
-**改进方向**：在 `release:dist` job 的 `script:` 末尾追加 `node release/dist-template/scripts/release.js $CI_COMMIT_TAG`，artifact 同时上传 `release/coder-micro-services-${CI_COMMIT_TAG}-airgap.tar.gz`，即可 tag → 自动出包。改前需在 GitLab Runner 上验证 `docker save` 磁盘空间。
+`.gitlab-ci.yml` 的 `release:dist` job 已自动化：tag 触发（`v\d+\.\d+\.\d+$`），`needs` 依赖 `sdk_publish` / `rust_publish` / `build_images:tagged` / `publish_packages` 全部成功后，跑 `node scripts/release.js "${VERSION}" --no-images` 产出骨架包并上传 artifact（镜像本身由 `build_images:tagged` 按 no-v 版本推送，包内不再重复 save）。
 
 ---
 
@@ -187,15 +185,14 @@ make verify                  # 端到端冒烟测试
 
 | 服务 | 地址 | 默认账号 |
 |------|------|---------|
-| 前端 | http://localhost:3000 | — |
-| API 网关 | http://localhost:8080 | — |
+| API 网关（唯一公共入口） | http://localhost:3000 | — |
 | Consul | http://localhost:8500 | — |
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3001 | admin / admin |
 | Jaeger | http://localhost:16686 | — |
 | RabbitMQ | http://localhost:15672 | guest / guest |
 
-> 📌 **后续升级（v1.0 → v1.1 → v2.0 …）请用 [`cms-sync`](../guides/upstream-sync.md)** 自动同步配置文件 / 脚本 / contracts 的改动，而**不**是手动 diff tar.gz。本节是**首次**初始化流程；版本间升级见 §12.10。
+> 📌 本节是**首次**初始化流程。**后续升级（v1.0 → v1.1 → v2.0 …）全部走包升级**（镜像改 tag + cargo/maven/pnpm 升版本），见 §12.10；`cms-sync` 源码同步已停用（[`guides/upstream-sync`](../guides/upstream-sync.md)）。
 
 ---
 
@@ -210,7 +207,7 @@ dist 包的 `services/` 是空的。客户创建第一个业务微服务的完�
 4.  编写业务代码 + 迁移                    # 按 skill 给出的 10 文件骨架填充
 5.  跑 4 道 CI 门禁                        # §12.9
 6.  构建并启动业务服务                     # docker compose -f docker-compose.yml up -d order-service
-7.  verify 业务服务可访问                  # curl http://localhost:8080/v1/order/...
+7.  verify 业务服务可访问                  # curl http://localhost:3000/v1/order/...
 ```
 
 ### 第 3 步的 skill 选择
@@ -275,52 +272,26 @@ node scripts/contracts-gen.js --check    # 契约生成代码（libs/digua_commo
 
 ---
 
-## 12.10 升级流程
+## 12.10 升级流程（包升级，cms-sync 已停用）
 
-### ⚠️ 区分两层升级
+> ⚠️ **2026-10-30 起下游升级全部走包**：镜像改 tag、Rust/Java/npm 包升版本。原
+> `cms-sync`（`@digua/dist-tools`）源码同步机制已停用——上游不再随 tag 发布该工具，
+> `.upstream-sync.yaml` / `.upstream.lock` 可从下游仓库删除。完整说明见
+> [`docs-site/guides/upstream-sync`](../guides/upstream-sync.md)。
+
+### 升级对象
 
 | 升级对象 | 命令 | 频率 | 失败影响 |
 |----------|------|------|----------|
-| **配置 / 脚本 / contracts**（air-gap tarball 中的文件） | `npx cms-sync ./dist.tgz` | 每版必做 | 业务配置漂移、CI 脚本失效 |
-| **Docker 镜像** | `make upgrade TAG=v1.x.y` | 每版必做 | 服务未运行新版本 |
+| **Docker 镜像** | 改 `.env` 的 `IMAGE_TAG=<ver>` → `docker compose pull && up -d`（或 `make upgrade TAG=v1.x.y`） | 每版必做 | 服务未运行新版本 |
+| **Rust 包**（libs/* + sdk/rust/*，kellnr） | `cargo update -p <crate>` | 用到时做 | 业务服务编译不过 |
+| **Java 包**（io.digua.*，Maven） | pom.xml 升 `<dependency>` 版本 | 用到时做 | 业务服务编译不过 |
+| **npm 包**（@digua/contracts + @digua/http） | `pnpm up @digua/contracts @digua/http` | 用到时做 | 前端契约漂移 |
 | **数据 schema** | 容器启动自动跑 migration | 主版本升级时必检 | 数据不一致 |
 
-**两层都要做**——`cms-sync` 只同步配置文件，**不**换镜像；`make upgrade` 只换镜像，**不**改配置文件。
+同一个 release tag 下所有制品版本号一致（镜像 no-v `1.4.0` = crates `1.4.0` = Maven `1.4.0` = npm `1.4.0`）。
 
-### 12.10.1 配置文件升级：cms-sync（推荐）
-
-> 完整工具文档：[`docs-site/guides/upstream-sync`](../guides/upstream-sync.md)。
-
-```bash
-# 1. 拿到新版本 air-gap tarball
-# 例如 coder-micro-services-v1.1.0-airgap.tar.gz
-
-# 2. 干跑 — 看会发生什么，不修改文件
-npx cms-sync --dry-run ./coder-micro-services-v1.1.0-airgap.tar.gz
-
-# 3. 实际同步
-npx cms-sync ./coder-micro-services-v1.1.0-airgap.tar.gz
-# 退出码 0 = 成功；2 = 有冲突需手动解决
-
-# 4. 解决冲突（如有）：编辑冲突文件，删除 <<<<<<< 标记
-#    冲突文件的 base 版本在 <file>.merge-base，方便对比
-
-# 5. 跑 CI 门禁
-pnpm check && pnpm test
-node scripts/check-service-standard.js
-node scripts/contracts-gen.js --check
-
-# 6. 提交
-git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
-```
-
-**首次使用前**需要在项目根目录创建 `.upstream-sync.yaml`（声明哪些文件 managed / three-way-merge / skip）和 `.upstream.lock`（指向 v1.0.0 初始 commit），详见 [`docs-site/guides/upstream-sync`](../guides/upstream-sync.md) §3 / §4.1。
-
-**回滚**：`cms-sync` 写盘前可以走 `git reset --hard HEAD`（前提：sync 前已 commit 当前状态）。
-
-### 12.10.2 镜像升级：make upgrade
-
-`make upgrade` 只换 Docker 镜像，**不**改配置文件：
+### 12.10.1 镜像升级：make upgrade
 
 ```bash
 # 在线（能 docker pull 的环境）
@@ -332,7 +303,20 @@ node bin/load-images.js
 make upgrade TAG=v1.1.0
 ```
 
-`upgrade.sh` 行为：拉新镜像（覆盖 `:latest` tag）→ `docker compose pull` → `docker compose up -d` → `make verify`。
+`upgrade.js` 行为：拉新镜像（覆盖 `:latest` tag）→ `docker compose pull` → `docker compose up -d` → `make verify`。
+
+### 12.10.2 语言包升级
+
+```bash
+# Rust（kellnr）：.cargo/config.toml 已指向 kellnr（新项目骨架自带）
+cargo update -p digua-http-client && cargo update -p common-error
+
+# Java（Maven）：pom.xml 升 io.digua.* 版本后
+mvn -U clean verify
+
+# npm（内网 registry）
+pnpm up @digua/contracts@1.1.0 @digua/http@1.1.0
+```
 
 ### 12.10.3 ⚠️ 跨版本 schema 兼容性
 
@@ -346,23 +330,21 @@ make upgrade TAG=v1.1.0
 ### 12.10.4 标准升级组合
 
 ```bash
-# 1. 同步工具自身升级（如果新版）
-pnpm update @digua/dist-tools
-
-# 2. 同步上游配置 / 脚本 / contracts
-npx cms-sync ./coder-micro-services-v1.1.0-airgap.tar.gz
-# 解决冲突（如有）
-
-# 3. 升级镜像
+# 1. 升级镜像
 make upgrade TAG=v1.1.0
 
-# 4. 跑全量 CI 门禁
+# 2. 升级用到的语言包（按需）
+cargo update -p <crate>          # Rust
+# pom.xml 升版本                  # Java
+pnpm up @digua/contracts @digua/http   # npm
+
+# 3. 跑全量 CI 门禁
 pnpm check && pnpm test
 node scripts/check-service-standard.js
 node scripts/contracts-gen.js --check
 
-# 5. 提交
-git add -A && git commit -m "chore(sync): upstream v1.0.0 → v1.1.0"
+# 4. 提交
+git add -A && git commit -m "chore(deps): upstream v1.0.0 → v1.1.0"
 ```
 
 ---
@@ -427,12 +409,9 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 | 现象 | 原因 | 解决 |
 |------|------|------|
 | 打包命令找不到 / 报未知参数 | 用错路径或把 git tag 的 `v1.5.0` 当镜像 tag（registry 里是 no-v `1.5.0`） | 用完整路径 `node release/dist-template/scripts/release.js <git-tag>`；离线引用/下游 `IMAGE_TAG` 用 no-v（§12.3） |
-| `release:dist` CI job 没产出 tar.gz | 该 job 只 build frontend，**不调** `release.js` | 手动跑 `node release/dist-template/scripts/release.js $CI_COMMIT_TAG`，或在 CI job `script:` 末尾追加该命令（§12.3） |
+| `release:dist` CI job 没产出 tar.gz | tag pipeline 前置 job（sdk / rust / images / npm publish）有失败 | 修失败 job 后重打 tag；本地手动跑 `node release/dist-template/scripts/release.js $CI_COMMIT_TAG --no-images` 兜底（§12.3） |
 | `coder-new-service` 报"找不到 agents-template.md" | dist 包内缺该模板 | 回到 dev 仓库确认 `services/agents-template.md` 存在，重跑 `release.js` |
 | 业务服务 `docker compose up` 找不到 service | skill 把服务加到了错误的 compose 路径 | dev 仓库内 skill 改 `infrastructure/docker-compose-services.yml`；dist 包内要改 `compose/services.yml` —— 当前 skill **硬编码** dev 仓库路径，在 dist 包内**跑 skill 不会自动注册到 compose**，需手动复制 service entry（已知缺口，见 ai-context §5 待补） |
 | `make verify` 失败 | 镜像未启动 / 端口冲突 / Consul 未发现 | `docker compose ps` 看 healthcheck；`make logs` 看启动日志；`curl http://localhost:8500/v1/catalog/services` 看注册情况 |
 | `make upgrade` 后业务服务连接断开 | 容器 IP 变了，env 缓存了旧地址 | `make restart <svc>` 重启业务服务；长期方案：业务服务全部走 Consul DNS / env 注入 |
-| `npx cms-sync` 报 `Cannot find module 'tar'` | `@digua/dist-tools` 没装 / `node_modules` 缺失 | `pnpm install` 或 `pnpm add -D @digua/dist-tools` |
-| `npx cms-sync` 报 `no previous sync recorded` | 首次 sync 或 `.upstream.lock` 被 `.gitignore` 误屏蔽 | 首次属正常；若非首次，检查 `.upstream.lock` 是否被 git 跟踪 |
-| `npx cms-sync` 报 `no .upstream-sync.yaml found` | 项目根目录缺策略文件 | 按 [`guides/upstream-sync`](../guides/upstream-sync.md) §3 创建 |
-| `npx cms-sync` 退出码 = 2 留下 CONFLICT 标记 | 上游和下游改了同区域 | 编辑文件解决冲突，删 `<<<<<<<` 标记，删除 `<file>.merge-base`；详见 [`guides/upstream-sync`](../guides/upstream-sync.md) §6 |
+| `cargo update` / `pnpm up` / Maven 拉不到新版本 | 对应 registry（kellnr / npm / Maven）缺该版本，或版本号带了 `v` 前缀 | 查 tag pipeline 对应 publish job；统一用 no-v 版本号（§12.3）；详见 [`guides/upstream-sync`](../guides/upstream-sync.md) §4 |

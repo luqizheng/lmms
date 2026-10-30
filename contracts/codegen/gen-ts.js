@@ -2,7 +2,6 @@
 /**
  * 从 error-codes.yaml 和 permissions.yaml 生成 TypeScript 类型
  * 输出：packages/contracts/src/error-codes.ts 和 permissions.ts
- * 当前预留，待 frontend 目录建立后启用
  */
 
 const fs = require('fs');

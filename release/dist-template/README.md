@@ -10,13 +10,12 @@ coder-micro-services/
 ├── infrastructure/         # Docker Compose + 平台运行时配置（唯一真相源）
 │   ├── docker-compose.yml           # 主入口（include 三个 yml）
 │   ├── docker-compose-infra.yml     # 基础设施（MySQL/Redis/Consul/RabbitMQ/Registrator）
-│   ├── docker-compose-services.yml  # 8 个核心服务（image: 引用仓库镜像）+ frontend
+│   ├── docker-compose-services.yml  # 8 个核心服务（image: 引用仓库镜像）
 │   ├── docker-compose-observability.yml  # 可观测性（Prometheus/Grafana/Jaeger/OTel）
 │   ├── config/             # 运行时配置（api-gateway routes / grafana / consul / ...）
 │   │   ├── iam/            # iam-service 首启 seed 目标目录（含 config.default.yaml 模板）
 │   │   └── notification/   # notification-service seed 目标（同上）
 │   └── mysql-init/         # MySQL 初始化 SQL
-├── frontend/               # 前端源码（pnpm-lock.yaml，不含 node_modules）
 ├── images/                 # 离线 Docker 镜像包 + manifest.json
 ├── secrets/                # 运行时生成的密钥（不提交 git）
 │
@@ -101,7 +100,6 @@ node scripts/contracts-gen.js --check    # 契约生成代码一致性
 | notification-service | 8085 | 通知服务（outbox pattern）|
 | audit-service | 8086 | 审计日志 |
 | prue-backend | 8087 | 流程引擎（MySQL+SQLite）|
-| frontend | 3000 | Vue 3 前端（nginx）|
 
 ## 业务服务开发流程
 
@@ -243,7 +241,7 @@ pnpm run release:build                                  # 等价：默认版本�
 
 - `--no-images` 同时跳过 pull 和 save；离线安装时需先 `docker pull` 或重跑 `EXPORT_IMAGES=1 node release/dist-template/scripts/release.js`。
 - flag 优先级高于 `EXPORT_IMAGES` 环境变量；`REGISTRY` 环境变量可覆盖默认仓库。
-- v2 新增：release.js 自动从开发仓库同步开发骨架到发布包——`.agents/skills/`（**仅 6 个下游 scaffold 白名单**，SDK 发布 / CI 诊断等 repo-local skill 不进包，清单见 release.js 内 `DOWNSTREAM_SKILL_WHITELIST` 与包内 `.agents/README.downstream.md`）+ `.agents/rules/` / `scripts/` / `contracts/` / `frontend/`（不含 `node_modules` / `dist` / 缓存）+ `tests/e2e`（清理产物）+ `services/`（空骨架 + agents-template.md）+ `Cargo.toml`。**`libs/` 和 `sdk/` 均不打包进分发包**：libs/*（17 个平台基础设施 crate）和 sdk/rust/*（7 个 Rust SDK crate）由 CI rust_publish job 发布到私有 kellnr registry，sdk/java/* 发布到私有 Maven 仓库；业务服务通过 `cargo add --registry kellnr` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 被过滤掉 `libs/*` 和 `sdk/rust/*` 行以避免指向不存在的目录。compose（services 与主入口）已统一转成 `image:` 引用且离线包含 `micro-server/frontend:<ver>` 镜像，启动无需现场构建前端；`frontend/` 源码保留在 airgap 骨架里供二次开发改完前端后用源码方式重打镜像。
+- v2 新增：release.js 自动从开发仓库同步开发骨架到发布包——`.agents/skills/`（**仅 6 个下游 scaffold 白名单**，SDK 发布 / CI 诊断等 repo-local skill 不进包，清单见 release.js 内 `DOWNSTREAM_SKILL_WHITELIST` 与包内 `.agents/README.downstream.md`）+ `.agents/rules/` / `scripts/` / `contracts/` / `packages/`（不含 `node_modules` / `dist` / 缓存）+ `tests/e2e`（清理产物）+ `services/`（空骨架 + agents-template.md）+ `Cargo.toml`。**`libs/` 和 `sdk/` 均不打包进分发包**：libs/*（17 个平台基础设施 crate）和 sdk/rust/*（7 个 Rust SDK crate）由 CI rust_publish job 发布到私有 kellnr registry，sdk/java/* 发布到私有 Maven 仓库；业务服务通过 `cargo add --registry kellnr` 或 `<dependency>` 引入；`Cargo.toml` 的 `members` 被过滤掉 `libs/*` 和 `sdk/rust/*` 行以避免指向不存在的目录。compose（services 与主入口）已统一转成 `image:` 引用，启动无需现场构建。框架不随附前端：客户端通过 `packages/`（npm TS 包 @digua/contracts + @digua/http）或 `sdk/`（Java / Rust）访问 api-gateway。
 - **镜像 tag no-v**：git tag 带 `v`（v1.5.0），发布镜像 tag 不带 v（`1.5.0`）；以下 `IMAGE_TAG` / 下游升级引用的都是 no-v 值。
 - skills 稳定成 `.agents/skills/`（保留点开头，release.js 不再去点；agent 默认 discovery 路径即此）。
 - **下游 skills 白名单**：分发包 `.agents/skills/` 只含 6 个 scaffold —— `coder-new-service` / `coder-add-route` / `coder-migrate-db`（Rust）与 `coder-new-java-service` / `coder-add-java-route` / `coder-migrate-java-db`（Java）；修改 scaffold 正文仍以开发仓库 `.agents/skills/` 为单一真相源，重新发包即带最新内容。

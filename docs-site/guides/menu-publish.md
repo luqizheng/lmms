@@ -1,5 +1,7 @@
 # 菜单 Publish 操作指南
 
+> ⚠️ **本文仅存历史参考**：本指南面向的 PRISM console（原 `frontend/` 目录）已于 2026-10 从本框架移除，`frontend/src/**` 路径与文中前端守卫脚本（`check-vitest-coverage.js` / `check-router-modules.js` / `check-v-perms.js`）均已删除。业务仓前端如需对接 `prue_backend` 菜单发布，本文可作为 prue_backend 侧流程的机制参考。
+
 > 适用：新增前端 view 后如何让它在 sidebar 出现。
 > 关联：`frontend_todo.md §1.1/1.2`「router module 文件就位但 `prue_menu_configs` 需运营/手动 publish 才在 sidebar 出现」。
 > 维护：frontend AGENTS.md 改动 / prue_backend 端点变化时同步更新。

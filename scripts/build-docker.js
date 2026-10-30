@@ -36,7 +36,6 @@ const { chalk } = require('./lib/ui.js');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const SERVICES_DIR = path.join(ROOT_DIR, 'services');
-const FRONTEND_DIR = path.join(ROOT_DIR, 'frontend');
 
 const DEFAULT_REGISTRY = 'zhcoder-docker-registry.com:8000';
 const DEFAULT_REPO = 'micro-server';
@@ -51,7 +50,6 @@ const SERVICES = [
   'config-service',
   'audit-service',
   'prue-admin-backend',
-  'frontend',
   'docs-site',
 ];
 
@@ -294,11 +292,7 @@ function buildService(name, ctx) {
   const multiArch = platforms.length > 1;
 
   let dockerfile, cwd, relDf;
-  if (name === 'frontend') {
-    dockerfile = path.join(FRONTEND_DIR, 'Dockerfile');
-    cwd = FRONTEND_DIR;
-    relDf = 'Dockerfile';
-  } else if (name === 'docs-site') {
+  if (name === 'docs-site') {
     // docs-site 的 vitepress 依赖在仓库根 package.json，构建上下文必须是 ROOT_DIR
     dockerfile = path.join(ROOT_DIR, 'docs-site', 'Dockerfile');
     cwd = ROOT_DIR;
@@ -333,19 +327,6 @@ function buildService(name, ctx) {
     }
   }
 
-  // frontend 构建上下文是 frontend/，但 setup-wizard 生成的 .npmrc 在项目根。
-  // 构建前临时复制到 frontend/，构建后清理。
-  let tempNpmrc = null;
-  if (name === 'frontend') {
-    const rootNpmrc = path.join(ROOT_DIR, '.npmrc');
-    const frontendNpmrc = path.join(FRONTEND_DIR, '.npmrc');
-    if (fs.existsSync(rootNpmrc) && !fs.existsSync(frontendNpmrc)) {
-      fs.copyFileSync(rootNpmrc, frontendNpmrc);
-      console.log(`${chalk.dim(`[pre-build]`)} 复制 .npmrc -> frontend/ (setup-wizard npm 配置)`);
-      tempNpmrc = frontendNpmrc;
-    }
-  }
-
   const baseRef = `${registry}/${repo}/${name}`;
   const tags = [version ? `${baseRef}:${version}` : null, `${baseRef}:latest`].filter(Boolean);
   const uniqTags = [...new Set(tags)];   // version=latest 时去重
@@ -361,11 +342,6 @@ function buildService(name, ctx) {
   console.log(`\n${chalk.bold(`[build]`)} ${name} -> ${uniqTags.join(', ')}`);
   console.log(`${chalk.dim(`$ ${buildCmd.join(' ')}`)}`);
   const res = spawnSync(buildCmd[0], buildCmd.slice(1), { cwd, stdio: 'inherit', shell: false });
-
-  if (tempNpmrc) {
-    try { fs.unlinkSync(tempNpmrc); } catch (_) { /* best-effort cleanup */ }
-    tempNpmrc = null;
-  }
 
   if (res.status !== 0) {
     console.log(`${FAIL} [fail] ${name}`);

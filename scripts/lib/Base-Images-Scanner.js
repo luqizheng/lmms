@@ -1,6 +1,6 @@
 'use strict';
 // Base-Images-Scanner.js
-// 扫描 Dockerfile（含 services/ sdk/ frontend/）、docker-compose*.yml（infrastructure/）、
+// 扫描 Dockerfile（含 services/ sdk/）、docker-compose*.yml（infrastructure/）、
 // 以及根目录 .gitlab-ci.yml 中的基础镜像引用；对 Dockerfile 的 ARG 与 gitlab-ci 的 variables
 // 做变量替换，把 ${NAME} / $NAME 展开成真实 ref。
 
@@ -217,7 +217,7 @@ function collectFiles(root, rels) {
 }
 
 function scanProject(root) {
-  const dockerfileSources = collectFiles(root, ['services', 'sdk', 'frontend']);
+  const dockerfileSources = collectFiles(root, ['services', 'sdk']);
   const composeSources = collectFiles(root, ['infrastructure']);
   const gitlabCiPath = path.join(root, '.gitlab-ci.yml');
 

@@ -74,6 +74,13 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 - 改 YAML 后跑 `node scripts/contracts-gen.js` 重新生成 `libs/digua_common-error/src/codes.rs`、`libs/digua_authz/src/perms.rs`。**禁止手改这两个生成文件**。
 - **表名必须带服务前缀**（共享 MySQL `superpowers` 库）：`iam_` / `audit_` / `token_` / `ntf_` / `cfg_` / `file_` / `prue_`。规则见 `contracts/db-conventions.md`，违例由 `check-db-naming.js` 拦截。
 
+## 前端集成
+
+**框架不随附前端控制台**（PRISM console 已于 2026-10 从本仓库移除）。前端项目位于各自业务仓，通过以下方式接入 api-gateway（唯一公共入口，host port 3000）：
+
+- **TypeScript / 浏览器**：仓库顶层 `packages/@digua/contracts`（错误码 / 权限码 / OpenAPI 客户端 TS 产物）与 `packages/@digua/http`（框架无关 HTTP 客户端，token 注入 / 单飞刷新 / 错误码转文案），发布到私有 registry `http://npm.kudi.repos/`（`pnpm run packages:publish`，校验用 `pnpm run packages:check`）。CI `packages_test` job 守门。
+- **服务端 SDK**：`sdk/java`（Maven）、`sdk/rust`（kellnr）；C# SDK（`sdk/dotnet`）规划中，尚未创建。
+
 ## OpenAPI（auto-generated）
 
 `services/*/openapi.yaml` 由 utoipa 从代码生成，**禁止直接编辑**。改路由后：编辑 `#[utoipa::path]` 注解与 `src/openapi.rs` → 跑 `node scripts/dump-openapi-specs.js` 重新生成 → commit。CI 用 `git diff --exit-code` 检测漂移。
@@ -118,7 +125,7 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 
 | 意图 | Skill | 常用命令 |
 | --- | --- | --- |
-| 发布 npm SDK | `.agents/skills/coder-sdk-publish-npm` | `pnpm run sdk:publish:npm` |
+| 发布 npm TS 包 | `pnpm run packages:publish`（CI `publish_packages` 随 tag 自动） | `pnpm run packages:build` |
 | 发布 Rust SDK | `.agents/skills/coder-sdk-publish-rust` | `pnpm run sdk:publish:rust -- <VERSION>` |
 | 发布 Java SDK | `.agents/skills/coder-sdk-publish-maven` | `pnpm run sdk:publish:release` |
 | 打离线分发包 / 服务镜像 | `.agents/skills/coder-service-release` | `pnpm run release:build` / `node release/dist-template/scripts/release.js` |
@@ -130,8 +137,8 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 | 性能剖析 | `.agents/skills/coder-perf-profile` | — |
 | 审查 PR | `.agents/skills/coder-microservice-review-checklist` | — |
 | 通用编码守则 | `.agents/skills/karpathy-guidelines` | — |
-| **PRISM 设计约束** | `.agents/skills/prism-design` | 写任何前端 UI 前必读 |
-| **新业务系统前端** | `.agents/skills/scaffold` | 拷贝壳 + 装基础包 + 品牌化 |
+| **PRISM 设计约束** | `.agents/skills/prism-design` | 写任何前端 UI 前必读（前端在业务仓，框架不随附） |
+| **新业务系统前端** | `.agents/skills/scaffold` | 拷贝壳 + 装基础包 + 品牌化（业务仓前端，经 `packages/*` 接入网关） |
 | **壳升级同步** | `.agents/skills/update-shell` | 上游壳 diff 同步到下游 |
 | **生成业务页面** | `.agents/skills/gen-page` | 列表页 + 弹框编辑页 |
 | 审查计划 | `.agents/skills/plan-eng-review` | — |
@@ -146,18 +153,25 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 - 从 GitHub 拉文件（releases / archives / raw）必须走代理：`https://gh-proxy.org/<原始链接>`。
 - 内网镜像仓库 `zhcoder-docker-registry.com:8000`。
 
-## 跨仓库分发（cms-sync 下游消费）
+## 跨仓库分发（包更新模型）
 
-本仓库是**多个下游消费仓的 source of truth**。代表下游：
-`project-manager`（业务垂直集成），通过 `cms-sync` air-gap 接收本仓库的源码 + release 镜像。同步策略以**下游**仓库自己的 `.upstream-sync.yaml` 为权威（下游定义 `managed` / `three-way-merge` / `skip` 三类范围，由分发脚手架固定）。
+本仓库是**多个下游消费仓的上游**。代表下游：`project-manager` 等业务垂直集成仓。
 
-### 修改本仓 `infrastructure/**` 时的下游穿透风险
+**分发模型（2026-10-30 起）：发版 = 镜像 + 各种包，更新全部走包升级。** 下游不再做源码级同步（原 `cms-sync` / `@digua/dist-tools` 已停用并从发布链路移除）：
 
-`infrastructure/**` 默认在下游的 `three-way-merge` 范围。本仓 compose 错误会**原样**穿透到所有下游：
+- **镜像**：`zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver>`，下游改 compose 的 image tag 后 `docker compose pull && up -d`。
+- **Rust**：`libs/*`（17 crate）与 `sdk/rust/*`（7 crate）发布到 kellnr（`http://192.168.2.12:16444`），下游 `cargo update -p <crate>`。
+- **Java**：`sdk/java` 发布到 Maven（`http://mvn.kudi.repos`），下游升 `<dependency>` 版本。
+- **npm TS**：`packages/@digua/contracts` + `@digua/http` 发布到 `http://npm.kudi.repos`，下游 `pnpm up @digua/contracts @digua/http`。
+
+tag 流水线五路并行发布（`sdk_publish` / `rust_publish` / `build_images:tagged` / `publish_packages`，`release:dist` 收尾打离线包）——见 `.gitlab-ci.yml` publish stage。同 tag 下所有制品版本号一致。
+
+### 修改本仓 `infrastructure/**` 时对下游的影响
+
+下游不再 merge 本仓 compose 源文件（只在**新建环境**时用 `release/dist-template` 起步），但 airgap 包内的 compose 仍从本仓生成：
 
 - `release/dist-template/scripts/transform-compose.js` 只把 `build:` 块换成 `image:` 引用，**不动 `command:` 字段**。
-- 镜像版 `v1.0.0` 推下去后，下游只用替换 image tag 升级镜像，不会重读 compose 内容。
-- 所以**当任何下游报告 OCI `executable file not found in $PATH`，而镜像里实际装了该 binary 时，根因几乎 100% 在本仓 compose**。
+- 所以**当下游报告 OCI `executable file not found in $PATH`，而镜像里实际装了该 binary 时，根因几乎 100% 在本仓 compose**。
 
 ### Cargo `[[bin]] name` → 容器内二进制名的强制映射
 
@@ -199,7 +213,7 @@ docker run --rm --entrypoint sh \
 
 | 发布内容 | 命令 | Registry |
 |---------|------|----------|
-| npm 包 (`@digua/dist-tools`) | `pnpm run sdk:publish:npm` | `npm.kudi.repos` |
+| npm 包 (`@digua/contracts` + `@digua/http`) | `pnpm run packages:publish`（CI `publish_packages` 随 tag 自动） | `npm.kudi.repos` |
 | Rust 通用库 (17 crates) | `pnpm run sdk:publish:libs -- <VERSION>` | `kellnr` |
 | Rust SDK (7 crates) | `pnpm run sdk:publish:rust -- <VERSION>` | `kellnr` |
 | Java SDK (Maven) | `pnpm run sdk:publish:release` / `:snapshot` | 私有 Reposilite |

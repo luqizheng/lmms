@@ -1,6 +1,6 @@
 # contracts/ 双端契约层
 
-契约层是前后端一致的单一真相源。
+契约层是前后端一致的单一真相源（Rust 服务 + `packages/` TS 包 + 各语言 SDK 共同消费）。
 
 ## 文件结构
 
@@ -20,7 +20,8 @@ node scripts/contracts-gen.js
 生成目标：
 - `libs/digua_common-error/src/codes.rs` — Rust 错误码常量
 - `libs/digua_authz/src/perms.rs` — Rust 权限码常量
-- `frontend/src/contracts/*.ts` — TypeScript 类型（预留）
+
+TS 侧消费：`packages/contracts`（`@digua/contracts` npm 包，错误码 / 权限码 / OpenAPI 客户端 TS 产物，供业务仓前端消费；OpenAPI 生成走 `pnpm run sdk:generate:*`）。
 
 ## 命名规则
 

@@ -316,7 +316,7 @@ docker-compose down && docker-compose pull && docker-compose up -d
 | 重新加载 gateway 路由 | `curl -X POST http://localhost:3000/__admin/reload` |
 | 发布 Rust libs (17 crates) | `CARGO_TARGET_DIR=/tmp/libs-target node scripts/publish-libs.js <VER>` |
 | 发布 Rust SDK (7 crates) | `CARGO_TARGET_DIR=/tmp/sdk-target node scripts/publish-rust-sdks.js <VER>` |
-| 发布 npm 包 (`@digua/dist-tools`) | `pnpm run sdk:publish:npm` |
+| 发布 npm 包 (`@digua/contracts` + `@digua/http`) | `pnpm run packages:build && pnpm run packages:publish` |
 
 ---
 

@@ -19,8 +19,7 @@
     { "name": "micro-server/iam-service",      "tag": "v1.0.0" },
     { "name": "micro-server/notification-service", "tag": "v1.0.0" },
     { "name": "micro-server/audit-service",    "tag": "v1.0.0" },
-    { "name": "micro-server/prue-admin-backend",     "tag": "v1.0.0" },
-    { "name": "micro-server/frontend",         "tag": "v1.0.0" }
+    { "name": "micro-server/prue-admin-backend",     "tag": "v1.0.0" }
   ],
   "load_command": "bash bin/load-images.sh",
   "verify_command": "bash bin/verify.sh"

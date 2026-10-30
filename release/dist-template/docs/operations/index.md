@@ -93,7 +93,6 @@ make verify
   ✓ token-service
   ✓ iam-service
   ✓ audit-service
-  ✓ frontend
   ✓ prometheus
   ✓ grafana
 结果: 9 通过, 0 失败
@@ -323,7 +322,7 @@ docker logs coder-micro-services-<服务名> --tail 50
 curl http://localhost:8080/health
 
 # 检查前端容器状态
-docker logs coder-micro-services-frontend --tail 20
+docker logs coder-micro-services-api-gateway --tail 20
 
 # 检查网关到后端服务的连通性
 docker exec coder-micro-services-api-gateway curl -s http://token-service:8082/health
@@ -365,7 +364,6 @@ make reset-data
 | `coder-micro-services-notification-service` | micro-server/notification-service | 8085 |
 | `coder-micro-services-audit-service` | micro-server/audit-service | 8086 |
 | `coder-micro-services-prue-backend` | micro-server/prue-admin-backend | 8087 |
-| `coder-micro-services-frontend` | micro-server/frontend | 3000 |
 | `coder-micro-services-prometheus` | prom/prometheus:v2.51.0 | 9090 |
 | `coder-micro-services-grafana` | grafana/grafana:10.4.0 | 3001 |
 | `coder-micro-services-jaeger` | jaegertracing/all-in-one:1.55 | 16686 |

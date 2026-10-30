@@ -14,11 +14,12 @@ description: |
 
 # coder-service-release Skill
 
-End-to-end release of the **service image bundle** that downstream
-consumers (e.g. `project-manager`) sync via `cms-sync`. The bundle
-contains:
+End-to-end release of the **service image bundle** consumed by downstream
+deployments (e.g. `project-manager`). Since 2026-10-30 downstream updates are
+package-only (image tag bump + cargo/maven/pnpm version bump); the
+source-level sync tool `cms-sync` is retired. The bundle contains:
 
-- Docker images for all in-repo services + `frontend` + `mysql-replica`
+- Docker images for all in-repo services + `mysql-replica`
   (pushed to `zhcoder-docker-registry.com:8000/micro-server/*`)
 - A rendered `infrastructure/docker-compose-{services,main}.yml` with
   `build:` blocks **replaced by `image:` references** (so downstream
@@ -76,11 +77,11 @@ release if any mismatch is detected. **Run it before every release.**
 
 ### B. Cross-repo distribution risk
 
-`infrastructure/**` is in the downstream `three-way-merge` scope (see
-`release/dist-tools/README.md`). A broken compose `command:` shipped in
-the bundle will be **replayed verbatim** to every downstream consumer
-until a fix bundle is cut. Downstream consumer's only fallback is to
-manually patch `docker-compose-services.yml` and never re-sync.
+New environments bootstrap from the air-gap bundle, and its compose is
+generated from this repo. A broken compose `command:` shipped in the
+bundle will affect every new deployment until a fixed bundle is cut.
+Existing deployments own their compose files — they only bump image tags
+— so a compose bug does not retroactively change running environments.
 
 Therefore:
 
@@ -221,15 +222,10 @@ git push origin main --follow-tags
 
 ### Step 8 — Notify downstream consumers
 
-If the bundle is for a downstream consumer with `cms-sync` configured,
-they can pull with:
-
-```bash
-npx cms-sync https://releases.example.com/v1.2.0.tar.gz
-```
-
-The `.upstream.lock` in their repo will be updated automatically on
-clean sync.
+Downstream consumers do **not** sync sources. They consume the release as
+packages: bump `IMAGE_TAG` in compose `.env` and `docker compose pull && up -d`,
+then bump crate / Maven / npm versions as needed (same tag = same version
+across all registries). See `docs-site/guides/upstream-sync.md`.
 
 ## Troubleshooting
 
@@ -240,7 +236,6 @@ clean sync.
 | `transform-compose` reports "未找到需要替换的 build: 块" | compose was already transformed on a previous run | Don't pre-transform; let `release.js` do it once |
 | `docker pull` hangs | Registry network issue | Verify `zhcoder-docker-registry.com:8000` reachable; check VPN if applicable |
 | `registry/micro-server/<svc>:<ver>` returns 404 | Image wasn't pushed in Step 4 | Re-run `pnpm run docker:build -- --push -v <ver>` |
-| Downstream `cms-sync` reports conflicts in `infrastructure/**` | Pre-existing drift in their repo | Resolve their drift first; do not re-cut the bundle |
 | `release.js` failed at `transform-compose` for `mainCompose` | Main `docker-compose.yml` missing | Run from repo root; do not invoke `release.js` from elsewhere |
 
 ## L1 / L2 loop compliance
@@ -257,11 +252,11 @@ The pre-flight script respects the current L-level by switching between
 
 ## Cross-references
 
-- **npm SDK** (`@digua/dist-tools`): see `coder-sdk-publish-npm` skill
+- **npm TS packages** (`@digua/contracts` + `@digua/http`): `pnpm run packages:publish` / CI `publish_packages`
 - **Rust crates** (libs + sdks): see `coder-sdk-publish-rust` skill
 - **Maven SDK** (`sdk/java/**`): see `coder-sdk-publish-maven` skill
 - **Why this matters** (cross-repo risk): `AGENTS.md` §「跨仓库分发」
 - **Loop conventions**: `infrastructure/AGENTS.md` (Test: `npm test` / `npm run lint`;
   Loop: report-only L1 → auto-fix L2)
-- **Downstream consumption**: `release/dist-tools/README.md` §「同步策略说明」
+- **Downstream consumption**: package-only updates, see `docs-site/guides/upstream-sync.md`
 - **Release bundle scripts**: `release/dist-template/scripts/`

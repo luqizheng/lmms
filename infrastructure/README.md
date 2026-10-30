@@ -13,7 +13,7 @@
 | `docker-compose.yml` | 主入口 | 唯一直接 `up` 的文件；`include` 下面 3 个。 |
 | `docker-compose-infra.yml` | 基础设施基线 | MySQL / Redis / Consul / RabbitMQ / registrator。无端口发布、无 dev 覆盖。 |
 | `docker-compose-infra.dev.yml` | dev overlay | 给基础设施加端口发布（3306 / 6379 / 8500 / 5672 等），方便宿主机直连。 |
-| `docker-compose-services.yml` | 业务服务 | 8 个 Rust 服务 + frontend + 2 个 outbox publisher 的定义与依赖关系。 |
+| `docker-compose-services.yml` | 业务服务 | 8 个 Rust 服务 + 2 个 outbox publisher 的定义与依赖关系（frontend 服务已随 PRISM console 移除）。 |
 | `docker-compose-observability.yml` | 可观测性 overlay | Prometheus / Grafana / Jaeger / OTel Collector / consul-template；已 `include` 进主入口。 |
 
 > ⚠️ 不要再写第 6 个 compose 文件做「dev-only 全栈」——dev/prod 差异统一通过 `_dev` overlay 表达。
@@ -75,7 +75,7 @@ pnpm check:env
 | --- | --- |
 | `pnpm run dev:infra` | 只起基础设施（Consul / Redis / MySQL / RabbitMQ）。服务进程跑宿主机时用这个。 |
 | `pnpm run dev:infra:e2e` | 同上，**额外叠加** `docker-compose-infra.dev.yml` 把 3306 等端口发布到宿主机。本机跑 `tests/e2e`（Vitest + supertest 直连 mysql 重置库）时**必须用这个**。 |
-| `pnpm run dev` | 起基础设施 + 各 workspace 包的 `dev` 任务并行（前端 dev server 等）。 |
+| `pnpm run dev` | 起基础设施 + 各 workspace 包的 `dev` 任务并行（含 `packages/` TS 包构建等）。 |
 | `pnpm run dev:ps` | `docker compose ps`，看容器状态与 healthcheck。 |
 | `pnpm run dev:logs` | tail 所有容器日志。退出用 Ctrl-C。 |
 | `pnpm run dev:restart` | 重启全部容器（不重建镜像）。代码改动后用。 |
@@ -103,7 +103,7 @@ pnpm run docker:build -- --load-and-push -v 1.0.0                     # 本地�
 pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架构（自动 --push）
 ```
 
-> 单服务名列表：`api-gateway` / `token-service` / `iam-service` / `notification-service` / `audit-service` / `config-service` / `file-service` / `prue_backend` / `frontend`。`prue_backend` 在 `docker:compose:build` 写法里用 `_`（compose 服务名），在 `docker:build` 写法里用 `-`（脚本别名）。
+> 单服务名列表：`api-gateway` / `token-service` / `iam-service` / `notification-service` / `audit-service` / `config-service` / `file-service` / `prue_backend`（原 `frontend` 已随 PRISM console 移除）。`prue_backend` 在 `docker:compose:build` 写法里用 `_`（compose 服务名），在 `docker:build` 写法里用 `-`（脚本别名）。
 
 ### Demo 数据
 
@@ -119,8 +119,7 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架�
 | `pnpm run test:e2e` | 全量 e2e（Vitest + supertest，跨真服务）。 |
 | `pnpm run test:e2e:<group>` | 按业务分组跑：`auth` / `users` / `tokens` / `roles` / `permissions` / `audit` / `config` / `file` / `notification` / `token-admin` / `menu-configs` / `iam-orgs` / `gateway`。 |
 | `pnpm run test:e2e:api` | 数据驱动 API 用例（Excel 数据源）。 |
-| `pnpm run test:e2e:ui` | 数据驱动 UI 业务流（Playwright，需 frontend 容器）。 |
-| `pnpm -C tests/e2e test:smoke` | 2 分钟 smoke 子集，8 API + 2 UI。 |
+| `pnpm -C tests/e2e test:smoke` | 2 分钟 smoke 子集（仅 API 用例，直打 api-gateway:3000；原 Playwright UI 套件已随 PRISM console 移除删除）。 |
 | `node scripts/run-tests-docker.js [svc...]` | 容器内跑 Rust `cargo test`，详见根 README「在 Docker 中跑 Rust 单元测试」一节。 |
 
 ## 端口映射
@@ -135,7 +134,7 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架�
 | mysql | 3306 | 3306 | 业务数据库（`MYSQL_PORT_EXPORT` 可改） |
 | rabbitmq | 5672 | 5672 | AMQP |
 | rabbitmq management | 15672 | 15672 | UI（guest / guest） |
-| api-gateway | 3000 | 3000 | 对外 HTTP 入口 + frontend 8080 代理 |
+| api-gateway | 3000 | 3000 | 对外 HTTP 入口（唯一公共入口） |
 | token-service | 8082 | 8082 | JWKS / token 签发 |
 | iam-service | 9081 | 8081 | 用户 / 角色 / 权限（端口错位避开 host 6002 冲突） |
 | notification-service | 8083 | 8083 | 通知 / 邮件 / 短信 |
@@ -143,7 +142,6 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架�
 | config-service | 8085 | 8081 | 动态配置 |
 | file-service | 8086 | 8082 | 对象存储 |
 | prue_backend | 8087 | 8087 | 流程引擎（SQLite + MySQL 双栈） |
-| frontend | 8080 | 80 | nginx 反向代理到 api-gateway |
 | prometheus | 9090 | 9090 | 指标查询 / Consul SD |
 | grafana | 3001 | 3000 | Dashboard（admin / admin，首次登录后改） |
 | jaeger | 16686 | 16686 | Trace UI |
@@ -161,7 +159,7 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架�
 pnpm check:env                    # 环境体检
 pnpm run dev:setup                # 构建 + 起 + 灌 demo 数据 + 打印账号
 docker compose -f infrastructure/docker-compose.yml ps   # 看 healthcheck
-curl -fsS http://localhost:8080/health                  # 网关通？
+curl -fsS http://localhost:3000/health                  # 网关通？（api-gateway :3000 唯一公共入口）
 ```
 
 ### 日常开发循环
@@ -174,10 +172,12 @@ pnpm run dev:restart                    # 全部容器重启（新镜像生效�
 pnpm run dev:logs | grep <svc>          # tail 看启动日志
 ```
 
-改 frontend：
+改前端 TS 集成包（`packages/`，业务仓前端消费的 npm 包）：
 
 ```bash
-pnpm --filter @coder/frontend run dev   # 单独跑前端 dev server（不走容器）
+pnpm run packages:build                  # 构建 @digua/contracts + @digua/http
+pnpm run packages:check                  # 发布前校验
+pnpm run packages:publish                # 发布到私有 registry npm.kudi.repos
 ```
 
 只动配置 / SQL 迁移，不动二进制：
@@ -239,10 +239,10 @@ build_images:staging → release:staging → deploy:staging → e2e:staging
 
 | Job | 阶段 | 关键命令 |
 | --- | --- | --- |
-| `build_images:staging` | build | `pnpm run docker:build -- -v $CI_COMMIT_SHORT_SHA --load-and-push ...`（9 服务 + frontend + mysql-replica）|
+| `build_images:staging` | build | `pnpm run docker:build -- -v $CI_COMMIT_SHORT_SHA --load-and-push ...`（8 服务 + mysql-replica 单独 buildx；frontend 已移除）|
 | `release:staging` | build | `node release/dist-template/scripts/release-deploy.js $SHA --no-images`（产骨架）|
 | `deploy:staging` | deploy | tar over ssh → `load-images.js --mode=pull` → `swap-staging-active.sh` |
-| `e2e:staging` | e2e | SSH 反向隧道 + `pnpm run test:e2e:api/ui`；失败 swap 回 prev |
+| `e2e:staging` | e2e | SSH 反向隧道 + `pnpm run test:e2e:api`（UI 套件已移除）；失败 swap 回 prev |
 
 ### 手动操作（CI 不可用时 fallback）
 

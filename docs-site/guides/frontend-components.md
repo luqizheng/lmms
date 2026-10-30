@@ -1,5 +1,7 @@
 # 前端公共组件
 
+> ⚠️ **本文仅存历史参考**：`frontend/src/components/` 所属的 PRISM console 已于 2026-10 从本框架移除，文中组件已不存在。业务仓前端的通用组件在业务仓内自行维护。
+
 > **适用范围**：`frontend/src/components/` 下的 `Re*` 系列可复用组件
 > **技术栈**：Vue 3 + TypeScript + Element Plus
 

@@ -16,7 +16,7 @@
 
 ```
         ┌──────────────────────────────────────┐
-   e2e  │  Playwright UI + Vitest API         │  全量 ~10 min / smoke ~2 min
+   e2e  │  Vitest API（数据驱动）              │  全量 ~5 min / smoke ~2 min
         │  在 docker 中跑真实服务              │
         ├──────────────────────────────────────┤
   intg  │  Rust cargo test --test <name>       │  单服务 ~30s
@@ -33,7 +33,6 @@
 | Integration | ~30s | DB / 网络 / testcontainers |
 | E2E (smoke) | ~2 min | 关键 happy path |
 | E2E (API 全量) | ~5 min | 所有 API 契约 |
-| E2E (UI 全量) | ~10 min | 所有用户流程 |
 
 ---
 
@@ -84,22 +83,18 @@ pnpm install  # 仅首次
 
 # Smoke 子集（快，~2 min）
 pnpm test:smoke           # API smoke
-pnpm test:smoke:ui        # UI smoke（按 @smoke 标签过滤）
 
 # 全量 API
 pnpm test:api
-
-# 全量 UI（需前端容器）
-docker compose -f infrastructure/docker-compose.yml up -d frontend
-pnpm test:ui
 ```
+
+> E2E 只有数据驱动 API 测试，直接打 api-gateway（`E2E_BASE_URL`）。原 Playwright UI 套件（`test:ui` / `test:smoke:ui`）已随 PRISM console 移除删除。
 
 ### 2.4 环境变量
 
 | 变量 | 默认 | 用途 |
 |------|------|------|
 | `E2E_BASE_URL` | `http://localhost:3000` | api-gateway URL |
-| `E2E_FRONTEND_URL` | `http://localhost:8080` | 前端 URL（UI 测试用） |
 | `E2E_ADMIN_USER` | `e2eadmin` | 自动注册的管理员账号 |
 | `E2E_ADMIN_PASS` | `P@ssw0rd!` | 管理员密码 |
 | `E2E_DEBUG` | `0` | 设为 `1` 输出请求 / 响应详细日志 |
@@ -138,26 +133,7 @@ cases:
     skip: false                       # 标记为跳过
 ```
 
-### 3.2 UI 用例格式
-
-`tests/e2e/ui/cases/<flow>.yaml`：
-
-```yaml
-group: <ui-group-name>
-cases:
-  - caseId: UI-<PREFIX>-<NUMBER>
-    desc: <描述>
-    smoke: true
-    tags: ['@smoke']                  # 给 playwright --grep 用
-    flow: <flow-name>                 # 必须存在于 tests/e2e/ui/flows/
-    params:                           # 传给 flow 函数
-      title: e2e-test-${rand}
-    expect:                           # UI 断言
-      - toast=success                 # toast 文本包含 "success"
-      - dialog=created                # 弹窗包含 "created"
-```
-
-### 3.3 断言表达式
+### 3.2 断言表达式
 
 `expect` 支持 5 种操作符：
 
@@ -169,7 +145,7 @@ cases:
 | `$.field contains <substr>` | 字段（字符串化后）包含子串 |
 | `$.field==<value>` | 字段等于指定值（按字符串比较） |
 
-### 3.4 占位符
+### 3.3 占位符
 
 | 占位符 | 替换为 |
 |--------|--------|
@@ -188,9 +164,8 @@ smoke 是一批被 `smoke: true` 标记的关键路径用例，用途是开发�
 
 | 层级 | 时长 | 用例数 | 适用时机 |
 |------|------|--------|----------|
-| **smoke** | ~2 min | 8 API + 2 UI | 提交前、迭代开发 |
+| **smoke** | ~2 min | 关键路径 API 用例 | 提交前、迭代开发 |
 | **api** | ~5 min | 50+ | 发布前、CI |
-| **ui** | ~10 min | 20+ | 发布前、CI |
 
 ### 4.2 执行 smoke
 
@@ -202,7 +177,6 @@ E2E_SMOKE=1 pnpm test:api
 
 # 或者用专门脚本
 pnpm test:smoke
-pnpm test:smoke:ui    # playwright 使用 --grep @smoke
 ```
 
 ### 4.3 把某用例加入 smoke
@@ -216,15 +190,6 @@ cases:
     smoke: true       # ← 加入 smoke
     method: POST
     ...
-```
-
-UI 测试还要额外加标签：
-
-```yaml
-- caseId: UI-NOTIF-001
-  smoke: true
-  tags: ['@smoke']   # ← 给 playwright --grep 用
-  ...
 ```
 
 ### 4.4 什么算好的 smoke 用例
@@ -297,11 +262,7 @@ E2E_RETRY=0 pnpm test:api      # 不重试（CI 更严）
 E2E_RETRY=3 pnpm test:smoke    # 多重试（网络抖动）
 ```
 
-### 6.2 Playwright
-
-默认：本地 `retries: 0`，CI `retries: 2`（通过 `process.env.CI` 区分）。
-
-### 6.3 什么时候重试有益、什么时候是在掩盖 bug
+### 6.2 什么时候重试有益、什么时候是在掩盖 bug
 
 重试能解决：
 
@@ -382,8 +343,7 @@ python3 -c "import openpyxl; wb = openpyxl.load_workbook('tests/e2e/shared/repor
 | Job | Stage | 用途 |
 |-----|-------|------|
 | `rust_test` | test | `cargo test --workspace --lib` |
-| `e2e_api_test` | test | `pnpm -C tests/e2e run test:api` |
-| `e2e_ui_test` | test | `pnpm -C tests/e2e run test:ui`（需前端） |
+| `e2e_api_test` | e2e | `pnpm -C tests/e2e run test:api`（走 `E2E_BASE_URL` = staging api-gateway） |
 | `service_standard_check` | test | 服务规范门禁 |
 | `spec_check` | test | OpenAPI / 错误码 / 权限码门禁 |
 | `contracts_check` | test | 契约门禁 |
@@ -433,19 +393,23 @@ expectStatus: [200, 201]   # 200 或 201 都接受
 
 ### 9.3 测多步业务流程
 
-UI 用例适合跑端到端业务流程；API 用例适合验证单个端点的契约。
+API 用例通过 `${case-id.field}` 引用前置用例的响应字段，可以串出多步业务流程（原 UI flow 用例已随 PRISM console 移除删除）：
 
 ```yaml
-# UI：创建 + 发布 + 验证
-- caseId: UI-NOTIF-FULL
-  flow: createAndPublish
+# 创建 + 查询 + 验证，一条链
+- caseId: NOTIF-CREATE
+  method: POST
+  path: /v1/notifications
   params:
     title: e2e-${rand}
   expect:
-    - toast=已发布
-```
+    - $.id exists
 
-flow 的实现位于 `tests/e2e/ui/flows/index.ts`。
+- caseId: NOTIF-GET
+  method: GET
+  path: /v1/notifications/${NOTIF-CREATE.id}
+  expectStatus: 200
+```
 
 ---
 
@@ -465,9 +429,6 @@ E2E_DEBUG=1 pnpm test:api
 # Vitest
 cd tests/e2e
 pnpm vitest run --config api/vitest.config.ts -t "AUTH-001"
-
-# Playwright
-pnpm playwright test --config ui/playwright.config.ts --grep "UI-IAM-CHPW-001"
 ```
 
 ### 10.3 排查测试状态
@@ -489,7 +450,6 @@ curl http://localhost:3000/health
 | 测试“本地通过、CI 失败” | 检查环境变量；CI 可能 MySQL / Redis 版本不同 |
 | 一连串测试失败（50 条） | 多半是基础设施挂了；看 preflight 输出 |
 | 测试“首次失败、重试通过” | 是竞态，应查根因，而不是加重试次数 |
-| UI 截图是空白页 | 前端容器没起；`docker compose up -d frontend` |
 
 ---
 

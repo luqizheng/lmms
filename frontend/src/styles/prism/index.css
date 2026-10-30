@@ -1,8 +1,0 @@
-/* PRISM 样式入口
- *
- * 加载顺序：默认 token → 品牌覆盖 → 排版基线。
- * 由 Plan 4 的壳骨架在 main.ts 中引入；在此之前组件不得依赖本文件才能正确显示。
- */
-@import "./tokens.css";
-@import "./tokens.brand.css";
-@import "./base.css";
