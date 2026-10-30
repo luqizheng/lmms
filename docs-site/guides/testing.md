@@ -101,6 +101,31 @@ pnpm test:api
 | `E2E_SMOKE` | 未设置 | 设为 `1` 过滤到 smoke 子集 |
 | `E2E_RETRY` | `1` | 覆盖 vitest 重试次数 |
 
+### 2.5 共享测试容器（coder-test-*）
+
+libs 层方言 / 集成测试依赖三个**共享常开容器**（规则：测试不启停它们，保持常开；
+Docker Desktop 重启后需重新拉起）：
+
+| 容器 | 端口 | 镜像 | 用途 |
+|------|------|------|------|
+| `coder-test-mysql` | 33306 | mysql | 服务级 mysql feature 测试（`TEST_MYSQL_HOST/PORT`） |
+| `coder-test-redis` | 36379 | redis:7 | api-gateway blacklist 等测试（`REDIS_URL`） |
+| `coder-test-pg` | 5434 | postgres:16 | common-db postgres feature（`TEST_PG_URL`） |
+
+```bash
+# 丢失时重建（PG 示例；mysql/redis 同理见 runbooks）
+docker run -d --name coder-test-pg -p 5434:5432 \
+  -e POSTGRES_PASSWORD=coder -e POSTGRES_DB=coder_test postgres:16
+
+# 跑 PG 方言集成测试
+TEST_PG_URL='postgres://postgres:coder@localhost:5434/coder_test' \
+  cargo test -p digua_common_db --features postgres
+```
+
+`TEST_PG_URL` 未设置时 PG 集成测试自动跳过（不失败）。PostgreSQL 自 2026-10-30 起
+为基础方言（见 `docs/superpowers/specs/dialect-matrix.md`），CI 在 PR 级跑
+`dialect-matrix` workflow 的 `test-postgres` job。
+
 ---
 
 ## 3. 数据驱动 E2E 用例格式

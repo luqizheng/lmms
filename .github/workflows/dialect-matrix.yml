@@ -28,7 +28,7 @@ jobs:
       - name: Setup SQLite
         run: sudo apt-get install -y libsqlite3-dev
       - name: Run SQLite tests
-        run: cargo test --package common-db --features sqlite
+        run: cargo test --package digua_common_db --features sqlite
 
   # MySQL 测试 - PR 必跑
   test-mysql:
@@ -53,7 +53,32 @@ jobs:
       - name: Run MySQL tests
         run: |
           export DATABASE_URL="mysql://root:test@localhost:3306/test_db"
-          cargo test --package common-db --features mysql
+          cargo test --package digua_common_db --features mysql
+
+  # PostgreSQL 测试 - PR 级别（基础方言，2026-10-30）
+  test-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: coder
+          POSTGRES_DB: coder_test
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run PostgreSQL tests
+        run: |
+          export TEST_PG_URL="postgres://postgres:coder@localhost:5432/coder_test"
+          cargo test --package digua_common_db --features postgres
 
   # Dameng 测试 - 每日定时（需要 Docker 镜像）
   test-dameng:
@@ -73,7 +98,7 @@ jobs:
       - name: Run Dameng dialect tests
         run: |
           export DATABASE_URL="dameng://SYSDBA:SYSDBA@localhost:5236"
-          cargo test --package common-db --features mysql
+          cargo test --package digua_common_db --features mysql
 
   # MSSQL 测试 - 每日定时
   test-mssql:
@@ -107,7 +132,7 @@ jobs:
       - name: Run MSSQL tests
         run: |
           export DATABASE_URL="mssql://sa:TestPass123!@localhost:1433/master"
-          cargo test --package common-db --features mssql
+          cargo test --package digua_common_db --features mssql
 
   # 核心服务集成测试
   test-services:
