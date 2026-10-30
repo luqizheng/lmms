@@ -1,7 +1,7 @@
 'use strict';
 
 // Workspace npm package pre-publish checks and tag-versioned publishing.
-// Absorbed from scripts/check-packages-publish.js plus the publish_packages
+// Absorbed from the retired check-packages-publish plus the publish_packages
 // CI job semantics (npm version from tag, then publish, per package in order).
 // @digua/cli joins the set (spec §二.6): pure CJS, no build, published last.
 
@@ -12,6 +12,10 @@ const { spawnSync } = require('node:child_process');
 const { GuardError } = require('./errors.js');
 
 const REGISTRY = 'http://npm.kudi.repos/';
+
+// pnpm/npm are .cmd shims on Windows — spawnSync without a shell can't resolve
+// them (same ENOENT the retired scripts hit); Linux CI unaffected.
+const SHIM = { shell: process.platform === 'win32' };
 
 const PACKAGES = [
   { dir: 'packages/contracts', name: '@digua/contracts', needsBuild: true },
@@ -112,7 +116,7 @@ async function publishPackages({
   root,
   version,
   dryRun = false,
-  exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: 'inherit', shell: false }),
+  exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }),
   check = checkPackages,
   registryUrl = REGISTRY,
   out = { log: (m) => console.log(m), warn: (m) => console.warn(m) },
@@ -121,7 +125,7 @@ async function publishPackages({
   if (!v) throw new GuardError('NPM_VERSION_REQUIRED', '--version <x.y.z> is required');
 
   out.log('[npm-packages] building workspace packages (pnpm run packages:build)');
-  const build = exec('pnpm', ['run', 'packages:build'], { cwd: root });
+  const build = exec('pnpm', ['run', 'packages:build'], { cwd: root, ...SHIM });
   if ((build.status ?? 1) !== 0) throw new GuardError('NPM_BUILD_FAILED', 'pnpm run packages:build failed');
 
   const result = await check({ root, nextVersion: v, registryUrl });
@@ -139,9 +143,9 @@ async function publishPackages({
 
   const published = [];
   for (const pkg of PACKAGES) {
-    const ver = exec('npm', ['--prefix', pkg.dir, 'version', v, '--no-git-tag-version', '--allow-same-version'], { cwd: root });
+    const ver = exec('npm', ['--prefix', pkg.dir, 'version', v, '--no-git-tag-version', '--allow-same-version'], { cwd: root, ...SHIM });
     if ((ver.status ?? 1) !== 0) throw new GuardError('NPM_VERSION_FAILED', `npm version failed for ${pkg.name}`);
-    const pub = exec('npm', ['--prefix', pkg.dir, 'publish', '--access', 'public'], { cwd: root });
+    const pub = exec('npm', ['--prefix', pkg.dir, 'publish', '--access', 'public'], { cwd: root, ...SHIM });
     if ((pub.status ?? 1) !== 0) throw new GuardError('NPM_PUBLISH_FAILED', `npm publish failed for ${pkg.name}`);
     published.push({ name: pkg.name, version: v });
   }

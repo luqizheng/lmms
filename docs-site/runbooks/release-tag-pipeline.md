@@ -166,10 +166,10 @@ cd ~/coder-micro-services
 git pull
 
 # 跑对应 publish step（不需要 CI）：
-node scripts/publish-maven-release.js --version 1.3.0
-node scripts/publish-libs.js 1.3.0 --registry kellnr
-node scripts/publish-rust-sdks.js 1.3.0 --registry kellnr
-node scripts/build-docker.js -v 1.3.0 --push
+node packages/cli/bin/coder.js release publish maven --version 1.3.0
+node packages/cli/bin/coder.js release publish rust --targets libs 1.3.0 --registry kellnr
+node packages/cli/bin/coder.js release publish rust 1.3.0 --registry kellnr
+node packages/cli/bin/coder.js build images -v 1.3.0 --push
 pnpm run packages:build && pnpm run packages:publish  # @digua/contracts + @digua/http，token 在 ops 本地 ~/.npmrc
 ```
 

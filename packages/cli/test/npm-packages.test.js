@@ -112,3 +112,24 @@ test('publishPackages: a failed check stops everything after build', async () =>
   );
   assert.equal(calls.length, 1, 'only the build ran');
 });
+
+test('pnpm/npm invocations carry the Windows shell shim on win32', async () => {
+  const root = fixture();
+  const optsSeen = [];
+  const exec = (file, args, opts = {}) => { optsSeen.push([file, Boolean(opts.shell)]); return { status: 0, stdout: '' }; };
+  await publishPackages({
+    root,
+    version: '0.2.0',
+    exec,
+    check: async () => ({ ok: true, failures: [], notes: [] }),
+    out: { log() {}, warn() {} },
+  });
+  const expected = process.platform === 'win32';
+  for (const [file, shelled] of optsSeen) {
+    if (file === 'pnpm' || file === 'npm') {
+      assert.equal(shelled, expected, `${file} exec opts.shell must be ${expected} on ${process.platform}`);
+    }
+  }
+  assert.ok(optsSeen.some(([f]) => f === 'pnpm'));
+  assert.ok(optsSeen.some(([f]) => f === 'npm'));
+});

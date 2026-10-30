@@ -1,7 +1,7 @@
 'use strict';
 
 // Rust crate publishing to a private registry (kellnr). Merged from
-// scripts/publish-libs.js (libs topology) and scripts/publish-rust-sdks.js
+// the retired publish-libs (libs topology) and publish-rust-sdks
 // (sdk crates). Internal path deps are temporarily rewritten to version+registry
 // deps; the restore-on-failure guarantee is the contract: whatever happens,
 // finally puts every touched Cargo.toml back to its original text.

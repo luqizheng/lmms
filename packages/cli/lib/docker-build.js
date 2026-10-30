@@ -1,6 +1,6 @@
 'use strict';
 
-// Service image builds via buildx. Absorbed from scripts/build-docker.js with
+// Service image builds via buildx. Absorbed from the retired build-docker script with
 // identical semantics: versioned + latest tags, multi-arch forces --push,
 // load-and-push falls back to --push on multi-arch, docs-site gets a host-side
 // vitepress pre-build, prune only clears the cargo cache filters.
@@ -135,7 +135,7 @@ function buildService(name, plan, { root, exec, out }) {
   if (name === 'docs-site') {
     // the image only packs pre-built output; vitepress needs a full git repo
     out.log(`[pre-build] pnpm docs:build`);
-    const pre = exec('pnpm', ['docs:build'], { cwd: root });
+    const pre = exec('pnpm', ['docs:build'], { cwd: root, shell: process.platform === 'win32' });
     if (pre.error || (pre.status ?? 1) !== 0) {
       out.warn(`[pre-build-fail] docs-site: pnpm docs:build failed`);
       return { ok: false, reason: 'pre-build failed' };
@@ -169,7 +169,7 @@ function buildService(name, plan, { root, exec, out }) {
 }
 
 // exec default mirrors the retired script: spawnSync with inherited stdio.
-function buildImages({ root, plan, exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: 'inherit', shell: false }), out }) {
+function buildImages({ root, plan, exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }), out }) {
   const built = [];
   const failed = [];
   for (const name of plan.services) {
@@ -180,7 +180,7 @@ function buildImages({ root, plan, exec = (file, args, opts) => spawnSync(file, 
   return { built, failed };
 }
 
-function pruneBuildCache({ exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: 'inherit', shell: false }), out }) {
+function pruneBuildCache({ exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }), out }) {
   const pruned = [];
   const failed = [];
   for (const id of ['cargo-registry', 'cargo-git']) {

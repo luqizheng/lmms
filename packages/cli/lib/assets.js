@@ -2,7 +2,7 @@
 
 // Vendored asset management. First citizen: the swagger-ui zip that Dockerfiles
 // and cargo builds reference offline via SWAGGER_UI_DOWNLOAD_URL (metadata
-// absorbed verbatim from the retired scripts/download-swagger-ui.js).
+// absorbed verbatim from the retired download-swagger-ui script).
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');

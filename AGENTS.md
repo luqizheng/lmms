@@ -28,7 +28,7 @@ AI 的**思考过程、文档撰写、对话回复必须使用中文**。代码�
   node scripts/run-tests-docker.js iam-service     # 单个/多个服务
   ```
   基础镜像 `zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl`，target `x86_64-unknown-linux-musl`，源码 bind mount、`registry`/`git`/`target` 命名 volume 复用增量编译。TLS 统一 `reqwest 0.12 + rustls`，禁用 native-tls。
-  发布镜像（多架构 / musl）只能走 `node scripts/build-docker.js`，主机侧产物与之不等价。
+  发布镜像（多架构 / musl）只能走 `node packages/cli/bin/coder.js build images`，主机侧产物与之不等价。
 - **纯单元测试可以脱离容器跑**（前提：本机有 `cc`/`gcc` + `rustup target add x86_64-unknown-linux-gnu`，与 docker 共用的 `target/` 是 root-owned 时用独立 dir 绕开）：
   ```bash
   # 一次性：把 swagger-ui zip 预下载到 infrastructure/vendor/，避免 build.rs 触发网络

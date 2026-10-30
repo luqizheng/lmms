@@ -438,7 +438,7 @@ test:
 | `scripts/base-images-sync.js` | 读取配置，生成 `base-images.json` |
 | `scripts/lib/Base-Images-Writer.js` | `mergeMirror` 逻辑（builder ref 重写 + base mirror） |
 | `scripts/images-pull.js` | 按 `base-images.json` 拉镜像（消费 mirror 字段） |
-| `scripts/build-docker.js` | Docker 构建（8 服务 + docs-site；docs-site 宿主机预构建走根 `.npmrc`） |
+| `coder build images` | Docker 构建（8 服务 + docs-site；docs-site 宿主机预构建走根 `.npmrc`） |
 | `scripts/build-java-sdk-docker.js` | Java SDK 容器内构建；优先 mount `.mvn/settings.xml` |
 | `infrastructure/.docker-registry.json` | 本地配置文件（gitignored） |
 | `infrastructure/base-images.json` | 生成的镜像清单（入 git） |

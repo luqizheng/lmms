@@ -18,8 +18,8 @@ Publish Rust crates to the private **kellnr** registry
 
 | Pipeline | Crates | Command | Script |
 | --- | --- | --- | --- |
-| **libs** (shared platform libraries) | 17 crates in `libs/*` | `pnpm run sdk:publish:libs` | `scripts/publish-libs.js` |
-| **Rust SDK** (per-service client SDKs) | 7 crates in `sdk/rust/*` (1 base + 6 service) | `pnpm run sdk:publish:rust` | `scripts/publish-rust-sdks.js` |
+| **libs** (shared platform libraries) | 17 crates in `libs/*` | `pnpm run sdk:publish:libs` | `coder release publish rust --targets libs` |
+| **Rust SDK** (per-service client SDKs) | 7 crates in `sdk/rust/*` (1 base + 6 service) | `pnpm run sdk:publish:rust` | `coder release publish rust` |
 
 Both pipelines:
 
@@ -91,7 +91,7 @@ anyway. Always use `CARGO_TARGET_DIR`.
 
 Show user:
 
-- Topological order (Layer 0 → 1 → 2): see `scripts/publish-libs.js`
+- Topological order (Layer 0 → 1 → 2): see `coder release publish rust --targets libs`
   `PUBLISH_ORDER` array
 - Number of crates: **17**
 - Target version + registry (default `kellnr`)

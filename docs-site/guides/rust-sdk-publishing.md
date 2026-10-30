@@ -1,7 +1,7 @@
 # Rust SDK 发布指南
 
 > 适用：把 `sdk/rust/` 下的 7 个 crate 发布到 kellnr（内网 registry）。
-> 关联：[`sdk/rust/README.md`](../../sdk/rust/README.md)（SDK 用法）、[`scripts/publish-rust-sdks.js`](../../scripts/publish-rust-sdks.js)（发布脚本，Node.js，跨平台）。
+> 关联：[`sdk/rust/README.md`](../../sdk/rust/README.md)（SDK 用法）、[`coder release publish rust`](../../coder release publish rust)（发布脚本，Node.js，跨平台）。
 > 维护：本文档随发布脚本和 registry 政策变化同步更新。
 
 ---
@@ -134,7 +134,7 @@ digua_http_client   ←  基础库，先发
 
 ```bash
 # 从仓库根 —— VERSION 是必填位置参数。跨平台（Linux / macOS / Windows）
-node scripts/publish-rust-sdks.js <VERSION> [--dry-run] [--registry <name>]
+node packages/cli/bin/coder.js release publish rust <VERSION> [--dry-run] [--registry <name>]
 ```
 
 **参数：**
@@ -160,18 +160,18 @@ node scripts/publish-rust-sdks.js <VERSION> [--dry-run] [--registry <name>]
 
 ```bash
 # 第一次发布 / 验证流程
-node scripts/publish-rust-sdks.js 1.0.0 --dry-run
+node packages/cli/bin/coder.js release publish rust 1.0.0 --dry-run
 
 # 确认无误后真发布
 CARGO_TARGET_DIR=/tmp/sdk-publish \
-  node scripts/publish-rust-sdks.js 1.0.0
+  node packages/cli/bin/coder.js release publish rust 1.0.0
 
 # 或通过 pnpm
 pnpm run sdk:publish:rust -- 1.0.0 --dry-run
 CARGO_TARGET_DIR=/tmp/sdk-publish pnpm run sdk:publish:rust -- 1.0.0
 ```
 
-> Windows PowerShell：`$env:CARGO_TARGET_DIR="$env:TEMP\sdk-publish"; node scripts/publish-rust-sdks.js 1.0.0`
+> Windows PowerShell：`$env:CARGO_TARGET_DIR="$env:TEMP\sdk-publish"; node packages/cli/bin/coder.js release publish rust 1.0.0`
 
 ---
 
@@ -180,7 +180,7 @@ CARGO_TARGET_DIR=/tmp/sdk-publish pnpm run sdk:publish:rust -- 1.0.0
 脚本默认发布到 `kellnr`（内网 registry），无需额外配置。若需发布到其他 registry：
 
 ```bash
-node scripts/publish-rust-sdks.js 1.0.0 --registry my-registry
+node packages/cli/bin/coder.js release publish rust 1.0.0 --registry my-registry
 ```
 
 前提是 `~/.cargo/credentials.toml` 中已配置对应 registry 的 token：
@@ -249,7 +249,7 @@ crates.io 对**新账号**和**高频账号**有 rate limit：
 发布流程：
 
 1. 确保 7 个 crate 的 `version` 与预期 `<VERSION>` 一致
-2. 跑 `node scripts/publish-rust-sdks.js <VERSION>`（VERSION 是必填位置参数）
+2. 跑 `node packages/cli/bin/coder.js release publish rust <VERSION>`（VERSION 是必填位置参数）
 
 ### 8.3 yank（撤回已发布版本）
 
@@ -280,6 +280,6 @@ yank 后 `cargo add digua_http_client@0.1.0` 仍能拉取（已锁版本的项�
 - [`./rust-sdk`](./rust-sdk)：Rust SDK 用法（消费者向）
 - [`./java-integration`](./java-integration)：Java SDK 用法（对照参考）
 - [`sdk/rust/README.md`](../../sdk/rust/README.md)：SDK crate 列表与测试方法
-- [`scripts/publish-rust-sdks.js`](../../scripts/publish-rust-sdks.js)：发布脚本（Node.js，跨平台）
-- [`scripts/publish-libs.js`](../../scripts/publish-libs.js)：发布 libs/ 共享库（Node.js，跨平台）
+- [`coder release publish rust`](../../coder release publish rust)：发布脚本（Node.js，跨平台）
+- [`coder release publish rust --targets libs`](../../coder release publish rust --targets libs)：发布 libs/ 共享库（Node.js，跨平台）
 - [`release/dist-template/README.md`](../../release/dist-template/README.md)：离线分发包

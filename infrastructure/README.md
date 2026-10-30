@@ -91,8 +91,8 @@ pnpm check:env
 | `pnpm run release:deploy` | 产出纯部署包（deploy）：镜像 tar + compose + 精简 ops 脚本（无 dev 工具）。 |
 | `pnpm run release:deploy:test` | dry-run：`EXPORT_IMAGES=0` 跑 release-deploy.js，验证骨架结构（不实际 build/save 镜像）。 |
 | `pnpm run release:all` | 一次性跑 release:build + release:deploy。 |
-| `pnpm run docker:build` | 走 `scripts/build-docker.js`，构建所有镜像。无参数=交互式；参数式支持 `-v <ver>` / `--push` / `--load-and-push` / `--platform linux/amd64,linux/arm64`。详见 `node scripts/build-docker.js --help`。 |
-| `pnpm run docker:build:<svc>` | 单服务构建（= `node scripts/build-docker.js <svc>`，参数式默认不推送）。 |
+| `pnpm run docker:build` | 走 `coder build images`，构建所有镜像。无参数=交互式；参数式支持 `-v <ver>` / `--push` / `--load-and-push` / `--platform linux/amd64,linux/arm64`。详见 `node packages/cli/bin/coder.js build images --help`。 |
+| `pnpm run docker:build:<svc>` | 单服务构建（= `node packages/cli/bin/coder.js build images <svc>`，参数式默认不推送）。 |
 | `pnpm run docker:build:clean` | prune dangling images 释放磁盘。 |
 
 常用参数式示例：

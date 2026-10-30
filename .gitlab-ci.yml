@@ -395,7 +395,7 @@ build_images:staging:
         echo "//192.168.2.12:14873/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
-    - node scripts/download-swagger-ui.js
+    - node packages/cli/bin/coder.js assets download
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
     # buildkit 跑在 docker-container driver 的独立容器里，registry 协议决策独立于 host daemon 的
     # /etc/docker/daemon.json。把内网 HTTP registry 显式标记 http = true，否则 buildkit 默认 HTTPS
@@ -416,7 +416,7 @@ build_images:staging:
     # 用变量传递避免 YAML 多行 `\<newline>` + 缩进导致 bash 把缩进当作 arg 前缀
     - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend"
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
-    - sudo -E node scripts/build-docker.js -v "${VERSION}" --load-and-push $BUILD_SERVICES
+    - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --load-and-push $BUILD_SERVICES
     # mysql-replica 位于 infrastructure/mysql-replica/，不在 build-docker.js 服务清单里，单独 buildx --push。
     # 它在 docker-compose.yml（非 infra.yml）中，release 时 transform-compose 转成
     # micro-server/mysql-replica:<sha>，load-images --mode=pull 会拉它，必须在此构建推送。
@@ -594,18 +594,16 @@ sdk_publish:
   tags: [docker]
   image: $BASE_REGISTRY/maven:3.9-eclipse-temurin-21
   before_script:
-    # maven 镜像不带 node/npm，但发布脚本是 node 实现；CI variables 段不支持
+    # maven 镜像不带 node，但 coder CLI 是 node 实现；CI variables 段不支持
     # bash 的 ${CI_COMMIT_TAG#v} 展开，版本号必须在 script 的 shell 里算。
-    # 脚本 require('chalk')/('ora') 等仓库根 dependencies，maven 镜像没 node_modules，需 npm ci。
-    # Ubuntu nodejs 包不含 npm，必须连同 npm 包一起装。
-    - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs npm)
-    - npm ci --silent --no-audit --no-fund
+    # coder CLI 零依赖（无 node_modules），maven 镜像只需 node 二进制，无需 npm ci。
+    - which node || (apt-get update && apt-get install -y --no-install-recommends nodejs)
     - mkdir -p ~/.m2
     - cp .gitlab/ci-maven-settings.xml ~/.m2/settings.xml
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== sdk_publish (maven) — VERSION=${VERSION} ==="
-    - node scripts/publish-maven-release.js --version "${VERSION}"
+    - node packages/cli/bin/coder.js release publish maven --version "${VERSION}"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -626,8 +624,7 @@ rust_publish:
   script:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== rust_publish — VERSION=${VERSION} ==="
-    - node scripts/publish-libs.js "${VERSION}" --registry kellnr
-    - node scripts/publish-rust-sdks.js "${VERSION}" --registry kellnr
+    - node packages/cli/bin/coder.js release publish rust "${VERSION}" --registry kellnr
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:
@@ -636,7 +633,7 @@ rust_publish:
 # ─── Docker images with version tag ───
 # tag 触发时按版本号（如 1.3.0）构建并 push 全部 8 个服务 + docs-site
 # 到 zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver> + :latest。
-# 用 scripts/build-docker.js（与本地 build 命令一致），pushMode=push 不留本地。
+# 用 coder build images（与本地 build 命令一致），pushMode=push 不留本地。
 build_images:tagged:
   stage: publish
   tags: [shell]
@@ -659,7 +656,7 @@ build_images:tagged:
         echo "//192.168.2.12:14873/:_authToken=${CODER_NPM_TOKEN}" >> .npmrc
       fi
     # 下载 swagger-ui zip 到 infrastructure/vendor/（prue_backend Dockerfile COPY 依赖）
-    - node scripts/download-swagger-ui.js
+    - node packages/cli/bin/coder.js assets download
     - 'if [ -n "$DOCKER_REGISTRY_USER" ]; then sudo -E docker login zhcoder-docker-registry.com:8000 -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" >/dev/null 2>&1; fi'
     # buildkit 跑在 docker-container driver 的独立容器里，registry 协议决策独立于 host daemon 的
     # /etc/docker/daemon.json。把内网 HTTP registry 显式标记 http = true，否则 buildkit 默认 HTTPS
@@ -677,7 +674,7 @@ build_images:tagged:
     - sudo docker buildx create --name xbuilder --driver docker-container --config /tmp/buildkitd.toml --use
     - sudo docker buildx inspect --bootstrap
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
-    - sudo -E node scripts/build-docker.js -v "${VERSION}" --push
+    - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --push
     # mysql-replica 不在 build-docker.js 服务清单（context 在 infrastructure/mysql-replica/），
     # 比照 build_images:staging 单独 buildx --push；v1.5.0 本段漏推导致缺语义版本 tag。
     # transform-compose 把主 compose 的 build: 块转成 micro-server/mysql-replica:<version>，
@@ -699,8 +696,8 @@ build_images:tagged:
 # 前端 TS 访问包随 tag 一起发布到内网 npm registry（http://npm.kudi.repos/），
 # 版本号对齐 release tag（npm version ${VERSION}）——与镜像 / Maven / crates 同版本。
 # 认证走 Verdaccio basic auth（NPM_USERNAME/NPM_PASSWORD，
-# 回退 NPM_TOKEN）。发布前置检查走 scripts/check-packages-publish.js（registry 探活 +
-# 版本递增 + 包内无未提交改动）。
+# 回退 NPM_TOKEN）。发布前置检查走 coder release publish npm（registry 探活 +
+# 版本递增 + 包内无未提交改动），@digua/contracts + @digua/http + @digua/cli 顺序发布。
 publish_packages:
   stage: publish
   tags: [docker]
@@ -724,11 +721,7 @@ publish_packages:
     - export VERSION="${CI_COMMIT_TAG#v}"
     - echo "=== publish_packages — VERSION=${VERSION} (registry http://${NPM_REGISTRY_HOST}) ==="
     - pnpm run packages:build
-    - node scripts/check-packages-publish.js "${VERSION}"
-    - npm --prefix packages/contracts version "${VERSION}" --no-git-tag-version --allow-same-version
-    - npm --prefix packages/contracts publish --access public
-    - npm --prefix packages/http version "${VERSION}" --no-git-tag-version --allow-same-version
-    - npm --prefix packages/http publish --access public
+    - node packages/cli/bin/coder.js release publish npm --version "${VERSION}"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   environment:

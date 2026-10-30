@@ -34,7 +34,7 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release-deploy.js 1.0.0
 ```
 
 脚本阶段：
-1. `EXPORT_IMAGES=1` 时调 `scripts/build-docker.js -v <ver> --no-push` 构建并加载全部镜像到本地；
+1. `EXPORT_IMAGES=1` 时调 `coder build images -v <ver>` 构建并加载全部镜像到本地；
 2. 拷贝 `infrastructure/` 并跑 `scripts/transform-compose.js`——把 services.yml 与主 `docker-compose.yml` 中 `build:` 统一转成 `image:` 引用（部署包不带服务源码，无需现场构建）；
 3. `EXPORT_IMAGES=1` 时扫描所有 compose 的 `image:`，把未导出的 `docker save` 成 tar；
 4. 写入 deploy-only 运维子集（`bin/` 白名单 + deploy 专用 `Makefile` + `docs/deployment/` + `.env.example` + `secrets/`）并**内嵌发布脚本本体**（`release-deploy.js` / `transform-compose.js` / `release-transforms.js`）；

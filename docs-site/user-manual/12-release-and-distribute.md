@@ -23,7 +23,7 @@
 ```bash
 # 构建全部 8 个服务镜像并推送到内网 registry
 pnpm docker:build -- -v 1.0.0 --push
-# = node scripts/build-docker.js -v 1.0.0 --push
+# = node packages/cli/bin/coder.js build images -v 1.0.0 --push
 
 # 仅构建单个服务
 pnpm docker:build -- api-gateway -v 1.0.0 --push
@@ -35,7 +35,7 @@ pnpm docker:build -- --load-and-push -v 1.0.0
 pnpm docker:build -- --platform linux/amd64,linux/arm64 --push
 ```
 
-底层走 `scripts/build-docker.js`，集成构建 + 打 tag + 推送一体化流程，覆盖 8 个镜像（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service / prue-admin-backend；原 frontend 镜像已随 PRISM console 移除删除）。
+底层走 `coder build images`，集成构建 + 打 tag + 推送一体化流程，覆盖 8 个镜像（api-gateway / token-service / iam-service / notification-service / audit-service / config-service / file-service / prue-admin-backend；原 frontend 镜像已随 PRISM console 移除删除）。
 
 ### tag 命名
 
@@ -366,10 +366,10 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 
 | SDK | 目标 | 发布命令 | 详细 |
 | --- | --- | --- | --- |
-| Java SDK (sdk/java) | Reposilite (`http://mvn.kudi.repos`) | `node scripts/publish-maven-release.js --version <ver>` | [java-sdk-publishing](../guides/java-sdk-publishing.md) |
-| Java SDK snapshot | Reposilite snapshots | `node scripts/publish-maven-snapshot.js --version <ver>-SNAPSHOT` | 同上 |
-| Rust libs (libs/*) | kellnr (`http://192.168.2.12:16444`) | `node scripts/publish-libs.js <ver>` | [rust-sdk-publishing §8](../guides/rust-sdk-publishing.md)（与 SDK 共享同一份版本号） |
-| Rust SDK (sdk/rust/*) | kellnr | `node scripts/publish-rust-sdks.js <ver>` | [rust-sdk-publishing](../guides/rust-sdk-publishing.md) |
+| Java SDK (sdk/java) | Reposilite (`http://mvn.kudi.repos`) | `node packages/cli/bin/coder.js release publish maven --version <ver>` | [java-sdk-publishing](../guides/java-sdk-publishing.md) |
+| Java SDK snapshot | Reposilite snapshots | `node packages/cli/bin/coder.js release publish maven --kind snapshot --version <ver>-SNAPSHOT` | 同上 |
+| Rust libs (libs/*) | kellnr (`http://192.168.2.12:16444`) | `node packages/cli/bin/coder.js release publish rust --targets libs <ver>` | [rust-sdk-publishing §8](../guides/rust-sdk-publishing.md)（与 SDK 共享同一份版本号） |
+| Rust SDK (sdk/rust/*) | kellnr | `node packages/cli/bin/coder.js release publish rust <ver>` | [rust-sdk-publishing](../guides/rust-sdk-publishing.md) |
 
 等价 pnpm aliases：`pnpm sdk:publish:release -- <ver>` / `pnpm sdk:publish:snapshot -- <ver>` / `pnpm sdk:publish:libs -- <ver>` / `pnpm sdk:publish:rust -- <ver>`。
 
@@ -380,9 +380,9 @@ SDK 是给业务方集成用的，与平台 release tag **解耦**。三类 SDK 
 发 SDK 前 checklist：
 
 - [ ] `pnpm run setup:wizard` 已生成 maven/kellnr 凭证（或手写 `~/.m2/settings.xml` / `~/.cargo/credentials.toml`）
-- [ ] `node scripts/publish-libs.js <ver> --dry-run` 退出 0
-- [ ] `node scripts/publish-rust-sdks.js <ver> --dry-run` 退出 0
-- [ ] `node scripts/publish-maven-release.js --version <ver> --dry-run` 退出 0
+- [ ] `node packages/cli/bin/coder.js release publish rust --targets libs <ver> --dry-run` 退出 0
+- [ ] `node packages/cli/bin/coder.js release publish rust <ver> --dry-run` 退出 0
+- [ ] `node packages/cli/bin/coder.js release publish maven --version <ver> --dry-run` 退出 0
 - [ ] 真发布；Java SDK 发完后手动 `git diff sdk/java/ && git add sdk/java && git commit -m "feat(sdk): bump to <ver>"`
 
 > CI 自动跑：`.gitlab-ci.yml` 的 `sdk_publish` / `rust_publish` job 在 `v\d+\.\d+\.\d+$` tag 触发时自动注入 `${CI_COMMIT_TAG#v}` 作为 VERSION。本地 tag 触发也会跑。

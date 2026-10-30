@@ -27,7 +27,7 @@ REPO_ROOT="$(cd "${SKILL_DIR}/../.." && pwd)"
 
 KELLNR_REGISTRY="http://192.168.2.12:16444"
 
-# Layer 0..2 拓扑顺序（与 publish-libs.js 一致）
+# Layer 0..2 拓扑顺序（与 coder release publish rust 的 LIBS_ORDER 一致）
 LIBS_CRATES=(
   common-error common-health common-jwt common-ratelimit common-telemetry
   common-cache common-config common-crypto common-event common-http

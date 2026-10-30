@@ -34,6 +34,8 @@ importers:
         specifier: 3.5.35
         version: 3.5.35(typescript@6.0.3)
 
+  packages/cli: {}
+
   packages/contracts: {}
 
   packages/http:

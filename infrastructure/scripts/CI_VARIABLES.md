@@ -14,7 +14,7 @@
 GitLab CI（gitlab-ci-04 共享 docker runner）
         │
         │  build_images:staging → 重建全部 8 服务 + mysql-replica 镜像
-        │                         （scripts/build-docker.js + 单独 buildx mysql-replica）
+        │                         （coder build images + 单独 buildx mysql-replica）
         │                         buildx push 到内网 registry，tag = $CI_COMMIT_SHORT_SHA
         │  release:staging     → 跑 release-deploy.js --no-images 产骨架（artifact ~1MB）
         │  deploy:staging      → tar over ssh 传骨架到部署机

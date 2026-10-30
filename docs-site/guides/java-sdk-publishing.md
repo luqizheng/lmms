@@ -1,7 +1,7 @@
 # Java SDK 发布指南
 
 > 适用：把 `sdk/java/` 下的 Maven 多模块发布到内网私有 Maven 仓库（Reposilite）。
-> 关联：[`sdk/java/README.md`](../../sdk/java/README.md)（SDK 用法）、[`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)（主 release 发布脚本）、[`scripts/publish-maven-snapshot.js`](../../scripts/publish-maven-snapshot.js)（snapshot 发布脚本）。
+> 关联：[`sdk/java/README.md`](../../sdk/java/README.md)（SDK 用法）、[`coder release publish maven`](../../coder release publish maven)（主 release 发布脚本）、[`coder release publish maven --kind snapshot`](../../coder release publish maven --kind snapshot)（snapshot 发布脚本）。
 > 维护：本文档随发布脚本和 Reposilite 政策变化同步更新。
 
 ---
@@ -87,8 +87,8 @@ sdk/java/
 export MAVEN_USERNAME=admin
 export MAVEN_PASSWORD='s3cret'
 
-node scripts/publish-maven-release.js        # release 版本
-node scripts/publish-maven-snapshot.js      # snapshot 版本
+node packages/cli/bin/coder.js release publish maven        # release 版本
+node packages/cli/bin/coder.js release publish maven --kind snapshot      # snapshot 版本
 # 或用 pnpm 别名：
 #   pnpm run sdk:publish:release
 #   pnpm run sdk:publish:snapshot
@@ -97,7 +97,7 @@ node scripts/publish-maven-snapshot.js      # snapshot 版本
 或者命令行直接传：
 
 ```bash
-node scripts/publish-maven-release.js --user admin --pass 's3cret'
+node packages/cli/bin/coder.js release publish maven --user admin --pass 's3cret'
 ```
 
 #### 方式 C：`setup:wizard` 生成的配置（推荐用于本地开发）
@@ -180,14 +180,14 @@ digua-user-user-sdk digua-user-client-sdk  ...   digua-token-user-sdk
 
 ### 5.1 用发布脚本（推荐）
 
-`scripts/publish-maven-release.js` 和 `scripts/publish-maven-snapshot.js` 是统一入口，支持 release / snapshot 两种场景。
+`coder release publish maven` 和 `coder release publish maven --kind snapshot` 是统一入口，支持 release / snapshot 两种场景。
 
 ```bash
 # Release 版本（不带 -SNAPSHOT）—— **必须传 --version**
-node scripts/publish-maven-release.js --version 0.4.0
+node packages/cli/bin/coder.js release publish maven --version 0.4.0
 
 # Snapshot 版本（带 -SNAPSHOT）—— **必须传 --version**
-node scripts/publish-maven-snapshot.js --version 0.4.1-SNAPSHOT
+node packages/cli/bin/coder.js release publish maven --kind snapshot --version 0.4.1-SNAPSHOT
 ```
 
 **参数：**
@@ -247,13 +247,13 @@ node scripts/build-java-sdk-docker.js deploy -- --version 0.4.0 --profile java21
 
 ```bash
 # 1. dry-run 验证（脚本会检查 pom.xml 当前版本与 --version）
-node scripts/publish-maven-release.js --version 0.4.0 --dry-run
+node packages/cli/bin/coder.js release publish maven --version 0.4.0 --dry-run
 
 # 2. 真发布（推荐方式 A：Docker 容器发布，自动传 --version）
 node scripts/build-java-sdk-docker.js deploy -- --version 0.4.0
 
 # 或方式 B：本机有 JDK 时用发布脚本（脚本自动 bump pom.xml + deploy）
-node scripts/publish-maven-release.js --version 0.4.0
+node packages/cli/bin/coder.js release publish maven --version 0.4.0
 
 # 3. commit pom.xml 的 <version> 改动（脚本不自动 commit）
 git diff sdk/java/pom.xml   # 检查 bump
@@ -266,7 +266,7 @@ git add sdk/java && git commit -m "feat(sdk): bump to 0.4.0"
 
 ```bash
 # 直接传 --version 即可 —— 脚本自动跑 mvn versions:set
-node scripts/publish-maven-release.js --version 0.5.0
+node packages/cli/bin/coder.js release publish maven --version 0.5.0
 
 # 完成后手动 commit pom.xml 改动
 git diff sdk/java/pom.xml
@@ -276,7 +276,7 @@ git add sdk/java && git commit -m "feat(sdk): bump to 0.5.0"
 #### 发 snapshot
 
 ```bash
-node scripts/publish-maven-snapshot.js --version 0.5.1-SNAPSHOT
+node packages/cli/bin/coder.js release publish maven --kind snapshot --version 0.5.1-SNAPSHOT
 
 git diff sdk/java/pom.xml
 git add sdk/java && git commit -m "feat(sdk): start 0.5.1-SNAPSHOT"
@@ -413,8 +413,8 @@ Reposilite 没有公开的速率限制文档，但有几个实战经验：
 - [`./rust-sdk`](./rust-sdk)：Rust SDK 用法（对照参考）
 - [`./rust-sdk-publishing`](./rust-sdk-publishing)：Rust SDK 发布流程（与本文档结构对齐）
 - [`sdk/java/README.md`](../../sdk/java/README.md)：SDK 模块列表与生成说明
-- [`scripts/publish-maven-release.js`](../../scripts/publish-maven-release.js)：主发布脚本（release，`curl` 模式，REQUIRED `--version`）
-- [`scripts/publish-maven-snapshot.js`](../../scripts/publish-maven-snapshot.js)：主发布脚本（snapshot，`curl` 模式，REQUIRED `--version`）
+- [`coder release publish maven`](../../coder release publish maven)：主发布脚本（release，`curl` 模式，REQUIRED `--version`）
+- [`coder release publish maven --kind snapshot`](../../coder release publish maven --kind snapshot)：主发布脚本（snapshot，`curl` 模式，REQUIRED `--version`）
 - [`scripts/build-java-sdk-docker.js`](../../scripts/build-java-sdk-docker.js)：Docker 容器发布脚本（`mvn deploy` 模式，无需本机 JDK）
 - [`sdk/java/Dockerfile.builder`](../../sdk/java/Dockerfile.builder)：Docker 模式下的 builder 镜像
 - [`release/dist-template/README.md`](../../release/dist-template/README.md)：「Java SDK 引入」章节说明业务服务如何通过 `<dependency>` 引用 SDK

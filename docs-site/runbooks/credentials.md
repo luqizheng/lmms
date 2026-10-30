@@ -273,7 +273,7 @@ docker pull <image>  # 应该失败
 
 - `.cargo/config` — Rust crates 代理配置
 - `.gitlab-ci.yml` — CI/CD 凭证使用
-- `scripts/build-docker.js` — Docker 镜像构建与推送（`--push` / `--load-and-push`）
+- `coder build images` — Docker 镜像构建与推送（`--push` / `--load-and-push`）
 
 ---
 

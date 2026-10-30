@@ -1,6 +1,6 @@
 'use strict';
 
-// Java SDK publishing to Reposilite. Absorbed from scripts/lib/maven-publish.js.
+// Java SDK publishing to Reposilite. Absorbed from the retired maven-publish lib.
 // Default upload mode stays curl -T (works around Reposilite's Expect:100-continue
 // incompatibility); --mvn keeps the direct-deploy branch. Root/homedir/env/exec
 // are injectable so the whole flow is unit-testable.
@@ -232,7 +232,7 @@ function publishMaven({
   useMvn = false,
   dryRun = false,
   extraMvn = [],
-  exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: 'inherit', shell: false }),
+  exec = (file, args, opts) => spawnSync(file, args, { ...opts, stdio: "inherit", shell: opts.shell ?? false }),
   env = process.env,
   m2RepoRoot = path.join(os.homedir(), '.m2', 'repository'),
   settingsPath = path.join(os.homedir(), '.m2', 'settings.xml'),

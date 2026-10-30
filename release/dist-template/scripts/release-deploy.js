@@ -163,11 +163,11 @@ if (EXPORT_IMAGES === 1) mkdirSync(IMAGES_DIR, { recursive: true });
 // ══════════════════════════════════════════════════════════════════════════════
 if (EXPORT_IMAGES === 1) {
   console.log('[release-deploy] -> 阶段一：构建所有核心服务镜像到本地...');
-  const buildDocker = path.join(REPO_ROOT, 'scripts', 'build-docker.js');
+  const coder = path.join(REPO_ROOT, 'packages', 'cli', 'bin', 'coder.js');
   try {
-    sh(`node "${buildDocker}" -v "${VERSION}" --no-push`);
+    sh(`node "${coder}" build images -v "${VERSION}"`);
   } catch (e) {
-    console.error('[release-deploy] ✗ build-docker.js 失败');
+    console.error('[release-deploy] ✗ coder build images 失败');
     console.error('[release-deploy]   hint: 确保 docker daemon 跑着；如在 CI 内确保 Runner 提供 docker socket');
     process.exit(1);
   }
@@ -459,7 +459,7 @@ writeFileSync(path.join(DIST_DIR, 'README.md'), `# coder-micro-services ${VERSIO
 
 > 由 \`release/dist-template/scripts/release-deploy.js\` 在 dev 仓库内直接产出。
 > 与 airgap 包（\`coder-micro-services-${VERSION}-airgap.tar.gz\`）的区别：
->   - **不含** dev 工具（services 骨架、packages/contracts/skills、scripts/build-docker.js 等）
+>   - **不含** dev 工具（services 骨架、packages/contracts/skills、coder build images 等）
 >   - **包含** 预构建的 Docker 镜像 tar + compose + 精简 ops 脚本
 >   - 体积约为 airgap 包的 1/3（无 node_modules / 无 skills）
 
