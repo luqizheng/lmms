@@ -78,7 +78,7 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 **框架不随附前端控制台**（PRISM console 已于 2026-10 从本仓库移除）。前端项目位于各自业务仓，通过以下方式接入 api-gateway（唯一公共入口，host port 3000）：
 
-- **TypeScript / 浏览器**：仓库顶层 `packages/@digua/contracts`（错误码 / 权限码 / OpenAPI 客户端 TS 产物）与 `packages/@digua/http`（框架无关 HTTP 客户端，token 注入 / 单飞刷新 / 错误码转文案），发布到私有 registry `http://npm.kudi.repos/`（`pnpm run packages:publish`，校验用 `pnpm run packages:check`）。CI `packages_test` job 守门。
+- **TypeScript / 浏览器**：仓库顶层 `packages/@digua/contracts`（错误码 / 权限码 / OpenAPI 客户端 TS 产物）、`packages/@digua/http`（框架无关 HTTP 客户端，token 注入 / 单飞刷新 / 错误码转文案）与 `sdk/iam-services`（登录 / 用户管理 / token 管理 SDK；**位置例外**：npm TS 包放 `sdk/` 经用户裁决 2026-10-31）。发布到私有 registry **`http://192.168.2.12:14873/`**（`npm.kudi.repos` 为同一 Verdaccio 的域名别名；canonical 以守卫常量 `packages/cli/lib/npm-packages.js::REGISTRY` 为准）。发布用 `pnpm run packages:publish`，校验用 `pnpm run packages:check`，规则见「npm 包发布规则」。CI `packages_test` job 守门。
 - **服务端 SDK**：`sdk/java`（Maven）、`sdk/rust`（kellnr）；C# SDK（`sdk/dotnet`）规划中，尚未创建。
 
 ## OpenAPI（auto-generated）
@@ -162,9 +162,16 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 - **镜像**：`zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver>`，下游改 compose 的 image tag 后 `docker compose pull && up -d`。
 - **Rust**：`libs/*`（17 crate）与 `sdk/rust/*`（7 crate）发布到 kellnr（`http://192.168.2.12:16444`），下游 `cargo update -p <crate>`。
 - **Java**：`sdk/java` 发布到 Maven（`http://mvn.kudi.repos`），下游升 `<dependency>` 版本。
-- **npm TS**：`packages/@digua/contracts` + `@digua/http` 发布到 `http://npm.kudi.repos`，下游 `pnpm up @digua/contracts @digua/http`。
+- **npm TS**：`packages/@digua/contracts` + `@digua/http` + `sdk/iam-services` 发布到 `http://192.168.2.12:14873/`，下游 `pnpm up @digua/contracts @digua/http` / `pnpm add iam-services`。
 
 tag 流水线五路并行发布（`sdk_publish` / `rust_publish` / `build_images:tagged` / `publish_packages`，`release:dist` 收尾打离线包）——见 `.gitlab-ci.yml` publish stage。同 tag 下所有制品版本号一致。
+
+**npm 包发布规则**（守卫实现在 `packages/cli/lib/npm-packages.js`，本文与其保持一致）：
+
+1. **新增包必须三处接线**，缺一则 tag CI 与本地发布都会**静默跳过**该包：① `pnpm-workspace.yaml` 清单；② 根 `package.json` 的 `packages:build` 过滤；③ `npm-packages.js` 的 `PACKAGES` 数组。
+2. 发布守卫四条：`publishConfig.registry` 必须**精确等于** `REGISTRY`（含尾斜杠）；`dist/index.js` 已构建；包目录 `git status` 干净；包内版本 < 目标版本。
+3. **版本单一事实源 = git tag（或 `--version` 参数）**；仓内 `package.json` 版本只是占位符，本地发布后需 `git checkout -- <各包>/package.json` 还原占位。
+4. 发布一律走 CLI（先 `pnpm run packages:check` 干跑，再 `pnpm run packages:publish --version x.y.z`），**勿手敲 `npm publish --prefix`** —— npm≥11 会从 cwd 读 manifest 直接崩（CLI 已改为在包目录内执行，并显式钉死 registry 防 `@scope:registry` 劫持）。发布机 `~/.npmrc` 需有 `//192.168.2.12:14873/:_authToken`。
 
 ### 修改本仓 `infrastructure/**` 时对下游的影响
 
