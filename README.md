@@ -6,7 +6,7 @@
 
 A microservices architecture for coder platform, built with Rust.
 
-**本框架不随附前端控制台**（PRISM console 已移除）。前端项目在各自业务仓中，通过 `packages/@digua/contracts` + `@digua/http` + `sdk/iam-services`（npm TS 包，发布到私有 registry `http://192.168.2.12:14873/`）或 `sdk/`（Java / Rust；C# 规划中）接入 api-gateway:3000 唯一公共入口。npm 包的新增与发布规则见 `AGENTS.md`「npm 包发布规则」。
+**本框架不随附前端控制台**（PRISM console 已移除）。前端项目在各自业务仓中，通过 `packages/@digua/contracts` + `@digua/http` + `sdk/{iam,audit,config,file,notification,prue}-services`（npm TS 包，发布到私有 registry `http://192.168.2.12:14873/`）或 `sdk/`（Java / Rust；C# 规划中）接入 api-gateway:3000 唯一公共入口。npm 包的新增与发布规则见 `AGENTS.md`「npm 包发布规则」。
 
 **Full documentation**: [`docs-site/user-manual/`](docs-site/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 

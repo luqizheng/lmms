@@ -15,7 +15,12 @@ sdk/
     digua_http_client/            # 通用服务间 HTTP 客户端（client_credentials + Bearer 透传）
   rust/                          # Rust（workspace 成员）
     digua_http_client/            # 通用服务间 HTTP 客户端
-  iam-services/                  # npm TS 包（登录 / 用户管理 / token 管理，见下方例外说明）
+  iam-services/                  # npm TS 包：登录 / 用户管理 / token 管理
+  audit-services/                # npm TS 包：日志查询 / 合规导出 / 保留策略
+  config-services/               # npm TS 包：配置中心（命名空间/配置项/导入导出）
+  file-services/                 # npm TS 包：multipart 上传 / 二进制下载 / 预签名
+  notification-services/         # npm TS 包：公告 / 未读数（不含 WS）
+  prue-services/                 # npm TS 包：动态路由 / 菜单配置版本（ETag 乐观锁）
   openapi/                       # 离线 OpenAPI 规范
   scripts/                       # openapi-generator 触发脚本
 ```

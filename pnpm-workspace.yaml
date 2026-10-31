@@ -4,6 +4,11 @@ packages:
   - "packages/http"
   - "packages/cli"
   - "sdk/iam-services"
+  - "sdk/audit-services"
+  - "sdk/config-services"
+  - "sdk/file-services"
+  - "sdk/notification-services"
+  - "sdk/prue-services"
 allowBuilds:
   '@parcel/watcher': true
   argon2: true
