@@ -89,19 +89,38 @@ impl UserService {
                 .await?;
         let mut role_ids = req.role_ids.clone().unwrap_or_default();
         if user_count.0 == 0 {
-            let role_id = nanoid!();
-            sqlx::query(
-                "INSERT INTO iam_roles (id, tenant_id, name, code, description, data_scope, status, created_at, updated_at) \
-                 VALUES (?, ?, '租户管理员', 'tenant_admin', '首用户自动创建', 'all', 'active', NOW(), NOW())",
+            // V003 起迁移会播种 (tenant 1, 'tenant_admin') 全局共享角色；首用户
+            // 逻辑改为查存在优先复用，避免唯一键冲突 500（下游联调实测）。
+            let existing: Option<(String,)> = sqlx::query_as(
+                "SELECT id FROM iam_roles WHERE tenant_id = ? AND code = 'tenant_admin' \
+                 AND deleted_at IS NULL LIMIT 1",
             )
-            .bind(&role_id)
             .bind(tid)
-            .execute(&self.state.db)
+            .fetch_optional(&self.state.db)
             .await?;
+            let role_id = match existing {
+                Some((id,)) => id,
+                None => {
+                    let role_id = nanoid!();
+                    sqlx::query(
+                        "INSERT INTO iam_roles (id, tenant_id, name, code, description, data_scope, status, created_at, updated_at) \
+                         VALUES (?, ?, '租户管理员', 'tenant_admin', '首用户自动创建', 'all', 'active', NOW(), NOW())",
+                    )
+                    .bind(&role_id)
+                    .bind(tid)
+                    .execute(&self.state.db)
+                    .await?;
+                    role_id
+                }
+            };
+            // 权限绑定幂等补齐（复用的种子角色可能尚未绑定任何权限）。
             sqlx::query(
                 "INSERT INTO iam_role_permissions (role_id, permission_id, created_at) \
-                 SELECT ?, id, NOW() FROM iam_permissions WHERE status = 'enabled' AND deleted_at IS NULL",
+                 SELECT ?, id, NOW() FROM iam_permissions \
+                 WHERE status = 'enabled' AND deleted_at IS NULL \
+                   AND id NOT IN (SELECT permission_id FROM iam_role_permissions WHERE role_id = ?)",
             )
+            .bind(&role_id)
             .bind(&role_id)
             .execute(&self.state.db)
             .await?;
