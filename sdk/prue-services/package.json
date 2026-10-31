@@ -1,0 +1,38 @@
+{
+  "name": "prue-services",
+  "version": "0.1.0",
+  "description": "lmms prue_backend SDK：动态路由与菜单配置版本管理（含 ETag 乐观锁）的零依赖 fetch 客户端（api-gateway /v1/pure 公开路径）",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rimraf dist",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "pnpm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED",
+  "private": false,
+  "publishConfig": {
+    "registry": "http://192.168.2.12:14873/"
+  }
+}
