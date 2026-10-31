@@ -19,9 +19,14 @@ import type {
 export class ApiKeysApi {
   constructor(private readonly http: HttpCore) {}
 
-  /** 列出 API Key / OAuth 客户端：GET /v1/api-keys（需鉴权）。 */
-  list(): Promise<ApiKeyListResponse> {
-    return this.http.get<ApiKeyListResponse>("/v1/api-keys", { auth: true });
+  /** 列出 API Key / OAuth 客户端：GET /v1/api-keys（需鉴权）。后端返回 {items,total,page,size}。 */
+  list(
+    query: { keyword?: string; page?: number; size?: number } = {}
+  ): Promise<ApiKeyListResponse> {
+    return this.http.get<ApiKeyListResponse>("/v1/api-keys", {
+      params: query,
+      auth: true,
+    });
   }
 
   /** 创建 API Key：POST /v1/api-keys（需鉴权）。api_key_secret 仅此一次返回。 */

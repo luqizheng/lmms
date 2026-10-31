@@ -3,6 +3,8 @@
 
 import { AuthApi } from "./auth.js";
 import { HttpCore, type IamServicesOptions } from "./http.js";
+import { OrgUnitsApi } from "./org-units.js";
+import { PermissionsApi } from "./permissions.js";
 import { RolesApi } from "./roles.js";
 import { TokensApi } from "./tokens.js";
 import { UsersApi } from "./users.js";
@@ -13,6 +15,8 @@ export { DEFAULT_BASE_URL, HttpCore, type IamServicesOptions, type RequestOption
 export { AuthApi } from "./auth.js";
 export { UsersApi } from "./users.js";
 export { RolesApi } from "./roles.js";
+export { PermissionsApi } from "./permissions.js";
+export { OrgUnitsApi } from "./org-units.js";
 export { TokensApi, ApiKeysApi } from "./tokens.js";
 
 export interface IamServices {
@@ -20,8 +24,12 @@ export interface IamServices {
   readonly auth: AuthApi;
   /** 用户管理（iam-service）。 */
   readonly users: UsersApi;
-  /** 角色查询（iam-service，v1 只读）。 */
+  /** 角色管理（iam-service）。 */
   readonly roles: RolesApi;
+  /** 权限管理（iam-service）。 */
+  readonly permissions: PermissionsApi;
+  /** 组织架构（iam-service，部门树）。 */
+  readonly orgUnits: OrgUnitsApi;
   /** token 签发 / 刷新 / 吊销 / JWKS / API Key（token-service）。 */
   readonly tokens: TokensApi;
 }
@@ -33,6 +41,8 @@ export function createIamServices(options: IamServicesOptions = {}): IamServices
     auth: new AuthApi(http),
     users: new UsersApi(http),
     roles: new RolesApi(http),
+    permissions: new PermissionsApi(http),
+    orgUnits: new OrgUnitsApi(http),
     tokens: new TokensApi(http),
   };
 }

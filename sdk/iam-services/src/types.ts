@@ -180,6 +180,86 @@ export interface UpdateRoleRequest {
   status?: string;
 }
 
+// ---------- 权限 ----------
+
+export interface PermissionResponse {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  /** 出参为字符串（创建入参 category 是数字，不对称照实镜像） */
+  category: string;
+  resource: string | null;
+  action: string | null;
+  sort_order: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PermissionListResponse {
+  items: PermissionResponse[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface PermissionQuery {
+  keyword?: string;
+  category?: number;
+  page?: number;
+  size?: number;
+}
+
+export interface CreatePermissionRequest {
+  code: string;
+  name: string;
+  description?: string;
+  /** 服务端 DTO 为必填 i32；响应中 category 是字符串（不对称照实镜像） */
+  category: number;
+  resource?: string;
+  action?: string;
+  sort_order?: number;
+}
+
+export interface UpdatePermissionRequest {
+  name?: string;
+  description?: string;
+  sort_order?: number;
+  status?: string;
+}
+
+// ---------- 组织架构 ----------
+
+export interface OrgUnitResponse {
+  id: string;
+  parent_id: string | null;
+  name: string;
+  code: string;
+  level: number;
+  sort_order: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  /** GET /v1/iam/org-units 返回部门树（根节点数组，children 递归） */
+  children: OrgUnitResponse[];
+}
+
+export interface CreateOrgUnitRequest {
+  parent_id?: string | null;
+  name: string;
+  code: string;
+  sort_order?: number;
+}
+
+export interface UpdateOrgUnitRequest {
+  parent_id?: string | null;
+  name?: string;
+  code?: string;
+  sort_order?: number;
+  status?: string;
+}
+
 // ---------- token（token-service，经网关 /v1/tokens、/v1/api-keys） ----------
 
 export type TokenGrantType = "client_credentials" | "authorization_code";

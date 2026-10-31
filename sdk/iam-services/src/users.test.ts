@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { HttpCore } from "./http.js";
+import { OrgUnitsApi } from "./org-units.js";
+import { PermissionsApi } from "./permissions.js";
 import { RolesApi } from "./roles.js";
+import { TokensApi } from "./tokens.js";
 import { UsersApi } from "./users.js";
 
 interface RecordedCall {
@@ -28,7 +31,7 @@ function headersOf(call: RecordedCall): Record<string, string> {
   return call.init.headers as Record<string, string>;
 }
 
-function makeApi<T extends UsersApi | RolesApi>(Ctor: new (http: HttpCore) => T, impl: typeof fetch): T {
+function makeApi<T>(Ctor: new (http: HttpCore) => T, impl: typeof fetch): T {
   return new Ctor(new HttpCore({ fetch: impl, getToken: () => "tok" }));
 }
 
@@ -95,6 +98,62 @@ describe("UsersApi", () => {
     expect(calls[0].init.method).toBe("PUT");
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ role_ids: ["r1", "r2"] });
     expect(res.role_ids).toEqual(["r1", "r2"]);
+  });
+});
+
+describe("PermissionsApi", () => {
+  it("page 组装 keyword/category 分页", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 200, body: { items: [{ id: "p1", code: "IAM_USER_READ", name: "用户查看", description: null, category: "1", resource: "user", action: "read", sort_order: 1, status: "active", created_at: "", updated_at: "" }], total: 1, page: 1, size: 20 } }));
+    const perms = makeApi(PermissionsApi, impl);
+    const res = await perms.page({ keyword: "用户", category: 1, page: 1, size: 20 });
+    expect(calls[0].url).toBe("http://127.0.0.1:3000/v1/iam/permissions?keyword=%E7%94%A8%E6%88%B7&category=1&page=1&size=20");
+    expect(res.items[0].category).toBe("1"); // 出参为字符串
+  });
+
+  it("create 入参 category 为数字", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 200, body: { id: "p2" } }));
+    const perms = makeApi(PermissionsApi, impl);
+    await perms.create({ code: "PM_LIST", name: "项目查看", category: 9 });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ code: "PM_LIST", name: "项目查看", category: 9 });
+  });
+
+  it("update PUT / remove DELETE 204", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 204, body: null }));
+    const perms = makeApi(PermissionsApi, impl);
+    await perms.update("p1", { name: "新名" });
+    expect(calls[0].init.method).toBe("PUT");
+    expect(await perms.remove("p1")).toBeUndefined();
+    expect(calls[1].init.method).toBe("DELETE");
+  });
+});
+
+describe("OrgUnitsApi", () => {
+  it("list 返回部门树（裸数组）", async () => {
+    const tree = [{ id: "org-1", parent_id: null, name: "总公司", code: "HQ", level: 1, sort_order: 1, status: "active", created_at: "", updated_at: "", children: [{ id: "org-2", parent_id: "org-1", name: "研发部", code: "RD", level: 2, sort_order: 1, status: "active", created_at: "", updated_at: "", children: [] }] }];
+    const { impl, calls } = fakeFetch(() => ({ status: 200, body: tree }));
+    const orgs = makeApi(OrgUnitsApi, impl);
+    const res = await orgs.list();
+    expect(calls[0].url).toBe("http://127.0.0.1:3000/v1/iam/org-units");
+    expect(res[0].children[0].code).toBe("RD");
+  });
+
+  it("create POST / assignUsers PUT {user_ids} 204", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 204, body: null }));
+    const orgs = makeApi(OrgUnitsApi, impl);
+    await orgs.create({ parent_id: "org-1", name: "测试部", code: "QA" });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ parent_id: "org-1", name: "测试部", code: "QA" });
+    await orgs.assignUsers("org-2", ["usr-1", "usr-2"]);
+    expect(calls[1].url).toBe("http://127.0.0.1:3000/v1/iam/org-units/org-2/users");
+    expect(JSON.parse(String(calls[1].init.body))).toEqual({ user_ids: ["usr-1", "usr-2"] });
+  });
+});
+
+describe("ApiKeysApi.list", () => {
+  it("透传 keyword/page/size 查询参数", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 200, body: { items: [], total: 0, page: 1, size: 10 } }));
+    const tokens = makeApi(TokensApi, impl);
+    await tokens.apiKeys.list({ keyword: "pm", page: 1, size: 10 });
+    expect(calls[0].url).toBe("http://127.0.0.1:3000/v1/api-keys?keyword=pm&page=1&size=10");
   });
 });
 
