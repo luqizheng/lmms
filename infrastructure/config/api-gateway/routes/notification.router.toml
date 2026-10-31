@@ -6,7 +6,7 @@ ws         = true
 
 [[route]]
 upstream   = "/v1/notification/health"
-downstream = "/notification/health"
+downstream = "/health"
 service    = "notification-service"
 public     = true
 

@@ -15,6 +15,6 @@ service    = "prue_backend"
 
 [[route]]
 upstream   = "/v1/pure/health"
-downstream = "/pure/health"
+downstream = "/health"
 service    = "prue_backend"
 public     = true
