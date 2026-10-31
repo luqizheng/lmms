@@ -189,6 +189,10 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      # JWKS 起动竞态修复：gateway 启动即拉取 JWKS，token-service 未就绪会缓存
+      # 空公钥 → 后续一律 "Invalid or expired token"（下游联调实测，须重启 gateway 自愈）
+      token-service:
+        condition: service_healthy
     networks:
       - superpowers
 
