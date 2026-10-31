@@ -48,7 +48,8 @@ export class HttpCore {
 
   constructor(options: IamServicesOptions) {
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    this.fetchImpl = options.fetch ?? fetch;
+    // bind：浏览器里裸 fetch 以方法调用会 Illegal invocation（Node 无此限制，测试未暴露）
+    this.fetchImpl = options.fetch ?? fetch.bind(globalThis);
     this.getToken = options.getToken;
     this.headers = { ...options.headers };
   }

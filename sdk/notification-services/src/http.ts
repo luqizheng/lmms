@@ -76,7 +76,7 @@ export class HttpCore {
 
   constructor(options: NotificationServicesOptions) {
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    this.fetchImpl = options.fetch ?? fetch;
+    this.fetchImpl = options.fetch ?? fetch.bind(globalThis);
     this.getToken = options.getToken;
     this.headers = { ...options.headers };
   }
