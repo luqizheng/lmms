@@ -165,6 +165,21 @@ export interface RoleQuery {
   size?: number;
 }
 
+export interface CreateRoleRequest {
+  name: string;
+  code: string;
+  description?: string;
+  /** 服务端 DTO 为必填 i32；响应中 data_scope 是字符串（不对称，照实镜像） */
+  data_scope: number;
+}
+
+export interface UpdateRoleRequest {
+  name?: string;
+  description?: string;
+  data_scope?: number;
+  status?: string;
+}
+
 // ---------- token（token-service，经网关 /v1/tokens、/v1/api-keys） ----------
 
 export type TokenGrantType = "client_credentials" | "authorization_code";

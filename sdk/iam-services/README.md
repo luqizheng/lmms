@@ -56,7 +56,7 @@ await iam.tokens.revoke({ token_jti: "…", expires_in: 300 });
 | | `listSessions` | `GET /v1/iam/auth/sessions` | Bearer |
 | | `revokeSession` | `DELETE /v1/iam/auth/sessions/{id}` | Bearer |
 | `users` | `page` / `pageSimple` / `get` / `create` / `update` / `remove` / `assignRoles` | `/v1/iam/users…` | Bearer |
-| `roles` | `list` / `get`（v1 只读） | `/v1/iam/roles…` | Bearer |
+| `roles` | `list` / `get` / `create` / `update` / `remove` | `/v1/iam/roles…` | Bearer |
 | `tokens` | `issueAccess` | `POST /v1/tokens/access` | 公开 |
 | | `refresh`（OAuth 链路） | `POST /v1/tokens/refresh` | 公开 |
 | | `revoke` | `POST /v1/tokens/revoke` | 公开 |

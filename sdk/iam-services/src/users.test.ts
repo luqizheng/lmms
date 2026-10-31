@@ -113,4 +113,28 @@ describe("RolesApi", () => {
     await roles.get("r/1");
     expect(calls[0].url).toBe("http://127.0.0.1:3000/v1/iam/roles/r%2F1");
   });
+
+  it("create POST 完整请求体（data_scope 必填数字）", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 200, body: { id: "r2", name: "访客", code: "guest", description: null, data_scope: "1", status: "active", created_at: "", updated_at: "" } }));
+    const roles = makeApi(RolesApi, impl);
+    const res = await roles.create({ name: "访客", code: "guest", data_scope: 1 });
+    expect(calls[0].init.method).toBe("POST");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "访客", code: "guest", data_scope: 1 });
+    expect(res.id).toBe("r2");
+  });
+
+  it("update PUT 部分字段", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 200, body: { id: "r1" } }));
+    const roles = makeApi(RolesApi, impl);
+    await roles.update("r1", { name: "新名", description: "d" });
+    expect(calls[0].init.method).toBe("PUT");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "新名", description: "d" });
+  });
+
+  it("remove DELETE 204", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 204, body: null }));
+    const roles = makeApi(RolesApi, impl);
+    expect(await roles.remove("r1")).toBeUndefined();
+    expect(calls[0].init.method).toBe("DELETE");
+  });
 });
