@@ -91,3 +91,8 @@ apps/pm/**/target/
 # npm 包的构建产物（由 pnpm run packages:build 生成）
 packages/*/dist
 sdk/iam-services/dist
+
+# 运行时令牌转储（含真实 JWT，禁止入库）
+infrastructure/login.json
+# compose 模板发布命令的构建产物
+/release/compose-template/
