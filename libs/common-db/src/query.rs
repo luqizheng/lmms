@@ -49,6 +49,21 @@
 //! （`.await` 发生在**同一个块内**，不要用 `async move { .. }.await` 把分支包起来，
 //! 否则 inline `format!()` 会在 await 之前 drop，触发 E0716）。
 //!
+//! ⚠️ **唯一不能传的形态是「临时值的 `&str`」**——即 `f().as_str()`：
+//!
+//! ```ignore
+//! db_execute!(pool, marker_ddl(dialect, T).as_str())?;  // ❌ E0716
+//! db_execute!(pool, marker_ddl(dialect, T))?;           // ✅ owned String
+//! ```
+//!
+//! 原因：宏展开成 `let __sql_val = $sql;`（把值搬进局部量）再 `let __sql_tpl: &str = &__sql_val;`。
+//! 传 `.as_str()` 时，`&str` 指向的临时 `String` 在那条 `let` 语句末就 drop 了，
+//! 借用比被借物活得久 → E0716。
+//!
+//! **通行规则**：字面量 ✅ / 指向存活期足够长的变量的 `&str` ✅ / owned `String` ✅ /
+//! 临时值的 `&str` ❌。这条比 `&$pool` 更隐蔽——`&$pool` 的错误指向调用点，
+//! 而 E0716 的错误信息会指向宏内部展开处，容易看不出是调用方 SQL 实参的问题。
+//!
 //! # feature 约定（重要）
 //!
 //! 宏内部的 `#[cfg(feature = "...")]` 在**调用方 crate** 求值（`cfg` 的求值主体
