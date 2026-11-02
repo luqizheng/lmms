@@ -57,7 +57,7 @@ async fn metrics() -> axum::response::Html<String> {
 }
 
 pub fn create_state(
-    pool: sqlx::MySqlPool,
+    pool: digua_common_db::DbPool,
     storage: Arc<dyn crate::storage::object_store::ObjectStore>,
     base_url: String,
     max_file_size: u64,

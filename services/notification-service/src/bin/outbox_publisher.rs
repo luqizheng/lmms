@@ -1,13 +1,17 @@
 //! Independent outbox publisher for notification-service (Phase 4.3).
 //! Polls `ntf_outbox_events` and publishes to RabbitMQ. Same image as
 //! notification-service, different CMD. Mirrors iam-service/src/bin/outbox_publisher.rs.
+//!
+//! 池按 URL 方言化（`digua_common_db::init_pool_with`，PG 分支锁会话时区 UTC）；
+//! `SqlOutboxRepo`（别名 `MySqlOutboxRepo`）本身就是方言通用的——claim_batch /
+//! mark_published 的 SQL 由库层按方言 render，本 bin 只需换池类型。
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use digua_common_db::DbPool;
 use digua_common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
-use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
 
 mod metrics {
@@ -145,11 +149,9 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "/var/run/prometheus/ntf_outbox.prom".to_string());
     let metrics_path_buf: PathBuf = Path::new(&metrics_path).to_path_buf();
 
-    let pool = MySqlPoolOptions::new()
-        .max_connections(8)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect(&db_url)
-        .await?;
+    let pool: DbPool = digua_common_db::init_pool_with(&db_url, 8)
+        .await
+        .map_err(|e| anyhow::anyhow!("DB_CONNECT: {e}"))?;
     let repo = MySqlOutboxRepo::with_table(pool, "ntf_outbox_events");
 
     let shutdown = Arc::new(AtomicBool::new(false));

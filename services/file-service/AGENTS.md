@@ -97,7 +97,7 @@ S3Storage 通过配置项覆盖 endpoint/path_style/region/access_key，不需�
 
 ## 表命名约定
 
-所有表必须以 `file_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+所有表必须以 `file_` 前缀（MySQL/PostgreSQL 共享 `superpowers` 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
 
 ## AI 检查时机
 

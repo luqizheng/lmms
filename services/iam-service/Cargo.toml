@@ -4,6 +4,17 @@ version = "0.1.0"
 edition = "2021"
 default-run = "iam_service"
 
+[features]
+# 方言 feature：default 只含 mysql，postgres 必须显式开启（D-9：postgres 不进 default）。
+# 宏 `db_*!` 内部的 #[cfg(feature = ...)] 在**调用方 crate** 求值，因此本 crate
+# 必须定义与 libs/common-db 同名的 feature，并把它们转发过去。
+default = ["mysql"]
+# digua_common_event 同名转发（S5d）：AnyTx::Postgres / SqlOutboxRepo 的
+# PG 分支都挂在它的 postgres feature 后面。
+mysql = ["sqlx/mysql", "digua_common_db/mysql", "digua_common/mysql", "digua_common_event/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres", "digua_common/postgres", "digua_common_event/postgres"]
+sqlite = ["sqlx/sqlite", "digua_common_db/sqlite", "digua_common/sqlite"]
+
 [dependencies]
 digua_common = { path = "../../libs/common" }
 digua_common_error = { path = "../../libs/common-error" }

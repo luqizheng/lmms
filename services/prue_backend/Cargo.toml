@@ -4,6 +4,18 @@ version = "0.1.0"
 edition = "2021"
 default-run = "prue_backend"
 
+[features]
+# 方言 feature：default 只含 mysql+sqlite，postgres 必须显式开启（D-9：postgres 不进 default）。
+# `DbPool` 的穷尽 match 已在本轮收敛（src/db.rs / src/routes/migration_state.rs 改走
+# `migration_state::probe_marker`，src/service/menu_config_svc.rs 的 9 对 match 消除），
+# 因此新增 Postgres 变体不再触发 E0004，可以安全提供第三个方言 feature。
+# 宏 `db_*!` 内部的 #[cfg(feature = ...)] 在**调用方 crate** 求值，因此本 crate
+# 必须定义与 libs/common-db 同名的 feature，并把它们转发过去。
+default = ["mysql", "sqlite"]
+mysql = ["sqlx/mysql", "digua_common_db/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres"]
+sqlite = ["sqlx/sqlite", "digua_common_db/sqlite"]
+
 [dependencies]
 digua_common_db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
 digua_common_jwt = { path = "../../libs/common-jwt" }

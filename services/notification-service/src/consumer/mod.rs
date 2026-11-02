@@ -5,11 +5,11 @@ pub mod placeholder;
 
 use std::time::Duration;
 
+use digua_common_db::DbPool;
 use digua_common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
 use digua_common_event::{
     span_from_envelope_trace_id, Consumer, Envelope, MySqlOutboxRepo, RabbitMqConsumer,
 };
-use sqlx::mysql::MySqlPool;
 use std::sync::Arc;
 use tracing::{info, warn, Instrument};
 
@@ -21,7 +21,7 @@ const BINDING: &str = "iam.user.created";
 const ANN_BINDING: &str = "notification.announcement.published";
 
 pub async fn run(
-    pool: MySqlPool,
+    pool: DbPool,
     redis: RedisCli,
     outbox_repo: Arc<MySqlOutboxRepo>,
     event_bus_url: String,
@@ -57,7 +57,7 @@ pub async fn run(
 }
 
 async fn try_subscribe(
-    pool: MySqlPool,
+    pool: DbPool,
     redis: RedisCli,
     outbox_repo: Arc<MySqlOutboxRepo>,
     event_bus_url: &str,

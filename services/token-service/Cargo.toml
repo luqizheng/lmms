@@ -14,6 +14,15 @@ testcontainers-modules = { version = "0.8", features = ["mysql"] }
 reqwest.workspace = true
 tempfile = "3"
 
+[features]
+# 方言 feature：default 只含 mysql，postgres 必须显式开启（D-9：postgres 不进 default）。
+# 宏 `db_*!` 内部的 #[cfg(feature = ...)] 在**调用方 crate** 求值，因此本 crate
+# 必须定义与 libs/common-db 同名的 feature，并把它们转发过去。
+default = ["mysql"]
+mysql = ["sqlx/mysql", "digua_common_db/mysql", "digua_common/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres", "digua_common/postgres"]
+sqlite = ["sqlx/sqlite", "digua_common_db/sqlite", "digua_common/sqlite"]
+
 [dependencies]
 digua_common = { path = "../../libs/common" }
 digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }

@@ -65,10 +65,16 @@ async fn spawn_shared(
     admin.close().await;
 
     let url = format!("mysql://root@{host}:{port}/{db_name}");
-    let pool = MySqlPool::connect(&url)
+    // ensure_schema 吃 DbPool（方言无关入口）；MySQL URL 建的就是 MySQL 池，
+    // 取回底层 MySqlPool 让既有断言（MySQL 方言 SQL）原样可用。
+    let dbpool = digua_common_db::init_pool_with(&url, 5)
         .await
-        .expect("connect test database");
-    db::ensure_schema(&pool).await.expect("ensure file schema");
+        .expect("connect to test database");
+    db::ensure_schema(&dbpool).await.expect("ensure file schema");
+    let pool = dbpool
+        .as_mysql()
+        .cloned()
+        .expect("mysql pool from DbPool");
 
     MysqlHandle {
         pool,
@@ -89,8 +95,14 @@ async fn spawn_local(
     let host = c.get_host().await.expect("mysql host");
     let port = c.get_host_port_ipv4(3306).await.expect("mysql port");
     let url = format!("mysql://root@{host}:{port}/test");
-    let pool = MySqlPool::connect(&url).await.expect("connect local mysql");
-    db::ensure_schema(&pool).await.expect("ensure file schema");
+    let dbpool = digua_common_db::init_pool_with(&url, 5)
+        .await
+        .expect("connect local mysql");
+    db::ensure_schema(&dbpool).await.expect("ensure file schema");
+    let pool = dbpool
+        .as_mysql()
+        .cloned()
+        .expect("mysql pool from DbPool");
 
     MysqlHandle {
         pool,

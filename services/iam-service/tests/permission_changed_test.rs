@@ -22,15 +22,16 @@ use iam_service::service::{AuthService, PermissionService, RoleService};
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
 
-const PREFIX: &str = "superpowers:";
+// redis prefix 每用例随机（见 setup）：共享 Redis 容器模式下避免并行用例
+// 的 perm_epoch 键互相污染（独立容器模式无此问题，随机 prefix 两侧都无害）。
 
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
+    prefix: String,
     _mysql: Option<common::MysqlContainer>,
-    _redis: testcontainers::ContainerAsync<Redis>,
+    _redis: Option<testcontainers::ContainerAsync<testcontainers_modules::redis::Redis>>,
 }
 
 async fn setup() -> Ctx {
@@ -38,11 +39,10 @@ async fn setup() -> Ctx {
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
-    let redis_c = Redis.start().await.unwrap();
-    let r_port = redis_c.get_host_port_ipv4(6379).await.unwrap();
-    let r_host = redis_c.get_host().await.unwrap();
-    let client = redis::Client::open(format!("redis://{r_host}:{r_port}")).unwrap();
-    let mgr = redis::aio::ConnectionManager::new(client).await.unwrap();
+    let redis_h = common::spawn_redis().await;
+    let prefix = format!("t:{}:", uuid::Uuid::new_v4().simple());
+    let r_url = redis_h.url.clone();
+    let mgr = redis_h.mgr;
 
     let config = Config {
         app: AppConfig {
@@ -56,9 +56,9 @@ async fn setup() -> Ctx {
             min_connections: 1,
         },
         redis: RedisConfig {
-            url: format!("redis://{r_host}:{r_port}"),
+            url: r_url.clone(),
             ttl_sec: 86400,
-            prefix: PREFIX.into(),
+            prefix: prefix.clone(),
         },
         jwt: JwtConfig {
             private_key_path: "/app/keys/private.pem".into(),
@@ -101,7 +101,7 @@ async fn setup() -> Ctx {
         server_uri.clone(),
     ));
     let state = AppState::new(
-        pool,
+        digua_common_db::DbPool::from(pool.clone()),
         cache,
         config,
         Some(mgr.clone()),
@@ -113,8 +113,9 @@ async fn setup() -> Ctx {
     Ctx {
         state,
         redis: mgr,
+        prefix,
         _mysql: mysql_h.container,
-        _redis: redis_c,
+        _redis: redis_h.container,
     }
 }
 
@@ -128,7 +129,7 @@ async fn seed_user(state: &AppState, id: &str) {
     .bind(id)
     .bind(id)
     .bind(id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -141,7 +142,7 @@ async fn seed_role(state: &AppState, id: &str) {
     .bind(id)
     .bind(id)
     .bind(id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -152,7 +153,7 @@ async fn seed_tenant_role(state: &AppState, tenant: i64, id: &str) {
          VALUES (?, ?, ?, ?, 'self', 'active', NOW(), NOW())",
     )
     .bind(id).bind(tenant).bind(id).bind(id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -165,7 +166,7 @@ async fn seed_permission(state: &AppState, id: &str) {
     .bind(id)
     .bind(id)
     .bind(id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -174,7 +175,7 @@ async fn assign_user_to_role(state: &AppState, user_id: &str, role_id: &str) {
     sqlx::query("INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())")
         .bind(user_id)
         .bind(role_id)
-        .execute(&state.db)
+        .execute(&common::mysql_of(state))
         .await
         .unwrap();
 }
@@ -188,7 +189,7 @@ async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
     .bind(id)
     .bind(slug)
     .bind(slug)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -199,7 +200,7 @@ async fn seed_tenant_user(state: &AppState, tenant: i64, uid: &str, password_has
          VALUES (?, ?, ?, ?, 's', ?, 'active', NOW(), NOW())",
     )
     .bind(uid).bind(tenant).bind(uid).bind(password_hash).bind(uid)
-    .execute(&state.db).await.unwrap();
+    .execute(&common::mysql_of(state)).await.unwrap();
 }
 
 async fn bind_permission_to_role(state: &AppState, role_id: &str, permission_id: &str) {
@@ -208,7 +209,7 @@ async fn bind_permission_to_role(state: &AppState, role_id: &str, permission_id:
     )
     .bind(role_id)
     .bind(permission_id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -219,7 +220,7 @@ async fn outbox_count(state: &AppState) -> i64 {
     let (n,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
     )
-    .fetch_one(&state.db)
+    .fetch_one(&common::mysql_of(state))
     .await
     .unwrap();
     n
@@ -237,7 +238,7 @@ async fn single_outbox_reason_and_users(state: &AppState) -> (String, BTreeSet<S
                 CAST(JSON_EXTRACT(envelope_json, '$.payload.user_ids') AS CHAR) \
          FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
     )
-    .fetch_one(&state.db)
+    .fetch_one(&common::mysql_of(state))
     .await
     .unwrap();
     let users: Vec<String> = serde_json::from_str(&users_json).unwrap();
@@ -247,7 +248,7 @@ async fn single_outbox_reason_and_users(state: &AppState) -> (String, BTreeSet<S
 // ---- redis assertions ----
 
 async fn assert_epoch_fresh(ctx: &mut Ctx, uid: &str, before: i64) {
-    let epoch = get_perm_epoch(&mut ctx.redis, PREFIX, uid)
+    let epoch = get_perm_epoch(&mut ctx.redis, &ctx.prefix, uid)
         .await
         .unwrap()
         .unwrap_or_else(|| panic!("perm_epoch missing for {uid}"));
@@ -257,7 +258,7 @@ async fn assert_epoch_fresh(ctx: &mut Ctx, uid: &str, before: i64) {
         "epoch {epoch} for {uid} not in [{before}, {after}]"
     );
     // TTL > 0
-    let key = perm_epoch_key(PREFIX, uid);
+    let key = perm_epoch_key(&ctx.prefix, uid);
     let ttl: i64 = redis::cmd("TTL")
         .arg(&key)
         .query_async(&mut ctx.redis)
@@ -267,7 +268,9 @@ async fn assert_epoch_fresh(ctx: &mut Ctx, uid: &str, before: i64) {
 }
 
 async fn assert_no_epoch(ctx: &mut Ctx, uid: &str) {
-    let epoch = get_perm_epoch(&mut ctx.redis, PREFIX, uid).await.unwrap();
+    let epoch = get_perm_epoch(&mut ctx.redis, &ctx.prefix, uid)
+        .await
+        .unwrap();
     assert_eq!(epoch, None, "expected no perm_epoch for {uid}");
 }
 
@@ -427,7 +430,7 @@ async fn assign_permissions_with_no_users_emits_nothing() {
     // role_permissions still applied (assignment itself succeeds)
     let (n,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM iam_role_permissions WHERE role_id = 'r1'")
-            .fetch_one(&ctx.state.db)
+            .fetch_one(&common::mysql_of(&ctx.state))
             .await
             .unwrap();
     assert_eq!(n, 1);
@@ -461,7 +464,7 @@ async fn assign_permissions_rolls_back_on_pk_violation() {
     // role_permissions unchanged: only the original p_existing remains
     let rows: Vec<String> =
         sqlx::query_scalar("SELECT permission_id FROM iam_role_permissions WHERE role_id = 'r1'")
-            .fetch_all(&ctx.state.db)
+            .fetch_all(&common::mysql_of(&ctx.state))
             .await
             .unwrap();
     assert_eq!(
@@ -507,7 +510,7 @@ async fn permission_changed_event_carries_actor_id() {
         "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.payload.actor_id')) AS CHAR) \
          FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     // mysql JSON_UNQUOTE on JSON null returns the string "null"; distinguish via the raw SELECT.
@@ -515,7 +518,7 @@ async fn permission_changed_event_carries_actor_id() {
         "SELECT JSON_EXTRACT(envelope_json, '$.payload.actor_id') \
          FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     let _ = actor; // suppress unused warning if first call returns "null"
@@ -542,7 +545,7 @@ async fn permission_changed_event_carries_real_tenant_id() {
         "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.tenant_id')) AS CHAR) \
          FROM iam_outbox_events WHERE event_type = 'iam.permission.changed' ORDER BY id DESC LIMIT 1",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(
@@ -570,7 +573,7 @@ async fn login_succeeded_event_carries_real_tenant_id() {
         "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.tenant_id')) AS CHAR) \
          FROM iam_outbox_events WHERE event_type = 'iam.login.succeeded' ORDER BY id DESC LIMIT 1",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(

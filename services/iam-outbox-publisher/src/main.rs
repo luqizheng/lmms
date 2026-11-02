@@ -23,7 +23,6 @@
 //! merge → hard error at startup.
 
 mod metrics;
-mod outbox_archive;
 
 use std::io::{ErrorKind, Write};
 use std::path::Path;
@@ -32,8 +31,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context};
-use digua_common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
-use sqlx::mysql::MySqlPoolOptions;
+use digua_common_db::DbPool;
+use digua_common_event::{
+    outbox_archive, MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher,
+};
 use tracing::{info, warn};
 
 /// Shared with iam-service; compile-time embedded. Both processes seed this
@@ -136,17 +137,18 @@ async fn main() -> anyhow::Result<()> {
     let metrics_path = std::env::var("METRICS_FILE_PATH")
         .unwrap_or_else(|_| "/var/run/prometheus/iam_outbox.prom".to_string());
 
-    let pool = MySqlPoolOptions::new()
-        .max_connections(8)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect(&db_url)
+    // 池按 URL 方言化（`digua_common_db::init_pool_with`，PG 分支锁会话时区 UTC）；
+    // `SqlOutboxRepo`（别名 `MySqlOutboxRepo`）本身就是方言通用的——claim_batch /
+    // mark_published 的 SQL 由库层按方言 render，本 bin 只需换池类型。
+    // （原 MySqlPoolOptions 显式 acquire_timeout 5s 由 init_pool_with 的统一默认替代。）
+    let pool: DbPool = digua_common_db::init_pool_with(&db_url, 8)
         .await
-        .context("connect mysql")?;
+        .map_err(|e| anyhow::anyhow!("DB_CONNECT: {e}"))?;
     let repo = MySqlOutboxRepo::new(pool.clone());
 
     // Phase 6-A T4: archive cron runs as a sibling tokio task. Uses a clone
-    // of the publisher's pool; multi-replica safety is handled by GET_LOCK
-    // inside outbox_archive::run_once.
+    // of the publisher's pool; multi-replica safety is handled by the dialect
+    // lock (GET_LOCK / pg_try_advisory_lock) inside the shared outbox_archive.
     {
         let archive_pool = pool.clone();
         tokio::spawn(async move {

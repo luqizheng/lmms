@@ -20,7 +20,7 @@ fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServer
     let pool = sqlx::mysql::MySqlPool::connect_lazy("mysql://placeholder").unwrap();
     let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap());
     token_service::TokenServerState {
-        db: token_service::db::DbPool::Mysql(pool),
+        db: token_service::db::DbPool::from(pool),
         issuer: std::sync::Arc::new(
             token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer"),
         ),

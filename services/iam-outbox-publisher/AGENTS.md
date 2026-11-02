@@ -17,7 +17,7 @@
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| DATABASE_URL | （必填或 CONFIG_PATH 兜底）| MySQL 连接串（iam-service 共享库 `superpowers`） |
+| DATABASE_URL | （必填或 CONFIG_PATH 兜底）| 数据库连接串（`mysql://` 或 `postgres://`，按 URL 前缀判方言）（iam-service 共享库 `superpowers`） |
 | CONFIG_PATH | `config/config.yaml` | `DATABASE_URL` 未设时，从 iam-service config YAML 兜底读 `database.url` |
 | EVENT_BUS_URL | `amqp://guest:guest@localhost:5672/%2f` | RabbitMQ AMQP URI |
 | EVENT_BUS_EXCHANGE | `events` | outbox publisher 投递目标 exchange（topic） |

@@ -11,7 +11,11 @@ pub struct FileInfo {
     pub size: i64,
     pub hash: Option<String>,
     pub storage_path: String,
-    pub tenant_id: u64,
+    /// 租户 ID。
+    /// 类型为 i64（而非 u64）：sqlx-postgres 无 unsigned 支持，u64 无法 FromRow 解码。
+    ///  手工保住 OpenAPI 的 minimum: 0，使 spec 零变更。
+    #[schema(minimum = 0)]
+    pub tenant_id: i64,
     pub user_id: Option<String>,
     pub is_temporary: bool,
     pub expires_at: Option<DateTime<Utc>>,
@@ -34,7 +38,9 @@ pub fn with_url(mut info: FileInfo) -> FileInfo {
 pub struct UploadFileMeta {
     pub filename: String,
     pub content_type: Option<String>,
-    pub tenant_id: Option<u64>,
+    /// 见 FileInfo::tenant_id 的类型说明。
+    #[schema(minimum = 0)]
+    pub tenant_id: Option<i64>,
     pub user_id: Option<String>,
     pub is_temporary: Option<bool>,
     pub expires_in_seconds: Option<i64>,

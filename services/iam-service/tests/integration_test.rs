@@ -44,7 +44,7 @@ mod tests {
         ));
         let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
         let state = AppState::new(
-            pool,
+            digua_common_db::DbPool::from(pool.clone()),
             cache,
             config.clone(),
             None,

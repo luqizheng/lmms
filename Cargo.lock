@@ -660,6 +660,7 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",
+ "uuid",
 ]
 
 [[package]]
@@ -1845,6 +1846,7 @@ version = "1.6.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "digua_common_db",
  "digua_common_telemetry",
  "futures-util",
  "lapin",
@@ -3031,6 +3033,7 @@ name = "iam_outbox_publisher"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "digua_common_db",
  "digua_common_event",
  "digua_common_telemetry",
  "prometheus",

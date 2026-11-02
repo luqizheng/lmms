@@ -44,12 +44,13 @@ fn test_public_pem() -> &'static str {
 fn build_app(pool: sqlx::MySqlPool) -> axum::Router {
     let jwks =
         Arc::new(JWKSCache::from_pem(test_public_pem()).expect("test public PEM must parse"));
-    let state = create_state(pool, jwks);
+    // `create_state` 自 DbPool 改造后接受方言无关句柄；MySQL 测试直接 From 转换即可。
+    let state = create_state(pool.into(), jwks);
     routes::routes(state)
 }
 
 /// Insert a namespace row directly, bypassing create flow (faster, isolates HTTP-path test).
-async fn seed_namespace(pool: &sqlx::MySqlPool, tenant_id: u64, app: &str) -> String {
+async fn seed_namespace(pool: &sqlx::MySqlPool, tenant_id: i64, app: &str) -> String {
     let id = Uuid::new_v4().to_string();
     let profile = format!("profile-{}", id);
     sqlx::query(

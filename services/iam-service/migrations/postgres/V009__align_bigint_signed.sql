@@ -1,0 +1,4 @@
+-- iam-service PostgreSQL V009 — 空操作文件（与 mysql V009 同版本号对齐）。
+-- PG 侧 V001/V003/V004 建表/加列时即无 UNSIGNED（id 为 IDENTITY BIGINT，
+-- tenant_id 为 BIGINT），无需任何变更。保留此文件使两侧版本号一一对应，
+-- marker 哨兵表由 ensure_schema 统一建（两侧语义一致：记录已应用）。

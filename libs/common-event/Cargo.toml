@@ -5,6 +5,15 @@ license = "Apache-2.0"
 description = "Transactional outbox and event envelope types for KudiCoder services"
 edition = "2021"
 
+[features]
+# 方言 feature：与 digua_common_db 同名并**转发**（锁步不变式）。
+# 宏/条件编译在**调用方 crate** 求值，因此本 crate 必须同名转发，
+# 否则「库有 PG 变体、本 crate 无 PG 分支」会编译失败。
+# default 只含 mysql（D-9：postgres 不进 default）。
+default = ["mysql"]
+mysql = ["sqlx/mysql", "digua_common_db/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres"]
+
 [dependencies]
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
@@ -12,7 +21,8 @@ futures-util = "0.3"
 lapin = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8", features = ["runtime-tokio", "macros", "json", "chrono", "uuid", "mysql"] }
+# `mysql` / `postgres` 由本 crate 的 feature 转译，不在此硬写。
+sqlx = { version = "0.8", features = ["runtime-tokio", "macros", "json", "chrono", "uuid"] }
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
@@ -22,6 +32,7 @@ redis = { workspace = true }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
 digua_common_telemetry = { path = "../common-telemetry", default-features = false }
+digua_common_db = { path = "../common-db" }
 
 [dev-dependencies]
 testcontainers = "0.20"

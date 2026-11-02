@@ -7,7 +7,6 @@ use digua_common_db::migration_state::{
     self, MigrationDescriptor, MigrationState, MigrationStateResponse,
 };
 use serde_json::json;
-use sqlx::MySqlPool;
 use utoipa::path as to_path;
 
 use crate::db::DbPool;
@@ -42,11 +41,15 @@ impl MigrationState for TokenMigrationState {
     }
 }
 
-async fn probe_applied(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
+async fn probe_applied(pool: &DbPool) -> Result<Vec<String>, sqlx::Error> {
     let state = TokenMigrationState;
     let mut applied = Vec::with_capacity(state.migrations().len());
     for m in state.migrations() {
-        if migration_state::probe_marker_mysql(pool, m.marker_table).await? {
+        // 统一入口：内部按后端选 probe_marker_{mysql,postgres}，不再手写方言 match。
+        if migration_state::probe_marker(pool, m.marker_table)
+            .await
+            .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?
+        {
             applied.push(m.version.to_string());
         }
     }
@@ -66,9 +69,8 @@ async fn probe_applied(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
     tag = "internal",
 )]
 pub async fn handler(State(state): State<TokenServerState>) -> impl IntoResponse {
-    let DbPool::Mysql(pool) = state.db;
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =
-        match probe_applied(&pool).await {
+        match probe_applied(&state.db).await {
             Ok(applied) => Ok(migration_state::build_response(
                 &TokenMigrationState,
                 applied,

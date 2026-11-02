@@ -6,8 +6,8 @@ use axum::{
 use digua_common_db::migration_state::{
     self, MigrationDescriptor, MigrationState, MigrationStateResponse,
 };
+use digua_common_db::DbPool;
 use serde_json::json;
-use sqlx::MySqlPool;
 use utoipa::path as to_path;
 
 use crate::services::ConfigService;
@@ -37,11 +37,14 @@ impl MigrationState for ConfigMigrationState {
     }
 }
 
-async fn probe_applied(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
+async fn probe_applied(pool: &DbPool) -> Result<Vec<String>, sqlx::Error> {
     let state = ConfigMigrationState;
     let mut applied = Vec::with_capacity(state.migrations().len());
     for m in state.migrations() {
-        if migration_state::probe_marker_mysql(pool, m.marker_table).await? {
+        if migration_state::probe_marker(pool, m.marker_table)
+            .await
+            .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?
+        {
             applied.push(m.version.to_string());
         }
     }
@@ -60,7 +63,7 @@ async fn probe_applied(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
     security(("bearer_auth" = [])),
     tag = "internal",
 )]
-pub async fn handler(Extension(pool): Extension<MySqlPool>) -> impl IntoResponse {
+pub async fn handler(Extension(pool): Extension<DbPool>) -> impl IntoResponse {
     match probe_applied(&pool).await {
         Ok(applied) => {
             let resp = migration_state::build_response(&ConfigMigrationState, applied);

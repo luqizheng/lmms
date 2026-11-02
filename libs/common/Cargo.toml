@@ -5,6 +5,12 @@ license = "Apache-2.0"
 description = "Facade crate re-exporting digua_common-error/digua_common-db/digua_common-crypto for KudiCoder services"
 edition = "2021"
 
+[features]
+default = ["mysql"]
+mysql = ["sqlx/mysql", "digua_common_db/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres"]
+sqlite = ["sqlx/sqlite", "digua_common_db/sqlite"]
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
@@ -12,11 +18,11 @@ thiserror.workspace = true
 uuid.workspace = true
 argon2.workspace = true
 anyhow = "1"
-sqlx = { workspace = true, features = ["mysql"] }
+sqlx = { workspace = true }
 redis.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 
 digua_common_error = { path = "../common-error" }
-digua_common_db = { path = "../common-db", features = ["mysql"] }
+digua_common_db = { path = "../common-db" }
 digua_common_crypto = { path = "../common-crypto" }

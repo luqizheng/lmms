@@ -98,7 +98,7 @@ async fn setup() -> Ctx {
         server_uri.clone(),
     ));
     let state = AppState::new(
-        pool,
+        digua_common_db::DbPool::from(pool.clone()),
         cache,
         config,
         None,
@@ -126,7 +126,7 @@ async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
     .bind(id)
     .bind(slug)
     .bind(slug)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -371,7 +371,7 @@ async fn platform_admin_point_query_cross_tenant() {
          VALUES (?, 'role-platform-admin-seed', NOW())",
     )
     .bind(&default_admin.id)
-    .execute(&ctx.state.db)
+    .execute(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
 

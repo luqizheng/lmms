@@ -1,6 +1,6 @@
 use digua_common_event::consumer::{Consumer, RabbitMqConsumer};
 use digua_common_event::events::IamUserCreated;
-use digua_common_event::outbox::{MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::outbox::{AnyTx, MySqlOutboxRepo, OutboxRepo};
 use digua_common_event::publisher_loop::{OutboxPublisher, OutboxPublisherOptions};
 use digua_common_event::{Envelope, Publisher, RabbitMqPublisher};
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
@@ -124,7 +124,7 @@ async fn outbox_loop_publishes_and_consumer_receives() {
         },
     );
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut tx, &mut env).await.unwrap();
+    repo.enqueue(&mut AnyTx::Mysql(&mut tx), &mut env).await.unwrap();
     tx.commit().await.unwrap();
 
     // Run the outbox publisher once — it should publish the pending row.

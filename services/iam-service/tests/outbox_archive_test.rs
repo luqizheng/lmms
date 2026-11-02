@@ -8,7 +8,14 @@
 
 mod common;
 
+/// GET_LOCK / pg_try_advisory_lock 是**服务器级**锁：共享 MySQL 容器模式
+/// （TEST_MYSQL_HOST）下并行用例会互抢 `iam_outbox_archive` 锁名，导致拿不到锁
+/// 的用例归档断言落空（时序 flaky）。进程内串行化规避；CI 的独立容器模式
+/// 无此问题，串行只是让本地共享模式与 CI 等价。
+static SERIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 use chrono::{Duration as ChronoDuration, Utc};
+use digua_common_db::DbPool;
 use iam_service::outbox_archive;
 use sqlx::{QueryBuilder, Row};
 use std::sync::Arc;
@@ -81,6 +88,7 @@ async fn count(pool: &sqlx::MySqlPool, table: &str) -> i64 {
 
 #[tokio::test]
 async fn archive_moves_published_rows_older_than_24h() {
+    let _serial = SERIALIZE.lock().await;
     let ctx = setup().await;
     insert_outbox_row(
         &ctx.pool,
@@ -95,7 +103,9 @@ async fn archive_moves_published_rows_older_than_24h() {
     )
     .await;
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -107,10 +117,13 @@ async fn archive_moves_published_rows_older_than_24h() {
 
 #[tokio::test]
 async fn archive_skips_unpublished_rows() {
+    let _serial = SERIALIZE.lock().await;
     let ctx = setup().await;
     insert_outbox_row(&ctx.pool, "ev.unpublished", None).await;
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -122,6 +135,7 @@ async fn archive_skips_unpublished_rows() {
 
 #[tokio::test]
 async fn archive_batches_at_1000() {
+    let _serial = SERIALIZE.lock().await;
     let ctx = setup().await;
     bulk_insert_outbox_rows(
         &ctx.pool,
@@ -131,7 +145,9 @@ async fn archive_batches_at_1000() {
     )
     .await;
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -143,6 +159,7 @@ async fn archive_batches_at_1000() {
 
 #[tokio::test]
 async fn archive_get_lock_prevents_concurrent_runs() {
+    let _serial = SERIALIZE.lock().await;
     let ctx = Arc::new(setup().await);
     // 插入一条 25h 前的行，应被归档
     insert_outbox_row(
@@ -160,7 +177,9 @@ async fn archive_get_lock_prevents_concurrent_runs() {
         .unwrap();
 
     // run_once 应观察到 acquired=0 → 跳过
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
     // 关键断言：行未被归档（锁阻止了 run_once 进入）
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -179,6 +198,7 @@ async fn archive_get_lock_prevents_concurrent_runs() {
 
 #[tokio::test]
 async fn run_once_releases_lock_on_completion() {
+    let _serial = SERIALIZE.lock().await;
     // 回归测：C1 fix — GET_LOCK/RELEASE_LOCK 必须绑同一 connection。
     // 旧实现 GET_LOCK 一个 conn、RELEASE_LOCK 另一个 conn，session-scoped 锁泄漏 8h。
     let ctx = setup().await;
@@ -190,7 +210,9 @@ async fn run_once_releases_lock_on_completion() {
         .unwrap();
     assert_eq!(free_before, 1, "lock must be free before run_once");
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
 
     // 关键：run_once 返回后，锁必须被释放（同 conn 释放）
     let (free_after,): (i64,) = sqlx::query_as("SELECT IS_FREE_LOCK('iam_outbox_archive')")
@@ -202,6 +224,7 @@ async fn run_once_releases_lock_on_completion() {
 
 #[tokio::test]
 async fn purge_deletes_old_archive_rows() {
+    let _serial = SERIALIZE.lock().await;
     let ctx = setup().await;
     // 构造一行 archived 31 天前的 archive 行
     sqlx::query(
@@ -213,7 +236,9 @@ async fn purge_deletes_old_archive_rows() {
     .await
     .unwrap();
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events_archive").await,
@@ -224,6 +249,7 @@ async fn purge_deletes_old_archive_rows() {
 
 #[tokio::test]
 async fn archive_window_picks_up_late_published() {
+    let _serial = SERIALIZE.lock().await;
     // 模拟：窗口内 publisher 抢先 published 了一条原本未 published 的行
     // 由于二次 WHERE 包含 published_at < NOW(3) - INTERVAL 24 HOUR，
     // 该行此刻 published_at 仍 < 25h ago，会被一并归档
@@ -242,7 +268,9 @@ async fn archive_window_picks_up_late_published() {
     .await;
 
     // 第一次 run_once 搬运 old
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
     assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 1);
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 1);
 
@@ -254,13 +282,16 @@ async fn archive_window_picks_up_late_published() {
         .await
         .unwrap();
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone()))
+        .await
+        .unwrap();
     assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 0);
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 2);
 }
 
 #[tokio::test]
 async fn publisher_main_loop_unaffected_during_archive() {
+    let _serial = SERIALIZE.lock().await;
     // 起 archive task 后灌 50 行 unpublished,主循环（手动模拟）
     // 应能正常 claim_batch + mark_published
     let ctx = setup().await;
@@ -270,7 +301,9 @@ async fn publisher_main_loop_unaffected_during_archive() {
 
     let pool_arc = ctx.pool.clone();
     let handle = tokio::spawn(async move {
-        outbox_archive::run_once(&pool_arc).await.unwrap();
+        outbox_archive::run_once(&DbPool::from(pool_arc))
+            .await
+            .unwrap();
     });
     handle.await.unwrap();
 

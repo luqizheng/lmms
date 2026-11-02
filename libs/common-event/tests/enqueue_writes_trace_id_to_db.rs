@@ -10,7 +10,7 @@
 
 use digua_common_event::envelope::Envelope;
 use digua_common_event::event::Event;
-use digua_common_event::outbox::{MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::outbox::{AnyTx, MySqlOutboxRepo, OutboxRepo};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 use testcontainers::runners::AsyncRunner;
@@ -67,7 +67,7 @@ async fn enqueue_writes_caller_supplied_trace_id_to_db() {
     let mut env = Envelope::new("test", TestPayload).with_trace_id("test-trace-fixed");
 
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut tx, &mut env).await.unwrap();
+    repo.enqueue(&mut AnyTx::Mysql(&mut tx), &mut env).await.unwrap();
     tx.commit().await.unwrap();
 
     let row: (serde_json::Value,) =

@@ -125,7 +125,9 @@ pub async fn publish(
     State(s): State<RestState>,
     me: Identity,
     scope: TenantScope,
-    Path(id): Path<u64>,
+    // 全链路 i64（S1 清单）：utoipa `params` 声明保留 `u64` 使 openapi.yaml 零 diff
+    // （id 恒非负，minimum: 0 语义仍成立）。
+    Path(id): Path<i64>,
 ) -> AppResult<Json<serde_json::Value>> {
     if !me.is_admin() {
         return Err(AppError::Forbidden);
@@ -150,7 +152,7 @@ pub async fn publish(
 pub async fn revoke(
     State(s): State<RestState>,
     me: Identity,
-    Path(id): Path<u64>,
+    Path(id): Path<i64>,
 ) -> AppResult<Json<serde_json::Value>> {
     if !me.is_admin() {
         return Err(AppError::Forbidden);
@@ -173,7 +175,7 @@ pub async fn revoke(
 pub async fn detail(
     State(s): State<RestState>,
     _me: Identity,
-    Path(id): Path<u64>,
+    Path(id): Path<i64>,
 ) -> AppResult<Json<Announcement>> {
     s.db.get(id).await?.map(Json).ok_or(AppError::NotFound)
 }
@@ -217,7 +219,7 @@ pub async fn list_mine(
 pub async fn read_one(
     State(s): State<RestState>,
     me: Identity,
-    Path(id): Path<u64>,
+    Path(id): Path<i64>,
 ) -> AppResult<Json<serde_json::Value>> {
     let affected = s.db.mark_read(id, me.user_id.clone()).await?;
     if affected {

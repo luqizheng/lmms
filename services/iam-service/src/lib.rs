@@ -6,7 +6,7 @@ pub mod error;
 pub mod middleware;
 pub mod models;
 pub mod openapi;
-pub mod outbox_archive;
+pub use digua_common_event::outbox_archive;
 pub mod routes;
 pub mod service;
 pub mod state;

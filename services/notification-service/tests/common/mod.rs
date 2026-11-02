@@ -19,6 +19,19 @@ pub struct DbHandle {
     pub container: Option<MysqlContainer>,
 }
 
+/// 既有集成用例的 seed / 断言 SQL 是 MySQL 方言（`JSON_EXTRACT`、`CAST(? AS JSON)` 等），
+/// 而 `Db.pool` 已改为方言无关 `DbPool`。这里经 `as_mysql()` 取回底层 MySQL 池，
+/// 让旧 SQL 原样跑在共享 MySQL 容器上（PG 往返由 `pg_roundtrip_test.rs` 单独覆盖，
+/// 其断言走 `as_postgres()` + PG 方言 SQL）。
+// common/mod.rs 按测试二进制各编译一份，不用它的用例（membership_projection_test）会报 dead_code。
+#[allow(dead_code)]
+pub fn mysql_pool(db: &Db) -> sqlx::MySqlPool {
+    db.pool
+        .as_mysql()
+        .cloned()
+        .expect("mysql pool (these tests run against the shared mysql container)")
+}
+
 pub async fn spawn_db() -> DbHandle {
     match (
         std::env::var("TEST_MYSQL_HOST").ok(),

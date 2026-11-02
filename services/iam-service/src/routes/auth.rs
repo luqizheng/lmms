@@ -13,9 +13,9 @@ use axum::{
     routing::{delete, get, post, put},
     Json as AxumJson, Router,
 };
+use digua_common_db::db_fetch_one;
 use digua_jwt_ctx::{Principal, TenantScope};
 use serde_json;
-use sqlx;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -215,16 +215,18 @@ async fn register(
     State(state): State<AppState>,
     Json(req): Json<CreateUserRequest>,
 ) -> Result<(StatusCode, AxumJson<UserResponse>), (StatusCode, &'static str)> {
-    let user_count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL")
-            .fetch_one(&state.db)
-            .await
-            .map_err(|e| {
-                tracing::error!("count users failed: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
-            })?;
+    // 池级单语句 → db_fetch_one! 宏（COUNT(*) 两侧均产 i64）。
+    let (user_count,): (i64,) = db_fetch_one!(
+        &state.db,
+        (i64,),
+        "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
+    )
+    .map_err(|e| {
+        tracing::error!("count users failed: {:?}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
+    })?;
 
-    if user_count.0 > 0 {
+    if user_count > 0 {
         return Err((StatusCode::FORBIDDEN, "registration closed"));
     }
 
@@ -249,14 +251,15 @@ async fn register(
 async fn setup_status(
     State(state): State<AppState>,
 ) -> Result<AxumJson<serde_json::Value>, (StatusCode, &'static str)> {
-    let user_count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL")
-            .fetch_one(&state.db)
-            .await
-            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+    let (user_count,): (i64,) = db_fetch_one!(
+        &state.db,
+        (i64,),
+        "SELECT COUNT(*) FROM iam_users WHERE deleted_at IS NULL"
+    )
+    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
 
     Ok(AxumJson(serde_json::json!({
-        "setup_required": user_count.0 == 0,
-        "user_count": user_count.0,
+        "setup_required": user_count == 0,
+        "user_count": user_count,
     })))
 }

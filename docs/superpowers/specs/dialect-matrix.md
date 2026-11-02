@@ -136,13 +136,30 @@ let pool = DbPool::from_url("sqlite://...");  // -> Sqlite
 
 ## 测试矩阵
 
-| 触发条件 | MySQL | 达梦 | MSSQL | SQLite |
-|----------|-------|------|-------|--------|
-| PR 合并 | ✓ | - | - | ✓ |
-| 代码变更 | ✓ | - | - | ✓ |
-| 每日定时 | ✓ | ✓ | ✓ | ✓ |
-| `[dameng]` commit | ✓ | ✓ | - | ✓ |
-| `[mssql]` commit | ✓ | - | ✓ | ✓ |
+| 触发条件 | MySQL | 达梦 | MSSQL | SQLite | PostgreSQL |
+|----------|-------|------|-------|--------|------------|
+| PR 合并 | ✓ | - | - | ✓ | ✓（dialect-matrix CI job） |
+| 代码变更 | ✓ | - | - | ✓ | ✓ |
+| 每日定时 | ✓ | ✓ | ✓ | ✓ | - |
+| `[dameng]` commit | ✓ | ✓ | - | ✓ | - |
+| `[mssql]` commit | ✓ | - | ✓ | ✓ | - |
+
+## 服务 × 方言支持矩阵（2026-11 服务层全量 PG 支持后）
+
+| 服务 | MySQL | PostgreSQL | SQLite | PG 测试入口 |
+|------|-------|------------|--------|-------------|
+| prue_backend | ✅ | ✅ | ✅ | 单测（`--features mysql,postgres`） |
+| config-service | ✅ | ✅ | - | `tests/pg_roundtrip_test.rs` |
+| file-service | ✅ | ✅ | - | `tests/pg_roundtrip_test.rs` |
+| audit-service | ✅ | ✅ | - | `tests/pg_roundtrip_test.rs` |
+| token-service | ✅ | ✅ | - | `tests/pg_roundtrip_test.rs` |
+| notification-service | ✅ | ✅ | - | `tests/pg_roundtrip_test.rs` |
+| iam-service | ✅ | ✅ | - | `tests/pg_roundtrip_test.rs` |
+| iam-outbox-publisher | ✅ | ✅ | - | 随 iam（池/repo 方言通用，归档全链在 `libs/common-event/tests/outbox_pg_test.rs`） |
+
+- ✅ = 双后端编译通过 + 双后端集成测试通过（`--features postgres` + `TEST_PG_URL` 外部容器模式，未设时 `[skip]`）。
+- MySQL 侧为 default feature，既有共享容器测试（`TEST_MYSQL_HOST/PORT`）零改动。
+- 方言差异收敛两层：`libs/common-db` 的 `sql::render` + `db_*!` 宏（SQL 单份源码）；运行时无法统一的点（`ON CONFLICT`/`STRING_AGG`/advisory lock 等）在服务层显式 match 双臂并带注释。详见 `contracts/db-conventions.md` 的 PG 类型映射章节。
 
 ## 已知差异
 

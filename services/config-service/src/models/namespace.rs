@@ -6,7 +6,15 @@ use utoipa::{IntoParams, ToSchema};
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Namespace {
     pub id: String,
-    pub tenant_id: u64,
+    // 全链路 i64：sqlx-postgres 没有任何 unsigned 支持，u64 在 PG 上既不能 bind 也不能解码
+    // （MySQL 侧同样已由 V003 迁移改成有符号 BIGINT）。
+    //
+    // `#[schema(minimum = 0)]` 是为了让 OpenAPI spec 与改造前的 `u64` **零 diff**：
+    // utoipa 对 `u64` 自动产出 `minimum: 0`，换成 `i64` 后该约束会消失，需显式声明。
+    // ⚠️ 这段说明刻意写成 `//` 而非 `///`——utoipa 会把文档注释渲染进 spec 的
+    // `description`，那会给 `openapi.yaml` 引入非预期 diff（CI 有 `git diff --exit-code`）。
+    #[schema(minimum = 0)]
+    pub tenant_id: i64,
     pub app: String,
     pub env: String,
     pub profile: Option<String>,

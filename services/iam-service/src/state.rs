@@ -1,15 +1,15 @@
 use crate::config::Config;
 use crate::service::TokenForwardClient;
 use digua_common_cache::MemoryCache;
+use digua_common_db::DbPool;
 use digua_common_event::MySqlOutboxRepo;
 use digua_common_jwt::{JWKSCache, ServiceJwtCache};
 use digua_jwt_ctx::PrincipalStateProvider;
-use sqlx::mysql::MySqlPool;
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: MySqlPool,
+    pub db: DbPool,
     pub cache: Arc<MemoryCache>,
     pub config: Arc<Config>,
     pub redis: Option<redis::aio::ConnectionManager>,
@@ -28,7 +28,7 @@ pub struct AppState {
 impl AppState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        db: MySqlPool,
+        db: DbPool,
         cache: MemoryCache,
         config: Config,
         redis: Option<redis::aio::ConnectionManager>,

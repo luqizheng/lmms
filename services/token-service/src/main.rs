@@ -54,19 +54,15 @@ async fn main() {
     println!("consul.address        : {}", cfg.consul.addr);
     println!("=========================================");
 
+    // 只建一次池、跑一次迁移（历史上这里被复制成两段，重复连库 + 重复迁移）。
     let db = token_service::db::init_pool(&cfg.database)
         .await
-        .expect("failed to connect to mysql");
-    tracing::info!("connected to mysql at {:?}", cfg.database.url);
-
-    token_service::db::ensure_schema(&db)
-        .await
-        .expect("ensure schema");
-
-    let db = token_service::db::init_pool(&cfg.database)
-        .await
-        .expect("failed to connect to mysql");
-    tracing::info!("connected to mysql at {:?}", cfg.database.url);
+        .expect("failed to connect to database");
+    tracing::info!(
+        dialect = ?db.dialect(),
+        "connected to database at {:?}",
+        cfg.database.url
+    );
 
     token_service::db::ensure_schema(&db)
         .await

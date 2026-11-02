@@ -8,10 +8,10 @@ use crate::error::AppResult;
 use crate::models::RetentionPolicy;
 use crate::services::{AuditService, CleanupService};
 use axum::{middleware as axum_mw, routing::get, Router};
+use digua_common_db::DbPool;
 use digua_common_jwt::JWKSCache;
 use digua_jwt_ctx::PrincipalStateProvider;
 use prometheus::{Encoder, TextEncoder};
-use sqlx::mysql::MySqlPool;
 use std::sync::Arc;
 
 pub type AppState = Arc<AppServices>;
@@ -24,7 +24,7 @@ pub struct AppServices {
 }
 
 impl AppServices {
-    pub async fn new(pool: MySqlPool, jwks: Arc<JWKSCache>) -> AppResult<Self> {
+    pub async fn new(pool: DbPool, jwks: Arc<JWKSCache>) -> AppResult<Self> {
         let policy = RetentionPolicy::default();
         let audit = AuditService::new(&pool);
         let cleanup = CleanupService::new(&pool, policy);
@@ -88,7 +88,7 @@ async fn metrics() -> axum::response::Html<String> {
     axum::response::Html(String::from_utf8(buffer).unwrap())
 }
 
-pub fn create_state(pool: MySqlPool, jwks: Arc<JWKSCache>) -> AppState {
+pub fn create_state(pool: DbPool, jwks: Arc<JWKSCache>) -> AppState {
     Arc::new(AppServices {
         audit: AuditService::new(&pool),
         cleanup: CleanupService::new(&pool, RetentionPolicy::default()),

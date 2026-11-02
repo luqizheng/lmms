@@ -7,13 +7,14 @@
 //! out-of-order events (see spec §3.6 D6).
 
 use digua_common_event::events::{IamUserDeptChanged, IamUserRoleAssigned, IamUserRoleUnassigned};
-use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
-use sqlx::{MySql, Transaction};
+use digua_common_event::{AnyTx, Envelope, MySqlOutboxRepo, OutboxRepo};
 
 use crate::error::IamError;
 
+/// 事务参数是 `AnyTx`：调用方在方言臂内以 `AnyTx::Mysql(&mut tx)` /
+/// `AnyTx::Postgres(&mut tx)` 包装（函数体内无裸 SQL，enqueue 本身方言通用）。
 pub async fn enqueue_role_assigned(
-    tx: &mut Transaction<'_, MySql>,
+    tx: &mut AnyTx<'_, '_>,
     repo: &MySqlOutboxRepo,
     user_id: &str,
     role_id: &str,
@@ -38,7 +39,7 @@ pub async fn enqueue_role_assigned(
 }
 
 pub async fn enqueue_role_unassigned(
-    tx: &mut Transaction<'_, MySql>,
+    tx: &mut AnyTx<'_, '_>,
     repo: &MySqlOutboxRepo,
     user_id: &str,
     role_id: &str,
@@ -63,7 +64,7 @@ pub async fn enqueue_role_unassigned(
 }
 
 pub async fn enqueue_dept_changed(
-    tx: &mut Transaction<'_, MySql>,
+    tx: &mut AnyTx<'_, '_>,
     repo: &MySqlOutboxRepo,
     user_id: &str,
     dept_id: Option<&str>,
