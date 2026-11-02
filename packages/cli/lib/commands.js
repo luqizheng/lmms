@@ -8,6 +8,12 @@
 const COMMANDS = {
   version: {
     summary: 'print coder and node versions',
+    spec: {
+      summary: 'print coder and node versions',
+      usage: 'coder version',
+      examples: ['coder version', 'coder version --json'],
+      flags: {},
+    },
     run: async () => ({
       data: { node: process.version, cli: require('../package.json').version },
       human: [`coder ${require('../package.json').version}`, `node ${process.version}`],

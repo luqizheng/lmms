@@ -39,6 +39,26 @@ async function promptInteractive(out) {
 const commands = {
   'build images': {
     summary: 'build (and push) service images via buildx; `prune` clears cargo build cache',
+    spec: {
+      summary: 'build (and push) service images via buildx; `prune` clears cargo build cache',
+      usage: 'coder build images [services...] [-v <ver>] [--push|--load-and-push] [-p linux/amd64,...]',
+      examples: [
+        'coder build images api-gateway -v 1.7.0 --push',
+        'coder build images prune',
+      ],
+      // Short options (-v, -p), service-name positionals and the `prune`
+      // sub-verb use a bespoke grammar — the generic validator does not apply.
+      parse: 'custom',
+      flags: {
+        '--version': { type: 'value', desc: 'image tag version (short form -v)' },
+        '--platform': { type: 'value', desc: 'comma-separated target platforms (short form -p)' },
+        '--push': { type: 'flag', desc: 'push to the registry' },
+        '--load-and-push': { type: 'flag', desc: 'load into the local daemon, then push' },
+        '--registry': { type: 'value', desc: 'registry host' },
+        '--repo': { type: 'value', desc: 'registry repository prefix' },
+      },
+      positional: { name: 'services', variadic: true, desc: 'service names (default: all)' },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('build images requires a repo context (--cwd)');
       const parsed = parseBuildArgs(args);
