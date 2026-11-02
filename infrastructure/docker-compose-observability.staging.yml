@@ -19,7 +19,7 @@
 
 services:
   loki:
-    image: ${BASE_REGISTRY}grafana/loki:3.3.2
+    image: ${loki:-grafana/loki:3.3.2}
     container_name: loki-staging
     restart: unless-stopped
     command: -config.file=/etc/loki/loki-staging.yaml
@@ -37,7 +37,7 @@ services:
       - superpowers
 
   promtail:
-    image: ${BASE_REGISTRY}grafana/promtail:3.3.2
+    image: ${promtail:-grafana/promtail:3.3.2}
     container_name: promtail-staging
     restart: unless-stopped
     command: -config.file=/etc/promtail/promtail-staging.yaml

@@ -21,6 +21,8 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const IMAGES_DIR = path.join(ROOT, 'images');
+// 镜像名解析与 release.js / release-deploy.js 共用同一模块，保证三条路径一致。
+const { scanComposeImages } = require('../scripts/image-resolver.js');
 
 // ── arg parsing ──
 const args = process.argv.slice(2);
@@ -60,27 +62,14 @@ if (mode === 'load') {
 console.log(`[load-images] mode=pull：扫描 compose 中 image: 引用并 docker pull（tag=${tagOverride}）`);
 const INFRA_DIR = path.join(ROOT, 'infrastructure');
 
-// compose 里基础设施层 / observability 层用 ${BASE_REGISTRY} / ${REGISTRY}
-// 占位符（不是字面 registry），load-images 不能像 compose 那样从 .env 读。
-// 内置 fallback：CI 已 export 这两个 ENV；本地手跑时用项目惯用值。
-//
-// 统一保证尾斜杠：
-//   - compose 约定 ${BASE_REGISTRY}mysql:8.0（占位符紧贴镜像名，不带额外 /）
-//   - 若 CI 变量漏写尾斜杠（如 .../official 而非 .../official/），字符串插值会拼出
-//     .../officialmysql 这种畸形引用。normalize 一步消除该类事故。
-const REGISTRY_FALLBACK = (process.env.REGISTRY || process.env.DOCKER_REGISTRY || 'zhcoder-docker-registry.com:8000')
-  .replace(/\/+$/, '') + '/';
-const BASE_REGISTRY_FALLBACK = (process.env.BASE_REGISTRY || (REGISTRY_FALLBACK + 'official'))
-  .replace(/\/+$/, '') + '/';
-const VAR_INTERPOLATION = {
-  REGISTRY: REGISTRY_FALLBACK,
-  BASE_REGISTRY: BASE_REGISTRY_FALLBACK,
-};
-function interpolateVars(raw) {
-  return raw.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (m, name) =>
-    Object.prototype.hasOwnProperty.call(VAR_INTERPOLATION, name) ? VAR_INTERPOLATION[name] : m
-  );
-}
+// compose 里所有 image: 都是 ${VAR} 形式（换源只改 .env），必须解析变量才能
+// 得到最终镜像名。旧的实现用 VAR_INTERPOLATION 白名单（只有 REGISTRY/BASE_REGISTRY）
+// 内联插值、且 tag 正则匹配不了 ${IMAGE_TAG:-x}，改造后会漏掉全部平台镜像。
+// 现统一走 image-resolver.js，与 release.js / release-deploy.js 同源。
+const ENV_FILE_FOR_PULL = process.env.ENV_FILE
+  ? path.resolve(process.env.ENV_FILE)
+  : path.join(ROOT, '.env');
+
 if (!existsSync(INFRA_DIR)) {
   console.error(`[load-images] ✗ ${INFRA_DIR} 不存在`);
   process.exit(1);
@@ -99,38 +88,26 @@ if (composeFiles.length === 0) {
   process.exit(1);
 }
 
-// 扫描 image: 引用；用 <ver> 模板替换
-const imageSet = new Set();
-// 只有业务镜像 compose 里的 image: tag 才替换成 $IMAGE_TAG（per-commit SHA）。
-// 这两个文件里的 build: 块在 release 时被 transform-compose.js 转成
-// micro-server/<svc>:<version>，正是需要按本次部署 SHA 拉取的平台镜像。
-// docker-compose-infra.yml / docker-compose-observability.yml 里全是第三方
-// 基础镜像（grafana / consul / prometheus / mysql / redis ...），tag 固定为
-// 上游版本号，在镜像仓库里真实存在，绝不能被 SHA 覆盖，否则会去拉
-// .../grafana/grafana:<sha> 这种根本不存在的 tag。
-const TAG_REPLACE_FILES = new Set([
-  'docker-compose.yml',
-  'docker-compose-services.yml',
-]);
-for (const f of composeFiles) {
-  const replaceTag = TAG_REPLACE_FILES.has(f);
-  const text = readFileSync(path.join(INFRA_DIR, f), 'utf8');
-  for (const m of text.matchAll(/^[ \t]+image:[ \t]+(.+)$/gm)) {
-    const raw = m[1].trim().replace(/^["']|["']$/g, '');
-    if (raw.startsWith('#')) continue;
-    // inline 替换已知占位符（REGISTRY / BASE_REGISTRY），未知变量保留原样
-    // 后再过滤——防御性，避免漏下的未知占位符污染 image 列表。
-    const interpolated = interpolateVars(raw);
-    if (interpolated.includes('${')) continue;
-    if (replaceTag) {
-      // 把 :<ver> 替换成 :tagOverride
-      const resolved = interpolated.replace(/:v?\d+\.\d+\.\d+(?:[-.][\w.-]+)*$/, ':' + tagOverride);
-      imageSet.add(resolved);
-    } else {
-      imageSet.add(interpolated);
-    }
-  }
+const { images: resolvedImages, unresolved: unresolvedVars } = scanComposeImages(INFRA_DIR, {
+  files: composeFiles,
+  envFile: ENV_FILE_FOR_PULL,
+  env: process.env,
+});
+
+if (unresolvedVars.length > 0) {
+  console.error(`[load-images] ✗ compose 存在无法解析的镜像变量: ${unresolvedVars.join(', ')}`);
+  console.error('[load-images]   请在 .env 补齐这些变量，或给 compose 里的引用加 :- 默认值');
+  process.exit(1);
 }
+
+// tag 归一：镜像 tag 不带 v（CI 推送用 ${CI_COMMIT_TAG#v} 剥 v）。
+// 平台镜像的 tag 由 compose 里 ${IMAGE_TAG:-<version>} 决定 —— 用 tagOverride 覆盖，
+// 让 CI 按 per-commit SHA 拉平台镜像；第三方镜像的固定版本 tag 不受影响。
+const imageSet = new Set(
+  resolvedImages.map(img =>
+    img.replace(/:v?\d+\.\d+\.\d+(?:[-.][\w.-]+)*$/, ':' + tagOverride)
+  )
+);
 
 const images = [...imageSet].sort();
 console.log(`[load-images] → ${images.length} 个 image: 引用去重后`);

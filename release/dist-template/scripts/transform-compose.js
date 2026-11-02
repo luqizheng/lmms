@@ -3,39 +3,52 @@
  * scripts/transform-compose.js - 将 docker-compose-services.yml 中的
  * build: 块替换为 image: 引用，用于离线分发包。
  *
+ * 镜像引用由 .env 驱动（换源只改 .env 一处，无需重新打包）：
+ *   image: ${kudi_repos:-<默认仓库>}/<svc>:${IMAGE_TAG:-<打包版本>}
+ *
  * 用法：
- *   node scripts/transform-compose.js <compose-file> <registry> <version>
+ *   node scripts/transform-compose.js <compose-file> <version>
+ *   node scripts/transform-compose.js <compose-file> <version> <legacy-registry>
  *
  * 示例：
- *   node scripts/transform-compose.js ./infrastructure/docker-compose-services.yml \
- *     zhcoder-docker-registry.com:8000 v1.0.0
+ *   node scripts/transform-compose.js ./infrastructure/docker-compose-services.yml v1.6.0
  *
  * 效果：
  *   config-service:
  *     build:                    →   config-service:
- *       context: ..             →     image: <registry>/micro-server/config-service:<version>
+ *       context: ..             →     image: ${kudi_repos:-...}/config-service:${IMAGE_TAG:-1.6.0}
  *       dockerfile: ...         →     (volumes / depends_on 等保留)
  *
  * 不会修改的 build: 块（如第三方镜像、非 services 下的 build）会被忽略。
+ *
+ * 兼容性：旧的 <registry> 参数保留但**不再用于拼路径**（仓库前缀已由
+ * kudi_repos 变量承载），仅打日志提示已废弃，避免旧调用方式直接崩掉。
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// ── 服务名 → 镜像名映射 ────────────────────────────────────────────────
-// 与 release.sh 中的 IMAGES 数组保持一致
+// 平台镜像的仓库前缀由 .env 的 kudi_repos 变量提供（默认指向内网 registry）。
+// compose 里写成 ${kudi_repos:-<默认值>}，用户改 .env 即可换源。
+const DEFAULT_KUDI_REPOS = 'zhcoder-docker-registry.com:8000/micro-server';
+
+// ── 服务名 → 镜像名后缀映射 ────────────────────────────────────────────────
+// 注意：仓库前缀（micro-server/）已移入 kudi_repos 变量，这里只存后缀。
+// 特殊映射保留：
+//   - prue_backend 的镜像是 prue-admin-backend（服务名与镜像名不一致）
+//   - 两个 outbox-publisher 复用主服务的镜像（同镜像不同 command）
 const IMAGE_MAP = {
-  'config-service':              'micro-server/config-service',
-  'file-service':                'micro-server/file-service',
-  'api-gateway':                 'micro-server/api-gateway',
-  'token-service':               'micro-server/token-service',
-  'iam-service':                 'micro-server/iam-service',
-  'iam-outbox-publisher':        'micro-server/iam-service',
-  'notification-service':        'micro-server/notification-service',
-  'notification-outbox-publisher':'micro-server/notification-service',
-  'audit-service':               'micro-server/audit-service',
-  'prue_backend':                'micro-server/prue-admin-backend',
-  'mysql-replica':               'micro-server/mysql-replica',
+  'config-service':              'config-service',
+  'file-service':                'file-service',
+  'api-gateway':                 'api-gateway',
+  'token-service':               'token-service',
+  'iam-service':                 'iam-service',
+  'iam-outbox-publisher':        'iam-service',
+  'notification-service':        'notification-service',
+  'notification-outbox-publisher':'notification-service',
+  'audit-service':               'audit-service',
+  'prue_backend':                'prue-admin-backend',
+  'mysql-replica':               'mysql-replica',
 };
 
 // 跳过与 build: 块共存的 image: 行（mysql-replica 同时声明 build: + image:
@@ -50,12 +63,24 @@ function skipCoexistingImageTag(lines, i) {
 // ── 主逻辑 ─────────────────────────────────────────────────────────────
 function main() {
   const args = process.argv.slice(2);
-  if (args.length < 3) {
-    console.error('用法: node transform-compose.js <compose-file> <registry> <version>');
+  if (args.length < 2) {
+    console.error('用法: node transform-compose.js <compose-file> <version> [<legacy-registry>]');
+    console.error('  <compose-file>      compose 文件路径');
+    console.error('  <version>           打包版本（可带 v 前缀，内部统一剥 v）');
+    console.error('  <legacy-registry>   已废弃：仓库前缀改由 .env 的 kudi_repos 承载');
     process.exit(1);
   }
 
-  const [composeFile, registry, version] = args;
+  const [composeFile, rawVersion, legacyRegistry] = args;
+
+  // 镜像 tag 不带 v：CI 推送用 ${CI_COMMIT_TAG#v}（剥 v），registry 里存在的是
+  // micro-server/<svc>:1.6.0 而非 :v1.6.0。带 v 去 pull 会失败。
+  const version = String(rawVersion).replace(/^v(?=\d)/, '');
+
+  if (legacyRegistry) {
+    console.error('[transform-compose] ℹ <registry> 参数已废弃：仓库前缀改由 .env 的 kudi_repos 变量承载');
+  }
+
   const absPath = path.resolve(composeFile);
 
   if (!fs.existsSync(absPath)) {
@@ -116,11 +141,12 @@ function main() {
     i = skipCoexistingImageTag(lines, i);
 
     // 替换为 image: 行（与 build: 同缩进，4 空格）。
-    // tag 用 ${IMAGE_TAG:-<version>} 插值：默认值 = 打包版本（行为向后兼容），
+    // 仓库前缀走 ${kudi_repos:-<默认>} 变量（.env 可改，无需重新打包）；
+    // tag 用 ${IMAGE_TAG:-<version>} 插值：默认值 = 打包版本（不带 v），
     // 升级时 upgrade.js 以进程环境变量 IMAGE_TAG 覆盖（compose 插值进程 env 优先于 --env-file）。
-    output.push(`    image: ${registry}/${imageKey}:\${IMAGE_TAG:-${version}}`);
+    output.push(`    image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${version}}`);
     modified = true;
-    console.error(`[transform-compose]   ${serviceName}: build → image: ${registry}/${imageKey}:\${IMAGE_TAG:-${version}}`);
+    console.error(`[transform-compose]   ${serviceName}: build → image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${version}}`);
   }
 
   if (!modified) {

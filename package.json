@@ -49,7 +49,7 @@
     "docker:build": "node packages/cli/bin/coder.js build images",
     "docker:build:clean": "node packages/cli/bin/coder.js build images prune",
     "docker:demo:data": "node scripts/demo-data.js",
-    "release:test": "node --test release/dist-template/scripts/release-transforms.test.js",
+    "release:test": "node --test release/dist-template/scripts/release-transforms.test.js release/dist-template/scripts/image-resolver.test.js",
     "test:scripts": "node --test scripts/setup-wizard.test.js",
     "test:cli": "pnpm --filter @digua/cli test",
     "coder": "node packages/cli/bin/coder.js",

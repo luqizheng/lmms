@@ -20,6 +20,7 @@ const path = require('path');
 let VERSION = '';
 let EXPORT_IMAGES = process.env.EXPORT_IMAGES ? parseInt(process.env.EXPORT_IMAGES, 10) : 1;
 let SHOW_HELP = false;
+let ENV_FILE = '';
 
 for (const arg of process.argv.slice(2)) {
   switch (arg) {
@@ -28,7 +29,9 @@ for (const arg of process.argv.slice(2)) {
     case '--help':
     case '-h':          SHOW_HELP = true; break;
     default:
-      if (arg.startsWith('-')) {
+      if (arg.startsWith('--env-file=')) {
+        ENV_FILE = arg.slice('--env-file='.length);
+      } else if (arg.startsWith('-')) {
         console.error(`[release] 未知参数: ${arg}`);
         SHOW_HELP = true;
       } else if (!VERSION) {
@@ -41,14 +44,15 @@ for (const arg of process.argv.slice(2)) {
 }
 
 if (SHOW_HELP) {
-  console.log(`用法: node release/dist-template/scripts/release.js [VERSION] [--no-images|--images]
+  console.log(`用法: node release/dist-template/scripts/release.js [VERSION] [--no-images|--images] [--env-file=PATH]
   VERSION            第一个位置参数，默认 v1.0.0
   --no-images        跳过 docker pull + docker save（仅打配置/骨架包）
   --images           显式导出镜像（默认行为）
+  --env-file=PATH    指定镜像源变量来源（默认用 release/dist-template/.env.example）
   --help, -h         打印帮助
 
 环境变量：
-  REGISTRY           镜像仓库，默认 zhcoder-docker-registry.com:8000
+  REGISTRY           镜像仓库（写入 MANIFEST），默认 zhcoder-docker-registry.com:8000
   EXPORT_IMAGES      1=导出镜像（默认），0=跳过`);
   process.exit(0);
 }
@@ -96,32 +100,10 @@ if (missing > 0) {
 }
 
 // ── 镜像清单 ──────────────────────────────────────────────────────────────────
-const IMAGES = [
-  `${REGISTRY}/micro-server/api-gateway:${VERSION}`,
-  `${REGISTRY}/micro-server/config-service:${VERSION}`,
-  `${REGISTRY}/micro-server/file-service:${VERSION}`,
-  `${REGISTRY}/micro-server/token-service:${VERSION}`,
-  `${REGISTRY}/micro-server/iam-service:${VERSION}`,
-  `${REGISTRY}/micro-server/notification-service:${VERSION}`,
-  `${REGISTRY}/micro-server/audit-service:${VERSION}`,
-  `${REGISTRY}/micro-server/prue-admin-backend:${VERSION}`,
-  // mysql-replica 由 CI 单独 buildx 推送（不在 build-docker.js 清单），但主 compose
-  // 引用 micro-server/mysql-replica:<version>，离线全包必须导出，否则 air-gap 缺从库镜像。
-  `${REGISTRY}/micro-server/mysql-replica:${VERSION}`,
-  'hashicorp/consul:2.0.1',
-  'gliderlabs/registrator:master',
-  'redis:7-alpine',
-  'mysql:8.0',
-  'rabbitmq:3.13-management-alpine',
-  'prom/prometheus:v2.51.0',
-  // alertmanager 内网 registry 未同步，走公网镜像代理（与 compose 引用一致），
-  // 有网环境 pull/save 进 tar，离线 load 使用，必须用完整地址。
-  'swr.cn-north-4.myhuaweicloud.com/ddn-k8s/quay.io/prometheus/alertmanager:v0.27.0',
-  'grafana/grafana:10.4.0',
-  'hashicorp/consul-template:0.32.0',
-  'otel/opentelemetry-collector-contrib:0.96.0',
-  'jaegertracing/all-in-one:1.55',
-];
+// 镜像名不再硬编码在此：compose 里所有 image: 都是 ${VAR} 形式（换源只改 .env），
+// 必须扫 compose 并解析变量才能得到最终镜像名 —— 否则会拉错镜像或漏拉。
+// 共享模块与 release-deploy.js / load-images.js 共用，保证三条打包路径产物一致。
+const { scanComposeImages } = require('./image-resolver.js');
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 function sh(cmd, opts = {}) {
@@ -157,25 +139,11 @@ if (EXPORT_IMAGES === 1) {
 }
 
 // ── 拉取并导出镜像 ────────────────────────────────────────────────────────────
-if (EXPORT_IMAGES === 1) {
-  console.log('[release] -> 拉取所有镜像...');
-  for (const img of IMAGES) {
-    console.log(`[release]   pull ${img}`);
-    sh(`docker pull "${img}"`, { ignoreError: true });
-  }
-
-  console.log('[release] -> 导出所有镜像为 tar...');
-  for (const img of IMAGES) {
-    const fname = img.replace(/[/:]/g, '__');
-    console.log(`[release]   save ${img} -> ${fname}.tar`);
-    try {
-      sh(`docker save "${img}" -o "${path.join(IMAGES_DIR, `${fname}.tar`)}"`);
-      console.log(`[release]   ✓ ${fname}.tar`);
-    } catch {
-      console.log(`[release]   ✗ save failed: ${img}`);
-    }
-  }
-} else {
+// 注意：本段必须在 compose 复制 + transform 之后执行（见下方「导出镜像」段）。
+// 原因：改造后镜像名不再硬编码，而是扫产物里的 compose 解析 ${VAR} 得出；
+// 而 services.yml 在 transform 之前只有 build: 块、没有 image: 行，提前扫会漏掉
+// 全部平台镜像 —— 这正是旧实现「静默产出缺镜像的包」的根因之一。
+if (EXPORT_IMAGES === 0) {
   console.log('[release] ⚠ --no-images：跳过 docker pull/save');
 }
 
@@ -413,7 +381,7 @@ if (!existsSync(svcCompose)) {
   console.error('[release]   ✗ docker-compose-services.yml missing after copy');
   process.exit(1);
 }
-sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${svcCompose}" "${REGISTRY}" "${VERSION}"`);
+sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${svcCompose}" "${VERSION}"`);
 console.log('[release]   ✓ docker-compose-services.yml: build → image 转换完成');
 
 // 主 docker-compose.yml 同样要把 build: 块转成 image:（release-deploy.js 也做这件事）
@@ -421,8 +389,74 @@ console.log('[release]   ✓ docker-compose-services.yml: build → image 转换
 //   现与 release-deploy.js 行为对齐：两个 compose 文件都跑 transform-compose。
 const mainCompose = path.join(DIST_DIR, 'infrastructure', 'docker-compose.yml');
 if (existsSync(mainCompose)) {
-  sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${mainCompose}" "${REGISTRY}" "${VERSION}"`);
+  sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${mainCompose}" "${VERSION}"`);
   console.log('[release]   ✓ docker-compose.yml: build → image 转换完成');
+}
+
+// ── 导出镜像（必须在 compose 转换之后）────────────────────────────────────
+// 镜像名来自扫产物 compose + 解析 ${VAR}（换源只改 .env，无需重新打包）。
+// 变量解析优先级与 compose 一致：进程 env > --env-file > compose 内 :- 默认值。
+// 镜像源变量来源：--env-file > 进程 env > 产物 .env.example（默认基准）。
+// ⚠ 必须读「产物」的 .env.example 而非模板：上面的 rewriteImageTag 已把产物的
+// IMAGE_TAG 改成本次打包版本（不含 v），模板里仍是 1.0.0 —— 读模板会导致
+// 解析出的镜像 tag 与 compose 展开值不一致（MANIFEST 与实际拉的镜像对不上）。
+const DIST_ENV_EXAMPLE = path.join(DIST_DIR, '.env.example');
+const RESOLVE_ENV_FILE = ENV_FILE
+  ? path.resolve(ENV_FILE)
+  : (existsSync(DIST_ENV_EXAMPLE) ? DIST_ENV_EXAMPLE : path.join(ROOT, '.env.example'));
+if (ENV_FILE) {
+  console.log(`[release] → 镜像源变量来源: ${RESOLVE_ENV_FILE}`);
+}
+const { images: RESOLVED_IMAGES, unresolved: UNRESOLVED_VARS } = scanComposeImages(
+  path.join(DIST_DIR, 'infrastructure'),
+  { envFile: RESOLVE_ENV_FILE, env: process.env }
+);
+
+if (UNRESOLVED_VARS.length > 0) {
+  console.error(`[release] ✗ compose 存在无法解析的镜像变量: ${UNRESOLVED_VARS.join(', ')}`);
+  console.error('[release]   请在 .env（或 --env-file）补齐这些变量，或给 compose 里的引用加 :- 默认值');
+  process.exit(1);
+}
+
+console.log(`[release] → 解析出 ${RESOLVED_IMAGES.length} 个镜像引用`);
+
+if (EXPORT_IMAGES === 1) {
+  console.log('[release] -> 拉取所有镜像...');
+  for (const img of RESOLVED_IMAGES) {
+    console.log(`[release]   pull ${img}`);
+    // pull 失败必须中断：旧实现用 ignoreError 静默吞掉，导致 air-gap 包
+    // 静默缺失镜像却「看起来成功」（离线端才暴露缺镜像）。
+    try {
+      sh(`docker pull "${img}"`);
+    } catch {
+      console.error(`[release] ✗ pull 失败: ${img}`);
+      console.error('[release]   打包中止：镜像不完整会导致离线安装缺镜像');
+      process.exit(1);
+    }
+  }
+
+  console.log('[release] -> 导出所有镜像为 tar...');
+  let saved = 0;
+  for (const img of RESOLVED_IMAGES) {
+    const fname = img.replace(/[/:]/g, '__');
+    console.log(`[release]   save ${img} -> ${fname}.tar`);
+    try {
+      sh(`docker save "${img}" -o "${path.join(IMAGES_DIR, `${fname}.tar`)}"`);
+      console.log(`[release]   ✓ ${fname}.tar`);
+      saved++;
+    } catch {
+      console.error(`[release] ✗ save 失败: ${img}`);
+      console.error('[release]   打包中止：镜像不完整会导致离线安装缺镜像');
+      process.exit(1);
+    }
+  }
+
+  // 完整性闸门：实际产出的 tar 数必须与期望镜像数一致
+  if (saved !== RESOLVED_IMAGES.length) {
+    console.error(`[release] ✗ 镜像导出数量不符: 期望 ${RESOLVED_IMAGES.length}，实际 ${saved}`);
+    process.exit(1);
+  }
+  console.log(`[release] ✓ 镜像导出完整 (${saved}/${RESOLVED_IMAGES.length})`);
 }
 
 // 卷重映射 + 配置复制
@@ -556,7 +590,7 @@ const BUILT_AT = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // 写入临时 images 列表文件
 const imagesListFile = path.join(require('os').tmpdir(), `release-images-${Date.now()}.txt`);
-writeFileSync(imagesListFile, IMAGES.join('\n'));
+writeFileSync(imagesListFile, RESOLVED_IMAGES.join('\n'));
 
 sh(`node "${path.join(ROOT, 'scripts', 'release-transforms.js')}" manifest \
   --out "${path.join(DIST_DIR, 'MANIFEST.json')}" \

@@ -44,11 +44,13 @@ const path = require('node:path');
 let VERSION = '';
 let EXPORT_IMAGES = process.env.EXPORT_IMAGES ? parseInt(process.env.EXPORT_IMAGES, 10) : 1;
 let SHOW_HELP = false;
+let ENV_FILE = '';
 
 for (const arg of process.argv.slice(2)) {
   switch (arg) {
     case '--no-images': EXPORT_IMAGES = 0; break;
     case '--images':    EXPORT_IMAGES = 1; break;
+    case '--env-file': ENV_FILE = process.argv[++i]; break;
     case '--help':
     case '-h':          SHOW_HELP = true; break;
     default:
@@ -86,6 +88,15 @@ const REPO_ROOT = path.resolve(ROOT, '..', '..');      // repo root
 const DIST_DIR = path.join(ROOT, 'release', `coder-micro-services-${VERSION}-deploy`);
 const DIST_ARCHIVE = path.join(ROOT, 'release', `coder-micro-services-${VERSION}-deploy.tar.gz`);
 const IMAGES_DIR = path.join(DIST_DIR, 'images');
+
+// 镜像源变量来源：--env-file > 进程 env > .env.example（默认基准）
+const { scanComposeImages } = require('./image-resolver.js');
+// 镜像源变量来源：--env-file > 进程 env > 产物 .env.example（默认基准）。
+// 优先读产物而非模板：产物里可能已被改写（版本对齐），读模板会与 compose 展开值不一致。
+const DIST_ENV_EXAMPLE = path.join(DIST_DIR, '.env.example');
+const RESOLVE_ENV_FILE = ENV_FILE
+  ? path.resolve(ENV_FILE)
+  : (existsSync(DIST_ENV_EXAMPLE) ? DIST_ENV_EXAMPLE : path.join(ROOT, '.env.example'));
 
 // ── 前置检查 ──────────────────────────────────────────────────────────────────
 function checkDep(name) {
@@ -207,11 +218,11 @@ if (!existsSync(svcCompose)) {
   console.error('[release-deploy]   ✗ docker-compose-services.yml 缺失（拷贝失败？）');
   process.exit(1);
 }
-sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${svcCompose}" "${REGISTRY}" "${VERSION}"`);
+sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${svcCompose}" "${VERSION}"`);
 console.log('[release-deploy]   ✓ docker-compose-services.yml: build → image 转换完成（8 核心 + 2 outbox）');
 
 if (existsSync(mainCompose)) {
-  sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${mainCompose}" "${REGISTRY}" "${VERSION}"`);
+  sh(`node "${path.join(ROOT, 'scripts', 'transform-compose.js')}" "${mainCompose}" "${VERSION}"`);
   console.log('[release-deploy]   ✓ docker-compose.yml: build → image 转换完成');
 } else {
   console.log('[release-deploy]   ⚠ docker-compose.yml 不存在，跳过转换');
@@ -294,20 +305,19 @@ let MISSING_COUNT = 0;
 if (EXPORT_IMAGES === 1) {
   console.log('[release-deploy] -> 阶段三：扫描 compose 中所有 image: 引用 → docker save...');
 
-  const imageSet = new Set();
-  for (const f of COMPOSE_FILES) {
-    const composePath = path.join(DIST_DIR, 'infrastructure', f);
-    if (!existsSync(composePath)) continue;
-    const text = readFileSync(composePath, 'utf8');
-    for (const m of text.matchAll(/^[[:space:]]+image:[[:space:]]+(.+)$/gm)) {
-      const img = m[1].trim().replace(/^["']|["']$/g, '');
-      if (img.includes('${')) continue;   // skip ${VAR} refs
-      if (img.startsWith('#')) continue;
-      if (!img) continue;
-      imageSet.add(img);
-    }
+  // 用共享 resolver 解析镜像名：compose 里所有 image: 都是 ${VAR} 形式
+  // （换源只改 .env），旧的「跳过含 ${ 的引用」逻辑会扫出空列表 → 产出无镜像的包。
+  const { images: RESOLVED_IMAGES, unresolved: UNRESOLVED_VARS } = scanComposeImages(
+    path.join(DIST_DIR, 'infrastructure'),
+    { envFile: RESOLVE_ENV_FILE, env: process.env }
+  );
+
+  if (UNRESOLVED_VARS.length > 0) {
+    console.error(`[release-deploy] ✗ compose 存在无法解析的镜像变量: ${UNRESOLVED_VARS.join(', ')}`);
+    process.exit(1);
   }
-  ALL_IMAGES = [...imageSet].sort();
+
+  ALL_IMAGES = RESOLVED_IMAGES;
   console.log(`[release-deploy]   → ${ALL_IMAGES.length} 个 image: 引用去重后`);
 
   for (const img of ALL_IMAGES) {
