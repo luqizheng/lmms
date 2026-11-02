@@ -8,8 +8,6 @@
 
 mod common;
 
-use token_service::db::DbPool;
-
 /// V002 的专用哨兵表（与 `src/db.rs::MIGRATIONS` 一致）。
 const V002_SENTINEL_TABLE: &str = "token_migration_v002_applied";
 
@@ -41,7 +39,8 @@ async fn column_exists(pool: &sqlx::MySqlPool, table: &str, column: &str) -> boo
 #[tokio::test]
 async fn v002_is_applied_to_an_existing_v001_database() {
     let pool = common::spawn_mysql().await;
-    let DbPool::Mysql(p) = &pool;
+    // `DbPool` 自本轮起是基座层的多方言枚举，取 MySQL 句柄走 `as_mysql()`。
+    let p = pool.as_mysql().expect("mysql pool");
 
     // 模拟存量部署：V001 的表在，V002 的列与哨兵都不在。
     sqlx::query("ALTER TABLE token_oauth_clients DROP COLUMN user_id, DROP COLUMN expires_at")

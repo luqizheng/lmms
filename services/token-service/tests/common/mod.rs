@@ -43,7 +43,7 @@ pub async fn spawn_mysql() -> DbPool {
     run_migrations(&pool).await;
     // 防止容器在函数返回后被 drop 回收，导致后续查询 PoolTimedOut
     std::mem::forget(container);
-    DbPool::Mysql(pool)
+    DbPool::from(pool)
 }
 
 async fn spawn_shared(host: String, port: String) -> DbPool {
@@ -70,7 +70,7 @@ async fn spawn_shared(host: String, port: String) -> DbPool {
     let url = format!("mysql://root@{host}:{port}/{db_name}");
     let pool = build_pool(&url).await;
     run_migrations(&pool).await;
-    DbPool::Mysql(pool)
+    DbPool::from(pool)
 }
 
 async fn build_pool(url: &str) -> MySqlPool {
@@ -94,7 +94,7 @@ async fn run_migrations(pool: &MySqlPool) {
     for m in MIGRATIONS {
         // 先剥离整行注释，避免以 `--` 开头的语句被整条跳过导致建表缺失
         let cleaned = m
-            .sql
+            .sql_mysql
             .lines()
             .filter(|l| !l.trim_start().starts_with("--"))
             .collect::<Vec<_>>()

@@ -39,6 +39,9 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/config.yaml";
 #[serde(rename_all = "lowercase")]
 pub enum DbType {
     Mysql,
+    /// 本轮新增：连接池按 `url` 的 scheme 判定方言（`postgres://` / `postgresql://`），
+    /// `db_type` 仅作为配置可读性与校验用途，不参与建池分支。
+    Postgres,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -195,10 +198,11 @@ where
     if let Some(v) = env("TOKEN_DATABASE_DB_TYPE") {
         match v.to_ascii_lowercase().as_str() {
             "mysql" => cfg.database.db_type = DbType::Mysql,
+            "postgres" | "postgresql" => cfg.database.db_type = DbType::Postgres,
             other => tracing::warn!(
                 key = "TOKEN_DATABASE_DB_TYPE",
                 raw = other,
-                "unknown db_type; keeping yaml value (only 'mysql' is supported)"
+                "unknown db_type; keeping yaml value (supported: 'mysql', 'postgres')"
             ),
         }
     }
@@ -445,13 +449,25 @@ database:
     fn env_overlay_unknown_db_type_keeps_yaml_value() {
         let mut cfg = Config::default();
         cfg.database.db_type = DbType::Mysql;
-        let env = env_from(&[("TOKEN_DATABASE_DB_TYPE", "postgres")]);
+        let env = env_from(&[("TOKEN_DATABASE_DB_TYPE", "oracle")]);
         apply_env_overrides(&mut cfg, &env);
         assert_eq!(
             cfg.database.db_type,
             DbType::Mysql,
             "unknown value must be ignored"
         );
+    }
+
+    /// postgres/postgresql 是已接受的值（S5b：`DbType::Postgres` 新变体）。
+    /// 建池方言仍按 url scheme 判定，`db_type` 只做配置可读性。
+    #[test]
+    fn env_overlay_accepts_postgres_db_type() {
+        for value in ["postgres", "postgresql"] {
+            let mut cfg = Config::default();
+            let env = env_from(&[("TOKEN_DATABASE_DB_TYPE", value)]);
+            apply_env_overrides(&mut cfg, &env);
+            assert_eq!(cfg.database.db_type, DbType::Postgres, "value = {value}");
+        }
     }
 
     #[test]
