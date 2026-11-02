@@ -25,6 +25,30 @@
 //! let rows: Vec<User> = db_fetch_all!(pool, User, "SELECT * FROM iam_users WHERE id = ?", id)?;
 //! ```
 //!
+//! ## `$pool` 可以传**拥有值**，也可以传**引用**
+//!
+//! 宏内部统一写 `match &$pool`（不是 `match $pool`），因此下列三种写法都成立：
+//!
+//! ```ignore
+//! db_fetch_all!(&pool, ...)?;                                  // 借用
+//! db_fetch_all!(pool, ...)?;                                   // 借用（pool: &DbPool）
+//! db_fetch_all!(connect_pool(url, 8).await?, ...)?;             // 拥有值
+//! db_fetch_all!(state.db, ...)?;                               // 拥有值（字段）
+//! ```
+//!
+//! **为什么不能写 `match $pool`**：sqlx 只为 `&Pool<DB>` 实现 `Executor`
+//! （`impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>`），拥有值的
+//! `Pool<DB>` **不实现**。`match $pool` 在 `$pool` 是拥有值时按值绑定出
+//! `Pool<DB>` → `error[E0277]: the trait bound `Pool<Postgres>: Executor<'_>` is not satisfied`，
+//! 而该错误信息完全不会提示「你该传引用」。`match &$pool` 借 match ergonomics
+//! 对拥有值/借用值一致地得到 `&Pool<DB>`，**零运行时成本**。
+//!
+//! ## `$sql` 可以传 `&str`，也可以传 `String` / `format!()`
+//!
+//! 宏先把 `$sql` 绑到一个局部量再取引用，因此 inline 临时量不会提前 drop
+//! （`.await` 发生在**同一个块内**，不要用 `async move { .. }.await` 把分支包起来，
+//! 否则 inline `format!()` 会在 await 之前 drop，触发 E0716）。
+//!
 //! # feature 约定（重要）
 //!
 //! 宏内部的 `#[cfg(feature = "...")]` 在**调用方 crate** 求值（`cfg` 的求值主体
@@ -53,10 +77,12 @@ macro_rules! __db_prepare {
 #[macro_export]
 macro_rules! db_fetch_all {
     ($pool:expr, $ty:ty, $sql:expr $(, $bind:expr)* $(,)?) => {{
-        let __sql_tpl: &str = $sql;
+        // 先绑局部量再取引用：支持 `&str` / `String` / inline `format!()`（临时量随块存活）。
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
         // 构造期计数：宏能「看到」bind 实参的个数。
         let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 match $crate::__db_prepare!(
@@ -117,9 +143,11 @@ macro_rules! db_fetch_all {
 #[macro_export]
 macro_rules! db_fetch_one {
     ($pool:expr, $ty:ty, $sql:expr $(, $bind:expr)* $(,)?) => {{
-        let __sql_tpl: &str = $sql;
+        // 先绑局部量再取引用：支持 `&str` / `String` / inline `format!()`（临时量随块存活）。
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
         let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 match $crate::__db_prepare!(
@@ -180,9 +208,11 @@ macro_rules! db_fetch_one {
 #[macro_export]
 macro_rules! db_fetch_optional {
     ($pool:expr, $ty:ty, $sql:expr $(, $bind:expr)* $(,)?) => {{
-        let __sql_tpl: &str = $sql;
+        // 先绑局部量再取引用：支持 `&str` / `String` / inline `format!()`（临时量随块存活）。
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
         let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 match $crate::__db_prepare!(
@@ -243,9 +273,11 @@ macro_rules! db_fetch_optional {
 #[macro_export]
 macro_rules! db_fetch_scalar {
     ($pool:expr, $ty:ty, $sql:expr $(, $bind:expr)* $(,)?) => {{
-        let __sql_tpl: &str = $sql;
+        // 先绑局部量再取引用：支持 `&str` / `String` / inline `format!()`（临时量随块存活）。
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
         let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 match $crate::__db_prepare!(
@@ -306,9 +338,11 @@ macro_rules! db_fetch_scalar {
 #[macro_export]
 macro_rules! db_execute {
     ($pool:expr, $sql:expr $(, $bind:expr)* $(,)?) => {{
-        let __sql_tpl: &str = $sql;
+        // 先绑局部量再取引用：支持 `&str` / `String` / inline `format!()`（临时量随块存活）。
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
         let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 match $crate::__db_prepare!(
@@ -368,7 +402,7 @@ macro_rules! db_execute {
 #[macro_export]
 macro_rules! db_qb_fetch_all {
     ($pool:expr, $ty:ty, |$qb:ident| $body:block) => {{
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 let mut $qb = $crate::sqlx::QueryBuilder::<$crate::sqlx::MySql>::new("");
@@ -399,7 +433,7 @@ macro_rules! db_qb_fetch_all {
 #[macro_export]
 macro_rules! db_qb_fetch_optional {
     ($pool:expr, $ty:ty, |$qb:ident| $body:block) => {{
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 let mut $qb = $crate::sqlx::QueryBuilder::<$crate::sqlx::MySql>::new("");
@@ -430,7 +464,7 @@ macro_rules! db_qb_fetch_optional {
 #[macro_export]
 macro_rules! db_qb_fetch_one {
     ($pool:expr, $ty:ty, |$qb:ident| $body:block) => {{
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 let mut $qb = $crate::sqlx::QueryBuilder::<$crate::sqlx::MySql>::new("");
@@ -461,7 +495,7 @@ macro_rules! db_qb_fetch_one {
 #[macro_export]
 macro_rules! db_qb_execute {
     ($pool:expr, |$qb:ident| $body:block) => {{
-        match $pool {
+        match &$pool {
             #[cfg(feature = "mysql")]
             $crate::DbPool::Mysql(p) => {
                 let mut $qb = $crate::sqlx::QueryBuilder::<$crate::sqlx::MySql>::new("");

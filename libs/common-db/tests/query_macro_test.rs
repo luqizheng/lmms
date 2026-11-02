@@ -202,6 +202,54 @@ mod sqlite_backend {
         assert_eq!(affected, 1);
         Ok(())
     }
+
+    /// **`$pool` 传拥有值**必须编译通过 —— 宏内部写的是 `match &$pool`。
+    ///
+    /// 若回退成 `match $pool`，这里会报
+    /// `E0277: the trait bound `Pool<Sqlite>: Executor<'_>` is not satisfied`
+    /// （sqlx 只为 `&Pool<DB>` 实现 `Executor`）。
+    /// `connect_pool()` 返回的正是拥有值，S3/S5 一定会遇到。
+    #[tokio::test]
+    async fn accepts_owned_pool_value() -> Result<(), sqlx::Error> {
+        let pool = memory_pool().await;
+        seed(&pool).await?;
+
+        // 拥有值：宏内部取 &，池在宏块结束后才 drop。
+        let count: i64 = db_fetch_scalar!(pool, i64, "SELECT COUNT(*) FROM macro_users")?;
+        assert_eq!(count, 2);
+        Ok(())
+    }
+
+    /// `$sql` 传 `String` / `&String` / inline `format!()` 都必须成立。
+    ///
+    /// inline `format!()` 是关键场景：它的临时量必须在 `.await` 之后仍然存活
+    /// （宏把 `$sql` 先绑到局部量再取引用，且 `.await` 与绑定在同一个块内）。
+    #[tokio::test]
+    async fn accepts_owned_and_formatted_sql() -> Result<(), sqlx::Error> {
+        let pool = memory_pool().await;
+        seed(&pool).await?;
+
+        // String
+        let owned_sql: String = "SELECT COUNT(*) FROM macro_users WHERE id > ?".to_string();
+        let count: i64 = db_fetch_scalar!(&pool, i64, owned_sql, 0i64)?;
+        assert_eq!(count, 2);
+
+        // &String
+        let borrowed_sql: String = "SELECT COUNT(*) FROM macro_users WHERE id > ?".to_string();
+        let count: i64 = db_fetch_scalar!(&pool, i64, &borrowed_sql, 0i64)?;
+        assert_eq!(count, 2);
+
+        // inline format!()：临时 String 必须活过 .await
+        let table = "macro_users";
+        let count: i64 = db_fetch_scalar!(
+            &pool,
+            i64,
+            format!("SELECT COUNT(*) FROM {table} WHERE id > ?"),
+            0i64
+        )?;
+        assert_eq!(count, 2);
+        Ok(())
+    }
 }
 
 /// PostgreSQL：同一份 `?` SQL 改写成 `$N` 后必须被真实 PG 接受并返回正确数据。
