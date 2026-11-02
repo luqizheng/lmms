@@ -49,6 +49,6 @@ async fn metrics() -> axum::response::Html<String> {
     axum::response::Html(String::from_utf8(buffer).unwrap())
 }
 
-pub fn create_state(pool: sqlx::MySqlPool, jwks: Arc<JWKSCache>) -> AppState {
+pub fn create_state(pool: digua_common_db::DbPool, jwks: Arc<JWKSCache>) -> AppState {
     ConfigService::new(pool, jwks)
 }

@@ -55,7 +55,11 @@ async fn spawn_shared(host: String, port: String) -> MysqlHandle {
     let pool = MySqlPool::connect(&url)
         .await
         .expect("connect test database");
-    db::ensure_schema(&pool).await.expect("ensure cfg schema");
+    // `ensure_schema` 自 DbPool 改造后接受方言无关句柄（From<MySqlPool> 是零成本包装）。
+    let db_pool = digua_common_db::DbPool::from(pool.clone());
+    db::ensure_schema(&db_pool)
+        .await
+        .expect("ensure cfg schema");
 
     MysqlHandle {
         pool,
@@ -73,7 +77,11 @@ async fn spawn_local() -> MysqlHandle {
     let port = c.get_host_port_ipv4(3306).await.expect("mysql port");
     let url = format!("mysql://root@{host}:{port}/test");
     let pool = MySqlPool::connect(&url).await.expect("connect local mysql");
-    db::ensure_schema(&pool).await.expect("ensure cfg schema");
+    // 同上：DbPool 包装后再跑迁移。
+    let db_pool = digua_common_db::DbPool::from(pool.clone());
+    db::ensure_schema(&db_pool)
+        .await
+        .expect("ensure cfg schema");
 
     MysqlHandle {
         pool,
