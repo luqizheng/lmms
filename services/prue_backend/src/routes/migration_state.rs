@@ -1,7 +1,12 @@
 //! GET /prue/internal/migrations/state — prue_backend schema 状态查询。
 //!
-//! Phase 10 G3 接入。prue_backend 是双 dialect 服务（MySQL + SQLite）。
-//! 1 migration × 2 dialects：V001 init (marker: prue_menu_configs)。
+//! Phase 10 G3 接入。prue_backend 默认是 MySQL + SQLite 双 dialect 服务，
+//! 另可通过 `--features postgres` 编入第三种方言。
+//! 1 migration × 3 dialects：V001 init (marker: prue_menu_configs)。
+//!
+//! 注：`dialect()` 仍返回 `"mysql+sqlite"`（默认编译的方言集），因为
+//! `scripts/check-migration-state.js` / `scripts/e2e-migration-state.js` / `docs-site`
+//! 都按该字面量断言；引入 postgres 是本轮新增的可选方言，不改变默认集，故不动该字符串。
 
 use axum::{
     extract::Extension, http::StatusCode, response::IntoResponse, routing::get, Json, Router,
@@ -37,11 +42,11 @@ async fn probe_applied(pool: &DbPool) -> Result<Vec<String>, sqlx::Error> {
     let state = PrueMigrationState;
     let mut applied = Vec::with_capacity(state.migrations().len());
     for m in state.migrations() {
-        let exists = match pool {
-            DbPool::Mysql(p) => migration_state::probe_marker_mysql(p, m.marker_table).await?,
-            DbPool::Sqlite(p) => migration_state::probe_marker_sqlite(p, m.marker_table).await?,
-        };
-        if exists {
+        // 统一入口：内部按后端选 probe_marker_{mysql,postgres,sqlite}，不再手写 match。
+        if migration_state::probe_marker(pool, m.marker_table)
+            .await
+            .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?
+        {
             applied.push(m.version.to_string());
         }
     }
