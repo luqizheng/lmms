@@ -63,3 +63,61 @@ async fn pg_now_expr_is_valid_sql() {
         _ => panic!("expected a postgres pool"),
     }
 }
+
+/// `probe_marker_postgres` / `probe_marker` 必须能在真实 PG 上判定 marker table 是否存在。
+#[tokio::test]
+async fn pg_marker_probe_detects_existing_table() {
+    let Some(url) = test_pg_url() else { return };
+    let pool = init_pool(&url).await.expect("init_pool");
+
+    // 建一张专用 marker 表，再探测它。
+    sqlx::query("CREATE TABLE IF NOT EXISTS pg_probe_marker (id BIGINT PRIMARY KEY)")
+        .execute(pool.as_postgres().expect("pg pool"))
+        .await
+        .expect("create marker table");
+
+    let found =
+        digua_common_db::migration_state::probe_marker(&pool, "pg_probe_marker")
+            .await
+            .expect("probe_marker");
+    assert!(found, "刚建的 marker table 必须被探测到");
+
+    let missing =
+        digua_common_db::migration_state::probe_marker(&pool, "pg_no_such_marker_table")
+            .await
+            .expect("probe_marker");
+    assert!(!missing, "不存在的 marker table 必须返回 false");
+}
+
+/// `init_pool` 的 PG 分支必须把会话时区锁死为 UTC（Q2-bis）。
+#[tokio::test]
+async fn pg_session_timezone_is_utc() {
+    let Some(url) = test_pg_url() else { return };
+    let pool = init_pool(&url).await.expect("init_pool");
+    let pg = pool.as_postgres().expect("pg pool");
+    let tz: (String,) = sqlx::query_as("SHOW TIMEZONE")
+        .fetch_one(pg)
+        .await
+        .expect("SHOW TIMEZONE");
+    assert_eq!(tz.0, "UTC", "PG 会话时区必须被 after_connect 锁定为 UTC");
+}
+
+/// `placeholder_style` 必须与后端匹配（PG 是 `$N`，其余是 `?`）。
+#[tokio::test]
+async fn pg_placeholder_style_is_numbered() {
+    let Some(url) = test_pg_url() else { return };
+    let pool = init_pool(&url).await.expect("init_pool");
+    assert_eq!(
+        pool.placeholder_style(),
+        digua_common_db::PlaceholderStyle::Numbered
+    );
+    assert_eq!(pool.dialect(), DialectKind::Postgres);
+}
+
+/// `ping()` 必须能在真实 PG 上成功返回。
+#[tokio::test]
+async fn pg_ping_succeeds() {
+    let Some(url) = test_pg_url() else { return };
+    let pool = init_pool(&url).await.expect("init_pool");
+    pool.ping().await.expect("ping");
+}

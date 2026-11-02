@@ -3,6 +3,15 @@ name = "config_service"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# 方言 feature：default 只含 mysql，postgres 必须显式开启（D-9：postgres 不进 default）。
+# 宏 `db_*!` 内部的 #[cfg(feature = ...)] 在**调用方 crate** 求值，因此本 crate
+# 必须定义与 libs/common-db 同名的 feature，并把它们转发过去。
+default = ["mysql"]
+mysql = ["sqlx/mysql", "digua_common_db/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres"]
+sqlite = ["sqlx/sqlite", "digua_common_db/sqlite"]
+
 [dependencies]
 axum.workspace = true
 tokio.workspace = true

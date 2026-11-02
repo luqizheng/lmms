@@ -20,6 +20,7 @@ static SERVICE_READY: Lazy<IntGaugeVec> = Lazy::new(|| {
 enum DbProbe {
     Any(sqlx::AnyPool),
     MySql(sqlx::MySqlPool),
+    Postgres(sqlx::PgPool),
     Sqlite(sqlx::SqlitePool),
 }
 
@@ -54,6 +55,12 @@ impl HealthState {
 
     pub fn with_mysql(mut self, pool: sqlx::MySqlPool) -> Self {
         self.db = Some(DbProbe::MySql(pool));
+        self
+    }
+
+    /// 挂载 PostgreSQL 连接池作为健康探针。
+    pub fn with_postgres(mut self, pool: sqlx::PgPool) -> Self {
+        self.db = Some(DbProbe::Postgres(pool));
         self
     }
 
@@ -128,6 +135,13 @@ async fn ready(State(s): State<HealthState>) -> impl IntoResponse {
             .map(|r| r.is_ok())
             .unwrap_or(false),
             DbProbe::MySql(pool) => tokio::time::timeout(
+                Duration::from_secs(1),
+                sqlx::query("SELECT 1").execute(pool),
+            )
+            .await
+            .map(|r| r.is_ok())
+            .unwrap_or(false),
+            DbProbe::Postgres(pool) => tokio::time::timeout(
                 Duration::from_secs(1),
                 sqlx::query("SELECT 1").execute(pool),
             )
