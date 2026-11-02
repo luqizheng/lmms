@@ -1,6 +1,6 @@
 [package]
 name = "digua_http_client"
-version = "1.1.0"
+version = "1.6.0"
 edition.workspace = true
 description = "Shared HTTP client with token cache for KudiCoder Rust SDKs"
 license = "Apache-2.0"

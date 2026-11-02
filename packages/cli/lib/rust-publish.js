@@ -69,10 +69,15 @@ function escapeRegex(s) {
 // Swap `pkg = { path = "../dir" }` (A) and `pkg = { path = "../dir", ... }` (B)
 // for `pkg = { version = "<v>", registry = "<registry>", ... }`. crateVersions
 // is keyed by crate directory name; toPkgName maps dir → package name.
-function rewritePathDeps(tomlText, { crateVersions, registry = 'kellnr', toPkgName = dirToPackage } = {}) {
+//
+// ⚠️ 目录名 ≠ 包名（sdk/rust/digua-http-client 的包名是 digua_http_client；
+// libs 侧也只是约定映射）。调用方应传入 pkgNames（从真实 manifest 读到的
+// 目录→包名映射）以避免推导漂移；缺省回落到 toPkgName。
+function rewritePathDeps(tomlText, { crateVersions, registry = 'kellnr', toPkgName = dirToPackage, pkgNames = null } = {}) {
   let content = tomlText;
+  const nameOf = (dir) => pkgNames?.[dir] ?? toPkgName(dir);
   for (const [dir, version] of Object.entries(crateVersions ?? {})) {
-    const pkgName = toPkgName(dir);
+    const pkgName = nameOf(dir);
 
     const patternA = `${pkgName} = { path = "../${dir}" }`;
     const replacementA = `${pkgName} = { version = "${version}", registry = "${registry}" }`;
@@ -123,7 +128,6 @@ function internalPathDeps(tomlText, allDirs, toPkgName = dirToPackage, selfDir =
   }
   return deps;
 }
-
 /**
  * 发布序必须尊重依赖方向：依赖方排在被依赖方**之后**（否则 cargo 无法在
  * registry 上解析到被依赖方的版本）。
@@ -237,17 +241,30 @@ function publishRust({
   const originals = new Map();
   const published = [];
   const skipped = [];
-  const toPkg = (dir, family) => (family === 'libs' ? dirToPackage(dir) : dir);
+  // 包名一律从真实 manifest 读：目录名 ≠ 包名（sdk/rust/audit-service-sdk 的
+  // 包名是 digua_audit_sdk；sdk/rust/digua-http-client 的包名是
+  // digua_http_client；libs 侧也只是「约定」映射，改名即漂移）。
+  const pkgNames = {};
+  for (const { dir, family, base } of dirs) {
+    try {
+      const toml = nodeFs.readFileSync(path.join(root, base, dir, 'Cargo.toml'), 'utf-8');
+      const m = /^name\s*=\s*"([^"]+)"/m.exec(toml);
+      if (m) pkgNames[dir] = m[1];
+    } catch {
+      // 读不到时回落到约定映射（preflight 会另行报缺文件）
+    }
+  }
+  const toPkg = (dir, family, base) => pkgNames[dir] ?? (family === 'libs' ? dirToPackage(dir) : dir);
 
   try {
     for (const { dir, family, base } of dirs) {
       const tomlPath = path.join(root, base, dir, 'Cargo.toml');
       const before = nodeFs.readFileSync(tomlPath, 'utf-8');
-      const after = rewritePathDeps(before, { crateVersions, registry });
+      const after = rewritePathDeps(before, { crateVersions, registry, pkgNames });
       if (after !== before && !originals.has(tomlPath)) originals.set(tomlPath, before);
       if (after !== before) nodeFs.writeFileSync(tomlPath, after, 'utf-8');
 
-      const pkgName = toPkg(dir, family);
+      const pkgName = toPkg(dir, family, base);
       out.log(`[rust-publish] publishing ${dir} (pkg: ${pkgName})`);
       const result = exec('cargo', cargoPublishArgs(pkgName, registry, false), { cwd: path.join(root, base) });
       if ((result.status ?? 1) !== 0) {
