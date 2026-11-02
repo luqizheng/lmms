@@ -33,7 +33,11 @@ pub enum PlaceholderStyle {
     Numbered,
 }
 
-#[derive(Debug)]
+/// 方言无关的连接池句柄。
+///
+/// `Clone` 只是克隆内部 `sqlx::Pool`（本身是 Arc 引用计数句柄），**不复制连接**，
+/// 因此可以放心放进 `axum::Extension` / `AppState`。
+#[derive(Debug, Clone)]
 pub enum DbPool {
     #[cfg(feature = "mysql")]
     Mysql(Pool<MySql>),

@@ -5,13 +5,13 @@ use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
 use digua_common_db::WithTenantScope;
 use digua_jwt_ctx::TenantScope;
-use sqlx::{MySqlPool, QueryBuilder};
+use digua_common_db::{db_execute, db_qb_execute, db_qb_fetch_all, db_qb_fetch_optional, DbPool};
 use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct FileService {
-    pool: MySqlPool,
+    pool: DbPool,
     storage: Arc<dyn ObjectStore>,
     base_url: String,
     max_file_size: u64,
@@ -21,7 +21,7 @@ pub struct FileService {
 
 impl FileService {
     pub fn new(
-        pool: MySqlPool,
+        pool: DbPool,
         storage: Arc<dyn ObjectStore>,
         base_url: String,
         max_file_size: u64,
@@ -36,7 +36,7 @@ impl FileService {
         }
     }
 
-    pub fn pool_ref(&self) -> &MySqlPool {
+    pub fn pool_ref(&self) -> &DbPool {
         &self.pool
     }
 
@@ -57,7 +57,7 @@ impl FileService {
         let storage_path = format!("{}-{}", id, meta.filename);
         let now = chrono::Utc::now();
         let data_len = data.len();
-        let tenant_id = scope.tenant_id().unwrap_or(1) as u64;
+        let tenant_id = scope.tenant_id().unwrap_or(1) as i64;
 
         let expires_at = meta
             .expires_in_seconds
@@ -169,17 +169,12 @@ impl FileService {
         let size = query.size.unwrap_or(20).min(100);
         let offset = (page - 1) * size;
 
-        let mut qb = QueryBuilder::new("SELECT * FROM file_files WHERE 1=1");
-        qb.and_tenant(scope);
-        qb.push(" ORDER BY created_at DESC LIMIT ");
-        qb.push_bind(size);
-        qb.push(" OFFSET ");
-        qb.push_bind(offset);
-
-        let files: Vec<FileInfo> = qb
-            .build_query_as::<FileInfo>()
-            .fetch_all(&self.pool)
-            .await?;
+        let files: Vec<FileInfo> = db_qb_fetch_all!(&self.pool, FileInfo, |qb| {
+            qb.push("SELECT * FROM file_files WHERE 1=1");
+            qb.and_tenant(scope);
+            qb.push(" ORDER BY created_at DESC LIMIT ").push_bind(size as i64);
+            qb.push(" OFFSET ").push_bind(offset as i64);
+        })?;
         let total = files.len() as i64;
 
         Ok(PagedFiles {
@@ -191,64 +186,60 @@ impl FileService {
     }
 
     pub async fn get_file_info(&self, id: &str, scope: &TenantScope) -> AppResult<FileInfo> {
-        let mut qb = QueryBuilder::new("SELECT * FROM file_files");
-        qb.where_id(id);
-        qb.and_tenant(scope);
-
-        let info: Option<FileInfo> = qb
-            .build_query_as::<FileInfo>()
-            .fetch_optional(&self.pool)
-            .await?;
+        let info: Option<FileInfo> = db_qb_fetch_optional!(&self.pool, FileInfo, |qb| {
+            qb.push("SELECT * FROM file_files");
+            qb.where_id(id);
+            qb.and_tenant(scope);
+        })?;
 
         info.ok_or_else(|| AppError::file_not_found(id))
     }
 
     async fn save_file_info(&self, info: &FileInfo) -> AppResult<()> {
-        sqlx::query(
+        db_execute!(
+            &self.pool,
             r#"INSERT INTO file_files
                (id, filename, content_type, size, hash, storage_path, tenant_id, user_id, is_temporary, expires_at, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
-        )
-        .bind(&info.id)
-        .bind(&info.filename)
-        .bind(&info.content_type)
-        .bind(info.size)
-        .bind(&info.hash)
-        .bind(&info.storage_path)
-        .bind(info.tenant_id)
-        .bind(&info.user_id)
-        .bind(info.is_temporary)
-        .bind(info.expires_at)
-        .bind(info.created_at)
-        .bind(info.updated_at)
-        .execute(&self.pool)
-        .await?;
+            &info.id,
+            &info.filename,
+            &info.content_type,
+            info.size,
+            &info.hash,
+            &info.storage_path,
+            info.tenant_id,
+            &info.user_id,
+            info.is_temporary,
+            info.expires_at,
+            info.created_at,
+            info.updated_at
+        )?;
         Ok(())
     }
 
     async fn delete_file_info(&self, id: &str, scope: &TenantScope) -> AppResult<()> {
-        let mut qb = QueryBuilder::new("DELETE FROM file_files");
-        qb.where_id(id);
-        qb.and_tenant(scope);
-        qb.build().execute(&self.pool).await?;
+        db_qb_execute!(&self.pool, |qb| {
+            qb.push("DELETE FROM file_files");
+            qb.where_id(id);
+            qb.and_tenant(scope);
+        })?;
         Ok(())
     }
 
     async fn save_presign_url(&self, presign: &PresignUrl) -> AppResult<()> {
-        sqlx::query(
+        db_execute!(
+            &self.pool,
             r#"INSERT INTO file_presign_urls
                (id, file_id, operation, url, expires_at, created_by, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)"#,
-        )
-        .bind(&presign.id)
-        .bind(&presign.file_id)
-        .bind(&presign.operation)
-        .bind(&presign.url)
-        .bind(presign.expires_at)
-        .bind(&presign.created_by)
-        .bind(presign.created_at)
-        .execute(&self.pool)
-        .await?;
+            &presign.id,
+            &presign.file_id,
+            &presign.operation,
+            &presign.url,
+            presign.expires_at,
+            &presign.created_by,
+            presign.created_at
+        )?;
         Ok(())
     }
 }
