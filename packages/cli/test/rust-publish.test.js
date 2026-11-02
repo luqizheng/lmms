@@ -109,3 +109,44 @@ test('dryRun: zero exec calls, plan returned, no file modification', () => {
   const after = fs.readFileSync(path.join(root, 'libs', 'common-error', 'Cargo.toml'), 'utf-8');
   assert.equal(after, before, 'no rewrite on dry-run');
 });
+
+test('resume: "already exists" is skipped, not a failure (partial publish re-run)', () => {
+  const root = fixture({ dirs: LIBS_ORDER });
+  let call = 0;
+  const result = publishRust({
+    root,
+    version: '1.7.0',
+    targets: 'libs',
+    exec: (file, args) => {
+      // 第一次 exec 是 'cargo --version' 探活，不参与发布序列
+      if (args && args[0] === '--version') return { status: 0, stdout: 'cargo 1.96.0' };
+      call += 1;
+      if (call === 1) return { status: 1, stderr: 'error: crate version `1.7.0` already exists' };
+      return { status: 0, stdout: 'ok' };
+    },
+    out: { log() {}, warn() {} },
+  });
+  assert.equal(result.published.length, LIBS_ORDER.length - 1, '其余 crate 仍应发布成功');
+  assert.equal(result.skipped.length, 1, '已存在的版本记入 skipped');
+  assert.equal(result.skipped[0].name, 'digua_common_error');
+  assert.equal(result.skipped[0].reason, 'already exists');
+});
+
+test('Cargo.lock is restored after publish (no kellnr source pollution)', () => {
+  const root = fixture({ dirs: LIBS_ORDER });
+  const lockPath = path.join(root, 'Cargo.lock');
+  const originalLock = 'version = 3\n\n[[package]]\nname = "digua_common_error"\nversion = "1.7.0"\n';
+  fs.writeFileSync(lockPath, originalLock, 'utf-8');
+  publishRust({
+    root,
+    version: '1.7.0',
+    targets: 'libs',
+    exec: () => {
+      // 模拟 cargo publish 把 registry 来源写进 lock
+      fs.writeFileSync(lockPath, originalLock + 'source = "registry+http://192.168.2.12:16444"\n', 'utf-8');
+      return { status: 0 };
+    },
+    out: { log() {}, warn() {} },
+  });
+  assert.equal(fs.readFileSync(lockPath, 'utf-8'), originalLock, 'Cargo.lock 必须复原到发布前内容');
+});

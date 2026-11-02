@@ -129,6 +129,19 @@ function publishRust({
     return { published: [], plan, dryRun: true };
   }
 
+  // Cargo.lock 快照必须在任何 exec 之前取：`cargo --version` 探活等前置动作
+  // 理论上也可能触碰 lock 文件（实测场景：探活之后的任何写入都会污染快照）。
+  // Cargo.lock 也必须复原：发布时 path 依赖被临时改成 registry 依赖，cargo 会把
+  // 「kellnr 双版本条目」写进 lock（实测：digua_common_error 1.6.0 同时出现 sparse
+  // 与 192.168.2.12:16444 两条来源）。只复原 Cargo.toml 会留下这个污染。
+  const lockPath = path.join(root, 'Cargo.lock');
+  let lockOriginal = null;
+  try {
+    lockOriginal = nodeFs.readFileSync(lockPath, 'utf-8');
+  } catch {
+    lockOriginal = null; // 无 lock（单 crate 仓）则无需复原
+  }
+
   const res = exec('cargo', ['--version'], { stdio: 'ignore' });
   if (res.error) throw new GuardError('RUST_CARGO_MISSING', "'cargo' not found on PATH");
 
@@ -153,6 +166,7 @@ function publishRust({
   const crateVersions = Object.fromEntries(dirs.map(({ dir }) => [dir, version]));
   const originals = new Map();
   const published = [];
+  const skipped = [];
   const toPkg = (dir, family) => (family === 'libs' ? dirToPackage(dir) : dir);
 
   try {
@@ -167,17 +181,33 @@ function publishRust({
       out.log(`[rust-publish] publishing ${dir} (pkg: ${pkgName})`);
       const result = exec('cargo', cargoPublishArgs(pkgName, registry, false), { cwd: path.join(root, base) });
       if ((result.status ?? 1) !== 0) {
+        const stderr = String(result.stderr || '');
+        // 断点续发：该版本已在此 registry 上（半途失败的发布序列重跑时必现，
+        // 以及「部分 crate 已发、其余未发」的版本对齐场景）。
+        // 「已存在」不是失败——跳过它，继续后续 crate。
+        if (/already exists|already uploaded|is already present/i.test(stderr)) {
+          out.warn(`[rust-publish] ${pkgName} ${version} 已在 registry（跳过）`);
+          skipped.push({ name: pkgName, version, reason: 'already exists' });
+          continue;
+        }
         throw new ExternalError(`cargo publish failed for ${dir}`, {
           dir,
-          stderr: String(result.stderr || '').split('\n').slice(0, 5).join('\n'),
+          stderr: stderr.split('\n').slice(0, 5).join('\n'),
         });
       }
       published.push({ name: pkgName, version });
     }
-    return { published, plan };
+    return { published, skipped, plan };
   } finally {
     for (const [tomlPath, text] of originals) {
       nodeFs.writeFileSync(tomlPath, text, 'utf-8');
+    }
+    if (lockOriginal !== null) {
+      try {
+        nodeFs.writeFileSync(lockPath, lockOriginal, 'utf-8');
+      } catch {
+        // lock 复原失败不应掩盖真正的发布错误
+      }
     }
   }
 }
