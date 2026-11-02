@@ -70,11 +70,11 @@
 
 ## 数据库方言
 
-支持 MySQL 和 SQLite。
+支持 MySQL / PostgreSQL / SQLite（`migrations/{mysql,postgres,sqlite}/`，同一份业务 SQL 源码经 `db_*!` 宏按方言渲染）。
 
 ## 表命名约定
 
-所有表必须以 `prue_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+所有表必须以 `prue_` 前缀（MySQL/PostgreSQL 共享 `superpowers` 数据库；SQLite 为单机 dev 模式）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
 
 ## AI 检查时机
 

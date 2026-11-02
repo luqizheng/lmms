@@ -17,7 +17,7 @@
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| DATABASE_URL | **必填** | MySQL 连接串；缺失或空白启动 fail-fast |
+| DATABASE_URL | **必填** | 数据库连接串（`mysql://` 或 `postgres://`，按 URL 前缀判方言）；缺失或空白启动 fail-fast |
 | SERVER_HOST | 0.0.0.0 | 监听主机 |
 | SERVER_PORT | 8081 | 监听端口 |
 | SERVER_ADDR | 0.0.0.0:8081 | 完整监听地址 |
@@ -71,7 +71,7 @@
 
 ## 表命名约定
 
-所有表必须以 `cfg_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+所有表必须以 `cfg_` 前缀（MySQL/PostgreSQL 共享 `superpowers` 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
 
 ## AI 检查时机
 

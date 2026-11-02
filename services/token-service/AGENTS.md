@@ -19,7 +19,7 @@
 
 | 变量 | yaml 键 | 说明 |
 |------|---------|------|
-| TOKEN_DATABASE_URL | database.url | MySQL 连接串 |
+| TOKEN_DATABASE_URL | database.url | 数据库连接串（`mysql://` 或 `postgres://`，按 URL 前缀判方言） |
 | TOKEN_JWT_PRIVATE_KEY_PATH | jwt_private_key_path | RS256 私钥文件路径 |
 | TOKEN_JWT_PUBLIC_KEY_PATH | jwt_public_key_path | RS256 公钥文件路径 |
 | TOKEN_ISSUER | issuer | JWT `iss` claim |
@@ -79,7 +79,7 @@
 
 ## 表命名约定
 
-所有表必须以 `token_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+所有表必须以 `token_` 前缀（MySQL/PostgreSQL 共享 `superpowers` 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
 
 ## AI 检查时机
 
