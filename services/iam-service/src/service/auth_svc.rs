@@ -7,8 +7,9 @@ use crate::{
 };
 use chrono::{Duration, Utc};
 use digua_common_crypto::password::{hash, verify};
+use digua_common_db::{db_execute, db_fetch_all, db_fetch_optional};
 use digua_common_event::events::{IamLoginFailed, IamLoginSucceeded};
-use digua_common_event::Envelope;
+use digua_common_event::{AnyTx, Envelope, OutboxRepo};
 use nanoid::nanoid;
 use redis::AsyncCommands;
 use sha2::{Digest, Sha256};
@@ -29,11 +30,13 @@ impl AuthService {
         user_agent: &str,
     ) -> Result<LoginResponse, IamError> {
         let tenant_slug = req.tenant_slug.as_deref().unwrap_or("default");
-        let tenant: Option<(u64,)> =
-            sqlx::query_as("SELECT id FROM iam_tenants WHERE slug = ? AND status = 'active'")
-                .bind(tenant_slug)
-                .fetch_optional(&self.state.db)
-                .await?;
+        // NOW()/`?` 占位符均方言通用（PG 的 NOW() 是 now() 的大小写不敏感别名）。
+        let tenant: Option<(i64,)> = db_fetch_optional!(
+            &self.state.db,
+            (i64,),
+            "SELECT id FROM iam_tenants WHERE slug = ? AND status = 'active'",
+            tenant_slug
+        )?;
         let tenant_id = match tenant {
             Some((id,)) => id,
             None => {
@@ -49,13 +52,13 @@ impl AuthService {
             }
         };
 
-        let user: Option<User> = sqlx::query_as(
-            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE tenant_id = ? AND username = ? AND deleted_at IS NULL"
-        )
-        .bind(tenant_id)
-        .bind(&req.username)
-        .fetch_optional(&self.state.db)
-        .await?;
+        let user: Option<User> = db_fetch_optional!(
+            &self.state.db,
+            User,
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE tenant_id = ? AND username = ? AND deleted_at IS NULL",
+            tenant_id,
+            &req.username
+        )?;
 
         let user = match user {
             Some(u) => u,
@@ -120,7 +123,7 @@ impl AuthService {
         let cross_tenant = roles.iter().any(|r| r == "platform_admin");
         let ttl_secs = self.state.config.jwt.access_token_ttl_minutes * 60;
         let claims = serde_json::json!({
-            "tid": user.tenant_id as i64,
+            "tid": user.tenant_id,
             "ct": cross_tenant,
             "username": user.username,
             "roles": roles,
@@ -139,26 +142,24 @@ impl AuthService {
         let refresh_token_id = nanoid!();
         let refresh_expires_at = Utc::now() + Duration::days(30);
 
-        sqlx::query(
-            "INSERT INTO iam_refresh_tokens (id, user_id, token_hash, expires_at, client_ip, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())"
-        )
-        .bind(&refresh_token_id)
-        .bind(&user.id)
-        .bind(&refresh_token_hash)
-        .bind(refresh_expires_at)
-        .bind(ip_address)
-        .bind(user_agent)
-        .execute(&self.state.db)
-        .await?;
+        db_execute!(
+            &self.state.db,
+            "INSERT INTO iam_refresh_tokens (id, user_id, token_hash, expires_at, client_ip, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
+            &refresh_token_id,
+            &user.id,
+            &refresh_token_hash,
+            refresh_expires_at,
+            ip_address,
+            user_agent
+        )?;
 
         // 更新最后登录信息
-        sqlx::query(
-            "UPDATE iam_users SET last_login_at = NOW(), last_login_ip = ?, updated_at = NOW() WHERE id = ?"
-        )
-        .bind(ip_address)
-        .bind(&user.id)
-        .execute(&self.state.db)
-        .await?;
+        db_execute!(
+            &self.state.db,
+            "UPDATE iam_users SET last_login_at = NOW(), last_login_ip = ?, updated_at = NOW() WHERE id = ?",
+            ip_address,
+            &user.id
+        )?;
 
         // 记录登录成功
         self.record_login_log(
@@ -172,27 +173,54 @@ impl AuthService {
         )
         .await?;
 
-        // 发布 iam.login.succeeded 事件（事务性 outbox）
-        {
-            let mut tx = self.state.db.begin().await?;
-            let mut envelope = Envelope::new(
-                "iam-service",
-                IamLoginSucceeded {
-                    user_id: user.id.clone(),
-                    ip: ip_address.to_string(),
-                    user_agent: Some(user_agent.to_string()),
-                    method: "password".to_string(),
-                },
-            )
-            .with_tenant_id(user.tenant_id.to_string());
-            digua_common_event::OutboxRepo::enqueue(
-                self.state.outbox_repo.as_ref(),
-                &mut digua_common_event::AnyTx::Mysql(&mut tx),
-                &mut envelope,
-            )
-            .await
-            .map_err(|e| IamError::Internal(e.to_string()))?;
-            tx.commit().await?;
+        // 发布 iam.login.succeeded 事件（事务性 outbox）——事务双臂（prue 样板）。
+        match &self.state.db {
+            #[cfg(feature = "mysql")]
+            digua_common_db::DbPool::Mysql(p) => {
+                let mut tx = p.begin().await?;
+                let mut envelope = Envelope::new(
+                    "iam-service",
+                    IamLoginSucceeded {
+                        user_id: user.id.clone(),
+                        ip: ip_address.to_string(),
+                        user_agent: Some(user_agent.to_string()),
+                        method: "password".to_string(),
+                    },
+                )
+                .with_tenant_id(user.tenant_id.to_string());
+                self.state
+                    .outbox_repo
+                    .enqueue(&mut AnyTx::Mysql(&mut tx), &mut envelope)
+                    .await
+                    .map_err(|e| IamError::Internal(e.to_string()))?;
+                tx.commit().await?;
+            }
+            #[cfg(feature = "postgres")]
+            digua_common_db::DbPool::Postgres(p) => {
+                let mut tx = p.begin().await?;
+                let mut envelope = Envelope::new(
+                    "iam-service",
+                    IamLoginSucceeded {
+                        user_id: user.id.clone(),
+                        ip: ip_address.to_string(),
+                        user_agent: Some(user_agent.to_string()),
+                        method: "password".to_string(),
+                    },
+                )
+                .with_tenant_id(user.tenant_id.to_string());
+                self.state
+                    .outbox_repo
+                    .enqueue(&mut AnyTx::Postgres(&mut tx), &mut envelope)
+                    .await
+                    .map_err(|e| IamError::Internal(e.to_string()))?;
+                tx.commit().await?;
+            }
+            #[allow(unreachable_patterns)]
+            _ => {
+                return Err(IamError::Internal(
+                    "login outbox: dialect feature not enabled".into(),
+                ))
+            }
         }
 
         let user_info = UserInfo {
@@ -218,12 +246,12 @@ impl AuthService {
     pub async fn refresh(&self, refresh_token: &str) -> Result<LoginResponse, IamError> {
         let token_hash = Self::hash_token(refresh_token);
 
-        let token: Option<RefreshToken> = sqlx::query_as(
-            "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE token_hash = ?"
-        )
-        .bind(&token_hash)
-        .fetch_optional(&self.state.db)
-        .await?;
+        let token: Option<RefreshToken> = db_fetch_optional!(
+            &self.state.db,
+            RefreshToken,
+            "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE token_hash = ?",
+            &token_hash
+        )?;
 
         let token = token.ok_or(IamError::TokenExpired)?;
 
@@ -236,12 +264,12 @@ impl AuthService {
         }
 
         // 获取用户信息
-        let user: Option<User> = sqlx::query_as(
-            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
-        )
-        .bind(&token.user_id)
-        .fetch_optional(&self.state.db)
-        .await?;
+        let user: Option<User> = db_fetch_optional!(
+            &self.state.db,
+            User,
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL",
+            &token.user_id
+        )?;
 
         let user = user.ok_or(IamError::UserNotFound)?;
 
@@ -255,7 +283,7 @@ impl AuthService {
         let cross_tenant = roles.iter().any(|r| r == "platform_admin");
         let ttl_secs = self.state.config.jwt.access_token_ttl_minutes * 60;
         let claims = serde_json::json!({
-            "tid": user.tenant_id as i64,
+            "tid": user.tenant_id,
             "ct": cross_tenant,
             "username": user.username,
             "roles": roles,
@@ -289,12 +317,12 @@ impl AuthService {
     }
 
     pub async fn logout(&self, user_id: &str, jti: &str) -> Result<(), IamError> {
-        sqlx::query(
-            "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE user_id = ? AND revoked = FALSE"
-        )
-        .bind(user_id)
-        .execute(&self.state.db)
-        .await?;
+        // revoked/TRUE/FALSE 字面量两侧通用（MySQL 布尔即 tinyint 别名）。
+        db_execute!(
+            &self.state.db,
+            "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE user_id = ? AND revoked = FALSE",
+            user_id
+        )?;
 
         if let Some(conn) = self.state.redis.as_ref() {
             if !jti.is_empty() {
@@ -311,23 +339,22 @@ impl AuthService {
     }
 
     pub async fn revoke_session(&self, session_id: &str) -> Result<(), IamError> {
-        sqlx::query(
+        db_execute!(
+            &self.state.db,
             "UPDATE iam_refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE id = ?",
-        )
-        .bind(session_id)
-        .execute(&self.state.db)
-        .await?;
+            session_id
+        )?;
 
         Ok(())
     }
 
     pub async fn get_user_sessions(&self, user_id: &str) -> Result<Vec<RefreshToken>, IamError> {
-        let tokens: Vec<RefreshToken> = sqlx::query_as(
-            "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE user_id = ? AND revoked = FALSE ORDER BY created_at DESC"
-        )
-        .bind(user_id)
-        .fetch_all(&self.state.db)
-        .await?;
+        let tokens: Vec<RefreshToken> = db_fetch_all!(
+            &self.state.db,
+            RefreshToken,
+            "SELECT id, user_id, token_hash, expires_at, client_ip, user_agent, revoked, revoked_at, created_at, updated_at FROM iam_refresh_tokens WHERE user_id = ? AND revoked = FALSE ORDER BY created_at DESC",
+            user_id
+        )?;
 
         Ok(tokens)
     }
@@ -337,12 +364,12 @@ impl AuthService {
         user_id: &str,
         req: ChangePasswordRequest,
     ) -> Result<(), IamError> {
-        let user: Option<User> = sqlx::query_as(
-            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL"
-        )
-        .bind(user_id)
-        .fetch_optional(&self.state.db)
-        .await?;
+        let user: Option<User> = db_fetch_optional!(
+            &self.state.db,
+            User,
+            "SELECT id, tenant_id, username, email, phone, password_hash, salt, nickname, avatar, status, email_verified, phone_verified, last_login_at, last_login_ip, password_expired_at, created_at, updated_at, deleted_at FROM iam_users WHERE id = ? AND deleted_at IS NULL",
+            user_id
+        )?;
 
         let user = user.ok_or(IamError::UserNotFound)?;
 
@@ -357,36 +384,35 @@ impl AuthService {
 
         // 更新密码并将密码设置为 90 天后过期
         let password_expired_at = Utc::now() + Duration::days(90);
-        sqlx::query(
-            "UPDATE iam_users SET password_hash = ?, password_expired_at = ?, updated_at = NOW() WHERE id = ?"
-        )
-        .bind(&new_hash)
-        .bind(password_expired_at)
-        .bind(user_id)
-        .execute(&self.state.db)
-        .await?;
+        db_execute!(
+            &self.state.db,
+            "UPDATE iam_users SET password_hash = ?, password_expired_at = ?, updated_at = NOW() WHERE id = ?",
+            &new_hash,
+            password_expired_at,
+            user_id
+        )?;
 
         Ok(())
     }
 
     async fn get_user_roles(&self, user_id: &str) -> Result<Vec<String>, IamError> {
-        let roles: Vec<(String,)> = sqlx::query_as(
-            "SELECT r.code FROM iam_roles r INNER JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.status = 'active' AND r.deleted_at IS NULL"
-        )
-        .bind(user_id)
-        .fetch_all(&self.state.db)
-        .await?;
+        let roles: Vec<(String,)> = db_fetch_all!(
+            &self.state.db,
+            (String,),
+            "SELECT r.code FROM iam_roles r INNER JOIN iam_user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ? AND r.status = 'active' AND r.deleted_at IS NULL",
+            user_id
+        )?;
 
         Ok(roles.into_iter().map(|(code,)| code).collect())
     }
 
     async fn get_user_permissions(&self, user_id: &str) -> Result<Vec<String>, IamError> {
-        let permissions: Vec<(String,)> = sqlx::query_as(
-            "SELECT DISTINCT p.code FROM iam_permissions p INNER JOIN iam_role_permissions rp ON p.id = rp.permission_id INNER JOIN iam_user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.status = 'enabled' AND p.deleted_at IS NULL"
-        )
-        .bind(user_id)
-        .fetch_all(&self.state.db)
-        .await?;
+        let permissions: Vec<(String,)> = db_fetch_all!(
+            &self.state.db,
+            (String,),
+            "SELECT DISTINCT p.code FROM iam_permissions p INNER JOIN iam_role_permissions rp ON p.id = rp.permission_id INNER JOIN iam_user_roles ur ON rp.role_id = ur.role_id WHERE ur.user_id = ? AND p.status = 'enabled' AND p.deleted_at IS NULL",
+            user_id
+        )?;
 
         Ok(permissions.into_iter().map(|(code,)| code).collect())
     }
@@ -403,19 +429,18 @@ impl AuthService {
         error_message: Option<&str>,
     ) -> Result<(), IamError> {
         let log_id = nanoid!();
-        sqlx::query(
-            "INSERT INTO iam_login_logs (id, user_id, username, ip_address, user_agent, login_type, success, error_message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())"
-        )
-        .bind(&log_id)
-        .bind(user_id)
-        .bind(username)
-        .bind(ip_address)
-        .bind(user_agent)
-        .bind(login_type)
-        .bind(success)
-        .bind(error_message)
-        .execute(&self.state.db)
-        .await?;
+        db_execute!(
+            &self.state.db,
+            "INSERT INTO iam_login_logs (id, user_id, username, ip_address, user_agent, login_type, success, error_message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+            &log_id,
+            user_id,
+            username,
+            ip_address,
+            user_agent,
+            login_type,
+            success,
+            error_message
+        )?;
 
         Ok(())
     }
@@ -428,40 +453,84 @@ impl AuthService {
         user_agent: &str,
         reason: &str,
     ) -> Result<(), IamError> {
-        let mut tx = self.state.db.begin().await?;
-        sqlx::query(
-            "INSERT INTO iam_login_logs (id, user_id, username, ip_address, user_agent, \
-             login_type, success, error_message, created_at) \
-             VALUES (?, ?, ?, ?, ?, 'password', false, ?, NOW())",
-        )
-        .bind(nanoid!())
-        .bind(user_id)
-        .bind(username)
-        .bind(ip)
-        .bind(user_agent)
-        .bind(reason)
-        .execute(&mut *tx)
-        .await?;
-
-        let mut envelope = Envelope::new(
-            "iam-service",
-            IamLoginFailed {
-                username: username.to_string(),
-                user_id: user_id.map(|s| s.to_string()),
-                ip: ip.to_string(),
-                user_agent: Some(user_agent.to_string()),
-                reason: reason.to_string(),
-            },
-        )
-        .with_tenant_id("1");
-        digua_common_event::OutboxRepo::enqueue(
-            self.state.outbox_repo.as_ref(),
-            &mut digua_common_event::AnyTx::Mysql(&mut tx),
-            &mut envelope,
-        )
-        .await
-        .map_err(|e| IamError::Internal(e.to_string()))?;
-        tx.commit().await?;
+        // 单 INSERT + outbox enqueue 的混合事务 → 双臂（prue 样板）。
+        match &self.state.db {
+            #[cfg(feature = "mysql")]
+            digua_common_db::DbPool::Mysql(p) => {
+                let mut tx = p.begin().await?;
+                sqlx::query(
+                    "INSERT INTO iam_login_logs (id, user_id, username, ip_address, user_agent, \
+                     login_type, success, error_message, created_at) \
+                     VALUES (?, ?, ?, ?, ?, 'password', false, ?, NOW())",
+                )
+                .bind(nanoid!())
+                .bind(user_id)
+                .bind(username)
+                .bind(ip)
+                .bind(user_agent)
+                .bind(reason)
+                .execute(&mut *tx)
+                .await?;
+                let mut envelope = Envelope::new(
+                    "iam-service",
+                    IamLoginFailed {
+                        username: username.to_string(),
+                        user_id: user_id.map(|s| s.to_string()),
+                        ip: ip.to_string(),
+                        user_agent: Some(user_agent.to_string()),
+                        reason: reason.to_string(),
+                    },
+                )
+                .with_tenant_id("1");
+                self.state
+                    .outbox_repo
+                    .enqueue(&mut AnyTx::Mysql(&mut tx), &mut envelope)
+                    .await
+                    .map_err(|e| IamError::Internal(e.to_string()))?;
+                tx.commit().await?;
+            }
+            // PG 臂：$N 占位符 + 小写 false（PG 布尔字面量大小写不敏感）。
+            #[cfg(feature = "postgres")]
+            digua_common_db::DbPool::Postgres(p) => {
+                let mut tx = p.begin().await?;
+                sqlx::query(
+                    "INSERT INTO iam_login_logs (id, user_id, username, ip_address, user_agent, \
+                     login_type, success, error_message, created_at) \
+                     VALUES ($1, $2, $3, $4, $5, 'password', false, $6, NOW())",
+                )
+                .bind(nanoid!())
+                .bind(user_id)
+                .bind(username)
+                .bind(ip)
+                .bind(user_agent)
+                .bind(reason)
+                .execute(&mut *tx)
+                .await?;
+                let mut envelope = Envelope::new(
+                    "iam-service",
+                    IamLoginFailed {
+                        username: username.to_string(),
+                        user_id: user_id.map(|s| s.to_string()),
+                        ip: ip.to_string(),
+                        user_agent: Some(user_agent.to_string()),
+                        reason: reason.to_string(),
+                    },
+                )
+                .with_tenant_id("1");
+                self.state
+                    .outbox_repo
+                    .enqueue(&mut AnyTx::Postgres(&mut tx), &mut envelope)
+                    .await
+                    .map_err(|e| IamError::Internal(e.to_string()))?;
+                tx.commit().await?;
+            }
+            #[allow(unreachable_patterns)]
+            _ => {
+                return Err(IamError::Internal(
+                    "record_login_failure: dialect feature not enabled".into(),
+                ))
+            }
+        }
         Ok(())
     }
 

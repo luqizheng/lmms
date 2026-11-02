@@ -6,7 +6,9 @@ use std::fmt;
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
-    pub tenant_id: u64,
+    /// tenant_id 统一有符号 i64（PG 列即 BIGINT；MySQL UNSIGNED 列存正数无损，
+    /// 与全仓 u64→i64 清单一致——S5d）。
+    pub tenant_id: i64,
     pub username: String,
     pub email: Option<String>,
     pub phone: Option<String>,

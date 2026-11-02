@@ -128,11 +128,11 @@
 
 ## 数据库方言
 
-支持 MySQL 和 SQLite。
+支持 MySQL 和 PostgreSQL（`migrations/{mysql,postgres}/`，同一份业务 SQL 源码经 `db_*!` 宏按方言渲染；PG 迁移禁 `$$`/`DO`/触发器，时间列一律 `TIMESTAMPTZ`）。
 
 ## 表命名约定
 
-所有表必须以 `iam_` 前缀（共享 `superpowers` MySQL 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+所有表必须以 `iam_` 前缀（MySQL/PostgreSQL 共享 `superpowers` 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
 
 ## 内部服务调用 /iam/internal/*
 

@@ -3,8 +3,8 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use digua_common_db::db_fetch_optional;
 use serde::Deserialize;
-use sqlx::Row;
 use utoipa::IntoParams;
 
 use crate::{
@@ -160,44 +160,43 @@ pub async fn list_users_by_org_and_role(
     let db = &state.db;
 
     // Resolve org_unit_id from org_path (code field in iam_org_units)
-    let org_row = sqlx::query(
+    // 池级单语句 → db_fetch_optional! 宏（`?` 占位符由宏按方言渲染；tid 按 i64 绑定）。
+    let org_row: Option<(String,)> = db_fetch_optional!(
+        db,
+        (String,),
         "SELECT id FROM iam_org_units WHERE code = ? AND tenant_id = ? AND deleted_at IS NULL",
+        &req.org_path,
+        tid
     )
-    .bind(&req.org_path)
-    .bind(tid)
-    .fetch_optional(db)
-    .await
     .map_err(|_| {
         (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             "db error".to_string(),
         )
-    })?
-    .ok_or((
+    })?;
+    let (org_unit_id,) = org_row.ok_or((
         axum::http::StatusCode::NOT_FOUND,
         format!("org unit {} not found", req.org_path),
     ))?;
-    let org_unit_id: String = org_row.get("id");
 
     // Resolve role_id from role_name (code field in iam_roles)
-    let role_row = sqlx::query(
+    let role_row: Option<(String,)> = db_fetch_optional!(
+        db,
+        (String,),
         "SELECT id FROM iam_roles WHERE code = ? AND tenant_id = ? AND deleted_at IS NULL",
+        &req.role_name,
+        tid
     )
-    .bind(&req.role_name)
-    .bind(tid)
-    .fetch_optional(db)
-    .await
     .map_err(|_| {
         (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             "db error".to_string(),
         )
-    })?
-    .ok_or((
+    })?;
+    let (role_id,) = role_row.ok_or((
         axum::http::StatusCode::NOT_FOUND,
         format!("role {} not found", req.role_name),
     ))?;
-    let role_id: String = role_row.get("id");
 
     let svc = UserService::new(state);
     let scope = TenantScope::Single(tid);

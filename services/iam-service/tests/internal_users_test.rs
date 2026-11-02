@@ -87,7 +87,7 @@ async fn setup() -> Ctx {
     ));
     let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
     let state = AppState::new(
-        pool,
+        digua_common_db::DbPool::from(pool.clone()),
         cache,
         config,
         None,
@@ -114,7 +114,7 @@ async fn seed_tenant(state: &AppState, id: i64, slug: &str) {
     .bind(id)
     .bind(slug)
     .bind(slug)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -125,7 +125,7 @@ async fn seed_tenant_user(state: &AppState, tenant: i64, uid: &str) {
          VALUES (?, ?, ?, 'h', 's', ?, 'active', NOW(), NOW())",
     )
     .bind(uid).bind(tenant).bind(uid).bind(uid)
-    .execute(&state.db).await.unwrap();
+    .execute(&common::mysql_of(state)).await.unwrap();
 }
 
 async fn seed_role(state: &AppState, rid: &str) {
@@ -136,7 +136,7 @@ async fn seed_role(state: &AppState, rid: &str) {
     .bind(rid)
     .bind(rid)
     .bind(rid)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -149,7 +149,7 @@ async fn seed_org(state: &AppState, oid: &str) {
     .bind(oid)
     .bind(oid)
     .bind(oid)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -158,7 +158,7 @@ async fn bind_user_to_role(state: &AppState, uid: &str, rid: &str) {
     sqlx::query("INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())")
         .bind(uid)
         .bind(rid)
-        .execute(&state.db)
+        .execute(&common::mysql_of(state))
         .await
         .unwrap();
 }
@@ -170,7 +170,7 @@ async fn bind_user_to_org(state: &AppState, uid: &str, oid: &str) {
     )
     .bind(uid)
     .bind(oid)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }

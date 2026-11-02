@@ -87,7 +87,7 @@ async fn cross_tenant_and_get_claims() {
         .expect("test public key must parse"),
     );
     let mut state = AppState::new(
-        pool.clone(),
+        digua_common_db::DbPool::from(pool.clone()),
         MemoryCache::new(10000),
         config.clone(),
         None,
@@ -157,7 +157,7 @@ async fn cross_tenant_and_get_claims() {
          VALUES (?, 'role-platform-admin-seed', NOW())",
     )
     .bind(&admin.id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(&state))
     .await
     .unwrap();
 
@@ -181,7 +181,7 @@ async fn cross_tenant_and_get_claims() {
     // 替换 placeholder service_jwt + token_forward 为 stub-server 指向的真实例。
     let outbox_repo = Arc::new(MySqlOutboxRepo::new(pool.clone()));
     state = AppState::new(
-        pool.clone(),
+        digua_common_db::DbPool::from(pool.clone()),
         cache,
         config.clone(),
         None,
@@ -235,12 +235,12 @@ async fn cross_tenant_and_get_claims() {
     // fetch tenant ids
     let (acme_tid,): (i64,) =
         sqlx::query_as("SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'acme'")
-            .fetch_one(&state.db)
+            .fetch_one(&common::mysql_of(&state))
             .await
             .unwrap();
     let (globex_tid,): (i64,) =
         sqlx::query_as("SELECT CAST(id AS SIGNED) FROM iam_tenants WHERE slug = 'globex'")
-            .fetch_one(&state.db)
+            .fetch_one(&common::mysql_of(&state))
             .await
             .unwrap();
 

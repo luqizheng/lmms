@@ -22,6 +22,67 @@ const TEST_TOKEN_PRIVATE_PEM: &str =
 
 pub type MysqlContainer = testcontainers::ContainerAsync<Mysql>;
 
+/// Redis fixture：`REDIS_URL` 存在时直连共享容器（coder-test-redis，宿主 6379），
+/// 否则回退本地 testcontainers——与 `scripts/run-tests-docker.js` 的共享容器约定
+/// 对齐（本机 testcontainers 建容器报 OS 53，本地验证必须走共享 env 路径；
+/// CI 不设 `REDIS_URL`，行为与改造前完全一致）。notification-service 的
+/// `welcome_consumer_test` 同款约定。
+pub struct RedisHandle {
+    pub mgr: redis::aio::ConnectionManager,
+    pub url: String,
+    /// `None` 表示共享模式（容器由 `run-tests-docker.js` 管理生命周期）。
+    #[allow(dead_code)]
+    pub container: Option<testcontainers::ContainerAsync<testcontainers_modules::redis::Redis>>,
+}
+
+pub async fn spawn_redis() -> RedisHandle {
+    if let Ok(url) = std::env::var("REDIS_URL") {
+        if !url.trim().is_empty() {
+            let url = url.trim().to_string();
+            let client = redis::Client::open(url.as_str()).expect("parse REDIS_URL");
+            let mgr = redis::aio::ConnectionManager::new(client)
+                .await
+                .expect("connect shared redis");
+            return RedisHandle {
+                mgr,
+                url,
+                container: None,
+            };
+        }
+    }
+    use testcontainers::runners::AsyncRunner;
+    let c = testcontainers_modules::redis::Redis::default()
+        .start()
+        .await
+        .expect("start local redis container");
+    let host = c.get_host().await.expect("redis host");
+    let port = c.get_host_port_ipv4(6379).await.expect("redis port");
+    let url = format!("redis://{host}:{port}");
+    let client = redis::Client::open(url.as_str()).expect("parse redis url");
+    let mgr = redis::aio::ConnectionManager::new(client)
+        .await
+        .expect("connect local redis");
+    RedisHandle {
+        mgr,
+        url,
+        container: Some(c),
+    }
+}
+
+/// 既有集成用例的 seed / 断言 SQL 是 MySQL 方言（`information_schema`、
+/// `JSON_EXTRACT` 等），而 `AppState.db` 已改为方言无关 `DbPool`。这里经
+/// `as_mysql()` 取回底层 MySQL 池（clone 一份句柄），让旧断言原样跑在
+/// MySQL fixture 上（PG 往返由 `pg_roundtrip_test.rs` 单独覆盖）。
+// common/mod.rs 按测试二进制各编译一份，不用它的用例会报 dead_code。
+#[allow(dead_code)]
+pub fn mysql_of(state: &iam_service::state::AppState) -> MySqlPool {
+    state
+        .db
+        .as_mysql()
+        .cloned()
+        .expect("mysql pool (these tests run against a mysql fixture)")
+}
+
 pub struct MysqlHandle {
     pub pool: MySqlPool,
     #[allow(dead_code)]
@@ -64,10 +125,13 @@ async fn spawn_shared(host: String, port: String) -> MysqlHandle {
     admin.close().await;
 
     let url = format!("mysql://root@{host}:{port}/{db_name}");
-    let pool = digua_common::db::connect(&url, 5)
+    // ensure_schema 现在吃 DbPool（方言无关入口）；MySQL URL 建的就是 MySQL 池，
+    // 取回底层 MySqlPool 让既有断言（MySQL 方言 SQL）原样可用。
+    let dbpool = digua_common_db::init_pool_with(&url, 5)
         .await
         .expect("connect to test database");
-    db::ensure_schema(&pool).await.expect("ensure iam schema");
+    db::ensure_schema(&dbpool).await.expect("ensure iam schema");
+    let pool = dbpool.as_mysql().cloned().expect("mysql pool from DbPool");
 
     MysqlHandle {
         pool,
@@ -85,10 +149,11 @@ async fn spawn_local() -> MysqlHandle {
     let host = c.get_host().await.expect("mysql host");
     let port = c.get_host_port_ipv4(3306).await.expect("mysql port");
     let url = format!("mysql://root@{host}:{port}/test");
-    let pool = digua_common::db::connect(&url, 5)
+    let dbpool = digua_common_db::init_pool_with(&url, 5)
         .await
         .expect("connect local mysql");
-    db::ensure_schema(&pool).await.expect("ensure iam schema");
+    db::ensure_schema(&dbpool).await.expect("ensure iam schema");
+    let pool = dbpool.as_mysql().cloned().expect("mysql pool from DbPool");
 
     MysqlHandle {
         pool,

@@ -86,7 +86,7 @@ async fn setup() -> Ctx {
     ));
     let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
     let state = AppState::new(
-        pool,
+        digua_common_db::DbPool::from(pool.clone()),
         cache,
         config,
         None,
@@ -125,27 +125,27 @@ async fn register_tenant_creates_tenant_and_admin_and_outbox() {
 
     // tenant row
     let (slug,): (String,) = sqlx::query_as("SELECT slug FROM iam_tenants WHERE id = ?")
-        .bind(resp.tenant_id as u64)
-        .fetch_one(&ctx.state.db)
+        .bind(resp.tenant_id)
+        .fetch_one(&common::mysql_of(&ctx.state))
         .await
         .unwrap();
     assert_eq!(slug, "acme");
 
     // admin user row with tenant_id
-    let (tid, username): (u64, String) =
+    let (tid, username): (i64, String) =
         sqlx::query_as("SELECT tenant_id, username FROM iam_users WHERE id = ?")
             .bind(&resp.admin_user_id)
-            .fetch_one(&ctx.state.db)
+            .fetch_one(&common::mysql_of(&ctx.state))
             .await
             .unwrap();
-    assert_eq!(tid as i64, resp.tenant_id);
+    assert_eq!(tid, resp.tenant_id);
     assert_eq!(username, "admin");
 
     // outbox row
     let (n,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM iam_outbox_events WHERE event_type = 'iam.tenant.created'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(n, 1);
@@ -155,7 +155,7 @@ async fn register_tenant_creates_tenant_and_admin_and_outbox() {
         "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(envelope_json, '$.tenant_id')) AS CHAR) \
          FROM iam_outbox_events WHERE event_type = 'iam.tenant.created'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(env_tenant, resp.tenant_id.to_string());
@@ -187,10 +187,10 @@ async fn two_tenants_can_have_same_admin_username() {
     assert_ne!(acme.admin_user_id, globex.admin_user_id);
 
     // Both admin rows exist with same username but different tenant_id.
-    let admins: Vec<(String, u64, String)> = sqlx::query_as(
+    let admins: Vec<(String, i64, String)> = sqlx::query_as(
         "SELECT id, tenant_id, username FROM iam_users WHERE username = 'admin' ORDER BY tenant_id ASC",
     )
-    .fetch_all(&ctx.state.db)
+    .fetch_all(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(admins.len(), 2);
@@ -207,7 +207,7 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
         "SELECT COUNT(*) FROM information_schema.columns \
          WHERE table_schema = DATABASE() AND table_name = 'iam_roles' AND column_name = 'tenant_id'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(cnt, 1, "iam_roles.tenant_id must exist after V004");
@@ -217,7 +217,7 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
         "SELECT COUNT(*) FROM information_schema.columns \
          WHERE table_schema = DATABASE() AND table_name = 'iam_org_units' AND column_name = 'tenant_id'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(cnt, 1, "iam_org_units.tenant_id must exist after V004");
@@ -227,7 +227,7 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
         "SELECT COUNT(*) FROM information_schema.columns \
          WHERE table_schema = DATABASE() AND table_name = 'iam_login_logs' AND column_name = 'tenant_id'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(cnt, 1, "iam_login_logs.tenant_id must exist after V004");
@@ -236,7 +236,7 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
     let (tid,): (i64,) = sqlx::query_as(
         "SELECT CAST(tenant_id AS SIGNED) FROM iam_roles WHERE code = 'tenant_admin'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(tid, 1, "seed tenant_admin must be scoped to default tenant");
@@ -248,13 +248,13 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
          WHERE rp.role_id = 'role-tenant-admin-seed' \
          AND p.status = 'enabled' AND p.deleted_at IS NULL",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     let (total,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM iam_permissions WHERE status = 'enabled' AND deleted_at IS NULL",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(
@@ -267,7 +267,7 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
         "SELECT COUNT(*) FROM information_schema.statistics \
          WHERE table_schema = DATABASE() AND table_name = 'iam_roles' AND index_name = 'uk_tenant_role_code'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(
@@ -279,7 +279,7 @@ async fn v004_migration_adds_tenant_id_and_rescopes_seed_role() {
         "SELECT COUNT(*) FROM information_schema.statistics \
          WHERE table_schema = DATABASE() AND table_name = 'iam_roles' AND index_name = 'code'",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(
@@ -298,8 +298,8 @@ async fn register_creates_per_tenant_admin_role_with_permissions() {
     let (role_id, tid): (String, i64) = sqlx::query_as(
         "SELECT id, CAST(tenant_id AS SIGNED) FROM iam_roles WHERE tenant_id = ? AND code = 'tenant_admin'",
     )
-    .bind(resp.tenant_id as u64)
-    .fetch_one(&ctx.state.db)
+    .bind(resp.tenant_id)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(tid, resp.tenant_id);
@@ -308,13 +308,13 @@ async fn register_creates_per_tenant_admin_role_with_permissions() {
     let (pn,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM iam_role_permissions WHERE role_id = ?")
             .bind(&role_id)
-            .fetch_one(&ctx.state.db)
+            .fetch_one(&common::mysql_of(&ctx.state))
             .await
             .unwrap();
     let (total,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM iam_permissions WHERE status = 'enabled' AND deleted_at IS NULL",
     )
-    .fetch_one(&ctx.state.db)
+    .fetch_one(&common::mysql_of(&ctx.state))
     .await
     .unwrap();
     assert_eq!(
@@ -327,7 +327,7 @@ async fn register_creates_per_tenant_admin_role_with_permissions() {
         sqlx::query_as("SELECT COUNT(*) FROM iam_user_roles WHERE user_id = ? AND role_id = ?")
             .bind(&resp.admin_user_id)
             .bind(&role_id)
-            .fetch_one(&ctx.state.db)
+            .fetch_one(&common::mysql_of(&ctx.state))
             .await
             .unwrap();
     assert_eq!(

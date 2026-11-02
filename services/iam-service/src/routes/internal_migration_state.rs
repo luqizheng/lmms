@@ -8,8 +8,8 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::ge
 use digua_common_db::migration_state::{
     self, MigrationDescriptor, MigrationState, MigrationStateResponse,
 };
+use digua_common_db::DbPool;
 use serde_json::json;
-use sqlx::MySqlPool;
 use utoipa::path as to_path;
 
 use crate::state::AppState;
@@ -64,11 +64,15 @@ impl MigrationState for IamMigrationState {
     }
 }
 
-async fn probe_applied_mysql(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
+async fn probe_applied(pool: &DbPool) -> Result<Vec<String>, sqlx::Error> {
     let state = IamMigrationState;
     let mut applied = Vec::with_capacity(state.migrations().len());
     for m in state.migrations() {
-        if migration_state::probe_marker_mysql(pool, m.marker_table).await? {
+        // 方言无关探测入口（PG 用 current_schema()，MySQL 用 DATABASE()）。
+        if migration_state::probe_marker(pool, m.marker_table)
+            .await
+            .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?
+        {
             applied.push(m.version.to_string());
         }
     }
@@ -89,7 +93,7 @@ async fn probe_applied_mysql(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Erro
 pub async fn migration_state_handler(State(state): State<AppState>) -> impl IntoResponse {
     let pool = state.db.clone();
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =
-        match probe_applied_mysql(&pool).await {
+        match probe_applied(&pool).await {
             Ok(applied) => Ok(migration_state::build_response(&IamMigrationState, applied)),
             Err(e) => Err((
                 StatusCode::SERVICE_UNAVAILABLE,

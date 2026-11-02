@@ -20,15 +20,16 @@ use iam_service::service::RoleService;
 use iam_service::state::AppState;
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use testcontainers_modules::{redis::Redis, testcontainers::runners::AsyncRunner};
 
-const PREFIX: &str = "superpowers:";
+// redis prefix 每用例随机（见 setup）：共享 Redis 容器模式下避免并行用例
+// 的 perm_epoch 键互相污染（独立容器模式无此问题，随机 prefix 两侧都无害）。
 
 struct Ctx {
     state: AppState,
     redis: redis::aio::ConnectionManager,
+    prefix: String,
     _mysql: Option<common::MysqlContainer>,
-    _redis: testcontainers::ContainerAsync<Redis>,
+    _redis: Option<testcontainers::ContainerAsync<testcontainers_modules::redis::Redis>>,
 }
 
 async fn setup() -> Ctx {
@@ -36,11 +37,10 @@ async fn setup() -> Ctx {
     let pool = mysql_h.pool;
     let url = mysql_h.url;
 
-    let redis_c = Redis.start().await.unwrap();
-    let r_port = redis_c.get_host_port_ipv4(6379).await.unwrap();
-    let r_host = redis_c.get_host().await.unwrap();
-    let client = redis::Client::open(format!("redis://{r_host}:{r_port}")).unwrap();
-    let mgr = redis::aio::ConnectionManager::new(client).await.unwrap();
+    let redis_h = common::spawn_redis().await;
+    let prefix = format!("t:{}:", uuid::Uuid::new_v4().simple());
+    let r_url = redis_h.url.clone();
+    let mgr = redis_h.mgr;
 
     let config = Config {
         app: AppConfig {
@@ -54,9 +54,9 @@ async fn setup() -> Ctx {
             min_connections: 1,
         },
         redis: RedisConfig {
-            url: format!("redis://{r_host}:{r_port}"),
+            url: r_url.clone(),
             ttl_sec: 86400,
-            prefix: PREFIX.into(),
+            prefix: prefix.clone(),
         },
         jwt: JwtConfig {
             private_key_path: "/app/keys/private.pem".into(),
@@ -95,7 +95,7 @@ async fn setup() -> Ctx {
     ));
     let token_forward = Arc::new(TokenForwardClient::new(service_jwt.clone(), String::new()));
     let state = AppState::new(
-        pool,
+        digua_common_db::DbPool::from(pool.clone()),
         cache,
         config,
         Some(mgr.clone()),
@@ -107,8 +107,9 @@ async fn setup() -> Ctx {
     Ctx {
         state,
         redis: mgr,
+        prefix,
         _mysql: mysql_h.container,
-        _redis: redis_c,
+        _redis: redis_h.container,
     }
 }
 
@@ -118,7 +119,7 @@ async fn seed_user(state: &AppState, id: &str) {
     sqlx::query(
         "INSERT INTO iam_users (id, username, password_hash, salt, nickname, status, created_at, updated_at) \
          VALUES (?, ?, 'h', 's', ?, 'active', NOW(), NOW())",
-    ).bind(id).bind(id).bind(id).execute(&state.db).await.unwrap();
+    ).bind(id).bind(id).bind(id).execute(&common::mysql_of(state)).await.unwrap();
 }
 
 async fn seed_role(state: &AppState, id: &str) {
@@ -129,7 +130,7 @@ async fn seed_role(state: &AppState, id: &str) {
     .bind(id)
     .bind(id)
     .bind(id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -142,7 +143,7 @@ async fn seed_disabled_role(state: &AppState, id: &str) {
     .bind(id)
     .bind(id)
     .bind(id)
-    .execute(&state.db)
+    .execute(&common::mysql_of(state))
     .await
     .unwrap();
 }
@@ -151,7 +152,7 @@ async fn assign_user_to_role(state: &AppState, user_id: &str, role_id: &str) {
     sqlx::query("INSERT INTO iam_user_roles (user_id, role_id, created_at) VALUES (?, ?, NOW())")
         .bind(user_id)
         .bind(role_id)
-        .execute(&state.db)
+        .execute(&common::mysql_of(state))
         .await
         .unwrap();
 }
@@ -162,7 +163,7 @@ async fn outbox_count(state: &AppState) -> i64 {
     let (n,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
     )
-    .fetch_one(&state.db)
+    .fetch_one(&common::mysql_of(state))
     .await
     .unwrap();
     n
@@ -179,7 +180,7 @@ async fn single_outbox_reason_and_users(state: &AppState) -> (String, BTreeSet<S
                 CAST(JSON_EXTRACT(envelope_json, '$.payload.user_ids') AS CHAR) \
          FROM iam_outbox_events WHERE event_type = 'iam.permission.changed'",
     )
-    .fetch_one(&state.db)
+    .fetch_one(&common::mysql_of(state))
     .await
     .unwrap();
     let users: Vec<String> = serde_json::from_str(&users_json).unwrap();
@@ -190,14 +191,14 @@ async fn user_roles(state: &AppState, user_id: &str) -> BTreeSet<String> {
     let rows: Vec<(String,)> =
         sqlx::query_as("SELECT role_id FROM iam_user_roles WHERE user_id = ?")
             .bind(user_id)
-            .fetch_all(&state.db)
+            .fetch_all(&common::mysql_of(state))
             .await
             .unwrap();
     rows.into_iter().map(|(r,)| r).collect()
 }
 
 async fn assert_epoch_fresh(ctx: &mut Ctx, uid: &str, before: i64) {
-    let epoch = get_perm_epoch(&mut ctx.redis, PREFIX, uid)
+    let epoch = get_perm_epoch(&mut ctx.redis, &ctx.prefix, uid)
         .await
         .unwrap()
         .unwrap_or_else(|| panic!("perm_epoch missing for {uid}"));
@@ -206,7 +207,7 @@ async fn assert_epoch_fresh(ctx: &mut Ctx, uid: &str, before: i64) {
         epoch >= before && epoch <= after,
         "epoch {epoch} for {uid} not in [{before}, {after}]"
     );
-    let key = perm_epoch_key(PREFIX, uid);
+    let key = perm_epoch_key(&ctx.prefix, uid);
     let ttl: i64 = redis::cmd("TTL")
         .arg(&key)
         .query_async(&mut ctx.redis)
@@ -216,7 +217,9 @@ async fn assert_epoch_fresh(ctx: &mut Ctx, uid: &str, before: i64) {
 }
 
 async fn assert_no_epoch(ctx: &mut Ctx, uid: &str) {
-    let epoch = get_perm_epoch(&mut ctx.redis, PREFIX, uid).await.unwrap();
+    let epoch = get_perm_epoch(&mut ctx.redis, &ctx.prefix, uid)
+        .await
+        .unwrap();
     assert_eq!(epoch, None, "expected no perm_epoch for {uid}");
 }
 
