@@ -102,11 +102,32 @@ services:
     networks:
       - superpowers
 
+  # PostgreSQL —— 可选方言（`--profile pg` 显式启用）。默认编排仍是 MySQL；
+  # 服务级 PG 支持见 docs/superpowers/plans/2026-11-02-postgresql-service-layer-support.md。
+  postgres:
+    image: ${BASE_REGISTRY}postgres:16
+    profiles: ["pg"]
+    hostname: ${POSTGRES_HOST:-postgres}
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-coder}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-coder}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
 volumes:
   consul_data:
   redis_data:
   mysql_data:
   rabbitmq_data:
+  postgres_data:
 
 networks:
   superpowers:

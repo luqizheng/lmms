@@ -124,7 +124,11 @@ TEST_PG_URL='postgres://postgres:coder@localhost:5434/coder_test' \
 
 `TEST_PG_URL` 未设置时 PG 集成测试自动跳过（不失败）。PostgreSQL 自 2026-10-30 起
 为基础方言（见 `docs/superpowers/specs/dialect-matrix.md`），CI 在 PR 级跑
-`dialect-matrix` workflow 的 `test-postgres` job。
+`dialect-matrix` workflow 的 `test-postgres` job；服务级 PG 往返测试
+（`config_service` / `file_service` / `token_service` / `audit_service` / `prue_backend`
+的 `pg_roundtrip_test`）由同 workflow 的 `test-services-postgres` job 覆盖。
+本地编排可用 `docker compose -f infrastructure/docker-compose-infra.yml --profile pg up -d postgres`
+（默认编排不含 PG，见 `scripts/lib/shared-db.js` 的 `ensurePostgres`）。
 
 ---
 
