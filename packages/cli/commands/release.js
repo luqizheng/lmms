@@ -17,6 +17,12 @@ const nodePath = require('node:path');
 const commands = {
   'release status': {
     summary: 'reconcile git tag / Makefile IMAGE_TAG / CHANGELOG versions',
+    spec: {
+      summary: 'reconcile git tag / Makefile IMAGE_TAG / CHANGELOG versions',
+      usage: 'coder release status',
+      examples: ['coder release status', 'coder release status --json'],
+      flags: {},
+    },
     run: async (args, ctx) => {
       const status = collectStatus({ root: ctx.root });
       const warnings = [];
@@ -43,6 +49,22 @@ const commands = {
 
   'release bump': {
     summary: 'rewrite Makefile/CHANGELOG to the target version and commit (--dry-run to preview)',
+    spec: {
+      summary: 'rewrite Makefile/CHANGELOG to the target version and commit (--dry-run to preview)',
+      usage: 'coder release bump --changelog <file> [--level minor|patch|major] [--version <x.y.z>] [--force] [--from-tag] [--dry-run]',
+      examples: [
+        'coder release bump --changelog /tmp/notes.md --dry-run',
+        'coder release bump --changelog /tmp/notes.md --level patch',
+      ],
+      flags: {
+        '--changelog': { type: 'value', desc: 'changelog body file (drafted from commit log)' },
+        '--level': { type: 'value', desc: 'bump level: minor | patch | major' },
+        '--version': { type: 'value', desc: 'explicit target version' },
+        '--force': { type: 'flag', desc: 'bump even when the ledger drifted' },
+        '--from-tag': { type: 'flag', desc: 'converge the ledger to the git tag' },
+        '--dry-run': { type: 'flag', desc: 'preview only — nothing written, nothing committed' },
+      },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release bump requires a repo context (--cwd)');
       const { flags } = parseFlags(args, { '--level': 'value', '--version': 'value', '--changelog': 'value', '--force': 'flag', '--from-tag': 'flag', '--dry-run': 'flag' });
@@ -82,6 +104,15 @@ const commands = {
 
   'release tag': {
     summary: 'create local annotated tag vX.Y.Z (never pushes; dry-run supported)',
+    spec: {
+      summary: 'create local annotated tag vX.Y.Z (never pushes; dry-run supported)',
+      usage: 'coder release tag [version] [--dry-run]',
+      examples: ['coder release tag', 'coder release tag 1.7.0 --dry-run'],
+      flags: {
+        '--dry-run': { type: 'flag', desc: 'preview only — no tag is created' },
+      },
+      positional: { name: 'version', required: false, desc: 'version to tag (defaults to the ledger version)' },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release tag requires a repo context (--cwd)');
       const { flags, positional } = parseFlags(args, { '--dry-run': 'flag' });
@@ -116,6 +147,26 @@ const commands = {
 
   'release publish maven': {
     summary: 'publish Java SDK to Reposilite (--kind release|snapshot, curl mode default)',
+    spec: {
+      summary: 'publish Java SDK to Reposilite (--kind release|snapshot, curl mode default)',
+      usage: 'coder release publish maven [--version <x.y.z>] [--kind release|snapshot] [--profile <p>] [--modules <a,b>] [--user <u>] [--pass <p>] [--repo-id <id>] [--repo-url <url>] [--mvn] [--dry-run]',
+      examples: [
+        'coder release publish maven --version 1.7.0 --dry-run',
+        'coder release publish maven --version 1.7.0-SNAPSHOT --kind snapshot',
+      ],
+      flags: {
+        '--version': { type: 'value', desc: 'version to publish' },
+        '--kind': { type: 'value', desc: 'release | snapshot' },
+        '--profile': { type: 'value', desc: 'maven profile (default java8)' },
+        '--modules': { type: 'value', desc: 'comma-separated module filter' },
+        '--user': { type: 'value', desc: 'repository user' },
+        '--pass': { type: 'value', desc: 'repository password' },
+        '--repo-id': { type: 'value', desc: 'repository id' },
+        '--repo-url': { type: 'value', desc: 'repository base url' },
+        '--mvn': { type: 'flag', desc: 'use the mvn binary instead of curl' },
+        '--dry-run': { type: 'flag', desc: 'plan only — nothing deployed' },
+      },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release publish maven requires a repo context (--cwd)');
       const { flags } = parseFlags(args, {
@@ -147,6 +198,20 @@ const commands = {
 
   'release publish rust': {
     summary: 'publish libs/*(17) + sdk/rust/*(7) crates to the registry (--targets all|libs|sdks)',
+    spec: {
+      summary: 'publish libs/*(17) + sdk/rust/*(7) crates to the registry (--targets all|libs|sdks)',
+      usage: 'coder release publish rust <version> [--registry <name>] [--targets all|libs|sdks] [--dry-run]',
+      examples: [
+        'coder release publish rust 1.7.0 --dry-run',
+        'coder release publish rust 1.7.0 --registry kellnr --targets libs',
+      ],
+      flags: {
+        '--dry-run': { type: 'flag', desc: 'plan only — nothing is published' },
+        '--registry': { type: 'value', desc: 'target registry (default kellnr)' },
+        '--targets': { type: 'value', desc: 'all | libs | sdks' },
+      },
+      positional: { name: 'version', required: false, desc: 'version to publish (e.g. 1.7.0)' },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release publish rust requires a repo context (--cwd)');
       const { flags, positional } = parseFlags(args, { '--dry-run': 'flag', '--registry': 'value', '--targets': 'value' });
@@ -169,6 +234,18 @@ const commands = {
 
   'release publish npm': {
     summary: 'check + tag-version + publish @digua/contracts, @digua/http, @digua/cli',
+    spec: {
+      summary: 'check + tag-version + publish @digua/contracts, @digua/http, @digua/cli',
+      usage: 'coder release publish npm [--version <x.y.z>] [--dry-run]',
+      examples: [
+        'coder release publish npm --dry-run',
+        'coder release publish npm --version 1.7.0',
+      ],
+      flags: {
+        '--version': { type: 'value', desc: 'version to publish' },
+        '--dry-run': { type: 'flag', desc: 'build + pre-publish checks only — nothing published' },
+      },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release publish npm requires a repo context (--cwd)');
       const { flags } = parseFlags(args, { '--version': 'value', '--dry-run': 'flag' });
@@ -188,6 +265,15 @@ const commands = {
 
   'release compose-template': {
     summary: 'publish infrastructure/ as a versioned compose base template bundle',
+    spec: {
+      summary: 'publish infrastructure/ as a versioned compose base template bundle',
+      usage: 'coder release compose-template [--version <x.y.z>] [--out <dir>]',
+      examples: ['coder release compose-template', 'coder release compose-template --version 1.7.0'],
+      flags: {
+        '--version': { type: 'value', desc: 'template version (defaults to the latest git tag)' },
+        '--out': { type: 'value', desc: 'output directory (default release/compose-template)' },
+      },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release compose-template requires a repo context (--cwd)');
       const { flags } = parseFlags(args, { '--version': 'value', '--out': 'value' });
@@ -217,6 +303,12 @@ const commands = {
 
   doctor: {
     summary: 'show detected context and available command surface',
+    spec: {
+      summary: 'show detected context and available command surface',
+      usage: 'coder doctor',
+      examples: ['coder doctor', 'coder doctor --json'],
+      flags: {},
+    },
     run: async (args, ctx) => {
       const byContext = {
         monorepo: ['release  status / bump / tag / publish (maven|rust|npm)', 'build    images', 'assets   download'],

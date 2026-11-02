@@ -5,6 +5,8 @@ const { EXIT, CoderError, UsageError } = require('./errors.js');
 const { createOutput } = require('./output.js');
 const { COMMANDS } = require('./commands.js');
 const { detectContext } = require('./context.js');
+const { helpLines: commandHelpLines, wantsHelp } = require('./contract.js');
+const { parseSpec } = require('./spec.js');
 
 // Global flags apply only BEFORE the command name — after it, tokens belong
 // to the command (e.g. `release bump --version X` must not be hijacked).
@@ -79,17 +81,30 @@ async function run(argv = [], { cwd = process.cwd(), stdout = process.stdout, st
     if (wantHelp || args.length === 0) {
       return finish('help', { data: null, human: helpLines(), exitCode: args.length === 0 && !wantHelp ? EXIT.USAGE : EXIT.OK });
     }
-    const err = new UsageError(`unknown command: ${args.join(' ') || '(none)'}`);
+    const err = new UsageError('UNKNOWN_COMMAND', `unknown command: ${args.join(' ') || '(none)'}`);
     const result = envelopeFor(err);
     if (!json) stderr.write(`✗ ${err.message}\n`);
     return finish('cli', result);
   }
 
+  const command = COMMANDS[key];
+  const rest = args.slice(key.split(' ').length);
+
+  // `--help` is answered by the contract layer, never by the command body:
+  // probing usage must not trigger a real side effect.
+  if (wantsHelp(rest) && command.spec) {
+    return finish(key, { data: null, human: commandHelpLines(key, command.spec) });
+  }
+
   const context = detectContext(dir);
   const ctx = { root: context.root, context, out, json, cwd: dir };
   try {
-    const rest = args.slice(key.split(' ').length);
-    const result = await COMMANDS[key].run(rest, ctx);
+    // Spec-backed commands validate argv before running; unknown flags are
+    // rejected with USAGE instead of being silently ignored.
+    if (command.spec && command.spec.parse !== 'custom') {
+      parseSpec(command.spec, rest);
+    }
+    const result = await command.run(rest, ctx);
     return finish(key, result);
   } catch (err) {
     const result = envelopeFor(err);

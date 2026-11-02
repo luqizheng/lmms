@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { PACKAGES, checkPackages, publishPackages } = require('../lib/npm-packages.js');
+const { PACKAGES, REGISTRY, checkPackages, publishPackages } = require('../lib/npm-packages.js');
 const { GuardError } = require('../lib/errors.js');
 
 function fixture({ dists = true, versions = '0.1.0' } = {}) {
@@ -17,7 +17,7 @@ function fixture({ dists = true, versions = '0.1.0' } = {}) {
       name: pkg.name,
       version: versions,
       private: false,
-      publishConfig: { registry: 'http://npm.kudi.repos/' },
+      publishConfig: { registry: REGISTRY },
     }), 'utf-8');
     if (dists) {
       fs.mkdirSync(path.join(dir, 'dist'), { recursive: true });
@@ -30,9 +30,24 @@ function fixture({ dists = true, versions = '0.1.0' } = {}) {
 const cleanExec = () => ({ status: 0, stdout: '' });
 const okHttp = async () => 200;
 
-test('PACKAGES covers contracts, http and cli with build needs', () => {
-  assert.deepEqual(PACKAGES.map((p) => p.name), ['@digua/contracts', '@digua/http', '@digua/cli']);
-  assert.deepEqual(PACKAGES.map((p) => p.needsBuild), [true, true, false]);
+test('PACKAGES covers the three @digua packages plus the six service SDKs', () => {
+  // Expectations are derived from the manifest, not hardcoded: the set grows
+  // whenever a package joins the publish pipeline (6 SDKs joined in 4ad4095a).
+  const names = PACKAGES.map((p) => p.name);
+  assert.ok(names.includes('@digua/contracts'));
+  assert.ok(names.includes('@digua/http'));
+  assert.ok(names.includes('@digua/cli'));
+  for (const sdk of ['iam-services', 'audit-services', 'config-services', 'file-services', 'notification-services', 'prue-services']) {
+    assert.ok(names.includes(sdk), `PACKAGES must include ${sdk}`);
+  }
+  // @digua/cli is pure CJS — it needs no build step.
+  assert.equal(PACKAGES.find((p) => p.name === '@digua/cli').needsBuild, false);
+  assert.equal(PACKAGES.find((p) => p.name === '@digua/contracts').needsBuild, true);
+});
+
+test('every PACKAGES entry points at a distinct directory', () => {
+  const dirs = PACKAGES.map((p) => p.dir);
+  assert.equal(new Set(dirs).size, dirs.length, 'duplicate package dir in PACKAGES');
 });
 
 test('an unreachable registry fails the check with a registry item', async () => {
@@ -61,7 +76,7 @@ test('v-prefixed nextVersion is normalized for the version-order check', async (
 test('needsBuild:false skips the dist artifact check', async () => {
   const root = fixture({ dists: false });
   const result = await checkPackages({ root, nextVersion: '0.2.0', httpGet: okHttp, exec: cleanExec });
-  assert.equal(result.ok, false, 'contracts/http still lack dist');
+  assert.equal(result.ok, false, 'packages needing a build still lack dist');
   const cliMissing = result.failures.filter((f) => f.includes('@digua/cli'));
   assert.deepEqual(cliMissing, [], 'cli is not required to have dist');
 });
@@ -85,11 +100,17 @@ test('publishPackages: build first, versions and publishes last, in PACKAGES ord
   assert.ok(calls[0].includes('packages:build'));
   const versions = calls.filter((c) => c.includes('version') && c[0] === 'npm');
   const publishes = calls.filter((c) => c.includes('publish') && c[0] === 'npm');
-  assert.equal(versions.length, 3);
-  assert.equal(publishes.length, 3);
+  assert.equal(versions.length, PACKAGES.length);
+  assert.equal(publishes.length, PACKAGES.length);
   const lastIdx = calls.length - 1;
   assert.equal(calls[lastIdx].includes('publish'), true, 'publish runs last');
-  assert.deepEqual(publishes.map((c) => c[2]), PACKAGES.map((p) => `packages/${p.name.split('/')[1]}`), 'order contracts → http → cli');
+  // publish runs with cwd set to the package directory — that is what proves
+  // the ordering, not the positional index of the flag list.
+  assert.deepEqual(
+    publishes.map((c) => c[c.length - 1]),
+    PACKAGES.map((p) => path.join(root, p.dir)),
+    'publish order follows PACKAGES order',
+  );
 });
 
 test('publishPackages: a failed check stops everything after build', async () => {

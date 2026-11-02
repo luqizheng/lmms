@@ -7,6 +7,15 @@ const { ensureAsset } = require('../lib/assets.js');
 const commands = {
   'assets download': {
     summary: 'ensure / check (--check) / force (--force) the vendored swagger-ui zip',
+    spec: {
+      summary: 'ensure / check (--check) / force (--force) the vendored swagger-ui zip',
+      usage: 'coder assets download [--check] [--force]',
+      examples: ['coder assets download', 'coder assets download --check'],
+      flags: {
+        '--check': { type: 'flag', desc: 'verify presence only — never download' },
+        '--force': { type: 'flag', desc: 're-download even when the asset is present' },
+      },
+    },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('assets download requires a repo context (--cwd)');
       const { flags } = parseFlags(args, { '--check': 'flag', '--force': 'flag' });

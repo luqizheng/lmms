@@ -28,7 +28,7 @@ test('unknown command exits USAGE with json envelope on stdout only', async () =
   assert.equal(env.command, 'cli');
   assert.equal(env.ok, false);
   assert.equal(env.exitCode, EXIT.USAGE);
-  assert.equal(env.errors[0].code, 'USAGE');
+  assert.equal(env.errors[0].code, 'UNKNOWN_COMMAND');
   assert.equal(io.stderr.text, '');
 });
 
