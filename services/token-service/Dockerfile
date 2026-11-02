@@ -7,6 +7,8 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo .cargo
 ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml
+# 方言开关: mysql(默认,与 default features 等价) | postgres(发布 PG 变体时由 --build-arg 传入)
+ARG SERVICE_FEATURES=mysql
 COPY libs ./libs
 COPY services ./services
 COPY sdk ./sdk
@@ -17,7 +19,7 @@ ENV SWAGGER_UI_DOWNLOAD_URL=file:///tmp/swagger-ui.zip
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-token-service,target=/app/target,sharing=locked \
-    CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --target x86_64-unknown-linux-musl -p token_service && \
+    CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --target x86_64-unknown-linux-musl -p token_service  --features "${SERVICE_FEATURES}" && \
     cp /app/target/x86_64-unknown-linux-musl/release/token_service /app/token_service
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official

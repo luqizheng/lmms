@@ -25,6 +25,25 @@ const SERVICES = [
   'docs-site',
 ];
 
+// 带 DB 的服务（Dockerfile 声明了 SERVICE_FEATURES ARG）。非 DB 服务
+// （api-gateway / docs-site）镜像与方言无关，PG 构建时跳过并提示。
+const DB_SERVICES = new Set([
+  'token-service',
+  'iam-service',
+  'notification-service',
+  'file-service',
+  'config-service',
+  'audit-service',
+  'prue-admin-backend',
+]);
+
+// 方言 → Cargo feature 集合与 tag 后缀。mysql 是历史默认（tag 无后缀）；
+// pg 变体 tag 加 -pg 后缀（如 :1.6.0-pg / :pg-latest），与 mysql 版本并存。
+const DIALECTS = {
+  mysql: { features: 'mysql', tagSuffix: '' },
+  pg: { features: 'postgres', tagSuffix: '-pg' },
+};
+
 function validateVersion(v) {
   if (!v) return true;
   return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(v);
@@ -49,6 +68,7 @@ function parseBuildArgs(argv) {
     platform: null,
     registry: DEFAULT_REGISTRY,
     repo: DEFAULT_REPO,
+    dialect: 'mysql',
     prune: false,
     help: false,
     unknown: [],
@@ -64,6 +84,11 @@ function parseBuildArgs(argv) {
       case '-p': case '--platform': args.platform = argv[++i] || null; break;
       case '--registry': args.registry = argv[++i] || DEFAULT_REGISTRY; break;
       case '--repo': args.repo = argv[++i] || DEFAULT_REPO; break;
+      case '--dialect': {
+        const d = String(argv[++i] || '').toLowerCase();
+        args.dialect = d === 'postgres' ? 'pg' : d;
+        break;
+      }
       case 'prune': case 'clean': args.prune = true; break;
       default:
         if (SERVICES.includes(a)) args.services.push(a);
@@ -100,17 +125,33 @@ function resolvePlan({ args, isTTY }) {
   if (args.version != null && !validateVersion(args.version)) {
     throw new Error(`invalid version: ${args.version} (allowed: alphanumerics . _ -)`);
   }
+  const dialect = DIALECTS[args.dialect] ? args.dialect : null;
+  if (!dialect) {
+    throw new Error(`invalid dialect: ${args.dialect} (allowed: mysql | pg)`);
+  }
 
-  const services = args.services.length > 0 ? args.services.slice() : SERVICES.slice();
+  // PG 变体只构建带 DB 的服务；非 DB 服务与方言无关，跳过并提示。
+  let services = args.services.length > 0 ? args.services.slice() : SERVICES.slice();
+  if (dialect === 'pg') {
+    const skipped = services.filter((s) => !DB_SERVICES.has(s));
+    if (skipped.length > 0) {
+      warnings.push(`pg dialect: skipping non-DB services (dialect-agnostic): ${skipped.join(', ')}`);
+    }
+    services = services.filter((s) => DB_SERVICES.has(s));
+  }
+
   const registry = args.registry || DEFAULT_REGISTRY;
   const repo = args.repo || DEFAULT_REPO;
+  const suffix = DIALECTS[dialect].tagSuffix;
   const tagsByService = Object.fromEntries(services.map((svc) => {
     const base = `${registry}/${repo}/${svc}`;
-    const tags = args.version ? [`${base}:${args.version}`, `${base}:latest`] : [`${base}:latest`];
+    const tags = args.version
+      ? [`${base}:${args.version}${suffix}`, `${base}:${suffix ? 'pg-' : ''}latest`]
+      : [`${base}:${suffix ? 'pg-' : ''}latest`];
     return [svc, [...new Set(tags)]];
   }));
 
-  return { services, version: args.version, platforms, mode, registry, repo, tagsByService, warnings, interactive: false };
+  return { services, version: args.version, platforms, mode, registry, repo, dialect, tagsByService, warnings, interactive: false };
 }
 
 function dockerfileFor(root, name) {
@@ -147,6 +188,9 @@ function buildService(name, plan, { root, exec, out }) {
   buildCmd.push(plan.mode === 'push' ? '--push' : '--load');
   buildCmd.push('--platform', plan.platforms.join(','));
   buildCmd.push('-f', relDf);
+  if (plan.dialect === 'pg') {
+    buildCmd.push('--build-arg', 'SERVICE_FEATURES=postgres');
+  }
   for (const t of tags) buildCmd.push('-t', t);
   buildCmd.push('.');
 
@@ -194,11 +238,14 @@ function pruneBuildCache({ json = false, exec = makeExec({ json }), out }) {
 
 module.exports = {
   SERVICES,
+  DB_SERVICES,
+  DIALECTS,
   DEFAULT_REGISTRY,
   DEFAULT_REPO,
   DEFAULT_PLATFORM,
   parseBuildArgs,
   resolvePlan,
+  buildService,
   buildImages,
   pruneBuildCache,
 };

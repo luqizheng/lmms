@@ -62,6 +62,9 @@ function randHex(len) {
 console.log('[secrets] 替换敏感占位符...');
 replaceEnv('MYSQL_ROOT_PASSWORD', randHex(16));
 replaceEnv('MYSQL_PASSWORD', randHex(16));
+// PG 方言变体（compose 模板 -pg）同样需要数据库口令；非 PG 包里该行是 no-op
+//（.env 无 POSTGRES_PASSWORD 行时 replaceEnv 自行跳过）。
+replaceEnv('POSTGRES_PASSWORD', randHex(16));
 replaceEnv('REDIS_PASSWORD', randHex(16));
 replaceEnv('RABBITMQ_DEFAULT_PASS', randHex(16));
 

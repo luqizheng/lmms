@@ -675,6 +675,9 @@ build_images:tagged:
     - sudo docker buildx inspect --bootstrap
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
     - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --push
+    # PG 方言变体（2026-11-03）：SERVICE_FEATURES=postgres 构建，tag 加 -pg 后缀
+    # （:${VERSION}-pg / :pg-latest），与 mysql 默认变体并存；非 DB 服务自动跳过。
+    - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --dialect pg --push
     # mysql-replica 不在 build-docker.js 服务清单（context 在 infrastructure/mysql-replica/），
     # 比照 build_images:staging 单独 buildx --push；v1.5.0 本段漏推导致缺语义版本 tag。
     # transform-compose 把主 compose 的 build: 块转成 micro-server/mysql-replica:<version>，

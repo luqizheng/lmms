@@ -11,12 +11,14 @@ ENV SWAGGER_UI_DOWNLOAD_URL=file:///tmp/swagger-ui.zip
 COPY . .
 
 ENV CARGO_CREDENTIALS_PATH=/app/.cargo/credentials.toml
+# 方言开关: mysql(默认,与 default features 等价) | postgres(发布 PG 变体时由 --build-arg 传入)
+ARG SERVICE_FEATURES=mysql
 
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-iam-service,target=/app/target,sharing=locked \
-    cargo build --release --target x86_64-unknown-linux-musl --bin iam_service -p iam_service && \
-    cargo build --release --target x86_64-unknown-linux-musl -p iam_outbox_publisher && \
+    cargo build --release --target x86_64-unknown-linux-musl --bin iam_service -p iam_service  --features "${SERVICE_FEATURES}" && \
+    cargo build --release --target x86_64-unknown-linux-musl -p iam_outbox_publisher  --features "${SERVICE_FEATURES}" && \
     cp /app/target/x86_64-unknown-linux-musl/release/iam_service /app/iam_service && \
     cp /app/target/x86_64-unknown-linux-musl/release/iam_outbox_publisher /app/iam_outbox_publisher
 

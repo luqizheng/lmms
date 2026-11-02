@@ -267,33 +267,40 @@ const commands = {
     summary: 'publish infrastructure/ as a versioned compose base template bundle',
     spec: {
       summary: 'publish infrastructure/ as a versioned compose base template bundle',
-      usage: 'coder release compose-template [--version <x.y.z>] [--out <dir>]',
-      examples: ['coder release compose-template', 'coder release compose-template --version 1.7.0'],
+      usage: 'coder release compose-template [--version <x.y.z>] [--out <dir>] [--dialect mysql|pg]',
+      examples: [
+        'coder release compose-template',
+        'coder release compose-template --version 1.7.0',
+        'coder release compose-template --dialect pg',
+      ],
       flags: {
         '--version': { type: 'value', desc: 'template version (defaults to the latest git tag)' },
         '--out': { type: 'value', desc: 'output directory (default release/compose-template)' },
+        '--dialect': { type: 'value', desc: 'mysql (default) | pg — pg 产出 -pg 后缀的 PostgreSQL 默认模板' },
       },
     },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release compose-template requires a repo context (--cwd)');
-      const { flags } = parseFlags(args, { '--version': 'value', '--out': 'value' });
+      const { flags } = parseFlags(args, { '--version': 'value', '--out': 'value', '--dialect': 'value' });
       let version = flags['--version'];
       if (!version) {
         const parsed = latestTag(repo.git(ctx.root, ['tag', '-l']));
         version = parsed ? parsed.image : null;
       }
       if (!version) throw new UsageError('no v* tag found — pass --version <x.y.z>');
+      const dialect = flags['--dialect'] === 'postgres' ? 'pg' : flags['--dialect'] || 'mysql';
 
       const outRoot = flags['--out'] ?? nodePath.join(ctx.root, 'release', 'compose-template');
       const result = buildComposeTemplate({
         infraDir: nodePath.join(ctx.root, 'infrastructure'),
         outRoot,
         version,
+        dialect,
       });
       return {
         data: { version, ...result },
         human: [
-          `compose template v${version}: ${result.fileCount} files`,
+          `compose template v${version} (${result.dialect}): ${result.fileCount} files`,
           `bundle: ${result.dir}`,
           'downstream: copy this directory into your repo, adapt services, keep the infrastructure/ dir name to join the superpowers network',
         ],

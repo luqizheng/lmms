@@ -6,6 +6,7 @@
  * 镜像已通过 node bin/load-images.js 加载，直接 `docker compose up`。
  */
 const { execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -17,7 +18,12 @@ execSync('docker compose --env-file .env -f infrastructure/docker-compose.yml up
 
 // 等待关键服务健康
 console.log('[start] 等待关键服务健康（最多 120s）...');
-const services = ['mysql', 'consul', 'redis', 'rabbitmq', 'api-gateway'];
+// 数据库方言：.env 的 DATABASE_URL scheme 决定首选等待目标（PG 模板的 compose
+// 已把 postgres 提为默认、mysql 降为 profile，故 mysql 不会作为常驻容器存在）。
+const dbService = /^DATABASE_URL="?postgres:/m.test(fs.readFileSync(path.join(ROOT, '.env'), 'utf8'))
+  ? 'postgres'
+  : 'mysql';
+const services = [dbService, 'consul', 'redis', 'rabbitmq', 'api-gateway'];
 for (const svc of services) {
   let healthy = false;
   for (let i = 1; i <= 60; i++) {
