@@ -9,7 +9,7 @@
 
 use digua_common_event::events::IamPermissionChanged;
 use digua_common_event::perm_epoch::set_perm_epoch_if_greater;
-use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::{AnyTx, Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::{MySql, Transaction};
 
 use crate::error::IamError;
@@ -71,7 +71,7 @@ pub async fn enqueue_permission_changed(
         },
     )
     .with_tenant_id(tenant_id.to_string());
-    repo.enqueue(tx, &mut env)
+    repo.enqueue(&mut AnyTx::Mysql(tx), &mut env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))?;
     Ok(())

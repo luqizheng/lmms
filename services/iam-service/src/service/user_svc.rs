@@ -10,7 +10,7 @@ use chrono::Utc;
 use digua_common_crypto::password::hash;
 use digua_common_db::WithTenantScope;
 use digua_common_event::events::{IamUserCreated, IamUserDeleted};
-use digua_common_event::{Envelope, OutboxRepo};
+use digua_common_event::{AnyTx, Envelope, OutboxRepo};
 use digua_jwt_ctx::TenantScope;
 use nanoid::nanoid;
 use sqlx::{mysql::MySqlQueryResult, FromRow, QueryBuilder};
@@ -156,7 +156,7 @@ impl UserService {
         self.state
             .outbox_repo
             .clone()
-            .enqueue(&mut tx, &mut envelope)
+            .enqueue(&mut AnyTx::Mysql(&mut tx), &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
 
@@ -340,7 +340,7 @@ impl UserService {
         self.state
             .outbox_repo
             .clone()
-            .enqueue(&mut tx, &mut envelope)
+            .enqueue(&mut AnyTx::Mysql(&mut tx), &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
         tx.commit().await?;

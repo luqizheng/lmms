@@ -187,7 +187,7 @@ impl AuthService {
             .with_tenant_id(user.tenant_id.to_string());
             digua_common_event::OutboxRepo::enqueue(
                 self.state.outbox_repo.as_ref(),
-                &mut tx,
+                &mut digua_common_event::AnyTx::Mysql(&mut tx),
                 &mut envelope,
             )
             .await
@@ -456,7 +456,7 @@ impl AuthService {
         .with_tenant_id("1");
         digua_common_event::OutboxRepo::enqueue(
             self.state.outbox_repo.as_ref(),
-            &mut tx,
+            &mut digua_common_event::AnyTx::Mysql(&mut tx),
             &mut envelope,
         )
         .await

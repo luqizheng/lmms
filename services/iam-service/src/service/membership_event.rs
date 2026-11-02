@@ -7,7 +7,7 @@
 //! out-of-order events (see spec §3.6 D6).
 
 use digua_common_event::events::{IamUserDeptChanged, IamUserRoleAssigned, IamUserRoleUnassigned};
-use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::{AnyTx, Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::{MySql, Transaction};
 
 use crate::error::IamError;
@@ -32,7 +32,7 @@ pub async fn enqueue_role_assigned(
         },
     )
     .with_tenant_id(tenant_id.to_string());
-    repo.enqueue(tx, &mut env)
+    repo.enqueue(&mut AnyTx::Mysql(tx), &mut env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))
 }
@@ -57,7 +57,7 @@ pub async fn enqueue_role_unassigned(
         },
     )
     .with_tenant_id(tenant_id.to_string());
-    repo.enqueue(tx, &mut env)
+    repo.enqueue(&mut AnyTx::Mysql(tx), &mut env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))
 }
@@ -82,7 +82,7 @@ pub async fn enqueue_dept_changed(
         },
     )
     .with_tenant_id(tenant_id.to_string());
-    repo.enqueue(tx, &mut env)
+    repo.enqueue(&mut AnyTx::Mysql(tx), &mut env)
         .await
         .map_err(|e| IamError::Internal(e.to_string()))
 }

@@ -1845,6 +1845,7 @@ version = "1.6.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "digua_common_db",
  "digua_common_telemetry",
  "futures-util",
  "lapin",

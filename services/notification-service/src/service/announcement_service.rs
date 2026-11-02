@@ -2,7 +2,7 @@ use crate::consumer::placeholder::render_template;
 use crate::redis_cli::RedisCli;
 use chrono::{DateTime, Utc};
 use digua_common_event::events::{IamUserCreated, NotificationAnnouncementPublished};
-use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::{AnyTx, Envelope, MySqlOutboxRepo, OutboxRepo};
 use sqlx::mysql::MySqlPool;
 use sqlx::Row;
 use std::collections::HashMap;
@@ -143,7 +143,7 @@ pub async fn ensure_welcome_for_user(
         },
     );
     outbox_repo
-        .enqueue(&mut tx, &mut envelope)
+        .enqueue(&mut AnyTx::Mysql(&mut tx), &mut envelope)
         .await
         .map_err(|e| anyhow::anyhow!("outbox enqueue: {e}"))?;
 

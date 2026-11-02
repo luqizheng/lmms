@@ -3,7 +3,7 @@ use crate::models::*;
 use chrono::{DateTime, Utc};
 use digua_common_db::WithTenantScope;
 use digua_common_event::events::NotificationAnnouncementPublished;
-use digua_common_event::{Envelope, MySqlOutboxRepo, OutboxRepo};
+use digua_common_event::{AnyTx, Envelope, MySqlOutboxRepo, OutboxRepo};
 use digua_jwt_ctx::TenantScope;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::{QueryBuilder, Row};
@@ -334,7 +334,7 @@ impl Db {
         );
         self.outbox_repo
             .clone()
-            .enqueue(&mut tx, &mut envelope)
+            .enqueue(&mut AnyTx::Mysql(&mut tx), &mut envelope)
             .await
             .map_err(|e| AppError::from(anyhow::anyhow!("outbox enqueue: {e}")))?;
         tx.commit().await?;

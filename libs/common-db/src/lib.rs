@@ -43,6 +43,31 @@ pub enum DbPool {
     Sqlite(Pool<Sqlite>),
 }
 
+/// 由具体连接池直接构造 `DbPool`。
+///
+/// 这使得**已有的** `Foo::new(mysql_pool)` 调用点在 `new` 改成接受
+/// `impl Into<DbPool>` 后**无需修改**——向后兼容的关键。
+#[cfg(feature = "mysql")]
+impl From<Pool<MySql>> for DbPool {
+    fn from(pool: Pool<MySql>) -> Self {
+        Self::Mysql(pool)
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl From<Pool<Postgres>> for DbPool {
+    fn from(pool: Pool<Postgres>) -> Self {
+        Self::Postgres(pool)
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl From<Pool<Sqlite>> for DbPool {
+    fn from(pool: Pool<Sqlite>) -> Self {
+        Self::Sqlite(pool)
+    }
+}
+
 impl DbPool {
     pub fn dialect(&self) -> DialectKind {
         match self {

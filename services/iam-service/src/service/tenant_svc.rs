@@ -5,7 +5,7 @@ use crate::{
 };
 use digua_common_crypto::password::hash;
 use digua_common_event::events::IamTenantCreated;
-use digua_common_event::{Envelope, OutboxRepo};
+use digua_common_event::{AnyTx, Envelope, OutboxRepo};
 use uuid::Uuid;
 
 pub struct TenantService {
@@ -116,7 +116,7 @@ impl TenantService {
         .with_tenant_id(tenant_id.to_string());
         self.state
             .outbox_repo
-            .enqueue(&mut tx, &mut envelope)
+            .enqueue(&mut AnyTx::Mysql(&mut tx), &mut envelope)
             .await
             .map_err(|e| IamError::Internal(e.to_string()))?;
 
