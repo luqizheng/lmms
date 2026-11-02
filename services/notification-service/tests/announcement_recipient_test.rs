@@ -2,6 +2,9 @@
 //! ntf_user_projection (replaces 4.3-fu2 wiremock-iam path).
 //! Membership event apply / bootstrap / out-of-order covered in
 //! membership_projection_test.rs (T8).
+//!
+//! 方言注（S5c）：seed / 断言 SQL 是 MySQL 方言，经 `common::mysql_pool` 取
+//! 底层 MySQL 池执行；PG 往返由 `pg_roundtrip_test.rs` 覆盖。
 mod common;
 
 use digua_jwt_ctx::TenantScope;
@@ -12,8 +15,9 @@ async fn setup() -> (Db, Option<common::MysqlContainer>) {
     (h.db, h.container)
 }
 
-async fn seed_ann(db: &Db, recipients: &[(&str, &str)]) -> u64 {
-    let mut tx = db.pool.begin().await.unwrap();
+async fn seed_ann(db: &Db, recipients: &[(&str, &str)]) -> i64 {
+    let pool = common::mysql_pool(db);
+    let mut tx = pool.begin().await.unwrap();
     let res = sqlx::query(
         "INSERT INTO ntf_announcements (title, body, publish_at, status, created_by, created_at) \
          VALUES ('', '', NOW(), 'draft', 'x', NOW())",
@@ -21,7 +25,7 @@ async fn seed_ann(db: &Db, recipients: &[(&str, &str)]) -> u64 {
     .execute(&mut *tx)
     .await
     .unwrap();
-    let id = res.last_insert_id();
+    let id = res.last_insert_id() as i64;
     for (st, sid) in recipients {
         sqlx::query("INSERT INTO ntf_announcement_recipients (announcement_id, scope_type, scope_id) VALUES (?,?,?)")
             .bind(id).bind(*st).bind(*sid).execute(&mut *tx).await.unwrap();
@@ -30,11 +34,12 @@ async fn seed_ann(db: &Db, recipients: &[(&str, &str)]) -> u64 {
     id
 }
 
-async fn deliveries(db: &Db, ann_id: u64) -> Vec<String> {
+async fn deliveries(db: &Db, ann_id: i64) -> Vec<String> {
+    let pool = common::mysql_pool(db);
     let rows: Vec<(String,)> =
         sqlx::query_as("SELECT user_id FROM ntf_announcement_deliveries WHERE announcement_id=?")
             .bind(ann_id)
-            .fetch_all(&db.pool)
+            .fetch_all(&pool)
             .await
             .unwrap();
     rows.into_iter().map(|(s,)| s).collect()
@@ -47,6 +52,7 @@ async fn seed_projection(
     role_ids: &[&str],
     dept_id: Option<&str>,
 ) {
+    let pool = common::mysql_pool(db);
     let role_json = serde_json::to_string(role_ids).unwrap();
     sqlx::query(
         "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
@@ -56,7 +62,7 @@ async fn seed_projection(
     .bind(tenant_id)
     .bind(&role_json)
     .bind(dept_id)
-    .execute(&db.pool)
+    .execute(&pool)
     .await
     .unwrap();
 }
@@ -117,9 +123,10 @@ async fn publish_announcement_role_scope_unknown_role_writes_no_deliveries() {
         .unwrap();
     assert!(users.is_empty(), "unknown role → no users (no HTTP error)");
     assert!(deliveries(&db, ann_id).await.is_empty());
+    let pool = common::mysql_pool(&db);
     let (status,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
         .bind(ann_id)
-        .fetch_one(&db.pool)
+        .fetch_one(&pool)
         .await
         .unwrap();
     assert_eq!(
@@ -142,16 +149,17 @@ async fn publish_announcement_large_role_fanout_writes_all_deliveries() {
     db.publish_announcement(ann_id, &TenantScope::Single(1))
         .await
         .unwrap();
+    let pool = common::mysql_pool(&db);
     let (n,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
             .bind(ann_id)
-            .fetch_one(&db.pool)
+            .fetch_one(&pool)
             .await
             .unwrap();
     assert_eq!(n, 100, "all 100 deliveries must be written in one batch");
     let (status,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
         .bind(ann_id)
-        .fetch_one(&db.pool)
+        .fetch_one(&pool)
         .await
         .unwrap();
     assert_eq!(status, "published");

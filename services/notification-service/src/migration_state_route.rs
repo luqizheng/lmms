@@ -7,8 +7,8 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::ge
 use digua_common_db::migration_state::{
     self, MigrationDescriptor, MigrationState, MigrationStateResponse,
 };
+use digua_common_db::DbPool;
 use serde_json::json;
-use sqlx::MySqlPool;
 use utoipa::path as to_path;
 
 use crate::rest::RestState;
@@ -39,15 +39,24 @@ impl MigrationState for NotificationMigrationState {
                 name: "ntf_membership_projection",
                 marker_table: "ntf_migration_v003_applied",
             },
+            MigrationDescriptor {
+                version: "V004",
+                name: "align_bigint_signed",
+                marker_table: "ntf_migration_v004_applied",
+            },
         ]
     }
 }
 
-async fn probe_applied(pool: &MySqlPool) -> Result<Vec<String>, sqlx::Error> {
+async fn probe_applied(pool: &DbPool) -> Result<Vec<String>, sqlx::Error> {
     let state = NotificationMigrationState;
     let mut applied = Vec::with_capacity(state.migrations().len());
     for m in state.migrations() {
-        if migration_state::probe_marker_mysql(pool, m.marker_table).await? {
+        // 方言无关探测入口（PG 用 current_schema()，MySQL 用 DATABASE()）。
+        if migration_state::probe_marker(pool, m.marker_table)
+            .await
+            .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?
+        {
             applied.push(m.version.to_string());
         }
     }
@@ -100,13 +109,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn notification_has_three_migrations() {
+    fn notification_has_four_migrations() {
         let s = NotificationMigrationState;
         assert_eq!(s.service_name(), "notification-service");
         assert_eq!(s.dialect(), "mysql");
-        assert_eq!(s.migrations().len(), 3);
+        assert_eq!(s.migrations().len(), 4);
         assert_eq!(s.migrations()[0].version, "V001");
-        assert_eq!(s.migrations()[2].version, "V003");
+        assert_eq!(s.migrations()[3].version, "V004");
         assert_eq!(s.migrations()[0].marker_table, "ntf_announcements");
     }
 }

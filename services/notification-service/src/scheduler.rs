@@ -1,5 +1,6 @@
 use crate::db::Db;
 use chrono::Utc;
+use digua_common_db::db_fetch_scalar;
 use digua_jwt_ctx::TenantScope;
 use std::time::Duration;
 use tokio::time;
@@ -24,11 +25,14 @@ async fn tick_once(db: &Db) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn publish_one(db: &Db, ann_id: u64) -> anyhow::Result<()> {
-    let tenant_id: i64 = sqlx::query_scalar("SELECT tenant_id FROM ntf_announcements WHERE id=?")
-        .bind(ann_id)
-        .fetch_one(&db.pool)
-        .await?;
+pub async fn publish_one(db: &Db, ann_id: i64) -> anyhow::Result<()> {
+    // 方言无关标量查询（`db_*!` 宏负责 `?` → `$N` 改写与 bind 计数校验）。
+    let tenant_id: i64 = db_fetch_scalar!(
+        &db.pool,
+        i64,
+        "SELECT tenant_id FROM ntf_announcements WHERE id = ?",
+        ann_id
+    )?;
     let scope = TenantScope::Single(tenant_id);
     db.publish_announcement(ann_id, &scope).await?;
     Ok(())

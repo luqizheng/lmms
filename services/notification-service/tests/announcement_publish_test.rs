@@ -4,6 +4,10 @@
 //! role/dept scope (User scope 直接用 scope_id; role/dept 走 JSON_CONTAINS /
 //! dept_id lookup)。本文件覆盖 user-scope 路径; role/dept 路径由
 //! membership_projection_test.rs (T8) + bootstrap 集成覆盖。
+//!
+//! 方言注（S5c）：`Db.pool` 已改为方言无关 `DbPool`；本文件的 seed / 断言
+//! SQL 是 MySQL 方言，经 `common::mysql_pool` 取底层 MySQL 池执行。
+//! PG 往返由 `pg_roundtrip_test.rs` 覆盖。
 mod common;
 
 use digua_jwt_ctx::TenantScope;
@@ -14,13 +18,14 @@ async fn setup_db() -> (Db, Option<common::MysqlContainer>) {
     (h.db, h.container)
 }
 
-async fn seed_announcement(db: &Db, scopes: &[(&str, &str)]) -> u64 {
-    let mut tx = db.pool.begin().await.unwrap();
+async fn seed_announcement(db: &Db, scopes: &[(&str, &str)]) -> i64 {
+    let pool = common::mysql_pool(db);
+    let mut tx = pool.begin().await.unwrap();
     let res = sqlx::query(
         "INSERT INTO ntf_announcements (title, body, publish_at, expire_at, pinned, popover, status, created_by, created_at) \
          VALUES ('t','b',NOW(),NULL,0,0,'scheduled','admin',NOW())")
         .execute(&mut *tx).await.unwrap();
-    let id = res.last_insert_id();
+    let id = res.last_insert_id() as i64;
     for (st, sid) in scopes {
         sqlx::query("INSERT INTO ntf_announcement_recipients (announcement_id, scope_type, scope_id) VALUES (?,?,?)")
             .bind(id).bind(st).bind(sid).execute(&mut *tx).await.unwrap();
@@ -29,11 +34,12 @@ async fn seed_announcement(db: &Db, scopes: &[(&str, &str)]) -> u64 {
     id
 }
 
-async fn outbox_count(db: &Db, ann_id: u64) -> i64 {
+async fn outbox_count(db: &Db, ann_id: i64) -> i64 {
+    let pool = common::mysql_pool(db);
     let (n,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM ntf_outbox_events WHERE event_type='notification.announcement.published' \
          AND JSON_EXTRACT(envelope_json, '$.payload.announcement_id') = ?")
-        .bind(ann_id as i64).fetch_one(&db.pool).await.unwrap();
+        .bind(ann_id).fetch_one(&pool).await.unwrap();
     n
 }
 
@@ -47,16 +53,17 @@ async fn publish_inserts_deliveries_status_and_outbox() {
         .await
         .unwrap();
     assert_eq!(users.len(), 2);
+    let pool = common::mysql_pool(&db);
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
         .bind(id)
-        .fetch_one(&db.pool)
+        .fetch_one(&pool)
         .await
         .unwrap();
     assert_eq!(st, "published");
     let (d,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
             .bind(id)
-            .fetch_one(&db.pool)
+            .fetch_one(&pool)
             .await
             .unwrap();
     assert_eq!(d, 2);
@@ -89,10 +96,11 @@ async fn publish_with_mixed_scopes_user_only() {
         .await
         .unwrap();
     assert_eq!(users.len(), 2);
+    let pool = common::mysql_pool(&db);
     let (d,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
             .bind(id)
-            .fetch_one(&db.pool)
+            .fetch_one(&pool)
             .await
             .unwrap();
     assert_eq!(d, 2);
@@ -108,9 +116,10 @@ async fn publish_with_no_user_scopes_does_nothing() {
         .await
         .unwrap();
     assert!(users.is_empty());
+    let pool = common::mysql_pool(&db);
     let (st,): (String,) = sqlx::query_as("SELECT status FROM ntf_announcements WHERE id=?")
         .bind(id)
-        .fetch_one(&db.pool)
+        .fetch_one(&pool)
         .await
         .unwrap();
     assert_eq!(st, "published");
@@ -141,10 +150,11 @@ async fn published_announcement_visible_on_reload_without_ws() {
 async fn publish_role_scope_uses_local_projection() {
     let (db, _c) = setup_db().await;
     // Seed projection: u1+u2 are in role r1
+    let pool = common::mysql_pool(&db);
     sqlx::query(
         "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
          VALUES ('u1', 1, JSON_ARRAY('r1'), NULL, 0), ('u2', 1, JSON_ARRAY('r1'), NULL, 0), ('u3', 1, JSON_ARRAY('r2'), NULL, 0)",
-    ).execute(&db.pool).await.unwrap();
+    ).execute(&pool).await.unwrap();
 
     let id = seed_announcement(&db, &[("role", "r1")]).await;
     let users = db
@@ -157,7 +167,7 @@ async fn publish_role_scope_uses_local_projection() {
     let (d,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM ntf_announcement_deliveries WHERE announcement_id=?")
             .bind(id)
-            .fetch_one(&db.pool)
+            .fetch_one(&pool)
             .await
             .unwrap();
     assert_eq!(d, 2);
@@ -167,10 +177,11 @@ async fn publish_role_scope_uses_local_projection() {
 #[tokio::test]
 async fn publish_dept_scope_uses_local_projection() {
     let (db, _c) = setup_db().await;
+    let pool = common::mysql_pool(&db);
     sqlx::query(
         "INSERT INTO ntf_user_projection (user_id, tenant_id, role_ids, dept_id, last_event_at) \
          VALUES ('u10', 1, JSON_ARRAY(), 'd1', 0), ('u11', 1, JSON_ARRAY(), 'd1', 0), ('u12', 1, JSON_ARRAY(), 'd2', 0)",
-    ).execute(&db.pool).await.unwrap();
+    ).execute(&pool).await.unwrap();
 
     let id = seed_announcement(&db, &[("dept", "d1")]).await;
     let users = db

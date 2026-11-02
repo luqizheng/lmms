@@ -7,9 +7,11 @@ edition.workspace = true
 # 方言 feature：default 只含 mysql，postgres 必须显式开启（D-9：postgres 不进 default）。
 # 宏 `db_*!` 内部的 #[cfg(feature = ...)] 在**调用方 crate** 求值，因此本 crate
 # 必须定义与 libs/common-db 同名的 feature，并把它们转发过去。
+# digua_common_event 同名转发（S5c 新增）：AnyTx::Postgres / SqlOutboxRepo 的
+# PG 分支都挂在它的 postgres feature 后面。
 default = ["mysql"]
-mysql = ["sqlx/mysql", "digua_common_db/mysql"]
-postgres = ["sqlx/postgres", "digua_common_db/postgres"]
+mysql = ["sqlx/mysql", "digua_common_db/mysql", "digua_common_event/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres", "digua_common_event/postgres"]
 sqlite = ["sqlx/sqlite", "digua_common_db/sqlite"]
 
 [dependencies]
@@ -20,7 +22,7 @@ axum = { workspace = true, features = ["ws", "macros"] }
 tokio = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "mysql", "chrono", "macros"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "mysql", "chrono", "macros", "json"] }
 redis = { workspace = true, features = ["connection-manager"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
