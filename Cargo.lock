@@ -638,7 +638,7 @@ dependencies = [
  "digua_common",
  "digua_common_cache",
  "digua_common_db",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "digua_common_event",
  "digua_common_jwt",
  "digua_common_log",
@@ -1239,7 +1239,7 @@ dependencies = [
  "digua_authz",
  "digua_common_cache",
  "digua_common_db",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "digua_common_jwt",
  "digua_common_log",
  "digua_common_telemetry",
@@ -1757,7 +1757,7 @@ dependencies = [
  "argon2",
  "digua_common_crypto",
  "digua_common_db",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "redis",
  "reqwest",
  "serde",
@@ -1773,7 +1773,7 @@ name = "digua_common_cache"
 version = "1.6.0"
 dependencies = [
  "async-trait",
- "digua_common_error 1.6.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_common_error",
  "moka",
  "redis",
  "tokio",
@@ -1785,7 +1785,7 @@ version = "1.6.0"
 dependencies = [
  "base64 0.22.1",
  "config",
- "digua_common_error 1.6.0 (sparse+http://192.168.2.12:16444/api/v1/crates/)",
+ "digua_common_error",
  "reqwest",
  "serde",
  "serde_json",
@@ -1802,7 +1802,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "blake3",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "hex",
  "hmac",
  "rand 0.8.6",
@@ -1817,7 +1817,7 @@ version = "1.6.0"
 dependencies = [
  "async-trait",
  "chrono",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "digua_jwt_ctx",
  "serde",
  "serde_json",
@@ -1830,20 +1830,6 @@ dependencies = [
 [[package]]
 name = "digua_common_error"
 version = "1.6.0"
-dependencies = [
- "axum 0.8.9",
- "reqwest",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "digua_common_error"
-version = "1.6.0"
-source = "sparse+http://192.168.2.12:16444/api/v1/crates/"
-checksum = "6c9f4062f505c9ee56d6a4031034bdef235f5110f9a361af00514b624d8c4a09"
 dependencies = [
  "axum 0.8.9",
  "reqwest",
@@ -1901,7 +1887,7 @@ dependencies = [
  "axum 0.8.9",
  "bytes",
  "dashmap",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "futures",
  "rand 0.8.6",
  "reqwest",
@@ -1930,7 +1916,7 @@ name = "digua_common_log"
 version = "1.6.0"
 dependencies = [
  "axum 0.8.9",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "reqwest",
  "serde",
  "serde_json",
@@ -1991,7 +1977,7 @@ dependencies = [
 name = "digua_common_validator"
 version = "1.6.0"
 dependencies = [
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "validator",
 ]
 
@@ -2351,7 +2337,7 @@ dependencies = [
  "digua_authz",
  "digua_common_cache",
  "digua_common_db",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "digua_common_jwt",
  "digua_common_log",
  "digua_common_telemetry",
@@ -3072,7 +3058,7 @@ dependencies = [
  "digua_common_config",
  "digua_common_crypto",
  "digua_common_db",
- "digua_common_error 1.6.0",
+ "digua_common_error",
  "digua_common_event",
  "digua_common_jwt",
  "digua_common_log",
