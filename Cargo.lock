@@ -3033,6 +3033,7 @@ name = "iam_outbox_publisher"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "digua_common_db",
  "digua_common_event",
  "digua_common_telemetry",
  "prometheus",

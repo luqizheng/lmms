@@ -9,6 +9,7 @@
 mod common;
 
 use chrono::{Duration as ChronoDuration, Utc};
+use digua_common_db::DbPool;
 use iam_service::outbox_archive;
 use sqlx::{QueryBuilder, Row};
 use std::sync::Arc;
@@ -95,7 +96,7 @@ async fn archive_moves_published_rows_older_than_24h() {
     )
     .await;
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -110,7 +111,7 @@ async fn archive_skips_unpublished_rows() {
     let ctx = setup().await;
     insert_outbox_row(&ctx.pool, "ev.unpublished", None).await;
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -131,7 +132,7 @@ async fn archive_batches_at_1000() {
     )
     .await;
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -160,7 +161,7 @@ async fn archive_get_lock_prevents_concurrent_runs() {
         .unwrap();
 
     // run_once 应观察到 acquired=0 → 跳过
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
     // 关键断言：行未被归档（锁阻止了 run_once 进入）
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events").await,
@@ -190,7 +191,7 @@ async fn run_once_releases_lock_on_completion() {
         .unwrap();
     assert_eq!(free_before, 1, "lock must be free before run_once");
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
 
     // 关键：run_once 返回后，锁必须被释放（同 conn 释放）
     let (free_after,): (i64,) = sqlx::query_as("SELECT IS_FREE_LOCK('iam_outbox_archive')")
@@ -213,7 +214,7 @@ async fn purge_deletes_old_archive_rows() {
     .await
     .unwrap();
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
 
     assert_eq!(
         count(&ctx.pool, "iam_outbox_events_archive").await,
@@ -242,7 +243,7 @@ async fn archive_window_picks_up_late_published() {
     .await;
 
     // 第一次 run_once 搬运 old
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
     assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 1);
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 1);
 
@@ -254,7 +255,7 @@ async fn archive_window_picks_up_late_published() {
         .await
         .unwrap();
 
-    outbox_archive::run_once(&ctx.pool).await.unwrap();
+    outbox_archive::run_once(&DbPool::from(ctx.pool.clone())).await.unwrap();
     assert_eq!(count(&ctx.pool, "iam_outbox_events").await, 0);
     assert_eq!(count(&ctx.pool, "iam_outbox_events_archive").await, 2);
 }
@@ -270,7 +271,7 @@ async fn publisher_main_loop_unaffected_during_archive() {
 
     let pool_arc = ctx.pool.clone();
     let handle = tokio::spawn(async move {
-        outbox_archive::run_once(&pool_arc).await.unwrap();
+        outbox_archive::run_once(&DbPool::from(pool_arc)).await.unwrap();
     });
     handle.await.unwrap();
 

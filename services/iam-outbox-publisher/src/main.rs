@@ -23,7 +23,6 @@
 //! merge → hard error at startup.
 
 mod metrics;
-mod outbox_archive;
 
 use std::io::{ErrorKind, Write};
 use std::path::Path;
@@ -32,7 +31,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context};
-use digua_common_event::{MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
+use digua_common_db::DbPool;
+use digua_common_event::{outbox_archive, MySqlOutboxRepo, OutboxRepo, Publisher, RabbitMqPublisher};
 use sqlx::mysql::MySqlPoolOptions;
 use tracing::{info, warn};
 
@@ -145,10 +145,10 @@ async fn main() -> anyhow::Result<()> {
     let repo = MySqlOutboxRepo::new(pool.clone());
 
     // Phase 6-A T4: archive cron runs as a sibling tokio task. Uses a clone
-    // of the publisher's pool; multi-replica safety is handled by GET_LOCK
-    // inside outbox_archive::run_once.
+    // of the publisher's pool; multi-replica safety is handled by the dialect
+    // lock (GET_LOCK / pg_try_advisory_lock) inside the shared outbox_archive.
     {
-        let archive_pool = pool.clone();
+        let archive_pool = DbPool::from(pool.clone());
         tokio::spawn(async move {
             outbox_archive::run(archive_pool).await;
         });

@@ -4,14 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 # 方言 feature：default 只含 mysql，postgres 必须显式开启（D-9：postgres 不进 default）。
-# 本 crate 直接消费 sqlx（不经 digua_common_db），方言 feature 转发到 sqlx/*。
+# 方言 feature 经本段转发到 sqlx/* 与 digua_common_db/*（依赖声明不硬写 postgres）。
 [features]
 default = ["mysql"]
-mysql = ["sqlx/mysql"]
-postgres = ["sqlx/postgres"]
+mysql = ["sqlx/mysql", "digua_common_db/mysql", "digua_common_event/mysql"]
+postgres = ["sqlx/postgres", "digua_common_db/postgres", "digua_common_event/postgres"]
 
 [dependencies]
 anyhow = "1"
+digua_common_db = { path = "../../libs/common-db" }
 digua_common_event = { path = "../../libs/common-event" }
 digua_common_telemetry = { path = "../../libs/common-telemetry", default-features = false, features = ["otlp"] }
 serde = { version = "1", features = ["derive"] }
