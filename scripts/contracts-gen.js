@@ -51,13 +51,22 @@ try {
 }
 
 console.log('');
+console.log('5. Generating JS tool codes...');
+try {
+  execSync(`node ${path.join(codegenDir, 'gen-tool-codes.js')}`, { stdio: 'inherit' });
+} catch (e) {
+  console.error('Failed to generate JS tool codes');
+  process.exit(1);
+}
+
+console.log('');
 console.log('=== Done ===');
 
 if (isCheck) {
   console.log('');
-  console.log('5. Checking for drift...');
+  console.log('6. Checking for drift...');
   try {
-    execSync('git diff --exit-code -- libs/common-error libs/authz libs/common-event packages/contracts/src', {
+    execSync('git diff --exit-code -- libs/common-error libs/authz libs/common-event packages/contracts/src packages/cli/lib/tool-codes.js', {
       cwd: repoRoot,
       stdio: 'inherit',
     });

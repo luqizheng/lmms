@@ -1,0 +1,39 @@
+// Auto-generated from contracts/tool-codes.yaml
+// DO NOT EDIT MANUALLY
+
+const TOOL_CODES = {
+  ASSET_MISSING: { message: "required asset is missing", kind: "Guard", exit: 3 },
+  ASSET_SHA_MISMATCH: { message: "asset checksum mismatch", kind: "Guard", exit: 3 },
+  CRATE_FIELD_MISSING: { message: "crate metadata field is missing", kind: "Guard", exit: 3 },
+  CRATE_TOML_MISSING: { message: "crate Cargo.toml is missing", kind: "Guard", exit: 3 },
+  CRATE_VERSION_MISMATCH: { message: "crate version mismatch", kind: "Guard", exit: 3 },
+  DIRTY_WORKTREE: { message: "worktree is not clean", kind: "Guard", exit: 3 },
+  EXTERNAL_COMMAND_FAILED: { message: "external command failed", kind: "External", exit: 4 },
+  MAVEN_BINARY_MISSING: { message: "maven binary not found", kind: "Guard", exit: 3 },
+  MAVEN_CREDENTIALS_MISSING: { message: "maven credentials are missing", kind: "Guard", exit: 3 },
+  MAVEN_CREDENTIALS_PARTIAL: { message: "maven credentials partially configured", kind: "Usage", exit: 2 },
+  MAVEN_NO_ARTIFACTS: { message: "no maven artifacts to publish", kind: "Guard", exit: 3 },
+  MAVEN_POM_MALFORMED: { message: "maven pom is malformed", kind: "Guard", exit: 3 },
+  MAVEN_POM_MISSING: { message: "maven pom is missing", kind: "Guard", exit: 3 },
+  MAVEN_PROFILE_INVALID: { message: "invalid maven profile", kind: "Usage", exit: 2 },
+  MAVEN_VERSION_NOT_SNAPSHOT: { message: "version is not a snapshot version", kind: "Usage", exit: 2 },
+  MAVEN_VERSION_REQUIRED: { message: "maven version is required", kind: "Usage", exit: 2 },
+  MAVEN_VERSION_SNAPSHOT: { message: "snapshot version requires the snapshot kind", kind: "Usage", exit: 2 },
+  MISSING_FLAG_VALUE: { message: "flag requires a value", kind: "Usage", exit: 2 },
+  NO_BASELINE: { message: "no version baseline found", kind: "Guard", exit: 3 },
+  NO_REPO_CONTEXT: { message: "command requires a repo context (--cwd)", kind: "Usage", exit: 2 },
+  NPM_BUILD_FAILED: { message: "npm package build failed", kind: "Guard", exit: 3 },
+  NPM_PACKAGES_CHECK_FAILED: { message: "npm packages pre-publish check failed", kind: "Guard", exit: 3 },
+  NPM_PUBLISH_FAILED: { message: "npm publish failed", kind: "Guard", exit: 3 },
+  NPM_VERSION_FAILED: { message: "npm version bump failed", kind: "Guard", exit: 3 },
+  NPM_VERSION_REQUIRED: { message: "npm publish version is required", kind: "Usage", exit: 2 },
+  RUST_CARGO_MISSING: { message: "cargo binary not found", kind: "Guard", exit: 3 },
+  RUST_VERSION_REQUIRED: { message: "rust publish version is required", kind: "Usage", exit: 2 },
+  TAG_EXISTS: { message: "tag already exists", kind: "Guard", exit: 3 },
+  UNEXPECTED: { message: "unexpected failure", kind: "Failure", exit: 1 },
+  UNKNOWN_COMMAND: { message: "unknown command", kind: "Usage", exit: 2 },
+  UNKNOWN_FLAG: { message: "unknown flag", kind: "Usage", exit: 2 },
+  VERSION_DRIFT: { message: "version ledger drifted", kind: "Guard", exit: 3 },
+};
+
+module.exports = { TOOL_CODES };
