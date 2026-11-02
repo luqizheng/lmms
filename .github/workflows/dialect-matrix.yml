@@ -197,3 +197,5 @@ jobs:
           cargo test --package token_service --features postgres
           cargo test --package audit_service --features postgres
           cargo test --package prue_backend --features postgres
+          cargo test --package notification_service --features postgres
+          cargo test --package iam_service --features postgres
