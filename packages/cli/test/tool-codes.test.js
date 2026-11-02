@@ -25,7 +25,10 @@ const EXISTING_CODES = [
   'TAG_EXISTS', 'VERSION_DRIFT',
 ];
 
-const NEW_CODES = ['UNKNOWN_COMMAND', 'UNKNOWN_FLAG', 'MISSING_FLAG_VALUE', 'NO_REPO_CONTEXT'];
+const NEW_CODES = [
+  'UNKNOWN_COMMAND', 'UNKNOWN_FLAG', 'MISSING_FLAG_VALUE', 'NO_REPO_CONTEXT',
+  'MISSING_POSITIONAL', 'TOO_MANY_POSITIONAL',
+];
 
 function loadYaml() {
   const fs = require('node:fs');
@@ -97,4 +100,27 @@ test('generated module exports TOOL_CODES keyed by code with exit numbers', () =
   assert.equal(TOOL_CODES.VERSION_DRIFT.kind, 'Guard');
   assert.equal(TOOL_CODES.VERSION_DRIFT.exit, 3);
   assert.equal(TOOL_CODES.UNKNOWN_FLAG.exit, 2);
+});
+
+test('every error code raised anywhere in the CLI is declared in the table', () => {
+  // Guards against orphan codes: a code thrown in the source but missing from
+  // the YAML would leave an agent with no contract to look up.
+  const fs = require('node:fs');
+  const cliDir = path.join(repoRoot, 'packages', 'cli');
+  const codes = loadYaml();
+  const found = new Set();
+  const scan = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { if (entry.name !== 'test') scan(full); continue; }
+      if (!entry.name.endsWith('.js')) continue;
+      const content = fs.readFileSync(full, 'utf-8');
+      for (const m of content.matchAll(/new (?:UsageError|GuardError|ExternalError)\('([A-Z_0-9]+)'/g)) {
+        found.add(m[1]);
+      }
+    }
+  };
+  scan(cliDir);
+  const orphans = [...found].filter((c) => !codes[c]);
+  assert.deepEqual(orphans, [], `undeclared error codes: ${orphans.join(', ')}`);
 });

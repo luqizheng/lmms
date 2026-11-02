@@ -29,6 +29,14 @@ codes:
     message: "flag requires a value"
     kind: Usage
     exit: 2
+  MISSING_POSITIONAL:
+    message: "missing required argument"
+    kind: Usage
+    exit: 2
+  TOO_MANY_POSITIONAL:
+    message: "too many arguments"
+    kind: Usage
+    exit: 2
   NO_REPO_CONTEXT:
     message: "command requires a repo context (--cwd)"
     kind: Usage
