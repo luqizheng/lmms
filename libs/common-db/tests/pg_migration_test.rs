@@ -250,10 +250,93 @@ async fn prue_backend_postgres_migration_applies() {
     );
 }
 
+#[tokio::test]
+async fn audit_service_postgres_migration_applies() {
+    let Some(url) = test_pg_url() else { return };
+    let pool = PgPool::connect(&url).await.expect("connect pg");
+
+    let executed = apply_migrations(
+        &pool,
+        "verify_audit",
+        &[include_str!(
+            "../../../services/audit-service/migrations/postgres/V001__init.sql"
+        )],
+    )
+    .await;
+    assert!(executed > 10, "应执行了多条语句，实际 {executed}");
+
+    // 四张表都在
+    let tables: Vec<(String,)> = sqlx::query_as(
+        "SELECT table_name::text FROM information_schema.tables \
+         WHERE table_schema = 'verify_audit' ORDER BY table_name",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("list tables");
+    let names: Vec<&str> = tables.iter().map(|t| t.0.as_str()).collect();
+    assert_eq!(
+        names,
+        vec![
+            "audit_api_access_logs",
+            "audit_events",
+            "audit_login_logs",
+            "audit_operation_logs"
+        ]
+    );
+
+    // 时间列必须 TIMESTAMPTZ（§3 #3）
+    let ts: Vec<(String, String)> = sqlx::query_as(
+        "SELECT column_name::text, data_type::text FROM information_schema.columns \
+         WHERE table_schema = 'verify_audit' AND data_type LIKE 'timestamp%'",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("list timestamp columns");
+    assert!(!ts.is_empty(), "应存在时间列");
+    for (col, ty) in &ts {
+        assert_eq!(ty, "timestamp with time zone", "列 {col} 必须 TIMESTAMPTZ，实际 {ty}");
+    }
+
+    // success 必须 BOOLEAN（MySQL TINYINT(1)）
+    let bool_col: Vec<(String,)> = sqlx::query_as(
+        "SELECT data_type::text FROM information_schema.columns \
+         WHERE table_schema = 'verify_audit' AND table_name = 'audit_login_logs' \
+           AND column_name = 'success'",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("describe success");
+    assert_eq!(bool_col[0].0, "boolean");
+
+    // audit_events.event_id 必须有唯一索引（ON CONFLICT (event_id) 的前提）
+    let idx: Vec<(String,)> = sqlx::query_as(
+        "SELECT indexname::text FROM pg_indexes \
+         WHERE schemaname = 'verify_audit' AND tablename = 'audit_events'",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("list indexes");
+    let inames: Vec<&str> = idx.iter().map(|i| i.0.as_str()).collect();
+    assert!(
+        inames.contains(&"uk_audit_events_event_id"),
+        "event_id 唯一索引必须存在（PG 的 ON CONFLICT 依赖它），实际: {inames:?}"
+    );
+
+    // id 必须是 IDENTITY（AUTO_INCREMENT 的 PG 对应）
+    let ident: Vec<(String,)> = sqlx::query_as(
+        "SELECT is_identity::text FROM information_schema.columns \
+         WHERE table_schema = 'verify_audit' AND table_name = 'audit_operation_logs' \
+           AND column_name = 'id'",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("describe id");
+    assert_eq!(ident[0].0, "YES", "id 必须是 GENERATED ... AS IDENTITY");
+}
+
 /// 迁移文件里不得出现执行器无法处理的块结构（`split(';')` 会切坏）。
 #[test]
-fn postgres_migrations_forbid_dollar_blocks() {
-    let scripts = [
+fn postgres_migrations_forbid_dollar_blocks() {    let scripts = [
         include_str!("../../../services/config-service/migrations/postgres/V001__init.sql"),
         include_str!("../../../services/config-service/migrations/postgres/V002__tenant_cfg.sql"),
         include_str!("../../../services/file-service/migrations/postgres/V001__init.sql"),
@@ -261,6 +344,7 @@ fn postgres_migrations_forbid_dollar_blocks() {
             "../../../services/file-service/migrations/postgres/V002__file_tenant_reconcile.sql"
         ),
         include_str!("../../../services/prue_backend/migrations/postgres/V001__init.sql"),
+        include_str!("../../../services/audit-service/migrations/postgres/V001__init.sql"),
     ];
     // 只检查**可执行 SQL**：注释里解释 MySQL 原语法（如 `DATETIME -> TIMESTAMPTZ`）不算残留。
     let scripts: Vec<String> = scripts
