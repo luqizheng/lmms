@@ -27,6 +27,8 @@ pub type MysqlContainer = testcontainers::ContainerAsync<Mysql>;
 /// 对齐（本机 testcontainers 建容器报 OS 53，本地验证必须走共享 env 路径；
 /// CI 不设 `REDIS_URL`，行为与改造前完全一致）。notification-service 的
 /// `welcome_consumer_test` 同款约定。
+// common/mod.rs 按测试二进制各编译一份，不用它的用例会报 dead_code。
+#[allow(dead_code)]
 pub struct RedisHandle {
     pub mgr: redis::aio::ConnectionManager,
     pub url: String,
@@ -35,6 +37,7 @@ pub struct RedisHandle {
     pub container: Option<testcontainers::ContainerAsync<testcontainers_modules::redis::Redis>>,
 }
 
+#[allow(dead_code)]
 pub async fn spawn_redis() -> RedisHandle {
     if let Ok(url) = std::env::var("REDIS_URL") {
         if !url.trim().is_empty() {

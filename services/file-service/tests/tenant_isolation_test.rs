@@ -48,7 +48,8 @@ fn build_app(
     jwks: Arc<JWKSCache>,
 ) -> axum::Router {
     let state = create_state(
-        pool,
+        // create_state 吃 DbPool（S3 双方言改造）；fixture 保证是 MySQL 池。
+        digua_common_db::DbPool::Mysql(pool),
         storage,
         "http://test/file/".into(),
         100 * 1024 * 1024,
