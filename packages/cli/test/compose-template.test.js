@@ -173,3 +173,20 @@ test('invalid dialect rejected', () => {
   assert.throws(() => buildComposeTemplate({ infraDir: '.', outRoot: '.', version: '1.0.0', dialect: 'oracle' }), /invalid dialect/);
   assert.ok(DIALECTS.has('mysql') && DIALECTS.has('pg'));
 });
+
+test('pg dialect: DB service build blocks get SERVICE_FEATURES=postgres, api-gateway not', () => {
+  const doc = yaml.load(`
+services:
+  config-service:
+    build:
+      context: ..
+      dockerfile: services/config-service/Dockerfile
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+`);
+  const out = yaml.load(transformForPg('docker-compose-services.yml', yaml.dump(doc)));
+  assert.equal(out.services['config-service'].build.args.SERVICE_FEATURES, 'postgres');
+  assert.equal(out.services['api-gateway'].build.args, undefined);
+});

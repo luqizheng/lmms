@@ -12,6 +12,14 @@ const { spawnSync } = require('node:child_process');
 const { GuardError, ExternalError } = require('./errors.js');
 
 // Layer 0 → 1 → 2 topology, verbatim from publish-libs.js.
+//
+// ⚠️ 顺序约束（2026-11-03 修正）：发布时 path 依赖被改写成
+// `version + registry`，cargo 必须能在 registry 上**解析到该版本**，
+// 因此**依赖方必须排在被依赖方之后**。PG 改造给 common-event 加了
+// digua_common_db 依赖（outbox 泛型化），原顺序（common-event 在
+// common-db 之前）会让 cargo publish 报
+// "failed to select a version for the requirement digua_common_db = ^1.6.0"。
+// 现顺序按真实 path 依赖拓扑化，preflight 会复核（见 assertOrderRespectsDeps）。
 const LIBS_ORDER = [
   'common-error',
   'common-health',
@@ -21,15 +29,16 @@ const LIBS_ORDER = [
   'common-cache',
   'common-config',
   'common-crypto',
-  'common-event',
   'common-http',
   'common-log',
-  'common-validator',
   'common-telemetry-axum',
+  'common-validator',
   'jwt-ctx',
-  'common-db',
   'authz',
+  // common-db 必须在 common-event / common 之前（它们依赖它）
+  'common-db',
   'common',
+  'common-event',
 ];
 
 // Base crate first, then service SDKs — verbatim from publish-rust-sdks.js.
@@ -92,6 +101,61 @@ function assertPublishable(tomlText, dir) {
   }
   const v = /^version\s*=\s*"([^"]+)"/m.exec(tomlText);
   return v ? v[1] : null;
+}
+
+/**
+ * 列出某 crate manifest 里指向仓内其他 crate 的 path 依赖（目录名）。
+ *
+ * @param {string} tomlText crate 的 Cargo.toml 文本。
+ * @param {string[]} allDirs 仓内全部 crate 目录名。
+ * @param {Function} toPkgName 目录名 → 包名。
+ * @param {string} [selfDir] 当前 crate 目录（自依赖不计——真实仓不会出现，
+ *   但测试夹具会给每个 crate 统一加一条 common-error 依赖）。
+ * @returns {string[]} 依赖的目录名列表。
+ */
+function internalPathDeps(tomlText, allDirs, toPkgName = dirToPackage, selfDir = null) {
+  const deps = [];
+  for (const dir of allDirs) {
+    if (dir === selfDir) continue;
+    const name = toPkgName(dir);
+    const re = new RegExp(`^${escapeRegex(name)}\\s*=\\s*\\{[^}]*path\\s*=\\s*"\\.\\./${escapeRegex(dir)}"`, 'm');
+    if (re.test(tomlText)) deps.push(dir);
+  }
+  return deps;
+}
+
+/**
+ * 发布序必须尊重依赖方向：依赖方排在被依赖方**之后**（否则 cargo 无法在
+ * registry 上解析到被依赖方的版本）。
+ *
+ * @param {Array<{dir: string, family: string, base: string}>} dirs 发布序列。
+ * @param {Object} fsMod 文件系统（便于测试注入）。
+ * @throws {GuardError} 顺序违规时抛出，并指名道姓列出违反对。
+ */
+function assertOrderRespectsDeps(dirs, fsMod = fs) {
+  const allLibDirs = LIBS_ORDER;
+  const seen = new Set();
+  for (const { dir, family, base } of dirs) {
+    if (family !== 'libs') continue;
+    const tomlPath = path.join(base, dir, 'Cargo.toml');
+    let text;
+    try {
+      text = fsMod.readFileSync(tomlPath, 'utf-8');
+    } catch {
+      continue; // 缺失由 preflight 的 CRATE_TOML_MISSING 报
+    }
+    for (const dep of internalPathDeps(text, allLibDirs, dirToPackage, dir)) {
+      if (!seen.has(dep)) {
+        throw new GuardError(
+          'CRATE_ORDER_VIOLATION',
+          `publish order: ${dir} depends on ${dep}, but ${dep} is published later — ` +
+            'the dependency version would not exist on the registry yet',
+          { dir, dep, order: dirs.map((d) => d.dir) },
+        );
+      }
+    }
+    seen.add(dir);
+  }
 }
 
 function cargoPublishArgs(pkgName, registry, dryRun) {
@@ -161,6 +225,12 @@ function publishRust({
     }
   }
 
+  // 发布序必须尊重依赖方向（依赖方在依赖之后发布）。
+  assertOrderRespectsDeps(
+    dirs.map(({ dir, family, base }) => ({ dir, family, base: path.join(root, base) })),
+    nodeFs,
+  );
+
   // crateVersions covers the whole published set (all families) so cross-family
   // path deps rewrite too.
   const crateVersions = Object.fromEntries(dirs.map(({ dir }) => [dir, version]));
@@ -212,4 +282,4 @@ function publishRust({
   }
 }
 
-module.exports = { LIBS_ORDER, SDKS_ORDER, dirToPackage, rewritePathDeps, publishRust };
+module.exports = { LIBS_ORDER, SDKS_ORDER, dirToPackage, rewritePathDeps, publishRust, internalPathDeps, assertOrderRespectsDeps };

@@ -150,3 +150,34 @@ test('Cargo.lock is restored after publish (no kellnr source pollution)', () => 
   });
   assert.equal(fs.readFileSync(lockPath, 'utf-8'), originalLock, 'Cargo.lock 必须复原到发布前内容');
 });
+
+test('LIBS_ORDER respects real repo dependency direction (common-db before common-event)', () => {
+  const { assertOrderRespectsDeps } = require('../lib/rust-publish.js');
+  const repoRoot = path.resolve(__dirname, '..', '..', '..');
+  const dirs = LIBS_ORDER.map((dir) => ({ dir, family: 'libs', base: path.join(repoRoot, 'libs') }));
+  // 真实仓的 manifest 必须能在当前发布序下自洽（否则 preflight 会拒）
+  assertOrderRespectsDeps(dirs);
+  // 且 common-db 必须排在 common-event 之前
+  assert.ok(LIBS_ORDER.indexOf('common-db') < LIBS_ORDER.indexOf('common-event'));
+});
+
+test('assertOrderRespectsDeps reports the violating pair', () => {
+  const { assertOrderRespectsDeps } = require('../lib/rust-publish.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'coder-order-'));
+  for (const dir of LIBS_ORDER) {
+    const d = path.join(root, dir);
+    fs.mkdirSync(d, { recursive: true });
+    fs.writeFileSync(path.join(d, 'Cargo.toml'), crateToml('digua_' + dir.replaceAll('-', '_')), 'utf-8');
+  }
+  // 让 common-event 依赖 common-db，但把 common-db 排到后面
+  fs.writeFileSync(
+    path.join(root, 'common-event', 'Cargo.toml'),
+    crateToml('digua_common_event') + '\ndigua_common_db = { path = "../common-db" }\n',
+    'utf-8',
+  );
+  const bad = [
+    ...LIBS_ORDER.filter((d) => d !== 'common-db').map((d) => ({ dir: d, family: 'libs', base: root })),
+    { dir: 'common-db', family: 'libs', base: root },
+  ];
+  assert.throws(() => assertOrderRespectsDeps(bad), /publish order/);
+});

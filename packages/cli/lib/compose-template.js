@@ -78,10 +78,11 @@ function transformInfraCompose(doc) {
   return doc;
 }
 
-/** depends_on 的 mysql 键翻转为 postgres；token 的 DB_TYPE 指向 postgres。 */
+/** depends_on 的 mysql 键翻转为 postgres；token 的 DB_TYPE 指向 postgres；
+ *  DB 服务的 build 块注入 SERVICE_FEATURES=postgres（source 构建方直出 PG 二进制）。 */
 function transformAppCompose(doc) {
   const services = doc.services ?? {};
-  for (const svc of Object.values(services)) {
+  for (const [name, svc] of Object.entries(services)) {
     if (svc && svc.depends_on && Object.prototype.hasOwnProperty.call(svc.depends_on, 'mysql')) {
       const entries = Object.entries(svc.depends_on).map(([k, v]) =>
         k === 'mysql' ? ['postgres', v] : [k, v],
@@ -90,6 +91,15 @@ function transformAppCompose(doc) {
     }
     if (svc && svc.environment && svc.environment.TOKEN_DATABASE_DB_TYPE === 'mysql') {
       svc.environment.TOKEN_DATABASE_DB_TYPE = 'postgres';
+    }
+    if (
+      svc &&
+      svc.build &&
+      typeof svc.build.dockerfile === 'string' &&
+      /^services\/[a-z_-]+\/Dockerfile$/.test(svc.build.dockerfile) &&
+      !svc.build.dockerfile.startsWith('services/api-gateway/')
+    ) {
+      svc.build.args = { ...(svc.build.args ?? {}), SERVICE_FEATURES: 'postgres' };
     }
   }
   // dev 全栈里的 mysql-replica（含卷）在 PG 变体中整体移除。
