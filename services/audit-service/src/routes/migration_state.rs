@@ -42,7 +42,7 @@ impl MigrationState for AuditMigrationState {
 pub async fn handler(State(state): State<super::AppState>) -> impl IntoResponse {
     let pool = state.audit.pool();
     let body: Result<MigrationStateResponse, (StatusCode, Json<serde_json::Value>)> =
-        match migration_state::probe_marker_mysql(pool, "audit_operation_logs").await {
+        match migration_state::probe_marker(pool, "audit_operation_logs").await {
             Ok(true) => Ok(migration_state::build_response(
                 &AuditMigrationState,
                 vec!["V001".into()],

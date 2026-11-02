@@ -1,53 +1,14 @@
-use audit_service::{config::AppConfig, create_state, routes};
-use digua_common::db::connect;
+use audit_service::{
+    config::AppConfig,
+    db::{ensure_schema, init_pool},
+    create_state, routes,
+};
 use digua_common_jwt::{JWKSCache, JwksConfig};
 use digua_common_telemetry::init_tracing;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{info, warn};
-
-const INIT_SQL: &str = include_str!("../migrations/mysql/V001__init.sql");
-const SCHEMA_MARKER_TABLE: &str = "audit_operation_logs";
-
-async fn ensure_schema(pool: &sqlx::mysql::MySqlPool) -> anyhow::Result<()> {
-    let row: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM information_schema.tables \
-         WHERE table_schema = DATABASE() AND table_name = ?",
-    )
-    .bind(SCHEMA_MARKER_TABLE)
-    .fetch_one(pool)
-    .await?;
-    if row.0 > 0 {
-        info!(
-            marker = SCHEMA_MARKER_TABLE,
-            "audit schema present, skip migration"
-        );
-        return Ok(());
-    }
-
-    info!("audit schema missing, applying initial migration");
-    for stmt in INIT_SQL.split(';') {
-        let cleaned: String = stmt
-            .lines()
-            .filter(|l| !l.trim_start().starts_with("--"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let s = cleaned.trim();
-        if s.is_empty() {
-            continue;
-        }
-        let upper = s.to_ascii_uppercase();
-        if upper.starts_with("CREATE DATABASE") || upper.starts_with("USE ") {
-            continue;
-        }
-        if let Err(e) = sqlx::query(s).execute(pool).await {
-            return Err(anyhow::anyhow!("apply audit migration: {e}"));
-        }
-    }
-    info!("audit initial migration applied");
-    Ok(())
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -57,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
     let config = AppConfig::from_env()?;
     info!("Starting audit-service on {}", config.server_addr);
 
-    let pool = connect(&config.database_url, 10)
+    let pool = init_pool(&config.database_url)
         .await
         .expect("Failed to initialize database pool");
 
