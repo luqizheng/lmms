@@ -417,6 +417,10 @@ build_images:staging:
     - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend"
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
     - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --load-and-push $BUILD_SERVICES
+    # PG 方言变体（2026-11-03）：SERVICE_FEATURES=postgres，tag 为 <sha>-pg / pg-latest，
+    # 与 mysql 变体并存。只建 7 个 DB 服务（api-gateway 与方言无关）。
+    - export BUILD_SERVICES_PG="token-service iam-service notification-service audit-service config-service file-service prue-admin-backend"
+    - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --dialect pg --load-and-push $BUILD_SERVICES_PG
     # mysql-replica 位于 infrastructure/mysql-replica/，不在 build-docker.js 服务清单里，单独 buildx --push。
     # 它在 docker-compose.yml（非 infra.yml）中，release 时 transform-compose 转成
     # micro-server/mysql-replica:<sha>，load-images --mode=pull 会拉它，必须在此构建推送。
@@ -738,6 +742,32 @@ publish_packages:
 #       都完成）。下游更新全部走包：镜像 compose pull、pnpm add / cargo / maven 升版本，
 #       cms-sync（@digua/dist-tools）已停用，不再随 tag 发布。
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# compose 模板发布（双方言）—— 下游（ai-pm 等）消费的基座 compose 包。
+# 产出两个目录并存：
+#   release/compose-template/coder-compose-template-<ver>/        (mysql, 默认)
+#   release/compose-template/coder-compose-template-<ver>-pg/     (postgres 变体)
+# tag 触发；产物作为 CI artifact 供下游按版本取用。
+# ─────────────────────────────────────────────────────────────────────────────
+publish_compose_template:
+  stage: release
+  tags: [shell]
+  script:
+    - export VERSION="${CI_COMMIT_TAG#v}"
+    - echo "=== publish_compose_template — VERSION=${VERSION} ==="
+    - node packages/cli/bin/coder.js release compose-template --version "${VERSION}"
+    - node packages/cli/bin/coder.js release compose-template --version "${VERSION}" --dialect pg
+    - ls -la release/compose-template/
+  artifacts:
+    name: "compose-template-${CI_COMMIT_TAG}"
+    paths:
+      - release/compose-template/
+    expire_in: 30 days
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  environment:
+    name: compose-template-releases
+
 release:dist:
   stage: release
   tags: [shell]
