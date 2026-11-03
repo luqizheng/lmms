@@ -69,6 +69,7 @@ function parseBuildArgs(argv) {
     registry: DEFAULT_REGISTRY,
     repo: DEFAULT_REPO,
     dialect: 'mysql',
+    buildArgs: [],
     prune: false,
     help: false,
     unknown: [],
@@ -87,6 +88,15 @@ function parseBuildArgs(argv) {
       case '--dialect': {
         const d = String(argv[++i] || '').toLowerCase();
         args.dialect = d === 'postgres' ? 'pg' : d;
+        break;
+      }
+      case '--build-arg': {
+        const kv = argv[++i];
+        if (kv) {
+          const eq = kv.indexOf('=');
+          if (eq > 0) args.buildArgs.push(kv);
+          else args.buildArgs.push(`${kv}=true`);
+        }
         break;
       }
       case 'prune': case 'clean': args.prune = true; break;
@@ -151,7 +161,7 @@ function resolvePlan({ args, isTTY }) {
     return [svc, [...new Set(tags)]];
   }));
 
-  return { services, version: args.version, platforms, mode, registry, repo, dialect, tagsByService, warnings, interactive: false };
+  return { services, version: args.version, platforms, mode, registry, repo, dialect, buildArgs: args.buildArgs ?? [], tagsByService, warnings, interactive: false };
 }
 
 function dockerfileFor(root, name) {
@@ -191,6 +201,7 @@ function buildService(name, plan, { root, exec, out }) {
   if (plan.dialect === 'pg') {
     buildCmd.push('--build-arg', 'SERVICE_FEATURES=postgres');
   }
+  for (const kv of plan.buildArgs ?? []) buildCmd.push('--build-arg', kv);
   for (const t of tags) buildCmd.push('-t', t);
   buildCmd.push('.');
 

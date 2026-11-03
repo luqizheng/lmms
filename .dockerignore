@@ -1,5 +1,10 @@
 node_modules
 target
+# CARGO_TARGET_DIR 变体（计划里的验证环境用 .target/pgtest，37G 体积，
+# 误入构建上下文会让每次 buildx 传几百 MB）
+.target
+**/target
+**/node_modules
 .git
 *.exe
 *.swp

@@ -1,6 +1,8 @@
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 
-FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
+# builder 镜像可覆盖（默认值 = 内网发布镜像，离线/公共源构建时用 --build-arg BUILDER_IMAGE=...）
+ARG BUILDER_IMAGE=zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl
+FROM ${BUILDER_IMAGE} AS builder
 
 USER root
 WORKDIR /app
