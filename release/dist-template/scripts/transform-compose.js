@@ -60,6 +60,22 @@ const DIALECT_SUFFIX = {
   pg: '-pg',
 };
 
+// 只有**构建了 PG 变体**的服务才带 -pg 后缀。PG 构建跳过与方言无关的服务
+//（api-gateway / docs-site），它们的镜像只有 mysql 版 —— 若也加 -pg，
+// compose 会去拉一个不存在的镜像（api-gateway:1.6.0-pg）。
+// 与 `coder build images --dialect pg` 的 DB_SERVICES 集合一致。
+const PG_VARIANT_SERVICES = new Set([
+  'config-service',
+  'file-service',
+  'token-service',
+  'iam-service',
+  'iam-outbox-publisher',
+  'notification-service',
+  'notification-outbox-publisher',
+  'audit-service',
+  'prue_backend',
+]);
+
 // 跳过与 build: 块共存的 image: 行（mysql-replica 同时声明 build: + image:
 // 作为本地 tag；transform 后必须丢弃，否则 compose 拿到两个 image: 报错）。
 function skipCoexistingImageTag(lines, i) {
@@ -102,6 +118,13 @@ function main() {
   }
   const tagSuffix = DIALECT_SUFFIX[dialect];
   const defaultTag = `${version}${tagSuffix}`;
+
+  // 逐服务的后缀：方言无关的服务（api-gateway）没有 PG 变体镜像，
+  // 必须回落到无后缀的 tag，否则会去拉不存在的镜像。
+  const tagFor = (serviceName) =>
+    dialect === 'pg' && !PG_VARIANT_SERVICES.has(serviceName)
+      ? version
+      : defaultTag;
 
   if (legacyRegistry) {
     console.error('[transform-compose] ℹ <registry> 参数已废弃：仓库前缀改由 .env 的 kudi_repos 变量承载');
@@ -170,9 +193,11 @@ function main() {
     // 仓库前缀走 ${kudi_repos:-<默认>} 变量（.env 可改，无需重新打包）；
     // tag 用 ${IMAGE_TAG:-<version>} 插值：默认值 = 打包版本（不带 v；PG 变体带 -pg），
     // 升级时 upgrade.js 以进程环境变量 IMAGE_TAG 覆盖（compose 插值进程 env 优先于 --env-file）。
-    output.push(`    image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${defaultTag}}`);
+    // ⚠️ tagFor(serviceName)：方言无关服务没有 PG 变体镜像 → 回落到无后缀 tag。
+    const svcTag = tagFor(serviceName);
+    output.push(`    image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${svcTag}}`);
     modified = true;
-    console.error(`[transform-compose]   ${serviceName}: build → image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${defaultTag}}`);
+    console.error(`[transform-compose]   ${serviceName}: build → image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${svcTag}}`);
   }
 
   if (!modified) {

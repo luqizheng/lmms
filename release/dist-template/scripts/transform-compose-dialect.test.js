@@ -25,6 +25,10 @@ const COMPOSE = `services:
     build:
       context: ..
       dockerfile: services/other/Dockerfile
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
 `;
 
 function run(args) {
@@ -57,6 +61,13 @@ test('pg dialect: tag carries -pg suffix for every mapped service', () => {
   assert.match(out, /iam-service:\$\{IMAGE_TAG:-1\.6\.0-pg\}/);
   // 未在 IMAGE_MAP 里的服务保持 build: 块不动
   assert.match(out, /unknown-thing:\n {4}build:/);
+  // 方言无关服务（api-gateway）没有 PG 变体镜像 → 不得带 -pg 后缀，
+  // 否则 compose 会去拉一个不存在的 api-gateway:1.6.0-pg。
+  assert.match(out, /api-gateway:\$\{IMAGE_TAG:-1\.6\.0\}/);
+  assert.ok(
+    !/api-gateway:\$\{IMAGE_TAG:-1\.6\.0-pg\}/.test(out),
+    'api-gateway 不得带 -pg 后缀（它没有 PG 变体镜像）',
+  );
 });
 
 test('pg dialect via positional arg (legacy-registry placeholder)', () => {
