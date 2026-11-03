@@ -190,3 +190,32 @@ services:
   assert.equal(out.services['config-service'].build.args.SERVICE_FEATURES, 'postgres');
   assert.equal(out.services['api-gateway'].build.args, undefined);
 });
+
+// ---------------------------------------------------------------------------
+// 凭据类文件不得进模板包（2026-11-03 事故：login.json 活令牌被拷进包）
+// ---------------------------------------------------------------------------
+
+test('credential files are excluded from the bundle', () => {
+  const dir = fixture();
+  for (const rel of ['login.json', 'token.json', 'server.pem', 'tls.key', 'secrets/db.json', 'config/creds.json']) {
+    const p = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, '{"token":"secret"}', 'utf-8');
+  }
+  const outRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'coder-tpl-secret-'));
+  const result = buildComposeTemplate({ infraDir: dir, outRoot, version: '1.0.0' });
+  const walk = (d, acc = []) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const abs = path.join(d, e.name);
+      if (e.isDirectory()) walk(abs, acc);
+      else acc.push(path.relative(result.dir, abs));
+    }
+    return acc;
+  };
+  const files = walk(result.dir);
+  for (const f of files) {
+    assert.ok(!/login\.json$/.test(f), `login.json 不得进包: ${f}`);
+    assert.ok(!/\.pem$|\.key$/.test(f), `密钥文件不得进包: ${f}`);
+    assert.ok(!/secrets\/|creds\.json/.test(f), `凭据目录/文件不得进包: ${f}`);
+  }
+});

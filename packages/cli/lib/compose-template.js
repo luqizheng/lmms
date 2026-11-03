@@ -29,11 +29,42 @@ const EXCLUDE_PATTERNS = [/^loop-.*\.md$/];
 // PG 变体不携带的 MySQL 专属目录。
 const PG_EXCLUDE_DIRS = new Set(['mysql-replica', 'mysql-init']);
 
+// ⚠️ 凭据类文件绝不能进模板包（2026-11-03 实测事故）：
+// infrastructure/login.json 是本地手工登录留下的**活令牌**文件（已被 .gitignore
+// 排除、未入库），但打包器只排除点文件与少数白名单外名 → 它被拷进 compose 模板
+// 包，而模板包目录本身不在 .gitignore 内 → 一旦提交或发布，活令牌就进了版本库
+// 并流向所有下游仓。凭据类文件一律排除（任何层级）。
+const SECRET_EXCLUDE_NAMES = new Set([
+  'login.json',
+  'token.json',
+  'tokens.json',
+  'creds.json',
+  'credentials.json',
+  'secrets.json',
+  'id_rsa',
+  'id_ed25519',
+]);
+const SECRET_EXCLUDE_PATTERNS = [
+  /\.pem$/i,
+  /\.key$/i,
+  /\.p12$/i,
+  /\.pfx$/i,
+  /\.jks$/i,
+  // credentials* / secrets* 的常见配置文件名
+  /^(credentials|secrets|creds)\.(json|ya?ml|toml|ini|conf|txt)$/i,
+];
+// 任何层级的 secrets/ 与 credentials/ 目录。
+const SECRET_EXCLUDE_DIRS = new Set(['secrets', 'credentials']);
+
 const DIALECTS = new Set(['mysql', 'pg']);
 
 function isExcluded(relSegments, name, dialect) {
   if (EXCLUDE_PATTERNS.some((re) => re.test(name))) return true;
   if (relSegments.length === 0 && EXCLUDE_NAMES.has(name)) return true;
+  // 凭据类文件/目录（任何层级）——见 SECRET_EXCLUDE_* 的事故说明。
+  if (SECRET_EXCLUDE_NAMES.has(name)) return true;
+  if (SECRET_EXCLUDE_PATTERNS.some((re) => re.test(name))) return true;
+  if (relSegments.some((seg) => SECRET_EXCLUDE_DIRS.has(seg))) return true;
   // dotfiles/dirs are skipped, except the whitelisted env example
   if (name.startsWith('.') && name !== '.env.prod.example') return true;
   if (dialect === 'pg' && relSegments.length > 0 && PG_EXCLUDE_DIRS.has(relSegments[0])) return true;
