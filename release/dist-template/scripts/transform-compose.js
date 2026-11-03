@@ -51,6 +51,15 @@ const IMAGE_MAP = {
   'mysql-replica':               'mysql-replica',
 };
 
+// 方言 → 镜像 tag 后缀（2026-11-03）：PG 变体的镜像在 registry 里是
+// `<svc>:1.6.0-pg`（+ `:pg-latest`），不是 `<svc>:1.6.0`。不带后缀会把
+// mysql 镜像当成 PG 变体拉下来——运行期才在「连 PG 失败」处暴露。
+// 与 `coder build images --dialect pg` 的 tag 规则一致。
+const DIALECT_SUFFIX = {
+  mysql: '',
+  pg: '-pg',
+};
+
 // 跳过与 build: 块共存的 image: 行（mysql-replica 同时声明 build: + image:
 // 作为本地 tag；transform 后必须丢弃，否则 compose 拿到两个 image: 报错）。
 function skipCoexistingImageTag(lines, i) {
@@ -64,18 +73,35 @@ function skipCoexistingImageTag(lines, i) {
 function main() {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.error('用法: node transform-compose.js <compose-file> <version> [<legacy-registry>]');
+    console.error('用法: node transform-compose.js <compose-file> <version> [<legacy-registry>] [--dialect mysql|pg]');
     console.error('  <compose-file>      compose 文件路径');
     console.error('  <version>           打包版本（可带 v 前缀，内部统一剥 v）');
     console.error('  <legacy-registry>   已废弃：仓库前缀改由 .env 的 kudi_repos 承载');
+    console.error('  --dialect pg        产出 PG 变体镜像 tag（<ver>-pg），默认 mysql');
     process.exit(1);
   }
 
-  const [composeFile, rawVersion, legacyRegistry] = args;
+  const [composeFile, rawVersion, legacyRegistry, dialectArg] = args;
 
   // 镜像 tag 不带 v：CI 推送用 ${CI_COMMIT_TAG#v}（剥 v），registry 里存在的是
   // micro-server/<svc>:1.6.0 而非 :v1.6.0。带 v 去 pull 会失败。
   const version = String(rawVersion).replace(/^v(?=\d)/, '');
+
+  // 方言：pg 变体的镜像 tag 额外带 -pg 后缀（registry 里是 <svc>:1.6.0-pg）。
+  // 位置参数：<compose> <version> [legacy-registry] [dialect]；也接受
+  // `--dialect pg` 形式（位置参数被 legacy 占位时更清晰）。
+  const dialectFlagIdx = args.indexOf('--dialect');
+  const dialect = String(
+    dialectFlagIdx > 0 ? args[dialectFlagIdx + 1] : dialectArg || 'mysql',
+  ).toLowerCase();
+  // 注意用 hasOwnProperty 判定：mysql 的后缀是空字符串（falsy），
+  // 用 `!DIALECT_SUFFIX[dialect]` 会把合法的 mysql 误判为未知方言。
+  if (!Object.prototype.hasOwnProperty.call(DIALECT_SUFFIX, dialect)) {
+    console.error(`[transform-compose] ✗ 未知方言: ${dialect}（允许 mysql | pg）`);
+    process.exit(1);
+  }
+  const tagSuffix = DIALECT_SUFFIX[dialect];
+  const defaultTag = `${version}${tagSuffix}`;
 
   if (legacyRegistry) {
     console.error('[transform-compose] ℹ <registry> 参数已废弃：仓库前缀改由 .env 的 kudi_repos 变量承载');
@@ -142,11 +168,11 @@ function main() {
 
     // 替换为 image: 行（与 build: 同缩进，4 空格）。
     // 仓库前缀走 ${kudi_repos:-<默认>} 变量（.env 可改，无需重新打包）；
-    // tag 用 ${IMAGE_TAG:-<version>} 插值：默认值 = 打包版本（不带 v），
+    // tag 用 ${IMAGE_TAG:-<version>} 插值：默认值 = 打包版本（不带 v；PG 变体带 -pg），
     // 升级时 upgrade.js 以进程环境变量 IMAGE_TAG 覆盖（compose 插值进程 env 优先于 --env-file）。
-    output.push(`    image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${version}}`);
+    output.push(`    image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${defaultTag}}`);
     modified = true;
-    console.error(`[transform-compose]   ${serviceName}: build → image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${version}}`);
+    console.error(`[transform-compose]   ${serviceName}: build → image: \${kudi_repos:-${DEFAULT_KUDI_REPOS}}/${imageKey}:\${IMAGE_TAG:-${defaultTag}}`);
   }
 
   if (!modified) {
