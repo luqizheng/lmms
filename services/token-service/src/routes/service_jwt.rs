@@ -67,6 +67,7 @@ pub async fn handle_service_jwt(
         "iat": now,
         "exp": now + SERVICE_JWT_TTL_SECS,
         "roles": ["service"],
+        "purpose": crate::issuer::purpose::SERVICE,
     });
     let access_token = sign_token(
         &state.private_key_pem,

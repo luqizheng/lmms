@@ -38,7 +38,13 @@ fn issue_access_token_contains_scope_and_client() {
         "user_id": "u-1",
     });
     let token = issuer
-        .issue_access_token("user-123", "client-abc", extra, 3600)
+        .issue_access_token(
+            "user-123",
+            "client-abc",
+            Some(token_service::issuer::purpose::API_KEY),
+            extra,
+            3600,
+        )
         .unwrap();
     let claims = verify(&token, &public_pem);
 
@@ -52,6 +58,10 @@ fn issue_access_token_contains_scope_and_client() {
     assert_eq!(
         claims.custom.get("client_id").and_then(|v| v.as_str()),
         Some("client-abc")
+    );
+    assert_eq!(
+        claims.custom.get("purpose").and_then(|v| v.as_str()),
+        Some("api_key")
     );
     // extra_claims 必须合并进 custom
     assert_eq!(
@@ -67,10 +77,75 @@ fn issue_access_token_contains_scope_and_client() {
 }
 
 #[test]
+fn issue_access_token_without_purpose_omits_claim() {
+    let (issuer, public_pem) = build_issuer();
+    let token = issuer
+        .issue_access_token("u-1", "c-1", None, serde_json::json!({}), 3600)
+        .unwrap();
+    let claims = verify(&token, &public_pem);
+    assert!(
+        !claims.custom.contains_key("purpose"),
+        "purpose=None 时不得写入该键（legacy 语义：缺失=旧令牌）"
+    );
+}
+
+#[test]
+fn issue_access_token_extra_claims_cannot_override_authoritative_keys() {
+    let (issuer, public_pem) = build_issuer();
+    // extra_claims 试图覆盖权威键——必须被签发方后写覆盖压回
+    let extra = serde_json::json!({
+        "scope": "refresh",
+        "client_id": "evil-client",
+        "purpose": "user_login",
+        "tid": 7,
+    });
+    let token = issuer
+        .issue_access_token(
+            "u-1",
+            "real-client",
+            Some(token_service::issuer::purpose::API_KEY),
+            extra,
+            3600,
+        )
+        .unwrap();
+    let claims = verify(&token, &public_pem);
+    assert_eq!(
+        claims.custom.get("scope").and_then(|v| v.as_str()),
+        Some("access"),
+        "scope 不得被 extra_claims 覆盖"
+    );
+    assert_eq!(
+        claims.custom.get("client_id").and_then(|v| v.as_str()),
+        Some("real-client"),
+        "client_id 不得被 extra_claims 覆盖"
+    );
+    assert_eq!(
+        claims.custom.get("purpose").and_then(|v| v.as_str()),
+        Some("api_key"),
+        "purpose 不得被 extra_claims 覆盖"
+    );
+    // 非权威键照常合并
+    assert_eq!(claims.custom.get("tid").and_then(|v| v.as_i64()), Some(7));
+}
+
+#[test]
 fn issue_refresh_token_returns_unique_family() {
     let (issuer, public_pem) = build_issuer();
-    let (token1, fam1) = issuer.issue_refresh_token("user-1", 86400).unwrap();
-    let (token2, fam2) = issuer.issue_refresh_token("user-1", 86400).unwrap();
+    let (token1, fam1) = issuer
+        .issue_refresh_token(
+            "user-1",
+            Some(token_service::issuer::purpose::AUTH_CODE),
+            86400,
+        )
+        .unwrap();
+    let (token2, fam2) = issuer
+        .issue_refresh_token(
+            "user-1",
+            Some(token_service::issuer::purpose::AUTH_CODE),
+            86400,
+        )
+        .unwrap();
+    let (legacy, _fam3) = issuer.issue_refresh_token("user-1", None, 86400).unwrap();
     assert_ne!(fam1, fam2, "每次签发 family 必须独立");
 
     let c1 = verify(&token1, &public_pem);
@@ -78,6 +153,11 @@ fn issue_refresh_token_returns_unique_family() {
     assert_eq!(
         c1.custom.get("scope").and_then(|v| v.as_str()),
         Some("refresh")
+    );
+    assert_eq!(
+        c1.custom.get("purpose").and_then(|v| v.as_str()),
+        Some("auth_code"),
+        "refresh token 必须携带通道供刷新继承"
     );
     assert_eq!(
         c1.custom.get("family").and_then(|v| v.as_str()),
@@ -88,16 +168,23 @@ fn issue_refresh_token_returns_unique_family() {
         Some(fam2.as_str())
     );
     assert_ne!(c1.jwt_id, c2.jwt_id, "jti 必须唯一");
+
+    let c_legacy = verify(&legacy, &public_pem);
+    assert!(
+        !c_legacy.custom.contains_key("purpose"),
+        "purpose=None 的 refresh token 不得写入该键"
+    );
 }
 
 #[test]
 fn issue_user_jwt_sets_audience_and_filters_reserved() {
     let (issuer, public_pem) = build_issuer();
-    // 故意塞一些 reserved 字段，应被过滤
+    // 故意塞一些 reserved 字段 + 伪造 purpose，应被过滤/压回
     let extra = serde_json::json!({
         "iss": "evil",
         "sub": "evil",
         "exp": 0,
+        "purpose": "api_key",
         "tenant": "acme",
         "roles": ["admin"],
     });
@@ -124,6 +211,11 @@ fn issue_user_jwt_sets_audience_and_filters_reserved() {
     assert_eq!(
         claims.custom.get("user_code").and_then(|v| v.as_str()),
         Some("USR077")
+    );
+    assert_eq!(
+        claims.custom.get("purpose").and_then(|v| v.as_str()),
+        Some("user_login"),
+        "登录通道 purpose 必须为 user_login，调用方伪造值必须被丢弃"
     );
     assert_eq!(
         claims.custom.get("tenant").and_then(|v| v.as_str()),
@@ -160,13 +252,17 @@ fn issue_resource_token_carries_resource_fields() {
         claims.custom.get("permission").and_then(|v| v.as_str()),
         Some("read")
     );
+    assert_eq!(
+        claims.custom.get("purpose").and_then(|v| v.as_str()),
+        Some("resource")
+    );
 }
 
 #[test]
 fn wrong_issuer_fails_verification() {
     let (issuer, public_pem) = build_issuer();
     let token = issuer
-        .issue_access_token("u", "c", serde_json::json!({}), 3600)
+        .issue_access_token("u", "c", None, serde_json::json!({}), 3600)
         .unwrap();
     let public_key = RS256PublicKey::from_pem(&public_pem).unwrap();
     let options = VerificationOptions {

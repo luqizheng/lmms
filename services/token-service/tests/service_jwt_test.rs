@@ -73,6 +73,7 @@ async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
     assert_eq!(claims["aud"], "iam-service");
     assert_eq!(claims["tid"], 1);
     assert_eq!(claims["roles"][0], "service");
+    assert_eq!(claims["purpose"], "service");
 }
 
 #[tokio::test]

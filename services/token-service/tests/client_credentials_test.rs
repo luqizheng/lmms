@@ -114,6 +114,8 @@ async fn client_credentials_issues_token_for_bound_user() {
     let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
     let claims = verify_token(at, &cache, None).await.expect("verify access token");
     assert_eq!(claims["sub"], "usr-abc123");
+    // 通道盖章：client_credentials 兑换的令牌 purpose=api_key
+    assert_eq!(claims["purpose"], "api_key");
 }
 
 #[tokio::test]

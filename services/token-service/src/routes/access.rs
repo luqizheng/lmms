@@ -176,6 +176,7 @@ async fn handle_client_credentials(
         .issue_access_token(
             &user_id,
             &req.client_id,
+            Some(crate::issuer::purpose::API_KEY),
             extra_claims,
             client.access_token_ttl_sec,
         )
@@ -244,13 +245,18 @@ async fn handle_authorization_code(
         .issue_access_token(
             &user_id,
             &req.client_id,
+            Some(crate::issuer::purpose::AUTH_CODE),
             extra_claims,
             client.access_token_ttl_sec,
         )
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
 
     let (rt, _family) = issuer
-        .issue_refresh_token(&user_id, client.refresh_token_ttl_sec)
+        .issue_refresh_token(
+            &user_id,
+            Some(crate::issuer::purpose::AUTH_CODE),
+            client.refresh_token_ttl_sec,
+        )
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
 
     Ok(Json(AccessResponse {

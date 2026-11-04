@@ -171,6 +171,7 @@ cargo run --bin keygen
 | -------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | Argon2 哈希    | 使用 Argon2 存储客户端密钥哈希 | [secret.rs](src/secret.rs)                           |
 | RS256 签名     | JWT 使用非对称加密签名         | [issuer.rs](src/issuer.rs)                           |
+| purpose claim  | 通道级用途声明（封闭枚举：user_login/api_key/auth_code/service/resource），签发通道决定、请求不可自报 | [issuer.rs](src/issuer.rs) |
 | 防重放攻击     | Refresh Token 单次使用机制     | [service/refresh_svc.rs](src/service/refresh_svc.rs) |
 | 客户端状态管理 | 支持启用/禁用 OAuth 客户端     | [models/oauth_client.rs](src/models/oauth_client.rs) |
 
@@ -248,18 +249,19 @@ cargo run --bin keygen
 | 方法 | 路径                              | 功能                |
 | ---- | --------------------------------- | ------------------- |
 | GET  | /health                           | 健康检查            |
-| GET  | /ready                            | 就绪检查            |
 | GET  | /metrics                          | Prometheus 指标     |
 | GET  | /swagger-ui                       | Swagger UI          |
 | GET  | /api-docs/openapi.json            | OpenAPI 规范        |
-| POST | /api/tokens/access                | 获取 Access Token   |
-| POST | /api/tokens/refresh               | 刷新 Token          |
-| POST | /api/tokens/revoke                | 撤销 Token          |
-| POST | /api/tokens/resource              | 获取 Resource Token |
-| GET  | /api/tokens/.well-known/jwks.json | JWKS                |
+| POST | /tokens/access                    | 获取 Access Token（authorization_code / client_credentials） |
+| POST | /tokens/refresh                   | 刷新 Token          |
+| POST | /tokens/revoke                    | 撤销 Token          |
+| POST | /tokens/resource                  | 获取 Resource Token |
+| GET  | /tokens/.well-known/jwks.json     | JWKS                |
 | GET  | /.well-known/jwks.json            | JWKS（别名）        |
-| POST | /api/api-keys                     | 创建 API Key        |
-| POST | /api/v1/tokens/user-jwt           | 获取用户 JWT        |
+| POST/GET | /api-keys                    | 创建/列出 API Key（service-jwt 鉴权） |
+| POST | /admin/oauth-clients              | OAuth 客户端管理（service-jwt 鉴权） |
+| POST | /tokens/user-jwt                  | 签发用户 JWT（service-jwt 鉴权，登录链） |
+| POST | /tokens/service-jwt               | 签发 service-jwt（bootstrap token 鉴权） |
 
 ---
 
