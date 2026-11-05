@@ -193,8 +193,11 @@ async fn main() -> anyhow::Result<()> {
         )
     } else { app };
 
-    // Consul registration is handled by gliderlabs/registrator sidecar
-    // (based on SERVICE_* labels in docker-compose-services.yml).
+    // Consul self-registration: digua_common_consul::consul_guard() reads the
+    // SERVICE_* environment variables (set in docker-compose-services.yml),
+    // registers this instance at startup, deregisters on SIGTERM, and
+    // periodically re-registers if the Consul catalog loses it.
+    let _consul_guard = digua_common_consul::consul_guard();
 
     axum::serve(listener, app).await.expect("Server error");
     Ok(())
@@ -424,9 +427,9 @@ will fail with "package not found in workspace".
 
 ### 2. Append to `infrastructure/docker-compose-services.yml`
 
-Insert a new service block. Use the `x-svc-registrator-labels` anchor pattern
-from existing services. Insert before the `volumes:` section (or before the
-`# >>> business-services (auto-appended by skill) <<<` anchor if it exists):
+Insert a new service block following the existing pattern (service
+registration is by env vars + `digua_common_consul` self-registration — no
+Docker labels). Insert before the `volumes:` section:
 
 ```yaml
   # ─────────── {name} (Rust + Axum) ───────────
@@ -436,14 +439,6 @@ from existing services. Insert before the `volumes:` section (or before the
       dockerfile: services/{name}/Dockerfile
     ports:
       - "{external_port}:8080"
-    labels:
-      - "SERVICE_NAME={name}"
-      - "SERVICE_ID={name}"
-      - "SERVICE_PORT=8080"
-      - "SERVICE_TAGS=backend,{name},rust"
-      - "SERVICE_8080_CHECK_HTTP=/health"
-      - "SERVICE_8080_CHECK_INTERVAL=15s"
-      - "SERVICE_8080_CHECK_TIMEOUT=3s"
     environment:
       SERVICE_BOOTSTRAP_TOKEN: "${{name-upper}_DEV_BT}"
       TENANT_ID: "${TENANT_ID}"

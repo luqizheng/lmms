@@ -245,7 +245,7 @@ docker push zhcoder-docker-registry.com:8000/official/prom/alertmanager:v0.27.0
 
 | Compose 文件 | 镜像 |
 |---|---|
-| `docker-compose-infra.yml` | `hashicorp/consul:2.0.1`、`gliderlabs/registrator:master`、`redis:7-alpine`、`mysql:8.0`、`rabbitmq:3.13-management-alpine` |
+| `docker-compose-infra.yml` | `hashicorp/consul:2.0.1`、`redis:7-alpine`、`mysql:8.0`、`rabbitmq:3.13-management-alpine` |
 | `docker-compose-observability.yml` | `prom/prometheus:v2.51.0`、`prom/alertmanager:v0.27.0`、`grafana/grafana:10.4.0`、`hashicorp/consul-template:0.32.0`、`otel/opentelemetry-collector-contrib:0.96.0`、`jaegertracing/all-in-one:1.55` |
 
 不在 sync 范围：
@@ -259,7 +259,6 @@ staging 服务器 (192.168.2.31) 上一行命令把 11 个第三方基础镜像�
 ```bash
 bash infrastructure/scripts/sync-staging-images.sh --images "
   hashicorp/consul:2.0.1
-  gliderlabs/registrator:master
   redis:7-alpine
   mysql:8.0
   rabbitmq:3.13-management-alpine

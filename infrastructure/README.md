@@ -11,7 +11,7 @@
 | 文件 | 角色 | 何时使用 |
 | --- | --- | --- |
 | `docker-compose.yml` | 主入口 | 唯一直接 `up` 的文件；`include` 下面 3 个。 |
-| `docker-compose-infra.yml` | 基础设施基线 | MySQL / Redis / Consul / RabbitMQ / registrator。无端口发布、无 dev 覆盖。 |
+| `docker-compose-infra.yml` | 基础设施基线 | MySQL / Redis / Consul（server 模式）/ RabbitMQ。无端口发布、无 dev 覆盖。 |
 | `docker-compose-infra.dev.yml` | dev overlay | 给基础设施加端口发布（3306 / 6379 / 8500 / 5672 等），方便宿主机直连。 |
 | `docker-compose-services.yml` | 业务服务 | 8 个 Rust 服务 + 2 个 outbox publisher 的定义与依赖关系（frontend 服务已随 PRISM console 移除）。 |
 | `docker-compose-observability.yml` | 可观测性 overlay | Prometheus / Grafana / Jaeger / OTel Collector / consul-template；已 `include` 进主入口。 |

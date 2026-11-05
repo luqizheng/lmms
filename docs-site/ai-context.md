@@ -74,11 +74,10 @@
 
 | 组件 | 容器端口 | 宿主机端口 | 角色 |
 |---|---|---|---|
-| consul | 8500 / 8502 | 8500 | 服务发现 + Consul SD（Prometheus 用） |
+| consul | 8500 / 8502 | 8500 | 服务发现 + Consul SD（Prometheus 用）；**server 模式**（2026-11-05 起，原 `-dev` 内存态）+ `consul_data` 持久卷；服务注册由各服务进程自注册（`digua_common_consul`），registrator 已移除 |
 | redis | 6379 | 6379 | JWT 黑名单 / 缓存 / 限流（Phase 10 改走 Redis） |
 | mysql | 3306 | 3306 | 共享库 `superpowers`，表名按服务前缀（Phase 4.0 落地） |
 | rabbitmq | 5672 / 15672 | 5672 / 15672 | 事件总线 broker；拓扑由 `infrastructure/config/rabbitmq/definitions.json` 预声明 |
-| registrator | — | — | `gliderlabs/registrator:master`，项目级服务注册（**Phase 5-A-2 替代了原 6 个 sidecar + consul connect proxy -register**） |
 | prometheus | 9090 | 9090 | 单一 `prometheus.yml`（consul SD + 自抓 + otel-collector） |
 | grafana | 3000 | 3001 | 仅预置 `gateway.json` 一个 dashboard；admin/admin |
 | jaeger | 16686 | 16686 | Trace UI |
