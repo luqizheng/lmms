@@ -13,6 +13,7 @@ postgres = ["sqlx/postgres", "digua_common_db/postgres"]
 sqlite = ["sqlx/sqlite", "digua_common_db/sqlite"]
 
 [dependencies]
+digua_common_consul = { path = "../../libs/common-consul" }
 axum.workspace = true
 tokio.workspace = true
 tracing.workspace = true

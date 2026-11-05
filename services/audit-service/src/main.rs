@@ -117,12 +117,15 @@ async fn main() -> anyhow::Result<()> {
         app
     };
 
+    // 自注册（libs/common-consul）：SERVICE_NAME 未设时为 no-op。
+    let consul_guard = digua_common_consul::consul_guard();
     tokio::spawn(async move {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to listen for ctrl-c");
+        // SIGINT + SIGTERM（docker stop 走 SIGTERM；旧代码只听 ctrl_c，
+        // SIGTERM 无人消费 → 超时 SIGKILL，注销路径从未真正执行）。
+        digua_common_consul::wait_for_shutdown_signal().await;
         info!("received shutdown signal, deregistering from consul");
         let _ = jwks_shutdown.send(true);
+        consul_guard.deregister().await;
         std::process::exit(0);
     });
 

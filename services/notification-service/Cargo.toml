@@ -15,6 +15,7 @@ postgres = ["sqlx/postgres", "digua_common_db/postgres", "digua_common_event/pos
 sqlite = ["sqlx/sqlite", "digua_common_db/sqlite"]
 
 [dependencies]
+digua_common_consul = { path = "../../libs/common-consul" }
 digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 digua_common_ratelimit = { path = "../../libs/common-ratelimit" }

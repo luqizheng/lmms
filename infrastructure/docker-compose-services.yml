@@ -1,102 +1,16 @@
-x-svc-registrator-labels-config: &svc-reg-labels-config
-  - "SERVICE_NAME=config-service"
-  - "SERVICE_ID=config-service"
-  - "SERVICE_PORT=8081"
-  - "SERVICE_TAGS=backend,config-service"
-  - "SERVICE_8081_CHECK_HTTP=/health"
-  - "SERVICE_8081_CHECK_INTERVAL=15s"
-  - "SERVICE_8081_CHECK_TIMEOUT=3s"
-  # Loki scrape opt-in (see ADR-007 D2). Promtail's docker_sd filter
-  # only picks containers with `logging=loki`; this keeps loki free of
-  # registrator / consul-template / infra noise.
-  - "logging=loki"
-  - "service=config-service"
-  - "env=staging"
+# ── 服务自注册 + 日志采集公共契约（2026-11-05 registrator 退役） ─────────────
+# 注册：libs/common-consul 读 CONSUL_ADDR/SERVICE_NAME/SERVICE_PORT/
+#       SERVICE_HEALTH_PATH（各服务 environment 内）→ 启动注册、SIGTERM 注销、
+#       30s 对账重注册。不再使用 Docker labels（SERVICE_* labels 已删除）。
+# 日志：promtail（observability staging overlay）只发现 logging=loki 容器，
+#       service/env 两个 label 进 Loki 流标签。
+x-consul-env: &consul-env
+  CONSUL_ADDR: "http://consul:8500"
+  SERVICE_HEALTH_PATH: "/health"
 
-x-svc-registrator-labels-file: &svc-reg-labels-file
-  - "SERVICE_NAME=file-service"
-  - "SERVICE_ID=file-service"
-  - "SERVICE_PORT=8082"
-  - "SERVICE_TAGS=backend,file-service"
-  - "SERVICE_8082_CHECK_HTTP=/health"
-  - "SERVICE_8082_CHECK_INTERVAL=15s"
-  - "SERVICE_8082_CHECK_TIMEOUT=3s"
-  - "logging=loki"
-  - "service=file-service"
-  - "env=staging"
-
-x-svc-registrator-labels-gateway: &svc-reg-labels-gateway
-  - "SERVICE_NAME=api-gateway"
-  - "SERVICE_ID=api-gateway"
-  - "SERVICE_PORT=3000"
-  - "SERVICE_TAGS=backend,api-gateway"
-  - "SERVICE_3000_CHECK_HTTP=/health"
-  - "SERVICE_3000_CHECK_INTERVAL=15s"
-  - "SERVICE_3000_CHECK_TIMEOUT=3s"
-  - "logging=loki"
-  - "service=api-gateway"
-  - "env=staging"
-
-x-svc-registrator-labels-token: &svc-reg-labels-token
-  - "SERVICE_NAME=token-service"
-  - "SERVICE_ID=token-service"
-  - "SERVICE_PORT=8082"
-  - "SERVICE_TAGS=backend,token-service"
-  - "SERVICE_8082_CHECK_HTTP=/health"
-  - "SERVICE_8082_CHECK_INTERVAL=15s"
-  - "SERVICE_8082_CHECK_TIMEOUT=3s"
-  - "logging=loki"
-  - "service=token-service"
-  - "env=staging"
-
-x-svc-registrator-labels-iam: &svc-reg-labels-iam
-  - "SERVICE_NAME=iam-service"
-  - "SERVICE_ID=iam-service"
-  - "SERVICE_PORT=8081"
-  - "SERVICE_TAGS=backend,iam-service"
-  - "SERVICE_8081_CHECK_HTTP=/health"
-  - "SERVICE_8081_CHECK_INTERVAL=15s"
-  - "SERVICE_8081_CHECK_TIMEOUT=3s"
-  - "logging=loki"
-  - "service=iam-service"
-  - "env=staging"
-
-x-svc-registrator-labels-prue: &svc-reg-labels-prue
-  - "SERVICE_NAME=prue_backend"
-  - "SERVICE_ID=prue_backend"
-  - "SERVICE_PORT=8087"
-  - "SERVICE_TAGS=backend,prue_backend"
-  - "SERVICE_8087_CHECK_HTTP=/health"
-  - "SERVICE_8087_CHECK_INTERVAL=15s"
-  - "SERVICE_8087_CHECK_TIMEOUT=3s"
-  - "logging=loki"
-  - "service=prue_backend"
-  - "env=staging"
-
-x-svc-registrator-labels-notify: &svc-reg-labels-notify
-  - "SERVICE_NAME=notification-service"
-  - "SERVICE_ID=notification-service"
-  - "SERVICE_PORT=8083"
-  - "SERVICE_TAGS=backend,notification-service"
-  - "SERVICE_8083_CHECK_HTTP=/health"
-  - "SERVICE_8083_CHECK_INTERVAL=30s"
-  - "SERVICE_8083_CHECK_TIMEOUT=3s"
-  - "logging=loki"
-  - "service=notification-service"
-  - "env=staging"
-
-x-svc-registrator-labels-audit: &svc-reg-labels-audit
-  - "SERVICE_NAME=audit-service"
-  - "SERVICE_ID=audit-service"
-  - "SERVICE_PORT=8084"
-  - "SERVICE_TAGS=backend,audit-service"
-  - "SERVICE_8084_CHECK_HTTP=/health"
-  - "SERVICE_8084_CHECK_INTERVAL=30s"
-  - "SERVICE_8084_CHECK_TIMEOUT=3s"
-  - "logging=loki"
-  - "service=audit-service"
-  - "env=staging"
-
+x-loki-labels: &loki-labels
+  logging: "loki"
+  env: "staging"
 
 
 services:
@@ -106,8 +20,12 @@ services:
       dockerfile: services/config-service/Dockerfile
     ports:
       - "8085:8081"
-    labels: *svc-reg-labels-config
+    labels:
+      <<: *loki-labels
+      service: config-service
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8081"
       # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
       DATABASE_URL: "${DATABASE_URL}"
@@ -132,8 +50,12 @@ services:
       dockerfile: services/file-service/Dockerfile
     ports:
       - "8086:8082"
-    labels: *svc-reg-labels-file
+    labels:
+      <<: *loki-labels
+      service: file-service
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8082"
       # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
       DATABASE_URL: "${DATABASE_URL}"
@@ -162,8 +84,12 @@ services:
       dockerfile: services/api-gateway/Dockerfile
     ports:
       - "3000:3000"
-    labels: *svc-reg-labels-gateway
+    labels:
+      <<: *loki-labels
+      service: api-gateway
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "3000"
       # ── 直接读取（GW_ 前缀，config.rs::apply_env_overrides 手写映射） ──
       GW_SERVER_HOST: "0.0.0.0"
       GW_SERVER_PORT: "3000"
@@ -203,7 +129,9 @@ services:
       dockerfile: services/token-service/Dockerfile
     ports:
       - "8082:8082"
-    labels: *svc-reg-labels-token
+    labels:
+      <<: *loki-labels
+      service: token-service
     # Phase 5-A-2 dephase: token-service's baked config.yaml
     # had port 18082 (mesh internal). Override at runtime with the
     # post-dephase config so the service binds 8082 without rebuild.
@@ -224,6 +152,8 @@ services:
       #    跨重启持久化或多实例共享同一 key，恢复本行挂载即可。
       # ──────────────────────────────────────────────────────────
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8082"
       # ── 直接读取（main.rs 中硬编码读取，非 TOKEN_ 前缀） ──
       SERVICE_BOOTSTRAP_TOKENS: "${SERVICE_BOOTSTRAP_TOKENS}"
       TENANT_ID: "${TENANT_ID}"
@@ -266,7 +196,9 @@ services:
       dockerfile: services/iam-service/Dockerfile
     ports:
       - "9081:8081"
-    labels: *svc-reg-labels-iam
+    labels:
+      <<: *loki-labels
+      service: iam-service
     # dev-only bind mount: iam-service writes config.yaml on first boot from
     # embedded default (see services/iam-service/src/config.rs). Not :ro so
     # seed can succeed; runtime env vars always override the yaml regardless.
@@ -274,6 +206,8 @@ services:
     volumes:
       - ../services/iam-service/config:/etc/iam-service
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8081"
       # ── 直接读取（main.rs 中硬编码读取） ──
       SERVICE_BOOTSTRAP_TOKEN: "${IAM_DEV_BT}"
       TENANT_ID: "${TENANT_ID}"
@@ -358,8 +292,12 @@ services:
       dockerfile: services/prue_backend/Dockerfile
     ports:
       - "8087:8087"
-    labels: *svc-reg-labels-prue
+    labels:
+      <<: *loki-labels
+      service: prue_backend
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8087"
       # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
       DATABASE_URL: "${DATABASE_URL}"
@@ -387,7 +325,9 @@ services:
       dockerfile: services/notification-service/Dockerfile
     ports:
       - "8083:8083"
-    labels: *svc-reg-labels-notify
+    labels:
+      <<: *loki-labels
+      service: notification-service
     # dev-only bind mount: notification-service writes config.yaml on first
     # boot from embedded default (see services/notification-service/src/config.rs).
     # Not :ro so seed can succeed; env always wins over the yaml regardless.
@@ -395,6 +335,8 @@ services:
     volumes:
       - ../services/notification-service/config:/etc/notification-service
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8083"
       # ── 直接读取（main.rs 中硬编码读取） ──
       CONFIG_PATH: "/etc/notification-service/config.yaml"
       SERVICE_BOOTSTRAP_TOKEN: "${NOTIFICATION_DEV_BT}"
@@ -439,6 +381,8 @@ services:
       - "service=notification-outbox-publisher"
       - "env=staging"
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8083"
       DATABASE_URL: "${DATABASE_URL}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
       EVENT_BUS_EXCHANGE: "events"
@@ -474,8 +418,12 @@ services:
       dockerfile: services/audit-service/Dockerfile
     ports:
       - "8084:8084"
-    labels: *svc-reg-labels-audit
+    labels:
+      <<: *loki-labels
+      service: audit-service
     environment:
+      <<: *consul-env
+      SERVICE_PORT: "8084"
       # ── 直接读取（main.rs 中硬编码读取） ──
       JWKS_URL: "${JWKS_URL}"
       DATABASE_URL: "${DATABASE_URL}"

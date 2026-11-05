@@ -309,6 +309,37 @@ impl Drop for ConsulGuard {
     }
 }
 
+/// Wait for SIGINT (all platforms) and SIGTERM (unix).
+///
+/// Services previously listened on `ctrl_c` only — `docker stop` sends
+/// SIGTERM, which no handler consumed, so the process died on SIGKILL after
+/// the stop grace period and never ran any graceful path. Centralising the
+/// signal pair here lets every service's shutdown handler start with one
+/// await before deregistering.
+pub async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        let term = signal(SignalKind::terminate());
+        match term {
+            Ok(mut term) => {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = term.recv() => {}
+                }
+            }
+            Err(_) => {
+                // signal registration failed — degrade to ctrl-c only
+                tokio::signal::ctrl_c().await.ok();
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        tokio::signal::ctrl_c().await.ok();
+    }
+}
+
 /// Read the env contract and spawn the registration/reconciliation task.
 ///
 /// Returns immediately; the first registration happens on the background

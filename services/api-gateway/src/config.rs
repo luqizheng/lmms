@@ -107,6 +107,15 @@ fn default_egress_map() -> HashMap<String, EgressTarget> {
     m.insert("notification-service".into(), svc("notification-service"));
     m.insert("audit-service".into(), svc("audit-service"));
     m.insert("prue_backend".into(), svc("prue_backend"));
+    // ai-pm 下游业务服务（2026-11-05）：pm 与 iam 一致挂网关对外，/v1/pm/* → pm-api:8090
+    // （路由文件由 ai-pm infra 提供：config/api-gateway/routes/pm.router.toml）。
+    m.insert(
+        "pm-api".into(),
+        EgressTarget {
+            host: "pm-api".into(),
+            port: 8090,
+        },
+    );
     m
 }
 
