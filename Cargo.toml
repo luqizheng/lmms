@@ -24,7 +24,6 @@ members = [
     "services/iam-service",
     "services/iam-outbox-publisher",
     "services/audit-service",
-    "services/config-service",
     "services/file-service",
     "services/prue_backend",
     "sdk/rust/digua-http-client",
@@ -33,7 +32,6 @@ members = [
     "sdk/rust/token-service-sdk",
     "sdk/rust/file-service-sdk",
     "sdk/rust/notification-service-sdk",
-    "sdk/rust/config-service-sdk",
 ]
 resolver = "2"
 

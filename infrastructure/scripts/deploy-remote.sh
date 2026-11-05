@@ -138,7 +138,7 @@ if [[ "$DEPLOY_MODE" == "prod" ]]; then
     MYSQL_ROOT_PASSWORD MYSQL_USER MYSQL_PASSWORD DATABASE_URL
     RABBITMQ_DEFAULT_PASS
     IAM_DEV_BT TOKEN_DEV_BT NOTIFICATION_DEV_BT AUDIT_DEV_BT
-    PRUE_DEV_BT GATEWAY_DEV_BT CONFIG_DEV_BT FILE_DEV_BT
+    PRUE_DEV_BT GATEWAY_DEV_BT FILE_DEV_BT
   )
   for v in "${REQUIRED[@]}"; do
     if [[ -z "${!v:-}" ]]; then
@@ -163,7 +163,7 @@ if [[ "$DEPLOY_MODE" == "prod" ]]; then
 fi
 
 # 0e. 待重启的服务列表（顺序 = 依赖顺序：基础设施依赖优先，业务服务最后）
-SERVICES=(config-service file-service \
+SERVICES=(file-service \
            token-service iam-service iam-outbox-publisher \
            notification-service notification-outbox-publisher \
            audit-service prue_backend \
@@ -246,7 +246,7 @@ for svc in "${SERVICES[@]}"; do
     sleep "$HEALTH_POLL_INTERVAL_SECS"
     # docker compose v2 默认容器名是 `<project>-<service>-<replica>`，不是 `$svc` 本身。
     # 直接 `docker inspect "$svc"` 永远找不到容器（实际容器名形如
-    # `infrastructure-config-service-1`），导致 health 一直是空串、12 轮全超时。
+    # `infrastructure-file-service-1`），导致 health 一直是空串、12 轮全超时。
     # 用 `docker compose ps -q` 拿容器 ID，对 project 命名约定不敏感。
     container_id="$("${DC_SVC[@]}" ps -q "$svc" 2>/dev/null | head -n1 || true)"
     if [[ -z "$container_id" ]]; then

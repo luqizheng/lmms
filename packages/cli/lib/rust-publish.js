@@ -45,7 +45,6 @@ const LIBS_ORDER = [
 const SDKS_ORDER = [
   'digua-http-client',
   'audit-service-sdk',
-  'config-service-sdk',
   'file-service-sdk',
   'iam-service-sdk',
   'notification-service-sdk',

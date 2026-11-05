@@ -20,9 +20,6 @@ services:
   notification-service:
     ports: !override []
     restart: unless-stopped
-  config-service:
-    ports: !override []
-    restart: unless-stopped
   file-service:
     ports: !override []
     restart: unless-stopped

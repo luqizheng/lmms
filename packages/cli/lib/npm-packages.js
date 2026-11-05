@@ -26,7 +26,6 @@ const PACKAGES = [
   // 例外（用户裁决 2026-10-31）：npm TS 包不按惯例放 packages/，而放 sdk/<svc>-services
   { dir: 'sdk/iam-services', name: 'iam-services', needsBuild: true },
   { dir: 'sdk/audit-services', name: 'audit-services', needsBuild: true },
-  { dir: 'sdk/config-services', name: 'config-services', needsBuild: true },
   { dir: 'sdk/file-services', name: 'file-services', needsBuild: true },
   { dir: 'sdk/notification-services', name: 'notification-services', needsBuild: true },
   { dir: 'sdk/prue-services', name: 'prue-services', needsBuild: true },

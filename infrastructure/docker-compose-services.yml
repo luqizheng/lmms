@@ -14,31 +14,6 @@ x-loki-labels: &loki-labels
 
 
 services:
-  config-service:
-    build:
-      context: ..
-      dockerfile: services/config-service/Dockerfile
-    ports:
-      - "8085:8081"
-    labels:
-      <<: *loki-labels
-      service: config-service
-    environment:
-      <<: *consul-env
-      SERVICE_PORT: "8081"
-      # ── 直接读取（main.rs 中硬编码读取） ──
-      JWKS_URL: "${JWKS_URL}"
-      DATABASE_URL: "${DATABASE_URL}"
-      RUST_LOG: "info"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
-      SERVICE_NAME: "config-service"
-      # SERVER_ADDR: "0.0.0.0:8081"   # 默认值，取消注释可覆盖
-
-      # ── config.yaml 中的默认值，取消注释可覆盖 ──
-      # SWAGGER_ENABLED: "false"
-    networks:
-      - superpowers
-
   file-service:
     build:
       context: ..

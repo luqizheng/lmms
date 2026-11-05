@@ -21,4 +21,3 @@ issuer = "superpowers-token-service"
 "audit-service"         = { host = "audit-service",        port = 8084 }
 "prue_backend"          = { host = "prue_backend",         port = 8087 }
 "file-service"          = { host = "file-service",         port = 8082 }
-"config-service"        = { host = "config-service",       port = 8081 }

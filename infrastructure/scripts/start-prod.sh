@@ -54,7 +54,7 @@ load_env "$ENV_PROD"
 # 4. 校验关键 vars（与 deploy-remote.sh 同步）
 for v in MYSQL_ROOT_PASSWORD MYSQL_USER MYSQL_PASSWORD DATABASE_URL RABBITMQ_DEFAULT_PASS \
          IAM_DEV_BT TOKEN_DEV_BT NOTIFICATION_DEV_BT AUDIT_DEV_BT \
-         PRUE_DEV_BT GATEWAY_DEV_BT CONFIG_DEV_BT FILE_DEV_BT; do
+         PRUE_DEV_BT GATEWAY_DEV_BT FILE_DEV_BT; do
   if [[ -z "${!v:-}" ]]; then
     die "env var $v empty after .env.prod load" 10
   fi

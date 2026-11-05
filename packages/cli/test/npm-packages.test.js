@@ -37,7 +37,7 @@ test('PACKAGES covers the three @digua packages plus the six service SDKs', () =
   assert.ok(names.includes('@digua/contracts'));
   assert.ok(names.includes('@digua/http'));
   assert.ok(names.includes('@digua/cli'));
-  for (const sdk of ['iam-services', 'audit-services', 'config-services', 'file-services', 'notification-services', 'prue-services']) {
+  for (const sdk of ['iam-services', 'audit-services', 'file-services', 'notification-services', 'prue-services']) {
     assert.ok(names.includes(sdk), `PACKAGES must include ${sdk}`);
   }
   // @digua/cli is pure CJS — it needs no build step.

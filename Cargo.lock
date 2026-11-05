@@ -1239,41 +1239,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "config_service"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum 0.8.9",
- "chrono",
- "digua_authz",
- "digua_common_cache",
- "digua_common_consul",
- "digua_common_db",
- "digua_common_error",
- "digua_common_jwt",
- "digua_common_log",
- "digua_common_telemetry",
- "digua_common_telemetry_axum",
- "digua_jwt_ctx",
- "http-body-util",
- "jwt-simple",
- "prometheus",
- "reqwest",
- "serde",
- "serde_json",
- "sqlx",
- "testcontainers",
- "testcontainers-modules",
- "tokio",
- "tower 0.5.3",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2005,19 +1970,6 @@ version = "1.6.0"
 dependencies = [
  "digua_common_error",
  "validator",
-]
-
-[[package]]
-name = "digua_config_sdk"
-version = "1.6.0"
-dependencies = [
- "chrono",
- "digua_http_client",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "wiremock",
 ]
 
 [[package]]

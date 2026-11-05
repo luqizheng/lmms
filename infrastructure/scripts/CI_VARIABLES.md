@@ -65,7 +65,6 @@ api-gateway (3000:3000)  ←── 唯一 host 公开端口
 | `TOKEN_DEV_BT` | Variable | ✅ | ✅ | — | token-service bootstrap |
 | `NOTIFICATION_DEV_BT` | Variable | ✅ | ✅ | — | notification-service bootstrap |
 | `AUDIT_DEV_BT` | Variable | ✅ | ✅ | — | audit-service bootstrap |
-| `CONFIG_DEV_BT` | Variable | ✅ | ✅ | — | config-service bootstrap |
 | `FILE_DEV_BT` | Variable | ✅ | ✅ | — | file-service bootstrap |
 | `PRUE_DEV_BT` | Variable | ✅ | ✅ | — | prue_backend bootstrap |
 | `E2E_DB_PASSWORD` | Variable | ✅ | ✅ | — | MySQL root 密码（e2e 用，需与 `.env.prod` 一致） |

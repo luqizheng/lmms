@@ -278,7 +278,6 @@ e2e_migration_state_test:
     TUNNEL_IAM_PORT:   "19001"     # → iam-service:8081
     TUNNEL_NTF_PORT:   "19003"     # → notification-service:8083
     TUNNEL_AUDIT_PORT: "19004"     # → audit-service:8084
-    TUNNEL_CONFIG_PORT: "19005"     # → config-service:8081
     TUNNEL_FILE_PORT:  "19006"     # → file-service:8082
     TUNNEL_PRUE_PORT:  "19007"     # → prue_backend:8087
     SERVICE_HOST: "127.0.0.1"
@@ -307,7 +306,6 @@ e2e_migration_state_test:
         -L "127.0.0.1:${TUNNEL_IAM_PORT}:iam-service:8081" \
         -L "127.0.0.1:${TUNNEL_NTF_PORT}:notification-service:8083" \
         -L "127.0.0.1:${TUNNEL_AUDIT_PORT}:audit-service:8084" \
-        -L "127.0.0.1:${TUNNEL_CONFIG_PORT}:config-service:8081" \
         -L "127.0.0.1:${TUNNEL_FILE_PORT}:file-service:8082" \
         -L "127.0.0.1:${TUNNEL_PRUE_PORT}:prue_backend:8087" \
         "$STAGING_DEPLOY_USER@$STAGING_HOST" \
@@ -414,12 +412,12 @@ build_images:staging:
     - sudo docker buildx inspect --bootstrap
     # --load-and-push：本地留镜像（staging server pull 需要）+ 推 registry（备份 / 跨环境可拉）
     # 用变量传递避免 YAML 多行 `\<newline>` + 缩进导致 bash 把缩进当作 arg 前缀
-    - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend"
+    - export BUILD_SERVICES="api-gateway token-service iam-service notification-service audit-service file-service prue-admin-backend"
     # sudo -E：gitlab-runner user 不在 docker group，sudoers 配了 NOPASSWD: ALL
     - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --load-and-push $BUILD_SERVICES
     # PG 方言变体（2026-11-03）：SERVICE_FEATURES=postgres，tag 为 <sha>-pg / pg-latest，
     # 与 mysql 变体并存。只建 7 个 DB 服务（api-gateway 与方言无关）。
-    - export BUILD_SERVICES_PG="token-service iam-service notification-service audit-service config-service file-service prue-admin-backend"
+    - export BUILD_SERVICES_PG="token-service iam-service notification-service audit-service file-service prue-admin-backend"
     - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --dialect pg --load-and-push $BUILD_SERVICES_PG
     # 归还所有权：sudo -E node build-docker.js（docs-site 宿主机预构建）
     # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根 node_modules

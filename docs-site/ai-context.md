@@ -14,7 +14,6 @@
 > - `infrastructure/docker-compose-{infra,services,observability}.yml`（observability 含 `alertmanager`；mysql-replica 已于 2026-11-05 移除）
 > - `infrastructure/config/prometheus/{prometheus,alerts}.yml`、`infrastructure/config/alertmanager/alertmanager.yml`
 > - `infrastructure/config/grafana/dashboards/{gateway,iam-service,notification-service,audit-service,config-service,file-service,prue_backend}.json`
-> - `services/config-service/src/routes/config.rs`（reveal policy 调用点）
 > - `services/notification-service/src/bin/outbox_publisher.rs`（ntf-outbox-publisher binary）
 > - `services/iam-outbox-publisher/AGENTS.md`（`/metrics` 显式豁免；用 process exporter）
 > - `docs-site/guides/migrations-state.md`、`docs-site/runbooks/{secret-rotation,backup,log-aggregation}.md`（log-aggregation 新增于 2026-08-18；mysql-replication 已随 replica 移除删除）
@@ -38,7 +37,7 @@
 
 ## TL;DR（5 行）
 
-2. **当前阶段**：12 周路线图（Phase 1-3）+ Phase 4（事件总线）+ Phase 5-A-2（registrator 替 Consul Connect）+ Phase 5-B（JWT 验签 + service-jwt）+ Phase 6-A（OTel + outbox 生产化）+ Phase 6-B（config-service dogfooding）+ Phase 8（多租户）全部 [完成]；Phase 9（Java 集成）[完成]；**Phase 10 与 Roadmap 2.0 仍有 [待推进] 项**。
+2. **当前阶段**：12 周路线图（Phase 1-3）+ Phase 4（事件总线）+ Phase 5-A-2（registrator 替 Consul Connect）+ Phase 5-B（JWT 验签 + service-jwt）+ Phase 6-A（OTel + outbox 生产化）+ Phase 6-B（config-service dogfooding；**config-service 已于 2026-11-06 移除**——无真实消费方：token-service 远程配置拉取是可选软依赖且 env 未启用、SDK 零下游）+ Phase 8（多租户）全部 [完成]；Phase 9（Java 集成）[完成]；**Phase 10 与 Roadmap 2.0 仍有 [待推进] 项**。
 
 ---
 
@@ -56,7 +55,6 @@
 | `iam-outbox-publisher`（独立 publisher crate） | 轮询 `iam_outbox_events` → RabbitMQ | 显式 `otlp`（`default-features = false` + `["otlp"]`） | 未设 | 独立 crate（Phase 6-A T2-fu3 拆出），仅依赖 sqlx + digua_common-event + digua_common-telemetry + serde_yaml；compose 复用 `iam-service` Dockerfile 切 CMD；无 HTTP / 无 openapi.yaml / 无 migrations / 无 tests / 无自有 Dockerfile |
 | `notification-service` | 公告 CRUD + WebSocket 推送 + 本地 user membership 投影 | 显式 `otlp` | 已设 | 同 crate 内另含 `[[bin]] ntf-outbox-publisher`（轮询 `ntf_outbox_events` → RabbitMQ；OTel 未设 env）；订阅 `iam.user.*` / `iam.permission.changed` / `notification.announcement.published` |
 | `audit-service` | 操作日志 + 登录日志；事件消费者 | 显式 `otlp` | 未设 | RabbitMQ consumer；envelope.trace_id → span parent |
-| `config-service` | 命名空间、配置项、watch；6-B dogfooding 客户端 | 显式 `otlp` | 已设 | Phase 8.3-fu2 后引入 Principal 鉴权 + namespace ownership；`is_secret` 字段见 §4.1 |
 | `file-service` | 文件元数据、预签名上传、下载 | 显式 `otlp` | 已设 | VARCHAR → BIGINT 迁移（V002）；存储层见 §4.1 |
 | `prue_backend` | pure-admin 菜单配置 + 动态路由 | 显式 `otlp` | 未设 | 保留 SQLite + MySQL 双栈（spec `2026-07-08-prue-backend-sqlite-decision-design.md`），`scripts/check-prue-migrations-parity.sh` 守 parity |
 
@@ -140,7 +138,7 @@
 
 - 外部 `config/application.yml` 死代码：原 `${DATABASE_URL}` / `${DB_USER}` / `${DB_PASSWORD}` 占位符（Spring 实际读 `SPRING_DATASOURCE_*`）已移除（TODO.md Phase 10 第 456 行 `[x]` 勾选；当前 `examples/java8-webapi/demo-webapp/src/main/resources/application.yml` 不再含该段）。
 
-**config-service 缺口**（实际代码复核已完成，2026-08-19）：
+**config-service 缺口**（已于 2026-11-06 随服务移除而失效；以下为历史记录）：
 - `services/config-service/src/routes/config.rs` 已实现 `apply_reveal_policy` + 常量 `REVEAL_PERM = "CFG_CONFIG_REVEAL"`，在 **5 个 handler**（`create / query / get / update / export`）调用点对 `is_secret=true` 项做掩码，`principal.has_permission(REVEAL_PERM)` 决定是否透明；**不调用**点：`delete_config_item`（无 value 返回）、`import_config`（强制 `is_secret=false`）。代码侧 reveal policy 已落地。三项独立核对结果（2026-08-19）：
   - ① **已闭合**：`contracts/permissions.yaml:70` 注册（`description: 查看敏感配置项明文`）；iam 绑定走 `services/iam-service/migrations/mysql/V005__platform_admin_role.sql` + `V004__tenant_business_tables.sql` 的 `INSERT IGNORE ... SELECT id FROM iam_permissions WHERE status='enabled'` 机制（V005 L10-11 / V004 L46 全选 enabled），因此 `platform_admin` 与 `tenant_admin` 自动持有 `CFG_CONFIG_REVEAL`。后续若 `disable` 该 perm，admin 自动丢失——依赖链清晰。
   - ② **已闭合（2026-08-19）**：新增 `services/config-service/tests/reveal_handler_e2e_test.rs`，仿 `tenant_isolation_test.rs` 范式用 `tower::ServiceExt::oneshot` + testcontainers MySQL 走真实 axum router（**不**走内部函数），覆盖 5 handler × {无 REVEAL → MASK、有 REVEAL → 明文} = 10 case，**外加** 401 反向防御与 non_secret 不受影响 2 个 boundary case。in-source 函数级 6 case 仍保留在 `src/routes/config.rs` `#[cfg(test)] mod tests`，baseline 4 case 在 `tests/reveal_policy_test.rs`。三层覆盖（内部函数 / 路由 wire-level / 反向）从 §4.1 之前遗留漂移转为 **[完成]**。
@@ -193,7 +191,6 @@
 - 集中式日志收集方案（ELK / Loki / 阿里云 SLS）—— ✅ **[完成]**（2026-08-18）：Loki 单 binary staging + Promtail docker_sd 已落地；commit `f04fa8e` (T1 access log 带 trace_id) + `112b8a7` (iam-service otlp feature) + `434c6b7` (ADR-007)；新增 `docs-site/runbooks/log-aggregation.md` 5 步 SOP、`scripts/e2e-log-traceability.js` drill、`scripts/check-log-format.sh` CI gate
 - 求救渠道 / on-call 值班表 —— 待团队负责人补充
 - commit message 规范（是否走 Conventional Commits / PR 标题 / issue 关联）—— 待规范人补充
-- config-service 使用方式 —— 待熟悉 config-service 的开发者补充
 
 #### 4.3.1 多租户注意事项（来自 [ADR-003](../decisions/ADR-003-multi-tenancy-architecture.md)）
 
@@ -362,7 +359,7 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 | Prometheus | `infrastructure/config/prometheus/prometheus.yml`（consul SD + 自抓 + otel-collector）；**alerting 块启用** + `rule_files: ['alerts.yml']` | [正常] |
 | Alertmanager | **✅ 新增**（commit `e24a3f4`）：镜像**用公网代理 `swr.cn-north-4.myhuaweicloud.com/ddn-k8s/quay.io/prometheus/alertmanager:v0.27.0`**（内网 registry 未同步，勿改回内网路径，见 commit `a77fba3c`/`b6547112`），端口 9093，volume `alertmanager_data`；配置 `infrastructure/config/alertmanager/alertmanager.yml`（route + receivers + inhibit_rules）。离线 airgap 须导出此完整地址 | [正常] |
 | Alert rules | **✅ 新增**（`infrastructure/config/prometheus/alerts.yml`）5 条：ServiceDown critical / HighErrorRate critical / HighLatency warning / OutboxBacklog warning / HighRateLimit warning | [正常] |
-| Grafana dashboards | **✅ 7 个**（commit `e24a3f4`，旧版本只 1 个 gateway）：`gateway.json` + `iam-service.json` + `notification-service.json` + `audit-service.json` + `config-service.json` + `file-service.json` + `prue_backend.json`。每个含 `service` template var + 4 panel（Request Rate / Latency p50/p95/p99 / Error Rate / Health） | [正常] |
+| Grafana dashboards | **✅ 7 个**（commit `e24a3f4`，旧版本只 1 个 gateway）：`gateway.json` + `iam-service.json` + `notification-service.json` + `audit-service.json` + `file-service.json` + `prue_backend.json`。每个含 `service` template var + 4 panel（Request Rate / Latency p50/p95/p99 / Error Rate / Health） | [正常] |
 | Grafana provisioning | `datasources/prometheus.yml` + `dashboards/dashboards.yml`（watch `/etc/grafana/dashboards` 自动加载） | [正常] |
 | **Loki** | **✅ 新增**（2026-08-18，Phase 6-A T2）：`infrastructure/config/loki/loki-staging.yaml`（单 binary + 本地 filesystem，**14 天 retention**，无 S3 backend）；容器端口 3100；labels 仅 `level / service / env`（低基数）；trace_id / tenant_id / user_id 走 JSON metadata（ADR-007 D3） | [正常] |
 | **Promtail** | **✅ 新增**（2026-08-18）：`infrastructure/config/loki/promtail-staging.yaml`；`docker_sd_configs` 5s 周期，过滤 `logging=loki` container label（ADR-007 D2）；pipeline `cri: {}` + `json:` 抽出 trace_id / tenant_id / user_id（commit `f04fa8e` 注入） | [正常] |
@@ -461,10 +458,10 @@ node scripts/dump-openapi-specs.js               # 重新生成 openapi.yaml
 git diff --exit-code -- 'services/*/openapi.yaml'  # drift 守门
 
 # Rust 单元测试（docker 内）
-node scripts/run-tests-docker.js audit-service config-service file-service prue_backend iam-service notification-service token-service api-gateway
+node scripts/run-tests-docker.js audit-service file-service prue_backend iam-service notification-service token-service api-gateway
 
 # Rust 单元测试（主机侧；Windows 走 WSL2，Linux/macOS 走本机）
-node scripts/run-tests-host.js audit-service config-service file-service prue_backend iam-service notification-service token-service api-gateway
+node scripts/run-tests-host.js audit-service file-service prue_backend iam-service notification-service token-service api-gateway
 
 # E2E
 pnpm -C tests/e2e install

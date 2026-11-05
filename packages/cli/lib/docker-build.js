@@ -19,7 +19,6 @@ const SERVICES = [
   'iam-service',
   'notification-service',
   'file-service',
-  'config-service',
   'audit-service',
   'prue-admin-backend',
   'docs-site',
@@ -32,7 +31,6 @@ const DB_SERVICES = new Set([
   'iam-service',
   'notification-service',
   'file-service',
-  'config-service',
   'audit-service',
   'prue-admin-backend',
 ]);

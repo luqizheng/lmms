@@ -13,7 +13,7 @@ server {
         add_header Content-Type application/json;
     }
 
-    {{ $services := "audit-service config-service file-service iam-service notification-service prue_backend token-service" }}
+    {{ $services := "audit-service file-service iam-service notification-service prue_backend token-service" }}
 
     {{ range $svc := split " " $services }}
     {{ $var := $svc | replaceAll "-" "_" }}

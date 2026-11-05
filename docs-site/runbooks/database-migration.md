@@ -93,8 +93,7 @@ git diff services/<svc>/migrations/mysql/
 ### 2.3 服务特定检查
 
 ```bash
-# config-service: 检查 is_secret 字段处理
-grep -n "is_secret" services/config-service/src/
+# config-service 已移除（2026-11-06）
 
 # file-service: 检查存储层变更
 grep -n "storage" services/file-service/src/

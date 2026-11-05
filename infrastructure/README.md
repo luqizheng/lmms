@@ -94,7 +94,7 @@ pnpm run docker:build -- --load-and-push -v 1.0.0                     # 本地�
 pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架构（自动 --push）
 ```
 
-> 单服务名列表：`api-gateway` / `token-service` / `iam-service` / `notification-service` / `audit-service` / `config-service` / `file-service` / `prue_backend`（原 `frontend` 已随 PRISM console 移除）。`prue_backend` 在 `docker:compose:build` 写法里用 `_`（compose 服务名），在 `docker:build` 写法里用 `-`（脚本别名）。
+> 单服务名列表：`api-gateway` / `token-service` / `iam-service` / `notification-service` / `audit-service` / `file-service` / `prue_backend`（`frontend` 已随 PRISM console 移除，`config-service` 已于 2026-11-06 移除）。`prue_backend` 在 `docker:compose:build` 写法里用 `_`（compose 服务名），在 `docker:build` 写法里用 `-`（脚本别名）。
 
 ### Demo 数据
 
@@ -130,7 +130,6 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push    # 多架�
 | iam-service | 9081 | 8081 | 用户 / 角色 / 权限（端口错位避开 host 6002 冲突） |
 | notification-service | 8083 | 8083 | 通知 / 邮件 / 短信 |
 | audit-service | 8084 | 8084 | 审计日志 |
-| config-service | 8085 | 8081 | 动态配置 |
 | file-service | 8086 | 8082 | 对象存储 |
 | prue_backend | 8087 | 8087 | 流程引擎（SQLite + MySQL 双栈） |
 | prometheus | 9090 | 9090 | 指标查询 / Consul SD |
