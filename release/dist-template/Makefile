@@ -2,10 +2,10 @@
 
 REGISTRY ?= zhcoder-docker-registry.com:8000
 # 镜像 tag 不带 v（git tag 带 v、镜像 tag 不带 v；CI 用 ${CI_COMMIT_TAG#v} 剥 v）
-IMAGE_TAG ?= 1.6.0
+IMAGE_TAG ?= 1.7.0
 
 help:
-	@echo "coder-micro-services v1.6.0 — 可用命令："
+	@echo "coder-micro-services v1.7.0 — 可用命令："
 	@echo ""
 	@echo "  make secrets         生成 JWT 密钥 + 随机密码，初始化 .env"
 	@echo "  make up              启动所有服务（自动构建 frontend 镜像）"

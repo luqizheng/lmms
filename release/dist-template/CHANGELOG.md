@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.7.0 (2026-11-05)
+
+# v1.7.0
+
+### Added
+- 服务层全量 PostgreSQL 支持（S0~S6）：双方言运行时与迁移、PG 镜像变体与 PG compose 模板（`:<ver>-pg` / `:pg-latest`），transform-compose 支持方言 tag 后缀
+- token-service 全部签发 JWT 新增 `purpose` claim：签发通道权威声明（封闭枚举 `user_login` / `api_key` / `auth_code` / `service` / `resource`），由通道决定、请求不可自报；OAuth refresh 继承通道，legacy 令牌缺失即旧推断（fail-closed 场景一律拒绝）；下游据此区分人类登录令牌与机器兑换令牌（ai-pm 正式确认 fail-closed 的签发侧前提）
+
+### Fixed
+- 发布链路：镜像 .env 驱动化、双方言镜像构建、compose 模板双变体发布、模板包排除凭据文件
+- rust 发布按依赖方向排序，支持断点续推并复原 Cargo.lock
+
+### Changed
+- 版本账本 1.6.0 → 1.7.0（镜像统一 1.7.0；PG 变体 1.7.0-pg）
+
 ## v1.6.0 (2026-10-30)
 
 ### Added
