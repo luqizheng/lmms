@@ -8,8 +8,10 @@ use validator::Validate;
 pub struct CreateUserRequest {
     #[validate(length(min = 1, max = 50))]
     pub username: String,
+    /// Optional: when omitted the account is created without a usable password
+    /// and an invitation mail is sent (unless `send_invitation` is false).
     #[validate(length(min = 8, max = 128))]
-    pub password: String,
+    pub password: Option<String>,
     #[validate(email)]
     pub email: Option<String>,
     #[validate(length(min = 11, max = 11))]
@@ -18,6 +20,8 @@ pub struct CreateUserRequest {
     pub nickname: String,
     pub avatar: Option<String>,
     pub role_ids: Option<Vec<String>>,
+    /// Defaults to true when `password` is omitted.
+    pub send_invitation: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
@@ -30,6 +34,13 @@ pub struct UpdateUserRequest {
     pub phone: Option<String>,
     pub avatar: Option<String>,
     pub status: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct UpdateSelfRequest {
+    #[validate(length(min = 1, max = 100))]
+    pub nickname: Option<String>,
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Deserialize, IntoParams)]

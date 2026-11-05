@@ -1,10 +1,10 @@
 use crate::{
     dto::{
-        ChangePasswordRequest, CreateUserRequest, LoginRequest, LoginResponse, RefreshRequest,
-        UserResponse,
+        AcceptInvitationRequest, ChangePasswordRequest, CreateUserRequest, ForgotPasswordRequest,
+        LoginRequest, LoginResponse, RefreshRequest, ResetPasswordRequest, UserResponse,
     },
     error::IamError,
-    service::AuthService,
+    service::{AuthService, SelfService},
     state::AppState,
 };
 use axum::{
@@ -14,8 +14,10 @@ use axum::{
     Json as AxumJson, Router,
 };
 use digua_common_db::db_fetch_one;
+use digua_common_error::AppError;
 use digua_jwt_ctx::{Principal, TenantScope};
 use serde_json;
+use validator::Validate;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -28,6 +30,9 @@ pub fn routes(state: AppState) -> Router {
         .route("/iam/auth/sessions/{session_id}", delete(revoke_session))
         .route("/iam/auth/register", post(register))
         .route("/iam/auth/setup-status", get(setup_status))
+        .route("/iam/auth/forgot-password", post(forgot_password))
+        .route("/iam/auth/reset-password", post(reset_password))
+        .route("/iam/auth/invitations/accept", post(accept_invitation))
         .with_state(state)
 }
 
@@ -230,6 +235,10 @@ async fn register(
         return Err((StatusCode::FORBIDDEN, "registration closed"));
     }
 
+    if req.password.is_none() {
+        return Err((StatusCode::BAD_REQUEST, "password required for first user"));
+    }
+
     let service = crate::service::UserService::new(state);
     let scope = TenantScope::Single(1);
     let response = service.create(req, &scope).await.map_err(|e| {
@@ -262,4 +271,71 @@ async fn setup_status(
         "setup_required": user_count == 0,
         "user_count": user_count,
     })))
+}
+#[utoipa::path(
+    post,
+    path = "/iam/auth/forgot-password",
+    request_body = ForgotPasswordRequest,
+    responses(
+        (status = 204, description = "request accepted (always, to prevent account enumeration)"),
+        (status = 500, description = "mail is not configured"),
+    ),
+    tag = "auth"
+)]
+pub async fn forgot_password(
+    State(state): State<AppState>,
+    Json(req): Json<ForgotPasswordRequest>,
+) -> Result<StatusCode, AppError> {
+    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    SelfService::new(state)
+        .request_password_reset(&req.email)
+        .await
+        .map_err(AppError::from)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    post,
+    path = "/iam/auth/reset-password",
+    request_body = ResetPasswordRequest,
+    responses(
+        (status = 204, description = "password reset"),
+        (status = 400, description = "invalid or expired token"),
+    ),
+    tag = "auth"
+)]
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Json(req): Json<ResetPasswordRequest>,
+) -> Result<StatusCode, AppError> {
+    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    SelfService::new(state)
+        .reset_password(&req.token, &req.new_password)
+        .await
+        .map_err(AppError::from)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    post,
+    path = "/iam/auth/invitations/accept",
+    request_body = AcceptInvitationRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 400, description = "invalid or expired invitation"),
+    ),
+    tag = "auth"
+)]
+pub async fn accept_invitation(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<AcceptInvitationRequest>,
+) -> Result<AxumJson<LoginResponse>, AppError> {
+    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    let (ip_address, user_agent) = get_client_info(&headers);
+    let response = SelfService::new(state)
+        .accept_invitation(req, &ip_address, &user_agent)
+        .await
+        .map_err(AppError::from)?;
+    Ok(AxumJson(response))
 }

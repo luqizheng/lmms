@@ -27,13 +27,27 @@ pub struct ChangePasswordRequest {
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct ForgotPasswordRequest {
+    #[validate(email)]
+    pub email: String,
+}
+
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct ResetPasswordRequest {
     #[validate(length(min = 1))]
-    pub username: String,
-    #[validate(length(min = 1))]
-    pub code: String,
+    pub token: String,
     #[validate(length(min = 8, max = 128))]
     pub new_password: String,
+}
+
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct AcceptInvitationRequest {
+    #[validate(length(min = 1))]
+    pub token: String,
+    #[validate(length(min = 8, max = 128))]
+    pub new_password: String,
+    #[validate(length(min = 1, max = 100))]
+    pub nickname: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

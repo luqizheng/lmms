@@ -79,13 +79,14 @@
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /notification/announcements | POST | 新建公告 |
+| /notification/announcements | POST | 新建公告（admin）|
+| /notification/announcements | GET | 个人公告列表（含 `read` 字段）|
 | /notification/announcements/:id/publish | POST | 发布 |
 | /notification/announcements/:id/revoke | POST | 撤销 |
 | /notification/announcements/:id | GET | 详情 |
-| /notification/mine | GET | 个人通知列表 |
-| /notification/mine/:id/read | POST | 标记已读 |
-| /notification/mine/unread-count | GET | 未读数 |
+| /notification/announcements/:id/read | POST | 标记单条已读 |
+| /notification/announcements/read-all | POST | 全部标记已读（未读计数清零）|
+| /notification/unread-count | GET | 未读数 |
 | /notification/ws | GET (WS) | WebSocket 推送 |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |

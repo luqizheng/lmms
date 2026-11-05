@@ -123,7 +123,10 @@ async fn main() -> anyhow::Result<()> {
         iam_client: iam_client.clone(),
         jwks: jwks.clone(),
     };
-    let ws_state = ws::WsState { hub: hub.clone() };
+    let ws_state = ws::WsState {
+        hub: hub.clone(),
+        jwks: jwks.clone(),
+    };
 
     async fn metrics() -> axum::response::Html<String> {
         let encoder = TextEncoder::new();

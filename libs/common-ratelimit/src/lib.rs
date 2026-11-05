@@ -126,7 +126,21 @@ impl RateLimiter {
         let now_ms = chrono::Utc::now().timestamp_millis();
         let window_start_ms = now_ms - (limit.window_secs as i64) * 1000;
         let key = format!("rl:{}:{}:{}", limit.route, identity, limit.window_secs);
-        let member = format!("{}:{}", identity, now_ms);
+        // 2026-11-05 review (P0-11): member must be unique per request.
+        // `identity:now_ms` collapsed concurrent same-millisecond requests
+        // into one ZADD member (ZADD is idempotent per member), letting
+        // callers bypass the limit with parallel requests.
+        let member = {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static SEQ: AtomicU64 = AtomicU64::new(0);
+            format!(
+                "{}:{}:{}:{}",
+                identity,
+                now_ms,
+                std::process::id(),
+                SEQ.fetch_add(1, Ordering::Relaxed)
+            )
+        };
         const SCRIPT: &str = r"
             redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
             local count = redis.call('ZCARD', KEYS[1])
@@ -214,38 +228,75 @@ pub async fn rate_limit_middleware(
 }
 
 fn extract_identity(request: &Request<Body>) -> String {
-    // 1. X-User-Id header (set by upstream auth / gateway)
-    if let Some(uid) = request
-        .headers()
-        .get("X-User-Id")
-        .and_then(|v| v.to_str().ok())
-    {
-        return format!("user:{}", uid);
-    }
-    // 2. Authorization: Bearer <jwt> — extract sub claim
+    // 1. Authorization: Bearer <jwt> — decode the payload and extract `sub`.
+    //    2026-11-05 review (P0-11): previously fell back to the raw header
+    //    prefix (`&token[..32]`), which is identical for every RS256 token
+    //    sharing the same kid and collapsed ALL authenticated users into one
+    //    shared bucket (any user hitting the limit 429'd everyone else).
+    //    `sub` is used for bucketing only, not for authorization — the token
+    //    itself is verified by the auth layer, so unverified decode here does
+    //    not widen access.
     if let Some(auth) = request
         .headers()
         .get("Authorization")
         .and_then(|v| v.to_str().ok())
     {
         if let Some(token) = auth.strip_prefix("Bearer ") {
-            return format!("tok:{}", &token[..token.len().min(32)]);
+            if let Some(sub) = jwt_sub(token) {
+                return format!("tok:{sub}");
+            }
         }
     }
-    // 3. X-Real-IP (nginx-injected)
-    if let Some(ip) = request
-        .headers()
-        .get("X-Real-IP")
-        .and_then(|v| v.to_str().ok())
-    {
-        return format!("ip:{}", ip);
-    }
-    // 4. Fallback: peer addr
+    // 2. Peer address. Client-controlled `X-User-Id` / `X-Real-IP` headers
+    //    are no longer trusted (auth-rules.md bans `X-User-*`; both were
+    //    trivially forgeable to escape the bucket or to fill a victim's).
     request
         .extensions()
         .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
         .map(|c| format!("ip:{}", c.0.ip()))
         .unwrap_or_else(|| "ip:unknown".to_string())
+}
+
+/// Minimal base64url decode of a JWT payload to pull the `sub` claim.
+/// Malformed tokens fall through to the next identity tier.
+fn jwt_sub(token: &str) -> Option<String> {
+    let payload = token.split('.').nth(1)?;
+    let bytes = base64url_decode(payload.as_bytes())?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    value
+        .get("sub")?
+        .as_str()
+        .map(String::from)
+        .filter(|s| !s.is_empty())
+}
+
+fn base64url_decode(input: &[u8]) -> Option<Vec<u8>> {
+    fn val(c: u8) -> Option<u32> {
+        match c {
+            b'A'..=b'Z' => Some((c - b'A') as u32),
+            b'a'..=b'z' => Some((c - b'a' + 26) as u32),
+            b'0'..=b'9' => Some((c - b'0' + 52) as u32),
+            b'-' => Some(62),
+            b'_' => Some(63),
+            _ => None,
+        }
+    }
+    let mut out = Vec::with_capacity(input.len() * 3 / 4 + 3);
+    let mut acc: u32 = 0;
+    let mut bits: u32 = 0;
+    for &c in input {
+        if c == b'=' {
+            break;
+        }
+        let v = val(c)?;
+        acc = (acc << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push(((acc >> bits) & 0xFF) as u8);
+        }
+    }
+    Some(out)
 }
 
 #[cfg(test)]

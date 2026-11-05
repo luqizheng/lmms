@@ -27,6 +27,19 @@ burst = 5
 requests_per_second = 3
 burst = 5
 
+# Self-service mail flows — prevent reset-mail flooding
+[routes."/v1/iam/auth/forgot-password"]
+requests_per_second = 1
+burst = 3
+
+[routes."/v1/iam/auth/reset-password"]
+requests_per_second = 3
+burst = 5
+
+[routes."/v1/iam/auth/invitations/accept"]
+requests_per_second = 3
+burst = 5
+
 # WebSocket — keep-alive friendly
 [routes."/v1/notification/ws"]
 requests_per_second = 2
@@ -36,6 +49,10 @@ burst = 5
 [routes."/v1/notification/announcements"]
 requests_per_second = 10
 burst = 20
+
+[routes."/v1/notification/announcements/read-all"]
+requests_per_second = 5
+burst = 10
 
 # Menu config writes — concurrency control is in prue_backend,
 # but rate-limit to prevent dashboard thrashing

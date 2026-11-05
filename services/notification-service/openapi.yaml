@@ -55,6 +55,35 @@ paths:
               schema: {}
         '403':
           description: 无权限
+  /notification/announcements/manage:
+    get:
+      tags:
+      - announcements
+      summary: List all announcements in the tenant (admin)
+      operationId: list_all
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Announcement'
+        '403':
+          description: 无权限
+  /notification/announcements/read-all:
+    post:
+      tags:
+      - notifications
+      summary: Mark all visible announcements as read
+      operationId: read_all
+      responses:
+        '200':
+          description: 全部标记已读
+          content:
+            application/json:
+              schema: {}
   /notification/announcements/{id}:
     get:
       tags:
@@ -191,6 +220,7 @@ components:
       - status
       - created_by
       - created_at
+      - read
       properties:
         body:
           type: string
@@ -217,6 +247,12 @@ components:
         publish_at:
           type: string
           format: date-time
+        read:
+          type: boolean
+          description: |-
+            Whether the requesting user has read this announcement.
+            Filled by the service layer from `ntf_announcement_reads`, not selected
+            from the announcement row itself.
         status:
           $ref: '#/components/schemas/Status'
         title:

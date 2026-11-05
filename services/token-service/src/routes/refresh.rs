@@ -2,7 +2,7 @@ use crate::service::{oauth_client_svc, refresh_svc};
 use crate::TokenServerState;
 use argon2::{PasswordHash, PasswordVerifier};
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::StatusCode;
 use axum::Json;
 use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -92,7 +92,7 @@ fn decode_refresh_token(
 )]
 pub async fn handle_refresh(
     State(state): State<TokenServerState>,
-    headers: HeaderMap,
+
     Json(req): Json<RefreshRequest>,
 ) -> Result<Json<RefreshResponse>, (StatusCode, &'static str)> {
     let client = oauth_client_svc::find_by_id(&state.db, &req.client_id)
@@ -129,12 +129,15 @@ pub async fn handle_refresh(
         "{}/internal/users/{}/claims?tenant_id={}",
         state.user_service_url, info.sub, info.tid
     );
-    let user_jwt = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "));
+    // 2026-11-05 review (P0-3): the claims endpoint enforces
+    // `aud == iam-service`; forward the self-signed service-jwt instead of the
+    // caller's user-jwt (whose aud is `coder-micro-services`).
+    let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     let extra_claims: serde_json::Value =
-        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, user_jwt).await {
+        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, Some(&iam_bearer))
+            .await
+        {
             Ok(v) => v,
             Err(e) => {
                 tracing::warn!("refresh: user-service unreachable: {}", e);

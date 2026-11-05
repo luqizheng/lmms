@@ -13,6 +13,87 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// 2026-11-05 review (P0-3): reject requests whose path contains dot-segments
+/// (`.` / `..`, including percent-encoded variants) or backslashes, BEFORE the
+/// template matcher authorizes the un-normalized path.
+///
+/// Root cause chain: the gateway matches and authorizes the raw wire path,
+/// but reqwest's `Url::parse` (WHATWG) removes `..` segments from the
+/// upstream URL — so `/v1/iam/users/../../internal/users/{id}/claims` is
+/// authorized as `/v1/iam/users/{rest}` (protected) and then forwarded as
+/// `/internal/users/{id}/claims` (unauthenticated internal endpoint). The
+/// same path-confusion applies to `\` on WHATWG parsers.
+pub async fn path_sanitize_middleware(request: Request<Body>, next: Next) -> Response {
+    if path_has_traversal(request.uri().path()) {
+        return (StatusCode::NOT_FOUND, "path rejected").into_response();
+    }
+    next.run(request).await
+}
+
+/// Percent-decode then reject dot-segments and backslashes. Decoding first
+/// closes the `%2e%2e` / `%2F` bypasses; `%2F` decoded to `/` is caught by
+/// the segment split itself.
+fn path_has_traversal(raw_path: &str) -> bool {
+    let decoded = percent_decode(raw_path);
+    decoded
+        .split('/')
+        .any(|seg| seg == "." || seg == ".." || seg.contains('\\'))
+}
+
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hi = (bytes[i + 1] as char).to_digit(16);
+            let lo = (bytes[i + 2] as char).to_digit(16);
+            if let (Some(h), Some(l)) = (hi, lo) {
+                out.push(((h * 16) + l) as u8);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+#[cfg(test)]
+mod path_sanitize_tests {
+    use super::path_has_traversal;
+
+    #[test]
+    fn rejects_dot_dot_segments() {
+        assert!(path_has_traversal("/v1/iam/users/../../internal/users/1/claims"));
+    }
+
+    #[test]
+    fn rejects_percent_encoded_dot_dot() {
+        assert!(path_has_traversal("/v1/iam/users/%2e%2e/internal"));
+        assert!(path_has_traversal("/v1/iam/users/%2E%2E/internal"));
+    }
+
+    #[test]
+    fn rejects_encoded_slash_with_dot_dot() {
+        assert!(path_has_traversal("/v1/iam/users%2F..%2Finternal"));
+    }
+
+    #[test]
+    fn rejects_backslash_segments() {
+        assert!(path_has_traversal("/v1/file/..\\..\\etc/passwd"));
+    }
+
+    #[test]
+    fn allows_normal_paths() {
+        assert!(!path_has_traversal("/v1/iam/users/me"));
+        assert!(!path_has_traversal("/v1/file/upload"));
+        assert!(!path_has_traversal("/v1/config/item/config-1"));
+        assert!(!path_has_traversal("/health"));
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct JwtClaims {
     pub sub: String,

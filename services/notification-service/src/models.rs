@@ -198,6 +198,11 @@ pub struct Announcement {
     pub status: Status,
     pub created_by: String,
     pub created_at: DateTime<Utc>,
+    /// Whether the requesting user has read this announcement.
+    /// Filled by the service layer from `ntf_announcement_reads`, not selected
+    /// from the announcement row itself.
+    #[sqlx(default)]
+    pub read: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]

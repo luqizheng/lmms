@@ -62,11 +62,25 @@ pub fn routes(state: AppState) -> Router {
             state.clone(),
             digua_authz::verify_aud_principal_middleware::<AppState>("audit-service"),
         ));
+    // 2026-11-05 review (P0-4): the four business nests below were mounted
+    // with NO authentication at all — any authenticated user could dump the
+    // full audit trail and two-step-delete it via retention policy+cleanup.
+    // Every business route now requires a valid user-jwt
+    // (aud == "coder-micro-services", the audience stamped on user tokens);
+    // the retention write endpoints additionally require an admin principal
+    // (see retention.rs).
+    let user_jwt_gate = axum_mw::from_fn_with_state(
+        state.clone(),
+        digua_authz::verify_aud_principal_middleware::<AppState>("coder-micro-services"),
+    );
     Router::new()
-        .nest("/audit", operation::routes(state.clone()))
-        .nest("/audit", login::routes(state.clone()))
-        .nest("/audit", compliance::routes(state.clone()))
-        .nest("/audit", retention::routes(state.clone()))
+        .nest("/audit", operation::routes(state.clone()).layer(user_jwt_gate.clone()))
+        .nest("/audit", login::routes(state.clone()).layer(user_jwt_gate.clone()))
+        .nest(
+            "/audit",
+            compliance::routes(state.clone()).layer(user_jwt_gate.clone()),
+        )
+        .nest("/audit", retention::routes(state.clone()).layer(user_jwt_gate))
         .merge(migration_state_with_authz)
         .route("/health", get(health))
         .route("/audit/health", get(health))

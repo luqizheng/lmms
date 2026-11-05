@@ -10,7 +10,7 @@ use utoipa::IntoParams;
 use crate::{
     dto::{
         BatchGetUsersRequest, BatchGetUsersResponse, QueryUsersByOrgAndRoleRequest,
-        UserIdListResponse, UserListQuery,
+        UserClaimsResponse, UserIdListResponse, UserListQuery,
     },
     service::UserService,
     state::AppState,
@@ -20,6 +20,58 @@ use digua_jwt_ctx::{Principal, TenantScope};
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct TenantIdQuery {
     pub tenant_id: i64,
+}
+
+/// Token-service fetches a user's claims (roles/permissions) to stamp onto
+/// issued tokens. 2026-11-05 review (P0-3): this endpoint used to live in
+/// `users.rs` with only a `TenantScope` extractor — any valid user-jwt could
+/// read arbitrary same-tenant users' PII and permission matrix, and the
+/// gateway's dot-segment normalization gap made it reachable as
+/// `/v1/iam/users/../../internal/users/{id}/claims`. It now lives in this
+/// router, which is wrapped by `verify_aud_principal_middleware("iam-service")`
+/// (see routes/mod.rs) so only service-jwts with `aud=iam-service` may call it.
+///
+/// `tenant_id` is optional: when absent (token-service's client_credentials
+/// path), the user is resolved globally by id and their real tenant drives the
+/// roles/permissions queries.
+#[utoipa::path(
+    get,
+    path = "/internal/users/{user_id}/claims",
+    params(("user_id" = String, Path,), TenantIdQuery),
+    responses(
+        (status = 200, body = UserClaimsResponse),
+        (status = 401, description = "service-jwt required (aud=iam-service)"),
+        (status = 404, description = "user not found"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "internal"
+)]
+// check-tenant-scope: delegated (caller is the token-service service-jwt;
+// tenant resolved server-side from the user row)
+pub async fn get_user_claims(
+    State(state): State<AppState>,
+    _principal: Principal,
+    Path(user_id): Path<String>,
+    Query(tq): Query<Option<TenantIdQuery>>,
+) -> Result<Json<UserClaimsResponse>, (axum::http::StatusCode, &'static str)> {
+    let scope = match tq {
+        Some(q) if q.tenant_id > 0 => TenantScope::Single(q.tenant_id),
+        _ => TenantScope::CrossTenant,
+    };
+    let service = UserService::new(state);
+    let response = service
+        .get_claims(&user_id, &scope)
+        .await
+        .map_err(|e| match e {
+            crate::error::IamError::UserNotFound => {
+                (axum::http::StatusCode::NOT_FOUND, "user not found")
+            }
+            _ => (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "internal error",
+            ),
+        })?;
+    Ok(Json(response))
 }
 
 #[utoipa::path(
@@ -227,5 +279,6 @@ pub fn routes(state: AppState) -> Router {
             "/iam/internal/users/by-org-and-role",
             post(list_users_by_org_and_role),
         )
+        .route("/internal/users/{user_id}/claims", get(get_user_claims))
         .with_state(state)
 }

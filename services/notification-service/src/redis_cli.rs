@@ -39,4 +39,10 @@ impl RedisCli {
         let v: Option<i64> = c.get(Self::unread_key(user_id)).await?;
         Ok(v.unwrap_or(0))
     }
+
+    pub async fn set_unread(&self, user_id: String, value: i64) -> AppResult<()> {
+        let mut c = self.conn.clone();
+        let _: () = c.set(Self::unread_key(user_id), value).await?;
+        Ok(())
+    }
 }

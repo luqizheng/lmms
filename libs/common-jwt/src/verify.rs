@@ -53,18 +53,18 @@ pub async fn verify_token(
     expected_aud: Option<&str>,
 ) -> Result<Value, VerifyError> {
     let header = decode_header(token).map_err(|e| VerifyError::Malformed(e.to_string()))?;
-    // Phase 5-B dev convenience: if kid is missing or unknown, fall
-    // back to the default key. Production hardening (kid strict match)
-    // can be enforced by routing only the "service" audience through
-    // this path while user-jwt (aud=user) gets a kid-aware verifier.
+    // 2026-11-05 review (P0-9): kid-strict verification. The previous
+    // `or_else(default_key)` fallback let a token with an attacker-chosen or
+    // stale kid verify against the default key, silently defeating key
+    // rotation semantics. `verify_test::unknown_kid_returns_malformed`
+    // documents the intended behaviour and was red until this fix.
     let key = match header.kid.as_deref() {
         Some(kid) => cache
             .get(kid)
-            .or_else(|| cache.default_key())
             .ok_or_else(|| VerifyError::Malformed(format!("unknown kid: {kid}")))?,
         None => cache
             .default_key()
-            .ok_or_else(|| VerifyError::Malformed("no default key in cache".into()))?,
+            .ok_or_else(|| VerifyError::Malformed("missing kid and no default key".into()))?,
     };
     let mut validation = Validation::new(Algorithm::RS256);
     let expected_aud_owned: String;

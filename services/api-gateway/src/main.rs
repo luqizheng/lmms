@@ -302,6 +302,9 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         .route_layer(axum_mw::from_fn(
             digua_common_telemetry_axum::trace_request_middleware,
         ))
+        // Last-added layer runs first: reject dot-segment / backslash paths
+        // before authorization and forwarding (2026-11-05 review P0-3).
+        .route_layer(axum_mw::from_fn(middleware::path_sanitize_middleware))
         .without_v07_checks();
 
     let app = Router::new()

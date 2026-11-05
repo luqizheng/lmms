@@ -20,6 +20,26 @@ impl LocalStorage {
     fn resolve_path(&self, path: &str) -> PathBuf {
         self.base_path.join(path)
     }
+
+    /// 2026-11-05 review (P0-5): defense in depth. Resolve `path` and assert
+    /// the canonicalized result stays inside the canonical storage root.
+    /// Call after the target exists on disk (canonicalize fails on missing
+    /// files); `put` uses this post-write and cleans up on violation.
+    async fn ensure_within_base(&self, full_path: &PathBuf) -> AppResult<()> {
+        let canon_base = fs::canonicalize(&self.base_path)
+            .await
+            .map_err(|e| AppError::internal("FILE_STORAGE_4101", e.to_string()))?;
+        let canon = fs::canonicalize(full_path)
+            .await
+            .map_err(|e| AppError::not_found("FILE_ITEM_1001", e.to_string()))?;
+        if !canon.starts_with(&canon_base) {
+            return Err(AppError::internal(
+                "FILE_STORAGE_4101",
+                "resolved path escapes storage root",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -37,11 +57,17 @@ impl ObjectStore for LocalStorage {
             .await
             .map_err(|e| AppError::internal("FILE_UPLOAD_2001", e.to_string()))?;
 
+        if let Err(e) = self.ensure_within_base(&full_path).await {
+            let _ = fs::remove_file(&full_path).await;
+            return Err(e);
+        }
+
         Ok(())
     }
 
     async fn get(&self, path: &str) -> AppResult<Bytes> {
         let full_path = self.resolve_path(path);
+        self.ensure_within_base(&full_path).await?;
 
         let mut file = fs::File::open(&full_path)
             .await
@@ -57,6 +83,7 @@ impl ObjectStore for LocalStorage {
 
     async fn get_stream(&self, path: &str) -> AppResult<ByteStream> {
         let full_path = self.resolve_path(path);
+        self.ensure_within_base(&full_path).await?;
 
         let file = fs::File::open(&full_path)
             .await
@@ -68,6 +95,7 @@ impl ObjectStore for LocalStorage {
 
     async fn delete(&self, path: &str) -> AppResult<()> {
         let full_path = self.resolve_path(path);
+        self.ensure_within_base(&full_path).await?;
 
         if full_path.exists() {
             fs::remove_file(&full_path)
@@ -80,11 +108,19 @@ impl ObjectStore for LocalStorage {
 
     async fn exists(&self, path: &str) -> AppResult<bool> {
         let full_path = self.resolve_path(path);
-        Ok(full_path.exists())
+        if !full_path.exists() {
+            return Ok(false);
+        }
+        match self.ensure_within_base(&full_path).await {
+            Ok(()) => Ok(true),
+            Err(e) if e.code() == "FILE_ITEM_1001" => Ok(false),
+            Err(e) => Err(e),
+        }
     }
 
     async fn size(&self, path: &str) -> AppResult<i64> {
         let full_path = self.resolve_path(path);
+        self.ensure_within_base(&full_path).await?;
 
         let metadata = fs::metadata(&full_path)
             .await

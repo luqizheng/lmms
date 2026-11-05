@@ -40,6 +40,10 @@ pub struct Config {
     pub redis: RedisConfig,
     pub jwt: JwtConfig,
     pub consul: ConsulConfig,
+    #[serde(default)]
+    pub smtp: SmtpConfig,
+    #[serde(default)]
+    pub public: PublicConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -83,6 +87,65 @@ pub struct ConsulConfig {
     pub host: String,
     pub port: u16,
     pub service_name: String,
+}
+
+/// Outbound SMTP for password-reset and invitation mails.
+/// Empty `host` means mail is not configured; the endpoints then fail closed
+/// with `mail_not_configured` instead of pretending the mail was sent.
+#[derive(Debug, Deserialize, Clone)]
+pub struct SmtpConfig {
+    #[serde(default)]
+    pub host: String,
+    #[serde(default = "default_smtp_port")]
+    pub port: u16,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub password: String,
+    #[serde(default = "default_mail_from")]
+    pub from: String,
+    #[serde(default)]
+    pub starttls: bool,
+}
+
+impl Default for SmtpConfig {
+    fn default() -> Self {
+        Self {
+            host: String::new(),
+            port: default_smtp_port(),
+            username: String::new(),
+            password: String::new(),
+            from: default_mail_from(),
+            starttls: false,
+        }
+    }
+}
+
+/// Public frontend base URL used to build reset / invitation links.
+#[derive(Debug, Deserialize, Clone)]
+pub struct PublicConfig {
+    #[serde(default = "default_public_base_url")]
+    pub base_url: String,
+}
+
+impl Default for PublicConfig {
+    fn default() -> Self {
+        Self {
+            base_url: default_public_base_url(),
+        }
+    }
+}
+
+fn default_smtp_port() -> u16 {
+    1025
+}
+
+fn default_mail_from() -> String {
+    "no-reply@ai-pm.local".to_string()
+}
+
+fn default_public_base_url() -> String {
+    "http://127.0.0.1:8848".to_string()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,6 +306,38 @@ where
     if let Some(v) = env("CONSUL_SERVICE_NAME") {
         cfg.consul.service_name = v;
     }
+
+    // ── smtp ──
+    if let Some(v) = env("IAM_SMTP_HOST") {
+        cfg.smtp.host = v;
+    }
+    if let Some(v) = env("IAM_SMTP_PORT") {
+        parse_or_warn("IAM_SMTP_PORT", &v, &mut cfg.smtp.port);
+    }
+    if let Some(v) = env("IAM_SMTP_USERNAME") {
+        cfg.smtp.username = v;
+    }
+    if let Some(v) = env("IAM_SMTP_PASSWORD") {
+        cfg.smtp.password = v;
+    }
+    if let Some(v) = env("IAM_SMTP_FROM") {
+        cfg.smtp.from = v;
+    }
+    if let Some(v) = env("IAM_SMTP_STARTTLS") {
+        cfg.smtp.starttls = parse_bool(&v);
+    }
+
+    // ── public ──
+    if let Some(v) = env("IAM_PUBLIC_BASE_URL") {
+        cfg.public.base_url = v;
+    }
+}
+
+fn parse_bool(raw: &str) -> bool {
+    matches!(
+        raw.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
 }
 
 fn parse_or_warn<T: std::str::FromStr>(key: &str, raw: &str, slot: &mut T)

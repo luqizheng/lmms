@@ -116,42 +116,9 @@ impl AuthService {
             return Err(IamError::InvalidCredentials);
         }
 
-        // 获取用户角色和权限
-        let roles = self.get_user_roles(&user.id).await?;
-        let permissions = self.get_user_permissions(&user.id).await?;
-
-        let cross_tenant = roles.iter().any(|r| r == "platform_admin");
-        let ttl_secs = self.state.config.jwt.access_token_ttl_minutes * 60;
-        let claims = serde_json::json!({
-            "tid": user.tenant_id,
-            "ct": cross_tenant,
-            "username": user.username,
-            "roles": roles,
-            "permissions": permissions,
-        });
-        let access_token = self
-            .state
-            .token_forward
-            .issue_user_jwt(&user.id, &user.username, claims, ttl_secs)
-            .await
-            .map_err(|e| IamError::Jwt(e.to_string()))?;
-
-        // 生成 refresh token
-        let refresh_token = nanoid!(64);
-        let refresh_token_hash = Self::hash_token(&refresh_token);
-        let refresh_token_id = nanoid!();
-        let refresh_expires_at = Utc::now() + Duration::days(30);
-
-        db_execute!(
-            &self.state.db,
-            "INSERT INTO iam_refresh_tokens (id, user_id, token_hash, expires_at, client_ip, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
-            &refresh_token_id,
-            &user.id,
-            &refresh_token_hash,
-            refresh_expires_at,
-            ip_address,
-            user_agent
-        )?;
+        // 会话签发（access + refresh + user info）由 issue_session 统一负责，
+        // 登录与邀请接受共用同一路径，避免两套 token 逻辑漂移。
+        let response = self.issue_session(&user, ip_address, user_agent).await?;
 
         // 更新最后登录信息
         db_execute!(
@@ -223,23 +190,67 @@ impl AuthService {
             }
         }
 
-        let user_info = UserInfo {
-            id: user.id.clone(),
-            username: user.username.clone(),
-            nickname: user.nickname.clone(),
-            email: user.email.clone(),
-            phone: user.phone.clone(),
-            avatar: user.avatar.clone(),
-            roles: roles.clone(),
-            permissions,
-        };
+        Ok(response)
+    }
+
+    /// Issues an access token + refresh token + user info for an already
+    /// authenticated user. Shared by password login and invitation acceptance.
+    pub async fn issue_session(
+        &self,
+        user: &User,
+        ip_address: &str,
+        user_agent: &str,
+    ) -> Result<LoginResponse, IamError> {
+        let roles = self.get_user_roles(&user.id).await?;
+        let permissions = self.get_user_permissions(&user.id).await?;
+
+        let cross_tenant = roles.iter().any(|r| r == "platform_admin");
+        let ttl_secs = self.state.config.jwt.access_token_ttl_minutes * 60;
+        let claims = serde_json::json!({
+            "tid": user.tenant_id,
+            "ct": cross_tenant,
+            "username": user.username,
+            "roles": roles,
+            "permissions": permissions,
+        });
+        let access_token = self
+            .state
+            .token_forward
+            .issue_user_jwt(&user.id, &user.username, claims, ttl_secs)
+            .await
+            .map_err(|e| IamError::Jwt(e.to_string()))?;
+
+        let refresh_token = nanoid!(64);
+        let refresh_token_hash = Self::hash_token(&refresh_token);
+        let refresh_token_id = nanoid!();
+        let refresh_expires_at = Utc::now() + Duration::days(30);
+
+        db_execute!(
+            &self.state.db,
+            "INSERT INTO iam_refresh_tokens (id, user_id, token_hash, expires_at, client_ip, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
+            &refresh_token_id,
+            &user.id,
+            &refresh_token_hash,
+            refresh_expires_at,
+            ip_address,
+            user_agent
+        )?;
 
         Ok(LoginResponse {
             access_token,
             refresh_token,
             token_type: "Bearer".to_string(),
             expires_in: self.state.config.jwt.access_token_ttl_minutes * 60,
-            user: user_info,
+            user: UserInfo {
+                id: user.id.clone(),
+                username: user.username.clone(),
+                nickname: user.nickname.clone(),
+                email: user.email.clone(),
+                phone: user.phone.clone(),
+                avatar: user.avatar.clone(),
+                roles,
+                permissions,
+            },
         })
     }
 

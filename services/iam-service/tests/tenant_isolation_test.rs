@@ -48,6 +48,8 @@ async fn setup() -> Ctx {
     key_file.flush().unwrap();
 
     let config = Config {
+        smtp: Default::default(),
+        public: Default::default(),
         app: AppConfig {
             name: "iam-service".into(),
             host: "0.0.0.0".into(),
@@ -240,8 +242,9 @@ async fn users_are_tenant_isolated() {
     let created = svc
         .create(
             CreateUserRequest {
+                send_invitation: None,
                 username: "u-t2".into(),
-                password: "P@ssw0rd!".into(),
+                password: Some("P@ssw0rd!".into()),
                 nickname: "U2".into(),
                 email: None,
                 phone: None,
@@ -294,8 +297,9 @@ async fn users_are_tenant_isolated() {
     let dup = svc
         .create(
             CreateUserRequest {
+                send_invitation: None,
                 username: "u-t2".into(),
-                password: "P@ssw0rd!".into(),
+                password: Some("P@ssw0rd!".into()),
                 nickname: "U3-dup".into(),
                 email: None,
                 phone: None,
@@ -337,8 +341,9 @@ async fn platform_admin_point_query_cross_tenant() {
     let acme_user = user_svc
         .create(
             CreateUserRequest {
+                send_invitation: None,
                 username: "acme_user".into(),
-                password: "P@ssw0rd!".into(),
+                password: Some("P@ssw0rd!".into()),
                 nickname: "AU".into(),
                 email: None,
                 phone: None,
@@ -353,8 +358,9 @@ async fn platform_admin_point_query_cross_tenant() {
     let default_admin = user_svc
         .create(
             CreateUserRequest {
+                send_invitation: None,
                 username: "default_admin".into(),
-                password: "P@ssw0rd!".into(),
+                password: Some("P@ssw0rd!".into()),
                 nickname: "DA".into(),
                 email: None,
                 phone: None,

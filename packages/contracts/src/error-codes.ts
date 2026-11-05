@@ -14,6 +14,11 @@ export type ErrorCode =
   | 'IAM_AUTH_1006'
   | 'IAM_AUTH_1007'
   | 'IAM_AUTH_1008'
+  | 'IAM_AUTH_1009'
+  | 'IAM_VALID_2005'
+  | 'IAM_VALID_2006'
+  | 'IAM_EXT_9201'
+  | 'IAM_EXT_9202'
   | 'VALID_2001'
   | 'VALID_2002'
   | 'VALID_2003'
@@ -52,6 +57,11 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   'IAM_AUTH_1006': 'password too weak',
   'IAM_AUTH_1007': 'username already exists',
   'IAM_AUTH_1008': 'email already exists',
+  'IAM_AUTH_1009': 'invalid or expired token',
+  'IAM_VALID_2005': 'email is required',
+  'IAM_VALID_2006': 'password required when invitation is disabled',
+  'IAM_EXT_9201': 'mail is not configured',
+  'IAM_EXT_9202': 'mail delivery failed',
   'VALID_2001': 'invalid input',
   'VALID_2002': 'missing required field',
   'VALID_2003': 'invalid phone format',

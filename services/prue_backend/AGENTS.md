@@ -39,16 +39,18 @@
 
 ## 端点域
 
+**鉴权（2026-11-05 P0-8）：** 读端点（GET）要求任意有效 user-jwt 免校验现状不变前的登录态；**全部写端点（POST/PUT/DELETE）要求 admin 类 principal**（cross_tenant 或 admin/platform_admin/tenant_admin 角色，否则 403）。
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /get-async-routes | GET | 获取 active 菜单版本的 pure-admin 动态路由 |
 | /pure/menu-configs | GET | 查询菜单配置版本列表 |
-| /pure/menu-configs | POST | 新建草稿菜单配置 |
+| /pure/menu-configs | POST | 新建草稿菜单配置（admin）|
 | /pure/menu-configs/{id} | GET | 查看菜单配置版本详情 |
-| /pure/menu-configs/{id} | PUT | 更新草稿菜单配置 |
-| /pure/menu-configs/{id}/publish | POST | 发布菜单配置为 active |
-| /pure/menu-configs/{id}/clone | POST | 克隆历史版本为草稿 |
-| /pure/menu-configs/{id} | DELETE | 删除未发布菜单配置 |
+| /pure/menu-configs/{id} | PUT | 更新草稿菜单配置（admin）|
+| /pure/menu-configs/{id}/publish | POST | 发布菜单配置为 active（admin）|
+| /pure/menu-configs/{id}/clone | POST | 克隆历史版本为草稿（admin）|
+| /pure/menu-configs/{id} | DELETE | 删除未发布菜单配置（admin）|
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|

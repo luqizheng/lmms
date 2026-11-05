@@ -251,6 +251,10 @@ components:
         tenant_id:
           type: integer
           format: int64
+          description: |-
+            租户 ID。
+            类型为 i64（而非 u64）：sqlx-postgres 无 unsigned 支持，u64 无法 FromRow 解码。
+             手工保住 OpenAPI 的 minimum: 0，使 spec 零变更。
           minimum: 0
         updated_at:
           type: string
@@ -378,6 +382,7 @@ components:
           - integer
           - 'null'
           format: int64
+          description: 见 FileInfo::tenant_id 的类型说明。
           minimum: 0
         user_id:
           type:

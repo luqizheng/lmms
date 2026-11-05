@@ -72,9 +72,11 @@ pub fn router(state: RestState) -> Router {
     Router::new()
         .route("/announcements", post(create).get(list_mine))
         .route("/announcements/{id}", get(detail))
+        .route("/announcements/manage", get(list_all))
         .route("/announcements/{id}/publish", post(publish))
         .route("/announcements/{id}/revoke", post(revoke))
         .route("/announcements/{id}/read", post(read_one))
+        .route("/announcements/read-all", post(read_all))
         .route("/unread-count", get(unread_count))
         .with_state(state)
         .route_layer(axum::middleware::from_fn_with_state(
@@ -207,6 +209,26 @@ pub async fn list_mine(
 }
 
 #[utoipa::path(
+    get,
+    path = "/notification/announcements/manage",
+    summary = "List all announcements in the tenant (admin)",
+    responses(
+        (status = 200, description = "获取成功", body = Vec<Announcement>),
+        (status = 403, description = "无权限"),
+    ),
+    tag = "announcements"
+)]
+pub async fn list_all(
+    State(s): State<RestState>,
+    me: Identity,
+) -> AppResult<Json<Vec<Announcement>>> {
+    if !me.is_admin() {
+        return Err(AppError::Forbidden);
+    }
+    Ok(Json(s.db.list_all_for_tenant(me.tenant_id).await?))
+}
+
+#[utoipa::path(
     post,
     path = "/notification/announcements/{id}/read",
     summary = "Mark announcement as read",
@@ -243,4 +265,21 @@ pub async fn unread_count(
 ) -> AppResult<Json<serde_json::Value>> {
     let c = s.redis.get_unread(me.user_id).await.unwrap_or(0);
     Ok(Json(serde_json::json!({ "count": c })))
+}
+#[utoipa::path(
+    post,
+    path = "/notification/announcements/read-all",
+    summary = "Mark all visible announcements as read",
+    responses(
+        (status = 200, description = "全部标记已读", body = serde_json::Value),
+    ),
+    tag = "notifications"
+)]
+pub async fn read_all(
+    State(s): State<RestState>,
+    me: Identity,
+) -> AppResult<Json<serde_json::Value>> {
+    let changed = s.db.mark_all_read(me.user_id.clone()).await?;
+    s.redis.set_unread(me.user_id, 0).await.ok();
+    Ok(Json(serde_json::json!({ "ok": true, "changed": changed })))
 }

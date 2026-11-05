@@ -33,6 +33,35 @@ pub async fn fetch_json(
     serde_json::from_slice(&resp.body).map_err(|e| e.to_string())
 }
 
+/// 2026-11-05 review (P0-3): mint a short-lived self-signed service-jwt for
+/// token-service's own outbound `/internal` calls (e.g. iam user claims).
+/// Downstream internal endpoints enforce `aud == <target>` via
+/// `verify_aud_principal_middleware`, so calls must carry a service-jwt
+/// instead of a user-jwt (or nothing at all).
+pub fn mint_service_bearer(
+    private_key_pem: &str,
+    aud: &str,
+    ttl_secs: i64,
+) -> Result<String, String> {
+    let now = chrono::Utc::now().timestamp();
+    let claims = serde_json::json!({
+        "iss": "token-service",
+        "sub": "token-service",
+        "aud": aud,
+        "tid": 0,
+        "iat": now,
+        "exp": now + ttl_secs,
+        "roles": ["service"],
+        "purpose": crate::issuer::purpose::SERVICE,
+    });
+    digua_common_jwt::sign_token(
+        private_key_pem,
+        &claims,
+        std::time::Duration::from_secs(ttl_secs.max(1) as u64),
+    )
+    .map_err(|e| format!("mint service token: {}", e))
+}
+
 #[derive(Clone)]
 pub struct TokenServerState {
     pub db: DbPool,

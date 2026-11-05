@@ -38,6 +38,8 @@ async fn setup() -> Ctx {
     let url = mysql_h.url;
 
     let config = Config {
+        smtp: Default::default(),
+        public: Default::default(),
         app: AppConfig {
             name: "iam-service".into(),
             host: "0.0.0.0".into(),

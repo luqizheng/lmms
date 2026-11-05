@@ -47,7 +47,7 @@
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /tokens/access | POST | 签发 access_token（authorization_code 签发 access+refresh；client_credentials 只签 access、不签 refresh，RFC 6749 §4.4.3） |
+| /tokens/access | POST | 签发 access_token（authorization_code 签发 access+refresh；client_credentials 只签 access、不签 refresh，RFC 6749 §4.4.3。**2026-11-05 P0-2：iam 不可达时两条授权流均 fail-closed**——authorization_code 签发空 permissions（不再兜底 admin 角色），client_credentials 同；对 iam 的 claims 调用改持自签 service-jwt `aud=iam-service`） |
 | /tokens/refresh | POST | 刷新 token（refresh_token 单次使用，防重放） |
 | /tokens/revoke | POST | 撤销 token（写入 Redis 黑名单） |
 | /tokens/resource | POST | 签发受限资源令牌（自定义 TTL 与 scope） |

@@ -54,7 +54,14 @@ impl FileService {
             )));
         }
         let id = Uuid::new_v4().to_string();
-        let storage_path = format!("{}-{}", id, meta.filename);
+        // 2026-11-05 review (P0-5): the object key must contain zero
+        // client-controlled bytes. It used to be `{uuid}-{meta.filename}`,
+        // and `LocalStorage::resolve_path` does a plain `PathBuf::join`, so a
+        // filename like `x/../../../../tmp/pwn.sh` escaped the storage root
+        // (write) and the same path in DB read back arbitrary files
+        // (download). The user-visible name lives in `FileInfo.filename`
+        // only.
+        let storage_path = id.clone();
         let now = chrono::Utc::now();
         let data_len = data.len();
         let tenant_id = scope.tenant_id().unwrap_or(1) as i64;

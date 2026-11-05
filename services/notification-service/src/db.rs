@@ -335,7 +335,7 @@ impl Db {
     }
 
     pub async fn list_for_user(&self, user_id: String) -> AppResult<Vec<Announcement>> {
-        Ok(db_fetch_all!(
+        let mut items: Vec<Announcement> = db_fetch_all!(
             &self.pool,
             Announcement,
             "SELECT a.id, a.title, a.body, a.publish_at, a.expire_at, a.pinned, a.popover, \
@@ -345,7 +345,56 @@ impl Db {
              WHERE d.user_id=? AND a.status='published' \
                AND (a.expire_at IS NULL OR a.expire_at > NOW()) \
              ORDER BY a.pinned DESC, a.publish_at DESC",
-            user_id
+            &user_id
+        )?;
+
+        let read_ids: Vec<(i64,)> = db_fetch_all!(
+            &self.pool,
+            (i64,),
+            "SELECT announcement_id FROM ntf_announcement_reads WHERE user_id = ?",
+            &user_id
+        )?;
+        let read_ids: HashSet<i64> = read_ids.into_iter().map(|(id,)| id).collect();
+        for item in &mut items {
+            item.read = read_ids.contains(&item.id);
+        }
+
+        Ok(items)
+    }
+
+    /// Marks every currently-delivered, unexpired announcement as read.
+    pub async fn mark_all_read(&self, user_id: String) -> AppResult<u64> {
+        const SQL_MYSQL: &str = "INSERT IGNORE INTO ntf_announcement_reads \
+             (announcement_id, user_id, read_at) \
+             SELECT a.id, ?, NOW() FROM ntf_announcements a \
+             JOIN ntf_announcement_deliveries d ON d.announcement_id = a.id \
+             WHERE d.user_id = ? AND a.status='published' \
+               AND (a.expire_at IS NULL OR a.expire_at > NOW())";
+        const SQL_PG: &str = "INSERT INTO ntf_announcement_reads \
+             (announcement_id, user_id, read_at) \
+             SELECT a.id, ?, NOW() FROM ntf_announcements a \
+             JOIN ntf_announcement_deliveries d ON d.announcement_id = a.id \
+             WHERE d.user_id = ? AND a.status='published' \
+               AND (a.expire_at IS NULL OR a.expire_at > NOW()) \
+             ON CONFLICT (announcement_id, user_id) DO NOTHING";
+
+        let sql = match self.pool.dialect() {
+            DialectKind::Postgres => SQL_PG,
+            _ => SQL_MYSQL,
+        };
+        Ok(db_execute!(&self.pool, sql, &user_id, &user_id)?)
+    }
+
+    /// Admin view: every announcement in the tenant, including drafts,
+    /// scheduled and revoked ones.
+    pub async fn list_all_for_tenant(&self, tenant_id: i64) -> AppResult<Vec<Announcement>> {
+        Ok(db_fetch_all!(
+            &self.pool,
+            Announcement,
+            "SELECT id, title, body, publish_at, expire_at, pinned, popover, \
+                    status, created_by, created_at \
+             FROM ntf_announcements WHERE tenant_id = ? ORDER BY created_at DESC",
+            tenant_id
         )?)
     }
 

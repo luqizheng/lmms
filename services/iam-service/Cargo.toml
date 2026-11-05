@@ -61,6 +61,7 @@ utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 sha2 = "0.10"
 hex = "0.4"
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1-rustls", "hostname", "aws-lc-rs", "webpki-roots"] }
 
 [[bin]]
 name = "dump_openapi"

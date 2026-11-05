@@ -51,6 +51,8 @@ async fn cross_tenant_and_get_claims() {
     let mysql_h = common::spawn_mysql().await;
     let pool = mysql_h.pool;
     let config = Config {
+        smtp: Default::default(),
+        public: Default::default(),
         app: AppConfig {
             name: "iam-service".into(),
             host: "0.0.0.0".into(),
@@ -139,8 +141,9 @@ async fn cross_tenant_and_get_claims() {
     let admin = user_svc
         .create(
             CreateUserRequest {
+                send_invitation: None,
                 username: "platform_admin_user".into(),
-                password: "TestAdmin@123".into(),
+                password: Some("TestAdmin@123".into()),
                 email: None,
                 phone: None,
                 nickname: "PA".into(),
@@ -247,8 +250,9 @@ async fn cross_tenant_and_get_claims() {
     let acme_user = user_svc
         .create(
             CreateUserRequest {
+                send_invitation: None,
                 username: "acme-user-1".into(),
-                password: "P@ssw0rd!".into(),
+                password: Some("P@ssw0rd!".into()),
                 email: None,
                 phone: None,
                 nickname: "AU1".into(),

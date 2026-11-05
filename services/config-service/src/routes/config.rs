@@ -3,12 +3,39 @@ use crate::models::config_item::{
 };
 use crate::routes::AppState;
 use axum::{extract::Path, extract::Query, extract::State, http::StatusCode, Json};
+use digua_authz::perms::perms;
 use digua_jwt_ctx::{Principal, TenantScope};
 
 /// 掩码的常量 —— 与前端 `api/config/masking.ts` `MASK` 保持一致
 const MASK: &str = "********";
 
 const REVEAL_PERM: &str = "CFG_CONFIG_REVEAL";
+
+/// 2026-11-05 review (P0-6): config write paths used to accept ANY valid
+/// user-jwt (the Principal/permissions claims were extracted but never
+/// consumed on writes), letting a least-privileged user poison prod
+/// namespaces or flip `is_secret` to read plaintext secrets. Write handlers
+/// now require the matching permission code from `contracts/permissions.yaml`
+/// (`perms.rs` constants); platform admins (cross-tenant) bypass.
+pub(crate) fn require_config_perm(
+    principal: &Principal,
+    perm: &str,
+) -> Result<(), (StatusCode, &'static str)> {
+    // Admin-class roles bypass until the permission seed actually binds the
+    // CFG_* codes to roles (no migration does today — a strict
+    // permission-only check would 403 every existing admin flow incl. e2e).
+    // Least-privileged users must hold the code.
+    if principal.cross_tenant
+        || principal.has_role("admin")
+        || principal.has_role("platform_admin")
+        || principal.has_role("tenant_admin")
+        || principal.has_permission(perm)
+    {
+        Ok(())
+    } else {
+        Err((StatusCode::FORBIDDEN, "permission denied"))
+    }
+}
 
 /// is_secret 标记为 true 且 caller 不持有 CFG_CONFIG_REVEAL 时，
 /// 把 value 置为掩码并标 value_masked=true。
@@ -48,6 +75,7 @@ pub async fn create_config_item(
     scope: TenantScope,
     Json(item): Json<CreateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
+    require_config_perm(&principal, perms::CFG_CONFIG_CREATE)?;
     let mut result = state
         .create_config_item(item, &scope)
         .await
@@ -132,6 +160,27 @@ pub async fn update_config_item(
     scope: TenantScope,
     Json(update): Json<UpdateConfigItem>,
 ) -> Result<Json<ConfigItem>, (StatusCode, &'static str)> {
+    require_config_perm(&principal, perms::CFG_CONFIG_UPDATE)?;
+
+    // 2026-11-05 review (P0-6): refuse downgrading a secret item to public.
+    // The old update SQL adopted `is_secret = COALESCE(?, i.is_secret)`, so
+    // `{"is_secret": false}` un-masked the item and the next read returned
+    // the plaintext secret. (Masked-value write-back protection is tracked
+    // separately under P1.)
+    if update.is_secret == Some(false) {
+        match state.get_config_item(&id, &scope).await {
+            Ok(current) if current.is_secret => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "cannot change is_secret from secret to public",
+                ));
+            }
+            Ok(_) => {}
+            Err(e) if e.code() == "CFG_ITEM_1001" => {} // update below surfaces 404
+            Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, "update failed")),
+        }
+    }
+
     let mut result = state
         .update_config_item(&id, update, &scope)
         .await
@@ -161,8 +210,10 @@ pub async fn update_config_item(
 pub async fn delete_config_item(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    principal: Principal,
     scope: TenantScope,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
+    require_config_perm(&principal, perms::CFG_CONFIG_DELETE)?;
     state.delete_config_item(&id, &scope).await.map_err(|e| {
         if e.code() == "CFG_ITEM_1001" {
             (StatusCode::NOT_FOUND, "config item not found")
@@ -226,11 +277,12 @@ pub async fn export_config(
 // check-tenant-scope: delegated (namespace ownership enforced by service::create_config_item via where_id+and_tenant)
 pub async fn import_config(
     State(state): State<AppState>,
-    _principal: Principal,
+    principal: Principal,
     scope: TenantScope,
     Path(namespace_id): Path<String>,
     body: String,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
+    require_config_perm(&principal, perms::CFG_NAMESPACE_IMPORT)?;
     let configs: std::collections::HashMap<String, String> =
         serde_json::from_str(&body).map_err(|_| (StatusCode::BAD_REQUEST, "invalid json"))?;
     let count = configs.len();

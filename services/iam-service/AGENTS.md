@@ -50,6 +50,13 @@
 | CONSUL_HOST | consul.host | consul |
 | CONSUL_PORT | consul.port | 8500 |
 | CONSUL_SERVICE_NAME | consul.service_name | iam-service |
+| IAM_SMTP_HOST | smtp.host | 空（关闭邮件） |
+| IAM_SMTP_PORT | smtp.port | 1025（MailHog） |
+| IAM_SMTP_USERNAME | smtp.username | 空（无认证） |
+| IAM_SMTP_PASSWORD | smtp.password | 空 |
+| IAM_SMTP_FROM | smtp.from | no-reply@ai-pm.local |
+| IAM_SMTP_STARTTLS | smtp.starttls | false |
+| IAM_PUBLIC_BASE_URL | public.base_url | http://127.0.0.1:8848 |
 
 数字类 env 解析失败（如 `SERVER_PORT=abc`）会 warn 后保持 yaml 值；空字符串 / 全空白值等同"未设置"，触发 fail-fast 校验。
 
@@ -74,13 +81,18 @@
 | /iam/auth/password | POST | 修改密码 |
 | /iam/auth/sessions | GET | 获取会话列表 |
 | /iam/auth/sessions/:id | DELETE | 撤销会话 |
+| /iam/auth/forgot-password | POST | 发送重置密码邮件（公开，恒 204 防枚举）|
+| /iam/auth/reset-password | POST | 用一次性令牌重置密码（公开，成功后撤销全部会话）|
+| /iam/auth/invitations/accept | POST | 接受邀请并设置密码（公开，返回登录态）|
 
 ### 用户 /iam/users/*
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | /iam/users | GET | 查询用户列表 |
-| /iam/users | POST | 创建用户 |
+| /iam/users | POST | 创建用户（`password` 缺省时发邀请邮件）|
+| /iam/users/me | GET | 当前登录用户资料 |
+| /iam/users/me | PUT | 修改本人 `nickname` / `avatar`（邮箱手机号只读）|
 | /iam/users/:id | GET | 获取用户详情 |
 | /iam/users/:id | PUT | 更新用户 |
 | /iam/users/:id | DELETE | 删除用户 |
@@ -141,6 +153,7 @@
 | /iam/internal/users/by-role/:role_id | GET | 按角色查 user_id（service-jwt only，tenant-isolated）|
 | /iam/internal/users/by-dept/:dept_id | GET | 按部门查 user_id（service-jwt only，tenant-isolated）|
 | /iam/internal/migrations/state | GET | schema 状态查询（service-jwt only，Phase 10 G3）|
+| /internal/users/:user_id/claims | GET | 查用户 claims（token-service 调用；service-jwt `aud=iam-service`。2026-11-05 P0-3：从 users.rs 迁入本受保护路由组；`tenant_id` query 可选，缺省按用户行真实租户解析角色/权限）|
 
 - service-jwt 必须有 `aud` 含 `service` + `tid` claim
 - `page >= 1`, `size ∈ [1, 1000]`；超 1000 截断

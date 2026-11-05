@@ -35,3 +35,14 @@ consul:
   host: consul
   port: 8500
   service_name: iam-service
+
+smtp:
+  host: ""             # empty disables mail (forgot-password / invitation return 503)
+  port: 1025           # MailHog default for local development
+  username: ""
+  password: ""
+  from: "no-reply@ai-pm.local"
+  starttls: false
+
+public:
+  base_url: "http://127.0.0.1:8848"   # frontend origin for reset / invitation links

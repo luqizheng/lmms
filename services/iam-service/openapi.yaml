@@ -6,6 +6,42 @@ info:
     name: ''
   version: 0.1.0
 paths:
+  /iam/auth/forgot-password:
+    post:
+      tags:
+      - auth
+      operationId: forgot_password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+        required: true
+      responses:
+        '204':
+          description: request accepted (always, to prevent account enumeration)
+        '500':
+          description: mail is not configured
+  /iam/auth/invitations/accept:
+    post:
+      tags:
+      - auth
+      operationId: accept_invitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: invalid or expired invitation
   /iam/auth/login:
     post:
       tags:
@@ -96,6 +132,22 @@ paths:
           description: registration closed (users already exist)
         '409':
           description: username already exists
+  /iam/auth/reset-password:
+    post:
+      tags:
+      - auth
+      operationId: reset_password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+        required: true
+      responses:
+        '204':
+          description: password reset
+        '400':
+          description: invalid or expired token
   /iam/auth/sessions:
     get:
       tags:
@@ -862,6 +914,43 @@ paths:
           description: duplicate user
       security:
       - bearer_auth: []
+  /iam/users/me:
+    get:
+      tags:
+      - users
+      operationId: get_me
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: not found
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - users
+      operationId: update_me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSelfRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: not found
+      security:
+      - bearer_auth: []
   /iam/users/simple:
     get:
       tags:
@@ -998,6 +1087,19 @@ paths:
     get:
       tags:
       - internal
+      summary: |-
+        Token-service fetches a user's claims (roles/permissions) to stamp onto
+        issued tokens. 2026-11-05 review (P0-3): this endpoint used to live in
+        `users.rs` with only a `TenantScope` extractor — any valid user-jwt could
+        read arbitrary same-tenant users' PII and permission matrix, and the
+        gateway's dot-segment normalization gap made it reachable as
+        `/v1/iam/users/../../internal/users/{id}/claims`. It now lives in this
+        router, which is wrapped by `verify_aud_principal_middleware("iam-service")`
+        (see routes/mod.rs) so only service-jwts with `aud=iam-service` may call it.
+      description: |-
+        `tenant_id` is optional: when absent (token-service's client_credentials
+        path), the user is resolved globally by id and their real tenant drives the
+        roles/permissions queries.
       operationId: get_user_claims
       parameters:
       - name: user_id
@@ -1005,6 +1107,12 @@ paths:
         required: true
         schema:
           type: string
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
           description: ''
@@ -1012,12 +1120,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserClaimsResponse'
+        '401':
+          description: service-jwt required (aud=iam-service)
         '404':
           description: user not found
       security:
       - bearer_auth: []
 components:
   schemas:
+    AcceptInvitationRequest:
+      type: object
+      required:
+      - token
+      - new_password
+      properties:
+        new_password:
+          type: string
+        nickname:
+          type:
+          - string
+          - 'null'
+        token:
+          type: string
     AssignPermissionsRequest:
       type: object
       required:
@@ -1197,7 +1321,6 @@ components:
       type: object
       required:
       - username
-      - password
       - nickname
       properties:
         avatar:
@@ -1211,7 +1334,12 @@ components:
         nickname:
           type: string
         password:
-          type: string
+          type:
+          - string
+          - 'null'
+          description: |-
+            Optional: when omitted the account is created without a usable password
+            and an invitation mail is sent (unless `send_invitation` is false).
         phone:
           type:
           - string
@@ -1222,7 +1350,19 @@ components:
           - 'null'
           items:
             type: string
+        send_invitation:
+          type:
+          - boolean
+          - 'null'
+          description: Defaults to true when `password` is omitted.
         username:
+          type: string
+    ForgotPasswordRequest:
+      type: object
+      required:
+      - email
+      properties:
+        email:
           type: string
     LoginRequest:
       type: object
@@ -1495,15 +1635,12 @@ components:
     ResetPasswordRequest:
       type: object
       required:
-      - username
-      - code
+      - token
       - new_password
       properties:
-        code:
-          type: string
         new_password:
           type: string
-        username:
+        token:
           type: string
     RoleListResponse:
       type: object
@@ -1647,6 +1784,17 @@ components:
           - string
           - 'null'
         status:
+          type:
+          - string
+          - 'null'
+    UpdateSelfRequest:
+      type: object
+      properties:
+        avatar:
+          type:
+          - string
+          - 'null'
+        nickname:
           type:
           - string
           - 'null'

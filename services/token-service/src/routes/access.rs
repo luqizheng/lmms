@@ -73,7 +73,7 @@ pub async fn handle_access(
 
     match req.grant_type.as_str() {
         "client_credentials" => handle_client_credentials(state, req).await,
-        "authorization_code" => handle_authorization_code(state, headers, req).await,
+        "authorization_code" => handle_authorization_code(state, req).await,
         _ => Err((StatusCode::BAD_REQUEST, "unsupported grant_type")),
     }
 }
@@ -133,6 +133,14 @@ async fn handle_client_credentials(
         .clone()
         .ok_or((StatusCode::BAD_REQUEST, "client is not bound to a user"))?;
 
+    // 2026-11-05 review (P0-3): /internal/users/{id}/claims now enforces
+    // `aud == iam-service`, so the outbound call carries a self-signed
+    // service-jwt instead of nothing. The claims URL stays tenant-less:
+    // user_id is globally unique and the claims endpoint resolves the
+    // user's real tenant server-side.
+    let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
+
     // 拉取用户 claims 做权限交集；iam 不可达时 fail-closed（permissions 清空、
     // 不继承降级 claims 里的 roles——机器签发的 token 不得携带兜底 admin 角色）。
     let claims_url = format!(
@@ -140,7 +148,9 @@ async fn handle_client_credentials(
         state.user_service_url, user_id
     );
     let extra_claims: serde_json::Value =
-        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, None).await {
+        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, Some(&iam_bearer))
+            .await
+        {
             Ok(mut claims) => {
                 let user_perms = claims
                     .get("permissions")
@@ -201,7 +211,7 @@ fn intersect_permissions(user: &[String], client: &[String]) -> Vec<String> {
 
 async fn handle_authorization_code(
     state: TokenServerState,
-    headers: HeaderMap,
+
     req: TokenRequest,
 ) -> Result<Json<AccessResponse>, (StatusCode, &'static str)> {
     let code = req.code.unwrap_or_default();
@@ -212,31 +222,34 @@ async fn handle_authorization_code(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?
         .ok_or((StatusCode::BAD_REQUEST, "invalid or expired code"))?;
 
-    // TODO(8.3-fu1): auth code flow lacks tenant context — get_claims requires ?tenant_id=.
-    // The auth code table doesn't carry tenant_id, and we can't know it before calling
-    // get_claims (chicken-and-egg). The call will 400 and fall through to default claims
-    // below. Proper fix: propagate tenant_id through auth_code_svc or a dedicated lookup.
+    // 2026-11-05 review: the claims endpoint resolves the user's tenant
+    // server-side (user_id is globally unique), which removes the original
+    // TODO(8.3-fu1) chicken-and-egg around tenant_id on the auth-code path.
+    // The call carries a self-signed service-jwt (aud=iam-service) per P0-3.
     let claims_url = format!(
         "{}/internal/users/{}/claims",
         state.user_service_url, user_id
     );
-    let user_jwt = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "));
+    let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
     let extra_claims: serde_json::Value =
-        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, user_jwt).await {
+        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, Some(&iam_bearer))
+            .await
+        {
             Ok(claims) => claims,
             Err(e) => {
+                // 2026-11-05 review (P0-2): fail-closed. The previous fallback
+                // minted `roles=["admin"]` / `permissions=["notification.admin"]`
+                // whenever iam was unreachable (including the normal path, which
+                // failed with 400 due to the missing tenant_id), letting an
+                // attacker who could disrupt iam reachability mint a privileged
+                // token from a valid auth code.
                 tracing::warn!(
-                    "user-service unreachable at {}: {}, using default claims",
+                    "user-service unreachable at {}: {}, issuing authorization_code token with empty permissions",
                     claims_url,
                     e
                 );
-                json!({
-                    "roles": ["admin"],
-                    "permissions": ["notification.admin"]
-                })
+                json!({"permissions": [], "user_code": user_id})
             }
         };
 

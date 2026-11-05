@@ -4,6 +4,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use digua_jwt_ctx::Principal;
 use serde_json::Value;
 
 use crate::{
@@ -11,10 +12,28 @@ use crate::{
         ApiResponse, CreateMenuConfigRequest, MenuConfigDetail, MenuConfigListResponse,
         UpdateMenuConfigRequest,
     },
-    error::AppResult,
+    error::{AppError, AppResult},
     service::MenuConfigService,
     state::AppState,
 };
+
+/// 2026-11-05 review (P0-8): menu-config writes define the entire frontend
+/// dynamic-route surface — a published config redirects every pure-admin
+/// shell. They previously accepted any caller without any JWT. Reads stay
+/// open to any authenticated user; writes require an admin-class principal.
+fn require_menu_admin(principal: &Principal) -> AppResult<()> {
+    if principal.cross_tenant
+        || principal.has_role("admin")
+        || principal.has_role("platform_admin")
+        || principal.has_role("tenant_admin")
+    {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden(
+            "menu config admin role required".to_string(),
+        ))
+    }
+}
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -80,8 +99,10 @@ pub async fn list_menu_configs(
 )]
 pub async fn create_menu_config(
     State(state): State<AppState>,
+    principal: Principal,
     Json(req): Json<CreateMenuConfigRequest>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
+    require_menu_admin(&principal)?;
     let service = MenuConfigService::new(state);
     let result = service.create(req).await?;
     Ok(Json(ApiResponse::ok(result)))
@@ -122,9 +143,11 @@ pub async fn get_menu_config(
 )]
 pub async fn update_menu_config(
     State(state): State<AppState>,
+    principal: Principal,
     Path(id): Path<String>,
     Json(req): Json<UpdateMenuConfigRequest>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
+    require_menu_admin(&principal)?;
     let service = MenuConfigService::new(state);
     let result = service.update(&id, req).await?;
     Ok(Json(ApiResponse::ok(result)))
@@ -142,8 +165,10 @@ pub async fn update_menu_config(
 )]
 pub async fn publish_menu_config(
     State(state): State<AppState>,
+    principal: Principal,
     Path(id): Path<String>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
+    require_menu_admin(&principal)?;
     let service = MenuConfigService::new(state);
     let result = service.publish(&id).await?;
     Ok(Json(ApiResponse::ok(result)))
@@ -161,8 +186,10 @@ pub async fn publish_menu_config(
 )]
 pub async fn clone_menu_config(
     State(state): State<AppState>,
+    principal: Principal,
     Path(id): Path<String>,
 ) -> AppResult<Json<ApiResponse<MenuConfigDetail>>> {
+    require_menu_admin(&principal)?;
     let service = MenuConfigService::new(state);
     let result = service.clone_config(&id).await?;
     Ok(Json(ApiResponse::ok(result)))
@@ -181,8 +208,10 @@ pub async fn clone_menu_config(
 )]
 pub async fn delete_menu_config(
     State(state): State<AppState>,
+    principal: Principal,
     Path(id): Path<String>,
 ) -> AppResult<StatusCode> {
+    require_menu_admin(&principal)?;
     let service = MenuConfigService::new(state);
     service.delete(&id).await?;
     Ok(StatusCode::NO_CONTENT)

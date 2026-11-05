@@ -43,10 +43,14 @@ struct UserRow {
 }
 
 /// Subset of `iam_users` columns used by `UserService::get_claims`.
-/// Aliased here so callers don't have to read a bare 5-tuple type.
+/// Aliased here so callers don't have to read a bare tuple type.
+/// `tenant_id` drives the roles/permissions queries: service callers may
+/// resolve the user globally (CrossTenant), so the tenant must come from the
+/// user row, not from a `scope.tenant_id().unwrap_or(1)` guess.
 #[derive(FromRow)]
 struct UserClaimsRow {
     id: String,
+    tenant_id: i64,
     username: String,
     email: Option<String>,
     phone: Option<String>,
@@ -82,7 +86,13 @@ impl UserService {
             return Err(IamError::DuplicateUser);
         }
 
-        let password_hash = hash(&req.password).map_err(|e| IamError::Jwt(e.to_string()))?;
+        // Invited accounts are created with a random password nobody knows; the
+        // invitation token is the only way in until it is accepted.
+        let raw_password = req
+            .password
+            .clone()
+            .unwrap_or_else(|| nanoid!(32));
+        let password_hash = hash(&raw_password).map_err(|e| IamError::Jwt(e.to_string()))?;
 
         let user_id = nanoid!();
         let salt = nanoid!(32);
@@ -750,9 +760,6 @@ impl UserService {
         user_id: &str,
         scope: &TenantScope,
     ) -> Result<UserClaimsResponse, IamError> {
-        // tenant_id 统一 i64：bind 与响应字段（dto tid）同型。
-        let tenant_id = scope.tenant_id().unwrap_or(1);
-
         let user = match &self.state.db {
             #[cfg(feature = "mysql")]
             digua_common_db::DbPool::Mysql(p) => fetch_claims_mysql(p, user_id, scope).await?,
@@ -768,12 +775,20 @@ impl UserService {
 
         let UserClaimsRow {
             id: uid,
+            tenant_id,
             username,
             email,
             phone,
             nickname,
         } = user.ok_or(IamError::UserNotFound)?;
 
+        // Roles/permissions are resolved against the user's REAL tenant.
+        // 2026-11-05 review (P0-3): the previous
+        // `scope.tenant_id().unwrap_or(1)` mis-attributed CrossTenant callers
+        // (token-service resolves users globally, without a tenant) to
+        // tenant 1, yielding empty/wrong role sets for users in other tenants.
+        // For Single scope the user row already passed the tenant filter, so
+        // `tenant_id == scope.tenant_id()` holds there.
         let roles: Vec<String> = db_fetch_all!(
             &self.state.db,
             (String,),
@@ -788,6 +803,7 @@ impl UserService {
         let permissions: Vec<String> = db_fetch_all!(
             &self.state.db,
             (String,),
+
             "SELECT p.code FROM iam_permissions p JOIN iam_role_permissions rp ON p.id = rp.permission_id JOIN iam_user_roles ur ON rp.role_id = ur.role_id JOIN iam_roles r ON ur.role_id = r.id WHERE ur.user_id = ? AND r.tenant_id = ? AND p.deleted_at IS NULL",
             user_id,
             tenant_id
@@ -956,7 +972,7 @@ async fn fetch_claims_mysql(
     scope: &TenantScope,
 ) -> Result<Option<UserClaimsRow>, IamError> {
     let mut qb = QueryBuilder::<sqlx::MySql>::new(
-        "SELECT id, username, email, phone, nickname FROM iam_users",
+        "SELECT id, tenant_id, username, email, phone, nickname FROM iam_users",
     );
     qb.where_id(user_id);
     qb.and_tenant(scope);
@@ -975,7 +991,7 @@ async fn fetch_claims_pg(
     scope: &TenantScope,
 ) -> Result<Option<UserClaimsRow>, IamError> {
     let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-        "SELECT id, username, email, phone, nickname FROM iam_users",
+        "SELECT id, tenant_id, username, email, phone, nickname FROM iam_users",
     );
     qb.where_id(user_id);
     qb.and_tenant(scope);

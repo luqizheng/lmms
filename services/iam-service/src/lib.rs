@@ -5,6 +5,7 @@ pub mod dto;
 pub mod error;
 pub mod middleware;
 pub mod models;
+pub mod mail;
 pub mod openapi;
 pub use digua_common_event::outbox_archive;
 pub mod routes;

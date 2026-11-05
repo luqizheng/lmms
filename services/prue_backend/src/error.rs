@@ -15,6 +15,8 @@ pub enum AppError {
     Validation(String),
     #[error("conflict: {0}")]
     Conflict(String),
+    #[error("forbidden: {0}")]
+    Forbidden(String),
     #[error("etag conflict: draft was modified by someone else")]
     EtagConflict {
         current_etag: String,
@@ -51,6 +53,7 @@ impl IntoResponse for AppError {
                     "updated_at": updated_at,
                 })),
             ),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, 403, msg, None),
             AppError::Database(ref e) => {
                 tracing::error!(error = %e, "database error");
                 (

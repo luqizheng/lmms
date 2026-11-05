@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::mail::Mailer;
 use crate::service::TokenForwardClient;
 use digua_common_cache::MemoryCache;
 use digua_common_db::DbPool;
@@ -23,6 +24,8 @@ pub struct AppState {
     pub service_jwt: Arc<ServiceJwtCache>,
     /// Forwards user-JWT issuance to token-service (single source of signing keys).
     pub token_forward: Arc<TokenForwardClient>,
+    /// Outbound SMTP sender for password reset / invitation mails.
+    pub mailer: Arc<Mailer>,
 }
 
 impl AppState {
@@ -39,6 +42,7 @@ impl AppState {
     ) -> Self {
         let redis_prefix = config.redis.prefix.clone();
         let perm_epoch_ttl_sec = config.jwt.access_token_ttl_minutes * 60;
+        let mailer = Arc::new(Mailer::from_config(&config));
         Self {
             db,
             cache: Arc::new(cache),
@@ -50,6 +54,7 @@ impl AppState {
             jwks,
             service_jwt,
             token_forward,
+            mailer,
         }
     }
 }

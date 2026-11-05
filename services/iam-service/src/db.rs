@@ -39,6 +39,9 @@ const V008_SQL_POSTGRES: &str =
 const V009_SQL_MYSQL: &str = include_str!("../migrations/mysql/V009__align_bigint_signed.sql");
 const V009_SQL_POSTGRES: &str =
     include_str!("../migrations/postgres/V009__align_bigint_signed.sql");
+const V010_SQL_MYSQL: &str = include_str!("../migrations/mysql/V010__iam_self_service.sql");
+const V010_SQL_POSTGRES: &str =
+    include_str!("../migrations/postgres/V010__iam_self_service.sql");
 
 /// V001 的 marker 表：它创建的第一张业务表（与 `migration_state` 端点自描述一致）。
 const SCHEMA_MARKER_TABLE: &str = "iam_users";
@@ -56,6 +59,8 @@ const V008_MARKER_TABLE: &str = "iam_migration_v008_applied";
 /// V009：MySQL 侧把 iam_tenants.id 与四张表的 tenant_id 改有符号 BIGINT
 /// （sqlx i64 解码要求，notification V004 同款）；PG 侧空操作。
 const V009_MARKER_TABLE: &str = "iam_migration_v009_applied";
+/// V010: self-service one-time tokens (password reset + invitation).
+const V010_MARKER_TABLE: &str = "iam_migration_v010_applied";
 
 pub async fn connect(config: &DatabaseConfig) -> anyhow::Result<DbPool> {
     // 按URL判方言建池（PG 分支由 `init_pool_with` 锁定会话时区为 UTC）。
@@ -167,6 +172,16 @@ pub async fn ensure_schema(pool: &DbPool) -> anyhow::Result<()> {
         "align bigint signed",
         V009_SQL_MYSQL,
         V009_SQL_POSTGRES,
+    )
+    .await?;
+    apply_with_sentinel(
+        pool,
+        dialect,
+        V010_MARKER_TABLE,
+        "V010",
+        "self service one time tokens",
+        V010_SQL_MYSQL,
+        V010_SQL_POSTGRES,
     )
     .await?;
 

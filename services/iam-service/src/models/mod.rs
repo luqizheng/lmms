@@ -1,4 +1,5 @@
 pub mod login_log;
+pub mod one_time_token;
 pub mod org_unit;
 pub mod permission;
 pub mod refresh_token;
@@ -7,6 +8,7 @@ pub mod tenant;
 pub mod user;
 
 pub use login_log::LoginLog;
+pub use one_time_token::OneTimeToken;
 pub use org_unit::OrgUnit;
 pub use permission::Permission;
 pub use refresh_token::RefreshToken;

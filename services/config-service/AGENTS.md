@@ -30,14 +30,16 @@
 |------|------|------|
 | /config/namespace | GET / POST | 命名空间 CRUD |
 | /config/namespace/:id | GET / PUT / DELETE | 命名空间单操作 |
-| /config/item | GET / POST | 配置项查询 / 创建（body 含 `is_secret` 字段） |
-| /config/item/:id | GET / PUT / DELETE | 配置项单操作 |
+| /config/item | GET / POST | 配置项查询 / 创建（body 含 `is_secret` 字段；POST 需 `CFG_CONFIG_CREATE`）|
+| /config/item/:id | GET / PUT / DELETE | 配置项单操作（PUT 需 `CFG_CONFIG_UPDATE` 且禁止 secret→public 降级、DELETE 需 `CFG_CONFIG_DELETE`）|
 | /config/export/:namespace_id | GET | 整 namespace 导出 JSON（含所有明文）|
-| /config/import/:namespace_id | POST | 整 namespace 导入（强制 `is_secret=false`，调用方需自行设置）|
+| /config/import/:namespace_id | POST | 整 namespace 导入（需 `CFG_NAMESPACE_IMPORT`；强制 `is_secret=false`）|
 | /config/watch | GET (SSE) | 配置变更订阅 |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|
+
+**写端点权限（2026-11-05 P0-6）：** config/namespace 全部写操作要求对应权限码（`contracts/permissions.yaml`）；cross_tenant 平台管理员放行。namespace 写还需 `CFG_NAMESPACE_*` 系列码。
 
 ## 敏感字段掩码（reveal policy，已落地）
 

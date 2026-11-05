@@ -1,8 +1,9 @@
 use crate::models::namespace::{
     CreateNamespace, Namespace, PagedNamespaces, QueryNamespaces, UpdateNamespace,
 };
-use crate::routes::AppState;
+use crate::routes::{config::require_config_perm, AppState};
 use axum::{extract::Path, extract::Query, extract::State, http::StatusCode, Json};
+use digua_authz::perms::perms;
 use digua_jwt_ctx::{Principal, TenantScope};
 
 pub fn routes(state: AppState) -> axum::Router<AppState> {
@@ -28,10 +29,12 @@ pub fn routes(state: AppState) -> axum::Router<AppState> {
 // check-tenant-scope: delegated (tenant_id from scope applied by service::create_namespace)
 pub async fn create_namespace(
     State(state): State<AppState>,
-    _principal: Principal,
+    principal: Principal,
     scope: TenantScope,
     Json(ns): Json<CreateNamespace>,
 ) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
+    // 2026-11-05 review (P0-6): namespace writes were unguarded too.
+    require_config_perm(&principal, perms::CFG_NAMESPACE_CREATE)?;
     let result = state
         .create_namespace(ns, &scope)
         .await
@@ -104,11 +107,12 @@ pub async fn get_namespace(
 // check-tenant-scope: delegated (where_id + and_tenant applied by service::update_namespace)
 pub async fn update_namespace(
     State(state): State<AppState>,
-    _principal: Principal,
+    principal: Principal,
     scope: TenantScope,
     Path(id): Path<String>,
     Json(update): Json<UpdateNamespace>,
 ) -> Result<Json<Namespace>, (StatusCode, &'static str)> {
+    require_config_perm(&principal, perms::CFG_NAMESPACE_UPDATE)?;
     let result = state
         .update_namespace(&id, update, &scope)
         .await
@@ -136,9 +140,11 @@ pub async fn update_namespace(
 // check-tenant-scope: delegated (where_id + and_tenant applied by service::delete_namespace)
 pub async fn delete_namespace(
     State(state): State<AppState>,
+    principal: Principal,
     scope: TenantScope,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, &'static str)> {
+    require_config_perm(&principal, perms::CFG_NAMESPACE_DELETE)?;
     state.delete_namespace(&id, &scope).await.map_err(|e| {
         if e.code() == "CFG_NS_2001" {
             (StatusCode::NOT_FOUND, "namespace not found")

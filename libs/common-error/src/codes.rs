@@ -28,6 +28,16 @@ pub mod codes {
     pub const IAM_AUTH_1007: &str = "IAM_AUTH_1007";
     /// email already exists
     pub const IAM_AUTH_1008: &str = "IAM_AUTH_1008";
+    /// invalid or expired token
+    pub const IAM_AUTH_1009: &str = "IAM_AUTH_1009";
+    /// email is required
+    pub const IAM_VALID_2005: &str = "IAM_VALID_2005";
+    /// password required when invitation is disabled
+    pub const IAM_VALID_2006: &str = "IAM_VALID_2006";
+    /// mail is not configured
+    pub const IAM_EXT_9201: &str = "IAM_EXT_9201";
+    /// mail delivery failed
+    pub const IAM_EXT_9202: &str = "IAM_EXT_9202";
     /// invalid input
     pub const VALID_2001: &str = "VALID_2001";
     /// missing required field
@@ -91,6 +101,11 @@ pub fn message(code: &str) -> &str {
         "IAM_AUTH_1006" => "password too weak",
         "IAM_AUTH_1007" => "username already exists",
         "IAM_AUTH_1008" => "email already exists",
+        "IAM_AUTH_1009" => "invalid or expired token",
+        "IAM_VALID_2005" => "email is required",
+        "IAM_VALID_2006" => "password required when invitation is disabled",
+        "IAM_EXT_9201" => "mail is not configured",
+        "IAM_EXT_9202" => "mail delivery failed",
         "VALID_2001" => "invalid input",
         "VALID_2002" => "missing required field",
         "VALID_2003" => "invalid phone format",
@@ -135,6 +150,11 @@ pub fn kind(code: &str) -> ErrorKind {
         "IAM_AUTH_1006" => ErrorKind::BadRequest,
         "IAM_AUTH_1007" => ErrorKind::Conflict,
         "IAM_AUTH_1008" => ErrorKind::Conflict,
+        "IAM_AUTH_1009" => ErrorKind::BadRequest,
+        "IAM_VALID_2005" => ErrorKind::BadRequest,
+        "IAM_VALID_2006" => ErrorKind::BadRequest,
+        "IAM_EXT_9201" => ErrorKind::Internal,
+        "IAM_EXT_9202" => ErrorKind::External,
         "VALID_2001" => ErrorKind::BadRequest,
         "VALID_2002" => ErrorKind::BadRequest,
         "VALID_2003" => ErrorKind::BadRequest,

@@ -44,6 +44,21 @@ codes:
   IAM_AUTH_1008:
     message: "email already exists"
     kind: Conflict
+  IAM_AUTH_1009:
+    message: "invalid or expired token"
+    kind: BadRequest
+  IAM_VALID_2005:
+    message: "email is required"
+    kind: BadRequest
+  IAM_VALID_2006:
+    message: "password required when invitation is disabled"
+    kind: BadRequest
+  IAM_EXT_9201:
+    message: "mail is not configured"
+    kind: Internal
+  IAM_EXT_9202:
+    message: "mail delivery failed"
+    kind: External
 
   # === 校验 ===
   VALID_2001:

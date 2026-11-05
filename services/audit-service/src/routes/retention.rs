@@ -5,6 +5,29 @@ use axum::{
     extract::{Path, State},
     Json, Router,
 };
+use digua_jwt_ctx::Principal;
+
+/// 2026-11-05 review (P0-4): retention write endpoints physically delete
+/// audit data — they require an admin-class principal (platform admin or an
+/// explicit admin role), on top of the router-level user-jwt gate.
+fn require_audit_admin(principal: &Principal) -> AppResult<()> {
+    if principal.cross_tenant
+        || principal.has_role("admin")
+        || principal.has_role("platform_admin")
+    {
+        Ok(())
+    } else {
+        Err(AppError::forbidden(
+            "AUD_RET_3001",
+            "audit retention admin required",
+        ))
+    }
+}
+
+/// 2026-11-05 review (P0-4): minimum audit retention. Previously there was
+/// no floor — an attacker (or a fat-fingered admin) could set `cold_days: 2`
+/// and wipe nearly the entire audit trail in one cleanup call.
+const MIN_COLD_DAYS: u32 = 30;
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -68,8 +91,18 @@ pub async fn get_retention_policy(
 )]
 pub async fn update_retention_policy(
     State(state): State<AppState>,
+    principal: Principal,
     Json(policy): Json<crate::models::RetentionPolicy>,
 ) -> AppResult<Json<crate::models::RetentionPolicy>> {
+    require_audit_admin(&principal)?;
+
+    if policy.cold_days < MIN_COLD_DAYS {
+        return Err(AppError::bad_request(
+            "CFG_VALID_2006",
+            "cold_days below minimum audit retention",
+        ));
+    }
+
     if policy.warm_days <= policy.hot_days {
         return Err(AppError::bad_request(
             "CFG_VALID_2003",
@@ -98,7 +131,12 @@ pub async fn update_retention_policy(
     ),
     tag = "retention"
 )]
-pub async fn trigger_cleanup(State(state): State<AppState>) -> AppResult<Json<serde_json::Value>> {
+pub async fn trigger_cleanup(
+    State(state): State<AppState>,
+    principal: Principal,
+) -> AppResult<Json<serde_json::Value>> {
+    require_audit_admin(&principal)?;
+
     let result = state.cleanup.cleanup_expired().await?;
 
     Ok(Json(serde_json::json!({

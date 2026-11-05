@@ -38,15 +38,17 @@
 
 ## 端点域
 
+**鉴权（2026-11-05 P0-4）：** 下列业务端点均要求有效 user-jwt（router 层 `verify_aud("coder-micro-services")` 统一门禁）；retention 的 `PUT /audit/retention/policy` 与 `POST /audit/retention/cleanup` 额外要求 admin 类 principal（cross_tenant 或 admin/platform_admin 角色，否则 403 `AUD_RET_3001`），且 `cold_days` 下限 30 天（`CFG_VALID_2006`）。
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| /audit/operation-logs | GET / POST | 操作审计 |
-| /audit/login-logs | GET / POST | 登录审计 |
-| /audit/compliance/* | GET | 合规导出 |
-| /audit/retention/* | GET / PUT | 留存策略 |
+| /audit/operation-logs | GET / POST | 操作审计（user-jwt）|
+| /audit/login-logs | GET / POST | 登录审计（user-jwt）|
+| /audit/compliance/* | GET | 合规导出（user-jwt）|
+| /audit/retention/* | GET / PUT | 留存策略（读需 user-jwt；PUT/cleanup 需 admin）|
 | /audit/health | GET | 业务健康 |
-| /health | GET | 健康检查 |
-| /metrics | GET | Prometheus 指标 |
+| /health | GET | 健康检查（豁免）|
+| /metrics | GET | Prometheus 指标（豁免）|
 | /swagger-ui | GET | OpenAPI UI（SWAGGER_ENABLED=true）|
 
 ## 内部端点 /audit/internal/*

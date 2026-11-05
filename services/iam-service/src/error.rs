@@ -24,6 +24,18 @@ pub enum IamError {
     #[error("invalid token")]
     InvalidToken,
 
+    #[error("invalid or expired token")]
+    InvalidOrExpiredToken,
+
+    #[error("mail is not configured")]
+    MailNotConfigured,
+
+    #[error("mail delivery failed: {0}")]
+    MailDeliveryFailed(String),
+
+    #[error("email is required")]
+    EmailRequired,
+
     #[error("permission denied")]
     PermissionDenied,
 
@@ -86,6 +98,12 @@ impl From<IamError> for AppError {
             IamError::TokenExpired => AppError::unauthorized("IAM_TOKEN_3001", e.to_string()),
             IamError::TokenRevoked => AppError::unauthorized("IAM_TOKEN_3002", e.to_string()),
             IamError::InvalidToken => AppError::unauthorized("IAM_TOKEN_3003", e.to_string()),
+            IamError::InvalidOrExpiredToken => {
+                AppError::bad_request("IAM_AUTH_1009", e.to_string())
+            }
+            IamError::MailNotConfigured => AppError::internal("IAM_EXT_9201", e.to_string()),
+            IamError::MailDeliveryFailed(msg) => AppError::external("IAM_EXT_9202", msg),
+            IamError::EmailRequired => AppError::bad_request("IAM_VALID_2005", e.to_string()),
             IamError::PermissionDenied => AppError::forbidden("IAM_AUTHZ_4001", e.to_string()),
             IamError::RoleNotFound => AppError::not_found("IAM_ROLE_5001", e.to_string()),
             IamError::InvalidRoleIds(_) => AppError::bad_request("IAM_ROLE_5003", e.to_string()),
