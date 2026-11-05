@@ -19,7 +19,7 @@ deployments (e.g. `project-manager`). Since 2026-10-30 downstream updates are
 package-only (image tag bump + cargo/maven/pnpm version bump); the
 source-level sync tool `cms-sync` is retired. The bundle contains:
 
-- Docker images for all in-repo services + `mysql-replica`
+- Docker images for all in-repo services
   (pushed to `zhcoder-docker-registry.com:8000/micro-server/*`)
 - A rendered `infrastructure/docker-compose-{services,main}.yml` with
   `build:` blocks **replaced by `image:` references** (so downstream

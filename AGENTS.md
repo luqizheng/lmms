@@ -206,7 +206,7 @@ docker-compose `command:` 字段**必须**用下划线。常见踩坑：把 `ntf
 
 - 离线分发包统一入口：`node release/dist-template/scripts/release.js <VERSION>`（原 `release.sh` 已于 2026-08 迁 Node 删除）；只打配置/骨架包加 `--no-images`。单测：`pnpm run release:test`。
 - **git tag 带 `v`，发布镜像 tag 不带 v**：CI `build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v 后推送，registry 里实际存在的是 `micro-server/<svc>:1.5.0`（**不是** `:v1.5.0`）。下游 dist-template `.env` 的 `IMAGE_TAG` 必须填 no-v 值，填 `v1.5.0` 会 pull 不到镜像。
-- airgap bundle 导出清单见 `release.js` 内 `IMAGES` 数组：除 9 个平台服务外，**v1.5.0 起还含 `mysql-replica`**（tag pipeline 由 CI buildx 单独推送，主 compose 引用它）与 **alertmanager**（公网代理完整地址，内网 registry 未同步）。离线环境报缺镜像 → 先查该清单是否漏导。
+- airgap bundle 导出清单由 `image-resolver.js` 扫描 compose 产物动态得出（不再硬编码 `IMAGES` 数组）；其中 **alertmanager** 走公网代理完整地址（内网 registry 未同步）。离线环境报缺镜像 → 先查扫描结果与 `.env` 插值。`mysql-replica` 已于 2026-11-05 移除（生产数据拓扑归 DB 组，lmms 只带单节点开发/测试库）。
 
 ### 发布前对账 SOP
 

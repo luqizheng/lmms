@@ -219,14 +219,8 @@ const KNOWN_TOPICS = [
       { path: path.join(RUNBOOKS_DIR, 'backup.md'), required: 'landed' },
     ],
   },
-  {
-    key: 'mysql-replication',
-    todoPattern: /MySQL.*主从|mysql.*replication/i,
-    title: 'MySQL 主从',
-    docs: [
-      { path: path.join(RUNBOOKS_DIR, 'mysql-replication.md'), required: 'landed' },
-    ],
-  },
+  // mysql-replication 条目已移除（2026-11-05）：mysql-replica 整体下线，生产数据拓扑归 DB 组，
+  // 原 runbook docs-site/runbooks/mysql-replication.md 一并删除。
   {
     key: 'log-aggregation',
     todoPattern: /集中式日志收集|ELK|Loki|阿里云 SLS/,

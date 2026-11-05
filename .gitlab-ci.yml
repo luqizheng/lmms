@@ -421,12 +421,6 @@ build_images:staging:
     # 与 mysql 变体并存。只建 7 个 DB 服务（api-gateway 与方言无关）。
     - export BUILD_SERVICES_PG="token-service iam-service notification-service audit-service config-service file-service prue-admin-backend"
     - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --dialect pg --load-and-push $BUILD_SERVICES_PG
-    # mysql-replica 位于 infrastructure/mysql-replica/，不在 build-docker.js 服务清单里，单独 buildx --push。
-    # 它在 docker-compose.yml（非 infra.yml）中，release 时 transform-compose 转成
-    # micro-server/mysql-replica:<sha>，load-images --mode=pull 会拉它，必须在此构建推送。
-    - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
-    - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
-    - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
     # 归还所有权：sudo -E node build-docker.js（docs-site 宿主机预构建）
     # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根 node_modules
     # 等），不 chown 回来会让后续 gitlab-runner 用户 checkout 时 git clean 失败
@@ -682,13 +676,6 @@ build_images:tagged:
     # PG 方言变体（2026-11-03）：SERVICE_FEATURES=postgres 构建，tag 加 -pg 后缀
     # （:${VERSION}-pg / :pg-latest），与 mysql 默认变体并存；非 DB 服务自动跳过。
     - sudo -E node packages/cli/bin/coder.js build images -v "${VERSION}" --dialect pg --push
-    # mysql-replica 不在 build-docker.js 服务清单（context 在 infrastructure/mysql-replica/），
-    # 比照 build_images:staging 单独 buildx --push；v1.5.0 本段漏推导致缺语义版本 tag。
-    # transform-compose 把主 compose 的 build: 块转成 micro-server/mysql-replica:<version>，
-    # 复用上面的 xbuilder 与 /tmp/buildkitd.toml，tag 用已剥 v 的 ${VERSION}。
-    - export MYSQL_REPLICA_IMAGE="zhcoder-docker-registry.com:8000/micro-server/mysql-replica:${VERSION}"
-    - export MYSQL_REPLICA_CTX="infrastructure/mysql-replica/"
-    - sudo docker buildx build --platform linux/amd64 --tag "${MYSQL_REPLICA_IMAGE}" --push "${MYSQL_REPLICA_CTX}"
     # 归还所有权：sudo -E node build-docker.js（docs-site 宿主机预构建）
     # 以 root 写出 root-owned 文件（docs-site/.vitepress/dist、根 node_modules
     # 等），不 chown 回来会让后续 gitlab-runner 用户 checkout 时 git clean 失败

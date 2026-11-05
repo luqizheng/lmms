@@ -197,7 +197,6 @@ watch -n 1 'docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{
 | infrastructure-rabbitmq-1       | 0.15    | 178.4     |                                        |
 | infrastructure-consul-1         | 1.02    | 99.5      |                                        |
 | infrastructure-redis-1          | ~0      | ~30       |                                        |
-| infrastructure-mysql-replica-1  | 1.31    | 379.0     | MySQL 主从复制（GTID async）           |
 
 > **关键观察**：Rust 服务内存占用极低（2-28 MB），api-gateway 仅 20.9MB。audit-service（233.9 MB）是异常值——疑似 Java 服务或 JVM 预热，需高负载下复测。单机 16GB 内存仍有 12GB+ 空闲。
 

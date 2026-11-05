@@ -47,7 +47,7 @@ coder-micro-services-<version>-airgap.tar.gz
 
 - 单一入口：`node release/dist-template/scripts/release.js v1.0.0`（`pnpm run release:build` 等价；早期 `release.sh` 已于 2026-08 迁 Node 删除）
 - 可选 `--no-images`（`EXPORT_IMAGES=0`）：跳过 docker pull + save（骨架 only）
-- 镜像清单为 `release.js` 内 `IMAGES` 数组：9 个平台服务（8 核心 + frontend）+ `micro-server/mysql-replica` + 基础镜像；**git tag 带 `v`、发布镜像 tag 不带 v**（${CI_COMMIT_TAG#v} 剥 v）
+- 镜像清单为 `release.js` 内 `IMAGES` 数组：9 个平台服务（8 核心 + frontend）+ 基础镜像（`mysql-replica` 已于 2026-11-05 移除）；**git tag 带 `v`、发布镜像 tag 不带 v**（${CI_COMMIT_TAG#v} 剥 v）
 - 输出 `.tar.gz` 单文件 airgap 包（+ 部署双轨：`release-deploy.js`，见 `scripts/deploy.sh.legacy` 已被其取代）
 - volume 路径改写 / MANIFEST / AGENTS 重写在 `release-transforms.js`（remap-volume / manifest / rewrite-agents）
 
@@ -109,7 +109,7 @@ coder-micro-services-<version>-airgap.tar.gz
 
 ## 变更时机
 
-- **新服务发布**：加入 `release.js` 的 `IMAGES`（+`mysql-replica` 若需）+ `compose/services.yml` + `openapi.yaml` 打包
+- **新服务发布**：加入 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml` 打包
 - **新依赖源**：`setup-wizard.js` 加交互 + 生成对应配置文件（模式参考现有 5 类）
 - **SDK 破坏性变更**：升 major 版本 + 在 `sdk/README.md` 记录 migration guide
 - **v2 骨架结构调整**：改 `release.js` 复制清单 + 更新 `release/dist-template/README.md`

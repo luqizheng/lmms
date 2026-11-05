@@ -68,14 +68,6 @@ services:
       - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      # Replication prerequisites (binary log + GTID). Required by mysql-replica.
-      # Removing these after replica is provisioned breaks replication — revert
-      # via mysqldump-restore cycle if needed (see docs-site/runbooks/mysql-replication.md).
-      - --server-id=1
-      - --log-bin=mysql-bin
-      - --binlog-format=ROW
-      - --gtid-mode=ON
-      - --enforce-gtid-consistency=ON
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s

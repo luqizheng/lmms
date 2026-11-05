@@ -1,7 +1,7 @@
 # CI Variables & 部署回填清单
 
 > 状态：2026-08 起部署流水线收敛为「continuous staging flow」（per-commit SHA + atomic symlink swap）。
-> `build_images:staging` 按 `$CI_COMMIT_SHORT_SHA` 推 8 个服务 + mysql-replica 镜像（frontend 已随 PRISM console 移除）；
+> `build_images:staging` 按 `$CI_COMMIT_SHORT_SHA` 推 8 个服务镜像（frontend 与 mysql-replica 已移除）；
 > `deploy:staging` SSH 到部署机，调 `load-images.js --mode=pull` 拉 commit-pinned 镜像后调 `swap-staging-active.sh` 切 active 软链。
 > 每个 commit SHA 一个 immutable 部署目录；e2e 失败自动 swap 回 staging-prev。
 > 本文件给 ops / 仓库维护者一份**可复制粘贴**的回填清单，按此配置即可让 GitLab CI 跑通。
@@ -13,8 +13,8 @@
 ```
 GitLab CI（gitlab-ci-04 共享 docker runner）
         │
-        │  build_images:staging → 重建全部 8 服务 + mysql-replica 镜像
-        │                         （coder build images + 单独 buildx mysql-replica）
+        │  build_images:staging → 重建全部 8 服务镜像
+        │                         （coder build images）
         │                         buildx push 到内网 registry，tag = $CI_COMMIT_SHORT_SHA
         │  release:staging     → 跑 release-deploy.js --no-images 产骨架（artifact ~1MB）
         │  deploy:staging      → tar over ssh 传骨架到部署机
@@ -136,7 +136,7 @@ CI 端会通过 `ssh-keyscan` 把 host key 加进 `known_hosts`，无需提前 t
 | Stage | Job | 期望 |
 |---|---|---|
 | test | rust_test, service_standard_check, spec_check, ... | 全部 PASS |
-| build | `build_images:staging` | 8 个服务 + mysql-replica 镜像按 `$CI_COMMIT_SHORT_SHA` tag 推 registry |
+| build | `build_images:staging` | 8 个服务镜像按 `$CI_COMMIT_SHORT_SHA` tag 推 registry |
 | build | `release:staging` | 骨架目录生成；artifact 3 天过期 |
 | deploy | `deploy:staging` | tar over ssh 传目录 → `load-images.js --mode=pull` → `swap-staging-active.sh <sha>` → curl health = `{"status":"ok"}` |
 | e2e | `e2e:staging` | SSH 反向隧道 + 跑 e2e；失败 swap 回 staging-prev |
@@ -249,7 +249,7 @@ docker push zhcoder-docker-registry.com:8000/official/prom/alertmanager:v0.27.0
 | `docker-compose-observability.yml` | `prom/prometheus:v2.51.0`、`prom/alertmanager:v0.27.0`、`grafana/grafana:10.4.0`、`hashicorp/consul-template:0.32.0`、`otel/opentelemetry-collector-contrib:0.96.0`、`jaegertracing/all-in-one:1.55` |
 
 不在 sync 范围：
-- **业务服务镜像**（`micro-server/<svc>:<sha>` 共 8 个 + `coder/mysql-replica:8.0`）—— `build_images:staging` 自己 push，sync 脚本不动它们
+- **业务服务镜像**（`micro-server/<svc>:<sha>` 共 8 个）—— `build_images:staging` 自己 push，sync 脚本不动它们
 - **`grafana/loki:3.3.2` / `grafana/promtail:3.3.2`** —— 在 `docker-compose-observability.staging.yml` 里，但 `load-images.js` 当前不扫此文件，由 ops 手动 `up -d` 时拉
 
 ### 批量同步（防患于未然）

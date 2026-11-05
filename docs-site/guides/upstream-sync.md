@@ -17,7 +17,7 @@
 
 | 交付物 | registry | 下游消费方式 |
 |---|---|---|
-| Docker 镜像（8 服务 + docs-site + mysql-replica） | `zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver>` | compose 改 image tag → `pull && up -d` |
+| Docker 镜像（8 服务 + docs-site） | `zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver>` | compose 改 image tag → `pull && up -d` |
 | Rust crates（17 个 `libs/*` + 7 个 `sdk/rust/*`） | kellnr `http://192.168.2.12:16444` | `cargo update -p <crate>` |
 | Java SDK（`io.digua.*` / `com.digua.*`） | Maven `http://mvn.kudi.repos` | 升 `<dependency>` 版本 |
 | npm TS 包（`@digua/contracts` + `@digua/http`） | npm `http://npm.kudi.repos` | `pnpm up @digua/contracts @digua/http` |

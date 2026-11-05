@@ -11,14 +11,13 @@
 > - `done.md`（本轮整改归档，commit `b8e1679`）
 > - 根 `README.md`、`.gitlab-ci.yml`、`infrastructure/README.md`
 > - `services/*/Cargo.toml`（10 个 Rust service crate，其中包含 2 个独立 publisher crate）
-> - `infrastructure/docker-compose-{infra,services,observability}.yml`（infra 含 `mysql-replica`，observability 含 `alertmanager`）
+> - `infrastructure/docker-compose-{infra,services,observability}.yml`（observability 含 `alertmanager`；mysql-replica 已于 2026-11-05 移除）
 > - `infrastructure/config/prometheus/{prometheus,alerts}.yml`、`infrastructure/config/alertmanager/alertmanager.yml`
 > - `infrastructure/config/grafana/dashboards/{gateway,iam-service,notification-service,audit-service,config-service,file-service,prue_backend}.json`
-> - `infrastructure/mysql-replica/{Dockerfile,replica-entrypoint.sh}`
 > - `services/config-service/src/routes/config.rs`（reveal policy 调用点）
 > - `services/notification-service/src/bin/outbox_publisher.rs`（ntf-outbox-publisher binary）
 > - `services/iam-outbox-publisher/AGENTS.md`（`/metrics` 显式豁免；用 process exporter）
-> - `docs-site/guides/migrations-state.md`、`docs-site/runbooks/{secret-rotation,backup,mysql-replication,log-aggregation}.md`（log-aggregation 新增于 2026-08-18）
+> - `docs-site/guides/migrations-state.md`、`docs-site/runbooks/{secret-rotation,backup,log-aggregation}.md`（log-aggregation 新增于 2026-08-18；mysql-replication 已随 replica 移除删除）
 > - `docs-site/decisions/{ADR-003-multi-tenancy-architecture,ADR-004-release-engineering-architecture,ADR-005-shared-db-vs-per-service-db,ADR-006-gateway-long-term-strategy,CONVENTIONS-libs-crate-strategy,frontend-e2e-coverage-eval,test-case-migration-eval}.md`
 > - `docs-site/{slo,perf-baseline}.md`、`docs-site/plans/k3s-decision-review.md`
 > - `sdk/java/KNOWN-DRIFT.md`（12 处 SDK/OpenAPI 端点漂移）
@@ -171,7 +170,7 @@
 | P0-2 | CI/CD 补齐 | ✅ | commit `e24a3f4`：9 服务 build + clippy/fmt/eslint + audit/deny + 滚动 deploy |
 | P0-3 | 明文密码泄露 | ✅ | commit `68ce9d0`：从 .gitlab-ci.yml / README 移除 + gitleaks pre-commit |
 | P0-4 | 备份 Runbook | ✅ | commit `272c071`：`docs-site/runbooks/backup.md` |
-| P0-4 剩余 | MySQL 主从 | ✅ | commit `e905828`：GTID-based async replication + `mysql-replication.md` |
+| P0-4 剩余 | MySQL 主从 | ⚠️ 已移除 | 原 commit `e905828` 实现 GTID 复制，2026-11-05 裁决生产数据拓扑归 DB 组，replica 整体移除 |
 | P1-1 | 观测栈闭环 | ✅ | Alertmanager + 5 alert + 6 服务 dashboard + `slo.md`（commit `e24a3f4`） |
 | P1-2 | DB 隔离 ADR | ✅ | commit `e24a3f4`：`ADR-005-shared-db-vs-per-service-db.md` |
 | P1-3 | 网关策略 ADR | ✅ | commit `e24a3f4`：`ADR-006-gateway-long-term-strategy.md` |
@@ -254,9 +253,9 @@ node release/dist-template/scripts/release.js 1.0.0
 EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 # 或 pnpm run release:build（= release.js，无参取默认版本）；单测 pnpm run release:test
 ```
-- 平台服务 + 基础镜像清单硬编码在 `release.js` 的 `IMAGES` 数组：**8 个 micro-server（api-gateway/config/file/token/iam/notification/audit/prue-admin-backend）+ `micro-server/mysql-replica` + 基础镜像**（原 frontend 镜像已随 PRISM console 移除）。新增服务需同时改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`。
+- 平台服务 + 基础镜像清单硬编码在 `release.js` 的 `IMAGES` 数组：**8 个 micro-server（api-gateway/config/file/token/iam/notification/audit/prue-admin-backend）+ 基础镜像**（原 frontend 镜像已随 PRISM console 移除）。新增服务需同时改 `release.js` 的 `IMAGES` + `compose/services.yml` + `openapi.yaml`。
 - **git tag 带 `v`，发布镜像 tag 不带 v**：`build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v，registry 里是 `micro-server/<svc>:<no-v>`。离线下发/下游升级引用/对账命令里的 tag 一律 no-v（`v1.5.0` 是 git tag，镜像 tag 是 `1.5.0`）。
-- airgap 全包依赖 `mysql-replica` 与 `alertmanager`：前者 CI tag pipeline buildx 单独推送并在离线包导出（主 compose 引用），后者走公网镜像代理完整地址（内网 registry 未同步）。离线缺镜像先查 `IMAGES` 是否漏导。
+- airgap 全包对 **alertmanager** 走公网镜像代理完整地址（内网 registry 未同步）。离线缺镜像先查 image-resolver 扫描结果（`mysql-replica` 已移除）。
 
 **3. 4 类 mirror registry（全部可留空走官方源）**
 | 类别 | 官方源 | 替代 |
@@ -351,7 +350,7 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 - **runner 是 shell / `[docker]` executor + SSH 部署**（root-owned workspace）：多次根因是 `sudo docker` 产物 root-owned → compose/buildx 后续 clean 失败。当前已自愈：`cleanup:buildx` 重新 `chown` workspace、build 后 `chown` 回文件、`release-staging` 重映射挂载避开 root-owned 残留。
 - **tag 发布类 job（shell executor）**：需要在 maven 镜像里补装 pnpm/Node；publish npm 走 Verdaccio basic auth（user:pass，非 authToken）；`deploy:staging` 的 .env 首启从 `.env.example` 兜底、health gate 探针、ssh 远端用 `cat` 避开 bash 引号嵌套等已逐条修平。
 - **staging 相关修复点**（历史，frontend 已移除）：曾给 `frontend` 加 `extra_hosts pm=127.0.0.1` 让 nginx 启动过；大 swap 重启前先 warm up 基础服务（修 DNS）；`staging-${SHA}` swap 探活探针边界修正。观察性 runbook 增补见 commit `7ca144d5`（§6=staging 第三方基础镜像清单）与 `9d54beba`（§8.4 swap-noop + health gate 0ms refused，写在 `docs-site/runbooks/troubleshooting.md`）。
-- **tag/release 产物规范**：`dist-template` 的 `IMAGE_TAG` 统一 **no-v**（git tag `v1.5.0` ≠ 镜像 tag `1.5.0`）；tag pipeline buildx 单独构建并推送 `micro-server/mysql-replica`（主 compose 引用、离线包需导出）；`mysql-replica` / `alertmanager` 镜像对 tag pipeline 的构建/推送是新增职责。
+- **tag/release 产物规范**：`dist-template` 的 `IMAGE_TAG` 统一 **no-v**（git tag `v1.5.0` ≠ 镜像 tag `1.5.0`）；`alertmanager` 镜像对 tag pipeline 的构建/推送是新增职责。
 - **门禁**：缺失/漂移时对照 §5.1 现行 gate 脚本（`*.js`，勿再依赖旧 `.sh`）。
 - 运维侧 CD/canary/发布机制文档见 `docs-site/runbooks/release-tag-pipeline.md` 等。
 
@@ -370,7 +369,7 @@ EXPORT_IMAGES=0 node release/dist-template/scripts/release.js 2.0.0
 | **Promtail** | **✅ 新增**（2026-08-18）：`infrastructure/config/loki/promtail-staging.yaml`；`docker_sd_configs` 5s 周期，过滤 `logging=loki` container label（ADR-007 D2）；pipeline `cri: {}` + `json:` 抽出 trace_id / tenant_id / user_id（commit `f04fa8e` 注入） | [正常] |
 | SLO 文档 | **✅ 新增** `docs-site/slo.md`：8 服务 SLO 表 + SLI 公式 + 错误预算策略 + 告警规则对应 | [正常] |
 | Performance baseline | **✅ 新增** `docs-site/perf-baseline.md`：S1 health check 已实测（RPS 91.2 / p50 105.5ms / 0 errors / gw CPU 10.44%）；S2-S7 待 k6 安装后补全 | [正常] |
- | runbooks | **✅ 4 份**（旧 3 份 + log-aggregation，2026-08-18）：`secret-rotation.md` + `backup.md`（P0-4 覆盖 MySQL/Redis/RabbitMQ/Consul 4 组件手动 SOP）+ `mysql-replication.md`（P0-4 剩余，主从 GTID 复制 + Failover）+ **`log-aggregation.md`**（Phase 6-A T2 Loki/Promtail 5 步故障排查 SOP） | [正常] |
+ | runbooks | **✅ 3 份**：`secret-rotation.md` + `backup.md`（MySQL/Redis/RabbitMQ/Consul 4 组件手动 SOP）+ **`log-aggregation.md`**（Loki/Promtail 5 步故障排查 SOP）。原 `mysql-replication.md` 已随 mysql-replica 移除（2026-11-05） | [正常] |
  | OTel 端到端 trace | 10 个 crate 全部显式开 `otlp` feature（2026-08 P0 修复 iam-service：补 `digua_common-telemetry` + `-axum` 的 `features = ["otlp"]`，删冗余直接依赖 `opentelemetry`/`tracing-opentelemetry`）；compose 只对 6 个 Rust HTTP 服务 + 2 个 Java 服务设置 `OTEL_EXPORTER_OTLP_ENDPOINT` | [正常] 区分"代码接入"与"compose 实际导出配置"；详见 §1.1 表格 |
 
 
@@ -439,7 +438,7 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 16. **事件总线 = RabbitMQ + transactional outbox**（Phase 4）。同事务写业务行 + `digua_common_event::MySqlOutboxRepo::enqueue(&mut tx, &Envelope::new(...))`；独立 `*-outbox-publisher` 进程轮询发布；消费者按 `event_id` 幂等。**`Envelope<serde_json::Value>` 仅用于消费**，publish 必须用强类型 Event。
 
-17. **MySQL 复制对主库参数有硬要求**（commit `e905828` 后）：主库 `command` 必须含 `--server-id=1 --log-bin=mysql-bin --binlog-format=ROW --gtid-mode=ON --enforce-gtid-consistency=ON`，否则 replica `START SLAVE` 失败。从库用 GTID auto-positioning（`MASTER_AUTO_POSITION=1`），冷启动自动从主库克隆缺失事务，无需 mysqldump bootstrap。复制用户 `repl@'%'` 需在主库手工创建（见 `docs-site/runbooks/mysql-replication.md` §1）。
+17. **MySQL 复制已移除**（2026-11-05）：主库不再携带 binlog/GTID 参数；生产数据拓扑（复制/备份/failover）归 DB 组。
 
 18. **CI 9 服务 build 用模板继承**：`.gitlab-ci.yml` 用 `.rust_svc_build` YAML anchor + `extends` + `changes:` 规则按变更触发，每个服务 build job 仅声明 `SVC_NAME` 变量。新增 Rust service 时：在 `services/<svc>/Dockerfile` 标准化后加 3 行（`build_<svc>`），无需复制 13 行模板。
 
@@ -499,7 +498,6 @@ cd sdk/java && mvn -B verify                       # 仅 rules.changes: sdk/java
 | 跑性能基线 | `tests/load/baseline.js` + `docs-site/perf-baseline.md` |
 | 跑 / 写测试 | `docs-site/guides/testing.md` |
 | 备份与恢复 | `docs-site/runbooks/backup.md` |
-| MySQL 主从管理 | `docs-site/runbooks/mysql-replication.md` |
 | 凭据轮换 SOP | `docs-site/runbooks/secret-rotation.md` |
 | ADR（架构决策记录） | `docs-site/decisions/ADR-{001..008}*.md` + `CONVENTIONS-libs-crate-strategy.md` |
 | 多租户注意事项快查 | §4.3.1（[ADR-003](../decisions/ADR-003-multi-tenancy-architecture.md)） |

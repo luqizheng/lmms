@@ -18,34 +18,9 @@
 
 > ⚠️ 不要再写第 6 个 compose 文件做「dev-only 全栈」——dev/prod 差异统一通过 `_dev` overlay 表达。
 
-### MySQL 主从复制
+### MySQL 所有权边界（2026-11-05 裁决）
 
-`docker-compose-infra.yml` 内置了 MySQL 一主一从：
-
-| 服务 | 角色 | 端口 | 说明 |
-| --- | --- | --- | --- |
-| `mysql` | 主库（primary） | 3306 | 读写，binlog + GTID 开启 |
-| `mysql-replica` | 从库（replica） | —（仅 expose，不对外发布） | 只读热备，GTID 自动同步 |
-
-**从库作用**：
-- **灾备 failover**：主库宕机时 promote 从库为新主库，切换业务连接串后恢复服务
-- **读写分离预留**：2.0 规划将只读查询路由到从库，分担主库压力
-
-**从库镜像**：本地 dev 走 `docker compose build` 从 `infrastructure/mysql-replica/Dockerfile` 构建（compose 里同时声明了 `build:` 与 `image: coder/mysql-replica:8.0` 作为本地 tag）；CI 由 `.gitlab-ci.yml` 的 `build_images:staging` 单独 buildx --push 到 `zhcoder-docker-registry.com:8000/micro-server/mysql-replica:<sha>`，`release:staging` 阶段 `transform-compose` 把 compose 的 `build:` 块替换为该 registry image 引用。
-
-entrypoint 启动时自动等主库可达 → `CHANGE MASTER TO` → `START SLAVE`，无需手动 dump/restore。
-
-```bash
-# 启动从库（自动同步）
-docker compose -f infrastructure/docker-compose.yml up -d mysql-replica
-
-# 查看同步状态
-docker compose -f infrastructure/docker-compose.yml exec mysql-replica \
-  mysql -u root -p"${MYSQL_ROOT_PASSWORD}" \
-  -e "SHOW SLAVE STATUS\G" | grep -E "Running|Behind_Master"
-```
-
-> 完整运维 SOP（监控、故障处理、failover 步骤）见 [`docs-site/runbooks/mysql-replication.md`](../docs-site/runbooks/mysql-replication.md)。
+lmms 只带**单节点** MySQL/PostgreSQL 开发/测试库（`docker-compose-infra.yml`）。主从复制、备份、failover 等生产数据拓扑**归 DB 组**，平台不再内置 replica 镜像与 runbook（`mysql-replica` 已整体移除，原 `docs-site/runbooks/mysql-replication.md` 一并删除）。
 
 ## 前置检查
 
@@ -239,7 +214,7 @@ build_images:staging → release:staging → deploy:staging → e2e:staging
 
 | Job | 阶段 | 关键命令 |
 | --- | --- | --- |
-| `build_images:staging` | build | `pnpm run docker:build -- -v $CI_COMMIT_SHORT_SHA --load-and-push ...`（8 服务 + mysql-replica 单独 buildx；frontend 已移除）|
+| `build_images:staging` | build | `pnpm run docker:build -- -v $CI_COMMIT_SHORT_SHA --load-and-push ...`（8 服务；frontend 与 mysql-replica 已移除）|
 | `release:staging` | build | `node release/dist-template/scripts/release-deploy.js $SHA --no-images`（产骨架）|
 | `deploy:staging` | deploy | tar over ssh → `load-images.js --mode=pull` → `swap-staging-active.sh` |
 | `e2e:staging` | e2e | SSH 反向隧道 + `pnpm run test:e2e:api`（UI 套件已移除）；失败 swap 回 prev |
