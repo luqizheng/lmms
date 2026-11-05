@@ -1802,6 +1802,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "digua_common_consul"
+version = "1.6.0"
+dependencies = [
+ "once_cell",
+ "prometheus",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
 name = "digua_common_crypto"
 version = "1.6.0"
 dependencies = [

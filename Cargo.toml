@@ -17,6 +17,7 @@ members = [
     "libs/authz",
     "libs/common-jwt",
     "libs/common-health",
+    "libs/common-consul",
     "services/token-service",
     "services/api-gateway",
     "services/notification-service",

@@ -10,6 +10,7 @@
 | digua_common-http | reqwest 封装 + 请求 ID 透传 | reqwest |
 | digua_common-crypto | Argon2 + AES-256-GCM | argon2 / aes-gcm |
 | digua_common-validator | 中国手机号 / 强密码等 | validator |
+| digua_common_consul | Consul 自注册（注册/对账/SIGTERM 注销；替代 registrator） | reqwest / prometheus |
 | digua_common（外观） | 兼容旧路径，转发到新 crate | — |
 | jwt-ctx / digua_authz | JWT 上下文 + RBAC | (已存在) |
 
