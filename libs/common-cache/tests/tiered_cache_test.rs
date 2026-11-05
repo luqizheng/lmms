@@ -37,15 +37,16 @@ impl Cache for MockRemoteCache {
 
 #[tokio::test]
 async fn tiered_cache_local_hit() {
-    let local = MemoryCache::new(100);
     let remote = Box::new(MockRemoteCache::new()) as Box<dyn Cache>;
 
-    local
+    let tiered = TieredCache::new(100, remote);
+    // tiered.set 写穿（local + remote）→ 后续 get 命中 local 层。
+    // 注：不能像旧版那样自建 MemoryCache 直接 set —— TieredCache::new
+    // 总是自建 local，外部实例与它无关（pre-existing test bug）。
+    tiered
         .set("key1", "local_value".as_bytes().to_vec(), None)
         .await
         .unwrap();
-
-    let tiered = TieredCache::new(100, remote);
 
     let result = tiered.get("key1").await.unwrap();
     assert_eq!(result, Some("local_value".as_bytes().to_vec()));
@@ -68,7 +69,6 @@ async fn tiered_cache_remote_hit_populates_local() {
 
 #[tokio::test]
 async fn tiered_cache_set_propagates_to_both() {
-    let local = MemoryCache::new(100);
     let mock = MockRemoteCache::new();
     let remote = Box::new(mock.clone()) as Box<dyn Cache>;
     let remote_check = Box::new(mock.clone()) as Box<dyn Cache>;
@@ -80,10 +80,12 @@ async fn tiered_cache_set_propagates_to_both() {
         .await
         .unwrap();
 
+    // local 层：tiered.get 直接命中（值已在内部 local）。
     assert_eq!(
-        local.get("key3").await.unwrap(),
+        tiered.get("key3").await.unwrap(),
         Some("both_value".as_bytes().to_vec())
     );
+    // remote 层：mock 收到了写穿。
     assert_eq!(
         remote_check.get("key3").await.unwrap(),
         Some("both_value".as_bytes().to_vec())
@@ -92,24 +94,20 @@ async fn tiered_cache_set_propagates_to_both() {
 
 #[tokio::test]
 async fn tiered_cache_del_propagates_to_both() {
-    let local = MemoryCache::new(100);
     let mock = MockRemoteCache::new();
     let remote = Box::new(mock.clone()) as Box<dyn Cache>;
     let remote_check = Box::new(mock.clone()) as Box<dyn Cache>;
 
-    local
-        .set("key4", "value".as_bytes().to_vec(), None)
-        .await
-        .unwrap();
-    remote_check
+    let tiered = TieredCache::new(100, remote);
+    tiered
         .set("key4", "value".as_bytes().to_vec(), None)
         .await
         .unwrap();
 
-    let tiered = TieredCache::new(100, remote);
     tiered.del("key4").await.unwrap();
 
-    assert_eq!(local.get("key4").await.unwrap(), None);
+    // local 层（tiered.get 回退 remote 后仍 miss）+ remote 层均应已删。
+    assert_eq!(tiered.get("key4").await.unwrap(), None);
     assert_eq!(remote_check.get("key4").await.unwrap(), None);
 }
 
