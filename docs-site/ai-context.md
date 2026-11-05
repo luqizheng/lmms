@@ -84,7 +84,7 @@
 | otel-collector | 4317 / 4318 / 8889 | 同 | OTLP gRPC / HTTP + Prometheus exporter |
 
 > **compose 文件分层**（`infrastructure/docker-compose*.yml` 5 个，详见 `infrastructure/README.md`）：
-> - `docker-compose.yml`：主入口，`include` 下面三个
+> - `docker-compose.yml`：单机合体入口（include 下面三个）；**三组独立部署**（2026-11-05 起）= `docker-compose-{infra,observability,services}.yml` 各配 `*.prod.yml` 差异片，start-prod.sh 三段式（共享 external `superpowers` 网络 + `superpowers_*` named volumes）
 > - `docker-compose-infra.yml`：基础设施基线（无端口发布、无 dev 覆盖）
 > - `docker-compose-infra.dev.yml`：dev overlay（加端口发布）
 > - `docker-compose-services.yml`：8 个 Rust 服务 + 2 个 outbox publisher（原 frontend 服务已随 PRISM console 移除）

@@ -53,10 +53,13 @@ services:
 
 volumes:
   loki-data:
+    name: superpowers_loki-data
   promtail-positions:
+    name: superpowers_promtail-positions
 
 networks:
-  # Reuses the base `superpowers` network defined in docker-compose.yml so
+  # Reuses the shared `superpowers` network (pre-created, external) so
   # Promtail (this file) + the business services (docker-compose-services.yml)
   # all share one DNS namespace and Loki is reachable at `loki:3100`.
   superpowers:
+    external: true

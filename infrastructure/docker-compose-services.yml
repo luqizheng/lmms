@@ -36,11 +36,6 @@ services:
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
       # SWAGGER_ENABLED: "false"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -69,11 +64,6 @@ services:
       # SWAGGER_ENABLED: "false"
     volumes:
       - file-storage:/var/lib/file-service/storage
-    depends_on:
-      mysql:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -109,12 +99,6 @@ services:
       - ./config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
       - ./config/api-gateway/rate-limits.toml:/app/config/api-gateway/rate-limits.toml:ro
     depends_on:
-      consul:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
       # JWKS 起动竞态修复：gateway 启动即拉取 JWKS，token-service 未就绪会缓存
       # 空公钥 → 后续一律 "Invalid or expired token"（下游联调实测，须重启 gateway 自愈）
       token-service:
@@ -181,11 +165,6 @@ services:
       # TOKEN_DEFAULT_REFRESH_TTL_SEC: "2592000"
       # TOKEN_DEFAULT_RESOURCE_TTL_SEC: "300"
       # TOKEN_USER_SERVICE_URL: "http://iam-service:8081"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -224,13 +203,6 @@ services:
       # SERVER_HOST: "0.0.0.0"
       # SERVER_PORT: "8081"
       # SWAGGER_ENABLED: "true"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -277,11 +249,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 20s
-    depends_on:
-      mysql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -310,11 +277,6 @@ services:
       # ── 代码默认值，取消注释可覆盖 ──
       # SERVER_HOST: "0.0.0.0"
       # SWAGGER_ENABLED: "false"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -352,15 +314,6 @@ services:
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
       # SWAGGER_ENABLED: "true"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -403,11 +356,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 20s
-    depends_on:
-      mysql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - superpowers
 
@@ -441,22 +389,15 @@ services:
       # SWAGGER_ENABLED: "false"
       # LOGIN_RISK_THRESHOLD: "5"       # 风控：窗口内登录失败次数告警阈值
       # LOGIN_RISK_WINDOW_SECS: "300"   # 风控：滑动窗口秒数
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      consul:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - superpowers
 
 
 volumes:
   file-storage:
+    name: superpowers_file-storage
 
 networks:
   superpowers:
+    external: true
 

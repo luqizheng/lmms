@@ -94,17 +94,25 @@ cd "$PROJECT_ROOT" || { echo "[deploy-remote] FATAL: cannot cd to $PROJECT_ROOT"
 # ─────────────────────────────────────────────────────────────────────────────
 # Compose 文件集：base + 可选 prod overlay
 # ─────────────────────────────────────────────────────────────────────────────
-COMPOSE_BASE="$PROJECT_ROOT/infrastructure/docker-compose.yml"
-COMPOSE_PROD="$PROJECT_ROOT/infrastructure/docker-compose.prod.yml"
-DOCKER_COMPOSE=(docker compose -f "$COMPOSE_BASE")
-if [[ -f "$COMPOSE_PROD" ]]; then
-  DOCKER_COMPOSE+=(-f "$COMPOSE_PROD")
+INFRA_DIR="$PROJECT_ROOT/infrastructure"
+# 三组独立项目（2026-11-05 拆分）：infra / observability / services，
+# 共享预建的 superpowers 网络；prod 差异片按组独立引用。
+if [[ -f "$INFRA_DIR/docker-compose-infra.prod.yml" ]]; then
   DEPLOY_MODE="prod"
+  DC_INFRA=(docker compose -p superpowers-infra -f "$INFRA_DIR/docker-compose-infra.yml" -f "$INFRA_DIR/docker-compose-infra.prod.yml")
+  DC_OBS=(docker compose -p superpowers-obs -f "$INFRA_DIR/docker-compose-observability.yml" -f "$INFRA_DIR/docker-compose-observability.prod.yml")
+  DC_SVC=(docker compose -p superpowers-svc -f "$INFRA_DIR/docker-compose-services.yml" -f "$INFRA_DIR/docker-compose-services.prod.yml")
 else
   DEPLOY_MODE="dev"
+  DC_INFRA=(docker compose -p superpowers-infra -f "$INFRA_DIR/docker-compose-infra.yml")
+  DC_OBS=(docker compose -p superpowers-obs -f "$INFRA_DIR/docker-compose-observability.yml")
+  DC_SVC=(docker compose -p superpowers-svc -f "$INFRA_DIR/docker-compose-services.yml")
 fi
 
 log() { echo "[deploy-remote $DEPLOY_MODE] $*"; }
+
+# 共享网络预建（幂等；三组 compose 均以 external 引用）
+docker network create superpowers >/dev/null 2>&1 || true
 die() { echo "[deploy-remote $DEPLOY_MODE] FATAL: $*" >&2; exit "${2:-10}"; }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -145,10 +153,13 @@ if [[ "$DEPLOY_MODE" == "prod" ]]; then
   done
 
   # 0d. compose config 必须能成功渲染（!override 标签崩溃会让 compose config 报错）
-  log "  docker compose config (validate rendered tree)"
-  if ! "${DOCKER_COMPOSE[@]}" config --quiet >/dev/null 2>&1; then
-    die "docker compose config failed — check docker-compose.prod.yml syntax / !override" 10
-  fi
+  log "  docker compose config (validate rendered tree, 3 groups)"
+  for dc_name in DC_INFRA DC_OBS DC_SVC; do
+    declare -n dc="$dc_name"
+    if ! "${dc[@]}" config --quiet >/dev/null 2>&1; then
+      die "docker compose config failed for $dc_name — check prod overlay syntax / !override" 10
+    fi
+  done
 fi
 
 # 0e. 待重启的服务列表（顺序 = 依赖顺序：基础设施依赖优先，业务服务最后）
@@ -156,7 +167,7 @@ SERVICES=(config-service file-service \
            token-service iam-service iam-outbox-publisher \
            notification-service notification-outbox-publisher \
            audit-service prue_backend \
-           api-gateway frontend)
+           api-gateway)
 
 # 后台 worker 服务：无 HTTP 端口，不复用 HTTP 服务的 HEALTHCHECK 判定。
 # outbox-publisher 复用 iam/notification 的 Dockerfile（带 /health HEALTHCHECK），
@@ -174,8 +185,8 @@ log "  services (in order): ${SERVICES[*]}"
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 1 — pull images
 # ─────────────────────────────────────────────────────────────────────────────
-log "STEP 1/4  docker compose pull"
-if ! "${DOCKER_COMPOSE[@]}" pull; then
+log "STEP 1/4  docker compose pull (3 groups)"
+if ! "${DC_INFRA[@]}" pull || ! "${DC_OBS[@]}" pull || ! "${DC_SVC[@]}" pull; then
   die "docker compose pull failed" 20
 fi
 
@@ -187,7 +198,7 @@ fi
 #   `mysql` (see deploy-staging job 24677). Idempotent on healthy hosts.
 # ─────────────────────────────────────────────────────────────────────────────
 log "STEP 2/5  ensuring infrastructure services (mysql/redis/consul/rabbitmq)"
-if ! "${DOCKER_COMPOSE[@]}" up -d mysql redis consul rabbitmq; then
+if ! "${DC_INFRA[@]}" up -d; then
   die "compose up failed for infrastructure services" 25
 fi
 
@@ -197,7 +208,7 @@ INFRA_MAX_POLLS=$((INFRA_TIMEOUT_SECS / INFRA_POLL_INTERVAL_SECS))
 mysql_ok=0
 for i in $(seq 1 "$INFRA_MAX_POLLS"); do
   sleep "$INFRA_POLL_INTERVAL_SECS"
-  mysql_id="$("${DOCKER_COMPOSE[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
+  mysql_id="$("${DC_INFRA[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
   if [[ -z "${mysql_id}" ]]; then
     log "    mysql[$i/$INFRA_MAX_POLLS]: container not found yet"
     continue
@@ -210,7 +221,7 @@ for i in $(seq 1 "$INFRA_MAX_POLLS"); do
 done
 if [[ "$mysql_ok" -eq 0 ]]; then
   log "  ✘ mysql 未在 ${INFRA_TIMEOUT_SECS}s 内就绪，最近 40 条日志：" >&2
-  mysql_id="$("${DOCKER_COMPOSE[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
+  mysql_id="$("${DC_INFRA[@]}" ps -q mysql 2>/dev/null | head -n1 || true)"
   [[ -n "$mysql_id" ]] && docker logs --tail=40 "$mysql_id" >&2 || true
   die "mysql infrastructure not healthy within ${INFRA_TIMEOUT_SECS}s" 26
 fi
@@ -226,7 +237,7 @@ HEALTH_MAX_POLLS=$((HEALTH_TIMEOUT_SECS / HEALTH_POLL_INTERVAL_SECS))
 
 for svc in "${SERVICES[@]}"; do
   log "  → rolling $svc"
-  if ! "${DOCKER_COMPOSE[@]}" up -d --no-deps "$svc"; then
+  if ! "${DC_SVC[@]}" up -d --no-deps "$svc"; then
     die "compose up failed for $svc" 30
   fi
 
@@ -237,7 +248,7 @@ for svc in "${SERVICES[@]}"; do
     # 直接 `docker inspect "$svc"` 永远找不到容器（实际容器名形如
     # `infrastructure-config-service-1`），导致 health 一直是空串、12 轮全超时。
     # 用 `docker compose ps -q` 拿容器 ID，对 project 命名约定不敏感。
-    container_id="$("${DOCKER_COMPOSE[@]}" ps -q "$svc" 2>/dev/null | head -n1 || true)"
+    container_id="$("${DC_SVC[@]}" ps -q "$svc" 2>/dev/null | head -n1 || true)"
     if [[ -z "$container_id" ]]; then
       health="starting"  # 容器还没起：继续轮询
     else
@@ -272,7 +283,7 @@ for svc in "${SERVICES[@]}"; do
   if [[ "$ok" -eq 0 ]]; then
     log "  ✘ $svc 未通过健康检查（超时 ${HEALTH_TIMEOUT_SECS}s），最近 60 条日志：" >&2
     # 同样用容器 ID 拉日志（service 名不会在 docker 里找得到）
-    container_id="$("${DOCKER_COMPOSE[@]}" ps -q "$svc" 2>/dev/null | head -n1 || true)"
+    container_id="$("${DC_SVC[@]}" ps -q "$svc" 2>/dev/null | head -n1 || true)"
     if [[ -n "$container_id" ]]; then
       docker logs --tail=60 "$container_id" >&2 || true
     else
@@ -283,12 +294,16 @@ for svc in "${SERVICES[@]}"; do
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 4 — entrypoint verification（验证公共入口可访问）
+# STEP 4 — entrypoint verification（可选，默认跳过）
 # ─────────────────────────────────────────────────────────────────────────────
+# frontend 容器已随 PRISM console 移除；各服务健康已在 rolling 阶段逐个把关。
+# 若宿主另有发布入口（如 nginx 反代 api-gateway），设 HEALTH_URL 即启用探测。
 log "STEP 4/5  entrypoint verification"
-# frontend:8080 是公共入口；其容器内 nginx 用 `location /health` 返回 200
-HEALTH_URL="${HEALTH_URL:-http://localhost:8080/health}"
+HEALTH_URL="${HEALTH_URL:-}"
 HEALTH_OK=0
+if [[ -z "$HEALTH_URL" ]]; then
+  log "  HEALTH_URL 未设置 — 跳过宿主侧入口探测（rolling 阶段已逐服务把关）"
+else
 for i in $(seq 1 12); do
   sleep 5
   if curl -fsS --max-time 3 "$HEALTH_URL" >/dev/null 2>&1; then
@@ -297,9 +312,10 @@ for i in $(seq 1 12); do
   fi
   log "    · $HEALTH_URL not yet (attempt $i/12)"
 done
-if [[ "$HEALTH_OK" -eq 0 ]]; then
-  die "frontend health probe failed at $HEALTH_URL" 32
+if [[ "$HEALTH_OK" -eq 0 && -n "$HEALTH_URL" ]]; then
+  die "health probe failed at $HEALTH_URL" 32
 fi
+fi  # HEALTH_URL
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 5 — image prune

@@ -1,0 +1,8 @@
+# observability 组的 prod 差异片（独立部署模式：start-prod.sh 三段式使用）
+# 与 docker-compose-infra.prod.yml / docker-compose-services.prod.yml
+# 一同被 docker-compose.prod.yml include，单机合体模式共用同一份差异。
+#
+# 按原 prod overlay spec 表格：observability 的 host port 保留（ops 直连），
+# restart 已在 base 文件里 —— 本组 prod 无差异，此文件存在只为结构对称，
+# 后续 prod 化差异（如资源限额、导出开关）落在这里。
+services: {}

@@ -4,17 +4,33 @@
 >
 > 本文只覆盖本地 dev 的容器编排与脚本别名。**Kubernetes / 生产部署**走 GitLab CI，不在本目录范围内。`infrastructure/AGENTS.md` 记录本目录独立的 loop 约定（test / lint / L1→L2），与本 README 互不冲突。
 
-## Compose 文件清单
+## Compose 文件清单与部署模式
 
-5 个文件分层叠加，避免重复定义。修改时请明确改的是哪一层。
+2026-11-05 起支持**两种部署模式**，共用同一组文件与同一张预建 `superpowers`
+外部网络、同一批 `superpowers_*` named volumes：
 
-| 文件 | 角色 | 何时使用 |
+**模式 A — 三组独立部署**（生产推荐，`start-prod.sh` 三段式）：
+
+| 项目 | compose 文件 | prod 差异片 |
 | --- | --- | --- |
-| `docker-compose.yml` | 主入口 | 唯一直接 `up` 的文件；`include` 下面 3 个。 |
-| `docker-compose-infra.yml` | 基础设施基线 | MySQL / Redis / Consul（server 模式）/ RabbitMQ。无端口发布、无 dev 覆盖。 |
-| `docker-compose-infra.dev.yml` | dev overlay | 给基础设施加端口发布（3306 / 6379 / 8500 / 5672 等），方便宿主机直连。 |
-| `docker-compose-services.yml` | 业务服务 | 8 个 Rust 服务 + 2 个 outbox publisher 的定义与依赖关系（frontend 服务已随 PRISM console 移除）。 |
-| `docker-compose-observability.yml` | 可观测性 overlay | Prometheus / Grafana / Jaeger / OTel Collector / consul-template；已 `include` 进主入口。 |
+| `superpowers-infra` | `docker-compose-infra.yml`（consul server / mysql / redis / rabbitmq / postgres） | `docker-compose-infra.prod.yml` |
+| `superpowers-obs` | `docker-compose-observability.yml`（prometheus / grafana / jaeger / otel / alertmanager / consul-template） | `docker-compose-observability.prod.yml` |
+| `superpowers-svc` | `docker-compose-services.yml`（8 业务服务 + 2 outbox publisher） | `docker-compose-services.prod.yml` |
+
+```bash
+docker network create superpowers          # 三组共享，幂等
+docker compose -p superpowers-infra -f docker-compose-infra.yml -f docker-compose-infra.prod.yml up -d
+docker compose -p superpowers-obs  -f docker-compose-observability.yml -f docker-compose-observability.prod.yml up -d
+docker compose -p superpowers-svc  -f docker-compose-services.yml -f docker-compose-services.prod.yml up -d
+```
+
+启动顺序：infra → observability → services。业务服务对 infra 的跨组
+`depends_on` 已删除（compose 无法跨项目做健康门）——服务自带连接重试 +
+`restart: unless-stopped`，boot 期可能先打几轮重连日志属正常。
+
+**模式 B — 单机合体**（模板包 / airgap / 本地一键）：入口
+`docker-compose.yml` include 三块，`docker-compose.prod.yml` include 三个
+prod 差异片（差异只写一处）。`start-prod.sh` 已默认走模式 A。
 
 > ⚠️ 不要再写第 6 个 compose 文件做「dev-only 全栈」——dev/prod 差异统一通过 `_dev` overlay 表达。
 

@@ -128,9 +128,15 @@ services:
 
 volumes:
   prometheus_data:
+    name: superpowers_prometheus_data
   alertmanager_data:
+    name: superpowers_alertmanager_data
   grafana_data:
+    name: superpowers_grafana_data
   nginx_rendered:
+    name: superpowers_nginx_rendered
 
+# 三组独立部署与入口合体部署共用这张预建网络。
 networks:
   superpowers:
+    external: true

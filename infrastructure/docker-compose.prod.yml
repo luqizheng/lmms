@@ -1,10 +1,12 @@
 # infrastructure/docker-compose.prod.yml
 # ─────────────────────────────────────────────────────────────────────────────
-# Production overlay — 在 docker-compose.yml 之上叠加 dev → prod 的两个差异轴。
+# Production overlay — 单机合体模式（docker-compose.yml 入口 include 三块）使用。
+# 差异内容按组拆在三份片里（独立部署模式 start-prod.sh 三段式直接引用同名片），
+# 本文件只负责把它们重新聚合成一个 overlay —— prod 差异只写一处。
 # 设计依据：docs/superpowers/specs/2026-07-06-prod-compose-overlay-design.md
 #
-# ⚠️  需要 docker compose v2.20+（!override 标签依赖）。由 start-prod.sh
-#    在启动时 self-check 版本，版本不达标 fail-fast。
+# ⚠️  需要 docker compose v2.20+（!override 标签与 include 合并依赖）。由
+#    start-prod.sh 在启动时 self-check 版本，版本不达标 fail-fast。
 #
 # ⚠️  本文件不包含 secrets 覆写：所有敏感变量从 `.env.prod` 加载。
 #     start-prod.sh 在加载完 env 后会显式校验关键变量非空且非默认值。
@@ -15,63 +17,7 @@
 #   或直接：./start-prod.sh
 # ─────────────────────────────────────────────────────────────────────────────
 
-services:
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  内部组件（mysql / redis / rabbitmq / consul）：
-  #    - 清空 host port（仅容器网络可达）
-  #    - 加 restart: unless-stopped
-  # ─────────────────────────────────────────────────────────────────────────
-  mysql:
-    ports: !override []
-    restart: unless-stopped
-  redis:
-    ports: !override []
-    restart: unless-stopped
-  rabbitmq:
-    ports: !override []
-    restart: unless-stopped
-  consul:
-    ports: !override []
-    restart: unless-stopped
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  业务后端 8 个服务：
-  #    - 除 api-gateway 外清空 host port（外部不再直连；唯一公共入口是
-  #      api-gateway:3000，客户端通过 sdk/* 或 packages/* 访问）
-  #    - 加 restart: unless-stopped（容器内部端口仍可互通）
-  # ─────────────────────────────────────────────────────────────────────────
-  api-gateway:
-    restart: unless-stopped
-  token-service:
-    ports: !override []
-    restart: unless-stopped
-  iam-service:
-    ports: !override []
-    restart: unless-stopped
-  audit-service:
-    ports: !override []
-    restart: unless-stopped
-  notification-service:
-    ports: !override []
-    restart: unless-stopped
-  config-service:
-    ports: !override []
-    restart: unless-stopped
-  file-service:
-    ports: !override []
-    restart: unless-stopped
-  prue_backend:
-    ports: !override []
-    restart: unless-stopped
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  outbox publishers（iam-outbox-publisher / notification-outbox-publisher）：
-  #  已在 base 文件中有 restart: unless-stopped 且无 ports，本 overlay 不动。
-  # ─────────────────────────────────────────────────────────────────────────
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  observability（prometheus / grafana / jaeger / otel-collector / alertmanager
-  #  / consul-template）：按 spec 表格，host port 保留（ops 直连），restart 已在
-  #  base 文件里有，本 overlay 不动。
-  # ─────────────────────────────────────────────────────────────────────────
+include:
+  - docker-compose-infra.prod.yml
+  - docker-compose-services.prod.yml
+  - docker-compose-observability.prod.yml

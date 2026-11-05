@@ -296,7 +296,8 @@ prod overlay 是 dev base 的**叠加**层。单独 rm 它并不会停服务：
 ```bash
 # 在部署机，让 prod overlay 临时失效、回退到 dev base（3000 等端口重新暴露 — 仅紧急用）
 cd ~/coder-micro-services
-sudo docker compose -f infrastructure/docker-compose.yml up -d
+sudo docker network create superpowers 2>/dev/null || true
+sudo docker compose -p superpowers-svc -f infrastructure/docker-compose-services.yml up -d
 # 此时 3000/8082/... 重新 bind host，业务上 = dev 同等待遇
 ```
 

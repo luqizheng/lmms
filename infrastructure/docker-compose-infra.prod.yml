@@ -1,0 +1,19 @@
+# infra 组的 prod 差异片（独立部署模式：start-prod.sh 三段式使用）
+# 与 docker-compose-services.prod.yml / docker-compose-observability.prod.yml
+# 一同被 docker-compose.prod.yml include，单机合体模式共用同一份差异。
+#
+# 差异内容：清空 host port（仅容器网络可达）+ restart 策略。
+
+services:
+  mysql:
+    ports: !override []
+    restart: unless-stopped
+  redis:
+    ports: !override []
+    restart: unless-stopped
+  rabbitmq:
+    ports: !override []
+    restart: unless-stopped
+  consul:
+    ports: !override []
+    restart: unless-stopped

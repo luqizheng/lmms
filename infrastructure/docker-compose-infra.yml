@@ -108,11 +108,17 @@ services:
 
 volumes:
   consul_data:
+    name: superpowers_consul_data
   redis_data:
+    name: superpowers_redis_data
   mysql_data:
+    name: superpowers_mysql_data
   rabbitmq_data:
+    name: superpowers_rabbitmq_data
   postgres_data:
+    name: superpowers_postgres_data
 
+# 三组独立部署（start-prod.sh 三段式）与入口合体部署共用这张预建网络。
 networks:
   superpowers:
-    driver: bridge
+    external: true
