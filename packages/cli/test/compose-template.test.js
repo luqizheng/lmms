@@ -13,6 +13,11 @@ function fixture() {
     'docker-compose.yml',
     'docker-compose-infra.yml',
     'docker-compose-services.yml',
+    // 三组拆分后的 prod 差异片 + 纯 include 入口（2026-11-06）
+    'docker-compose.prod.yml',
+    'docker-compose-infra.prod.yml',
+    'docker-compose-services.prod.yml',
+    'docker-compose-observability.prod.yml',
     'base-images.json',
     '.env.prod.example',
     'README.md',
@@ -141,16 +146,40 @@ test('pg dialect: env DATABASE_URL becomes postgres scheme (idempotent)', () => 
   assert.equal(once, twice, '重复变换必须幂等');
 });
 
-test('pg dialect: prod overlay gets postgres ports override (textual)', () => {
-  const text = 'services:\n  mysql:\n    ports: !override []\n';
-  const out = transformForPg('docker-compose.prod.yml', text);
-  assert.match(out, /postgres:\n\s+ports: !override \[\]/);
+test('pg dialect: infra prod slice gets postgres convergence; include entry untouched', () => {
+  const slice = 'services:\n  mysql:\n    ports: !override []\n    restart: unless-stopped\n';
+  const out = transformForPg('docker-compose-infra.prod.yml', slice);
+  assert.match(out, /postgres:\n {4}ports: !override \[\]\n {4}restart: unless-stopped/);
   assert.ok(out.includes('mysql'), '原 mysql 收敛块保留');
+  assert.equal(transformForPg('docker-compose-infra.prod.yml', out), out, '重复变换必须幂等');
+  // 三组拆分后入口是纯 include 文件：不做方言变换，原样拷贝。
+  const entry = 'include:\n  - docker-compose-infra.prod.yml\n  - docker-compose-services.prod.yml\n';
+  assert.equal(transformForPg('docker-compose.prod.yml', entry), null);
 });
 
 test('pg dialect: non-transformable files returned as null (copy as-is)', () => {
   assert.equal(transformForPg('base-images.json', '{}'), null);
   assert.equal(transformForPg('config/prometheus/prometheus.yml', 'global: {}\n'), null);
+});
+
+test('pg dialect: YAML merge keys are expanded, not round-tripped as literal <<"', () => {
+  // js-yaml 往返会把 `<<` 变成带引号的字面量键，docker compose 拒绝渲染
+  // （2026-11-06 bundle 实测事故）。变换必须就地展开合并键。
+  const text = [
+    'x-consul-env: &consul-env',
+    '  CONSUL_ADDR: http://consul:8500',
+    'services:',
+    '  token-service:',
+    '    environment:',
+    '      <<: *consul-env',
+    '      TOKEN_DATABASE_DB_TYPE: mysql',
+    '',
+  ].join('\n');
+  const out = yaml.load(transformForPg('docker-compose-services.yml', text));
+  const env = out.services['token-service'].environment;
+  assert.equal(env['<<'], undefined, '合并键必须被展开掉');
+  assert.equal(env.CONSUL_ADDR, 'http://consul:8500', '锚点内容并入父级');
+  assert.equal(env.TOKEN_DATABASE_DB_TYPE, 'postgres', '展开后显式键仍被方言变换命中');
 });
 
 test('pg bundle: dir suffix -pg, replica/init dirs excluded, TEMPLATE_INFO.dialect', () => {

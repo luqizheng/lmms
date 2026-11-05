@@ -11,8 +11,10 @@
 //   - docker-compose-services.yml / docker-compose.yml: 所有 `depends_on: mysql`
 //     翻转为 postgres；token-service 的 TOKEN_DATABASE_DB_TYPE → postgres；
 //     docker-compose.yml 的 mysql-replica 服务与卷整体移除(PG 无对应物)
-//   - docker-compose.prod.yml: 文本追加 postgres 的 ports !override 块
-//     （该文件含 !override 自定义 tag，js-yaml 不可解析，走文本变换）
+//   - docker-compose-infra.prod.yml: prod 差异片是文本态（!override 自定义
+//     tag，js-yaml 不可解析），追加 postgres 的 ports 收敛 + restart。三组
+//     拆分（2026-11-06）后 postgres 收敛落点从入口 overlay 挪到本片；入口
+//     docker-compose.prod.yml 已是纯 include 文件，方言变换不再触碰它
 //   - .env / .env.prod.example: DATABASE_URL 换成 postgres:// 连接串
 //   - mysql-replica/ 与 mysql-init/ 目录不进 PG 包
 
@@ -94,6 +96,30 @@ function collectTemplateFiles(infraDir, dialect = 'mysql', fsMod = fs) {
 // PG 方言变换（按文件；未知文件原样拷贝）
 // ---------------------------------------------------------------------------
 
+/** js-yaml 往返会把 `<<: *anchor` 保留为字面量键（dump 还加引号 `'<<':`），
+ *  docker compose 只认裸 `<<` 合并键——往返后的文件必然渲染失败（2026-11-06
+ *  bundle 实测）。加载后就地展开：合并 `<<` 的映射进父级，显式键优先、
+ *  序列里靠前的来源优先（YAML merge 语义）。 */
+function expandMergeKeys(node) {
+  if (Array.isArray(node)) {
+    for (const item of node) expandMergeKeys(item);
+    return node;
+  }
+  if (!node || typeof node !== 'object') return node;
+  for (const value of Object.values(node)) expandMergeKeys(value);
+  const merge = node['<<'];
+  if (merge === undefined) return node;
+  delete node['<<'];
+  const sources = Array.isArray(merge) ? merge : [merge];
+  for (const source of sources) {
+    if (!source || typeof source !== 'object') continue;
+    for (const [key, value] of Object.entries(source)) {
+      if (!(key in node)) node[key] = value;
+    }
+  }
+  return node;
+}
+
 // 结构化 YAML 变换的目标文件（无自定义 tag，js-yaml 可安全往返）。
 const YAML_TRANSFORM_FILES = new Set([
   'docker-compose-infra.yml',
@@ -150,27 +176,30 @@ function transformEnvFile(text) {
   return text.replace(/\n$/, '\n') + pgUrl + '\n';
 }
 
-/** prod overlay 是文本态（!override tag）：追加 postgres 的端口收敛块。 */
-function transformProdOverlay(text) {
+/** infra 组 prod 差异片是文本态（!override tag）：追加 postgres 的生产收敛块
+ *  （ports 清空 + restart，与片内 mysql 同款）。入口 docker-compose.prod.yml
+ *  是纯 include 文件，无 services 可挂，方言变换不再触碰它。 */
+function transformInfraProdSlice(text) {
   if (/^  postgres:$/m.test(text)) return text;
   const block =
     '\n# PG 方言变体追加：postgres 生产态不发布端口（与上方 mysql 同款收敛）。\n' +
     '  postgres:\n' +
-    '    ports: !override []\n';
+    '    ports: !override []\n' +
+    '    restart: unless-stopped\n';
   return text.replace(/\n*$/, '\n') + block;
 }
 
 /** 对单个模板文件做 PG 方言变换；返回变换后的文本（无需变换返回 null）。 */
 function transformForPg(rel, text) {
   if (YAML_TRANSFORM_FILES.has(rel)) {
-    const doc = yaml.load(text);
+    const doc = expandMergeKeys(yaml.load(text));
     const transformed =
       rel === 'docker-compose-infra.yml'
         ? transformInfraCompose(doc)
         : transformAppCompose(doc);
     return yaml.dump(transformed, { lineWidth: -1, noRefs: true });
   }
-  if (rel === 'docker-compose.prod.yml') return transformProdOverlay(text);
+  if (rel === 'docker-compose-infra.prod.yml') return transformInfraProdSlice(text);
   if (rel === '.env' || rel === '.env.prod.example') return transformEnvFile(text);
   return null;
 }
@@ -216,6 +245,6 @@ module.exports = {
   transformInfraCompose,
   transformAppCompose,
   transformEnvFile,
-  transformProdOverlay,
+  transformInfraProdSlice,
   DIALECTS,
 };
