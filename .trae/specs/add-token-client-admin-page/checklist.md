@@ -1,1 +1,0 @@
-- [ ] 端到端：新增→编辑→禁用→重�?secret→删�?全流程成�?  - ⚠️ 阻塞：当前运行的 token-service 容器为旧镜像，`/api/v1/admin/oauth-clients` 返回 404；需重新 `docker compose build token-server && docker compose up -d token-server` 后再走完整流�?
