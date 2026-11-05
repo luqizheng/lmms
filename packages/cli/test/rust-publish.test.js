@@ -57,7 +57,8 @@ test('topology constants: common-error before common; http-client first among sd
   assert.ok(LIBS_ORDER.indexOf('common-error') < LIBS_ORDER.indexOf('common'));
   assert.equal(LIBS_ORDER.length, 17);
   assert.equal(SDKS_ORDER[0], 'digua-http-client');
-  assert.equal(SDKS_ORDER.length, 7);
+  // config-service-sdk 随 config-service 移除（538c65ad）后为 6。
+  assert.equal(SDKS_ORDER.length, 6);
 });
 
 test('rollback: failure at the third crate restores every rewritten Cargo.toml', () => {

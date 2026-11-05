@@ -120,11 +120,11 @@ test('pg dialect: DB services only, -pg tags, postgres feature build-arg', () =>
   assert.equal(plan.dialect, 'pg');
   assert.deepEqual(
     plan.services.sort(),
-    ['audit-service', 'config-service', 'file-service', 'iam-service', 'notification-service', 'prue-admin-backend', 'token-service'],
+    ['audit-service', 'file-service', 'iam-service', 'notification-service', 'prue-admin-backend', 'token-service'],
   );
-  assert.deepEqual(plan.tagsByService['config-service'], [
-    `${DEFAULT_REGISTRY}/micro-server/config-service:1.6.0-pg`,
-    `${DEFAULT_REGISTRY}/micro-server/config-service:pg-latest`,
+  assert.deepEqual(plan.tagsByService['token-service'], [
+    `${DEFAULT_REGISTRY}/micro-server/token-service:1.6.0-pg`,
+    `${DEFAULT_REGISTRY}/micro-server/token-service:pg-latest`,
   ]);
   assert.ok(plan.warnings.some((w) => w.includes('api-gateway')), '非 DB 服务必须提示跳过');
 });
@@ -133,10 +133,10 @@ test('pg dialect: buildService passes SERVICE_FEATURES=postgres build-arg', () =
   const calls = [];
   const exec = (file, args) => { calls.push([file, ...args]); return { status: 0 }; };
   const root = fixture();
-  fs.mkdirSync(path.join(root, 'services', 'config-service'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'services', 'config-service', 'Dockerfile'), 'FROM scratch\n');
-  const plan = resolvePlan({ args: parseBuildArgs(['--dialect', 'pg', '-v', '1.6.0', 'config-service']), isTTY: false });
-  buildService('config-service', plan, { root, exec, out: { log: () => {}, warn: () => {} } });
+  fs.mkdirSync(path.join(root, 'services', 'token-service'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'services', 'token-service', 'Dockerfile'), 'FROM scratch\n');
+  const plan = resolvePlan({ args: parseBuildArgs(['--dialect', 'pg', '-v', '1.6.0', 'token-service']), isTTY: false });
+  buildService('token-service', plan, { root, exec, out: { log: () => {}, warn: () => {} } });
   const build = calls.find((c) => c[0] === 'docker');
   const i = build.indexOf('--build-arg');
   assert.ok(i > 0, 'pg 构建必须带 --build-arg');
@@ -146,9 +146,9 @@ test('pg dialect: buildService passes SERVICE_FEATURES=postgres build-arg', () =
 test('mysql dialect (default): tags unchanged and no build-arg', () => {
   const plan = resolvePlan({ args: parseBuildArgs(['-v', '1.6.0']), isTTY: false });
   assert.equal(plan.dialect, 'mysql');
-  assert.deepEqual(plan.tagsByService['config-service'], [
-    `${DEFAULT_REGISTRY}/micro-server/config-service:1.6.0`,
-    `${DEFAULT_REGISTRY}/micro-server/config-service:latest`,
+  assert.deepEqual(plan.tagsByService['token-service'], [
+    `${DEFAULT_REGISTRY}/micro-server/token-service:1.6.0`,
+    `${DEFAULT_REGISTRY}/micro-server/token-service:latest`,
   ]);
   assert.ok(!plan.warnings.some((w) => w.includes('skipping non-DB')));
 });
