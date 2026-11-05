@@ -33,7 +33,11 @@ COPY --from=builder /app/services/token-service/config /app/config
 RUN mkdir -p /app/keys
 ENV RUST_LOG=token_service=debug
 
-HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=20s \
+# start-period 60s: on a fresh volume the first boot generates the RSA key
+# pair and runs migrations before /health answers; dependents gate on
+# service_healthy, and 20s made `docker compose up` abort with
+# "dependency token-service failed to start" on every cold start.
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 --start-period=60s \
   CMD curl -f http://127.0.0.1:8082/health || exit 1
 
 CMD ["/app/token_service"]

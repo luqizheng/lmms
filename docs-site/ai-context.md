@@ -445,6 +445,10 @@ P0-3 处理（commit `68ce9d0`）：所有 `DEPLOY_PASSWORD` / `E2E_DB_PASSWORD`
 
 19. **Alertmanager 与 Prometheus 告警对应**（commit `e24a3f4` 后）：`infrastructure/config/prometheus/alerts.yml` 5 条规则——ServiceDown（critical，对应可用性 SLO）/ HighErrorRate（critical，对应错误预算）/ HighLatency（warning，对应延迟 SLO）/ OutboxBacklog（warning，对应容量）/ HighRateLimit（warning，对应容量）。新增告警规则时：① yaml 加规则（PromQL + for + labels.severity）；② 重启 prometheus 容器（`docker compose restart prometheus`）。Alertmanager `route` 已按 severity 分发到 `default` / `critical` 两个 receiver。
 
+20. **`SERVICE_BOOTSTRAP_TOKENS` 是派生变量，部署 env 手写必踩**（2026-11-05 ai-pm 下游实测）：`.env.prod.example:61` 聚合行只是 8 个 `*_DEV_BT` 的 `${...}` 引用链，shell `source` 按行序展开——手写 `.env.prod` 漏抄该行或把它放到 DEV_BT 块之前，聚合值为空 → token-service 拒绝全部自举请求（`service_jwt.rs` 验列表逐字比对），症状 = **所有登录 401 `service-jwt mint failed: bootstrap rejected`**（不是密码错）。env 变更须整栈同批重建（runbook 同款纪律）。
+
+21. **token-service 冷卷首启竞态**：全新 volume 首次启动要生成 RSA 密钥对 + 跑迁移，早于 `--start-period` 完成 `/health` 就绪，依赖方 `service_healthy` 门禁即报 `dependency token-service failed to start`（2026-11-05 实测 20s 不够）。已把 token-service Dockerfile `start-period` 提到 60s；**存量镜像在重建发布前**，遇此症状把 `start-prod.sh` 再跑一遍即收敛（compose up 幂等，无需 down）。
+
 ---
 
 ## 9. 常用验证命令（push 前必跑）
