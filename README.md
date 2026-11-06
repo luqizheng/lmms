@@ -29,7 +29,7 @@ A microservices architecture for coder platform, built with Rust.
 docker compose -f infrastructure/docker-compose.yml up -d
 
 # 2. （可选）启动可观测性 overlay（Prometheus + Grafana + Jaeger + OTel collector，
-#    已 include 进 docker-compose.yml；想跳过此步可用 `docker compose -f infrastructure/docker-compose-infra.yml up -d`）
+#    已 include 进 docker-compose.yml；想跳过此步可用 `docker compose -f infrastructure/infra/docker-compose-infra.yml up -d`）
 docker compose -f infrastructure/docker-compose.yml up -d
 # → Prometheus :9090  Grafana :3001  Jaeger :16686
 
@@ -169,7 +169,7 @@ docker exec consul consul tags -delete -service audit-service -tag canary -id <i
 基础设施的 docker compose 文件位于 `infrastructure/`：
 
 - `docker-compose.yml` — 仅基础设施（3 容器：consul / redis / mysql，配合本地服务进程）
-- `docker-compose-observability.yml` — overlay（Prometheus + Grafana + Jaeger + OTel collector）
+- `observability/docker-compose-observability.yml` — overlay（Prometheus + Grafana + Jaeger + OTel collector）
 
 ### 在 Docker 中跑 Rust 单元测试
 

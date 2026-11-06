@@ -17,23 +17,41 @@
 
 ## 模式 C：分置多机
 
-### 每台机的操作
+### 每台机的操作（目录即部署单元）
+
+2026-11-06 起各组物理自包含（`infrastructure/{infra,observability,services}/`，
+compose + config 分区 + start/stop.sh + .env.example）——**整目录 copy 到目标机
+即可部署**：
 
 ```bash
-# infra 机（中间件 + 服务发现）
-cd infrastructure && ./scripts/start-prod.sh infra --remote
+# ── 分发（任选 scp / rsync / git 同步） ─────────────────────────────
+scp -r infrastructure/infra/            infra-host:~/lmms/
+scp -r infrastructure/services/         svc-host:~/lmms/
+scp -r infrastructure/observability/    obs-host:~/lmms/
 
-# services 机（业务服务；env 指 infra/obs 机 IP，见下）
-cd infrastructure && ./scripts/start-prod.sh svc --remote
+# ── infra 机 ────────────────────────────────────────────────────────
+cd ~/lmms && cp .env.example .env        # 改中间件口令等
+./start.sh --remote                      # remote 片发布宿主端口供他机访问
 
-# obs 机（可观测性；需要 CONSUL_HOST_IP 指回 infra 机）
-CONSUL_HOST_IP=<infra 机 IP> cd infrastructure && ./scripts/start-prod.sh obs --remote
+# ── services 机（env 按「跨主机寻址契约」填他机 IP） ─────────────────
+cd ~/lmms && cp .env.example .env        # CONSUL_ADDR/SERVICE_ADDRESS/REDIS_HOST/…
+./start.sh --remote
+
+# ── obs 机（需 CONSUL_HOST_IP 指回 infra 机） ───────────────────────
+cd ~/lmms && cp .env.example .env        # CONSUL_HOST_IP=<infra 机 IP>
+./start.sh --remote
 ```
 
-- `--remote` 只作用于**本次点名的组**：同机组合（如 infra+obs 同机、services 异机）
-  时，同机的组不要带 `--remote`（走共享网络容器名，无需 `CONSUL_HOST_IP`）：
-  `./scripts/start-prod.sh infra --remote && ./scripts/start-prod.sh obs`
-- 停止：`./scripts/stop-prod.sh <组名>`（每台机停自己；`--volumes` 语义同前）。
+- 组目录内 `start.sh` 支持 `--remote/--dev/--staging` 选 overlay 片（默认 prod），
+  其余 args 透传 compose；`stop.sh` 对应 down（`--volumes` 语义同前）。
+- env 向上回退：仓内运行自动命中 `infrastructure/.env` 单一事实源，拷出后用
+  本地 `.env`——两种形态同一份脚本。
+- 同机组合（如 infra+obs 同机、services 异机）：同机的组不带 `--remote`
+  （走共享网络容器名，无需 `CONSUL_HOST_IP`）。
+- 仓内一键编排（模式 A 同机全量/分组）仍走根编排器：
+  `./scripts/start-prod.sh infra --remote` 等，`--remote` 只作用于本次点名的组。
+- `services/` 的拷出形态=镜像引用部署（仓内 build context 指仓根，拷出不可
+  构建）；跨目录 config 挂载由发布管线 remap 成目录内 `./config/<slug>`。
 
 ### 跨主机寻址契约（services 机的 env 覆盖块，写进 .env.prod）
 

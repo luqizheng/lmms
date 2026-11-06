@@ -213,7 +213,7 @@ docker-compose `command:` 字段**必须**用下划线。常见踩坑：把 `ntf
 ```bash
 # 1) 渲染离线下发包 compose（不变 command:）
 node release/dist-template/scripts/transform-compose.js \
-  ./infrastructure/docker-compose-services.yml \
+  ./infrastructure/services/docker-compose-services.yml \
   zhcoder-docker-registry.com:8000 1.5.0
 
 # 2) 列出真实二进制名（与 compose 的 command: 字段交叉对账）
