@@ -24,12 +24,12 @@
     },
     {
       "ref": "grafana/loki:3.3.2",
-      "source": "infrastructure/docker-compose-observability.staging.yml",
+      "source": "infrastructure/observability/docker-compose-observability.logs.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {
       "ref": "grafana/promtail:3.3.2",
-      "source": "infrastructure/docker-compose-observability.staging.yml",
+      "source": "infrastructure/observability/docker-compose-observability.logs.yml",
       "mirror": "zhcoder-docker-registry.com:8000/official"
     },
     {

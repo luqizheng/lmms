@@ -1,4 +1,4 @@
-# Loki single-binary mode for staging — 14-day retention
+# Loki single-binary mode — 14-day retention（logs 片用）
 # See ADR-007 D1/D4
 #
 # Staging uses filesystem storage + single binary (no microservices mode,

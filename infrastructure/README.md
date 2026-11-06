@@ -15,7 +15,7 @@ infrastructure/
 ├── docker-compose.yml / docker-compose.prod.yml   合体入口（模式 B，include 三组子目录）
 ├── scripts/                                        编排器（start-prod / stop-prod / deploy-remote）
 ├── infra/            docker-compose-infra.yml(+dev/prod/remote) + config/{consul,rabbitmq} + mysql-init + start.sh/stop.sh/.env.example
-├── observability/    docker-compose-observability.yml(+staging/prod/remote) + config/{prometheus,grafana,alertmanager,nginx,otel,loki} + start.sh/stop.sh/.env.example
+├── observability/    docker-compose-observability.yml(+logs/prod/remote) + config/{prometheus,grafana,alertmanager,nginx,otel,loki} + start.sh/stop.sh/.env.example
 └── services/         docker-compose-services.yml(+prod/remote) + config/api-gateway + start.sh/stop.sh/.env.example
 ```
 

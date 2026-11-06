@@ -46,7 +46,7 @@ cd ~/lmms && cp .env.example .env        # CONSUL_HOST_IP=<infra 机 IP>
 ```
 
 - 组目录内 `start.sh` 选片：`--remote/--dev` 基础片（默认 prod），`--logs` 在任意
-  形态上叠加日志栈片（loki+promtail，别名 `--staging`）；其余 args 透传 compose；
+  形态上叠加日志栈片（loki+promtail；logs 片，2026-11-06 由 staging 片更名，名实一致）；其余 args 透传 compose；
   `stop.sh` 对应 down（`--volumes` 语义同前）。
 - env 向上回退：仓内运行自动命中 `infrastructure/.env` 单一事实源，拷出后用
   本地 `.env`——两种形态同一份脚本。

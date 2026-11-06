@@ -250,7 +250,7 @@ docker push zhcoder-docker-registry.com:8000/official/prom/alertmanager:v0.27.0
 不在 sync 范围：
 - **业务服务镜像**（`micro-server/<svc>:<sha>` 共 8 个）—— `build_images:staging` 自己 push，sync 脚本不动它们
 
-（2026-11-06 起 `load-images.js` 已扫描 `docker-compose-observability.staging.yml`——
+（2026-11-06 起 `load-images.js` 已扫描 `docker-compose-observability.logs.yml`——
 `grafana/loki:3.3.2` / `grafana/promtail:3.3.2` 进入离线包镜像清单，不再是 ops 手动欠账。）
 
 ### 批量同步（防患于未然）

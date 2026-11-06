@@ -5,7 +5,7 @@
 #   cp .env.example .env   # 按环境改值；跨主机需 CONSUL_HOST_IP=<infra 机 IP>
 #   ./start.sh             # 默认叠加 prod 片：指标+链路 6 服务
 #   ./start.sh --remote    # obs 与 infra 不同机时叠加 remote 片（extra_hosts 映射 consul）
-#   ./start.sh --logs      # 叠加日志栈（loki + promtail，即 staging 片）；可与 --remote/--dev 叠加
+#   ./start.sh --logs      # 叠加日志栈（loki + promtail，logs 片，原 staging 片更名）；可与 --remote/--dev 叠加
 #   ./start.sh --remote --logs   # 跨主机 + 日志全栈（8 服务）
 # 仓内运行时不拷贝也行：env 向上回退命中 infrastructure/.env（单一事实源）。
 #
@@ -21,14 +21,14 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="superpowers-obs"
 BASE="docker-compose-observability"
 OVERLAY="prod"   # 基础选片：prod（默认）| remote | dev
-LOGS=0           # --logs / --staging：叠加日志栈片（loki+promtail）
+LOGS=0           # --logs：叠加日志栈片（loki+promtail）
 UP_ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --remote)         OVERLAY="remote" ;;
     --dev)            OVERLAY="dev" ;;
     --prod)           OVERLAY="prod" ;;
-    --logs|--staging) LOGS=1 ;;
+    --logs) LOGS=1 ;;
     --help|-h)        grep '^#' "$0" | sed '1d;$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)                UP_ARGS+=("$arg") ;;
   esac
@@ -39,8 +39,8 @@ die() { echo "[start:$PROJECT] FATAL: $*" >&2; exit 10; }
 
 [[ -f "$DIR/$BASE.yml" ]] || die "$BASE.yml not found next to start.sh"
 [[ -f "$DIR/$BASE.$OVERLAY.yml" ]] || die "overlay $BASE.$OVERLAY.yml not found"
-if [[ "$LOGS" -eq 1 && ! -f "$DIR/$BASE.staging.yml" ]]; then
-  die "--logs requires $BASE.staging.yml next to start.sh"
+if [[ "$LOGS" -eq 1 && ! -f "$DIR/$BASE.logs.yml" ]]; then
+  die "--logs requires $BASE.logs.yml next to start.sh"
 fi
 
 # env 分层加载：祖先目录先加载（仓内=根 .env），本地后加载（拷出后覆盖）
@@ -64,7 +64,7 @@ fi
 
 COMPOSE_FILES=(-f "$BASE.yml" -f "$BASE.$OVERLAY.yml")
 if [[ "$LOGS" -eq 1 ]]; then
-  COMPOSE_FILES+=(-f "$BASE.staging.yml")
+  COMPOSE_FILES+=(-f "$BASE.logs.yml")
 fi
 
 docker network create superpowers >/dev/null 2>&1 || true

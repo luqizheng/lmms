@@ -6,7 +6,7 @@
 #   CONSUL_ADDR 指 infra 机 IP；SERVICE_ADDRESS 必须设为本机 LAN IP
 #   （consul 侧健康检查会向该地址拨号；空值时 libs/common-consul 回退容器
 #   hostname，仅同机部署有效）。同机部署两者留默认即可。
-# 日志：promtail（observability staging overlay）只发现 logging=loki 容器，
+# 日志：promtail（observability logs 片，原 staging 片更名）只发现 logging=loki 容器，
 #       service/env 两个 label 进 Loki 流标签。
 x-consul-env: &consul-env
   CONSUL_ADDR: "${CONSUL_ADDR:-http://consul:8500}"

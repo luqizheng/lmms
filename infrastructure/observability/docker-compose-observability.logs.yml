@@ -1,14 +1,14 @@
-# Loki + Promtail staging overlay
+# Loki + Promtail logs overlay —— 日志栈片（2026-11-06 由 staging 片更名：内容是「日志栈」，与 staging 部署环境无关）
 # Brings up a single-binary Loki (filesystem backend, 14d retention) and a
 # Promtail that scrapes any container carrying the `logging=loki` label
 # (added in docker-compose-services.yml). No S3/GCS, no microservices mode —
-# staging-only overlay; production would replace this with the chunked
+# single-node scope; production scale-out would replace this with the chunked
 # distributor/querier/ingester split.
 #
 # Bring everything up with:
-#   docker compose -f infrastructure/docker-compose.yml \
-#                  -f infrastructure/docker-compose-observability.staging.yml \
-#                  up -d
+#   ./start.sh --logs          # 组目录内（自包含部署单元）
+#   或：docker compose -f docker-compose-observability.yml \
+#                      -f docker-compose-observability.logs.yml up -d
 #
 # Then:
 #   Loki HTTP API:     http://localhost:3100
@@ -20,14 +20,14 @@
 services:
   loki:
     image: ${loki:-grafana/loki:3.3.2}
-    container_name: loki-staging
+    container_name: loki
     restart: unless-stopped
-    command: -config.file=/etc/loki/loki-staging.yaml
+    command: -config.file=/etc/loki/loki.yaml
     ports:
       - "3100:3100"
     volumes:
       - loki-data:/loki
-      - ./config/loki/loki-staging.yaml:/etc/loki/loki-staging.yaml:ro
+      - ./config/loki/loki.yaml:/etc/loki/loki.yaml:ro
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--spider", "-O", "/dev/null", "http://localhost:3100/ready"]
       interval: 10s
@@ -38,12 +38,12 @@ services:
 
   promtail:
     image: ${promtail:-grafana/promtail:3.3.2}
-    container_name: promtail-staging
+    container_name: promtail
     restart: unless-stopped
-    command: -config.file=/etc/promtail/promtail-staging.yaml
+    command: -config.file=/etc/promtail/promtail.yaml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./config/loki/promtail-staging.yaml:/etc/promtail/promtail-staging.yaml:ro
+      - ./config/loki/promtail.yaml:/etc/promtail/promtail.yaml:ro
       - promtail-positions:/tmp/promtail
     depends_on:
       loki:

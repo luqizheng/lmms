@@ -28,7 +28,7 @@ function fixture() {
     'services/.env.example',
     'services/config/api-gateway/api-gateway.toml',
     'observability/docker-compose-observability.yml',
-    'observability/docker-compose-observability.staging.yml',
+    'observability/docker-compose-observability.logs.yml',
     'observability/docker-compose-observability.prod.yml',
     'observability/docker-compose-observability.remote.yml',
     'observability/.env.example',
