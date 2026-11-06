@@ -23,7 +23,6 @@ limits_config:
 
 compactor:
   retention_enabled: true
-  delete_delay: 2h
   working_directory: /loki/compactor
 
 schema_config:
@@ -35,6 +34,3 @@ schema_config:
       index:
         prefix: index_
         period: 24h
-
-ruler:
-  alertmanager_url: []
