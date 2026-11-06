@@ -179,7 +179,6 @@ is_worker_service() {
   esac
 }
 
-log "  compose files: ${DOCKER_COMPOSE[*]}"
 log "  services (in order): ${SERVICES[*]}"
 
 # ─────────────────────────────────────────────────────────────────────────────

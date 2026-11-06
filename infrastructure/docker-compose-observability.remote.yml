@@ -1,0 +1,24 @@
+# infrastructure/docker-compose-observability.remote.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# 跨主机部署片（模式 C，docs/deploy-topologies.md）：observability 组独立成机
+# 时，以本片代替 *.prod.yml 叠加（./start-prod.sh obs --remote）。
+#
+# base 已发布全部端口并带 restart，本片只做一件事：把 prometheus 的 consul SD
+# 与 consul-template 所依赖的 `consul` 容器名经 extra_hosts 映射到 infra 机 IP。
+# prometheus.yml 为静态挂载、无 env 插值，extra_hosts 是零配置改动方案
+# （prometheus.yml 的 consul_sd_configs 与 config/nginx/consul-template.hcl
+# 都写死 `consul:8500`）。组内互访（jaeger/prometheus/alertmanager/
+# otel-collector/grafana）不受影响。
+#
+# 需求 env：CONSUL_HOST_IP=<infra 机 LAN IP>（缺失即 fail-fast）。
+# ⚠️ 仅在 obs 与 infra 不同机时叠加本片；同机组合用不带 --remote 的 obs
+#    （走共享 superpowers 网络容器名解析，无需本片）。
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  prometheus:
+    extra_hosts:
+      - "consul:${CONSUL_HOST_IP:?set CONSUL_HOST_IP=<infra host ip> for cross-host observability}"
+
+  consul-template:
+    extra_hosts:
+      - "consul:${CONSUL_HOST_IP:?set CONSUL_HOST_IP=<infra host ip> for cross-host observability}"

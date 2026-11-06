@@ -6,22 +6,22 @@
 
 ## Compose 文件清单与部署模式
 
-2026-11-05 起支持**两种部署模式**，共用同一组文件与同一张预建 `superpowers`
+2026-11-05 起支持**三种部署模式**，共用同一组文件与同一张预建 `superpowers`
 外部网络、同一批 `superpowers_*` named volumes：
 
-**模式 A — 三组独立部署**（生产推荐，`start-prod.sh` 三段式）：
+**模式 A — 同机三组**（生产推荐，`start-prod.sh` 三段式；支持组参数单独启停）：
 
-| 项目 | compose 文件 | prod 差异片 |
-| --- | --- | --- |
-| `superpowers-infra` | `docker-compose-infra.yml`（consul server / mysql / redis / rabbitmq / postgres） | `docker-compose-infra.prod.yml` |
-| `superpowers-obs` | `docker-compose-observability.yml`（prometheus / grafana / jaeger / otel / alertmanager / consul-template） | `docker-compose-observability.prod.yml` |
-| `superpowers-svc` | `docker-compose-services.yml`（8 业务服务 + 2 outbox publisher） | `docker-compose-services.prod.yml` |
+| 项目 | compose 文件 | prod 差异片 | remote 片（跨主机） |
+| --- | --- | --- | --- |
+| `superpowers-infra` | `docker-compose-infra.yml`（consul server / mysql / redis / rabbitmq / postgres） | `docker-compose-infra.prod.yml` | `docker-compose-infra.remote.yml` |
+| `superpowers-obs` | `docker-compose-observability.yml`（prometheus / grafana / jaeger / otel / alertmanager / consul-template） | `docker-compose-observability.prod.yml` | `docker-compose-observability.remote.yml` |
+| `superpowers-svc` | `docker-compose-services.yml`（8 业务服务 + 2 outbox publisher） | `docker-compose-services.prod.yml` | `docker-compose-services.remote.yml` |
 
 ```bash
 docker network create superpowers          # 三组共享，幂等
-docker compose -p superpowers-infra -f docker-compose-infra.yml -f docker-compose-infra.prod.yml up -d
-docker compose -p superpowers-obs  -f docker-compose-observability.yml -f docker-compose-observability.prod.yml up -d
-docker compose -p superpowers-svc  -f docker-compose-services.yml -f docker-compose-services.prod.yml up -d
+./scripts/start-prod.sh                    # 三组全起（= 模式 A 全量）
+./scripts/start-prod.sh infra              # 只起 infra 组（obs/svc 同理）
+./scripts/stop-prod.sh svc                 # 只停 services 组
 ```
 
 启动顺序：infra → observability → services。业务服务对 infra 的跨组
@@ -31,6 +31,12 @@ docker compose -p superpowers-svc  -f docker-compose-services.yml -f docker-comp
 **模式 B — 单机合体**（模板包 / airgap / 本地一键）：入口
 `docker-compose.yml` include 三块，`docker-compose.prod.yml` include 三个
 prod 差异片（差异只写一处）。`start-prod.sh` 已默认走模式 A。
+
+**模式 C — 分置多机**（2026-11-06）：三组各占一台服务器（或任意子集组合），
+每台机只点自己的组并加 `--remote`（以 `*.remote.yml` 片代替 prod 片——发布
+宿主端口；obs 机需 `CONSUL_HOST_IP`）。跨主机寻址契约、防火墙清单与
+「测试服务器跑 infra(+obs)、本地开发 services」的场景配方见
+**[docs/deploy-topologies.md](../docs/deploy-topologies.md)**。
 
 > ⚠️ 不要再写第 6 个 compose 文件做「dev-only 全栈」——dev/prod 差异统一通过 `_dev` overlay 表达。
 

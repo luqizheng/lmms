@@ -1,0 +1,38 @@
+# infrastructure/docker-compose-services.remote.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# 跨主机部署片（模式 C，docs/deploy-topologies.md）：services 组独立成机时，
+# 以本片代替 *.prod.yml 叠加（./start-prod.sh svc --remote）。
+#
+# ⚠️ 本片刻意不声明 ports：base 文件已发布全部服务端口（0.0.0.0），多 -f
+#    对 ports 是追加合并，重复声明会造成重复发布冲突。prod 片的
+#    `ports: !override []` 收口是同机模式的安全设计，跨主机不适用。
+#    本片只补 restart: unless-stopped（base 仅 outbox publishers 有）。
+#
+# 跨主机 env 契约（x-consul-env 注释与 docs/deploy-topologies.md）：
+#   CONSUL_ADDR → infra 机；SERVICE_ADDRESS → 本机 LAN IP（consul 健康检查
+#   回拨）；REDIS_HOST/RABBITMQ_HOST/DATABASE_URL → infra 机；
+#   OTEL_EXPORTER_OTLP_ENDPOINT → obs 机（obs 缺席时留默认，导出失败不阻塞）。
+#
+# outbox publishers 无监听端口、base 已带 restart，本片不动。
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  file-service:
+    restart: unless-stopped
+
+  api-gateway:
+    restart: unless-stopped
+
+  token-service:
+    restart: unless-stopped
+
+  iam-service:
+    restart: unless-stopped
+
+  prue_backend:
+    restart: unless-stopped
+
+  notification-service:
+    restart: unless-stopped
+
+  audit-service:
+    restart: unless-stopped

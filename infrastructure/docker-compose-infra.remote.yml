@@ -1,0 +1,37 @@
+# infrastructure/docker-compose-infra.remote.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# 跨主机部署片（模式 C，docs/deploy-topologies.md）：infra 组独立成机时，
+# 以本片代替 *.prod.yml 叠加（./start-prod.sh infra --remote）。
+#   - 发布中间件宿主端口（0.0.0.0）供他机 services/obs 组访问；端口表与
+#     docker-compose-infra.dev.yml 同源（同一批 ${*_PORT} 变量）
+#   - 补 restart: unless-stopped（base 无、prod 片才有，remote 模式两处都要）
+# 防火墙须放行：8500 8502 6379 3306 5432 5672 15672（PG 形态以 5432 为主，
+# mysql 片随 profiles:["mysql"] 才生效）。
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  consul:
+    restart: unless-stopped
+    ports:
+      - "${CONSUL_HTTP_PORT:-8500}:8500"
+      - "${CONSUL_GRPC_PORT:-8502}:8502"
+
+  redis:
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  mysql:
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT_EXPORT:-3306}:3306"
+
+  postgres:
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT_EXPORT:-5434}:5432"
+
+  rabbitmq:
+    restart: unless-stopped
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
