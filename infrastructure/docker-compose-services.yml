@@ -2,10 +2,15 @@
 # 注册：libs/common-consul 读 CONSUL_ADDR/SERVICE_NAME/SERVICE_PORT/
 #       SERVICE_HEALTH_PATH（各服务 environment 内）→ 启动注册、SIGTERM 注销、
 #       30s 对账重注册。不再使用 Docker labels（SERVICE_* labels 已删除）。
+# 跨主机：三组分置多机部署时（模式 C，docs/deploy-topologies.md）——
+#   CONSUL_ADDR 指 infra 机 IP；SERVICE_ADDRESS 必须设为本机 LAN IP
+#   （consul 侧健康检查会向该地址拨号；空值时 libs/common-consul 回退容器
+#   hostname，仅同机部署有效）。同机部署两者留默认即可。
 # 日志：promtail（observability staging overlay）只发现 logging=loki 容器，
 #       service/env 两个 label 进 Loki 流标签。
 x-consul-env: &consul-env
-  CONSUL_ADDR: "http://consul:8500"
+  CONSUL_ADDR: "${CONSUL_ADDR:-http://consul:8500}"
+  SERVICE_ADDRESS: "${SERVICE_ADDRESS:-}"
   SERVICE_HEALTH_PATH: "/health"
 
 x-loki-labels: &loki-labels
@@ -31,7 +36,7 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       STORAGE_PATH: "/var/lib/file-service/storage"
       RUST_LOG: "info"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       SERVICE_NAME: "file-service"
       # SERVER_ADDR: "0.0.0.0:8082"   # 默认值，取消注释可覆盖
 
@@ -67,7 +72,7 @@ services:
       GW_EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
       # GW_PERM_EPOCH_TTL_SEC: "900"   # 默认值，取消注释可覆盖
       RUST_LOG: "api_gateway=trace,info"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       SERVICE_NAME: "api-gateway"
     volumes:
       - ./config/api-gateway/routes:/app/config/api-gateway/routes
@@ -118,7 +123,7 @@ services:
       TENANT_ID: "${TENANT_ID}"
       SWAGGER_ENABLED: "true"
       SERVICE_NAME: "token-service"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       # CONFIG_SERVICE_URL: ""       # 可选：远程配置中心地址
       # CONFIG_SERVICE_NAMESPACE: "" # 可选：远程配置中心命名空间
       # RUST_LOG: "info"
@@ -171,7 +176,7 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
       CONFIG_PATH: "/etc/iam-service/config.yaml"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       SERVICE_NAME: "iam-service"
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
@@ -284,7 +289,7 @@ services:
       SERVER_PORT: "8083"
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       SERVICE_NAME: "notification-service"
 
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
