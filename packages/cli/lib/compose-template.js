@@ -67,9 +67,11 @@ function isExcluded(relSegments, name, dialect) {
   if (SECRET_EXCLUDE_NAMES.has(name)) return true;
   if (SECRET_EXCLUDE_PATTERNS.some((re) => re.test(name))) return true;
   if (relSegments.some((seg) => SECRET_EXCLUDE_DIRS.has(seg))) return true;
-  // dotfiles/dirs are skipped, except the whitelisted env example
-  if (name.startsWith('.') && name !== '.env.prod.example') return true;
-  if (dialect === 'pg' && relSegments.length > 0 && PG_EXCLUDE_DIRS.has(relSegments[0])) return true;
+  // dotfiles/dirs are skipped, except the whitelisted env examples
+  if (name.startsWith('.') && name !== '.env.prod.example' && name !== '.env.example') return true;
+  // MySQL 专属目录：2026-11-06 起各组进自包含子目录，mysql-init 落在 infra/ 下，
+  // 必须按任意路径段匹配（首段匹配会漏）。
+  if (dialect === 'pg' && relSegments.some((seg) => PG_EXCLUDE_DIRS.has(seg))) return true;
   return false;
 }
 
@@ -189,18 +191,21 @@ function transformInfraProdSlice(text) {
   return text.replace(/\n*$/, '\n') + block;
 }
 
-/** 对单个模板文件做 PG 方言变换；返回变换后的文本（无需变换返回 null）。 */
+/** 对单个模板文件做 PG 方言变换；返回变换后的文本（无需变换返回 null）。
+ *  2026-11-06 起各组 compose 进自包含子目录（infra/ services/ observability/），
+ *  分发按 basename 匹配——按全 relpath 匹配会静默跳过子目录文件（复制不变换）。 */
 function transformForPg(rel, text) {
-  if (YAML_TRANSFORM_FILES.has(rel)) {
+  const base = rel.split('/').pop();
+  if (YAML_TRANSFORM_FILES.has(base)) {
     const doc = expandMergeKeys(yaml.load(text));
     const transformed =
-      rel === 'docker-compose-infra.yml'
+      base === 'docker-compose-infra.yml'
         ? transformInfraCompose(doc)
         : transformAppCompose(doc);
     return yaml.dump(transformed, { lineWidth: -1, noRefs: true });
   }
-  if (rel === 'docker-compose-infra.prod.yml') return transformInfraProdSlice(text);
-  if (rel === '.env' || rel === '.env.prod.example') return transformEnvFile(text);
+  if (base === 'docker-compose-infra.prod.yml') return transformInfraProdSlice(text);
+  if (base === '.env' || base === '.env.prod.example') return transformEnvFile(text);
   return null;
 }
 

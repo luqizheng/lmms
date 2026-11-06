@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 REPO_ROOT="$(cd "${SKILL_DIR}/../.." && pwd)"
 
-COMPOSE_FILE="${REPO_ROOT}/infrastructure/docker-compose-services.yml"
+COMPOSE_FILE="${REPO_ROOT}/infrastructure/services/docker-compose-services.yml"
 ENV_FILE="${REPO_ROOT}/infrastructure/.env"
 
 # ── 颜色 ──────────────────────────────────────────────────────────────────

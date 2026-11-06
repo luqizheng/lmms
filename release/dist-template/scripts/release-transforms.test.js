@@ -51,6 +51,16 @@ test('remapServiceVolumes: preserves :ro suffix on token mount', () => {
   assert.equal(changes[0].matches, 1);
 });
 
+test('remapServiceVolumes: handles ../../services/ subdir layout without splitting into ../', () => {
+  // 2026-11-06 组 compose 进自包含子目录后 dev mount 写作 ../../services/...；
+  // 若先匹配短的 ../services/ 会把路径劈成 ../ + ./config/...（逃逸 bundle）。
+  const input = 'volumes:\n  - ../../services/iam-service/config:/etc/iam-service\n';
+  const { text, changes } = remapServiceVolumes(input, ['iam-service'], { 'iam-service': 'iam' });
+  assert.ok(text.includes('- ./config/iam:/etc/iam-service'), `unexpected output: ${text}`);
+  assert.ok(!text.includes('..'), `不得残留任何 ../ 段: ${text}`);
+  assert.equal(changes[0].matches, 1);
+});
+
 test('remapServiceVolumes: shared mount across two services counts each occurrence', () => {
   // iam-service and iam-outbox-publisher both bind-mount the same iam config dir
   const input = [

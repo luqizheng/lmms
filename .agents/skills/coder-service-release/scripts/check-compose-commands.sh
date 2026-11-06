@@ -23,7 +23,7 @@
 
 set -uo pipefail
 
-COMPOSE_FILE="${1:-infrastructure/docker-compose-services.yml}"
+COMPOSE_FILE="${1:-infrastructure/services/docker-compose-services.yml}"
 # 4 级 ..: scripts -> skill -> skills -> .agents -> repo root
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 

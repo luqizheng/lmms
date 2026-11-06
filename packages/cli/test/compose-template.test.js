@@ -10,19 +10,32 @@ const { collectTemplateFiles, buildComposeTemplate } = require('../lib/compose-t
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coder-tpl-'));
   const files = [
+    // 合体入口 + prod 聚合片（根，2026-11-06 三组进自包含子目录）
     'docker-compose.yml',
-    'docker-compose-infra.yml',
-    'docker-compose-services.yml',
-    // 三组拆分后的 prod 差异片 + 纯 include 入口（2026-11-06）
     'docker-compose.prod.yml',
-    'docker-compose-infra.prod.yml',
-    'docker-compose-services.prod.yml',
-    'docker-compose-observability.prod.yml',
+    // 三组自包含子目录：compose 各变体 + 组内 config 分区
+    'infra/docker-compose-infra.yml',
+    'infra/docker-compose-infra.dev.yml',
+    'infra/docker-compose-infra.prod.yml',
+    'infra/docker-compose-infra.remote.yml',
+    'infra/.env.example',
+    'infra/config/consul/connect.hcl',
+    'infra/config/rabbitmq/rabbitmq.conf',
+    'infra/mysql-init/init.sql',
+    'services/docker-compose-services.yml',
+    'services/docker-compose-services.prod.yml',
+    'services/docker-compose-services.remote.yml',
+    'services/.env.example',
+    'services/config/api-gateway/api-gateway.toml',
+    'observability/docker-compose-observability.yml',
+    'observability/docker-compose-observability.staging.yml',
+    'observability/docker-compose-observability.prod.yml',
+    'observability/docker-compose-observability.remote.yml',
+    'observability/.env.example',
+    'observability/config/prometheus/prometheus.yml',
     'base-images.json',
     '.env.prod.example',
     'README.md',
-    'config/prometheus/prometheus.yml',
-    'config/rabbitmq/rabbitmq.conf',
     'docker/healthcheck.sh',
     'mysql-replica/Dockerfile',
     'scripts/deploy-remote.sh',
@@ -49,11 +62,12 @@ test('collectTemplateFiles keeps compose layout and excludes secrets/session fil
   const files = collectTemplateFiles(dir);
   const rel = files.map((f) => f.rel).sort();
   assert.ok(rel.includes('docker-compose.yml'));
-  assert.ok(rel.includes('docker-compose-infra.yml'));
+  assert.ok(rel.includes('infra/docker-compose-infra.yml'), '组子目录内的 compose 必须收录');
   assert.ok(rel.includes('base-images.json'));
   assert.ok(rel.includes('.env.prod.example'), 'whitelisted dotfile kept');
+  assert.ok(rel.includes('infra/.env.example'), '组级 .env.example 白名单（自包含部署模板）');
   assert.ok(!rel.includes('README.md'), 'lmms-owned docs excluded — consumers write their own');
-  assert.ok(rel.includes(path.join('config', 'prometheus', 'prometheus.yml').replaceAll('\\', '/')));
+  assert.ok(rel.includes(path.join('observability', 'config', 'prometheus', 'prometheus.yml').replaceAll('\\', '/')));
   assert.ok(rel.includes(path.join('scripts', 'deploy-remote.sh').replaceAll('\\', '/')));
   assert.ok(!rel.includes('.env'), 'real secrets excluded');
   assert.ok(!rel.includes('AGENTS.md'));
@@ -72,7 +86,7 @@ test('buildComposeTemplate copies files and writes TEMPLATE_INFO.json', () => {
   assert.match(path.basename(result.dir), /coder-compose-template-1\.6\.0$/);
   const copied = fs.readFileSync(path.join(result.dir, 'docker-compose.yml'), 'utf-8');
   assert.equal(copied, 'x');
-  assert.ok(fs.existsSync(path.join(result.dir, 'config', 'rabbitmq', 'rabbitmq.conf')));
+  assert.ok(fs.existsSync(path.join(result.dir, 'infra', 'config', 'rabbitmq', 'rabbitmq.conf')));
   assert.ok(!fs.existsSync(path.join(result.dir, '.env')), 'secret never lands in the bundle');
 
   const info = JSON.parse(fs.readFileSync(path.join(result.dir, 'TEMPLATE_INFO.json'), 'utf-8'));
@@ -159,7 +173,38 @@ test('pg dialect: infra prod slice gets postgres convergence; include entry unto
 
 test('pg dialect: non-transformable files returned as null (copy as-is)', () => {
   assert.equal(transformForPg('base-images.json', '{}'), null);
-  assert.equal(transformForPg('config/prometheus/prometheus.yml', 'global: {}\n'), null);
+  assert.equal(transformForPg('observability/config/prometheus/prometheus.yml', 'global: {}\n'), null);
+});
+
+test('pg dialect: subdir relpaths dispatch by basename (2026-11-06 自包含子目录布局)', () => {
+  // 全 relpath 匹配会对子目录文件静默跳过变换（复制不变换）——必须按 basename 命中。
+  const infra = yaml.load(`
+services:
+  mysql: { image: 'mysql:8.0', profiles: null, healthcheck: {} }
+  postgres: { image: 'postgres:16', profiles: ['pg'], healthcheck: {} }
+`);
+  const out = yaml.load(transformForPg('infra/docker-compose-infra.yml', yaml.dump(infra)));
+  assert.equal(out.services.postgres.profiles, undefined, '子目录 infra compose 仍须命中 postgres 提升');
+  assert.deepEqual(out.services.mysql.profiles, ['mysql']);
+
+  const svc = yaml.load(`
+services:
+  token-service:
+    environment: { TOKEN_DATABASE_DB_TYPE: mysql }
+    depends_on: { mysql: { condition: service_healthy } }
+`);
+  const out2 = yaml.load(transformForPg('services/docker-compose-services.yml', yaml.dump(svc)));
+  assert.equal(out2.services['token-service'].environment.TOKEN_DATABASE_DB_TYPE, 'postgres');
+  assert.deepEqual(Object.keys(out2.services['token-service'].depends_on), ['postgres']);
+
+  assert.equal(transformForPg('observability/docker-compose-observability.yml', 'services: {}\n'), null,
+    'obs 组 compose 无方言差异，原样拷贝');
+  const slice = 'services:\n  mysql:\n    ports: !override []\n';
+  assert.match(
+    transformForPg('infra/docker-compose-infra.prod.yml', slice),
+    /postgres:\n {4}ports: !override \[\]/,
+    '子目录内的 infra prod 片仍须追加 postgres 收敛块',
+  );
 });
 
 test('pg dialect: YAML merge keys are expanded, not round-tripped as literal <<"', () => {
@@ -188,6 +233,7 @@ test('pg bundle: dir suffix -pg, replica/init dirs excluded, TEMPLATE_INFO.diale
   const result = buildComposeTemplate({ infraDir: dir, outRoot, version: '9.9.9', dialect: 'pg' });
   assert.ok(result.dir.endsWith('coder-compose-template-9.9.9-pg'));
   assert.ok(!fs.existsSync(path.join(result.dir, 'mysql-replica')), 'replica 目录不进 PG 包');
+  assert.ok(!fs.existsSync(path.join(result.dir, 'infra', 'mysql-init')), 'mysql-init 子目录段同样不进 PG 包');
   const info = JSON.parse(fs.readFileSync(path.join(result.dir, 'TEMPLATE_INFO.json'), 'utf8'));
   assert.equal(info.dialect, 'postgres');
   // mysql 默认模板目录名不带后缀，两者并存互不覆盖

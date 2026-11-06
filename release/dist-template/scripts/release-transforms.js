@@ -42,12 +42,18 @@ function remapServiceVolumes(composeText, services, slugMap) {
   const changes = [];
   for (const svc of services) {
     const slug = resolveSlug(svc, slugMap);
-    const devPrefix = `../services/${svc}/config`;
     const distPrefix = `./config/${slug}`;
-    // Count matches before replace so we can report accurately.
-    const matches = countOccurrences(text, devPrefix);
-    if (matches > 0) {
-      text = text.split(devPrefix).join(distPrefix);
+    // 2026-11-06 起组 compose 进自包含子目录，dev mount 写作 ../../services/...；
+    // 旧扁平形态仍是 ../services/...。先替换长者，避免 `../../services/` 被
+    // `../services/` 劈成 `../ + ./config/...`（静默产出逃逸 bundle 的路径）。
+    const devPrefixes = [`../../services/${svc}/config`, `../services/${svc}/config`];
+    let matches = 0;
+    for (const devPrefix of devPrefixes) {
+      const n = countOccurrences(text, devPrefix);
+      if (n > 0) {
+        text = text.split(devPrefix).join(distPrefix);
+        matches += n;
+      }
     }
     changes.push({ svc, slug, matches });
   }

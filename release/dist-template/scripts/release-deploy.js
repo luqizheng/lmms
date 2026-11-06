@@ -198,16 +198,18 @@ if (!existsSync(REPO_INFRA)) {
   process.exit(1);
 }
 
+// 2026-11-06 起源码布局各组进自包含子目录，dist 包仍保持扁平 infrastructure/ 根
+// （bin/*.js、staging 链路、容器命名都骑在扁平布局上）。
 const COMPOSE_FILES = [
-  'docker-compose.yml',
-  'docker-compose-infra.yml',
-  'docker-compose-infra.dev.yml',
-  'docker-compose-services.yml',
-  'docker-compose-observability.yml',
+  ['docker-compose.yml', 'docker-compose.yml'],
+  ['docker-compose-infra.yml', 'infra/docker-compose-infra.yml'],
+  ['docker-compose-infra.dev.yml', 'infra/docker-compose-infra.dev.yml'],
+  ['docker-compose-services.yml', 'services/docker-compose-services.yml'],
+  ['docker-compose-observability.yml', 'observability/docker-compose-observability.yml'],
 ];
 
-for (const f of COMPOSE_FILES) {
-  copyIfExists(path.join(REPO_INFRA, f), path.join(DIST_DIR, 'infrastructure', f),
+for (const [f, srcRel] of COMPOSE_FILES) {
+  copyIfExists(path.join(REPO_INFRA, srcRel), path.join(DIST_DIR, 'infrastructure', f),
     `infrastructure/${f}`);
 }
 
@@ -278,20 +280,42 @@ if (servicesCsv.length > 0) {
   }
 }
 
-if (existsSync(path.join(REPO_INFRA, 'config'))) {
-  for (const entry of readdirSync(path.join(REPO_INFRA, 'config'), { withFileTypes: true })) {
+// 非 seed 配置目录 —— 源已按组分区（infra/ services/ observability/ 各自的 config/），
+// 逐组合并进 bundle 的扁平 config/；兼容历史扁平布局（存在则仍拷）。
+const GROUP_CONFIG_SRCS = ['infra', 'services', 'observability']
+  .map((g) => path.join(REPO_INFRA, g, 'config'));
+GROUP_CONFIG_SRCS.push(path.join(REPO_INFRA, 'config'));
+let copiedConfigGroups = 0;
+for (const groupConfig of GROUP_CONFIG_SRCS) {
+  if (!existsSync(groupConfig)) continue;
+  for (const entry of readdirSync(groupConfig, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const name = entry.name;
     const destConfig = path.join(DIST_DIR, 'infrastructure', 'config', name);
     if (existsSync(destConfig) && existsSync(path.join(destConfig, 'config.default.yaml'))) continue;
-    cp(path.join(REPO_INFRA, 'config', name), destConfig);
+    cp(path.join(groupConfig, name), destConfig);
   }
-  console.log('[release-deploy]   ✓ infrastructure/config/ (非 seed 目录)');
+  copiedConfigGroups++;
+}
+if (copiedConfigGroups > 0) {
+  console.log('[release-deploy]   ✓ infrastructure/config/ (非 seed 目录，组分区合并)');
 }
 
-for (const d of ['mysql-init', 'nginx', 'scripts', 'vendor']) {
-  copyIfExists(path.join(REPO_INFRA, d), path.join(DIST_DIR, 'infrastructure', d),
+for (const [d, srcRel] of Object.entries({
+  'mysql-init': 'infra/mysql-init',
+  'nginx': 'nginx',
+  'scripts': 'scripts',
+  'vendor': 'vendor',
+})) {
+  copyIfExists(path.join(REPO_INFRA, srcRel), path.join(DIST_DIR, 'infrastructure', d),
     `infrastructure/${d}/`);
+}
+
+// bundle 是扁平布局：start-prod.sh/stop-prod.sh 引用组子目录路径（仓内编排器），
+// 在包内不成立——部署包的启停由 bin/start.js|stop.js 承担，剥离避免误用。
+for (const f of ['start-prod.sh', 'stop-prod.sh']) {
+  const p = path.join(DIST_DIR, 'infrastructure', 'scripts', f);
+  if (existsSync(p)) rmSync(p);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

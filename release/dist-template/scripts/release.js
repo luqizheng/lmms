@@ -362,15 +362,17 @@ if (!existsSync(path.join(REPO_ROOT, 'infrastructure'))) {
 
 mkdirSync(path.join(DIST_DIR, 'infrastructure'), { recursive: true });
 
-// 复制 compose 文件
-for (const f of [
-  'docker-compose.yml',
-  'docker-compose-infra.yml',
-  'docker-compose-infra.dev.yml',
-  'docker-compose-services.yml',
-  'docker-compose-observability.yml',
-]) {
-  const src = path.join(REPO_ROOT, 'infrastructure', f);
+// 复制 compose 文件 —— 2026-11-06 起源码布局各组进自包含子目录
+// （infra/ services/ observability/），dist 包仍保持扁平 infrastructure/ 根
+// （bin/*.js、staging 链路、容器命名都骑在扁平布局上）。
+for (const [f, srcRel] of Object.entries({
+  'docker-compose.yml': 'docker-compose.yml',
+  'docker-compose-infra.yml': 'infra/docker-compose-infra.yml',
+  'docker-compose-infra.dev.yml': 'infra/docker-compose-infra.dev.yml',
+  'docker-compose-services.yml': 'services/docker-compose-services.yml',
+  'docker-compose-observability.yml': 'observability/docker-compose-observability.yml',
+})) {
+  const src = path.join(REPO_ROOT, 'infrastructure', srcRel);
   if (existsSync(src)) cp(src, path.join(DIST_DIR, 'infrastructure', f));
 }
 console.log('[release]   ✓ infrastructure/docker-compose*.yml');
@@ -513,22 +515,35 @@ if (servicesCsv.length > 0) {
   }
 }
 
-// 非 seed 配置目录
-if (existsSync(path.join(REPO_ROOT, 'infrastructure', 'config'))) {
-  for (const entry of require('fs').readdirSync(path.join(REPO_ROOT, 'infrastructure', 'config'), { withFileTypes: true })) {
+// 非 seed 配置目录 —— 源已按组分区（infra/ services/ observability/ 各自的 config/），
+// 逐组合并进 bundle 的扁平 config/；兼容历史扁平布局（存在则仍拷）。
+const GROUP_CONFIG_SRCS = ['infra', 'services', 'observability']
+  .map((g) => path.join(REPO_ROOT, 'infrastructure', g, 'config'));
+GROUP_CONFIG_SRCS.push(path.join(REPO_ROOT, 'infrastructure', 'config'));
+let copiedConfigGroups = 0;
+for (const groupConfig of GROUP_CONFIG_SRCS) {
+  if (!existsSync(groupConfig)) continue;
+  for (const entry of require('fs').readdirSync(groupConfig, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const name = entry.name;
     const destConfig = path.join(DIST_DIR, 'infrastructure', 'config', name);
     // 跳过已经被 seed config 覆盖的目录
     if (existsSync(destConfig) && existsSync(path.join(destConfig, 'config.default.yaml'))) continue;
-    cp(path.join(REPO_ROOT, 'infrastructure', 'config', name), destConfig);
+    cp(path.join(groupConfig, name), destConfig);
   }
-  console.log('[release]   ✓ infrastructure/config/ (non-seed dirs)');
+  copiedConfigGroups++;
+}
+if (copiedConfigGroups > 0) {
+  console.log('[release]   ✓ infrastructure/config/ (non-seed dirs, group-partitioned)');
 }
 
-// 其他子目录
-for (const d of ['mysql-init', 'nginx', 'vendor']) {
-  const src = path.join(REPO_ROOT, 'infrastructure', d);
+// 其他子目录（mysql-init 已随 infra 组进子目录）
+for (const [d, srcRel] of Object.entries({
+  'mysql-init': 'infra/mysql-init',
+  'nginx': 'nginx',
+  'vendor': 'vendor',
+})) {
+  const src = path.join(REPO_ROOT, 'infrastructure', srcRel);
   if (existsSync(src)) {
     cp(src, path.join(DIST_DIR, 'infrastructure', d));
     console.log(`[release]   ✓ infrastructure/${d}/`);
