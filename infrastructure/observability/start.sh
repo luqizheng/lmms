@@ -71,7 +71,7 @@ docker network create superpowers >/dev/null 2>&1 || true
 
 cd "$DIR"
 log "up (overlay: $OVERLAY${LOGS:+ + logs})..."
-docker compose -p "$PROJECT" "${COMPOSE_FILES[@]}" up -d "${UP_ARGS[@]:-}" \
+docker compose -p "$PROJECT" "${COMPOSE_FILES[@]}" up -d ${UP_ARGS[@]+"${UP_ARGS[@]}"} \
   || { echo "[start:$PROJECT] FATAL: up failed" >&2; exit 20; }
 
 n=$(docker compose -p "$PROJECT" ps --services 2>/dev/null | wc -l)
