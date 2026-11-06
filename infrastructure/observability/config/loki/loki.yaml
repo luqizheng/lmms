@@ -11,6 +11,10 @@ server:
 
 common:
   path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory  # 单二进制模式；默认 consul@localhost:8500 在容器内不可达
   storage:
     filesystem:
       chunks_directory: /loki/chunks
