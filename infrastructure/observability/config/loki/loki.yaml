@@ -5,6 +5,8 @@
 # no S3/GCS backend). Keeps the overlay light: only loki + promtail.
 # Production would add schema_config backends (S3/GCS) and the distributor/querier/ingester split.
 
+auth_enabled: false  # 单租户内网栈；loki 3.x 默认 true（要求 X-Scope-OrgID，401 no org id）
+
 server:
   http_listen_port: 3100
   grpc_listen_port: 9096
