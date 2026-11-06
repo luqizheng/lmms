@@ -23,6 +23,7 @@ limits_config:
 
 compactor:
   retention_enabled: true
+  delete_request_store: filesystem  # loki 3.x: retention_enabled 时必填
   working_directory: /loki/compactor
 
 schema_config:
