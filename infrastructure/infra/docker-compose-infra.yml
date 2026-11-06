@@ -89,7 +89,7 @@ services:
   # PostgreSQL —— 可选方言（`--profile pg` 显式启用）。默认编排仍是 MySQL；
   # 服务级 PG 支持见 docs/superpowers/plans/2026-11-02-postgresql-service-layer-support.md。
   postgres:
-    image: ${BASE_REGISTRY}postgres:16
+    image: ${BASE_REGISTRY:-}postgres:16
     profiles: ["pg"]
     hostname: ${POSTGRES_HOST:-postgres}
     environment:

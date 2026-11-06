@@ -215,6 +215,15 @@ for (const [f, srcRel] of COMPOSE_FILES) {
     `infrastructure/${f}`);
 }
 
+// 入口 include 扁平化：源码布局各组进自包含子目录（ca2b84ac），bundle 扁平——
+// 不剥前缀则 bundle 内渲染断头（include 指向不存在的 infra/ 等子目录）。
+const { flattenComposeIncludes } = require('./release-transforms.js');
+const distEntryMain = path.join(DIST_DIR, 'infrastructure', 'docker-compose.yml');
+if (existsSync(distEntryMain)) {
+  writeFileSync(distEntryMain, flattenComposeIncludes(readFileSync(distEntryMain, 'utf-8')), 'utf-8');
+  console.log('[release-deploy]   ✓ docker-compose.yml include 扁平化');
+}
+
 const svcCompose = path.join(DIST_DIR, 'infrastructure', 'docker-compose-services.yml');
 const mainCompose = path.join(DIST_DIR, 'infrastructure', 'docker-compose.yml');
 

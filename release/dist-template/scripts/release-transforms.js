@@ -71,6 +71,21 @@ function countOccurrences(haystack, needle) {
   return n;
 }
 
+// ─── flattenComposeIncludes ───────────────────────────────────────────────
+// 2026-11-06 起源码布局各组进自包含子目录，合体入口的 include 写作
+// `infra/docker-compose-infra.yml` 等；dist bundle 保持扁平——入口拷入后
+// 必须剥掉子目录前缀，否则 bundle 内渲染直接断头（路径不存在）。
+// 只动 include 列表行的已知三组前缀，其他内容逐字保留。
+function flattenComposeIncludes(composeText) {
+  if (typeof composeText !== 'string') {
+    throw new TypeError('flattenComposeIncludes: composeText must be a string');
+  }
+  return composeText
+    .replace(/(-\s+)infra\/docker-compose-/g, '$1docker-compose-')
+    .replace(/(-\s+)services\/docker-compose-/g, '$1docker-compose-')
+    .replace(/(-\s+)observability\/docker-compose-/g, '$1docker-compose-');
+}
+
 // ─── buildManifest ────────────────────────────────────────────────────────
 // Assemble the release MANIFEST.json body. Kept as a JS object so tests can
 // assert on shape without regex; the CLI serializes with 2-space indent.
@@ -292,6 +307,7 @@ function cliResolveSlug(args) {
 module.exports = {
   resolveSlug,
   remapServiceVolumes,
+  flattenComposeIncludes,
   buildManifest,
   rewriteAgentsMd,
   filterCargoWorkspaceMembers,

@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const {
   resolveSlug,
   remapServiceVolumes,
+  flattenComposeIncludes,
   buildManifest,
   rewriteAgentsMd,
   filterCargoWorkspaceMembers,
@@ -373,4 +374,20 @@ test('filterCargoWorkspaceMembers: preserves comments and non-member lines', () 
 
 test('filterCargoWorkspaceMembers: rejects non-string', () => {
   assert.throws(() => filterCargoWorkspaceMembers(null), /must be a string/);
+});
+
+test('flattenComposeIncludes: strips group subdir prefixes from include list', () => {
+  const input = [
+    'include:',
+    '  - infra/docker-compose-infra.yml',
+    '  - services/docker-compose-services.yml',
+    '  - observability/docker-compose-observability.yml',
+    '  - infra/docker-compose-infra.prod.yml',
+    '',
+  ].join('\n');
+  const out = flattenComposeIncludes(input);
+  assert.ok(!out.includes('infra/'), `residual prefix: ${out}`);
+  assert.ok(!out.includes('services/docker') && !out.includes('observability/docker'), out);
+  assert.ok(out.includes('- docker-compose-infra.prod.yml'), 'prod 片同样式剥前缀');
+  assert.equal(flattenComposeIncludes('services: {}'), 'services: {}', '无 include 内容原样');
 });

@@ -379,6 +379,15 @@ for (const [f, srcRel] of Object.entries({
 }
 console.log('[release]   ✓ infrastructure/docker-compose*.yml');
 
+// 入口 include 扁平化：源码布局各组进自包含子目录（ca2b84ac），bundle 扁平——
+// 不剥前缀则 bundle 内渲染断头（include 指向不存在的 infra/ 等子目录）。
+const { flattenComposeIncludes } = require('./release-transforms.js');
+const distEntry = path.join(DIST_DIR, 'infrastructure', 'docker-compose.yml');
+if (existsSync(distEntry)) {
+  writeFileSync(distEntry, flattenComposeIncludes(readFileSync(distEntry, 'utf-8')), 'utf-8');
+  console.log('[release]   ✓ docker-compose.yml include 扁平化');
+}
+
 // transform-compose.js
 const svcCompose = path.join(DIST_DIR, 'infrastructure', 'docker-compose-services.yml');
 if (!existsSync(svcCompose)) {
