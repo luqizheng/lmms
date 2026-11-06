@@ -97,16 +97,22 @@ cd "$PROJECT_ROOT" || { echo "[deploy-remote] FATAL: cannot cd to $PROJECT_ROOT"
 INFRA_DIR="$PROJECT_ROOT/infrastructure"
 # 三组独立项目（2026-11-05 拆分）：infra / observability / services，
 # 共享预建的 superpowers 网络；prod 差异片按组独立引用。
-if [[ -f "$INFRA_DIR/docker-compose-infra.prod.yml" ]]; then
+# 布局自适应：仓内=各组自包含子目录（2026-11-06）；airgap bundle=扁平。
+if [[ -d "$INFRA_DIR/infra" ]]; then
+  SUB="infra"; OBSUB="observability"; SVCSUB="services"
+else
+  SUB="."; OBSUB="."; SVCSUB="."
+fi
+if [[ -f "$INFRA_DIR/$SUB/docker-compose-infra.prod.yml" ]]; then
   DEPLOY_MODE="prod"
-  DC_INFRA=(docker compose -p superpowers-infra -f "$INFRA_DIR/docker-compose-infra.yml" -f "$INFRA_DIR/docker-compose-infra.prod.yml")
-  DC_OBS=(docker compose -p superpowers-obs -f "$INFRA_DIR/docker-compose-observability.yml" -f "$INFRA_DIR/docker-compose-observability.prod.yml")
-  DC_SVC=(docker compose -p superpowers-svc -f "$INFRA_DIR/docker-compose-services.yml" -f "$INFRA_DIR/docker-compose-services.prod.yml")
+  DC_INFRA=(docker compose -p superpowers-infra -f "$INFRA_DIR/$SUB/docker-compose-infra.yml" -f "$INFRA_DIR/$SUB/docker-compose-infra.prod.yml")
+  DC_OBS=(docker compose -p superpowers-obs -f "$INFRA_DIR/$OBSUB/docker-compose-observability.yml" -f "$INFRA_DIR/$OBSUB/docker-compose-observability.prod.yml")
+  DC_SVC=(docker compose -p superpowers-svc -f "$INFRA_DIR/$SVCSUB/docker-compose-services.yml" -f "$INFRA_DIR/$SVCSUB/docker-compose-services.prod.yml")
 else
   DEPLOY_MODE="dev"
-  DC_INFRA=(docker compose -p superpowers-infra -f "$INFRA_DIR/docker-compose-infra.yml")
-  DC_OBS=(docker compose -p superpowers-obs -f "$INFRA_DIR/docker-compose-observability.yml")
-  DC_SVC=(docker compose -p superpowers-svc -f "$INFRA_DIR/docker-compose-services.yml")
+  DC_INFRA=(docker compose -p superpowers-infra -f "$INFRA_DIR/$SUB/docker-compose-infra.yml")
+  DC_OBS=(docker compose -p superpowers-obs -f "$INFRA_DIR/$OBSUB/docker-compose-observability.yml")
+  DC_SVC=(docker compose -p superpowers-svc -f "$INFRA_DIR/$SVCSUB/docker-compose-services.yml")
 fi
 
 log() { echo "[deploy-remote $DEPLOY_MODE] $*"; }

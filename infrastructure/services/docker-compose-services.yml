@@ -21,7 +21,7 @@ x-loki-labels: &loki-labels
 services:
   file-service:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/file-service/Dockerfile
     ports:
       - "8086:8082"
@@ -50,7 +50,7 @@ services:
   # ─────────── api-gateway + sidecar ───────────
   api-gateway:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/api-gateway/Dockerfile
     ports:
       - "3000:3000"
@@ -89,7 +89,7 @@ services:
   # ─────────── token-service + sidecar ───────────
   token-service:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/token-service/Dockerfile
     ports:
       - "8082:8082"
@@ -100,7 +100,7 @@ services:
     # had port 18082 (mesh internal). Override at runtime with the
     # post-dephase config so the service binds 8082 without rebuild.
     volumes:
-      - ../services/token-service/config:/app/config:ro
+      - ../../services/token-service/config:/app/config:ro
       # ── secret-key volume 已移除 ──────────────────────────────────
       # 原映射: ../docker-example/secrets:/app/keys:ro
       #
@@ -151,7 +151,7 @@ services:
   # ─────────── iam-service + sidecar ───────────
   iam-service:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/iam-service/Dockerfile
     ports:
       - "9081:8081"
@@ -163,7 +163,7 @@ services:
     # seed can succeed; runtime env vars always override the yaml regardless.
     # The seeded yaml is git-ignored (see .gitignore).
     volumes:
-      - ../services/iam-service/config:/etc/iam-service
+      - ../../services/iam-service/config:/etc/iam-service
     environment:
       <<: *consul-env
       SERVICE_PORT: "8081"
@@ -188,7 +188,7 @@ services:
 
   iam-outbox-publisher:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/iam-service/Dockerfile
     # Cargo bin target → on-disk binary is `iam_outbox_publisher`
     # (kebab-case `iam-outbox-publisher` declared in
@@ -206,7 +206,7 @@ services:
     # Not :ro — both processes race to seed; create_new picks one winner
     # (see services/iam-outbox-publisher/src/main.rs::seed_if_absent).
     volumes:
-      - ../services/iam-service/config:/etc/iam-service
+      - ../../services/iam-service/config:/etc/iam-service
     environment:
       DATABASE_URL: "${DATABASE_URL}"
       EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
@@ -235,7 +235,7 @@ services:
   # ─────────── prue_backend + sidecar ───────────
   prue_backend:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/prue_backend/Dockerfile
     ports:
       - "8087:8087"
@@ -263,7 +263,7 @@ services:
   # ─────────── notification-service + sidecar ───────────
   notification-service:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/notification-service/Dockerfile
     ports:
       - "8083:8083"
@@ -275,7 +275,7 @@ services:
     # Not :ro so seed can succeed; env always wins over the yaml regardless.
     # The seeded yaml is git-ignored.
     volumes:
-      - ../services/notification-service/config:/etc/notification-service
+      - ../../services/notification-service/config:/etc/notification-service
     environment:
       <<: *consul-env
       SERVICE_PORT: "8083"
@@ -299,7 +299,7 @@ services:
 
   notification-outbox-publisher:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/notification-service/Dockerfile
     # Cargo bin target → on-disk binary is `ntf_outbox_publisher`
     # (kebab-case `ntf-outbox-publisher` declared in
@@ -342,7 +342,7 @@ services:
   # ─────────── audit-service + sidecar ───────────
   audit-service:
     build:
-      context: ..
+      context: ../..
       dockerfile: services/audit-service/Dockerfile
     ports:
       - "8084:8084"

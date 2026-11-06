@@ -41,11 +41,11 @@ done
 stop_group() {
   case "$1" in
     svc)   log "down services..."
-           docker compose -p superpowers-svc -f docker-compose-services.yml -f docker-compose-services.prod.yml down "${DOWN_ARGS[@]}" ;;
+           docker compose -p superpowers-svc -f services/docker-compose-services.yml -f services/docker-compose-services.prod.yml down "${DOWN_ARGS[@]}" ;;
     obs)   log "down observability..."
-           docker compose -p superpowers-obs -f docker-compose-observability.yml -f docker-compose-observability.prod.yml down "${DOWN_ARGS[@]}" ;;
+           docker compose -p superpowers-obs -f observability/docker-compose-observability.yml -f observability/docker-compose-observability.prod.yml down "${DOWN_ARGS[@]}" ;;
     infra) log "down infra..."
-           docker compose -p superpowers-infra -f docker-compose-infra.yml -f docker-compose-infra.prod.yml down "${DOWN_ARGS[@]}" ;;
+           docker compose -p superpowers-infra -f infra/docker-compose-infra.yml -f infra/docker-compose-infra.prod.yml down "${DOWN_ARGS[@]}" ;;
   esac
 }
 for g in svc obs infra; do

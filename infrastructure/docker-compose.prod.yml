@@ -18,6 +18,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 include:
-  - docker-compose-infra.prod.yml
-  - docker-compose-services.prod.yml
-  - docker-compose-observability.prod.yml
+  - infra/docker-compose-infra.prod.yml
+  - services/docker-compose-services.prod.yml
+  - observability/docker-compose-observability.prod.yml

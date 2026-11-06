@@ -1,4 +1,8 @@
+# infrastructure/docker-compose.yml —— 合体入口（模式 B：单项目 include 三组）。
+# 2026-11-06 起各组 compose/config 物理进自包含子目录（infra/ services/ observability/），
+# 子目录即部署单元（整目录 copy 到目标机后 ./start.sh 即起，见各组内 start.sh 与
+# docs/deploy-topologies.md）；本入口仍从 infrastructure/ 根聚合成单 compose 项目。
 include:
-  - docker-compose-infra.yml
-  - docker-compose-services.yml
-  - docker-compose-observability.yml
+  - infra/docker-compose-infra.yml
+  - services/docker-compose-services.yml
+  - observability/docker-compose-observability.yml

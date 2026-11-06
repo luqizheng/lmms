@@ -6,16 +6,26 @@
 
 ## Compose 文件清单与部署模式
 
-2026-11-05 起支持**三种部署模式**，共用同一组文件与同一张预建 `superpowers`
+2026-11-06 起各组物理进**自包含子目录**（目录 = 部署单元，config 分区随组走），
+根上保留合体入口与编排器；支持**三种部署模式**，共用同一张预建 `superpowers`
 外部网络、同一批 `superpowers_*` named volumes：
+
+```
+infrastructure/
+├── docker-compose.yml / docker-compose.prod.yml   合体入口（模式 B，include 三组子目录）
+├── scripts/                                        编排器（start-prod / stop-prod / deploy-remote）
+├── infra/            docker-compose-infra.yml(+dev/prod/remote) + config/{consul,rabbitmq} + mysql-init + start.sh/stop.sh/.env.example
+├── observability/    docker-compose-observability.yml(+staging/prod/remote) + config/{prometheus,grafana,alertmanager,nginx,otel,loki} + start.sh/stop.sh/.env.example
+└── services/         docker-compose-services.yml(+prod/remote) + config/api-gateway + start.sh/stop.sh/.env.example
+```
 
 **模式 A — 同机三组**（生产推荐，`start-prod.sh` 三段式；支持组参数单独启停）：
 
 | 项目 | compose 文件 | prod 差异片 | remote 片（跨主机） |
 | --- | --- | --- | --- |
-| `superpowers-infra` | `docker-compose-infra.yml`（consul server / mysql / redis / rabbitmq / postgres） | `docker-compose-infra.prod.yml` | `docker-compose-infra.remote.yml` |
-| `superpowers-obs` | `docker-compose-observability.yml`（prometheus / grafana / jaeger / otel / alertmanager / consul-template） | `docker-compose-observability.prod.yml` | `docker-compose-observability.remote.yml` |
-| `superpowers-svc` | `docker-compose-services.yml`（8 业务服务 + 2 outbox publisher） | `docker-compose-services.prod.yml` | `docker-compose-services.remote.yml` |
+| `superpowers-infra` | `infra/docker-compose-infra.yml`（consul server / mysql / redis / rabbitmq / postgres） | `infra/docker-compose-infra.prod.yml` | `infra/docker-compose-infra.remote.yml` |
+| `superpowers-obs` | `observability/docker-compose-observability.yml`（prometheus / grafana / jaeger / otel / alertmanager / consul-template） | `observability/docker-compose-observability.prod.yml` | `observability/docker-compose-observability.remote.yml` |
+| `superpowers-svc` | `services/docker-compose-services.yml`（8 业务服务 + 2 outbox publisher） | `services/docker-compose-services.prod.yml` | `services/docker-compose-services.remote.yml` |
 
 ```bash
 docker network create superpowers          # 三组共享，幂等
@@ -29,20 +39,31 @@ docker network create superpowers          # 三组共享，幂等
 `restart: unless-stopped`，boot 期可能先打几轮重连日志属正常。
 
 **模式 B — 单机合体**（模板包 / airgap / 本地一键）：入口
-`docker-compose.yml` include 三块，`docker-compose.prod.yml` include 三个
+`docker-compose.yml` include 三组子目录，`docker-compose.prod.yml` 聚合三个
 prod 差异片（差异只写一处）。`start-prod.sh` 已默认走模式 A。
 
-**模式 C — 分置多机**（2026-11-06）：三组各占一台服务器（或任意子集组合），
-每台机只点自己的组并加 `--remote`（以 `*.remote.yml` 片代替 prod 片——发布
-宿主端口；obs 机需 `CONSUL_HOST_IP`）。跨主机寻址契约、防火墙清单与
-「测试服务器跑 infra(+obs)、本地开发 services」的场景配方见
-**[docs/deploy-topologies.md](../docs/deploy-topologies.md)**。
+**模式 C — 分置多机 / 目录即部署单元**（2026-11-06）：三组各占一台服务器
+（或任意子集组合）。**每个组目录可整目录 copy 到目标机直接部署**：
+
+```bash
+scp -r infrastructure/observability/ obs-host:~/lmms-obs/   # 例：obs 组上 obs 机
+ssh obs-host
+cd ~/lmms-obs && cp .env.example .env   # 按环境改值（跨主机按 deploy-topologies 契约）
+./start.sh --remote                     # 或不带 --remote 走同机共享网络形态
+./stop.sh                               # 停止
+```
+
+组目录内 `start.sh` 的 env 向上回退（本地 `.env` → 祖先目录 `.env`），仓内运行
+自动命中根 `.env` 单一事实源，拷出后用本地副本——两种形态同一份脚本。
+`services/` 的仓内 build 形态 context 指仓根（拷出不可构建，部署走镜像引用，
+与发布管线一致）。跨主机寻址契约、防火墙清单与「测试服务器跑 infra(+obs)、
+本地开发 services」的场景配方见 **[docs/deploy-topologies.md](../docs/deploy-topologies.md)**。
 
 > ⚠️ 不要再写第 6 个 compose 文件做「dev-only 全栈」——dev/prod 差异统一通过 `_dev` overlay 表达。
 
 ### MySQL 所有权边界（2026-11-05 裁决）
 
-lmms 只带**单节点** MySQL/PostgreSQL 开发/测试库（`docker-compose-infra.yml`）。主从复制、备份、failover 等生产数据拓扑**归 DB 组**，平台不再内置 replica 镜像与 runbook（`mysql-replica` 已整体移除，原 `docs-site/runbooks/mysql-replication.md` 一并删除）。
+lmms 只带**单节点** MySQL/PostgreSQL 开发/测试库（`infra/docker-compose-infra.yml`）。主从复制、备份、failover 等生产数据拓扑**归 DB 组**，平台不再内置 replica 镜像与 runbook（`mysql-replica` 已整体移除，原 `docs-site/runbooks/mysql-replication.md` 一并删除）。
 
 ## 前置检查
 
@@ -71,7 +92,7 @@ pnpm check:env
 | 命令 | 做什么 |
 | --- | --- |
 | `pnpm run dev:infra` | 只起基础设施（Consul / Redis / MySQL / RabbitMQ）。服务进程跑宿主机时用这个。 |
-| `pnpm run dev:infra:e2e` | 同上，**额外叠加** `docker-compose-infra.dev.yml` 把 3306 等端口发布到宿主机。本机跑 `tests/e2e`（Vitest + supertest 直连 mysql 重置库）时**必须用这个**。 |
+| `pnpm run dev:infra:e2e` | 同上，**额外叠加** `infra/docker-compose-infra.dev.yml` 把 3306 等端口发布到宿主机。本机跑 `tests/e2e`（Vitest + supertest 直连 mysql 重置库）时**必须用这个**。 |
 | `pnpm run dev` | 起基础设施 + 各 workspace 包的 `dev` 任务并行（含 `packages/` TS 包构建等）。 |
 | `pnpm run dev:ps` | `docker compose ps`，看容器状态与 healthcheck。 |
 | `pnpm run dev:logs` | tail 所有容器日志。退出用 Ctrl-C。 |

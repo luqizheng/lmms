@@ -119,9 +119,9 @@ docker network create superpowers >/dev/null 2>&1 || true
 # 7. compose 命令构造（--remote 时以 remote 片代替 prod 片）
 OVL="prod"
 [[ "$REMOTE" -eq 1 ]] && OVL="remote"
-DC_INFRA=(docker compose -p superpowers-infra -f docker-compose-infra.yml -f "docker-compose-infra.$OVL.yml")
-DC_OBS=(docker compose -p superpowers-obs -f docker-compose-observability.yml -f "docker-compose-observability.$OVL.yml")
-DC_SVC=(docker compose -p superpowers-svc -f docker-compose-services.yml -f "docker-compose-services.$OVL.yml")
+DC_INFRA=(docker compose -p superpowers-infra -f infra/docker-compose-infra.yml -f "infra/docker-compose-infra.$OVL.yml")
+DC_OBS=(docker compose -p superpowers-obs -f observability/docker-compose-observability.yml -f "observability/docker-compose-observability.$OVL.yml")
+DC_SVC=(docker compose -p superpowers-svc -f services/docker-compose-services.yml -f "services/docker-compose-services.$OVL.yml")
 log "overlay: .$OVL.yml slices; groups: ${GROUPS[*]}"
 
 pull_group() {
