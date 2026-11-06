@@ -42,18 +42,14 @@ scrape_configs:
         source_labels: [__meta_docker_container_label_env]
         regex: '^$'
     pipeline_stages:
-      - cri: {}
+      # docker json-file 驱动：先剥 {"log": "..."} 包装（非 CRI；ADR-007 原设计
+      # 假设 CRI 格式，2026-11-06 首次实跑更正为 docker stage）
+      - docker: {}
       - json:
           expressions:
             level: level
             service: service
-            trace_id: trace_id
-            tenant_id: tenant_id
-            user_id: user_id
-            timestamp: timestamp
-            message: message
       - labels:
-          - level
-          - service
-          - env
-          # trace_id/tenant_id/user_id are HIGH-CARDINALITY → metadata, NOT labels (D3)
+          level:
+          service:
+      # trace_id/tenant_id/user_id 保留在行内容中作为元数据，不进标签（D3）
