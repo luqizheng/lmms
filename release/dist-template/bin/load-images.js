@@ -81,6 +81,8 @@ const composeFiles = [
   'docker-compose-infra.dev.yml',
   'docker-compose-services.yml',
   'docker-compose-observability.yml',
+  // 日志栈片（loki+promtail）：镜像必须进离线包，否则离线端叠日志片拉不到镜像
+  'docker-compose-observability.staging.yml',
 ].filter(f => existsSync(path.join(INFRA_DIR, f)));
 
 if (composeFiles.length === 0) {

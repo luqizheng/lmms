@@ -39,11 +39,15 @@ cd ~/lmms && cp .env.example .env        # CONSUL_ADDR/SERVICE_ADDRESS/REDIS_HOS
 
 # ── obs 机（需 CONSUL_HOST_IP 指回 infra 机） ───────────────────────
 cd ~/lmms && cp .env.example .env        # CONSUL_HOST_IP=<infra 机 IP>
-./start.sh --remote
+./start.sh --remote                      # 指标+链路 6 服务
+./start.sh --remote --logs               # 叠加日志栈（loki+promtail，共 8 服务；
+                                         #   业务机日志仍需业务机侧 promtail sidecar，
+                                         #   见「已知边界」）
 ```
 
-- 组目录内 `start.sh` 支持 `--remote/--dev/--staging` 选 overlay 片（默认 prod），
-  其余 args 透传 compose；`stop.sh` 对应 down（`--volumes` 语义同前）。
+- 组目录内 `start.sh` 选片：`--remote/--dev` 基础片（默认 prod），`--logs` 在任意
+  形态上叠加日志栈片（loki+promtail，别名 `--staging`）；其余 args 透传 compose；
+  `stop.sh` 对应 down（`--volumes` 语义同前）。
 - env 向上回退：仓内运行自动命中 `infrastructure/.env` 单一事实源，拷出后用
   本地 `.env`——两种形态同一份脚本。
 - 同机组合（如 infra+obs 同机、services 异机）：同机的组不带 `--remote`

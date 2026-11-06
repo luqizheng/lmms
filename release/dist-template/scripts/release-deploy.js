@@ -206,6 +206,8 @@ const COMPOSE_FILES = [
   ['docker-compose-infra.dev.yml', 'infra/docker-compose-infra.dev.yml'],
   ['docker-compose-services.yml', 'services/docker-compose-services.yml'],
   ['docker-compose-observability.yml', 'observability/docker-compose-observability.yml'],
+  // 日志栈片（loki+promtail）：随包发布供 ops 叠加（load-images.js 会扫它拉镜像）
+  ['docker-compose-observability.staging.yml', 'observability/docker-compose-observability.staging.yml'],
 ];
 
 for (const [f, srcRel] of COMPOSE_FILES) {
