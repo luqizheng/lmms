@@ -46,6 +46,10 @@ load_env() {
 load_env "$DIR/../../.env"
 load_env "$DIR/../.env"
 load_env "$DIR/.env"
+# prod 覆盖层（可选：服务器真实口令在 .env.prod；缺失时保持 .env 值，不阻塞）
+load_env "$DIR/../../.env.prod"
+load_env "$DIR/../.env.prod"
+load_env "$DIR/.env.prod"
 
 # REQUIRED（services 组裁剪；与根 scripts/start-prod.sh 同步）
 for v in DATABASE_URL RABBITMQ_DEFAULT_PASS \

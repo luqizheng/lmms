@@ -56,6 +56,10 @@ load_env() {
 load_env "$DIR/../../.env"
 load_env "$DIR/../.env"
 load_env "$DIR/.env"
+# prod 覆盖层（可选：服务器真实口令在 .env.prod；缺失时保持 .env 值，不阻塞）
+load_env "$DIR/../../.env.prod"
+load_env "$DIR/../.env.prod"
+load_env "$DIR/.env.prod"
 
 # 跨主机（--remote）需 CONSUL_HOST_IP 指回 infra 机（compose 片内 :? 兜底）
 if [[ "$OVERLAY" == "remote" && -z "${CONSUL_HOST_IP:-}" ]]; then
