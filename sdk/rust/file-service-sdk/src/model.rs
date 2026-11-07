@@ -9,7 +9,7 @@ pub struct CreatePresignUrl {
     pub expires_in_seconds: Option<i64>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresignUrlResponse {
     pub url: String,
     pub expires_at: DateTime<Utc>,
@@ -35,7 +35,7 @@ pub struct UploadFileMeta {
     pub expires_in_seconds: Option<i64>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
     pub id: String,
     pub filename: String,
@@ -51,7 +51,7 @@ pub struct FileInfo {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PagedFiles {
     pub items: Vec<FileInfo>,
     pub total: i64,
