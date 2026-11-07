@@ -7,6 +7,9 @@ license = "Apache-2.0"
 
 [dependencies]
 digua_http_client = { path = "../digua-http-client" }
+# multipart/bytes paths (upload_file / download_file) need reqwest directly:
+# digua-http-client's transport is String-body only.
+reqwest = { workspace = true, features = ["multipart"] }
 serde.workspace = true
 serde_json.workspace = true
 chrono = { workspace = true }

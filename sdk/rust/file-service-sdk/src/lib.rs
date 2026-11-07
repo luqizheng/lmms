@@ -10,6 +10,7 @@ pub mod model;
 
 pub use crate::client::FileClient;
 pub use crate::model::{
-    CreatePresignUrl, FileInfo, ListFilesQuery, PagedFiles, PresignUrlResponse,
+    CreatePresignUrl, DownloadedFile, FileInfo, ListFilesQuery, PagedFiles, PresignUrlResponse,
+    UploadFileMeta,
 };
 pub use digua_http_client::SdkError;

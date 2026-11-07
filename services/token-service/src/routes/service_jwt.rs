@@ -25,6 +25,11 @@ pub struct ServiceJwtRequest {
     pub aud: String,
     /// Caller tenant. Required.
     pub tid: i64,
+    /// Cross-tenant flag (2026-11-07): minted as the `ct` claim so a caller
+    /// serving platform-admin class principals keeps its downstream
+    /// CrossTenant scope. Absent/false = tenant-scoped (default).
+    #[serde(default)]
+    pub ct: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -47,19 +52,26 @@ pub async fn handle_service_jwt(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
         .ok_or((StatusCode::UNAUTHORIZED, "missing bearer".into()))?;
-    if !state.bootstrap_tokens.iter().any(|t| t == auth) {
-        return Err((StatusCode::UNAUTHORIZED, "invalid bootstrap".into()));
-    }
+    let caller = match state.bootstrap_tokens.iter().position(|t| t == auth) {
+        Some(idx) => state
+            .bootstrap_owners
+            .get(idx)
+            .cloned()
+            .unwrap_or_else(|| "unknown".into()),
+        None => return Err((StatusCode::UNAUTHORIZED, "invalid bootstrap".into())),
+    };
 
     // 2. Validate request.
     if req.aud.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "aud required".into()));
     }
 
-    // 3. Sign.
+    // 3. Sign. `sub` = the bootstrap owner's service name (2026-11-07: was
+    // token-service's own SERVICE_NAME env — every minted service-jwt used to
+    // carry the wrong caller identity; SERVICE_BOOTSTRAP_OWNERS is the
+    // parallel list to SERVICE_BOOTSTRAP_TOKENS).
     let now = chrono::Utc::now().timestamp();
-    let caller = std::env::var("SERVICE_NAME").unwrap_or_else(|_| "unknown".into());
-    let claims = serde_json::json!({
+    let mut claims = serde_json::json!({
         "iss": "token-service",
         "sub": caller,
         "aud": req.aud,
@@ -69,6 +81,9 @@ pub async fn handle_service_jwt(
         "roles": ["service"],
         "purpose": crate::issuer::purpose::SERVICE,
     });
+    if req.ct {
+        claims["ct"] = serde_json::json!(true);
+    }
     let access_token = sign_token(
         &state.private_key_pem,
         &claims,

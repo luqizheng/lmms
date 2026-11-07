@@ -29,8 +29,12 @@ pub enum ServiceJwtError {
 }
 
 struct ServiceJwtInner {
-    tokens: HashMap<String, String>, // target -> JWT
+    tokens: HashMap<String, String>, // cache key -> JWT
     expires_at: HashMap<String, Instant>,
+    /// Mint params per cache key, so the background refresh loop can re-mint
+    /// without knowing how the key was created. Key = "target" (legacy
+    /// fixed-tenant path) or "target:tid:ct" (per-tenant path).
+    params: HashMap<String, (String, i64, bool)>,
 }
 
 pub struct ServiceJwtCache {
@@ -52,6 +56,7 @@ impl ServiceJwtCache {
             inner: Arc::new(RwLock::new(ServiceJwtInner {
                 tokens: HashMap::new(),
                 expires_at: HashMap::new(),
+                params: HashMap::new(),
             })),
             config,
             http,
@@ -62,12 +67,13 @@ impl ServiceJwtCache {
     /// Get service-jwt for a target. Triggers a refresh if cache empty or
     /// within `refresh_skew` of expiry.
     pub async fn get(&self, target: &str) -> Result<String, ServiceJwtError> {
+        let key = self.tenant_key(target, self.config.caller_tenant, false);
         // Fast path: try cache
-        if let Some(tok) = self.try_get_cached(target).await {
+        if let Some(tok) = self.try_get_cached(&key).await {
             return Ok(tok);
         }
         // Cold path or near-expiry: refresh
-        self.refresh(target).await
+        self.refresh_params(&key).await
     }
 
     async fn try_get_cached(&self, target: &str) -> Option<String> {
@@ -83,6 +89,54 @@ impl ServiceJwtCache {
 
     /// Force mint a new service-jwt for `target` and cache it.
     pub async fn refresh(&self, target: &str) -> Result<String, ServiceJwtError> {
+        let key = self.tenant_key(target, self.config.caller_tenant, false);
+        let mut g = self.inner.write().await;
+        g.params
+            .entry(key.clone())
+            .or_insert_with(|| (target.to_string(), self.config.caller_tenant, false));
+        drop(g);
+        self.refresh_params(&key).await
+    }
+
+    /// Cache key for a per-tenant mint. The legacy fixed-tenant path keeps
+    /// the plain `target` key so existing deployments are unaffected.
+    fn tenant_key(&self, target: &str, tid: i64, ct: bool) -> String {
+        if ct {
+            format!("{target}:{tid}:ct")
+        } else {
+            format!("{target}:{tid}")
+        }
+    }
+
+    /// Multi-tenant mint: service-jwt with `aud=target, tid=<tid>` (and
+    /// `ct=true` for cross-tenant callers). Required when the calling service
+    /// serves many tenants (e.g. a business API proxying file uploads on
+    /// behalf of its users): the downstream tenant scope is derived from the
+    /// token's `tid` claim, not from any request field. Tokens are cached per
+    /// `(target, tid, ct)`; a per-tenant mint never disturbs the legacy
+    /// fixed-tenant cache entry.
+    pub async fn get_for_tenant(
+        &self,
+        target: &str,
+        tid: i64,
+        cross_tenant: bool,
+    ) -> Result<String, ServiceJwtError> {
+        let key = self.tenant_key(target, tid, cross_tenant);
+        if let Some(tok) = self.try_get_cached(&key).await {
+            return Ok(tok);
+        }
+        self.refresh_params(&key).await
+    }
+
+    async fn refresh_params(&self, key: &str) -> Result<String, ServiceJwtError> {
+        // Resolve mint params (fall back to legacy config for bare target keys).
+        let (target, tid, ct) = {
+            let g = self.inner.read().await;
+            match g.params.get(key) {
+                Some(p) => p.clone(),
+                None => (key.to_string(), self.config.caller_tenant, false),
+            }
+        };
         // Minting flow:
         // 1. POST /tokens/service-jwt with Authorization: Bearer <bootstrap>
         // 2. Server returns access_token (RS256 JWT signed by token-service)
@@ -94,10 +148,13 @@ impl ServiceJwtCache {
             "{}/tokens/service-jwt",
             self.config.token_service_url.trim_end_matches('/')
         );
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "aud": target,
-            "tid": self.config.caller_tenant,
+            "tid": tid,
         });
+        if ct {
+            body["ct"] = serde_json::json!(true);
+        }
         let resp = self
             .http
             .post(&url)
@@ -116,9 +173,11 @@ impl ServiceJwtCache {
             .map_err(|e| ServiceJwtError::ParseFailed(e.to_string()))?;
         let expires_at = Instant::now() + Duration::from_secs(parsed.expires_in.max(0) as u64);
         let mut g = self.inner.write().await;
-        g.tokens
-            .insert(target.to_string(), parsed.access_token.clone());
-        g.expires_at.insert(target.to_string(), expires_at);
+        g.params
+            .entry(key.to_string())
+            .or_insert((target, tid, ct));
+        g.tokens.insert(key.to_string(), parsed.access_token.clone());
+        g.expires_at.insert(key.to_string(), expires_at);
         Ok(parsed.access_token)
     }
 
@@ -131,11 +190,15 @@ impl ServiceJwtCache {
         target: &str,
         ttl: Duration,
     ) -> Result<String, crate::SignError> {
+        let key = self.tenant_key(target, self.config.caller_tenant, false);
         let tok = self.sign_local(target, ttl)?;
         let exp = Instant::now() + ttl;
         let mut g = self.inner.write().await;
-        g.tokens.insert(target.to_string(), tok.clone());
-        g.expires_at.insert(target.to_string(), exp);
+        g.params
+            .entry(key.clone())
+            .or_insert((target.to_string(), self.config.caller_tenant, false));
+        g.tokens.insert(key.clone(), tok.clone());
+        g.expires_at.insert(key, exp);
         Ok(tok)
     }
 
@@ -162,13 +225,13 @@ impl ServiceJwtCache {
             loop {
                 tokio::select! {
                     _ = tokio::time::sleep(interval) => {
-                        let targets: Vec<String> = self.inner.try_read()
-                            .map(|g| g.tokens.keys().cloned().collect())
+                        let keys: Vec<String> = self.inner.try_read()
+                            .map(|g| g.params.keys().cloned().collect())
                             .unwrap_or_default();
-                        for t in targets {
-                            if self.try_get_cached(&t).await.is_none() {
-                                if let Err(e) = self.refresh(&t).await {
-                                    tracing::warn!("service-jwt refresh for {} failed: {}", t, e);
+                        for k in keys {
+                            if self.try_get_cached(&k).await.is_none() {
+                                if let Err(e) = self.refresh_params(&k).await {
+                                    tracing::warn!("service-jwt refresh for {} failed: {}", k, e);
                                 }
                             }
                         }

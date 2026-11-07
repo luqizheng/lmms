@@ -1978,6 +1978,7 @@ version = "1.6.0"
 dependencies = [
  "chrono",
  "digua_http_client",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4951,6 +4952,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
+ "mime_guess",
  "once_cell",
  "percent-encoding",
  "pin-project-lite",

@@ -78,6 +78,10 @@ pub struct TokenServerState {
     /// `POST /tokens/service-jwt`. Each business service has its own
     /// 32-byte random token; rotate by editing this list and restarting.
     pub bootstrap_tokens: Vec<String>,
+    /// 2026-11-07: caller service names parallel to `bootstrap_tokens`
+    /// (env `SERVICE_BOOTSTRAP_OWNERS`, CSV). Mints `sub = <owner>` so
+    /// downstream services can attribute calls; unmatched/missing → "unknown".
+    pub bootstrap_owners: Vec<String>,
     /// Phase 5-B: JWKS cache for verifying inbound tokens.
     pub jwks: Arc<digua_common_jwt::JWKSCache>,
 }

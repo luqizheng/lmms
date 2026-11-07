@@ -111,6 +111,12 @@ async fn main() {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect(),
+        bootstrap_owners: std::env::var("SERVICE_BOOTSTRAP_OWNERS")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
         jwks: jwks_cache,
     };
     if state.bootstrap_tokens.is_empty() {

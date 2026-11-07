@@ -16,6 +16,25 @@ pub struct PresignUrlResponse {
     pub operation: String,
 }
 
+/// Multipart upload metadata for `POST /file/upload`. `tenant_id` is
+/// deliberately absent: since the 2026-11-07 mesh-only ruling the file's
+/// tenant comes from the service-jwt `tid` claim (server-derived), never
+/// from client-sent metadata.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct UploadFileMeta {
+    pub filename: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    /// Real end-user attribution, declared by the trusted caller
+    /// (see contracts/http-conventions.md).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_temporary: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_in_seconds: Option<i64>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct FileInfo {
     pub id: String,
@@ -105,4 +124,13 @@ fn url_encode(s: &str) -> String {
         }
     }
     out
+}
+
+/// Binary download result for `GET /file/{id}`.
+#[derive(Debug, Clone)]
+pub struct DownloadedFile {
+    pub bytes: Vec<u8>,
+    pub content_type: Option<String>,
+    /// Filename parsed from `Content-Disposition` when present.
+    pub filename: Option<String>,
 }

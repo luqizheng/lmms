@@ -16,7 +16,10 @@ const TEST_PRIVATE_PEM: &str =
 const TEST_PUBLIC_PEM: &str =
     include_str!("../../../libs/common-jwt/tests/fixtures/test_public.pem");
 
-fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServerState {
+fn build_state_with(
+    bootstrap_tokens: Vec<String>,
+    bootstrap_owners: Vec<String>,
+) -> token_service::TokenServerState {
     let pool = sqlx::mysql::MySqlPool::connect_lazy("mysql://placeholder").unwrap();
     let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap());
     token_service::TokenServerState {
@@ -35,14 +38,19 @@ fn build_state_with(bootstrap_tokens: Vec<String>) -> token_service::TokenServer
         user_service_url: "http://iam-service:8081".into(),
         private_key_pem: TEST_PRIVATE_PEM.into(),
         bootstrap_tokens,
+        bootstrap_owners,
         jwks,
     }
 }
 
 #[tokio::test]
 async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
-    std::env::set_var("SERVICE_NAME", "test-svc");
-    let state = build_state_with(vec!["bt-iam".into(), "bt-token".into()]);
+    // sub = the bootstrap owner (parallel SERVICE_BOOTSTRAP_OWNERS list),
+    // no longer token-service's own SERVICE_NAME env.
+    let state = build_state_with(
+        vec!["bt-iam".into(), "bt-token".into()],
+        vec!["iam-service".into(), "token-service".into()],
+    );
     let app = token_service::service_jwt_routes(state);
 
     let req = Request::builder()
@@ -69,7 +77,7 @@ async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
         .await
         .unwrap();
     assert_eq!(claims["iss"], "token-service"); // service-jwt always issued by token-service
-    assert_eq!(claims["sub"], "test-svc");
+    assert_eq!(claims["sub"], "token-service");
     assert_eq!(claims["aud"], "iam-service");
     assert_eq!(claims["tid"], 1);
     assert_eq!(claims["roles"][0], "service");
@@ -78,7 +86,7 @@ async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
 
 #[tokio::test]
 async fn service_jwt_with_wrong_bootstrap_returns_401() {
-    let state = build_state_with(vec!["bt-iam".into()]);
+    let state = build_state_with(vec!["bt-iam".into()], vec!["iam-service".into()]);
     let app = token_service::service_jwt_routes(state);
 
     let req = Request::builder()
@@ -96,7 +104,7 @@ async fn service_jwt_with_wrong_bootstrap_returns_401() {
 
 #[tokio::test]
 async fn service_jwt_without_auth_returns_401() {
-    let state = build_state_with(vec!["bt-iam".into()]);
+    let state = build_state_with(vec!["bt-iam".into()], vec!["iam-service".into()]);
     let app = token_service::service_jwt_routes(state);
 
     let req = Request::builder()
@@ -113,7 +121,7 @@ async fn service_jwt_without_auth_returns_401() {
 
 #[tokio::test]
 async fn service_jwt_with_empty_aud_returns_400() {
-    let state = build_state_with(vec!["bt-iam".into()]);
+    let state = build_state_with(vec!["bt-iam".into()], vec!["iam-service".into()]);
     let app = token_service::service_jwt_routes(state);
 
     let req = Request::builder()
@@ -125,4 +133,32 @@ async fn service_jwt_with_empty_aud_returns_400() {
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn service_jwt_ct_claim_and_unknown_owner() {
+    let state = build_state_with(vec!["bt-pm".into()], vec![]);
+    let app = token_service::service_jwt_routes(state);
+
+    let req = Request::builder()
+        .method("POST")
+        .uri("/tokens/service-jwt")
+        .header(header::AUTHORIZATION, "Bearer bt-pm")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({"aud": "file-service", "tid": 42, "ct": true}).to_string(),
+        ))
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(resp.into_body(), 1024).await.unwrap();
+    let parsed: Value = serde_json::from_slice(&body).unwrap();
+    let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
+    let claims = verify_token(parsed["access_token"].as_str().unwrap(), &cache, Some("file-service"))
+        .await
+        .unwrap();
+    assert_eq!(claims["ct"], true);
+    assert_eq!(claims["tid"], 42);
+    // no SERVICE_BOOTSTRAP_OWNERS entry -> sub falls back to "unknown"
+    assert_eq!(claims["sub"], "unknown");
 }

@@ -120,6 +120,8 @@ services:
       SERVICE_PORT: "8082"
       # ── 直接读取（main.rs 中硬编码读取，非 TOKEN_ 前缀） ──
       SERVICE_BOOTSTRAP_TOKENS: "${SERVICE_BOOTSTRAP_TOKENS}"
+      # 2026-11-07：与 TOKENS 等长并行表，铸 service-jwt 时 sub=<owner>（审计归属）
+      SERVICE_BOOTSTRAP_OWNERS: "${SERVICE_BOOTSTRAP_OWNERS}"
       TENANT_ID: "${TENANT_ID}"
       SWAGGER_ENABLED: "true"
       SERVICE_NAME: "token-service"
