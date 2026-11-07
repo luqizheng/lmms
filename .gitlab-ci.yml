@@ -1,3 +1,11 @@
+# ─── CI 暂停开关（2026-11-07，临时）───
+# 所有可能的管线都被本 workflow 门挡下，push/merge 不再触发任何 job。
+# 需要跑 CI 时：GitLab 页面 Run pipeline 手动传变量 LMMS_CI_ENABLED=true；
+# 彻底恢复 CI：删除本 workflow 块即可。
+workflow:
+  rules:
+    - if: '$LMMS_CI_ENABLED == "true"'
+
 stages:
   - cleanup
   - test
