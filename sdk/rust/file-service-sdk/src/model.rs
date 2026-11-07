@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+/// Both derives: downstream REST proxies re-parse the request body before
+/// forwarding (e.g. pm-api's /v1/file/presign handler).
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatePresignUrl {
     pub file_id: String,
     pub operation: String,
