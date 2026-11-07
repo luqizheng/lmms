@@ -37,7 +37,11 @@ pub struct ReqwestTransport {
 impl ReqwestTransport {
     pub fn new(options: KudiHttpOptions) -> Result<Arc<Self>, KudiHttpError> {
         crate::ensure_crypto_provider();
+        // Mesh-internal transport: never route through a system proxy — a
+        // leaked http_proxy env on dev machines would hijack loopback/intranet
+        // calls (same recipe as the JWKS clients in iam/api-gateway).
         let client = Client::builder()
+            .no_proxy()
             .connect_timeout(options.connect_timeout)
             .timeout(options.read_timeout)
             .user_agent(options.user_agent.clone())
