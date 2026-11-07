@@ -23,6 +23,9 @@ pub struct FileInfo {
     pub updated_at: DateTime<Utc>,
     /// 客户端可渲染的下载 URL（相对路径，前端 axios baseURL /api + 此值）。
     /// 由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
+    /// 2026-11-07 裁决后网关不再暴露 /v1/file/* 用户路由——该字段仅在
+    /// file-service 被业务服务网关化暴露时才有意义；用户下载一律走
+    /// presign 签名 URL（见 contracts/http-conventions.md）。
     #[serde(default)]
     #[sqlx(skip)]
     pub url: String,

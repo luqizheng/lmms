@@ -60,11 +60,6 @@ burst = 10
 requests_per_second = 20
 burst = 40
 
-# File uploads — generous
-[routes."/v1/file/upload"]
-requests_per_second = 10
-burst = 20
-
 # Config reads — moderate
 [routes."/v1/config/item"]
 requests_per_second = 20

@@ -1,8 +1,11 @@
-//! Phase 8.3-fu2: platform_admin cross-tenant file isolation (HTTP path).
+//! Phase 8.3-fu2: cross-tenant file isolation on the HTTP path.
 //!
+//! 2026-11-07 mesh-only ruling: /file/* only accepts service-jwts
+//! (aud=file-service); callers assert tenant scope via `tid`/`ct`.
 //! Validates that the file-service correctly applies tenant_id filter:
-//! - platform_admin (cross_tenant=true) sees files from any tenant
-//! - regular tenant-scoped user only sees files in their own tenant
+//! - caller with ct=true (platform-admin class service) reads any tenant
+//! - tenant-scoped caller only sees files in their own tenant
+//! - user-jwt (aud=coder-micro-services) is rejected outright (401)
 #![allow(deprecated)]
 mod common;
 
@@ -76,10 +79,12 @@ async fn seed_file(pool: &sqlx::MySqlPool, tenant_id: i64) -> String {
     id
 }
 
-/// Build a JWT with the given tenant_id and cross_tenant flag.
+/// Build a service-jwt (aud=file-service) with the given tenant_id and
+/// cross_tenant flag — the only token shape /file/* accepts since the
+/// 2026-11-07 mesh-only ruling.
 fn make_token(
     key_pair: &RS256KeyPair,
-    user_id: &str,
+    caller: &str,
     tenant_id: i64,
     cross_tenant: bool,
 ) -> String {
@@ -91,9 +96,31 @@ fn make_token(
     let mut custom = HashMap::new();
     custom.insert("tid".to_string(), serde_json::json!(tenant_id));
     custom.insert("ct".to_string(), serde_json::json!(cross_tenant));
+    custom.insert("roles".to_string(), serde_json::json!(["service"]));
+
+    let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
+    claims.subject = Some(caller.to_string());
+    claims.audiences = Some(Audiences::AsString("file-service".to_string()));
+    claims.issued_at = Some(coarsetime::Duration::from_secs(now));
+    claims.expires_at = Some(coarsetime::Duration::from_secs(now + 3600));
+    claims.custom = custom;
+
+    key_pair.sign(claims).unwrap()
+}
+
+/// User-shaped JWT (aud=coder-micro-services) — must be rejected on /file/*.
+fn make_user_token(key_pair: &RS256KeyPair, user_id: &str, tenant_id: i64) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let mut custom = HashMap::new();
+    custom.insert("tid".to_string(), serde_json::json!(tenant_id));
 
     let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
     claims.subject = Some(user_id.to_string());
+    claims.audiences = Some(Audiences::AsString("coder-micro-services".to_string()));
     claims.issued_at = Some(coarsetime::Duration::from_secs(now));
     claims.expires_at = Some(coarsetime::Duration::from_secs(now + 3600));
     claims.custom = custom;
@@ -233,5 +260,57 @@ async fn platform_admin_cross_tenant_file() {
         resp.status(),
         StatusCode::NOT_FOUND,
         "tenant-2 user must not see tenant-1 file"
+    );
+}
+
+/// Regression for the 2026-11-07 mesh-only ruling: a user-jwt
+/// (aud=coder-micro-services) must get 401 on /file/* — the aud gate
+/// rejects it before any tenant filtering happens.
+#[tokio::test]
+async fn user_jwt_rejected_on_file_routes() {
+    let ctx = setup().await;
+
+    let t1_file = seed_file(&ctx.pool, 1).await;
+    let user_token = make_user_token(&ctx.key_pair, "user-1", 1);
+
+    let resp = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/file/{}/info", t1_file))
+                .header("Authorization", format!("Bearer {}", user_token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        resp.status(),
+        StatusCode::UNAUTHORIZED,
+        "user-jwt must not reach file routes"
+    );
+
+    // presign creation is service-only too
+    let resp = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/file/presign")
+                .header("Authorization", format!("Bearer {}", user_token))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"file_id": t1_file, "operation": "get"}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        resp.status(),
+        StatusCode::UNAUTHORIZED,
+        "user-jwt must not create presign urls"
     );
 }

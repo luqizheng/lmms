@@ -26,9 +26,20 @@ pub fn routes(state: AppState) -> Router {
         axum::response::Html(String::from_utf8(buffer).unwrap())
     }
 
+    // 2026-11-07 裁决：file-service 定位为纯内部服务，/file/* 只接受
+    // service-jwt（aud=file-service）。用户 JWT（aud=coder-micro-services）
+    // 在此 401；用户面路径走网关→业务服务→本服务（ServiceJwtCache），
+    // 归属身份由受信调用方在 metadata 中显式声明（见 contracts/http-conventions.md）。
+    let file = axum_mw::from_fn_with_state(
+        state.clone(),
+        digua_authz::verify_aud_principal_middleware::<AppState>("file-service"),
+    );
     Router::new()
-        .nest("/file", file::routes(state.clone()))
-        .nest("/file", presign::routes(state.clone()))
+        .nest("/file", file::routes(state.clone()).layer(file.clone()))
+        .nest(
+            "/file",
+            presign::routes(state.clone()).layer(file.clone()),
+        )
         .merge(
             migration_state::routes(state.clone()).layer(axum_mw::from_fn_with_state(
                 state.clone(),
