@@ -73,7 +73,7 @@ impl ServiceJwtCache {
             return Ok(tok);
         }
         // Cold path or near-expiry: refresh
-        self.refresh_params(&key).await
+        self.mint(&key, target, self.config.caller_tenant, false).await
     }
 
     async fn try_get_cached(&self, target: &str) -> Option<String> {
@@ -90,12 +90,7 @@ impl ServiceJwtCache {
     /// Force mint a new service-jwt for `target` and cache it.
     pub async fn refresh(&self, target: &str) -> Result<String, ServiceJwtError> {
         let key = self.tenant_key(target, self.config.caller_tenant, false);
-        let mut g = self.inner.write().await;
-        g.params
-            .entry(key.clone())
-            .or_insert_with(|| (target.to_string(), self.config.caller_tenant, false));
-        drop(g);
-        self.refresh_params(&key).await
+        self.mint(&key, target, self.config.caller_tenant, false).await
     }
 
     /// Cache key for a per-tenant mint. The legacy fixed-tenant path keeps
@@ -125,18 +120,19 @@ impl ServiceJwtCache {
         if let Some(tok) = self.try_get_cached(&key).await {
             return Ok(tok);
         }
-        self.refresh_params(&key).await
+        self.mint(&key, target, tid, cross_tenant).await
     }
 
-    async fn refresh_params(&self, key: &str) -> Result<String, ServiceJwtError> {
-        // Resolve mint params (fall back to legacy config for bare target keys).
-        let (target, tid, ct) = {
-            let g = self.inner.read().await;
-            match g.params.get(key) {
-                Some(p) => p.clone(),
-                None => (key.to_string(), self.config.caller_tenant, false),
-            }
-        };
+    /// Mint with explicit params and store under `key`. The `params` entry is
+    /// written here so the background refresh loop can re-mint without
+    /// knowing how the key was created.
+    async fn mint(
+        &self,
+        key: &str,
+        target: &str,
+        tid: i64,
+        ct: bool,
+    ) -> Result<String, ServiceJwtError> {
         // Minting flow:
         // 1. POST /tokens/service-jwt with Authorization: Bearer <bootstrap>
         // 2. Server returns access_token (RS256 JWT signed by token-service)
@@ -175,7 +171,7 @@ impl ServiceJwtCache {
         let mut g = self.inner.write().await;
         g.params
             .entry(key.to_string())
-            .or_insert((target, tid, ct));
+            .or_insert((target.to_string(), tid, ct));
         g.tokens.insert(key.to_string(), parsed.access_token.clone());
         g.expires_at.insert(key.to_string(), expires_at);
         Ok(parsed.access_token)
@@ -219,6 +215,23 @@ impl ServiceJwtCache {
         sign_token(&self.private_key_pem, &claims, ttl)
     }
 
+    /// Background-loop refresh: re-mint by cache key using the stored params.
+    async fn refresh_by_key(&self, key: &str) -> Result<String, ServiceJwtError> {
+        let (target, tid, ct) = {
+            let g = self.inner.read().await;
+            match g.params.get(key) {
+                Some(p) => p.clone(),
+                // Key without params (e.g. primed via prime_cache in tests):
+                // treat the whole key as the target with config tenant.
+                None => (key.to_string(), self.config.caller_tenant, false),
+            }
+        };
+        if self.try_get_cached(key).await.is_some() {
+            return Ok(self.inner.read().await.tokens[key].clone());
+        }
+        self.mint(key, &target, tid, ct).await
+    }
+
     pub fn spawn_refresh_loop(self: Arc<Self>, mut shutdown: tokio::sync::watch::Receiver<bool>) {
         tokio::spawn(async move {
             let interval = self.config.refresh_skew / 2;
@@ -230,7 +243,7 @@ impl ServiceJwtCache {
                             .unwrap_or_default();
                         for k in keys {
                             if self.try_get_cached(&k).await.is_none() {
-                                if let Err(e) = self.refresh_params(&k).await {
+                                if let Err(e) = self.refresh_by_key(&k).await {
                                     tracing::warn!("service-jwt refresh for {} failed: {}", k, e);
                                 }
                             }

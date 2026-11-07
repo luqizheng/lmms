@@ -91,3 +91,45 @@ async fn get_for_tenant_isolates_cache_keys() {
         .unwrap_err();
     assert!(matches!(err, ServiceJwtError::TokenServiceUnavailable(_)));
 }
+
+/// Regression (2026-11-07, caught by pm-api integration): the FIRST mint for
+/// a (target,tid) must POST aud=<target>/tid=<tid> — the params lookup used
+/// to fall back to the composite cache key as the audience with the config
+/// tenant, producing aud="file-service:7", tid=1.
+#[tokio::test]
+async fn get_for_tenant_mints_explicit_aud_and_tid() {
+    use wiremock::matchers::{body_partial_json, header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/tokens/service-jwt"))
+        .and(header("authorization", "Bearer bt-test"))
+        .and(body_partial_json(serde_json::json!({"aud": "file-service", "tid": 7})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            serde_json::json!({"access_token": "svc-jwt-1", "expires_in": 3600}),
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let http = reqwest::Client::builder().no_proxy().build().unwrap();
+    let c = ServiceJwtCache::new(
+        ServiceJwtConfig {
+            token_service_url: server.uri(),
+            bootstrap_token: "bt-test".into(),
+            caller_service_name: "test-svc".into(),
+            caller_tenant: 1,
+            refresh_skew: Duration::from_secs(60),
+            request_timeout: Duration::from_secs(5),
+        },
+        http,
+        TEST_PRIVATE_PEM.to_string(),
+    );
+    let tok = c.get_for_tenant("file-service", 7, false).await.unwrap();
+    assert_eq!(tok, "svc-jwt-1");
+    // Second call must resolve from cache without another mint.
+    let tok2 = c.get_for_tenant("file-service", 7, false).await.unwrap();
+    assert_eq!(tok2, "svc-jwt-1");
+    server.verify().await;
+}
