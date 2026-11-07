@@ -28,7 +28,11 @@ impl FileClient {
         let http = KudiWebClient::builder()
             .build()
             .expect("kudi-http-client: reqwest build");
+        // Mesh-internal client: never route through a system proxy (a
+        // leaked http_proxy env on dev machines would hijack loopback/intranet
+        // calls — same rationale as the JWKS clients in iam/gateway).
         let bytes_http = reqwest::Client::builder()
+            .no_proxy()
             .build()
             .expect("file-sdk: reqwest build");
         Self {
