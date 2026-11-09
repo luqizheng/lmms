@@ -46,7 +46,6 @@ async fn main() {
     println!("server.host           : {}", cfg.server.host);
     println!("server.port           : {}", cfg.server.port);
     println!("issuer                : {}", cfg.issuer);
-    println!("database.db_type      : {:?}", cfg.database.db_type);
     println!("database.url          : {}", cfg.database.url);
     println!("jwt_private_key_path  : {}", cfg.jwt_private_key_path);
     println!("jwt_public_key_path   : {}", cfg.jwt_public_key_path);

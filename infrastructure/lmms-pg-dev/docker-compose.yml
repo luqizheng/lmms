@@ -1,0 +1,294 @@
+# infrastructure/lmms-pg-dev/docker-compose-lmms.yml
+# ── lmms 业务服务组（PostgreSQL 方言）· 本机开发基座 ───────────────────────────
+# 前置：先启动 ../infra-pg（同一 external network `superpowers`），否则
+#       consul / postgres / redis / rabbitmq 的 DNS 全部不可达。
+# 服务来源：本机源码构建（context ../..）。全部服务以 postgres feature 编译，
+#       --build 时由 build args 传入 SERVICE_FEATURES=postgres：
+#   docker compose -p lmms-pg-dev -f docker-compose-lmms.yml up -d --build
+# 端口：dev 模式全部公开，方便本机直连单服务排障（api-gateway:3000 主入口，
+#       其余服务端口见下方各 services.ports 声明）。
+# 注册契约（2026-11-05 registrator 退役）：libs/common-consul 读
+#       CONSUL_ADDR/SERVICE_NAME/SERVICE_PORT/SERVICE_HEALTH_PATH，
+#       启动即注册、SIGTERM 注销、30s 对账重注册。
+# ─────────────────────────────────────────────────────────────────────────────
+x-consul-env: &consul-env
+  CONSUL_ADDR: "${CONSUL_ADDR:-http://consul:8500}"
+  SERVICE_ADDRESS: "${SERVICE_ADDRESS:-}"
+  SERVICE_HEALTH_PATH: "/health"
+
+x-loki-labels: &loki-labels
+  logging: "loki"
+  env: "staging"
+
+x-lmms-build: &lmms-build
+  context: ../..
+  args:
+    # 方言开关：全部服务按 postgres 编译（Dockerfile 的 ARG SERVICE_FEATURES=mysql）
+    SERVICE_FEATURES: postgres
+
+services:
+  file-service:
+    build:
+      <<: *lmms-build
+      dockerfile: services/file-service/Dockerfile
+    ports:
+      - "8086:8082"
+    labels:
+      <<: *loki-labels
+      service: file-service
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "8082"
+      # ── 直接读取（main.rs 中硬编码读取） ──
+      JWKS_URL: "${JWKS_URL}"
+      DATABASE_URL: "${DATABASE_URL}"
+      STORAGE_PATH: "/var/lib/file-service/storage"
+      RUST_LOG: "info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      SERVICE_NAME: "file-service"
+    volumes:
+      - file-storage:/var/lib/file-service/storage
+    networks:
+      - superpowers
+
+  # ─────────── api-gateway ───────────
+  api-gateway:
+    build:
+      context: ../..
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    labels:
+      <<: *loki-labels
+      service: api-gateway
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "3000"
+      # ── 直接读取（GW_ 前缀，config.rs::apply_env_overrides 手写映射） ──
+      GW_SERVER_HOST: "0.0.0.0"
+      GW_SERVER_PORT: "3000"
+      GW_REDIS_URL: "redis://redis:6379"
+      GW_REDIS_PREFIX: "superpowers:"
+      GW_CONSUL_ADDR: "http://consul:8500"
+      GW_JWKS_URL: "http://token-service:8082/.well-known/jwks.json"
+      GW_ISSUER: "superpowers-token-service"
+      GW_ROUTES_DIR: "/app/config/api-gateway/routes"
+      GW_EVENT_BUS_URL: "amqp://guest:guest@rabbitmq:5672/%2f"
+      RUST_LOG: "api_gateway=trace,info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      SERVICE_NAME: "api-gateway"
+    volumes:
+      # 路由与限流配置单一事实源：直接挂 services 组下的同一份，避免两份漂移
+      - ../services/config/api-gateway/routes:/app/config/api-gateway/routes
+      - ../services/config/api-gateway/api-gateway.toml:/app/config/api-gateway.toml:ro
+      - ../services/config/api-gateway/rate-limits.toml:/app/config/api-gateway/rate-limits.toml:ro
+    depends_on:
+      # JWKS 起动竞态：gateway 启动即拉取 JWKS，token-service 未就绪会缓存空公钥
+      token-service:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+  # ─────────── token-service ───────────
+  token-service:
+    build:
+      <<: *lmms-build
+      dockerfile: services/token-service/Dockerfile
+    ports:
+      - "8082:8082"
+    labels:
+      <<: *loki-labels
+      service: token-service
+    volumes:
+      - ../../services/token-service/config:/app/config:ro
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "8082"
+      # ── 直接读取（main.rs 中硬编码读取，非 TOKEN_ 前缀） ──
+      SERVICE_BOOTSTRAP_TOKENS: "${SERVICE_BOOTSTRAP_TOKENS}"
+      SERVICE_BOOTSTRAP_OWNERS: "${SERVICE_BOOTSTRAP_OWNERS}"
+      TENANT_ID: "${TENANT_ID}"
+      SWAGGER_ENABLED: "true"
+      SERVICE_NAME: "token-service"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      # ── 覆盖 config.yaml（TOKEN_ 前缀） ──
+      TOKEN_DATABASE_URL: "${DATABASE_URL}"
+    networks:
+      - superpowers
+
+  # ─────────── iam-service ───────────
+  iam-service:
+    build:
+      <<: *lmms-build
+      dockerfile: services/iam-service/Dockerfile
+    ports:
+      - "9081:8081"
+    labels:
+      <<: *loki-labels
+      service: iam-service
+    # dev-only bind mount：首次启动从内嵌默认写 config.yaml（不可 :ro）
+    volumes:
+      - ../../services/iam-service/config:/etc/iam-service
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "8081"
+      SERVICE_BOOTSTRAP_TOKEN: "${IAM_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
+      DATABASE_URL: "${DATABASE_URL}"
+      REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
+      CONFIG_PATH: "/etc/iam-service/config.yaml"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      SERVICE_NAME: "iam-service"
+    networks:
+      - superpowers
+
+  iam-outbox-publisher:
+    build:
+      <<: *lmms-build
+      dockerfile: services/iam-service/Dockerfile
+    # Cargo bin target 在磁盘上是下划线名（kebab-case 会被 cargo 改写）
+    command: ["iam_outbox_publisher"]
+    restart: unless-stopped
+    labels:
+      - "logging=loki"
+      - "service=iam-outbox-publisher"
+      - "env=staging"
+    volumes:
+      - ../../services/iam-service/config:/etc/iam-service
+    environment:
+      DATABASE_URL: "${DATABASE_URL}"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
+      EVENT_BUS_EXCHANGE: "events"
+      OUTBOX_POLL_INTERVAL_MS: "1000"
+      OUTBOX_BATCH_SIZE: "100"
+      CONFIG_PATH: "/etc/iam-service/config.yaml"
+      METRICS_FILE_PATH: "/var/run/prometheus/iam_outbox.prom"
+    healthcheck:
+      # publisher 无监听端口，改查 Prometheus 指标文件新鲜度
+      test:
+        - CMD-SHELL
+        - >-
+          f="$${METRICS_FILE_PATH:-/var/run/prometheus/iam_outbox.prom}";
+          [ -f "$$f" ] && [ $$(( $$(date +%s) - $$(stat -c %Y "$$f") )) -le 60 ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - superpowers
+
+  # ─────────── prue_backend ───────────
+  prue_backend:
+    build:
+      <<: *lmms-build
+      dockerfile: services/prue_backend/Dockerfile
+    ports:
+      - "8087:8087"
+    labels:
+      <<: *loki-labels
+      service: prue_backend
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "8087"
+      JWKS_URL: "${JWKS_URL}"
+      DATABASE_URL: "${DATABASE_URL}"
+      RUST_LOG: "info"
+      SERVICE_NAME: "prue_backend"
+      SERVER_PORT: "8087"
+    networks:
+      - superpowers
+
+  # ─────────── notification-service ───────────
+  notification-service:
+    build:
+      <<: *lmms-build
+      dockerfile: services/notification-service/Dockerfile
+    ports:
+      - "8083:8083"
+    labels:
+      <<: *loki-labels
+      service: notification-service
+    volumes:
+      - ../../services/notification-service/config:/etc/notification-service
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "8083"
+      CONFIG_PATH: "/etc/notification-service/config.yaml"
+      SERVICE_BOOTSTRAP_TOKEN: "${NOTIFICATION_DEV_BT}"
+      TENANT_ID: "${TENANT_ID}"
+      TOKEN_SERVICE_URL: "${TOKEN_SERVICE_URL}"
+      JWKS_URL: "${JWKS_URL}"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
+      SERVER_PORT: "8083"
+      DATABASE_URL: "${DATABASE_URL}"
+      REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      SERVICE_NAME: "notification-service"
+    networks:
+      - superpowers
+
+  notification-outbox-publisher:
+    build:
+      <<: *lmms-build
+      dockerfile: services/notification-service/Dockerfile
+    # Cargo bin target 在磁盘上是 ntf_outbox_publisher
+    command: ["ntf_outbox_publisher"]
+    restart: unless-stopped
+    labels:
+      - "logging=loki"
+      - "service=notification-outbox-publisher"
+      - "env=staging"
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "8083"
+      DATABASE_URL: "${DATABASE_URL}"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
+      EVENT_BUS_EXCHANGE: "events"
+      OUTBOX_POLL_INTERVAL_MS: "1000"
+      OUTBOX_BATCH_SIZE: "100"
+      METRICS_FILE_PATH: "/var/run/prometheus/ntf_outbox.prom"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          f="$${METRICS_FILE_PATH:-/var/run/prometheus/ntf_outbox.prom}";
+          [ -f "$$f" ] && [ $$(( $$(date +%s) - $$(stat -c %Y "$$f") )) -le 60 ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - superpowers
+
+  # ─────────── audit-service ───────────
+  audit-service:
+    build:
+      <<: *lmms-build
+      dockerfile: services/audit-service/Dockerfile
+    ports:
+      - "8084:8084"
+    labels:
+      <<: *loki-labels
+      service: audit-service
+    environment:
+      <<: *consul-env
+      SERVICE_PORT: "8084"
+      JWKS_URL: "${JWKS_URL}"
+      DATABASE_URL: "${DATABASE_URL}"
+      EVENT_BUS_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/%2f"
+      REDIS_URL: "redis://${REDIS_HOST}:${REDIS_PORT}"
+      RUST_LOG: "info"
+      SERVICE_NAME: "audit-service"
+      SERVER_PORT: "8084"
+    networks:
+      - superpowers
+
+volumes:
+  file-storage:
+    name: superpowers_file-storage
+
+networks:
+  superpowers:
+    external: true

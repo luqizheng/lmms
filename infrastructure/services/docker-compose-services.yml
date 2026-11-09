@@ -132,7 +132,6 @@ services:
 
       # ── 覆盖 config.yaml（TOKEN_ 前缀，由 config.rs::apply_env_overrides 手写映射） ──
       TOKEN_DATABASE_URL: "${DATABASE_URL}"    # 数据库连接
-      TOKEN_DATABASE_DB_TYPE: "mysql"
       # ── config.yaml 中的默认值，取消注释可覆盖 ──
       # TOKEN_SERVER_HOST: "0.0.0.0"
       # TOKEN_SERVER_PORT: "8082"
