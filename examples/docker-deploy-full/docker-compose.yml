@@ -23,3 +23,4 @@ include:
   - docker-compose-infra.yml
   - docker-compose-observability.yml
   - docker-compose-services.yml
+  - docker-compose-nginx.yml

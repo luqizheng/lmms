@@ -8,9 +8,8 @@
 #   ./start.sh --no-build  # 强制跳过 build（覆盖自动检测）
 #   ./start.sh --force-recreate  # 透传其余 docker compose up 参数
 #
-# env 加载（后者覆盖前者）：
-#   1. .env      —— 环境配置（IP / 口令 / 拓扑），向上回退：
-#                   $DIR/../../.env → $DIR/../.env → $DIR/.env
+# env 加载（后者覆盖前者，仅同目录）：
+#   1. .env      —— 环境配置（IP / 口令 / 拓扑）
 #   2. .env.prod —— 运维覆盖层（可选：服务器真实口令；缺失不阻塞）
 #   3. .image.env —— **镜像钉版**（发布即固化，机器生成），最后加载 → 权威
 # compose 的 image: 只引用 ${IMAGE_*}，值来自 .image.env；
@@ -73,16 +72,10 @@ load_env() {
   log "env: $f"
 }
 # 1) 环境配置
-load_env "$DIR/../../.env"
-load_env "$DIR/../.env"
 load_env "$DIR/.env"
 # 2) 运维覆盖层（可选）
-load_env "$DIR/../../.env.prod"
-load_env "$DIR/../.env.prod"
 load_env "$DIR/.env.prod"
 # 3) 镜像钉版（最后加载 → 权威，.env 不能改掉已发布版本）
-load_env "$DIR/../../.image.env"
-load_env "$DIR/../.image.env"
 load_env "$IMAGE_ENV"
 
 # ── REQUIRED 环境变量校验 ────────────────────────────────────────────────────

@@ -9,9 +9,8 @@
 #   ./start.sh --no-build  # 强制跳过 build（覆盖自动检测）
 #   ./start.sh --force-recreate  # 透传其余 docker compose up 参数
 #
-# env 加载（后者覆盖前者）：
+# env 加载（后者覆盖前者，仅同目录）：
 #   1. .env       —— 环境配置（IP / 口令 / 拓扑）
-#                  向上回退：$DIR/../../.env → $DIR/../.env → $DIR/.env
 #   2. .env.prod  —— 运维覆盖层（可选；缺失不阻塞）
 #   3. .image.env —— **镜像钉版**（平台镜像机器生成 + 基础镜像手工维护），最后加载 → 权威
 #
@@ -71,14 +70,8 @@ load_env() {
   set +a; set -u
   log "env: $f"
 }
-load_env "$DIR/../../.env"
-load_env "$DIR/../.env"
 load_env "$DIR/.env"
-load_env "$DIR/../../.env.prod"
-load_env "$DIR/../.env.prod"
 load_env "$DIR/.env.prod"
-load_env "$DIR/../../.image.env"
-load_env "$DIR/../.image.env"
 load_env "$IMAGE_ENV"
 
 # ── REQUIRED 校验 ────────────────────────────────────────────────────────────
@@ -93,7 +86,7 @@ for v in IMAGE_API_GATEWAY IMAGE_TOKEN_SERVICE IMAGE_IAM_SERVICE \
          IMAGE_NOTIFICATION_SERVICE IMAGE_FILE_SERVICE IMAGE_AUDIT_SERVICE \
          IMAGE_PRUE_BACKEND IMAGE_CONSUL IMAGE_REDIS IMAGE_RABBITMQ IMAGE_POSTGRES \
          IMAGE_PROMETHEUS IMAGE_ALERTMANAGER IMAGE_GRAFANA IMAGE_CONSUL_TEMPLATE \
-         IMAGE_OTEL_COLLECTOR IMAGE_JAEGER; do
+         IMAGE_OTEL_COLLECTOR IMAGE_JAEGER IMAGE_NGINX; do
   [[ -z "${!v:-}" ]] && die "env var $v empty (set in .image.env)"
 done
 if [[ "$WITH_LOGS" == "1" ]]; then
