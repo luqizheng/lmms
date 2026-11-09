@@ -15,8 +15,8 @@
 set -uo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT="superpowers-infra"
-BASE="docker-compose-infra"
+PROJECT="lmms-infra"
+BASE="docker-compose"
 OVERLAY="prod"
 UP_ARGS=()
 for arg in "$@"; do

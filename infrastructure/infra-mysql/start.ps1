@@ -20,8 +20,8 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-$Project  = "superpowers-infra"
-$Base     = "docker-compose-infra"
+$Project  = "lmms-infra"
+$Base     = "docker-compose"
 $Overlay  = if ($Remote) { "remote" } elseif ($Dev) { "dev" } elseif ($Prod) { "prod" } else { "prod" }
 $Dir      = Split-Path -Parent $MyInvocation.MyCommand.Path
 

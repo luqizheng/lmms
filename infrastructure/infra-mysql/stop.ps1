@@ -12,8 +12,8 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-$Project = "superpowers-infra"
-$Base    = "docker-compose-infra"
+$Project = "lmms-infra"
+$Base    = "docker-compose"
 $Dir     = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if ($Help) {
