@@ -154,3 +154,44 @@ node scripts/update-image-env.js -v 1.7.0 [--dialect pg|mysql] [--registry <host
 | 7 | `.gitlab-ci.yml` | 新增 `deploy_image_env_check` job（test 阶段，阻断式） |
 | 8 | `package.json` | 加 `deploy:image-env` / `deploy:image-env:check` + 纳入 `test:scripts` |
 | 9 | `docs/deploy-topologies.md` / `AGENTS.md` / `.gitignore` | 同步文档；忽略 `examples/*/.env` |
+
+## 10. 版本真相源（2026-11-09 二次裁决）
+
+第一版把版本号放在新建的 `release.toml`；用户裁决改为：**镜像版本必须来自
+`services/` 下各服务自身的 crate 版本**，`release.toml` 退回只放镜像参数。
+
+| 关注点 | 位置 | 说明 |
+| --- | --- | --- |
+| 平台版本 | 根 `Cargo.toml` 的 `[workspace.package].version` | 8 个 `services/*` 用 `version.workspace = true` 继承；改一处全生效 |
+| 镜像方言 / 镜像源 | `release.toml` | `dialect` / `registry.host` / `registry.repo`，**不含版本** |
+| SDK 版本 | 各自清单 | `libs/*` 与 `sdk/rust/*` 的 Cargo.toml、npm `package.json`、`sdk/java/pom.xml` —— 与平台版本解耦 |
+
+### 强约束
+
+1. **版本分裂拒绝发布**：8 个服务解析出的版本必须一致，否则 `release images`
+   抛 `VERSION_SPLIT`（exit 3）并列出谁没跟上。避免同批镜像出现两个 tag。
+2. **pg 方言两段构建**：`docker-build` 的 pg 模式只构建带 DB 的服务，api-gateway
+   （无 DB）会被跳过；但 `.image.env` 里它用的是无后缀 tag。`release images`
+   因此在 pg 方言下跑两批 —— 先 api-gateway（无后缀），再 6 个 DB 服务（`-pg`）。
+3. **`--check` 以服务版本为期望**：不能从 `.image.env` 自身反推版本，否则
+   「改了 Cargo.toml 版本但没更新 `.image.env`」这类漂移永远查不出来。
+
+### 命令
+
+| 命令 | 用途 |
+| --- | --- |
+| `coder release status [--strict]` | 体检：服务版本 / `.image.env` 钉版 / 最新 git tag 是否一致 |
+| `coder release images [--push] [--dry-run]` | 读服务版本 → 构建（pg 分两批）→ 成功后写 `.image.env` |
+| `coder release sdk [rust\|npm\|java\|all] [--dry-run] [--targets libs\|sdks]` | 各生态 SDK 发布 |
+
+SDK 发布的实现要点（`packages/cli/lib/sdk-publish.js`）：
+- Rust：按依赖拓扑序发布；发布时把 `path` 依赖临时改写为 `version + registry`，
+  **finally 复原 Cargo.toml 与 Cargo.lock**；目标版本已存在视为跳过（断点续发）。
+- npm：`contracts → http → cli → 5 个 svc SDK`，`pnpm --filter <pkg> publish`。
+- Java：`mvn -f sdk/java/pom.xml deploy -DskipTests`。
+
+### 新增工具码
+
+`CRATE_ORDER_VIOLATION` / `CRATE_VERSION_MISSING` / `SERVICE_MANIFEST_MISSING` /
+`VERSION_SPLIT`（均 Guard / exit 3）已写入 `contracts/tool-codes.yaml`，
+`lib/tool-codes.js` 由 `contracts-gen.js` 生成。

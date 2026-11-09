@@ -5,8 +5,10 @@ const TOOL_CODES = {
   ASSET_MISSING: { message: "required asset is missing", kind: "Guard", exit: 3 },
   ASSET_SHA_MISMATCH: { message: "asset checksum mismatch", kind: "Guard", exit: 3 },
   CRATE_FIELD_MISSING: { message: "crate metadata field is missing", kind: "Guard", exit: 3 },
+  CRATE_ORDER_VIOLATION: { message: "publish order violates crate dependency direction", kind: "Guard", exit: 3 },
   CRATE_TOML_MISSING: { message: "crate Cargo.toml is missing", kind: "Guard", exit: 3 },
   CRATE_VERSION_MISMATCH: { message: "crate version mismatch", kind: "Guard", exit: 3 },
+  CRATE_VERSION_MISSING: { message: "crate version cannot be resolved", kind: "Guard", exit: 3 },
   DIRTY_WORKTREE: { message: "worktree is not clean", kind: "Guard", exit: 3 },
   EXTERNAL_COMMAND_FAILED: { message: "external command failed", kind: "External", exit: 4 },
   MAVEN_BINARY_MISSING: { message: "maven binary not found", kind: "Guard", exit: 3 },
@@ -30,12 +32,14 @@ const TOOL_CODES = {
   NPM_VERSION_REQUIRED: { message: "npm publish version is required", kind: "Usage", exit: 2 },
   RUST_CARGO_MISSING: { message: "cargo binary not found", kind: "Guard", exit: 3 },
   RUST_VERSION_REQUIRED: { message: "rust publish version is required", kind: "Usage", exit: 2 },
+  SERVICE_MANIFEST_MISSING: { message: "a service Cargo.toml is missing", kind: "Guard", exit: 3 },
   TAG_EXISTS: { message: "tag already exists", kind: "Guard", exit: 3 },
   TOO_MANY_POSITIONAL: { message: "too many arguments", kind: "Usage", exit: 2 },
   UNEXPECTED: { message: "unexpected failure", kind: "Failure", exit: 1 },
   UNKNOWN_COMMAND: { message: "unknown command", kind: "Usage", exit: 2 },
   UNKNOWN_FLAG: { message: "unknown flag", kind: "Usage", exit: 2 },
   VERSION_DRIFT: { message: "version ledger drifted", kind: "Guard", exit: 3 },
+  VERSION_SPLIT: { message: "service versions do not agree; release refused", kind: "Guard", exit: 3 },
 };
 
 module.exports = { TOOL_CODES };

@@ -1,18 +1,16 @@
 #!/usr/bin/env node
 /**
- * update-image-env.js —— 发布镜像后更新部署单元的 .image.env（镜像钉版）
+ * update-image-env.js —— 更新部署单元的 .image.env（镜像钉版）
  *
- * 背景（见 docs/superpowers/specs/2026-11-09-image-env-driven-deploy-design.md）：
- *   compose 的 image: 只写整名变量（${IMAGE_FILE_SERVICE}），值集中在
- *   examples/docker-deploy/.image.env。发布新镜像后跑一次本脚本即可把
- *   部署单元的镜像版本推进到新版本，且版本变化在 git diff 里看得见。
+ * 版本号的真相源是根目录 release.toml；本脚本是它的独立入口
+ * （CI 门禁 `deploy_image_env_check` 调它，也可在没有 CLI 的环境里用）。
  *
  * 用法：
- *   node scripts/update-image-env.js -v 1.7.0 --dialect pg     # 写入 .image.env
- *   node scripts/update-image-env.js -v 1.7.0 --check           # 只比对，不写（CI 门禁）
+ *   node scripts/update-image-env.js -v 1.7.1 --dialect pg     # 写入 .image.env
+ *   node scripts/update-image-env.js -v 1.7.1 --check           # 只比对，不写（CI 门禁）
  *   node scripts/update-image-env.js --check                    # 自洽校验（从现文件反推版本）
- *   node scripts/update-image-env.js -v 1.7.0 --verify          # 确认镜像在 registry 里
- *   node scripts/update-image-env.js -v 1.7.0 --dry-run         # 打印将写入的内容
+ *   node scripts/update-image-env.js -v 1.7.1 --verify          # 确认镜像在 registry 里
+ *   node scripts/update-image-env.js -v 1.7.1 --dry-run         # 打印将写入的内容
  *
  * 退出码：0 成功；1 漂移/校验失败；2 参数错误
  */
@@ -24,114 +22,36 @@ const path = require('node:path');
 const http = require('node:http');
 const https = require('node:https');
 
+const imageEnv = require('../packages/cli/lib/image-env.js');
+const { readReleaseConfig } = require('../packages/cli/lib/release-toml.js');
+const { readServiceVersions } = require('../packages/cli/lib/service-versions.js');
+
 const REPO_ROOT = path.join(__dirname, '..');
 
-const DEFAULT_REGISTRY = 'zhcoder-docker-registry.com:8000';
-const DEFAULT_REPO = 'micro-server';
-const DEFAULT_DIR = path.join('examples', 'docker-deploy');
-const ENV_FILE = '.image.env';
-
-// ── 服务 → 镜像映射 ──────────────────────────────────────────────────────────
-// env   : .image.env 里的变量名（compose 的 image: 引用它）
-// image : registry 里的镜像名（≠ compose service 名时在此显式映射）
-// db    : 是否带 DB（带 DB 的服务有 pg 方言变体，tag 加 -pg 后缀）
-const SERVICES = [
-  { env: 'IMAGE_API_GATEWAY', image: 'api-gateway', db: false },
-  { env: 'IMAGE_TOKEN_SERVICE', image: 'token-service', db: true },
-  { env: 'IMAGE_IAM_SERVICE', image: 'iam-service', db: true },
-  { env: 'IMAGE_NOTIFICATION_SERVICE', image: 'notification-service', db: true },
-  { env: 'IMAGE_FILE_SERVICE', image: 'file-service', db: true },
-  { env: 'IMAGE_AUDIT_SERVICE', image: 'audit-service', db: true },
-  { env: 'IMAGE_PRUE_BACKEND', image: 'prue-admin-backend', db: true },
-];
-
-// 方言 → tag 后缀。mysql 是历史默认（tag 无后缀）；pg 变体加 -pg。
-const DIALECT_SUFFIX = { mysql: '', pg: '-pg' };
-
-function hasDialect(dialect) {
-  return Object.prototype.hasOwnProperty.call(DIALECT_SUFFIX, dialect);
-}
-
-// ── 版本号归一 ───────────────────────────────────────────────────────────────
-// CI 推送时用 ${CI_COMMIT_TAG#v} 剥掉 v，registry 里没有 v 前缀的 tag。
-function normalizeVersion(v) {
-  return String(v || '').trim().replace(/^v/, '');
-}
-
-function validateVersion(v) {
-  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(v);
-}
-
-// ── 生成 .image.env 内容 ─────────────────────────────────────────────────────
-function buildImageEnv({ version, dialect = 'pg', registry = DEFAULT_REGISTRY, repo = DEFAULT_REPO }) {
-  const ver = normalizeVersion(version);
-  if (!validateVersion(ver)) throw new Error(`invalid version: ${version}`);
-  if (!hasDialect(dialect)) throw new Error(`invalid dialect: ${dialect} (allowed: mysql | pg)`);
-
-  const suffix = DIALECT_SUFFIX[dialect];
-  const gateway = SERVICES.find((s) => !s.db);
-  const dbs = SERVICES.filter((s) => s.db);
-
-  const lines = [];
-  lines.push('# examples/docker-deploy/.image.env —— 本系统服务镜像引用（发布即固化）');
-  lines.push('# ─────────────────────────────────────────────────────────────────────────────');
-  lines.push('# 本文件是「本系统自建镜像」的唯一真相源：docker-compose-services.yml 的');
-  lines.push('# image: 只写变量名（${IMAGE_FILE_SERVICE} 等），具体镜像名与 tag 全在这里。');
-  lines.push('#');
-  lines.push('# 机器生成 —— 由 `node scripts/update-image-env.js -v <ver>` 整体重写；');
-  lines.push('# 手工改动会在下次发布时被覆盖。版本升级流程：');
-  lines.push('#   1. 发布镜像：node packages/cli/bin/coder.js build images -v <ver> --push');
-  lines.push('#                node packages/cli/bin/coder.js build images -v <ver> --dialect pg --push');
-  lines.push('#   2. 更新本文件：node scripts/update-image-env.js -v <ver> --dialect pg');
-  lines.push('#   3. 提交 .image.env 的 diff（版本变化在 git 里看得见）');
-  lines.push('#');
-  lines.push('# 部署时 start.sh 会加载本文件（.env 之后加载 → 镜像钉版为权威）。');
-  lines.push('# 缺任何一条变量，compose 会在启动前直接报错，不会静默拉错镜像。');
-  lines.push('#');
-  lines.push('# 变量名 = IMAGE_ + 大写服务名；取值 = <registry>/<repo>/<image-name>:<tag>');
-  lines.push('#   - image-name 与 compose service 名不一定同名：prue_backend → prue-admin-backend');
-  lines.push('#   - tag 后缀：pg 方言加 -pg（1.7.0-pg）；mysql 方言无后缀；api-gateway 无 DB，两方言同 tag');
-  lines.push('# ─────────────────────────────────────────────────────────────────────────────');
-  lines.push('');
-  lines.push('# ── 网关（无 DB，方言无关）──');
-  lines.push(`${gateway.env}=${registry}/${repo}/${gateway.image}:${ver}`);
-  lines.push('');
-  lines.push(`# ── 业务服务（带 DB，当前为 ${dialect} 方言）──`);
-  for (const s of dbs) {
-    lines.push(`${s.env}=${registry}/${repo}/${s.image}:${ver}${suffix}`);
-  }
-  lines.push('');
-  return lines.join('\n');
-}
-
-// 从现有 .image.env 反推版本与方言（--check 未给 -v 时用）
-function deriveVersionDialect(file) {
-  if (!fs.existsSync(file)) return null;
-  const raw = fs.readFileSync(file, 'utf8');
-  const vars = new Map();
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^(IMAGE_[A-Z_]+)=(.*)$/);
-    if (m) vars.set(m[1], m[2]);
-  }
-  const gateway = vars.get('IMAGE_API_GATEWAY');
-  const token = vars.get('IMAGE_TOKEN_SERVICE');
-  if (!gateway || !token) return null;
-  const gatewayTag = gateway.split(':').pop();
-  const tokenTag = token.split(':').pop();
-  if (!gatewayTag || !tokenTag) return null;
-  const dialect = tokenTag.endsWith('-pg') ? 'pg' : 'mysql';
-  const version = dialect === 'pg' ? tokenTag.slice(0, -'-pg'.length) : tokenTag;
-  return { version, dialect };
-}
+const {
+  ENV_FILE,
+  SERVICES,
+  DIALECT_SUFFIX,
+  DEFAULT_REGISTRY,
+  DEFAULT_REPO,
+  hasDialect,
+  normalizeVersion,
+  validateVersion,
+  buildImageEnv,
+  deriveVersionDialect,
+  imageRefs,
+  writeImageEnv,
+} = imageEnv;
 
 // ── 参数解析 ────────────────────────────────────────────────────────────────
 function parseArgs(argv) {
   const args = {
     version: null,
-    dialect: 'pg',
-    registry: DEFAULT_REGISTRY,
-    repo: DEFAULT_REPO,
-    dir: DEFAULT_DIR,
+    dialect: null, // null = 跟随 release.toml（--check 未给 -v 时从现文件反推）
+    registry: null,
+    repo: null,
+    dir: path.join('examples', 'docker-deploy'),
+    scheme: 'auto',
     check: false,
     verify: false,
     dryRun: false,
@@ -144,9 +64,10 @@ function parseArgs(argv) {
       case '-h': case '--help': args.help = true; break;
       case '-v': case '--version': args.version = argv[++i] || null; break;
       case '--dialect': args.dialect = String(argv[++i] || '').toLowerCase(); break;
-      case '--registry': args.registry = argv[++i] || DEFAULT_REGISTRY; break;
-      case '--repo': args.repo = argv[++i] || DEFAULT_REPO; break;
+      case '--registry': args.registry = argv[++i] || null; break;
+      case '--repo': args.repo = argv[++i] || null; break;
       case '--dir': args.dir = argv[++i] || DEFAULT_DIR; break;
+      case '--scheme': args.scheme = String(argv[++i] || '').toLowerCase(); break;
       case '--check': args.check = true; break;
       case '--verify': args.verify = true; break;
       case '--dry-run': args.dryRun = true; break;
@@ -156,6 +77,7 @@ function parseArgs(argv) {
         if (a.startsWith('--registry=')) { args.registry = a.slice('--registry='.length); break; }
         if (a.startsWith('--repo=')) { args.repo = a.slice('--repo='.length); break; }
         if (a.startsWith('--dir=')) { args.dir = a.slice('--dir='.length); break; }
+        if (a.startsWith('--scheme=')) { args.scheme = a.slice('--scheme='.length).toLowerCase(); break; }
         args.unknown.push(a);
     }
   }
@@ -163,14 +85,15 @@ function parseArgs(argv) {
 }
 
 const HELP = [
-  'usage: node scripts/update-image-env.js -v <version> [options]',
+  'usage: node scripts/update-image-env.js [-v <version>] [options]',
   '',
   'options:',
-  '  -v, --version <ver>   镜像版本（自动剥前导 v；必填）',
-  '      --dialect <d>    pg（默认）| mysql —— 决定 tag 后缀（-pg / 无）',
-  '      --registry <h>   镜像仓库主机（默认 ' + DEFAULT_REGISTRY + '）',
-  '      --repo <p>       镜像仓库前缀（默认 ' + DEFAULT_REPO + '）',
-  '      --dir <path>     部署单元目录（默认 ' + DEFAULT_DIR + '）',
+  '  -v, --version <ver>   镜像版本（自动剥前导 v；不给则读 services/* 的 crate 版本）',
+  '      --dialect <d>    pg | mysql —— 决定 tag 后缀（不给则读 release.toml）',
+  '      --registry <h>   镜像仓库主机（不给则读 release.toml）',
+  '      --repo <p>       镜像仓库前缀（不给则读 release.toml）',
+  '      --dir <path>     部署单元目录（默认 examples/docker-deploy）',
+  '      --scheme <s>    registry 协议：http | https | auto（默认 auto=http 优先）',
   '      --check          只比对「期望 vs 现文件」，有漂移则 exit 1',
   '                       （不给 -v 时从现文件反推版本/方言做自洽性校验）',
   '      --verify         调 registry v2 API 确认镜像存在',
@@ -185,6 +108,24 @@ const MANIFEST_ACCEPT = [
   'application/vnd.oci.image.manifest.v1+json',
   'application/vnd.oci.image.index.v1+json',
 ].join(', ');
+
+// 200 响应的 content-type 必须是 manifest 类，才算「镜像存在」。
+// 原因：对明文端口发一次 TLS ClientHello 会让 nginx 退回 default server，
+// 之后同一 host:port 的 HTTP 请求恒返回 200 + text/html 默认页 ——
+// 不看 content-type 就会把「任何 tag」都判成存在。
+const MANIFEST_CONTENT_TYPES = [
+  'application/vnd.docker.distribution.manifest.v2+json',
+  'application/vnd.docker.distribution.manifest.list.v2+json',
+  'application/vnd.oci.image.manifest.v1+json',
+  'application/vnd.oci.image.index.v1+json',
+];
+
+function looksLikeManifest(res) {
+  const ct = String((res && res.headers && res.headers['content-type']) || '').toLowerCase();
+  if (MANIFEST_CONTENT_TYPES.some((t) => ct.includes(t))) return true;
+  // 兜底：老实现可能不带 content-type，但会带 docker-content-digest
+  return Boolean(res && res.headers && res.headers['docker-content-digest']);
+}
 
 function request(urlStr, { method = 'GET', headers = {}, timeoutMs = 15000 } = {}) {
   return new Promise((resolve) => {
@@ -225,40 +166,81 @@ async function fetchToken(realm, service, scope, timeoutMs) {
   }
 }
 
-// 探一次 manifest：https 优先，失败再试 http（内网 registry 常见明文端口）。
-async function probeManifest(registry, repo, image, tag, { timeoutMs = 15000 } = {}) {
-  const base = `${registry}/${repo}/${image}/manifests/${tag}`;
-  const candidates = base.startsWith('http://') || base.startsWith('https://')
-    ? [base]
-    : [`https://${base}`, `http://${base}`];
+// 协议候选：http 优先（内网 registry 多为明文端口），连不上 / 被重定向再试 https。
+// ⚠ 不可写成 https 优先：对明文端口发 TLS ClientHello 会把 nginx 打成 default
+//   server 模式，后续同 host:port 的 HTTP 恒回 200 + text/html（见 looksLikeManifest）。
+function schemeCandidates(registry, scheme) {
+  const base = String(registry).replace(/^https?:\/\//, '');
+  if (scheme === 'http') return [`http://${base}`];
+  if (scheme === 'https') return [`https://${base}`];
+  return [`http://${base}`, `https://${base}`];
+}
 
-  let last = null;
-  for (const url of candidates) {
-    let res = await request(url, { method: 'HEAD', timeoutMs });
-    if (res.status === 0) {
-      last = last || { ok: false, reason: res.error || 'request failed' };
-      continue;
-    }
-    if (res.status === 200) return { ok: true, status: 200 };
+// 换协议的条件：连不上（0）/ 重定向（3xx）/ 400（明文打到 TLS 端口）
+function shouldTryNextScheme(status) {
+  return status === 0 || status === 400 || (status >= 300 && status < 400);
+}
 
-    // Bearer 认证挑战
-    const wwwAuth = res.headers['www-authenticate'] || '';
-    if (res.status === 401 && /^bearer/i.test(wwwAuth)) {
-      const realm = (wwwAuth.match(/realm="([^"]+)"/) || [])[1];
-      const service = (wwwAuth.match(/service="([^"]+)"/) || [])[1];
-      const scope = (wwwAuth.match(/scope="([^"]+)"/) || [])[1]
-        || `repository:${repo}/${image}:pull`;
-      if (realm) {
-        const token = await fetchToken(realm, service, scope, timeoutMs);
-        if (token) {
-          res = await request(url, { method: 'HEAD', headers: { authorization: `Bearer ${token}` }, timeoutMs });
-          if (res.status === 200) return { ok: true, status: 200 };
-          last = { ok: false, reason: `HTTP ${res.status}` };
-          continue;
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// 单次探测（含 Bearer 认证挑战处理）
+// transient=true 表示「响应本身可疑但非终局」（200 却不是 manifest）——可重试。
+async function attemptManifest(url, { repo, image, timeoutMs }) {
+  let res = await request(url, { method: 'HEAD', timeoutMs });
+  const notManifest = (r) => ({
+    ok: false,
+    transient: true,
+    reason: `HTTP 200 但 content-type 非 manifest（${r.headers['content-type'] || '无'}）`,
+  });
+
+  if (res.status === 200) {
+    return looksLikeManifest(res) ? { ok: true, status: 200 } : notManifest(res);
+  }
+
+  // Bearer 认证挑战
+  const wwwAuth = res.headers['www-authenticate'] || '';
+  if (res.status === 401 && /^bearer/i.test(wwwAuth)) {
+    const realm = (wwwAuth.match(/realm="([^"]+)"/) || [])[1];
+    const service = (wwwAuth.match(/service="([^"]+)"/) || [])[1];
+    const scope = (wwwAuth.match(/scope="([^"]+)"/) || [])[1]
+      || `repository:${repo}/${image}:pull`;
+    if (realm) {
+      const token = await fetchToken(realm, service, scope, timeoutMs);
+      if (token) {
+        res = await request(url, { method: 'HEAD', headers: { authorization: `Bearer ${token}` }, timeoutMs });
+        if (res.status === 200) {
+          return looksLikeManifest(res) ? { ok: true, status: 200 } : notManifest(res);
         }
+        return { ok: false, transient: false, reason: `HTTP ${res.status}`, status: res.status };
       }
     }
-    last = { ok: false, reason: `HTTP ${res.status}` };
+  }
+  return { ok: false, transient: false, reason: `HTTP ${res.status}`, status: res.status };
+}
+
+// 探一次 manifest：协议候选 × 瞬时态重试
+async function probeManifest(registry, repo, image, tag, { timeoutMs = 15000, scheme = 'auto', retries = 2 } = {}) {
+  // Docker Registry v2 API：/v2/<name>/manifests/<tag>。
+  // ⚠ 漏掉 /v2/ 前缀时 nginx 会落到门户默认站点 —— 恒回 200 + text/html。
+  const path = `v2/${repo}/${image}/manifests/${tag}`;
+  let last = null;
+
+  for (const base of schemeCandidates(registry, scheme)) {
+    const url = `${base}/${path}`;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const res = await attemptManifest(url, { repo, image, timeoutMs });
+      if (res.ok) return res;
+
+      if (res.status !== undefined && shouldTryNextScheme(res.status) && scheme === 'auto') {
+        last = last || res;
+        break; // 换协议
+      }
+      last = res;
+      if (!res.transient || attempt === retries) break;
+      await sleep(500 * (attempt + 1)); // 瞬时态（nginx default server 态）退避重试
+    }
   }
   return last || { ok: false, reason: 'unknown' };
 }
@@ -275,28 +257,40 @@ async function main(argv) {
     console.error(HELP.join('\n'));
     return 2;
   }
-  if (!args.version && !(args.check && !args.dryRun)) {
-    console.error('[update-image-env] FATAL: 缺少 -v <version>');
-    console.error(HELP.join('\n'));
-    return 2;
-  }
 
   const dir = path.isAbsolute(args.dir) ? args.dir : path.join(REPO_ROOT, args.dir);
   const target = path.join(dir, ENV_FILE);
 
-  // 版本与方言：给了 -v 就用它；--check 没给 -v 则从现文件反推（自洽性校验）
+  // 版本真相源：services/*/Cargo.toml（根 [workspace.package].version 继承）；
+  // 镜像参数（方言 / 镜像源）：release.toml。命令行显式给的参数优先。
+  let release = null;
+  try {
+    release = readReleaseConfig(REPO_ROOT);
+  } catch {
+    release = null; // release.toml 缺失时退化为「全靠命令行 + 服务版本」
+  }
+
   let version = normalizeVersion(args.version);
-  let dialect = args.dialect;
+  let dialect = args.dialect || (release ? release.dialect : 'pg');
+  const registry = args.registry || (release ? release.registry : DEFAULT_REGISTRY);
+  const repo = args.repo || (release ? release.repo : DEFAULT_REPO);
+
   if (!args.version) {
-    const derived = deriveVersionDialect(target);
-    if (!derived) {
-      console.error(`[update-image-env] ✗ ${target} 不存在或无法解析版本/方言`);
-      console.error('  运行 node scripts/update-image-env.js -v <version> 生成');
-      return 1;
+    // 期望版本一律取服务 crate 版本 —— 这是发布门禁的关键：
+    // `--check` 若改成「从现文件反推」，就永远发现不了「改了 Cargo.toml 版本
+    // 但没更新 .image.env」这类真实漂移。
+    const versions = readServiceVersions(REPO_ROOT);
+    if (versions.missing.length) {
+      console.error(`[update-image-env] FATAL: 服务 Cargo.toml 缺失：${versions.missing.map((m) => m.dir).join(', ')}`);
+      return 2;
     }
-    version = derived.version;
-    dialect = derived.dialect;
-    console.log(`[update-image-env] 未给 -v，从 ${target} 反推 version=${version} dialect=${dialect}`);
+    if (versions.splits.length) {
+      console.error(`[update-image-env] FATAL: 服务版本不一致（期望 ${versions.version}）：` +
+        versions.splits.map((s) => `${s.dir}=${s.version}`).join(', '));
+      return 2;
+    }
+    version = versions.version;
+    console.log(`[update-image-env] 未给 -v，取服务 crate 版本 version=${version}`);
   }
 
   if (!hasDialect(dialect)) {
@@ -308,25 +302,8 @@ async function main(argv) {
     return 2;
   }
 
-  const content = buildImageEnv({
-    version,
-    dialect,
-    registry: args.registry,
-    repo: args.repo,
-  });
-
-  // 期望的镜像引用（供 --verify 用）
-  const images = SERVICES.map((s) => {
-    const suffix = s.db ? DIALECT_SUFFIX[dialect] : '';
-    const tag = `${version}${suffix}`;
-    return {
-      env: s.env,
-      repo: args.repo,
-      image: s.image,
-      tag,
-      ref: `${args.registry}/${args.repo}/${s.image}:${tag}`,
-    };
-  });
+  const content = buildImageEnv({ version, dialect, registry, repo });
+  const refs = imageRefs({ version, dialect, registry, repo });
 
   if (args.dryRun) {
     console.log(content);
@@ -342,10 +319,8 @@ async function main(argv) {
       if (!fs.existsSync(target)) {
         console.error('  文件不存在 —— 运行 node scripts/update-image-env.js -v ' + version);
       } else {
-        const cur = new Map(
-          current.split('\n').filter((l) => l.startsWith('IMAGE_')).map((l) => [l.split('=')[0], l.split('=').slice(1).join('=')])
-        );
-        for (const img of images) {
+        const cur = imageEnv.parseImageEnv(current);
+        for (const img of refs) {
           const now = cur.get(img.env);
           if (now !== img.ref) console.error(`  ${img.env}: 现值 ${now || '(缺失)'} → 应为 ${img.ref}`);
         }
@@ -353,17 +328,16 @@ async function main(argv) {
       return 1;
     }
   } else {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(target, content, 'utf8');
+    writeImageEnv(target, content);
     console.log(`[update-image-env] ✓ 已写入 ${target}（version=${version}, dialect=${dialect}）`);
-    for (const img of images) console.log(`  ${img.env}=${img.ref}`);
+    for (const img of refs) console.log(`  ${img.env}=${img.ref}`);
   }
 
   if (args.verify) {
-    console.log(`[update-image-env] 校验 registry ${args.registry} …`);
+    console.log(`[update-image-env] 校验 registry ${registry} …`);
     let failed = 0;
-    for (const img of images) {
-      const r = await probeManifest(args.registry, img.repo, img.image, img.tag);
+    for (const img of refs) {
+      const r = await probeManifest(registry, img.repo, img.image, img.tag, { scheme: args.scheme });
       if (r.ok) {
         console.log(`  ✓ ${img.ref}`);
       } else {
@@ -394,7 +368,6 @@ module.exports = {
   DIALECT_SUFFIX,
   DEFAULT_REGISTRY,
   DEFAULT_REPO,
-  DEFAULT_DIR,
   ENV_FILE,
   normalizeVersion,
   validateVersion,
@@ -402,4 +375,6 @@ module.exports = {
   parseArgs,
   probeManifest,
   deriveVersionDialect,
+  looksLikeManifest,
+  schemeCandidates,
 };

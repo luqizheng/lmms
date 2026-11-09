@@ -37,6 +37,12 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
+# 平台发布版本 —— 服务镜像 tag 的直接来源（`coder release images` 读这里）。
+# 8 个 services/* 用 `version.workspace = true` 继承，因此只需改这一处。
+# 任一服务单独写死版本 → `coder release images` 报 VERSION_SPLIT 并拒绝发布
+# （避免同一批镜像里出现两个版本 tag）。
+# 发布流程：改这里 → `coder release images --push` → 自动更新 .image.env → 打 git tag v<version>
+version = "1.7.0"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

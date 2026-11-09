@@ -1,6 +1,6 @@
 [package]
 name = "iam_outbox_publisher"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 # 方言 feature：default 只含 mysql，postgres 必须显式开启（D-9：postgres 不进 default）。

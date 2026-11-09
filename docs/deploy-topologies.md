@@ -166,18 +166,31 @@ cd infrastructure && ./scripts/start-prod.sh svc --remote
   不会静默展开成非法镜像名。
 - `start.sh` 的 env 加载顺序：`.env` → `.env.prod` → **`.image.env`（最后，权威）**，
   并把 `.image.env` / `.env` 以 `--env-file` 透传给 compose（手工执行 compose 也能复现）。
+- **版本号来源**：根 `Cargo.toml` 的 `[workspace.package].version`（8 个 `services/*`
+  用 `version.workspace = true` 继承）。`release.toml` 只放方言 / 镜像源 / SDK 目标。
 - 发布新镜像后的固定动作：
 
   ```bash
-  node packages/cli/bin/coder.js build images -v 1.7.0 --push
-  node packages/cli/bin/coder.js build images -v 1.7.0 --dialect pg --push
-  node scripts/update-image-env.js -v 1.7.0 --dialect pg   # 写 .image.env
-  node scripts/update-image-env.js -v 1.7.0 --dialect pg --verify  # 确认镜像真在 registry
+  # 1) 改版本（唯一真相源）
+  #    编辑根 Cargo.toml 的 [workspace.package].version
+
+  # 2) 体检：服务版本 / .image.env 钉版 / git tag 是否一致
+  node packages/cli/bin/coder.js release status
+
+  # 3) 构建并推送镜像；成功后自动更新 .image.env
+  node packages/cli/bin/coder.js release images --push
+
+  # 4) 发布 SDK（各生态版本独立）
+  node packages/cli/bin/coder.js release sdk all --dry-run   # 先看清单
+  node packages/cli/bin/coder.js release sdk all             # rust / npm / java
+
+  # 5) 提交 .image.env 的 diff，打 git tag v<version>
   ```
 
 - 门禁：
-  - `node scripts/update-image-env.js --check` —— `.image.env` 是否与脚本生成结果一致
-    （CI `deploy_image_env_check` job 跑这条；不给 `-v` 时从现文件反推版本做自洽校验）。
-  - `node --test scripts/update-image-env.test.js` —— compose 的 `${IMAGE_*}` 变量集合
-    必须 == `.image.env` 声明的变量集合（防 compose / env 漂移）。
+  - `node scripts/update-image-env.js --check` —— `.image.env` 是否与**服务 crate
+    版本 + release.toml 参数**一致（CI `deploy_image_env_check` job 跑这条）。
+    ⚠ 它不会从 `.image.env` 自身反推版本 —— 否则「改了 Cargo 版本但没更新钉版」查不出来。
+  - `node --test packages/cli/test/release.test.js` —— 版本一致性 / 钉版派生 /
+    Rust 发布拓扑与 path 依赖改写。
 

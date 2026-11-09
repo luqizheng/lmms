@@ -1,0 +1,38 @@
+# release.toml —— 平台发布的**镜像参数**（版本号不在这里）
+# ─────────────────────────────────────────────────────────────────────────────
+# 【版本号在哪】根 Cargo.toml 的 [workspace.package].version —— 8 个 services/*
+# 用 `version.workspace = true` 继承它。改一处，全服务生效，镜像 tag 随之改变。
+# 本文件只放「与版本无关」的发布参数（方言 / 镜像源），避免第二真相源。
+#
+# 【发布流程】
+#   1) 改版本：编辑根 Cargo.toml 的 [workspace.package].version
+#   2) 发布镜像：node packages/cli/bin/coder.js release images --push
+#        → 读各服务 crate 版本（不一致直接报错）
+#        → 按本文件的方言 / 镜像源构建并推送
+#        → 推送成功后自动更新 examples/docker-deploy/.image.env
+#   3) 打 git tag v<version>（tag 带 v，镜像 tag 不带 v；CI 用 ${CI_COMMIT_TAG#v} 剥 v）
+#   4) 发布 SDK：node packages/cli/bin/coder.js release sdk rust|npm|java|all
+#
+# 【不归本文件管】
+#   - 服务镜像版本：根 Cargo.toml 的 [workspace.package].version
+#   - SDK / crate 版本：各自清单（libs/* 与 sdk/rust/* 的 Cargo.toml、npm package.json、
+#     sdk/java/pom.xml），与平台版本解耦 —— 下游按包升级，不强制全量升版
+# ─────────────────────────────────────────────────────────────────────────────
+
+[release]
+# 镜像方言：pg → 带 DB 的服务 tag 加 -pg 后缀；mysql → 无后缀
+dialect = "pg"
+
+[registry]
+# 平台镜像仓库（服务镜像统一在 <host>/<repo>/<service> 下）
+host = "zhcoder-docker-registry.com:8000"
+repo = "micro-server"
+
+[sdk]
+# SDK 发布目标（release sdk 使用；值为空则跳过对应生态）
+# Rust crates → kellnr 私有 registry（cargo 里配置的 registry 名）
+rust_registry = "kellnr"
+# npm 包 → 私有 registry
+npm_registry = "http://npm.kudi.repos"
+# Java SDK → Maven 仓库 id（在 .mvn/settings.xml 的 <server> 里配置）
+maven_repository_id = "reposilite-releases"
