@@ -85,6 +85,12 @@ apps/pm/**/target/
 /infrastructure/.env.dev
 /infrastructure/prod-secrets/
 
+# 部署单元（examples/*/）的 .env —— 含口令 / service-jwt bootstrap token 等敏感值，
+# 不入 git；同目录的 .env.example 是模板（已跟踪）。
+# 注意：.image.env（镜像钉版，无凭据）**要**入库 —— 版本变化要在 git diff 里看得见。
+/examples/*/.env
+/examples/*/.env.prod
+
 /release/dist-template/release/
 /release/dist-*.tar.gz
 /release/images-*.tar.gz

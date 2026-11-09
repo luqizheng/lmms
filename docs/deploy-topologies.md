@@ -97,10 +97,11 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://<obs-ip>:4317             # obs 缺席时留�
   metrics（consul SD）不受影响，全链路跨主机可用。
 - **obs 缺席**：不部署 observability 组时 services 组照常运行——OTLP 导出失败静默
   重试不阻塞业务（这也是「3 不是必须的」契约）。
-- **上游单 IMAGE_TAG 缺陷**：上游 dist 包用单 `IMAGE_TAG` env 覆盖镜像版本，对 PG
-  形态会丢 `-pg` 后缀（api-gateway 无 PG 变体）。ai-pm 侧已用双变量
-  （`IMAGE_TAG_PG`/`IMAGE_TAG_GATEWAY`，见其 `.env-infra`）规避；上游 dist 侧待后续
-  版本对齐，本仓 compose 默认值不受影响。
+- **镜像版本只有一个真相源**：2026-11-09 起本仓 services 部署单元的镜像引用改为
+  「整名变量 + `.image.env`」（见文末「镜像引用与版本钉版」）——每个服务一个变量，
+  PG 变体的 `-pg` 后缀由生成脚本按方言写死，不再需要下游用双变量
+  （`IMAGE_TAG_PG`/`IMAGE_TAG_GATEWAY`）去规避「单 IMAGE_TAG 丢后缀」的缺陷。
+  历史 dist 包（仍用单 `IMAGE_TAG`）的消费者需在下个版本前切到 `.image.env`。
 
 ## 场景 0：先在测试服务器（192.168.2.10）部署 infra(+obs)，本地开发 services
 
@@ -140,11 +141,43 @@ cd infrastructure && ./scripts/start-prod.sh svc --remote
   → 发布 SDK（crate → kellnr；npm 包 → 私有 registry；下游按包升级接新）
   → 发布 docker image（build → push zhcoder-docker-registry.com:8000/micro-server，
      tag 规则 <ver> 与 <ver>-pg 双变体，api-gateway 仅 <ver>）
-  → 发布 services 编排（release compose-template 模板包：新版本 .env-infra 镜像行
-     + compose 默认值；下游整目录覆盖 lmms 命名文件即完成升级）
+  → 更新部署单元的镜像钉版 .image.env（node scripts/update-image-env.js -v <ver>）
+  → 提交 .image.env 的 diff（版本变化在 git 里看得见），下游整目录覆盖即完成升级
 ```
 
-- 发布命令与门禁见根 README「发布」节与 `packages/cli`（`release compose-template
-  --dialect pg`）；镜像构建配方见 `infrastructure/README.md`「构建镜像」。
+- 发布命令与门禁见根 README「发布」节与 `packages/cli`；镜像构建配方见
+  `infrastructure/README.md`「构建镜像」。
 - 下游消费侧（ai-pm）的升级动作与其「有意差异重放」清单，见
   `ai-pm/infrastructure/README.md`。
+
+## 镜像引用与版本钉版（.image.env）
+
+> 2026-11-09 起 services 部署单元（`examples/docker-deploy/`）的镜像引用改为
+> **整名变量 + 单一真相源文件**。设计见
+> `docs/superpowers/specs/2026-11-09-image-env-driven-deploy-design.md`。
+
+| 文件 | 内容 | 入库 |
+| --- | --- | --- |
+| `.image.env` | 本系统自建镜像的**整名引用**（`IMAGE_FILE_SERVICE=…/file-service:1.7.0-pg`） | ✅ 入库（无凭据） |
+| `.env` / `.env.prod` | 环境配置（IP / 口令 / 拓扑），**不含镜像版本** | ❌ 不入库 |
+
+- compose 的 `image:` 一律写成 `${IMAGE_FILE_SERVICE:?…}` —— **只写变量名**，
+  值全部来自 `.image.env`；`:?` 必填语法保证缺变量时 compose 直接报错，
+  不会静默展开成非法镜像名。
+- `start.sh` 的 env 加载顺序：`.env` → `.env.prod` → **`.image.env`（最后，权威）**，
+  并把 `.image.env` / `.env` 以 `--env-file` 透传给 compose（手工执行 compose 也能复现）。
+- 发布新镜像后的固定动作：
+
+  ```bash
+  node packages/cli/bin/coder.js build images -v 1.7.0 --push
+  node packages/cli/bin/coder.js build images -v 1.7.0 --dialect pg --push
+  node scripts/update-image-env.js -v 1.7.0 --dialect pg   # 写 .image.env
+  node scripts/update-image-env.js -v 1.7.0 --dialect pg --verify  # 确认镜像真在 registry
+  ```
+
+- 门禁：
+  - `node scripts/update-image-env.js --check` —— `.image.env` 是否与脚本生成结果一致
+    （CI `deploy_image_env_check` job 跑这条；不给 `-v` 时从现文件反推版本做自洽校验）。
+  - `node --test scripts/update-image-env.test.js` —— compose 的 `${IMAGE_*}` 变量集合
+    必须 == `.image.env` 声明的变量集合（防 compose / env 漂移）。
+

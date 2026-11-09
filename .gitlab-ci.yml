@@ -191,6 +191,18 @@ contracts_check:
   script:
     - NODE_PATH=/tmp/deps/node_modules node scripts/contracts-gen.js --check
 
+# 部署单元镜像钉版门禁（examples/docker-deploy）：
+#   - .image.env 必须 == scripts/update-image-env.js 的生成结果（幂等、可复现）
+#   - compose 的 ${IMAGE_*} 变量集合必须 == .image.env 声明的变量集合
+# 发布镜像后忘了跑 `node scripts/update-image-env.js -v <ver>` 时，这里会红。
+deploy_image_env_check:
+  stage: test
+  tags: [docker]
+  image: $BASE_REGISTRY/node:20
+  script:
+    - node scripts/update-image-env.js --check
+    - node --test scripts/update-image-env.test.js
+
 doc_links_check:
   stage: test
   tags: [docker]

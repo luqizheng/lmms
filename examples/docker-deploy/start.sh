@@ -8,8 +8,13 @@
 #   ./start.sh --no-build  # 强制跳过 build（覆盖自动检测）
 #   ./start.sh --force-recreate  # 透传其余 docker compose up 参数
 #
-# 启动前会向上回退加载 .env：$DIR/../../.env → $DIR/../.env → $DIR/.env
-# （仓内命中 infrastructure/.env；拷贝到远程机后 .env 在本地覆盖）。
+# env 加载（后者覆盖前者）：
+#   1. .env      —— 环境配置（IP / 口令 / 拓扑），向上回退：
+#                   $DIR/../../.env → $DIR/../.env → $DIR/.env
+#   2. .env.prod —— 运维覆盖层（可选：服务器真实口令；缺失不阻塞）
+#   3. .image.env —— **镜像钉版**（发布即固化，机器生成），最后加载 → 权威
+# compose 的 image: 只引用 ${IMAGE_*}，值来自 .image.env；
+# 缺变量时 compose 直接报错，本脚本也会在启动前拦下。
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -39,6 +44,11 @@ die()  { echo "[start:$PROJECT] FATAL: $*" >&2; exit 10; }
 [[ -f "$DIR/$BASE.yml" ]] || die "$BASE.yml not found next to start.sh"
 [[ -f "$DIR/$BASE.$OVERLAY.yml" ]] || die "overlay $BASE.$OVERLAY.yml not found"
 
+# ── 镜像钉版文件（.image.env）必须在 ─────────────────────────────────────────
+# 缺失 = 不知道该拉哪个版本的镜像 → 启动前直接报错（compose 也会因 :? 报错）
+IMAGE_ENV="$DIR/.image.env"
+[[ -f "$IMAGE_ENV" ]] || die ".image.env not found in $DIR (生成：node scripts/update-image-env.js -v <ver>)"
+
 # ── 自动 build / image 模式检测 ──────────────────────────────────────────────
 # 判断依据：build.context 指向的服务 Dockerfile 是否存在。
 # 仓内开发：$DIR/../../services/file-service/Dockerfile 存在 → --build
@@ -62,23 +72,40 @@ load_env() {
   set +a; set -u
   log "env: $f"
 }
+# 1) 环境配置
 load_env "$DIR/../../.env"
 load_env "$DIR/../.env"
 load_env "$DIR/.env"
-# .env.prod 覆盖层（可选：服务器真实口令；缺失不阻塞）
+# 2) 运维覆盖层（可选）
 load_env "$DIR/../../.env.prod"
 load_env "$DIR/../.env.prod"
 load_env "$DIR/.env.prod"
+# 3) 镜像钉版（最后加载 → 权威，.env 不能改掉已发布版本）
+load_env "$DIR/../../.image.env"
+load_env "$DIR/../.image.env"
+load_env "$IMAGE_ENV"
 
 # ── REQUIRED 环境变量校验 ────────────────────────────────────────────────────
-# 远程部署：image 由 kudi_repos + IMAGE_TAG_* 决定；REQUIRED 包含镜像 tag 变量。
-# 仓内开发（--build）：build 不从 env 读 image，但 compose 里 image 字段仍需要这些变量。
-for v in kudi_repos IMAGE_TAG_PG IMAGE_TAG_GATEWAY \
-         DATABASE_URL RABBITMQ_DEFAULT_PASS \
+# 镜像变量来自 .image.env（发布即固化）；其余来自 .env（环境配置）。
+for v in DATABASE_URL RABBITMQ_DEFAULT_PASS \
          IAM_DEV_BT TOKEN_DEV_BT NOTIFICATION_DEV_BT AUDIT_DEV_BT \
          PRUE_DEV_BT GATEWAY_DEV_BT FILE_DEV_BT; do
   [[ -z "${!v:-}" ]] && die "env var $v empty (set in .env)"
   [[ "${!v}" == "__SET_BY_OPS__" ]] && die "env var $v still __SET_BY_OPS__ placeholder"
+done
+
+for v in IMAGE_API_GATEWAY IMAGE_TOKEN_SERVICE IMAGE_IAM_SERVICE \
+         IMAGE_NOTIFICATION_SERVICE IMAGE_FILE_SERVICE IMAGE_AUDIT_SERVICE \
+         IMAGE_PRUE_BACKEND; do
+  [[ -z "${!v:-}" ]] && die "env var $v empty (set in .image.env)"
+done
+
+# ── compose env 文件（手工执行 compose 时也能复现同一份展开） ────────────────
+# 进程环境已由上面的 load_env 注入（优先级高于 --env-file），这里只是兜底：
+# 让直接跑 `docker compose ... config` 时也能拿到同样的变量。
+COMPOSE_ENV_ARGS=()
+for f in "$DIR/.env" "$DIR/.env.prod" "$IMAGE_ENV"; do
+  [[ -f "$f" ]] && COMPOSE_ENV_ARGS+=(--env-file "$f")
 done
 
 # ── 启动 ─────────────────────────────────────────────────────────────────────
@@ -86,7 +113,8 @@ docker network create superpowers >/dev/null 2>&1 || true
 
 cd "$DIR"
 log "up (overlay: $OVERLAY, $BUILD_ARG)..."
-docker compose -p "$PROJECT" -f "$BASE.yml" -f "$BASE.$OVERLAY.yml" \
+docker compose -p "$PROJECT" "${COMPOSE_ENV_ARGS[@]+"${COMPOSE_ENV_ARGS[@]}"}" \
+  -f "$BASE.yml" -f "$BASE.$OVERLAY.yml" \
   up -d $BUILD_ARG ${UP_ARGS[@]+"${UP_ARGS[@]}"} \
   || { echo "[start:$PROJECT] FATAL: up failed" >&2; exit 20; }
 

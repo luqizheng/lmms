@@ -1,9 +1,20 @@
-# infrastructure/docker-compose.yml —— 合体入口（模式 B：单项目 include 三组）。
-# 2026-11-06 起各组 compose/config 物理进自包含子目录（infra/ services/ observability/），
-# 子目录即部署单元（整目录 copy 到目标机后 ./start.sh 即起，见各组内 start.sh 与
-# docs/deploy-topologies.md）；本入口仍从 infrastructure/ 根聚合成单 compose 项目。
+# examples/docker-deploy/docker-compose.yml —— 部署单元聚合入口（单项目 include）
+# ─────────────────────────────────────────────────────────────────────────────
+# 本目录 = services 组自包含部署单元（整目录 copy 到目标机后 ./start.sh 即起，
+# 见同目录 start.sh 与 docs/deploy-topologies.md）。
+#
+# 本文件是「聚合入口」：把子目录的 compose 组 include 进单个 compose 项目，
+# 便于单机合体部署。日常启停用同目录的 docker-compose-services.yml
+# （start.sh / stop.sh 走的是它 + prod/remote 差异片）。
+#
+# ⚠ compose v2.20+ 的 include 要求被 include 的文件本身结构完整；
+#   本文件**不要写空的 `services:` 占位块**（只有注释的 services 会让
+#   `docker compose config` 直接 panic: interface conversion: interface {} is nil）。
+#
+# 镜像引用：image: 一律是整名变量（${IMAGE_FILE_SERVICE} 等），值在 .image.env
+# （发布即固化，node scripts/update-image-env.js -v <ver> 更新）。
+# 手工执行 compose 时记得带 env-file：
+#   docker compose --env-file .image.env --env-file .env -f docker-compose.yml config
+# ─────────────────────────────────────────────────────────────────────────────
 include:
   - docker-compose-services.yml
-  
-services:
-  #这里放业务服务

@@ -7,6 +7,13 @@
 #   （consul 侧健康检查会向该地址拨号；空值时 libs/common-consul 回退容器
 #   hostname，仅同机部署有效）。同机部署两者留默认即可。
 #
+# ── 镜像引用 ─────────────────────────────────────────────────────────────────
+# image: 一律是「整名变量」（${IMAGE_FILE_SERVICE} 等），值由 .image.env 提供
+# （发布即固化，node scripts/update-image-env.js -v <ver> 更新）。
+# 用 :? 必填语法 —— 变量缺失时 compose 直接报错，不会静默展开成非法镜像名。
+# start.sh 会加载 .image.env 并透传 --env-file；手工执行 compose 时请带上：
+#   docker compose --env-file .image.env --env-file .env -f docker-compose-services.yml config
+#
 # ── 关于双模式（仓内开发 vs 远程部署） ────────────────────────────────────────
 # 本 compose 同时声明 image 和 build：
 #   image: 远程部署时直接 pull（start.sh 传 --no-build）
@@ -26,7 +33,7 @@ x-loki-labels: &loki-labels
 
 services:
   file-service:
-    image: "${kudi_repos}/file-service:${IMAGE_TAG_PG}"
+    image: "${IMAGE_FILE_SERVICE:?IMAGE_FILE_SERVICE 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/file-service/Dockerfile
@@ -50,7 +57,7 @@ services:
       - superpowers
 
   api-gateway:
-    image: "${kudi_repos}/api-gateway:${IMAGE_TAG_GATEWAY}"
+    image: "${IMAGE_API_GATEWAY:?IMAGE_API_GATEWAY 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/api-gateway/Dockerfile
@@ -85,7 +92,7 @@ services:
       - superpowers
 
   token-service:
-    image: "${kudi_repos}/token-service:${IMAGE_TAG_PG}"
+    image: "${IMAGE_TOKEN_SERVICE:?IMAGE_TOKEN_SERVICE 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/token-service/Dockerfile
@@ -108,7 +115,7 @@ services:
       - superpowers
 
   iam-service:
-    image: "${kudi_repos}/iam-service:${IMAGE_TAG_PG}"
+    image: "${IMAGE_IAM_SERVICE:?IMAGE_IAM_SERVICE 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/iam-service/Dockerfile
@@ -137,7 +144,7 @@ services:
       - superpowers
 
   iam-outbox-publisher:
-    image: "${kudi_repos}/iam-service:${IMAGE_TAG_PG}"
+    image: "${IMAGE_IAM_SERVICE:?IMAGE_IAM_SERVICE 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/iam-service/Dockerfile
@@ -171,7 +178,7 @@ services:
       - superpowers
 
   prue_backend:
-    image: "${kudi_repos}/prue_backend:${IMAGE_TAG_PG}"
+    image: "${IMAGE_PRUE_BACKEND:?IMAGE_PRUE_BACKEND 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/prue_backend/Dockerfile
@@ -192,7 +199,7 @@ services:
       - superpowers
 
   notification-service:
-    image: "${kudi_repos}/notification-service:${IMAGE_TAG_PG}"
+    image: "${IMAGE_NOTIFICATION_SERVICE:?IMAGE_NOTIFICATION_SERVICE 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/notification-service/Dockerfile
@@ -223,7 +230,7 @@ services:
       - superpowers
 
   notification-outbox-publisher:
-    image: "${kudi_repos}/notification-service:${IMAGE_TAG_PG}"
+    image: "${IMAGE_NOTIFICATION_SERVICE:?IMAGE_NOTIFICATION_SERVICE 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/notification-service/Dockerfile
@@ -256,7 +263,7 @@ services:
       - superpowers
 
   audit-service:
-    image: "${kudi_repos}/audit-service:${IMAGE_TAG_PG}"
+    image: "${IMAGE_AUDIT_SERVICE:?IMAGE_AUDIT_SERVICE 未定义——请加载 .image.env（node scripts/update-image-env.js -v <ver>）}"
     build:
       context: ../..
       dockerfile: services/audit-service/Dockerfile

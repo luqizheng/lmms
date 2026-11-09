@@ -171,6 +171,7 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 - **npm TS**：`packages/@digua/contracts` + `@digua/http` + `sdk/*-services` 发布到 `http://192.168.2.12:14873/`，下游 `pnpm up @digua/contracts @digua/http` / `pnpm add <svc>-services`。
 
 - **git tag 带 `v`，发布镜像 tag 不带 v**：CI `build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v 后推送，registry 里实际存在的是 `micro-server/<svc>:1.5.0`（**不是** `:v1.5.0`）。下游 `.env` 的 `IMAGE_TAG` 必须填 no-v 值。
+- **部署单元的镜像钉版在 `.image.env`**（2026-11-09）：compose 的 `image:` 只写整名变量 `${IMAGE_*}`，值集中在 `examples/docker-deploy/.image.env`（入库，无凭据）。发布镜像后跑 `node scripts/update-image-env.js -v <ver> --dialect pg` 更新它并提交 diff；`--check` 校验一致性，`--verify` 确认镜像真在 registry。详见 `docs/deploy-topologies.md`「镜像引用与版本钉版」。
 - `mysql-replica` 已于 2026-11-05 移除（生产数据拓扑归 DB 组，lmms 只带单节点开发/测试库）。
 
 ### Cargo `[[bin]] name` → 容器内二进制名的强制映射
