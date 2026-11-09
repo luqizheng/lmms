@@ -24,6 +24,7 @@ const { existsSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const os = require('node:os');
 const { chalk, section, banner, success, warn, error, info, spinner } = require('./lib/ui');
+const { collectMsvcEnv } = require('./lib/host-runner');
 
 const REPO_ROOT = require('./lib/utils').ROOT;
 
@@ -212,7 +213,7 @@ const JOBS = [
     cmd: 'sudo',
     args: ['-E', 'node', 'packages/cli/bin/coder.js', 'build', 'images'],
     requiresDocker: true,
-    manualRepro: 'sudo -E node packages/cli/bin/coder.js build images -v $(git rev-parse --short HEAD) --load-and-push api-gateway token-service iam-service notification-service audit-service config-service file-service prue-admin-backend',
+    manualRepro: 'sudo -E node packages/cli/bin/coder.js build images -v $(git rev-parse --short HEAD) --load-and-push api-gateway token-service iam-service notification-service audit-service file-service prue-admin-backend',
     fix: '本地构建用 --load（不推 registry）；CI 推 push 需 DOCKER_REGISTRY_USER/PASSWORD',
   },
 
@@ -354,7 +355,7 @@ function runStep(cmd, args, opts = {}) {
     encoding: 'utf8',
     stdio: 'inherit',
     shell: useShell,
-    env: process.env,
+    env: { ...process.env, ...collectMsvcEnv(), ...(opts.env || {}) },
   });
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   return { status: result.status, signal: result.signal, elapsed };

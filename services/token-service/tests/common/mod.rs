@@ -136,8 +136,6 @@ pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
         )),
         user_service_url: "http://iam-service:8081".into(),
         private_key_pem: TEST_PRIVATE_PEM.into(),
-        bootstrap_tokens: vec![],
-        bootstrap_owners: vec![],
         jwks,
     }
 }

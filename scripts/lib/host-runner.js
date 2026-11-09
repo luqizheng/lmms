@@ -1,140 +1,145 @@
 // 主机侧执行后端（host runner）。
 //
-// 为什么需要这一层：仓库的编译/测试原先只在 Docker（Linux + musl）里跑，
-// 迭代成本高。本模块把「在哪儿执行 cargo」这件事收敛到一处：
+// 2026-11-09 起：**统一走 host 本机 cargo，不再走 WSL2 发行版**。
 //
-//   - Windows：默认走 WSL2 发行版（debian-rust 等），用发行版里的原生 Linux
-//     工具链编译。与 Docker 构建镜像同源（Rust 1.96 + gcc），产物语义一致。
-//   - Linux / macOS：直接本机执行 cargo。
+//   - Windows：host 原生 MSVC 工具链（Rust 1.9x + Visual Studio Build Tools
+//     提供的 cl.exe）。脚本负责自动定位并注入 VS 开发环境变量
+//     （INCLUDE / LIB / PATH），否则 `ring` / `aws-lc-sys` 的 C 依赖会在
+//     build script 里报 `D8050 无法加载 c1.dll` / `C1083 stddef.h`。
+//   - Linux / macOS：host 原生 gcc/clang，直接本机 cargo。
 //
-// 关键约束（2026-10-27 本机实测）：WSL 与 Windows / Docker 之间的 TCP 不通，
-// 因此跑在 WSL 里的测试**不能**连 Windows 侧 Docker 暴露的 MySQL/Redis，
-// 必须连 WSL 内部的数据库。数据库 host/端口由调用方按后端注入。
+// 与 Docker 构建镜像的分工：Docker（Linux/musl）出的产物用于发布镜像；
+// host 侧的产物用于本机跑服务 / 快速验证能否编译通过。
 
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', '..');
 
-/** 单引号转义，供 bash -lc 使用。 */
-function shQuote(value) {
-  const s = String(value);
-  return `'${s.replace(/'/g, `'\\''`)}'`;
+/** 本地路径 → file:// URL（Windows 盘符路径要转成 /C:/... 形式）。 */
+function fileUrl(absPath) {
+  const posix = absPath.replace(/\\/g, '/');
+  return `file://${posix.startsWith('/') ? '' : '/'}${posix}`;
 }
 
-/** 列出本机 WSL 发行版（排除 docker-desktop 这类内部发行版）。 */
-function listWslDistros() {
-  if (process.platform !== 'win32') return [];
-  const res = spawnSync('wsl.exe', ['-l', '-q'], { encoding: 'utf8' });
-  if (res.status !== 0) return [];
-  return (res.stdout || '')
-    .replace(/\0/g, '')
-    .split(/\r?\n/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .filter((s) => !/^docker-desktop(-data)?$/i.test(s));
-}
-
-/** 发行版里是否装了 cargo。 */
-function distroHasCargo(distro) {
-  const res = spawnSync('wsl.exe', ['-d', distro, '--', 'bash', '-lc', 'command -v cargo'], {
-    encoding: 'utf8',
-  });
-  return res.status === 0;
-}
-
-/** 挑一个装了 cargo 的发行版；显式指定时不校验则直接返回。 */
-function pickWslDistro(explicit) {
-  if (explicit) return distroHasCargo(explicit) ? explicit : null;
-  const candidates = listWslDistros();
-  for (const d of candidates) {
-    if (distroHasCargo(d)) return d;
+/** 解析 `cmd /c "set"` 的 KEY=VALUE 输出为对象。 */
+function parseSetOutput(stdout) {
+  const env = {};
+  for (const line of String(stdout || '').split(/\r?\n/)) {
+    const idx = line.indexOf('=');
+    if (idx <= 0) continue;
+    env[line.slice(0, idx)] = line.slice(idx + 1);
   }
-  return candidates[0] || null;
+  return env;
 }
 
-/** Windows 路径 → WSL 路径（/mnt/d/...）。优先用 wslpath，失败则手工转换。 */
-function toWslPath(winPath) {
-  const res = spawnSync('wsl.exe', ['--', 'wslpath', '-a', winPath], { encoding: 'utf8' });
-  if (res.status === 0 && res.stdout) return res.stdout.replace(/\0/g, '').trim();
-  const m = /^([a-zA-Z]):[\\/](.*)$/.exec(winPath);
-  if (!m) return winPath;
-  return `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, '/')}`;
+/** Visual Studio 安装根目录候选（按版本倒序，覆盖 2022 / 18 等）。 */
+function vsInstallRoots() {
+  const bases = [
+    process.env['ProgramFiles'] && path.join(process.env['ProgramFiles'], 'Microsoft Visual Studio'),
+    process.env['ProgramFiles(x86)'] && path.join(process.env['ProgramFiles(x86)'], 'Microsoft Visual Studio'),
+  ].filter(Boolean);
+  const editions = ['Community', 'Professional', 'Enterprise', 'BuildTools'];
+  const roots = [];
+  for (const base of bases) {
+    let versions = [];
+    try {
+      versions = fs.readdirSync(base, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name)
+        .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+    } catch {
+      continue;
+    }
+    for (const v of versions) {
+      for (const e of editions) {
+        roots.push(path.join(base, v, e));
+      }
+    }
+  }
+  return roots;
 }
 
-/** 发行版的 HOME 目录（WSL 内）。 */
-function wslHomeDir(distro) {
-  const res = spawnSync('wsl.exe', ['-d', distro, '--', 'bash', '-lc', 'echo $HOME'], {
-    encoding: 'utf8',
-  });
-  const home = (res.stdout || '').replace(/\0/g, '').trim();
-  return home || '/root';
+/** collectMsvcEnv 的结果缓存——vcvars64.bat + set 约 1s，不能每个 step 重跑。 */
+let msvcEnvCache = null;
+
+/**
+ * 采集 Visual Studio 开发环境变量（Windows）。
+ *
+ * 走 `vcvars64.bat && set` 一次性导出——比手工拼 INCLUDE/LIB 更可靠，
+ * 因为 Windows SDK 版本目录是随安装变化的。
+ *
+ * @returns {Object} 需要注入的环境变量（找不到 VS 时返回空对象）
+ */
+function collectMsvcEnv() {
+  if (msvcEnvCache) return msvcEnvCache;
+  msvcEnvCache = collectMsvcEnvUncached();
+  return msvcEnvCache;
+}
+
+function collectMsvcEnvUncached() {
+  if (process.platform !== 'win32') return {};
+  // 已在 VS 开发环境里（cl.exe 在 PATH）则无需处理。
+  const probe = spawnSync('cl.exe', ['?'], { stdio: 'ignore' });
+  if (probe.error === undefined && probe.status !== null) return {};
+
+  for (const root of vsInstallRoots()) {
+    const vcvars = path.join(root, 'VC', 'Auxiliary', 'Build', 'vcvars64.bat');
+    if (!fs.existsSync(vcvars)) continue;
+    const res = spawnSync('cmd.exe', ['/s', '/c', `"${vcvars}" >nul 2>&1 && set`], {
+      encoding: 'utf8',
+    });
+    if (res.status !== 0) continue;
+    const parsed = parseSetOutput(res.stdout);
+    if (!parsed.INCLUDE || !parsed.LIB) continue;
+    return {
+      INCLUDE: parsed.INCLUDE,
+      LIB: parsed.LIB,
+      LIBPATH: parsed.LIBPATH || '',
+      PATH: parsed.PATH || '',
+      WindowsSdkDir: parsed.WindowsSdkDir || '',
+      WindowsSdkVerBinPath: parsed.WindowsSdkVerBinPath || '',
+      VCToolsInstallDir: parsed.VCToolsInstallDir || '',
+    };
+  }
+  return {};
 }
 
 /**
  * 解析执行后端。
  *
- * @param {{backend?: 'wsl'|'native', distro?: string}} opts
- * @returns {{backend: string, distro: string|null, repoPath: string, run: Function}}
+ * 2026-11-09 起只保留 host native 一种后端（WSL 路径已下线）。
+ *
+ * @returns {{backend: string, repoPath: string, env: Object, run: Function}}
  */
-function resolveRunner(opts = {}) {
-  const wantBackend = opts.backend || (process.platform === 'win32' ? 'wsl' : 'native');
+function resolveRunner() {
+  const msvcEnv = collectMsvcEnv();
+  const missingMsvc = process.platform === 'win32' && !msvcEnv.INCLUDE;
 
-  if (wantBackend === 'native') {
-    return {
-      backend: 'native',
-      distro: null,
-      repoPath: ROOT,
-      run(cmd, args, options = {}) {
-        return spawnSync(cmd, args, {
-          stdio: options.stdio || 'inherit',
-          shell: false,
-          cwd: options.cwd || ROOT,
-          env: options.env ? { ...process.env, ...options.env } : process.env,
-        });
-      },
-    };
-  }
-
-  const distro = pickWslDistro(opts.distro);
-  if (!distro) {
-    throw new Error(
-      '未找到可用的 WSL 发行版。装一个带 cargo 的发行版，或用 --backend native 走本机编译。',
-    );
-  }
-  const repoPath = toWslPath(ROOT);
-  // WSL 里仓库挂在 /mnt/d（跨文件系统 I/O 慢），target 目录放 WSL 原生盘上更快。
-  // Windows 侧的 CARGO_TARGET_DIR（如 d:\compil_world_view_cache\target）在 Linux 下
-  // 无效，忽略之；只有显式的 Linux 路径才继承。
-  const inheritedTargetDir = process.env.CARGO_TARGET_DIR;
-  const inheritedIsWindowsPath =
-    !!inheritedTargetDir && /^[a-zA-Z]:[\\/]/.test(inheritedTargetDir);
-  const baseEnv = inheritedTargetDir && !inheritedIsWindowsPath
-    ? { CARGO_TARGET_DIR: inheritedTargetDir }
-    : { CARGO_TARGET_DIR: `${wslHomeDir(distro)}/.cache/cargo-target/low-memory-micro-services` };
+  // host native 的 target 目录默认用仓库根的 target/（跨服务共享增量产物）。
+  // Windows 下 WSL 时代的 CARGO_TARGET_DIR 指向 Linux 路径已失效，这里忽略。
+  const baseEnv = { ...msvcEnv };
 
   return {
-    backend: 'wsl',
-    distro,
-    repoPath,
+    backend: 'native',
+    repoPath: ROOT,
+    missingMsvc,
+    env: baseEnv,
     run(cmd, args, options = {}) {
-      const envParts = Object.entries({ ...baseEnv, ...(options.env || {}) }).map(
-        ([k, v]) => `export ${k}=${shQuote(v)}`,
-      );
-      // WSL 的 shell profile 里全局设了 http_proxy，而 no_proxy 用的是 `127.*` 这种
-      // 通配写法——reqwest 不认，会把发往 127.0.0.1 的请求也代理走，导致「连接被
-      // 拒绝」类断言假失败。这里补精确条目（追加，不覆盖原有列表）。
-      envParts.push('export no_proxy="127.0.0.1,localhost,::1,${no_proxy:-}"');
-      envParts.push('export NO_PROXY="127.0.0.1,localhost,::1,${NO_PROXY:-}"');
-      const cmdParts = [cmd, ...args].map(shQuote);
-      const inner = [
-        `cd ${shQuote(options.cwd || repoPath)}`,
-        ...envParts,
-        cmdParts.join(' '),
-      ].join(' && ');
-      return spawnSync('wsl.exe', ['-d', distro, '--', 'bash', '-lc', inner], {
+      const env = { ...process.env, ...baseEnv, ...(options.env || {}) };
+      // reqwest 会读系统代理变量；本机若设了 http_proxy，指向 127.0.0.1 的
+      // 数据库请求会被代理走 → 「连接被拒绝」类假失败。补精确 no_proxy 条目。
+      const noProxy = ['127.0.0.1', 'localhost', '::1'];
+      const currentNoProxy = env.no_proxy || env.NO_PROXY || '';
+      const merged = [...new Set([...currentNoProxy.split(','), ...noProxy].filter(Boolean))].join(',');
+      env.no_proxy = merged;
+      env.NO_PROXY = merged;
+      return spawnSync(cmd, args, {
         stdio: options.stdio || 'inherit',
-        cwd: ROOT,
+        shell: false,
+        cwd: options.cwd || ROOT,
+        env,
       });
     },
   };
@@ -146,18 +151,10 @@ function hasNextest(runner) {
   return res.status === 0;
 }
 
-/** 本地路径 → file:// URL（Windows 盘符路径要转成 /C:/... 形式）。 */
-function fileUrl(absPath) {
-  const posix = absPath.replace(/\\/g, '/');
-  return `file://${posix.startsWith('/') ? '' : '/'}${posix}`;
-}
-
 module.exports = {
   ROOT,
   resolveRunner,
-  listWslDistros,
-  pickWslDistro,
-  toWslPath,
+  collectMsvcEnv,
   fileUrl,
   hasNextest,
 };

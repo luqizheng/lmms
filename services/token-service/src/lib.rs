@@ -74,14 +74,6 @@ pub struct TokenServerState {
     /// Phase 5-B: PEM-encoded private key for signing service-jwts
     /// (separate from `issuer` to keep user-jwt signing path stable).
     pub private_key_pem: String,
-    /// Phase 5-B: pre-shared bootstrap tokens accepted by
-    /// `POST /tokens/service-jwt`. Each business service has its own
-    /// 32-byte random token; rotate by editing this list and restarting.
-    pub bootstrap_tokens: Vec<String>,
-    /// 2026-11-07: caller service names parallel to `bootstrap_tokens`
-    /// (env `SERVICE_BOOTSTRAP_OWNERS`, CSV). Mints `sub = <owner>` so
-    /// downstream services can attribute calls; unmatched/missing → "unknown".
-    pub bootstrap_owners: Vec<String>,
     /// Phase 5-B: JWKS cache for verifying inbound tokens.
     pub jwks: Arc<digua_common_jwt::JWKSCache>,
 }

@@ -47,6 +47,10 @@ export type PermissionCode =
   | 'FILE_READ'
   | 'SYS_SETTING_READ'
   | 'SYS_SETTING_UPDATE'
+  | 'TOKEN_BOOTSTRAP_READ'
+  | 'TOKEN_BOOTSTRAP_CREATE'
+  | 'TOKEN_BOOTSTRAP_UPDATE'
+  | 'TOKEN_BOOTSTRAP_DELETE'
   | 'PM_PROJECT_CREATE'
   | 'PM_PROJECT_READ'
   | 'PM_PROJECT_UPDATE'
@@ -108,6 +112,10 @@ export const PermissionDescriptions: Record<PermissionCode, string> = {
   'FILE_READ': '查看文件列表与详情',
   'SYS_SETTING_READ': '查看系统设置',
   'SYS_SETTING_UPDATE': '编辑系统设置',
+  'TOKEN_BOOTSTRAP_READ': '查看 bootstrap token 元数据（不含明文）',
+  'TOKEN_BOOTSTRAP_CREATE': '创建 bootstrap token',
+  'TOKEN_BOOTSTRAP_UPDATE': '轮换 / 启停 bootstrap token',
+  'TOKEN_BOOTSTRAP_DELETE': '删除 bootstrap token',
   'PM_PROJECT_CREATE': '创建项目',
   'PM_PROJECT_READ': '查看项目',
   'PM_PROJECT_UPDATE': '编辑项目',

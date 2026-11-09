@@ -1,12 +1,11 @@
 //! Phase 5-B: `POST /tokens/service-jwt` — bootstrap-token auth, mints
 //! short-lived RS256 JWT for service-to-service calls.
 //!
-//! Each business service has a pre-shared `SERVICE_BOOTSTRAP_TOKEN` (per
-//! service, 32-byte random). On startup it calls this endpoint with the
-//! token in `Authorization: Bearer …` to exchange for a short-lived
-//! service-jwt (default 1h TTL, `aud: <caller-specified target>`).
+//! Phase 2 演进 (2026-11-09): token 验证从内存 Vec 改为查 DB（`token_bootstrap_tokens`
+//! 表），消除 SERVICE_BOOTSTRAP_TOKENS/OWNERS 双 CSV 无限增长 + 长度错位问题。
 //!
-//! See spec §3.3 / plan Task B for design rationale.
+//! 每个业务服务在 `token_bootstrap_tokens` 表有一行（owner 唯一）；handler 按明文
+//! token 精确匹配 + status='active' + expires_at > NOW() 三条件筛选。
 
 use axum::{
     extract::State,
@@ -17,6 +16,7 @@ use digua_common_jwt::sign_token;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+use crate::models::bootstrap_token::find_active_owner_by_token;
 use crate::TokenServerState;
 
 #[derive(Debug, Deserialize)]
@@ -46,30 +46,29 @@ pub async fn handle_service_jwt(
     headers: HeaderMap,
     Json(req): Json<ServiceJwtRequest>,
 ) -> Result<Json<ServiceJwtResponse>, (StatusCode, String)> {
-    // 1. Validate bootstrap token.
+    // 1. Extract bearer token.
     let auth = headers
         .get("Authorization")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
         .ok_or((StatusCode::UNAUTHORIZED, "missing bearer".into()))?;
-    let caller = match state.bootstrap_tokens.iter().position(|t| t == auth) {
-        Some(idx) => state
-            .bootstrap_owners
-            .get(idx)
-            .cloned()
-            .unwrap_or_else(|| "unknown".into()),
-        None => return Err((StatusCode::UNAUTHORIZED, "invalid bootstrap".into())),
+
+    // 2. Validate against DB (token = 明文精确匹配 + status=active + 未过期).
+    let caller = match find_active_owner_by_token(&state.db, auth).await {
+        Ok(Some(owner)) => owner,
+        Ok(None) => return Err((StatusCode::UNAUTHORIZED, "invalid bootstrap".into())),
+        Err(e) => {
+            tracing::error!(error = %e, "bootstrap token db lookup failed");
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "db error".into()));
+        }
     };
 
-    // 2. Validate request.
+    // 3. Validate request.
     if req.aud.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "aud required".into()));
     }
 
-    // 3. Sign. `sub` = the bootstrap owner's service name (2026-11-07: was
-    // token-service's own SERVICE_NAME env — every minted service-jwt used to
-    // carry the wrong caller identity; SERVICE_BOOTSTRAP_OWNERS is the
-    // parallel list to SERVICE_BOOTSTRAP_TOKENS).
+    // 4. Sign. `sub` = bootstrap owner from DB。
     let now = chrono::Utc::now().timestamp();
     let mut claims = serde_json::json!({
         "iss": "token-service",

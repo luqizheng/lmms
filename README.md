@@ -18,8 +18,8 @@ A microservices architecture for coder platform, built with Rust.
 
 ### 前置依赖
 
-- Docker Desktop（Windows 启用 WSL2 backend）
-- Rust 工具链（`rustup` + `cargo`，1.96+）
+- Docker Desktop
+- Rust 工具链（`rustup` + `cargo`，1.96+）；Windows 另需 Visual Studio Build Tools（C 依赖 `ring` / `aws-lc-sys` 需要 `cl.exe`）
 - Node.js 18+（跑 `scripts/*.js` 编排器）
 
 ### 一键工作流

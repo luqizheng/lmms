@@ -37,6 +37,12 @@ impl MigrationState for TokenMigrationState {
                 name: "add_client_user_and_expiry",
                 marker_table: "token_migration_v002_applied",
             },
+            // V003 建 token_bootstrap_tokens 表（bootstrap token 持久化）。
+            MigrationDescriptor {
+                version: "V003",
+                name: "bootstrap_tokens",
+                marker_table: "token_migration_v003_applied",
+            },
         ]
     }
 }
@@ -101,15 +107,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn token_has_two_migrations() {
+    fn token_has_three_migrations() {
         let s = TokenMigrationState;
         assert_eq!(s.service_name(), "token-service");
         assert_eq!(s.dialect(), "mysql");
-        assert_eq!(s.migrations().len(), 2);
+        assert_eq!(s.migrations().len(), 3);
         assert_eq!(s.migrations()[0].version, "V001");
         assert_eq!(s.migrations()[0].marker_table, "token_oauth_clients");
         assert_eq!(s.migrations()[1].version, "V002");
-        assert_eq!(s.migrations()[1].marker_table, "token_migration_v002_applied");
+        assert_eq!(
+            s.migrations()[1].marker_table,
+            "token_migration_v002_applied"
+        );
+        assert_eq!(s.migrations()[2].version, "V003");
+        assert_eq!(
+            s.migrations()[2].marker_table,
+            "token_migration_v003_applied"
+        );
     }
 
     /// 描述符必须与 `db::MIGRATIONS` 逐条对齐（版本 + marker），

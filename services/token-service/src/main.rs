@@ -74,6 +74,24 @@ async fn main() {
         tracing::info!("seeded {} default oauth clients", seeded);
     }
 
+    // Phase 1 (Phase 5-B 演进): 把 bootstrap token seed 到 token_bootstrap_tokens 表。
+    // 优先级：env CSV（SERVICE_BOOTSTRAP_TOKENS + SERVICE_BOOTSTRAP_OWNERS）→ 内置 dev 默认值。
+    // 语义：按 owner 补插（已有的 owner 不覆盖），因此幂等且不破坏已 rotate 的 token。
+    let seeded_bt = token_service::models::bootstrap_token::seed_defaults(
+        &db,
+        std::env::var("SERVICE_BOOTSTRAP_TOKENS")
+            .unwrap_or_default()
+            .as_str(),
+        std::env::var("SERVICE_BOOTSTRAP_OWNERS")
+            .unwrap_or_default()
+            .as_str(),
+    )
+    .await
+    .expect("seed bootstrap tokens");
+    if seeded_bt > 0 {
+        tracing::info!("seeded {} bootstrap tokens", seeded_bt);
+    }
+
     let (private_key_pem, public_key_pem) =
         load_or_generate_keys(&cfg.jwt_private_key_path, &cfg.jwt_public_key_path);
 
@@ -104,25 +122,8 @@ async fn main() {
         )),
         user_service_url: cfg.user_service_url.clone(),
         private_key_pem: private_key_pem.clone(),
-        bootstrap_tokens: std::env::var("SERVICE_BOOTSTRAP_TOKENS")
-            .unwrap_or_default()
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect(),
-        bootstrap_owners: std::env::var("SERVICE_BOOTSTRAP_OWNERS")
-            .unwrap_or_default()
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect(),
         jwks: jwks_cache,
     };
-    if state.bootstrap_tokens.is_empty() {
-        tracing::warn!(
-            "SERVICE_BOOTSTRAP_TOKENS not set; POST /tokens/service-jwt will reject all callers"
-        );
-    }
 
     async fn metrics() -> axum::response::Html<String> {
         let encoder = TextEncoder::new();
@@ -181,6 +182,16 @@ async fn main() {
     // 内部带 service-jwt 鉴权中间件（aud=token-service）。
     app = app.merge(routes::api_key::routes(state.clone()));
     app = app.merge(routes::admin::routes(state.clone()));
+
+    // Phase 3: /admin/bootstrap-tokens* —— bootstrap token 的管理面
+    // （rotate / 禁用 / 启用 / 查询）。同样带 service-jwt 鉴权（aud=token-service）：
+    // 能 rotate 就等于能冒充任意服务。
+    app = app.merge(routes::bootstrap_token_admin::routes(state.clone()));
+
+    // Phase 3 (web): /v1/admin/bootstrap-tokens* —— 同一份业务逻辑，但走
+    // user-jwt + 权限码鉴权，供浏览器端 Web UI 调用（经 api-gateway 的
+    // token.router.toml 转发）。service-jwt 端点保留给 CI / 运维脚本。
+    app = app.merge(routes::bootstrap_token_web::routes(state.clone()));
 
     // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
     app = app.merge(token_service::service_jwt_routes(state.clone()));

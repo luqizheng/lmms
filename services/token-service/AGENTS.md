@@ -41,7 +41,8 @@
 | TOKEN_DEFAULT_RESOURCE_TTL_SEC | 300 | resource token 默认 TTL |
 | SWAGGER_ENABLED | true | 是否挂 SwaggerUi |
 | RUST_LOG | info | 日志级别 |
-| SERVICE_BOOTSTRAP_TOKENS | 空 | 各业务服务的逗号分隔 bootstrap token；未设置则 POST /tokens/service-jwt 拒绝所有调用方 |
+| SERVICE_BOOTSTRAP_TOKENS | 空 | 各业务服务的逗号分隔 bootstrap token。**可选**——与 OWNERS 都为空时回退到内置 dev 默认值（`models::bootstrap_token::DEFAULT_DEV_BOOTSTRAP`） |
+| SERVICE_BOOTSTRAP_OWNERS | 空 | 与 SERVICE_BOOTSTRAP_TOKENS 等长、顺序一一对应的服务名。seed 时写入 `token_bootstrap_tokens.owner`，JWT 的 `sub` 即该值。**长度不一致或缺失 → token-service 拒绝启动**（fail-closed，不回退 dev 默认值） |
 
 ## 端点域
 
@@ -59,6 +60,14 @@
 | /admin/oauth-clients | POST / GET | OAuth 客户端创建（响应中一次性返回明文 client_secret；service-jwt 准入） |
 | /admin/oauth-clients/{client_id} | PUT / DELETE | 更新 / 删除（service-jwt 准入） |
 | /admin/oauth-clients/{client_id}/reset-secret | POST | 重置并返回新明文 client_secret（service-jwt 准入） |
+| /admin/bootstrap-tokens | POST / GET | bootstrap token 新建（返回明文一次）/ 列表（**不含明文**，service-jwt 准入） |
+| /admin/bootstrap-tokens/{owner} | GET / DELETE | 查单条元数据 / 删除（service-jwt 准入） |
+| /admin/bootstrap-tokens/{owner}/rotate | POST | 换新 token（返回明文一次；`?grace_period_sec=N` 给旧 token 留宽限期，service-jwt 准入） |
+| /admin/bootstrap-tokens/{owner}/status | PUT | 启用 / 禁用（service-jwt 准入） |
+| /v1/admin/bootstrap-tokens | POST / GET | **Web UI 用**：新建 / 列表（user-jwt + 权限码 `TOKEN_BOOTSTRAP_CREATE` / `_READ`） |
+| /v1/admin/bootstrap-tokens/{owner} | GET / DELETE | Web UI 用：查单条 / 删除（权限码 `_READ` / `_DELETE`） |
+| /v1/admin/bootstrap-tokens/{owner}/rotate | POST | Web UI 用：换新 token（body `{"grace_period_sec":N}`，权限码 `_UPDATE`） |
+| /v1/admin/bootstrap-tokens/{owner}/status | PUT | Web UI 用：启用 / 禁用（body `{"status":"active\|disabled"}`，权限码 `_UPDATE`） |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（仅 SWAGGER_ENABLED=true 时暴露） |
@@ -80,6 +89,25 @@
 ## 表命名约定
 
 所有表必须以 `token_` 前缀（MySQL/PostgreSQL 共享 `superpowers` 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+
+## Bootstrap token 存储（2026-11-09 起）
+
+`POST /tokens/service-jwt` 的准入凭据持久化在 `token_bootstrap_tokens` 表（V003 迁移）：
+
+| 列 | 说明 |
+|---|---|
+| `owner` | 主键。服务名（`iam-service` 等），JWT 的 `sub` 即此值 |
+| `token_hash` | 当前存**明文**；列名预留以便后续切 SHA-256（只改写入路径，索引与查询 SQL 不变） |
+| `status` | `active` / `disabled`；非 active 一律拒绝 |
+| `expires_at` | 可空。NULL = 永久；非空且已过期则拒绝 |
+| `last_used_at` | 最近命中时间（预留给运维审计） |
+
+启动时自动 seed（`models/bootstrap_token.rs::seed_defaults`）：
+
+- **来源优先级**：`SERVICE_BOOTSTRAP_TOKENS` + `SERVICE_BOOTSTRAP_OWNERS` 两个 env CSV → 内置 dev 默认值 `DEFAULT_DEV_BOOTSTRAP`（两个 env 都为空时才用）。
+- **fail-closed**：env 提供了 tokens 但 owners 缺失 / 两列长度不一致 → **拒绝启动**（`sqlx::Error::Protocol`）。绝不回退到内置默认值——否则生产环境会静默用上硬编码 dev token。
+- **语义**：按 `owner` 补插——表里没有该 owner 才 INSERT，已有的行不动。因此幂等（重复启动不重复插），也不会覆盖运维已 rotate 过的 token。
+- 新增服务时的完整步骤见 `docs-site/guides/service-to-service-auth.md`「新增一个服务时怎么加 token」。
 
 ## AI 检查时机
 

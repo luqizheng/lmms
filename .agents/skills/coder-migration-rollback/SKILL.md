@@ -21,7 +21,7 @@ Emergency rollback playbook when a production migration goes wrong.
 
 ## 前置
 
-- 运行环境：WSL / macOS / Linux
+- 运行环境：Windows / macOS / Linux
 - 工作目录：项目根目录
 - 确认当前数据库状态：`node scripts/check-db-naming.js` 无报错
 - MySQL 已启动（`pnpm run dev:infra`）

@@ -120,6 +120,16 @@ permissions:
   SYS_SETTING_UPDATE:
     description: "编辑系统设置"
 
+  # === 服务间凭据管理（bootstrap token / service-jwt）===
+  TOKEN_BOOTSTRAP_READ:
+    description: "查看 bootstrap token 元数据（不含明文）"
+  TOKEN_BOOTSTRAP_CREATE:
+    description: "创建 bootstrap token"
+  TOKEN_BOOTSTRAP_UPDATE:
+    description: "轮换 / 启停 bootstrap token"
+  TOKEN_BOOTSTRAP_DELETE:
+    description: "删除 bootstrap token"
+
   # === 项目管理 ===
   PM_PROJECT_CREATE:
     description: "创建项目"

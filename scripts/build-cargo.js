@@ -9,12 +9,10 @@
 //   node scripts/build-cargo.js                  # 全部 service，release
 //   node scripts/build-cargo.js --debug          # 全部 service，debug
 //   node scripts/build-cargo.js iam-service      # 指定 service（可多个）
-//   node scripts/build-cargo.js --backend native # 强制本机 cargo（Windows 默认走 WSL）
-//   node scripts/build-cargo.js --distro debian-rust
 const fs = require('node:fs');
 const path = require('node:path');
 const { chalk, section } = require('./lib/ui.js');
-const { resolveRunner, toWslPath, fileUrl } = require('./lib/host-runner.js');
+const { resolveRunner, fileUrl } = require('./lib/host-runner.js');
 const { SERVICE_DIRS, SERVICE_PKG } = require('./lib/services.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -26,8 +24,6 @@ const SWAGGER_UI_ENV_KEY = 'SWAGGER_UI_DOWNLOAD_URL';
 function parseArgs(argv) {
   const opts = {
     profile: 'release',
-    backend: null,
-    distro: process.env.WSL_DISTRO || null,
     services: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -35,8 +31,6 @@ function parseArgs(argv) {
     switch (a) {
       case '--release': opts.profile = 'release'; break;
       case '--debug': opts.profile = 'debug'; break;
-      case '--backend': opts.backend = argv[++i] || null; break;
-      case '--distro': opts.distro = argv[++i] || null; break;
       default:
         if (a.startsWith('-')) {
           console.warn(chalk.yellow(`[warn] 忽略未知参数: ${a}`));
@@ -49,7 +43,7 @@ function parseArgs(argv) {
 }
 
 // 有 vendor zip 就注入 file:// URL，避免 build.rs 走网络。
-function swaggerEnv(runner) {
+function swaggerEnv() {
   if (process.env[SWAGGER_UI_ENV_KEY]) {
     return { [SWAGGER_UI_ENV_KEY]: process.env[SWAGGER_UI_ENV_KEY] };
   }
@@ -58,13 +52,12 @@ function swaggerEnv(runner) {
     console.warn(chalk.yellow('[swagger-vendor] 先跑 `pnpm run assets:download`'));
     return {};
   }
-  const abs = runner.backend === 'wsl' ? toWslPath(SWAGGER_UI_ZIP) : SWAGGER_UI_ZIP;
-  return { [SWAGGER_UI_ENV_KEY]: fileUrl(abs) };
+  return { [SWAGGER_UI_ENV_KEY]: fileUrl(SWAGGER_UI_ZIP) };
 }
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const runner = resolveRunner({ backend: opts.backend, distro: opts.distro });
+  const runner = resolveRunner();
 
   const targets = opts.services.length > 0
     ? opts.services.filter((s) => SERVICE_DIRS[s])
@@ -73,12 +66,18 @@ async function main() {
   for (const u of unknown) console.warn(chalk.yellow(`[warn] 未知 service: ${u}`));
 
   console.log(chalk.bold('\n=== cargo build (host) ==='));
-  console.log(`  backend : ${runner.backend}${runner.distro ? ` (${runner.distro})` : ''}`);
+  console.log(`  backend : ${runner.backend}`);
   console.log(`  repo    : ${runner.repoPath}`);
   console.log(`  profile : ${opts.profile}`);
   console.log(`  services: ${targets.join(', ')} (${targets.length})`);
+  if (runner.missingMsvc) {
+    console.warn(chalk.yellow(
+      '[msvc] 未找到 Visual Studio Build Tools 的 vcvars64.bat；' +
+      'ring / aws-lc-sys 的 C 依赖会在 build script 阶段失败。',
+    ));
+  }
 
-  const env = swaggerEnv(runner);
+  const env = swaggerEnv();
   const failed = [];
   for (const svc of targets) {
     section(`build ${svc}`);

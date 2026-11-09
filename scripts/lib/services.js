@@ -14,7 +14,6 @@ const SERVICE_DIRS = {
   'iam-service': 'services/iam-service',
   'notification-service': 'services/notification-service',
   'audit-service': 'services/audit-service',
-  'config-service': 'services/config-service',
   'file-service': 'services/file-service',
   'prue_backend': 'services/prue_backend',
 };

@@ -81,6 +81,12 @@ pub const MIGRATIONS: &[Migration] = &[
         ),
         marker_table: "token_migration_v002_applied",
     },
+    Migration {
+        version: "V003",
+        sql_mysql: include_str!("../migrations/mysql/V003__bootstrap_tokens.sql"),
+        sql_postgres: include_str!("../migrations/postgres/V003__bootstrap_tokens.sql"),
+        marker_table: "token_migration_v003_applied",
+    },
 ];
 
 /// 建池。
@@ -231,7 +237,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_in_order() {
         let versions: Vec<&str> = MIGRATIONS.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec!["V001", "V002"]);
+        assert_eq!(versions, vec!["V001", "V002", "V003"]);
     }
 
     #[test]

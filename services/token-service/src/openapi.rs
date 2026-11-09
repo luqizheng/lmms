@@ -3,7 +3,10 @@ use utoipa::{
     Modify, OpenApi,
 };
 
-use crate::routes::{access, admin, api_key, migration_state, refresh, revoke, user_jwt};
+use crate::routes::{
+    access, admin, api_key, bootstrap_token_admin, bootstrap_token_web, migration_state, refresh,
+    revoke, user_jwt,
+};
 
 pub struct SecurityAddon;
 
@@ -40,6 +43,18 @@ impl Modify for SecurityAddon {
         admin::handle_reset_secret,
         api_key::handle_create_api_key,
         api_key::handle_list_api_keys,
+        bootstrap_token_admin::handle_list,
+        bootstrap_token_admin::handle_get,
+        bootstrap_token_admin::handle_create,
+        bootstrap_token_admin::handle_rotate,
+        bootstrap_token_admin::handle_set_status,
+        bootstrap_token_admin::handle_delete,
+        bootstrap_token_web::handle_list,
+        bootstrap_token_web::handle_get,
+        bootstrap_token_web::handle_create,
+        bootstrap_token_web::handle_rotate,
+        bootstrap_token_web::handle_set_status,
+        bootstrap_token_web::handle_delete,
     ),
     components(schemas(
         access::AccessRequest,
@@ -62,12 +77,23 @@ impl Modify for SecurityAddon {
         api_key::CreateApiKeyRequest,
         api_key::ListApiKeysResponse,
         api_key::ApiKeySummary,
+        bootstrap_token_admin::BootstrapTokenDto,
+        bootstrap_token_admin::ListBootstrapTokensResponse,
+        bootstrap_token_admin::CreateBootstrapTokenRequest,
+        bootstrap_token_admin::BootstrapTokenCreated,
+        bootstrap_token_admin::RotateBootstrapTokenResponse,
+        bootstrap_token_admin::SetStatusRequest,
+        bootstrap_token_web::RotateRequest,
     )),
     modifiers(&SecurityAddon),
     tags(
         (name = "tokens", description = "Token issuance"),
         (name = "admin", description = "OAuth client admin"),
         (name = "api-key", description = "Long-lived API key (client_credentials only)"),
+        (
+            name = "bootstrap-token",
+            description = "Service-to-service credential management (Web UI)"
+        ),
     )
 )]
 pub struct ApiDoc;

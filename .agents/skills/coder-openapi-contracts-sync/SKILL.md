@@ -24,7 +24,7 @@ AI 修改了以下内容之一时调用本 skill：
 
 ## 前置
 
-- 运行环境：WSL / macOS / Linux（Windows 必须在 WSL 内执行）
+- 运行环境：Windows / macOS / Linux（Windows 走 host 原生 MSVC，脚本自动注入 VS 环境变量）
 - 工作目录：项目根目录
 - Node.js 18+
 - Rust 工具链（用于 `cargo run --bin dump_openapi`）

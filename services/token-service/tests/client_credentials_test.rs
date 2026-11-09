@@ -18,35 +18,12 @@ use serde_json::{json, Value};
 use token_service::models::oauth_client::Client;
 use tower::ServiceExt;
 
-const TEST_PRIVATE_PEM: &str =
-    include_str!("../../../libs/common-jwt/tests/fixtures/test_private.pem");
-const TEST_PUBLIC_PEM: &str =
-    include_str!("../../../libs/common-jwt/tests/fixtures/test_public.pem");
+use common::TEST_PUBLIC_PEM;
 
 /// 真实 DB pool + 测试密钥的 state（client 查询必须走真库）。
 async fn build_state() -> token_service::TokenServerState {
     let pool = common::spawn_mysql().await;
-    let jwks = std::sync::Arc::new(digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap());
-    token_service::TokenServerState {
-        db: pool,
-        issuer: std::sync::Arc::new(
-            token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer"),
-        ),
-        issuer_str: "test-issuer".into(),
-        jwt_public_key: TEST_PUBLIC_PEM.into(),
-        default_resource_ttl_sec: 3600,
-        http_client: std::sync::Arc::new(digua_common_http::ResilientClient::new(
-            reqwest::Client::new(),
-            digua_common_http::ResilienceConfig::default(),
-            std::sync::Arc::new(digua_common_http::NoopObserver),
-        )),
-        // 不可达地址 → 走既有降级逻辑（默认 claims）
-        user_service_url: "http://iam-service:8081".into(),
-        private_key_pem: TEST_PRIVATE_PEM.into(),
-        bootstrap_tokens: vec![],
-        bootstrap_owners: vec![],
-        jwks,
-    }
+    common::build_state(pool)
 }
 
 fn app(state: token_service::TokenServerState) -> axum::Router {

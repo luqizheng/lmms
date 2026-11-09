@@ -48,6 +48,19 @@ upstream   = "/v1/api-keys"
 downstream = "/api-keys"
 service    = "token-service"
 
+# Web UI 的 bootstrap token 管理面（user-jwt + 权限码鉴权）。
+# 与上面的 /v1/admin/oauth-clients*（service-jwt 鉴权）是不同鉴权体系，
+# 因此路径前缀用 /v1/admin/bootstrap-tokens 而非复用 oauth-clients 的通配。
+[[route]]
+upstream   = "/v1/admin/bootstrap-tokens/{rest}"
+downstream = "/v1/admin/bootstrap-tokens/{rest}"
+service    = "token-service"
+
+[[route]]
+upstream   = "/v1/admin/bootstrap-tokens"
+downstream = "/v1/admin/bootstrap-tokens"
+service    = "token-service"
+
 [[route]]
 upstream   = "/.well-known/{rest}"
 downstream = "/.well-known/{rest}"

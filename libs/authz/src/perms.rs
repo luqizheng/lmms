@@ -94,6 +94,14 @@ pub mod perms {
     pub const SYS_SETTING_READ: &str = "SYS_SETTING_READ";
     /// 编辑系统设置
     pub const SYS_SETTING_UPDATE: &str = "SYS_SETTING_UPDATE";
+    /// 查看 bootstrap token 元数据（不含明文）
+    pub const TOKEN_BOOTSTRAP_READ: &str = "TOKEN_BOOTSTRAP_READ";
+    /// 创建 bootstrap token
+    pub const TOKEN_BOOTSTRAP_CREATE: &str = "TOKEN_BOOTSTRAP_CREATE";
+    /// 轮换 / 启停 bootstrap token
+    pub const TOKEN_BOOTSTRAP_UPDATE: &str = "TOKEN_BOOTSTRAP_UPDATE";
+    /// 删除 bootstrap token
+    pub const TOKEN_BOOTSTRAP_DELETE: &str = "TOKEN_BOOTSTRAP_DELETE";
     /// 创建项目
     pub const PM_PROJECT_CREATE: &str = "PM_PROJECT_CREATE";
     /// 查看项目
@@ -171,6 +179,10 @@ pub fn is_valid(perm: &str) -> bool {
             | "FILE_READ"
             | "SYS_SETTING_READ"
             | "SYS_SETTING_UPDATE"
+            | "TOKEN_BOOTSTRAP_READ"
+            | "TOKEN_BOOTSTRAP_CREATE"
+            | "TOKEN_BOOTSTRAP_UPDATE"
+            | "TOKEN_BOOTSTRAP_DELETE"
             | "PM_PROJECT_CREATE"
             | "PM_PROJECT_READ"
             | "PM_PROJECT_UPDATE"
