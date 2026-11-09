@@ -33,26 +33,24 @@ test('--help before the command name still works', async () => {
 
 test('--help after the command name works for a command with no side effects', async () => {
   const io = capture();
-  const code = await run(['release', 'status', '--help'], { ...io });
+  const code = await run(['version', '--help'], { ...io });
   assert.equal(code, EXIT.OK);
-  assert.match(io.stdout.text, /usage: coder release status/);
-  assert.doesNotMatch(io.stdout.text, /ledgers consistent/,
-    'must not have executed the command');
+  assert.match(io.stdout.text, /usage: coder version/);
 });
 
-// --- Regression: `coder release status --totally-bogus` used to exit 0 and
-// print a normal envelope. A typo must be loud.
+// --- Regression: `coder assets download --totally-bogus` must exit USAGE
+// A typo must be loud.
 
 test('unknown flag on a spec-backed command exits USAGE', async () => {
   const io = capture();
-  const code = await run(['release', 'status', '--totally-bogus'], { ...io });
+  const code = await run(['assets', 'download', '--totally-bogus'], { ...io });
   assert.equal(code, EXIT.USAGE);
   assert.match(io.stderr.text, /--totally-bogus/);
 });
 
 test('unknown flag in json mode reports UNKNOWN_FLAG on stdout envelope', async () => {
   const io = capture();
-  const code = await run(['release', 'status', '--totally-bogus', '--json'], { ...io });
+  const code = await run(['assets', 'download', '--totally-bogus', '--json'], { ...io });
   assert.equal(code, EXIT.USAGE);
   const lines = io.stdout.text.trim().split('\n');
   assert.equal(lines.length, 1, 'stdout must stay a single envelope line');
@@ -72,11 +70,11 @@ test('unknown command reports UNKNOWN_COMMAND', async () => {
 
 test('a known flag still works after the spec layer is in place', async () => {
   const io = capture();
-  const code = await run(['release', 'status', '--json'], { ...io });
-  assert.equal(code, EXIT.OK);
+  const code = await run(['assets', 'download', '--json'], { ...io });
+  // assets download without network may fail, but spec parse must succeed (exitCode != USAGE)
+  assert.ok(code !== EXIT.USAGE, `expected non-USAGE exit, got ${code}`);
   const env = JSON.parse(io.stdout.text.trim());
-  assert.equal(env.command, 'release status');
-  assert.equal(env.ok, true);
+  assert.equal(env.command, 'assets download');
 });
 
 test('commands without a declared spec keep working (backward compatible)', async () => {

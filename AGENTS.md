@@ -88,7 +88,7 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 **框架不随附前端控制台**（PRISM console 已于 2026-10 从本仓库移除）。前端项目位于各自业务仓，通过以下方式接入 api-gateway（唯一公共入口，host port 3000）：
 
-- **TypeScript / 浏览器**：仓库顶层 `packages/@digua/contracts`（错误码 / 权限码 / OpenAPI 客户端 TS 产物）、`packages/@digua/http`（框架无关 HTTP 客户端，token 注入 / 单飞刷新 / 错误码转文案），以及 `sdk/<svc>-services` 五个微服务 SDK（`config-services` 已随 config-service 服务移除，2026-11-06）：`iam-services`（登录/用户管理/token 管理）、`audit-services`（日志/合规导出/保留策略）、`file-services`（multipart 上传/下载/预签名）、`notification-services`（公告/未读数，不含 WS）、`prue-services`（动态路由/菜单配置）——npm TS 包放 `sdk/` 系**位置例外**（用户裁决 2026-10-31）。发布到私有 registry **`http://192.168.2.12:14873/`**（`npm.kudi.repos` 为同一 Verdaccio 的域名别名；canonical 以守卫常量 `packages/cli/lib/npm-packages.js::REGISTRY` 为准）。发布用 `pnpm run packages:publish`，校验用 `pnpm run packages:check`，规则见「npm 包发布规则」。CI `packages_test` job 守门。
+- **TypeScript / 浏览器**：仓库顶层 `packages/@digua/contracts`（错误码 / 权限码 / OpenAPI 客户端 TS 产物）、`packages/@digua/http`（框架无关 HTTP 客户端，token 注入 / 单飞刷新 / 错误码转文案），以及 `sdk/<svc>-services` 五个微服务 SDK（`config-services` 已随 config-service 服务移除，2026-11-06）：`iam-services`（登录/用户管理/token 管理）、`audit-services`（日志/合规导出/保留策略）、`file-services`（multipart 上传/下载/预签名）、`notification-services`（公告/未读数，不含 WS）、`prue-services`（动态路由/菜单配置）——npm TS 包放 `sdk/` 系**位置例外**（用户裁决 2026-10-31）。CI `packages_test` job 守门。
 - **服务端 SDK**：`sdk/java`（Maven）、`sdk/rust`（kellnr）；C# SDK（`sdk/dotnet`）规划中，尚未创建。
 
 ## OpenAPI（auto-generated）
@@ -118,9 +118,9 @@ GitLab CI `test` 阶段跑其中部分门禁（service-standard / spec / contrac
 
 ## Skill 目录
 
-Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路径触发器见 `project_rules.md` §4。白名单权威在 `release.js::DOWNSTREAM_SKILL_WHITELIST`（仓库 `.agents/skills/` 始终全量保留，发布副本只带下列下游项）。
+Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路径触发器见 `project_rules.md` §4。
 
-### ① 下游（downstream）——发布分发包 `.agents/skills/` 只带这 6 个，供下游创建/维护 Java & Rust 业务微服务
+### ① 下游（downstream）——供下游创建/维护 Java & Rust 业务微服务
 
 | 意图 | Skill（仓库 `.agents/skills/…`） | 备注 / 常用命令 |
 | --- | --- | --- |
@@ -131,14 +131,10 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 | 加路由 | `coder-add-java-route` | 加 Controller/DTO |
 | 加迁移 | `coder-migrate-java-db` | Java Flyway 迁移 |
 
-### ② 仓库 repo-local / 平台（本仓开发用，**不随 dist 分发**；给下游新增需先在 `DOWNSTREAM_SKILL_WHITELIST` 追加）
+### ② 仓库 repo-local / 平台（本仓开发用）
 
 | 意图 | Skill | 常用命令 |
 | --- | --- | --- |
-| 发布 npm TS 包 | `pnpm run packages:publish`（CI `publish_packages` 随 tag 自动） | `pnpm run packages:build` |
-| 发布 Rust SDK | `.agents/skills/coder-sdk-publish-rust` | `pnpm run sdk:publish:rust -- <VERSION>` |
-| 发布 Java SDK | `.agents/skills/coder-sdk-publish-maven` | `pnpm run sdk:publish:release` |
-| 打离线分发包 / 服务镜像 | `.agents/skills/coder-service-release` | `pnpm run release:build` / `node release/dist-template/scripts/release.js` |
 | CI 红标诊断 | `.agents/skills/coder-ci-diagnose` | — |
 | 跨服务事件链路 | `.agents/skills/coder-contract-trace` | — |
 | 迁移回滚 | `.agents/skills/coder-migration-rollback` | 紧急 forward-only 回滚 |
@@ -167,28 +163,15 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 
 本仓库是**多个下游消费仓的上游**。代表下游：`project-manager` 等业务垂直集成仓。
 
-**分发模型（2026-10-30 起）：发版 = 镜像 + 各种包，更新全部走包升级。** 下游不再做源码级同步（原 `cms-sync` / `@digua/dist-tools` 已停用并从发布链路移除）：
+**分发模型：发版 = 镜像 + 各种包，更新全部走包升级。** 下游不再做源码级同步：
 
 - **镜像**：`zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver>`，下游改 compose 的 image tag 后 `docker compose pull && up -d`。
-- **Rust**：`libs/*`（17 crate）与 `sdk/rust/*`（7 crate）发布到 kellnr（`http://192.168.2.12:16444`），下游 `cargo update -p <crate>`。
+- **Rust**：`libs/*` 与 `sdk/rust/*` 发布到 kellnr（`http://192.168.2.12:16444`），下游 `cargo update -p <crate>`。
 - **Java**：`sdk/java` 发布到 Maven（`http://mvn.kudi.repos`），下游升 `<dependency>` 版本。
-- **npm TS**：`packages/@digua/contracts` + `@digua/http` + `sdk/{iam,audit,config,file,notification,prue}-services` 发布到 `http://192.168.2.12:14873/`，下游 `pnpm up @digua/contracts @digua/http` / `pnpm add <svc>-services`。
+- **npm TS**：`packages/@digua/contracts` + `@digua/http` + `sdk/*-services` 发布到 `http://192.168.2.12:14873/`，下游 `pnpm up @digua/contracts @digua/http` / `pnpm add <svc>-services`。
 
-tag 流水线五路并行发布（`sdk_publish` / `rust_publish` / `build_images:tagged` / `publish_packages`，`release:dist` 收尾打离线包）——见 `.gitlab-ci.yml` publish stage。同 tag 下所有制品版本号一致。
-
-**npm 包发布规则**（守卫实现在 `packages/cli/lib/npm-packages.js`，本文与其保持一致）：
-
-1. **新增包必须三处接线**，缺一则 tag CI 与本地发布都会**静默跳过**该包：① `pnpm-workspace.yaml` 清单；② 根 `package.json` 的 `packages:build` 过滤；③ `npm-packages.js` 的 `PACKAGES` 数组。
-2. 发布守卫四条：`publishConfig.registry` 必须**精确等于** `REGISTRY`（含尾斜杠）；`dist/index.js` 已构建；包目录 `git status` 干净；包内版本 < 目标版本。
-3. **版本单一事实源 = git tag（或 `--version` 参数）**；仓内 `package.json` 版本只是占位符，本地发布后需 `git checkout -- <各包>/package.json` 还原占位。
-4. 发布一律走 CLI（先 `pnpm run packages:check` 干跑，再 `pnpm run packages:publish --version x.y.z`），**勿手敲 `npm publish --prefix`** —— npm≥11 会从 cwd 读 manifest 直接崩（CLI 已改为在包目录内执行，并显式钉死 registry 防 `@scope:registry` 劫持）。发布机 `~/.npmrc` 需有 `//192.168.2.12:14873/:_authToken`。
-
-### 修改本仓 `infrastructure/**` 时对下游的影响
-
-下游不再 merge 本仓 compose 源文件（只在**新建环境**时用 `release/dist-template` 起步），但 airgap 包内的 compose 仍从本仓生成：
-
-- `release/dist-template/scripts/transform-compose.js` 只把 `build:` 块换成 `image:` 引用，**不动 `command:` 字段**。
-- 所以**当下游报告 OCI `executable file not found in $PATH`，而镜像里实际装了该 binary 时，根因几乎 100% 在本仓 compose**。
+- **git tag 带 `v`，发布镜像 tag 不带 v**：CI `build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v 后推送，registry 里实际存在的是 `micro-server/<svc>:1.5.0`（**不是** `:v1.5.0`）。下游 `.env` 的 `IMAGE_TAG` 必须填 no-v 值。
+- `mysql-replica` 已于 2026-11-05 移除（生产数据拓扑归 DB 组，lmms 只带单节点开发/测试库）。
 
 ### Cargo `[[bin]] name` → 容器内二进制名的强制映射
 
@@ -201,49 +184,3 @@ tag 流水线五路并行发布（`sdk_publish` / `rust_publish` / `build_images
 ```
 
 docker-compose `command:` 字段**必须**用下划线。常见踩坑：把 `ntf-outbox-publisher`(kebab)直接抄进 compose（`["ntf-outbox-publisher"]`），启动时 OCI runtime 在 `$PATH` 中找不到对应名，容器创建失败。
-
-### 发布命令与镜像 tag 约定（v1.5.0 校准）
-
-- 离线分发包统一入口：`node release/dist-template/scripts/release.js <VERSION>`（原 `release.sh` 已于 2026-08 迁 Node 删除）；只打配置/骨架包加 `--no-images`。单测：`pnpm run release:test`。
-- **git tag 带 `v`，发布镜像 tag 不带 v**：CI `build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v 后推送，registry 里实际存在的是 `micro-server/<svc>:1.5.0`（**不是** `:v1.5.0`）。下游 dist-template `.env` 的 `IMAGE_TAG` 必须填 no-v 值，填 `v1.5.0` 会 pull 不到镜像。
-- airgap bundle 导出清单由 `image-resolver.js` 扫描 compose 产物动态得出（不再硬编码 `IMAGES` 数组）；其中 **alertmanager** 走公网代理完整地址（内网 registry 未同步）。离线环境报缺镜像 → 先查扫描结果与 `.env` 插值。`mysql-replica` 已于 2026-11-05 移除（生产数据拓扑归 DB 组，lmms 只带单节点开发/测试库）。
-
-### 发布前对账 SOP
-
-```bash
-# 1) 渲染离线下发包 compose（不变 command:）
-node release/dist-template/scripts/transform-compose.js \
-  ./infrastructure/services/docker-compose-services.yml \
-  zhcoder-docker-registry.com:8000 1.5.0
-
-# 2) 列出真实二进制名（与 compose 的 command: 字段交叉对账）
-docker run --rm --entrypoint sh \
-  zhcoder-docker-registry.com:8000/micro-server/<svc>:v1.0.0 \
-  -c 'ls /usr/local/bin'
-```
-
-任何镜像 `command:` 与 `ls /usr/local/bin` 输出出现拼写差异 → 修本仓 compose 后重 release，不允许"先推了再说"。
-
-## SDK 发布
-
-所有 SDK 发布脚本已改为 Node.js 实现，跨平台兼容（Linux / macOS / Windows）。
-
-| 发布内容 | 命令 | Registry |
-|---------|------|----------|
-| npm 包 (`@digua/contracts` + `@digua/http`) | `pnpm run packages:publish`（CI `publish_packages` 随 tag 自动） | `npm.kudi.repos` |
-| Rust 通用库 (17 crates) | `pnpm run sdk:publish:libs -- <VERSION>` | `kellnr` |
-| Rust SDK (7 crates) | `pnpm run sdk:publish:rust -- <VERSION>` | `kellnr` |
-| Java SDK (Maven) | `pnpm run sdk:publish:release` / `:snapshot` | 私有 Reposilite |
-
-> step-by-step 发布 playbook（含 dry-run / 认证细节）见 `.agents/skills/coder-sdk-publish-{npm,rust,maven}`；离线分发包见 `coder-service-release`。
-
-> `target/` 目录是 docker volume root-owned，发布 Rust crate 时必须设置 `CARGO_TARGET_DIR`：
-> ```bash
-> # Linux / macOS
-> CARGO_TARGET_DIR=/tmp/libs-target pnpm run sdk:publish:libs -- 1.0.0
-> 
-> # Windows PowerShell
-> $env:CARGO_TARGET_DIR="$env:TEMP\libs-target"; pnpm run sdk:publish:rust -- 1.0.0
-> ```
->
-> 发布前先 dry-run 验证：加 `--dry-run` 参数。
