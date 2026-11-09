@@ -1,12 +1,21 @@
 [package]
 name = "digua_common_consul"
-version = "1.6.0"
+version = "1.7.0"
 license = "Apache-2.0"
 description = "Consul self-registration for KudiCoder services (replaces gliderlabs/registrator)"
 edition = "2021"
 
+[features]
+# TLS 后端轴（见 sdk/rust/digua-http-client/Cargo.toml 的同款说明）：默认
+# rustls；下游 native-tls 消费方用 default-features = false + ["tls-native"]。
+default = ["tls-rustls"]
+tls-rustls = ["reqwest/rustls-tls-webpki-roots"]
+tls-native = ["reqwest/native-tls"]
+
 [dependencies]
-reqwest.workspace = true
+# 不走 workspace 的 reqwest：workspace 版钉死 rustls 特征，只能加不能减，
+# native-tls 消费方会被动拖进 aws-lc-sys（C 工具链）。
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "time", "sync"] }

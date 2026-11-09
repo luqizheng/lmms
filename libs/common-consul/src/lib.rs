@@ -190,6 +190,11 @@ impl RegistrationConfig {
 fn make_client() -> reqwest::Client {
     reqwest::Client::builder()
         .pool_max_idle_per_host(0)
+        // Consul 走 docker 内网 DNS（http://consul:8500），永远不该经代理；reqwest
+        // 0.12.28 的 Windows 系统代理探测会吃注册表残留 ProxyServer（v2rayN 进程
+        // 已死的 127.0.0.1:10808 → connect refused），必须显式钉 no_proxy
+        // （openai_adapter.rs 同款先例：「a stale OS proxy would hijack them」）。
+        .no_proxy()
         .build()
         .expect("reqwest client")
 }

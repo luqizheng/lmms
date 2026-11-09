@@ -1,18 +1,25 @@
 [package]
 name = "digua_file_sdk"
-version = "1.6.0"
+version = "1.7.0"
 edition.workspace = true
 description = "Rust client SDK for the KudiCoder file-service"
 license = "Apache-2.0"
 
+[features]
+# TLS 后端轴与 digua_http_client 对齐（见其 Cargo.toml 的说明）：默认 rustls，
+# native-tls 消费方用 default-features = false + features = ["tls-native"]。
+default = ["tls-rustls"]
+tls-rustls = ["digua_http_client/tls-rustls", "reqwest/rustls-tls-webpki-roots"]
+tls-native = ["digua_http_client/tls-native", "reqwest/native-tls"]
+
 [dependencies]
-digua_http_client = { path = "../digua-http-client" }
+digua_http_client = { path = "../digua-http-client", default-features = false }
 # multipart/bytes paths (upload_file / download_file) need reqwest directly:
 # digua-http-client's transport is String-body only.
-reqwest = { workspace = true, features = ["multipart"] }
+reqwest = { version = "0.12", default-features = false, features = ["multipart"] }
 serde.workspace = true
 serde_json.workspace = true
-chrono = { workspace = true }
+chrono.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 

@@ -1,13 +1,19 @@
 //! Kudi HTTP client SDK: service-to-service (client_credentials) + user Bearer passthrough.
 
 // Install the rustls crypto provider once. Safe to call multiple times.
-use std::sync::Once;
-static CRYPTO_INIT: Once = Once::new();
+// 只在 tls-rustls 轴下存在：native-tls 消费方（下游业务仓）根本不带 rustls，
+// 留着这段会把 aws_lc_rs 拖进依赖图，且 provider 本就无从安装。
+#[cfg(feature = "tls-rustls")]
 fn ensure_crypto_provider() {
+    use std::sync::Once;
+    static CRYPTO_INIT: Once = Once::new();
     CRYPTO_INIT.call_once(|| {
         let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     });
 }
+
+#[cfg(not(feature = "tls-rustls"))]
+fn ensure_crypto_provider() {}
 
 pub mod cache;
 pub mod client;

@@ -99,6 +99,17 @@ fn test_cfg(consul_addr: String) -> RegistrationConfig {
     }
 }
 
+/// 测试直连 client：钉 no_proxy——注册表残留 ProxyServer（v2rayN 已死的
+/// 127.0.0.1:10808）会让默认 client 的 Windows 系统代理探测把 wiremock 请求
+/// 劫持到拒连端口（os error 10061）；openai_adapter.rs 同款先例。
+fn direct_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .pool_max_idle_per_host(0)
+        .no_proxy()
+        .build()
+        .expect("direct client builds")
+}
+
 #[tokio::test]
 async fn register_puts_payload_with_health_check() {
     let server = MockServer::start().await;
@@ -118,7 +129,7 @@ async fn register_puts_payload_with_health_check() {
         .mount_as_scoped(&server)
         .await;
 
-    register(&reqwest::Client::new(), &cfg)
+    register(&direct_client(), &cfg)
         .await
         .expect("register ok");
     // `mock` (MockGuard) asserts its expectation when dropped at test end.
@@ -136,7 +147,7 @@ async fn register_surveys_http_error() {
         .respond_with(ResponseTemplate::new(500))
         .mount(&server)
         .await;
-    let err = register(&reqwest::Client::new(), &cfg)
+    let err = register(&direct_client(), &cfg)
         .await
         .expect_err("500 is an error");
     assert!(err.contains("500"));
@@ -159,7 +170,7 @@ async fn is_registered_reads_agent_state() {
         .mount(&server)
         .await;
 
-    let client = reqwest::Client::new();
+    let client = direct_client();
     assert!(!is_registered(&client, &cfg).await.expect("probe 1"));
     assert!(is_registered(&client, &cfg).await.expect("probe 2"));
 }
@@ -174,7 +185,7 @@ async fn deregister_hits_service_id_path() {
         .expect(1)
         .mount_as_scoped(&server)
         .await;
-    deregister(&reqwest::Client::new(), &cfg)
+    deregister(&direct_client(), &cfg)
         .await
         .expect("deregister ok");
     // `mock` asserts its expectation when dropped at test end.
@@ -225,7 +236,7 @@ async fn guard_registers_then_deregisters() {
     assert!(guard.enabled(), "guard must manage a registration");
 
     // Wait for the background task's initial registration to land.
-    let client = reqwest::Client::new();
+    let client = direct_client();
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     loop {
         if is_registered(
