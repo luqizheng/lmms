@@ -14,7 +14,7 @@ A microservices architecture for coder platform, built with Rust.
 
 ## 快速开始（本地开发与测试）
 
-本地采用 **「基础设施跑在 Docker、服务进程跑在宿主机」** 的开发模式：MySQL / Redis / Consul 通过 `docker compose` 启动，各服务（api-gateway、token-service、iam-service、notification-service、audit-service、config-service、file-service）直接以 `cargo run` 跑在宿主机上，便于热重载和断点调试。
+本地采用 **「基础设施跑在 Docker、服务进程跑在宿主机」** 的开发模式：MySQL / Redis / Consul 通过 `docker compose` 启动，各服务（api-gateway、token-service、iam-service、notification-service、audit-service、file-service、prue_backend）直接以 `cargo run` 跑在宿主机上，便于热重载和断点调试。
 
 ### 前置依赖
 
@@ -25,12 +25,12 @@ A microservices architecture for coder platform, built with Rust.
 ### 一键工作流
 
 ```bash
-# 1. 启动基础设施 + 服务（infrastructure/docker-compose.yml）
-docker compose -f infrastructure/docker-compose.yml up -d
+# 1. 启动基础设施（pg 方言；mysql 用 dev:infra:mysql）
+pnpm run dev:infra:pg          # infra-postgres/docker-compose.yml（consul/redis/rabbitmq/postgres）
+pnpm run dev:pg                # 起基础设施 + 并行跑各服务 dev 任务
 
-# 2. （可选）启动可观测性 overlay（Prometheus + Grafana + Jaeger + OTel collector，
-#    已 include 进 docker-compose.yml；想跳过此步可用 `docker compose -f infrastructure/infra/docker-compose-infra.yml up -d`）
-docker compose -f infrastructure/docker-compose.yml up -d
+# 2. （可选）可观测性：prometheus / grafana / jaeger / otel-collector
+docker compose -f infrastructure/observability/docker-compose-observability.yml up -d
 # → Prometheus :9090  Grafana :3001  Jaeger :16686
 
 # 3. 安装 e2e 依赖（独立 workspace）
@@ -42,24 +42,28 @@ pnpm test:smoke        # 2 min smoke 子集
 pnpm test:api          # 5 min 全量 API
 
 # 5. 停止基础设施
-docker compose -f infrastructure/docker-compose.yml down
+docker compose -f infrastructure/infra-postgres/docker-compose.yml down
 ```
+
+> 想一条命令起**全栈**（infra + observability + services）用示例部署单元：
+> `cd examples/docker-deploy-full && cp .env.example .env && ./start.sh`
+> （见「[部署与发布](#部署与发布)」）。
 
 ### 常用测试命令
 
 | 命令                              | 说明                                              |
 | --------------------------------- | ------------------------------------------------- |
-| `pnpm run test:e2e`               | 全量 e2e（Vitest + supertest，跨网关测真服务）    |
-| `pnpm run test:e2e:api`           | 数据驱动 API 用例（Excel）                        |
-| `pnpm run test:e2e:smoke`         | E2E smoke 子集（2 min，仅 API）                   |
-| `pnpm run test:rust`              | 容器内跑 Rust 单元测试（可选 `[service]` 参数；底层 `scripts/run-tests-docker.js`） |
-| `pnpm run test:all`               | 一键跑 workspace + Rust + e2e + js 脚本 + sdk 全套 |
-| `pnpm run check:env` | 检查开发环境服务状态 |
-| `pnpm -C tests/e2e test:smoke` | E2E smoke 子集（2 min，仅 API 用例） |
-| `node scripts/check-service-standard.js` | CI gate: 8-item 服务规范检查 |
-| `node scripts/check-spec.js` | CI gate: OpenAPI / 错误码 / 权限码检查 |
-| `node scripts/contracts-gen.js --check` | CI gate: 契约生成代码与 YAML 一致性 |
-| `node scripts/dump-openapi-specs.js` | 重新生成 4 个 service 的 openapi.yaml |
+| `cargo test --workspace --lib`    | Rust 单元测试（本机；容器内跑见 `docs-site/ai-context.md`） |
+| `pnpm run test`                   | 所有 workspace 包的 test 任务                      |
+| `pnpm -C tests/e2e test:smoke`    | E2E smoke 子集（2 min，仅 API 用例）               |
+| `pnpm -C tests/e2e test:api`      | 数据驱动 API 用例（Excel 全量）                    |
+| `pnpm run test:scripts`           | 脚本层单测（命名规范 / 迁移 / 镜像钉版）           |
+| `pnpm run test:cli`               | `packages/cli` 单测                                |
+| `pnpm run check:env`              | 检查开发环境服务状态                               |
+| `node scripts/check-service-standard.js` | CI gate: 8-item 服务规范检查                |
+| `node scripts/check-spec.js`      | CI gate: OpenAPI / 错误码 / 权限码检查             |
+| `node scripts/contracts-gen.js --check` | CI gate: 契约生成代码与 YAML 一致性          |
+| `node scripts/update-image-env.js --check` | CI gate: `.image.env` 与服务版本一致        |
 
 ### 单独跑某个服务
 
@@ -70,7 +74,7 @@ cargo test --lib                 # 单元测试
 cargo test --test integration_test # 集成测试
 cargo run -- serve               # 启动服务（默认读 config\config.toml）
 
-# 其他 Rust 服务（iam-service / notification-service / audit-service / config-service / file-service / token-service）
+# 其他 Rust 服务（iam-service / notification-service / audit-service / file-service / token-service / prue_backend）
 cd services\iam-service
 cargo test                       # 测试
 cargo run                        # 启动
@@ -86,7 +90,6 @@ cargo run                        # 启动
 | notification-service | 8083               | 8083             | MySQL / Redis / Consul                    | ✅ |
 | prue_backend         | 8087               | 8080¹            | SQLite / MySQL / Consul                   | ✅ |
 | audit-service        | 8084               | 8080¹            | MySQL / Consul                            | ✅ |
-| config-service       | 8085³              | 8081             | MySQL / Consul                            | ✅ |
 | file-service         | 8086³              | 8082             | MySQL / Consul                            | ✅ |
 | consul               | 8500               | —                | —                                         | — |
 | redis                | 6379               | —                | —                                         | — |
@@ -96,7 +99,7 @@ cargo run                        # 启动
 >
 > ² **iam-service compose host 端口 9081** 是 Phase 5-A mesh 时代 sidecar 外端口残留（容器内一直是 8081），spec §7.3 规划统一到 `8081:8081`，待落地。
 >
-> ³ **config-service / file-service 的 host 端口 8085 / 8086** 是 Phase 5-A-2 引入的消歧（容器内与 iam / token 同端口，靠 host 端口区分）。
+> ³ **file-service 的 host 端口 8086** 是 Phase 5-A-2 引入的消歧（容器内与 token-service 同端口，靠 host 端口区分）。
 >
 > 跨服务调用走 **容器内端口**（`http://iam-service:8081` 等），由 Docker `superpowers` 网络 DNS 解析；host 端口只用于宿主机 `curl` 开发联调，gateway 不走 host 端口。详见 [`docs-site/user-manual/11-reference.md` §11.5](docs-site/user-manual/11-reference.md#115-服务端口速查phase-5-a-2-之后) 与 [`docs-site/user-manual/02-architecture.md` §2.5](docs-site/user-manual/02-architecture.md#25-swagger-ui-覆盖)。
 >
@@ -107,7 +110,7 @@ cargo run                        # 启动
 详见 [`docs-site/guides/observability.md`](docs-site/guides/observability.md)。
 
 ```bash
-docker compose -f infrastructure/docker-compose.yml up -d
+docker compose -f infrastructure/observability/docker-compose-observability.yml up -d
 # Prometheus :9090  (metrics scraping, Consul SD)
 # Grafana    :3001  (admin/admin, 预置 Gateway Overview dashboard)
 # Jaeger     :16686 (traces UI, 4 OTel-enabled services)
@@ -125,10 +128,9 @@ docker compose -f infrastructure/docker-compose.yml up -d
 | notification-service | 8083               | http://localhost:8083/swagger-ui  | http://localhost:8083/api-docs/openapi.json |
 | prue_backend         | 8087               | http://localhost:8087/swagger-ui  | http://localhost:8087/api-docs/openapi.json |
 | audit-service        | 8084               | http://localhost:8084/swagger-ui  | http://localhost:8084/api-docs/openapi.json |
-| config-service       | 8085               | http://localhost:8085/swagger-ui  | http://localhost:8085/api-docs/openapi.json |
 | file-service         | 8086               | http://localhost:8086/swagger-ui  | http://localhost:8086/api-docs/openapi.json |
 
-> 全部 7 个业务服务的 openapi.yaml 都是 utoipa 自动生成的。`api-gateway` 是代理，无自有路由（详情见 `services/api-gateway/openapi.yaml`）。详见 `node scripts/dump-openapi-specs.js` 和 `.agents/skills/coder-new-service`。
+> 全部 6 个业务服务的 openapi.yaml 都是 utoipa 自动生成的。`api-gateway` 是代理，无自有路由（详情见 `services/api-gateway/openapi.yaml`）。详见 `.agents/skills/coder-openapi-contracts-sync`。
 
 ### API Gateway 限流
 
@@ -217,7 +219,7 @@ docker run --rm `
 - **测试数据脏**：e2e 的 `globalSetup` 会在每轮开始清库重置；也可重启 mysql 容器
 - **trace 不出现在 Jaeger**：检查 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量是否设置（详见 `docs-site/guides/otel-tracing.md`）
 - **API 返回 429**：被 rate limit 了，调整 `infrastructure/config/api-gateway/rate-limits.toml`
-- **OpenAPI drift CI 失败**：运行 `node scripts/dump-openapi-specs.js` 重新生成并 commit
+- **OpenAPI drift CI 失败**：按 `.agents/skills/coder-openapi-contracts-sync` 重新生成 spec 并 commit
 
 ## Services
 
@@ -227,9 +229,9 @@ docker run --rm `
 | Token Service        | Rust     | Axum      | ✅ |
 | IAM Service          | Rust     | Axum      | ✅ |
 | Notification Service | Rust     | Axum      | ✅ |
-| Audit Service        | Rust     | Axum      | — |
-| Config Service       | Rust     | Axum      | — |
-| File Service         | Rust     | Axum      | — |
+| Audit Service        | Rust     | Axum      | ✅ |
+| File Service         | Rust     | Axum      | ✅ |
+| Prue Backend         | Rust     | Axum      | ✅ |
 
 > 旧 `auth-service` / `user-service` 已废弃并合并进 `iam-service`。
 
@@ -242,9 +244,11 @@ docker run --rm `
 | `coder-add-route` | 给现有 service 加路由（含 utoipa 注解 + openapi.rs 注册） |
 | `coder-migrate-db` | 加迁移（MySQL + SQLite 双版本） |
 | `coder-new-service` | 脚手架新 Rust microservice（满足 8-item 服务规范） |
-| `coder-sdk-publish-rust` | 发布 Rust crates 到 kellnr 私有 registry（libs/* 17 + sdk/rust/* 7，含拓扑顺序与 dry-run） |
+| `coder-sdk-publish-rust` | 发布 Rust crates 到 kellnr 私有 registry（libs/* 17 + sdk/rust/* 6，含拓扑顺序与 dry-run） |
 | `coder-sdk-publish-maven` | 发布 Java SDK 到 Reposilite（release + snapshot，含 `mvn versions:set` 自动 bump + curl 上传模式 + 4 级凭证 fallback） |
-| `coder-service-release` | 服务镜像 release（`docker:build` + `release:build` + `release:deploy`，含 compose `command:` 命名扫描与 L1/L2 loop 校验） |
+
+> 发布也可以直接用 CLI：`coder release images|sdk|status`（见「[部署与发布](#部署与发布)」），
+> 版本真相源是根 `Cargo.toml` 的 `[workspace.package].version`。
 
 完整 L4 触发器规则见 `.trae/rules/project_rules.md`。
 
@@ -310,83 +314,122 @@ The CI/CD pipeline consists of three stages:
 
 ### Manual Deployment
 
-If manual deployment is needed:
+分两档：**单机全栈**用示例单元（推荐），**三机组**走
+[`docs/deploy-topologies.md`](docs/deploy-topologies.md) 的模式 C。
 
 ```bash
-# SSH to deployment server
-ssh <deploy-user>@<deploy-server-ip>
+# ── 单机全栈（示例单元，整目录分发即可）──────────────────────────
+scp -r examples/docker-deploy-full deploy-host:~/lmms/
+ssh deploy-host
+cd ~/lmms/docker-deploy-full
+cp .env.example .env                       # 填中间件口令 / bootstrap token
+./start.sh --no-build                      # 拉 registry 镜像（不本地构建）
+./start.sh --logs                          # 需要日志栈时叠加 loki+promtail
 
-# Navigate to project directory
-cd /opt/coder-micro-services
+# 升级到新版本：镜像 tag 已在 .image.env 里钉版
+docker compose -p superpowers-full pull
+./start.sh --no-build
 
-# Pull latest changes
-git pull origin main
-
-# Stop existing containers
-docker-compose -f infrastructure/docker-compose.yml down
-
-# Pull latest images
-docker-compose -f infrastructure/docker-compose.yml pull
-
-# Start containers in detached mode
-docker-compose -f infrastructure/docker-compose.yml up -d
+# ── 仅业务服务（中间件由他机/他组提供）──────────────────────────────
+cd examples/docker-deploy
+cp .env.example .env
+./start.sh --no-build
 ```
 
-## 离线分发包（私有化部署）
+> 镜像版本不手改 compose：`examples/*/.image.env` 是唯一真相源（发布时由
+> `coder release images --push` 写入）。换版本 = 更新 `.image.env` 后
+> `docker compose pull`。
 
-项目提供完整的**离线分发包**，适用于无法访问外网的私有化部署环境。
+## 部署与发布
 
-### 核心文件
+### 两个示例部署单元
 
-| 文件 | 说明 |
-|------|------|
-| [`release/dist-template/`](release/dist-template/) | 离线分发包完整目录 |
-| [`release/dist-template/README.md`](release/dist-template/README.md) | 分发包使用文档 |
-| [`release/dist-template/docs/`](release/dist-template/docs/) | 完整部署文档（含故障排查、升级、备份） |
-| `release/dist-template/index.html` | 文档入口（浏览器直接打开，内置搜索） |
+`examples/` 下有两个**自包含部署单元**——整目录 copy 到目标机、`./start.sh` 即起：
 
-### 快速部署
+| 目录 | 组成 | project 名 | 用途 |
+|------|------|-----------|------|
+| [`examples/docker-deploy/`](examples/docker-deploy/) | services（7 服务 + 2 outbox） | `superpowers-svc` | 中间件由他机/他组提供，只跑业务 |
+| [`examples/docker-deploy-full/`](examples/docker-deploy-full/) | **infra（4）+ observability（6，`--logs` 再 +2）+ services** | `superpowers-full` | 单机全栈 |
 
 ```bash
-# 1. 加载 Docker 镜像（约 10-15GB）
-node bin/load-images.js
+# 全栈单机
+cd examples/docker-deploy-full
+cp .env.example .env        # 填中间件口令与 bootstrap token
+./start.sh                  # 业务端口只留 gateway:3000
+./start.sh --logs           # 叠加 loki + promtail
+./stop.sh --volumes         # 连数据卷一起清
 
-# 2. 生成密钥和密码
-make secrets
-
-# 3. 启动所有服务
-make up
-
-# 4. 验证
-make verify
+# 仅业务服务
+cd examples/docker-deploy
+cp .env.example .env
+./start.sh
 ```
 
-### 离线镜像打包（在有网环境执行）
+入口：gateway `:3000`｜Grafana `:3001`｜Prometheus `:9090`｜Jaeger `:16686`｜Consul `:8500`
+
+### 镜像引用（`.image.env`，发布即固化）
+
+compose 的 `image:` **只写整名变量**（`${IMAGE_FILE_SERVICE}`），值集中在各单元的
+`.image.env`（入库，无凭据）。用 `:?` 必填语法——缺变量时 compose 直接报错，
+不会静默展开成非法镜像名。`start.sh` 加载顺序：`.env` → `.env.prod` →
+**`.image.env`（最后，权威）**，并把它们以 `--env-file` 透传给 compose。
+
+`.image.env` 分两段：
+
+| 段 | 内容 | 维护 |
+|----|------|------|
+| 平台镜像 | `IMAGE_API_GATEWAY` / `IMAGE_TOKEN_SERVICE` …（7） | **机器生成**，版本 = 服务 crate 版本 + 方言后缀（`-pg`）；两单元逐字一致 |
+| 基础镜像 | `IMAGE_CONSUL` / `IMAGE_POSTGRES` / `IMAGE_PROMETHEUS` …（12，仅 full） | **手工维护**：首次写默认值，之后改哪行保留哪行（升 postgres 主版本、换源改这里） |
+
+### 发布流程
+
+版本号**唯一真相源**是根 `Cargo.toml` 的 `[workspace.package].version`（8 个
+`services/*` 用 `version.workspace = true` 继承）。`release.toml` 只放方言 /
+镜像源 / SDK 目标。
 
 ```bash
-# 打包离线镜像（输出 release/coder-micro-services-v1.0.0-airgap.tar.gz）
-node release/dist-template/scripts/release.js v1.0.0
+# 1) 改版本：编辑根 Cargo.toml 的 [workspace.package].version（如 1.7.0）
+#    （任一服务写死别的版本 → release images 报 VERSION_SPLIT 并按错）
+
+# 2) 体检：服务版本 / 两个 .image.env 钉版 / git tag 是否一致
+node packages/cli/bin/coder.js release status
+
+# 3) 构建并推送镜像；成功后自动写两个单元的 .image.env
+node packages/cli/bin/coder.js release images --push
+#    pg 方言跑两批：先 api-gateway（无后缀 tag），再 6 个 DB 服务（-pg 后缀）
+
+# 4) 提交 .image.env 的 diff，打 git tag v<version>
+#    （tag 带 v、镜像 tag 不带 v；CI 用 ${CI_COMMIT_TAG#v} 剥 v）
+
+# 5) 发布 SDK（各生态版本独立：libs/*+sdk/rust → kellnr；npm → 私有 registry；sdk/java → Maven）
+node packages/cli/bin/coder.js release sdk all --dry-run
+node packages/cli/bin/coder.js release sdk all
 ```
 
-> 路径注意：脚本实际位于 `release/dist-template/scripts/release.js`，本节必须带 `release/dist-template/` 前缀。
->
-> 可选参数：`--no-images` 跳过 `docker pull/save`（仅打配置/骨架包，需消费方自备镜像），等价于 `EXPORT_IMAGES=0 node release/dist-template/scripts/release.js v1.0.0`。详见 [`release/dist-template/README.md`](release/dist-template/README.md) §「离线镜像打包 / 选项」。
->
-> 详见 [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md)
+> 底层脚本：`node scripts/update-image-env.js`（写 / `--check` 门禁 / `--verify`
+> 探测 registry）。CI `deploy_image_env_check` job 跑 `--check`：它比对的是
+> **服务 crate 版本**，不是文件自身——所以「改了 Cargo 版本忘更新钉版」会被拦下。
+
+详见 [`docs/deploy-topologies.md`](docs/deploy-topologies.md)「镜像引用与版本钉版」。
 
 ## Infrastructure
 
-- **Consul**: Service discovery
+- **Consul**: Service discovery（服务进程自注册，SIGTERM 注销）
 - **Redis**: Token storage, caching
-- **MySQL**: Persistent data storage
+- **RabbitMQ**: 跨服务事件（transactional outbox）
+- **PostgreSQL / MySQL**: 持久化存储（双方言，构建期 `SERVICE_FEATURES` 选择）
 
 ## Configuration
 
-Configuration files are located in `config/` directory:
+配置分两处：
 
-- `api-gateway/api-gateway.toml` - API Gateway global settings (server / redis / jwks / consul)
-- `api-gateway/routes/*.router.toml` - API Gateway routing rules, one file per URL prefix
-- `token-service.toml` - Token Service settings
+- **部署单元自包含**（`examples/docker-deploy*/config/`）：
+  - `api-gateway/api-gateway.toml` — 网关全局设置（server / redis / jwks / consul）
+  - `api-gateway/routes/*.router.toml` — 路由规则，一个 URL 前缀一个文件
+  - `docker-deploy-full` 独有：`config/infra/`（consul connect / rabbitmq）、
+    `config/observability/`（prometheus / grafana / otel / alertmanager / loki / nginx）
+- **服务自身**：`services/<svc>/config.default.yaml`（首次启动 seed，
+  `CONFIG_PATH` 可覆盖；dev 环境 compose bind-mount 到 `/etc/<svc>/`）
 
 API Gateway routing is split per URL prefix; each `routes/<name>.router.toml` declares its `match` pattern, target `service`, `public` flag and optional `rewrite` rule chain. The gateway exposes a `validate` subcommand for CI checks and a `serve` subcommand with `SIGHUP` / `POST /__admin/reload` for hot reload. See `docs-site/guides/api-gateway-routing.md` for the full usage manual and `docs-site/decisions/ADR-001-api-gateway-multi-file-router-config.md` for rationale.
 
@@ -403,8 +446,9 @@ npm install -g pnpm
 # 安装工作区依赖
 pnpm install
 
-# Windows: 准备 NASM (ring 0.17.x 编译时需要)
-pnpm run setup
+# Debian/Ubuntu: 准备 NASM (ring 0.17.x 编译时需要)；首次还需下载 vendored swagger-ui
+node packages/cli/bin/coder.js assets download
+pnpm run check:env
 ```
 
 ### 根目录脚本
@@ -412,27 +456,23 @@ pnpm run setup
 | 脚本                                         | 作用                                              |
 | -------------------------------------------- | ------------------------------------------------- |
 | `pnpm run build`                             | 编译 api-gateway 与 token-service（Rust release） |
-| `pnpm run dev`                               | 启动基础设施并并行运行各服务 dev 任务             |
-| `pnpm run dev:infra`                         | 仅启动 Docker 基础设施（Consul / Redis / MySQL）  |
-| `pnpm run check`                             | 在所有 workspace 包中执行 `check`                 |
+| `pnpm run dev:pg` / `dev:mysql`              | 启动对应方言的基础设施，并并行运行各服务 dev 任务 |
+| `pnpm run dev:infra:pg` / `dev:infra:mysql`  | 仅启动 Docker 基础设施（consul / redis / rabbitmq / postgres 或 mysql） |
+| `pnpm run check:gates`                       | 迁移/命名门禁（`check-db-naming` + `check-pg-migrations`） |
 | `pnpm run test`                              | 在所有 workspace 包中执行 `test`                  |
 | `pnpm run clean`                             | 在所有 workspace 包中执行 `clean`                 |
-| `pnpm run docker:build`                      | 构建所有服务镜像（交互式；支持 `-v`/`--push`/`--load-and-push`/`--platform`，见「常用工作流」示例） |
-| `pnpm run docker:build:api-gateway`          | 仅构建 api-gateway 镜像                           |
-| `pnpm run docker:build:token-service`        | 仅构建 token-service 镜像                         |
-| `pnpm run docker:build:iam-service`          | 仅构建 iam-service 镜像                           |
-| `pnpm run docker:build:notification-service` | 仅构建 notification-service 镜像                  |
-| `pnpm run docker:build:audit-service`        | 仅构建 audit-service 镜像                         |
-| `pnpm run docker:build:config-service`       | 仅构建 config-service 镜像                        |
-| `pnpm run docker:build:file-service`         | 仅构建 file-service 镜像                          |
-| `pnpm run check:env`                          | 检查开发环境服务状态                              |
-| `pnpm run ai:review`                          | AI 代码审查，自动识别不符合规范的代码             |
-| `pnpm run ai:gen-e2e`                         | 从 OpenAPI 文档自动生成 E2E 测试用例             |
-| `pnpm run contracts:gen`                      | 生成契约代码（错误码、权限码）                    |
-| `pnpm run check:service-standard`             | 检查服务规范合规性                                |
-| `pnpm run check:spec`                         | 检查契约规范（权限码、错误码、OpenAPI）           |
-| `node scripts/dump-openapi-specs.js`          | 重新生成 4 个 service 的 openapi.yaml            |
-| `docker compose -f infrastructure/docker-compose.yml up -d` | 启动全部基础设施 + 业务 + 可观测性（observability 已 include 进主 compose） |
+| `pnpm run docker:build`                      | 构建服务镜像（`coder build images`；支持 `-v`/`--push`/`--dialect`） |
+| `pnpm run release:status`                    | 版本体检：服务版本 / `.image.env` 钉版 / git tag |
+| `pnpm run release:images -- --push`          | 按服务 crate 版本构建+推送，成功后写两个单元的 `.image.env` |
+| `pnpm run release:sdk -- all`                | 发布 SDK（`rust` / `npm` / `java` / `all`，各生态版本独立） |
+| `pnpm run deploy:image-env:check`            | 校验 `.image.env` 与服务 crate 版本一致（CI 同款门禁） |
+| `pnpm run check:env`                         | 检查开发环境服务状态                              |
+| `pnpm run ai:review`                         | AI 代码审查，自动识别不符合规范的代码             |
+| `pnpm run ai:gen-e2e`                        | 从 OpenAPI 文档自动生成 E2E 测试用例             |
+| `pnpm run contracts:gen`                     | 生成契约代码（错误码、权限码）                    |
+| `pnpm run check:service-standard`            | 检查服务规范合规性                                |
+| `pnpm run check:spec`                        | 检查契约规范（权限码、错误码、OpenAPI）           |
+| `cargo run -p <svc> --bin dump_openapi` 或 skill `coder-openapi-contracts-sync` | 重新生成 service 的 openapi.yaml |
 
 ### AI 辅助工具
 
@@ -498,29 +538,31 @@ pnpm --filter token-service run build
 pnpm --filter token-service run test
 pnpm --filter token-service run run
 
-# packages/（前端 TS 集成包：@digua/contracts + @digua/http）
-pnpm run packages:build      # 构建两个包
-pnpm run packages:check      # 发布前校验
-pnpm run packages:publish    # 发布到私有 registry npm.kudi.repos
+# packages/（前端 TS 集成包：@digua/contracts + @digua/http）+ sdk/*-services（npm TS SDK）
+pnpm run packages:build      # 构建全部包
+pnpm run release:sdk -- npm  # 发布到私有 registry（含构建；版本在各自 package.json）
 ```
 
 ### 常用工作流
 
 ```bash
-# 本地开发
-pnpm run dev:infra
-pnpm run dev
+# 本地开发（pg 方言；mysql 用 dev:mysql / dev:infra:mysql）
+pnpm run dev:infra:pg
+pnpm run dev:pg
 
 # 单独构建某个服务
 pnpm --filter token-service run build
 
 # 完整 CI 流程
-pnpm run check && pnpm run test && pnpm run build
+pnpm run check:gates && pnpm run test && pnpm run build
 
-# 构建镜像
-pnpm run docker:build                                   # 交互式（默认推送 Y / linux/amd64）
-pnpm run docker:build -- -v 1.0.0 --push                # 参数式：版本号 1.0.0，直接推送
-pnpm run docker:build -- --load-and-push -v 1.0.0       # 本地留镜像 + 推送
+# 发布：先改根 Cargo.toml 的 [workspace.package].version
+pnpm run release:status                    # 体检
+pnpm run release:images -- --push          # 构建 + 推送 + 更新 .image.env
+pnpm run release:sdk -- all                # 发布 SDK
+
+# 只构建镜像（不发布，不更新钉版）
+pnpm run docker:build -- -v 1.0.0 --dialect pg --push
 pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push   # 多架构
 ```
 
@@ -540,5 +582,6 @@ pnpm run docker:build -- --platform linux/amd64,linux/arm64 --push   # 多架构
 | api-gateway 路由配置 | [`docs-site/guides/api-gateway-routing.md`](docs-site/guides/api-gateway-routing.md) |
 | ADR (架构决策) | [`docs-site/decisions/`](docs-site/decisions/) |
 | 12 周路线图与月度复盘 | [`docs/superpowers/`](docs/superpowers/) |
-| **私有化离线部署** | [`release/dist-template/`](release/dist-template/) |
-| 离线部署步骤 | [`release/dist-template/docs/deployment/air-gap.md`](release/dist-template/docs/deployment/air-gap.md) |
+| **部署单元与镜像钉版** | [`docs/deploy-topologies.md`](docs/deploy-topologies.md) |
+| **全栈示例部署** | [`examples/docker-deploy-full/`](examples/docker-deploy-full/) |
+| **仅业务服务示例部署** | [`examples/docker-deploy/`](examples/docker-deploy/) |
