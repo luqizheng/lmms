@@ -1,0 +1,31 @@
+# services 组的 prod 差异片（独立部署模式：start-prod.sh 三段式使用）
+# 与 docker-compose-infra.prod.yml / docker-compose-observability.prod.yml
+# 一同被 docker-compose.prod.yml include，单机合体模式共用同一份差异。
+#
+# 差异内容：除 api-gateway 外清空 host port（唯一公共入口是 api-gateway:3000）
+# + restart 策略（容器内部端口仍可互通）。
+
+services:
+  api-gateway:
+    restart: unless-stopped
+  token-service:
+    ports: !override []
+    restart: unless-stopped
+  iam-service:
+    ports: !override []
+    restart: unless-stopped
+  audit-service:
+    ports: !override []
+    restart: unless-stopped
+  notification-service:
+    ports: !override []
+    restart: unless-stopped
+  file-service:
+    ports: !override []
+    restart: unless-stopped
+  prue_backend:
+    ports: !override []
+    restart: unless-stopped
+
+  # outbox publishers（iam-outbox-publisher / notification-outbox-publisher）：
+  # 已在 base 文件中有 restart: unless-stopped 且无 ports，本片不动。

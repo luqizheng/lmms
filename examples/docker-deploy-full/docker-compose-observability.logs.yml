@@ -1,0 +1,49 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# observability 日志栈片（可选）：loki + promtail
+# start.sh --logs 叠加启用；promtail 只抓带 logging=loki 标签的容器。
+#
+#   Loki HTTP API :3100    Promtail targets :9080/targets
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  loki:
+    image: "${IMAGE_LOKI:?IMAGE_LOKI 未定义——请加载 .image.env}"
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+      - ./config/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "-O", "/dev/null", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  promtail:
+    image: "${IMAGE_PROMTAIL:?IMAGE_PROMTAIL 未定义——请加载 .image.env}"
+    container_name: promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail.yaml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/observability/loki/promtail.yaml:/etc/promtail/promtail.yaml:ro
+      - promtail-positions:/tmp/promtail
+    depends_on:
+      loki:
+        condition: service_healthy
+    networks:
+      - superpowers
+
+volumes:
+  loki-data:
+    name: superpowers_loki-data
+  promtail-positions:
+    name: superpowers_promtail-positions
+
+networks:
+  superpowers:
+    external: true

@@ -1,0 +1,94 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# infra 片：服务发现 + 中间件（consul / redis / rabbitmq / postgres）
+#
+# 镜像引用一律整名变量（${IMAGE_*}），值在 .image.env —— 与 services 片同一套
+# 机制：start.sh 加载 .image.env 并 --env-file 透传；缺变量 compose 直接报硬错误。
+# 基础镜像版本与平台版本无关，在 .image.env 的「基础镜像」段手工维护。
+#
+# 服务注册模型：各服务进程启动时自注册（libs/common-consul 读 SERVICE_*；
+# SIGTERM 注销、30s 对账）。Consul 单节点 server + 持久卷，注册目录随 raft 落盘。
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  consul:
+    image: "${IMAGE_CONSUL:?IMAGE_CONSUL 未定义——请加载 .image.env}"
+    hostname: consul
+    ports:
+      - "8500:8500"
+      - "8502:8502"
+    volumes:
+      - ./config/infra/consul/connect.hcl:/consul/config/connect.hcl:ro
+      - consul_data:/consul/data
+    command: agent -server -bootstrap-expect=1 -node=consul-server -bind=0.0.0.0 -client=0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "consul members && nc -z 127.0.0.1 8502"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  redis:
+    image: "${IMAGE_REDIS:?IMAGE_REDIS 未定义——请加载 .image.env}"
+    hostname: redis
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      REDIS_DATABASES: "${REDIS_DATABASES:-16}"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  rabbitmq:
+    image: "${IMAGE_RABBITMQ:?IMAGE_RABBITMQ 未定义——请加载 .image.env}"
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER:-guest}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS 未定义——请加载 .env}"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./config/infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./config/infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  postgres:
+    image: "${IMAGE_POSTGRES:?IMAGE_POSTGRES 未定义——请加载 .image.env}"
+    hostname: postgres
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 未定义——请加载 .env}"
+      POSTGRES_DB: "${POSTGRES_DB:-coder}"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-coder}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+volumes:
+  consul_data:
+    name: superpowers_consul_data
+  redis_data:
+    name: superpowers_redis_data
+  rabbitmq_data:
+    name: superpowers_rabbitmq_data
+  postgres_data:
+    name: superpowers_postgres_data
+
+networks:
+  superpowers:
+    external: true

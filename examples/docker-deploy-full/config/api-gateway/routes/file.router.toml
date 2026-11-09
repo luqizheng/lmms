@@ -1,0 +1,9 @@
+# 2026-11-07 裁决：file-service 收口为纯内部服务（/file/* 只认 service-jwt,
+# aud=file-service），用户面路由全部撤下。文件动作经业务服务出站调用
+# （ServiceJwtCache），归属身份由调用方在 metadata 中显式声明。
+# presign 签名 URL 仍是用户免 JWT 下载的合法通道，但创建动作不再对用户开放。
+[[route]]
+upstream   = "/v1/file/health"
+downstream = "/health"
+service    = "file-service"
+public     = true

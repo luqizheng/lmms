@@ -1,0 +1,46 @@
+[[route]]
+upstream   = "/v1/iam/auth/login"
+downstream = "/iam/auth/login"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/register"
+downstream = "/iam/auth/register"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/refresh"
+downstream = "/iam/auth/refresh"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/setup-status"
+downstream = "/iam/auth/setup-status"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/forgot-password"
+downstream = "/iam/auth/forgot-password"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/reset-password"
+downstream = "/iam/auth/reset-password"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/invitations/accept"
+downstream = "/iam/auth/invitations/accept"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/auth/{rest}"
+downstream = "/iam/auth/{rest}"
+service    = "iam-service"

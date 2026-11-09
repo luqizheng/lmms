@@ -171,7 +171,7 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 - **npm TS**：`packages/@digua/contracts` + `@digua/http` + `sdk/*-services` 发布到 `http://192.168.2.12:14873/`，下游 `pnpm up @digua/contracts @digua/http` / `pnpm add <svc>-services`。
 
 - **git tag 带 `v`，发布镜像 tag 不带 v**：CI `build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v 后推送，registry 里实际存在的是 `micro-server/<svc>:1.5.0`（**不是** `:v1.5.0`）。下游 `.env` 的 `IMAGE_TAG` 必须填 no-v 值。
-- **部署单元的镜像钉版在 `.image.env`**（2026-11-09）：compose 的 `image:` 只写整名变量 `${IMAGE_*}`，值集中在 `examples/docker-deploy/.image.env`（入库，无凭据）。**版本号真相源是根 `Cargo.toml` 的 `[workspace.package].version`**（8 个 `services/*` 用 `version.workspace = true` 继承）；`release.toml` 只放方言/镜像源/SDK 目标。发布：`node packages/cli/bin/coder.js release images --push`（读服务版本 → 构建 → 成功后写 `.image.env`）；体检：`coder release status`；SDK：`coder release sdk rust|npm|java|all`。详见 `docs/deploy-topologies.md`「镜像引用与版本钉版」。
+- **部署单元的镜像钉版在 `.image.env`**（2026-11-09）：两个示例单元（`examples/docker-deploy/` services-only、`examples/docker-deploy-full/` 全栈含 infra+observability）的 compose 都只写整名变量 `${IMAGE_*}`，值在各自 `.image.env`（入库，无凭据）。**版本号真相源是根 `Cargo.toml` 的 `[workspace.package].version`**（8 个 `services/*` 用 `version.workspace = true` 继承）；`release.toml` 只放方言/镜像源/SDK 目标。平台镜像段机器生成（两单元逐字一致），基础镜像段（full 独有）手工维护、重生成时保留。发布：`coder release images --push`（读服务版本 → 构建 → 成功后写两个单元的 `.image.env`）；体检：`coder release status`；SDK：`coder release sdk rust|npm|java|all`。详见 `docs/deploy-topologies.md`「镜像引用与版本钉版」。
 - `mysql-replica` 已于 2026-11-05 移除（生产数据拓扑归 DB 组，lmms 只带单节点开发/测试库）。
 
 ### Cargo `[[bin]] name` → 容器内二进制名的强制映射

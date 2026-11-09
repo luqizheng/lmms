@@ -152,20 +152,31 @@ cd infrastructure && ./scripts/start-prod.sh svc --remote
 
 ## 镜像引用与版本钉版（.image.env）
 
-> 2026-11-09 起 services 部署单元（`examples/docker-deploy/`）的镜像引用改为
-> **整名变量 + 单一真相源文件**。设计见
+> 2026-11-09 起两个示例部署单元（`examples/docker-deploy/`、`examples/docker-deploy-full/`）
+> 的镜像引用改为**整名变量 + 单一真相源文件**。设计见
 > `docs/superpowers/specs/2026-11-09-image-env-driven-deploy-design.md`。
 
-| 文件 | 内容 | 入库 |
+### 两个示例部署单元
+
+| 目录 | 组成 | project 名 | 用途 |
+| --- | --- | --- | --- |
+| `examples/docker-deploy/` | services（7 服务 + 2 outbox） | `superpowers-svc` | 中间件已由他机/他组提供时，只跑业务 |
+| `examples/docker-deploy-full/` | **infra（4）+ observability（6，`--logs` 再 +2）+ services** | `superpowers-full` | 单机全栈，整目录 copy 即部署 |
+
+两者**同一套**机制：compose 的 `image:` 只写整名变量，值在各自的 `.image.env`；
+`start.sh` 加载 `.env` → `.env.prod` → `.image.env`，并把前两者与 `.image.env`
+以 `--env-file` 透传。平台镜像段由发布命令统一写入，**两个单元逐字一致**。
+
+### `.image.env` 的两段
+
+| 段 | 内容 | 维护方式 |
 | --- | --- | --- |
-| `.image.env` | 本系统自建镜像的**整名引用**（`IMAGE_FILE_SERVICE=…/file-service:1.7.0-pg`） | ✅ 入库（无凭据） |
-| `.env` / `.env.prod` | 环境配置（IP / 口令 / 拓扑），**不含镜像版本** | ❌ 不入库 |
+| 平台镜像 | `IMAGE_API_GATEWAY` / `IMAGE_TOKEN_SERVICE` …（7 个） | **机器生成**：`coder release images` / `scripts/update-image-env.js`，版本来自 `Cargo.toml` |
+| 基础镜像 | `IMAGE_CONSUL` / `IMAGE_POSTGRES` / `IMAGE_PROMETHEUS` / `IMAGE_LOKI` …（12 个，仅 full 单元） | **手工维护**：首次写默认值（内网 `official/` 源），之后改哪行保留哪行（升级 postgres 主版本、换源都改这里） |
 
 - compose 的 `image:` 一律写成 `${IMAGE_FILE_SERVICE:?…}` —— **只写变量名**，
   值全部来自 `.image.env`；`:?` 必填语法保证缺变量时 compose 直接报错，
   不会静默展开成非法镜像名。
-- `start.sh` 的 env 加载顺序：`.env` → `.env.prod` → **`.image.env`（最后，权威）**，
-  并把 `.image.env` / `.env` 以 `--env-file` 透传给 compose（手工执行 compose 也能复现）。
 - **版本号来源**：根 `Cargo.toml` 的 `[workspace.package].version`（8 个 `services/*`
   用 `version.workspace = true` 继承）。`release.toml` 只放方言 / 镜像源 / SDK 目标。
 - 发布新镜像后的固定动作：
@@ -174,10 +185,10 @@ cd infrastructure && ./scripts/start-prod.sh svc --remote
   # 1) 改版本（唯一真相源）
   #    编辑根 Cargo.toml 的 [workspace.package].version
 
-  # 2) 体检：服务版本 / .image.env 钉版 / git tag 是否一致
+  # 2) 体检：服务版本 / 两个 .image.env 钉版 / git tag 是否一致
   node packages/cli/bin/coder.js release status
 
-  # 3) 构建并推送镜像；成功后自动更新 .image.env
+  # 3) 构建并推送镜像；成功后自动更新两个部署单元的 .image.env
   node packages/cli/bin/coder.js release images --push
 
   # 4) 发布 SDK（各生态版本独立）
@@ -188,9 +199,25 @@ cd infrastructure && ./scripts/start-prod.sh svc --remote
   ```
 
 - 门禁：
-  - `node scripts/update-image-env.js --check` —— `.image.env` 是否与**服务 crate
-    版本 + release.toml 参数**一致（CI `deploy_image_env_check` job 跑这条）。
+  - `node scripts/update-image-env.js --check` —— 两个单元的 `.image.env` 是否与
+    **服务 crate 版本 + release.toml 参数**一致、基础镜像变量是否齐全
+    （CI `deploy_image_env_check` job 跑这条）。
     ⚠ 它不会从 `.image.env` 自身反推版本 —— 否则「改了 Cargo 版本但没更新钉版」查不出来。
   - `node --test packages/cli/test/release.test.js` —— 版本一致性 / 钉版派生 /
-    Rust 发布拓扑与 path 依赖改写。
+    两个单元平台段逐字一致 / 基础镜像段保留手工改动 / Rust 发布拓扑与 path 依赖改写。
+
+### 全栈单元的启停
+
+```bash
+cd examples/docker-deploy-full
+cp .env.example .env          # 填中间件口令与 bootstrap token
+./start.sh                    # 全栈（prod 片：业务端口只留 gateway:3000）
+./start.sh --logs             # 叠加 loki + promtail
+./start.sh --remote           # 跨主机分置（保留业务端口供 consul 回拨）
+./stop.sh --volumes           # 连数据卷一起清（清库/清监控数据）
+```
+
+入口：gateway `:3000`｜Grafana `:3001`｜Prometheus `:9090`｜Jaeger `:16686`｜Consul `:8500`
+
+
 

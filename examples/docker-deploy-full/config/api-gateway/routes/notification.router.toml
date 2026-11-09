@@ -1,0 +1,16 @@
+[[route]]
+upstream   = "/v1/notification/ws"
+downstream = "/notification/ws"
+service    = "notification-service"
+ws         = true
+
+[[route]]
+upstream   = "/v1/notification/health"
+downstream = "/health"
+service    = "notification-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/notification/{rest}"
+downstream = "/notification/{rest}"
+service    = "notification-service"

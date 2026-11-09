@@ -1,0 +1,20 @@
+[[route]]
+upstream   = "/v1/pure/get-async-routes"
+downstream = "/get-async-routes"
+service    = "prue_backend"
+
+[[route]]
+upstream   = "/v1/pure/menu-configs/{rest}"
+downstream = "/pure/menu-configs/{rest}"
+service    = "prue_backend"
+
+[[route]]
+upstream   = "/v1/pure/menu-configs"
+downstream = "/pure/menu-configs"
+service    = "prue_backend"
+
+[[route]]
+upstream   = "/v1/pure/health"
+downstream = "/health"
+service    = "prue_backend"
+public     = true

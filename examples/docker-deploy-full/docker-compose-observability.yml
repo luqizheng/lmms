@@ -1,0 +1,133 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# observability 片：prometheus / alertmanager / grafana / consul-template /
+#                   otel-collector / jaeger
+# 日志栈（loki + promtail）在 docker-compose-observability.logs.yml，start.sh --logs 叠加。
+#
+# 镜像引用一律整名变量（${IMAGE_*}），值在 .image.env 的基础镜像段。
+# 访问入口：
+#   Prometheus  :9090    Grafana :3001 (admin/admin)    Jaeger :16686
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  prometheus:
+    image: "${IMAGE_PROMETHEUS:?IMAGE_PROMETHEUS 未定义——请加载 .image.env}"
+    container_name: observability-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - superpowers
+    restart: unless-stopped
+
+  alertmanager:
+    image: "${IMAGE_ALERTMANAGER:?IMAGE_ALERTMANAGER 未定义——请加载 .image.env}"
+    container_name: observability-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--log.level=info'
+    networks:
+      - superpowers
+    restart: unless-stopped
+
+  grafana:
+    image: "${IMAGE_GRAFANA:?IMAGE_GRAFANA 未定义——请加载 .image.env}"
+    container_name: observability-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./config/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    networks:
+      - superpowers
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Canary 路由：监听 Consul 里的服务 tag 变化，重渲染 nginx 配置
+  consul-template:
+    image: "${IMAGE_CONSUL_TEMPLATE:?IMAGE_CONSUL_TEMPLATE 未定义——请加载 .image.env}"
+    container_name: observability-consul-template
+    user: "0:0"
+    volumes:
+      - ./config/observability/nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./config/observability/nginx/consul-template.hcl:/etc/consul-template/config.hcl:ro
+      - nginx_rendered:/etc/nginx
+    command:
+      - "-config=/etc/consul-template/config.hcl"
+    networks:
+      - superpowers
+    restart: unless-stopped
+
+  # OTLP 接收 → trace 进 Jaeger、metric 进 Prometheus
+  otel-collector:
+    image: "${IMAGE_OTEL_COLLECTOR:?IMAGE_OTEL_COLLECTOR 未定义——请加载 .image.env}"
+    container_name: observability-otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./config/observability/otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus exporter
+    networks:
+      - superpowers
+    depends_on:
+      - jaeger
+      - prometheus
+    restart: unless-stopped
+
+  jaeger:
+    image: "${IMAGE_JAEGER:?IMAGE_JAEGER 未定义——请加载 .image.env}"
+    container_name: observability-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - METRICS_STORAGE_TYPE=prometheus
+      - PROMETHEUS_SERVER_URL=http://prometheus:9090
+      - PROMETHEUS_QUERY_SUPPORT_SPANMETRICS_CONNECTOR=true
+      - PROMETHEUS_QUERY_NAMESPACE=traces.spanmetrics
+      - PROMETHEUS_QUERY_NORMALIZE_CALLS=true
+      - PROMETHEUS_QUERY_NORMALIZE_DURATION=true
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "14250:14250"   # gRPC OTLP receiver
+      - "14268:14268"   # HTTP collector (legacy)
+    networks:
+      - superpowers
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+    name: superpowers_prometheus_data
+  alertmanager_data:
+    name: superpowers_alertmanager_data
+  grafana_data:
+    name: superpowers_grafana_data
+  nginx_rendered:
+    name: superpowers_nginx_rendered
+
+networks:
+  superpowers:
+    external: true

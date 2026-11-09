@@ -1,0 +1,26 @@
+route:
+  receiver: 'default'
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  group_by: ['alertname', 'service']
+  routes:
+    - receiver: 'critical'
+      matchers:
+        - severity = critical
+      repeat_interval: 1h
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:9093/echo'
+  - name: 'critical'
+    webhook_configs:
+      - url: 'http://localhost:9093/echo'
+
+inhibit_rules:
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity =~ warning|info
+    equal: ['service']

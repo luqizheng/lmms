@@ -1,0 +1,25 @@
+# examples/docker-deploy-full/docker-compose.yml —— 全栈聚合入口（infra + observability + services）
+# ─────────────────────────────────────────────────────────────────────────────
+# 本目录 = **全栈自包含部署单元**（整目录 copy 到目标机后 ./start.sh 即起）。
+# 与 examples/docker-deploy/（仅 services）的区别：这里额外带 infra 与 observability，
+# 单机跑完整平台（consul/redis/rabbitmq/postgres + prometheus/grafana/jaeger + 业务服务）。
+#
+# 镜像引用与 docker-deploy 完全一致：所有 image: 都是整名变量（${IMAGE_*}），
+# 值集中在同目录 .image.env（平台镜像段机器生成 + 基础镜像段手工维护）。
+#
+# 日常启停走 start.sh / stop.sh（它负责加载 .image.env 并选差异片）；
+# 手工执行 compose 时记得带 env-file：
+#   docker compose --env-file .image.env --env-file .env -f docker-compose.yml config
+#
+# 分片：
+#   docker-compose-infra.yml           中间件 4 个
+#   docker-compose-observability.yml   可观测 6 个（--logs 叠加日志栈 2 个）
+#   docker-compose-services.yml        业务服务（与 docker-deploy 同款）
+#
+# ⚠ 本文件不要写空的 `services:` 占位块（只有注释的 services 会让
+#   `docker compose config` 直接 panic: interface conversion: interface {} is nil）。
+# ─────────────────────────────────────────────────────────────────────────────
+include:
+  - docker-compose-infra.yml
+  - docker-compose-observability.yml
+  - docker-compose-services.yml

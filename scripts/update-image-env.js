@@ -31,6 +31,8 @@ const REPO_ROOT = path.join(__dirname, '..');
 const {
   ENV_FILE,
   SERVICES,
+  BASE_IMAGES,
+  DEPLOY_UNITS,
   DIALECT_SUFFIX,
   DEFAULT_REGISTRY,
   DEFAULT_REPO,
@@ -47,10 +49,10 @@ const {
 function parseArgs(argv) {
   const args = {
     version: null,
-    dialect: null, // null = 跟随 release.toml（--check 未给 -v 时从现文件反推）
+    dialect: null, // null = 跟随 release.toml
     registry: null,
     repo: null,
-    dir: path.join('examples', 'docker-deploy'),
+    dir: null, // null = 全部部署单元（DEPLOY_UNITS）
     scheme: 'auto',
     check: false,
     verify: false,
@@ -66,7 +68,7 @@ function parseArgs(argv) {
       case '--dialect': args.dialect = String(argv[++i] || '').toLowerCase(); break;
       case '--registry': args.registry = argv[++i] || null; break;
       case '--repo': args.repo = argv[++i] || null; break;
-      case '--dir': args.dir = argv[++i] || DEFAULT_DIR; break;
+      case '--dir': args.dir = argv[++i] || null; break;
       case '--scheme': args.scheme = String(argv[++i] || '').toLowerCase(); break;
       case '--check': args.check = true; break;
       case '--verify': args.verify = true; break;
@@ -92,7 +94,7 @@ const HELP = [
   '      --dialect <d>    pg | mysql —— 决定 tag 后缀（不给则读 release.toml）',
   '      --registry <h>   镜像仓库主机（不给则读 release.toml）',
   '      --repo <p>       镜像仓库前缀（不给则读 release.toml）',
-  '      --dir <path>     部署单元目录（默认 examples/docker-deploy）',
+  '      --dir <path>     只处理指定部署单元（默认：全部 DEPLOY_UNITS）',
   '      --scheme <s>    registry 协议：http | https | auto（默认 auto=http 优先）',
   '      --check          只比对「期望 vs 现文件」，有漂移则 exit 1',
   '                       （不给 -v 时从现文件反推版本/方言做自洽性校验）',
@@ -258,9 +260,6 @@ async function main(argv) {
     return 2;
   }
 
-  const dir = path.isAbsolute(args.dir) ? args.dir : path.join(REPO_ROOT, args.dir);
-  const target = path.join(dir, ENV_FILE);
-
   // 版本真相源：services/*/Cargo.toml（根 [workspace.package].version 继承）；
   // 镜像参数（方言 / 镜像源）：release.toml。命令行显式给的参数优先。
   let release = null;
@@ -302,36 +301,72 @@ async function main(argv) {
     return 2;
   }
 
-  const content = buildImageEnv({ version, dialect, registry, repo });
   const refs = imageRefs({ version, dialect, registry, repo });
 
+  // 目标部署单元：--dir 指定单个；否则全部（services-only + 全栈）
+  const units = args.dir
+    ? [{ dir: path.isAbsolute(args.dir) ? args.dir : path.join(REPO_ROOT, args.dir), base: null }]
+    : DEPLOY_UNITS.map((u) => ({ dir: path.join(REPO_ROOT, u.dir), base: u.base }));
+
   if (args.dryRun) {
-    console.log(content);
+    for (const u of units) {
+      const target = path.join(u.dir, ENV_FILE);
+      const existingRaw = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+      const includeBase = u.base !== null ? u.base : existingRaw.includes('IMAGE_CONSUL=');
+      console.log(`# ==== ${path.relative(REPO_ROOT, target)} ====`);
+      console.log(buildImageEnv({ version, dialect, registry, repo, includeBase, existingRaw }));
+    }
     return 0;
   }
 
-  if (args.check) {
-    const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
-    if (current === content) {
-      console.log(`[update-image-env] ✓ ${target} 与 -v ${version} --dialect ${dialect} 一致`);
-    } else {
-      console.error(`[update-image-env] ✗ ${target} 与 -v ${version} --dialect ${dialect} 不一致`);
-      if (!fs.existsSync(target)) {
-        console.error('  文件不存在 —— 运行 node scripts/update-image-env.js -v ' + version);
-      } else {
-        const cur = imageEnv.parseImageEnv(current);
-        for (const img of refs) {
-          const now = cur.get(img.env);
-          if (now !== img.ref) console.error(`  ${img.env}: 现值 ${now || '(缺失)'} → 应为 ${img.ref}`);
+  let failures = 0;
+  const written = [];
+  for (const u of units) {
+    const target = path.join(u.dir, ENV_FILE);
+    const existingRaw = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+    const includeBase = u.base !== null ? u.base : existingRaw.includes('IMAGE_CONSUL=');
+    const content = buildImageEnv({ version, dialect, registry, repo, includeBase, existingRaw });
+
+    if (!args.check) {
+      writeImageEnv(target, content);
+      written.push(target);
+      continue;
+    }
+
+    // ── --check：平台镜像段必须完全一致；基础镜像段只要求变量齐全（允许手工升版）
+    const cur = imageEnv.parseImageEnv(existingRaw);
+    if (!fs.existsSync(target)) {
+      console.error(`[update-image-env] ✗ ${target} 不存在 —— 运行 node scripts/update-image-env.js`);
+      failures++;
+      continue;
+    }
+    let drift = 0;
+    for (const img of refs) {
+      const now = cur.get(img.env);
+      if (now !== img.ref) {
+        console.error(`  ✗ ${path.relative(REPO_ROOT, target)} ${img.env}: 现值 ${now || '(缺失)'} → 应为 ${img.ref}`);
+        drift++;
+      }
+    }
+    if (includeBase) {
+      for (const b of BASE_IMAGES) {
+        if (!cur.get(b.env)) {
+          console.error(`  ✗ ${path.relative(REPO_ROOT, target)} ${b.env}: 缺失（基础镜像）`);
+          drift++;
         }
       }
-      return 1;
     }
-  } else {
-    writeImageEnv(target, content);
-    console.log(`[update-image-env] ✓ 已写入 ${target}（version=${version}, dialect=${dialect}）`);
-    for (const img of refs) console.log(`  ${img.env}=${img.ref}`);
+    if (drift) failures++;
+    else console.log(`[update-image-env] ✓ ${path.relative(REPO_ROOT, target)} 与 version=${version} dialect=${dialect} 一致`);
   }
+
+  if (!args.check && written.length) {
+    console.log(`[update-image-env] ✓ 已写入 ${written.length} 个部署单元（version=${version}, dialect=${dialect}）`);
+    for (const f of written) console.log(`  → ${path.relative(REPO_ROOT, f)}`);
+    for (const img of refs) console.log(`    ${img.env}=${img.ref}`);
+  }
+
+  if (failures) return 1;
 
   if (args.verify) {
     console.log(`[update-image-env] 校验 registry ${registry} …`);

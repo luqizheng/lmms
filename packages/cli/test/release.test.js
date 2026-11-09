@@ -96,7 +96,7 @@ test('版本分裂会被识别（模拟两个服务写死不同版本）', () =>
 });
 
 // ── 镜像钉版 ────────────────────────────────────────────────────────────────
-test('.image.env 每条钉版 = 服务版本 + 方言后缀', () => {
+test('每个部署单元的 .image.env 平台镜像段 = 服务版本 + 方言后缀', () => {
   const r = readServiceVersions(REPO_ROOT);
   const cfg = readReleaseConfig(REPO_ROOT);
   const refs = imageEnv.imageRefs({
@@ -107,20 +107,63 @@ test('.image.env 每条钉版 = 服务版本 + 方言后缀', () => {
   });
   for (const ref of refs) {
     assert.ok(ref.ref.includes(`:${r.version}`), `${ref.env} 应指向 ${r.version}: ${ref.ref}`);
-    if (cfg.dialect === 'pg' && ref.ref.includes('-pg')) {
-      assert.ok(ref.tag.endsWith('-pg'));
+  }
+  // 两个部署单元的平台段必须逐字一致
+  for (const unit of imageEnv.DEPLOY_UNITS) {
+    const file = path.join(REPO_ROOT, unit.dir, imageEnv.ENV_FILE);
+    const vars = imageEnv.parseImageEnv(fs.readFileSync(file, 'utf8'));
+    for (const ref of refs) {
+      assert.equal(vars.get(ref.env), ref.ref, `${unit.dir} 的 ${ref.env} 应等于 ${ref.ref}`);
     }
   }
 });
 
-test('compose 引用的 IMAGE_* 变量集合 == .image.env 声明的变量集合', () => {
-  const compose = fs.readFileSync(path.join(REPO_ROOT, 'examples', 'docker-deploy', 'docker-compose-services.yml'), 'utf8');
-  const used = new Set([...compose.matchAll(/image:\s*"\$\{(IMAGE_[A-Z_]+):\?/g)].map((m) => m[1]));
-  const declared = new Set(
-    fs.readFileSync(path.join(REPO_ROOT, 'examples', 'docker-deploy', imageEnv.ENV_FILE), 'utf8')
-      .split('\n').map((l) => l.match(/^(IMAGE_[A-Z_]+)=/)?.[1]).filter(Boolean)
+test('全栈单元的 .image.env 含全部基础镜像变量', () => {
+  const full = imageEnv.DEPLOY_UNITS.find((u) => u.base);
+  assert.ok(full, '应有 base=true 的部署单元');
+  const vars = imageEnv.parseImageEnv(
+    fs.readFileSync(path.join(REPO_ROOT, full.dir, imageEnv.ENV_FILE), 'utf8')
   );
-  assert.deepEqual([...used].sort(), [...declared].sort());
+  for (const b of imageEnv.BASE_IMAGES) {
+    assert.ok(vars.get(b.env), `${full.dir} 缺基础镜像 ${b.env}`);
+    assert.match(vars.get(b.env), /:[^:\s]+$/, `${b.env} 必须带 tag`);
+    assert.ok(!vars.get(b.env).endsWith(':latest'), `${b.env} 不得指向 :latest`);
+  }
+});
+
+test('services-only 单元不写基础镜像变量（职责分离）', () => {
+  const only = imageEnv.DEPLOY_UNITS.find((u) => !u.base);
+  assert.ok(only);
+  const vars = imageEnv.parseImageEnv(
+    fs.readFileSync(path.join(REPO_ROOT, only.dir, imageEnv.ENV_FILE), 'utf8')
+  );
+  for (const b of imageEnv.BASE_IMAGES) {
+    assert.equal(vars.get(b.env), undefined, `${only.dir} 不应声明基础镜像 ${b.env}`);
+  }
+});
+
+test('基础镜像段手工改动在重新生成时被保留（升级 postgres 不被覆盖）', () => {
+  const custom = 'IMAGE_CONSUL=registry.local/consul:9.9.9\nIMAGE_POSTGRES=registry.local/postgres:17\n';
+  const out = imageEnv.buildImageEnv({ version: '1.0.0', dialect: 'pg', includeBase: true, existingRaw: custom });
+  assert.ok(out.includes('IMAGE_CONSUL=registry.local/consul:9.9.9'), '手工改的 consul 应保留');
+  assert.ok(out.includes('IMAGE_POSTGRES=registry.local/postgres:17'), '手工升的 postgres 应保留');
+  assert.ok(out.includes('IMAGE_REDIS=zhcoder-docker-registry.com:8000/official/redis:7-alpine'), '未改的用默认值');
+});
+
+test('compose 引用的 IMAGE_* 变量集合 == .image.env 声明的变量集合（遍历全部部署单元）', () => {
+  for (const unit of imageEnv.DEPLOY_UNITS) {
+    const dir = path.join(REPO_ROOT, unit.dir);
+    const declared = new Set(
+      fs.readFileSync(path.join(dir, imageEnv.ENV_FILE), 'utf8')
+        .split('\n').map((l) => l.match(/^(IMAGE_[A-Z_]+)=/)?.[1]).filter(Boolean)
+    );
+    const used = new Set();
+    for (const f of fs.readdirSync(dir).filter((n) => /^docker-compose.*\.ya?ml$/.test(n))) {
+      const text = fs.readFileSync(path.join(dir, f), 'utf8');
+      for (const m of text.matchAll(/image:\s*"\$\{(IMAGE_[A-Z_]+):\?/g)) used.add(m[1]);
+    }
+    assert.deepEqual([...used].sort(), [...declared].sort(), `${unit.dir}: compose ↔ .image.env 变量不一致`);
+  }
 });
 
 // ── Rust 发布：path 依赖改写 ─────────────────────────────────────────────────

@@ -36,6 +36,34 @@ const SHARED_DIRS = [
   { dir: 'iam-outbox-publisher', image: 'iam-service' },
 ];
 
+// ── 基础镜像（full 部署单元用）────────────────────────────────────────────────
+// 版本与平台版本**无关**（postgres:16 不跟 1.7.0 走），因此由 .image.env 的
+// 「基础镜像」段独立维护：首次生成写默认值，之后手工升级某一行会被原样保留。
+// env: .image.env 里的变量名；ref: 默认整名引用。
+// 默认走内网 official 源（与 infrastructure/infra-postgres/.env 一致）；
+// alertmanager 内网不同步，保留官方 quay.io 路径。
+const BASE_IMAGES = [
+  { env: 'IMAGE_CONSUL', ref: 'zhcoder-docker-registry.com:8000/official/hashicorp/consul:2.0.1' },
+  { env: 'IMAGE_REDIS', ref: 'zhcoder-docker-registry.com:8000/official/redis:7-alpine' },
+  { env: 'IMAGE_RABBITMQ', ref: 'zhcoder-docker-registry.com:8000/official/rabbitmq:3.13-management-alpine' },
+  { env: 'IMAGE_POSTGRES', ref: 'zhcoder-docker-registry.com:8000/official/postgres:16' },
+  { env: 'IMAGE_PROMETHEUS', ref: 'zhcoder-docker-registry.com:8000/official/prom/prometheus:v2.51.0' },
+  { env: 'IMAGE_ALERTMANAGER', ref: 'quay.io/prometheus/alertmanager:v0.27.0' },
+  { env: 'IMAGE_GRAFANA', ref: 'zhcoder-docker-registry.com:8000/official/grafana/grafana:10.4.0' },
+  { env: 'IMAGE_CONSUL_TEMPLATE', ref: 'zhcoder-docker-registry.com:8000/official/hashicorp/consul-template:0.32.0' },
+  { env: 'IMAGE_OTEL_COLLECTOR', ref: 'zhcoder-docker-registry.com:8000/official/otel/opentelemetry-collector-contrib:0.96.0' },
+  { env: 'IMAGE_JAEGER', ref: 'zhcoder-docker-registry.com:8000/official/jaegertracing/all-in-one:1.55' },
+  { env: 'IMAGE_LOKI', ref: 'zhcoder-docker-registry.com:8000/official/grafana/loki:3.3.2' },
+  { env: 'IMAGE_PROMTAIL', ref: 'zhcoder-docker-registry.com:8000/official/grafana/promtail:3.3.2' },
+];
+
+// 部署单元清单（examples/ 下，各自一份 .image.env）
+//   base: 该单元是否包含 infra/observability（决定要不要输出基础镜像段）
+const DEPLOY_UNITS = [
+  { dir: path.join('examples', 'docker-deploy'), base: false },
+  { dir: path.join('examples', 'docker-deploy-full'), base: true },
+];
+
 // 方言 → tag 后缀。mysql 是历史默认（tag 无后缀）；pg 变体加 -pg。
 const DIALECT_SUFFIX = { mysql: '', pg: '-pg' };
 
@@ -57,7 +85,17 @@ function validateVersion(v) {
 }
 
 // ── 生成 .image.env 内容 ─────────────────────────────────────────────────────
-function buildImageEnv({ version, dialect = 'pg', registry = DEFAULT_REGISTRY, repo = DEFAULT_REPO }) {
+// includeBase: 是否追加「基础镜像」段（full 部署单元需要；services-only 不需要）
+// existingRaw: 现文件内容 —— 用它的基础镜像段现值覆盖默认值，使手工升级
+//              （如 postgres:16 → 17）在下次发布时不被覆盖
+function buildImageEnv({
+  version,
+  dialect = 'pg',
+  registry = DEFAULT_REGISTRY,
+  repo = DEFAULT_REPO,
+  includeBase = false,
+  existingRaw = '',
+}) {
   const ver = normalizeVersion(version);
   if (!validateVersion(ver)) throw new Error(`invalid version: ${version}`);
   if (!hasDialect(dialect)) throw new Error(`invalid dialect: ${dialect} (allowed: mysql | pg)`);
@@ -67,14 +105,18 @@ function buildImageEnv({ version, dialect = 'pg', registry = DEFAULT_REGISTRY, r
   const dbs = SERVICES.filter((s) => s.db);
 
   const lines = [];
-  lines.push('# examples/docker-deploy/.image.env —— 本系统服务镜像引用（发布即固化）');
+  lines.push('# .image.env —— 部署单元镜像引用（发布即固化）');
   lines.push('# ─────────────────────────────────────────────────────────────────────────────');
-  lines.push('# 本文件是「本系统自建镜像」的唯一真相源：docker-compose-services.yml 的');
-  lines.push('# image: 只写变量名（${IMAGE_FILE_SERVICE} 等），具体镜像名与 tag 全在这里。');
+  lines.push('# 本文件是镜像引用的唯一真相源：各 docker-compose*.yml 的 image: 只写变量名');
+  lines.push('# （${IMAGE_FILE_SERVICE} 等），具体镜像名与 tag 全在这里。');
   lines.push('#');
-  lines.push('# 机器生成 —— 由 `node scripts/update-image-env.js -v <ver>` 或');
-  lines.push('# `coder release images` 整体重写；手工改动会在下次发布时被覆盖。');
-  lines.push('# 版本号本身来自根目录 release.toml（发布单一真相源）。');
+  lines.push('# 平台镜像段 —— 机器生成：由 `node scripts/update-image-env.js` 或');
+  lines.push('# `coder release images` 重写；版本号来自根 Cargo.toml 的');
+  lines.push('# [workspace.package].version（8 个 services/* 继承）。');
+  if (includeBase) {
+    lines.push('# 基础镜像段 —— 版本独立（不跟平台版本走）：首次写入默认值，之后手工');
+    lines.push('# 升级某一行会被原样保留（换源 / 升 postgres 主版本都改这里）。');
+  }
   lines.push('#');
   lines.push('# 部署时 start.sh 会加载本文件（.env 之后加载 → 镜像钉版为权威）。');
   lines.push('# 缺任何一条变量，compose 会在启动前直接报错，不会静默拉错镜像。');
@@ -84,14 +126,28 @@ function buildImageEnv({ version, dialect = 'pg', registry = DEFAULT_REGISTRY, r
   lines.push('#   - tag 后缀：pg 方言加 -pg（1.7.0-pg）；mysql 方言无后缀；api-gateway 无 DB，两方言同 tag');
   lines.push('# ─────────────────────────────────────────────────────────────────────────────');
   lines.push('');
-  lines.push('# ── 网关（无 DB，方言无关）──');
+  lines.push('# ── 平台镜像：网关（无 DB，方言无关）──');
   lines.push(`${gateway.env}=${registry}/${repo}/${gateway.image}:${ver}`);
   lines.push('');
-  lines.push(`# ── 业务服务（带 DB，当前为 ${dialect} 方言）──`);
+  lines.push(`# ── 平台镜像：业务服务（带 DB，当前为 ${dialect} 方言）──`);
   for (const s of dbs) {
     lines.push(`${s.env}=${registry}/${repo}/${s.image}:${ver}${suffix}`);
   }
   lines.push('');
+
+  if (includeBase) {
+    const current = parseImageEnv(existingRaw);
+    lines.push('# ── 基础镜像：中间件（infra 片）──');
+    for (const b of BASE_IMAGES.slice(0, 4)) {
+      lines.push(`${b.env}=${current.get(b.env) || b.ref}`);
+    }
+    lines.push('');
+    lines.push('# ── 基础镜像：可观测（observability 片 + --logs 可选日志栈）──');
+    for (const b of BASE_IMAGES.slice(4)) {
+      lines.push(`${b.env}=${current.get(b.env) || b.ref}`);
+    }
+    lines.push('');
+  }
   return lines.join('\n');
 }
 
@@ -151,6 +207,8 @@ module.exports = {
   ENV_FILE,
   SERVICES,
   SHARED_DIRS,
+  BASE_IMAGES,
+  DEPLOY_UNITS,
   DIALECT_SUFFIX,
   DEFAULT_REGISTRY,
   DEFAULT_REPO,

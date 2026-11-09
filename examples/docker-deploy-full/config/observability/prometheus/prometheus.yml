@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: coder-micro-services
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - 'alerts.yml'
+
+scrape_configs:
+  # Consul service discovery: auto-discover all services with metrics tag
+  - job_name: consul-services
+    consul_sd_configs:
+      - server: consul:8500
+        services: []
+        tag_separator: ','
+    relabel_configs:
+      # Only scrape services that opt-in via 'metrics' tag
+      - source_labels: [__meta_consul_tags]
+        regex: .*metrics.*
+        action: keep
+      # Use service name as instance label
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_service_address]
+        target_label: instance_address
+      - source_labels: [__meta_consul_service_port]
+        target_label: instance_port
+      # Use service:port as full instance identifier
+      - source_labels: [service, instance_port]
+        separator: ':'
+        target_label: instance
+      # Scrape /metrics path
+      - source_labels: [__meta_consul_service]
+        target_label: metrics_path
+        replacement: /metrics
+      # Build full target URL
+      - source_labels: [__meta_consul_service_address, __meta_consul_service_port]
+        separator: ':'
+        target_label: __address__
+        replacement: '${1}:${2}'
+
+  # Self-scrape Prometheus
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # OTel collector exposes Prometheus-style metrics from spans
+  - job_name: otel-collector
+    static_configs:
+      - targets: ['otel-collector:8889']

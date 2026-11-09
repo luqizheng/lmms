@@ -1,0 +1,31 @@
+[[route]]
+upstream   = "/v1/iam/tenants"
+downstream = "/iam/tenants"
+service    = "iam-service"
+public     = true
+
+[[route]]
+upstream   = "/v1/iam/org-units/{rest}"
+downstream = "/iam/org-units/{rest}"
+service    = "iam-service"
+
+[[route]]
+upstream   = "/v1/iam/org-units"
+downstream = "/iam/org-units"
+service    = "iam-service"
+
+[[route]]
+upstream   = "/v1/iam/sessions/{rest}"
+downstream = "/iam/sessions/{rest}"
+service    = "iam-service"
+
+[[route]]
+upstream   = "/v1/iam/sessions"
+downstream = "/iam/sessions"
+service    = "iam-service"
+
+[[route]]
+upstream   = "/v1/iam/health"
+downstream = "/health"
+service    = "iam-service"
+public     = true

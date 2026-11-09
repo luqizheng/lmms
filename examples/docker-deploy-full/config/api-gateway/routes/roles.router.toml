@@ -1,0 +1,9 @@
+[[route]]
+upstream   = "/v1/iam/roles/{rest}"
+downstream = "/iam/roles/{rest}"
+service    = "iam-service"
+
+[[route]]
+upstream   = "/v1/iam/roles"
+downstream = "/iam/roles"
+service    = "iam-service"

@@ -52,11 +52,13 @@ function latestGitTag(root) {
 }
 
 // ── 部署单元钉版（.image.env）当前版本 ───────────────────────────────────────
-function pinnedVersion(root) {
-  const file = path.join(root, DEPLOY_DIR, imageEnv.ENV_FILE);
-  if (!fs.existsSync(file)) return null;
-  const derived = imageEnv.deriveVersionDialect(file);
-  return derived ? derived.version : null;
+// 每个部署单元各一份 .image.env；返回 [{ unit, dir, version }]
+function pinnedVersions(root) {
+  return imageEnv.DEPLOY_UNITS.map((unit) => {
+    const file = path.join(root, unit.dir, imageEnv.ENV_FILE);
+    const derived = fs.existsSync(file) ? imageEnv.deriveVersionDialect(file) : null;
+    return { unit: unit.dir, file, version: derived ? derived.version : null };
+  });
 }
 
 // 服务版本必须一致，否则拒绝发布（避免同批镜像两个 tag）
@@ -98,13 +100,16 @@ const commands = {
       const cfg = readReleaseConfig(ctx.root);
       const versions = readServiceVersions(ctx.root);
       const tag = latestGitTag(ctx.root);
-      const pinned = pinnedVersion(ctx.root);
+      const pinned = pinnedVersions(ctx.root);
 
       const drifts = [];
       if (versions.missing.length) drifts.push(`服务 Cargo.toml 缺失：${versions.missing.map((m) => m.dir).join(', ')}`);
       if (versions.splits.length) drifts.push(`服务版本分裂：${versions.splits.map((s) => `${s.dir}=${s.version}`).join(', ')}`);
-      if (versions.version && pinned && pinned !== versions.version) {
-        drifts.push(`.image.env 钉版 ${pinned} ≠ 服务版本 ${versions.version}`);
+      for (const p of pinned) {
+        if (!p.version) drifts.push(`${p.unit}/.image.env 缺失或不可解析`);
+        else if (versions.version && p.version !== versions.version) {
+          drifts.push(`${p.unit}/.image.env 钉版 ${p.version} ≠ 服务版本 ${versions.version}`);
+        }
       }
       if (versions.version && tag && tag.replace(/^v/, '') !== versions.version) {
         drifts.push(`最新 git tag ${tag} ≠ 服务版本 ${versions.version}`);
@@ -117,7 +122,7 @@ const commands = {
         dialect: cfg.dialect,
         registry: `${cfg.registry}/${cfg.repo}`,
         gitTag: tag,
-        pinned,
+        pinned: pinned.map((p) => ({ unit: p.unit, version: p.version })),
         drifts,
         ok: drifts.length === 0,
       };
@@ -126,7 +131,7 @@ const commands = {
         `服务版本（解析后）  : ${versions.version || '(不一致)'}`,
         `方言 / 镜像源        : ${cfg.dialect} / ${cfg.registry}/${cfg.repo}`,
         `最新 git tag        : ${tag || '(无)'}`,
-        `.image.env 钉版      : ${pinned || '(无)'}`,
+        ...pinned.map((p) => `钉版 ${p.unit.padEnd(28)}: ${p.version || '(无)'}`),
         ...versions.services.map((s) => `  · ${s.dir.padEnd(24)} ${s.version}${s.inherited ? '（继承）' : '（写死!）'}`),
         drifts.length ? `⚠ 问题：${drifts.join('；')}` : '✓ 版本一致',
       ];
@@ -186,7 +191,7 @@ const commands = {
         registry: cfg.registry,
         repo: cfg.repo,
       });
-      const pinFile = path.join(ctx.root, DEPLOY_DIR, imageEnv.ENV_FILE);
+      const pinFiles = imageEnv.DEPLOY_UNITS.map((u) => path.join(ctx.root, u.dir, imageEnv.ENV_FILE));
 
       if (flags['--dry-run']) {
         const human = [
@@ -196,9 +201,9 @@ const commands = {
           ...batches.map((b) => `batch   : ${b.label} → ${b.plan.services.join(', ')}`),
           '将写入的钉版：',
           ...refs.map((r) => `  ${r.env}=${r.ref}`),
-          `  → ${pinFile}`,
+          ...pinFiles.map((f) => `  → ${f}`),
         ];
-        return { data: { batches: batches.map((b) => ({ label: b.label, plan: b.plan })), refs, pinFile, dryRun: true }, human };
+        return { data: { batches: batches.map((b) => ({ label: b.label, plan: b.plan })), refs, pinFiles, dryRun: true }, human };
       }
 
       const built = [];
@@ -217,23 +222,32 @@ const commands = {
         return { data: { built, failed, pinned: false }, human, exitCode: 1 };
       }
 
-      // 只有真推上去了才更新钉版 —— 否则远程拉不到镜像
+      // 只有真推上去了才更新钉版 —— 否则远程拉不到镜像。
+      // 两个部署单元（services-only / 全栈）各写一份，基础镜像段沿用现值。
       let pinned = false;
       if (flags['--push']) {
-        imageEnv.writeImageEnv(pinFile, imageEnv.buildImageEnv({
-          version,
-          dialect: cfg.dialect,
-          registry: cfg.registry,
-          repo: cfg.repo,
-        }));
+        const written = [];
+        for (const unit of imageEnv.DEPLOY_UNITS) {
+          const file = path.join(ctx.root, unit.dir, imageEnv.ENV_FILE);
+          const existingRaw = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+          imageEnv.writeImageEnv(file, imageEnv.buildImageEnv({
+            version,
+            dialect: cfg.dialect,
+            registry: cfg.registry,
+            repo: cfg.repo,
+            includeBase: unit.base,
+            existingRaw,
+          }));
+          written.push(file);
+        }
         pinned = true;
-        human.push(`✓ 已更新镜像钉版：${pinFile}（version=${version}）`);
-        human.push('下一步：提交 .image.env 的 diff，并打 git tag v' + version);
+        for (const f of written) human.push(`✓ 已更新镜像钉版：${f}`);
+        human.push(`（version=${version}）下一步：提交 .image.env 的 diff，并打 git tag v${version}`);
       } else {
         human.push('（未 --push：不更新 .image.env —— 镜像还没进 registry）');
       }
 
-      return { data: { built, failed, pinned, pinFile, refs }, human };
+      return { data: { built, failed, pinned, refs }, human };
     },
   },
 

@@ -195,3 +195,49 @@ SDK 发布的实现要点（`packages/cli/lib/sdk-publish.js`）：
 `CRATE_ORDER_VIOLATION` / `CRATE_VERSION_MISSING` / `SERVICE_MANIFEST_MISSING` /
 `VERSION_SPLIT`（均 Guard / exit 3）已写入 `contracts/tool-codes.yaml`，
 `lib/tool-codes.js` 由 `contracts-gen.js` 生成。
+
+## 11. 全栈部署单元（2026-11-09 第三次扩展）
+
+用户要求再开一个示例单元，把 **infra + observability + services** 合成单机全栈，
+机制与 `examples/docker-deploy/` 完全一致（含 `.image.env`）。
+
+### 两个单元
+
+| 目录 | 组成 | project | `.image.env` 内容 |
+| --- | --- | --- | --- |
+| `examples/docker-deploy/` | services（9 容器） | `superpowers-svc` | 平台镜像段（7） |
+| `examples/docker-deploy-full/` | infra（4）+ observability（6，`--logs` +2）+ services | `superpowers-full` | 平台镜像段（7）+ 基础镜像段（12） |
+
+### `.image.env` 两段的设计
+
+- **平台镜像段**：机器生成，版本 = 服务 crate 版本 + 方言后缀。两个单元逐字一致，
+  由同一次 `release images` / `update-image-env.js` 一起写。
+- **基础镜像段**（仅 full）：版本与平台版本**无关**（`postgres:16` 不跟 `1.7.0` 走）。
+  首次生成写默认值；之后**重新生成会沿用文件现值** —— 手工升 `postgres:17`
+  或换源不会被发布流程覆盖。默认值走内网 `official/` 源，alertmanager 保留
+  `quay.io` 官方路径（内网不同步该镜像）。
+
+`DEPLOY_UNITS` 常量（`packages/cli/lib/image-env.js`）是单元清单的唯一来源：
+`release images` 与 `update-image-env.js` 都遍历它，新增单元只需加一行。
+
+### full 单元的 compose 分片
+
+| 文件 | 职责 |
+| --- | --- |
+| `docker-compose-infra.yml` | consul / redis / rabbitmq / postgres |
+| `docker-compose-observability.yml` | prometheus / alertmanager / grafana / consul-template / otel-collector / jaeger |
+| `docker-compose-observability.logs.yml` | loki + promtail（`start.sh --logs` 叠加） |
+| `docker-compose-services.yml` | 与 services-only 单元同款（9 容器） |
+| `docker-compose-services.prod.yml` / `.remote.yml` | 业务端口收口 / 跨主机片（复用同一份） |
+| `docker-compose.yml` | include 三片聚合入口 |
+
+`config/` 按来源分区：`config/api-gateway/`（网关路由）、`config/infra/`
+（consul connect + rabbitmq）、`config/observability/`（prometheus/grafana/otel/
+alertmanager/loki/nginx）。整目录 copy 到目标机即可运行。
+
+### 门禁扩展
+
+- `update-image-env.js --check` 遍历两个单元：平台段逐变量比对，基础段只校验
+  **变量齐全 + 带 tag + 非 latest**（允许手工升版）。
+- `release.test.js` 新增：两单元平台段逐字一致、full 含全部基础镜像变量、
+  services-only 不声明基础镜像、基础段手工改动在重生成时保留。
