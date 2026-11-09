@@ -1,0 +1,102 @@
+# Infrastructure services - shared base (dev & prod)
+# Port publishing, restart policy, and resource limits are applied via
+# override/prod compose files.
+#
+# 服务注册模型（2026-11-05 起）：gliderlabs/registrator 已移除，改由各服务
+# 进程启动时自注册（libs/common-consul 读 SERVICE_* 环境变量，SIGTERM 注销）。
+# Consul 从 -dev（内存态）改为单节点 server 模式 + 持久卷：注册目录随 raft
+# 落盘，Consul 重启不再丢注册；服务实例生命周期由 health check +
+# deregister_critical_service_after 兜底清理。
+services:
+  consul:
+    image: ${consul:-hashicorp/consul:2.0.1}
+    hostname: consul
+    ports:
+      - "8500:8500"
+      - "8502:8502"
+    volumes:
+      - ./config/consul/connect.hcl:/consul/config/connect.hcl:ro
+      - consul_data:/consul/data
+    command: agent -server -bootstrap-expect=1 -node=consul-server -bind=0.0.0.0 -client=0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "consul members && nc -z 127.0.0.1 8502"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  redis:
+    image: ${redis:-redis:7-alpine}
+    hostname: ${REDIS_HOST}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_DATABASES: ${REDIS_DATABASES}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  mysql:
+    image: ${mysql:-mysql:8.0}
+    hostname: ${MYSQL_HOST}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST_AUTH_METHOD: ${MYSQL_HOST_AUTH_METHOD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # Bootstrap SQL runs once on first init (empty data dir only; run `down -v` to re-apply).
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+  rabbitmq:
+    image: ${rabbitmq:-rabbitmq:3.13-management-alpine}
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./config/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superpowers
+
+volumes:
+  consul_data:
+    name: superpowers_consul_data
+  redis_data:
+    name: superpowers_redis_data
+  mysql_data:
+    name: superpowers_mysql_data
+  rabbitmq_data:
+    name: superpowers_rabbitmq_data
+
+# 三组独立部署（start-prod.sh 三段式）与入口合体部署共用这张预建网络。
+networks:
+  superpowers:
+    external: true

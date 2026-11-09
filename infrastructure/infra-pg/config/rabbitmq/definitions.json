@@ -1,0 +1,28 @@
+{
+  "rabbit_version": "3.13.0",
+  "users": [
+    { "name": "guest", "password": "guest", "tags": ["administrator"] }
+  ],
+  "vhosts": [{ "name": "/" }],
+  "permissions": [{ "user": "guest", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*" }],
+  "exchanges": [
+    { "name": "events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+    { "name": "events.dlx", "vhost": "/", "type": "fanout", "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
+  ],
+  "queues": [
+    { "name": "audit.iam-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
+    { "name": "notification.iam-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
+    { "name": "notification.membership-events", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
+    { "name": "audit.login-risk", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "events.dlx" } },
+    { "name": "events.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} }
+  ],
+  "bindings": [
+    { "source": "events", "vhost": "/", "destination": "audit.iam-events", "destination_type": "queue", "routing_key": "iam.#", "arguments": {} },
+    { "source": "events", "vhost": "/", "destination": "notification.iam-events", "destination_type": "queue", "routing_key": "iam.user.created", "arguments": {} },
+    { "source": "events", "vhost": "/", "destination": "notification.membership-events", "destination_type": "queue", "routing_key": "iam.user.role.assigned", "arguments": {} },
+    { "source": "events", "vhost": "/", "destination": "notification.membership-events", "destination_type": "queue", "routing_key": "iam.user.role.unassigned", "arguments": {} },
+    { "source": "events", "vhost": "/", "destination": "notification.membership-events", "destination_type": "queue", "routing_key": "iam.user.dept.changed", "arguments": {} },
+    { "source": "events", "vhost": "/", "destination": "audit.login-risk", "destination_type": "queue", "routing_key": "iam.login.failed", "arguments": {} },
+    { "source": "events.dlx", "vhost": "/", "destination": "events.dlq", "destination_type": "queue", "routing_key": "", "arguments": {} }
+  ]
+}

@@ -43,31 +43,6 @@ services:
     networks:
       - superpowers
 
-  mysql:
-    image: ${mysql:-mysql:8.0}
-    hostname: ${MYSQL_HOST}
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_HOST_AUTH_METHOD: ${MYSQL_HOST_AUTH_METHOD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      # Bootstrap SQL runs once on first init (empty data dir only; run `down -v` to re-apply).
-      - ./mysql-init:/docker-entrypoint-initdb.d:ro
-    command:
-      - --default-authentication-plugin=mysql_native_password
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - superpowers
-
   rabbitmq:
     image: ${rabbitmq:-rabbitmq:3.13-management-alpine}
     hostname: rabbitmq
@@ -86,11 +61,8 @@ services:
     networks:
       - superpowers
 
-  # PostgreSQL —— 可选方言（`--profile pg` 显式启用）。默认编排仍是 MySQL；
-  # 服务级 PG 支持见 docs/superpowers/plans/2026-11-02-postgresql-service-layer-support.md。
   postgres:
-    image: ${BASE_REGISTRY:-}postgres:16
-    profiles: ["pg"]
+    image: ${postgres:-postgres:16}
     hostname: ${POSTGRES_HOST:-postgres}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -111,8 +83,6 @@ volumes:
     name: superpowers_consul_data
   redis_data:
     name: superpowers_redis_data
-  mysql_data:
-    name: superpowers_mysql_data
   rabbitmq_data:
     name: superpowers_rabbitmq_data
   postgres_data:
