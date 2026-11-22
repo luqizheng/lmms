@@ -158,7 +158,7 @@ pub async fn handle_list_api_keys(
 /// 创建/列出 API Key 等于发放身份凭据，必须受鉴权保护——原先裸挂，
 /// 任何能访问本服务的人都能创建绑定任意用户的密钥（spec §3.5 附带发现）。
 pub fn routes(state: crate::TokenServerState) -> axum::Router {
-    use axum::routing::{get, post};
+    use axum::routing::post;
 
     axum::Router::new()
         .route(
