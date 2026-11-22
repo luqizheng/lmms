@@ -368,6 +368,8 @@ function runStep(cmd, args, opts = {}) {
 function parseArgs(argv) {
   const out = { list: false, stage: null, job: null, skipSlow: false, skipDocker: false, noColor: false };
   for (const a of argv) {
+    // npm/pnpm 透传的分隔符：pnpm 新版会把 `--` 原样传进来，跳过即可
+    if (a === '--') continue;
     if (a === '--list') out.list = true;
     else if (a.startsWith('--stage=')) out.stage = a.slice(8);
     else if (a.startsWith('--job=')) out.job = a.slice(6);

@@ -4,7 +4,7 @@ info:
   description: Audit log and retention
   license:
     name: ''
-  version: 0.1.0
+  version: 1.7.0
 paths:
   /audit/export/compliance/login/csv/{user_id}:
     get:
