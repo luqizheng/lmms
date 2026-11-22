@@ -4,7 +4,7 @@ info:
   description: pure-admin menu config backend
   license:
     name: ''
-  version: 0.1.0
+  version: 1.7.0
 paths:
   /get-async-routes:
     get:
