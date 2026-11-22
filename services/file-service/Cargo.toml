@@ -48,7 +48,7 @@ digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", featu
 anyhow = "1"
 
 [[bin]]
-name = "dump_openapi"
+name = "dump_openapi_file_service"
 path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]
