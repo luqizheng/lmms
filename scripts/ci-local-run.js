@@ -57,7 +57,7 @@ const JOBS = [
       { label: 'cargo test --workspace --lib --no-run (compile)', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--no-run'], slow: true },
       { label: 'cargo test --workspace --lib (execute)', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--verbose'], slow: true },
     ],
-    fix: 'cargo fmt / clippy 修复后请改代码而非加 #[allow]；openapi drift 改完路由后跑 pnpm run sdk:dump',
+    fix: 'cargo fmt / clippy 修复后请改代码而非加 #[allow]；OpenAPI 路由变更后运行 node scripts/dump-openapi-specs.js 重新生成 openapi.yaml',
   },
   {
     name: 'service_standard_check',
