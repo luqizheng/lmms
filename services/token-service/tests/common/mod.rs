@@ -5,6 +5,9 @@
 //!    建独立 `test_<svc>_<pid>_<uuid>` database，跑 migrations。
 //!    用于 `scripts/run-tests-docker.js` 的共享模式。
 //! 2. 否则回退到本地 testcontainers 自己起一个 mysql 容器（保留 `cargo test` 单跑体验）。
+// 每个 test target 独立编译一份 common 模块；未被该 target 引用的 helper
+// （如 PEM 常量、build_state）在此 target 中即 dead code，属共享模块的预期行为。
+#![allow(dead_code)]
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::time::Duration;
 use testcontainers::runners::AsyncRunner;

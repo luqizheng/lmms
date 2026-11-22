@@ -88,6 +88,10 @@ impl Limit {
 /// Default limits when no specific Limit is configured for a route.
 pub const DEFAULT_LIMIT: Limit = Limit::new("default", 60, 60);
 
+/// Rejected: the (route, identity) window quota is exhausted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RateLimited;
+
 /// Service-side rate limiter backed by Redis sliding window.
 #[derive(Clone)]
 pub struct RateLimiter {
@@ -122,7 +126,7 @@ impl RateLimiter {
     /// if allowed, Err(RateLimited) if rejected.
     ///
     /// Fails open on Redis errors — logs warn but allows the request.
-    pub async fn check(&self, identity: &str, limit: &Limit) -> Result<(), ()> {
+    pub async fn check(&self, identity: &str, limit: &Limit) -> Result<(), RateLimited> {
         let now_ms = chrono::Utc::now().timestamp_millis();
         let window_start_ms = now_ms - (limit.window_secs as i64) * 1000;
         let key = format!("rl:{}:{}:{}", limit.route, identity, limit.window_secs);
@@ -164,7 +168,7 @@ impl RateLimiter {
             .await;
 
         match count {
-            Ok(c) if c < 0 => Err(()),
+            Ok(c) if c < 0 => Err(RateLimited),
             Ok(_) => Ok(()),
             Err(e) => {
                 tracing::warn!(target: "ratelimit", route = %limit.route, error = %e,
@@ -199,7 +203,7 @@ pub async fn rate_limit_middleware(
 
     match limiter.check(&identity, limit).await {
         Ok(()) => next.run(request).await,
-        Err(()) => {
+        Err(RateLimited) => {
             if let Some(counter) = RATE_LIMITED_TOTAL.get() {
                 let service = std::env::var("SERVICE_NAME").unwrap_or_else(|_| "unknown".into());
                 counter.with_label_values(&[&service, limit.route]).inc();

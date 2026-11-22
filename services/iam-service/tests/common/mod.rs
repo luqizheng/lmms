@@ -54,7 +54,7 @@ pub async fn spawn_redis() -> RedisHandle {
         }
     }
     use testcontainers::runners::AsyncRunner;
-    let c = testcontainers_modules::redis::Redis::default()
+    let c = testcontainers_modules::redis::Redis
         .start()
         .await
         .expect("start local redis container");
