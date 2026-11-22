@@ -222,59 +222,50 @@ pub use routes::{create_state, routes};
 ## src/config.rs Template
 
 ```rust
-use serde::Deserialize;
-
 fn default_host() -> String { "0.0.0.0".to_string() }
 fn default_port() -> u16 { 8080 }
 fn default_log() -> String { "info".to_string() }
-// 不提供数据库凭据默认值；DB URL 由部署环境显式注入。
-fn default_consul() -> String { "http://localhost:8500".to_string() }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct AppConfig {
-    #[serde(default = "default_host")]
     pub server_host: String,
-    #[serde(default = "default_port")]
     pub server_port: u16,
     pub server_addr: String,
-    // Optional: only include this field when the service has a database.
+    // Keep this field only for services that declare a database.
     pub database_url: Option<String>,
-    #[serde(default = "default_log")]
     pub log_level: String,
-    #[serde(default = "default_consul")]
-    pub consul_addr: String,
-    pub consul_service_name: String,
 }
 
 impl AppConfig {
     pub fn try_from_env() -> anyhow::Result<Self> {
         let server_host = std::env::var("SERVER_HOST").unwrap_or_else(|_| default_host());
-        let server_port: u16 = std::env::var("SERVER_PORT")
-            .map(|v| v.parse())
+        let server_port = std::env::var("SERVER_PORT")
+            .map(|value| value.parse::<u16>())
             .transpose()?
             .unwrap_or_else(default_port);
         let server_addr = std::env::var("SERVER_ADDR")
-            .unwrap_or_else(|_| format!("{}:{}", server_host, server_port));
-        // Validate eagerly so malformed bind addresses fail before service startup.
+            .unwrap_or_else(|_| format!("{server_host}:{server_port}"));
 
-        let config = Self {
+        // A DB-backed service must reject a missing DATABASE_URL at startup.
+        // A no-DB service should omit database_url and the sqlx dependency entirely.
+        let database_url = std::env::var("DATABASE_URL")
+            .ok()
+            .filter(|value| !value.trim().is_empty());
+
+        server_addr.parse::<std::net::SocketAddr>()?;
+        Ok(Self {
             server_host,
             server_port,
             server_addr,
-            database_url: std::env::var("DATABASE_URL").ok().filter(|v| !v.trim().is_empty()),
-            log_level: std::env::var("RUST_LOG").unwrap_or_else(default_log),
-            consul_addr: std::env::var("CONSUL_ADDR").unwrap_or_else(default_consul),
-            consul_service_name: std::env::var("CONSUL_SERVICE_NAME")
-                .unwrap_or_else(|_| "{name}".to_string()),
-        };
-        config.server_addr.parse::<std::net::SocketAddr>()?;
-        Ok(config)
+            database_url,
+            log_level: std::env::var("RUST_LOG").unwrap_or_else(|_| default_log()),
+        })
     }
 }
 ```
 
-> `try_from_env()` 返回 `anyhow::Result<Self>`；配置缺失或解析失败必须启动失败，不得静默回退到开发凭据。
-
+> `try_from_env()` 返回 `anyhow::Result<Self>`。不要提供默认数据库密码；数据库服务必须显式要求 `DATABASE_URL`，无数据库服务应移除数据库字段与依赖。
+ 
 ## src/error.rs Template
 
 ```rust
@@ -303,20 +294,21 @@ impl IntoResponse for AppError {
             AppError::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR"),
             AppError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL"),
         };
-        let body = json!({
+        let public_message = match &self {
+        AppError::NotFound => "Resource not found",
+        AppError::BadRequest(_) => "Invalid request",
+        AppError::Database(_) | AppError::Internal(_) => "Internal server error",
+    };
+    let body = json!({
             "code": code,
-            "message": match self {
-                AppError::NotFound => "Resource not found",
-                AppError::BadRequest(_) => "Invalid request",
-                AppError::Database(_) | AppError::Internal(_) => "Internal server error",
-            },
+            "message": public_message,
         });
         (status, Json(body)).into_response()
     }
 }
 ```
 
-## src/routes/mod.rs Template
+## src/routes/mod.rs Template (MySQL example; adapt AppState and readiness for PostgreSQL, SQLite, or no-DB services)
 
 ```rust
 use axum::{routing::get, Router};
@@ -351,7 +343,9 @@ async fn metrics() -> impl axum::response::IntoResponse {
     let encoder = TextEncoder::new();
     let metric_families = prometheus::gather();
     let mut buffer = Vec::new();
-    encoder.encode(&metric_families, &mut buffer).unwrap();
+    if encoder.encode(&metric_families, &mut buffer).is_err() {
+        return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "metrics encoding failed".to_string()).into_response();
+    }
     ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], String::from_utf8_lossy(&buffer).into_owned())
 }
 ```
@@ -383,40 +377,19 @@ After scaffolding, customize the AGENTS.md (copied from `services/agents-templat
 ## Validation (run after scaffolding)
 
 ```bash
-# 1. Workspace member already added by Auto-Registration step 1.
-#    Verify it's present: grep "services/{name}" Cargo.toml
+# 1. Confirm workspace registration
+grep "services/{name}" Cargo.toml
 
-# 2. Build (public crates.io dependencies; no private registry token required)
-docker run --rm --network host \
-  -e CARGO_REGISTRIES_private registry token="${KELLNR_TOKEN}" \
-  -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
-  -v $(pwd):/app \
-  -v coder-cargo-registry:/usr/local/cargo/registry \
-  -v coder-cargo-git:/usr/local/cargo/git \
-  -v coder-cargo-target:/app/target \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -w /app \
-  zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl \
-  cargo check -p {name}
+# 2. Build and test using the repository's supported Rust toolchain
+cargo check -p {name}
+cargo test -p {name}
 
-# 3. Run tests
-node scripts/run-tests-docker.js {name}
-
-# 4. Service standard gate
+# 3. Service standard and OpenAPI gates
 node scripts/check-service-standard.js
-# Expected: ✓ 8/8 items for {name}
-
-# 5. Generate OpenAPI yaml
-docker run --rm -v $(pwd):/app -v coder-cargo-target:/app/target \
-  -e CARGO_REGISTRIES_KELLNR_TOKEN="${KELLNR_TOKEN}" \
-  -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
-  -w /app/services/{name} \
-  zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl \
-  cargo run --bin dump-openapi
-
-# 6. OpenAPI spec check
 node scripts/check-spec.js
-# Expected: warnings (no summaries) but exit 0
+
+# 4. If the repository's Docker builder is available, build the service image
+docker build -f services/{name}/Dockerfile -t {name}:latest .
 ```
 
 ## Auto-Registration (3 append operations)
