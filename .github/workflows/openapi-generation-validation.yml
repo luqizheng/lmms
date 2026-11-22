@@ -1,0 +1,25 @@
+name: OpenAPI Generation Validation
+
+on:
+  push:
+    branches: [main, "perf/batch-openapi-generation"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  generate-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.96.0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check generator syntax
+        run: node --check scripts/dump-openapi-specs.js
+      - name: Generate all service OpenAPI specifications
+        run: node scripts/dump-openapi-specs.js
+      - name: Verify generated specifications are committed
+        run: git diff --exit-code -- 'services/*/openapi.yaml'
