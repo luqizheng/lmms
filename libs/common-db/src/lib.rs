@@ -142,6 +142,16 @@ impl DbPool {
     }
 }
 
+/// Normalize a dialect URL to the scheme understood by the selected SQLx driver.
+/// Dameng speaks the MySQL wire protocol, but SQLx only accepts the `mysql://` scheme.
+fn sqlx_connection_url(dialect: DialectKind, database_url: &str) -> String {
+    if dialect == DialectKind::Dameng {
+        database_url.replacen("dameng://", "mysql://", 1)
+    } else {
+        database_url.to_owned()
+    }
+}
+
 pub async fn init_pool(database_url: &str) -> AppResult<DbPool> {
     init_pool_with(database_url, 10).await
 }
@@ -155,9 +165,10 @@ pub async fn init_pool_with(database_url: &str, max_connections: u32) -> AppResu
     match dialect {
         #[cfg(feature = "mysql")]
         DialectKind::Mysql | DialectKind::Dameng => {
+            let connect_url = sqlx_connection_url(dialect, database_url);
             let pool = sqlx::mysql::MySqlPoolOptions::new()
                 .max_connections(max_connections)
-                .connect(database_url)
+                .connect(&connect_url)
                 .await
                 .map_err(|e| AppError::internal("DB_CONNECT", e.to_string()))?;
             Ok(DbPool::Mysql(pool))
@@ -284,5 +295,25 @@ impl<'a> Transaction<'a> {
                 .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;
         }
         Ok(())
+    }
+}
+
+
+#[cfg(test)]
+mod connection_url_tests {
+    use super::*;
+
+    #[test]
+    fn dameng_url_is_normalized_for_mysql_wire_driver() {
+        assert_eq!(
+            sqlx_connection_url(DialectKind::Dameng, "dameng://SYSDBA:secret@127.0.0.1:5236/APP"),
+            "mysql://SYSDBA:secret@127.0.0.1:5236/APP"
+        );
+    }
+
+    #[test]
+    fn mysql_url_is_preserved() {
+        let url = "mysql://user:secret@127.0.0.1:3306/app";
+        assert_eq!(sqlx_connection_url(DialectKind::Mysql, url), url);
     }
 }
