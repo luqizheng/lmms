@@ -118,7 +118,11 @@ FROM rust:1.96-slim AS builder
 USER root
 WORKDIR /app
 
-COPY . .
+COPY Cargo.toml Cargo.lock ./
+COPY .cargo/ .cargo/
+COPY libs/ libs/
+COPY services/ services/
+COPY sdk/ sdk/
 
 # 只使用公开 crates.io 依赖；不要把 registry token 通过 ARG/ENV 传入镜像构建。
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
@@ -311,7 +315,7 @@ impl IntoResponse for AppError {
 ## src/routes/mod.rs Template (MySQL example; generate dialect-specific or no-DB state when selected)
 
 ```rust
-use axum::{extract::State, routing::get, Router};
+use axum::{extract::State, response::IntoResponse, routing::get, Router};
 use anyhow::Context;
 use prometheus::{Encoder, TextEncoder};
 use sqlx::MySqlPool;
@@ -357,7 +361,7 @@ async fn metrics() -> impl axum::response::IntoResponse {
     if encoder.encode(&metric_families, &mut buffer).is_err() {
         return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "metrics encoding failed".to_string()).into_response();
     }
-    ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], String::from_utf8_lossy(&buffer).into_owned())
+    ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], String::from_utf8_lossy(&buffer).into_owned()).into_response()
 }
 ```
 
