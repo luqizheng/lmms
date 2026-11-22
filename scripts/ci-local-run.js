@@ -562,14 +562,24 @@ async function main() {
   // 可选机器可读耗时报告，便于比较不同提交 / 环境的 Rust CI 阶段耗时。
   if (opts.timingsFile) {
     const reportPath = resolve(REPO_ROOT, opts.timingsFile);
+    const getVersion = (command, args) => {
+      const result = spawnSync(command, args, { cwd: REPO_ROOT, encoding: 'utf8' });
+      return result.status === 0 ? result.stdout.trim() : null;
+    };
+    const rustCiResult = results.find((r) => r.name === 'rust_ci');
+    const gitCommit = getVersion('git', ['rev-parse', 'HEAD']);
     const report = {
       schema_version: 1,
       started_at: startedAt.toISOString(),
       finished_at: new Date().toISOString(),
+      git_commit: gitCommit,
       platform: process.platform,
       architecture: process.arch,
       node_version: process.version,
-      rust_ci_status: results.some((r) => r.status === 'fail') ? 'failed' : 'completed',
+      rustc_version: getVersion('rustc', ['--version']),
+      cargo_version: getVersion('cargo', ['--version']),
+      run_status: results.some((r) => r.status === 'fail') ? 'failed' : 'completed',
+      rust_ci_status: rustCiResult ? rustCiResult.status : null,
       jobs: results,
     };
     writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
