@@ -20,7 +20,7 @@
 
 ## CI 矩阵
 
-` .github/workflows/dialect-matrix.yml ` 对 MySQL、PostgreSQL、SQLite 运行公共数据库 crate 测试，并对当前实际使用的服务运行 MySQL / PostgreSQL 测试。工作流不再包含 Dameng 或 MSSQL job，也不再设置只为这两种数据库服务的每日定时触发。
+`.github/workflows/dialect-matrix.yml` 对 MySQL、PostgreSQL、SQLite 运行公共数据库 crate 测试，并对当前实际使用的服务运行 MySQL / PostgreSQL 测试。工作流不再包含 Dameng 或 MSSQL job，也不再设置只为这两种数据库服务的每日定时触发。
 
 ## 服务 × 方言
 
