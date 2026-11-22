@@ -368,6 +368,8 @@ function runStep(cmd, args, opts = {}) {
 function parseArgs(argv) {
   const out = { list: false, stage: null, job: null, skipSlow: false, skipDocker: false, noColor: false };
   for (const a of argv) {
+    // pnpm forwards the separator used before script arguments; it is not a script flag.
+    if (a === '--') continue;
     if (a === '--list') out.list = true;
     else if (a.startsWith('--stage=')) out.stage = a.slice(8);
     else if (a.startsWith('--job=')) out.job = a.slice(6);
