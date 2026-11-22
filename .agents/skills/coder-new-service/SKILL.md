@@ -23,7 +23,7 @@ Ask the user for:
 
 1. **Service name** (kebab-case, e.g. `analytics-service`, `billing-service`)
 2. **Purpose** (one sentence — what business problem this service solves)
-3. **Database** (MySQL / SQLite / both / none — drives migration setup)
+3. **Database** (MySQL / PostgreSQL / SQLite / none — drives optional dependency, pool, migration and health-check generation)
 4. **Initial routes** (optional — empty service is fine for v1; routes added later via `coder-add-route`)
 5. **Initial DTOs / Models** (optional)
 6. **External service dependencies** (e.g. "calls token-service to validate JWT")
@@ -88,14 +88,16 @@ chrono.workspace = true
 prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-# 平台基础设施库 - 从私有 kellnr registry 拉取
-digua_common-error = { version = "0.1", registry = "kellnr" }
-digua_common-db = { version = "0.1", registry = "kellnr", features = ["mysql", "sqlite"] }
-digua_common-log = { version = "0.1", registry = "kellnr" }
-digua_common-cache = { version = "0.1", registry = "kellnr" }
-digua_common = { version = "0.1", registry = "kellnr" }
-# Optional OTel: uncomment if tracing is needed
-# digua_common-telemetry = { version = "0.1", registry = "kellnr", features = ["otlp"] }
+# 平台基础设施 crate 已发布到 crates.io；不要依赖私有 Kellnr registry。
+# 版本必须与 crates.io 当前发布版本一致；当前仓库基线为 1.6.0。
+digua_common_error = "1.6.0"
+digua_common_db = { version = "1.6.0", default-features = false, features = ["mysql"] }
+digua_common_log = "1.6.0"
+digua_common_cache = "1.6.0"
+digua_common = { version = "1.6.0", default-features = false }
+# 按需添加数据库 feature：mysql / postgres / sqlite；无数据库服务不添加 common-db。
+# OTel opt-in，声明时必须显式开启 otlp（resolver=2）。
+digua_common_telemetry = { version = "1.6.0", features = ["otlp"] }
 
 [[bin]]
 name = "dump-openapi"
@@ -105,39 +107,23 @@ path = "src/bin/dump-openapi.rs"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ```
 
-> **kellnr registry 配置**：业务服务的 `Cargo.toml` 通过 `registry = "kellnr"` 引用
-> 平台基础设施库（libs/* 发布的 17 个 crate）。编译前需配置 kellnr 访问：
-> ```bash
-> # .cargo/config.toml
-> [source.kellnr]
-> registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
->
-> # ~/.cargo/credentials.toml 或环境变量
-> # CARGO_REGISTRIES_KELLNR_TOKEN=<token>
-> ```
-> Docker 构建时通过 `--build-arg KELLNR_TOKEN=xxx` 传递 token（见 Dockerfile 模板）。
+> **Registry**：基础设施 crate 从 crates.io 下载，不需要 Kellnr、私有 token 或仓库专属 `.cargo` source 配置。若组织使用镜像，应由开发者本机/CI 的 Cargo 全局配置提供，不要把私有 registry 地址或凭据写进模板。
 
 ## Dockerfile Template
 
 ```dockerfile
-FROM zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl AS builder
+FROM rust:1.85-slim AS builder
 USER root
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY services/ services/
 
-# 配置 kellnr registry（libs/* 和 sdk/rust/* 的 crate 托管于此）
-RUN mkdir -p /app/.cargo && \
-    printf '[source.kellnr]\nregistry = "sparse+http://192.168.2.12:16444/api/v1/crates/"\n' > /app/.cargo/config.toml
-
-# KELLNR_TOKEN 通过 docker build --build-arg KELLNR_TOKEN=xxx 传递
-ARG KELLNR_TOKEN
+# 只使用公开 crates.io 依赖；不要把 registry token 通过 ARG/ENV 传入镜像构建。
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
-    CARGO_REGISTRIES_KELLNR_TOKEN=${KELLNR_TOKEN} \
-    cargo build --release --target x86_64-unknown-linux-musl -p {name} && \
-    cp /app/target/x86_64-unknown-linux-musl/release/{name} /app/{name}
+    cargo build --release -p {name} && \
+    cp /app/target/release/{name} /app/{name}
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
@@ -147,10 +133,9 @@ ENV RUST_LOG=info
 CMD ["{name}"]
 ```
 
-> **构建命令**（需传递 kellnr token）：
+> **构建命令**：
 > ```bash
-> docker build --build-arg KELLNR_TOKEN=$KELLNR_TOKEN \
->   -f services/{name}/Dockerfile -t {name}:latest .
+> docker build -f services/{name}/Dockerfile -t {name}:latest .
 > ```
 
 ## src/main.rs Template
@@ -165,17 +150,14 @@ use tracing::info;
 async fn main() -> anyhow::Result<()> {
     init_json("info");
 
-    let config = AppConfig::from_env();
+    let config = AppConfig::try_from_env()?;
     info!("Starting {name} on {}", config.server_addr);
 
-    // If using DB:
-    let pool = digua_common::db::connect(&config.database_url, 10)
-        .await
-        .expect("Failed to initialize database pool");
-
-    let state = create_state(pool);
-    let addr: SocketAddr = config.server_addr.parse().expect("Invalid server address");
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");
+    // 仅当用户选择数据库时才生成 pool / create_state(pool)。无数据库服务
+    // 应生成无 DB 的 AppState，不要引入 sqlx 或 common-db。
+    let state = create_state().await?;
+    let addr: SocketAddr = config.server_addr.parse()?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("{name} listening on {}", addr);
 
     let app = routes::routes(state);
@@ -199,8 +181,27 @@ async fn main() -> anyhow::Result<()> {
     // periodically re-registers if the Consul catalog loses it.
     let _consul_guard = digua_common_consul::consul_guard();
 
-    axum::serve(listener, app).await.expect("Server error");
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
     Ok(())
+}
+
+async fn shutdown_signal() {
+    use tokio::signal;
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("install SIGTERM handler")
+            .recv()
+            .await;
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        _ = signal::ctrl_c() => {},
+        _ = terminate => {},
+    }
 }
 ```
 
@@ -225,7 +226,7 @@ use serde::Deserialize;
 fn default_host() -> String { "0.0.0.0".to_string() }
 fn default_port() -> u16 { 8080 }
 fn default_log() -> String { "info".to_string() }
-fn default_db_url() -> String { "mysql://root:rootpass@localhost:3306/{name}".to_string() }
+// 不提供数据库凭据默认值；DB URL 由部署环境显式注入。
 fn default_consul() -> String { "http://localhost:8500".to_string() }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -235,8 +236,8 @@ pub struct AppConfig {
     #[serde(default = "default_port")]
     pub server_port: u16,
     pub server_addr: String,
-    #[serde(default = "default_db_url")]
-    pub database_url: String,
+    // Optional: only include this field when the service has a database.
+    pub database_url: Option<String>,
     #[serde(default = "default_log")]
     pub log_level: String,
     #[serde(default = "default_consul")]
@@ -248,23 +249,27 @@ impl AppConfig {
     pub fn from_env() -> Self {
         let server_host = std::env::var("SERVER_HOST").unwrap_or_else(|_| default_host());
         let server_port: u16 = std::env::var("SERVER_PORT")
-            .ok().and_then(|v| v.parse().ok()).unwrap_or_else(default_port);
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or_else(default_port);
         let server_addr = std::env::var("SERVER_ADDR")
             .unwrap_or_else(|_| format!("{}:{}", server_host, server_port));
 
-        Self {
+        Ok(Self {
             server_host,
             server_port,
             server_addr,
-            database_url: std::env::var("DATABASE_URL").unwrap_or_else(default_db_url),
+            database_url: std::env::var("DATABASE_URL").ok().filter(|v| !v.trim().is_empty()),
             log_level: std::env::var("RUST_LOG").unwrap_or_else(default_log),
             consul_addr: std::env::var("CONSUL_ADDR").unwrap_or_else(default_consul),
             consul_service_name: std::env::var("CONSUL_SERVICE_NAME")
                 .unwrap_or_else(|_| "{name}".to_string()),
-        }
+        })
     }
 }
 ```
+
+> `try_from_env()` 的返回类型为 `Result<Self, std::env::VarError/配置错误>`；生产环境中配置缺失或解析失败必须启动失败，不得静默回退到开发凭据。
 
 ## src/error.rs Template
 
@@ -296,7 +301,11 @@ impl IntoResponse for AppError {
         };
         let body = json!({
             "code": code,
-            "message": self.to_string(),
+            "message": match self {
+                AppError::NotFound => "Resource not found",
+                AppError::BadRequest(_) => "Invalid request",
+                AppError::Database(_) | AppError::Internal(_) => "Internal server error",
+            },
         });
         (status, Json(body)).into_response()
     }
@@ -323,19 +332,22 @@ pub fn create_state(pool: MySqlPool) -> AppState {
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
-        .route("/health", get(health))
+        .route("/health/live", get(live))
+        .route("/health/ready", get(ready))
         .route("/metrics", get(metrics))
         .with_state(state)
 }
 
-async fn health() -> &'static str { "OK" }
+async fn live() -> &'static str { "OK" }
+// readiness must check dependencies actually required to serve traffic (e.g. DB ping).
+async fn ready() -> axum::http::StatusCode { axum::http::StatusCode::OK }
 
-async fn metrics() -> axum::response::Html<String> {
+async fn metrics() -> impl axum::response::IntoResponse {
     let encoder = TextEncoder::new();
     let metric_families = prometheus::gather();
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer).unwrap();
-    axum::response::Html(String::from_utf8(buffer).unwrap())
+    ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], String::from_utf8_lossy(&buffer).into_owned())
 }
 ```
 
@@ -369,7 +381,7 @@ After scaffolding, customize the AGENTS.md (copied from `services/agents-templat
 # 1. Workspace member already added by Auto-Registration step 1.
 #    Verify it's present: grep "services/{name}" Cargo.toml
 
-# 2. Build (must use docker, 需 KELLNR_TOKEN 访问私有 registry)
+# 2. Build (public crates.io dependencies; no private registry token required)
 docker run --rm --network host \
   -e CARGO_REGISTRIES_KELLNR_TOKEN="${KELLNR_TOKEN}" \
   -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
@@ -389,7 +401,7 @@ node scripts/run-tests-docker.js {name}
 node scripts/check-service-standard.js
 # Expected: ✓ 8/8 items for {name}
 
-# 5. Generate OpenAPI yaml (需 KELLNR_TOKEN)
+# 5. Generate OpenAPI yaml
 docker run --rm -v $(pwd):/app -v coder-cargo-target:/app/target \
   -e CARGO_REGISTRIES_KELLNR_TOKEN="${KELLNR_TOKEN}" \
   -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
@@ -506,7 +518,7 @@ Add the bootstrap token and port export:
 - ❌ Forgetting to add the service to root `Cargo.toml` members → `cargo check` won't find it
 - ❌ Using MySQL-specific types in SQLite migration → use port-appropriate types (see `coder-migrate-db` skill)
 - ❌ Hardcoding port 3000 (that's api-gateway's port) → use 8080 internal, map externally
-- ❌ Forgetting `KELLNR_TOKEN` env var when building → cargo can't fetch libs/* from kellnr registry
+- ❌ Reintroducing private registry URLs or passing registry credentials through Docker build args
 - ❌ Missing `db.rs` schema bootstrap → service starts but tables don't exist
 - ❌ Not copying `services/agents-template.md` → CI service-standard check fails on missing AGENTS.md
 
