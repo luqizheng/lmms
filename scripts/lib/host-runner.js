@@ -14,6 +14,7 @@
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 
 const ROOT = path.join(__dirname, '..', '..');
 
@@ -87,8 +88,13 @@ function collectMsvcEnvUncached() {
   for (const root of vsInstallRoots()) {
     const vcvars = path.join(root, 'VC', 'Auxiliary', 'Build', 'vcvars64.bat');
     if (!fs.existsSync(vcvars)) continue;
-    const res = spawnSync('cmd.exe', ['/s', '/c', `"${vcvars}" >nul 2>&1 && set`], {
+    // spawnSync 直接拼 `"${vcvars}" >nul 2>&1 && set` 会被 node 参数转义弄坏
+    // （cmd 收到的是整段带引号的一个参数），改为临时 .bat 包装执行。
+    const bat = path.join(os.tmpdir(), 'lmms-msvc-env.bat');
+    fs.writeFileSync(bat, `@echo off\r\ncall "${vcvars}" >nul 2>&1\r\nset\r\n`);
+    const res = spawnSync('cmd.exe', ['/d', '/s', '/c', `"${bat}"`], {
       encoding: 'utf8',
+      windowsVerbatimArguments: true,
     });
     if (res.status !== 0) continue;
     const parsed = parseSetOutput(res.stdout);
