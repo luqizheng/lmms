@@ -94,7 +94,7 @@ fn dialect_now_expr_mysql() {
 
 #[test]
 fn dialect_now_expr_dameng() {
-    assert_eq!(DialectKind::Dameng.now_expr(), "UTC_TIMESTAMP()");
+    assert_eq!(DialectKind::Dameng.now_expr(), "SYSDATE");
 }
 
 #[test]
