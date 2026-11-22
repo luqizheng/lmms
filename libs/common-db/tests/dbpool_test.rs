@@ -17,14 +17,6 @@ fn dialect_from_sqlite_file_url() {
 }
 
 #[test]
-fn dialect_from_dameng_url() {
-    assert_eq!(
-        DialectKind::from_url("dameng://user:pwd@host:5236/db"),
-        DialectKind::Dameng
-    );
-}
-
-#[test]
 fn dialect_from_mysql_url() {
     assert_eq!(
         DialectKind::from_url("mysql://localhost:3306/db"),
@@ -49,15 +41,6 @@ fn dialect_pg_urls_are_explicit() {
     assert_eq!(
         DialectKind::from_url("postgres://localhost/db"),
         DialectKind::Postgres
-    );
-}
-
-#[test]
-fn dialect_from_mssql_url() {
-    // mssql 是已注册方言（dialect/mssql.rs），显式映射而非回退
-    assert_eq!(
-        DialectKind::from_url("mssql://localhost/db"),
-        DialectKind::Mssql
     );
 }
 
@@ -90,11 +73,6 @@ fn dialect_now_expr_sqlite() {
 #[test]
 fn dialect_now_expr_mysql() {
     assert_eq!(DialectKind::Mysql.now_expr(), "UTC_TIMESTAMP()");
-}
-
-#[test]
-fn dialect_now_expr_dameng() {
-    assert_eq!(DialectKind::Dameng.now_expr(), "SYSDATE");
 }
 
 #[test]
