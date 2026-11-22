@@ -19,7 +19,8 @@ Accordingly, MT-02 removes both from the supported product surface rather than m
 
 1. Removed the Dameng Cargo feature, URL normalization shim, connection test, dialect implementation, and dialect assertions.
 2. Removed the MSSQL dialect implementation and SQL-rendering-only claims/tests.
-3. Reduced `DialectKind` to MySQL, PostgreSQL, and SQLite; removed Dameng/MSSQL branches from pool initialization and migration routing.
+3. Reduced `DialectKind` to MySQL, PostgreSQL, and SQLite; removed Dameng/MSSQL branches from pool initialization and migration routing. Unknown URL schemes now return `None` during dialect detection and fail pool initialization with `DB_URL_SCHEME` instead of silently defaulting to MySQL.
+7. Added dialect tests proving Dameng, MSSQL, Oracle, and empty URLs are rejected while all supported URL schemes are recognized.
 4. Removed Dameng/MSSQL CI jobs and the now-unneeded scheduled workflow trigger.
 5. Updated the dialect support specification to list only the three supported databases.
 6. Retained the earlier migration fixture and service test matrix corrections.
