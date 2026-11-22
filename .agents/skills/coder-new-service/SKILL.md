@@ -168,7 +168,7 @@ async fn main() -> anyhow::Result<()> {
     let app = routes::routes(state);
 
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
-        .map(|v| v != "false" && v != "0")
+        .map(|v| v == "true" || v == "1")
         .unwrap_or(false);
     let app = if swagger_enabled {
         use utoipa::OpenApi;
@@ -299,11 +299,11 @@ impl IntoResponse for AppError {
             AppError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL"),
         };
         let public_message = match &self {
-        AppError::NotFound => "Resource not found",
-        AppError::BadRequest(_) => "Invalid request",
-        AppError::Database(_) | AppError::Internal(_) => "Internal server error",
-    };
-    let body = json!({
+            AppError::NotFound => "Resource not found",
+            AppError::BadRequest(_) => "Invalid request",
+            AppError::Database(_) | AppError::Internal(_) => "Internal server error",
+        };
+        let body = json!({
             "code": code,
             "message": public_message,
         });
