@@ -86,6 +86,8 @@ serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
 prometheus = "0.13"
+# DB-backed MySQL example only; omit sqlx and digua_common_db for no-DB services.
+sqlx = { workspace = true, features = ["mysql"] }
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 # 平台基础设施 crate 已发布到 crates.io；不要依赖私有 Kellnr registry。
@@ -116,8 +118,7 @@ FROM rust:1.96-slim AS builder
 USER root
 WORKDIR /app
 
-COPY Cargo.toml Cargo.lock ./
-COPY services/ services/
+COPY . .
 
 # 只使用公开 crates.io 依赖；不要把 registry token 通过 ARG/ENV 传入镜像构建。
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
@@ -153,9 +154,8 @@ async fn main() -> anyhow::Result<()> {
     let config = AppConfig::try_from_env()?;
     info!("Starting {name} on {}", config.server_addr);
 
-    // 仅当用户选择数据库时才生成 pool / create_state(pool)。无数据库服务
-    // 应生成无 DB 的 AppState，不要引入 sqlx 或 common-db。
-    // 由脚手架按数据库选项生成 create_state(&config).await?；无 DB 服务可直接创建 state。
+    // This sample is the MySQL-backed variant. Generate a no-DB state constructor
+    // and omit sqlx/common-db entirely when the service has no database.
     let state = create_state(&config).await?;
     let addr: SocketAddr = config.server_addr.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -266,7 +266,7 @@ impl AppConfig {
 
 > `try_from_env()` 返回 `anyhow::Result<Self>`。不要提供默认数据库密码；数据库服务必须显式要求 `DATABASE_URL`，无数据库服务应移除数据库字段与依赖。
  
-## src/error.rs Template
+## src/error.rs Template (DB-backed example; no-DB services should omit the Database variant and sqlx dependency)
 
 ```rust
 use axum::{http::StatusCode, response::{IntoResponse, Response}, Json};
@@ -308,10 +308,11 @@ impl IntoResponse for AppError {
 }
 ```
 
-## src/routes/mod.rs Template (MySQL example; adapt AppState and readiness for PostgreSQL, SQLite, or no-DB services)
+## src/routes/mod.rs Template (MySQL example; generate dialect-specific or no-DB state when selected)
 
 ```rust
-use axum::{routing::get, Router};
+use axum::{extract::State, routing::get, Router};
+use anyhow::Context;
 use prometheus::{Encoder, TextEncoder};
 use sqlx::MySqlPool;
 use std::sync::Arc;
@@ -322,8 +323,13 @@ pub struct AppServices {
     pub pool: MySqlPool,
 }
 
-pub fn create_state(pool: MySqlPool) -> AppState {
-    Arc::new(AppServices { pool })
+pub async fn create_state(config: &crate::config::AppConfig) -> anyhow::Result<AppState> {
+    let database_url = config.database_url.as_deref().context("DATABASE_URL is required for this DB-backed service")?;
+    let pool = sqlx::mysql::MySqlPoolOptions::new()
+        .max_connections(10)
+        .connect(database_url)
+        .await?;
+    Ok(Arc::new(AppServices { pool }))
 }
 
 pub fn routes(state: AppState) -> Router {
@@ -337,7 +343,12 @@ pub fn routes(state: AppState) -> Router {
 
 async fn live() -> &'static str { "OK" }
 // readiness must check dependencies actually required to serve traffic (e.g. DB ping).
-async fn ready() -> axum::http::StatusCode { axum::http::StatusCode::OK }
+async fn ready(State(state): State<AppState>) -> axum::http::StatusCode {
+    match sqlx::query("SELECT 1").execute(&state.pool).await {
+        Ok(_) => axum::http::StatusCode::OK,
+        Err(_) => axum::http::StatusCode::SERVICE_UNAVAILABLE,
+    }
+}
 
 async fn metrics() -> impl axum::response::IntoResponse {
     let encoder = TextEncoder::new();
