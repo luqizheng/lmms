@@ -135,7 +135,9 @@ rust_ci:
     - node scripts/dump-openapi-specs.js
     # openapi drift 阻断式：spec 与代码不一致时 job 失败
     - git diff --exit-code -- 'services/*/openapi.yaml'
-    # test 增量复用 clippy 编过的 lib
+    # 单独测量 test harness 编译；Clippy 的 check artifacts 不等于 test 可执行文件。
+    - cargo test --workspace --lib --no-run
+    # 随后执行已编译的单元测试，耗时不再混入首次 test 编译。
     - cargo test --workspace --lib --verbose
   artifacts:
     when: always
