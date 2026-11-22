@@ -20,13 +20,16 @@ impl Paginate for DialectKind {
 }
 
 impl DialectKind {
-    pub fn from_url(url: &str) -> Self {
-        if url.starts_with("sqlite:") {
-            Self::Sqlite
-        } else if url.starts_with("postgres:") || url.starts_with("postgresql:") {
-            Self::Postgres
-        } else {
-            Self::Mysql
+    /// Detect a supported database dialect from its connection URL.
+    ///
+    /// Unknown schemes are rejected instead of silently defaulting to MySQL.
+    pub fn from_url(url: &str) -> Option<Self> {
+        let scheme = url.split_once(':')?.0.to_ascii_lowercase();
+        match scheme.as_str() {
+            "mysql" => Some(Self::Mysql),
+            "sqlite" => Some(Self::Sqlite),
+            "postgres" | "postgresql" => Some(Self::Postgres),
+            _ => None,
         }
     }
 
