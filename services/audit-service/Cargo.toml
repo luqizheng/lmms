@@ -44,7 +44,7 @@ tracing-opentelemetry = "0.25"
 redis = { workspace = true, features = ["connection-manager"] }
 
 [[bin]]
-name = "dump_openapi"
+name = "dump_openapi_audit_service"
 path = "src/bin/dump-openapi.rs"
 
 [dev-dependencies]
