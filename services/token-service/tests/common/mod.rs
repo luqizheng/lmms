@@ -110,13 +110,16 @@ async fn run_migrations(pool: &MySqlPool) {
 }
 
 /// 测试用 PEM（与 workspace 的 libs/common-jwt fixtures 同源）。
+#[allow(dead_code)] // Shared by multiple integration-test binaries.
 pub const TEST_PRIVATE_PEM: &str =
     include_str!("../../../../libs/common-jwt/tests/fixtures/test_private.pem");
+#[allow(dead_code)] // Shared by multiple integration-test binaries.
 pub const TEST_PUBLIC_PEM: &str =
     include_str!("../../../../libs/common-jwt/tests/fixtures/test_public.pem");
 
 /// 构造带真实 DB pool 的 TokenServerState（HTTP 级测试用，oneshot 房规）。
 /// `user_service_url` 指向不可达地址 → claims 拉取走降级路径。
+#[allow(dead_code)] // Shared by multiple integration-test binaries.
 pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
     let jwks = std::sync::Arc::new(
         digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).expect("jwks from pem"),
