@@ -49,8 +49,9 @@ const JOBS = [
     steps: [
       { label: 'cargo fmt --check', cmd: 'cargo', args: ['fmt', '--check', '--all'] },
       { label: 'cargo clippy --workspace -D warnings', cmd: 'cargo', args: ['clippy', '--workspace', '--all-targets', '--', '-D', 'warnings'], slow: true },
-      // dump-openapi 编译所有 Rust 服务的 dump_openapi bin target,首次跑 5-7 min
-      // (Windows /mnt/d 跨文件系统更慢)；跳过后 git diff 也跳（无新生成 spec 可对比）
+      // Clippy 检查 all-targets，但不产出可运行的 dump_openapi 可执行文件。
+      // 这里逐个运行 7 个服务的生成器；Cargo 共享 workspace target，依赖只需增量编译。
+      // 首次运行仍可能较慢；跳过后 git diff 也跳（无新生成 spec 可对比）。
       { label: 'node scripts/dump-openapi-specs.js', cmd: 'node', args: ['scripts/dump-openapi-specs.js'], slow: true },
       { label: "git diff --exit-code -- 'services/*/openapi.yaml'", cmd: 'git', args: ['diff', '--exit-code', '--', 'services/*/openapi.yaml'], slow: true },
       { label: 'cargo test --workspace --lib', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--verbose'], slow: true },
