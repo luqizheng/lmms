@@ -129,9 +129,9 @@ rust_ci:
     REDIS_URL: redis://192.168.2.130:6379
   script:
     - cargo fmt --check --all 2>&1 | tee cargo-fmt.log
-    # clippy 编出 workspace 全量；dump_openapi / test 都复用其 artifact
+    # Clippy 检查 workspace 全部 targets；不等于生成可运行的 bin 可执行文件。
     - cargo clippy --workspace --all-targets -- -D warnings
-    # dump_openapi bin target 在 clippy --all-targets 时已编过，增量 0 成本
+    # 逐个生成 7 个 Rust 服务的 OpenAPI；共享 workspace target 以复用依赖编译缓存。
     - node scripts/dump-openapi-specs.js
     # openapi drift 阻断式：spec 与代码不一致时 job 失败
     - git diff --exit-code -- 'services/*/openapi.yaml'
