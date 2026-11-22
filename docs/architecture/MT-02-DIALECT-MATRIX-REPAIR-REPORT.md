@@ -20,12 +20,16 @@ Inspected GitHub Actions run `44969202059` (commit `7a2f83b`):
 3. Removed retired `config_service` invocations from MySQL and PostgreSQL service jobs.
 4. Scoped service dialect features explicitly as `<package>/mysql` and `<package>/postgres`.
 5. Corrected the workflow comment so it reflects actual workspace membership.
+6. Corrected the Dameng feature to enable the crate's MySQL transport implementation and normalized `dameng://` to the `mysql://` scheme before passing the URL to SQLx. Added an opt-in real connectivity/ping test for CI.
+7. Replaced the invalid MSSQL `--features mssql` database job (no SQL Server driver or Cargo feature exists) with MSSQL SQL-rendering contract tests. The workflow now explicitly does not claim SQL Server connectivity support.
 
 ## Verification status
 
 - [x] Failure causes confirmed from GitHub Actions job logs.
 - [x] Current workspace membership checked against the repository tree and Cargo manifests.
 - [x] Updated migration fixture paths checked against the current repository tree.
+- [x] Reviewed dialect implementation and aligned Dameng feature/URL handling with the MySQL-wire driver.
+- [x] Removed the unsupported MSSQL connection-test claim; retained pure SQL rendering tests.
 - [x] Changes committed to this branch.
 - [ ] GitHub Actions rerun — intentionally not triggered while CI activation is paused.
 - [ ] PostgreSQL migration execution against a live PostgreSQL server.
