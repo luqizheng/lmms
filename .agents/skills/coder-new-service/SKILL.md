@@ -73,8 +73,8 @@ Ask the user for:
 ```toml
 [package]
 name = "{name}"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 anyhow = "1"
@@ -112,7 +112,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ## Dockerfile Template
 
 ```dockerfile
-FROM rust:1.85-slim AS builder
+FROM rust:1.96-slim AS builder
 USER root
 WORKDIR /app
 
@@ -125,8 +125,8 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     cargo build --release -p {name} && \
     cp /app/target/release/{name} /app/{name}
 
-FROM alpine:3.21
-RUN apk add --no-cache ca-certificates
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/{name} /usr/local/bin/{name}
 EXPOSE 8080
 ENV RUST_LOG=info
@@ -155,7 +155,8 @@ async fn main() -> anyhow::Result<()> {
 
     // 仅当用户选择数据库时才生成 pool / create_state(pool)。无数据库服务
     // 应生成无 DB 的 AppState，不要引入 sqlx 或 common-db。
-    let state = create_state().await?;
+    // 由脚手架按数据库选项生成 create_state(&config).await?；无 DB 服务可直接创建 state。
+    let state = create_state(&config).await?;
     let addr: SocketAddr = config.server_addr.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("{name} listening on {}", addr);
@@ -246,7 +247,7 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn from_env() -> Self {
+    pub fn try_from_env() -> anyhow::Result<Self> {
         let server_host = std::env::var("SERVER_HOST").unwrap_or_else(|_| default_host());
         let server_port: u16 = std::env::var("SERVER_PORT")
             .map(|v| v.parse())
@@ -254,8 +255,9 @@ impl AppConfig {
             .unwrap_or_else(default_port);
         let server_addr = std::env::var("SERVER_ADDR")
             .unwrap_or_else(|_| format!("{}:{}", server_host, server_port));
+        // Validate eagerly so malformed bind addresses fail before service startup.
 
-        Ok(Self {
+        let config = Self {
             server_host,
             server_port,
             server_addr,
@@ -264,12 +266,14 @@ impl AppConfig {
             consul_addr: std::env::var("CONSUL_ADDR").unwrap_or_else(default_consul),
             consul_service_name: std::env::var("CONSUL_SERVICE_NAME")
                 .unwrap_or_else(|_| "{name}".to_string()),
-        })
+        };
+        config.server_addr.parse::<std::net::SocketAddr>()?;
+        Ok(config)
     }
 }
 ```
 
-> `try_from_env()` 的返回类型为 `Result<Self, std::env::VarError/配置错误>`；生产环境中配置缺失或解析失败必须启动失败，不得静默回退到开发凭据。
+> `try_from_env()` 返回 `anyhow::Result<Self>`；配置缺失或解析失败必须启动失败，不得静默回退到开发凭据。
 
 ## src/error.rs Template
 
@@ -332,6 +336,7 @@ pub fn create_state(pool: MySqlPool) -> AppState {
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
+        .route("/health", get(ready)) // compatibility endpoint used by Consul and service-standard checks
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
         .route("/metrics", get(metrics))
@@ -383,7 +388,7 @@ After scaffolding, customize the AGENTS.md (copied from `services/agents-templat
 
 # 2. Build (public crates.io dependencies; no private registry token required)
 docker run --rm --network host \
-  -e CARGO_REGISTRIES_KELLNR_TOKEN="${KELLNR_TOKEN}" \
+  -e CARGO_REGISTRIES_private registry token="${KELLNR_TOKEN}" \
   -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
   -v $(pwd):/app \
   -v coder-cargo-registry:/usr/local/cargo/registry \
@@ -392,7 +397,7 @@ docker run --rm --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -w /app \
   zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl \
-  cargo check --target x86_64-unknown-linux-musl -p {name}
+  cargo check -p {name}
 
 # 3. Run tests
 node scripts/run-tests-docker.js {name}
@@ -407,7 +412,7 @@ docker run --rm -v $(pwd):/app -v coder-cargo-target:/app/target \
   -e CARGO_REGISTRIES_KELLNR_INDEX="sparse+http://192.168.2.12:16444/api/v1/crates/" \
   -w /app/services/{name} \
   zhcoder-docker-registry.com:8000/builder/rust:1.96-slim-musl \
-  cargo run --target x86_64-unknown-linux-musl --bin dump-openapi
+  cargo run --bin dump-openapi
 
 # 6. OpenAPI spec check
 node scripts/check-spec.js
