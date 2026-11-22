@@ -53,6 +53,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Verify Node.js script syntax
+        run: |
+          node --check scripts/ci-local-run.js
+          node --check scripts/dump-openapi-specs.js
+
       - name: Verify formatting
         run: cargo fmt --check --all
 
