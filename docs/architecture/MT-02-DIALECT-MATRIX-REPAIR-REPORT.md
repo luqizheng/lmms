@@ -1,38 +1,34 @@
-# MT-02 — Dialect Matrix and Migration Fixture Repair
+# MT-02 — Database Dialect Matrix and Migration Fixture Repair
 
-**Status:** repository-side corrections committed; GitHub Actions PR run queued (not manually dispatched)  
+**Status:** implementation updated; GitHub Actions validation is pending on the PR head.  
 **Branch:** `mt-02-dialect-ci-repair`
 
-## Evidence reviewed
+## Evidence and original CI failures
 
-Inspected GitHub Actions run `44969202059` (commit `7a2f83b`):
+The original matrix exposed stale migration fixtures for the retired config-service package and service test commands that did not select package features correctly. Those failures are addressed by the current workflow and migration fixture updates.
 
-- MySQL dialect job: passed.
-- SQLite dialect job: passed.
-- PostgreSQL dialect job: failed at Rust compilation because `pg_migration_test.rs` included two removed `config-service` migration paths.
-- MySQL service job: the audit-service tests completed; the next matrix entry still invoked the retired `config_service` package, which is not a member of the current workspace.
-- PostgreSQL service job: failed immediately while invoking feature-enabled tests against service packages. The workflow now uses package-qualified feature selectors to avoid ambiguous feature scoping.
+## Scope decision
+
+The repository owner confirmed that Dameng and MSSQL are not required:
+- Rust/SQLx has no supported Dameng driver in this project; do not emulate it through the MySQL wire protocol.
+- There are no current MSSQL customers; defer SQL Server support until a concrete future requirement exists.
+
+Accordingly, MT-02 removes both from the supported product surface rather than maintaining non-functional placeholders.
 
 ## Changes
 
-1. Removed the obsolete config-service PostgreSQL migration test and stale SQL includes.
-2. Added the current file-service PostgreSQL V003 alignment migration to both the migration execution fixture and static migration checks.
-3. Removed retired `config_service` invocations from MySQL and PostgreSQL service jobs.
-4. Scoped service dialect features explicitly as `<package>/mysql` and `<package>/postgres`.
-5. Corrected the workflow comment so it reflects actual workspace membership.
-6. Corrected the Dameng feature to enable the crate's MySQL transport implementation, normalized `dameng://` to the `mysql://` scheme before passing the URL to SQLx, and aligned its current-time expression with Dameng's native `SYSDATE`. Added an opt-in real connectivity/ping test for CI.
-7. Replaced the invalid MSSQL `--features mssql` database job (no SQL Server driver or Cargo feature exists) with MSSQL SQL-rendering contract tests. The workflow now explicitly does not claim SQL Server connectivity support.
+1. Removed the Dameng Cargo feature, URL normalization shim, connection test, dialect implementation, and dialect assertions.
+2. Removed the MSSQL dialect implementation and SQL-rendering-only claims/tests.
+3. Reduced `DialectKind` to MySQL, PostgreSQL, and SQLite; removed Dameng/MSSQL branches from pool initialization and migration routing.
+4. Removed Dameng/MSSQL CI jobs and the now-unneeded scheduled workflow trigger.
+5. Updated the dialect support specification to list only the three supported databases.
+6. Retained the earlier migration fixture and service test matrix corrections.
 
-## Verification status
+## Verification
 
-- [x] Failure causes confirmed from GitHub Actions job logs.
-- [x] Current workspace membership checked against the repository tree and Cargo manifests.
-- [x] Updated migration fixture paths checked against the current repository tree.
-- [x] Reviewed dialect implementation and aligned Dameng feature/URL handling with the MySQL-wire driver.
-- [x] Removed the unsupported MSSQL connection-test claim; retained pure SQL rendering tests.
-- [x] Changes committed to this branch.
-- [ ] GitHub Actions PR run — automatically queued by opening PR #2; results pending.
+- [x] Repository code and manifests updated to remove explicit Dameng/MSSQL implementation hooks.
+- [x] CI workflow updated to test only supported database backends.
+- [ ] GitHub Actions run for the latest PR head.
 - [ ] PostgreSQL migration execution against a live PostgreSQL server.
-- [ ] Full service dialect matrix execution.
 
-No build, integration test, or workflow rerun is claimed as passing after these edits.
+No test is claimed as passing until the latest GitHub Actions run reports success.
