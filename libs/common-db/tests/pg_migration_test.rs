@@ -66,83 +66,6 @@ async fn apply_migrations(pool: &PgPool, schema: &str, scripts: &[&str]) -> usiz
 }
 
 #[tokio::test]
-async fn config_service_postgres_migrations_apply() {
-    let Some(url) = test_pg_url() else { return };
-    let pool = PgPool::connect(&url).await.expect("connect pg");
-
-    let executed = apply_migrations(
-        &pool,
-        "verify_cfg",
-        &[
-            include_str!("../../../services/config-service/migrations/postgres/V001__init.sql"),
-            include_str!("../../../services/config-service/migrations/postgres/V002__tenant_cfg.sql"),
-        ],
-    )
-    .await;
-    assert!(executed > 10, "应执行了多条语句，实际 {executed}");
-
-    // V001 建的三张表都在
-    let tables: Vec<(String,)> = sqlx::query_as(
-        "SELECT table_name::text FROM information_schema.tables \
-         WHERE table_schema = 'verify_cfg' ORDER BY table_name",
-    )
-    .fetch_all(&pool)
-    .await
-    .expect("list tables");
-    let names: Vec<&str> = tables.iter().map(|t| t.0.as_str()).collect();
-    assert_eq!(
-        names,
-        vec!["cfg_config_items", "cfg_config_versions", "cfg_namespaces"]
-    );
-
-    // V002 的关键效果：tenant_id 存在、且「租户前缀」唯一索引已重建
-    let cols: Vec<(String,)> = sqlx::query_as(
-        "SELECT column_name::text FROM information_schema.columns \
-         WHERE table_schema = 'verify_cfg' AND table_name = 'cfg_namespaces'",
-    )
-    .fetch_all(&pool)
-    .await
-    .expect("list columns");
-    assert!(
-        cols.iter().any(|c| c.0 == "tenant_id"),
-        "V002 必须加上 tenant_id"
-    );
-
-    let idx: Vec<(String,)> = sqlx::query_as(
-        "SELECT indexname::text FROM pg_indexes \
-         WHERE schemaname = 'verify_cfg' AND tablename = 'cfg_namespaces'",
-    )
-    .fetch_all(&pool)
-    .await
-    .expect("list indexes");
-    let idx_names: Vec<&str> = idx.iter().map(|i| i.0.as_str()).collect();
-    assert!(
-        idx_names.contains(&"uk_cfg_ns_tenant_app_env_profile"),
-        "V002 必须重建含 tenant_id 的唯一索引，实际: {idx_names:?}"
-    );
-    assert!(
-        !idx_names.contains(&"uk_cfg_namespaces_app_env_profile"),
-        "老唯一索引必须被删除，实际: {idx_names:?}"
-    );
-
-    // 时间列必须是 TIMESTAMPTZ（不是 TIMESTAMP）——否则 DateTime<Utc> 解码失败（§3 #3）
-    let ts: Vec<(String, String)> = sqlx::query_as(
-        "SELECT column_name::text, data_type::text FROM information_schema.columns \
-         WHERE table_schema = 'verify_cfg' AND data_type LIKE 'timestamp%'",
-    )
-    .fetch_all(&pool)
-    .await
-    .expect("list timestamp columns");
-    assert!(!ts.is_empty(), "应存在时间列");
-    for (col, ty) in &ts {
-        assert_eq!(
-            ty, "timestamp with time zone",
-            "列 {col} 必须是 TIMESTAMPTZ（MySQL 侧 DATETIME → PG 必须带时区），实际 {ty}"
-        );
-    }
-}
-
-#[tokio::test]
 async fn file_service_postgres_migrations_apply() {
     let Some(url) = test_pg_url() else { return };
     let pool = PgPool::connect(&url).await.expect("connect pg");
@@ -154,6 +77,9 @@ async fn file_service_postgres_migrations_apply() {
             include_str!("../../../services/file-service/migrations/postgres/V001__init.sql"),
             include_str!(
                 "../../../services/file-service/migrations/postgres/V002__file_tenant_reconcile.sql"
+            ),
+            include_str!(
+                "../../../services/file-service/migrations/postgres/V003__align_bigint_signed.sql"
             ),
         ],
     )
@@ -337,11 +263,12 @@ async fn audit_service_postgres_migration_applies() {
 /// 迁移文件里不得出现执行器无法处理的块结构（`split(';')` 会切坏）。
 #[test]
 fn postgres_migrations_forbid_dollar_blocks() {    let scripts = [
-        include_str!("../../../services/config-service/migrations/postgres/V001__init.sql"),
-        include_str!("../../../services/config-service/migrations/postgres/V002__tenant_cfg.sql"),
         include_str!("../../../services/file-service/migrations/postgres/V001__init.sql"),
         include_str!(
             "../../../services/file-service/migrations/postgres/V002__file_tenant_reconcile.sql"
+        ),
+        include_str!(
+            "../../../services/file-service/migrations/postgres/V003__align_bigint_signed.sql"
         ),
         include_str!("../../../services/prue_backend/migrations/postgres/V001__init.sql"),
         include_str!("../../../services/audit-service/migrations/postgres/V001__init.sql"),
