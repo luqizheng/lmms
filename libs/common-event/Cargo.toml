@@ -31,8 +31,8 @@ prometheus = "0.13"
 redis = { workspace = true }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
-digua_common_telemetry = { path = "../common-telemetry", default-features = false }
-digua_common_db = { path = "../common-db" }
+digua_common_telemetry = { path = "../common-telemetry", default-features = false, version = "1.6.0" }
+digua_common_db = { path = "../common-db", version = "1.6.0" }
 
 [dev-dependencies]
 testcontainers = "0.20"

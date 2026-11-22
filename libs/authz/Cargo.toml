@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 axum.workspace = true
-digua_jwt_ctx = { path = "../jwt-ctx" }
-digua_common_jwt = { path = "../common-jwt" }
+digua_jwt_ctx = { path = "../jwt-ctx", version = "1.6.0" }
+digua_common_jwt = { path = "../common-jwt", version = "1.7.0" }
 tower = "0.5"
 thiserror.workspace = true
 futures = "0.3"
@@ -19,4 +19,4 @@ serde_json.workspace = true
 [dev-dependencies]
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
-digua_common_jwt = { path = "../common-jwt" }
+digua_common_jwt = { path = "../common-jwt", version = "1.7.0" }

@@ -6,7 +6,7 @@ description = "Axum middleware for OpenTelemetry tracing in KudiCoder services"
 edition = "2021"
 
 [dependencies]
-digua_common_telemetry = { path = "../common-telemetry" }
+digua_common_telemetry = { path = "../common-telemetry", version = "1.6.0" }
 axum.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

@@ -14,7 +14,7 @@ config-service = ["dep:reqwest"]
 config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-digua_common_error = { path = "../common-error" }
+digua_common_error = { path = "../common-error", version = "1.6.0" }
 reqwest = { workspace = true, optional = true, default-features = false }
 base64 = { workspace = true, optional = true }
 tokio = { workspace = true }

@@ -6,7 +6,7 @@ description = "Axum extractor for JWT principal context in KudiCoder services"
 edition = "2021"
 
 [dependencies]
-digua_common_jwt = { path = "../common-jwt" }
+digua_common_jwt = { path = "../common-jwt", version = "1.7.0" }
 axum.workspace = true
 thiserror.workspace = true
 async-trait = "0.1"

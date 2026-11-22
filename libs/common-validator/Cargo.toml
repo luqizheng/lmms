@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 validator.workspace = true
-digua_common_error = { path = "../common-error" }
+digua_common_error = { path = "../common-error", version = "1.6.0" }
