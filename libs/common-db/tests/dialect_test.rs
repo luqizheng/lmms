@@ -2,10 +2,18 @@ use digua_common_db::dialect::{DialectKind, Paginate};
 
 #[test]
 fn supported_database_urls_are_detected() {
-    assert_eq!(DialectKind::from_url("mysql://localhost/db"), DialectKind::Mysql);
-    assert_eq!(DialectKind::from_url("sqlite::memory:"), DialectKind::Sqlite);
-    assert_eq!(DialectKind::from_url("postgres://localhost/db"), DialectKind::Postgres);
-    assert_eq!(DialectKind::from_url("postgresql://localhost/db"), DialectKind::Postgres);
+    assert_eq!(DialectKind::from_url("mysql://localhost/db"), Some(DialectKind::Mysql));
+    assert_eq!(DialectKind::from_url("sqlite::memory:"), Some(DialectKind::Sqlite));
+    assert_eq!(DialectKind::from_url("postgres://localhost/db"), Some(DialectKind::Postgres));
+    assert_eq!(DialectKind::from_url("postgresql://localhost/db"), Some(DialectKind::Postgres));
+}
+
+#[test]
+fn unsupported_database_urls_are_rejected() {
+    assert_eq!(DialectKind::from_url("dameng://localhost/db"), None);
+    assert_eq!(DialectKind::from_url("mssql://localhost/db"), None);
+    assert_eq!(DialectKind::from_url("oracle://localhost/db"), None);
+    assert_eq!(DialectKind::from_url(""), None);
 }
 
 #[test]
