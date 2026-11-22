@@ -572,7 +572,7 @@ async function main() {
       rust_ci_status: results.some((r) => r.status === 'fail') ? 'failed' : 'completed',
       jobs: results,
     };
-    writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\\n', 'utf8');
+    writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
     info(`耗时报告已写入：${reportPath}`);
   }
 
