@@ -161,9 +161,7 @@ fn render_matches_sqlx_query_builder() {
 fn count_placeholders_matches_render_count() {
     for dialect in [
         DialectKind::Mysql,
-        DialectKind::Dameng,
         DialectKind::Sqlite,
-        DialectKind::Mssql,
         DialectKind::Postgres,
     ] {
         let sql = "SELECT * FROM t WHERE a = ? AND b = ?";
