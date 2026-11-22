@@ -37,7 +37,7 @@ fn dialect_paginate_mssql() {
 #[test]
 fn dialect_now_expr() {
     assert_eq!(DialectKind::Mysql.now_expr(), "UTC_TIMESTAMP()");
-    assert_eq!(DialectKind::Dameng.now_expr(), "UTC_TIMESTAMP()");
+    assert_eq!(DialectKind::Dameng.now_expr(), "SYSDATE");
     assert_eq!(DialectKind::Sqlite.now_expr(), "CURRENT_TIMESTAMP");
     assert_eq!(DialectKind::Mssql.now_expr(), "GETUTCDATE()");
 }
