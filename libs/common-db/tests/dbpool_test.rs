@@ -4,7 +4,7 @@ use digua_common_db::dialect::{DialectKind, Paginate};
 fn dialect_from_sqlite_url() {
     assert_eq!(
         DialectKind::from_url("sqlite::memory:"),
-        DialectKind::Sqlite
+        Some(DialectKind::Sqlite)
     );
 }
 
@@ -12,15 +12,7 @@ fn dialect_from_sqlite_url() {
 fn dialect_from_sqlite_file_url() {
     assert_eq!(
         DialectKind::from_url("sqlite:/data/app.db"),
-        DialectKind::Sqlite
-    );
-}
-
-#[test]
-fn dialect_from_dameng_url() {
-    assert_eq!(
-        DialectKind::from_url("dameng://user:pwd@host:5236/db"),
-        DialectKind::Dameng
+        Some(DialectKind::Sqlite)
     );
 }
 
@@ -28,7 +20,7 @@ fn dialect_from_dameng_url() {
 fn dialect_from_mysql_url() {
     assert_eq!(
         DialectKind::from_url("mysql://localhost:3306/db"),
-        DialectKind::Mysql
+        Some(DialectKind::Mysql)
     );
 }
 
@@ -36,7 +28,7 @@ fn dialect_from_mysql_url() {
 fn dialect_from_mariadb_url() {
     assert_eq!(
         DialectKind::from_url("mariadb://localhost/db"),
-        DialectKind::Mysql
+        Some(DialectKind::Mysql)
     );
 }
 
@@ -44,33 +36,24 @@ fn dialect_from_mariadb_url() {
 fn dialect_pg_urls_are_explicit() {
     assert_eq!(
         DialectKind::from_url("postgresql://localhost/db"),
-        DialectKind::Postgres
+        Some(DialectKind::Postgres)
     );
     assert_eq!(
         DialectKind::from_url("postgres://localhost/db"),
-        DialectKind::Postgres
+        Some(DialectKind::Postgres)
     );
 }
 
 #[test]
-fn dialect_from_mssql_url() {
-    // mssql 是已注册方言（dialect/mssql.rs），显式映射而非回退
+fn dialect_retired_and_unknown_schemes_are_rejected() {
+    // Dameng / MSSQL 已移除；未知 scheme 一律返回 None，绝不静默回退 MySQL。
     assert_eq!(
-        DialectKind::from_url("mssql://localhost/db"),
-        DialectKind::Mssql
+        DialectKind::from_url("dameng://user:pwd@host:5236/db"),
+        None
     );
-}
-
-#[test]
-fn dialect_unknown_url_defaults_mysql() {
-    assert_eq!(
-        DialectKind::from_url("oracle://localhost/db"),
-        DialectKind::Mysql
-    );
-    assert_eq!(
-        DialectKind::from_url("some-random-scheme://host/db"),
-        DialectKind::Mysql
-    );
+    assert_eq!(DialectKind::from_url("mssql://localhost/db"), None);
+    assert_eq!(DialectKind::from_url("oracle://localhost/db"), None);
+    assert_eq!(DialectKind::from_url("some-random-scheme://host/db"), None);
 }
 
 #[test]
@@ -90,11 +73,6 @@ fn dialect_now_expr_sqlite() {
 #[test]
 fn dialect_now_expr_mysql() {
     assert_eq!(DialectKind::Mysql.now_expr(), "UTC_TIMESTAMP()");
-}
-
-#[test]
-fn dialect_now_expr_dameng() {
-    assert_eq!(DialectKind::Dameng.now_expr(), "UTC_TIMESTAMP()");
 }
 
 #[test]

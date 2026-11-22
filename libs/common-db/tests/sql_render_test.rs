@@ -15,30 +15,51 @@ fn pg(sql: &str) -> Result<String, SqlRenderError> {
 
 #[test]
 fn t01_pg_numbered_in_order() {
-    let rq = render("SELECT * FROM t WHERE a = ? AND b = ? AND c = ?", DialectKind::Postgres).unwrap();
+    let rq = render(
+        "SELECT * FROM t WHERE a = ? AND b = ? AND c = ?",
+        DialectKind::Postgres,
+    )
+    .unwrap();
     assert_eq!(rq.expected_binds(), 3);
-    assert_eq!(rq.sql(), "SELECT * FROM t WHERE a = $1 AND b = $2 AND c = $3");
+    assert_eq!(
+        rq.sql(),
+        "SELECT * FROM t WHERE a = $1 AND b = $2 AND c = $3"
+    );
 }
 
 #[test]
 fn t02_mysql_borrowed_and_still_counted() {
     let rq = render("SELECT * FROM t WHERE a = ? AND b = ?", DialectKind::Mysql).unwrap();
     assert_eq!(rq.sql(), "SELECT * FROM t WHERE a = ? AND b = ?");
-    assert!(matches!(rq.sql_cow(), std::borrow::Cow::Borrowed(_)));   // 零分配
-    assert_eq!(rq.expected_binds(), 2);                               // MySQL 也计数 → 封堵静默错位
+    assert!(matches!(rq.sql_cow(), std::borrow::Cow::Borrowed(_))); // 零分配
+    assert_eq!(rq.expected_binds(), 2); // MySQL 也计数 → 封堵静默错位
 }
 
 #[test]
 fn t03_sqlite_unchanged() {
     assert_eq!(pg("SELECT ?").unwrap(), "SELECT $1");
-    assert_eq!(render("SELECT ?", DialectKind::Sqlite).unwrap().sql(), "SELECT ?");
+    assert_eq!(
+        render("SELECT ?", DialectKind::Sqlite).unwrap().sql(),
+        "SELECT ?"
+    );
 }
 
 #[test]
 fn t04_bind_count_mismatch_at_construction() {
-    let rq = render("SELECT * FROM t WHERE a = ? AND b = ?", DialectKind::Postgres).unwrap();
+    let rq = render(
+        "SELECT * FROM t WHERE a = ? AND b = ?",
+        DialectKind::Postgres,
+    )
+    .unwrap();
     let e = rq.expect_binds(1).unwrap_err();
-    assert!(matches!(e, SqlRenderError::PlaceholderCountMismatch { expected: 2, actual: 1, .. }));
+    assert!(matches!(
+        e,
+        SqlRenderError::PlaceholderCountMismatch {
+            expected: 2,
+            actual: 1,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -50,8 +71,10 @@ fn t05_placeholder_in_single_quote() {
 #[test]
 fn t06_escaped_quote_stays_in_string() {
     // 'it''s ?' —— '' 是转义，不得提前退出字符串态
-    assert!(matches!(render("SELECT 'it''s ?' AS a", DialectKind::Postgres).unwrap_err(),
-                     SqlRenderError::PlaceholderInLiteral { .. }));
+    assert!(matches!(
+        render("SELECT 'it''s ?' AS a", DialectKind::Postgres).unwrap_err(),
+        SqlRenderError::PlaceholderInLiteral { .. }
+    ));
 }
 
 #[test]
@@ -61,8 +84,10 @@ fn t07_string_closes_then_placeholder_counts() {
 
 #[test]
 fn t08_double_quoted_ident_skipped() {
-    assert_eq!(pg(r#"SELECT "a?b" FROM t WHERE id = ?"#).unwrap(),
-               r#"SELECT "a?b" FROM t WHERE id = $1"#);
+    assert_eq!(
+        pg(r#"SELECT "a?b" FROM t WHERE id = ?"#).unwrap(),
+        r#"SELECT "a?b" FROM t WHERE id = $1"#
+    );
 }
 
 #[test]
@@ -73,32 +98,48 @@ fn t09_backtick_ident_skipped_mysql() {
 
 #[test]
 fn t10_line_comment() {
-    assert!(matches!(render("-- ?\nSELECT 1", DialectKind::Postgres).unwrap_err(),
-                     SqlRenderError::PlaceholderInLiteral { .. }));
+    assert!(matches!(
+        render("-- ?\nSELECT 1", DialectKind::Postgres).unwrap_err(),
+        SqlRenderError::PlaceholderInLiteral { .. }
+    ));
 }
 
 #[test]
 fn t11_block_comment() {
-    assert!(matches!(render("/* ? */ SELECT 1", DialectKind::Postgres).unwrap_err(),
-                     SqlRenderError::PlaceholderInLiteral { .. }));
+    assert!(matches!(
+        render("/* ? */ SELECT 1", DialectKind::Postgres).unwrap_err(),
+        SqlRenderError::PlaceholderInLiteral { .. }
+    ));
 }
 
 #[test]
 fn t12_dollar_quoted() {
-    assert!(matches!(render("SELECT $$ ? $$ , ?", DialectKind::Postgres).unwrap_err(),
-                     SqlRenderError::PlaceholderInLiteral { .. }));
+    assert!(matches!(
+        render("SELECT $$ ? $$ , ?", DialectKind::Postgres).unwrap_err(),
+        SqlRenderError::PlaceholderInLiteral { .. }
+    ));
 }
 
 #[test]
 fn t13_unterminated_string() {
-    assert!(matches!(render("SELECT 1 WHERE x = 'unclosed", DialectKind::Postgres).unwrap_err(),
-                     SqlRenderError::UnterminatedLiteral { kind: LiteralKind::SingleQuote, .. }));
+    assert!(matches!(
+        render("SELECT 1 WHERE x = 'unclosed", DialectKind::Postgres).unwrap_err(),
+        SqlRenderError::UnterminatedLiteral {
+            kind: LiteralKind::SingleQuote,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn t14_unterminated_comment() {
-    assert!(matches!(render("SELECT 1 /* unclosed", DialectKind::Postgres).unwrap_err(),
-                     SqlRenderError::UnterminatedLiteral { kind: LiteralKind::BlockComment, .. }));
+    assert!(matches!(
+        render("SELECT 1 /* unclosed", DialectKind::Postgres).unwrap_err(),
+        SqlRenderError::UnterminatedLiteral {
+            kind: LiteralKind::BlockComment,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -110,23 +151,39 @@ fn t15_existing_dollar_n_not_recounted() {
 
 #[test]
 fn t16_like_placeholder_regression_guard() {
-    assert!(matches!(render("SELECT * FROM t WHERE name LIKE '?%' AND id = ?", DialectKind::Postgres).unwrap_err(),
-                     SqlRenderError::PlaceholderInLiteral { .. }));
+    assert!(matches!(
+        render(
+            "SELECT * FROM t WHERE name LIKE '?%' AND id = ?",
+            DialectKind::Postgres
+        )
+        .unwrap_err(),
+        SqlRenderError::PlaceholderInLiteral { .. }
+    ));
 }
 
 #[test]
 fn t17_compact_multi_pg() {
-    assert_eq!(pg("INSERT INTO t VALUES (?,?,?,?)").unwrap(), "INSERT INTO t VALUES ($1,$2,$3,$4)");
+    assert_eq!(
+        pg("INSERT INTO t VALUES (?,?,?,?)").unwrap(),
+        "INSERT INTO t VALUES ($1,$2,$3,$4)"
+    );
 }
 
 #[test]
 fn t18_compact_multi_mysql_counts() {
-    assert_eq!(render("INSERT INTO t VALUES (?,?,?,?)", DialectKind::Mysql).unwrap().expected_binds(), 4);
+    assert_eq!(
+        render("INSERT INTO t VALUES (?,?,?,?)", DialectKind::Mysql)
+            .unwrap()
+            .expected_binds(),
+        4
+    );
 }
 
 #[test]
 fn t19_error_echoes_raw_sql_and_dialect() {
-    let e = render("SELECT '?'", DialectKind::Postgres).unwrap_err().to_string();
+    let e = render("SELECT '?'", DialectKind::Postgres)
+        .unwrap_err()
+        .to_string();
     assert!(e.contains("SELECT '?'"));
     assert!(e.contains("postgres"));
 }
@@ -151,9 +208,17 @@ fn render_matches_sqlx_query_builder() {
 
     // 与 QueryBuilder 对拍：QueryBuilder::push_bind 内部就是 format_placeholder
     let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new("");
-    qb.push("SELECT ").push_bind("a").push("::text AS a, ").push_bind("b").push("::text AS b");
+    qb.push("SELECT ")
+        .push_bind("a")
+        .push("::text AS a, ")
+        .push_bind("b")
+        .push("::text AS b");
     let built = qb.build();
-    assert_eq!(built.sql(), ours.sql(), "我方 render 必须与 sqlx QueryBuilder 产物一致");
+    assert_eq!(
+        built.sql(),
+        ours.sql(),
+        "我方 render 必须与 sqlx QueryBuilder 产物一致"
+    );
 }
 
 /// `count_placeholders` 只计数、不改写，且与 `render` 的计数必须一致。
@@ -161,9 +226,7 @@ fn render_matches_sqlx_query_builder() {
 fn count_placeholders_matches_render_count() {
     for dialect in [
         DialectKind::Mysql,
-        DialectKind::Dameng,
         DialectKind::Sqlite,
-        DialectKind::Mssql,
         DialectKind::Postgres,
     ] {
         let sql = "SELECT * FROM t WHERE a = ? AND b = ?";

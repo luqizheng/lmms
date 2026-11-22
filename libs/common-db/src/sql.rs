@@ -49,7 +49,7 @@ use std::fmt;
 pub enum LiteralKind {
     /// `'...'` 字符串字面量
     SingleQuote,
-    /// `"..."` 双引号标识符（PG / SQLite / MSSQL）
+    /// `"..."` 双引号标识符（PG / SQLite）
     DoubleQuote,
     /// `` `...` `` 反引号标识符（MySQL）
     Backtick,
@@ -161,9 +161,7 @@ impl std::error::Error for SqlRenderError {}
 fn dialect_name(dialect: DialectKind) -> &'static str {
     match dialect {
         DialectKind::Mysql => "mysql",
-        DialectKind::Dameng => "dameng",
         DialectKind::Sqlite => "sqlite",
-        DialectKind::Mssql => "mssql",
         DialectKind::Postgres => "postgres",
     }
 }
@@ -234,7 +232,7 @@ impl<'a> RewrittenQuery<'a> {
 
 /// 把 MySQL 风格（`?`）的 SQL 渲染为目标方言，并同时产出 bind 个数契约。
 ///
-/// - `Mysql` / `Dameng` / `Sqlite` / `Mssql`：SQL 原样返回（`Cow::Borrowed`，零分配），
+/// - `Mysql` / `Sqlite`：SQL 原样返回（`Cow::Borrowed`，零分配），
 ///   但**仍然统计** `?` 个数（MySQL 侧同样做构造期校验）。
 /// - `Postgres`：第 k 个裸 `?` → `$k`（`Cow::Owned`）。
 ///
@@ -249,9 +247,10 @@ pub fn render(sql: &str, dialect: DialectKind) -> Result<RewrittenQuery<'_>, Sql
     let rewrite = matches!(dialect, DialectKind::Postgres);
     let (rendered, placeholders) = scan(sql, dialect, rewrite)?;
     let cow = match rendered {
-        Some(bytes) => Cow::Owned(String::from_utf8(bytes).expect(
-            "扫描器只整段复制原始字节并替换 ASCII 的 `?`，输出必然是合法 UTF-8",
-        )),
+        Some(bytes) => Cow::Owned(
+            String::from_utf8(bytes)
+                .expect("扫描器只整段复制原始字节并替换 ASCII 的 `?`，输出必然是合法 UTF-8"),
+        ),
         None => Cow::Borrowed(sql),
     };
     Ok(RewrittenQuery {
@@ -287,7 +286,7 @@ enum State {
 /// MySQL 默认开启 `backslash_escapes`，`\'` 是转义序列；
 /// PostgreSQL 的 `standard_conforming_strings` 默认为 `on`，`\` 是普通字符。
 fn backslash_escapes(dialect: DialectKind) -> bool {
-    matches!(dialect, DialectKind::Mysql | DialectKind::Dameng)
+    matches!(dialect, DialectKind::Mysql)
 }
 
 /// 带引号的文本里，`?` 是「跳过」还是「报错」。
@@ -298,7 +297,7 @@ fn backslash_escapes(dialect: DialectKind) -> bool {
 /// - **注释** → 报错：同上。
 ///
 /// `"` 的语义按方言分流：MySQL 默认（未开 `ANSI_QUOTES`）下 `"..."` 是**字符串**，
-/// PG / SQLite / MSSQL / 达梦下是**标识符**。
+/// PG / SQLite 下是**标识符**。
 fn quote_is_identifier(dialect: DialectKind, state: &State) -> bool {
     match state {
         State::DoubleQuote => !matches!(dialect, DialectKind::Mysql),

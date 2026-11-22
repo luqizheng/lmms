@@ -5,7 +5,7 @@
 | digua_common-error | AppError + axum IntoResponse | thiserror / axum |
 | digua_common-log | tracing JSON + request_id 中间件 | tracing-subscriber |
 | digua_common-config | 配置加载（env + file） | config |
-| digua_common-db | sqlx 多方言（mysql/dameng/mssql/sqlite）+ SqliteFixture | sqlx + tempfile |
+| digua_common-db | sqlx 多方言（mysql/postgres/sqlite）+ SqliteFixture | sqlx + tempfile |
 | digua_common-cache | Cache trait + MemoryCache(Moka) / Redis(可选) | moka / redis |
 | digua_common-http | reqwest 封装 + 请求 ID 透传 | reqwest |
 | digua_common-crypto | Argon2 + AES-256-GCM | argon2 / aes-gcm |
@@ -16,7 +16,7 @@
 
 ## feature 矩阵
 
-- `digua_common-db`：`mysql` / `dameng` / `mssql` / `sqlite` / `test-kit`，互不强制。
+- `digua_common-db`：`mysql` / `postgres` / `sqlite` / `test-kit`，互不强制。
 - `digua_common-cache`：`memory`（默认）/ `redis`。
 
 ## 单测约定

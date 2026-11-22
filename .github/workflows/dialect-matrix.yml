@@ -1,10 +1,10 @@
 # 数据库方言兼容矩阵 CI 配置
-# 
+#
 # 说明：
 # - SQLite: PR 级别测试（快速反馈）
 # - MySQL: PR 级别测试（标准生产环境）
-# - Dameng: 每日定时测试（信创环境）
-# - MSSQL: 每日定时测试（Windows 环境）
+# - PostgreSQL: PR 级别测试（基础方言）
+# 仅支持 MySQL / PostgreSQL / SQLite 三种方言；不支持 Dameng / MSSQL。
 
 name: Database Dialect Matrix
 
@@ -13,9 +13,6 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
-  schedule:
-    # 每日凌晨 2:00 UTC 运行方言兼容测试
-    - cron: '0 2 * * *'
 
 jobs:
   # SQLite 测试 - PR 必跑
@@ -80,62 +77,8 @@ jobs:
           export TEST_PG_URL="postgres://postgres:coder@localhost:5432/coder_test"
           cargo test --package digua_common_db --features postgres
 
-  # Dameng 测试 - 每日定时（需要 Docker 镜像）
-  test-dameng:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[dameng]')
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-      - name: Start Dameng container
-        run: |
-          docker pull swr.cn-north-4.myhuaweicloud.com/dm_db/docker_dm
-          docker run -d --name dameng -p 5236:5236 \
-            -e DM_MODE=INITIAL \
-            swr.cn-north-4.myhuaweicloud.com/dm_db/docker_dm
-          sleep 60
-      - name: Run Dameng dialect tests
-        run: |
-          export DATABASE_URL="dameng://SYSDBA:SYSDBA@localhost:5236"
-          cargo test --package digua_common_db --features mysql
-
-  # MSSQL 测试 - 每日定时
-  test-mssql:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[mssql]')
-    services:
-      mssql:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: TestPass123!
-        options: >-
-          --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'TestPass123!' -Q 'SELECT 1'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-        ports:
-          - 1433:1433
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-      - name: Install ODBC
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | tee /etc/apt/sources.list.d/msprod.list
-          apt-get update
-          ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18
-      - name: Run MSSQL tests
-        run: |
-          export DATABASE_URL="mssql://sa:TestPass123!@localhost:1433/master"
-          cargo test --package digua_common_db --features mssql
-
   # 核心服务集成测试（MySQL 侧）
-  # 包名用下划线（workspace 名是 config_service 等，dash 包名会
+  # 包名用下划线（workspace 名是 audit_service 等，dash 包名会
   # "package ID specification did not match any packages"——此 job 此前从未真跑过）。
   # 服务测试夹具走 TEST_MYSQL_HOST/PORT 共享容器模式，root 空密码。
   test-services:
@@ -163,11 +106,9 @@ jobs:
           export TEST_MYSQL_HOST=localhost
           export TEST_MYSQL_PORT=3306
           cargo test --package audit_service --features mysql
-          cargo test --package config_service --features mysql
           cargo test --package file_service --features mysql
 
   # 核心服务集成测试（PostgreSQL 侧）—— 服务级 pg_roundtrip（S4，2026-11-03）
-  # 覆盖随切片推进：S5c 追加 notification_service，S5d/S5e 追加 iam 两个包。
   test-services-postgres:
     runs-on: ubuntu-latest
     services:
@@ -192,7 +133,6 @@ jobs:
       - name: Run service PostgreSQL tests
         run: |
           export TEST_PG_URL="postgres://postgres:coder@localhost:5432/coder_test"
-          cargo test --package config_service --features postgres
           cargo test --package file_service --features postgres
           cargo test --package token_service --features postgres
           cargo test --package audit_service --features postgres

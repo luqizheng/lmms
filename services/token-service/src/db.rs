@@ -76,9 +76,7 @@ pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: "V002",
         sql_mysql: include_str!("../migrations/mysql/V002__add_client_user_and_expiry.sql"),
-        sql_postgres: include_str!(
-            "../migrations/postgres/V002__add_client_user_and_expiry.sql"
-        ),
+        sql_postgres: include_str!("../migrations/postgres/V002__add_client_user_and_expiry.sql"),
         marker_table: "token_migration_v002_applied",
     },
     Migration {
@@ -97,9 +95,11 @@ pub const MIGRATIONS: &[Migration] = &[
 ///   没有 `after_connect` 钩子）。不锁 UTC 会让 `TIMESTAMP` 列的编解码随服务器时区漂移，
 ///   `expires_at > NOW()` 这类判断虽然自洽，但 `DateTime<Utc>` 解出来会整体偏移。
 pub async fn init_pool(cfg: &DatabaseCfg) -> Result<DbPool> {
-    match DialectKind::from_url(&cfg.url) {
+    let dialect = DialectKind::from_url(&cfg.url)
+        .ok_or_else(|| anyhow::anyhow!("unsupported database URL scheme: {}", cfg.url))?;
+    match dialect {
         #[cfg(feature = "mysql")]
-        DialectKind::Mysql | DialectKind::Dameng => {
+        DialectKind::Mysql => {
             let pool = MySqlPoolOptions::new()
                 .max_connections(cfg.max_connections)
                 .acquire_timeout(Duration::from_secs(5))
@@ -182,10 +182,7 @@ async fn apply_sql_script(pool: &DbPool, version: &str, script: &str) -> Result<
                     continue;
                 }
             }
-            return Err(anyhow::anyhow!(
-                "apply {version} ({}): {e}",
-                first_line(s)
-            ));
+            return Err(anyhow::anyhow!("apply {version} ({}): {e}", first_line(s)));
         }
     }
     Ok(())

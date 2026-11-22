@@ -27,7 +27,7 @@ use sqlx::Pool;
 /// 占位符风格 —— 供诊断 / 日志使用（业务层不应依赖它）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaceholderStyle {
-    /// 匿名占位符 `?`（MySQL / SQLite / 达梦 / MSSQL）。
+    /// 匿名占位符 `?`（MySQL / SQLite）。
     Question,
     /// 带编号占位符 `$1..$N`（PostgreSQL）。
     Numbered,
@@ -150,11 +150,17 @@ pub async fn init_pool(database_url: &str) -> AppResult<DbPool> {
 ///
 /// 分方言设置 `max_connections`（SQLite 的并发写能力有限，沿用 5）。
 pub async fn init_pool_with(database_url: &str, max_connections: u32) -> AppResult<DbPool> {
-    let dialect = DialectKind::from_url(database_url);
+    // 未知 scheme 明确报错（DB_URL_SCHEME），绝不静默回退到 MySQL。
+    let dialect = DialectKind::from_url(database_url).ok_or_else(|| {
+        AppError::internal(
+            "DB_URL_SCHEME",
+            "unsupported database URL scheme; supported schemes are mysql, mariadb, postgres, postgresql, sqlite",
+        )
+    })?;
 
     match dialect {
         #[cfg(feature = "mysql")]
-        DialectKind::Mysql | DialectKind::Dameng => {
+        DialectKind::Mysql => {
             let pool = sqlx::mysql::MySqlPoolOptions::new()
                 .max_connections(max_connections)
                 .connect(database_url)
@@ -200,9 +206,7 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
     let dialect = pool.dialect();
     let dialect_str = match dialect {
         DialectKind::Mysql => "mysql",
-        DialectKind::Dameng => "mysql", // 达梦兼容 MySQL 迁移
         DialectKind::Sqlite => "sqlite",
-        DialectKind::Mssql => "mssql",
         DialectKind::Postgres => "postgres",
     };
 

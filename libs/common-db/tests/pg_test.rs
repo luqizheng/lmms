@@ -23,18 +23,23 @@ fn pg_dialect_url_maps_to_postgres() {
     // 纯枚举断言，不依赖数据库
     assert_eq!(
         DialectKind::from_url("postgres://user:pwd@host:5432/db"),
-        DialectKind::Postgres
+        Some(DialectKind::Postgres)
     );
 }
 
 #[tokio::test]
 async fn pg_pool_connects_and_reports_dialect() {
     let Some(url) = test_pg_url() else { return };
-    let pool = init_pool(&url).await.expect("init_pool against coder-test-pg");
+    let pool = init_pool(&url)
+        .await
+        .expect("init_pool against coder-test-pg");
     assert_eq!(pool.dialect(), DialectKind::Postgres);
     match &pool {
         DbPool::Postgres(p) => {
-            let row: (i32,) = sqlx::query_as("SELECT 1").fetch_one(p).await.expect("SELECT 1");
+            let row: (i32,) = sqlx::query_as("SELECT 1")
+                .fetch_one(p)
+                .await
+                .expect("SELECT 1");
             assert_eq!(row.0, 1);
         }
         _ => panic!("expected a postgres pool"),
@@ -48,17 +53,18 @@ async fn pg_now_expr_is_valid_sql() {
     let pool = init_pool(&url).await.expect("init_pool");
     match &pool {
         DbPool::Postgres(p) => {
-            let row: (chrono::NaiveDateTime,) =
-                sqlx::query_as(&format!("SELECT {}", d.now_expr()))
-                    .fetch_one(p)
-                    .await
-                    .expect("now_expr must be valid SQL");
+            let row: (chrono::NaiveDateTime,) = sqlx::query_as(&format!("SELECT {}", d.now_expr()))
+                .fetch_one(p)
+                .await
+                .expect("now_expr must be valid SQL");
             // 2020-01-01 之后即认为取到了合理的当前时间
-            assert!(row.0
-                > chrono::NaiveDate::from_ymd_opt(2020, 1, 1)
-                    .unwrap()
-                    .and_hms_opt(0, 0, 0)
-                    .unwrap());
+            assert!(
+                row.0
+                    > chrono::NaiveDate::from_ymd_opt(2020, 1, 1)
+                        .unwrap()
+                        .and_hms_opt(0, 0, 0)
+                        .unwrap()
+            );
         }
         _ => panic!("expected a postgres pool"),
     }
@@ -76,16 +82,14 @@ async fn pg_marker_probe_detects_existing_table() {
         .await
         .expect("create marker table");
 
-    let found =
-        digua_common_db::migration_state::probe_marker(&pool, "pg_probe_marker")
-            .await
-            .expect("probe_marker");
+    let found = digua_common_db::migration_state::probe_marker(&pool, "pg_probe_marker")
+        .await
+        .expect("probe_marker");
     assert!(found, "刚建的 marker table 必须被探测到");
 
-    let missing =
-        digua_common_db::migration_state::probe_marker(&pool, "pg_no_such_marker_table")
-            .await
-            .expect("probe_marker");
+    let missing = digua_common_db::migration_state::probe_marker(&pool, "pg_no_such_marker_table")
+        .await
+        .expect("probe_marker");
     assert!(!missing, "不存在的 marker table 必须返回 false");
 }
 
