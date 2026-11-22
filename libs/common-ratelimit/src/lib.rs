@@ -136,7 +136,7 @@ impl RateLimiter {
     }
 
     /// Check if (route, identity) is within its limit. Returns Ok(remaining)
-    /// if allowed, Err(RateLimited) if rejected.
+    /// if allowed, Err(RateLimitError::Limited) if rejected.
     ///
     /// Fails open on Redis errors — logs warn but allows the request.
     pub async fn check(&self, identity: &str, limit: &Limit) -> Result<(), RateLimitError> {
@@ -318,7 +318,7 @@ fn base64url_decode(input: &[u8]) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::Limit;
+    use super::{Limit, RateLimitError};
 
     #[test]
     fn multiple_requests_from_same_identity_are_counted() {
@@ -330,5 +330,11 @@ mod tests {
         assert_ne!(format!("user1:{}", now1), format!("user1:{}", now2));
         assert_ne!(format!("user1:{}", now2), format!("user1:{}", now3));
         let _ = key;
+    }
+
+    #[test]
+    fn rate_limit_error_is_typed_and_descriptive() {
+        let error = RateLimitError::Limited;
+        assert_eq!(error.to_string(), "request rate limit exceeded");
     }
 }
