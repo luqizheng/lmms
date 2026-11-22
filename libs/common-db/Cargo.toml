@@ -8,7 +8,7 @@ edition = "2021"
 [features]
 default = ["sqlite"]
 mysql = ["sqlx/mysql"]
-dameng = ["sqlx/mysql"]
+dameng = ["mysql"]
 sqlite = ["sqlx/sqlite"]
 postgres = ["sqlx/postgres"]
 test-kit = ["sqlite", "dep:tempfile"]
