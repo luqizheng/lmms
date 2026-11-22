@@ -42,7 +42,7 @@ impl RoleService {
         let role_id = nanoid!();
         let data_scope_str = data_scope_to_str(req.data_scope);
         // tenant_id 统一按有符号 i64 绑定（PG 列即 BIGINT；MySQL UNSIGNED 列存正数无损）。
-        let tid = scope.tenant_id().unwrap_or(1) as i64;
+        let tid = scope.tenant_id().unwrap_or(1);
 
         db_execute!(
             &self.state.db,
@@ -87,7 +87,7 @@ impl RoleService {
     ) -> Result<RoleListResponse, IamError> {
         let offset = ((query.page - 1) * query.size) as i64;
         let limit = query.size as i64;
-        let tid = scope.tenant_id().unwrap_or(1) as i64;
+        let tid = scope.tenant_id().unwrap_or(1);
 
         let roles: Vec<RoleRow> = if let Some(keyword) = &query.keyword {
             let pattern = format!("%{}%", keyword);
@@ -175,7 +175,7 @@ impl RoleService {
             Vec::new()
         };
 
-        let tid = scope.tenant_id().unwrap_or(1) as i64;
+        let tid = scope.tenant_id().unwrap_or(1);
         // 事务（QueryBuilder UPDATE + same-tx outbox）→ 双臂。
         match &self.state.db {
             #[cfg(feature = "mysql")]
@@ -290,7 +290,7 @@ impl RoleService {
         .map(|(u,)| u)
         .collect();
 
-        let tid = scope.tenant_id().unwrap_or(1) as i64;
+        let tid = scope.tenant_id().unwrap_or(1);
         let affected = match &self.state.db {
             #[cfg(feature = "mysql")]
             digua_common_db::DbPool::Mysql(p) => {
@@ -481,7 +481,7 @@ impl RoleService {
         actor_id: Option<&str>,
         scope: &TenantScope,
     ) -> Result<Vec<String>, IamError> {
-        let tid = scope.tenant_id().unwrap_or(1) as i64;
+        let tid = scope.tenant_id().unwrap_or(1);
 
         // 2) dedup + pre-check role_ids（池级读，事务外；双臂仅因 QueryBuilder 泛型）。
         let dedup: Vec<String> = {
