@@ -106,7 +106,11 @@ impl RouteLimiterSet {
         }
     }
 
-    pub async fn check(&self, path: &str, identity: &str) -> Result<(), ()> {
+    pub async fn check(
+        &self,
+        path: &str,
+        identity: &str,
+    ) -> Result<(), digua_common_ratelimit::RateLimitError> {
         let limit = self
             .limits
             .iter()
