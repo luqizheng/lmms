@@ -65,7 +65,7 @@ utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
 [[bin]]
-name = "dump_openapi"
+name = "dump_openapi_token_service"
 path = "src/bin/dump-openapi.rs"
 
 
