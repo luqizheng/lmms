@@ -51,5 +51,5 @@ tracing-opentelemetry = "0.25"
 rand.workspace = true
 
 [[bin]]
-name = "dump_openapi"
+name = "dump_openapi_api_gateway"
 path = "src/bin/dump-openapi.rs"
