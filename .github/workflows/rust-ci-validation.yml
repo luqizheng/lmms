@@ -2,13 +2,14 @@ name: Rust CI Validation
 
 on:
   push:
-    branches: [fix/rust-ci-main-blockers]
+    branches: [main]
     paths:
       - '.github/workflows/rust-ci-validation.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'libs/**'
       - 'services/**'
+      - 'sdk/rust/**'
       - 'scripts/dump-openapi-specs.js'
       - 'scripts/ci-local-run.js'
   pull_request:
@@ -19,6 +20,7 @@ on:
       - 'Cargo.lock'
       - 'libs/**'
       - 'services/**'
+      - 'sdk/rust/**'
       - 'scripts/dump-openapi-specs.js'
       - 'scripts/ci-local-run.js'
 
@@ -41,7 +43,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev pkg-config
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.96.0
         with:
           components: clippy, rustfmt
 
@@ -53,16 +55,19 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify Node.js script syntax
+      - name: Verify Node scripts and pnpm argument forwarding
         run: |
+          set -euo pipefail
           node --check scripts/ci-local-run.js
           node --check scripts/dump-openapi-specs.js
+          npm install --prefix /tmp/ci-node-deps --no-package-lock --no-save chalk@4.1.2 ora@5.4.1
+          NODE_PATH=/tmp/ci-node-deps/node_modules node scripts/ci-local-run.js -- --help
 
       - name: Verify formatting
         run: cargo fmt --check --all
 
       - name: Run Clippy with warnings denied
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
       - name: Regenerate OpenAPI specifications
         run: node scripts/dump-openapi-specs.js
@@ -71,7 +76,7 @@ jobs:
         run: git diff --exit-code -- 'services/*/openapi.yaml'
 
       - name: Compile workspace library tests
-        run: cargo test --workspace --lib --no-run
+        run: cargo test --locked --workspace --lib --no-run
 
       - name: Run workspace library tests
-        run: cargo test --workspace --lib
+        run: cargo test --locked --workspace --lib
