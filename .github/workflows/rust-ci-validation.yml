@@ -80,3 +80,43 @@ jobs:
 
       - name: Run workspace library tests
         run: cargo test --locked --workspace --lib
+
+      - name: Benchmark sequential vs batched OpenAPI generation (one-time)
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/rust-ci-main-blockers'
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(
+            'api-gateway:dump_openapi_api_gateway'
+            'token-service:dump_openapi_token_service'
+            'iam-service:dump_openapi_iam_service'
+            'notification-service:dump_openapi_notification_service'
+            'audit-service:dump_openapi_audit_service'
+            'file-service:dump_openapi_file_service'
+            'prue_backend:dump_openapi_prue_backend'
+          )
+
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/openapi-sequential-target"
+          start=$(date +%s%N)
+          for item in "${services[@]}"; do
+            dir="${item%%:*}"
+            bin="${item##*:}"
+            (cd "services/${dir}" && cargo run --locked --manifest-path Cargo.toml --bin "${bin}")
+          done
+          end=$(date +%s%N)
+          sequential_ms=$(( (end - start) / 1000000 ))
+
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/openapi-batched-target"
+          start=$(date +%s%N)
+          node scripts/dump-openapi-specs.js
+          end=$(date +%s%N)
+          batched_ms=$(( (end - start) / 1000000 ))
+
+          echo "Sequential cargo run: ${sequential_ms} ms"
+          echo "Batched cargo build:  ${batched_ms} ms"
+          if [ "$batched_ms" -lt "$sequential_ms" ]; then
+            echo "Batched generator is faster by $((sequential_ms - batched_ms)) ms"
+          else
+            echo "Sequential generator is faster by $((batched_ms - sequential_ms)) ms"
+          fi
+          git diff --exit-code -- 'services/*/openapi.yaml'
