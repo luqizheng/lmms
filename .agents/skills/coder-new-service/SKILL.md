@@ -14,8 +14,8 @@ Scaffold a new Rust microservice that satisfies the **8-item service standard ba
 ## Service Scope
 
 Any new Rust service goes here. Existing 8 services cover: api-gateway, token-service,
-iam-service, notification-service, audit-service, config-service, file-service,
-prue_backend.
+iam-service, notification-service, audit-service, file-service,
+prue_backend, iam-outbox-publisher.
 
 ## Gathering Service Info
 
@@ -46,12 +46,13 @@ Ask the user for:
 | `services/{name}/src/routes/mod.rs` | Router + /health + /metrics |
 | `services/{name}/src/openapi.rs` | `ApiDoc` (utoipa) |
 
-### If database is MySQL / SQLite / both
+### If database is MySQL / PostgreSQL / SQLite / any combination
 
 | File | Purpose |
 |------|---------|
 | `services/{name}/migrations/mysql/V001__init.sql` | Initial MySQL schema |
-| `services/{name}/migrations/sqlite/V001__init.sql` | Initial SQLite schema (if both) |
+| `services/{name}/migrations/postgres/V001__init.sql` | Initial PostgreSQL schema (if selected) |
+| `services/{name}/migrations/sqlite/V001__init.sql` | Initial SQLite schema (if selected) |
 | `services/{name}/src/db.rs` | Pool init + schema bootstrap |
 
 ### If routes are needed at scaffold time
@@ -78,6 +79,7 @@ edition.workspace = true
 
 [dependencies]
 anyhow = "1"
+thiserror.workspace = true
 axum.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -93,6 +95,7 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 # 平台基础设施 crate 已发布到 crates.io；不要依赖私有 Kellnr registry。
 # 版本必须与 crates.io 当前发布版本一致；当前仓库基线为 1.6.0。
 digua_common_error = "1.6.0"
+digua_common_consul = "1.6.0"
 digua_common_db = { version = "1.6.0", default-features = false, features = ["mysql"] }
 digua_common_log = "1.6.0"
 digua_common_cache = "1.6.0"
