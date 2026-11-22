@@ -45,8 +45,9 @@ impl DialectKind {
         match self {
             Self::Sqlite => "CURRENT_TIMESTAMP",
             Self::Mssql => "GETUTCDATE()",
+            Self::Dameng => "SYSDATE",
             Self::Postgres => "now() AT TIME ZONE 'UTC'",
-            _ => "UTC_TIMESTAMP()",
+            Self::Mysql => "UTC_TIMESTAMP()",
         }
     }
 
