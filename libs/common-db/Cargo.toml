@@ -2,13 +2,12 @@
 name = "digua_common_db"
 version = "1.6.0"
 license = "Apache-2.0"
-description = "Multi-dialect sqlx wrapper (MySQL/SQLite/Dameng/MSSQL) with test fixtures for KudiCoder services"
+description = "Multi-dialect sqlx wrapper (MySQL/PostgreSQL/SQLite) with test fixtures for LMMS services"
 edition = "2021"
 
 [features]
 default = ["sqlite"]
 mysql = ["sqlx/mysql"]
-dameng = ["mysql"]
 sqlite = ["sqlx/sqlite"]
 postgres = ["sqlx/postgres"]
 test-kit = ["sqlite", "dep:tempfile"]
