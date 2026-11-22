@@ -13,6 +13,7 @@ Updated `.agents/skills/coder-new-service/SKILL.md`:
 - Removed the private Kellnr registry, its internal address, and token/build-arg instructions. The platform `digua_*` crates are referenced through crates.io versions.
 - Updated the example crate versions to the repository's currently declared published baseline (`1.6.0`). Before generating a service, verify the selected crate version on crates.io and keep all digua crates on a compatible release set.
 - Removed the hard-coded `root:rootpass` database URL. Database-backed services must receive `DATABASE_URL`; no-DB services must omit SQLx and database crates.
+- Corrected the documented service inventory (removed retired `config-service`, included `iam-outbox-publisher`), added PostgreSQL to the supported scaffold choices, and added the missing `thiserror` and `digua_common_consul` dependencies used by the generated source templates.
 - Changed environment parsing to a fallible `try_from_env()`; invalid port/bind values now fail startup rather than silently falling back.
 - Updated the MySQL state example to create its pool from explicit configuration and made readiness probe the database.
 - Added distinct liveness/readiness endpoints while retaining `/health` as a compatibility route for existing service checks and Consul probes.
