@@ -109,6 +109,11 @@ jobs:
           cargo test --package file_service --features mysql
 
   # 核心服务集成测试（PostgreSQL 侧）—— 服务级 pg_roundtrip（S4，2026-11-03）
+  # 同时挂一个 MySQL service container：部分测试（file 的 tenant_isolation、
+  # token 的 api_key/admin、notification 的 publish、iam 的 membership bootstrap）
+  # 的夹具硬依赖 MySQL 后端；未设 TEST_MYSQL_HOST/PORT 时会回退到 testcontainers
+  # 自起 MySQL，在 CI 上出现过 PoolTimedOut（seed 阶段连接池拿不到连接）。
+  # 与 test-services job 一样走共享容器模式（root 空密码）更稳定。
   test-services-postgres:
     runs-on: ubuntu-latest
     services:
@@ -124,6 +129,17 @@ jobs:
           --health-retries=5
         ports:
           - 5432:5432
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 3306:3306
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust
@@ -133,6 +149,8 @@ jobs:
       - name: Run service PostgreSQL tests
         run: |
           export TEST_PG_URL="postgres://postgres:coder@localhost:5432/coder_test"
+          export TEST_MYSQL_HOST=localhost
+          export TEST_MYSQL_PORT=3306
           cargo test --package file_service --features postgres
           cargo test --package token_service --features postgres
           cargo test --package audit_service --features postgres
