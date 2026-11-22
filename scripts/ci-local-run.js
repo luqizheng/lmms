@@ -45,7 +45,7 @@ const JOBS = [
     stage: 'test',
     category: 'local',
     ciRef: '.gitlab-ci.yml:118-147',
-    description: 'Rust fmt + clippy + openapi drift + cargo test --lib',
+    description: 'Rust fmt + clippy + openapi drift + cargo test compile and execution',
     steps: [
       { label: 'cargo fmt --check', cmd: 'cargo', args: ['fmt', '--check', '--all'] },
       { label: 'cargo clippy --workspace -D warnings', cmd: 'cargo', args: ['clippy', '--workspace', '--all-targets', '--', '-D', 'warnings'], slow: true },
@@ -54,7 +54,8 @@ const JOBS = [
       // 首次运行仍可能较慢；跳过后 git diff 也跳（无新生成 spec 可对比）。
       { label: 'node scripts/dump-openapi-specs.js', cmd: 'node', args: ['scripts/dump-openapi-specs.js'], slow: true },
       { label: "git diff --exit-code -- 'services/*/openapi.yaml'", cmd: 'git', args: ['diff', '--exit-code', '--', 'services/*/openapi.yaml'], slow: true },
-      { label: 'cargo test --workspace --lib', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--verbose'], slow: true },
+      { label: 'cargo test --workspace --lib --no-run (compile)', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--no-run'], slow: true },
+      { label: 'cargo test --workspace --lib (execute)', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--verbose'], slow: true },
     ],
     fix: 'cargo fmt / clippy 修复后请改代码而非加 #[allow]；openapi drift 改完路由后跑 pnpm run sdk:dump',
   },
