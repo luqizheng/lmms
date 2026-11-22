@@ -150,7 +150,12 @@ pub async fn init_pool(database_url: &str) -> AppResult<DbPool> {
 ///
 /// 分方言设置 `max_connections`（SQLite 的并发写能力有限，沿用 5）。
 pub async fn init_pool_with(database_url: &str, max_connections: u32) -> AppResult<DbPool> {
-    let dialect = DialectKind::from_url(database_url);
+    let dialect = DialectKind::from_url(database_url).ok_or_else(|| {
+        AppError::internal(
+            "DB_URL_SCHEME",
+            "unsupported database URL scheme; supported schemes are mysql, postgres, postgresql, and sqlite",
+        )
+    })?;
 
     match dialect {
         #[cfg(feature = "mysql")]
