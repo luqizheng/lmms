@@ -8,6 +8,13 @@ on:
       - 'scripts/dump-openapi-specs.js'
       - 'services/*/Cargo.toml'
       - 'services/*/src/bin/dump-openapi.rs'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/openapi-generation-benchmark.yml'
+      - 'scripts/dump-openapi-specs.js'
+      - 'services/*/Cargo.toml'
+      - 'services/*/src/bin/dump-openapi.rs'
 
 permissions:
   contents: read
