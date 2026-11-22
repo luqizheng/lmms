@@ -97,8 +97,8 @@ jobs:
           sleep 60
       - name: Run Dameng dialect tests
         run: |
-          export DATABASE_URL="dameng://SYSDBA:SYSDBA@localhost:5236"
-          cargo test --package digua_common_db --features mysql
+          export TEST_DAMENG_URL="dameng://SYSDBA:SYSDBA@localhost:5236"
+          cargo test --package digua_common_db --features dameng --test dameng_test
 
   # MSSQL 方言 SQL 生成契约 - 每日定时
   # 注意：当前 common-db 只有 MSSQL SQL rendering helpers，没有 SQL Server 连接池/driver。
