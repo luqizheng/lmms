@@ -3,8 +3,8 @@
 # 说明：
 # - SQLite: PR 级别测试（快速反馈）
 # - MySQL: PR 级别测试（标准生产环境）
-# - Dameng: 每日定时测试（信创环境）
-# - MSSQL: 每日定时测试（Windows 环境）
+# - Dameng: 每日定时测试（MySQL-wire compatibility path）
+# - MSSQL: SQL rendering contract only; SQL Server connection driver is not implemented
 
 name: Database Dialect Matrix
 
@@ -100,39 +100,18 @@ jobs:
           export DATABASE_URL="dameng://SYSDBA:SYSDBA@localhost:5236"
           cargo test --package digua_common_db --features mysql
 
-  # MSSQL 测试 - 每日定时
-  test-mssql:
+  # MSSQL 方言 SQL 生成契约 - 每日定时
+  # 注意：当前 common-db 只有 MSSQL SQL rendering helpers，没有 SQL Server 连接池/driver。
+  # 因此只执行纯方言契约测试，不启动 SQL Server，也不伪装成数据库集成测试。
+  test-mssql-dialect:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[mssql]')
-    services:
-      mssql:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: TestPass123!
-        options: >-
-          --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'TestPass123!' -Q 'SELECT 1'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-        ports:
-          - 1433:1433
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-      - name: Install ODBC
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | tee /etc/apt/sources.list.d/msprod.list
-          apt-get update
-          ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18
-      - name: Run MSSQL tests
-        run: |
-          export DATABASE_URL="mssql://sa:TestPass123!@localhost:1433/master"
-          cargo test --package digua_common_db --features mssql
+      - name: Run MSSQL dialect rendering tests
+        run: cargo test --package digua_common_db --test dialect_test dialect_
 
   # 核心服务集成测试（MySQL 侧）
   # 仅引用当前 Cargo workspace 中实际存在的服务包；已移除的 config_service 不得进入矩阵。
