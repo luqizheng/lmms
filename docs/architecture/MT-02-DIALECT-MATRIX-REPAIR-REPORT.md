@@ -1,6 +1,6 @@
 # MT-02 — Dialect Matrix and Migration Fixture Repair
 
-**Status:** repository-side corrections committed; remote rerun intentionally not triggered  
+**Status:** repository-side corrections committed; GitHub Actions PR run queued (not manually dispatched)  
 **Branch:** `mt-02-dialect-ci-repair`
 
 ## Evidence reviewed
@@ -31,7 +31,7 @@ Inspected GitHub Actions run `44969202059` (commit `7a2f83b`):
 - [x] Reviewed dialect implementation and aligned Dameng feature/URL handling with the MySQL-wire driver.
 - [x] Removed the unsupported MSSQL connection-test claim; retained pure SQL rendering tests.
 - [x] Changes committed to this branch.
-- [ ] GitHub Actions rerun — intentionally not triggered while CI activation is paused.
+- [ ] GitHub Actions PR run — automatically queued by opening PR #2; results pending.
 - [ ] PostgreSQL migration execution against a live PostgreSQL server.
 - [ ] Full service dialect matrix execution.
 
