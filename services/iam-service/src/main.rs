@@ -94,18 +94,18 @@ async fn main() -> anyhow::Result<()> {
         token_forward,
     );
 
+    // Swagger is opt-in until the known utoipa-swagger-ui SIGSEGV is resolved.
     let swagger_enabled = std::env::var("SWAGGER_ENABLED")
-        .map(|v| v != "false" && v != "0")
-        .unwrap_or(true);
+        .map(|value| value == "true" || value == "1")
+        .unwrap_or(false);
 
     let mut app = routes::build_router(state);
     if swagger_enabled {
-        // TODO(iam/swagger-segfault): 25 端点 + 1797 行 spec 触发 utoipa-swagger-ui v9 SIGSEGV 139（其他服务正常，疑似 schemas 循环引用）。Box 化未解决，临时禁 swagger。
-        tracing::warn!("iam swagger ui DISABLED (SIGSEGV 139 in utoipa-swagger-ui merge); see TODO(iam/swagger-segfault)");
-    } else {
         app = app
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
-        info!("swagger ui enabled at /swagger-ui");
+        info!("swagger ui enabled at /swagger-ui (explicit opt-in; known runtime issue applies)");
+    } else {
+        info!("swagger ui disabled (set SWAGGER_ENABLED=true to opt in)");
     }
 
     let addr: SocketAddr = format!("{}:{}", config.app.host, config.app.port).parse()?;
@@ -113,23 +113,23 @@ async fn main() -> anyhow::Result<()> {
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
-    // 自注册（libs/common-consul）：SERVICE_NAME 未设时为 no-op。
+    // Register before serving. On shutdown, stop accepting requests and drain
+    // in-flight handlers first; then stop background JWKS refresh and deregister.
     let consul_guard = digua_common_consul::consul_guard();
-    tokio::spawn(async move {
-        // SIGINT + SIGTERM（docker stop 走 SIGTERM；旧代码只听 ctrl_c，
-        // SIGTERM 无人消费 → 超时 SIGKILL，注销路径从未真正执行）。
+    let shutdown = async move {
         digua_common_consul::wait_for_shutdown_signal().await;
-        info!("received shutdown signal, deregistering from consul");
+        info!("received shutdown signal; beginning graceful shutdown");
         let _ = jwks_shutdown.send(true);
-        consul_guard.deregister().await;
-        std::process::exit(0);
-    });
+    };
 
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(shutdown)
     .await?;
 
+    info!("HTTP server drained; deregistering from consul");
+    consul_guard.deregister().await;
     Ok(())
 }
