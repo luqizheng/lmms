@@ -125,7 +125,7 @@ for (const service of services) {
   }
 
   const generated = readFileSync(path.join(serviceDir, 'openapi.yaml'), 'utf8');
-  const generatedTitle = generated.match(/^  title:\\s*(.+)$/m)?.[1]?.trim();
+  const generatedTitle = generated.match(/^  title:\s*(.+)$/m)?.[1]?.trim();
   if (generatedTitle !== service.title) {
     console.error(`[openapi] Wrong spec generated for ${service.dir}: expected title "${service.title}", got "${generatedTitle ?? 'missing'}"`);
     process.exit(1);
