@@ -18,8 +18,9 @@ async fn dameng_mysql_wire_connection_and_ping() {
         .await
         .expect("connect to Dameng through its MySQL-compatible wire protocol");
 
-    match pool {
-        DbPool::Mysql(_) => pool.ping().await.expect("Dameng SELECT 1 health probe"),
-        _ => panic!("Dameng must be represented by the MySQL transport pool"),
-    }
+    assert!(
+        matches!(&pool, DbPool::Mysql(_)),
+        "Dameng must be represented by the MySQL transport pool"
+    );
+    pool.ping().await.expect("Dameng SELECT 1 health probe");
 }
