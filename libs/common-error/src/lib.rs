@@ -74,6 +74,17 @@ impl AppError {
         self.source = Some(Box::new(e));
         self
     }
+
+    /// Return a response-safe message. Internal and upstream details remain
+    /// available through Display/source for server-side diagnostics, but must not
+    /// be serialized to callers (they may contain URLs, hosts, SQL, or credentials).
+    fn public_message(&self) -> &str {
+        match self.kind {
+            ErrorKind::Internal => "Internal server error",
+            ErrorKind::External => "Upstream request failed",
+            _ => self.message.as_str(),
+        }
+    }
 }
 
 impl From<sqlx::Error> for AppError {
@@ -114,7 +125,7 @@ impl IntoResponse for AppError {
         };
         let body = ErrBody {
             code: &self.code,
-            message: &self.message,
+            message: self.public_message(),
             request_id: self.request_id.as_deref(),
         };
         (status, Json(body)).into_response()
@@ -124,3 +135,33 @@ impl IntoResponse for AppError {
 pub type AppResult<T> = std::result::Result<T, AppError>;
 
 pub mod codes;
+
+
+#[cfg(test)]
+mod response_safety_tests {
+    use super::*;
+
+    #[test]
+    fn internal_response_message_is_sanitized() {
+        let error = AppError::internal(
+            "DB_CONNECT",
+            "connection failed: postgres://admin:super-secret@db.internal/app",
+        );
+        assert_eq!(error.public_message(), "Internal server error");
+    }
+
+    #[test]
+    fn upstream_response_message_is_sanitized() {
+        let error = AppError::external(
+            "HTTP_ERR",
+            "request to http://token-service.internal/path?token=super-secret failed",
+        );
+        assert_eq!(error.public_message(), "Upstream request failed");
+    }
+
+    #[test]
+    fn client_error_messages_remain_actionable() {
+        let error = AppError::bad_request("INVALID_INPUT", "name is required");
+        assert_eq!(error.public_message(), "name is required");
+    }
+}
