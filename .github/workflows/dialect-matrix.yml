@@ -135,8 +135,7 @@ jobs:
           cargo test --package digua_common_db --features mssql
 
   # 核心服务集成测试（MySQL 侧）
-  # 包名用下划线（workspace 名是 config_service 等，dash 包名会
-  # "package ID specification did not match any packages"——此 job 此前从未真跑过）。
+  # 仅引用当前 Cargo workspace 中实际存在的服务包；已移除的 config_service 不得进入矩阵。
   # 服务测试夹具走 TEST_MYSQL_HOST/PORT 共享容器模式，root 空密码。
   test-services:
     runs-on: ubuntu-latest
