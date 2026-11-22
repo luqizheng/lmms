@@ -162,9 +162,8 @@ jobs:
         run: |
           export TEST_MYSQL_HOST=localhost
           export TEST_MYSQL_PORT=3306
-          cargo test --package audit_service --features mysql
-          cargo test --package config_service --features mysql
-          cargo test --package file_service --features mysql
+          cargo test --package audit_service --features audit_service/mysql
+          cargo test --package file_service --features file_service/mysql
 
   # 核心服务集成测试（PostgreSQL 侧）—— 服务级 pg_roundtrip（S4，2026-11-03）
   # 覆盖随切片推进：S5c 追加 notification_service，S5d/S5e 追加 iam 两个包。
@@ -192,10 +191,9 @@ jobs:
       - name: Run service PostgreSQL tests
         run: |
           export TEST_PG_URL="postgres://postgres:coder@localhost:5432/coder_test"
-          cargo test --package config_service --features postgres
-          cargo test --package file_service --features postgres
-          cargo test --package token_service --features postgres
-          cargo test --package audit_service --features postgres
-          cargo test --package prue_backend --features postgres
-          cargo test --package notification_service --features postgres
-          cargo test --package iam_service --features postgres
+          cargo test --package file_service --features file_service/postgres
+          cargo test --package token_service --features token_service/postgres
+          cargo test --package audit_service --features audit_service/postgres
+          cargo test --package prue_backend --features prue_backend/postgres
+          cargo test --package notification_service --features notification_service/postgres
+          cargo test --package iam_service --features iam_service/postgres
