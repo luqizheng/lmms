@@ -67,5 +67,5 @@ name = "ntf_outbox_publisher"
 path = "src/bin/outbox_publisher.rs"
 
 [[bin]]
-name = "dump_openapi"
+name = "dump_openapi_notification_service"
 path = "src/bin/dump-openapi.rs"
