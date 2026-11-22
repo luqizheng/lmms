@@ -17,10 +17,11 @@ This allowed internal database/transport details to cross the HTTP boundary. Dep
   - Client-actionable kinds retain their existing messages.
 - Kept detailed diagnostics in the error's Display/source chain for server-side logging.
 - Added unit tests for internal/upstream sanitization and preservation of actionable client errors.
+- Added `.github/workflows/core-crates.yml` so this regression suite is exercised independently of the database dialect matrix.
 
 ## Verification
 
 - [x] Static review of the shared error implementation and HTTP response path.
 - [x] Unit test cases added.
-- [ ] Cargo build/tests — not run in this environment.
+- [ ] Cargo build/tests — pending GitHub Actions execution.
 - [ ] HTTP response integration test — pending.
