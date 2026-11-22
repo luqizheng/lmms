@@ -64,7 +64,7 @@ impl FileService {
         let storage_path = id.clone();
         let now = chrono::Utc::now();
         let data_len = data.len();
-        let tenant_id = scope.tenant_id().unwrap_or(1) as i64;
+        let tenant_id = scope.tenant_id().unwrap_or(1);
 
         let expires_at = meta
             .expires_in_seconds
