@@ -140,7 +140,7 @@ pub mod codes;
 #[cfg(test)]
 mod response_safety_tests {
     use super::*;
-    use axum::body::{to_bytes, Body};
+    use axum::body::to_bytes;
 
     async fn response_json(error: AppError) -> serde_json::Value {
         let response = error.into_response();
