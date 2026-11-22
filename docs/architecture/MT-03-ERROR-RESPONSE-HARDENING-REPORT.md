@@ -16,7 +16,7 @@ This allowed internal database/transport details to cross the HTTP boundary. Dep
   - `External` → `Upstream request failed`
   - Client-actionable kinds retain their existing messages.
 - Kept detailed diagnostics in the error's Display/source chain for server-side logging.
-- Added unit tests for internal/upstream sanitization and preservation of actionable client errors.
+- Added HTTP response regression tests that serialize the actual Axum response body and assert internal/upstream details are absent while client errors remain actionable.
 - Added `.github/workflows/core-crates.yml` so this regression suite is exercised independently of the database dialect matrix.
 
 ## Verification
