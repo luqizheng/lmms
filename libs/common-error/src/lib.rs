@@ -140,28 +140,49 @@ pub mod codes;
 #[cfg(test)]
 mod response_safety_tests {
     use super::*;
+    use axum::body::{to_bytes, Body};
 
-    #[test]
-    fn internal_response_message_is_sanitized() {
-        let error = AppError::internal(
+    async fn response_json(error: AppError) -> serde_json::Value {
+        let response = error.into_response();
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read error response body");
+        serde_json::from_slice(&body).expect("decode error response JSON")
+    }
+
+    #[tokio::test]
+    async fn internal_details_are_not_serialized_to_http_clients() {
+        let secret = "postgres://admin:super-secret@db.internal/app";
+        let body = response_json(AppError::internal(
             "DB_CONNECT",
-            "connection failed: postgres://admin:super-secret@db.internal/app",
-        );
-        assert_eq!(error.public_message(), "Internal server error");
+            format!("connection failed: {secret}"),
+        )).await;
+
+        assert_eq!(body["code"], "DB_CONNECT");
+        assert_eq!(body["message"], "Internal server error");
+        assert!(!body.to_string().contains(secret));
     }
 
-    #[test]
-    fn upstream_response_message_is_sanitized() {
-        let error = AppError::external(
+    #[tokio::test]
+    async fn upstream_details_are_not_serialized_to_http_clients() {
+        let secret = "http://token-service.internal/path?token=super-secret";
+        let body = response_json(AppError::external(
             "HTTP_ERR",
-            "request to http://token-service.internal/path?token=super-secret failed",
-        );
-        assert_eq!(error.public_message(), "Upstream request failed");
+            format!("request to {secret} failed"),
+        )).await;
+
+        assert_eq!(body["code"], "HTTP_ERR");
+        assert_eq!(body["message"], "Upstream request failed");
+        assert!(!body.to_string().contains(secret));
     }
 
-    #[test]
-    fn client_error_messages_remain_actionable() {
-        let error = AppError::bad_request("INVALID_INPUT", "name is required");
-        assert_eq!(error.public_message(), "name is required");
+    #[tokio::test]
+    async fn client_error_messages_remain_actionable_in_http_response() {
+        let body = response_json(AppError::bad_request(
+            "INVALID_INPUT",
+            "name is required",
+        )).await;
+
+        assert_eq!(body["message"], "name is required");
     }
 }
