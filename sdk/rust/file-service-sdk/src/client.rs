@@ -153,10 +153,7 @@ impl FileClient {
     }
 }
 
-async fn split_text_response(
-    resp: reqwest::Response,
-    op: &str,
-) -> Result<(u16, String), SdkError> {
+async fn split_text_response(resp: reqwest::Response, op: &str) -> Result<(u16, String), SdkError> {
     let status = resp.status().as_u16();
     let body = resp
         .text()

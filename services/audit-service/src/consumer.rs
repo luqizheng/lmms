@@ -125,10 +125,7 @@ async fn try_subscribe(
 /// `pub` 的原因：audit-service 没有 HTTP 写入入口（事件全部来自 MQ），集成测试
 /// 要验证 PG 上的 `ON CONFLICT` 与 `json` 列往返只能直接调这里——手抄一份
 /// INSERT SQL 的测试在生产 SQL 改动时不会红，等于自证。
-pub async fn persist(
-    pool: &DbPool,
-    env: &Envelope<serde_json::Value>,
-) -> Result<(), HandlerError> {
+pub async fn persist(pool: &DbPool, env: &Envelope<serde_json::Value>) -> Result<(), HandlerError> {
     let sql = match pool.dialect() {
         DialectKind::Postgres => INSERT_EVENT_SQL_POSTGRES,
         _ => INSERT_EVENT_SQL_MYSQL,

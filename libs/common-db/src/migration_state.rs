@@ -81,10 +81,7 @@ pub async fn probe_marker_sqlite(
 /// 用 `current_schema()` 而非 `DATABASE()` —— PG 没有 `DATABASE()` 函数
 /// （那是 MySQL 专有），`current_schema()` 在 PG 下正确返回 `public`。
 #[cfg(feature = "postgres")]
-pub async fn probe_marker_postgres(
-    pool: &sqlx::PgPool,
-    table: &str,
-) -> Result<bool, sqlx::Error> {
+pub async fn probe_marker_postgres(pool: &sqlx::PgPool, table: &str) -> Result<bool, sqlx::Error> {
     let row: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM information_schema.tables \
          WHERE table_schema = current_schema() AND table_name = $1",
@@ -98,10 +95,7 @@ pub async fn probe_marker_postgres(
 /// 方言无关的统一 marker 探测入口（各服务 `ensure_schema` 复用）。
 ///
 /// 错误统一提升为 [`AppError`]，避免每个服务各写一遍方言分支与错误映射。
-pub async fn probe_marker(
-    pool: &crate::DbPool,
-    table: &str,
-) -> Result<bool, AppError> {
+pub async fn probe_marker(pool: &crate::DbPool, table: &str) -> Result<bool, AppError> {
     let found = match pool {
         #[cfg(feature = "mysql")]
         crate::DbPool::Mysql(p) => probe_marker_mysql(p, table).await,

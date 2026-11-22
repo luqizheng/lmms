@@ -73,7 +73,8 @@ impl ServiceJwtCache {
             return Ok(tok);
         }
         // Cold path or near-expiry: refresh
-        self.mint(&key, target, self.config.caller_tenant, false).await
+        self.mint(&key, target, self.config.caller_tenant, false)
+            .await
     }
 
     async fn try_get_cached(&self, target: &str) -> Option<String> {
@@ -90,7 +91,8 @@ impl ServiceJwtCache {
     /// Force mint a new service-jwt for `target` and cache it.
     pub async fn refresh(&self, target: &str) -> Result<String, ServiceJwtError> {
         let key = self.tenant_key(target, self.config.caller_tenant, false);
-        self.mint(&key, target, self.config.caller_tenant, false).await
+        self.mint(&key, target, self.config.caller_tenant, false)
+            .await
     }
 
     /// Cache key for a per-tenant mint. The legacy fixed-tenant path keeps
@@ -172,7 +174,8 @@ impl ServiceJwtCache {
         g.params
             .entry(key.to_string())
             .or_insert((target.to_string(), tid, ct));
-        g.tokens.insert(key.to_string(), parsed.access_token.clone());
+        g.tokens
+            .insert(key.to_string(), parsed.access_token.clone());
         g.expires_at.insert(key.to_string(), expires_at);
         Ok(parsed.access_token)
     }
@@ -190,9 +193,11 @@ impl ServiceJwtCache {
         let tok = self.sign_local(target, ttl)?;
         let exp = Instant::now() + ttl;
         let mut g = self.inner.write().await;
-        g.params
-            .entry(key.clone())
-            .or_insert((target.to_string(), self.config.caller_tenant, false));
+        g.params.entry(key.clone()).or_insert((
+            target.to_string(),
+            self.config.caller_tenant,
+            false,
+        ));
         g.tokens.insert(key.clone(), tok.clone());
         g.expires_at.insert(key, exp);
         Ok(tok)

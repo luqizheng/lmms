@@ -74,13 +74,22 @@ pub fn routes(state: AppState) -> Router {
         digua_authz::verify_aud_principal_middleware::<AppState>("coder-micro-services"),
     );
     Router::new()
-        .nest("/audit", operation::routes(state.clone()).layer(user_jwt_gate.clone()))
-        .nest("/audit", login::routes(state.clone()).layer(user_jwt_gate.clone()))
+        .nest(
+            "/audit",
+            operation::routes(state.clone()).layer(user_jwt_gate.clone()),
+        )
+        .nest(
+            "/audit",
+            login::routes(state.clone()).layer(user_jwt_gate.clone()),
+        )
         .nest(
             "/audit",
             compliance::routes(state.clone()).layer(user_jwt_gate.clone()),
         )
-        .nest("/audit", retention::routes(state.clone()).layer(user_jwt_gate))
+        .nest(
+            "/audit",
+            retention::routes(state.clone()).layer(user_jwt_gate),
+        )
         .merge(migration_state_with_authz)
         .route("/health", get(health))
         .route("/audit/health", get(health))

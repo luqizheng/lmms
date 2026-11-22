@@ -344,7 +344,11 @@ impl OutboxRepo for SqlOutboxRepo {
         }
         let dialect = self.pool.dialect();
         // 动态 IN 列表：占位符由 mark_published_sql 拼 `?`，render 转 `$1..$N`。
-        let sql = rendered(&mark_published_sql(&self.table, ids.len()), dialect, ids.len())?;
+        let sql = rendered(
+            &mark_published_sql(&self.table, ids.len()),
+            dialect,
+            ids.len(),
+        )?;
 
         match &self.pool {
             #[cfg(feature = "mysql")]

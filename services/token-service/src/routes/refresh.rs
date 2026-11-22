@@ -134,16 +134,20 @@ pub async fn handle_refresh(
     // caller's user-jwt (whose aud is `coder-micro-services`).
     let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
-    let extra_claims: serde_json::Value =
-        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, Some(&iam_bearer))
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::warn!("refresh: user-service unreachable: {}", e);
-                return Err((StatusCode::SERVICE_UNAVAILABLE, "user_service_unreachable"));
-            }
-        };
+    let extra_claims: serde_json::Value = match crate::fetch_json(
+        &state.http_client,
+        "iam-service",
+        &claims_url,
+        Some(&iam_bearer),
+    )
+    .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("refresh: user-service unreachable: {}", e);
+            return Err((StatusCode::SERVICE_UNAVAILABLE, "user_service_unreachable"));
+        }
+    };
 
     let issuer = &state.issuer;
     // Inherit the issuance channel from the refresh token family

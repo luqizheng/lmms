@@ -129,13 +129,12 @@ async fn pg_persist_is_idempotent_and_json_roundtrips() {
     assert_eq!(stored, payload, "payload JSON（含中文/嵌套）必须原样往返");
 
     // TIMESTAMPTZ(3) → DateTime<Utc> 精确解码（毫秒截断后相等）。
-    let row: (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>) = sqlx::query_as(
-        "SELECT occurred_at, received_at FROM audit_events WHERE event_id = $1",
-    )
-    .bind(env.event_id.to_string())
-    .fetch_one(pg)
-    .await
-    .expect("read back timestamps");
+    let row: (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>) =
+        sqlx::query_as("SELECT occurred_at, received_at FROM audit_events WHERE event_id = $1")
+            .bind(env.event_id.to_string())
+            .fetch_one(pg)
+            .await
+            .expect("read back timestamps");
     assert_eq!(
         row.0.timestamp_millis(),
         env.occurred_at.timestamp_millis(),
@@ -173,7 +172,10 @@ async fn pg_v001_column_shapes() {
     .fetch_one(pg)
     .await
     .expect("describe login_logs.id");
-    assert!(is_identity.0, "主键必须是 IDENTITY（AUTO_INCREMENT 的 PG 对应物）");
+    assert!(
+        is_identity.0,
+        "主键必须是 IDENTITY（AUTO_INCREMENT 的 PG 对应物）"
+    );
 
     let success_ty: (String,) = sqlx::query_as(
         "SELECT data_type::text FROM information_schema.columns \

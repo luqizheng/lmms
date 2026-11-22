@@ -161,7 +161,10 @@ pub fn routes(state: crate::TokenServerState) -> axum::Router {
     use axum::routing::{get, post};
 
     axum::Router::new()
-        .route("/api-keys", post(handle_create_api_key).get(handle_list_api_keys))
+        .route(
+            "/api-keys",
+            post(handle_create_api_key).get(handle_list_api_keys),
+        )
         .route_layer(axum::middleware::from_fn_with_state(
             state.clone(),
             digua_authz::verify_aud_principal_middleware::<crate::TokenServerState>(

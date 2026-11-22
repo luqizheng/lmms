@@ -320,10 +320,7 @@ pub fn routes(state: crate::TokenServerState) -> axum::Router {
     use axum::routing::{get, post};
 
     axum::Router::new()
-        .route(
-            "/admin/oauth-clients",
-            get(handle_list).post(handle_create),
-        )
+        .route("/admin/oauth-clients", get(handle_list).post(handle_create))
         .route(
             "/admin/oauth-clients/{client_id}",
             axum::routing::put(handle_update).delete(handle_delete),

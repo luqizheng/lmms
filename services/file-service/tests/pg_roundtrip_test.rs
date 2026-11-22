@@ -29,7 +29,9 @@ fn test_pg_url() -> Option<String> {
 
 /// 从 `postgres://u:p@h:p/dbname` 里替换库名。
 fn with_db(url: &str, db: &str) -> String {
-    let (base, _old) = url.rsplit_once('/').expect("TEST_PG_URL must contain a /db");
+    let (base, _old) = url
+        .rsplit_once('/')
+        .expect("TEST_PG_URL must contain a /db");
     format!("{base}/{db}")
 }
 
@@ -115,7 +117,8 @@ async fn pg_file_roundtrip_preserves_types_and_utf8() {
 
     // 读回：走 QueryBuilder（与 query_files 同一条路径，push_bind 自动产出 $n）。
     let rows: Vec<FileInfo> = db_qb_fetch_all!(&pool, FileInfo, |qb| {
-        qb.push("SELECT * FROM file_files WHERE id = ").push_bind(&file.id);
+        qb.push("SELECT * FROM file_files WHERE id = ")
+            .push_bind(&file.id);
     })
     .expect("SELECT on pg");
 
@@ -147,10 +150,7 @@ async fn pg_v003_is_noop_but_marker_exists() {
     };
     let pg = pool.as_postgres().expect("pg pool");
 
-    for marker in [
-        "file_migration_v002_applied",
-        "file_migration_v003_applied",
-    ] {
+    for marker in ["file_migration_v002_applied", "file_migration_v003_applied"] {
         let row: (i64,) = sqlx::query_as(
             "SELECT COUNT(*) FROM information_schema.tables \
              WHERE table_schema = current_schema() AND table_name = $1",
@@ -203,8 +203,8 @@ mod service_path {
     use digua_common_jwt::JWKSCache;
     use digua_jwt_ctx::TenantScope;
     use file_service::models::file_info::QueryFiles;
-    use file_service::storage::{LocalStorage, ObjectStore};
     use file_service::services::FileService;
+    use file_service::storage::{LocalStorage, ObjectStore};
     use jwt_simple::prelude::*;
     use std::sync::Arc;
 
@@ -305,7 +305,9 @@ mod service_path {
         );
 
         // 3) 租户隔离在 PG 上必须同样生效（f-a 属于 tenant 7）。
-        let denied = service.get_file_info("f-a", &TenantScope::Single(999)).await;
+        let denied = service
+            .get_file_info("f-a", &TenantScope::Single(999))
+            .await;
         assert!(
             denied.is_err(),
             "跨租户读取必须失败——租户过滤在 PG 上不能失效"

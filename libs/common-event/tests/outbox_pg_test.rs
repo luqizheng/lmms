@@ -110,10 +110,7 @@ async fn pg_enqueue_is_idempotent_on_duplicate_event_id() {
         .await
         .expect("count");
     assert_eq!(count.0, 1, "同一 event_id 只应落一行");
-    assert_eq!(
-        count.0, 1,
-        "event_id={event_id} 的幂等重放不得产生第二行"
-    );
+    assert_eq!(count.0, 1, "event_id={event_id} 的幂等重放不得产生第二行");
 }
 
 /// C. `LIMIT ?` 在 PG 下必须是 `LIMIT $1`（否则 PG 直接报错）。
@@ -216,5 +213,7 @@ async fn pg_mark_published_empty_is_noop() {
         return;
     };
     let repo = SqlOutboxRepo::with_table(pool, table);
-    repo.mark_published(&[]).await.expect("empty mark must be Ok");
+    repo.mark_published(&[])
+        .await
+        .expect("empty mark must be Ok");
 }

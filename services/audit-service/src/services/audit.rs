@@ -3,9 +3,7 @@ use crate::models::{
     LoginLog, OperationLog, PagedLoginLogs, PagedOperationLogs, QueryLoginLogs, QueryOperationLogs,
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
-use digua_common_db::{
-    db_fetch_all, db_fetch_optional, db_qb_fetch_all, db_qb_fetch_one, DbPool,
-};
+use digua_common_db::{db_fetch_all, db_fetch_optional, db_qb_fetch_all, db_qb_fetch_one, DbPool};
 
 /// 审计日志查询服务。
 ///
@@ -67,16 +65,24 @@ impl AuditService {
 
     /// 按主键取单条操作日志。
     pub async fn get_operation_log(&self, id: i64) -> AppResult<Option<OperationLog>> {
-        let log: Option<OperationLog> =
-            db_fetch_optional!(&self.pool, OperationLog, "SELECT * FROM audit_operation_logs WHERE id = ?", id)?;
+        let log: Option<OperationLog> = db_fetch_optional!(
+            &self.pool,
+            OperationLog,
+            "SELECT * FROM audit_operation_logs WHERE id = ?",
+            id
+        )?;
 
         Ok(log)
     }
 
     /// 按主键取单条登录日志。
     pub async fn get_login_log(&self, id: i64) -> AppResult<Option<LoginLog>> {
-        let log: Option<LoginLog> =
-            db_fetch_optional!(&self.pool, LoginLog, "SELECT * FROM audit_login_logs WHERE id = ?", id)?;
+        let log: Option<LoginLog> = db_fetch_optional!(
+            &self.pool,
+            LoginLog,
+            "SELECT * FROM audit_login_logs WHERE id = ?",
+            id
+        )?;
 
         Ok(log)
     }
@@ -249,8 +255,7 @@ impl AuditService {
             if let Some(v) = resource {
                 qb.push(" AND resource = ").push_bind(v);
             }
-            qb.push(" ORDER BY created_at DESC LIMIT ")
-                .push_bind(limit);
+            qb.push(" ORDER BY created_at DESC LIMIT ").push_bind(limit);
             qb.push(" OFFSET ").push_bind(offset);
         })?;
 

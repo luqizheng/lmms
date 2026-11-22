@@ -27,10 +27,8 @@ pub trait WithTenantScope<'a> {
     fn and_tenant(&mut self, scope: &TenantScope) -> &mut Self;
 
     /// 追加 `WHERE id = ?`。
-    fn where_id(
-        &mut self,
-        id: impl Encode<'a, Self::Db> + Type<Self::Db> + Send + 'a,
-    ) -> &mut Self;
+    fn where_id(&mut self, id: impl Encode<'a, Self::Db> + Type<Self::Db> + Send + 'a)
+        -> &mut Self;
 }
 
 /// MySQL 实现。

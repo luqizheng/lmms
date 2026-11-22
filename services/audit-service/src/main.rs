@@ -1,7 +1,8 @@
 use audit_service::{
     config::AppConfig,
+    create_state,
     db::{ensure_schema, init_pool},
-    create_state, routes,
+    routes,
 };
 use digua_common_jwt::{JWKSCache, JwksConfig};
 use digua_common_telemetry::init_tracing;

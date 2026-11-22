@@ -124,7 +124,9 @@ async fn outbox_loop_publishes_and_consumer_receives() {
         },
     );
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut AnyTx::Mysql(&mut tx), &mut env).await.unwrap();
+    repo.enqueue(&mut AnyTx::Mysql(&mut tx), &mut env)
+        .await
+        .unwrap();
     tx.commit().await.unwrap();
 
     // Run the outbox publisher once — it should publish the pending row.

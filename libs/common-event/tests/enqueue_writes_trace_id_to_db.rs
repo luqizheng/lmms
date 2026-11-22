@@ -67,7 +67,9 @@ async fn enqueue_writes_caller_supplied_trace_id_to_db() {
     let mut env = Envelope::new("test", TestPayload).with_trace_id("test-trace-fixed");
 
     let mut tx = pool.begin().await.unwrap();
-    repo.enqueue(&mut AnyTx::Mysql(&mut tx), &mut env).await.unwrap();
+    repo.enqueue(&mut AnyTx::Mysql(&mut tx), &mut env)
+        .await
+        .unwrap();
     tx.commit().await.unwrap();
 
     let row: (serde_json::Value,) =

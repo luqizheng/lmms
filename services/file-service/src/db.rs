@@ -18,7 +18,8 @@ const V002_SQL_MYSQL: &str = include_str!("../migrations/mysql/V002__file_tenant
 const V002_SQL_POSTGRES: &str =
     include_str!("../migrations/postgres/V002__file_tenant_reconcile.sql");
 const V003_SQL_MYSQL: &str = include_str!("../migrations/mysql/V003__align_bigint_signed.sql");
-const V003_SQL_POSTGRES: &str = include_str!("../migrations/postgres/V003__align_bigint_signed.sql");
+const V003_SQL_POSTGRES: &str =
+    include_str!("../migrations/postgres/V003__align_bigint_signed.sql");
 
 const SCHEMA_MARKER_TABLE: &str = "file_files";
 const V002_MARKER_TABLE: &str = "file_migration_v002_applied";

@@ -82,12 +82,7 @@ async fn seed_file(pool: &sqlx::MySqlPool, tenant_id: i64) -> String {
 /// Build a service-jwt (aud=file-service) with the given tenant_id and
 /// cross_tenant flag — the only token shape /file/* accepts since the
 /// 2026-11-07 mesh-only ruling.
-fn make_token(
-    key_pair: &RS256KeyPair,
-    caller: &str,
-    tenant_id: i64,
-    cross_tenant: bool,
-) -> String {
+fn make_token(key_pair: &RS256KeyPair, caller: &str, tenant_id: i64, cross_tenant: bool) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()

@@ -36,10 +36,7 @@ pub fn routes(state: AppState) -> Router {
     );
     Router::new()
         .nest("/file", file::routes(state.clone()).layer(file.clone()))
-        .nest(
-            "/file",
-            presign::routes(state.clone()).layer(file.clone()),
-        )
+        .nest("/file", presign::routes(state.clone()).layer(file.clone()))
         .merge(
             migration_state::routes(state.clone()).layer(axum_mw::from_fn_with_state(
                 state.clone(),

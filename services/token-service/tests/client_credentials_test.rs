@@ -69,10 +69,7 @@ async fn client_credentials_issues_token_for_bound_user() {
     let req = Request::builder()
         .method("POST")
         .uri("/tokens/access")
-        .header(
-            header::CONTENT_TYPE,
-            "application/x-www-form-urlencoded",
-        )
+        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(Body::from(
             "grant_type=client_credentials&client_id=ak-mcp&client_secret=mcp-secret",
         ))
@@ -80,7 +77,9 @@ async fn client_credentials_issues_token_for_bound_user() {
 
     let resp = app(state).oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&body).unwrap();
     assert!(v["access_token"].as_str().unwrap().len() > 20);
     // RFC 6749 §4.4.3: client_credentials 不签发 refresh token
@@ -90,7 +89,9 @@ async fn client_credentials_issues_token_for_bound_user() {
     // 方案 A 核心：token 的 sub = API Key 绑定的 user_id
     let at = v["access_token"].as_str().unwrap();
     let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
-    let claims = verify_token(at, &cache, None).await.expect("verify access token");
+    let claims = verify_token(at, &cache, None)
+        .await
+        .expect("verify access token");
     assert_eq!(claims["sub"], "usr-abc123");
     // 通道盖章：client_credentials 兑换的令牌 purpose=api_key
     assert_eq!(claims["purpose"], "api_key");
@@ -167,7 +168,14 @@ async fn client_credentials_rejects_expired_key() {
 #[tokio::test]
 async fn client_credentials_rejects_wrong_secret() {
     let state = build_state().await;
-    seed_client(&state.db, "ak-wrong", "right-secret", Some("usr-wrong"), None).await;
+    seed_client(
+        &state.db,
+        "ak-wrong",
+        "right-secret",
+        Some("usr-wrong"),
+        None,
+    )
+    .await;
 
     let req = Request::builder()
         .method("POST")

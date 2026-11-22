@@ -203,7 +203,10 @@ async fn download_file_401_maps_to_auth_error() {
         .await;
     let client = bearer_client(&server, "stale.jwt");
     let err = client.download_file("f-1").await.unwrap_err();
-    assert!(matches!(err, digua_file_sdk::SdkError::Auth { status: 401, .. }));
+    assert!(matches!(
+        err,
+        digua_file_sdk::SdkError::Auth { status: 401, .. }
+    ));
 }
 
 #[tokio::test]
@@ -215,8 +218,14 @@ async fn upload_file_without_bearer_is_auth_error() {
         filename: "x.txt".into(),
         ..Default::default()
     };
-    let err = client.upload_file(&meta, "x.txt", vec![1]).await.unwrap_err();
-    assert!(matches!(err, digua_file_sdk::SdkError::Auth { status: 401, .. }));
+    let err = client
+        .upload_file(&meta, "x.txt", vec![1])
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        digua_file_sdk::SdkError::Auth { status: 401, .. }
+    ));
     // The mock server must never have been contacted.
     assert!(server.received_requests().await.unwrap().is_empty());
 }

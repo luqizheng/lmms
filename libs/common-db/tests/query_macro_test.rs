@@ -89,16 +89,28 @@ mod sqlite_backend {
         let pool = memory_pool().await;
         seed(&pool).await?;
 
-        let one: Row =
-            db_fetch_one!(&pool, Row, "SELECT id, name FROM macro_users WHERE id = ?", 1i64)?;
+        let one: Row = db_fetch_one!(
+            &pool,
+            Row,
+            "SELECT id, name FROM macro_users WHERE id = ?",
+            1i64
+        )?;
         assert_eq!(one.name, "alice");
 
-        let some: Option<Row> =
-            db_fetch_optional!(&pool, Row, "SELECT id, name FROM macro_users WHERE id = ?", 1i64)?;
+        let some: Option<Row> = db_fetch_optional!(
+            &pool,
+            Row,
+            "SELECT id, name FROM macro_users WHERE id = ?",
+            1i64
+        )?;
         assert_eq!(some.map(|r| r.id), Some(1));
 
-        let none: Option<Row> =
-            db_fetch_optional!(&pool, Row, "SELECT id, name FROM macro_users WHERE id = ?", 999i64)?;
+        let none: Option<Row> = db_fetch_optional!(
+            &pool,
+            Row,
+            "SELECT id, name FROM macro_users WHERE id = ?",
+            999i64
+        )?;
         assert!(none.is_none(), "缺失行必须是 Ok(None)，而不是 Err");
         Ok(())
     }
@@ -163,9 +175,12 @@ mod sqlite_backend {
         let pool = memory_pool().await;
         seed(&pool).await.expect("seed");
 
-        let err =
-            db_execute!(&pool, "INSERT INTO macro_users (id, name) VALUES (?, ?)", 3i64)
-                .expect_err("bind 个数不足必须报错");
+        let err = db_execute!(
+            &pool,
+            "INSERT INTO macro_users (id, name) VALUES (?, ?)",
+            3i64
+        )
+        .expect_err("bind 个数不足必须报错");
         assert!(
             err.to_string().contains("bind count mismatch"),
             "错误信息应说明 bind 个数不符，实际: {err}"
@@ -197,7 +212,8 @@ mod sqlite_backend {
         assert!(none.is_none());
 
         let affected = db_qb_execute!(&pool, |qb| {
-            qb.push("DELETE FROM macro_users WHERE id = ").push_bind(2i64);
+            qb.push("DELETE FROM macro_users WHERE id = ")
+                .push_bind(2i64);
         })?;
         assert_eq!(affected, 1);
         Ok(())
@@ -269,7 +285,9 @@ mod postgres_backend {
 
     #[tokio::test]
     async fn pg_macros_execute_rewritten_sql() -> Result<(), sqlx::Error> {
-        let Some(url) = test_pg_url() else { return Ok(()) };
+        let Some(url) = test_pg_url() else {
+            return Ok(());
+        };
         let pool = digua_common_db::init_pool(&url).await.expect("init_pool");
         assert_eq!(
             pool.dialect(),

@@ -4,8 +4,8 @@ use crate::models::presign_url::{CreatePresignUrl, PresignUrl, PresignUrlRespons
 use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
 use digua_common_db::WithTenantScope;
-use digua_jwt_ctx::TenantScope;
 use digua_common_db::{db_execute, db_qb_execute, db_qb_fetch_all, db_qb_fetch_optional, DbPool};
+use digua_jwt_ctx::TenantScope;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -179,7 +179,8 @@ impl FileService {
         let files: Vec<FileInfo> = db_qb_fetch_all!(&self.pool, FileInfo, |qb| {
             qb.push("SELECT * FROM file_files WHERE 1=1");
             qb.and_tenant(scope);
-            qb.push(" ORDER BY created_at DESC LIMIT ").push_bind(size as i64);
+            qb.push(" ORDER BY created_at DESC LIMIT ")
+                .push_bind(size as i64);
             qb.push(" OFFSET ").push_bind(offset as i64);
         })?;
         let total = files.len() as i64;

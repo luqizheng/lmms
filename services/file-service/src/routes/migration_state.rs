@@ -6,8 +6,8 @@ use axum::{
 use digua_common_db::migration_state::{
     self, MigrationDescriptor, MigrationState, MigrationStateResponse,
 };
-use serde_json::json;
 use digua_common_db::DbPool;
+use serde_json::json;
 use utoipa::path as to_path;
 
 use crate::services::FileService;

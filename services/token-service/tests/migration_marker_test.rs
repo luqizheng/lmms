@@ -60,7 +60,9 @@ async fn v002_is_applied_to_an_existing_v001_database() {
     assert!(!table_exists(p, V002_SENTINEL_TABLE).await);
 
     // V001 的 marker 在，V002 仍必须执行。
-    token_service::db::ensure_schema(&pool).await.expect("ensure schema");
+    token_service::db::ensure_schema(&pool)
+        .await
+        .expect("ensure schema");
 
     assert!(
         column_exists(p, "token_oauth_clients", "user_id").await,
@@ -73,5 +75,7 @@ async fn v002_is_applied_to_an_existing_v001_database() {
     );
 
     // 幂等：哨兵在位时再跑一次不得报错。
-    token_service::db::ensure_schema(&pool).await.expect("ensure schema again");
+    token_service::db::ensure_schema(&pool)
+        .await
+        .expect("ensure schema again");
 }

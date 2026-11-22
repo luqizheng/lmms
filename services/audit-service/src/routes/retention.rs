@@ -11,9 +11,7 @@ use digua_jwt_ctx::Principal;
 /// audit data — they require an admin-class principal (platform admin or an
 /// explicit admin role), on top of the router-level user-jwt gate.
 fn require_audit_admin(principal: &Principal) -> AppResult<()> {
-    if principal.cross_tenant
-        || principal.has_role("admin")
-        || principal.has_role("platform_admin")
+    if principal.cross_tenant || principal.has_role("admin") || principal.has_role("platform_admin")
     {
         Ok(())
     } else {

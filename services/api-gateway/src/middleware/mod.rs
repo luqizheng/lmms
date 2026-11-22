@@ -66,7 +66,9 @@ mod path_sanitize_tests {
 
     #[test]
     fn rejects_dot_dot_segments() {
-        assert!(path_has_traversal("/v1/iam/users/../../internal/users/1/claims"));
+        assert!(path_has_traversal(
+            "/v1/iam/users/../../internal/users/1/claims"
+        ));
     }
 
     #[test]

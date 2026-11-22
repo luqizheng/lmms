@@ -147,39 +147,43 @@ async fn handle_client_credentials(
         "{}/internal/users/{}/claims",
         state.user_service_url, user_id
     );
-    let extra_claims: serde_json::Value =
-        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, Some(&iam_bearer))
-            .await
-        {
-            Ok(mut claims) => {
-                let user_perms = claims
-                    .get("permissions")
-                    .and_then(|p| p.as_array())
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default();
-                if let Some(obj) = claims.as_object_mut() {
-                    obj.insert(
-                        "permissions".into(),
-                        json!(intersect_permissions(&user_perms, &client.permissions)),
-                    );
-                    obj.entry("user_code".to_string())
-                        .or_insert_with(|| json!(user_id));
-                }
-                claims
+    let extra_claims: serde_json::Value = match crate::fetch_json(
+        &state.http_client,
+        "iam-service",
+        &claims_url,
+        Some(&iam_bearer),
+    )
+    .await
+    {
+        Ok(mut claims) => {
+            let user_perms = claims
+                .get("permissions")
+                .and_then(|p| p.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            if let Some(obj) = claims.as_object_mut() {
+                obj.insert(
+                    "permissions".into(),
+                    json!(intersect_permissions(&user_perms, &client.permissions)),
+                );
+                obj.entry("user_code".to_string())
+                    .or_insert_with(|| json!(user_id));
             }
-            Err(e) => {
-                tracing::warn!(
+            claims
+        }
+        Err(e) => {
+            tracing::warn!(
                     "user-service unreachable at {}: {}, issuing client_credentials token with empty permissions",
                     claims_url,
                     e
                 );
-                json!({"permissions": [], "user_code": user_id})
-            }
-        };
+            json!({"permissions": [], "user_code": user_id})
+        }
+    };
 
     let issuer = &state.issuer;
     let at = issuer
@@ -232,26 +236,30 @@ async fn handle_authorization_code(
     );
     let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
-    let extra_claims: serde_json::Value =
-        match crate::fetch_json(&state.http_client, "iam-service", &claims_url, Some(&iam_bearer))
-            .await
-        {
-            Ok(claims) => claims,
-            Err(e) => {
-                // 2026-11-05 review (P0-2): fail-closed. The previous fallback
-                // minted `roles=["admin"]` / `permissions=["notification.admin"]`
-                // whenever iam was unreachable (including the normal path, which
-                // failed with 400 due to the missing tenant_id), letting an
-                // attacker who could disrupt iam reachability mint a privileged
-                // token from a valid auth code.
-                tracing::warn!(
+    let extra_claims: serde_json::Value = match crate::fetch_json(
+        &state.http_client,
+        "iam-service",
+        &claims_url,
+        Some(&iam_bearer),
+    )
+    .await
+    {
+        Ok(claims) => claims,
+        Err(e) => {
+            // 2026-11-05 review (P0-2): fail-closed. The previous fallback
+            // minted `roles=["admin"]` / `permissions=["notification.admin"]`
+            // whenever iam was unreachable (including the normal path, which
+            // failed with 400 due to the missing tenant_id), letting an
+            // attacker who could disrupt iam reachability mint a privileged
+            // token from a valid auth code.
+            tracing::warn!(
                     "user-service unreachable at {}: {}, issuing authorization_code token with empty permissions",
                     claims_url,
                     e
                 );
-                json!({"permissions": [], "user_code": user_id})
-            }
-        };
+            json!({"permissions": [], "user_code": user_id})
+        }
+    };
 
     let issuer = &state.issuer;
     let at = issuer

@@ -66,7 +66,8 @@ pub async fn update_me(
     principal: Principal,
     Json(req): Json<UpdateSelfRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    req.validate()
+        .map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
     let scope = TenantScope::Single(principal.tenant_id);
 
     // Self-service may only touch nickname and avatar. Email / phone changes
@@ -128,7 +129,8 @@ pub async fn create_user(
     scope: TenantScope,
     Json(req): Json<CreateUserRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    req.validate()
+        .map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
 
     let has_password = req.password.is_some();
     let send_invitation = req.send_invitation.unwrap_or(!has_password);
@@ -140,10 +142,7 @@ pub async fn create_user(
     }
 
     let service = UserService::new(state.clone());
-    let response = service
-        .create(req, &scope)
-        .await
-        .map_err(AppError::from)?;
+    let response = service.create(req, &scope).await.map_err(AppError::from)?;
 
     if send_invitation && !has_password {
         crate::service::SelfService::new(state)
@@ -276,4 +275,3 @@ pub async fn list_users_simple(
     })?;
     Ok(Json(response))
 }
-

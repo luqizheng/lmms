@@ -1,7 +1,9 @@
 use crate::db::DbPool;
 use crate::models::oauth_client::{Client, ClientRow};
 use crate::secret::{hash_client_secret, DEFAULT_DEV_CLIENT_SECRET};
-use digua_common_db::{db_execute, db_fetch_optional, db_fetch_scalar, db_qb_fetch_all, db_qb_fetch_one};
+use digua_common_db::{
+    db_execute, db_fetch_optional, db_fetch_scalar, db_qb_fetch_all, db_qb_fetch_one,
+};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 

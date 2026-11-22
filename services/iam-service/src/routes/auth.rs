@@ -286,7 +286,8 @@ pub async fn forgot_password(
     State(state): State<AppState>,
     Json(req): Json<ForgotPasswordRequest>,
 ) -> Result<StatusCode, AppError> {
-    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    req.validate()
+        .map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
     SelfService::new(state)
         .request_password_reset(&req.email)
         .await
@@ -308,7 +309,8 @@ pub async fn reset_password(
     State(state): State<AppState>,
     Json(req): Json<ResetPasswordRequest>,
 ) -> Result<StatusCode, AppError> {
-    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    req.validate()
+        .map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
     SelfService::new(state)
         .reset_password(&req.token, &req.new_password)
         .await
@@ -331,7 +333,8 @@ pub async fn accept_invitation(
     headers: HeaderMap,
     Json(req): Json<AcceptInvitationRequest>,
 ) -> Result<AxumJson<LoginResponse>, AppError> {
-    req.validate().map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
+    req.validate()
+        .map_err(|e| AppError::bad_request("IAM_SYS_9005", e.to_string()))?;
     let (ip_address, user_agent) = get_client_info(&headers);
     let response = SelfService::new(state)
         .accept_invitation(req, &ip_address, &user_agent)

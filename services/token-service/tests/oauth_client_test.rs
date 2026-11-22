@@ -209,7 +209,10 @@ async fn insert_client_with_user_id_and_expiry() {
     c.user_id = Some("usr-abc123".to_string());
     c.expires_at = Some(chrono::Utc::now() + chrono::Duration::days(30));
     oauth_client_svc::insert(&pool, &c).await.unwrap();
-    let got = oauth_client_svc::find_by_id(&pool, "svc-bound").await.unwrap().unwrap();
+    let got = oauth_client_svc::find_by_id(&pool, "svc-bound")
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(got.user_id.as_deref(), Some("usr-abc123"));
     assert!(got.expires_at.is_some());
 }

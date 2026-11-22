@@ -35,8 +35,8 @@ impl Mailer {
             };
         }
 
-        let mut builder = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(host)
-            .port(config.smtp.port);
+        let mut builder =
+            AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(host).port(config.smtp.port);
 
         if config.smtp.starttls {
             match TlsParameters::new(host.to_string()) {
@@ -68,12 +68,7 @@ impl Mailer {
         self.transport.is_some()
     }
 
-    pub async fn send_html(
-        &self,
-        to: &str,
-        subject: &str,
-        html: String,
-    ) -> Result<(), MailError> {
+    pub async fn send_html(&self, to: &str, subject: &str, html: String) -> Result<(), MailError> {
         let transport = self.transport.as_ref().ok_or(MailError::NotConfigured)?;
         let to = to
             .parse::<Mailbox>()

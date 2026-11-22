@@ -82,7 +82,9 @@ async fn get_for_tenant_isolates_cache_keys() {
 
     // primed legacy entry must not satisfy per-tenant lookups either
     let c = cache();
-    c.prime_cache("file-service", Duration::from_secs(300)).await.unwrap();
+    c.prime_cache("file-service", Duration::from_secs(300))
+        .await
+        .unwrap();
     let got = c.get("file-service").await; // legacy key resolves from cache (no HTTP)
     assert!(got.is_ok());
     let err = c
@@ -105,10 +107,14 @@ async fn get_for_tenant_mints_explicit_aud_and_tid() {
     Mock::given(method("POST"))
         .and(path("/tokens/service-jwt"))
         .and(header("authorization", "Bearer bt-test"))
-        .and(body_partial_json(serde_json::json!({"aud": "file-service", "tid": 7})))
-        .respond_with(ResponseTemplate::new(200).set_body_json(
-            serde_json::json!({"access_token": "svc-jwt-1", "expires_in": 3600}),
+        .and(body_partial_json(
+            serde_json::json!({"aud": "file-service", "tid": 7}),
         ))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({"access_token": "svc-jwt-1", "expires_in": 3600}),
+            ),
+        )
         .expect(1)
         .mount(&server)
         .await;

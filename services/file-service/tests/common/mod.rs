@@ -70,11 +70,10 @@ async fn spawn_shared(
     let dbpool = digua_common_db::init_pool_with(&url, 5)
         .await
         .expect("connect to test database");
-    db::ensure_schema(&dbpool).await.expect("ensure file schema");
-    let pool = dbpool
-        .as_mysql()
-        .cloned()
-        .expect("mysql pool from DbPool");
+    db::ensure_schema(&dbpool)
+        .await
+        .expect("ensure file schema");
+    let pool = dbpool.as_mysql().cloned().expect("mysql pool from DbPool");
 
     MysqlHandle {
         pool,
@@ -98,11 +97,10 @@ async fn spawn_local(
     let dbpool = digua_common_db::init_pool_with(&url, 5)
         .await
         .expect("connect local mysql");
-    db::ensure_schema(&dbpool).await.expect("ensure file schema");
-    let pool = dbpool
-        .as_mysql()
-        .cloned()
-        .expect("mysql pool from DbPool");
+    db::ensure_schema(&dbpool)
+        .await
+        .expect("ensure file schema");
+    let pool = dbpool.as_mysql().cloned().expect("mysql pool from DbPool");
 
     MysqlHandle {
         pool,

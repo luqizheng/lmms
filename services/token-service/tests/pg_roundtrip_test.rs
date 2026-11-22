@@ -32,7 +32,9 @@ fn test_pg_url() -> Option<String> {
 
 /// 从 `postgres://u:p@h:p/dbname` 里替换库名。
 fn with_db(url: &str, db_name: &str) -> String {
-    let (base, _old) = url.rsplit_once('/').expect("TEST_PG_URL must contain a /db");
+    let (base, _old) = url
+        .rsplit_once('/')
+        .expect("TEST_PG_URL must contain a /db");
     format!("{base}/{db_name}")
 }
 
@@ -130,7 +132,10 @@ async fn pg_v002_columns_and_sentinel_exist() {
     .expect("describe columns");
 
     let map: std::collections::HashMap<String, String> = cols.into_iter().collect();
-    assert_eq!(map.get("user_id").map(String::as_str), Some("character varying"));
+    assert_eq!(
+        map.get("user_id").map(String::as_str),
+        Some("character varying")
+    );
     // 时间列必须是 TIMESTAMPTZ（写错成 TIMESTAMP 会让 DateTime<Utc> 解码失败）
     for col in ["expires_at", "created_at", "updated_at"] {
         assert_eq!(
@@ -141,7 +146,11 @@ async fn pg_v002_columns_and_sentinel_exist() {
     }
     // json 列是 JSONB（sqlx 的 Json<T> 以 JSONB 绑定参数）
     for col in ["permissions", "grant_types"] {
-        assert_eq!(map.get(col).map(String::as_str), Some("jsonb"), "{col} 必须是 JSONB");
+        assert_eq!(
+            map.get(col).map(String::as_str),
+            Some("jsonb"),
+            "{col} 必须是 JSONB"
+        );
     }
 }
 
@@ -180,13 +189,12 @@ async fn pg_oauth_client_roundtrip() {
     // 字面量类型检查：走 ClientRow 解码，说明 created_at/updated_at 是真 DateTime<Utc>。
     // 用 SQL 再取一次，确认 TIMESTAMPTZ 的值接近当前 UTC 时间（会话时区已锁 UTC）。
     let pg = pool.as_postgres().expect("pg pool");
-    let (row_ts,): (chrono::DateTime<Utc>,) = sqlx::query_as(
-        "SELECT updated_at FROM token_oauth_clients WHERE client_id = $1",
-    )
-    .bind(&client.client_id)
-    .fetch_one(pg)
-    .await
-    .expect("select updated_at");
+    let (row_ts,): (chrono::DateTime<Utc>,) =
+        sqlx::query_as("SELECT updated_at FROM token_oauth_clients WHERE client_id = $1")
+            .bind(&client.client_id)
+            .fetch_one(pg)
+            .await
+            .expect("select updated_at");
     let skew = (Utc::now() - row_ts).num_seconds().abs();
     assert!(
         skew < 600,
@@ -339,23 +347,17 @@ async fn pg_seed_delete_reset_secret() {
         .expect("exists");
     assert_ne!(after.client_secret_hash, found.client_secret_hash);
 
-    assert!(
-        oauth_client_svc::reset_secret(&pool, "no-such-client")
-            .await
-            .expect("reset_secret miss")
-            .is_none()
-    );
+    assert!(oauth_client_svc::reset_secret(&pool, "no-such-client")
+        .await
+        .expect("reset_secret miss")
+        .is_none());
 
-    assert!(
-        oauth_client_svc::delete(&pool, "api-gateway")
-            .await
-            .expect("delete on PG")
-    );
-    assert!(
-        !oauth_client_svc::delete(&pool, "api-gateway")
-            .await
-            .expect("delete again")
-    );
+    assert!(oauth_client_svc::delete(&pool, "api-gateway")
+        .await
+        .expect("delete on PG"));
+    assert!(!oauth_client_svc::delete(&pool, "api-gateway")
+        .await
+        .expect("delete again"));
 }
 
 /// 授权码：写入 → 消费一次成功 → 二次消费失败；重复 code 写入幂等。
@@ -424,7 +426,9 @@ async fn pg_refresh_and_revoke_markers() {
 
     // revoke
     assert!(!revoke_svc::is_revoked(&pool, "jti-2").await.expect("probe"));
-    revoke_svc::revoke(&pool, "jti-2", 300).await.expect("revoke");
+    revoke_svc::revoke(&pool, "jti-2", 300)
+        .await
+        .expect("revoke");
     assert!(revoke_svc::is_revoked(&pool, "jti-2").await.expect("probe"));
     revoke_svc::revoke(&pool, "jti-2", 300)
         .await

@@ -30,12 +30,8 @@ fn service_jwt() -> String {
         "exp": now + 3600,
         "roles": ["service"],
     });
-    sign_token(
-        common::TEST_PRIVATE_PEM,
-        &claims,
-        Duration::from_secs(3600),
-    )
-    .expect("sign service jwt")
+    sign_token(common::TEST_PRIVATE_PEM, &claims, Duration::from_secs(3600))
+        .expect("sign service jwt")
 }
 
 #[tokio::test]

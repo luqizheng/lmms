@@ -88,10 +88,7 @@ impl UserService {
 
         // Invited accounts are created with a random password nobody knows; the
         // invitation token is the only way in until it is accepted.
-        let raw_password = req
-            .password
-            .clone()
-            .unwrap_or_else(|| nanoid!(32));
+        let raw_password = req.password.clone().unwrap_or_else(|| nanoid!(32));
         let password_hash = hash(&raw_password).map_err(|e| IamError::Jwt(e.to_string()))?;
 
         let user_id = nanoid!();

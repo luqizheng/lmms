@@ -129,9 +129,7 @@ async fn register_puts_payload_with_health_check() {
         .mount_as_scoped(&server)
         .await;
 
-    register(&direct_client(), &cfg)
-        .await
-        .expect("register ok");
+    register(&direct_client(), &cfg).await.expect("register ok");
     // `mock` (MockGuard) asserts its expectation when dropped at test end.
     // The health-check URL contract is asserted via the payload matchers
     // above plus this direct check on the config the payload derives from:

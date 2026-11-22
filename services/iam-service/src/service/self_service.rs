@@ -49,8 +49,12 @@ impl SelfService {
             return Ok(());
         };
 
-        self.issue_token_and_mail(&user, KIND_PASSWORD_RESET, Duration::minutes(RESET_TTL_MINUTES))
-            .await
+        self.issue_token_and_mail(
+            &user,
+            KIND_PASSWORD_RESET,
+            Duration::minutes(RESET_TTL_MINUTES),
+        )
+        .await
     }
 
     /// Consumes a reset token and replaces the password, revoking all sessions.
@@ -216,7 +220,12 @@ impl SelfService {
         Ok(())
     }
 
-    fn build_mail(&self, user: &User, kind: &str, token: &str) -> Result<(String, String), IamError> {
+    fn build_mail(
+        &self,
+        user: &User,
+        kind: &str,
+        token: &str,
+    ) -> Result<(String, String), IamError> {
         let base = self.state.config.public.base_url.trim_end_matches('/');
         let name = if user.nickname.is_empty() {
             user.username.clone()

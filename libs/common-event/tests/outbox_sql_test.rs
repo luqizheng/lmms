@@ -37,7 +37,10 @@ fn enqueue_mysql_uses_on_duplicate_key() {
         !sql.contains("ON CONFLICT"),
         "MySQL 不得出现 PG 语法，实际: {sql}"
     );
-    assert_eq!(render(&sql, DialectKind::Mysql).unwrap().expected_binds(), 4);
+    assert_eq!(
+        render(&sql, DialectKind::Mysql).unwrap().expected_binds(),
+        4
+    );
 }
 
 #[test]
@@ -85,7 +88,9 @@ fn claim_batch_postgres_rewrites_limit_to_numbered_placeholder() {
     let raw = claim_batch_sql(TABLE);
     // bind 个数必须是 1（只有 LIMIT 一个 ?）：这是 render 校验的前提。
     assert_eq!(
-        render(&raw, DialectKind::Postgres).unwrap().expected_binds(),
+        render(&raw, DialectKind::Postgres)
+            .unwrap()
+            .expected_binds(),
         1,
         "claim_batch 只应有 1 个占位符（LIMIT）"
     );
@@ -118,17 +123,16 @@ fn mark_published_keeps_current_timestamp_3_on_postgres() {
         sql.contains("CURRENT_TIMESTAMP(3)"),
         "CURRENT_TIMESTAMP(3) 是两方言通用写法，**不得**改写成 now()，实际: {sql}"
     );
-    assert!(
-        !sql.contains("now()"),
-        "不应改写成 now()，实际: {sql}"
-    );
+    assert!(!sql.contains("now()"), "不应改写成 now()，实际: {sql}");
 }
 
 #[test]
 fn mark_published_postgres_numbers_placeholders_in_order() {
     let raw = mark_published_sql(TABLE, 3);
     assert_eq!(
-        render(&raw, DialectKind::Postgres).unwrap().expected_binds(),
+        render(&raw, DialectKind::Postgres)
+            .unwrap()
+            .expected_binds(),
         3,
         "IN 列表的占位符个数必须等于 ids.len()"
     );
@@ -163,5 +167,8 @@ fn mark_published_single_id() {
 #[test]
 #[should_panic(expected = "invalid outbox table name")]
 fn enqueue_sql_rejects_unsafe_table_name() {
-    let _ = enqueue_sql("iam_outbox_events; DROP TABLE iam_users", DialectKind::Mysql);
+    let _ = enqueue_sql(
+        "iam_outbox_events; DROP TABLE iam_users",
+        DialectKind::Mysql,
+    );
 }

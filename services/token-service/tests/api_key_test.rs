@@ -16,10 +16,8 @@ fn app(state: token_service::TokenServerState) -> axum::Router {
     axum::Router::new()
         .route(
             "/api-keys",
-            axum::routing::post(
-                token_service::routes::api_key::handle_create_api_key,
-            )
-            .get(token_service::routes::api_key::handle_list_api_keys),
+            axum::routing::post(token_service::routes::api_key::handle_create_api_key)
+                .get(token_service::routes::api_key::handle_list_api_keys),
         )
         .route(
             "/admin/oauth-clients",
@@ -50,7 +48,9 @@ async fn create_api_key_with_user_and_expiry() {
 
     let resp = app(state.clone()).oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&body).unwrap();
     assert!(!v["api_key_id"].as_str().unwrap().is_empty());
     assert!(!v["api_key_secret"].as_str().unwrap().is_empty());
@@ -63,7 +63,9 @@ async fn create_api_key_with_user_and_expiry() {
         .unwrap();
     let resp = app(state).oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(resp.into_body(), 256 * 1024).await.unwrap();
+    let body = axum::body::to_bytes(resp.into_body(), 256 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&body).unwrap();
     let item = v["items"]
         .as_array()
@@ -120,7 +122,9 @@ async fn create_admin_client_with_user_and_expiry() {
 
     let resp = app(state).oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(v["client"]["user_id"], "usr-admin");
     assert!(
