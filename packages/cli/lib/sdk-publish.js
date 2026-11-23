@@ -150,7 +150,8 @@ function readCrateManifest(root, base, dir) {
 }
 
 function cargoPublishArgs(pkgName, registry, dryRun) {
-  const args = ['publish', '-p', pkgName, '--registry', registry, '--no-verify', '--allow-dirty'];
+  const args = ['publish', '-p', pkgName, '--no-verify', '--allow-dirty'];
+  if (registry) args.push('--registry', registry);
   if (dryRun) args.push('--dry-run');
   return args;
 }
