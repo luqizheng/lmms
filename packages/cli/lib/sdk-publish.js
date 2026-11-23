@@ -3,8 +3,8 @@
 // sdk-publish.js —— 发布各类 SDK（Rust crates / npm TS 包 / Java SDK）
 //
 // 三个生态各自独立版本线（用户裁决：不跟平台镜像版本绑定）：
-//   rust  : libs/*（17）→ sdk/rust/*（6）发 kellnr，按依赖拓扑排序
-//   npm   : packages/@digua/* + sdk/*-services 发私有 Verdaccio
+//   rust  : libs/*（17）→ sdk/rust/*（6）发 crates.io，按依赖拓扑排序
+//   npm   : packages/@digua/* + sdk/*-services 发 npmjs.org
 //   java  : sdk/java 多模块发 Maven（mvn deploy）
 //
 // Rust 的关键约束（实战验证过，勿简化）：
