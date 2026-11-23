@@ -345,6 +345,7 @@ module.exports = {
   internalPathDeps,
   assertOrderRespectsDeps,
   readCrateManifest,
+  cargoPublishArgs,
   publishRust,
   publishNpm,
   publishMaven,
