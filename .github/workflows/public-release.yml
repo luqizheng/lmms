@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: public-release
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('public-release-pr-{0}', github.event.pull_request.number) || 'public-release-tags' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
