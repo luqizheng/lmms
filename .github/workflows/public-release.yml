@@ -61,6 +61,11 @@ jobs:
         run: pnpm run test:cli
       - name: Build public npm packages
         run: pnpm run packages:build
+      - name: Validate release plans without publishing
+        run: |
+          node packages/cli/bin/coder.js release sdk rust --dry-run
+          node packages/cli/bin/coder.js release sdk npm --dry-run
+          node packages/cli/bin/coder.js release images --dry-run --registry docker.io --repo validation-only
 
   publish-crates:
     name: Publish Rust crates to crates.io
