@@ -20,8 +20,8 @@
 'use strict';
 
 const { spawn, spawnSync } = require('node:child_process');
-const { existsSync, readFileSync } = require('node:fs');
-const { join } = require('node:path');
+const { existsSync, readFileSync, writeFileSync } = require('node:fs');
+const { join, resolve } = require('node:path');
 const os = require('node:os');
 const { chalk, section, banner, success, warn, error, info, spinner } = require('./lib/ui');
 const { collectMsvcEnv } = require('./lib/host-runner');
@@ -45,17 +45,19 @@ const JOBS = [
     stage: 'test',
     category: 'local',
     ciRef: '.gitlab-ci.yml:118-147',
-    description: 'Rust fmt + clippy + openapi drift + cargo test --lib',
+    description: 'Rust fmt + clippy + openapi drift + cargo test compile and execution',
     steps: [
       { label: 'cargo fmt --check', cmd: 'cargo', args: ['fmt', '--check', '--all'] },
       { label: 'cargo clippy --workspace -D warnings', cmd: 'cargo', args: ['clippy', '--workspace', '--all-targets', '--', '-D', 'warnings'], slow: true },
-      // dump-openapi 编译所有 Rust 服务的 dump_openapi bin target,首次跑 5-7 min
-      // (Windows /mnt/d 跨文件系统更慢)；跳过后 git diff 也跳（无新生成 spec 可对比）
+      // Clippy 检查 all-targets，但不产出可运行的 dump_openapi 可执行文件。
+      // 这里逐个运行 7 个服务的生成器；Cargo 共享 workspace target，依赖只需增量编译。
+      // 首次运行仍可能较慢；跳过后 git diff 也跳（无新生成 spec 可对比）。
       { label: 'node scripts/dump-openapi-specs.js', cmd: 'node', args: ['scripts/dump-openapi-specs.js'], slow: true },
       { label: "git diff --exit-code -- 'services/*/openapi.yaml'", cmd: 'git', args: ['diff', '--exit-code', '--', 'services/*/openapi.yaml'], slow: true },
-      { label: 'cargo test --workspace --lib', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--verbose'], slow: true },
+      { label: 'cargo test --workspace --lib --no-run (compile)', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--no-run'], slow: true },
+      { label: 'cargo test --workspace --lib (execute)', cmd: 'cargo', args: ['test', '--workspace', '--lib', '--verbose'], slow: true },
     ],
-    fix: 'cargo fmt / clippy 修复后请改代码而非加 #[allow]；openapi drift 改完路由后跑 pnpm run sdk:dump',
+    fix: 'cargo fmt / clippy 修复后请改代码而非加 #[allow]；OpenAPI 路由变更后运行 node scripts/dump-openapi-specs.js 重新生成 openapi.yaml',
   },
   {
     name: 'service_standard_check',
@@ -366,7 +368,7 @@ function runStep(cmd, args, opts = {}) {
 // ───────────────────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const out = { list: false, stage: null, job: null, skipSlow: false, skipDocker: false, noColor: false };
+  const out = { list: false, stage: null, job: null, skipSlow: false, skipDocker: false, noColor: false, timingsFile: null };
   for (const a of argv) {
     // npm/pnpm 透传的分隔符：pnpm 新版会把 `--` 原样传进来，跳过即可
     if (a === '--') continue;
@@ -375,6 +377,7 @@ function parseArgs(argv) {
     else if (a.startsWith('--job=')) out.job = a.slice(6);
     else if (a === '--skip-slow') out.skipSlow = true;
     else if (a === '--skip-docker') out.skipDocker = true;
+    else if (a.startsWith('--timings-file=')) out.timingsFile = a.slice('--timings-file='.length);
     else if (a === '--no-color') { out.noColor = true; process.env.FORCE_COLOR = '0'; }
     else if (a === '-h' || a === '--help') {
       printHelp();
@@ -400,6 +403,7 @@ Flags:
   --job=<name>        只跑某 job（如 --job=spec_check）
   --skip-slow         跳过 clippy / cargo test 等慢 step
   --skip-docker       跳过需要 docker 的 job
+  --timings-file=<path> 将每个 job / step 的耗时写入 JSON（相对仓库根目录）
   --no-color          关闭颜色
   -h, --help          显示此帮助
 
@@ -486,25 +490,28 @@ async function runJob(job, opts) {
     const r = runStep(job.cmd, job.args, { envExpand: job.envExpand });
     if (r.status === 0) {
       success(`${job.name}  (${r.elapsed}s)`);
-      return { status: 'pass', elapsed: r.elapsed };
+      return { status: 'pass', elapsed: r.elapsed, steps: [{ label: step.label, status: 'pass', elapsed: r.elapsed }] };
     } else {
       error(`${job.name} 失败 (exit ${r.status}${r.signal ? ' / ' + r.signal : ''})`);
       console.log(chalk.gray(`CI 等价位置：${job.ciRef}`));
       if (job.fix) console.log(chalk.gray(`修复建议：${job.fix}`));
-      return { status: job.allowFailure ? 'warn' : 'fail', elapsed: r.elapsed };
+      return { status: job.allowFailure ? 'warn' : 'fail', elapsed: r.elapsed, steps: [{ label: step.label, status: 'fail', elapsed: r.elapsed }] };
     }
   } else if (job.steps) {
     // 多 step job（rust_ci）
     let anyFail = false;
     let totalElapsed = 0;
+    const stepResults = [];
     for (const step of job.steps) {
       if (opts.skipSlow && step.slow) {
         warn(`跳过慢 step：${step.label}`);
+        stepResults.push({ label: step.label, status: 'skipped', elapsed: '0.0' });
         continue;
       }
       const sp = spinner(step.label).start();
       const r = runStep(step.cmd, step.args, { envExpand: job.envExpand });
       totalElapsed += parseFloat(r.elapsed);
+      stepResults.push({ label: step.label, status: r.status === 0 ? 'pass' : 'fail', elapsed: r.elapsed });
       if (r.status === 0) {
         sp.succeed(`${step.label}  (${r.elapsed}s)`);
       } else {
@@ -516,10 +523,10 @@ async function runJob(job, opts) {
       error(`${job.name} 失败`);
       console.log(chalk.gray(`CI 等价位置：${job.ciRef}`));
       if (job.fix) console.log(chalk.gray(`修复建议：${job.fix}`));
-      return { status: job.allowFailure ? 'warn' : 'fail', elapsed: totalElapsed.toFixed(1) };
+      return { status: job.allowFailure ? 'warn' : 'fail', elapsed: totalElapsed.toFixed(1), steps: stepResults };
     }
     success(`${job.name}  (${totalElapsed.toFixed(1)}s)`);
-    return { status: 'pass', elapsed: totalElapsed.toFixed(1) };
+    return { status: 'pass', elapsed: totalElapsed.toFixed(1), steps: stepResults };
   }
   return { status: 'skip' };
 }
@@ -547,10 +554,38 @@ async function main() {
   info(`仓库根：${REPO_ROOT}`);
   info(`平台：${process.platform} ${os.release()}`);
 
+  const startedAt = new Date();
   const results = [];
   for (const job of selected) {
     const r = await runJob(job, opts);
     results.push({ name: job.name, stage: job.stage, category: job.category, ...r });
+  }
+
+  // 可选机器可读耗时报告，便于比较不同提交 / 环境的 Rust CI 阶段耗时。
+  if (opts.timingsFile) {
+    const reportPath = resolve(REPO_ROOT, opts.timingsFile);
+    const getVersion = (command, args) => {
+      const result = spawnSync(command, args, { cwd: REPO_ROOT, encoding: 'utf8' });
+      return result.status === 0 ? result.stdout.trim() : null;
+    };
+    const rustCiResult = results.find((r) => r.name === 'rust_ci');
+    const gitCommit = getVersion('git', ['rev-parse', 'HEAD']);
+    const report = {
+      schema_version: 1,
+      started_at: startedAt.toISOString(),
+      finished_at: new Date().toISOString(),
+      git_commit: gitCommit,
+      platform: process.platform,
+      architecture: process.arch,
+      node_version: process.version,
+      rustc_version: getVersion('rustc', ['--version']),
+      cargo_version: getVersion('cargo', ['--version']),
+      run_status: results.some((r) => r.status === 'fail') ? 'failed' : 'completed',
+      rust_ci_status: rustCiResult ? rustCiResult.status : null,
+      jobs: results,
+    };
+    writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
+    info(`耗时报告已写入：${reportPath}`);
   }
 
   // 总结表
