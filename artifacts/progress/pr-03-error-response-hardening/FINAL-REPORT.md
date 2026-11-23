@@ -14,7 +14,7 @@
 | 第二次 rebase（main 推进） | — | main 新增 `305fc2a2`（PR #9 合并），二次 rebase |
 | Rebase 后 main 基点 | `305fc2a2e531589de899f726be849343f1b388a5` | 最新 main |
 | 最终 PR HEAD（报告提交前） | `e5fca928` | 9 个 commit，无冲突 |
-| 最终 PR HEAD（含本报告） | 见 PR 页面 / §2 | 本报告 commit 即分支末端 |
+| 最终 PR HEAD（含本报告） | `da7b6060` + CI 结果补充 commit | 本报告 commit 即分支末端（§6 有最终轮记录） |
 
 - 备份分支：`backup/mt-03-pre-rebase`（本地，指向 `46e1c97a`）。
 - rebase 两次均无冲突；重放的 8 个历史 commit 内容未修改。
@@ -86,6 +86,10 @@
 
 三个 workflow、全部 7 个实际执行的 job 均逐个核查为 success（非仅 workflow 级绿标）。
 
+### 最终 HEAD `da7b6060`（本报告 commit）验证记录
+
+报告 commit 后 CI 复跑：Core Rust Crate Tests ✅ success、OpenAPI Generation Validation ✅ success；Database Dialect Matrix 首跑 `test-services-postgres` ❌ failure —— 根因为 CI runner 从 rsproxy 镜像下载 `async-reactor-trait` 时 `transfer too slow` 重试耗尽（cargo exit 101，**日志中全部测试本身均 ok**，与代码无关；同一代码树在 `e5fca928` 上该 job 为 success）。`gh run rerun --failed` 后该 run 五个 job 全部 ✅ success。最终 HEAD 三个 workflow 全绿。
+
 ### CI 失败根因区分（历史/中间 HEAD → 修复 → 最终 HEAD）
 
 - **历史分支遗留失败**：dialect-matrix @ `46e1c97a`（2026-11-22）的 `test-postgres` / `test-services` / `test-services-postgres` 失败，根因是当时 `pg_migration_test.rs` 仍 `include_str!` 已删除的 `services/config-service` 迁移文件（编译期 No such file）。rebase 后分支包含新 main 的已修复版本，该失败自然消失。
@@ -97,7 +101,7 @@
 
 - `From<reqwest::Error>` 仍把 `e.to_string()`（含上游 URL）存入 `message` 字段——响应层已脱敏，但该字段会进入服务端日志（`Display`）。这是有意设计（诊断需要），不构成泄露路径；如未来把 `Display` 输出回传客户端需保持 `public_message` 策略。
 - `codes.rs` / 权限码等契约层未纳入本 PR 范围（`DB_ERR`/`HTTP_ERR` 等码为自由字符串，非 `contracts/error-codes.yaml` 管控码）。如需契约化可在后续任务处理，不阻塞合并。
-- GitHub Actions 为共享 runner，历史 run 显示偶发网络抖动（rustup 安装重试）；与本 PR 逻辑无关。
+- GitHub Actions 为共享 runner，历史 run 显示偶发网络抖动（rustup 安装重试、rsproxy 下载超时——最终 HEAD 首跑即遇到一次，rerun 通过）；与本 PR 逻辑无关，但合并前若再遇红标建议先看是否为同类下载超时。
 
 ## 8. 合并建议
 
