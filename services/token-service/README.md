@@ -289,7 +289,10 @@ docker exec <token-container> /app/keytool audit --keystore /app/keys/keystore.j
 - **单实例部署**：compose 每个单元只有 1 个 token-service 副本；水平扩容不受支持
   （各副本内存快照互不可见）。扩展条件见运维手册 §1。
 - 写路径有两道保护：
-  - `keystore.json.lock`（`create_new` 跨进程锁，5s 超时，>10min 视为陈旧自动回收）；
+  - `keystore.json.lock`：持有期间保持文件句柄打开 + 内核级互斥锁（Unix `flock` /
+    Windows 独占共享模式），锁文件记录 owner token（UUID v4）/ pid / 创建时间；
+    持有者存活期间锁绝不会被回收，接管只能发生在内核锁已释放（前持有者退出/崩溃）
+    时，5s 等待超时返回 `LockBusy`；
   - 写前磁盘指纹（SHA-256）比对：加载后被他人改动 → `Stale`，拒绝覆盖（`409`）。
 
 ### 运维注意事项

@@ -14,7 +14,7 @@
 //!
 //! Security invariants:
 //! - private key material never appears in log output (kid/status only);
-//! - writes are atomic (tmp file + fsync + rename) and 0600 (unix);
+//! - writes are atomic (unique tmp file + fsync + rename) and 0600 (unix);
 //! - the keystore directory is 0700 (unix);
 //! - removed keys must be `retired` and past `min_retention_sec`.
 //!
@@ -25,17 +25,24 @@
 //!   loaded ([`KeyStoreError::Stale`]) and serialises the write through a
 //!   cross-process lock file (`KeyStoreError::LockBusy`) — a stale write can
 //!   never silently delete a key rotated by another process;
-//! - backups are wrapped in a versioned envelope with a SHA-256 integrity
-//!   checksum; restore validates everything, snapshots the live keystore,
-//!   writes under the lock and verifies the result from disk (rolling back
-//!   on failure).
+//! - backups run under the same cross-process lock and snapshot the
+//!   **on-disk** state (reloaded and validated under the lock), wrapped in a
+//!   versioned envelope with a SHA-256 integrity checksum; restore validates
+//!   everything, snapshots the live keystore, writes under the lock and
+//!   verifies the result from disk by full checksum (rolling back on
+//!   failure);
+//! - lock ownership: the holder keeps the lock file open with an exclusive
+//!   kernel lock (flock on Unix / exclusive share mode on Windows), Drop
+//!   unlinks only if the recorded owner token still matches, and takeover
+//!   requires acquiring that kernel lock — a live holder is never reclaimed
+//!   and a stale holder can never delete a newer owner's lock file.
 
 use crate::audit::{AuditAction, AuditContext, AuditLedger, AuditResult};
 use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use thiserror::Error;
 
 /// kid assigned to keys imported from the legacy `private.pem`/`public.pem`
@@ -51,9 +58,10 @@ pub const BACKUP_FORMAT_VERSION: u32 = 1;
 /// How long a mutation waits for the cross-process write lock before giving
 /// up with [`KeyStoreError::LockBusy`].
 const LOCK_WAIT: Duration = Duration::from_secs(5);
-/// A lock file older than this is considered abandoned (crashed process) and
-/// reclaimed. Key operations take milliseconds; 10 min is only a safety net.
-const LOCK_STALE_AFTER: Duration = Duration::from_secs(600);
+/// On-disk format version of the lock file payload. Lock files written by
+/// older builds (`pid=<n> at=<ts>` plain text) carry no parseable owner and
+/// are taken over only when the kernel lock proves no live holder.
+const LOCK_FORMAT_VERSION: u32 = 1;
 
 #[derive(Error, Debug)]
 pub enum KeyStoreError {
@@ -128,6 +136,15 @@ pub struct BackupEnvelope {
     pub producer: String,
     pub keystore_sha256: String,
     pub keystore: KeyStoreData,
+}
+
+/// Non-secret result of a successful [`KeyStore::write_backup`] (no key
+/// material — safe to print in `keytool` output or audit records).
+#[derive(Debug, Clone)]
+pub struct BackupSummary {
+    pub active_kid: String,
+    pub keys: usize,
+    pub keystore_sha256: String,
 }
 
 #[derive(Debug)]
@@ -567,26 +584,33 @@ impl KeyStore {
     /// checksummed envelope. The backup contains all private key material —
     /// operators must store it in protected storage and keep it out of git
     /// (`*.backup.json` is gitignored for this reason).
+    ///
+    /// Concurrency (PR #9 review F4): the whole operation runs under the
+    /// same cross-process lock as rotate/restore, and the snapshot is taken
+    /// **from disk while the lock is held** — if another process rotated the
+    /// keystore since this instance was loaded, the fresher disk state is
+    /// reloaded and validated first, so the backup can never be a torn or
+    /// stale snapshot.
     pub fn write_backup(
         &self,
         backup_path: &Path,
         ctx: &AuditContext,
-    ) -> Result<(), KeyStoreError> {
+    ) -> Result<BackupSummary, KeyStoreError> {
         match self.write_backup_inner(backup_path) {
-            Ok(()) => {
+            Ok(summary) => {
                 self.audit.record(
                     ctx,
                     AuditAction::Backup,
                     AuditResult::Success,
-                    Some(&self.data.active_kid),
+                    Some(&summary.active_kid),
                     None,
                     Some(&format!(
                         "wrote backup ({} keys) to {}",
-                        self.data.keys.len(),
+                        summary.keys,
                         backup_path.display()
                     )),
                 );
-                Ok(())
+                Ok(summary)
             }
             Err(e) => {
                 self.audit.record(
@@ -602,23 +626,53 @@ impl KeyStore {
         }
     }
 
-    fn write_backup_inner(&self, backup_path: &Path) -> Result<(), KeyStoreError> {
+    fn write_backup_inner(&self, backup_path: &Path) -> Result<BackupSummary, KeyStoreError> {
+        // Serialise against every other keystore mutation (rotate / restore /
+        // other backups). Holding the lock for the whole read-snapshot-write
+        // sequence is what makes the backup a consistent point-in-time copy.
+        let _lock = KeystoreLock::acquire(&self.path)?;
+        // The in-memory `self.data` may be stale if another process wrote the
+        // keystore after this instance loaded it. Reload from disk under the
+        // lock so the backup reflects the real current state; only fall back
+        // to the in-memory snapshot when the file does not exist (first boot).
+        let data = match Self::load(&self.path, self.min_retention_sec) {
+            Ok(fresh) => fresh.data,
+            Err(e) if disk_keystore_missing(&self.path) => {
+                tracing::warn!(
+                    path = %self.path.display(),
+                    error = %e,
+                    "keystore file not present on disk during backup; backing up the in-memory snapshot"
+                );
+                self.data.clone()
+            }
+            // A corrupt/unreadable keystore must fail the backup, not produce
+            // a backup from stale memory that hides the corruption.
+            Err(e) => return Err(KeyStoreError::Save(format!(
+                "backup aborted: keystore on disk is unreadable ({}); refusing to back up the stale in-memory snapshot: {e}",
+                self.path.display()
+            ))),
+        };
+        let checksum = keystore_checksum(&data)?;
         let envelope = BackupEnvelope {
             backup_format_version: BACKUP_FORMAT_VERSION,
             created_at: now_sec(),
             producer: "token-service".to_string(),
-            keystore_sha256: keystore_checksum(&self.data)?,
-            keystore: self.data.clone(),
+            keystore_sha256: checksum.clone(),
+            keystore: data,
         };
         let json = serde_json::to_string_pretty(&envelope)
             .map_err(|e| KeyStoreError::Save(format!("serialize backup envelope: {e}")))?;
         atomic_write(backup_path, &json)?;
         tracing::info!(
             path = %backup_path.display(),
-            keys = self.data.keys.len(),
+            keys = envelope.keystore.keys.len(),
             "wrote keystore backup (versioned envelope with SHA-256 integrity checksum)"
         );
-        Ok(())
+        Ok(BackupSummary {
+            active_kid: envelope.keystore.active_kid.clone(),
+            keys: envelope.keystore.keys.len(),
+            keystore_sha256: checksum,
+        })
     }
 
     /// Restore a backup over the live keystore path.
@@ -770,13 +824,25 @@ impl KeyStore {
         ks.persist_locked()?;
 
         // Read back what is actually on disk; a restore that cannot be read
-        // back is not a restore.
+        // back is not a restore. Verification is full-checksum: the
+        // reloaded keystore must serialize to exactly the checksum recorded
+        // in the backup envelope (active kid / key count alone could miss a
+        // mutated key entry).
+        let expected_checksum = envelope.keystore_sha256.clone();
         let verification = match Self::load(keystore_path, min_retention_sec) {
             Ok(loaded)
                 if loaded.data.active_kid == ks.data.active_kid
                     && loaded.data.keys.len() == ks.data.keys.len() =>
             {
-                Ok(())
+                match keystore_checksum(&loaded.data) {
+                    Ok(c) if c == expected_checksum => Ok(()),
+                    Ok(c) => Err(KeyStoreError::RestoreFailed(format!(
+                        "post-restore checksum mismatch: expected {expected_checksum}, read back {c}"
+                    ))),
+                    Err(e) => Err(KeyStoreError::RestoreFailed(format!(
+                        "post-restore checksum computation failed: {e}"
+                    ))),
+                }
             }
             Ok(_) => Err(KeyStoreError::RestoreFailed(
                 "post-restore read-back does not match the backup (active kid / key count)".into(),
@@ -805,6 +871,18 @@ impl KeyStore {
                     error = %e,
                     snapshot = %snap.display(),
                     "restore verification failed; rolled back to the pre-restore snapshot"
+                );
+            } else {
+                // There was no pre-restore keystore (the file did not
+                // exist), so there is nothing to roll back to: the restored
+                // (checksum-verified) state stays on disk. This must be
+                // impossible to miss: the operator has to know the live
+                // keystore now reflects the backup despite the failure.
+                tracing::error!(
+                    error = %e,
+                    path = %keystore_path.display(),
+                    "restore verification failed and there is NO pre-restore snapshot to roll back to; \
+                     the keystore is left in the restored state — verify it manually or restore another backup"
                 );
             }
             return Err(e);
@@ -836,6 +914,15 @@ fn read_opt(path: &str) -> Result<Option<String>, KeyStoreError> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(KeyStoreError::Load(format!("read {path}: {e}"))),
     }
+}
+
+/// True only when the keystore is genuinely absent from disk. Callers hold
+/// the cross-process lock, so `exists()` reflects the state the (failed)
+/// load saw: absent file ⇒ the load error was NotFound (first-boot path),
+/// while a corrupt/unreadable keystore leaves the file on disk and must
+/// fail the operation instead of falling back to an in-memory snapshot.
+fn disk_keystore_missing(path: &Path) -> bool {
+    !path.exists()
 }
 
 /// Structural + cryptographic validation shared by `load` and `restore`.
@@ -994,15 +1081,149 @@ fn pre_restore_snapshot_path(keystore_path: &Path) -> PathBuf {
 
 /// Cross-process write lock (`keystore.json.lock`).
 ///
-/// Created with `create_new` (atomic on every supported filesystem), removed
-/// on drop. A lock file older than [`LOCK_STALE_AFTER`] belongs to a crashed
-/// process and is reclaimed. This is the *only* concurrency mechanism: the
-/// deployment is a single instance by design (see the runbook); the lock plus
-/// the write fingerprint turn unsupported concurrent writers into explicit
-/// errors instead of silent key loss.
+/// Ownership model (PR #9 review F1/F2 — replaces the old
+/// create/unconditional-remove-on-drop scheme that could let a stale process
+/// delete a newer process' lock and could reclaim a live lock by mtime):
+///
+/// - The lock file payload is a JSON [`LockContent`] with a random
+///   `owner` token (UUID v4), the creating `pid`, `created_at` and a
+///   `format_version`. No secrets.
+/// - Mutual exclusion is enforced by the **kernel**, not by file presence:
+///   the owner keeps the file handle open for the whole lock lifetime with
+///   an exclusive kernel lock — `flock(LOCK_EX)` on Unix,
+///   `share_mode(0)` (no sharing allowed) on Windows. A second opener fails
+///   while the holder lives, on both platforms.
+/// - Takeover of an existing lock file is allowed **only** when that
+///   exclusive kernel lock can be acquired, which proves the previous
+///   holder is gone (the kernel releases the lock on process exit/crash).
+///   This is immune to PID reuse: liveness is decided by the kernel lock,
+///   never by mtime or by whether a pid happens to exist. If the kernel
+///   lock cannot be acquired (live holder, unexpected error, exotic
+///   filesystem) the candidate **fails closed**: it keeps waiting until
+///   [`LOCK_WAIT`] and then returns [`KeyStoreError::LockBusy`] — it never
+///   deletes or overwrites a lock it does not own.
+/// - Drop re-reads the lock file and unlinks it **only** when the recorded
+///   owner token still matches its own, so a process that was preempted,
+///   taken over and left behind can never delete the new owner's lock. On
+///   Unix the unlink happens while the flock is still held, closing the
+///   read→remove race window; on Windows the handle must be closed before
+///   the unlink (no delete-while-open without FILE_SHARE_DELETE), so the
+///   owner token is re-checked after the close.
+/// - Takeovers log the reason, the previous holder's pid (best effort) and
+///   the lock age — no key material, ever.
 #[derive(Debug)]
 struct KeystoreLock {
     path: PathBuf,
+    owner: String,
+    /// Held open for the whole lock lifetime: this handle *is* the kernel
+    /// lock (flock on Unix / exclusive share mode on Windows). `Option` so
+    /// `Drop` controls the release order explicitly.
+    file: Option<std::fs::File>,
+}
+
+/// Payload persisted inside the lock file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LockContent {
+    format_version: u32,
+    /// UUID v4 — identifies *this* acquisition, not the process.
+    owner: String,
+    pid: u32,
+    /// Unix seconds when this lock was (re)written by its owner.
+    created_at: i64,
+}
+
+/// Read + parse the lock file payload; `None` = missing, unreadable or not
+/// valid JSON of the expected shape (e.g. plain-text locks from older
+/// builds). Callers must treat `None` as "ownership unknown".
+fn read_lock_content(path: &Path) -> Option<LockContent> {
+    let bytes = std::fs::read(path).ok()?;
+    let content: LockContent = serde_json::from_slice(&bytes).ok()?;
+    if content.owner.is_empty() {
+        return None;
+    }
+    Some(content)
+}
+
+/// Same as [`read_lock_content`] but through an already-held handle —
+/// required on Windows, where the holder's `share_mode(0)` handle makes a
+/// second open of the path fail.
+fn read_lock_content_from(mut file: &std::fs::File) -> Option<LockContent> {
+    use std::io::{Read, Seek, SeekFrom};
+    file.seek(SeekFrom::Start(0)).ok()?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf).ok()?;
+    let content: LockContent = serde_json::from_slice(&buf).ok()?;
+    if content.owner.is_empty() {
+        return None;
+    }
+    Some(content)
+}
+
+/// Exclusive kernel lock on the already-open handle; `false` = someone else
+/// holds it (or the platform cannot tell — treated the same, fail-closed).
+#[cfg(unix)]
+fn try_lock_kernel_exclusive(file: &std::fs::File) -> bool {
+    use std::ffi::c_int;
+    use std::os::unix::io::AsRawFd;
+    // LOCK_EX | LOCK_NB. Linked from libc, which std links on every unix
+    // target (glibc and musl); declared here to avoid a libc crate dep.
+    extern "C" {
+        fn flock(fd: c_int, operation: c_int) -> c_int;
+    }
+    const LOCK_EX: c_int = 2;
+    const LOCK_NB: c_int = 4;
+    let rc = unsafe { flock(file.as_raw_fd(), LOCK_EX | LOCK_NB) };
+    if rc == 0 {
+        return true;
+    }
+    let err = std::io::Error::last_os_error();
+    match err.raw_os_error() {
+        // EWOULDBLOCK/EAGAIN (11) = held by a live process; EINTR (4) = retry
+        // treats it as busy too. Anything else (EINVAL/EOPNOTSUPP/ENOLCK on
+        // exotic filesystems) is "cannot determine" → fail-closed.
+        Some(11) | Some(4) => false,
+        other => {
+            tracing::warn!(
+                error = %err,
+                raw = ?other,
+                "flock() failed unexpectedly on the keystore lock file; refusing to take it over (fail-closed)"
+            );
+            false
+        }
+    }
+}
+
+/// Open options that (on Windows) refuse to share the file with anyone —
+/// the Windows counterpart of `flock(LOCK_EX)`: while the holder's handle
+/// is open, every other open fails with a sharing violation; when the
+/// holder dies, the OS closes the handle and the file becomes openable.
+fn exclusive_open_options() -> std::fs::OpenOptions {
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        opts.share_mode(0);
+    }
+    opts
+}
+
+/// Outcome of one non-blocking acquisition attempt.
+enum TryAcquire {
+    Acquired {
+        owner: String,
+        file: std::fs::File,
+    },
+    /// Lock is (possibly) held by a live operation: back off and retry.
+    Busy,
+    /// Unrecoverable IO error.
+    Failed(KeyStoreError),
+}
+
+fn lock_path_for(keystore_path: &Path) -> PathBuf {
+    let mut lock_os = keystore_path.as_os_str().to_owned();
+    lock_os.push(".lock");
+    PathBuf::from(lock_os)
 }
 
 impl KeystoreLock {
@@ -1011,9 +1232,7 @@ impl KeystoreLock {
     }
 
     fn acquire_within(keystore_path: &Path, wait: Duration) -> Result<Self, KeyStoreError> {
-        let mut lock_os = keystore_path.as_os_str().to_owned();
-        lock_os.push(".lock");
-        let path = PathBuf::from(lock_os);
+        let path = lock_path_for(keystore_path);
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 std::fs::create_dir_all(parent).map_err(|e| {
@@ -1023,65 +1242,200 @@ impl KeystoreLock {
         }
         let started = std::time::Instant::now();
         loop {
-            match std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&path)
-            {
-                Ok(mut f) => {
-                    use std::io::Write;
-                    let _ = write!(f, "pid={} at={}", std::process::id(), now_sec());
-                    let _ = f.sync_all();
-                    return Ok(Self { path });
+            match Self::try_acquire(&path) {
+                TryAcquire::Acquired { owner, file } => {
+                    return Ok(Self {
+                        path,
+                        owner,
+                        file: Some(file),
+                    });
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                    if lock_is_stale(&path) {
-                        tracing::warn!(
-                            path = %path.display(),
-                            "reclaiming stale keystore lock file (older than {}s)",
-                            LOCK_STALE_AFTER.as_secs()
-                        );
-                        let _ = std::fs::remove_file(&path);
-                        continue;
-                    }
+                TryAcquire::Busy => {
                     if started.elapsed() >= wait {
                         return Err(KeyStoreError::LockBusy(format!(
-                            "{} held by another key operation (waited {}ms); retry after it finishes",
+                            "{} held by a live key operation (kernel lock busy; waited {}ms); \
+                             retry after it finishes — the lock of a live holder is never reclaimed",
                             path.display(),
                             wait.as_millis()
                         )));
                     }
                     std::thread::sleep(Duration::from_millis(25));
                 }
-                Err(e) => {
-                    return Err(KeyStoreError::Save(format!(
-                        "create lock {}: {e}",
-                        path.display()
-                    )))
-                }
+                TryAcquire::Failed(e) => return Err(e),
             }
         }
     }
+
+    /// One non-blocking attempt:
+    /// 1. `create_new` — atomic on every supported filesystem — wins the
+    ///    free lock; on Unix the exclusive flock is taken *before* the file
+    ///    counts as held, so a contender racing in between cannot end up
+    ///    with two simultaneous owners (worst case we lose our creation and
+    ///    retry);
+    /// 2. on `AlreadyExists`, try to acquire the exclusive kernel lock on
+    ///    the existing file: success proves the previous holder is dead and
+    ///    the lock is safe to take over; any failure = live holder or
+    ///    unknown state → [`TryAcquire::Busy`] (fail-closed, never delete).
+    fn try_acquire(path: &Path) -> TryAcquire {
+        let owner = uuid::Uuid::new_v4().to_string();
+        // Fresh creation path. On unix the file is created 0600 outright
+        // (mode in OpenOptions) so no key-adjacent file ever exists with
+        // group/other read. On Windows share_mode(0) makes the open itself
+        // exclusive from the instant the file is created.
+        let mut create = exclusive_open_options();
+        create.create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            create.mode(0o600);
+        }
+        match create.open(path) {
+            Ok(file) => {
+                // Close the create↔flock race on Unix: we only own the lock
+                // once the kernel lock is ours. Losing the race is benign —
+                // the winner rewrote the payload and we simply retry.
+                #[cfg(unix)]
+                if !try_lock_kernel_exclusive(&file) {
+                    return TryAcquire::Busy;
+                }
+                let content = LockContent {
+                    format_version: LOCK_FORMAT_VERSION,
+                    owner: owner.clone(),
+                    pid: std::process::id(),
+                    created_at: now_sec(),
+                };
+                if let Err(e) = write_lock_content(&file, &content) {
+                    // The lock file exists but we never became the owner:
+                    // release our kernel lock; the next contender will take
+                    // over via the (now unheld) kernel lock.
+                    return TryAcquire::Failed(KeyStoreError::Save(format!(
+                        "write lock content {}: {e}",
+                        path.display()
+                    )));
+                }
+                tracing::debug!(path = %path.display(), "acquired keystore lock (created)");
+                return TryAcquire::Acquired { owner, file };
+            }
+            Err(e) if e.kind() != std::io::ErrorKind::AlreadyExists => {
+                return TryAcquire::Failed(KeyStoreError::Save(format!(
+                    "create lock {}: {e}",
+                    path.display()
+                )));
+            }
+            Err(_) => {} // exists → takeover path below
+        }
+
+        // Takeover path: acquiring the exclusive kernel lock on the existing
+        // file is the *only* proof that the previous holder is gone. On
+        // Windows the exclusive open itself is the lock; on unix flock is
+        // taken after the open.
+        let file = match exclusive_open_options().open(path) {
+            Ok(f) => f,
+            // Sharing violation (live holder), permission error, anything:
+            // cannot prove it is free → fail closed.
+            Err(_) => return TryAcquire::Busy,
+        };
+        #[cfg(unix)]
+        if !try_lock_kernel_exclusive(&file) {
+            return TryAcquire::Busy;
+        }
+        // We hold the kernel lock: the previous holder cannot come back
+        // (its kernel lock was released on exit/crash and cannot be
+        // re-acquired while we hold it). Log what we are replacing. The old
+        // payload is read through the handle we hold — on Windows a second
+        // open of the path would hit our own share_mode(0) exclusion.
+        match read_lock_content_from(&file) {
+            Some(old) => {
+                let age = now_sec() - old.created_at;
+                tracing::info!(
+                    path = %path.display(),
+                    previous_pid = old.pid,
+                    previous_created_at = old.created_at,
+                    lock_age_sec = age,
+                    "taking over keystore lock: previous holder released the kernel lock (crashed or exited)"
+                );
+            }
+            None => {
+                tracing::info!(
+                    path = %path.display(),
+                    "taking over keystore lock: no kernel holder and unreadable/legacy lock content"
+                );
+            }
+        }
+        let content = LockContent {
+            format_version: LOCK_FORMAT_VERSION,
+            owner: owner.clone(),
+            pid: std::process::id(),
+            created_at: now_sec(),
+        };
+        if let Err(e) = write_lock_content(&file, &content) {
+            return TryAcquire::Failed(KeyStoreError::Save(format!(
+                "rewrite lock content on takeover {}: {e}",
+                path.display()
+            )));
+        }
+        tracing::debug!(path = %path.display(), "acquired keystore lock (takeover)");
+        TryAcquire::Acquired { owner, file }
+    }
+}
+
+/// (Over)write the lock payload through the already-locked handle: truncate
+/// to zero, write the JSON, fsync. The handle is exclusively ours at this
+/// point, so no other process can interleave.
+fn write_lock_content(mut file: &std::fs::File, content: &LockContent) -> std::io::Result<()> {
+    use std::io::{Seek, SeekFrom, Write};
+    let json = serde_json::to_string(content).map_err(std::io::Error::other)?;
+    file.seek(SeekFrom::Start(0))?;
+    file.set_len(0)?;
+    file.write_all(json.as_bytes())?;
+    file.sync_all()
 }
 
 impl Drop for KeystoreLock {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
+        // Close the kernel lock first on Windows: a file opened with
+        // share_mode(0) cannot be unlinked while our handle is open, and
+        // the handle must go before remove_file. On Unix the unlink runs
+        // while the flock is still held, so no contender can take over in
+        // between (their flock/open attempts fail until we close).
+        #[cfg(windows)]
+        {
+            self.file.take(); // release the exclusive handle
+        }
+        // Ownership re-check before deleting (F1): only remove when the
+        // file still records OUR owner token. Missing / unreadable /
+        // foreign-owned → leave it alone, never panic.
+        let owned = read_lock_content(&self.path)
+            .map(|c| c.owner == self.owner)
+            .unwrap_or(false);
+        if owned {
+            if let Err(e) = std::fs::remove_file(&self.path) {
+                // Best-effort cleanup: a leftover unowned lock is taken over
+                // safely by the next acquire; never panic from Drop.
+                tracing::warn!(
+                    path = %self.path.display(),
+                    error = %e,
+                    "failed to remove the keystore lock file on drop"
+                );
+            }
+        } else {
+            tracing::warn!(
+                path = %self.path.display(),
+                "keystore lock file no longer owned by this handle at drop; leaving it in place"
+            );
+        }
+        // Release the flock after the unlink on Unix.
+        #[cfg(unix)]
+        {
+            self.file.take();
+        }
     }
 }
 
-fn lock_is_stale(path: &Path) -> bool {
-    match std::fs::metadata(path).and_then(|m| m.modified()) {
-        Ok(modified) => SystemTime::now()
-            .duration_since(modified)
-            .map(|age| age > LOCK_STALE_AFTER)
-            .unwrap_or(false),
-        Err(_) => false,
-    }
-}
-
-/// Write `contents` to `path` atomically: tmp file in the same directory,
-/// fsync, rename over the target. Unix: file 0600, directory 0700.
+/// Write `contents` to `path` atomically: unique-named tmp file in the same
+/// directory, fsync, rename over the target. Unix: file created 0600 (never
+/// a 0644 window), directory 0700 (skipped for bare relative paths —
+/// chmod'ing "." would tighten an unrelated working directory).
 fn atomic_write(path: &Path, contents: &str) -> Result<(), KeyStoreError> {
     atomic_write_bytes(path, contents.as_bytes())
 }
@@ -1093,38 +1447,55 @@ fn atomic_write_bytes(path: &Path, contents: &[u8]) -> Result<(), KeyStoreError>
         .unwrap_or_else(|| Path::new("."));
     std::fs::create_dir_all(parent)
         .map_err(|e| KeyStoreError::Save(format!("create dir {}: {e}", parent.display())))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))
-            .map_err(|e| KeyStoreError::Save(format!("chmod dir: {e}")))?;
+    if parent != Path::new(".") {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))
+                .map_err(|e| KeyStoreError::Save(format!("chmod dir: {e}")))?;
+        }
     }
-    let mut tmp = path.as_os_str().to_owned();
-    tmp.push(".tmp");
-    let tmp = PathBuf::from(tmp);
-    {
+    // Unique tmp name: all writers are serialised by the keystore lock, but
+    // a crashed run (or a tmp from an older build) must never be able to
+    // clobber a concurrent write through a shared fixed name.
+    let tmp = path.with_file_name(format!(
+        "{}.tmp.{}",
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("keystore"),
+        uuid::Uuid::new_v4()
+    ));
+    let write_result = (|| {
         use std::io::Write;
-        let mut f = std::fs::File::create(&tmp)
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut f = opts
+            .open(&tmp)
             .map_err(|e| KeyStoreError::Save(format!("create {}: {e}", tmp.display())))?;
         f.write_all(contents)
             .map_err(|e| KeyStoreError::Save(format!("write {}: {e}", tmp.display())))?;
         f.sync_all()
             .map_err(|e| KeyStoreError::Save(format!("fsync {}: {e}", tmp.display())))?;
+        drop(f);
+        std::fs::rename(&tmp, path).map_err(|e| {
+            KeyStoreError::Save(format!(
+                "rename {} -> {}: {e}",
+                tmp.display(),
+                path.display()
+            ))
+        })?;
+        Ok(())
+    })();
+    if write_result.is_err() {
+        // Never leave our tmp behind to confuse the next run.
+        let _ = std::fs::remove_file(&tmp);
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))
-            .map_err(|e| KeyStoreError::Save(format!("chmod file: {e}")))?;
-    }
-    std::fs::rename(&tmp, path).map_err(|e| {
-        KeyStoreError::Save(format!(
-            "rename {} -> {}: {e}",
-            tmp.display(),
-            path.display()
-        ))
-    })?;
-    Ok(())
+    write_result
 }
 
 /// Unix-only: the keystore holds every private key, so group/other access
@@ -1585,21 +1956,314 @@ mod tests {
             .any(|r| r.payload.action == "rotate" && r.payload.result == "failed"));
     }
 
+    // ── PR #9 P2 F1: lock ownership ──────────────────────────────────────
+    //
+    // Platform note for these tests: on Windows the holder's share_mode(0)
+    // handle blocks *any* other open of the lock file (reads and writes of
+    // the payload included), so tampering while held is impossible there and
+    // is asserted as such. On Unix flock is advisory: the payload CAN be
+    // rewritten behind a live holder's back, which is exactly what the Drop
+    // ownership re-check defends against.
+
+    #[test]
+    fn lock_drop_removes_own_lock() {
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        // Payload content checks need path access, which on Windows requires
+        // the exclusive handle (holder-only) and on Unix works while held —
+        // so they run inside the held scope, unix-only; after drop the file
+        // is gone on every platform.
+        #[cfg(unix)]
+        {
+            let lock = KeystoreLock::acquire(&path).unwrap();
+            assert!(lock_path.exists());
+            let content = read_lock_content(&lock_path).expect("own lock readable");
+            assert_eq!(content.owner, lock.owner);
+            assert_eq!(content.pid, std::process::id());
+            assert_eq!(content.format_version, LOCK_FORMAT_VERSION);
+            drop(lock);
+            assert!(!lock_path.exists(), "own lock must be removed on drop");
+        }
+        // Windows: behavioral equivalents — exclusive hold, clean release,
+        // fresh ownership token on every acquisition.
+        #[cfg(windows)]
+        {
+            let first = {
+                let lock = KeystoreLock::acquire(&path).unwrap();
+                assert!(lock_path.exists());
+                lock.owner.clone()
+            };
+            assert!(!lock_path.exists(), "own lock must be removed on drop");
+            let second = {
+                let lock = KeystoreLock::acquire(&path).unwrap();
+                lock.owner.clone()
+            };
+            assert_ne!(second, first, "each acquisition gets a fresh owner token");
+            assert!(!lock_path.exists());
+        }
+    }
+
+    #[test]
+    fn lock_drop_does_not_remove_foreign_owner_lock() {
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        let foreign = serde_json::to_vec(&LockContent {
+            format_version: LOCK_FORMAT_VERSION,
+            owner: "foreign-owner".into(),
+            pid: 999_999,
+            created_at: now_sec(),
+        })
+        .unwrap();
+        #[cfg(unix)]
+        {
+            // flock is advisory: a takeover may have rewritten the payload
+            // while this holder was paused. The Drop ownership re-check
+            // must keep the new owner's lock file intact.
+            let lock = KeystoreLock::acquire(&path).unwrap();
+            std::fs::write(&lock_path, &foreign).unwrap();
+            drop(lock);
+            let after = read_lock_content(&lock_path)
+                .expect("foreign lock must survive the old owner's drop");
+            assert_eq!(
+                after.owner, "foreign-owner",
+                "a stale owner must never delete the new owner's lock"
+            );
+        }
+        #[cfg(windows)]
+        {
+            let lock = KeystoreLock::acquire(&path).unwrap();
+            // The exclusive handle blocks every external rewrite: the
+            // scenario cannot occur, and that refusal IS the protection.
+            assert!(
+                std::fs::write(&lock_path, &foreign).is_err(),
+                "external payload rewrite must fail while the lock is held"
+            );
+            drop(lock);
+            assert!(!lock_path.exists(), "our own unmodified lock is removed");
+        }
+    }
+
+    #[test]
+    fn concurrent_owner_replacement_never_lets_old_owner_delete_new_lock() {
+        // Deterministic interleaving via channels (no sleeps): a second
+        // "owner" replaces the payload after the main thread signals, then
+        // the main thread drops its lock.
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        let stale_lock = KeystoreLock::acquire(&path).unwrap();
+
+        let (go_tx, go_rx) = std::sync::mpsc::channel::<()>();
+        let (done_tx, done_rx) = std::sync::mpsc::channel::<bool>();
+        let replacer_path = lock_path.clone();
+        let replacer = std::thread::spawn(move || {
+            go_rx.recv().expect("go signal from main");
+            let new_owner = serde_json::to_vec(&LockContent {
+                format_version: LOCK_FORMAT_VERSION,
+                owner: "new-owner".into(),
+                pid: 1,
+                created_at: now_sec(),
+            })
+            .unwrap();
+            let ok = std::fs::write(&replacer_path, &new_owner).is_ok();
+            done_tx.send(ok).unwrap();
+        });
+        go_tx.send(()).unwrap();
+        let replaced = done_rx.recv().unwrap();
+        drop(stale_lock);
+        replacer.join().unwrap();
+
+        #[cfg(unix)]
+        {
+            assert!(replaced, "unix payload rewrite must succeed");
+            let after = read_lock_content(&lock_path).unwrap();
+            assert_eq!(
+                after.owner, "new-owner",
+                "old owner's drop must not touch the new lock"
+            );
+        }
+        #[cfg(windows)]
+        {
+            assert!(!replaced, "windows rewrite must be refused while held");
+            assert!(
+                !lock_path.exists(),
+                "unmodified own lock is removed on drop"
+            );
+        }
+        // And the next acquirer takes the lock cleanly either way; its
+        // payload is verified inside its held scope (unix) or behaviorally
+        // (windows: successful exclusive hold ⇒ fresh payload).
+        {
+            let next = KeystoreLock::acquire(&path).unwrap();
+            #[cfg(unix)]
+            assert_eq!(read_lock_content(&lock_path).unwrap().owner, next.owner);
+            drop(next);
+            assert!(!lock_path.exists());
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn lock_drop_tolerates_corrupt_or_missing_lock_file() {
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        // Corrupt payload at drop time: no panic, no deletion.
+        let l1 = KeystoreLock::acquire(&path).unwrap();
+        std::fs::write(&lock_path, b"not json at all").unwrap();
+        drop(l1);
+        assert!(lock_path.exists(), "unparseable lock is left in place");
+        // Missing file at drop time: no panic either.
+        let l2 = KeystoreLock::acquire(&path).unwrap();
+        std::fs::remove_file(&lock_path).unwrap();
+        drop(l2);
+        assert!(!lock_path.exists());
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn lock_file_is_exclusive_while_held_on_windows() {
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        let lock = KeystoreLock::acquire(&path).unwrap();
+        // share_mode(0): rewrite AND delete by any other open fail while
+        // the holder lives — the corruption scenarios cannot even arise.
+        assert!(std::fs::write(&lock_path, b"tampered").is_err());
+        assert!(std::fs::remove_file(&lock_path).is_err());
+        drop(lock);
+        assert!(!lock_path.exists());
+    }
+
+    // ── PR #9 P2 F2: takeover policy (kernel lock, fail-closed) ─────────
+
+    #[test]
+    fn live_holder_lock_is_never_reclaimed_even_when_aged() {
+        let (_d, path) = tmp_ks();
+        #[cfg(unix)]
+        let lock_path = lock_path_for(&path);
+        let lock = KeystoreLock::acquire(&path).unwrap();
+        let holder_owner = lock.owner.clone();
+        // Forge a day-old creation timestamp (unix: flock is advisory so the
+        // payload is writable behind the holder's back): any mtime/age-based
+        // reclaimer would call this stale. The kernel lock is live, so the
+        // lock must NOT be reclaimed — acquisition fails closed.
+        #[cfg(unix)]
+        {
+            let aged = serde_json::to_vec(&LockContent {
+                format_version: LOCK_FORMAT_VERSION,
+                owner: holder_owner.clone(),
+                pid: std::process::id(),
+                created_at: now_sec() - 86_400,
+            })
+            .unwrap();
+            std::fs::write(&lock_path, &aged).unwrap();
+        }
+        let err = KeystoreLock::acquire_within(&path, Duration::from_millis(150)).unwrap_err();
+        assert!(matches!(err, KeyStoreError::LockBusy(_)));
+        drop(lock);
+        // Released → immediately acquirable, with fresh ownership (payload
+        // verified inside the new holder's scope, unix-only).
+        let next = KeystoreLock::acquire(&path).unwrap();
+        #[cfg(unix)]
+        {
+            let content = read_lock_content(&lock_path).unwrap();
+            assert_ne!(
+                content.owner, holder_owner,
+                "the new acquisition must have rewritten ownership"
+            );
+        }
+        #[cfg(windows)]
+        assert_ne!(next.owner, holder_owner, "fresh owner token after release");
+        drop(next);
+    }
+
+    #[test]
+    fn dead_holder_lock_is_taken_over_and_ownership_rewritten() {
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        std::fs::create_dir_all(lock_path.parent().unwrap()).unwrap();
+        // A crashed holder: file on disk, no kernel lock held, dead pid,
+        // ancient timestamp → safe takeover (liveness proven by the kernel,
+        // immune to pid reuse on both counts).
+        std::fs::write(
+            &lock_path,
+            serde_json::to_vec(&LockContent {
+                format_version: LOCK_FORMAT_VERSION,
+                owner: "crashed-owner".into(),
+                pid: 4_000_000_000, // never a plausible live pid of this test
+                created_at: now_sec() - 3_600,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let owner = {
+            let lock = KeystoreLock::acquire(&path).unwrap();
+            assert_ne!(lock.owner, "crashed-owner");
+            // Verify the takeover rewrote the payload, inside the held scope.
+            #[cfg(unix)]
+            {
+                let content = read_lock_content(&lock_path).unwrap();
+                assert_eq!(content.owner, lock.owner);
+                assert_eq!(content.pid, std::process::id());
+                assert_eq!(content.format_version, LOCK_FORMAT_VERSION);
+            }
+            lock.owner.clone()
+        };
+        assert!(!lock_path.exists(), "lock removed on release");
+        let _ = owner;
+    }
+
+    #[test]
+    fn legacy_or_corrupt_lock_content_taken_over_only_when_unheld() {
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        std::fs::create_dir_all(lock_path.parent().unwrap()).unwrap();
+        // Old-build plain-text payload with no kernel holder: the payload is
+        // unreadable but the kernel lock proves nobody holds the lock, so a
+        // takeover is safe and rewrites the content into the new format.
+        std::fs::write(&lock_path, "pid=12345 at=1700000000").unwrap();
+        {
+            let lock = KeystoreLock::acquire_within(&path, Duration::from_millis(300)).unwrap();
+            #[cfg(unix)]
+            {
+                let content = read_lock_content(&lock_path).unwrap();
+                assert_eq!(content.owner, lock.owner);
+                assert_eq!(content.format_version, LOCK_FORMAT_VERSION);
+            }
+            #[cfg(windows)]
+            assert!(
+                !lock.owner.is_empty(),
+                "takeover produced a fresh owner token"
+            );
+        }
+        assert!(!lock_path.exists());
+    }
+
     #[test]
     fn lock_contention_fails_fast_and_recovers() {
         let (_d, path) = tmp_ks();
         let mut ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
-        let mut lock_os = path.as_os_str().to_owned();
-        lock_os.push(".lock");
-        let lock_path = PathBuf::from(lock_os);
-        std::fs::write(&lock_path, "held by another process").unwrap();
-
-        let err = KeystoreLock::acquire_within(&path, Duration::from_millis(100)).unwrap_err();
+        // Hold a REAL kernel lock, not just a file on disk.
+        let held = KeystoreLock::acquire(&path).unwrap();
+        let err = KeystoreLock::acquire_within(&path, Duration::from_millis(150)).unwrap_err();
         assert!(matches!(err, KeyStoreError::LockBusy(_)));
-
-        std::fs::remove_file(&lock_path).unwrap();
+        assert!(
+            err.to_string().contains("live"),
+            "LockBusy must state the live-holder policy: {err}"
+        );
+        drop(held);
         // lock released → mutation works again
         ks.rotate(now_sec(), &ctx()).unwrap();
+    }
+
+    #[test]
+    fn sequential_lock_acquires_never_leak_state() {
+        let (_d, path) = tmp_ks();
+        let lock_path = lock_path_for(&path);
+        for _ in 0..5 {
+            let l = KeystoreLock::acquire(&path).unwrap();
+            assert!(lock_path.exists());
+            drop(l);
+            assert!(!lock_path.exists(), "every release removes the lock");
+        }
     }
 
     // ── PR #9: backup integrity / restore safety ─────────────────────────
@@ -1742,5 +2406,236 @@ mod tests {
         let raw = std::fs::read_to_string(AuditLedger::beside_keystore(&path).path()).unwrap();
         assert!(raw.contains("token.jwt_key.backup"));
         assert!(!raw.contains("BEGIN"));
+    }
+
+    // ── PR #9 P2 F4: backup consistency ──────────────────────────────────
+
+    #[test]
+    fn backup_snapshots_fresh_disk_state_not_stale_memory() {
+        let (_d, path) = tmp_ks();
+        let instance_a = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let mut instance_b = KeyStore::load(&path, 100).unwrap();
+        let (new_kid, _) = instance_b.rotate(now_sec(), &ctx()).unwrap();
+        // A's memory still holds the pre-rotation snapshot. The backup must
+        // reload the disk state under the lock — never back up stale memory.
+        let backup = _d.path().join("ks.backup.json");
+        let summary = instance_a.write_backup(&backup, &ctx()).unwrap();
+        assert_eq!(summary.active_kid, new_kid);
+        let env: BackupEnvelope =
+            serde_json::from_str(&std::fs::read_to_string(&backup).unwrap()).unwrap();
+        assert_eq!(env.keystore.active_kid, new_kid);
+        assert_eq!(env.keystore_sha256, summary.keystore_sha256);
+        // The recorded checksum matches the keystore that is on disk now.
+        let disk = KeyStore::load(&path, 100).unwrap();
+        assert_eq!(keystore_checksum(disk.data()).unwrap(), env.keystore_sha256);
+        // (silence the unused-binding lint on the stale instance)
+        let _ = instance_a;
+    }
+
+    #[test]
+    fn concurrent_rotate_and_backup_produce_serialized_consistent_backups() {
+        // Barrier-synchronised; the assertion is structural, so no sleeps
+        // are needed: every backup must be internally checksum-consistent
+        // AND its key list must be a prefix of the final on-disk key order.
+        // A torn or stale snapshot would violate the prefix property.
+        const ROTATIONS: usize = 3;
+        const BACKUPS: usize = 3;
+        let (_d, path) = tmp_ks();
+        let ks0 = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        assert_eq!(ks0.data().keys.len(), 1);
+
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(ROTATIONS + BACKUPS));
+        let mut rotators = Vec::new();
+        let mut backupers = Vec::new();
+        for i in 0..ROTATIONS {
+            let barrier = barrier.clone();
+            let p = path.clone();
+            rotators.push(std::thread::spawn(move || {
+                let mut ks = KeyStore::load(&p, 100).unwrap();
+                barrier.wait();
+                ks.rotate(now_sec(), &ctx())
+            }));
+            let _ = i;
+        }
+        for i in 0..BACKUPS {
+            let barrier = barrier.clone();
+            let p = path.clone();
+            let out = _d.path().join(format!("concurrent-backup-{i}.json"));
+            backupers.push(std::thread::spawn(move || {
+                let ks = KeyStore::load(&p, 100).unwrap();
+                barrier.wait();
+                ks.write_backup(&out, &ctx())
+            }));
+        }
+
+        let mut rotations_ok = 0;
+        for h in rotators {
+            match h.join().unwrap() {
+                Ok(_) => rotations_ok += 1,
+                // Concurrent rotations from the same base state: exactly the
+                // first writer wins, later ones must fail with Stale.
+                Err(e) => assert!(
+                    matches!(e, KeyStoreError::Stale(_)),
+                    "rotation failures must be explicit Stale errors, got: {e}"
+                ),
+            }
+        }
+        assert!(rotations_ok >= 1, "at least one rotation must succeed");
+
+        for h in backupers {
+            h.join()
+                .unwrap()
+                .expect("every backup must succeed (lock serialises them)");
+        }
+
+        let final_disk = KeyStore::load(&path, 100).unwrap();
+        let final_kids: Vec<String> = final_disk
+            .data()
+            .keys
+            .iter()
+            .map(|k| k.kid.clone())
+            .collect();
+        for i in 0..BACKUPS {
+            let backup = _d.path().join(format!("concurrent-backup-{i}.json"));
+            let env: BackupEnvelope =
+                serde_json::from_str(&std::fs::read_to_string(&backup).unwrap()).unwrap();
+            assert_eq!(
+                keystore_checksum(&env.keystore).unwrap(),
+                env.keystore_sha256,
+                "backup {i} must be internally consistent"
+            );
+            let kids: Vec<String> = env.keystore.keys.iter().map(|k| k.kid.clone()).collect();
+            assert!(
+                final_kids.starts_with(&kids),
+                "backup {i} keys {kids:?} must be a serial prefix of the final state {final_kids:?}"
+            );
+            assert!(
+                env.keystore
+                    .keys
+                    .iter()
+                    .any(|k| k.kid == env.keystore.active_kid),
+                "backup {i}: active kid must be one of its own keys"
+            );
+        }
+    }
+
+    #[test]
+    fn concurrent_backup_and_restore_stay_consistent() {
+        // Restore replaces the keystore wholesale with the backup content,
+        // so the final on-disk state is deterministic (the restored state)
+        // regardless of which thread lands last; the mid-flight backup must
+        // still be a checksum-valid serial state.
+        let (_d, path) = tmp_ks();
+        let mut ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let backup = _d.path().join("ks.backup.json");
+        ks.write_backup(&backup, &ctx()).unwrap();
+        let original_kid = ks.active().kid.clone();
+        let (rotated_kid, _) = ks.rotate(now_sec(), &ctx()).unwrap();
+
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let b1 = barrier.clone();
+        let backup_thread = {
+            let p = path.clone();
+            let out = _d.path().join("during-restore.backup.json");
+            std::thread::spawn(move || {
+                let live = KeyStore::load(&p, 100).unwrap();
+                b1.wait();
+                live.write_backup(&out, &ctx())
+            })
+        };
+        let b2 = barrier;
+        let restore_thread = {
+            let p = path.clone();
+            let src = backup.clone();
+            std::thread::spawn(move || {
+                b2.wait();
+                KeyStore::restore_from_backup(&src, &p, 100, &ctx())
+            })
+        };
+        let mid_backup = backup_thread.join().unwrap().expect("backup succeeds");
+        restore_thread.join().unwrap().expect("restore succeeds");
+
+        let env: BackupEnvelope = serde_json::from_str(
+            &std::fs::read_to_string(_d.path().join("during-restore.backup.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            keystore_checksum(&env.keystore).unwrap(),
+            env.keystore_sha256,
+            "mid-flight backup must be internally consistent"
+        );
+        assert!(
+            mid_backup.active_kid == original_kid || mid_backup.active_kid == rotated_kid,
+            "mid-flight backup must be a serial state, got {}",
+            mid_backup.active_kid
+        );
+        // The restore always owns the final disk state.
+        let final_disk = KeyStore::load(&path, 100).unwrap();
+        assert_eq!(final_disk.active().kid, original_kid);
+    }
+
+    #[test]
+    fn concurrent_backups_to_same_target_never_corrupt_each_other() {
+        const BACKUPS: usize = 4;
+        let (_d, path) = tmp_ks();
+        KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let out = _d.path().join("same-target.backup.json");
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(BACKUPS));
+        let mut handles = Vec::new();
+        for _ in 0..BACKUPS {
+            let barrier = barrier.clone();
+            let p = path.clone();
+            let out = out.clone();
+            handles.push(std::thread::spawn(move || {
+                let ks = KeyStore::load(&p, 100).unwrap();
+                barrier.wait();
+                ks.write_backup(&out, &ctx())
+            }));
+        }
+        for h in handles {
+            h.join().unwrap().expect("each backup succeeds");
+        }
+        // The final file is a complete, valid envelope (last writer wins).
+        let env: BackupEnvelope =
+            serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+        assert_eq!(
+            keystore_checksum(&env.keystore).unwrap(),
+            env.keystore_sha256
+        );
+        // Unique tmp names leave nothing behind.
+        let tmp_leftovers = std::fs::read_dir(_d.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp."))
+            .count();
+        assert_eq!(
+            tmp_leftovers, 0,
+            "failed/finished backups must not leave tmp files"
+        );
+    }
+
+    #[test]
+    fn failed_backup_does_not_damage_existing_backup() {
+        let (_d, path) = tmp_ks();
+        let ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let good = _d.path().join("good.backup.json");
+        ks.write_backup(&good, &ctx()).unwrap();
+        let before = std::fs::read(&good).unwrap();
+
+        // Target whose parent chain goes through a regular file: the write
+        // fails before anything is renamed, and the good backup is intact.
+        let blocker = _d.path().join("blocker-file");
+        std::fs::write(&blocker, b"i am a file").unwrap();
+        let bad_target = blocker.join("nested").join("bad.backup.json");
+        let err = ks.write_backup(&bad_target, &ctx()).unwrap_err();
+        assert!(matches!(err, KeyStoreError::Save(_)), "got: {err}");
+        assert_eq!(std::fs::read(&good).unwrap(), before);
+        assert!(
+            !std::fs::read_dir(_d.path())
+                .unwrap()
+                .filter_map(|e| e.ok())
+                .any(|e| e.file_name().to_string_lossy().contains(".tmp.")),
+            "failed backup must clean up its tmp file"
+        );
     }
 }

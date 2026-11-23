@@ -176,11 +176,12 @@ fn delete(path: String, kid: &str, min_retention: i64) {
 
 fn backup(path: String, out: &str) {
     let ks = open_keystore(&path, min_retention_from_env());
-    ks.write_backup(std::path::Path::new(out), &ctx())
+    let summary = ks
+        .write_backup(std::path::Path::new(out), &ctx())
         .unwrap_or_else(|e| die(&format!("backup: {e}")));
     println!(
-        "backup written: {out} ({} keys, versioned envelope + SHA-256 checksum) — contains PRIVATE KEY MATERIAL: store in protected storage, never commit to git",
-        ks.data().keys.len()
+        "backup written: {out} ({} keys, active_kid={}, keystore_sha256={}) — contains PRIVATE KEY MATERIAL: store in protected storage, never commit to git",
+        summary.keys, summary.active_kid, summary.keystore_sha256
     );
 }
 
