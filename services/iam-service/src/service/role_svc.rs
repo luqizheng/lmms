@@ -59,6 +59,7 @@ impl RoleService {
         self.get(&role_id, scope).await
     }
 
+    // check-tenant-scope: delegated — 租户过滤在 fetch_role_* 的 and_tenant(scope)
     pub async fn get(&self, role_id: &str, scope: &TenantScope) -> Result<RoleResponse, IamError> {
         // QueryBuilder 方言泛型（push_bind 产出方言占位符）→ 双臂取池（prue 样板）。
         let role = match &self.state.db {

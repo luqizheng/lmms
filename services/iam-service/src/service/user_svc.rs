@@ -284,6 +284,7 @@ impl UserService {
         Ok(self.to_response(&user))
     }
 
+    // check-tenant-scope: delegated — 租户过滤在 fetch_user_* 的 and_tenant(scope)
     pub async fn get(&self, user_id: &str, scope: &TenantScope) -> Result<UserResponse, IamError> {
         // QueryBuilder 方言泛型（push_bind 产出方言占位符）→ 双臂子函数（prue 样板）。
         let user = match &self.state.db {
@@ -353,6 +354,7 @@ impl UserService {
         })
     }
 
+    // check-tenant-scope: delegated — 租户过滤在 fetch_user_* / update_profile_* 的 and_tenant(scope)
     pub async fn update(
         &self,
         user_id: &str,
@@ -567,6 +569,7 @@ impl UserService {
         }
     }
 
+    // check-tenant-scope: delegated — 租户过滤在 fetch_users_by_ids_* 的 and_tenant(scope)
     pub async fn batch_get_by_ids(
         &self,
         user_ids: &[String],
