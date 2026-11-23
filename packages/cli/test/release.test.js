@@ -20,7 +20,7 @@ const {
   readServiceVersions,
   publishedDirs,
 } = require('../lib/service-versions.js');
-const { rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, LIBS_ORDER } = require('../lib/sdk-publish.js');
+const { cargoPublishArgs, rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, LIBS_ORDER } = require('../lib/sdk-publish.js');
 const { readReleaseConfig } = require('../lib/release-toml.js');
 const imageEnv = require('../lib/image-env.js');
 
@@ -180,6 +180,13 @@ test('rewritePathDeps 把 path 依赖改成 version + registry', () => {
   assert.ok(after.includes('digua_common_error = { version = "1.6.0", registry = "kellnr" }'));
   assert.ok(after.includes('digua_common_db = { version = "1.7.0", registry = "kellnr", features = ["postgres"] }'));
   assert.ok(!after.includes('path ='));
+});
+
+test('cargoPublishArgs omits --registry when publishing to the default crates.io registry', () => {
+  const args = cargoPublishArgs('digua_common_error', null, false);
+  assert.ok(args.includes('publish'));
+  assert.ok(!args.includes('--registry'));
+  assert.ok(!args.includes(null));
 });
 
 test('rewritePathDeps supports the default crates.io registry without a private registry alias', () => {
