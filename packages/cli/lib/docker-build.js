@@ -153,9 +153,10 @@ function resolvePlan({ args, isTTY }) {
   const suffix = DIALECTS[dialect].tagSuffix;
   const tagsByService = Object.fromEntries(services.map((svc) => {
     const base = `${registry}/${repo}/${svc}`;
+    const latestTag = `${base}:${suffix ? 'pg-' : ''}latest`;
     const tags = args.version
-      ? [`${base}:${args.version}${suffix}`, `${base}:${suffix ? 'pg-' : ''}latest`]
-      : [`${base}:${suffix ? 'pg-' : ''}latest`];
+      ? [`${base}:${args.version}${suffix}`, ...(args.latest === false ? [] : [latestTag])]
+      : [latestTag];
     return [svc, [...new Set(tags)]];
   }));
 

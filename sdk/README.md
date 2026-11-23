@@ -15,19 +15,19 @@ sdk/
     digua_http_client/            # 通用服务间 HTTP 客户端（client_credentials + Bearer 透传）
   rust/                          # Rust（workspace 成员）
     digua_http_client/            # 通用服务间 HTTP 客户端
-  iam-services/                  # npm TS 包：登录 / 用户管理 / token 管理
-  audit-services/                # npm TS 包：日志查询 / 合规导出 / 保留策略
+  iam-services/                  # npm 包 @digua/iam-services：登录 / 用户管理 / token 管理
+  audit-services/                # npm 包 @digua/audit-services：日志查询 / 合规导出 / 保留策略
   config-services/               # npm TS 包：配置中心（命名空间/配置项/导入导出）
-  file-services/                 # npm TS 包：multipart 上传 / 二进制下载 / 预签名
-  notification-services/         # npm TS 包：公告 / 未读数（不含 WS）
-  prue-services/                 # npm TS 包：动态路由 / 菜单配置版本（ETag 乐观锁）
+  file-services/                 # npm 包 @digua/file-services：multipart 上传 / 二进制下载 / 预签名
+  notification-services/         # npm 包 @digua/notification-services：公告 / 未读数（不含 WS）
+  prue-services/                 # npm 包 @digua/prue-services：动态路由 / 菜单配置版本（ETag 乐观锁）
   openapi/                       # 离线 OpenAPI 规范
   scripts/                       # openapi-generator 触发脚本
 ```
 
 > **npm TS 包**：浏览器 / Node 侧不放在 `sdk/`，而是仓库顶层 `packages/`（`@digua/contracts` + `@digua/http`，发布到私有 registry `http://192.168.2.12:14873/`，域名别名 `http://npm.kudi.repos/`；发布用根目录 `pnpm run packages:publish`，发布前校验用 `pnpm run packages:check`；CI 在 `v*.*.*` tag 触发时由 `publish_packages` job 自动按 tag 版本发布）
 >
-> **例外**：`sdk/iam-services`（npm 包名 `iam-services`）是 npm TS 包放 `sdk/` 的唯一例外——经用户裁决（2026-10-31）落位于此，同样接入上述发布管线（已列入 `packages/cli/lib/npm-packages.js` 清单）。
+> **例外**：`sdk/iam-services`（npm 包名 `@digua/iam-services`）是 npm TS 包放 `sdk/` 的例外——经用户裁决（2026-10-31）落位于此，同样接入公开发布管线（已列入 `packages/cli/lib/sdk-publish.js` 清单）。
 >
 > **C# SDK（`sdk/dotnet`）规划中**：目录尚未创建。
 
@@ -49,7 +49,7 @@ sdk/
 ## 仓库
 
 - Maven：`http://mvn.kudi.repos/#/`（Reposilite）
-- npm：`http://192.168.2.12:14873/`（别名 `npm.kudi.repos`；`@digua/contracts` / `@digua/http` 位于仓库顶层 `packages/`，`iam-services` 位于 `sdk/iam-services`）
+- npm：公开发布到 npmjs.org（`@digua/contracts` / `@digua/http` 位于仓库顶层 `packages/`；`@digua/iam-services` 等五个服务 SDK 位于 `sdk/*-services/`）
 - kellnr（Rust crates）：见 `sdk/rust` 发布脚本（`pnpm run sdk:publish:rust`）
 
 ## 重新生成

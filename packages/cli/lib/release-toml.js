@@ -19,8 +19,8 @@ const DEFAULT_DIALECT = 'pg';
 const DEFAULT_REGISTRY_HOST = 'zhcoder-docker-registry.com:8000';
 const DEFAULT_REGISTRY_REPO = 'micro-server';
 const DEFAULT_SDK = {
-  rustRegistry: 'kellnr',
-  npmRegistry: 'http://npm.kudi.repos',
+  rustRegistry: null,
+  npmRegistry: 'https://registry.npmjs.org/',
   mavenRepositoryId: 'reposilite-releases',
 };
 

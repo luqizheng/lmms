@@ -3,8 +3,8 @@
 // sdk-publish.js —— 发布各类 SDK（Rust crates / npm TS 包 / Java SDK）
 //
 // 三个生态各自独立版本线（用户裁决：不跟平台镜像版本绑定）：
-//   rust  : libs/*（17）→ sdk/rust/*（6）发 kellnr，按依赖拓扑排序
-//   npm   : packages/@digua/* + sdk/*-services 发私有 Verdaccio
+//   rust  : libs/*（17）→ sdk/rust/*（6）发 crates.io，按依赖拓扑排序
+//   npm   : packages/@digua/* + sdk/*-services 发 npmjs.org
 //   java  : sdk/java 多模块发 Maven（mvn deploy）
 //
 // Rust 的关键约束（实战验证过，勿简化）：
@@ -74,7 +74,9 @@ function rewritePathDeps(tomlText, { crateVersions, registry = 'kellnr', toPkgNa
     const pkgName = nameOf(dir);
 
     const patternA = `${pkgName} = { path = "../${dir}" }`;
-    const replacementA = `${pkgName} = { version = "${version}", registry = "${registry}" }`;
+    const replacementA = registry
+      ? `${pkgName} = { version = "${version}", registry = "${registry}" }`
+      : `${pkgName} = { version = "${version}" }`;
     if (content.includes(patternA)) {
       content = content.split(patternA).join(replacementA);
       continue;
@@ -83,7 +85,9 @@ function rewritePathDeps(tomlText, { crateVersions, registry = 'kellnr', toPkgNa
     const reB = new RegExp(
       `${escapeRegex(pkgName)}\\s*=\\s*\\{\\s*path\\s*=\\s*"\\.\\./${escapeRegex(dir)}"\\s*,\\s*`,
     );
-    const replacementB = `${pkgName} = { version = "${version}", registry = "${registry}", `;
+    const replacementB = registry
+      ? `${pkgName} = { version = "${version}", registry = "${registry}", `
+      : `${pkgName} = { version = "${version}", `;
     if (reB.test(content)) content = content.replace(reB, replacementB);
   }
   return content;
@@ -146,7 +150,8 @@ function readCrateManifest(root, base, dir) {
 }
 
 function cargoPublishArgs(pkgName, registry, dryRun) {
-  const args = ['publish', '-p', pkgName, '--registry', registry, '--no-verify', '--allow-dirty'];
+  const args = ['publish', '-p', pkgName, '--no-verify', '--allow-dirty'];
+  if (registry) args.push('--registry', registry);
   if (dryRun) args.push('--dry-run');
   return args;
 }
@@ -243,12 +248,13 @@ function publishRust({
 const NPM_PACKAGES = [
   { dir: 'packages/contracts', name: '@digua/contracts', needsBuild: true },
   { dir: 'packages/http', name: '@digua/http', needsBuild: true },
-  { dir: 'packages/cli', name: '@digua/cli', needsBuild: false },
-  { dir: 'sdk/iam-services', name: 'iam-services', needsBuild: true },
-  { dir: 'sdk/audit-services', name: 'audit-services', needsBuild: true },
-  { dir: 'sdk/file-services', name: 'file-services', needsBuild: true },
-  { dir: 'sdk/notification-services', name: 'notification-services', needsBuild: true },
-  { dir: 'sdk/prue-services', name: 'prue-services', needsBuild: true },
+  // 全部使用 @digua/ scope：未加 scope 的 file-services / notification-services
+  // 在 npmjs.org 已被他人占用，无法发布；统一 scope 也便于 org 权限管理。
+  { dir: 'sdk/iam-services', name: '@digua/iam-services', needsBuild: true },
+  { dir: 'sdk/audit-services', name: '@digua/audit-services', needsBuild: true },
+  { dir: 'sdk/file-services', name: '@digua/file-services', needsBuild: true },
+  { dir: 'sdk/notification-services', name: '@digua/notification-services', needsBuild: true },
+  { dir: 'sdk/prue-services', name: '@digua/prue-services', needsBuild: true },
 ];
 
 // Windows 上 pnpm 是 .cmd shim，spawnSync 不带 shell 解析不到
@@ -283,7 +289,7 @@ function publishNpm({
       if ((b.status ?? 1) !== 0) throw new ExternalError(`pnpm build failed for ${p.name}`, { name: p.name });
     }
 
-    const args = ['--filter', p.name, 'publish', '--no-git-checks'];
+    const args = ['--filter', p.name, 'publish', '--no-git-checks', '--access', 'public'];
     if (registry) args.push('--registry', registry);
     out.log(`[sdk:npm] publishing ${p.name}@${p.version}`);
     const r = exec('pnpm', args, { cwd: root, shell: IS_WIN });
@@ -341,6 +347,7 @@ module.exports = {
   internalPathDeps,
   assertOrderRespectsDeps,
   readCrateManifest,
+  cargoPublishArgs,
   publishRust,
   publishNpm,
   publishMaven,

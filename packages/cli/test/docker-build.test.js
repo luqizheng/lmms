@@ -51,6 +51,16 @@ test('resolvePlan with explicit version and --push', () => {
   assert.equal(plan.version, '1.6.0');
 });
 
+test('resolvePlan can emit immutable version-only tags for release publishing', () => {
+  const args = parseBuildArgs(['token-service', '-v', '1.8.0', '--push']);
+  args.dialect = 'pg';
+  args.latest = false;
+  const plan = resolvePlan({ args, isTTY: false });
+  assert.deepEqual(plan.tagsByService['token-service'], [
+    `${DEFAULT_REGISTRY}/micro-server/token-service:1.8.0-pg`,
+  ]);
+});
+
 test('resolvePlan multi-arch load-and-push falls back to push with warnings', () => {
   const plan = resolvePlan({ args: parseBuildArgs(['--load-and-push', '-p', 'linux/amd64,linux/arm64']), isTTY: true });
   assert.equal(plan.mode, 'push');

@@ -185,6 +185,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'On-Call 值班', link: '/runbooks/oncall' },
+            { text: '公开发行流程', link: '/runbooks/public-release-pipeline' },
             { text: '凭据管理', link: '/runbooks/credentials' },
             { text: '密钥轮换', link: '/runbooks/secret-rotation' },
             { text: 'JWT 密钥运维（token-service）', link: '/runbooks/jwt-key-operations' },

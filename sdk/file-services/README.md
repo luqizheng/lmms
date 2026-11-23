@@ -7,7 +7,7 @@ lmms file-service SDK：**multipart 上传、二进制下载、文件管理、�
 ## 快速上手
 
 ```ts
-import { createFileServices } from "file-services";
+import { createFileServices } from "@digua/file-services";
 
 const file = createFileServices({
   baseUrl: "http://127.0.0.1:3000",
@@ -52,7 +52,7 @@ await file.presign.create({ file_id: info.id, operation: "download", expires_in_
 ## 开发
 
 ```bash
-pnpm --filter file-services test / typecheck / build
+pnpm --filter @digua/file-services test / typecheck / build
 ```
 
 发布走仓库统一管线（见 `AGENTS.md`「npm 包发布规则」）。

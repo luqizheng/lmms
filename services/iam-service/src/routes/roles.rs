@@ -267,6 +267,7 @@ async fn assign_user_roles(
     security(("bearer_auth" = [])),
     tag = "roles"
 )]
+// check-tenant-scope: delegated — 租户过滤在 UserService::list_users_by_role_with_details 的 u.tenant_id
 async fn list_users_by_role(
     State(state): State<AppState>,
     Path(role_id): Path<String>,

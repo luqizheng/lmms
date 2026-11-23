@@ -120,6 +120,7 @@ impl OrgService {
         Ok(self.to_response(&org_unit, vec![]))
     }
 
+    // check-tenant-scope: delegated — 租户过滤在 fetch_org_unit_* 的 and_tenant(scope)
     pub async fn get(
         &self,
         org_unit_id: &str,

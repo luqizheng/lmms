@@ -7,7 +7,7 @@ lmms audit-service SDK：**登录/操作日志查询、合规导出（CSV/JSON�
 ## 快速上手
 
 ```ts
-import { createAuditServices } from "audit-services";
+import { createAuditServices } from "@digua/audit-services";
 
 const audit = createAuditServices({
   baseUrl: "http://127.0.0.1:3000", // 网关；浏览器同域反代可传相对路径
@@ -48,7 +48,7 @@ const stats = await audit.retention.stats();
 ## 开发
 
 ```bash
-pnpm --filter audit-services test / typecheck / build
+pnpm --filter @digua/audit-services test / typecheck / build
 ```
 
 发布走仓库统一管线：`pnpm run packages:check`（干跑）/ `pnpm run packages:publish --version <x.y.z>`，规则见 `AGENTS.md`「npm 包发布规则」。

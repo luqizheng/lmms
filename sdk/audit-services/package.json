@@ -1,5 +1,5 @@
 {
-  "name": "audit-services",
+  "name": "@digua/audit-services",
   "version": "0.1.0",
   "description": "lmms audit-service SDK：登录/操作日志查询、合规导出（CSV/JSON）、保留策略管理的零依赖 fetch 客户端（api-gateway /v1/audit 公开路径）",
   "type": "module",
@@ -30,9 +30,9 @@
   "engines": {
     "node": ">=22"
   },
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
-    "registry": "http://192.168.2.12:14873/"
+    "registry": "https://registry.npmjs.org/"
   }
 }

@@ -20,7 +20,7 @@ const {
   readServiceVersions,
   publishedDirs,
 } = require('../lib/service-versions.js');
-const { rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, LIBS_ORDER } = require('../lib/sdk-publish.js');
+const { cargoPublishArgs, rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, LIBS_ORDER, SDKS_ORDER, NPM_PACKAGES } = require('../lib/sdk-publish.js');
 const { readReleaseConfig } = require('../lib/release-toml.js');
 const imageEnv = require('../lib/image-env.js');
 
@@ -182,6 +182,24 @@ test('rewritePathDeps 把 path 依赖改成 version + registry', () => {
   assert.ok(!after.includes('path ='));
 });
 
+test('cargoPublishArgs omits --registry when publishing to the default crates.io registry', () => {
+  const args = cargoPublishArgs('digua_common_error', null, false);
+  assert.ok(args.includes('publish'));
+  assert.ok(!args.includes('--registry'));
+  assert.ok(!args.includes(null));
+});
+
+test('rewritePathDeps supports the default crates.io registry without a private registry alias', () => {
+  const before = 'digua_common_error = { path = "../common-error" }';
+  const after = rewritePathDeps(before, {
+    crateVersions: { 'common-error': '1.6.0' },
+    registry: null,
+    pkgNames: { 'common-error': 'digua_common_error' },
+  });
+  assert.equal(after, 'digua_common_error = { version = "1.6.0" }');
+  assert.ok(!after.includes('registry ='));
+});
+
 test('internalPathDeps 找出指向仓内 crate 的依赖，且排除自身', () => {
   const toml = [
     'digua_common_error = { path = "../common-error" }',
@@ -224,6 +242,74 @@ test('LIBS_ORDER 里 common-db 排在依赖它的 crate 之前', () => {
     }
   }
 });
+
+// ── 发布清单与仓库实际包结构一致 ─────────────────────────────────────────────
+test('npm 发布清单排除内部包，且每个条目都是可公开发布的真实包', () => {
+  const names = NPM_PACKAGES.map((p) => p.name);
+  assert.ok(!names.includes('@digua/cli'), '内部 @digua/cli 不得进入公开发布清单');
+  for (const p of NPM_PACKAGES) {
+    const pkgPath = path.join(REPO_ROOT, p.dir, 'package.json');
+    assert.ok(fs.existsSync(pkgPath), `${p.dir}/package.json 必须存在`);
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    assert.equal(pkg.name, p.name, `${p.dir} 的 package name 与发布清单一致`);
+    assert.notEqual(pkg.private, true, `${p.dir} 标记了 private，不能进入公开发布清单`);
+  }
+});
+
+test('Rust 发布清单条目都有 description/license（crates.io 必填）', () => {
+  const dirs = [
+    ...LIBS_ORDER.map((d) => `libs/${d}`),
+    ...SDKS_ORDER.map((d) => `sdk/rust/${d}`),
+  ];
+  for (const dir of dirs) {
+    const tomlPath = path.join(REPO_ROOT, dir, 'Cargo.toml');
+    assert.ok(fs.existsSync(tomlPath), `${dir}/Cargo.toml 必须存在`);
+    const toml = fs.readFileSync(tomlPath, 'utf8');
+    assert.match(toml, /^description\s*=/m, `${dir} 缺少 description`);
+    assert.match(toml, /^license\s*=/m, `${dir} 缺少 license`);
+  }
+});
+
+// ── npm 包名与许可证 ────────────────────────────────────────────────────────
+test('所有公开 npm 包使用 @digua/ scope（未加 scope 的名称在 npmjs 已被占用）', () => {
+  for (const p of NPM_PACKAGES) {
+    assert.match(p.name, /^@digua\//, `${p.dir} 的包名 ${p.name} 必须使用 @digua/ scope`);
+  }
+  const names = NPM_PACKAGES.map((p) => p.name);
+  assert.equal(new Set(names).size, names.length, '发布清单不得有重复包名');
+});
+
+test('所有公开 npm 包声明 Apache-2.0，不得把 UNLICENSED 当公开发布授权', () => {
+  for (const p of NPM_PACKAGES) {
+    const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, p.dir, 'package.json'), 'utf8'));
+    assert.equal(pkg.license, 'Apache-2.0', `${p.name} 的 license 必须是 Apache-2.0`);
+    assert.equal(pkg.publishConfig?.registry, 'https://registry.npmjs.org/', `${p.name} 必须发布到 npmjs.org`);
+  }
+});
+
+test('仓库根存在 Apache-2.0 LICENSE', () => {
+  const licensePath = path.join(REPO_ROOT, 'LICENSE');
+  assert.ok(fs.existsSync(licensePath), '仓库根必须有 LICENSE');
+  assert.match(fs.readFileSync(licensePath, 'utf8'), /Apache License\s+Version 2\.0/);
+});
+
+// ── 发布 workflow 触发与 tag 校验 ───────────────────────────────────────────
+test('public-release workflow 支持 workflow_dispatch 指定已存在的 tag', () => {
+  const wf = fs.readFileSync(path.join(REPO_ROOT, '.github', 'workflows', 'public-release.yml'), 'utf8');
+  assert.match(wf, /^\s{2}workflow_dispatch:/m, '必须支持 workflow_dispatch');
+  assert.match(wf, /^\s{6}tag:/m, 'workflow_dispatch 必须有 tag 输入');
+  assert.match(wf, /required:\s*true/, 'tag 输入必须必填');
+});
+
+test('public-release 的手动补发仍校验 tag 属于 main，且发布 job 不在 PR 上运行', () => {
+  const wf = fs.readFileSync(path.join(REPO_ROOT, '.github', 'workflows', 'public-release.yml'), 'utf8');
+  assert.match(wf, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/, '必须校验 vMAJOR.MINOR.PATCH 格式');
+  assert.match(wf, /git merge-base --is-ancestor/, '必须校验 tag 的 commit 可从 main 到达');
+  assert.match(wf, /inputs\.tag/, 'dispatch 路径必须读取手动输入的 tag');
+  const jobGuards = wf.match(/^\s{2}publish-[a-z]+:\n\s{4}if: github\.event_name != 'pull_request'/gm) || [];
+  assert.equal(jobGuards.length, 3, '三个发布 job 都必须排除 pull_request 事件');
+});
+
 
 // ── release.toml 不带版本 ───────────────────────────────────────────────────
 test('release.toml 不再持有 version（版本归 Cargo.toml，避免双真相源）', () => {

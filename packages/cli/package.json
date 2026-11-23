@@ -6,6 +6,6 @@
   "main": "./lib/cli.js",
   "files": ["bin", "lib", "commands"],
   "engines": { "node": ">=18" },
-  "scripts": { "test": "node --test \"test/*.test.js\"" },
-  "publishConfig": { "registry": "http://192.168.2.12:14873/" }
+  "private": true,
+  "scripts": { "test": "node --test \"test/*.test.js\"" }
 }

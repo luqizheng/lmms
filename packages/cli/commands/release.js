@@ -146,18 +146,22 @@ const commands = {
     summary: 'build (and push) service images from services/* crate versions; pin .image.env after push',
     spec: {
       summary: 'build (and push) service images from services/* crate versions; pin .image.env after push',
-      usage: 'coder release images [--push] [--dry-run]',
+      usage: 'coder release images [--push] [--dry-run] [--registry <host>] [--repo <name>]',
       examples: ['coder release images --dry-run', 'coder release images --push'],
       flags: {
         '--push': { type: 'flag', desc: 'push images to the registry' },
         '--dry-run': { type: 'flag', desc: 'print the plan and resulting pins; build nothing' },
+        '--registry': { type: 'value', desc: 'override registry host/prefix' },
+        '--repo': { type: 'value', desc: 'override registry namespace/repository prefix' },
       },
     },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release images requires a repo context (--cwd)');
-      const { flags } = parseFlags(args, { '--push': 'flag', '--dry-run': 'flag' });
+      const { flags } = parseFlags(args, { '--push': 'flag', '--dry-run': 'flag', '--registry': 'value', '--repo': 'value' });
 
       const cfg = readReleaseConfig(ctx.root);
+      if (flags['--registry']) cfg.registry = flags['--registry'];
+      if (flags['--repo']) cfg.repo = flags['--repo'];
       const versions = requireConsistentVersion(ctx.root);
       const version = versions.version;
 
@@ -174,6 +178,7 @@ const commands = {
         registry: cfg.registry,
         repo: cfg.repo,
         buildArgs: [],
+        latest: false,
         unknown: [],
       };
       const batches = cfg.dialect === 'pg'
