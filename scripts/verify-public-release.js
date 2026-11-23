@@ -54,7 +54,7 @@ async function verifyNpm() {
   console.log('Verified all configured npm packages on registry.npmjs.org.');
 }
 
-function verifyDocker() {
+function dockerRefs() {
   const namespace = process.env.DOCKER_USER_NAME;
   if (!namespace || !/^[a-z0-9][a-z0-9_.-]*$/i.test(namespace)) {
     throw new Error('DOCKER_USER_NAME must be a valid Docker Hub namespace.');
@@ -63,12 +63,28 @@ function verifyDocker() {
   if (!versionInfo.version || versionInfo.splits.length || versionInfo.missing.length) {
     throw new Error('Service image versions are missing or inconsistent.');
   }
-  const refs = imageEnv.imageRefs({
+  return imageEnv.imageRefs({
     version: versionInfo.version,
     dialect: 'pg',
     registry: 'docker.io',
     repo: namespace,
   });
+}
+
+async function preflightDocker() {
+  const refs = dockerRefs();
+  for (const image of refs) {
+    const url = `https://hub.docker.com/v2/namespaces/${image.repo}/repositories/${image.image}/tags/${image.tag}`;
+    const response = await fetch(url, { headers: { 'user-agent': 'lmms-public-release-verifier/1.0' } });
+    if (response.status === 404) continue;
+    if (response.ok) throw new Error(`Docker Hub tag already exists; refusing to overwrite: ${image.ref}`);
+    throw new Error(`Docker Hub preflight failed for ${image.ref}: HTTP ${response.status}`);
+  }
+  console.log(`Docker Hub preflight passed: ${refs.length} tags are not present.`);
+}
+
+function verifyDocker() {
+  const refs = dockerRefs();
   for (const image of refs) {
     execFileSync('docker', ['buildx', 'imagetools', 'inspect', image.ref], { stdio: 'ignore' });
     console.log(`verified Docker Hub ${image.ref}`);
@@ -79,8 +95,9 @@ function verifyDocker() {
 (async () => {
   if (ecosystem === 'rust') await verifyRust();
   else if (ecosystem === 'npm') await verifyNpm();
+  else if (ecosystem === 'docker-preflight') await preflightDocker();
   else if (ecosystem === 'docker') verifyDocker();
-  else throw new Error('Usage: node scripts/verify-public-release.js <rust|npm|docker>');
+  else throw new Error('Usage: node scripts/verify-public-release.js <rust|npm|docker-preflight|docker>');
 })().catch((error) => {
   console.error(error.message);
   process.exitCode = 1;
