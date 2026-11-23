@@ -1,0 +1,127 @@
+name: Public Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify tag points to main history
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Rust formatting
+        run: cargo fmt --check --all
+      - name: Rust Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Rust workspace library tests
+        run: cargo test --workspace --lib
+      - name: Repository gates
+        run: |
+          node scripts/check-service-standard.js
+          node scripts/check-spec.js
+          node scripts/contracts-gen.js --check
+          node scripts/check-db-naming.js
+          node scripts/check-pg-migrations.js
+          node scripts/check-tenant-scope.js
+          node scripts/dump-openapi-specs.js
+          git diff --exit-code -- 'services/*/openapi.yaml'
+      - name: CLI tests
+        run: pnpm run test:cli
+      - name: Build public npm packages
+        run: pnpm run packages:build
+
+  publish-crates:
+    name: Publish Rust crates to crates.io
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRIES_CRATES_IO_TOKEN: ${{ secrets.CRATES }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify crates.io credentials
+        run: cargo login --help >/dev/null
+      - name: Publish crates and Rust SDKs
+        run: node packages/cli/bin/coder.js release sdk rust
+
+  publish-npm:
+    name: Publish TypeScript SDKs to npmjs.org
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPMPUBLISHKEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Publish npm packages
+        run: node packages/cli/bin/coder.js release sdk npm
+
+  publish-docker:
+    name: Publish service images to Docker Hub
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER_NAME }}
+          password: ${{ secrets.DOCKER_KEY }}
+      - name: Publish versioned service images
+        env:
+          DOCKER_USER_NAME: ${{ secrets.DOCKER_USER_NAME }}
+        run: |
+          test -n "$DOCKER_USER_NAME"
+          node packages/cli/bin/coder.js release images --push --registry docker.io --repo "$DOCKER_USER_NAME"
+      - name: Upload generated image pins
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-hub-image-pins-${{ github.ref_name }}
+          path: |
+            examples/docker-deploy/.image.env
+            examples/docker-deploy-full/.image.env
