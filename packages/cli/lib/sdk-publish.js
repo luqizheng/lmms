@@ -28,6 +28,8 @@ const { readWorkspaceVersion } = require('./service-versions.js');
 // ⚠️ 依赖方必须排在被依赖方之后。common-db 必须在 common-event / common 之前
 // （它们依赖它）—— 顺序错了 cargo publish 会报 "failed to select a version"。
 const LIBS_ORDER = [
+  // common-consul 无内部 digua 依赖，放最前（v1.8.1 发现漏发：ai-pm 消费它）
+  'common-consul',
   'common-error',
   'common-health',
   'common-jwt',
