@@ -13,7 +13,6 @@
     "docker:build:docs-site": "node packages/cli/bin/coder.js build images docs-site",
     "docker:build": "node packages/cli/bin/coder.js build images",
     "docker:build:clean": "node packages/cli/bin/coder.js build images prune",
-   
     "test:scripts": "node --test scripts/check-db-naming.test.js scripts/check-pg-migrations.test.js scripts/update-image-env.test.js",
     "deploy:image-env": "node scripts/update-image-env.js",
     "deploy:image-env:check": "node scripts/update-image-env.js --check",
@@ -48,7 +47,7 @@
     "docs:dev": "vitepress dev docs-site",
     "docs:build": "vitepress build docs-site",
     "docs:preview": "vitepress preview docs-site",
-    "packages:build": "pnpm --filter @digua/contracts --filter @digua/http --filter iam-services --filter audit-services --filter config-services --filter file-services --filter notification-services --filter prue-services run build"
+    "packages:build": "pnpm --filter @digua/contracts --filter @digua/http --filter iam-services --filter audit-services --filter file-services --filter notification-services --filter prue-services run build"
   },
   "dependencies": {
     "argon2": "^0.44.0"
