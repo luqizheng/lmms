@@ -247,7 +247,6 @@ function publishRust({
 const NPM_PACKAGES = [
   { dir: 'packages/contracts', name: '@digua/contracts', needsBuild: true },
   { dir: 'packages/http', name: '@digua/http', needsBuild: true },
-  { dir: 'packages/cli', name: '@digua/cli', needsBuild: false },
   { dir: 'sdk/iam-services', name: 'iam-services', needsBuild: true },
   { dir: 'sdk/audit-services', name: 'audit-services', needsBuild: true },
   { dir: 'sdk/file-services', name: 'file-services', needsBuild: true },
