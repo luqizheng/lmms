@@ -182,6 +182,17 @@ test('rewritePathDeps 把 path 依赖改成 version + registry', () => {
   assert.ok(!after.includes('path ='));
 });
 
+test('rewritePathDeps supports the default crates.io registry without a private registry alias', () => {
+  const before = 'digua_common_error = { path = "../common-error" }';
+  const after = rewritePathDeps(before, {
+    crateVersions: { 'common-error': '1.6.0' },
+    registry: null,
+    pkgNames: { 'common-error': 'digua_common_error' },
+  });
+  assert.equal(after, 'digua_common_error = { version = "1.6.0" }');
+  assert.ok(!after.includes('registry ='));
+});
+
 test('internalPathDeps 找出指向仓内 crate 的依赖，且排除自身', () => {
   const toml = [
     'digua_common_error = { path = "../common-error" }',
