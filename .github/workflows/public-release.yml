@@ -72,8 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
-          mkdir -p "$RELEASE_DIR"
-          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          git worktree add --detach "$RELEASE_DIR" "$RELEASE_TAG"
           mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
           cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
           cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
@@ -142,8 +141,7 @@ jobs:
           set -euo pipefail
           git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
           RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
-          mkdir -p "$RELEASE_DIR"
-          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          git worktree add --detach "$RELEASE_DIR" "$RELEASE_TAG"
           mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
           cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
           cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
@@ -185,8 +183,7 @@ jobs:
           set -euo pipefail
           git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
           RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
-          mkdir -p "$RELEASE_DIR"
-          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          git worktree add --detach "$RELEASE_DIR" "$RELEASE_TAG"
           mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
           cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
           cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
@@ -227,8 +224,7 @@ jobs:
           set -euo pipefail
           git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
           RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
-          mkdir -p "$RELEASE_DIR"
-          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          git worktree add --detach "$RELEASE_DIR" "$RELEASE_TAG"
           mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
           cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
           cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
