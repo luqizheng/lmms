@@ -3,13 +3,12 @@
 // sdk-publish.js —— 发布各类 SDK（Rust crates / npm TS 包 / Java SDK）
 //
 // 三个生态各自独立版本线（用户裁决：不跟平台镜像版本绑定）：
-//   rust  : libs/*（17）→ sdk/rust/*（7）发内部 Kellnr，按依赖拓扑排序
-//   npm   : packages/@digua/* + sdk/*-services 发内部 npm Registry
-//           （http://192.168.2.12:14873/，AGENTS.md「npm 包发布规则」）
+//   rust  : libs/*（18）→ sdk/rust/*（6），默认发内部 Kellnr；公网通过显式 --registry crates-io
+//   npm   : packages/@digua/* + sdk/*-services，默认发内部 npm Registry；公网显式指定 npmjs.org
 //   java  : sdk/java 多模块发 Maven（mvn deploy）
 //
 // ⚠️ 发布目标安全守则：registry 必须显式且非空才允许发布/dry-run。
-// 禁止任何隐式回退到 crates.io / npmjs.org / Docker Hub 等公开 registry。
+// 内网仍使用 release.toml 默认目标；公网必须通过 CLI 显式 override，禁止隐式切换。
 //
 // Rust 的关键约束（实战验证过，勿简化）：
 //   1. 发布时把 `path = "../x"` 依赖临时改写成 `version + registry`，
