@@ -287,7 +287,7 @@ function publishNpm({
       if ((b.status ?? 1) !== 0) throw new ExternalError(`pnpm build failed for ${p.name}`, { name: p.name });
     }
 
-    const args = ['--filter', p.name, 'publish', '--no-git-checks'];
+    const args = ['--filter', p.name, 'publish', '--no-git-checks', '--access', 'public'];
     if (registry) args.push('--registry', registry);
     out.log(`[sdk:npm] publishing ${p.name}@${p.version}`);
     const r = exec('pnpm', args, { cwd: root, shell: IS_WIN });
