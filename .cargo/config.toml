@@ -7,6 +7,11 @@ registry = "sparse+https://rsproxy.cn/index/"
 # 私有 crate registry - 内部发布的唯一 Rust crate 目标（托管 libs/* 与 sdk/rust/*）
 # cargo publish --registry kellnr  发布到此处（release.toml [sdk].rust_registry = "kellnr"）
 # 公开发布（crates.io）不属于当前流程，仅在明确的公开 release 任务中另行配置。
+# [registries] 供 cargo publish --registry 查址；[source] 供依赖拉取（cargo add/update --registry kellnr）。
+[registries.kellnr]
+index = "sparse+http://192.168.2.12:16444/api/v1/crates/"
+protocol = "sparse"
+
 [source.kellnr]
 registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
 
