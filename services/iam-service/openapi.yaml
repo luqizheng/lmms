@@ -4,7 +4,7 @@ info:
   description: Identity, role and user management
   license:
     name: ''
-  version: 1.7.0
+  version: 1.8.0
 paths:
   /iam/auth/forgot-password:
     post:

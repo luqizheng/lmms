@@ -125,6 +125,7 @@ impl digua_jwt_ctx::PrincipalStateProvider for TokenServerState {
     }
 }
 
+pub mod audit;
 pub mod config;
 pub mod db;
 pub mod issuer;

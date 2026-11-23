@@ -17,11 +17,25 @@
 //! - writes are atomic (tmp file + fsync + rename) and 0600 (unix);
 //! - the keystore directory is 0700 (unix);
 //! - removed keys must be `retired` and past `min_retention_sec`.
+//!
+//! Operational hardening (2026-11-23 hardening spec):
+//! - every lifecycle mutation appends a non-secret record to the durable
+//!   audit ledger (`keystore-audit.jsonl`, see [`crate::audit`]);
+//! - `save` refuses to overwrite a file that changed on disk since it was
+//!   loaded ([`KeyStoreError::Stale`]) and serialises the write through a
+//!   cross-process lock file (`KeyStoreError::LockBusy`) — a stale write can
+//!   never silently delete a key rotated by another process;
+//! - backups are wrapped in a versioned envelope with a SHA-256 integrity
+//!   checksum; restore validates everything, snapshots the live keystore,
+//!   writes under the lock and verifies the result from disk (rolling back
+//!   on failure).
 
+use crate::audit::{AuditAction, AuditContext, AuditLedger, AuditResult};
 use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 use thiserror::Error;
 
 /// kid assigned to keys imported from the legacy `private.pem`/`public.pem`
@@ -32,6 +46,14 @@ use thiserror::Error;
 pub const LEGACY_KID: &str = "default";
 /// On-disk format version. Bumping requires a migration path.
 pub const KEYSTORE_VERSION: u32 = 1;
+/// Backup envelope format version (independent of `KEYSTORE_VERSION`).
+pub const BACKUP_FORMAT_VERSION: u32 = 1;
+/// How long a mutation waits for the cross-process write lock before giving
+/// up with [`KeyStoreError::LockBusy`].
+const LOCK_WAIT: Duration = Duration::from_secs(5);
+/// A lock file older than this is considered abandoned (crashed process) and
+/// reclaimed. Key operations take milliseconds; 10 min is only a safety net.
+const LOCK_STALE_AFTER: Duration = Duration::from_secs(600);
 
 #[derive(Error, Debug)]
 pub enum KeyStoreError {
@@ -45,6 +67,24 @@ pub enum KeyStoreError {
     InvalidOperation(String),
     #[error("key generation failed: {0}")]
     Generate(String),
+    /// The file on disk changed since this snapshot was loaded (concurrent
+    /// `keytool` run or another instance). The write is refused so a stale
+    /// snapshot can never overwrite newer key state.
+    #[error("keystore changed on disk since it was loaded: {0}")]
+    Stale(String),
+    /// Another key operation holds the cross-process lock.
+    #[error("another key operation is in progress: {0}")]
+    LockBusy(String),
+    /// Backup checksum/format verification failed.
+    #[error("backup integrity check failed: {0}")]
+    BackupIntegrity(String),
+    /// Backup envelope version is not supported by this build.
+    #[error("unsupported backup format: {0}")]
+    BackupVersion(String),
+    /// Restore wrote the keystore but the post-write verification failed;
+    /// the previous state was rolled back.
+    #[error("restore failed and the previous keystore was restored: {0}")]
+    RestoreFailed(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -78,11 +118,27 @@ pub struct KeyStoreData {
     pub keys: Vec<KeyEntry>,
 }
 
+/// Versioned, checksummed backup wrapper. `keystore_sha256` is the SHA-256
+/// (hex) of the compact JSON serialization of `keystore`, so truncation or
+/// content edits are detected before anything is written to disk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupEnvelope {
+    pub backup_format_version: u32,
+    pub created_at: i64,
+    pub producer: String,
+    pub keystore_sha256: String,
+    pub keystore: KeyStoreData,
+}
+
 #[derive(Debug)]
 pub struct KeyStore {
     path: PathBuf,
     min_retention_sec: i64,
     data: KeyStoreData,
+    audit: AuditLedger,
+    /// SHA-256 of the on-disk keystore bytes as of the last load/save;
+    /// `None` while the file does not exist (first-boot path).
+    fingerprint: Option<String>,
 }
 
 impl KeyStore {
@@ -113,8 +169,17 @@ impl KeyStore {
             (Some(priv_pem), Some(pub_pem)) => {
                 // Import: parse & cross-check BEFORE touching the disk so a
                 // corrupt legacy PEM is a fail-closed error, not an overwrite.
-                let ks = Self::from_legacy_pems(priv_pem, pub_pem, keystore_path, min_retention_sec)?;
+                let mut ks =
+                    Self::from_legacy_pems(priv_pem, pub_pem, keystore_path, min_retention_sec)?;
                 ks.save()?;
+                ks.audit.record(
+                    &AuditContext::system(),
+                    AuditAction::Import,
+                    AuditResult::Success,
+                    Some(&ks.data.active_kid),
+                    None,
+                    Some("imported legacy private.pem/public.pem pair (kid kept as 'default' for token compatibility)"),
+                );
                 tracing::info!(
                     path = %keystore_path.display(),
                     kid = %ks.data.active_kid,
@@ -158,6 +223,8 @@ impl KeyStore {
             path: path.to_path_buf(),
             min_retention_sec,
             data,
+            audit: AuditLedger::beside_keystore(path),
+            fingerprint: Some(sha256_hex(raw.as_bytes())),
         })
     }
 
@@ -178,12 +245,22 @@ impl KeyStore {
                 public_pem,
             }],
         };
-        let ks = Self {
+        let mut ks = Self {
             path: path.to_path_buf(),
             min_retention_sec,
             data,
+            audit: AuditLedger::beside_keystore(path),
+            fingerprint: None,
         };
         ks.save()?;
+        ks.audit.record(
+            &AuditContext::system(),
+            AuditAction::Create,
+            AuditResult::Success,
+            Some(&ks.data.active_kid),
+            None,
+            Some("first-boot initialization"),
+        );
         Ok(ks)
     }
 
@@ -207,6 +284,8 @@ impl KeyStore {
             path: path.to_path_buf(),
             min_retention_sec,
             data,
+            audit: AuditLedger::beside_keystore(path),
+            fingerprint: None,
         })
     }
 
@@ -220,6 +299,11 @@ impl KeyStore {
 
     pub fn min_retention_sec(&self) -> i64 {
         self.min_retention_sec
+    }
+
+    /// Durable lifecycle audit ledger (see [`crate::audit`]).
+    pub fn audit_ledger(&self) -> &AuditLedger {
+        &self.audit
     }
 
     /// The currently signing key entry.
@@ -250,13 +334,6 @@ impl KeyStore {
             .collect()
     }
 
-    /// Serialization used by backups (pretty JSON, includes private keys —
-    /// callers must protect the output file; `keytool backup` writes 0600).
-    pub fn backup_json(&self) -> Result<String, KeyStoreError> {
-        serde_json::to_string_pretty(&self.data)
-            .map_err(|e| KeyStoreError::Save(format!("serialize keystore: {e}")))
-    }
-
     // ─────────────────────────────────────────────────────────────────────
     // Mutations (each one persists atomically before returning)
     // ─────────────────────────────────────────────────────────────────────
@@ -264,7 +341,38 @@ impl KeyStore {
     /// Rotate: generate a new key that becomes the only signer; the previous
     /// active key downgrades to `retiring` (verify-only, still in JWKS) so
     /// outstanding tokens keep working. Returns `(new_kid, previous_kid)`.
-    pub fn rotate(&mut self, now_sec: i64) -> Result<(String, String), KeyStoreError> {
+    pub fn rotate(
+        &mut self,
+        now_sec: i64,
+        ctx: &AuditContext,
+    ) -> Result<(String, String), KeyStoreError> {
+        match self.rotate_inner(now_sec) {
+            Ok((new_kid, previous_kid)) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Rotate,
+                    AuditResult::Success,
+                    Some(&new_kid),
+                    Some(&previous_kid),
+                    None,
+                );
+                Ok((new_kid, previous_kid))
+            }
+            Err(e) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Rotate,
+                    AuditResult::Failed,
+                    Some(&self.data.active_kid),
+                    None,
+                    Some(&e.to_string()),
+                );
+                Err(e)
+            }
+        }
+    }
+
+    fn rotate_inner(&mut self, now_sec: i64) -> Result<(String, String), KeyStoreError> {
         let previous_kid = self.data.active_kid.clone();
         let (private_pem, public_pem) = generate_rsa_pair()?;
         let kid = derive_kid(&public_pem)?;
@@ -300,7 +408,39 @@ impl KeyStore {
     /// `retiring` → `retired`: stops publishing the key in JWKS. Only
     /// allowed on retiring keys — the single `active` signer can never be
     /// retired directly (that would orphan every future token).
-    pub fn retire(&mut self, kid: &str, now_sec: i64) -> Result<(), KeyStoreError> {
+    pub fn retire(
+        &mut self,
+        kid: &str,
+        now_sec: i64,
+        ctx: &AuditContext,
+    ) -> Result<(), KeyStoreError> {
+        match self.retire_inner(kid, now_sec) {
+            Ok(()) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Retire,
+                    AuditResult::Success,
+                    Some(kid),
+                    None,
+                    None,
+                );
+                Ok(())
+            }
+            Err(e) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Retire,
+                    AuditResult::Failed,
+                    Some(kid),
+                    None,
+                    Some(&e.to_string()),
+                );
+                Err(e)
+            }
+        }
+    }
+
+    fn retire_inner(&mut self, kid: &str, now_sec: i64) -> Result<(), KeyStoreError> {
         let k = self
             .data
             .keys
@@ -324,7 +464,39 @@ impl KeyStore {
     /// `min_retention_sec` since retirement are deletable — until every
     /// token signed by the key has expired, the entry must stay (retention
     /// default = refresh TTL, so nothing verifiable is ever destroyed).
-    pub fn remove(&mut self, kid: &str, now_sec: i64) -> Result<(), KeyStoreError> {
+    pub fn remove(
+        &mut self,
+        kid: &str,
+        now_sec: i64,
+        ctx: &AuditContext,
+    ) -> Result<(), KeyStoreError> {
+        match self.remove_inner(kid, now_sec) {
+            Ok(()) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Delete,
+                    AuditResult::Success,
+                    Some(kid),
+                    None,
+                    None,
+                );
+                Ok(())
+            }
+            Err(e) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Delete,
+                    AuditResult::Failed,
+                    Some(kid),
+                    None,
+                    Some(&e.to_string()),
+                );
+                Err(e)
+            }
+        }
+    }
+
+    fn remove_inner(&mut self, kid: &str, now_sec: i64) -> Result<(), KeyStoreError> {
         let idx = self
             .data
             .keys
@@ -360,51 +532,287 @@ impl KeyStore {
 
     /// Persist to disk atomically: write sibling `.tmp`, fsync, rename.
     /// A crash mid-write can never corrupt the live keystore.
-    pub fn save(&self) -> Result<(), KeyStoreError> {
+    ///
+    /// Serialised through the cross-process lock file and guarded by the
+    /// disk fingerprint: if another process rewrote the keystore since this
+    /// snapshot was loaded, the write fails with [`KeyStoreError::Stale`]
+    /// instead of silently deleting the other process' key changes.
+    pub fn save(&mut self) -> Result<(), KeyStoreError> {
+        let _lock = KeystoreLock::acquire(&self.path)?;
+        self.persist_locked()
+    }
+
+    /// Caller already holds the cross-process lock.
+    fn persist_locked(&mut self) -> Result<(), KeyStoreError> {
         let json = serde_json::to_string_pretty(&self.data)
             .map_err(|e| KeyStoreError::Save(format!("serialize keystore: {e}")))?;
-        atomic_write(&self.path, &json)
+        let current = file_fingerprint(&self.path)?;
+        if current != self.fingerprint {
+            return Err(KeyStoreError::Stale(format!(
+                "{} changed on disk since it was loaded; reload before retrying \
+                 (a concurrent keytool run or another instance wrote it — refusing to overwrite)",
+                self.path.display()
+            )));
+        }
+        atomic_write(&self.path, &json)?;
+        self.fingerprint = Some(sha256_hex(json.as_bytes()));
+        Ok(())
     }
 
     // ─────────────────────────────────────────────────────────────────────
     // Backup / restore
     // ─────────────────────────────────────────────────────────────────────
 
-    /// Write a backup file (0600 on unix). The backup contains all private
-    /// key material — operators must store it in protected storage and keep
-    /// it out of git (`*.backup.json` is gitignored for this reason).
-    pub fn write_backup(&self, backup_path: &Path) -> Result<(), KeyStoreError> {
-        let json = self.backup_json()?;
+    /// Write a backup file (0600 on unix) wrapped in a versioned,
+    /// checksummed envelope. The backup contains all private key material —
+    /// operators must store it in protected storage and keep it out of git
+    /// (`*.backup.json` is gitignored for this reason).
+    pub fn write_backup(
+        &self,
+        backup_path: &Path,
+        ctx: &AuditContext,
+    ) -> Result<(), KeyStoreError> {
+        match self.write_backup_inner(backup_path) {
+            Ok(()) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Backup,
+                    AuditResult::Success,
+                    Some(&self.data.active_kid),
+                    None,
+                    Some(&format!(
+                        "wrote backup ({} keys) to {}",
+                        self.data.keys.len(),
+                        backup_path.display()
+                    )),
+                );
+                Ok(())
+            }
+            Err(e) => {
+                self.audit.record(
+                    ctx,
+                    AuditAction::Backup,
+                    AuditResult::Failed,
+                    Some(&self.data.active_kid),
+                    None,
+                    Some(&e.to_string()),
+                );
+                Err(e)
+            }
+        }
+    }
+
+    fn write_backup_inner(&self, backup_path: &Path) -> Result<(), KeyStoreError> {
+        let envelope = BackupEnvelope {
+            backup_format_version: BACKUP_FORMAT_VERSION,
+            created_at: now_sec(),
+            producer: "token-service".to_string(),
+            keystore_sha256: keystore_checksum(&self.data)?,
+            keystore: self.data.clone(),
+        };
+        let json = serde_json::to_string_pretty(&envelope)
+            .map_err(|e| KeyStoreError::Save(format!("serialize backup envelope: {e}")))?;
         atomic_write(backup_path, &json)?;
-        tracing::info!(path = %backup_path.display(), keys = self.data.keys.len(), "wrote keystore backup");
+        tracing::info!(
+            path = %backup_path.display(),
+            keys = self.data.keys.len(),
+            "wrote keystore backup (versioned envelope with SHA-256 integrity checksum)"
+        );
         Ok(())
     }
 
-    /// Restore a backup over the live keystore path: validates the backup
-    /// fully (JSON shape, every PEM parses, private/public match) before
-    /// any disk write. After restore + restart, previously issued tokens
-    /// verify again.
+    /// Restore a backup over the live keystore path.
+    ///
+    /// Safety sequence: envelope version → SHA-256 integrity → full key
+    /// validation → cross-process lock → pre-restore snapshot of the live
+    /// keystore → atomic overwrite (stale-write guarded) → read-back
+    /// verification. Any failure after the overwrite rolls the previous
+    /// keystore back, so a failed restore never destroys the live state.
+    /// After a successful restore, tokens signed by the restored keys verify
+    /// again.
     pub fn restore_from_backup(
         backup_path: &Path,
         keystore_path: &Path,
         min_retention_sec: i64,
+        ctx: &AuditContext,
+    ) -> Result<Self, KeyStoreError> {
+        Self::restore_impl(backup_path, keystore_path, min_retention_sec, ctx, false)
+    }
+
+    /// Test-only entry point: same as [`Self::restore_from_backup`] but the
+    /// post-write verification is forced to fail so the rollback path can be
+    /// exercised deterministically.
+    #[cfg(test)]
+    pub(crate) fn restore_from_backup_with_verification_failure(
+        backup_path: &Path,
+        keystore_path: &Path,
+        min_retention_sec: i64,
+        ctx: &AuditContext,
+    ) -> Result<Self, KeyStoreError> {
+        Self::restore_impl(backup_path, keystore_path, min_retention_sec, ctx, true)
+    }
+
+    fn restore_impl(
+        backup_path: &Path,
+        keystore_path: &Path,
+        min_retention_sec: i64,
+        ctx: &AuditContext,
+        fail_verification: bool,
+    ) -> Result<Self, KeyStoreError> {
+        let ledger = AuditLedger::beside_keystore(keystore_path);
+        match Self::restore_inner(
+            backup_path,
+            keystore_path,
+            min_retention_sec,
+            fail_verification,
+        ) {
+            Ok(ks) => {
+                ks.audit.record(
+                    ctx,
+                    AuditAction::Restore,
+                    AuditResult::Success,
+                    Some(&ks.data.active_kid),
+                    None,
+                    Some(&format!(
+                        "restored {} keys from {}",
+                        ks.data.keys.len(),
+                        backup_path.display()
+                    )),
+                );
+                Ok(ks)
+            }
+            Err(e) => {
+                ledger.record(
+                    ctx,
+                    AuditAction::Restore,
+                    AuditResult::Failed,
+                    None,
+                    None,
+                    Some(&e.to_string()),
+                );
+                Err(e)
+            }
+        }
+    }
+
+    fn restore_inner(
+        backup_path: &Path,
+        keystore_path: &Path,
+        min_retention_sec: i64,
+        fail_verification: bool,
     ) -> Result<Self, KeyStoreError> {
         let raw = std::fs::read_to_string(backup_path).map_err(|e| {
-            KeyStoreError::Load(format!("read backup {}: {e}", backup_path.display()))
+            KeyStoreError::BackupIntegrity(format!("read backup {}: {e}", backup_path.display()))
         })?;
-        let data: KeyStoreData = serde_json::from_str(&raw).map_err(|e| {
-            KeyStoreError::Load(format!("parse backup {}: {e}", backup_path.display()))
+        let value: serde_json::Value = serde_json::from_str(&raw).map_err(|e| {
+            KeyStoreError::BackupIntegrity(format!("parse backup {}: {e}", backup_path.display()))
         })?;
-        validate_data(&data)?;
-        let ks = Self {
+        if value.get("keystore").is_none() {
+            return Err(KeyStoreError::BackupVersion(format!(
+                "{}: legacy bare-keystore backup (no envelope, no checksum) is not supported; \
+                 re-create it with `keytool backup`",
+                backup_path.display()
+            )));
+        }
+        let envelope: BackupEnvelope = serde_json::from_value(value).map_err(|e| {
+            KeyStoreError::BackupIntegrity(format!(
+                "parse backup envelope {}: {e}",
+                backup_path.display()
+            ))
+        })?;
+        if envelope.backup_format_version != BACKUP_FORMAT_VERSION {
+            return Err(KeyStoreError::BackupVersion(format!(
+                "{}: backup_format_version {} (this build supports {BACKUP_FORMAT_VERSION})",
+                backup_path.display(),
+                envelope.backup_format_version
+            )));
+        }
+        let computed = keystore_checksum(&envelope.keystore)?;
+        if computed != envelope.keystore_sha256 {
+            return Err(KeyStoreError::BackupIntegrity(format!(
+                "{}: keystore_sha256 mismatch (recorded {}, computed {}) — backup is corrupted or was modified",
+                backup_path.display(),
+                envelope.keystore_sha256,
+                computed
+            )));
+        }
+        validate_data(&envelope.keystore)?;
+
+        // Everything verified — take the write lock before touching the disk.
+        let _lock = KeystoreLock::acquire(keystore_path)?;
+        let current_fingerprint = file_fingerprint(keystore_path)?;
+        // Safety net: keep the pre-restore keystore so a failed restore can
+        // be rolled back (and an operator can undo a semantically wrong one).
+        let snapshot = if current_fingerprint.is_some() {
+            let bytes = std::fs::read(keystore_path).map_err(|e| {
+                KeyStoreError::RestoreFailed(format!(
+                    "read current keystore for pre-restore snapshot: {e}"
+                ))
+            })?;
+            let snap_path = pre_restore_snapshot_path(keystore_path);
+            atomic_write_bytes(&snap_path, &bytes)?;
+            tracing::warn!(
+                path = %snap_path.display(),
+                "wrote pre-restore keystore snapshot (0600) before overwriting"
+            );
+            Some(snap_path)
+        } else {
+            None
+        };
+
+        let mut ks = Self {
             path: keystore_path.to_path_buf(),
             min_retention_sec,
-            data,
+            data: envelope.keystore,
+            audit: AuditLedger::beside_keystore(keystore_path),
+            fingerprint: current_fingerprint,
         };
-        ks.save()?;
+        ks.persist_locked()?;
+
+        // Read back what is actually on disk; a restore that cannot be read
+        // back is not a restore.
+        let verification = match Self::load(keystore_path, min_retention_sec) {
+            Ok(loaded)
+                if loaded.data.active_kid == ks.data.active_kid
+                    && loaded.data.keys.len() == ks.data.keys.len() =>
+            {
+                Ok(())
+            }
+            Ok(_) => Err(KeyStoreError::RestoreFailed(
+                "post-restore read-back does not match the backup (active kid / key count)".into(),
+            )),
+            Err(e) => Err(KeyStoreError::RestoreFailed(format!(
+                "post-restore read-back failed: {e}"
+            ))),
+        };
+        let verification = if fail_verification {
+            Err(KeyStoreError::RestoreFailed(
+                "injected post-restore verification failure (test)".into(),
+            ))
+        } else {
+            verification
+        };
+        if let Err(e) = verification {
+            if let Some(snap) = &snapshot {
+                let bytes = std::fs::read(snap).map_err(|re| {
+                    KeyStoreError::RestoreFailed(format!(
+                        "{e}; additionally failed to read the pre-restore snapshot: {re}"
+                    ))
+                })?;
+                atomic_write_bytes(keystore_path, &bytes)?;
+                ks.fingerprint = file_fingerprint(keystore_path)?;
+                tracing::error!(
+                    error = %e,
+                    snapshot = %snap.display(),
+                    "restore verification failed; rolled back to the pre-restore snapshot"
+                );
+            }
+            return Err(e);
+        }
         tracing::info!(
             backup = %backup_path.display(),
             path = %keystore_path.display(),
+            active_kid = %ks.data.active_kid,
             "restored keystore from backup"
         );
         Ok(ks)
@@ -549,9 +957,136 @@ pub fn derive_kid(public_pem: &str) -> Result<String, KeyStoreError> {
     Ok(hex::encode(&hash[..16]))
 }
 
+/// Lowercase hex SHA-256 of `bytes`.
+fn sha256_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
+}
+
+/// Integrity checksum of a keystore payload (compact JSON, deterministic
+/// field order because it is a struct).
+fn keystore_checksum(data: &KeyStoreData) -> Result<String, KeyStoreError> {
+    let canonical = serde_json::to_string(data)
+        .map_err(|e| KeyStoreError::Save(format!("serialize keystore for checksum: {e}")))?;
+    Ok(sha256_hex(canonical.as_bytes()))
+}
+
+/// SHA-256 of the file's current bytes; `None` when the file does not exist.
+fn file_fingerprint(path: &Path) -> Result<Option<String>, KeyStoreError> {
+    match std::fs::read(path) {
+        Ok(bytes) => Ok(Some(sha256_hex(&bytes))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(KeyStoreError::Save(format!(
+            "read {} for fingerprint: {e}",
+            path.display()
+        ))),
+    }
+}
+
+/// `keystore.pre-restore.<epoch>.json` next to the keystore.
+fn pre_restore_snapshot_path(keystore_path: &Path) -> PathBuf {
+    let stamp = chrono::Utc::now().timestamp();
+    let stem = keystore_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("keystore");
+    keystore_path.with_file_name(format!("{stem}.pre-restore.{stamp}.json"))
+}
+
+/// Cross-process write lock (`keystore.json.lock`).
+///
+/// Created with `create_new` (atomic on every supported filesystem), removed
+/// on drop. A lock file older than [`LOCK_STALE_AFTER`] belongs to a crashed
+/// process and is reclaimed. This is the *only* concurrency mechanism: the
+/// deployment is a single instance by design (see the runbook); the lock plus
+/// the write fingerprint turn unsupported concurrent writers into explicit
+/// errors instead of silent key loss.
+#[derive(Debug)]
+struct KeystoreLock {
+    path: PathBuf,
+}
+
+impl KeystoreLock {
+    fn acquire(keystore_path: &Path) -> Result<Self, KeyStoreError> {
+        Self::acquire_within(keystore_path, LOCK_WAIT)
+    }
+
+    fn acquire_within(keystore_path: &Path, wait: Duration) -> Result<Self, KeyStoreError> {
+        let mut lock_os = keystore_path.as_os_str().to_owned();
+        lock_os.push(".lock");
+        let path = PathBuf::from(lock_os);
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    KeyStoreError::Save(format!("create dir {}: {e}", parent.display()))
+                })?;
+            }
+        }
+        let started = std::time::Instant::now();
+        loop {
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(mut f) => {
+                    use std::io::Write;
+                    let _ = write!(f, "pid={} at={}", std::process::id(), now_sec());
+                    let _ = f.sync_all();
+                    return Ok(Self { path });
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                    if lock_is_stale(&path) {
+                        tracing::warn!(
+                            path = %path.display(),
+                            "reclaiming stale keystore lock file (older than {}s)",
+                            LOCK_STALE_AFTER.as_secs()
+                        );
+                        let _ = std::fs::remove_file(&path);
+                        continue;
+                    }
+                    if started.elapsed() >= wait {
+                        return Err(KeyStoreError::LockBusy(format!(
+                            "{} held by another key operation (waited {}ms); retry after it finishes",
+                            path.display(),
+                            wait.as_millis()
+                        )));
+                    }
+                    std::thread::sleep(Duration::from_millis(25));
+                }
+                Err(e) => {
+                    return Err(KeyStoreError::Save(format!(
+                        "create lock {}: {e}",
+                        path.display()
+                    )))
+                }
+            }
+        }
+    }
+}
+
+impl Drop for KeystoreLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+fn lock_is_stale(path: &Path) -> bool {
+    match std::fs::metadata(path).and_then(|m| m.modified()) {
+        Ok(modified) => SystemTime::now()
+            .duration_since(modified)
+            .map(|age| age > LOCK_STALE_AFTER)
+            .unwrap_or(false),
+        Err(_) => false,
+    }
+}
+
 /// Write `contents` to `path` atomically: tmp file in the same directory,
 /// fsync, rename over the target. Unix: file 0600, directory 0700.
 fn atomic_write(path: &Path, contents: &str) -> Result<(), KeyStoreError> {
+    atomic_write_bytes(path, contents.as_bytes())
+}
+
+fn atomic_write_bytes(path: &Path, contents: &[u8]) -> Result<(), KeyStoreError> {
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -571,7 +1106,7 @@ fn atomic_write(path: &Path, contents: &str) -> Result<(), KeyStoreError> {
         use std::io::Write;
         let mut f = std::fs::File::create(&tmp)
             .map_err(|e| KeyStoreError::Save(format!("create {}: {e}", tmp.display())))?;
-        f.write_all(contents.as_bytes())
+        f.write_all(contents)
             .map_err(|e| KeyStoreError::Save(format!("write {}: {e}", tmp.display())))?;
         f.sync_all()
             .map_err(|e| KeyStoreError::Save(format!("fsync {}: {e}", tmp.display())))?;
@@ -629,6 +1164,10 @@ mod tests {
     fn fresh_pair() -> (String, String) {
         let kp = RS256KeyPair::generate(2048).unwrap();
         (kp.to_pem().unwrap(), kp.public_key().to_pem().unwrap())
+    }
+
+    fn ctx() -> AuditContext {
+        AuditContext::new("test", None)
     }
 
     fn verify_with(pub_pem: &str, token: &str) -> bool {
@@ -712,7 +1251,7 @@ mod tests {
         assert_eq!(derive_kid(&active.public_pem).unwrap(), active.kid);
         assert!(!n.is_empty() && e == "AQAB");
 
-        let (new_kid, prev_kid) = ks.rotate(now_sec()).unwrap();
+        let (new_kid, prev_kid) = ks.rotate(now_sec(), &ctx()).unwrap();
         let entries = ks.public_entries();
         assert_eq!(entries.len(), 2);
         let kids: Vec<&str> = entries.iter().map(|k| k.kid.as_str()).collect();
@@ -727,7 +1266,7 @@ mod tests {
         let old = ks.active().clone();
         let old_token = sign_with(&old.private_pem, &old.kid);
 
-        let (new_kid, _prev) = ks.rotate(now_sec()).unwrap();
+        let (new_kid, _prev) = ks.rotate(now_sec(), &ctx()).unwrap();
         let new_token = sign_with(&ks.active().private_pem, &new_kid);
 
         // every JWKS-published public key can verify the OLD token
@@ -748,22 +1287,26 @@ mod tests {
         let (_d, path) = tmp_ks();
         let mut ks = KeyStore::init(&path, "np", "nq", 1000).unwrap();
         let old_kid = ks.active().kid.clone();
-        let (_, prev) = ks.rotate(now_sec()).unwrap();
+        let (_, prev) = ks.rotate(now_sec(), &ctx()).unwrap();
         assert_eq!(prev, old_kid);
 
         // active signer cannot be retired or deleted directly
-        assert!(ks.retire(&ks.active().kid.clone(), now_sec()).is_err());
-        assert!(ks.remove(&ks.active().kid.clone(), now_sec()).is_err());
+        assert!(ks
+            .retire(&ks.active().kid.clone(), now_sec(), &ctx())
+            .is_err());
+        assert!(ks
+            .remove(&ks.active().kid.clone(), now_sec(), &ctx())
+            .is_err());
 
         // retiring → retired leaves JWKS
-        ks.retire(&prev, now_sec()).unwrap();
+        ks.retire(&prev, now_sec(), &ctx()).unwrap();
         assert_eq!(ks.public_entries().len(), 1);
         assert!(ks.public_entries().iter().all(|k| k.kid == ks.active().kid));
 
         // retention gate blocks deletion, then allows it after retention
-        let err = ks.remove(&prev, now_sec()).unwrap_err();
+        let err = ks.remove(&prev, now_sec(), &ctx()).unwrap_err();
         assert!(err.to_string().contains("retention not satisfied"));
-        ks.remove(&prev, now_sec() + 1000).unwrap();
+        ks.remove(&prev, now_sec() + 1000, &ctx()).unwrap();
         assert!(ks.data().keys.iter().all(|k| k.kid != prev));
     }
 
@@ -842,11 +1385,11 @@ mod tests {
         let ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
         let token = sign_with(&ks.active().private_pem, &ks.active().kid);
         let backup_path = _d.path().join("keys.backup.json");
-        ks.write_backup(&backup_path).unwrap();
+        ks.write_backup(&backup_path, &ctx()).unwrap();
 
         // simulate total loss: keystore gone, fresh empty dir
         std::fs::remove_file(&path).unwrap();
-        let restored = KeyStore::restore_from_backup(&backup_path, &path, 100).unwrap();
+        let restored = KeyStore::restore_from_backup(&backup_path, &path, 100, &ctx()).unwrap();
         assert_eq!(restored.active().kid, ks.active().kid);
         assert!(verify_with(&restored.active().public_pem, &token));
         // and the restored keystore boots cleanly afterwards
@@ -861,7 +1404,7 @@ mod tests {
         let before = std::fs::read_to_string(&path).unwrap();
         let bad = _d.path().join("bad.backup.json");
         std::fs::write(&bad, "not-json").unwrap();
-        assert!(KeyStore::restore_from_backup(&bad, &path, 100).is_err());
+        assert!(KeyStore::restore_from_backup(&bad, &path, 100, &ctx()).is_err());
         assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
         let _ = ks;
     }
@@ -966,9 +1509,238 @@ mod tests {
     fn rotate_persists_and_reload_is_consistent() {
         let (_d, path) = tmp_ks();
         let mut ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
-        let (new_kid, _prev) = ks.rotate(now_sec()).unwrap();
+        let (new_kid, _prev) = ks.rotate(now_sec(), &ctx()).unwrap();
         let reloaded = KeyStore::load(&path, 100).unwrap();
         assert_eq!(reloaded.active().kid, new_kid);
         assert_eq!(reloaded.data().keys.len(), 2);
+    }
+
+    // ── PR #9: audit ledger ──────────────────────────────────────────────
+
+    #[test]
+    fn lifecycle_audit_is_persisted_and_never_contains_key_material() {
+        let (_d, path) = tmp_ks();
+        let mut ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let (new_kid, prev_kid) = ks.rotate(now_sec(), &ctx()).unwrap();
+        ks.retire(&prev_kid, now_sec(), &ctx()).unwrap();
+        // retention gate refusal must still be audited
+        assert!(ks.remove(&prev_kid, now_sec(), &ctx()).is_err());
+
+        let ledger = AuditLedger::beside_keystore(&path);
+        let records = ledger.read_all().unwrap();
+        let has = |action: &str, result: &str, actor: &str| {
+            records.iter().any(|r| {
+                r.payload.action == action && r.payload.result == result && r.payload.actor == actor
+            })
+        };
+        assert!(has("create", "success", "system"));
+        assert!(has("rotate", "success", "test"));
+        assert!(has("retire", "success", "test"));
+        assert!(has("delete", "failed", "test"));
+
+        let rotate = records
+            .iter()
+            .find(|r| r.payload.action == "rotate")
+            .expect("rotate audited");
+        assert_eq!(rotate.payload.kid.as_deref(), Some(new_kid.as_str()));
+        assert_eq!(
+            rotate.payload.related_kid.as_deref(),
+            Some(prev_kid.as_str())
+        );
+        assert_eq!(rotate.event_type, "token.jwt_key.rotate");
+
+        // Persisted durably and readable by a fresh view (process restart).
+        let reread = AuditLedger::beside_keystore(&path).read_all().unwrap();
+        assert_eq!(reread.len(), records.len());
+
+        // Never any key material, in any form.
+        let raw = std::fs::read_to_string(ledger.path()).unwrap();
+        assert!(!raw.contains("BEGIN"));
+        assert!(!raw.contains("PRIVATE KEY"));
+        assert!(!raw.contains(&ks.active().private_pem));
+    }
+
+    // ── PR #9: concurrency / multi-instance safety ───────────────────────
+
+    #[test]
+    fn stale_snapshot_cannot_overwrite_a_newer_rotation() {
+        let (_d, path) = tmp_ks();
+        let mut instance_a = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        // second "instance" loads the same file into memory
+        let mut instance_b = KeyStore::load(&path, 100).unwrap();
+
+        let (kid_a, _) = instance_a.rotate(now_sec(), &ctx()).unwrap();
+        // B's snapshot is stale → must fail instead of clobbering A's key
+        let err = instance_b.rotate(now_sec(), &ctx()).unwrap_err();
+        assert!(matches!(err, KeyStoreError::Stale(_)));
+
+        // Disk still holds A's rotation; nothing was lost.
+        let on_disk = KeyStore::load(&path, 100).unwrap();
+        assert_eq!(on_disk.active().kid, kid_a);
+        assert!(on_disk.data().keys.iter().any(|k| k.kid == kid_a));
+        // The failed rotation is audited too.
+        let records = AuditLedger::beside_keystore(&path).read_all().unwrap();
+        assert!(records
+            .iter()
+            .any(|r| r.payload.action == "rotate" && r.payload.result == "failed"));
+    }
+
+    #[test]
+    fn lock_contention_fails_fast_and_recovers() {
+        let (_d, path) = tmp_ks();
+        let mut ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let mut lock_os = path.as_os_str().to_owned();
+        lock_os.push(".lock");
+        let lock_path = PathBuf::from(lock_os);
+        std::fs::write(&lock_path, "held by another process").unwrap();
+
+        let err = KeystoreLock::acquire_within(&path, Duration::from_millis(100)).unwrap_err();
+        assert!(matches!(err, KeyStoreError::LockBusy(_)));
+
+        std::fs::remove_file(&lock_path).unwrap();
+        // lock released → mutation works again
+        ks.rotate(now_sec(), &ctx()).unwrap();
+    }
+
+    // ── PR #9: backup integrity / restore safety ─────────────────────────
+
+    fn tamper_backup(backup: &Path, mutate: impl FnOnce(&mut serde_json::Value)) {
+        let mut v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(backup).unwrap()).unwrap();
+        mutate(&mut v);
+        std::fs::write(backup, serde_json::to_string_pretty(&v).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn backup_checksum_mismatch_is_rejected_without_touching_live_keystore() {
+        let (_d, path) = tmp_ks();
+        let ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let backup = _d.path().join("ks.backup.json");
+        ks.write_backup(&backup, &ctx()).unwrap();
+
+        // Content edit that still parses: checksum must catch it.
+        tamper_backup(&backup, |v| {
+            v["keystore"]["keys"][0]["created_at"] = serde_json::json!(1);
+        });
+        let err = KeyStore::restore_from_backup(&backup, &path, 100, &ctx()).unwrap_err();
+        assert!(matches!(err, KeyStoreError::BackupIntegrity(_)));
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+
+    #[test]
+    fn backup_with_unsupported_envelope_version_is_rejected() {
+        let (_d, path) = tmp_ks();
+        let ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let backup = _d.path().join("ks.backup.json");
+        ks.write_backup(&backup, &ctx()).unwrap();
+        tamper_backup(&backup, |v| {
+            v["backup_format_version"] = serde_json::json!(99);
+        });
+        let err = KeyStore::restore_from_backup(&backup, &path, 100, &ctx()).unwrap_err();
+        assert!(matches!(err, KeyStoreError::BackupVersion(_)));
+    }
+
+    #[test]
+    fn legacy_bare_keystore_backup_is_rejected() {
+        let (_d, path) = tmp_ks();
+        let ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let backup = _d.path().join("bare.backup.json");
+        std::fs::write(&backup, serde_json::to_string_pretty(ks.data()).unwrap()).unwrap();
+        let err = KeyStore::restore_from_backup(&backup, &path, 100, &ctx()).unwrap_err();
+        assert!(matches!(err, KeyStoreError::BackupVersion(_)));
+        assert!(err.to_string().contains("legacy"));
+    }
+
+    #[test]
+    fn failed_restore_rolls_back_and_keeps_old_tokens_verifiable() {
+        let (_d, path) = tmp_ks();
+        let mut ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let original = ks.active().clone();
+        let original_token = sign_with(&original.private_pem, &original.kid);
+        let backup = _d.path().join("ks.backup.json");
+        ks.write_backup(&backup, &ctx()).unwrap();
+
+        // live state moves on (rotation) before the restore is attempted
+        let (rotated_kid, _) = ks.rotate(now_sec(), &ctx()).unwrap();
+        let live_before_restore = std::fs::read(&path).unwrap();
+
+        let err =
+            KeyStore::restore_from_backup_with_verification_failure(&backup, &path, 100, &ctx())
+                .unwrap_err();
+        assert!(matches!(err, KeyStoreError::RestoreFailed(_)));
+
+        // Live keystore is byte-identical to the pre-restore state.
+        assert_eq!(std::fs::read(&path).unwrap(), live_before_restore);
+        let on_disk = KeyStore::load(&path, 100).unwrap();
+        assert_eq!(on_disk.active().kid, rotated_kid);
+        // ...so the pre-restore (rotated) world still verifies its tokens,
+        // including the original one via the retiring key.
+        assert!(on_disk
+            .verify_public_pems()
+            .iter()
+            .any(|p| verify_with(p, &original_token)));
+
+        // Pre-restore snapshot written and the failure audited.
+        let snapshots = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains("pre-restore"))
+            .count();
+        assert_eq!(snapshots, 1);
+        let records = AuditLedger::beside_keystore(&path).read_all().unwrap();
+        assert!(
+            records
+                .iter()
+                .any(|r| r.event_type == "token.jwt_key.restore_failed"
+                    && r.payload.result == "failed"),
+            "restore failure must be audited, records = {records:?}"
+        );
+    }
+
+    #[test]
+    fn successful_restore_snapshots_previous_state_and_verifies_old_tokens() {
+        let (_d, path) = tmp_ks();
+        let mut ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let original = ks.active().clone();
+        let original_token = sign_with(&original.private_pem, &original.kid);
+        let backup = _d.path().join("ks.backup.json");
+        ks.write_backup(&backup, &ctx()).unwrap();
+
+        let (rotated_kid, _) = ks.rotate(now_sec(), &ctx()).unwrap();
+        let rotated_state = std::fs::read(&path).unwrap();
+
+        let restored = KeyStore::restore_from_backup(&backup, &path, 100, &ctx()).unwrap();
+        assert_eq!(restored.active().kid, original.kid);
+        // Backup contains only the original key → rotated live state is gone,
+        // which is exactly why the pre-restore snapshot must exist.
+        assert!(restored.data().keys.iter().all(|k| k.kid != rotated_kid));
+        let snapshots: Vec<PathBuf> = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.to_string_lossy().contains("pre-restore"))
+            .collect();
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(std::fs::read(&snapshots[0]).unwrap(), rotated_state);
+
+        // History tokens verify again after the restore + reload.
+        let rebooted = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        assert!(verify_with(&rebooted.active().public_pem, &original_token));
+        let records = AuditLedger::beside_keystore(&path).read_all().unwrap();
+        assert!(records.iter().any(|r| r.payload.action == "restore"
+            && r.payload.result == "success"
+            && r.payload.kid.as_deref() == Some(original.kid.as_str())));
+    }
+
+    #[test]
+    fn backup_records_audit_without_key_material() {
+        let (_d, path) = tmp_ks();
+        let ks = KeyStore::init(&path, "np", "nq", 100).unwrap();
+        let backup = _d.path().join("ks.backup.json");
+        ks.write_backup(&backup, &ctx()).unwrap();
+        let raw = std::fs::read_to_string(AuditLedger::beside_keystore(&path).path()).unwrap();
+        assert!(raw.contains("token.jwt_key.backup"));
+        assert!(!raw.contains("BEGIN"));
     }
 }

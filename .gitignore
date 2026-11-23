@@ -107,6 +107,10 @@ infrastructure/login.json
 # JWT signing keys must never be committed (see docs/superpowers/specs/2026-11-23-token-jwt-key-persistence-design.md)
 services/token-service/keys/
 *.backup.json
+# local key-lifecycle audit ledger + pre-restore snapshots (runtime state, per-environment)
+keystore-audit.jsonl
+keystore.pre-restore.*.json
+keystore.json.lock
 
 # local e2e artifacts (never commit)
 .tmp-e2e/
