@@ -17,6 +17,11 @@ pub enum JwksError {
     KeyBuildFailed(String),
 }
 
+/// Legacy kid hard-coded by the pre-keystore era (`sign_token` still stamps
+/// it for backward compatibility). Keystore-driven signers use fingerprint
+/// kids and should pass them explicitly via `sign_token_with_kid`.
+pub const LEGACY_KID: &str = "default";
+
 #[derive(Clone, Debug)]
 pub struct JwksConfig {
     pub url: String,
@@ -83,6 +88,31 @@ impl JWKSCache {
             .try_read()
             .ok()
             .and_then(|g| g.keys.get(kid).cloned())
+    }
+
+    /// Atomically replace the cached key set (kid → DecodingKey). Used by
+    /// in-process key rotation (token-service keystore): the service is its
+    /// own JWKS authority, so after rotate/retire it re-installs the key set
+    /// locally instead of waiting for the next HTTP refresh. Holders of the
+    /// existing `Arc<JWKSCache>` see the new keys immediately.
+    pub async fn install_keys(&self, keys: HashMap<String, DecodingKey>) {
+        let mut g = self.inner.write().await;
+        g.keys = keys;
+        g.fetched_at = Some(Instant::now());
+    }
+
+    /// `install_keys` variant taking (kid, public PEM) pairs — the shape the
+    /// keystore publishes. Fails without mutating anything if any PEM is
+    /// unparseable (fail-closed, matches keystore load semantics).
+    pub async fn install_from_pems(&self, entries: &[(String, String)]) -> Result<(), JwksError> {
+        let mut keys = HashMap::with_capacity(entries.len());
+        for (kid, pem) in entries {
+            let key = DecodingKey::from_rsa_pem(pem.as_bytes())
+                .map_err(|e| JwksError::KeyBuildFailed(format!("kid {kid}: {e}")))?;
+            keys.insert(kid.clone(), key);
+        }
+        self.install_keys(keys).await;
+        Ok(())
     }
 
     /// Convenience: get the key with kid="default". None if not present.
@@ -229,4 +259,85 @@ pub fn parse_jwks(json: &str) -> Result<HashMap<String, DecodingKey>, JwksError>
         out.insert(kid, key);
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::verify::{sign_token, sign_token_with_kid, verify_token};
+
+    fn pair() -> (jwt_simple::prelude::RS256KeyPair, String, String) {
+        let kp = jwt_simple::prelude::RS256KeyPair::generate(2048).unwrap();
+        let priv_pem = kp.to_pem().unwrap();
+        let pub_pem = kp.public_key().to_pem().unwrap();
+        (kp, priv_pem, pub_pem)
+    }
+
+    #[tokio::test]
+    async fn sign_token_with_kid_stamps_header_and_verifies_via_installed_key() {
+        let (_kp, priv_pem, pub_pem) = pair();
+        let cache = JWKSCache::new(Default::default(), reqwest::Client::new());
+        cache
+            .install_from_pems(&[("rotated-1".to_string(), pub_pem)])
+            .await
+            .unwrap();
+
+        let token = sign_token_with_kid(
+            &priv_pem,
+            "rotated-1",
+            &serde_json::json!({"sub": "u1"}),
+            std::time::Duration::from_secs(60),
+        )
+        .unwrap();
+        let claims = verify_token(&token, &cache, None).await.unwrap();
+        assert_eq!(claims["sub"], "u1");
+
+        // kid-strict: a token claiming a kid that is not installed fails
+        let stale = sign_token_with_kid(
+            &priv_pem,
+            "never-installed",
+            &serde_json::json!({"sub": "u1"}),
+            std::time::Duration::from_secs(60),
+        )
+        .unwrap();
+        assert!(verify_token(&stale, &cache, None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn install_from_pems_is_atomic_on_bad_input() {
+        let (_kp, priv_pem, pub_pem) = pair();
+        let cache = JWKSCache::new(Default::default(), reqwest::Client::new());
+        cache
+            .install_from_pems(&[("good".to_string(), pub_pem.clone())])
+            .await
+            .unwrap();
+
+        let bad = vec![
+            ("good".to_string(), pub_pem),
+            ("bad".to_string(), "not-a-pem".to_string()),
+        ];
+        assert!(cache.install_from_pems(&bad).await.is_err());
+        // old key set untouched: the "good" kid still verifies
+        let token = sign_token_with_kid(
+            &priv_pem,
+            "good",
+            &serde_json::json!({"sub": "u1"}),
+            std::time::Duration::from_secs(60),
+        )
+        .unwrap();
+        assert!(verify_token(&token, &cache, None).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn legacy_sign_token_verifies_via_default_kid_install() {
+        let (_kp, priv_pem, pub_pem) = pair();
+        let cache = JWKSCache::from_pem(&pub_pem).unwrap();
+        let token = sign_token(
+            &priv_pem,
+            &serde_json::json!({"sub": "u1"}),
+            std::time::Duration::from_secs(60),
+        )
+        .unwrap();
+        assert!(verify_token(&token, &cache, None).await.is_ok());
+    }
 }

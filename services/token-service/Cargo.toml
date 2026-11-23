@@ -59,6 +59,8 @@ digua_authz = { path = "../../libs/authz" }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-aws-lc-rs", "mysql", "macros", "chrono", "json"] }
 serde_yaml = "0.9"
 anyhow = "1"
+sha2.workspace = true
+hex = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 prometheus = "0.13"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "yaml"] }

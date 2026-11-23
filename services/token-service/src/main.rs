@@ -92,11 +92,35 @@ async fn main() {
         tracing::info!("seeded {} bootstrap tokens", seeded_bt);
     }
 
-    let (private_key_pem, public_key_pem) =
-        load_or_generate_keys(&cfg.jwt_private_key_path, &cfg.jwt_public_key_path);
+    // ── JWT signing keystore (2026-11-23 persistence design) ──
+    // Single source of truth on disk: keystore.json. Fail-closed on any
+    // corruption — startup NEVER silently regenerates over an existing key.
+    // Legacy deployments: an existing private.pem/public.pem pair is
+    // imported once (kid stays "default") so old tokens keep verifying.
+    let keystore_path = keystore_path_from_config(&cfg);
+    let keystore = token_service::keystore::KeyStore::init(
+        &keystore_path,
+        &cfg.jwt_private_key_path,
+        &cfg.jwt_public_key_path,
+        cfg.jwt_min_retention_sec,
+    )
+    .unwrap_or_else(|e| {
+        // No key material is ever logged — only the failure reason.
+        eprintln!("JWT keystore init failed (fail-closed): {e}");
+        std::process::exit(1);
+    });
+
+    let active_private_pem = keystore.active().private_pem.clone();
+    let active_kid = keystore.active().kid.clone();
+    let jwks_entries: Vec<(String, String)> = keystore
+        .public_entries()
+        .into_iter()
+        .map(|k| (k.kid.clone(), k.public_pem.clone()))
+        .collect();
 
     let issuer = Arc::new(
-        TokenIssuer::new(&private_key_pem, &cfg.issuer).expect("failed to create token issuer"),
+        TokenIssuer::with_key(&active_private_pem, &active_kid, &cfg.issuer)
+            .expect("failed to create token issuer"),
     );
 
     let addr = format!("{}:{}", cfg.server.host, cfg.server.port);
@@ -105,15 +129,21 @@ async fn main() {
     // We are the JWKS source. Self-loopback via refresh() would race with
     // axum::serve binding (the listener isn't accepting yet) and leave the
     // cache empty on every restart, breaking inbound service-jwt verify.
+    // Instead of from_pem (single hard-coded "default" kid), install every
+    // JWKS-published key (active + retiring) under its real kid so inbound
+    // service-jwt verification is kid-consistent from the first request.
     let jwks_cache: std::sync::Arc<digua_common_jwt::JWKSCache> = std::sync::Arc::new(
-        digua_common_jwt::JWKSCache::from_pem(&public_key_pem).expect("JWKSCache::from_pem"),
+        digua_common_jwt::JWKSCache::new(Default::default(), reqwest::Client::new()),
     );
+    jwks_cache
+        .install_from_pems(&jwks_entries)
+        .await
+        .expect("install initial JWKS keys from keystore");
 
     let state = TokenServerState {
         db: db.clone(),
         issuer,
         issuer_str: cfg.issuer.clone(),
-        jwt_public_key: public_key_pem,
         default_resource_ttl_sec: cfg.default_resource_ttl_sec,
         http_client: Arc::new(ResilientClient::new(
             reqwest::Client::new(),
@@ -121,7 +151,7 @@ async fn main() {
             Arc::new(NoopObserver),
         )),
         user_service_url: cfg.user_service_url.clone(),
-        private_key_pem: private_key_pem.clone(),
+        keys: Arc::new(std::sync::RwLock::new(keystore)),
         jwks: jwks_cache,
     };
 
@@ -182,6 +212,9 @@ async fn main() {
     // 内部带 service-jwt 鉴权中间件（aud=token-service）。
     app = app.merge(routes::api_key::routes(state.clone()));
     app = app.merge(routes::admin::routes(state.clone()));
+    // /admin/keys* — JWT 签名密钥生命周期（rotate/retire/delete/list），
+    // 同样 service-jwt 准入；rotate 即可冒充任意用户，绝不能裸暴露。
+    app = app.merge(routes::keys_admin::routes(state.clone()));
 
     // Phase 3: /admin/bootstrap-tokens* —— bootstrap token 的管理面
     // （rotate / 禁用 / 启用 / 查询）。同样带 service-jwt 鉴权（aud=token-service）：
@@ -236,37 +269,21 @@ async fn main() {
         std::process::exit(0);
     });
 
-    fn load_or_generate_keys(private_key_path: &str, public_key_path: &str) -> (String, String) {
-        match (
-            std::fs::read_to_string(private_key_path),
-            std::fs::read_to_string(public_key_path),
-        ) {
-            (Ok(private), Ok(public)) => {
-                tracing::info!("loaded existing JWT keys from files");
-                (private, public)
-            }
-            _ => {
-                tracing::warn!("JWT keys not found, generating new key pair");
-                let key_pair = jwt_simple::prelude::RS256KeyPair::generate(2048)
-                    .expect("failed to generate RSA key pair");
-                let private_pem = key_pair.to_pem().expect("failed to encode private key");
-                let public_key = key_pair.public_key();
-                let public_pem = public_key.to_pem().expect("failed to encode public key");
-
-                if let Some(parent) = std::path::Path::new(private_key_path).parent() {
-                    std::fs::create_dir_all(parent).expect("failed to create keys directory");
-                }
-                std::fs::write(private_key_path, &private_pem)
-                    .expect("failed to write private key");
-                std::fs::write(public_key_path, &public_pem).expect("failed to write public key");
-                tracing::info!("generated new JWT keys and saved to files");
-                (private_pem, public_pem)
-            }
-        }
-    }
-
     tracing::info!("token-service listening on {}", addr);
     axum::serve(listener, app).await.unwrap();
+}
+
+/// keystore.json lives next to the private key by default (containers:
+/// `/app/keys/keystore.json`), overridable via `TOKEN_JWT_KEYSTORE_PATH`.
+fn keystore_path_from_config(cfg: &token_service::config::Config) -> std::path::PathBuf {
+    if cfg.jwt_keystore_path.trim().is_empty() {
+        std::path::Path::new(&cfg.jwt_private_key_path)
+            .parent()
+            .map(|p| p.join("keystore.json"))
+            .unwrap_or_else(|| std::path::PathBuf::from("keystore.json"))
+    } else {
+        std::path::PathBuf::from(&cfg.jwt_keystore_path)
+    }
 }
 
 /// Pull `HashMap<String, String>` from the optional remote config-service.

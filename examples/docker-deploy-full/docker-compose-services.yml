@@ -111,6 +111,11 @@ services:
       SERVICE_NAME: "token-service"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       TOKEN_DATABASE_URL: "${DATABASE_URL}"
+    volumes:
+      # JWT signing keys must survive container recreation (2026-11-23 key
+      # persistence). First boot generates keystore.json here; later boots
+      # load it — existing JWTs keep verifying across restarts/upgrades.
+      - token-keys:/app/keys
     networks:
       - superpowers
 
@@ -289,6 +294,8 @@ services:
 volumes:
   file-storage:
     name: superpowers_file-storage
+  token-keys:
+    name: superpowers_token-keys
 
 networks:
   superpowers:

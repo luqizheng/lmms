@@ -3,9 +3,12 @@ use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// Phase 5-B: the `kid` JWT header field. Must match the key id in
-/// the JWKSCache on the verifier side (see `digua_common_jwt::JWKSCache::from_pem`).
-pub const JWT_KEY_ID: &str = "default";
+/// Legacy hard-coded `kid` (pre-keystore era). Kept as the compatibility kid
+/// assigned to keys imported from the old `keys/private.pem` pair so tokens
+/// signed before the keystore migration keep verifying (their header says
+/// `kid:"default"`). Newly generated keys use fingerprint-derived kids — see
+/// `keystore::derive_kid` and the 2026-11-23 persistence design spec.
+pub const JWT_KEY_ID: &str = crate::keystore::LEGACY_KID;
 
 /// `purpose` claim: server-authoritative statement of WHY a token was
 /// minted (its issuance channel). The value is decided exclusively by the
@@ -26,21 +29,68 @@ pub mod purpose {
 }
 
 pub struct TokenIssuer {
-    key_pair: RS256KeyPair,
+    /// Swappable active signing key (std RwLock: sign is a short CPU-bound
+    /// op). Runtime rotation replaces it via `swap_active_key` so every
+    /// `Arc<TokenIssuer>` holder picks up the new key on the next issue call.
+    key_pair: std::sync::RwLock<RS256KeyPair>,
     issuer: String,
+    /// kid stamped into the JWT header by `sign` — must match the kid this
+    /// key is published under in JWKS output.
+    key_id: std::sync::RwLock<String>,
 }
 
 impl TokenIssuer {
+    /// Legacy constructor: kid = `"default"` (compat with existing tests and
+    /// the imported legacy key). Keystore-based startup uses `with_key`.
     pub fn new(private_key_pem: &str, issuer: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        // Phase 5-B: set kid so verifiers can locate the JWKSCache key.
-        // jwt-simple 0.12.16's RSAKeyPairLike trait does not implement
-        // `set_key_id` for RS256KeyPair (only RS256PublicKey). Use the
-        // inherent builder `with_key_id` instead.
-        let key_pair = RS256KeyPair::from_pem(private_key_pem)?.with_key_id(JWT_KEY_ID);
+        Self::with_key(private_key_pem, JWT_KEY_ID, issuer)
+    }
+
+    /// Build an issuer bound to a specific key + kid. The kid is stamped
+    /// into every JWT header so verifiers can locate the matching JWKS key.
+    /// jwt-simple's RSAKeyPairLike trait lacks `set_key_id` for
+    /// RS256KeyPair — use the inherent builder `with_key_id`.
+    pub fn with_key(
+        private_key_pem: &str,
+        key_id: &str,
+        issuer: &str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let key_pair = RS256KeyPair::from_pem(private_key_pem)?.with_key_id(key_id);
         Ok(Self {
-            key_pair,
+            key_pair: std::sync::RwLock::new(key_pair),
             issuer: issuer.to_string(),
+            key_id: std::sync::RwLock::new(key_id.to_string()),
         })
+    }
+
+    /// The kid this issuer currently stamps into JWT headers.
+    pub fn key_id(&self) -> String {
+        self.key_id
+            .read()
+            .expect("issuer key_id lock poisoned")
+            .clone()
+    }
+
+    /// Runtime rotation: atomically replace the signing key + kid. Tokens
+    /// already issued keep verifying against the retiring key (still in
+    /// JWKS); new tokens carry the new kid.
+    pub fn swap_active_key(
+        &self,
+        private_key_pem: &str,
+        key_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let pair = RS256KeyPair::from_pem(private_key_pem)?.with_key_id(key_id);
+        *self.key_pair.write().expect("issuer key lock poisoned") = pair;
+        *self.key_id.write().expect("issuer key_id lock poisoned") = key_id.to_string();
+        Ok(())
+    }
+
+    fn sign_current(
+        &self,
+        claims: JWTClaims<HashMap<String, serde_json::Value>>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let pair = self.key_pair.read().expect("issuer key lock poisoned");
+        Ok(pair.sign(claims)?)
     }
 
     fn now() -> jwt_simple::prelude::Duration {
@@ -89,7 +139,7 @@ impl TokenIssuer {
         }
         claims.custom = custom;
 
-        let token = self.key_pair.sign(claims)?;
+        let token = self.sign_current(claims)?;
         Ok(token)
     }
 
@@ -126,7 +176,7 @@ impl TokenIssuer {
         }
         claims.custom = custom;
 
-        let token = self.key_pair.sign(claims)?;
+        let token = self.sign_current(claims)?;
         Ok((token, family))
     }
 
@@ -185,7 +235,7 @@ impl TokenIssuer {
         );
         claims.custom = custom;
 
-        Ok(self.key_pair.sign(claims)?)
+        self.sign_current(claims)
     }
 
     pub fn issue_resource_token(
@@ -225,7 +275,7 @@ impl TokenIssuer {
         );
         claims.custom = custom;
 
-        let token = self.key_pair.sign(claims)?;
+        let token = self.sign_current(claims)?;
         Ok(token)
     }
 }

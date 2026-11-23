@@ -149,6 +149,94 @@ paths:
           description: not found
       security:
       - bearer_auth: []
+  /admin/keys:
+    get:
+      tags:
+      - admin
+      summary: List JWT signing keys (metadata only, never key material)
+      operationId: handle_list
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListKeysResponse'
+      security:
+      - bearer_auth: []
+  /admin/keys/rotate:
+    post:
+      tags:
+      - admin
+      summary: Rotate the signing key (previous key stays for verification)
+      operationId: handle_rotate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateKeyRequest'
+        required: true
+      responses:
+        '200':
+          description: rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RotateKeyResponse'
+        '409':
+          description: expect_active_kid mismatch or persistence failure
+      security:
+      - bearer_auth: []
+  /admin/keys/{kid}:
+    delete:
+      tags:
+      - admin
+      summary: Delete a retired key (only after the retention period)
+      operationId: handle_delete
+      parameters:
+      - name: kid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '404':
+          description: unknown kid
+        '409':
+          description: not retired yet or retention not satisfied
+      security:
+      - bearer_auth: []
+  /admin/keys/{kid}/retire:
+    post:
+      tags:
+      - admin
+      summary: Retire a rotating key (leaves JWKS; verify-only keys only)
+      operationId: handle_retire
+      parameters:
+      - name: kid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '404':
+          description: unknown kid
+        '409':
+          description: key not in 'retiring' status
+      security:
+      - bearer_auth: []
   /admin/oauth-clients:
     post:
       tags:
@@ -879,6 +967,29 @@ components:
           type: string
         client_secret:
           type: string
+    KeyEntryView:
+      type: object
+      required:
+      - kid
+      - status
+      - created_at
+      - active
+      properties:
+        active:
+          type: boolean
+          description: true for the key currently signing new tokens.
+        created_at:
+          type: integer
+          format: int64
+        kid:
+          type: string
+        retired_at:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        status:
+          type: string
     ListApiKeysResponse:
       type: object
       required:
@@ -913,6 +1024,22 @@ components:
           items:
             $ref: '#/components/schemas/BootstrapTokenDto'
         total:
+          type: integer
+          format: int64
+    ListKeysResponse:
+      type: object
+      required:
+      - active_kid
+      - min_retention_sec
+      - keys
+      properties:
+        active_kid:
+          type: string
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyEntryView'
+        min_retention_sec:
           type: integer
           format: int64
     ListResponse:
@@ -990,6 +1117,19 @@ components:
             type: string
         service:
           type: string
+    OkResponse:
+      type: object
+      required:
+      - ok
+      - kid
+      - status
+      properties:
+        kid:
+          type: string
+        ok:
+          type: boolean
+        status:
+          type: string
     RefreshRequest:
       type: object
       required:
@@ -1065,6 +1205,26 @@ components:
         token:
           type: string
           description: 新 token 明文——**仅此一次可见**。
+    RotateKeyRequest:
+      type: object
+      properties:
+        expect_active_kid:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Caller-side guard: client echoes the kid it believes is active; a
+            mismatch is a 409 (protects against double-rotate races). Optional.
+    RotateKeyResponse:
+      type: object
+      required:
+      - active_kid
+      - previous_kid
+      properties:
+        active_kid:
+          type: string
+        previous_kid:
+          type: string
     RotateRequest:
       type: object
       description: 轮换请求体（Web UI 用 JSON body 而非 query string）。

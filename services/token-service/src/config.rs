@@ -84,6 +84,15 @@ pub struct Config {
     pub consul: ConsulCfg,
     pub jwt_private_key_path: String,
     pub jwt_public_key_path: String,
+    /// Keystore file (all signing keys, active + retiring + retired).
+    /// Empty = derive as `keystore.json` next to `jwt_private_key_path`
+    /// (env: TOKEN_JWT_KEYSTORE_PATH). See keystore.rs / 2026-11-23 spec.
+    #[serde(default)]
+    pub jwt_keystore_path: String,
+    /// Minimum seconds a key must stay `retired` before deletion — tokens
+    /// signed by it may still be unexpired. Defaults to the refresh TTL.
+    #[serde(default)]
+    pub jwt_min_retention_sec: i64,
     pub issuer: String,
     pub default_access_ttl_sec: i64,
     pub default_refresh_ttl_sec: i64,
@@ -111,6 +120,8 @@ impl Default for Config {
             consul: ConsulCfg::default(),
             jwt_private_key_path: String::new(),
             jwt_public_key_path: String::new(),
+            jwt_keystore_path: String::new(),
+            jwt_min_retention_sec: 2_592_000,
             issuer: String::new(),
             default_access_ttl_sec: 3600,
             default_refresh_ttl_sec: 2592000,
@@ -224,6 +235,16 @@ where
     }
     if let Some(v) = env("TOKEN_JWT_PUBLIC_KEY_PATH") {
         cfg.jwt_public_key_path = v;
+    }
+    if let Some(v) = env("TOKEN_JWT_KEYSTORE_PATH") {
+        cfg.jwt_keystore_path = v;
+    }
+    if let Some(v) = env("TOKEN_JWT_MIN_RETENTION_SEC") {
+        parse_or_warn(
+            "TOKEN_JWT_MIN_RETENTION_SEC",
+            &v,
+            &mut cfg.jwt_min_retention_sec,
+        );
     }
     if let Some(v) = env("TOKEN_ISSUER") {
         cfg.issuer = v;

@@ -6,6 +6,7 @@ pub mod cache;
 pub mod service_jwt;
 pub mod verify;
 
+pub use cache::LEGACY_KID;
 pub use cache::{parse_jwks, JWKSCache, JwksConfig, JwksError};
 pub use service_jwt::{ServiceJwtCache, ServiceJwtConfig, ServiceJwtError};
-pub use verify::{sign_token, verify_token, SignError, VerifyError};
+pub use verify::{sign_token, sign_token_with_kid, verify_token, SignError, VerifyError};

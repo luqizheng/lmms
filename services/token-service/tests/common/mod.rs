@@ -121,6 +121,15 @@ pub const TEST_PUBLIC_PEM: &str =
 /// 构造带真实 DB pool 的 TokenServerState（HTTP 级测试用，oneshot 房规）。
 /// `user_service_url` 指向不可达地址 → claims 拉取走降级路径。
 pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
+    // fixture PEM 以 legacy kid="default" 进 keystore（内存构造，不落盘），
+    // 与 mint_service_bearer / sign_token 的 legacy kid 链路一致。
+    let keystore = token_service::keystore::KeyStore::from_legacy_pems(
+        TEST_PRIVATE_PEM.to_string(),
+        TEST_PUBLIC_PEM.to_string(),
+        std::path::Path::new("test-keystore.json"),
+        2_592_000,
+    )
+    .expect("test keystore");
     let jwks = std::sync::Arc::new(
         digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).expect("jwks from pem"),
     );
@@ -130,7 +139,6 @@ pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
             token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer"),
         ),
         issuer_str: "test-issuer".into(),
-        jwt_public_key: TEST_PUBLIC_PEM.into(),
         default_resource_ttl_sec: 3600,
         http_client: std::sync::Arc::new(digua_common_http::ResilientClient::new(
             reqwest::Client::new(),
@@ -138,7 +146,7 @@ pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
             std::sync::Arc::new(digua_common_http::NoopObserver),
         )),
         user_service_url: "http://iam-service:8081".into(),
-        private_key_pem: TEST_PRIVATE_PEM.into(),
+        keys: std::sync::Arc::new(std::sync::RwLock::new(keystore)),
         jwks,
     }
 }

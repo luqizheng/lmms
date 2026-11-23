@@ -12,7 +12,6 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json, Router,
 };
-use digua_common_jwt::sign_token;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -83,8 +82,16 @@ pub async fn handle_service_jwt(
     if req.ct {
         claims["ct"] = serde_json::json!(true);
     }
-    let access_token = sign_token(
-        &state.private_key_pem,
+    // kid-strict verifiers need the header kid to match the JWKS entry —
+    // sign with the active keystore kid, not the legacy hard-coded "default".
+    let access_token = digua_common_jwt::sign_token_with_kid(
+        &state.active_private_pem(),
+        &state
+            .keys
+            .read()
+            .expect("keystore lock poisoned")
+            .active()
+            .kid,
         &claims,
         Duration::from_secs(SERVICE_JWT_TTL_SECS as u64),
     )

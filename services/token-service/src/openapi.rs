@@ -4,8 +4,8 @@ use utoipa::{
 };
 
 use crate::routes::{
-    access, admin, api_key, bootstrap_token_admin, bootstrap_token_web, migration_state, refresh,
-    revoke, user_jwt,
+    access, admin, api_key, bootstrap_token_admin, bootstrap_token_web, keys_admin,
+    migration_state, refresh, revoke, user_jwt,
 };
 
 pub struct SecurityAddon;
@@ -55,8 +55,17 @@ impl Modify for SecurityAddon {
         bootstrap_token_web::handle_rotate,
         bootstrap_token_web::handle_set_status,
         bootstrap_token_web::handle_delete,
+        keys_admin::handle_list,
+        keys_admin::handle_rotate,
+        keys_admin::handle_retire,
+        keys_admin::handle_delete,
     ),
     components(schemas(
+        keys_admin::ListKeysResponse,
+        keys_admin::KeyEntryView,
+        keys_admin::RotateKeyResponse,
+        keys_admin::RotateKeyRequest,
+        keys_admin::OkResponse,
         access::AccessRequest,
         access::AccessResponse,
         refresh::RefreshRequest,

@@ -103,3 +103,10 @@ sdk/iam-services/dist
 infrastructure/login.json
 # compose 模板发布命令的构建产物
 /release/compose-template/
+
+# JWT signing keys must never be committed (see docs/superpowers/specs/2026-11-23-token-jwt-key-persistence-design.md)
+services/token-service/keys/
+*.backup.json
+
+# local e2e artifacts (never commit)
+.tmp-e2e/

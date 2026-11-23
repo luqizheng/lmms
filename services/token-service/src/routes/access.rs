@@ -138,7 +138,7 @@ async fn handle_client_credentials(
     // service-jwt instead of nothing. The claims URL stays tenant-less:
     // user_id is globally unique and the claims endpoint resolves the
     // user's real tenant server-side.
-    let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
+    let iam_bearer = crate::mint_service_bearer_for_state(&state, "iam-service", 300)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
 
     // 拉取用户 claims 做权限交集；iam 不可达时 fail-closed（permissions 清空、
@@ -234,7 +234,7 @@ async fn handle_authorization_code(
         "{}/internal/users/{}/claims",
         state.user_service_url, user_id
     );
-    let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
+    let iam_bearer = crate::mint_service_bearer_for_state(&state, "iam-service", 300)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
     let extra_claims: serde_json::Value = match crate::fetch_json(
         &state.http_client,
