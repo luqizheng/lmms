@@ -17,8 +17,8 @@
 
 | Secret 类型 | 当前位置 | 引用方 | Rotation 状态 |
 |-------------|----------|--------|---------------|
-| JWT 私钥 (RS256) | `/app/keys/private.pem` (容器) / `keys/private.pem` (host) | iam-service (签发 user-jwt) · token-service (签发 service-jwt) | ❌ 无 rotation · 单 PEM |
-| JWT 公钥 | `/app/keys/public.pem` | 7 个下游服务 (JWKS cache) | ✅ 已 JWKS 化 (Phase 5B) |
+| JWT 私钥 (RS256) | token-service `keystore.json`（`token-keys` volume） | iam-service (签发 user-jwt) · token-service (签发 service-jwt) | ✅ 已实现（PR #7）：`POST /admin/keys/rotate` / `keytool rotate` — 见 [`jwt-key-operations`](./jwt-key-operations) |
+| JWT 公钥 | JWKS `/.well-known/jwks.json`（active + retiring） | 7 个下游服务 (JWKS cache) | ✅ 已 JWKS 化 (Phase 5B)，多 kid 支持随 PR #7 |
 | MySQL root 密码 | `MYSQL_ROOT_PASSWORD` (`.env`) | infra MySQL 容器 + 7 个服务的 `database.url` | ❌ 无 rotation · dev 环境硬编码 `root:rootpass` |
 | Redis 密码 | `REDIS_PASSWORD` (`.env`) | infra Redis 容器 + api-gateway (限流) + notification (限流) | ❌ 无 rotation |
 | Consul ACL token | 无（dev 单节点，无 ACL） | registrator + 各服务 | N/A |
@@ -38,6 +38,10 @@ digua_common-jwt::JWKSCache (其他 7 服务)
 ---
 
 ## 2. JWT 私钥轮换（重点）
+
+> **⚠ 本节 §2.2/§2.3 已被 PR #7 取代**：JWT 私钥不再是单 PEM 手工 openssl 轮换，
+> 而是 token-service `keystore.json` + JWKS 多 kid 状态机。现行流程见
+> [`jwt-key-operations`](./jwt-key-operations)。以下内容仅作历史设计记录。
 
 ### 2.1 当前痛点
 

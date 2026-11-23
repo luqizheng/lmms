@@ -188,7 +188,9 @@ cargo test --manifest-path services/token-service/Cargo.toml
 ```
 ## JWT 签名密钥：持久化、轮换、备份与恢复（2026-11-23）
 
-Spec：`docs/superpowers/specs/2026-11-23-token-jwt-key-persistence-design.md`
+Spec：`docs/superpowers/specs/2026-11-23-token-jwt-key-persistence-design.md`（PR #7）
+运维加固 spec：`docs/superpowers/specs/2026-11-23-token-jwt-key-operations-hardening-design.md`（PR #9）
+运维手册（含泄露应急/故障处理）：`docs-site/runbooks/jwt-key-operations.md`
 
 ### 存储模型
 
@@ -255,6 +257,43 @@ docker restart <token-container>
 - 恢复后重启，恢复前签发的 JWT 全部恢复可验证（单测 `backup_restore_preserves_old_tokens`）。
 - 备份文件权限 0600，`*.backup.json` 已在 .gitignore；**严禁提交真实备份到 Git**。
 - 备份节奏：每次 rotate 后、以及定期（如每周）备份一次到密管存储。
+
+PR #9 加固后的备份/恢复语义：
+
+- 备份是**信封格式**：`backup_format_version` / `created_at` / `producer` /
+  `keystore_sha256` / `keystore`。恢复先校验信封版本，再校验 SHA-256 完整性，
+  最后才做 PEM/公私钥全量校验；旧版裸 keystore 备份会被明确拒绝。
+- 恢复顺序：校验 → 跨进程锁 → 写恢复前快照 `keystore.pre-restore.<epoch>.json`（0600）→
+  指纹校验下原子覆盖 → 从磁盘读回校验；读回失败自动用快照回滚并报 `RestoreFailed`。
+- 恢复期间若有并发写入（另一个 keytool / 副本），后写者收到 `Stale` 拒绝，现场不被覆盖。
+
+### 密钥生命周期审计（PR #9）
+
+所有 create/import/rotate/retire/delete/backup/restore（含失败）都追加写入
+`keystore-audit.jsonl`（与 keystore 同目录，0600，逐条 fsync）：
+
+```bash
+docker exec <token-container> /app/keytool audit --keystore /app/keys/keystore.json --limit 50
+```
+
+- 记录与 `audit_events` 行同构：`event_id / event_type(token.jwt_key.*) / occurred_at /
+  trace_id / producer / payload{actor, action, result, kid, related_kid, detail}`；
+- 在线操作 `actor` = service-jwt `sub`，离线 `actor` = `keytool`，首启生成 = `system`；
+- **绝不写私钥/PEM/凭证**（单测断言账本不含 `BEGIN`/PEM）；
+- 写入失败打 `ERROR` 并累加 `token_keystore_audit_write_failures_total`（非 0 需处理）；
+- 该账本暂未投递 audit-service（离线 keytool 无 DB/MQ、文件状态无法与 DB 事务原子），
+  后续接入事件管道见 spec §2.1 follow-up。
+
+### 并发与多实例（PR #9）
+
+- **单实例部署**：compose 每个单元只有 1 个 token-service 副本；水平扩容不受支持
+  （各副本内存快照互不可见）。扩展条件见运维手册 §1。
+- 写路径有两道保护：
+  - `keystore.json.lock`：持有期间保持文件句柄打开 + 内核级互斥锁（Unix `flock` /
+    Windows 独占共享模式），锁文件记录 owner token（UUID v4）/ pid / 创建时间；
+    持有者存活期间锁绝不会被回收，接管只能发生在内核锁已释放（前持有者退出/崩溃）
+    时，5s 等待超时返回 `LockBusy`；
+  - 写前磁盘指纹（SHA-256）比对：加载后被他人改动 → `Stale`，拒绝覆盖（`409`）。
 
 ### 运维注意事项
 

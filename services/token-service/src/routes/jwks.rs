@@ -119,6 +119,7 @@ mod tests {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_secs() as i64,
+                &crate::audit::AuditContext::system(),
             )
             .unwrap();
         let entries: Vec<(String, String)> = ks

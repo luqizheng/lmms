@@ -24,11 +24,21 @@ use crate::TokenServerState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use digua_jwt_ctx::Principal;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 fn now_sec() -> i64 {
     chrono::Utc::now().timestamp()
+}
+
+/// Audit identity of the caller: JWT `sub` plus the request trace id (when
+/// the telemetry layer produced one).
+fn audit_ctx(principal: &Principal) -> crate::audit::AuditContext {
+    crate::audit::AuditContext::new(
+        principal.user_id.clone(),
+        digua_common_telemetry::current_trace_id(),
+    )
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -122,8 +132,10 @@ pub async fn handle_list(
 )]
 pub async fn handle_rotate(
     State(state): State<TokenServerState>,
+    principal: Principal,
     body: Option<Json<RotateKeyRequest>>,
 ) -> Result<Json<RotateKeyResponse>, (StatusCode, String)> {
+    let ctx = audit_ctx(&principal);
     let expected = body
         .as_ref()
         .and_then(|Json(b)| b.expect_active_kid.clone());
@@ -132,16 +144,22 @@ pub async fn handle_rotate(
         let mut ks = state.keys.write().expect("keystore lock poisoned");
         if let Some(exp) = &expected {
             if *exp != ks.active().kid {
+                let current = ks.active().kid.clone();
+                ks.audit_ledger().record(
+                    &ctx,
+                    crate::audit::AuditAction::Rotate,
+                    crate::audit::AuditResult::Failed,
+                    Some(&current),
+                    None,
+                    Some("expect_active_kid mismatch (caller holds a stale view)"),
+                );
                 return Err((
                     StatusCode::CONFLICT,
-                    format!(
-                        "expect_active_kid mismatch: keystore active kid is {}",
-                        ks.active().kid
-                    ),
+                    format!("expect_active_kid mismatch: keystore active kid is {current}"),
                 ));
             }
         }
-        ks.rotate(now_sec())
+        ks.rotate(now_sec(), &ctx)
             .map_err(|e| (StatusCode::CONFLICT, e.to_string()))?
     };
 
@@ -168,11 +186,13 @@ pub async fn handle_rotate(
 )]
 pub async fn handle_retire(
     State(state): State<TokenServerState>,
+    principal: Principal,
     Path(kid): Path<String>,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let ctx = audit_ctx(&principal);
     {
         let mut ks = state.keys.write().expect("keystore lock poisoned");
-        ks.retire(&kid, now_sec()).map_err(|e| match e {
+        ks.retire(&kid, now_sec(), &ctx).map_err(|e| match e {
             crate::keystore::KeyStoreError::InvalidOperation(msg)
                 if msg.contains("unknown kid") =>
             {
@@ -205,11 +225,13 @@ pub async fn handle_retire(
 )]
 pub async fn handle_delete(
     State(state): State<TokenServerState>,
+    principal: Principal,
     Path(kid): Path<String>,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let ctx = audit_ctx(&principal);
     {
         let mut ks = state.keys.write().expect("keystore lock poisoned");
-        ks.remove(&kid, now_sec()).map_err(|e| match e {
+        ks.remove(&kid, now_sec(), &ctx).map_err(|e| match e {
             crate::keystore::KeyStoreError::InvalidOperation(msg)
                 if msg.contains("unknown kid") =>
             {
