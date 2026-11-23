@@ -186,3 +186,79 @@ curl -X POST http://localhost:4000/api/api-keys \
 ```bash
 cargo test --manifest-path services/token-service/Cargo.toml
 ```
+## JWT 签名密钥：持久化、轮换、备份与恢复（2026-11-23）
+
+Spec：`docs/superpowers/specs/2026-11-23-token-jwt-key-persistence-design.md`
+
+### 存储模型
+
+单一真相源是 **`keystore.json`**（默认与 `TOKEN_JWT_PRIVATE_KEY_PATH` 同目录，
+容器内即 `/app/keys/keystore.json`，可用 `TOKEN_JWT_KEYSTORE_PATH` 覆盖）。
+文件包含全部密钥条目（active / retiring / retired）、各自的 PEM 与时间戳。
+
+- **kid**：新钥 = 公钥 DER 的 SHA-256 前 16 字节 hex（内容寻址，跨重启稳定）；
+  从旧 `private.pem`/`public.pem` 导入的密钥保留 `kid="default"`，
+  保证升级前签发的 token 头部 kid 继续命中。
+- **原子写**：`.tmp` + fsync + rename，中断不会产生半写文件。
+- **权限**：文件 0600、目录 0700（unix）。加载时 group/other 可读 → **拒绝启动**。
+- **fail-closed**：keystore.json 存在但损坏（JSON/PEM/公私钥不匹配）→ 启动失败并退出，
+  **绝不静默重新生成**（旧行为是容器重建后重生成密钥导致全员掉线的根因）。
+
+### 启动解析顺序（`KeyStore::init`）
+
+1. `keystore.json` 存在 → 加载（任何损坏都硬失败）；
+2. 不存在、旧 PEM 对存在 → 一次性导入（kid 保持 `default`）并原子落盘；
+3. 两者都无 → 首次部署，生成新密钥并落盘；
+4. 旧 PEM 只剩一半 → 拒绝启动（防止覆盖残缺密钥）。
+
+### 已有部署升级（迁移）
+
+- compose 已挂 `token-keys` named volume（`/app/keys`）。升级镜像后首次启动：
+  volume 为空 + 容器内无旧 PEM → 自动生成新钥（旧 token 本就随旧容器丢了，无影响）。
+- 若旧容器 volume 里已有 `private.pem`/`public.pem` → 自动导入，`kid="default"` 保留，
+  **旧 JWT 全部继续可验证，无需重新登录**。
+- 之前泄露在 git 历史中的 `services/token-service/keys/private.pem` 是开发密钥；
+  生产部署务必使用首次启动生成（或备份恢复）的密钥，不要拷入该文件。
+
+### 轮换（rotation）
+
+```
+active ──rotate──▶ retiring ──retire──▶ retired ──delete(≥保留期)──▶ 删除
+ (签发)            (仅验证,在JWKS)     (不在JWKS)
+```
+
+- 在线：`POST /admin/keys/rotate`（service-jwt `aud=token-service`）。
+  旧钥转 retiring 仍在 JWKS → 未过期旧 token 继续可验证，**无人被登出**。
+  新签发 token 的 header kid 立即切到新钥（issuer 原子换钥）。
+- 离线：`keytool rotate --keystore /app/keys/keystore.json`（停服窗口内执行，之后重启）。
+- 退役：确认该 kid 签发的 token 已全部过期后 `POST /admin/keys/{kid}/retire`
+  （或 `keytool retire`）——密钥移出 JWKS，验证方随后拒绝其 token。
+- 删除：仅 `retired` 且超过 `TOKEN_JWT_MIN_RETENTION_SEC`（默认 30 天 = refresh TTL）
+  才允许 `DELETE /admin/keys/{kid}`；未到保留期返回 409。
+- 轮换节奏建议：每 90 天例行一次；密钥疑似泄露立即轮换 + 提前 retire。
+
+### 备份与恢复
+
+```bash
+# 备份（容器内执行；输出文件含全部私钥，0600）
+docker exec <token-container> /app/keytool backup \
+  --keystore /app/keys/keystore.json --out /app/keys/keystore.backup.json
+docker cp <token-container>:/app/keys/keystore.backup.json /secure/vault/   # 移出容器保存
+
+# 恢复（先停服；校验通过才原子覆盖）
+docker cp /secure/vault/keystore.backup.json <token-container>:/tmp/
+docker exec <token-container> /app/keytool restore \
+  --backup /tmp/keystore.backup.json --keystore /app/keys/keystore.json
+docker restart <token-container>
+```
+
+- 恢复后重启，恢复前签发的 JWT 全部恢复可验证（单测 `backup_restore_preserves_old_tokens`）。
+- 备份文件权限 0600，`*.backup.json` 已在 .gitignore；**严禁提交真实备份到 Git**。
+- 备份节奏：每次 rotate 后、以及定期（如每周）备份一次到密管存储。
+
+### 运维注意事项
+
+- token-service 是自身 JWKS 权威：rotate/retire/delete 会即时更新内存 JWKS cache 与
+  issuer；其他服务经 `JWKSCache` 定时刷新（默认 1h）拉取新 JWKS，无需改动下游。
+- `keytool inspect` 只输出 kid/status/时间戳，不会打印密钥材料。
+- 日志只记录 kid 与状态迁移，绝不输出 PEM。

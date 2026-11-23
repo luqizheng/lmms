@@ -26,3 +26,5 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 wiremock = "0.6"
+jwt-simple = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

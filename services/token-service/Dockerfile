@@ -21,14 +21,17 @@ ENV SWAGGER_UI_DOWNLOAD_URL=file:///tmp/swagger-ui.zip
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-token-service,target=/app/target,sharing=locked \
-    CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --target x86_64-unknown-linux-musl -p token_service  --features "${SERVICE_FEATURES}" && \
-    cp /app/target/x86_64-unknown-linux-musl/release/token_service /app/token_service
+    CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --target x86_64-unknown-linux-musl -p token_service  --features "${SERVICE_FEATURES}" --bin token_service --bin keytool && \
+    cp /app/target/x86_64-unknown-linux-musl/release/token_service /app/token_service && \
+    cp /app/target/x86_64-unknown-linux-musl/release/keytool /app/keytool
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
 FROM ${BASE_REGISTRY}/alpine:3.21
 RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/token_service /app/token_service
+# keytool: offline keystore ops (inspect/rotate/retire/delete/backup/restore)
+COPY --from=builder /app/keytool /app/keytool
 COPY --from=builder /app/services/token-service/config /app/config
 RUN mkdir -p /app/keys
 ENV RUST_LOG=token_service=debug

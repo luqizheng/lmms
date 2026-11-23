@@ -1894,6 +1894,7 @@ version = "1.7.0"
 dependencies = [
  "chrono",
  "jsonwebtoken",
+ "jwt-simple",
  "reqwest",
  "serde",
  "serde_json",
@@ -6353,6 +6354,7 @@ dependencies = [
  "digua_common_telemetry",
  "digua_common_telemetry_axum",
  "digua_jwt_ctx",
+ "hex",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -6367,6 +6369,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "serde_yaml",
+ "sha2",
  "sqlx",
  "tempfile",
  "testcontainers",

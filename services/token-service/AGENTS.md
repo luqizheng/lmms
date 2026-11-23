@@ -36,6 +36,8 @@
 | TOKEN_CONSUL_ADDR | http://localhost:8500 | Consul 地址（服务当前走 registrator sidecar 注册，此字段仅日志） |
 | TOKEN_CONSUL_SERVICE_NAME | token-service | Consul 服务名 |
 | TOKEN_CONSUL_SERVICE_ID_FILE | /tmp/token-service-id | Consul service id 文件 |
+| TOKEN_JWT_KEYSTORE_PATH | jwt_keystore_path | 密钥库 JSON 路径；空 = 与 jwt_private_key_path 同目录的 `keystore.json`（2026-11-23 起为 JWT 签名密钥单一真相源） |
+| TOKEN_JWT_MIN_RETENTION_SEC | 2592000 | 密钥 retired 后最短保留秒数（默认 30 天 = refresh TTL），到期才允许物理删除 |
 | TOKEN_DEFAULT_ACCESS_TTL_SEC | 3600 | access token 默认 TTL |
 | TOKEN_DEFAULT_REFRESH_TTL_SEC | 2592000 | refresh token 默认 TTL |
 | TOKEN_DEFAULT_RESOURCE_TTL_SEC | 300 | resource token 默认 TTL |
@@ -54,7 +56,7 @@
 | /tokens/resource | POST | 签发受限资源令牌（自定义 TTL 与 scope） |
 | /tokens/user-jwt | POST | 签发用户身份 JWT |
 | /tokens/service-jwt | POST | 签发 1h 服务间 JWT（Authorization: Bearer <SERVICE_BOOTSTRAP_TOKENS> 准入） |
-| /tokens/.well-known/jwks.json | GET | JWKS 公钥（kid="default"，RS256） |
+| /tokens/.well-known/jwks.json | GET | JWKS 公钥（active + retiring 全部密钥，各自 kid，RS256） |
 | /.well-known/jwks.json | GET | JWKS 别名 |
 | /api-keys | POST / GET | API Key 创建 / 列表（service-jwt `aud=token-service` 准入） |
 | /admin/oauth-clients | POST / GET | OAuth 客户端创建（响应中一次性返回明文 client_secret；service-jwt 准入） |
@@ -68,6 +70,10 @@
 | /v1/admin/bootstrap-tokens/{owner} | GET / DELETE | Web UI 用：查单条 / 删除（权限码 `_READ` / `_DELETE`） |
 | /v1/admin/bootstrap-tokens/{owner}/rotate | POST | Web UI 用：换新 token（body `{"grace_period_sec":N}`，权限码 `_UPDATE`） |
 | /v1/admin/bootstrap-tokens/{owner}/status | PUT | Web UI 用：启用 / 禁用（body `{"status":"active\|disabled"}`，权限码 `_UPDATE`） |
+| /admin/keys | GET | JWT 签名密钥列表（kid/status/时间戳，**不含密钥材料**，service-jwt 准入） |
+| /admin/keys/rotate | POST | 轮换签名密钥：新钥签发、旧钥转 retiring（仍在 JWKS，旧 token 继续可验证，无人掉线）。body 可选 `{"expect_active_kid": "..."}` 防双轮换竞态（不匹配 409） |
+| /admin/keys/{kid}/retire | POST | retiring → retired（移出 JWKS；仅 retiring 状态可退役，service-jwt 准入） |
+| /admin/keys/{kid} | DELETE | 删除 retired 密钥；须超过 `TOKEN_JWT_MIN_RETENTION_SEC` 保留期，否则 409（service-jwt 准入） |
 | /health | GET | 健康检查 |
 | /metrics | GET | Prometheus 指标 |
 | /swagger-ui | GET | OpenAPI UI（仅 SWAGGER_ENABLED=true 时暴露） |
@@ -89,6 +95,22 @@
 ## 表命名约定
 
 所有表必须以 `token_` 前缀（MySQL/PostgreSQL 共享 `superpowers` 数据库）。详见 `contracts/db-conventions.md`，CI 网关：`node scripts/check-db-naming.js`。
+
+## JWT 签名密钥生命周期（2026-11-23 起）
+
+签名密钥单一真相源是 `keystore.json`（默认 `/app/keys/keystore.json`，compose 已挂
+`token-keys` named volume）。要点：
+
+- **fail-closed**：keystore 存在但损坏（JSON/PEM/公私钥不匹配/权限过宽）→ 拒绝启动，
+  绝不静默重生成覆盖。旧 PEM 对存在时一次性导入（kid 保留 `"default"`，旧 token 不掉线）。
+- **kid**：新钥 = SHA-256(公钥 DER) 前 16 字节 hex；导入旧钥 = `"default"`。
+- **状态机**：active（签发）→ rotate → retiring（仅验证，仍在 JWKS）→ retire → retired
+  （不在 JWKS）→ 超过 `TOKEN_JWT_MIN_RETENTION_SEC` 才可 DELETE。
+- **原子写 + 权限**：`.tmp`+fsync+rename；文件 0600 / 目录 0700（unix 加载时校验）。
+- 管理端点 `/admin/keys*`（service-jwt `aud=token-service`）；离线工具 `keytool`
+  （inspect/rotate/retire/delete/backup/restore，容器内 `/app/keytool`）。
+- 备份/恢复/轮换操作手册见 README「JWT 签名密钥」章节。
+- 设计与 fail-closed 矩阵：`docs/superpowers/specs/2026-11-23-token-jwt-key-persistence-design.md`。
 
 ## Bootstrap token 存储（2026-11-09 起）
 

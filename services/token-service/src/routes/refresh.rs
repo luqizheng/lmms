@@ -36,24 +36,33 @@ struct RefreshTokenInfo {
     purpose: Option<String>,
 }
 
-fn decode_refresh_token(
+/// Multi-key refresh decode: try every JWKS-published public key (active
+/// first, then retiring). Refresh families issued before a rotation keep
+/// verifying until the key is retired out of the JWKS.
+fn decode_refresh_token_multi(
     token: &str,
-    public_key_pem: &str,
+    public_key_pems: &[String],
     issuer: &str,
 ) -> Result<RefreshTokenInfo, StatusCode> {
-    let public_key =
-        RS256PublicKey::from_pem(public_key_pem).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
     let options = VerificationOptions {
         allowed_issuers: Some(std::collections::HashSet::from([issuer.to_string()])),
         accept_future: false,
         ..Default::default()
     };
 
-    let claims = public_key
-        .verify_token::<HashMap<String, serde_json::Value>>(token, Some(options))
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    for pem in public_key_pems {
+        let public_key =
+            RS256PublicKey::from_pem(pem).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        if let Ok(claims) = public_key
+            .verify_token::<HashMap<String, serde_json::Value>>(token, Some(options.clone()))
+        {
+            return Ok(claims_into_info(claims));
+        }
+    }
+    Err(StatusCode::UNAUTHORIZED)
+}
 
+fn claims_into_info(claims: JWTClaims<HashMap<String, serde_json::Value>>) -> RefreshTokenInfo {
     let sub = claims.subject.clone().unwrap_or_default();
     let jti = claims.jwt_id.clone().unwrap_or_default();
     let iat = claims.issued_at.map(|d| d.as_secs() as i64).unwrap_or(0);
@@ -69,14 +78,14 @@ fn decode_refresh_token(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    Ok(RefreshTokenInfo {
+    RefreshTokenInfo {
         sub,
         jti,
         exp,
         iat,
         tid,
         purpose,
-    })
+    }
 }
 
 #[utoipa::path(
@@ -112,8 +121,14 @@ pub async fn handle_refresh(
         return Err((StatusCode::UNAUTHORIZED, "invalid client"));
     }
 
-    let info = decode_refresh_token(&req.refresh_token, &state.jwt_public_key, &state.issuer_str)
-        .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid or expired refresh_token"))?;
+    let info = {
+        let pub_pems = {
+            let ks = state.keys.read().expect("keystore lock poisoned");
+            ks.verify_public_pems()
+        };
+        decode_refresh_token_multi(&req.refresh_token, &pub_pems, &state.issuer_str)
+    }
+    .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid or expired refresh_token"))?;
 
     let replayed = refresh_svc::is_marked(&state.db, &info.jti)
         .await
@@ -132,7 +147,7 @@ pub async fn handle_refresh(
     // 2026-11-05 review (P0-3): the claims endpoint enforces
     // `aud == iam-service`; forward the self-signed service-jwt instead of the
     // caller's user-jwt (whose aud is `coder-micro-services`).
-    let iam_bearer = crate::mint_service_bearer(&state.private_key_pem, "iam-service", 300)
+    let iam_bearer = crate::mint_service_bearer_for_state(&state, "iam-service", 300)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
     let extra_claims: serde_json::Value = match crate::fetch_json(
         &state.http_client,
@@ -187,7 +202,7 @@ mod tests {
     }
 
     fn decode(public_pem: &str, token: &str) -> Result<RefreshTokenInfo, StatusCode> {
-        decode_refresh_token(token, public_pem, "test-issuer")
+        decode_refresh_token_multi(token, &[public_pem.to_string()], "test-issuer")
     }
 
     #[test]

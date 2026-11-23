@@ -29,8 +29,23 @@ pub enum SignError {
 
 /// Sign a JWT with RS256 and the given PEM-encoded private key.
 /// `claims["iat"]` and `claims["exp"]` are overridden based on `now() + ttl`.
+/// Header `kid` is the legacy `"default"` — see `sign_token_with_kid` for
+/// keystore-driven deployments (token-service 2026-11-23 key persistence).
 pub fn sign_token(
     private_key_pem: &str,
+    claims: &Value,
+    ttl: Duration,
+) -> Result<String, SignError> {
+    sign_token_with_kid(private_key_pem, crate::cache::LEGACY_KID, claims, ttl)
+}
+
+/// Same as `sign_token` but with an explicit header `kid`. Verifiers are
+/// kid-strict (`verify_token`), so a rotated signer MUST stamp the kid its
+/// public key is published under in JWKS — otherwise every verifier rejects
+/// the token with "unknown kid".
+pub fn sign_token_with_kid(
+    private_key_pem: &str,
+    kid: &str,
     claims: &Value,
     ttl: Duration,
 ) -> Result<String, SignError> {
@@ -41,7 +56,7 @@ pub fn sign_token(
     let key = EncodingKey::from_rsa_pem(private_key_pem.as_bytes())
         .map_err(|e| SignError::InvalidKey(e.to_string()))?;
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some("default".to_string());
+    header.kid = Some(kid.to_string());
     encode(&header, &claims, &key).map_err(|e| SignError::Encode(e.to_string()))
 }
 
