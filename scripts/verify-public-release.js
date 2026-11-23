@@ -44,7 +44,9 @@ async function verifyNpm() {
   for (const item of sdkPublish.NPM_PACKAGES) {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, item.dir, 'package.json'), 'utf8'));
     if (manifest.private === true) continue;
-    const encodedName = encodeURIComponent(manifest.name || item.name);
+    const packageName = manifest.name || item.name;
+    // npm's scoped package endpoint keeps the leading @ and encodes only the slash.
+    const encodedName = packageName.startsWith('@') ? packageName.replace('/', '%2F') : encodeURIComponent(packageName);
     const url = `https://registry.npmjs.org/${encodedName}/${encodeURIComponent(manifest.version)}`;
     await verifyHttp(url, `npm ${manifest.name || item.name}@${manifest.version}`);
     console.log(`verified npm ${manifest.name || item.name}@${manifest.version}`);
