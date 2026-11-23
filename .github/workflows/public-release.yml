@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
       - name: Resolve target release tag
         id: target
         if: github.event_name != 'pull_request'
@@ -76,6 +76,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install Node dependencies
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - name: Rust formatting
         run: cargo fmt --check --all
@@ -111,7 +112,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
+      - name: Prepare immutable tag source with current public-release tooling
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          mkdir -p "$RELEASE_DIR"
+          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
+          echo "RELEASE_DIR=$RELEASE_DIR" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -125,6 +141,7 @@ jobs:
       - name: Publish crates and Rust SDKs
         env:
           CARGO_REGISTRIES_CRATES_IO_TOKEN: ${{ secrets.CRATES }}
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: |
           node packages/cli/bin/coder.js release sdk rust --registry crates-io
           node scripts/verify-public-release.js rust
@@ -137,7 +154,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
+      - name: Prepare immutable tag source with current public-release tooling
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          mkdir -p "$RELEASE_DIR"
+          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
+          echo "RELEASE_DIR=$RELEASE_DIR" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -146,10 +178,12 @@ jobs:
         with:
           version: 10
       - name: Install dependencies
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - name: Publish npm packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPMPUBLISHKEY }}
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: |
           node packages/cli/bin/coder.js release sdk npm --registry https://registry.npmjs.org/
           node scripts/verify-public-release.js npm
@@ -162,7 +196,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
+      - name: Prepare immutable tag source with current public-release tooling
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          mkdir -p "$RELEASE_DIR"
+          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
+          echo "RELEASE_DIR=$RELEASE_DIR" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -183,6 +232,7 @@ jobs:
       - name: Publish versioned service images
         env:
           DOCKER_USER_NAME: ${{ secrets.DOCKER_USER_NAME }}
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: |
           test -n "$DOCKER_USER_NAME"
           node packages/cli/bin/coder.js release images --push --registry docker.io --repo "$DOCKER_USER_NAME"
@@ -192,5 +242,5 @@ jobs:
         with:
           name: docker-hub-image-pins-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           path: |
-            examples/docker-deploy/.image.env
-            examples/docker-deploy-full/.image.env
+            ${{ runner.temp }}/lmms-release-src/examples/docker-deploy/.image.env
+            ${{ runner.temp }}/lmms-release-src/examples/docker-deploy-full/.image.env
