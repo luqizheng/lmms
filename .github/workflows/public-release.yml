@@ -12,7 +12,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing release tag to publish (vMAJOR.MINOR.PATCH), e.g. v1.8.0'
+        description: 'Existing release tag to publish (vMAJOR.MINOR.PATCH)'
+        required: true
+        type: string
+      expected_sha:
+        description: 'Expected full commit SHA for the immutable release tag'
         required: true
         type: string
 
@@ -55,8 +59,11 @@ jobs:
           git fetch origin "+refs/tags/${TAG}:refs/tags/${TAG}"
           git fetch origin main
           COMMIT="$(git rev-parse "${TAG}^{commit}")"
+          EXPECTED_SHA="${{ inputs.expected_sha }}"
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "expected_sha must be a full 40-character SHA"; exit 1; }
+          [[ "$COMMIT" == "$EXPECTED_SHA" ]] || { echo "tag SHA mismatch: expected $EXPECTED_SHA, got $COMMIT"; exit 1; }
           git merge-base --is-ancestor "$COMMIT" origin/main
-          echo "tag ${TAG} (${COMMIT}) 属于 main 历史"
+          echo "tag ${TAG} (${COMMIT}) belongs to main history"
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -92,8 +99,8 @@ jobs:
         run: pnpm run packages:build
       - name: Validate release plans without publishing
         run: |
-          node packages/cli/bin/coder.js release sdk rust --dry-run
-          node packages/cli/bin/coder.js release sdk npm --dry-run
+          node packages/cli/bin/coder.js release sdk rust --dry-run --registry crates-io
+          node packages/cli/bin/coder.js release sdk npm --dry-run --registry https://registry.npmjs.org/
           node packages/cli/bin/coder.js release images --dry-run --registry docker.io --repo validation-only
 
   publish-crates:
@@ -118,12 +125,14 @@ jobs:
       - name: Publish crates and Rust SDKs
         env:
           CARGO_REGISTRIES_CRATES_IO_TOKEN: ${{ secrets.CRATES }}
-        run: node packages/cli/bin/coder.js release sdk rust
+        run: |
+          node packages/cli/bin/coder.js release sdk rust --registry crates-io
+          node scripts/verify-public-release.js rust
 
   publish-npm:
     if: github.event_name != 'pull_request'
     name: Publish TypeScript SDKs to npmjs.org
-    needs: validate
+    needs: publish-crates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,12 +150,14 @@ jobs:
       - name: Publish npm packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPMPUBLISHKEY }}
-        run: node packages/cli/bin/coder.js release sdk npm
+        run: |
+          node packages/cli/bin/coder.js release sdk npm --registry https://registry.npmjs.org/
+          node scripts/verify-public-release.js npm
 
   publish-docker:
     if: github.event_name != 'pull_request'
     name: Publish service images to Docker Hub
-    needs: validate
+    needs: publish-npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -175,6 +186,7 @@ jobs:
         run: |
           test -n "$DOCKER_USER_NAME"
           node packages/cli/bin/coder.js release images --push --registry docker.io --repo "$DOCKER_USER_NAME"
+          node scripts/verify-public-release.js docker
       - name: Upload generated image pins
         uses: actions/upload-artifact@v4
         with:
