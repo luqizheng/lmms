@@ -146,11 +146,11 @@ const commands = {
     summary: 'build (and push) service images from services/* crate versions; pin .image.env after push',
     spec: {
       summary: 'build (and push) service images from services/* crate versions; pin .image.env after push',
-      usage: 'coder release images [--push] [--dry-run]',
+      usage: 'coder release images [--push] [--dry-run] [--registry <host>] [--repo <name>]',
       examples: ['coder release images --dry-run', 'coder release images --push'],
       flags: {
         '--push': { type: 'flag', desc: 'push images to the registry' },
-        '--dry-run': { type: 'flag', desc: 'print the plan and resulting pins; build nothing' },
+        '--dry-run': { type: 'flag', desc: 'print the plan and resulting pins; build nothing' },\n        '--registry': { type: 'value', desc: 'override registry host/prefix' },\n        '--repo': { type: 'value', desc: 'override registry namespace/repository prefix' },
       },
     },
     run: async (args, ctx) => {
