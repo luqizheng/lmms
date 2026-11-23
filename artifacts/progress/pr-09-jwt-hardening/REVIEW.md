@@ -102,3 +102,34 @@
 | **合并判定** | **达到合并条件**。P2 中 F4（并发 backup）与 F3（升级后重做备份的运维提示）建议合并前顺手处理或紧跟修复；F1/F2 可合并后跟进（触发概率极低且有指纹 CAS 兜底）。 |
 
 问题明细与修复建议见同目录 `FINDINGS.md`。
+
+---
+
+## 附：P2 修复复核（2026-11-23 remediation re-check）
+
+上一节审查结论基于 head `652a9bfa`。其后针对审查发现的 4 个 P2 完成修复
+（fix commit 见 `P2-REMEDIATION-FINAL.md`，HEAD 为其后的 docs commit）。复核结论：
+
+| 发现 | 修复核验 | 结论 |
+|---|---|---|
+| F1 Drop 无条件删锁 | Drop 重读锁文件、核验 UUID v4 owner token，不匹配/损坏/缺失一律保留；Unix 在 flock 仍持有期间完成 读→删 序列（无窗口），Windows 先关句柄再核验后删 | ✅ 修复成立 |
+| F2 mtime stale 回收 | `lock_is_stale` 已删除。接管唯一判据 = 独占内核锁可获取（Unix `flock(LOCK_EX\|LOCK_NB)` / Windows `share_mode(0)` 打开成功）；拿不到 = 存活持有者，fail-closed 等待至 `LockBusy`。liveness 由内核裁决，PID 重用免疫；flock 异常 errno 同样 fail-closed | ✅ 修复成立 |
+| F3 旧格式备份升级空窗 | runbook §4.1：升级前核对记录（active kid/密钥数量）、升级后强制重做信封备份 + checksum 核对 + 演练 restore 验证，完成前不得删除旧备份；失败回退路径成文 | ✅ 修复成立（运维方案） |
+| F4 backup 不持锁/固定 tmp | `write_backup_inner` 全程持锁；锁内从磁盘 `load`+validate 重载快照（磁盘不可读时拒绝备份陈旧内存）；tmp 唯一名 + 失败清理 | ✅ 修复成立 |
+
+顺带修复：F5（0600 直建）、F6（`.` 不 chmod）、F11（读回全量 checksum）、F12（无回滚目标时 ERROR 显性化）。
+
+复核测试（本机 Windows host 工具链，`SWAGGER_UI_DOWNLOAD_URL=file://...`）：
+`cargo test -p token_service --lib` → **79 passed / 0 failed**（66 既有 + 13 新增；Linux CI 预期同为 79，
+差异为 1 个 windows-only 测试与 1 个 unix-only 测试互相抵消）。新增测试覆盖：
+Drop 只删自己 token 的锁、外部篡改（Unix 可写场景 + Windows 独占拒绝两种语义）、
+持有者存活期间即使伪造一天前时间戳也不被回收、死持有者/旧格式锁接管并重写 ownership、
+rotate/backup/restore 三类并发（barrier/channel 同步，无固定 sleep，备份断言串行化前缀性质）、
+同目标并发备份无 tmp 残留、备份失败不损坏既有备份。
+
+修复残留限制（非阻断）：
+- Unix flock 为劝告锁，非协作写者仍可在持有期间改写锁 payload——这正是 Drop owner 核验
+  防住的场景（有测试）；协作进程间互斥由 flock 保证。
+- Windows 下持有期间锁文件不可被任何路径访问（含读取），Drop 依赖「先关句柄→核验→删除」，
+  关闭与删除间理论上存在极窄窗口，由 owner 核验二次收窄；残留锁由内核锁接管路径自愈。
+- `flock` 的可用性依赖本地文件系统（NFS 等弱一致存储不保证），runbook §9 已有声明。

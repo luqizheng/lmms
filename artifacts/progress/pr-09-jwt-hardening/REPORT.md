@@ -2,16 +2,23 @@
 
 - PR：https://github.com/luqizheng/lmms/pull/9
 - 分支：`feat/jwt-key-operations-hardening` → `main`
-- 最终提交 SHA：`39df6ce1ea6ace8a2d9984d904cc312087c6c4a6`
+- 代码修复 commit：`0481726f100610b1cefb1ae209cc9ccc1c1f8817`
+  （`fix(token): close keystore lock and backup concurrency gaps`，2026-11-23 P2 remediation）
+- 本文件更新于 P2 remediation 文档 commit（即推送后 PR head，SHA 见
+  [`P2-REMEDIATION-FINAL.md`](./P2-REMEDIATION-FINAL.md)）
+- 历史标注：初版交付时最终提交为 `39df6ce1ea6ace8a2d9984d904cc312087c6c4a6`；
+  该 SHA **已不再是**最终 head（后续有 formal review commit `02721807` 与 P2 修复 commit），
+  保留于此仅为历史追溯。
 - 基线 main SHA：`5b675086597e001e794a4c2f3a3575a431af6cc9`
-- PR 状态：**open（未合并）**，`mergeable=true`
-- 报告生成时间：2026-11-23（Asia/Shanghai）
+- PR 状态：**open（未合并）**
+- 报告更新时间：2026-11-23（Asia/Shanghai）
 
 ## 一、结论
 
 - 基于代码/配置/部署模型的实证调查，确认 PR #7 遗留 5 类运维风险并逐项加固；未重复实现 PR #7 已有能力。
-- 本地 `cargo test -p token_service --lib` → **66 passed / 0 failed**；`cargo clippy -p token_service --all-targets` 无告警；5 项仓库门禁全部通过。
-- GitHub Actions 两个工作流在最终提交上全部 **success**。
+- 后续独立复审发现 4 个 P2（锁 Drop 误删、stale 判定无 pid 校验、旧格式备份升级空窗、并发备份不一致），已于 2026-11-23 完成**代码级修复**（见 §五.5 与 [`P2-FIX-REPORT.md`](./P2-FIX-REPORT.md)）。
+- 本地 `cargo test -p token_service --lib` → **79 passed / 0 failed**（修复后，Windows host）；`cargo clippy -p token_service --all-targets -- -D warnings` 无 error；5 项仓库门禁全部通过。
+- GitHub Actions 结果以推送后当前 head 的实际运行为准（见 [`P2-REMEDIATION-FINAL.md`](./P2-REMEDIATION-FINAL.md)，未完成前不标注 success）。
 - 未合并任何 PR、未创建 Tag、未发布任何产物、未修改 Secrets、未删除密钥、未执行不可逆 DB 操作、未修改 main。
 
 ## 二、调查报告
@@ -63,28 +70,44 @@
 ## 五、修复内容
 
 - **审计**：覆盖 create / import / rotate / retire / delete / backup / restore 及失败（`token.jwt_key.restore_failed` 独立事件）；记录 actor（在线=service-jwt `sub`，离线=`keytool`，首启=`system`）、action、result、kid、related_kid、trace_id、detail；**绝不含 PEM/私钥/凭证**。
-- **并发一致性**：`keystore.json.lock`（`create_new` 跨进程锁，5s 超时，>10min 视为陈旧自动回收）+ 写前磁盘 SHA-256 指纹；陈旧写返回 `Stale`。
+- **并发一致性**：`keystore.json.lock`（持有期间保持句柄打开 + 内核级互斥锁：Unix `flock` / Windows 独占共享模式；锁文件记录 UUID v4 owner token / pid / 创建时间；持有者存活期间锁绝不被回收，接管仅发生在内核锁已释放时）+ 写前磁盘 SHA-256 指纹；陈旧写返回 `Stale`。
 - **备份/恢复**：见 §三.3；损坏 checksum / 不兼容版本 / 旧裸格式均拒绝且**不触碰 live keystore**；恢复失败自动回滚、原有历史 token 继续可验签。
 - **运维手册**：命令与实际 CLI/HTTP 完全一致，未写入任何未实现功能。
+- **P2 remediation（2026-11-23，commit `0481726f`）**：
+  1. 锁所有权：owner token + Drop 核验（F1）；
+  2. 锁回收策略：内核锁接管，替代 mtime 判定（F2）；
+  3. backup 持锁 + 锁内磁盘重载快照 + 唯一 tmp（F4）；
+  4. runbook §4.1 旧格式备份升级强制流程（F3）；
+  5. 顺带修复 P3：F5（0600 直建）、F6（`.` 不 chmod）、F11（读回全量 checksum）、F12（无回滚目标显性化）。
+  详情见 [`P2-FIX-REPORT.md`](./P2-FIX-REPORT.md)。
 
 ## 六、测试命令与结果
 
+### 当前状态（P2 修复后，fix commit `0481726f`，本机 Windows host）
+
 | 检查 | 命令 | 结果 |
 | --- | --- | --- |
-| 单元测试 | `cargo test -p token_service --lib` | **66 passed / 0 failed** |
-| 全目标编译 | `cargo check -p token_service --all-targets` | 通过（仅既有 workspace unused-dep 警告） |
-| Clippy | `cargo clippy -p token_service --all-targets` | 无告警 |
+| 格式 | `cargo fmt --all -- --check` | 通过 |
+| 单元测试 | `cargo test -p token_service --lib` | **79 passed / 0 failed** |
+| Clippy | `cargo clippy -p token_service --all-targets -- -D warnings` | 无 error |
 | 服务规范 | `node scripts/check-service-standard.js` | 通过 |
-| 契约规范 | `node scripts/check-spec.js` | 通过（既有 summary 建议为 warn） |
+| 契约规范 | `node scripts/check-spec.js` | 通过 |
 | 契约漂移 | `node scripts/contracts-gen.js --check` | 通过（in sync） |
 | 表名前缀 | `node scripts/check-db-naming.js` | 通过 |
 | OpenAPI 漂移 | `node scripts/dump-openapi-specs.js` + `git diff --exit-code -- 'services/*/openapi.yaml'` | 通过（无漂移） |
 
-覆盖场景（新增/强化单测）：正常轮换；并发轮换（陈旧快照被拒且不丢钥）；退役/删除保留期；审计持久化与重启后可读；审计不含私钥原文；备份 checksum 篡改拒绝；损坏备份、不兼容版本、旧裸格式拒绝；恢复失败回滚且 live 文件字节不变；恢复后历史 token 验签；成功恢复生成恢复前快照；多实例场景（同一文件两视图 → 显式 `Stale`）。
+### 历史状态（初版交付，`39df6ce1`，66 passed）——保留作历史对照，非当前结果
 
-## 七、GitHub Actions 运行结果（最终提交 `39df6ce1`）
+| 检查 | 结果 |
+| --- | --- |
+| 单元测试 | 66 passed / 0 failed |
+| Clippy / 5 项门禁 | 全过 |
 
-| 工作流 | Run ID | 结果 |
+覆盖场景（新增/强化单测，含 P2 remediation）：正常轮换；并发轮换（陈旧快照被拒且不丢钥）；退役/删除保留期；审计持久化与重启后可读；审计不含私钥原文；备份 checksum 篡改拒绝；损坏备份、不兼容版本、旧裸格式拒绝；恢复失败回滚且 live 文件字节不变；恢复后历史 token 验签；成功恢复生成恢复前快照；多实例场景（同一文件两视图 → 显式 `Stale`）；**锁所有权（Drop 只删自己 token 的锁、篡改场景双平台语义）、持有者存活不回收（伪造一天前时间戳）、死持有者/旧格式锁接管重写、rotate/backup/restore 三类并发（barrier/channel 定序、备份串行前缀断言）、同目标并发备份、备份失败不损坏既有文件**。
+
+## 七、GitHub Actions（历史：初版交付 `39df6ce1`；当前 head 见 P2-REMEDIATION-FINAL.md）
+
+| 工作流 | Run ID | 结果（历史 head `39df6ce1`） |
 | --- | --- | --- |
 | OpenAPI Generation Validation | [45130581838](https://github.com/luqizheng/lmms/actions/runs/45130581838) | success |
 | Database Dialect Matrix | [45130581924](https://github.com/luqizheng/lmms/actions/runs/45130581924) | success |

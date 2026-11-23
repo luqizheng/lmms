@@ -1,6 +1,6 @@
 # JWT 签名密钥运维手册（token-service）
 
-> **状态**：与实现同步（2026-11-23，PR #9 加固）
+> **状态**：与实现同步（2026-11-23，PR #9 加固 + P2 修复：锁所有权/接管策略/备份一致性）
 > **关联**：`docs/superpowers/specs/2026-11-23-token-jwt-key-persistence-design.md`（PR #7 基础能力）、
 > `docs/superpowers/specs/2026-11-23-token-jwt-key-operations-hardening-design.md`（PR #9 审计/一致性/备份加固）
 > **权威来源**：`services/token-service/README.md`（存储模型与命令细节）
@@ -107,8 +107,44 @@ docker exec <token-container> rm -f /app/keys/keystore.backup.json
 
 - 备份是**带信封的格式**：`backup_format_version` / `created_at` / `producer` /
   `keystore_sha256`（对 keystore 规范化 JSON 的 SHA-256）/ `keystore`；
+- 备份与 rotate/restore 走**同一把跨进程锁**，快照在锁内**从磁盘重新加载并校验**后生成：
+  即使 keytool 进程内存里的视图过时，备份也反映锁保护时刻的真实磁盘状态，不会产生
+  撕裂/陈旧快照；
 - 文件 0600，`*.backup.json` 已 gitignore；**含全部私钥，严禁提交 Git、严禁进工单附件**；
-- 每次 rotate 后 + 每周例行备份；备份本身**未加密**（见 §8 风险）。
+- 每次 rotate 后 + 每周例行备份；备份本身**未加密**（见 §8 风险）；
+- `keytool backup` 完成时会打印 `keystore_sha256`，请与密管存储中登记的值核对后再删除容器内副本。
+
+### 4.1 PR #7 旧格式备份升级（必读）
+
+**PR #7 时代生成的"裸 keystore"备份**（文件直接是 `KeyStoreData` JSON，无
+`backup_format_version`/`keystore_sha256` 信封）**不受当前 `keytool restore` 支持**：
+restore 会在第 1 步即拒绝并报 `unsupported backup format`（`BackupVersion`，错误消息
+含 "legacy bare-keystore backup"）。这是有意的 fail-closed 设计——旧格式没有完整性
+校验，静默兼容它会绕过新版本的防篡改检查。
+
+**从运行 PR #7 的版本升级到 PR #9 及以后时，按以下顺序执行：**
+
+升级前（旧版本仍在正常运行时）：
+
+1. 确认旧版本服务正常：`GET /health` 通过，`keytool inspect` 能列出密钥；
+2. 记录核对信息（**只记 kid/数量/时间戳，绝不记录密钥内容**）：
+   - `keytool inspect --keystore /app/keys/keystore.json` 输出的 active kid 与密钥数量；
+   - 各 kid 的 status（active/retiring/retired）与 created_at；
+3. 确认存在可用的旧备份并**在安全环境（密管存储）保留一份**；
+4. 用旧版本自身的恢复机制或演练环境验证旧备份可读（不要求能被新版本 restore）。
+
+升级后（强制步骤，未完成前不得删除旧备份）：
+
+1. 服务升级后确认正常启动、`keytool inspect` 的 active kid 与密钥数量与升级前记录**一致**；
+2. **用升级后的 keytool 重新生成信封格式备份**：`keytool backup --keystore … --out <file>`；
+3. 核对命令输出的 `keystore_sha256`，并在演练环境验证新备份可被当前版本
+   `keytool restore` 识别（restore 到临时路径，不要覆盖生产 keystore）；
+4. 将新备份保存到密管存储并登记 checksum；
+5. **完成第 3-4 步并验证通过之前，绝不删除旧格式备份**——它是升级失败时唯一的回退材料。
+
+升级失败回退：若新版本无法启动或 keystore 校验失败，回到旧版本镜像（compose 改回旧
+image tag 后 `docker compose up -d`），用升级前记录的 active kid 核对 keystore 未被改动；
+若 keystore 本身损坏，在旧版本上用旧备份恢复（旧版本支持旧格式），再重新走升级流程。
 
 ---
 
@@ -125,13 +161,13 @@ docker start <token-container>
 
 恢复的内部顺序（全部通过才写盘）：
 
-1. 解析信封 + 检查 `backup_format_version`（不支持 → 拒绝，`BackupVersion`）；
+1. 解析信封 + 检查 `backup_format_version`（不支持，含 PR #7 旧格式裸备份 → 拒绝，`BackupVersion`，重新用当前版 keytool 生成，见 §4.1）；
 2. 计算 `keystore_sha256` 并与备份记录比对（不一致 → 拒绝，`BackupIntegrity`）；
 3. 全量 `validate_data`（PEM 可解析、公私钥匹配、active 存在、kid 唯一…）；
 4. 取 `keystore.json.lock` 跨进程锁；
 5. 写**恢复前快照** `keystore.pre-restore.<epoch>.json`（0600，同目录）；
 6. 指纹校验下原子覆盖（若期间有他人写入 → `Stale`，拒绝并保留现场）；
-7. 从磁盘读回校验（active kid / key 数量一致）——失败则用快照自动回滚并报 `RestoreFailed`。
+7. 从磁盘读回并做**全量 checksum 比对**（与备份信封中 `keystore_sha256` 一致）——失败则用快照自动回滚并报 `RestoreFailed`；若无恢复前快照（原 keystore 不存在）则无法回滚，日志会以 ERROR 显式说明现场处于 restored 状态，需人工确认。
 
 恢复后重启，备份内包含的密钥所签发的历史 token 恢复可验证。
 
@@ -142,10 +178,11 @@ docker start <token-container>
 | 现象 | 含义 | 处理 |
 |---|---|---|
 | `backup integrity check failed` | 备份被截断/篡改/传输损坏 | 换另一份备份；重新从密管取原件校验 sha256 |
-| `unsupported backup format` | 旧版裸 keystore 备份或未来版本 | 用当前版本 `keytool backup` 重新生成 |
-| `restore failed and the previous keystore was restored` | 写盘后读回校验失败，已自动回滚 | 现场未破坏；检查磁盘健康/权限后重试或换备份 |
+| `unsupported backup format`（含 "legacy bare-keystore"） | PR #7 旧格式裸 keystore 备份 | 按 §4.1 升级流程：升级后在当前版本重新 `keytool backup`；不要试图绕过校验 |
+| `restore failed and the previous keystore was restored` | 写盘后读回 checksum 不一致，已自动回滚 | 现场未破坏；检查磁盘健康/权限后重试或换备份 |
+| `restore failed`（日志含 "NO pre-restore snapshot"） | 原 keystore 不存在导致无回退材料，现场处于 restored 状态 | 立即人工核对 `keytool inspect`；确认无误后重启服务，否则换备份重新 restore |
 | `keystore changed on disk since it was loaded` | 恢复期间有并发写入 | 停掉其他写入者（另一 keytool/副本）后重试 |
-| `another key operation is in progress` | 锁被占用 5s | 确认无并发操作；确认无残留 `keystore.json.lock`（>10min 会自动回收） |
+| `another key operation is in progress` | 锁被占用 5s | 确认无并发操作。锁文件由内核锁保护：持有者存活期间锁不会被回收；持有者退出/崩溃后下一次操作自动接管，**不要手动删除 `keystore.json.lock`**（若确需手动清理，先 `kill` 确认没有 keytool/服务进程在跑） |
 
 恢复前快照 `keystore.pre-restore.<epoch>.json` **不要删除**：它保存了恢复前的完整密钥集，
 是"恢复选错备份"时唯一的回退材料。
@@ -187,10 +224,14 @@ docker exec <token-container> /app/keytool audit --keystore /app/keys/keystore.j
 ## 9. 风险与注意事项
 
 - **单实例子**：多副本不受支持，见 §1；违规并发会显式报 `Stale`/`LockBusy`，不会静默丢钥。
-- **锁是本地文件锁**（`keystore.json.lock`）：只覆盖同一挂载卷上的进程；NFS/多节点共享卷不保证
-  语义，需先在目标存储上验证 `create_new` 原子性。
+- **锁是本地文件锁 + 内核锁**（`keystore.json.lock`）：持有者保持文件句柄打开并持有
+  内核级互斥锁（Unix `flock` / Windows 独占共享模式），锁文件记录 owner token/pid/时间。
+  持有者存活期间锁**绝不会被回收**（不存在按 mtime 误删长时间操作的可能）；持有者退出
+  或崩溃后，下一次操作自动接管。只覆盖同一挂载卷上的进程；NFS/多节点共享卷不保证
+  `flock`/独占打开语义，需先在目标存储上验证。
 - **备份未加密**：依赖密管存储的访问控制；泄露即等于私钥泄露（§7）。
 - **恢复会替换整套密钥状态**：用旧备份恢复会丢掉备份之后新建的钥（如已轮换的新钥），
   恢复前快照是唯一回退途径；执行前确认备份时间点。
 - **删除不可逆**：仅在过期 + 保留期满后执行，执行前确认有可用备份。
-- `keytool` 打印内容只有 kid/状态/时间；任何时候都不要 `cat keystore.json` 或把 PEM 贴进工单。
+- **旧格式备份不可 restore**：PR #7 裸 keystore 备份会被拒绝，升级流程见 §4.1。
+- `keytool` 打印内容只有 kid/状态/时间/checksum；任何时候都不要 `cat keystore.json` 或把 PEM 贴进工单。

@@ -9,7 +9,7 @@
 | PR | 标题 | 分支 | 地址 | 最终 SHA | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | #8 | feat(release): add tag-triggered public publishing pipeline | `feat/public-release-pipeline` | https://github.com/luqizheng/lmms/pull/8 | `327b0016cf38ea665e0949d209b4a89834bbac2a`（快照） | open，未合并 |
-| #9 | feat(token): JWT key lifecycle operations hardening | `feat/jwt-key-operations-hardening` | https://github.com/luqizheng/lmms/pull/9 | `39df6ce1ea6ace8a2d9984d904cc312087c6c4a6` | open，未合并 |
+| #9 | feat(token): JWT key lifecycle operations hardening | `feat/jwt-key-operations-hardening` | https://github.com/luqizheng/lmms/pull/9 | 代码修复 commit `0481726f100610b1cefb1ae209cc9ccc1c1f8817`，其后为 docs commit（推送后 head 见 P2-REMEDIATION-FINAL.md） | open，未合并 |
 
 > 注：PR #8 分支在本报告编写期间仍被并发迭代（head SHA 持续前进），上表 SHA 为快照；以 PR 页面最新值为准。PR #8 自带收尾报告位于其分支 `artifacts/progress/pr-08-public-release/REPORT.md`。
 
@@ -24,16 +24,18 @@
 
 - 实证发现 5 类风险（审计缺失、备份无完整性/版本、恢复无快照/读回/回滚、并发丢失更新、多实例不可用），逐项最小化加固。
 - 关键改动：持久审计账本 `keystore-audit.jsonl`（结构对齐 `audit_events`，绝不含密钥原文）；跨进程锁 + 写前 SHA-256 指纹（陈旧写 `Stale`，不静默覆盖）；备份版本化信封 + checksum + 恢复前快照 + 读回校验 + 自动回滚；单实例部署不引入分布式锁并记录扩展条件；新增运维手册。
-- 测试：`cargo test -p token_service --lib` → 66 passed / 0 failed；Clippy 无告警；5 项门禁通过。
-- CI（`39df6ce1`）：OpenAPI Generation Validation [45130581838] success；Database Dialect Matrix [45130581924] success。
+- **P2 remediation（2026-11-23）**：独立复审发现的 4 个 P2 已完成代码级修复（commit `0481726f`）——锁 owner token + Drop 核验（F1）、锁回收改内核锁接管 fail-closed（F2）、runbook 旧格式备份升级强制流程（F3）、backup 持锁 + 锁内磁盘重载快照 + 唯一 tmp（F4）；顺带修复 F5/F6/F11/F12 四个 P3。详见 `artifacts/progress/pr-09-jwt-hardening/P2-FIX-REPORT.md` 与 `P2-REMEDIATION-FINAL.md`。
+- 测试：`cargo test -p token_service --lib` → **79 passed / 0 failed**（修复后，本机 Windows）；Clippy `-D warnings` 无 error；5 项门禁通过。
+- CI：初版 `39df6ce1` 上两个工作流 success（45130581838 / 45130581924）；**当前 head 的 CI 以推送后实际运行为准，见 P2-REMEDIATION-FINAL.md**。
 - 详细报告：`artifacts/progress/pr-09-jwt-hardening/REPORT.md`；调查：`INVESTIGATION.md`。
 
 ## 四、CI 总体状态
 
 | 分支 | 工作流 | 结果 |
 | --- | --- | --- |
-| PR #9 `feat/jwt-key-operations-hardening` | OpenAPI Generation Validation | success（45130581838） |
-| PR #9 `feat/jwt-key-operations-hardening` | Database Dialect Matrix | success（45130581924） |
+| PR #9 `feat/jwt-key-operations-hardening`（历史 head `39df6ce1`） | OpenAPI Generation Validation | success（45130581838） |
+| PR #9 `feat/jwt-key-operations-hardening`（历史 head `39df6ce1`） | Database Dialect Matrix | success（45130581924） |
+| PR #9（P2 修复后当前 head） | 同上两个工作流 | 推送后核对，见 P2-REMEDIATION-FINAL.md（未完成前不标注） |
 | PR #8 `feat/public-release-pipeline`（快照 `327b0016`） | Public Release | success |
 | PR #8 `feat/public-release-pipeline`（快照 `327b0016`） | OpenAPI Generation Validation | success |
 | PR #8 `feat/public-release-pipeline`（快照 `327b0016`） | Database Dialect Matrix | in-progress（更早 head 已 success） |
