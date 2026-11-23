@@ -76,7 +76,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install Node dependencies
-        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - name: Rust formatting
         run: cargo fmt --check --all
@@ -137,6 +136,7 @@ jobs:
         with:
           node-version: 22
       - name: Install Node dependencies
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - name: Publish crates and Rust SDKs
         env:
@@ -221,6 +221,7 @@ jobs:
         with:
           node-version: 22
       - name: Install Node dependencies
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
