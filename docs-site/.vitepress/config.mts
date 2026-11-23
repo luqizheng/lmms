@@ -185,6 +185,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'On-Call 值班', link: '/runbooks/oncall' },
+            { text: '公开发行流程', link: '/runbooks/public-release-pipeline' },
             { text: '凭据管理', link: '/runbooks/credentials' },
             { text: '密钥轮换', link: '/runbooks/secret-rotation' },
             { text: '数据库迁移', link: '/runbooks/database-migration' },
