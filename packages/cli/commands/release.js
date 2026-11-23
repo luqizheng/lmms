@@ -260,7 +260,7 @@ const commands = {
     summary: 'publish SDKs (rust crates / npm packages / java) — versions are per-ecosystem',
     spec: {
       summary: 'publish SDKs (rust crates / npm packages / java) — versions are per-ecosystem',
-      usage: 'coder release sdk [rust|npm|java|all] [--dry-run] [--targets libs|sdks|all]',
+      usage: 'coder release sdk [rust|npm|java|all] [--dry-run] [--targets libs|sdks|all] [--registry <name-or-url>]',
       examples: [
         'coder release sdk all --dry-run',
         'coder release sdk rust --targets sdks',
@@ -269,12 +269,13 @@ const commands = {
       flags: {
         '--dry-run': { type: 'flag', desc: 'print the plan; publish nothing' },
         '--targets': { type: 'value', desc: 'rust 子集：libs | sdks | all（默认 all）' },
+        '--registry': { type: 'value', desc: '显式覆盖发布 Registry；Rust 公网使用 crates-io，npm 使用完整 HTTPS URL' },
       },
       positional: { name: 'ecosystem', desc: 'rust | npm | java | all（默认 all）' },
     },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release sdk requires a repo context (--cwd)');
-      const { flags, positional } = parseFlags(args, { '--dry-run': 'flag', '--targets': 'value' });
+      const { flags, positional } = parseFlags(args, { '--dry-run': 'flag', '--targets': 'value', '--registry': 'value' });
       const which = (positional[0] || 'all').toLowerCase();
       if (!['rust', 'npm', 'java', 'all'].includes(which)) {
         throw new UsageError(`unknown ecosystem: ${which}（允许 rust | npm | java | all）`);
@@ -292,7 +293,7 @@ const commands = {
       if (which === 'rust' || which === 'all') {
         data.rust = sdkPublish.publishRust({
           root: ctx.root,
-          registry: cfg.sdk.rustRegistry,
+          registry: flags['--registry'] || cfg.sdk.rustRegistry,
           targets,
           dryRun,
           out: ctx.out,
@@ -302,7 +303,7 @@ const commands = {
       if (which === 'npm' || which === 'all') {
         data.npm = sdkPublish.publishNpm({
           root: ctx.root,
-          registry: cfg.sdk.npmRegistry,
+          registry: flags['--registry'] || cfg.sdk.npmRegistry,
           dryRun,
           out: ctx.out,
         });
