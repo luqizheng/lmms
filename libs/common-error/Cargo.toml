@@ -12,3 +12,5 @@ serde_json.workspace = true
 sqlx = { workspace = true }
 reqwest.workspace = true
 axum.workspace = true
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
