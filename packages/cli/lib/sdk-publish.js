@@ -77,6 +77,16 @@ function rewritePathDeps(tomlText, { crateVersions, registry = 'kellnr', toPkgNa
   for (const [dir, version] of Object.entries(crateVersions ?? {})) {
     const pkgName = nameOf(dir);
 
+    // path 依赖可能自带 version 字段（版本 bump 后 `path + version` 是本仓标准写法）。
+    // 先剥掉它，让下面的整体替换不产生重复 version 键（TOML 重复键会直接让 cargo 拒解）。
+    // 兼容 `{ path, version }` 与 `{ path, <其他字段>, version }` 两种排布；version 在
+    // path 之前的写法本仓不存在，若出现由 preflight 的 cargo metadata 解析报错兜底。
+    const stripVersionRe = new RegExp(
+      `(\\{\\s*path\\s*=\\s*"\\.\\./${escapeRegex(dir)}"[^}]*?),\\s*version\\s*=\\s*"[^"]*"`,
+      'g',
+    );
+    content = content.replace(stripVersionRe, '$1');
+
     const patternA = `${pkgName} = { path = "../${dir}" }`;
     const replacementA = registry
       ? `${pkgName} = { version = "${version}", registry = "${registry}" }`

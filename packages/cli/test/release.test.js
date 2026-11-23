@@ -328,3 +328,21 @@ test('release.toml 不再持有 version（版本归 Cargo.toml，避免双真相
   assert.ok(cfg.registry);
   assert.ok(cfg.repo);
 });
+
+test('rewritePathDeps 对自带 version 的 path 依赖不产生重复 version 键（1.8.1 发布实证 bug）', () => {
+  const before = [
+    'digua_common_error = { path = "../common-error", version = "1.8.1" }',
+    'digua_common_telemetry = { path = "../common-telemetry", default-features = false, version = "1.8.1" }',
+  ].join('\n');
+  const after = rewritePathDeps(before, {
+    crateVersions: { 'common-error': '1.8.1', 'common-telemetry': '1.8.1' },
+    registry: 'kellnr',
+    pkgNames: { 'common-error': 'digua_common_error', 'common-telemetry': 'digua_common_telemetry' },
+  });
+  for (const line of after.split('\n').filter((l) => l.includes('digua_'))) {
+    assert.equal(line.match(/version =/g)?.length, 1, '重复 version 键: ' + line);
+    assert.ok(!line.includes('path ='), '残留 path: ' + line);
+  }
+  assert.ok(after.includes('digua_common_error = { version = "1.8.1", registry = "kellnr" }'));
+  assert.ok(after.includes('digua_common_telemetry = { version = "1.8.1", registry = "kellnr", default-features = false }'));
+});
