@@ -150,7 +150,9 @@ const commands = {
       examples: ['coder release images --dry-run', 'coder release images --push'],
       flags: {
         '--push': { type: 'flag', desc: 'push images to the registry' },
-        '--dry-run': { type: 'flag', desc: 'print the plan and resulting pins; build nothing' },\n        '--registry': { type: 'value', desc: 'override registry host/prefix' },\n        '--repo': { type: 'value', desc: 'override registry namespace/repository prefix' },
+        '--dry-run': { type: 'flag', desc: 'print the plan and resulting pins; build nothing' },
+        '--registry': { type: 'value', desc: 'override registry host/prefix' },
+        '--repo': { type: 'value', desc: 'override registry namespace/repository prefix' },
       },
     },
     run: async (args, ctx) => {
