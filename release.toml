@@ -31,8 +31,8 @@ repo = "micro-server"
 [sdk]
 # SDK 发布目标（release sdk 使用；值为空则跳过对应生态）
 # Rust crates → kellnr 私有 registry（cargo 里配置的 registry 名）
-rust_registry = "kellnr"
+rust_registry = ""
 # npm 包 → 私有 registry
-npm_registry = "http://npm.kudi.repos"
+npm_registry = "https://registry.npmjs.org/"
 # Java SDK → Maven 仓库 id（在 .mvn/settings.xml 的 <server> 里配置）
 maven_repository_id = "reposilite-releases"
