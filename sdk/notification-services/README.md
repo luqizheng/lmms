@@ -7,7 +7,7 @@ lmms notification-service SDK：**公告管理与未读数**的 TypeScript 客�
 ## 快速上手
 
 ```ts
-import { createNotificationServices } from "notification-services";
+import { createNotificationServices } from "@digua/notification-services";
 
 const ntf = createNotificationServices({
   baseUrl: "http://127.0.0.1:3000",
@@ -51,7 +51,7 @@ await ntf.announcements.publish(id);
 ## 开发
 
 ```bash
-pnpm --filter notification-services test / typecheck / build
+pnpm --filter @digua/notification-services test / typecheck / build
 ```
 
 发布走仓库统一管线（见 `AGENTS.md`「npm 包发布规则」）。

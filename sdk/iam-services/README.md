@@ -2,26 +2,20 @@
 
 lmms IAM SDK：**登录 / 用户管理 / token 管理**的 TypeScript 客户端。零运行时依赖（原生 `fetch`），浏览器与 Node ≥18 通用，面向 api-gateway 的 `/v1` 公开路径。
 
-> 位置说明：npm TS 包按仓库约定应放顶层 `packages/`；本包经用户裁决（2026-10-31）作为例外放在 `sdk/iam-services`，并已接入既有 npm 发布管线（`packages/cli/lib/npm-packages.js` 清单）。
+> 位置说明：npm TS 包按仓库约定应放顶层 `packages/`；本包经用户裁决（2026-10-31）作为例外放在 `sdk/iam-services`，并已接入公开发布管线（`packages/cli/lib/sdk-publish.js` 清单）。
 
 ## 安装
 
-私有 registry（Verdaccio）发布，项目内建议先配 `.npmrc`：
-
-```
-@digua:registry=http://192.168.2.12:14873/
-registry=http://192.168.2.12:14873/
-//192.168.2.12:14873/:_authToken=<你的令牌>
-```
+公开发布到 npmjs.org（统一使用 `@digua/` scope）：
 
 ```bash
-pnpm add iam-services
+pnpm add @digua/iam-services
 ```
 
 ## 快速上手
 
 ```ts
-import { createIamServices } from "iam-services";
+import { createIamServices } from "@digua/iam-services";
 
 const iam = createIamServices({
   // 默认 http://127.0.0.1:3000（本机 api-gateway）；浏览器同域反代可传相对路径如 "/api-gw"
@@ -95,9 +89,9 @@ try {
 
 ```bash
 pnpm install            # 仓库根
-pnpm --filter iam-services test      # vitest
-pnpm --filter iam-services typecheck
-pnpm --filter iam-services build     # 产物 dist/
+pnpm --filter @digua/iam-services test      # vitest
+pnpm --filter @digua/iam-services typecheck
+pnpm --filter @digua/iam-services build     # 产物 dist/
 ```
 
 发布走仓库统一管线（git tag 为版本单一事实源）：`pnpm run packages:check`（守卫干跑）/ `pnpm run packages:publish --version <x.y.z>`（私有 Verdaccio）。

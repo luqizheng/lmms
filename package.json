@@ -47,7 +47,7 @@
     "docs:dev": "vitepress dev docs-site",
     "docs:build": "vitepress build docs-site",
     "docs:preview": "vitepress preview docs-site",
-    "packages:build": "pnpm --filter @digua/contracts --filter @digua/http --filter iam-services --filter audit-services --filter file-services --filter notification-services --filter prue-services run build"
+    "packages:build": "pnpm --filter @digua/contracts --filter @digua/http --filter @digua/iam-services --filter @digua/audit-services --filter @digua/file-services --filter @digua/notification-services --filter @digua/prue-services run build"
   },
   "dependencies": {
     "argon2": "^0.44.0"

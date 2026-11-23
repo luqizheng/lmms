@@ -6,6 +6,13 @@ on:
   push:
     tags:
       - 'v*'
+  # 手动补发：对已经存在的 tag 指定执行发布（不新建、不移动 tag）。
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish (vMAJOR.MINOR.PATCH), e.g. v1.8.0'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -22,15 +29,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify tag points to main history
-        if: startsWith(github.ref, 'refs/tags/v')
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - name: Resolve target release tag
+        id: target
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid release tag: $TAG"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Verify tag points to main history
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.target.outputs.tag }}"
+          # 手动补发时本地可能还没有该 tag，显式取一次；不存在则直接失败
+          git fetch origin "+refs/tags/${TAG}:refs/tags/${TAG}"
           git fetch origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          COMMIT="$(git rev-parse "${TAG}^{commit}")"
+          git merge-base --is-ancestor "$COMMIT" origin/main
+          echo "tag ${TAG} (${COMMIT}) 属于 main 历史"
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -71,12 +95,14 @@ jobs:
           node packages/cli/bin/coder.js release images --dry-run --registry docker.io --repo validation-only
 
   publish-crates:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request'
     name: Publish Rust crates to crates.io
     needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -93,12 +119,14 @@ jobs:
         run: node packages/cli/bin/coder.js release sdk rust
 
   publish-npm:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request'
     name: Publish TypeScript SDKs to npmjs.org
     needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -114,12 +142,14 @@ jobs:
         run: node packages/cli/bin/coder.js release sdk npm
 
   publish-docker:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request'
     name: Publish service images to Docker Hub
     needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -146,7 +176,7 @@ jobs:
       - name: Upload generated image pins
         uses: actions/upload-artifact@v4
         with:
-          name: docker-hub-image-pins-${{ github.ref_name }}
+          name: docker-hub-image-pins-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           path: |
             examples/docker-deploy/.image.env
             examples/docker-deploy-full/.image.env

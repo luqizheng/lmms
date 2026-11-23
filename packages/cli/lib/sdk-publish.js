@@ -248,11 +248,13 @@ function publishRust({
 const NPM_PACKAGES = [
   { dir: 'packages/contracts', name: '@digua/contracts', needsBuild: true },
   { dir: 'packages/http', name: '@digua/http', needsBuild: true },
-  { dir: 'sdk/iam-services', name: 'iam-services', needsBuild: true },
-  { dir: 'sdk/audit-services', name: 'audit-services', needsBuild: true },
-  { dir: 'sdk/file-services', name: 'file-services', needsBuild: true },
-  { dir: 'sdk/notification-services', name: 'notification-services', needsBuild: true },
-  { dir: 'sdk/prue-services', name: 'prue-services', needsBuild: true },
+  // 全部使用 @digua/ scope：未加 scope 的 file-services / notification-services
+  // 在 npmjs.org 已被他人占用，无法发布；统一 scope 也便于 org 权限管理。
+  { dir: 'sdk/iam-services', name: '@digua/iam-services', needsBuild: true },
+  { dir: 'sdk/audit-services', name: '@digua/audit-services', needsBuild: true },
+  { dir: 'sdk/file-services', name: '@digua/file-services', needsBuild: true },
+  { dir: 'sdk/notification-services', name: '@digua/notification-services', needsBuild: true },
+  { dir: 'sdk/prue-services', name: '@digua/prue-services', needsBuild: true },
 ];
 
 // Windows 上 pnpm 是 .cmd shim，spawnSync 不带 shell 解析不到

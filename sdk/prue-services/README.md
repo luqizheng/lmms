@@ -7,7 +7,7 @@ lmms prue_backend SDK：**动态路由（get-async-routes）与菜单配置版�
 ## 快速上手
 
 ```ts
-import { createPrueServices } from "prue-services";
+import { createPrueServices } from "@digua/prue-services";
 
 const prue = createPrueServices({
   baseUrl: "http://127.0.0.1:3000",
@@ -53,7 +53,7 @@ try {
 ## 开发
 
 ```bash
-pnpm --filter prue-services test / typecheck / build
+pnpm --filter @digua/prue-services test / typecheck / build
 ```
 
 发布走仓库统一管线（见 `AGENTS.md`「npm 包发布规则」）。

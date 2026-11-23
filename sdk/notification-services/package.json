@@ -1,5 +1,5 @@
 {
-  "name": "notification-services",
+  "name": "@digua/notification-services",
   "version": "0.1.0",
   "description": "lmms notification-service SDK：公告管理与未读数的零依赖 fetch 客户端（api-gateway /v1/notification 公开路径，不含 WS）",
   "type": "module",
@@ -30,7 +30,7 @@
   "engines": {
     "node": ">=22"
   },
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"

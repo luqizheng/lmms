@@ -1,5 +1,5 @@
 {
-  "name": "prue-services",
+  "name": "@digua/prue-services",
   "version": "0.1.0",
   "description": "lmms prue_backend SDK：动态路由与菜单配置版本管理（含 ETag 乐观锁）的零依赖 fetch 客户端（api-gateway /v1/pure 公开路径）",
   "type": "module",
@@ -30,7 +30,7 @@
   "engines": {
     "node": ">=22"
   },
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
