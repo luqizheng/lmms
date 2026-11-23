@@ -212,6 +212,7 @@ jobs:
       - name: Publish npm packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPMPUBLISHKEY }}
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc
         working-directory: ${{ runner.temp }}/lmms-release-src
         run: |
           node packages/cli/bin/coder.js release sdk npm --registry https://registry.npmjs.org/
