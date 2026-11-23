@@ -64,6 +64,20 @@ jobs:
           [[ "$COMMIT" == "$EXPECTED_SHA" ]] || { echo "tag SHA mismatch: expected $EXPECTED_SHA, got $COMMIT"; exit 1; }
           git merge-base --is-ancestor "$COMMIT" origin/main
           echo "tag ${TAG} (${COMMIT}) belongs to main history"
+      - name: Prepare immutable tag source with current public-release tooling
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          mkdir -p "$RELEASE_DIR"
+          git archive "$RELEASE_TAG" | tar -x -C "$RELEASE_DIR"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -76,14 +90,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install Node dependencies
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: pnpm install --frozen-lockfile
       - name: Rust formatting
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: cargo fmt --check --all
       - name: Rust Clippy
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Rust workspace library tests
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: cargo test --workspace --lib
       - name: Repository gates
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: |
           node scripts/check-service-standard.js
           node scripts/check-spec.js
@@ -94,10 +113,13 @@ jobs:
           node scripts/dump-openapi-specs.js
           git diff --exit-code -- 'services/*/openapi.yaml'
       - name: CLI tests
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: pnpm run test:cli
       - name: Build public npm packages
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: pnpm run packages:build
       - name: Validate release plans without publishing
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: |
           node packages/cli/bin/coder.js release sdk rust --dry-run --registry crates-io
           node packages/cli/bin/coder.js release sdk npm --dry-run --registry https://registry.npmjs.org/
