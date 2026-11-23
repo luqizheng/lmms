@@ -55,6 +55,7 @@ const BASE_IMAGES = [
   { env: 'IMAGE_JAEGER', ref: 'zhcoder-docker-registry.com:8000/official/jaegertracing/all-in-one:1.55' },
   { env: 'IMAGE_LOKI', ref: 'zhcoder-docker-registry.com:8000/official/grafana/loki:3.3.2' },
   { env: 'IMAGE_PROMTAIL', ref: 'zhcoder-docker-registry.com:8000/official/grafana/promtail:3.3.2' },
+  { env: 'IMAGE_NGINX', ref: 'zhcoder-docker-registry.com:8000/official/nginx:1.27-alpine' },
 ];
 
 // 部署单元清单（examples/ 下，各自一份 .image.env）
