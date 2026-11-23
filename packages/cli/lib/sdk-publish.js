@@ -75,7 +75,8 @@ function rewritePathDeps(tomlText, { crateVersions, registry = 'kellnr', toPkgNa
 
     const patternA = `${pkgName} = { path = "../${dir}" }`;
     const replacementA = registry
-      ? `${pkgName} = { version = "${version}", registry = "${registry}" }`\n      : `${pkgName} = { version = "${version}" }`;
+      ? `${pkgName} = { version = "${version}", registry = "${registry}" }`
+      : `${pkgName} = { version = "${version}" }`;
     if (content.includes(patternA)) {
       content = content.split(patternA).join(replacementA);
       continue;
@@ -85,7 +86,8 @@ function rewritePathDeps(tomlText, { crateVersions, registry = 'kellnr', toPkgNa
       `${escapeRegex(pkgName)}\\s*=\\s*\\{\\s*path\\s*=\\s*"\\.\\./${escapeRegex(dir)}"\\s*,\\s*`,
     );
     const replacementB = registry
-      ? `${pkgName} = { version = "${version}", registry = "${registry}", `\n      : `${pkgName} = { version = "${version}", `;
+      ? `${pkgName} = { version = "${version}", registry = "${registry}", `
+      : `${pkgName} = { version = "${version}", `;
     if (reB.test(content)) content = content.replace(reB, replacementB);
   }
   return content;
