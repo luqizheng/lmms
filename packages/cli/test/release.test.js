@@ -20,7 +20,7 @@ const {
   readServiceVersions,
   publishedDirs,
 } = require('../lib/service-versions.js');
-const { cargoPublishArgs, rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, LIBS_ORDER } = require('../lib/sdk-publish.js');
+const { cargoPublishArgs, rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, LIBS_ORDER, SDKS_ORDER, NPM_PACKAGES } = require('../lib/sdk-publish.js');
 const { readReleaseConfig } = require('../lib/release-toml.js');
 const imageEnv = require('../lib/image-env.js');
 
@@ -240,6 +240,33 @@ test('LIBS_ORDER 里 common-db 排在依赖它的 crate 之前', () => {
     if (idx(dependent) >= 0) {
       assert.ok(idx('common-db') < idx(dependent), `common-db 必须排在 ${dependent} 之前`);
     }
+  }
+});
+
+// ── 发布清单与仓库实际包结构一致 ─────────────────────────────────────────────
+test('npm 发布清单排除内部包，且每个条目都是可公开发布的真实包', () => {
+  const names = NPM_PACKAGES.map((p) => p.name);
+  assert.ok(!names.includes('@digua/cli'), '内部 @digua/cli 不得进入公开发布清单');
+  for (const p of NPM_PACKAGES) {
+    const pkgPath = path.join(REPO_ROOT, p.dir, 'package.json');
+    assert.ok(fs.existsSync(pkgPath), `${p.dir}/package.json 必须存在`);
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    assert.equal(pkg.name, p.name, `${p.dir} 的 package name 与发布清单一致`);
+    assert.notEqual(pkg.private, true, `${p.dir} 标记了 private，不能进入公开发布清单`);
+  }
+});
+
+test('Rust 发布清单条目都有 description/license（crates.io 必填）', () => {
+  const dirs = [
+    ...LIBS_ORDER.map((d) => `libs/${d}`),
+    ...SDKS_ORDER.map((d) => `sdk/rust/${d}`),
+  ];
+  for (const dir of dirs) {
+    const tomlPath = path.join(REPO_ROOT, dir, 'Cargo.toml');
+    assert.ok(fs.existsSync(tomlPath), `${dir}/Cargo.toml 必须存在`);
+    const toml = fs.readFileSync(tomlPath, 'utf8');
+    assert.match(toml, /^description\s*=/m, `${dir} 缺少 description`);
+    assert.match(toml, /^license\s*=/m, `${dir} 缺少 license`);
   }
 });
 
