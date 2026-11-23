@@ -157,9 +157,11 @@ const commands = {
     },
     run: async (args, ctx) => {
       if (!ctx.root) throw new UsageError('release images requires a repo context (--cwd)');
-      const { flags } = parseFlags(args, { '--push': 'flag', '--dry-run': 'flag' });
+      const { flags } = parseFlags(args, { '--push': 'flag', '--dry-run': 'flag', '--registry': 'value', '--repo': 'value' });
 
       const cfg = readReleaseConfig(ctx.root);
+      if (flags['--registry']) cfg.registry = flags['--registry'];
+      if (flags['--repo']) cfg.repo = flags['--repo'];
       const versions = requireConsistentVersion(ctx.root);
       const version = versions.version;
 
