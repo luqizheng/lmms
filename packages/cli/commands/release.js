@@ -176,6 +176,7 @@ const commands = {
         registry: cfg.registry,
         repo: cfg.repo,
         buildArgs: [],
+        latest: false,
         unknown: [],
       };
       const batches = cfg.dialect === 'pg'
