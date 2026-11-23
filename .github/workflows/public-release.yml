@@ -254,6 +254,7 @@ jobs:
         working-directory: ${{ runner.temp }}/lmms-release-src
         run: |
           test -n "$DOCKER_USER_NAME"
+          node scripts/verify-public-release.js docker-preflight
           node packages/cli/bin/coder.js release images --push --registry docker.io --repo "$DOCKER_USER_NAME"
           node scripts/verify-public-release.js docker
       - name: Upload generated image pins
