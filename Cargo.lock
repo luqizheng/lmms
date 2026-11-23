@@ -206,7 +206,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "api_gateway"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "arc-swap",
  "axum 0.8.9",
@@ -629,7 +629,7 @@ dependencies = [
 
 [[package]]
 name = "audit_service"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -2324,7 +2324,7 @@ dependencies = [
 
 [[package]]
 name = "file_service"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3068,7 +3068,7 @@ dependencies = [
 
 [[package]]
 name = "iam_outbox_publisher"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "anyhow",
  "digua_common_db",
@@ -3085,7 +3085,7 @@ dependencies = [
 
 [[package]]
 name = "iam_service"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -3874,7 +3874,7 @@ dependencies = [
 
 [[package]]
 name = "notification_service"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4708,7 +4708,7 @@ checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
 name = "prue_backend"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -6337,7 +6337,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token_service"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "anyhow",
  "argon2",

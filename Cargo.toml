@@ -42,7 +42,7 @@ edition = "2021"
 # 任一服务单独写死版本 → `coder release images` 报 VERSION_SPLIT 并拒绝发布
 # （避免同一批镜像里出现两个版本 tag）。
 # 发布流程：改这里 → `coder release images --push` → 自动更新 .image.env → 打 git tag v<version>
-version = "1.7.0"
+version = "1.8.0"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
