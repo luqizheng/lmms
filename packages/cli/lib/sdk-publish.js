@@ -167,14 +167,11 @@ function readCrateManifest(root, base, dir) {
 
 function cargoPublishArgs(pkgName, registry, dryRun) {
   if (!registry) {
-    // 禁止隐式回退到 cargo 默认 registry（crates.io）——目标不明确就拒绝发布。
-    throw new GuardError(
-      'RUST_REGISTRY_UNSET',
-      'publish target registry is not set — refusing to run cargo publish (would default to crates.io). ' +
-        'Set [sdk].rust_registry in release.toml (e.g. "kellnr").',
-    );
+    throw new GuardError('RUST_REGISTRY_UNSET', 'publish target registry is not set; use an explicit registry or "crates-io".');
   }
-  const args = ['publish', '-p', pkgName, '--no-verify', '--allow-dirty', '--registry', registry];
+  const args = ['publish', '-p', pkgName, '--no-verify', '--allow-dirty'];
+  // crates.io 是 Cargo 内建默认 registry：不传 --registry，也不在依赖项中写 registry 字段。
+  if (registry !== 'crates-io') args.push('--registry', registry);
   if (dryRun) args.push('--dry-run');
   return args;
 }
@@ -190,11 +187,7 @@ function publishRust({
   fs: nodeFs = fs,
 } = {}) {
   if (!registry) {
-    throw new GuardError(
-      'RUST_REGISTRY_UNSET',
-      'publish target registry is not set — refusing to publish (implicit crates.io fallback is forbidden). ' +
-        'Set [sdk].rust_registry in release.toml (e.g. "kellnr").',
-    );
+    throw new GuardError('RUST_REGISTRY_UNSET', 'publish target registry is not set; use an explicit registry or "crates-io".');
   }
   const sequences = targets === 'libs' ? { libs: LIBS_ORDER }
     : targets === 'sdks' ? { sdks: SDKS_ORDER }
@@ -241,7 +234,7 @@ function publishRust({
     for (const { dir, family, base } of dirs) {
       const tomlPath = path.join(root, base, dir, 'Cargo.toml');
       const before = nodeFs.readFileSync(tomlPath, 'utf-8');
-      const after = rewritePathDeps(before, { crateVersions, registry, pkgNames });
+      const after = rewritePathDeps(before, { crateVersions, registry: registry === 'crates-io' ? null : registry, pkgNames });
       if (after !== before && !originals.has(tomlPath)) originals.set(tomlPath, before);
       if (after !== before) nodeFs.writeFileSync(tomlPath, after, 'utf-8');
 
