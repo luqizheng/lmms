@@ -83,7 +83,7 @@
 ## 9. CI 结果
 
 - **PR #10**：dialect-matrix 5 job ✅、core-crates ✅；`generate-and-check` ❌（rsproxy 网络抖动 → 后由 c6794e36 修复真实 drift）、`Validate release candidate` ❌（同 drift）。PR 在 checks 未全绿状态下被合并（用户决定），失败根因已在 main 修复。
-- **main 后续 push**：core-crates ✅（d9dff3b1、477e42a0、1dbc6a09）；openapi drift 由 c6794e36 修复后待最新 push 的 run 确认。
+- **main 后续 push（最终 HEAD `116769f4`，含本报告）**：core-crates ✅ / openapi ✅（c6794e36 修复 drift 后恢复）/ dialect-matrix ✅（首跑 `test-services-postgres` 因 rsproxy 上游网关 504 下载超时失败，`gh run rerun --failed` 后全 job success）。
 - **发布不在 CI 执行**（PR #10 起 tag 推送不触发任何自动发布），全部在本机脚本完成。
 
 ## 10. 未解决问题
