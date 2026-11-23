@@ -6,7 +6,7 @@
 
 A microservices architecture for coder platform, built with Rust.
 
-**本框架不随附前端控制台**（PRISM console 已移除）。前端项目在各自业务仓中，通过 `packages/@digua/contracts` + `@digua/http` + `sdk/{iam,audit,config,file,notification,prue}-services`（npm TS 包，发布到私有 registry `http://192.168.2.12:14873/`）或 `sdk/`（Java / Rust；C# 规划中）接入 api-gateway:3000 唯一公共入口。npm 包的新增与发布规则见 `AGENTS.md`「npm 包发布规则」。
+**本框架不随附前端控制台**（PRISM console 已移除）。前端项目在各自业务仓中，通过 `packages/@digua/contracts` + `@digua/http` + `sdk/{iam,audit,file,notification,prue}-services`（npm TS 包，发布到内部 registry `http://192.168.2.12:14873/`）或 `sdk/`（Java / Rust；C# 规划中）接入 api-gateway:3000 唯一公共入口。npm 包的新增与发布规则见 `AGENTS.md`「npm 包发布规则」。
 
 **Full documentation**: [`docs-site/user-manual/`](docs-site/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 
@@ -244,7 +244,7 @@ docker run --rm `
 | `coder-add-route` | 给现有 service 加路由（含 utoipa 注解 + openapi.rs 注册） |
 | `coder-migrate-db` | 加迁移（MySQL + SQLite 双版本） |
 | `coder-new-service` | 脚手架新 Rust microservice（满足 8-item 服务规范） |
-| `coder-sdk-publish-rust` | 发布 Rust crates 到 kellnr 私有 registry（libs/* 17 + sdk/rust/* 6，含拓扑顺序与 dry-run） |
+| `coder-sdk-publish-rust` | 发布 Rust crates 到 kellnr 内部 registry（libs/* 17 + sdk/rust/* 7，含拓扑顺序与 dry-run） |
 | `coder-sdk-publish-maven` | 发布 Java SDK 到 Reposilite（release + snapshot，含 `mvn versions:set` 自动 bump + curl 上传模式 + 4 级凭证 fallback） |
 
 > 发布也可以直接用 CLI：`coder release images|sdk|status`（见「[部署与发布](#部署与发布)」），
@@ -401,7 +401,8 @@ node packages/cli/bin/coder.js release images --push
 # 4) 提交 .image.env 的 diff，打 git tag v<version>
 #    （tag 带 v、镜像 tag 不带 v；CI 用 ${CI_COMMIT_TAG#v} 剥 v）
 
-# 5) 发布 SDK（各生态版本独立：libs/*+sdk/rust → kellnr；npm → 私有 registry；sdk/java → Maven）
+# 5) 发布 SDK（各生态版本独立：libs/*+sdk/rust → kellnr；npm → 内部 registry；sdk/java → Maven）
+#    本机执行（pnpm run release:sdk:* / release:images:push）；tag 推送不触发自动发布
 node packages/cli/bin/coder.js release sdk all --dry-run
 node packages/cli/bin/coder.js release sdk all
 ```

@@ -1,6 +1,6 @@
 {
   "name": "@digua/http",
-  "version": "0.1.0",
+  "version": "1.8.1",
   "description": "框架无关的 HTTP 客户端：token 注入 / 单飞刷新 / 错误码转文案",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,6 +36,6 @@
   "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "http://192.168.2.12:14873/"
   }
 }

@@ -1,12 +1,12 @@
 [package]
 name = "digua_common_telemetry_axum"
-version = "1.6.0"
+version = "1.8.1"
 license = "Apache-2.0"
 description = "Axum middleware for OpenTelemetry tracing in KudiCoder services"
 edition = "2021"
 
 [dependencies]
-digua_common_telemetry = { path = "../common-telemetry", version = "1.6.0" }
+digua_common_telemetry = { path = "../common-telemetry", version = "1.8.1" }
 axum.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

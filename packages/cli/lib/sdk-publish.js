@@ -3,9 +3,13 @@
 // sdk-publish.js —— 发布各类 SDK（Rust crates / npm TS 包 / Java SDK）
 //
 // 三个生态各自独立版本线（用户裁决：不跟平台镜像版本绑定）：
-//   rust  : libs/*（17）→ sdk/rust/*（6）发 crates.io，按依赖拓扑排序
-//   npm   : packages/@digua/* + sdk/*-services 发 npmjs.org
+//   rust  : libs/*（17）→ sdk/rust/*（7）发内部 Kellnr，按依赖拓扑排序
+//   npm   : packages/@digua/* + sdk/*-services 发内部 npm Registry
+//           （http://192.168.2.12:14873/，AGENTS.md「npm 包发布规则」）
 //   java  : sdk/java 多模块发 Maven（mvn deploy）
+//
+// ⚠️ 发布目标安全守则：registry 必须显式且非空才允许发布/dry-run。
+// 禁止任何隐式回退到 crates.io / npmjs.org / Docker Hub 等公开 registry。
 //
 // Rust 的关键约束（实战验证过，勿简化）：
 //   1. 发布时把 `path = "../x"` 依赖临时改写成 `version + registry`，
@@ -150,8 +154,15 @@ function readCrateManifest(root, base, dir) {
 }
 
 function cargoPublishArgs(pkgName, registry, dryRun) {
-  const args = ['publish', '-p', pkgName, '--no-verify', '--allow-dirty'];
-  if (registry) args.push('--registry', registry);
+  if (!registry) {
+    // 禁止隐式回退到 cargo 默认 registry（crates.io）——目标不明确就拒绝发布。
+    throw new GuardError(
+      'RUST_REGISTRY_UNSET',
+      'publish target registry is not set — refusing to run cargo publish (would default to crates.io). ' +
+        'Set [sdk].rust_registry in release.toml (e.g. "kellnr").',
+    );
+  }
+  const args = ['publish', '-p', pkgName, '--no-verify', '--allow-dirty', '--registry', registry];
   if (dryRun) args.push('--dry-run');
   return args;
 }
@@ -159,13 +170,20 @@ function cargoPublishArgs(pkgName, registry, dryRun) {
 // 发布 Rust crates。targets: all | libs | sdks
 function publishRust({
   root,
-  registry = 'kellnr',
+  registry,
   targets = 'all',
   dryRun = false,
   exec = (file, args, opts) => spawnSync(file, args, { ...opts, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }),
   out = { log: console.log, warn: console.warn },
   fs: nodeFs = fs,
 } = {}) {
+  if (!registry) {
+    throw new GuardError(
+      'RUST_REGISTRY_UNSET',
+      'publish target registry is not set — refusing to publish (implicit crates.io fallback is forbidden). ' +
+        'Set [sdk].rust_registry in release.toml (e.g. "kellnr").',
+    );
+  }
   const sequences = targets === 'libs' ? { libs: LIBS_ORDER }
     : targets === 'sdks' ? { sdks: SDKS_ORDER }
     : { libs: LIBS_ORDER, sdks: SDKS_ORDER };
@@ -262,18 +280,26 @@ const IS_WIN = process.platform === 'win32';
 
 function publishNpm({
   root,
-  registry = null,
+  registry,
   dryRun = false,
   exec = (file, args, opts) => spawnSync(file, args, { ...opts, encoding: 'utf-8' }),
   out = { log: console.log, warn: console.warn },
 } = {}) {
+  if (!registry) {
+    throw new GuardError(
+      'NPM_REGISTRY_UNSET',
+      'publish target registry is not set — refusing to publish (implicit public registry fallback is forbidden). ' +
+        'Set [sdk].npm_registry in release.toml (e.g. "http://192.168.2.12:14873/").',
+    );
+  }
+
   const plan = NPM_PACKAGES.map((p) => {
     const pkg = JSON.parse(fs.readFileSync(path.join(root, p.dir, 'package.json'), 'utf8'));
     return { ...p, version: pkg.version, private: pkg.private === true };
   });
 
   if (dryRun) {
-    out.log('[sdk:npm] dry-run plan:');
+    out.log(`[sdk:npm] dry-run plan (registry=${registry}):`);
     for (const p of plan) out.log(`  - ${p.name}@${p.version}${p.private ? '（private，跳过）' : ''}`);
     return { published: [], skipped: [], plan, dryRun: true };
   }
@@ -289,8 +315,7 @@ function publishNpm({
       if ((b.status ?? 1) !== 0) throw new ExternalError(`pnpm build failed for ${p.name}`, { name: p.name });
     }
 
-    const args = ['--filter', p.name, 'publish', '--no-git-checks', '--access', 'public'];
-    if (registry) args.push('--registry', registry);
+    const args = ['--filter', p.name, 'publish', '--no-git-checks', '--access', 'public', '--registry', registry];
     out.log(`[sdk:npm] publishing ${p.name}@${p.version}`);
     const r = exec('pnpm', args, { cwd: root, shell: IS_WIN });
     if ((r.status ?? 1) !== 0) {

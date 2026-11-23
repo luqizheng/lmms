@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_crypto"
-version = "1.6.0"
+version = "1.8.1"
 license = "Apache-2.0"
 description = "Crypto utilities (Argon2 password hashing, AES-256-GCM encryption) for KudiCoder services"
 edition = "2021"
@@ -14,7 +14,7 @@ sha2.workspace = true
 hmac = "0.12"
 blake3 = "1.5"
 hex = "0.4"
-digua_common_error = { path = "../common-error", version = "1.6.0" }
+digua_common_error = { path = "../common-error", version = "1.8.1" }
 async-trait.workspace = true
 
 [dev-dependencies]

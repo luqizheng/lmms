@@ -18,9 +18,11 @@ const RELEASE_FILE = 'release.toml';
 const DEFAULT_DIALECT = 'pg';
 const DEFAULT_REGISTRY_HOST = 'zhcoder-docker-registry.com:8000';
 const DEFAULT_REGISTRY_REPO = 'micro-server';
+// 缺省 SDK 目标同样指向内部 Registry（kellnr / 内部 npm）——任何路径都
+// 不允许隐式回退到 crates.io / npmjs.org 等公开 registry。
 const DEFAULT_SDK = {
-  rustRegistry: null,
-  npmRegistry: 'https://registry.npmjs.org/',
+  rustRegistry: 'kellnr',
+  npmRegistry: 'http://192.168.2.12:14873/',
   mavenRepositoryId: 'reposilite-releases',
 };
 

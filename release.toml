@@ -29,10 +29,10 @@ host = "zhcoder-docker-registry.com:8000"
 repo = "micro-server"
 
 [sdk]
-# SDK 发布目标（release sdk 使用；值为空则跳过对应生态）
-# Rust crates → crates.io 默认 registry（空值表示 cargo 默认 crates.io）
-rust_registry = ""
-# npm 包 → npmjs.org 公开 registry
-npm_registry = "https://registry.npmjs.org/"
+# SDK 发布目标（release sdk 使用；值必须显式写明，禁止留空回退到公开 registry）
+# Rust crates → 内部 Kellnr（.cargo/config.toml 的 [source.kellnr] 提供地址）
+rust_registry = "kellnr"
+# npm 包 → 内部 npm Registry（AGENTS.md「npm 包发布规则」的唯一发布目标）
+npm_registry = "http://192.168.2.12:14873/"
 # Java SDK → Maven 仓库 id（在 .mvn/settings.xml 的 <server> 里配置）
 maven_repository_id = "reposilite-releases"
