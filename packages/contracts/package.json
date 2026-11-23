@@ -1,6 +1,6 @@
 {
   "name": "@digua/contracts",
-  "version": "0.1.0",
+  "version": "1.8.1",
   "description": "后端契约编译产物：错误码、权限码与 OpenAPI 客户端 —— 与后端同源生成，不手写",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,7 +35,7 @@
   "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "http://192.168.2.12:14873/"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

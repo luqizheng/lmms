@@ -1,10 +1,10 @@
 [package]
 name = "digua_common_validator"
-version = "1.6.0"
+version = "1.8.1"
 license = "Apache-2.0"
 description = "Validation rules (Chinese phone, strong password) for KudiCoder services"
 edition = "2021"
 
 [dependencies]
 validator.workspace = true
-digua_common_error = { path = "../common-error", version = "1.6.0" }
+digua_common_error = { path = "../common-error", version = "1.8.1" }

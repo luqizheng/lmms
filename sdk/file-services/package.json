@@ -1,6 +1,6 @@
 {
   "name": "@digua/file-services",
-  "version": "0.1.0",
+  "version": "1.8.1",
   "description": "lmms file-service SDK：multipart 上传、二进制下载、文件管理与预签名 URL 的零依赖 fetch 客户端（api-gateway /v1/file 公开路径）",
   "type": "module",
   "main": "./dist/index.js",
@@ -33,6 +33,6 @@
   "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "http://192.168.2.12:14873/"
   }
 }

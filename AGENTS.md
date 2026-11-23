@@ -163,9 +163,9 @@ Skill 分**下游(downstream)** 与 **仓库 repo-local / 平台**两类；路�
 **分发模型：发版 = 镜像 + 各种包，更新全部走包升级。** 下游不再做源码级同步：
 
 - **镜像**：`zhcoder-docker-registry.com:8000/micro-server/<svc>:<ver>`，下游改 compose 的 image tag 后 `docker compose pull && up -d`。
-- **Rust**：公开发行通过 GitHub tag workflow 发布到 crates.io；内部消费场景仍可按环境配置私有 registry。下游 `cargo update -p <crate>`。
+- **Rust**：发布到内部 **Kellnr**（`http://192.168.2.12:16444`，`release.toml [sdk].rust_registry = "kellnr"`）—— 在发布机执行 `pnpm run release:sdk:rust`（凭据 `CARGO_REGISTRIES_KELLNR_TOKEN`）。公开发布（crates.io）不属于当前流程，仅在未来明确的公开 release 任务中另行配置。下游 `cargo update -p <crate>`。
 - **Java**：`sdk/java` 发布到 Maven（`http://mvn.kudi.repos`），下游升 `<dependency>` 版本。
-- **npm TS**：公开发行通过 GitHub tag workflow 发布到 npmjs.org；包清单的 `publishConfig` 指向官方 registry。下游 `pnpm up @digua/contracts @digua/http` / `pnpm add <svc>-services`。
+- **npm TS**：发布到内部 npm Registry（`http://192.168.2.12:14873/`，`release.toml [sdk].npm_registry` 与各包 `publishConfig`）—— 在发布机执行 `pnpm run release:sdk:npm`（凭据 `~/.npmrc` 的 authToken）。公开发布（npmjs.org）不属于当前流程，仅在未来明确的公开 release 任务中另行配置。下游 `pnpm up @digua/contracts @digua/http` / `pnpm add <svc>-services`。
 
 - **git tag 带 `v`，发布镜像 tag 不带 v**：CI `build_images:tagged` 用 `${CI_COMMIT_TAG#v}` 剥 v 后推送，registry 里实际存在的是 `micro-server/<svc>:1.5.0`（**不是** `:v1.5.0`）。下游 `.env` 的 `IMAGE_TAG` 必须填 no-v 值。
 - **部署单元的镜像钉版在 `.image.env`**（2026-11-09）：两个示例单元（`examples/docker-deploy/` services-only、`examples/docker-deploy-full/` 全栈含 infra+observability）的 compose 都只写整名变量 `${IMAGE_*}`，值在各自 `.image.env`（入库，无凭据）。**版本号真相源是根 `Cargo.toml` 的 `[workspace.package].version`**（8 个 `services/*` 用 `version.workspace = true` 继承）；`release.toml` 只放方言/镜像源/SDK 目标。平台镜像段机器生成（两单元逐字一致），基础镜像段（full 独有）手工维护、重生成时保留。发布：`coder release images --push`（读服务版本 → 构建 → 成功后写两个单元的 `.image.env`）；体检：`coder release status`；SDK：`coder release sdk rust|npm|java|all`。详见 `docs/deploy-topologies.md`「镜像引用与版本钉版」。

@@ -4,7 +4,11 @@ replace-with = "coder-mirror"
 [source.coder-mirror]
 registry = "sparse+https://rsproxy.cn/index/"
 
-# Platform digua-* crates are published on crates.io; no private registry required.
+# 私有 crate registry - 内部发布的唯一 Rust crate 目标（托管 libs/* 与 sdk/rust/*）
+# cargo publish --registry kellnr  发布到此处（release.toml [sdk].rust_registry = "kellnr"）
+# 公开发布（crates.io）不属于当前流程，仅在明确的公开 release 任务中另行配置。
+[source.kellnr]
+registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
 
 [net]
 git-fetch-with-cli = true

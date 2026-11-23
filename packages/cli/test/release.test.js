@@ -20,7 +20,7 @@ const {
   readServiceVersions,
   publishedDirs,
 } = require('../lib/service-versions.js');
-const { cargoPublishArgs, rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, LIBS_ORDER, SDKS_ORDER, NPM_PACKAGES } = require('../lib/sdk-publish.js');
+const { cargoPublishArgs, rewritePathDeps, internalPathDeps, assertOrderRespectsDeps, publishRust, publishNpm, LIBS_ORDER, SDKS_ORDER, NPM_PACKAGES } = require('../lib/sdk-publish.js');
 const { readReleaseConfig } = require('../lib/release-toml.js');
 const imageEnv = require('../lib/image-env.js');
 
@@ -182,11 +182,20 @@ test('rewritePathDeps 把 path 依赖改成 version + registry', () => {
   assert.ok(!after.includes('path ='));
 });
 
-test('cargoPublishArgs omits --registry when publishing to the default crates.io registry', () => {
-  const args = cargoPublishArgs('digua_common_error', null, false);
+test('cargoPublishArgs 拒绝空 registry（禁止隐式回退 crates.io）', () => {
+  assert.throws(
+    () => cargoPublishArgs('digua_common_error', null, false),
+    (err) => err.code === 'RUST_REGISTRY_UNSET',
+  );
+  assert.throws(
+    () => cargoPublishArgs('digua_common_error', '', false),
+    (err) => err.code === 'RUST_REGISTRY_UNSET',
+  );
+  const args = cargoPublishArgs('digua_common_error', 'kellnr', false);
   assert.ok(args.includes('publish'));
-  assert.ok(!args.includes('--registry'));
-  assert.ok(!args.includes(null));
+  assert.deepEqual(args.slice(-2), ['--registry', 'kellnr']);
+  const dry = cargoPublishArgs('digua_common_error', 'kellnr', true);
+  assert.ok(dry.includes('--dry-run') && dry.includes('--registry'));
 });
 
 test('rewritePathDeps supports the default crates.io registry without a private registry alias', () => {
@@ -279,11 +288,11 @@ test('所有公开 npm 包使用 @digua/ scope（未加 scope 的名称在 npmjs
   assert.equal(new Set(names).size, names.length, '发布清单不得有重复包名');
 });
 
-test('所有公开 npm 包声明 Apache-2.0，不得把 UNLICENSED 当公开发布授权', () => {
+test('所有公开 npm 包声明 Apache-2.0，且 publishConfig 指向内部 npm Registry', () => {
   for (const p of NPM_PACKAGES) {
     const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, p.dir, 'package.json'), 'utf8'));
     assert.equal(pkg.license, 'Apache-2.0', `${p.name} 的 license 必须是 Apache-2.0`);
-    assert.equal(pkg.publishConfig?.registry, 'https://registry.npmjs.org/', `${p.name} 必须发布到 npmjs.org`);
+    assert.equal(pkg.publishConfig?.registry, 'http://192.168.2.12:14873/', `${p.name} 必须发布到内部 npm Registry`);
   }
 });
 

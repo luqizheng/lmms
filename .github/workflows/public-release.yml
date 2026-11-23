@@ -3,9 +3,11 @@ name: Public Release
 on:
   pull_request:
     branches: [main]
-  push:
-    tags:
-      - 'v*'
+  # ⚠️ 无 push.tags 触发：内部发布不走 CI —— 在发布机上直接执行
+  #   `pnpm run release:sdk:rust / release:sdk:npm / release:images:push`
+  #   （目标由 release.toml 指向内部 Registry）。本 workflow 仅保留
+  #   workflow_dispatch 手动补发入口，供未来明确的公开发布流程使用；
+  #   推送 git tag 不会触发任何自动发布。
   # 手动补发：对已经存在的 tag 指定执行发布（不新建、不移动 tag）。
   workflow_dispatch:
     inputs:
