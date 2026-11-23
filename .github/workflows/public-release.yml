@@ -1,6 +1,8 @@
 name: Public Release
 
 on:
+  pull_request:
+    branches: [main]
   push:
     tags:
       - 'v*'
@@ -21,6 +23,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Verify tag points to main history
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
           set -euo pipefail
@@ -68,6 +71,7 @@ jobs:
           node packages/cli/bin/coder.js release images --dry-run --registry docker.io --repo validation-only
 
   publish-crates:
+    if: startsWith(github.ref, 'refs/tags/v')
     name: Publish Rust crates to crates.io
     needs: validate
     runs-on: ubuntu-latest
@@ -83,6 +87,7 @@ jobs:
         run: node packages/cli/bin/coder.js release sdk rust
 
   publish-npm:
+    if: startsWith(github.ref, 'refs/tags/v')
     name: Publish TypeScript SDKs to npmjs.org
     needs: validate
     runs-on: ubuntu-latest
@@ -103,6 +108,7 @@ jobs:
         run: node packages/cli/bin/coder.js release sdk npm
 
   publish-docker:
+    if: startsWith(github.ref, 'refs/tags/v')
     name: Publish service images to Docker Hub
     needs: validate
     runs-on: ubuntu-latest
