@@ -83,11 +83,16 @@ fn create_presign_url_put() {
     assert!(req.expires_in_seconds.is_none());
 }
 
-
 #[test]
 fn presign_operation_is_strict_and_serializes_lowercase() {
-    assert_eq!(serde_json::to_string(&PresignOperation::Get).unwrap(), "\"get\"");
-    assert_eq!(serde_json::to_string(&PresignOperation::Put).unwrap(), "\"put\"");
+    assert_eq!(
+        serde_json::to_string(&PresignOperation::Get).unwrap(),
+        "\"get\""
+    );
+    assert_eq!(
+        serde_json::to_string(&PresignOperation::Put).unwrap(),
+        "\"put\""
+    );
     assert!(serde_json::from_str::<PresignOperation>("\"download\"").is_err());
     assert!(serde_json::from_str::<PresignOperation>("\"delete\"").is_err());
 }
