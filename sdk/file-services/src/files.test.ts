@@ -110,7 +110,7 @@ describe("FilePresignApi 与其余端点", () => {
     const res = await sdk.presign.create({ file_id: "f1", operation: "get", expires_in_seconds: 300 });
     expect(calls[0].url).toBe("http://127.0.0.1:8082/file/presign");
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ file_id: "f1", operation: "get", expires_in_seconds: 300 });
-    expect(res.operation).toBe("download");
+    expect(res.operation).toBe("get");
   });
 
   it("page 组装过滤参数；info/info 路径编码", async () => {
