@@ -163,7 +163,8 @@ mod tests {
 
     #[test]
     fn generated_password_has_expected_length_and_alphabet() {
-        const NANOID_ALPHABET: &str = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+        const NANOID_ALPHABET: &str =
+            "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
         let pw = generate_password();
         assert_eq!(pw.chars().count(), GENERATED_PASSWORD_LEN);
         assert!(pw.chars().all(|c| NANOID_ALPHABET.contains(c)));
