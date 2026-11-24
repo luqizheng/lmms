@@ -25,6 +25,7 @@ use crate::{
         UploadFileMeta,
         PagedFiles,
         CreatePresignUrl,
+        PresignOperation,
         PresignUrlResponse,
         digua_common_db::migration_state::MigrationStateResponse,
         digua_common_db::migration_state::MigrationInfo,
