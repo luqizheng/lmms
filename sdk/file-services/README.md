@@ -1,6 +1,6 @@
 # file-services
 
-LMMS file-service 的 TypeScript 服务端 SDK：multipart 上传、二进制下载、文件管理与预签名 URL。使用原生 `fetch`、`FormData` 和 `Blob`，运行环境为 Node.js 18+。
+LMMS file-service 的 TypeScript 服务端 SDK：multipart 上传、二进制下载、文件管理与预签名 URL。使用原生 `fetch`、`FormData` 和 `Blob`，运行环境为 Node.js 22+。
 
 > **安全边界：仅供受信任的后端服务使用。禁止在浏览器、桌面客户端或不可信客户端中使用。** file-service 是纯内部服务，所有 `/file/*` 端点只接受 `aud=file-service` 的 service-jwt。不得传入用户 access token，也不得把 service-jwt 暴露给前端。用户授权由业务服务完成。
 
