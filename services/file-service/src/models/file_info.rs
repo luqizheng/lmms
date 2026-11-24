@@ -23,9 +23,7 @@ pub struct FileInfo {
     pub updated_at: DateTime<Utc>,
     /// 兼容字段：内部 file-service 相对路径。用户下载授权必须由业务服务创建 presign URL。
     /// 由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
-    /// 2026-11-07 裁决后网关不再暴露 /v1/file/* 用户路由——该字段仅在
-    /// file-service 被业务服务网关化暴露时才有意义；用户下载一律走
-    /// presign 签名 URL（见 contracts/http-conventions.md）。
+    /// 此字段不构成用户下载授权；用户下载必须使用业务服务授权后创建的 presign URL。
     #[serde(default)]
     #[sqlx(skip)]
     pub url: String,
