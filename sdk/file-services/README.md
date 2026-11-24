@@ -33,7 +33,7 @@ const signed = await file.presign.create({
   operation: "get",
   expires_in_seconds: 300,
 });
-// 将 signed.url 返回给已通过业务授权的用户；不要持久化或记录完整签名 URL
+// 将 signed.url 返回给已通过业务授权的用户；不要持久化或记录完整签名 URL。S3 预签名 URL 在到期前不能单独撤销，删除对象会使 GET URL 失效，因此必须使用短 TTL。
 ```
 
 ## API
