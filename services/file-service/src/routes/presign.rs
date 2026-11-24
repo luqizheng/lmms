@@ -37,7 +37,10 @@ pub async fn create_presign(
         } else if e.code() == "FILE_PRESIGN_3002" {
             (StatusCode::BAD_REQUEST, "invalid presign TTL")
         } else if e.code() == "FILE_PRESIGN_3003" {
-            (StatusCode::NOT_IMPLEMENTED, "storage backend does not support presigned URLs")
+            (
+                StatusCode::NOT_IMPLEMENTED,
+                "storage backend does not support presigned URLs",
+            )
         } else {
             (StatusCode::INTERNAL_SERVER_ERROR, "create presign failed")
         }
