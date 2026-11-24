@@ -31,8 +31,6 @@ USAGE:
 
 const MIN_PASSWORD_LEN: usize = 8;
 const GENERATED_PASSWORD_LEN: usize = 24;
-/// 与 nanoid 默认字母表一致，仅用于单测断言。
-const NANOID_ALPHABET: &str = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
 
 struct Args {
     username: String,
@@ -165,6 +163,7 @@ mod tests {
 
     #[test]
     fn generated_password_has_expected_length_and_alphabet() {
+        const NANOID_ALPHABET: &str = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
         let pw = generate_password();
         assert_eq!(pw.chars().count(), GENERATED_PASSWORD_LEN);
         assert!(pw.chars().all(|c| NANOID_ALPHABET.contains(c)));
