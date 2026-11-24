@@ -163,8 +163,8 @@ AWS 标准 endpoint 可按 region 推导；其他 S3-compatible 服务按供应�
 
 1. 前端请求业务服务的下载授权接口，提交业务记录 ID / file ID。
 2. 业务服务验证当前用户是否有权访问该业务附件。
-3. 业务服务通过 file-service 创建短 TTL 的 GET 预签名 URL。
-4. 前端获得 URL 后直接从对象存储下载；不要把 URL 写入长期日志、业务表或分析事件。
+3. 使用 S3-compatible 后端时，业务服务通过 file-service 创建短 TTL 的 GET 预签名 URL。LocalStorage 不支持原生预签名，需由业务服务使用 service-jwt 调用内部下载接口并代理响应。
+4. 前端获得 S3 预签名 URL 后直接从对象存储下载；不要把 URL 写入长期日志、业务表或分析事件。
 
 **重要：** 当前契约明确用户 JWT 不直接访问 file-service。TypeScript SDK 是后端服务间 SDK，使用内部 `/file/*` 路径和 `aud=file-service` service-jwt，不可用于浏览器。预签名仅适用于 S3-compatible 后端；LocalStorage 创建预签名会返回 501。
 
@@ -204,32 +204,33 @@ AWS 标准 endpoint 可按 region 推导；其他 S3-compatible 服务按供应�
 - `files.upload`、`files.page`、`files.info`、`files.download`、`files.remove`
 - `presign.create`
 
-但当前仓库文档存在需要统一的契约漂移：
-1. `sdk/file-services/README.md` 仍按 `/v1/file` 网关用户 API 描述，而 `contracts/http-conventions.md` 明确 2026-11-07 后 file-service 是纯内部服务，网关不再暴露这些用户路由。
-2. SDK README 示例中的预签名操作值写为 `download`；服务 AGENTS 约定写 `get|put`，OpenAPI 的 operation 当前是宽泛 string。应统一为稳定枚举及文档。
-3. 服务 README 的上传 curl 示例仍使用 JSON body；OpenAPI 和 SDK 实际描述的是 multipart 的 `metadata` + `file`。
-
-在上述漂移修复前：
-- 不要把当前 TS SDK 直接作为浏览器用户侧文件 API 的正式集成方案。
-- 服务间调用可复用 SDK 的 HTTP/multipart/DTO 实现，但必须提供 service-jwt token，并核验 SDK base URL 和路由前缀适配。
-- 任何 SDK 路由或认证语义修改必须同步 OpenAPI、契约、测试和 README。
+PR #13 已提交主要契约统一：
+- SDK 定位为服务端服务间 SDK，使用内部服务地址和 `/file/*` 路径。
+- 只接受 `aud=file-service` service-jwt；不得传入用户 access token，也不得在浏览器或桌面客户端中使用。
+- 预签名 operation 为 `get|put`，TTL 限制为 1..604800 秒。
+- 上传示例统一为 multipart 的 `metadata` + `file`。
+- LocalStorage 不支持原生 presign，返回 501；不会生成无法验证的伪签名 URL。
 
 ## 10. 当前缺口与建议补齐顺序
 
-### P0：先统一现有契约
+### P0：接口契约统一（PR #13 已提交，等待 CI/Review）
 
-- [ ] 统一 `file-services` SDK 的路由和认证说明，明确它是服务端 SDK 还是用户端 SDK。
-- [ ] 明确预签名 operation 枚举（建议 `get` / `put`），同步 handler、OpenAPI、SDK types、测试和文档。
-- [ ] 修正 file-service README 的 multipart 上传示例。
-- [ ] 验证 `is_temporary/expires_at` 的清理执行器、失败重试、删除顺序和测试；若尚未实现，删除“自动清理已支持”的承诺或补齐实现。
+- [x] SDK 定位为服务端服务间 SDK，使用内部路由和 service-jwt。
+- [x] 预签名 operation 收敛为 `get` / `put`，同步 Rust DTO、OpenAPI、SDK types 和测试。
+- [x] 预签名 TTL 限制为 1..604800 秒。
+- [x] 修正 multipart 上传示例。
+- [x] LocalStorage 不支持原生 presign 时 fail closed，返回 501，不生成无法验证的代理 URL。
 
-### P1：补强文件对象生命周期
+### P1：文件对象生命周期（PR #13 已实现基础闭环，仍有后续增强项）
 
-- [ ] 文件状态模型：上传中、可用、删除中、删除失败、已删除/过期。
-- [ ] 对象写入与 DB 元数据之间的补偿机制，避免孤儿对象/悬空元数据。
+- [x] 临时文件默认 TTL 24 小时；非临时文件不应用 expires_in_seconds。
+- [x] 后台每 60 秒扫描过期临时文件，每批最多 100 条。
+- [x] 对象删除失败保留元数据并重试；本地对象删除幂等。
+- [x] 上传对象写入成功但元数据落库失败时执行补偿删除。
+- [x] 删除文件前清理关联预签名记录，并清理过期预签名记录。
+- [ ] 为补偿删除失败增加持久化 orphan queue / 巡检修复工具（当前仅记录 error 日志）。
 - [ ] 幂等上传、内容摘要校验、重复上传策略。
-- [ ] 对象删除失败重试、孤儿对象扫描与修复工具。
-- [ ] 明确预签名 URL 的 TTL 上下限、权限、审计和撤销能力边界。
+- [ ] 完整文件状态模型、版本历史与回收站。
 
 ### P2：按业务需要扩展，不要提前把对象存储做成网盘
 
