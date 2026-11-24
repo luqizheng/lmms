@@ -154,7 +154,15 @@ impl FileService {
                 format!("presign TTL must be between 1 and {MAX_PRESIGN_TTL_SECONDS} seconds"),
             ));
         }
-        let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
+        let now = chrono::Utc::now();
+        let expires_in = info
+            .expires_at
+            .map(|file_expires_at| expires_in.min((file_expires_at - now).num_seconds()))
+            .unwrap_or(expires_in);
+        if expires_in <= 0 {
+            return Err(AppError::file_not_found("File expired"));
+        }
+        let expires_at = now + chrono::Duration::seconds(expires_in);
 
         let url = match req.operation {
             PresignOperation::Put => {
