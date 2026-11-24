@@ -1,54 +1,43 @@
-// 请求核：零依赖 fetch，浏览器 / Node ≥18 通用（iam-services 同款内核 +
-// 原始文本体 / 文本与字节响应模式扩展）。
-// SDK 不做自动刷新——单飞刷新留在消费方的 HTTP 层（如 @digua/http）；
-// 受保护端点通过 getToken() 注入 Bearer，由应用层决定 token 来源。
+// Server-to-server request core for file-service.
+// This package must not be used from browsers: file-service accepts only service-jwt
+// tokens with aud=file-service. End-user authorization belongs in the calling business service.
 
 import { FileServicesError } from "./errors.js";
 
-/** api-gateway 默认基地址（本机联调）。 */
-export const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
+/** Local file-service address; production callers should inject the internal service URL. */
+export const DEFAULT_BASE_URL = "http://127.0.0.1:8082";
 
 export interface FileServicesOptions {
-  /** api-gateway 基地址，默认 http://127.0.0.1:3000。支持相对路径（浏览器同域反代场景）。 */
+  /** Internal file-service base URL (default http://127.0.0.1:8082). Never point this SDK at the public gateway. */
   baseUrl?: string;
-  /** 可注入 fetch 实现（测试 / SSR / 自定义代理）。默认全局 fetch。 */
+  /** Injectable fetch implementation (tests / server runtimes). */
   fetch?: typeof fetch;
-  /** 受保护端点附加的 Bearer token；返回 undefined 时该请求不带 Authorization 头。 */
+  /** Service JWT with aud=file-service. Never pass an end-user access token. */
   getToken?: () => string | undefined | Promise<string | undefined>;
-  /** 附加在所有请求上的自定义头。 */
+  /** Additional request headers. */
   headers?: Record<string, string>;
 }
 
 export interface RequestOptions {
-  /** 查询参数对象（跳过 undefined/null/空串值）。 */
   params?: object;
-  /** 对象 → JSON；string → 原样发送（Content-Type 见 contentType）；FormData → multipart 透传。 */
   body?: unknown;
-  /** 是否附加 Authorization: Bearer（默认 false）。 */
   auth?: boolean;
-  /** 覆盖请求体 Content-Type（string 体默认 text/plain；对象体默认 application/json；FormData 忽略本项）。 */
   contentType?: string;
-  /** 响应解析模式：json（默认）/ text / bytes。 */
   response?: "json" | "text" | "bytes";
 }
 
-/** response:"bytes" 时的返回结构。 */
 export interface BytesResponse {
   bytes: ArrayBuffer;
   contentType: string;
   contentDisposition: string | null;
 }
 
-/** 从 Content-Disposition 解析文件名（RFC 5987 filename* 优先，回退 filename，均无则 null）。 */
 export function parseDispositionFilename(disposition: string | null): string | null {
   if (!disposition) return null;
   const utf8 = /filename\*=(?:UTF-8|utf-8)''([^;]+)/.exec(disposition);
   if (utf8) {
-    try {
-      return decodeURIComponent(utf8[1].trim().replace(/^"|"$/g, ""));
-    } catch {
-      // 解码失败回退普通 filename
-    }
+    try { return decodeURIComponent(utf8[1].trim().replace(/^"|"$/g, "")); }
+    catch { /* fall back to filename */ }
   }
   const plain = /filename="?([^";]+)"?/.exec(disposition);
   return plain ? plain[1].trim() : null;
@@ -84,7 +73,6 @@ export class HttpCore {
   async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
     const { params, body, auth = false, contentType, response = "json" } = options;
     const url = buildUrl(this.baseUrl, path, params);
-
     const headers: Record<string, string> = { ...this.headers };
     const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
     if (body !== undefined && !isFormData) {
@@ -94,23 +82,12 @@ export class HttpCore {
       const token = await this.getToken?.();
       if (token) headers["Authorization"] = `Bearer ${token}`;
     }
-
     const res = await this.fetchImpl(url, {
       method,
       headers,
-      body:
-        body === undefined
-          ? undefined
-          : isFormData
-            ? (body as FormData)
-            : typeof body === "string"
-              ? body
-              : JSON.stringify(body),
+      body: body === undefined ? undefined : isFormData ? (body as FormData) : typeof body === "string" ? body : JSON.stringify(body),
     });
-
-    if (!res.ok) {
-      throw FileServicesError.from(res.status, await res.text());
-    }
+    if (!res.ok) throw FileServicesError.from(res.status, await res.text());
     if (response === "bytes") {
       return {
         bytes: await res.arrayBuffer(),
@@ -119,32 +96,14 @@ export class HttpCore {
       } as T;
     }
     const text = await res.text();
-    if (response === "text") {
-      return text as T;
-    }
-    if (res.status === 204 || text === "") {
-      return undefined as T;
-    }
+    if (response === "text") return text as T;
+    if (res.status === 204 || text === "") return undefined as T;
     const ct = res.headers.get("content-type") ?? "";
-    if (ct.includes("application/json")) {
-      return JSON.parse(text) as T;
-    }
-    return text as unknown as T;
+    return ct.includes("application/json") ? JSON.parse(text) as T : text as unknown as T;
   }
 
-  get<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    return this.request<T>("GET", path, options);
-  }
-
-  post<T>(path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
-    return this.request<T>("POST", path, { ...options, body });
-  }
-
-  put<T>(path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
-    return this.request<T>("PUT", path, { ...options, body });
-  }
-
-  delete<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    return this.request<T>("DELETE", path, options);
-  }
+  get<T>(path: string, options: RequestOptions = {}): Promise<T> { return this.request<T>("GET", path, options); }
+  post<T>(path: string, body?: unknown, options: RequestOptions = {}): Promise<T> { return this.request<T>("POST", path, { ...options, body }); }
+  put<T>(path: string, body?: unknown, options: RequestOptions = {}): Promise<T> { return this.request<T>("PUT", path, { ...options, body }); }
+  delete<T>(path: string, options: RequestOptions = {}): Promise<T> { return this.request<T>("DELETE", path, options); }
 }
