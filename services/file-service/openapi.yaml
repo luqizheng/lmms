@@ -97,14 +97,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PresignUrlResponse'
-        '401':
-          description: Presign expired
         '400':
           description: Invalid presign TTL
+        '401':
+          description: Presign expired
         '404':
           description: File not found
         '501':
-          description: Configured storage backend does not support presigned URLs
+          description: Storage backend does not support presigned URLs
   /file/upload:
     post:
       tags:
@@ -213,11 +213,6 @@ components:
           type: string
         operation:
           $ref: '#/components/schemas/PresignOperation'
-    PresignOperation:
-      type: string
-      enum:
-      - get
-      - put
     FileInfo:
       type: object
       required:
@@ -271,7 +266,8 @@ components:
         url:
           type: string
           description: |-
-            内部 file-service 相对路径兼容字段，由 handler 注入且不存储在 DB。
+            兼容字段：内部 file-service 相对路径。用户下载授权必须由业务服务创建 presign URL。
+            由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
             此字段不构成用户下载授权；用户下载必须使用业务服务授权后创建的 presign URL。
         user_id:
           type:
@@ -352,6 +348,14 @@ components:
         total:
           type: integer
           format: int64
+    PresignOperation:
+      type: string
+      description: |-
+        Only supported presign operations. "put" is intended for an existing
+        file object key; "get" grants read access to the stored object.
+      enum:
+      - get
+      - put
     PresignUrlResponse:
       type: object
       required:
