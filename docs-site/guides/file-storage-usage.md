@@ -40,7 +40,7 @@ MySQL / PostgreSQL       ObjectStore
 1. `file-service` 是内部服务；按照 `contracts/http-conventions.md` 的 2026-11-07 契约，所有 `/file/*` 端点都要求 `aud=file-service` 的 service-jwt。
 2. 用户 JWT 不能直接调用 file-service；api-gateway 不再暴露 `/v1/file/*` 用户路由。
 3. 用户面操作由业务服务提供接口。业务服务校验用户权限和业务归属后，使用 service-jwt 调用 file-service。
-4. 文件下载/直传可通过预签名 URL 交给对象存储执行；签名 URL 本身是 bearer capability，应按敏感凭证保护。
+4. S3-compatible 后端的文件下载/直传可通过预签名 URL 交给对象存储执行；签名 URL 本身是 bearer capability，应按敏感凭证保护。LocalStorage 不支持原生预签名 URL，服务明确返回 501，不生成无法验证的伪签名代理 URL。
 5. 元数据数据库与对象存储是两个独立持久化面；调用方不得假设两者天然具备跨系统事务。
 
 ## 3. 当前能力清单
@@ -52,12 +52,12 @@ MySQL / PostgreSQL       ObjectStore
 | 查询元数据 | 已有 | 通过文件 ID 查询 |
 | 下载文件 | 已有 | 服务端下载接口；仅内部服务身份可调用 |
 | 删除文件 | 已有 | 按文件 ID 删除 |
-| 预签名 GET | 已有 | S3 driver 可生成对象存储 GET 签名 |
-| 预签名 PUT | 已有底层接口 | S3 driver 有 PUT 签名能力；完整业务上传流程需按服务端实现验证 |
+| 预签名 GET | 已有 | 仅 S3-compatible driver 可生成对象存储 GET 签名；LocalStorage 返回 501 |
+| 预签名 PUT | 已有 | 仅 S3-compatible driver 可生成 PUT 签名；业务上传流程仍需定义对象创建/覆盖约束 |
 | 本地存储 | 已有 | 适合开发和单机测试，不建议多实例生产共用 |
 | S3 兼容存储 | 已有 | RustFS / MinIO / AWS S3 / Aliyun OSS 等，通过配置适配 |
 | 临时文件元数据 | 已有字段 | `is_temporary`、`expires_at`、`expires_in_seconds` |
-| 临时文件自动清理 | **需进一步核验** | README 声称支持自动清理；本次未把清理 worker/调度器及其测试作为已验证事实 |
+| 临时文件自动清理 | 已实现 | 每 60 秒扫描、每轮最多 100 条；对象删除失败保留元数据并重试；临时文件默认 TTL 24 小时 |
 | 目录树 / 文件夹 | 不支持 | 当前模型是扁平文件对象列表，不提供目录实体 |
 | 移动 / 复制 / 重命名 | 不支持 | 需要新增明确 API 和一致性语义 |
 | 版本历史 / 回收站 | 不支持 | 当前模型未体现版本或软删除历史 |
@@ -81,7 +81,7 @@ MySQL / PostgreSQL       ObjectStore
 | `tenant_id` | 租户归属 | 必须由已认证的业务服务按业务上下文传入 |
 | `user_id` | 用户归属 | 操作发起用户；由调用业务服务负责校验 |
 | `is_temporary` | 是否临时文件 | 生命周期标记 |
-| `expires_at` | 过期时间 | 临时文件到期语义；需结合清理实现确认 |
+| `expires_at` | 过期时间 | `is_temporary=true` 时有效；未指定 TTL 默认 24 小时，由后台清理器执行删除 |
 | `created_at` / `updated_at` | 创建/更新时间 | UTC 时间语义遵循平台 HTTP 约定 |
 
 注意：
@@ -166,7 +166,7 @@ AWS 标准 endpoint 可按 region 推导；其他 S3-compatible 服务按供应�
 3. 业务服务通过 file-service 创建短 TTL 的 GET 预签名 URL。
 4. 前端获得 URL 后直接从对象存储下载；不要把 URL 写入长期日志、业务表或分析事件。
 
-**重要：** 当前契约明确用户 JWT 不直接访问 file-service。不要因为 SDK README 中存在 `/v1/file/*` 示例，就认为该用户路由当前可用。
+**重要：** 当前契约明确用户 JWT 不直接访问 file-service。TypeScript SDK 是后端服务间 SDK，使用内部 `/file/*` 路径和 `aud=file-service` service-jwt，不可用于浏览器。预签名仅适用于 S3-compatible 后端；LocalStorage 创建预签名会返回 501。
 
 ### 6.3 删除
 
@@ -247,8 +247,8 @@ AWS 标准 endpoint 可按 region 推导；其他 S3-compatible 服务按供应�
 - [ ] 跨租户读取/删除被拒绝；调用服务不能通过伪造 tenant/user 参数越权。
 - [ ] multipart 格式、0 字节、超限文件、非法 metadata、恶意文件名。
 - [ ] local 路径穿越与符号链接逃逸。
-- [ ] S3-compatible 后端的 put/get/stream/delete/exists/size/presign。
-- [ ] 预签名 URL 过期、错误操作、错误 file ID 和越权访问。
+- [ ] S3-compatible 后端的 put/get/stream/delete/exists/size/presign；LocalStorage 的 presign 必须返回 501。
+- [ ] 预签名 URL 过期、错误操作、TTL 越界、LocalStorage 501、错误 file ID 和越权访问。
 - [ ] DB 写入失败、对象写入失败、删除部分失败的补偿行为。
 - [ ] 临时文件到期处理、并发清理、重复清理和清理失败重试。
 - [ ] 备份恢复后文件对象和元数据一致。
