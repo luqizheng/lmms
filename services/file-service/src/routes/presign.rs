@@ -32,6 +32,8 @@ pub async fn create_presign(
             (StatusCode::NOT_FOUND, "file not found")
         } else if e.code() == "FILE_PRESIGN_3001" {
             (StatusCode::UNAUTHORIZED, "presign expired")
+        } else if e.code() == "FILE_PRESIGN_3003" {
+            (StatusCode::NOT_IMPLEMENTED, "storage backend does not support presigned URLs")
         } else {
             (StatusCode::INTERNAL_SERVER_ERROR, "create presign failed")
         }
