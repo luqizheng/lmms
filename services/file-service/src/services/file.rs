@@ -1,6 +1,8 @@
 use crate::error::{AppError, AppErrorExt, AppResult};
 use crate::models::file_info::{FileInfo, PagedFiles, QueryFiles, UploadFileMeta};
-use crate::models::presign_url::{CreatePresignUrl, PresignOperation, PresignUrl, PresignUrlResponse};
+use crate::models::presign_url::{
+    CreatePresignUrl, PresignOperation, PresignUrl, PresignUrlResponse,
+};
 use crate::storage::object_store::ObjectStore;
 use bytes::Bytes;
 use digua_common_db::WithTenantScope;
@@ -31,10 +33,18 @@ impl FileService {
         max_file_size: u64,
         jwks: Arc<digua_common_jwt::JWKSCache>,
     ) -> Self {
-        Self { pool, storage, base_url, max_file_size, jwks }
+        Self {
+            pool,
+            storage,
+            base_url,
+            max_file_size,
+            jwks,
+        }
     }
 
-    pub fn pool_ref(&self) -> &DbPool { &self.pool }
+    pub fn pool_ref(&self) -> &DbPool {
+        &self.pool
+    }
 
     pub async fn upload(
         &self,
@@ -44,16 +54,23 @@ impl FileService {
     ) -> AppResult<FileInfo> {
         if (data.len() as u64) > self.max_file_size {
             return Err(AppError::file_too_large(format!(
-                "file too large: {} > {} bytes", data.len(), self.max_file_size
+                "file too large: {} > {} bytes",
+                data.len(),
+                self.max_file_size
             )));
         }
 
         let is_temporary = meta.is_temporary.unwrap_or(false);
         let now = chrono::Utc::now();
         let expires_at = if is_temporary {
-            let ttl = meta.expires_in_seconds.unwrap_or(DEFAULT_TEMPORARY_TTL_SECONDS);
+            let ttl = meta
+                .expires_in_seconds
+                .unwrap_or(DEFAULT_TEMPORARY_TTL_SECONDS);
             if ttl <= 0 {
-                return Err(AppError::bad_request("FILE_UPLOAD_2003", "temporary file TTL must be positive"));
+                return Err(AppError::bad_request(
+                    "FILE_UPLOAD_2003",
+                    "temporary file TTL must be positive",
+                ));
             }
             Some(now + chrono::Duration::seconds(ttl))
         } else {
@@ -115,7 +132,11 @@ impl FileService {
         let info = self.get_file_info(id, scope).await?;
         // Presign rows reference file_files through a foreign key. Revoke them
         // before deleting the object and its metadata.
-        db_execute!(&self.pool, "DELETE FROM file_presign_urls WHERE file_id = ?", id)?;
+        db_execute!(
+            &self.pool,
+            "DELETE FROM file_presign_urls WHERE file_id = ?",
+            id
+        )?;
         self.storage.delete(&info.storage_path).await?;
         self.delete_file_info(id, scope).await?;
         Ok(())
@@ -138,13 +159,24 @@ impl FileService {
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
 
         let url = match req.operation {
-            PresignOperation::Put => self.storage.presign_put(&info.storage_path, expires_in as u64).await?,
-            PresignOperation::Get => self.storage.presign_get(&info.storage_path, expires_in as u64).await?,
+            PresignOperation::Put => {
+                self.storage
+                    .presign_put(&info.storage_path, expires_in as u64)
+                    .await?
+            }
+            PresignOperation::Get => {
+                self.storage
+                    .presign_get(&info.storage_path, expires_in as u64)
+                    .await?
+            }
         }
         .unwrap_or_else(|| {
             format!(
                 "{}{}?expires={}&token={}",
-                self.base_url, req.file_id, expires_at.timestamp(), Uuid::new_v4()
+                self.base_url,
+                req.file_id,
+                expires_at.timestamp(),
+                Uuid::new_v4()
             )
         });
 
@@ -160,7 +192,11 @@ impl FileService {
         };
         self.save_presign_url(&presign).await?;
 
-        Ok(PresignUrlResponse { url, expires_at, operation })
+        Ok(PresignUrlResponse {
+            url,
+            expires_at,
+            operation,
+        })
     }
 
     pub async fn query_files(
@@ -174,11 +210,17 @@ impl FileService {
         let files: Vec<FileInfo> = db_qb_fetch_all!(&self.pool, FileInfo, |qb| {
             qb.push("SELECT * FROM file_files WHERE 1=1");
             qb.and_tenant(scope);
-            qb.push(" ORDER BY created_at DESC LIMIT ").push_bind(size as i64);
+            qb.push(" ORDER BY created_at DESC LIMIT ")
+                .push_bind(size as i64);
             qb.push(" OFFSET ").push_bind(offset as i64);
         })?;
         let total = files.len() as i64;
-        Ok(PagedFiles { items: files, total, page, size })
+        Ok(PagedFiles {
+            items: files,
+            total,
+            page,
+            size,
+        })
     }
 
     pub async fn get_file_info(&self, id: &str, scope: &TenantScope) -> AppResult<FileInfo> {
@@ -197,18 +239,27 @@ impl FileService {
         let now = chrono::Utc::now();
         // Expired capabilities are no longer usable; remove them to avoid
         // retaining stale bearer URLs and to release file metadata references.
-        db_execute!(&self.pool, "DELETE FROM file_presign_urls WHERE expires_at <= ?", now)?;
+        db_execute!(
+            &self.pool,
+            "DELETE FROM file_presign_urls WHERE expires_at <= ?",
+            now
+        )?;
         let expired: Vec<FileInfo> = db_qb_fetch_all!(&self.pool, FileInfo, |qb| {
             qb.push("SELECT * FROM file_files WHERE is_temporary = ");
             qb.push_bind(true);
             qb.push(" AND expires_at IS NOT NULL AND expires_at <= ");
             qb.push_bind(now);
-            qb.push(" ORDER BY expires_at ASC LIMIT ").push_bind(limit.max(1));
+            qb.push(" ORDER BY expires_at ASC LIMIT ")
+                .push_bind(limit.max(1));
         })?;
 
         let mut removed = 0usize;
         for info in expired {
-            db_execute!(&self.pool, "DELETE FROM file_presign_urls WHERE file_id = ?", &info.id)?;
+            db_execute!(
+                &self.pool,
+                "DELETE FROM file_presign_urls WHERE file_id = ?",
+                &info.id
+            )?;
             if let Err(error) = self.storage.delete(&info.storage_path).await {
                 tracing::warn!(file_id = %info.id, error = %error, "expired file object deletion failed; will retry");
                 continue;
@@ -227,9 +278,18 @@ impl FileService {
             r#"INSERT INTO file_files
                (id, filename, content_type, size, hash, storage_path, tenant_id, user_id, is_temporary, expires_at, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
-            &info.id, &info.filename, &info.content_type, info.size, &info.hash,
-            &info.storage_path, info.tenant_id, &info.user_id, info.is_temporary,
-            info.expires_at, info.created_at, info.updated_at
+            &info.id,
+            &info.filename,
+            &info.content_type,
+            info.size,
+            &info.hash,
+            &info.storage_path,
+            info.tenant_id,
+            &info.user_id,
+            info.is_temporary,
+            info.expires_at,
+            info.created_at,
+            info.updated_at
         )?;
         Ok(())
     }
@@ -249,8 +309,13 @@ impl FileService {
             r#"INSERT INTO file_presign_urls
                (id, file_id, operation, url, expires_at, created_by, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)"#,
-            &presign.id, &presign.file_id, &presign.operation, &presign.url,
-            presign.expires_at, &presign.created_by, presign.created_at
+            &presign.id,
+            &presign.file_id,
+            &presign.operation,
+            &presign.url,
+            presign.expires_at,
+            &presign.created_by,
+            presign.created_at
         )?;
         Ok(())
     }
