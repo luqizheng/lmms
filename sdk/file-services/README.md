@@ -51,7 +51,7 @@ const signed = await file.presign.create({
 - `get`：读取已存在的对象。
 - `put`：向该文件对象的存储键写入/覆盖内容。
 
-TTL 必须在 1 到 604800 秒（7 天）之间。业务下载通常应使用更短 TTL。
+TTL 必须在 1 到 604800 秒（7 天）之间。业务下载通常应使用更短 TTL。\n\n原生预签名 URL 仅适用于 S3-compatible 后端（RustFS / MinIO / AWS S3 / OSS 等）。LocalStorage 不支持原生预签名 URL，调用会返回 501；本地开发应由可信业务服务使用 service-jwt 调用内部下载接口并代理响应。
 
 ## 文件归属与授权
 
