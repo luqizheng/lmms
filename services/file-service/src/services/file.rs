@@ -113,6 +113,9 @@ impl FileService {
     // check-tenant-scope: delegated (and_tenant applied inside get_file_info/delete_file_info)
     pub async fn delete(&self, id: &str, scope: &TenantScope) -> AppResult<()> {
         let info = self.get_file_info(id, scope).await?;
+        // Presign rows reference file_files through a foreign key. Revoke them
+        // before deleting the object and its metadata.
+        db_execute!(&self.pool, "DELETE FROM file_presign_urls WHERE file_id = ?", id)?;
         self.storage.delete(&info.storage_path).await?;
         self.delete_file_info(id, scope).await?;
         Ok(())
@@ -192,6 +195,9 @@ impl FileService {
     /// Failed object deletes retain their metadata row and are retried next cycle.
     pub async fn cleanup_expired(&self, limit: i64) -> AppResult<usize> {
         let now = chrono::Utc::now();
+        // Expired capabilities are no longer usable; remove them to avoid
+        // retaining stale bearer URLs and to release file metadata references.
+        db_execute!(&self.pool, "DELETE FROM file_presign_urls WHERE expires_at <= ?", now)?;
         let expired: Vec<FileInfo> = db_qb_fetch_all!(&self.pool, FileInfo, |qb| {
             qb.push("SELECT * FROM file_files WHERE is_temporary = ");
             qb.push_bind(true);
@@ -202,6 +208,7 @@ impl FileService {
 
         let mut removed = 0usize;
         for info in expired {
+            db_execute!(&self.pool, "DELETE FROM file_presign_urls WHERE file_id = ?", &info.id)?;
             if let Err(error) = self.storage.delete(&info.storage_path).await {
                 tracing::warn!(file_id = %info.id, error = %error, "expired file object deletion failed; will retry");
                 continue;
