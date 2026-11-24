@@ -209,6 +209,9 @@ components:
           type: string
         operation:
           type: string
+          enum:
+          - get
+          - put
     FileInfo:
       type: object
       required:
@@ -358,6 +361,9 @@ components:
           format: date-time
         operation:
           type: string
+          enum:
+          - get
+          - put
         url:
           type: string
     UploadFileMeta:
