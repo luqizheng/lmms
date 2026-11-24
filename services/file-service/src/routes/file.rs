@@ -79,6 +79,8 @@ pub async fn upload_file(
     let info = state.upload(data, meta, &scope).await.map_err(|e| {
         if e.code() == "FILE_UPLOAD_2002" {
             (StatusCode::PAYLOAD_TOO_LARGE, "file too large")
+        } else if e.code() == "FILE_UPLOAD_2003" {
+            (StatusCode::BAD_REQUEST, "invalid temporary file TTL")
         } else {
             (StatusCode::INTERNAL_SERVER_ERROR, "upload failed")
         }
