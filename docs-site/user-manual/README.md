@@ -3,7 +3,7 @@
 > 运行、开发、部署、运维 coder-micro-services 平台的完整指南。
 > 从这里开始任何任务。
 >
-> 上次更新：2026-07-06（从原 `docs-site/USER_MANUAL.md` 按章节拆分并重写）
+> 上次更新：2026-11-24
 
 ---
 
@@ -23,6 +23,7 @@
 | 10 | [故障排查](./10-troubleshooting.md) | 常见错误速查表、整体重置、按 trace 排查 |
 | 11 | [参考](./11-reference.md) | 关键文档、目录布局、命令别名、术语表 |
 | 12 | [发布与分发](./12-release-and-distribute.md) | 推镜像 / 离线分发包 / 在 dist 包上创建新业务微服务 |
+| 13 | [文件服务与文件存储使用规范](../guides/file-storage-usage.md) | 文件对象模型、存储后端、服务间调用、安全、能力缺口 |
 
 ---
 
@@ -32,11 +33,12 @@
 |------|--------------|
 | 新人 / 新 AI 实例 | 01 → 02 → 03 → 04 → 09 |
 | 后端开发 | 01 → 02 → 03 → 04 → 09 |
-| 运维 / SRE | 01 → 05 → 06 → 07 → 08 → 10 |
+| 文件能力集成开发 | 02 → 13 → 09 |
+| 运维 / SRE | 01 → 05 → 06 → 07 → 08 → 10 → 13 |
 | 平台发布人（打 tag / 出 airgap 包） | 12 |
 | 私有化部署客户 / dist 包消费方 | 12 + `release/dist-template/docs/deployment/air-gap.md` |
-| AI Agent | 09 + `docs-site/ai-context.md` |
-| 安全 / 审计 | 02 → 07 → 10 |
+| AI Agent | 09 + `docs-site/ai-context.md` + 13 |
+| 安全 / 审计 | 02 → 07 → 10 → 13 |
 
 ---
 
@@ -45,7 +47,7 @@
 - [`docs-site/ai-context.md`](../ai-context.md) — AI 入口（服务地图、坑位、命令清单）
 - [`docs/onboarding/`](../onboarding/) — 中文新手指引（覆盖本地起步、框架、迁移、前端、排查）
 - [`docs-site/decisions/`](../decisions/) — ADR 架构决策记录
-- [`docs-site/guides/`](../guides/) — 专题指南（Canary、OTel、Testing、Java 集成等）
+- [`docs-site/guides/`](../guides/) — 专题指南
 - [`docs/superpowers/specs/`](../superpowers/specs/) — 设计 spec（按 `YYYY-MM-DD-<topic>-design.md` 命名）
 - [`docs/superpowers/plans/`](../superpowers/plans/) — 阶段计划
 - [`docs/superpowers/retros/`](../superpowers/retros/) — 月度复盘
