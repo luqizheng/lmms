@@ -42,19 +42,19 @@ describe("FileFilesApi.upload", () => {
   it("multipart：metadata JSON 串 + file 字段，不设 JSON Content-Type", async () => {
     const { impl, calls } = fakeFetch(() => ({
       status: 200,
-      body: { id: "f1", filename: "a.txt", size: 5, storage_path: "/x", tenant_id: 1, is_temporary: false, created_at: "", updated_at: "", url: "/v1/file/f1" },
+      body: { id: "f1", filename: "a.txt", size: 5, storage_path: "/x", tenant_id: 1, is_temporary: false, created_at: "", updated_at: "", url: "/file/f1" },
     }));
     const sdk = makeSdk(impl);
     const info = await sdk.files.upload({ filename: "a.txt", tenant_id: 1 }, new Blob(["hello"], { type: "text/plain" }));
     expect(calls[0].init.method).toBe("POST");
-    expect(calls[0].url).toBe("http://127.0.0.1:3000/v1/file/upload");
+    expect(calls[0].url).toBe("http://127.0.0.1:8082/file/upload");
     expect(headersOf(calls[0])["Authorization"]).toBe("Bearer tok");
     // fetch 对 FormData 自动设 multipart 边界，SDK 不得覆盖为 JSON
     expect(headersOf(calls[0])["Content-Type"]).toBeUndefined();
     const form = calls[0].init.body as FormData;
     expect(JSON.parse(String(form.get("metadata")))).toEqual({ filename: "a.txt", tenant_id: 1 });
     expect(form.get("file")).toBeInstanceOf(Blob);
-    expect(info.url).toBe("/v1/file/f1");
+    expect(info.url).toBe("/file/f1");
   });
 
   it("Uint8Array 输入同样走 multipart", async () => {
@@ -86,7 +86,7 @@ describe("FileFilesApi.download", () => {
     }));
     const sdk = makeSdk(impl);
     const res = await sdk.files.download("f1");
-    expect(calls[0].url).toBe("http://127.0.0.1:3000/v1/file/f1");
+    expect(calls[0].url).toBe("http://127.0.0.1:8082/file/f1");
     expect(new TextDecoder().decode(res.bytes)).toBe("hello-bytes");
     expect(res.contentType).toBe("application/pdf");
     expect(res.filename).toBe("报告.pdf");
@@ -104,12 +104,12 @@ describe("FilePresignApi 与其余端点", () => {
   it("presign.create 请求体与响应", async () => {
     const { impl, calls } = fakeFetch(() => ({
       status: 200,
-      body: { url: "http://x/signed", expires_at: "2026-11-01T00:00:00Z", operation: "download" },
+      body: { url: "http://x/signed", expires_at: "2026-11-01T00:00:00Z", operation: "get" },
     }));
     const sdk = makeSdk(impl);
-    const res = await sdk.presign.create({ file_id: "f1", operation: "download", expires_in_seconds: 300 });
-    expect(calls[0].url).toBe("http://127.0.0.1:3000/v1/file/presign");
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ file_id: "f1", operation: "download", expires_in_seconds: 300 });
+    const res = await sdk.presign.create({ file_id: "f1", operation: "get", expires_in_seconds: 300 });
+    expect(calls[0].url).toBe("http://127.0.0.1:8082/file/presign");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ file_id: "f1", operation: "get", expires_in_seconds: 300 });
     expect(res.operation).toBe("download");
   });
 
@@ -117,9 +117,9 @@ describe("FilePresignApi 与其余端点", () => {
     const { impl, calls } = fakeFetch(() => ({ status: 200, body: { items: [], total: 0, page: 1, size: 20 } }));
     const sdk = makeSdk(impl);
     await sdk.files.page({ user_id: "u1", filename: "报 告.pdf", page: 1, size: 20 });
-    expect(calls[0].url).toContain("/v1/file/list?user_id=u1&filename=");
+    expect(calls[0].url).toContain("/file/list?user_id=u1&filename=");
     await sdk.files.info("f/1");
-    expect(calls[1].url).toBe("http://127.0.0.1:3000/v1/file/f%2F1/info");
+    expect(calls[1].url).toBe("http://127.0.0.1:8082/file/f%2F1/info");
   });
 
   it("remove DELETE", async () => {
