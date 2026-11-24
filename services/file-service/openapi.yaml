@@ -208,10 +208,12 @@ components:
         file_id:
           type: string
         operation:
-          type: string
-          enum:
-          - get
-          - put
+          $ref: '#/components/schemas/PresignOperation'
+    PresignOperation:
+      type: string
+      enum:
+      - get
+      - put
     FileInfo:
       type: object
       required:
@@ -265,11 +267,8 @@ components:
         url:
           type: string
           description: |-
-            客户端可渲染的下载 URL（相对路径，前端 axios baseURL /api + 此值）。
-            由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
-            2026-11-07 裁决后网关不再暴露 /v1/file/* 用户路由——该字段仅在
-            file-service 被业务服务网关化暴露时才有意义；用户下载一律走
-            presign 签名 URL（见 contracts/http-conventions.md）。
+            内部 file-service 相对路径兼容字段，由 handler 注入且不存储在 DB。
+            此字段不构成用户下载授权；用户下载必须使用业务服务授权后创建的 presign URL。
         user_id:
           type:
           - string
@@ -360,10 +359,7 @@ components:
           type: string
           format: date-time
         operation:
-          type: string
-          enum:
-          - get
-          - put
+          $ref: '#/components/schemas/PresignOperation'
         url:
           type: string
     UploadFileMeta:
