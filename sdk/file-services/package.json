@@ -1,7 +1,7 @@
 {
   "name": "@digua/file-services",
   "version": "1.8.1",
-  "description": "lmms file-service SDK：multipart 上传、二进制下载、文件管理与预签名 URL 的零依赖 fetch 客户端（api-gateway /v1/file 公开路径）",
+  "description": "LMMS file-service internal server-to-server SDK：multipart upload, binary download, file metadata and presigned URLs",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
