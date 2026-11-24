@@ -99,6 +99,8 @@ paths:
                 $ref: '#/components/schemas/PresignUrlResponse'
         '401':
           description: Presign expired
+        '400':
+          description: Invalid presign TTL
         '404':
           description: File not found
         '501':
