@@ -190,8 +190,8 @@ impl FileService {
         info.ok_or_else(|| AppError::file_not_found(id))
     }
 
-    /// Delete expired temporary objects in bounded batches. This is intentionally
-    /// an internal maintenance operation and does not use a caller tenant scope.
+    /// Delete expired temporary objects in bounded batches.
+    // check-tenant-scope: internal system maintenance intentionally spans tenants.
     /// Failed object deletes retain their metadata row and are retried next cycle.
     pub async fn cleanup_expired(&self, limit: i64) -> AppResult<usize> {
         let now = chrono::Utc::now();
