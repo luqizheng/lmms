@@ -69,7 +69,7 @@
 
 ### 预签名 URL 行为
 
-- `FILE_STORAGE_BACKEND=local`：沿用网关代理 URL（`base_url/file/{id}?expires=&token=`），不需要对象存储签名。
+- `FILE_STORAGE_BACKEND=local`：不支持原生预签名 URL；`/file/presign` 返回 501。调用方只能通过 service-jwt 调用内部下载端点，或由业务服务代理下载。不得生成未经服务端验证的伪签名 URL。
 - `FILE_STORAGE_BACKEND=rustfs` 或 `s3`：直接返回真实的 S3 SigV4 预签名 URL（GET/PUT），客户端可直接访问对象存储 endpoint，绕过 file-service 转发流量。
 
 ## 内部端点 /file/internal/*
