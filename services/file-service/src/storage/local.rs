@@ -12,7 +12,9 @@ pub struct LocalStorage {
 
 impl LocalStorage {
     pub fn new(base_path: impl Into<PathBuf>) -> Self {
-        Self { base_path: base_path.into() }
+        Self {
+            base_path: base_path.into(),
+        }
     }
 
     fn resolve_path(&self, path: &str) -> PathBuf {
