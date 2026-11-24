@@ -101,6 +101,8 @@ paths:
           description: Presign expired
         '404':
           description: File not found
+        '501':
+          description: Configured storage backend does not support presigned URLs
   /file/upload:
     post:
       tags:
