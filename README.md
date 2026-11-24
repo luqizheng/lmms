@@ -413,6 +413,26 @@ node packages/cli/bin/coder.js release sdk all
 
 详见 [`docs/deploy-topologies.md`](docs/deploy-topologies.md)「镜像引用与版本钉版」。
 
+### 容器内运维 CLI：iam_reset_password
+
+iam-service 镜像内置密码重置兜底工具，**必须 `docker exec` 进入部署了
+iam-service 的容器执行**（入口控制 = 宿主机访问权，不新增网络攻击面）。
+适用于管理员被锁死（密码遗忘 / 邮件自服务通道不可用）的场景：
+
+```bash
+# 随机生成 24 位密码并打印（推荐，避免密码进 shell history）
+docker exec -it <iam容器> iam_reset_password <username>
+
+# 指定新密码（≥8 字符）
+docker exec -it <iam容器> iam_reset_password <username> -p <new_password>
+```
+
+- DB 语义与 `/iam/auth/reset-password` 一致：argon2 哈希写 `iam_users` +
+  撤销该用户全部 refresh token（已发的短期 access JWT 至 exp 自然失效）。
+- 连接读容器内已注入的 `DATABASE_URL`，无需 Redis / RabbitMQ / 网关；
+  不监听端口、不注册路由。
+- spec：[`docs/superpowers/specs/2026-11-24-iam-reset-password-cli-design.md`](docs/superpowers/specs/2026-11-24-iam-reset-password-cli-design.md)。
+
 ## Infrastructure
 
 - **Consul**: Service discovery（服务进程自注册，SIGTERM 注销）
