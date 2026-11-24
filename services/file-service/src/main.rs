@@ -29,7 +29,6 @@ async fn main() -> anyhow::Result<()> {
     let pool = init_pool(&config.database_url)
         .await
         .expect("failed to initialize database pool");
-
     ensure_schema(&pool).await.expect("ensure_schema failed");
 
     let storage: Arc<dyn file_service::storage::object_store::ObjectStore> = match backend {
@@ -53,7 +52,6 @@ async fn main() -> anyhow::Result<()> {
 
     let base_url = "http://localhost:8082/file/".to_string();
 
-    // Phase 5-B: JWKS cache.
     let http_for_jwt = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .build()
@@ -67,15 +65,31 @@ async fn main() -> anyhow::Result<()> {
         },
         http_for_jwt,
     ));
-    // Block up to 30s on startup retry + spawn periodic refresh loop.
-    // Fixes docker-compose boot race: token-service may not be listening yet
-    // when this service comes up; previously a single failed `refresh()` was
-    // warn-ignored and the cache stayed empty forever (401 on every verify).
+    // Retry during startup and periodically refresh the service-JWT verification keys.
     let jwks_shutdown = Arc::clone(&jwks)
         .init_with_refresh_loop(Duration::from_secs(30))
         .await;
 
     let state = create_state(pool, storage, base_url, config.max_file_size, jwks);
+
+    // Expired temporary files are deleted in bounded batches. Failed object
+    // deletions retain their metadata rows and are retried on the next cycle.
+    let cleanup_state = state.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            match cleanup_state.cleanup_expired(100).await {
+                Ok(removed) if removed > 0 => {
+                    tracing::info!(removed, "expired temporary files cleaned up");
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    tracing::error!(error = %error, "expired temporary file cleanup cycle failed");
+                }
+            }
+        }
+    });
 
     let app = routes::routes(state);
 
@@ -95,17 +109,13 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let addr: SocketAddr = config.server_addr.parse().expect("invalid server address");
-
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .expect("failed to bind");
     tracing::info!("file-service listening on {}", addr);
 
-    // 自注册（libs/common-consul）：SERVICE_NAME 未设时为 no-op。
     let consul_guard = digua_common_consul::consul_guard();
     tokio::spawn(async move {
-        // SIGINT + SIGTERM（docker stop 走 SIGTERM；旧代码只听 ctrl_c，
-        // SIGTERM 无人消费 → 超时 SIGKILL，注销路径从未真正执行）。
         digua_common_consul::wait_for_shutdown_signal().await;
         tracing::info!("received shutdown signal");
         let _ = jwks_shutdown.send(true);

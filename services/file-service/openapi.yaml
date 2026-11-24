@@ -97,10 +97,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PresignUrlResponse'
+        '400':
+          description: Invalid presign TTL
         '401':
           description: Presign expired
         '404':
           description: File not found
+        '501':
+          description: Storage backend does not support presigned URLs
   /file/upload:
     post:
       tags:
@@ -208,7 +212,7 @@ components:
         file_id:
           type: string
         operation:
-          type: string
+          $ref: '#/components/schemas/PresignOperation'
     FileInfo:
       type: object
       required:
@@ -262,11 +266,9 @@ components:
         url:
           type: string
           description: |-
-            客户端可渲染的下载 URL（相对路径，前端 axios baseURL /api + 此值）。
+            兼容字段：内部 file-service 相对路径。用户下载授权必须由业务服务创建 presign URL。
             由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
-            2026-11-07 裁决后网关不再暴露 /v1/file/* 用户路由——该字段仅在
-            file-service 被业务服务网关化暴露时才有意义；用户下载一律走
-            presign 签名 URL（见 contracts/http-conventions.md）。
+            此字段不构成用户下载授权；用户下载必须使用业务服务授权后创建的 presign URL。
         user_id:
           type:
           - string
@@ -346,6 +348,14 @@ components:
         total:
           type: integer
           format: int64
+    PresignOperation:
+      type: string
+      description: |-
+        Only supported presign operations. "put" is intended for an existing
+        file object key; "get" grants read access to the stored object.
+      enum:
+      - get
+      - put
     PresignUrlResponse:
       type: object
       required:
@@ -357,7 +367,7 @@ components:
           type: string
           format: date-time
         operation:
-          type: string
+          $ref: '#/components/schemas/PresignOperation'
         url:
           type: string
     UploadFileMeta:

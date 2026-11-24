@@ -17,7 +17,9 @@ pub fn routes(state: AppState) -> axum::Router<AppState> {
     responses(
         (status = 200, description = "Presigned URL", body = PresignUrlResponse),
         (status = 401, description = "Presign expired"),
+        (status = 400, description = "Invalid presign TTL"),
         (status = 404, description = "File not found"),
+        (status = 501, description = "Storage backend does not support presigned URLs"),
     ),
     tag = "presign"
 )]
@@ -32,6 +34,13 @@ pub async fn create_presign(
             (StatusCode::NOT_FOUND, "file not found")
         } else if e.code() == "FILE_PRESIGN_3001" {
             (StatusCode::UNAUTHORIZED, "presign expired")
+        } else if e.code() == "FILE_PRESIGN_3002" {
+            (StatusCode::BAD_REQUEST, "invalid presign TTL")
+        } else if e.code() == "FILE_PRESIGN_3003" {
+            (
+                StatusCode::NOT_IMPLEMENTED,
+                "storage backend does not support presigned URLs",
+            )
         } else {
             (StatusCode::INTERNAL_SERVER_ERROR, "create presign failed")
         }

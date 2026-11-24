@@ -1,97 +1,78 @@
 # file-service
 
-文件服务，提供文件上传、下载、预签名 URL 功能。
+LMMS 内部文件对象服务，提供文件上传、下载、元数据查询、删除和对象存储预签名 URL。
 
-## 功能
+> **内部服务：** 所有 `/file/*` 端点只接受 `aud=file-service` 的 service-jwt。用户 JWT 不可直接调用，api-gateway 不暴露用户文件路由。用户面权限由业务服务校验后再调用本服务。
 
-- 文件上传：单文件上传，支持元数据
-- 文件下载：直链下载，支持过期检查
-- 预签名 URL：临时访问 URL，TTL 可配
-- 文件管理：查询、删除、元数据获取
-- 临时文件：支持过期自动清理
+## 能力边界
+
+当前提供扁平文件对象管理，不是 POSIX 文件系统或网盘：不提供目录树、移动/复制、版本历史或回收站。文件字节由 LocalStorage 或 S3-compatible ObjectStore 管理，数据库保存元数据。
+
+- 单文件 multipart 上传（默认最大 100 MiB）
+- 文件列表、元数据、下载和删除
+- S3-compatible GET/PUT 预签名 URL（TTL 1..604800 秒）；LocalStorage 不支持原生 presign，返回 501
+- 临时文件过期清理：每 60 秒扫描，单轮最多 100 个；删除失败保留记录并重试
+- 上传元数据落库失败时尝试补偿删除已写入对象
 
 ## 快速开始
 
 ```bash
-# MySQL（仅支持 MySQL，已移除 SQLite）
-DATABASE_URL=mysql://user:pwd@localhost/superpowers STORAGE_PATH=./data/files cargo run
+DATABASE_URL=mysql://user:pwd@localhost/superpowers \
+FILE_STORAGE_BACKEND=local STORAGE_PATH=./data/files cargo run
 ```
 
-## API
+## API（内部调用）
+
+所有请求均需 `Authorization: Bearer <service-jwt>`，且 JWT audience 必须是 `file-service`。
+
+### multipart 上传
 
 ```bash
-# 上传文件
 curl -X POST http://localhost:8082/file/upload \
-  -H "Content-Type: application/json" \
-  -d '{"filename":"test.txt","content_type":"text/plain"}' \
-  --data-binary @test.txt
-
-# 查询文件列表
-curl http://localhost:8082/file/list
-
-# 下载文件
-curl http://localhost:8082/file/{id}
-
-# 创建预签名 URL
-curl -X POST http://localhost:8082/file/presign \
-  -H "Content-Type: application/json" \
-  -d '{"file_id":"file-id","operation":"get","expires_in_seconds":3600}'
-
-# 删除文件
-curl -X DELETE http://localhost:8082/file/{id}
+  -H "Authorization: Bearer $FILE_SERVICE_JWT" \
+  -F 'metadata={"filename":"test.txt","content_type":"text/plain","tenant_id":1}' \
+  -F 'file=@test.txt'
 ```
 
-## 环境变量
+### 查询、下载、预签名、删除
 
-- DATABASE_URL: 数据库连接
-- SERVER_ADDR: 监听地址（默认 0.0.0.0:8082）
-- RUST_LOG: 日志级别（默认 info）
-- FILE_STORAGE_BACKEND: `local` / `rustfs` / `s3`，决定 storage driver（默认 `local`）
-- STORAGE_PATH: 本地存储路径（默认 ./data/files；非 local 后端忽略）
-- S3_ENDPOINT: S3 endpoint（rustfs 必填，如 http://rustfs:9000；AWS / Aliyun 可不填自动推断）
-- S3_BUCKET: 桶名（默认 `coder-files`）
-- S3_REGION: 区域（默认 `us-east-1`）
-- S3_ACCESS_KEY / S3_SECRET_KEY: 凭据（rustfs / s3 必填）
-- S3_PATH_STYLE: true/false（rustfs 自动 true；AWS / Aliyun 不需要）
-- S3_AUTO_CREATE_BUCKET: true/false（默认 true；启动时尝试创建 bucket，失败仅 warn）
+```bash
+curl -H "Authorization: Bearer $FILE_SERVICE_JWT" \
+  "http://localhost:8082/file/list?page=1&size=20"
+
+curl -H "Authorization: Bearer $FILE_SERVICE_JWT" \
+  "http://localhost:8082/file/{id}/info"
+
+curl -X POST http://localhost:8082/file/presign \
+  -H "Authorization: Bearer $FILE_SERVICE_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"file_id":"file-id","operation":"get","expires_in_seconds":300}'
+
+curl -X DELETE http://localhost:8082/file/{id} \
+  -H "Authorization: Bearer $FILE_SERVICE_JWT"
+```
 
 ## 存储后端
 
-通过 `ObjectStore` trait 抽象，运行时按 `FILE_STORAGE_BACKEND` env 选择 — 同一镜像支持多 driver：
+通过 `ObjectStore` trait 抽象，运行时按 `FILE_STORAGE_BACKEND` 选择 driver：
 
 | backend | 用途 | 典型场景 |
-|---------|------|----------|
-| `local`  | 本地文件系统（dev 默认）| 单机开发 / 单机测试 |
-| `rustfs` | RustFS（S3 协议 + path-style）| **私有化部署推荐**（与本仓库"多客户用同一镜像"目标一致）|
-| `s3`     | AWS S3 / Aliyun OSS / 腾讯 COS | 公有云部署 |
+|---|---|---|
+| `local` | 本地文件系统 | 开发、单机测试；多副本生产不建议 |
+| `rustfs` | S3 协议 + path-style | 私有化部署 |
+| `s3` | AWS S3 / Aliyun OSS / 腾讯 COS 等兼容服务 | 公有云或托管对象存储 |
 
-实现：
-- `src/storage/local.rs` — 本地文件系统
-- `src/storage/s3.rs` — 统一 S3 协议 driver，覆盖 RustFS / MinIO / AWS S3 / Aliyun OSS；
-  通过 `S3Config`（bucket/region/endpoint/path_style/access_key/secret_key）区分 driver，**无代码分支差异**
+环境变量：
+- `DATABASE_URL`：必填数据库连接。
+- `SERVER_ADDR`：监听地址，默认 `0.0.0.0:8082`。
+- `FILE_STORAGE_BACKEND`：`local` / `rustfs` / `s3`，默认 `local`。
+- `STORAGE_PATH`：本地存储根目录，默认 `./data/files`。
+- `S3_ENDPOINT`、`S3_BUCKET`、`S3_REGION`、`S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_PATH_STYLE`、`S3_AUTO_CREATE_BUCKET`：S3-compatible 后端配置。
 
-## 数据模型
+## 一致性与运维
 
-### FileInfo
-```json
-{
-  "id": "uuid",
-  "filename": "string",
-  "content_type": "string (optional)",
-  "size": "number",
-  "storage_path": "string",
-  "tenant_id": "string (optional)",
-  "user_id": "string (optional)",
-  "is_temporary": "boolean",
-  "expires_at": "datetime (optional)"
-}
-```
-
-### PresignUrlResponse
-```json
-{
-  "url": "string",
-  "expires_at": "datetime",
-  "operation": "string (get/put)"
-}
-```
+- 数据库元数据和对象存储内容必须一起备份、恢复和校验。
+- 删除顺序为先删除对象、再删除元数据；元数据删除失败时可重试，对象删除必须保持幂等。
+- 上传先写对象再写元数据；元数据写入失败会尝试补偿删除对象。补偿失败会记录 error 日志，需纳入运维告警/孤儿对象巡检。
+- 切换存储后端必须迁移对象并校验数量、大小和 hash，不能只改环境变量。
+- 详细规则见 `docs-site/guides/file-storage-usage.md`。

@@ -3,7 +3,7 @@ use utoipa::OpenApi;
 use crate::{
     models::{
         file_info::{FileInfo, PagedFiles, UploadFileMeta},
-        presign_url::{CreatePresignUrl, PresignUrlResponse},
+        presign_url::{CreatePresignUrl, PresignOperation, PresignUrlResponse},
     },
     routes::{file as file_route, migration_state, presign},
 };
@@ -25,6 +25,7 @@ use crate::{
         UploadFileMeta,
         PagedFiles,
         CreatePresignUrl,
+        PresignOperation,
         PresignUrlResponse,
         digua_common_db::migration_state::MigrationStateResponse,
         digua_common_db::migration_state::MigrationInfo,

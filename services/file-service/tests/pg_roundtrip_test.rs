@@ -200,9 +200,10 @@ async fn pg_ensure_schema_is_idempotent() {
 // - 顺带覆盖 `file.rs` 的 `size as i64` / `offset as i64`（42 处 u32 问题的真实回归）。
 mod service_path {
     use super::*;
+    use bytes::Bytes;
     use digua_common_jwt::JWKSCache;
     use digua_jwt_ctx::TenantScope;
-    use file_service::models::file_info::QueryFiles;
+    use file_service::models::file_info::{QueryFiles, UploadFileMeta};
     use file_service::services::FileService;
     use file_service::storage::{LocalStorage, ObjectStore};
     use jwt_simple::prelude::*;
@@ -358,5 +359,43 @@ mod service_path {
             .await
             .expect("query_files cross tenant on PG");
         assert_eq!(all.items.len(), 2, "跨租户应看到 2 行");
+    }
+
+    #[tokio::test]
+    async fn pg_expired_temporary_file_cleanup_removes_object_and_metadata() {
+        let Some(pool) = fresh_pg_pool().await else {
+            return;
+        };
+        let (service, _dir) = make_service(pool);
+        let meta = UploadFileMeta {
+            filename: "temporary.txt".to_string(),
+            content_type: Some("text/plain".to_string()),
+            tenant_id: Some(7),
+            user_id: Some("u-1".to_string()),
+            is_temporary: Some(true),
+            expires_in_seconds: Some(1),
+        };
+        let uploaded = service
+            .upload(
+                Bytes::from_static(b"temporary payload"),
+                meta,
+                &TenantScope::Single(7),
+            )
+            .await
+            .expect("upload temporary file");
+
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        let removed = service
+            .cleanup_expired(100)
+            .await
+            .expect("cleanup expired files");
+        assert_eq!(removed, 1, "one expired temporary file should be removed");
+        assert!(
+            service
+                .get_file_info(&uploaded.id, &TenantScope::Single(7))
+                .await
+                .is_err(),
+            "expired file metadata must be removed after object deletion"
+        );
     }
 }
