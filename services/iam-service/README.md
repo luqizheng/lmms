@@ -92,6 +92,16 @@ docker build -t iam-service:latest services/iam-service/
 docker run -p 3002:3002 iam-service:latest
 ```
 
+### 容器内密码重置 CLI
+
+管理员被锁死时的运维兜底（必须进入部署了 iam-service 的容器执行）：
+
+```bash
+docker exec -it <iam容器> iam_reset_password <username>          # 随机生成密码并打印（推荐）
+docker exec -it <iam容器> iam_reset_password <username> -p <pw>  # 指定新密码（≥8 字符）
+```
+
+
 ## 健康检查
 
 - `/health` - 服务健康状态

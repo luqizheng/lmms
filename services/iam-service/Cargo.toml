@@ -82,3 +82,9 @@ wiremock = "0.6"
 [[bin]]
 name = "iam_service"
 path = "src/main.rs"
+
+# 容器内运维 CLI：docker exec 进容器重置用户密码（全下划线名 → 磁盘产物同名，规避
+# kebab→underscore 强制转换坑）。spec: docs/superpowers/specs/2026-11-24-iam-reset-password-cli-design.md
+[[bin]]
+name = "iam_reset_password"
+path = "src/bin/reset-password.rs"

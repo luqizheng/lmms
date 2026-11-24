@@ -19,9 +19,10 @@ ARG SERVICE_FEATURES=mysql
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=cargo-target-iam-service,target=/app/target,sharing=locked \
-    cargo build --release --target x86_64-unknown-linux-musl --bin iam_service -p iam_service  --features "${SERVICE_FEATURES}" && \
+    cargo build --release --target x86_64-unknown-linux-musl --bin iam_service --bin iam_reset_password -p iam_service  --features "${SERVICE_FEATURES}" && \
     cargo build --release --target x86_64-unknown-linux-musl -p iam_outbox_publisher  --features "${SERVICE_FEATURES}" && \
     cp /app/target/x86_64-unknown-linux-musl/release/iam_service /app/iam_service && \
+    cp /app/target/x86_64-unknown-linux-musl/release/iam_reset_password /app/iam_reset_password && \
     cp /app/target/x86_64-unknown-linux-musl/release/iam_outbox_publisher /app/iam_outbox_publisher
 
 ARG BASE_REGISTRY=zhcoder-docker-registry.com:8000/official
@@ -31,6 +32,8 @@ RUN apk add --no-cache ca-certificates curl
 
 COPY --from=builder /app/iam_service /usr/local/bin/iam_service
 COPY --from=builder /app/iam_outbox_publisher /usr/local/bin/iam_outbox_publisher
+# 容器内运维 CLI：docker exec 进容器重置用户密码（不监听端口、不注册路由）
+COPY --from=builder /app/iam_reset_password /usr/local/bin/iam_reset_password
 
 # 角色感知健康探针：这张镜像同时承载服务端（iam_service，8081）与 worker
 # （iam_outbox_publisher，无端口），单一 HEALTHCHECK 无法同时覆盖两者。

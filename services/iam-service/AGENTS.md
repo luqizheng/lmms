@@ -160,6 +160,19 @@
 - 用于 notification-service 等下游跨服务成员查询
 - `/iam/internal/migrations/state` 返回 5 个 V001-V005 migration 的 marker-table 探测结果；鉴权 service-jwt `aud=iam-service`。详见 `docs-site/guides/migrations-state.md`。
 
+## 容器内运维 CLI：iam_reset_password
+
+镜像内置密码重置兜底工具（必须 `docker exec` 进容器执行，入口控制 = 宿主机访问权）：
+
+```bash
+docker exec -it <iam容器> iam_reset_password <username>          # 随机生成密码并打印
+docker exec -it <iam容器> iam_reset_password <username> -p <pw>  # 指定新密码（≥8 字符）
+```
+
+- DB 语义与 `/iam/auth/reset-password` 一致：argon2 哈希写 `iam_users` + 撤销全部 refresh token。
+- 连接读容器内 `DATABASE_URL`，无需 Redis / RabbitMQ；不监听端口、不注册路由。
+- spec：`docs/superpowers/specs/2026-11-24-iam-reset-password-cli-design.md`。
+
 ## 豁免
 
 （无）
