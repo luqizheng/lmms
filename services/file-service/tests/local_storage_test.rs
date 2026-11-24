@@ -7,7 +7,10 @@ async fn local_storage_delete_is_idempotent() {
     let storage = LocalStorage::new(dir.path());
 
     // Deleting an object that is already absent is a successful no-op.
-    storage.delete("missing-object").await.expect("delete missing object");
+    storage
+        .delete("missing-object")
+        .await
+        .expect("delete missing object");
 
     storage
         .put("object-1", Bytes::from_static(b"payload"))
