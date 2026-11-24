@@ -253,7 +253,7 @@ impl FileService {
             qb.push("SELECT * FROM file_files WHERE is_temporary = ");
             qb.push_bind(true);
             qb.push(" AND expires_at IS NOT NULL AND expires_at <= ");
-            qb.push_bind(&now);
+            qb.push_bind(now);
             qb.push(" ORDER BY expires_at ASC LIMIT ")
                 .push_bind(limit.max(1));
         })?;
