@@ -128,8 +128,10 @@ impl FileService {
     // check-tenant-scope: delegated (and_tenant applied inside get_file_info/delete_file_info)
     pub async fn delete(&self, id: &str, scope: &TenantScope) -> AppResult<()> {
         let info = self.get_file_info(id, scope).await?;
-        // Presign rows reference file_files through a foreign key. Revoke them
-        // before deleting the object and its metadata.
+        // Presign metadata rows reference file_files through a foreign key. Remove
+        // those audit rows before deleting the object and its metadata. This
+        // does not revoke an already-issued S3 URL; object deletion and short TTL
+        // are the actual limits on an issued capability.
         db_execute!(
             &self.pool,
             "DELETE FROM file_presign_urls WHERE file_id = ?",
