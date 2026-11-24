@@ -21,7 +21,7 @@ pub struct FileInfo {
     pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    /// 客户端可渲染的下载 URL（相对路径，前端 axios baseURL /api + 此值）。
+    /// 兼容字段：内部 file-service 相对路径。用户下载授权必须由业务服务创建 presign URL。
     /// 由 handlers 在返回前注入；DB 不存（`#[sqlx(skip)]`）。
     /// 2026-11-07 裁决后网关不再暴露 /v1/file/* 用户路由——该字段仅在
     /// file-service 被业务服务网关化暴露时才有意义；用户下载一律走
@@ -33,7 +33,7 @@ pub struct FileInfo {
 
 /// 构造带可渲染 URL 的 FileInfo（用于 API 响应）
 pub fn with_url(mut info: FileInfo) -> FileInfo {
-    info.url = format!("/v1/file/{}", info.id);
+    info.url = format!("/file/{}", info.id);
     info
 }
 
