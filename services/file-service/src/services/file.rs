@@ -19,7 +19,6 @@ const DEFAULT_TEMPORARY_TTL_SECONDS: i64 = 24 * 60 * 60;
 pub struct FileService {
     pool: DbPool,
     storage: Arc<dyn ObjectStore>,
-    base_url: String,
     max_file_size: u64,
     /// JWKS cache used by the service-JWT audience middleware.
     pub jwks: Arc<digua_common_jwt::JWKSCache>,
@@ -29,14 +28,13 @@ impl FileService {
     pub fn new(
         pool: DbPool,
         storage: Arc<dyn ObjectStore>,
-        base_url: String,
+        _base_url: String,
         max_file_size: u64,
         jwks: Arc<digua_common_jwt::JWKSCache>,
     ) -> Self {
         Self {
             pool,
             storage,
-            base_url,
             max_file_size,
             jwks,
         }
@@ -170,15 +168,12 @@ impl FileService {
                     .await?
             }
         }
-        .unwrap_or_else(|| {
-            format!(
-                "{}{}?expires={}&token={}",
-                self.base_url,
-                req.file_id,
-                expires_at.timestamp(),
-                Uuid::new_v4()
+        .ok_or_else(|| {
+            AppError::internal(
+                "FILE_PRESIGN_3003",
+                "configured storage backend does not support native presigned URLs",
             )
-        });
+        })?;
 
         let operation = req.operation;
         let presign = PresignUrl {
