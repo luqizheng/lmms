@@ -1,11 +1,9 @@
-// 请求核：零依赖 fetch，浏览器 / Node ≥18 通用（iam-services 同款内核 +
-// 原始文本体 / 文本与字节响应模式扩展）。
-// SDK 不做自动刷新——单飞刷新留在消费方的 HTTP 层（如 @digua/http）；
-// 受保护端点通过 getToken() 注入 Bearer，由应用层决定 token 来源。
+// Server-to-server request core for file-service.
+// This package must not be used from browsers: file-service accepts only service-jwt
+// tokens with aud=file-service. End-user authorization belongs in the calling business service.
 import { FileServicesError } from "./errors.js";
-/** api-gateway 默认基地址（本机联调）。 */
-export const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
-/** 从 Content-Disposition 解析文件名（RFC 5987 filename* 优先，回退 filename，均无则 null）。 */
+/** Local file-service address; production callers should inject the internal service URL. */
+export const DEFAULT_BASE_URL = "http://127.0.0.1:8082";
 export function parseDispositionFilename(disposition) {
     if (!disposition)
         return null;
@@ -14,9 +12,7 @@ export function parseDispositionFilename(disposition) {
         try {
             return decodeURIComponent(utf8[1].trim().replace(/^"|"$/g, ""));
         }
-        catch {
-            // 解码失败回退普通 filename
-        }
+        catch { /* fall back to filename */ }
     }
     const plain = /filename="?([^";]+)"?/.exec(disposition);
     return plain ? plain[1].trim() : null;
@@ -63,17 +59,10 @@ export class HttpCore {
         const res = await this.fetchImpl(url, {
             method,
             headers,
-            body: body === undefined
-                ? undefined
-                : isFormData
-                    ? body
-                    : typeof body === "string"
-                        ? body
-                        : JSON.stringify(body),
+            body: body === undefined ? undefined : isFormData ? body : typeof body === "string" ? body : JSON.stringify(body),
         });
-        if (!res.ok) {
+        if (!res.ok)
             throw FileServicesError.from(res.status, await res.text());
-        }
         if (response === "bytes") {
             return {
                 bytes: await res.arrayBuffer(),
@@ -82,29 +71,16 @@ export class HttpCore {
             };
         }
         const text = await res.text();
-        if (response === "text") {
+        if (response === "text")
             return text;
-        }
-        if (res.status === 204 || text === "") {
+        if (res.status === 204 || text === "")
             return undefined;
-        }
         const ct = res.headers.get("content-type") ?? "";
-        if (ct.includes("application/json")) {
-            return JSON.parse(text);
-        }
-        return text;
+        return ct.includes("application/json") ? JSON.parse(text) : text;
     }
-    get(path, options = {}) {
-        return this.request("GET", path, options);
-    }
-    post(path, body, options = {}) {
-        return this.request("POST", path, { ...options, body });
-    }
-    put(path, body, options = {}) {
-        return this.request("PUT", path, { ...options, body });
-    }
-    delete(path, options = {}) {
-        return this.request("DELETE", path, options);
-    }
+    get(path, options = {}) { return this.request("GET", path, options); }
+    post(path, body, options = {}) { return this.request("POST", path, { ...options, body }); }
+    put(path, body, options = {}) { return this.request("PUT", path, { ...options, body }); }
+    delete(path, options = {}) { return this.request("DELETE", path, options); }
 }
 //# sourceMappingURL=http.js.map
