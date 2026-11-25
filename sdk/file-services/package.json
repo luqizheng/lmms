@@ -1,6 +1,6 @@
 {
   "name": "@digua/file-services",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "LMMS file-service internal server-to-server SDK：multipart upload, binary download, file metadata and presigned URLs",
   "type": "module",
   "main": "./dist/index.js",

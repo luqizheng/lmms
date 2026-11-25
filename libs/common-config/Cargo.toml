@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_config"
-version = "1.8.1"
+version = "1.8.2"
 license = "Apache-2.0"
 description = "Configuration loading from env and files for KudiCoder services"
 edition = "2021"
@@ -14,7 +14,7 @@ config-service = ["dep:reqwest"]
 config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-digua_common_error = { path = "../common-error", version = "1.8.1" }
+digua_common_error = { path = "../common-error", version = "1.8.2" }
 reqwest = { workspace = true, optional = true, default-features = false }
 base64 = { workspace = true, optional = true }
 tokio = { workspace = true }

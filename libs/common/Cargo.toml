@@ -1,6 +1,6 @@
 [package]
 name = "digua_common"
-version = "1.8.1"
+version = "1.8.2"
 license = "Apache-2.0"
 description = "Facade crate re-exporting digua_common-error/digua_common-db/digua_common-crypto for KudiCoder services"
 edition = "2021"
@@ -23,6 +23,6 @@ redis.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 
-digua_common_error = { path = "../common-error", version = "1.8.1" }
-digua_common_db = { path = "../common-db", version = "1.8.1" }
-digua_common_crypto = { path = "../common-crypto", version = "1.8.1" }
+digua_common_error = { path = "../common-error", version = "1.8.2" }
+digua_common_db = { path = "../common-db", version = "1.8.2" }
+digua_common_crypto = { path = "../common-crypto", version = "1.8.2" }

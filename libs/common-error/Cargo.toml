@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_error"
-version = "1.8.1"
+version = "1.8.2"
 license = "Apache-2.0"
 description = "Common error types and axum error response integration for KudiCoder services"
 edition = "2021"

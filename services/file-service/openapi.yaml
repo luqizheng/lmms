@@ -4,7 +4,7 @@ info:
   description: File upload, download and presign
   license:
     name: ''
-  version: 1.8.1
+  version: 1.8.2
 paths:
   /file/internal/migrations/state:
     get:

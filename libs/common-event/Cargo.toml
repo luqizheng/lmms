@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_event"
-version = "1.8.1"
+version = "1.8.2"
 license = "Apache-2.0"
 description = "Transactional outbox and event envelope types for KudiCoder services"
 edition = "2021"
@@ -31,8 +31,8 @@ prometheus = "0.13"
 redis = { workspace = true }
 opentelemetry = "0.24"
 tracing-opentelemetry = "0.25"
-digua_common_telemetry = { path = "../common-telemetry", default-features = false, version = "1.8.1" }
-digua_common_db = { path = "../common-db", version = "1.8.1" }
+digua_common_telemetry = { path = "../common-telemetry", default-features = false, version = "1.8.2" }
+digua_common_db = { path = "../common-db", version = "1.8.2" }
 
 [dev-dependencies]
 testcontainers = "0.20"

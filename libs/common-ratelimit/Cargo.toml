@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_ratelimit"
-version = "1.8.1"
+version = "1.8.2"
 license = "Apache-2.0"
 description = "Rate limiting utilities for KudiCoder services"
 edition = "2021"

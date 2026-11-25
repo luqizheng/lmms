@@ -1,6 +1,6 @@
 [package]
 name = "digua_common_db"
-version = "1.8.1"
+version = "1.8.2"
 license = "Apache-2.0"
 description = "Multi-dialect sqlx wrapper (MySQL/PostgreSQL/SQLite) with test fixtures for KudiCoder services"
 edition = "2021"
@@ -19,8 +19,8 @@ tokio = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-digua_common_error = { path = "../common-error", version = "1.8.1" }
-digua_jwt_ctx = { path = "../jwt-ctx", version = "1.8.1" }
+digua_common_error = { path = "../common-error", version = "1.8.2" }
+digua_jwt_ctx = { path = "../jwt-ctx", version = "1.8.2" }
 async-trait.workspace = true
 tempfile = { workspace = true, optional = true }
 utoipa = { version = "5", optional = true }

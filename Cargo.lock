@@ -206,7 +206,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "api_gateway"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "arc-swap",
  "axum 0.8.9",
@@ -629,7 +629,7 @@ dependencies = [
 
 [[package]]
 name = "audit_service"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -1697,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "digua_audit_sdk"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -1710,7 +1710,7 @@ dependencies = [
 
 [[package]]
 name = "digua_authz"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
  "base64 0.22.1",
@@ -1726,7 +1726,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "argon2",
@@ -1745,7 +1745,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_cache"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "async-trait",
  "digua_common_error",
@@ -1756,7 +1756,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_config"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "base64 0.22.1",
  "config",
@@ -1771,7 +1771,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_consul"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "once_cell",
  "prometheus",
@@ -1786,7 +1786,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_crypto"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1803,7 +1803,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_db"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1819,7 +1819,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_error"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
  "reqwest",
@@ -1832,7 +1832,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_event"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1857,7 +1857,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_health"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
  "http-body-util",
@@ -1874,7 +1874,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_http"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
  "bytes",
@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_jwt"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "chrono",
  "jsonwebtoken",
@@ -1907,7 +1907,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_log"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
  "digua_common_error",
@@ -1923,7 +1923,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_ratelimit"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
  "chrono",
@@ -1937,7 +1937,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
@@ -1950,7 +1950,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_telemetry_axum"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
  "digua_common_telemetry",
@@ -1969,7 +1969,7 @@ dependencies = [
 
 [[package]]
 name = "digua_common_validator"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "digua_common_error",
  "validator",
@@ -1977,7 +1977,7 @@ dependencies = [
 
 [[package]]
 name = "digua_file_sdk"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -1991,7 +1991,7 @@ dependencies = [
 
 [[package]]
 name = "digua_http_client"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "async-trait",
  "hex",
@@ -2008,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "digua_iam_sdk"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -2021,7 +2021,7 @@ dependencies = [
 
 [[package]]
 name = "digua_jwt_ctx"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
@@ -2039,7 +2039,7 @@ dependencies = [
 
 [[package]]
 name = "digua_notification_sdk"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "chrono",
  "digua_http_client",
@@ -2052,7 +2052,7 @@ dependencies = [
 
 [[package]]
 name = "digua_token_sdk"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "digua_http_client",
  "serde",
@@ -2325,7 +2325,7 @@ dependencies = [
 
 [[package]]
 name = "file_service"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3069,7 +3069,7 @@ dependencies = [
 
 [[package]]
 name = "iam_outbox_publisher"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "digua_common_db",
@@ -3086,7 +3086,7 @@ dependencies = [
 
 [[package]]
 name = "iam_service"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "argon2",
@@ -3875,7 +3875,7 @@ dependencies = [
 
 [[package]]
 name = "notification_service"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4709,7 +4709,7 @@ checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
 name = "prue_backend"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -6338,7 +6338,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token_service"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "argon2",
