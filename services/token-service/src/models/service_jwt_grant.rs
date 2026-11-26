@@ -99,7 +99,11 @@ pub async fn ensure_system_grants(pool: &DbPool) -> Result<u64, sqlx::Error> {
         match res {
             Ok(_) => {
                 inserted += 1;
-                tracing::info!("seeded system service-jwt grant owner={} audience={}", owner, audience);
+                tracing::info!(
+                    "seeded system service-jwt grant owner={} audience={}",
+                    owner,
+                    audience
+                );
             }
             // 并发副本竞态：唯一约束判负的副本视为已完成。
             Err(ref e) if is_duplicate_key(e) => {}
@@ -222,7 +226,10 @@ mod tests {
             assert!(validate_service_identity(owner).is_ok());
             assert!(validate_service_identity(audience).is_ok());
             assert_ne!(owner, audience, "禁止隐式 owner==audience grant");
-            assert!(!owner.contains('*') && !audience.contains('*'), "禁止通配符");
+            assert!(
+                !owner.contains('*') && !audience.contains('*'),
+                "禁止通配符"
+            );
         }
     }
 }

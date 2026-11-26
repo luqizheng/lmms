@@ -91,6 +91,15 @@ pub const MIGRATIONS: &[Migration] = &[
         sql_postgres: include_str!("../migrations/postgres/V004__service_jwt_grants.sql"),
         marker_table: "token_migration_v004_applied",
     },
+    // V005 给 token_service_jwt_grants 兜底复合唯一约束（WP-LMMS-SERVICE-JWT-AUDIENCE-02-R1）：
+    // V004 首版（1983c2bb）的 PG 脚本漏掉主键，V005 对双方言做 dup-guard
+    // fail-closed 检查 + 幂等重建主键，存量库与新库都安全。
+    Migration {
+        version: "V005",
+        sql_mysql: include_str!("../migrations/mysql/V005__service_jwt_grants_unique.sql"),
+        sql_postgres: include_str!("../migrations/postgres/V005__service_jwt_grants_unique.sql"),
+        marker_table: "token_migration_v005_applied",
+    },
 ];
 
 /// 建池。
@@ -240,7 +249,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_in_order() {
         let versions: Vec<&str> = MIGRATIONS.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec!["V001", "V002", "V003", "V004"]);
+        assert_eq!(versions, vec!["V001", "V002", "V003", "V004", "V005"]);
     }
 
     #[test]
@@ -301,6 +310,24 @@ mod tests {
         // 含 json 列的那一份必须是 JSONB（sqlx 的 Json<T> 以 JSONB 绑定）。
         let v001 = MIGRATIONS[0].sql_for(DialectKind::Postgres).to_uppercase();
         assert!(v001.contains("JSONB"), "V001 PG 的 json 列必须是 JSONB");
+    }
+
+    /// WP-02-R1：grant 表的复合主键必须在双方言、V004（新库）与 V005
+    /// （存量库兜底）中保持一致 —— `PRIMARY KEY (owner, audience)`。
+    #[test]
+    fn grant_pk_is_owner_audience_in_both_dialects() {
+        for dialect in [DialectKind::Mysql, DialectKind::Postgres] {
+            for version in ["V004", "V005"] {
+                let m = MIGRATIONS
+                    .iter()
+                    .find(|m| m.version == version)
+                    .unwrap_or_else(|| panic!("migration {version} missing"));
+                assert!(
+                    executable_sql(m.sql_for(dialect)).contains("PRIMARY KEY (OWNER, AUDIENCE)"),
+                    "{version} {dialect:?} script must declare PRIMARY KEY (owner, audience)"
+                );
+            }
+        }
     }
 
     /// 迁移文件的注释里不能有 ASCII 分号，否则切分器会把注释切成可执行 SQL。

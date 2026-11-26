@@ -50,6 +50,13 @@ impl MigrationState for TokenMigrationState {
                 name: "service_jwt_grants",
                 marker_table: "token_migration_v004_applied",
             },
+            // V005 给 grant 表兜底复合唯一约束（WP-LMMS-SERVICE-JWT-AUDIENCE-02-R1，
+            // dup-guard fail-closed 检查 + 幂等重建主键）。
+            MigrationDescriptor {
+                version: "V005",
+                name: "service_jwt_grants_unique",
+                marker_table: "token_migration_v005_applied",
+            },
         ]
     }
 }
@@ -114,11 +121,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn token_has_four_migrations() {
+    fn token_has_five_migrations() {
         let s = TokenMigrationState;
         assert_eq!(s.service_name(), "token-service");
         assert_eq!(s.dialect(), "mysql");
-        assert_eq!(s.migrations().len(), 4);
+        assert_eq!(s.migrations().len(), 5);
         assert_eq!(s.migrations()[0].version, "V001");
         assert_eq!(s.migrations()[0].marker_table, "token_oauth_clients");
         assert_eq!(s.migrations()[1].version, "V002");
@@ -135,6 +142,11 @@ mod tests {
         assert_eq!(
             s.migrations()[3].marker_table,
             "token_migration_v004_applied"
+        );
+        assert_eq!(s.migrations()[4].version, "V005");
+        assert_eq!(
+            s.migrations()[4].marker_table,
+            "token_migration_v005_applied"
         );
     }
 

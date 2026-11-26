@@ -10,7 +10,7 @@ use axum::{
     body::Body,
     http::{header, Request, StatusCode},
 };
-use digua_common_db::{db_execute, db_fetch_scalar};
+use digua_common_db::{db_execute, db_fetch_all, db_fetch_scalar};
 use digua_common_jwt::verify_token;
 use serde_json::{json, Value};
 use tower::ServiceExt;
@@ -43,11 +43,7 @@ async fn insert_grant(pool: &token_service::db::DbPool, owner: &str, audience: &
     .expect("insert grant");
 }
 
-async fn post_service_jwt(
-    app: axum::Router,
-    bearer: &str,
-    body: Value,
-) -> (StatusCode, Value) {
+async fn post_service_jwt(app: axum::Router, bearer: &str, body: Value) -> (StatusCode, Value) {
     let req = Request::builder()
         .method("POST")
         .uri("/tokens/service-jwt")
@@ -106,12 +102,8 @@ async fn notification_service_can_obtain_iam_service_jwt() {
         .await
         .expect("ensure grants");
 
-    let (status, body) = post_service_jwt(
-        app(pool),
-        "bt-ntf",
-        json!({"aud": "iam-service", "tid": 1}),
-    )
-    .await;
+    let (status, body) =
+        post_service_jwt(app(pool), "bt-ntf", json!({"aud": "iam-service", "tid": 1})).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["access_token"].as_str().unwrap().len() > 0, true);
 }
@@ -163,10 +155,7 @@ async fn iam_service_denied_unrelated_audience() {
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
-    assert!(
-        body["access_token"].is_null(),
-        "被拒绝时绝不能返回 token"
-    );
+    assert!(body["access_token"].is_null(), "被拒绝时绝不能返回 token");
 }
 
 /// #12：notification-service 不能获得未授权 audience。
@@ -300,12 +289,8 @@ async fn malformed_audience_rejected_before_grant_lookup() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     let long_aud = "a".repeat(65);
-    let (status, _) = post_service_jwt(
-        app(pool),
-        "bt-iam",
-        json!({"aud": long_aud, "tid": 1}),
-    )
-    .await;
+    let (status, _) =
+        post_service_jwt(app(pool), "bt-iam", json!({"aud": long_aud, "tid": 1})).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
@@ -325,12 +310,8 @@ async fn ensure_system_grants_is_idempotent() {
         .expect("second ensure");
     assert_eq!(second, 0, "重复启动必须幂等");
 
-    let count: i64 = db_fetch_scalar!(
-        &pool,
-        i64,
-        "SELECT COUNT(*) FROM token_service_jwt_grants"
-    )
-    .expect("count grants");
+    let count: i64 = db_fetch_scalar!(&pool, i64, "SELECT COUNT(*) FROM token_service_jwt_grants")
+        .expect("count grants");
     assert_eq!(count, 2);
 }
 
@@ -378,12 +359,8 @@ async fn concurrent_ensure_grants_do_not_duplicate() {
     for h in handles {
         h.await.expect("join").expect("ensure ok");
     }
-    let count: i64 = db_fetch_scalar!(
-        &pool,
-        i64,
-        "SELECT COUNT(*) FROM token_service_jwt_grants"
-    )
-    .expect("count");
+    let count: i64 = db_fetch_scalar!(&pool, i64, "SELECT COUNT(*) FROM token_service_jwt_grants")
+        .expect("count");
     assert_eq!(count, 2, "并发 seed 不得产生重复行");
 }
 
@@ -488,14 +465,11 @@ async fn grace_period_token_resolves_to_canonical_owner_grants() {
         .expect("ensure grants");
 
     // rotate with grace：当前行换新 token，旧 token 进 `iam-service#old` 行
-    let (new_plain, old_expiry) = token_service::models::bootstrap_token::rotate(
-        &pool,
-        "iam-service",
-        3600,
-    )
-    .await
-    .expect("rotate")
-    .expect("owner exists");
+    let (new_plain, old_expiry) =
+        token_service::models::bootstrap_token::rotate(&pool, "iam-service", 3600)
+            .await
+            .expect("rotate")
+            .expect("owner exists");
     assert!(old_expiry.is_some());
     assert_ne!(new_plain, "bt-iam-current");
 
@@ -563,10 +537,35 @@ async fn admin_token_ops_cannot_touch_system_grants() {
     let grants = token_service::models::service_jwt_grant::list_all(&pool)
         .await
         .expect("list grants");
-    assert_eq!(
-        grants.len(),
-        2,
-        "bootstrap token 管理操作不得影响 grant 表"
-    );
+    assert_eq!(grants.len(), 2, "bootstrap token 管理操作不得影响 grant 表");
     assert!(grants.iter().all(|g| g.status == "active"));
+}
+// ── WP-02-R1 #7 MySQL 半边：grant 表主键恰为 (owner, audience) ──────────────
+
+/// 与 pg_grant_unique_test.rs::pg_grant_pk_is_owner_audience 对齐：
+/// 双方言 schema 的主键列必须一致。
+#[derive(sqlx::FromRow)]
+struct PkColumn {
+    column_name: String,
+}
+
+#[tokio::test]
+async fn mysql_grant_pk_is_owner_audience() {
+    let pool = common::spawn_mysql().await;
+
+    let cols: Vec<PkColumn> = db_fetch_all!(
+        &pool,
+        PkColumn,
+        "SELECT COLUMN_NAME AS column_name FROM information_schema.STATISTICS \
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'token_service_jwt_grants' \
+           AND INDEX_NAME = 'PRIMARY' ORDER BY SEQ_IN_INDEX"
+    )
+    .expect("query primary key columns");
+
+    let names: Vec<&str> = cols.iter().map(|c| c.column_name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec!["owner", "audience"],
+        "MySQL grant table pk must be exactly (owner, audience)"
+    );
 }
