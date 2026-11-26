@@ -1,28 +1,22 @@
--- V005: token_service_jwt_grants 复合唯一约束兜底（WP-LMMS-SERVICE-JWT-AUDIENCE-02-R1）。
+-- token-service MySQL V005 — grant 表复合唯一约束兜底（WP-02-R1/R2）。
 --
--- 与 postgres/V005 同构。MySQL V004 本就含 PRIMARY KEY (owner, audience)，
--- 正常情况下本迁移是幂等重建（DROP PRIMARY KEY 后原样 ADD），无数据变化：
---   1. dup-guard 检查：把 token_service_jwt_grants 全部行 INSERT 进带
---      UNIQUE KEY 的哨兵表 —— 无重复时每组恰好一行全部通过；存在重复时
---      第二条触发唯一约束（SQLSTATE 23000）、迁移失败停机，错误信息列出
---      重复的 (owner, audience) 值。fail-closed，绝不静默取舍，
---      由运维人工裁决保留行后再重跑本迁移；
---   2. 幂等重建主键：确保复合主键真实存在（防历史 ALTER 半途失败留下的
---      无主键状态）；
---   3. 哨兵表 token_migration_v005_applied 与既有迁移 marker 探测逻辑一致。
-
-CREATE TABLE IF NOT EXISTS token_v005_grant_dup_guard (
-  owner    VARCHAR(64) NOT NULL,
-  audience VARCHAR(64) NOT NULL,
-  UNIQUE KEY uq_token_v005_dup_guard (owner, audience)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-INSERT INTO token_v005_grant_dup_guard (owner, audience)
-SELECT owner, audience FROM token_service_jwt_grants;
-
-ALTER TABLE token_service_jwt_grants DROP PRIMARY KEY;
-
-ALTER TABLE token_service_jwt_grants ADD PRIMARY KEY (owner, audience);
+-- R2 状态感知修复：重复检测（fail-closed，错误含 owner/audience/数量）、
+-- 主键三分支判定（已正确存在 → no-op 不做破坏性 DDL；不存在 → 单条原子 DDL
+-- 建立；定义错误 → 明确失败并报告当前定义）全部在 src/db.rs 的 rust_step
+-- （v005_grant_pk_migration）中实现。MySQL DDL 隐式提交、无法回滚，纯 SQL
+-- 无法表达条件 DDL；R1 的 guard 表复制方案已被移除（中断残留会使重试永久
+-- 失败），R1 的无条件 DROP PRIMARY KEY 也已移除（主键已删未建时中断会使
+-- 重试永久失败）。
+--
+-- 本文件只做两件事：
+--   1. 清理 R1 版 guard 表残留（旧实现中断可能遗留，双方言语法一致），
+--      该表是迁移自有的临时对象，不含正式数据；
+--   2. 建 marker 哨兵表（与既有迁移 marker 探测逻辑一致）。
+--
+-- 中断恢复语义：rust_step 任意一步失败或中断 → 哨兵表不存在 → 重试时
+-- 重新评估当前状态（重复检测 / 主键判定），无持久残留，安全继续。
+--
+-- ⚠️ 注释行不得出现 ASCII 分号（迁移执行器先按分号切分）。
 
 DROP TABLE IF EXISTS token_v005_grant_dup_guard;
 

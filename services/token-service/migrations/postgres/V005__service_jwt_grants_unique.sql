@@ -1,31 +1,21 @@
--- token-service PostgreSQL V005 — grant 表复合唯一约束兜底（WP-LMMS-SERVICE-JWT-AUDIENCE-02-R1）。
+-- token-service PostgreSQL V005 — grant 表复合唯一约束兜底（WP-02-R1/R2）。
 --
--- 背景：V004 首版（commit 1983c2bb）的 PostgreSQL 脚本漏掉
--- PRIMARY KEY (owner, audience)，已执行过该首版的存量库缺约束。
--- 本迁移对存量库做幂等兜底，与 mysql/V005 同构：
---   1. dup-guard 检查：把 token_service_jwt_grants 全部行 INSERT 进带
---      UNIQUE (owner, audience) 的哨兵表 —— 无重复时每组恰好一行全部通过；
---      存在重复时第二条触发唯一约束、迁移失败停机。错误 detail 会列出
---      重复的 (owner, audience) 值。fail-closed，绝不静默取舍，
---      由运维人工裁决保留行后再重跑本迁移；
---   2. 幂等重建主键：先 DROP CONSTRAINT IF EXISTS 再 ADD。新库
---      （修正版 V004 已含主键）无损通过，旧库补上约束，中途失败重跑亦幂等；
---   3. 哨兵表 token_migration_v005_applied 与既有迁移 marker 探测逻辑一致。
+-- R2 状态感知修复：重复检测（fail-closed，错误含 owner/audience/数量）、
+-- 主键三分支判定（已正确存在 → no-op 不做破坏性 DDL；不存在 → 事务性 DDL
+-- 建立；定义错误 → 明确失败并报告当前定义）全部在 src/db.rs 的 rust_step
+-- （v005_grant_pk_migration）中实现。纯 SQL 无法在本执行器「分号切分 +
+-- 逐条自动提交」语义下表达条件 DDL，R1 的 guard 表复制方案已被移除
+-- ——guard 表中断残留会使重试永久失败，违反重试安全原则。
+--
+-- 本文件只做两件事：
+--   1. 清理 R1 版 guard 表残留（旧实现中断可能遗留，双方言语法一致），
+--      该表是迁移自有的临时对象，不含正式数据；
+--   2. 建 marker 哨兵表（与既有迁移 marker 探测逻辑一致）。
+--
+-- 中断恢复语义：rust_step 任意一步失败或中断 → 哨兵表不存在 → 重试时
+-- 重新评估当前状态（重复检测 / 主键判定），无持久残留，安全继续。
 --
 -- ⚠️ 注释行不得出现 ASCII 分号（迁移执行器先按分号切分）。
-
-CREATE TABLE IF NOT EXISTS token_v005_grant_dup_guard (
-  owner    VARCHAR(64) NOT NULL,
-  audience VARCHAR(64) NOT NULL,
-  UNIQUE (owner, audience)
-);
-
-INSERT INTO token_v005_grant_dup_guard (owner, audience)
-SELECT owner, audience FROM token_service_jwt_grants;
-
-ALTER TABLE token_service_jwt_grants DROP CONSTRAINT IF EXISTS token_service_jwt_grants_pkey;
-
-ALTER TABLE token_service_jwt_grants ADD PRIMARY KEY (owner, audience);
 
 DROP TABLE IF EXISTS token_v005_grant_dup_guard;
 
