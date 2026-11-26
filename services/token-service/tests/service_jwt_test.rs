@@ -5,6 +5,10 @@
 //! 起容器 / 连共享库，跑完 migrations 后往表里插行再打请求。
 //!
 //! `sub` = 命中的行的 `owner`（不再有 SERVICE_BOOTSTRAP_OWNERS 平行列表）。
+//!
+//! WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: 签发额外要求 owner → audience 的
+//! grant（`token_service_jwt_grants`，默认拒绝）。涉及签发成功的用例需先插
+//! grant 行（生产路径由 `seed_system_grants` / 管理 API 建立）。
 
 use axum::{
     body::Body,
@@ -33,6 +37,18 @@ async fn insert_tokens(pool: &token_service::db::DbPool, rows: &[(&str, &str, &s
     }
 }
 
+/// 往 grant 表插行（status: active / disabled）。
+async fn insert_grant(pool: &token_service::db::DbPool, owner: &str, aud: &str, status: &str) {
+    db_execute!(
+        pool,
+        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed)          VALUES (?, ?, ?, FALSE)",
+        owner,
+        aud,
+        status
+    )
+    .expect("insert grant");
+}
+
 #[tokio::test]
 async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
     let pool = crate::common::spawn_mysql().await;
@@ -44,6 +60,7 @@ async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
         ],
     )
     .await;
+    insert_grant(&pool, "token-service", "iam-service", "active").await;
     let app = token_service::service_jwt_routes(build_state(pool));
 
     let req = Request::builder()
@@ -137,6 +154,7 @@ async fn service_jwt_with_empty_aud_returns_400() {
 async fn service_jwt_ct_claim_and_owner_from_db() {
     let pool = crate::common::spawn_mysql().await;
     insert_tokens(&pool, &[("project-manager", "bt-pm", "active")]).await;
+    insert_grant(&pool, "project-manager", "file-service", "active").await;
     let app = token_service::service_jwt_routes(build_state(pool));
 
     let req = Request::builder()
@@ -217,6 +235,10 @@ async fn seed_defaults_falls_back_to_built_in_dev_tokens() {
         inserted.expect("seed") > 0,
         "should insert built-in defaults"
     );
+    // 与 main.rs 启动序一致：bootstrap seed 之后 seed 系统 grant
+    token_service::models::service_jwt_grant::seed_system_grants(&pool, "")
+        .await
+        .expect("seed system grants");
 
     // 内置默认值里的 token 可以换到 service-jwt，且 sub = 对应 owner
     let state = build_state(pool);

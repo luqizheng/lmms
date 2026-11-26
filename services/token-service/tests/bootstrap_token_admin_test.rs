@@ -193,6 +193,11 @@ async fn create_rejects_invalid_owner() {
 async fn rotate_without_grace_invalidates_old_token_immediately() {
     let pool = crate::common::spawn_mysql().await;
     insert(&pool, "iam-service", "old-token", "active").await;
+    // 签发联动断言需要 grant（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01 起默认拒绝）；
+    // 内置系统 seed 覆盖 iam-service → iam-service。
+    token_service::models::service_jwt_grant::seed_system_grants(&pool, "")
+        .await
+        .expect("seed system grants");
     let app = admin_app(pool.clone());
     let bearer = admin_bearer();
 
@@ -245,6 +250,11 @@ async fn rotate_without_grace_invalidates_old_token_immediately() {
 async fn rotate_with_grace_period_keeps_old_token_valid() {
     let pool = crate::common::spawn_mysql().await;
     insert(&pool, "iam-service", "old-token", "active").await;
+    // 签发联动断言需要 grant（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01 起默认拒绝）；
+    // 内置系统 seed 覆盖 iam-service → iam-service。
+    token_service::models::service_jwt_grant::seed_system_grants(&pool, "")
+        .await
+        .expect("seed system grants");
     let app = admin_app(pool.clone());
     let bearer = admin_bearer();
 
@@ -317,6 +327,11 @@ async fn rotate_404_when_owner_missing() {
 async fn set_status_disable_then_enable() {
     let pool = crate::common::spawn_mysql().await;
     insert(&pool, "iam-service", "bt-iam", "active").await;
+    // 签发联动断言需要 grant（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01 起默认拒绝）；
+    // 内置系统 seed 覆盖 iam-service → iam-service。
+    token_service::models::service_jwt_grant::seed_system_grants(&pool, "")
+        .await
+        .expect("seed system grants");
     let app = admin_app(pool.clone());
     let bearer = admin_bearer();
 
