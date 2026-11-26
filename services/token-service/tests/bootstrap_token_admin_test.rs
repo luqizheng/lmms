@@ -193,6 +193,10 @@ async fn create_rejects_invalid_owner() {
 async fn rotate_without_grace_invalidates_old_token_immediately() {
     let pool = crate::common::spawn_mysql().await;
     insert(&pool, "iam-service", "old-token", "active").await;
+    // WP-02：service-jwt 换取需要 grant；iam-service → token-service 为 P0 系统 grant
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure system grants");
     let app = admin_app(pool.clone());
     let bearer = admin_bearer();
 
@@ -221,7 +225,7 @@ async fn rotate_without_grace_invalidates_old_token_immediately() {
             "POST",
             "/tokens/service-jwt",
             Some("old-token"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
+            Some(json!({"aud": "token-service", "tid": 1})),
         ))
         .await
         .unwrap();
@@ -233,7 +237,7 @@ async fn rotate_without_grace_invalidates_old_token_immediately() {
             "POST",
             "/tokens/service-jwt",
             Some(&new_token),
-            Some(json!({"aud": "iam-service", "tid": 1})),
+            Some(json!({"aud": "token-service", "tid": 1})),
         ))
         .await
         .unwrap();
@@ -245,6 +249,10 @@ async fn rotate_without_grace_invalidates_old_token_immediately() {
 async fn rotate_with_grace_period_keeps_old_token_valid() {
     let pool = crate::common::spawn_mysql().await;
     insert(&pool, "iam-service", "old-token", "active").await;
+    // WP-02：service-jwt 换取需要 grant；iam-service → token-service 为 P0 系统 grant
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure system grants");
     let app = admin_app(pool.clone());
     let bearer = admin_bearer();
 
@@ -272,7 +280,7 @@ async fn rotate_with_grace_period_keeps_old_token_valid() {
             "POST",
             "/tokens/service-jwt",
             Some("old-token"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
+            Some(json!({"aud": "token-service", "tid": 1})),
         ))
         .await
         .unwrap();
@@ -288,7 +296,7 @@ async fn rotate_with_grace_period_keeps_old_token_valid() {
             "POST",
             "/tokens/service-jwt",
             Some(&new_token),
-            Some(json!({"aud": "iam-service", "tid": 1})),
+            Some(json!({"aud": "token-service", "tid": 1})),
         ))
         .await
         .unwrap();
@@ -317,6 +325,10 @@ async fn rotate_404_when_owner_missing() {
 async fn set_status_disable_then_enable() {
     let pool = crate::common::spawn_mysql().await;
     insert(&pool, "iam-service", "bt-iam", "active").await;
+    // WP-02：service-jwt 换取需要 grant；iam-service → token-service 为 P0 系统 grant
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure system grants");
     let app = admin_app(pool.clone());
     let bearer = admin_bearer();
 
@@ -341,7 +353,7 @@ async fn set_status_disable_then_enable() {
             "POST",
             "/tokens/service-jwt",
             Some("bt-iam"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
+            Some(json!({"aud": "token-service", "tid": 1})),
         ))
         .await
         .unwrap();
@@ -367,7 +379,7 @@ async fn set_status_disable_then_enable() {
             "POST",
             "/tokens/service-jwt",
             Some("bt-iam"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
+            Some(json!({"aud": "token-service", "tid": 1})),
         ))
         .await
         .unwrap();

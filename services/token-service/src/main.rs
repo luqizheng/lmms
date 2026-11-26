@@ -92,6 +92,29 @@ async fn main() {
         tracing::info!("seeded {} bootstrap tokens", seeded_bt);
     }
 
+    // WP-LMMS-SERVICE-JWT-AUDIENCE-02: 内置 owner→audience 系统授权。
+    // 顺序不变量：必须在 HTTP listener 接受请求之前完成——否则会出现
+    // "端点已就绪但授权表未就绪"的窗口，IAM 登录链会在该窗口拿到 403。
+    // 与 bootstrap token seed 解耦：无论密钥来自 env 注入还是 dev 默认值，
+    // 系统 grant 都必须 seed（生产密钥注入不得抑制授权引导）。
+    // fail-closed：任何一步失败 → 进程退出，listener 永不 bind。
+    let seeded_grants = token_service::models::service_jwt_grant::ensure_system_grants(&db)
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("ensure system service-jwt grants failed (fail-closed): {e}");
+            std::process::exit(1);
+        });
+    if seeded_grants > 0 {
+        tracing::info!("seeded {} built-in service-jwt grants", seeded_grants);
+    }
+    token_service::models::service_jwt_grant::validate_required_principals(&db)
+        .await
+        .unwrap_or_else(|e| {
+            // 诊断信息不含任何 secret 材料。
+            eprintln!("service-jwt grant principal validation failed (fail-closed): {e}");
+            std::process::exit(1);
+        });
+
     // ── JWT signing keystore (2026-11-23 persistence design) ──
     // Single source of truth on disk: keystore.json. Fail-closed on any
     // corruption — startup NEVER silently regenerates over an existing key.

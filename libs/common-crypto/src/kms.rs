@@ -1,6 +1,10 @@
 use async_trait::async_trait;
 use digua_common_error::AppResult;
 
+// clippy 1.99 `double_must_use` 与 async-trait 宏展开不兼容：宏为返回
+// Pin<Box<dyn Future>> 的方法生成 `#[must_use]`，与 Future 自身的 must_use
+// 重复，属误报（源码未手写任何 must_use）。仅在宏产生点显式豁免。
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait KmsClient: Send + Sync {
     async fn encrypt(&self, key_id: &str, plaintext: &[u8]) -> AppResult<Vec<u8>>;
