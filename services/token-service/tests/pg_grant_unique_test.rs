@@ -10,6 +10,7 @@
 //! 6. 已有 V004（首版无主键）数据库可以通过 V005 升级
 //! 7. PG 半边：主键必须恰为 (owner, audience)
 //!    （MySQL 半边在 service_jwt_grant_test.rs::mysql_grant_pk_is_owner_audience）
+//!
 //! R2 中断恢复（真实执行器逐条语义，无迁移级事务掩盖）：
 //! 8. 主键缺失时重试 → 建立正确主键
 //! 9. 主键定义错误 → 明确失败并报告当前定义，不删除未知约束
