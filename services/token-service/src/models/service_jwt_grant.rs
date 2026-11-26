@@ -207,7 +207,9 @@ pub async fn validate_required_principals(pool: &DbPool) -> Result<(), String> {
 // 并发语义：
 //   - create 依赖 PK (owner, audience) 兜底——并发双插时第二个 INSERT 报
 //     唯一键冲突，ops 层映射 409；
-//   - set_status 用条件 UPDATE（`AND status <> ?`）防并发覆盖 / TOCTOU。
+//   - set_status / delete 的条件写（`AND status <> ?` / `AND system_managed
+//     = FALSE`）把并发去重与系统保护都下沉到写 SQL 内原子生效（R1-02），
+//     ops 层对 `affected=0` 重查归类 404 / 409 / 幂等。
 // 审计走同库 append-only 表 `token_service_jwt_grant_audit`（V006），记录
 // 变更与拒绝，**永不**携带 token/JWT/凭据。
 // ─────────────────────────────────────────────────────────────────────────────
@@ -312,9 +314,12 @@ pub async fn create_grant(
     }
 }
 
-/// 启用 / 禁用。条件 UPDATE（`AND status <> ?`）保证并发下后写者不会把
-/// 已被他人改到目标状态的行"再次变更"——重复请求返回 `affected=0`。
-/// 返回受影响行数（0 = 行不存在或已处于目标状态）。
+/// 启用 / 禁用。条件 UPDATE（`AND status <> ? AND system_managed = FALSE`）
+/// 保证并发下后写者不会把已被他人改到目标状态的行"再次变更"，且
+/// **system_managed 保护在写 SQL 内原子生效**（R1-02：先查后改的
+/// TOCTOU 窗口内，即使行刚被并发置为 system_managed，UPDATE 也不会命中）
+/// ——重复请求 / 系统保护行返回 `affected=0`，语义由调用方重查判定。
+/// 返回受影响行数（0 = 行不存在、已处于目标状态，或受系统保护）。
 pub async fn set_grant_status(
     pool: &DbPool,
     owner: &str,
@@ -324,7 +329,7 @@ pub async fn set_grant_status(
     let affected = db_execute!(
         pool,
         "UPDATE token_service_jwt_grants SET status = ?, updated_at = ? \
-         WHERE owner = ? AND audience = ? AND status <> ?",
+         WHERE owner = ? AND audience = ? AND status <> ? AND system_managed = FALSE",
         status,
         chrono::Utc::now(),
         owner,
@@ -334,12 +339,15 @@ pub async fn set_grant_status(
     Ok(affected)
 }
 
-/// 删除 grant。返回受影响行数（0 = 不存在；已删再删同为 0）。
-/// `system_managed` 保护在 ops 层先查后删（需要 409 语义而非静默跳过）。
+/// 删除 grant。条件 DELETE（`AND system_managed = FALSE`）把系统保护
+/// 下沉到写 SQL 内原子生效（R1-02）：先查后删的 TOCTOU 窗口内被并发
+/// 置为 system_managed 的行**不会**被删除。返回受影响行数（0 = 不存在、
+/// 已删，或受系统保护），语义由调用方重查判定。
 pub async fn delete_grant(pool: &DbPool, owner: &str, audience: &str) -> Result<u64, sqlx::Error> {
     let affected = db_execute!(
         pool,
-        "DELETE FROM token_service_jwt_grants WHERE owner = ? AND audience = ?",
+        "DELETE FROM token_service_jwt_grants \
+         WHERE owner = ? AND audience = ? AND system_managed = FALSE",
         owner,
         audience
     )?;

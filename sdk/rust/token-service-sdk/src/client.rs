@@ -3,12 +3,20 @@ use std::sync::Arc;
 use digua_http_client::client::KudiWebClient;
 use digua_http_client::{transport::HttpResponse, SdkError};
 
+use crate::model::url_encode;
 use crate::model::{
     AccessRequest, AccessResponse, ApiKeyCreated, CreateApiKeyRequest,
     CreateServiceJwtGrantRequest, ListApiKeysQuery, ListApiKeysResponse, ListServiceJwtGrantsQuery,
     ListServiceJwtGrantsResponse, RefreshRequest, RefreshResponse, RevokeRequest, RevokeResponse,
     ServiceJwtGrant, SetServiceJwtGrantStatusRequest,
 };
+
+/// path segment 编码：与 query value 同一机制（[`url_encode`]，percent-encode
+/// 除 unreserved 外全部字节）。`/ ? # & %` 等结构字符被转义为 `%2F %3F %23
+/// %26 %25`，无法把恶意 owner/audience 拆成多段路径或注入 query（R1-03）。
+fn path_segment(s: &str) -> String {
+    url_encode(s)
+}
 
 type BearerSupplier = Arc<dyn Fn() -> Option<String> + Send + Sync>;
 
@@ -130,7 +138,9 @@ impl TokenClient {
     ) -> Result<ServiceJwtGrant, SdkError> {
         let url = format!(
             "{}/admin/service-jwt-grants/{}/{}",
-            self.base_url, owner, audience
+            self.base_url,
+            path_segment(owner),
+            path_segment(audience)
         );
         let resp = self.http.get(&url, (self.bearer)().as_deref()).await?;
         ensure_success(&resp, "token get_service_jwt_grant")?;
@@ -165,7 +175,9 @@ impl TokenClient {
     ) -> Result<ServiceJwtGrant, SdkError> {
         let url = format!(
             "{}/admin/service-jwt-grants/{}/{}/status",
-            self.base_url, owner, audience
+            self.base_url,
+            path_segment(owner),
+            path_segment(audience)
         );
         let body = serde_json::to_string(req).map_err(|e| {
             SdkError::Network(format!("serialize SetServiceJwtGrantStatusRequest: {}", e))
@@ -187,7 +199,9 @@ impl TokenClient {
     ) -> Result<(), SdkError> {
         let url = format!(
             "{}/admin/service-jwt-grants/{}/{}",
-            self.base_url, owner, audience
+            self.base_url,
+            path_segment(owner),
+            path_segment(audience)
         );
         let resp = self.http.delete(&url, (self.bearer)().as_deref()).await?;
         ensure_success(&resp, "token delete_service_jwt_grant")

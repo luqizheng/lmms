@@ -37,15 +37,21 @@ fn internal(e: sqlx::Error) -> (StatusCode, &'static str) {
 pub const DEFAULT_PAGE_SIZE: u32 = 20;
 pub const MAX_PAGE_SIZE: u32 = 100;
 
-/// 从 `X-Request-Id`（可选）解析请求关联 ID；缺省生成 uuid。
+/// 从 `X-Request-Id`（可选）解析请求关联 ID；不可用或缺省时服务端生成新 UUID。
+///
+/// 信任边界（R1-01 安全修复）：客户端值**只接受严格 UUID 格式**——内容由
+/// UUID 语法完全约束，长度 / 字符集 / 结构都不受客户端控制，无法把自由
+/// 文本（凭据、bootstrap secret、注入串）带进审计表。解析成功后统一规范
+/// 化为标准 hyphenated 小写再落库；空白、超长、非法格式、非字符串值一律
+/// 回退到服务端生成的新 UUID。非法 Request-ID 不导致管理请求失败（仍保持
+/// 正常请求的关联能力）。
 pub fn request_id_from_headers(headers: &HeaderMap) -> String {
     headers
         .get("X-Request-Id")
         .and_then(|v| v.to_str().ok())
-        .map(str::trim)
-        .filter(|s| !s.is_empty() && s.len() <= 64)
-        .map(str::to_string)
-        .unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string())
+        .and_then(|s| uuid::Uuid::parse_str(s.trim()).ok())
+        .map(|u| u.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string())
 }
 
 // ── DTO ──────────────────────────────────────────────────────────────────────
@@ -273,7 +279,10 @@ pub mod ops {
             .await
             .map_err(internal)?;
         if affected == 0 {
-            // 并发下被别人先改到目标状态（或行被删）。重查一次判定语义。
+            // 写 SQL 未命中。重查一次判定语义（R1-02：保护条件已在 SQL 内
+            // 原子生效，这里只做**结果**归类，不再承担保护职责）：
+            //   不存在 → 404；前置查询后被并发置为 system_managed → 409；
+            //   已处于目标状态 → 幂等返回。
             let now_row = grant::find_by_owner_and_audience(db, owner, audience)
                 .await
                 .map_err(internal)?;
@@ -290,6 +299,25 @@ pub mod ops {
                     )
                     .await;
                     return Err((StatusCode::NOT_FOUND, "grant not found"));
+                }
+                Some(r) if r.system_managed => {
+                    write_audit(
+                        db,
+                        actor,
+                        owner,
+                        audience,
+                        status_action(target),
+                        Some(&r.status),
+                        Some(&r.status),
+                        request_id,
+                        "denied",
+                        "system-managed grant is protected",
+                    )
+                    .await?;
+                    return Err((
+                        StatusCode::CONFLICT,
+                        "system-managed grant cannot be modified",
+                    ));
                 }
                 Some(r) => return Ok(ServiceJwtGrantDto::from(r)),
             }
@@ -363,17 +391,46 @@ pub mod ops {
             .await
             .map_err(internal)?;
         if affected == 0 {
-            audit_best_effort_denied(
-                db,
-                actor,
-                owner,
-                audience,
-                grant::AuditAction::Delete,
-                request_id,
-                "not found",
-            )
-            .await;
-            return Err((StatusCode::NOT_FOUND, "grant not found"));
+            // 写 SQL 未命中。重查一次判定语义（R1-02：system_managed 保护
+            // 已在 DELETE SQL 内原子生效）：不存在/已删 → 404；行还在但受
+            // 系统保护（前置查询后被并发标记）→ 409。
+            let now_row = grant::find_by_owner_and_audience(db, owner, audience)
+                .await
+                .map_err(internal)?;
+            match now_row {
+                None => {
+                    audit_best_effort_denied(
+                        db,
+                        actor,
+                        owner,
+                        audience,
+                        grant::AuditAction::Delete,
+                        request_id,
+                        "not found",
+                    )
+                    .await;
+                    return Err((StatusCode::NOT_FOUND, "grant not found"));
+                }
+                Some(r) => {
+                    write_audit(
+                        db,
+                        actor,
+                        owner,
+                        audience,
+                        grant::AuditAction::Delete,
+                        Some(&r.status),
+                        Some(&r.status),
+                        request_id,
+                        "denied",
+                        "system-managed grant is protected",
+                    )
+                    .await?;
+                    return Err((
+                        StatusCode::CONFLICT,
+                        "system-managed grant cannot be deleted",
+                    ));
+                }
+            }
         }
         write_audit(
             db,
@@ -631,4 +688,64 @@ pub fn routes(state: crate::TokenServerState) -> axum::Router {
             ),
         ))
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn headers_with(value: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert("X-Request-Id", value.parse().expect("valid header value"));
+        h
+    }
+
+    #[test]
+    fn valid_uuid_is_accepted_and_normalized() {
+        let id = request_id_from_headers(&headers_with("0b4f9c5a-1f2e-3d4c-5b6a-7c8d9e0f1a2b"));
+        assert_eq!(id, "0b4f9c5a-1f2e-3d4c-5b6a-7c8d9e0f1a2b");
+        // simple / braced / urn 变体解析为同一 UUID，统一规范化为 hyphenated
+        assert_eq!(
+            request_id_from_headers(&headers_with("0b4f9c5a1f2e3d4c5b6a7c8d9e0f1a2b")),
+            "0b4f9c5a-1f2e-3d4c-5b6a-7c8d9e0f1a2b"
+        );
+        assert_eq!(
+            request_id_from_headers(&headers_with("{0B4F9C5A-1F2E-3D4C-5B6A-7C8D9E0F1A2B}")),
+            "0b4f9c5a-1f2e-3d4c-5b6a-7c8d9e0f1a2b"
+        );
+    }
+
+    #[test]
+    fn invalid_values_are_replaced_by_server_uuid() {
+        let server = request_id_from_headers(&HeaderMap::new());
+        assert!(uuid::Uuid::parse_str(&server).is_ok());
+
+        for bad in [
+            "",                                                 // 空串
+            "   ",                                              // 纯空白
+            "not-a-uuid",                                       // 非法格式
+            "abc'; DROP TABLE token_service_jwt_grant_audit--", // 注入串
+            "Bearer eyJhbGciOiJIUzI1NiJ9.e30.sig",              // Authorization 风格内容
+            "bootstrap-secret-ak-7f3c9e1d",                     // 凭据风格内容
+            "a".repeat(65).as_str(),                            // 超长（>64）
+            "0b4f9c5a-1f2e-3d4c-5b6a-7c8d9e0f1a2",              // 缺一位 hex
+        ] {
+            let id = request_id_from_headers(&headers_with(bad));
+            assert!(
+                uuid::Uuid::parse_str(&id).is_ok(),
+                "invalid value must be replaced by a server-side uuid: {bad:?}"
+            );
+            assert_ne!(id, bad);
+        }
+        // 空白包裹的合法 UUID：trim 后仍可解析（不误伤正常请求）
+        let id = request_id_from_headers(&headers_with("  0b4f9c5a-1f2e-3d4c-5b6a-7c8d9e0f1a2b  "));
+        assert_eq!(id, "0b4f9c5a-1f2e-3d4c-5b6a-7c8d9e0f1a2b");
+    }
+
+    #[test]
+    fn server_fallback_is_always_a_uuid() {
+        for _ in 0..16 {
+            assert!(uuid::Uuid::parse_str(&request_id_from_headers(&HeaderMap::new())).is_ok());
+        }
+    }
 }

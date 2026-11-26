@@ -121,7 +121,11 @@ impl ListApiKeysQuery {
     }
 }
 
-fn url_encode(s: &str) -> String {
+/// percent-encode：保留 RFC 3986 unreserved 字符，其余字节（UTF-8 序列）
+/// 一律 `%XX`。对 **query value** 与 **path segment** 都是安全的编码——
+/// `/ ? # & %` 等结构字符永远被转义，不会改变请求的路径切分 / query
+/// 结构。R1-03：client 的 path 拼接复用同一实现，避免两套编码语义。
+pub(crate) fn url_encode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {

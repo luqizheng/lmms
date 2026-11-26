@@ -98,6 +98,11 @@ public class TokenServerClientClient extends SdkClient {
     // user-jwt / 带 permissions 的 access token + TOKEN_SERVICE_JWT_GRANT_*
     // 权限码鉴权）。重复创建 → 409，system_managed 行改删 → 409，均由
     // ensureSuccess 抛出（带 HTTP 状态）。
+    //
+    // R1-03：所有动态 URL 参数必须编码后拼接——path segment 用
+    // {@link #pathSegment}，query value 用 {@link #queryValue}（标准库
+    // URLEncoder，UTF-8）。`/ ? # & %` 等结构字符被转义，无法改变请求的
+    // 路径切分或 query 结构。
 
     /** 分页查询 grant。参数可传 {@code null} 表示不过滤；page/size 缺省由服务端决定。 */
     public ServiceJwtGrantPage listServiceJwtGrants(
@@ -120,7 +125,8 @@ public class TokenServerClientClient extends SdkClient {
     /** 查单条 grant（不存在 → 404 → ensureSuccess 抛出）。 */
     public ServiceJwtGrantInfo getServiceJwtGrant(String owner, String audience) {
         HttpResponse r = executeWithAuth(
-                HttpRequest.get(url("/admin/service-jwt-grants/" + owner + "/" + audience)));
+                HttpRequest.get(url("/admin/service-jwt-grants/" + pathSegment(owner)
+                        + "/" + pathSegment(audience))));
         return mapBody(r, ServiceJwtGrantInfo.class);
     }
 
@@ -139,7 +145,8 @@ public class TokenServerClientClient extends SdkClient {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("status", status);
         HttpResponse r = executeWithAuth(HttpRequest
-                .put(url("/admin/service-jwt-grants/" + owner + "/" + audience + "/status"))
+                .put(url("/admin/service-jwt-grants/" + pathSegment(owner)
+                        + "/" + pathSegment(audience) + "/status"))
                 .jsonBody(payload));
         return mapBody(r, ServiceJwtGrantInfo.class);
     }
@@ -147,7 +154,8 @@ public class TokenServerClientClient extends SdkClient {
     /** 删除 grant（不存在/已删 → 404；system_managed → 409）。 */
     public void deleteServiceJwtGrant(String owner, String audience) {
         HttpResponse r = executeWithAuth(
-                HttpRequest.delete(url("/admin/service-jwt-grants/" + owner + "/" + audience)));
+                HttpRequest.delete(url("/admin/service-jwt-grants/" + pathSegment(owner)
+                        + "/" + pathSegment(audience))));
         ensureSuccess(r);
     }
 
@@ -172,10 +180,34 @@ public class TokenServerClientClient extends SdkClient {
         });
     }
 
+    /** query value 编码（标准库 URLEncoder / UTF-8，application/x-www-form-urlencoded）。 */
+    private static String queryValue(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8.name());
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new AssertionError("UTF-8 is always supported", e);
+        }
+    }
+
+    /**
+     * path segment 编码：同一 URLEncoder 机制，但把表单语义的 {@code +}（空格）
+     * 还原为 RFC 3986 的 {@code %20}，避免 path 中的 {@code +} 被服务端按
+     * 空格以外的语义误读。
+     */
+    private static String pathSegment(String value) {
+        try {
+            return java.net.URLEncoder
+                    .encode(value, java.nio.charset.StandardCharsets.UTF_8.name())
+                    .replace("+", "%20");
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new AssertionError("UTF-8 is always supported", e);
+        }
+    }
+
     private static void appendParam(StringBuilder qs, String name, String value) {
         if (value == null || value.isEmpty()) {
             return;
         }
-        qs.append(qs.length() == 0 ? '?' : '&').append(name).append('=').append(value);
+        qs.append(qs.length() == 0 ? '?' : '&').append(name).append('=').append(queryValue(value));
     }
 }
