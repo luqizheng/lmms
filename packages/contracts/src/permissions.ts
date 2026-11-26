@@ -51,6 +51,10 @@ export type PermissionCode =
   | 'TOKEN_BOOTSTRAP_CREATE'
   | 'TOKEN_BOOTSTRAP_UPDATE'
   | 'TOKEN_BOOTSTRAP_DELETE'
+  | 'TOKEN_SERVICE_JWT_GRANT_READ'
+  | 'TOKEN_SERVICE_JWT_GRANT_CREATE'
+  | 'TOKEN_SERVICE_JWT_GRANT_UPDATE'
+  | 'TOKEN_SERVICE_JWT_GRANT_DELETE'
   | 'PM_PROJECT_CREATE'
   | 'PM_PROJECT_READ'
   | 'PM_PROJECT_UPDATE'
@@ -116,6 +120,10 @@ export const PermissionDescriptions: Record<PermissionCode, string> = {
   'TOKEN_BOOTSTRAP_CREATE': '创建 bootstrap token',
   'TOKEN_BOOTSTRAP_UPDATE': '轮换 / 启停 bootstrap token',
   'TOKEN_BOOTSTRAP_DELETE': '删除 bootstrap token',
+  'TOKEN_SERVICE_JWT_GRANT_READ': '查看 Service JWT audience 授权关系',
+  'TOKEN_SERVICE_JWT_GRANT_CREATE': '创建 Service JWT audience 授权关系',
+  'TOKEN_SERVICE_JWT_GRANT_UPDATE': '启用 / 禁用 Service JWT audience 授权关系',
+  'TOKEN_SERVICE_JWT_GRANT_DELETE': '删除 Service JWT audience 授权关系',
   'PM_PROJECT_CREATE': '创建项目',
   'PM_PROJECT_READ': '查看项目',
   'PM_PROJECT_UPDATE': '编辑项目',

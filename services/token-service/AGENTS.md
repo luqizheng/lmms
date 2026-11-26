@@ -45,6 +45,7 @@
 | RUST_LOG | info | 日志级别 |
 | SERVICE_BOOTSTRAP_TOKENS | 空 | 各业务服务的逗号分隔 bootstrap token。**可选**——与 OWNERS 都为空时回退到内置 dev 默认值（`models::bootstrap_token::DEFAULT_DEV_BOOTSTRAP`） |
 | SERVICE_BOOTSTRAP_OWNERS | 空 | 与 SERVICE_BOOTSTRAP_TOKENS 等长、顺序一一对应的服务名。seed 时写入 `token_bootstrap_tokens.owner`，JWT 的 `sub` 即该值。**长度不一致或缺失 → token-service 拒绝启动**（fail-closed，不回退 dev 默认值） |
+| SERVICE_JWT_GRANT_SEED | 空 | service-jwt audience grant 的声明式初始化，格式 `owner:audience` 逗号分隔（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）。启动时按行补插 `system_managed=false` 的 grant（幂等）；**格式非法 → 拒绝启动**。grants 表为空时另会灌入内置 dev 系统 grant（system_managed，管理面不可改删） |
 
 ## 端点域
 
@@ -55,7 +56,7 @@
 | /tokens/revoke | POST | 撤销 token（写入 Redis 黑名单） |
 | /tokens/resource | POST | 签发受限资源令牌（自定义 TTL 与 scope；service-jwt `aud=token-service` 准入——2026-11-26 WP-LMMS-HARDEN-01-R1 收紧，修复公开签名神谕） |
 | /tokens/user-jwt | POST | 签发用户身份 JWT |
-| /tokens/service-jwt | POST | 签发 1h 服务间 JWT（Authorization: Bearer <SERVICE_BOOTSTRAP_TOKENS> 准入） |
+| /tokens/service-jwt | POST | 签发 1h 服务间 JWT（bootstrap token 准入 + owner→audience grant 检查：`token_service_jwt_grants` 无 active 行 → 403 默认拒绝，DB 异常 → 500 fail-closed。rotate 宽限期 `#old` 行与原 owner 共享 grant） |
 | /tokens/.well-known/jwks.json | GET | JWKS 公钥（active + retiring 全部密钥，各自 kid，RS256） |
 | /.well-known/jwks.json | GET | JWKS 别名 |
 | /api-keys | POST / GET | API Key 创建 / 列表（service-jwt `aud=token-service` 准入） |
@@ -70,6 +71,12 @@
 | /v1/admin/bootstrap-tokens/{owner} | GET / DELETE | Web UI 用：查单条 / 删除（权限码 `_READ` / `_DELETE`） |
 | /v1/admin/bootstrap-tokens/{owner}/rotate | POST | Web UI 用：换新 token（body `{"grace_period_sec":N}`，权限码 `_UPDATE`） |
 | /v1/admin/bootstrap-tokens/{owner}/status | PUT | Web UI 用：启用 / 禁用（body `{"status":"active\|disabled"}`，权限码 `_UPDATE`） |
+| /admin/service-jwt-grants | POST / GET | audience grant 新建（重复 409）/ 分页查询（owner/audience/status 过滤；service-jwt 准入） |
+| /admin/service-jwt-grants/{owner}/{audience} | GET / DELETE | 查单条 / 删除（system_managed 行 409；service-jwt 准入） |
+| /admin/service-jwt-grants/{owner}/{audience}/status | PUT | 启用 / 禁用（`{"status":"active\|disabled"}`；service-jwt 准入） |
+| /v1/admin/service-jwt-grants | POST / GET | **Web UI 用**：新建 / 分页查询（user-jwt + 权限码 `TOKEN_SERVICE_JWT_GRANT_*`） |
+| /v1/admin/service-jwt-grants/{owner}/{audience} | GET / DELETE | Web UI 用：查单条 / 删除（system_managed 行 409） |
+| /v1/admin/service-jwt-grants/{owner}/{audience}/status | PUT | Web UI 用：启用 / 禁用（权限码 `_UPDATE`） |
 | /admin/keys | GET | JWT 签名密钥列表（kid/status/时间戳，**不含密钥材料**，service-jwt 准入） |
 | /admin/keys/rotate | POST | 轮换签名密钥：新钥签发、旧钥转 retiring（仍在 JWKS，旧 token 继续可验证，无人掉线）。body 可选 `{"expect_active_kid": "..."}` 防双轮换竞态（不匹配 409） |
 | /admin/keys/{kid}/retire | POST | retiring → retired（移出 JWKS；仅 retiring 状态可退役，service-jwt 准入） |

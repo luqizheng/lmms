@@ -62,6 +62,19 @@ upstream   = "/v1/admin/bootstrap-tokens"
 downstream = "/v1/admin/bootstrap-tokens"
 service    = "token-service"
 
+# WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01：service JWT audience grant 的 Web
+# 管理面（user-jwt + TOKEN_SERVICE_JWT_GRANT_* 权限码鉴权）。网关只转发，
+# 鉴权在 token-service 侧强制执行。
+[[route]]
+upstream   = "/v1/admin/service-jwt-grants/{rest}"
+downstream = "/v1/admin/service-jwt-grants/{rest}"
+service    = "token-service"
+
+[[route]]
+upstream   = "/v1/admin/service-jwt-grants"
+downstream = "/v1/admin/service-jwt-grants"
+service    = "token-service"
+
 [[route]]
 upstream   = "/.well-known/{rest}"
 downstream = "/.well-known/{rest}"

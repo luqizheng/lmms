@@ -129,6 +129,14 @@ permissions:
     description: "轮换 / 启停 bootstrap token"
   TOKEN_BOOTSTRAP_DELETE:
     description: "删除 bootstrap token"
+  TOKEN_SERVICE_JWT_GRANT_READ:
+    description: "查看 Service JWT audience 授权关系"
+  TOKEN_SERVICE_JWT_GRANT_CREATE:
+    description: "创建 Service JWT audience 授权关系"
+  TOKEN_SERVICE_JWT_GRANT_UPDATE:
+    description: "启用 / 禁用 Service JWT audience 授权关系"
+  TOKEN_SERVICE_JWT_GRANT_DELETE:
+    description: "删除 Service JWT audience 授权关系"
 
   # === 项目管理 ===
   PM_PROJECT_CREATE:

@@ -102,6 +102,14 @@ pub mod perms {
     pub const TOKEN_BOOTSTRAP_UPDATE: &str = "TOKEN_BOOTSTRAP_UPDATE";
     /// 删除 bootstrap token
     pub const TOKEN_BOOTSTRAP_DELETE: &str = "TOKEN_BOOTSTRAP_DELETE";
+    /// 查看 Service JWT audience 授权关系
+    pub const TOKEN_SERVICE_JWT_GRANT_READ: &str = "TOKEN_SERVICE_JWT_GRANT_READ";
+    /// 创建 Service JWT audience 授权关系
+    pub const TOKEN_SERVICE_JWT_GRANT_CREATE: &str = "TOKEN_SERVICE_JWT_GRANT_CREATE";
+    /// 启用 / 禁用 Service JWT audience 授权关系
+    pub const TOKEN_SERVICE_JWT_GRANT_UPDATE: &str = "TOKEN_SERVICE_JWT_GRANT_UPDATE";
+    /// 删除 Service JWT audience 授权关系
+    pub const TOKEN_SERVICE_JWT_GRANT_DELETE: &str = "TOKEN_SERVICE_JWT_GRANT_DELETE";
     /// 创建项目
     pub const PM_PROJECT_CREATE: &str = "PM_PROJECT_CREATE";
     /// 查看项目
@@ -183,6 +191,10 @@ pub fn is_valid(perm: &str) -> bool {
             | "TOKEN_BOOTSTRAP_CREATE"
             | "TOKEN_BOOTSTRAP_UPDATE"
             | "TOKEN_BOOTSTRAP_DELETE"
+            | "TOKEN_SERVICE_JWT_GRANT_READ"
+            | "TOKEN_SERVICE_JWT_GRANT_CREATE"
+            | "TOKEN_SERVICE_JWT_GRANT_UPDATE"
+            | "TOKEN_SERVICE_JWT_GRANT_DELETE"
             | "PM_PROJECT_CREATE"
             | "PM_PROJECT_READ"
             | "PM_PROJECT_UPDATE"

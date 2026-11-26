@@ -92,6 +92,22 @@ async fn main() {
         tracing::info!("seeded {} bootstrap tokens", seeded_bt);
     }
 
+    // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: 系统授权初始化。grants 表为空时
+    // 灌入内置 dev 系统 grant（system_managed，管理面不可改删）；env
+    // SERVICE_JWT_GRANT_SEED（owner:audience 逗号分隔）补插普通 grant。格式
+    // 非法 → 拒绝启动（fail-closed，与 bootstrap seed 语义一致）。
+    let seeded_grants = token_service::models::service_jwt_grant::seed_system_grants(
+        &db,
+        std::env::var("SERVICE_JWT_GRANT_SEED")
+            .unwrap_or_default()
+            .as_str(),
+    )
+    .await
+    .expect("seed service jwt grants");
+    if seeded_grants > 0 {
+        tracing::info!("seeded {} service jwt grants", seeded_grants);
+    }
+
     // ── JWT signing keystore (2026-11-23 persistence design) ──
     // Single source of truth on disk: keystore.json. Fail-closed on any
     // corruption — startup NEVER silently regenerates over an existing key.
@@ -221,6 +237,11 @@ async fn main() {
     // user-jwt + 权限码鉴权，供浏览器端 Web UI 调用（经 api-gateway 的
     // token.router.toml 转发）。service-jwt 端点保留给 CI / 运维脚本。
     app = app.merge(routes::bootstrap_token_web::routes(state.clone()));
+
+    // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: service-jwt audience grant 管理面
+    // （owner → audience 授权关系的 CRUD，双入口共用 ops 业务层）。
+    app = app.merge(routes::service_jwt_grant_admin::routes(state.clone()));
+    app = app.merge(routes::service_jwt_grant_web::routes(state.clone()));
 
     // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
     app = app.merge(token_service::service_jwt_routes(state.clone()));

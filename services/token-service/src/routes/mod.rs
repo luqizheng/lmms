@@ -10,4 +10,6 @@ pub mod refresh;
 pub mod resource;
 pub mod revoke;
 pub mod service_jwt;
+pub mod service_jwt_grant_admin;
+pub mod service_jwt_grant_web;
 pub mod user_jwt;

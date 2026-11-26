@@ -85,6 +85,12 @@ pub const MIGRATIONS: &[Migration] = &[
         sql_postgres: include_str!("../migrations/postgres/V003__bootstrap_tokens.sql"),
         marker_table: "token_migration_v003_applied",
     },
+    Migration {
+        version: "V004",
+        sql_mysql: include_str!("../migrations/mysql/V004__service_jwt_grants.sql"),
+        sql_postgres: include_str!("../migrations/postgres/V004__service_jwt_grants.sql"),
+        marker_table: "token_migration_v004_applied",
+    },
 ];
 
 /// 建池。
@@ -234,7 +240,28 @@ mod tests {
     #[test]
     fn migrations_are_versioned_in_order() {
         let versions: Vec<&str> = MIGRATIONS.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec!["V001", "V002", "V003"]);
+        assert_eq!(versions, vec!["V001", "V002", "V003", "V004"]);
+    }
+
+    #[test]
+    fn v004_has_its_own_sentinel_marker() {
+        let v004 = MIGRATIONS.iter().find(|m| m.version == "V004").unwrap();
+        assert_eq!(v004.marker_table, "token_migration_v004_applied");
+        for other in MIGRATIONS.iter().filter(|m| m.version != "V004") {
+            assert_ne!(v004.marker_table, other.marker_table);
+        }
+        for dialect in [DialectKind::Mysql, DialectKind::Postgres] {
+            assert!(
+                v004.sql_for(dialect)
+                    .contains("CREATE TABLE IF NOT EXISTS token_service_jwt_grants"),
+                "{dialect:?} script must create the grants table"
+            );
+            assert!(
+                v004.sql_for(dialect)
+                    .contains("CREATE TABLE IF NOT EXISTS token_service_jwt_grant_audit"),
+                "{dialect:?} script must create the audit table"
+            );
+        }
     }
 
     #[test]
