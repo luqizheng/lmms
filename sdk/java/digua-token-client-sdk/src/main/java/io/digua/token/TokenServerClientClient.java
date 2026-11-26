@@ -91,4 +91,91 @@ public class TokenServerClientClient extends SdkClient {
         HttpResponse r = executeWithAuth(HttpRequest.get(url("/tokens/.well-known/jwks.json")));
         return r.getBody();
     }
+
+    // ── Service JWT audience grants（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）──
+    //
+    // 走网关路径 /v1/admin/service-jwt-grants*（token-service 的 web 管理入口，
+    // user-jwt / 带 permissions 的 access token + TOKEN_SERVICE_JWT_GRANT_*
+    // 权限码鉴权）。重复创建 → 409，system_managed 行改删 → 409，均由
+    // ensureSuccess 抛出（带 HTTP 状态）。
+
+    /** 分页查询 grant。参数可传 {@code null} 表示不过滤；page/size 缺省由服务端决定。 */
+    public ServiceJwtGrantPage listServiceJwtGrants(
+            String owner, String audience, String status, Integer page, Integer size) {
+        StringBuilder qs = new StringBuilder();
+        appendParam(qs, "owner", owner);
+        appendParam(qs, "audience", audience);
+        appendParam(qs, "status", status);
+        if (page != null) {
+            appendParam(qs, "page", String.valueOf(page));
+        }
+        if (size != null) {
+            appendParam(qs, "size", String.valueOf(size));
+        }
+        String suffix = "/admin/service-jwt-grants" + qs;
+        HttpResponse r = executeWithAuth(HttpRequest.get(url(suffix)));
+        return mapBody(r, ServiceJwtGrantPage.class);
+    }
+
+    /** 查单条 grant（不存在 → 404 → ensureSuccess 抛出）。 */
+    public ServiceJwtGrantInfo getServiceJwtGrant(String owner, String audience) {
+        HttpResponse r = executeWithAuth(
+                HttpRequest.get(url("/admin/service-jwt-grants/" + owner + "/" + audience)));
+        return mapBody(r, ServiceJwtGrantInfo.class);
+    }
+
+    /** 创建 grant（owner/audience 须匹配 [a-zA-Z0-9_-]，1..=64；重复 → 409）。 */
+    public ServiceJwtGrantInfo createServiceJwtGrant(String owner, String audience) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("owner", owner);
+        payload.put("audience", audience);
+        HttpResponse r = executeWithAuth(
+                HttpRequest.post(url("/admin/service-jwt-grants")).jsonBody(payload));
+        return mapBody(r, ServiceJwtGrantInfo.class);
+    }
+
+    /** 启用 / 禁用 grant（{@code status}: "active" | "disabled"；非法 → 400）。 */
+    public ServiceJwtGrantInfo setServiceJwtGrantStatus(String owner, String audience, String status) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("status", status);
+        HttpResponse r = executeWithAuth(HttpRequest
+                .put(url("/admin/service-jwt-grants/" + owner + "/" + audience + "/status"))
+                .jsonBody(payload));
+        return mapBody(r, ServiceJwtGrantInfo.class);
+    }
+
+    /** 删除 grant（不存在/已删 → 404；system_managed → 409）。 */
+    public void deleteServiceJwtGrant(String owner, String audience) {
+        HttpResponse r = executeWithAuth(
+                HttpRequest.delete(url("/admin/service-jwt-grants/" + owner + "/" + audience)));
+        ensureSuccess(r);
+    }
+
+    public CompletableFuture<ServiceJwtGrantPage> listServiceJwtGrantsAsync(
+            String owner, String audience, String status, Integer page, Integer size) {
+        return wrapAsync(() -> listServiceJwtGrants(owner, audience, status, page, size));
+    }
+
+    public CompletableFuture<ServiceJwtGrantInfo> createServiceJwtGrantAsync(String owner, String audience) {
+        return wrapAsync(() -> createServiceJwtGrant(owner, audience));
+    }
+
+    public CompletableFuture<ServiceJwtGrantInfo> setServiceJwtGrantStatusAsync(
+            String owner, String audience, String status) {
+        return wrapAsync(() -> setServiceJwtGrantStatus(owner, audience, status));
+    }
+
+    public CompletableFuture<Void> deleteServiceJwtGrantAsync(String owner, String audience) {
+        return wrapAsync(() -> {
+            deleteServiceJwtGrant(owner, audience);
+            return null;
+        });
+    }
+
+    private static void appendParam(StringBuilder qs, String name, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        qs.append(qs.length() == 0 ? '?' : '&').append(name).append('=').append(value);
+    }
 }

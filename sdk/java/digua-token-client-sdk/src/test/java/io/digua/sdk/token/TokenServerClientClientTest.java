@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TokenServerClientClientTest {
@@ -30,6 +31,63 @@ class TokenServerClientClientTest {
 
     @AfterEach
     void tearDown() throws IOException { gw.shutdown(); }
+
+    @Test
+    void serviceJwtGrantManagementFlow() throws Exception {
+        // create
+        gw.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody("{\"owner\":\"svc-a\",\"audience\":\"iam-service\",\"status\":\"active\",\"system_managed\":false}"));
+        ServiceJwtGrantInfo created = client.createServiceJwtGrant("svc-a", "iam-service");
+        assertEquals("svc-a", created.getOwner());
+        assertEquals("active", created.getStatus());
+        assertFalse(created.isSystemManaged());
+
+        // list（带过滤）
+        gw.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody("{\"items\":[{\"owner\":\"svc-a\",\"audience\":\"iam-service\",\"status\":\"active\",\"system_managed\":false}],\"total\":1,\"page\":1,\"size\":20}"));
+        ServiceJwtGrantPage page = client.listServiceJwtGrants("svc-a", null, "active", 1, 20);
+        assertEquals(1, page.getTotal());
+        assertEquals("iam-service", page.getItems().get(0).getAudience());
+
+        // get
+        gw.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody("{\"owner\":\"svc-a\",\"audience\":\"iam-service\",\"status\":\"active\",\"system_managed\":true}"));
+        ServiceJwtGrantInfo got = client.getServiceJwtGrant("svc-a", "iam-service");
+        assertTrue(got.isSystemManaged());
+
+        // disable
+        gw.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody("{\"owner\":\"svc-a\",\"audience\":\"iam-service\",\"status\":\"disabled\",\"system_managed\":false}"));
+        ServiceJwtGrantInfo disabled =
+                client.setServiceJwtGrantStatus("svc-a", "iam-service", "disabled");
+        assertEquals("disabled", disabled.getStatus());
+
+        // delete（204）
+        gw.enqueue(new MockResponse().setResponseCode(204));
+        client.deleteServiceJwtGrant("svc-a", "iam-service");
+
+        // 请求序列：access(client_credentials) → POST → GET(list) → GET(one) → PUT → DELETE
+        RecordedRequest access = gw.takeRequest();
+        assertTrue(access.getPath().endsWith("/v1/tokens/access"));
+        RecordedRequest create = gw.takeRequest();
+        assertEquals("POST", create.getMethod());
+        assertTrue(create.getPath().endsWith("/v1/admin/service-jwt-grants"));
+        assertTrue(create.getBody().readUtf8().contains("\"audience\":\"iam-service\""));
+        RecordedRequest list = gw.takeRequest();
+        assertTrue(list.getPath().endsWith("/v1/admin/service-jwt-grants?owner=svc-a&status=active&page=1&size=20"));
+        RecordedRequest get = gw.takeRequest();
+        assertTrue(get.getPath().endsWith("/v1/admin/service-jwt-grants/svc-a/iam-service"));
+        RecordedRequest put = gw.takeRequest();
+        assertEquals("PUT", put.getMethod());
+        assertTrue(put.getPath().endsWith("/v1/admin/service-jwt-grants/svc-a/iam-service/status"));
+        RecordedRequest del = gw.takeRequest();
+        assertEquals("DELETE", del.getMethod());
+        assertTrue(del.getPath().endsWith("/v1/admin/service-jwt-grants/svc-a/iam-service"));
+    }
 
     @Test
     void createApiKeyAfterLogin() throws Exception {

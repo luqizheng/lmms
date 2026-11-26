@@ -133,3 +133,98 @@ fn url_encode(s: &str) -> String {
     }
     out
 }
+
+// ── Service JWT audience grants（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）──
+
+/// 一条 owner → audience 签发授权关系（无任何凭据材料）。
+#[derive(Debug, Clone, Deserialize)]
+pub struct ServiceJwtGrant {
+    pub owner: String,
+    pub audience: String,
+    /// `active` | `disabled`。
+    pub status: String,
+    /// true = 内置系统授权（服务端保护：管理 API 禁改禁删）。
+    #[serde(default)]
+    pub system_managed: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ListServiceJwtGrantsResponse {
+    #[serde(default)]
+    pub items: Vec<ServiceJwtGrant>,
+    #[serde(default)]
+    pub total: i64,
+    #[serde(default)]
+    pub page: u32,
+    #[serde(default)]
+    pub size: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateServiceJwtGrantRequest {
+    pub owner: String,
+    pub audience: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SetServiceJwtGrantStatusRequest {
+    /// `active` | `disabled`。
+    pub status: String,
+}
+
+/// grant 列表查询参数（owner / audience 精确过滤 + status + 分页）。
+#[derive(Debug, Clone, Default)]
+pub struct ListServiceJwtGrantsQuery {
+    pub owner: Option<String>,
+    pub audience: Option<String>,
+    pub status: Option<String>,
+    pub page: Option<u32>,
+    pub size: Option<u32>,
+}
+
+impl ListServiceJwtGrantsQuery {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn owner(mut self, v: impl Into<String>) -> Self {
+        self.owner = Some(v.into());
+        self
+    }
+    pub fn audience(mut self, v: impl Into<String>) -> Self {
+        self.audience = Some(v.into());
+        self
+    }
+    pub fn status(mut self, v: impl Into<String>) -> Self {
+        self.status = Some(v.into());
+        self
+    }
+    pub fn page(mut self, v: u32) -> Self {
+        self.page = Some(v);
+        self
+    }
+    pub fn size(mut self, v: u32) -> Self {
+        self.size = Some(v);
+        self
+    }
+    pub(crate) fn to_query_string(&self) -> String {
+        let mut out = String::new();
+        if let Some(v) = &self.owner {
+            out.push_str(&format!("owner={}&", url_encode(v)));
+        }
+        if let Some(v) = &self.audience {
+            out.push_str(&format!("audience={}&", url_encode(v)));
+        }
+        if let Some(v) = &self.status {
+            out.push_str(&format!("status={}&", url_encode(v)));
+        }
+        if let Some(v) = self.page {
+            out.push_str(&format!("page={}&", v));
+        }
+        if let Some(v) = self.size {
+            out.push_str(&format!("size={}&", v));
+        }
+        out
+    }
+}

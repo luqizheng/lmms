@@ -1,5 +1,6 @@
 use digua_token_sdk::{
-    AccessRequest, CreateApiKeyRequest, ListApiKeysQuery, RefreshRequest, RevokeRequest,
+    AccessRequest, CreateApiKeyRequest, CreateServiceJwtGrantRequest, ListApiKeysQuery,
+    ListServiceJwtGrantsQuery, RefreshRequest, RevokeRequest, SetServiceJwtGrantStatusRequest,
     TokenClient,
 };
 use serde_json::json;
@@ -150,4 +151,133 @@ async fn access_401_maps_to_auth_error() {
         digua_http_client::SdkError::Auth { status, .. } => assert_eq!(status, 401),
         other => panic!("expected Auth, got {:?}", other),
     }
+}
+
+// ── Service JWT audience grants ─────────────────────────────────────────────
+
+#[tokio::test]
+async fn list_service_jwt_grants_sends_filters_and_decodes_page() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/admin/service-jwt-grants"))
+        .and(wiremock::matchers::query_param("owner", "svc-a"))
+        .and(wiremock::matchers::query_param("status", "active"))
+        .and(header("authorization", "Bearer svc-jwt"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "items": [{
+                "owner": "svc-a",
+                "audience": "iam-service",
+                "status": "active",
+                "system_managed": false,
+                "created_at": "2026-11-26T00:00:00Z",
+                "updated_at": "2026-11-26T00:00:00Z"
+            }],
+            "total": 1,
+            "page": 1,
+            "size": 20
+        })))
+        .mount(&server)
+        .await;
+    let client = bearer_client(&server, "svc-jwt");
+    let q = ListServiceJwtGrantsQuery::new().owner("svc-a").status("active");
+    let resp = client.list_service_jwt_grants(&q).await.unwrap();
+    assert_eq!(resp.total, 1);
+    let g = &resp.items[0];
+    assert_eq!(g.owner, "svc-a");
+    assert_eq!(g.audience, "iam-service");
+    assert_eq!(g.status, "active");
+    assert!(!g.system_managed);
+}
+
+#[tokio::test]
+async fn create_service_jwt_grant_posts_body_and_returns_row() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/admin/service-jwt-grants"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "owner": "svc-a",
+            "audience": "iam-service",
+            "status": "active",
+            "system_managed": false
+        })))
+        .mount(&server)
+        .await;
+    let client = bearer_client(&server, "svc-jwt");
+    let req = CreateServiceJwtGrantRequest {
+        owner: "svc-a".into(),
+        audience: "iam-service".into(),
+    };
+    let g = client.create_service_jwt_grant(&req).await.unwrap();
+    assert_eq!(g.status, "active");
+}
+
+#[tokio::test]
+async fn create_service_jwt_grant_maps_409_to_validation_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/admin/service-jwt-grants"))
+        .respond_with(ResponseTemplate::new(409).set_body_string("grant already exists"))
+        .mount(&server)
+        .await;
+    let client = bearer_client(&server, "svc-jwt");
+    let req = CreateServiceJwtGrantRequest {
+        owner: "svc-a".into(),
+        audience: "iam-service".into(),
+    };
+    let err = client.create_service_jwt_grant(&req).await.unwrap_err();
+    assert!(
+        matches!(err, digua_http_client::SdkError::Validation { status: 409, .. }),
+        "409 must surface as Validation: {err}"
+    );
+}
+
+#[tokio::test]
+async fn set_service_jwt_grant_status_puts_body() {
+    let server = MockServer::start().await;
+    Mock::given(method("PUT"))
+        .and(path("/admin/service-jwt-grants/svc-a/iam-service/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "owner": "svc-a",
+            "audience": "iam-service",
+            "status": "disabled",
+            "system_managed": false
+        })))
+        .mount(&server)
+        .await;
+    let client = bearer_client(&server, "svc-jwt");
+    let req = SetServiceJwtGrantStatusRequest {
+        status: "disabled".into(),
+    };
+    let g = client
+        .set_service_jwt_grant_status("svc-a", "iam-service", &req)
+        .await
+        .unwrap();
+    assert_eq!(g.status, "disabled");
+}
+
+#[tokio::test]
+async fn get_and_delete_service_jwt_grant_hit_path() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/admin/service-jwt-grants/svc-a/iam-service"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "owner": "svc-a",
+            "audience": "iam-service",
+            "status": "active",
+            "system_managed": true
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/admin/service-jwt-grants/svc-a/iam-service"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    let client = bearer_client(&server, "svc-jwt");
+    let g = client.get_service_jwt_grant("svc-a", "iam-service").await.unwrap();
+    assert!(g.system_managed, "system_managed must round-trip");
+    client
+        .delete_service_jwt_grant("svc-a", "iam-service")
+        .await
+        .unwrap();
 }
