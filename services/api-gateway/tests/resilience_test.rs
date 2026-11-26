@@ -54,16 +54,22 @@ async fn retry_exhausted_5xx_passes_through_body() {
 
 #[tokio::test]
 async fn connect_error_maps_to_502_class() {
+    // 用非法 URL（Url::parse 失败 → reqwest builder error）确定性触发
+    // `Ok(Err(e))` 传输错误分支 → ResilientError::Connect。
+    // 早期版本连 "http://127.0.0.1:1/none"：Linux 立即 ECONNREFUSED 归
+    // Connect，但 Windows 上 connect 会挂起到 per-attempt 超时、被归类为
+    // Timeout——平台时序差异让断言不稳定；改用 URL 解析错误后两个平台
+    // 都是同步、确定性的 Connect，断言语义不变（传输层失败 ≠ 超时）。
     let err = rc()
         .call(
             "svc",
             Method::GET,
-            "http://127.0.0.1:1/none",
+            "http://invalid url with spaces",
             &HeaderMap::new(),
             Bytes::new(),
         )
         .await
-        .expect_err("connect err");
+        .expect_err("transport err");
     assert!(matches!(err, ResilientError::Connect(_)));
 }
 

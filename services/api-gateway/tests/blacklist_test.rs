@@ -1,7 +1,13 @@
 use redis::{AsyncCommands, Client};
 
-fn get_redis_url() -> String {
-    std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string())
+fn get_redis_url() -> Option<String> {
+    // WP-TEST-01：本文件是 REDIS 类集成测试——直连真实 Redis（共享容器或
+    // testcontainers 之外的实例）。与各服务 pg_roundtrip 的 TEST_PG_URL 惯例
+    // 一致：未设置 REDIS_URL 时打印 [skip] 并通过（不启动、不连接任何服务），
+    // 断言本身零改动；设了 REDIS_URL 的 CI/开发机照常全量验证。
+    std::env::var("REDIS_URL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
 }
 
 fn get_test_prefix() -> String {
@@ -10,7 +16,11 @@ fn get_test_prefix() -> String {
 
 #[tokio::test]
 async fn test_blacklist_set_and_exists() {
-    let client = Client::open(get_redis_url()).unwrap();
+    let Some(redis_url) = get_redis_url() else {
+        eprintln!("[skip] REDIS_URL not set — Redis integration test skipped");
+        return;
+    };
+    let client = Client::open(redis_url).unwrap();
     let mut conn = client.get_multiplexed_async_connection().await.unwrap();
 
     let prefix = get_test_prefix();
@@ -30,7 +40,11 @@ async fn test_blacklist_set_and_exists() {
 
 #[tokio::test]
 async fn test_blacklist_ttl_expiration() {
-    let client = Client::open(get_redis_url()).unwrap();
+    let Some(redis_url) = get_redis_url() else {
+        eprintln!("[skip] REDIS_URL not set — Redis integration test skipped");
+        return;
+    };
+    let client = Client::open(redis_url).unwrap();
     let mut conn = client.get_multiplexed_async_connection().await.unwrap();
 
     let prefix = get_test_prefix();
@@ -50,7 +64,11 @@ async fn test_blacklist_ttl_expiration() {
 
 #[tokio::test]
 async fn test_blacklist_prefix_isolation() {
-    let client = Client::open(get_redis_url()).unwrap();
+    let Some(redis_url) = get_redis_url() else {
+        eprintln!("[skip] REDIS_URL not set — Redis integration test skipped");
+        return;
+    };
+    let client = Client::open(redis_url).unwrap();
     let mut conn = client.get_multiplexed_async_connection().await.unwrap();
 
     let prefix1 = "test:prefix1:";
@@ -75,7 +93,11 @@ async fn test_blacklist_prefix_isolation() {
 
 #[tokio::test]
 async fn test_blacklist_multiple_tokens() {
-    let client = Client::open(get_redis_url()).unwrap();
+    let Some(redis_url) = get_redis_url() else {
+        eprintln!("[skip] REDIS_URL not set — Redis integration test skipped");
+        return;
+    };
+    let client = Client::open(redis_url).unwrap();
     let mut conn = client.get_multiplexed_async_connection().await.unwrap();
 
     let prefix = get_test_prefix();
@@ -114,7 +136,11 @@ async fn test_blacklist_multiple_tokens() {
 
 #[tokio::test]
 async fn test_blacklist_false_positive() {
-    let client = Client::open(get_redis_url()).unwrap();
+    let Some(redis_url) = get_redis_url() else {
+        eprintln!("[skip] REDIS_URL not set — Redis integration test skipped");
+        return;
+    };
+    let client = Client::open(redis_url).unwrap();
     let mut conn = client.get_multiplexed_async_connection().await.unwrap();
 
     let prefix = get_test_prefix();
