@@ -26,11 +26,20 @@ Canonical IAM service identifier in this repository is `iam-service`. “iam-use
 
 The built-in principals `iam-service`, `token-service`, and `notification-service` must be represented by valid Bootstrap Token owner configuration in every deployment that enables those services.
 
-However, the inspected in-repository call graph proves only the two outbound grants above:
+However, the inspected Bootstrap-Token-backed `ServiceJwtCache::get(...)` call graph proves only the two outbound grants above:
 - `iam-service → token-service`
 - `notification-service → iam-service`
 
-Do **not** invent `token-service → token-service`, `token-service → *`, or blanket mutual grants. A Bootstrap Token identity does not itself imply permission to obtain a Service JWT for every audience. Before coding, search all built-in callers and add any additional edge only with a concrete call-site/configuration reference.
+### token-service internal self-mint path (separate mechanism)
+
+The current `services/token-service/src/lib.rs` also contains `mint_service_bearer_for_state` / `mint_service_bearer_with_kid`, which directly signs a token with `sub=token-service` for token-service's own outbound internal calls. This is not a call to `POST /tokens/service-jwt`, does not authenticate a Bootstrap Token, and does not consult an owner→audience grant.
+
+Treat that as a separate existing trust path:
+- Do not create a `token-service → token-service` owner→audience grant merely because this helper exists.
+- Do not silently change or remove this self-mint behavior in this implementation slice.
+- Inventory its concrete call sites and downstream audiences as a separate follow-up security question. If those calls need authorization changes, propose a separately reviewed design; do not conflate them with Bootstrap Token audience grants.
+
+Do **not** invent `token-service → *`, wildcard, or blanket mutual grants. A Bootstrap Token identity does not itself imply permission to obtain a Service JWT for every audience. Before coding, search all built-in callers and add any additional Bootstrap-Token-backed edge only with a concrete call-site/configuration reference.
 
 ## 3. Mandatory implementation requirements
 
