@@ -393,10 +393,7 @@ pub mod ops {
 
     // ── 内部 helper ──────────────────────────────────────────────────────
 
-    fn validate_pair(
-        owner: &str,
-        audience: &str,
-    ) -> Result<(), (StatusCode, &'static str)> {
+    fn validate_pair(owner: &str, audience: &str) -> Result<(), (StatusCode, &'static str)> {
         grant::validate_service_identity(owner)
             .map_err(|e| (StatusCode::BAD_REQUEST, owner_err(&e)))?;
         grant::validate_service_identity(audience)
@@ -571,8 +568,15 @@ pub async fn handle_set_status(
     };
     let request_id = request_id_from_headers(&headers);
     Ok(Json(
-        ops::set_status(&state.db, &owner, &audience, &req.status, &actor, &request_id)
-            .await?,
+        ops::set_status(
+            &state.db,
+            &owner,
+            &audience,
+            &req.status,
+            &actor,
+            &request_id,
+        )
+        .await?,
     ))
 }
 

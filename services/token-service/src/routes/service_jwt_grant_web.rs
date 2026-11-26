@@ -138,8 +138,13 @@ pub async fn handle_get(
     Path((owner, audience)): Path<(String, String)>,
 ) -> Result<Json<ServiceJwtGrantDto>, (StatusCode, &'static str)> {
     require_perm!(
-        state, principal, headers,
-        perms::TOKEN_SERVICE_JWT_GRANT_READ, owner, audience, false
+        state,
+        principal,
+        headers,
+        perms::TOKEN_SERVICE_JWT_GRANT_READ,
+        owner,
+        audience,
+        false
     )?;
     Ok(Json(ops::get(&state.db, &owner, &audience).await?))
 }
@@ -168,8 +173,13 @@ pub async fn handle_create(
 ) -> Result<Json<ServiceJwtGrantDto>, (StatusCode, &'static str)> {
     let (owner, audience) = (req.owner.clone(), req.audience.clone());
     require_perm!(
-        state, principal, headers,
-        perms::TOKEN_SERVICE_JWT_GRANT_CREATE, owner, audience, true
+        state,
+        principal,
+        headers,
+        perms::TOKEN_SERVICE_JWT_GRANT_CREATE,
+        owner,
+        audience,
+        true
     )?;
     let actor = Actor::User {
         user_id: principal.user_id.clone(),
@@ -206,16 +216,28 @@ pub async fn handle_set_status(
     Json(req): Json<SetGrantStatusRequest>,
 ) -> Result<Json<ServiceJwtGrantDto>, (StatusCode, &'static str)> {
     require_perm!(
-        state, principal, headers,
-        perms::TOKEN_SERVICE_JWT_GRANT_UPDATE, owner, audience, true
+        state,
+        principal,
+        headers,
+        perms::TOKEN_SERVICE_JWT_GRANT_UPDATE,
+        owner,
+        audience,
+        true
     )?;
     let actor = Actor::User {
         user_id: principal.user_id.clone(),
     };
     let request_id = request_id_from_headers(&headers);
     Ok(Json(
-        ops::set_status(&state.db, &owner, &audience, &req.status, &actor, &request_id)
-            .await?,
+        ops::set_status(
+            &state.db,
+            &owner,
+            &audience,
+            &req.status,
+            &actor,
+            &request_id,
+        )
+        .await?,
     ))
 }
 
@@ -243,8 +265,13 @@ pub async fn handle_delete(
     Path((owner, audience)): Path<(String, String)>,
 ) -> Result<StatusCode, (StatusCode, &'static str)> {
     require_perm!(
-        state, principal, headers,
-        perms::TOKEN_SERVICE_JWT_GRANT_DELETE, owner, audience, true
+        state,
+        principal,
+        headers,
+        perms::TOKEN_SERVICE_JWT_GRANT_DELETE,
+        owner,
+        audience,
+        true
     )?;
     let actor = Actor::User {
         user_id: principal.user_id.clone(),

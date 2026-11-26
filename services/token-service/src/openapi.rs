@@ -5,8 +5,7 @@ use utoipa::{
 
 use crate::routes::{
     access, admin, api_key, bootstrap_token_admin, bootstrap_token_web, keys_admin,
-    migration_state, refresh, revoke, service_jwt_grant_admin, service_jwt_grant_web,
-    user_jwt,
+    migration_state, refresh, revoke, service_jwt_grant_admin, service_jwt_grant_web, user_jwt,
 };
 
 pub struct SecurityAddon;

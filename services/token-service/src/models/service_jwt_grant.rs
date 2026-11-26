@@ -11,8 +11,7 @@
 
 use crate::db::{is_duplicate_key, DbPool};
 use digua_common_db::{
-    db_execute, db_fetch_all, db_fetch_optional, db_fetch_scalar, db_qb_fetch_all,
-    db_qb_fetch_one,
+    db_execute, db_fetch_all, db_fetch_optional, db_fetch_scalar, db_qb_fetch_all, db_qb_fetch_one,
 };
 
 /// 内置系统授权（code-owned，版本控制）。
@@ -242,8 +241,10 @@ pub async fn list_filtered(
     let status = status.map(str::to_string);
 
     let rows: Vec<ServiceJwtGrantRow> = db_qb_fetch_all!(pool, ServiceJwtGrantRow, |qb| {
-        qb.push("SELECT owner, audience, status, system_managed, created_at, updated_at \
-                 FROM token_service_jwt_grants WHERE 1=1");
+        qb.push(
+            "SELECT owner, audience, status, system_managed, created_at, updated_at \
+                 FROM token_service_jwt_grants WHERE 1=1",
+        );
         if owner.is_some() {
             qb.push(" AND owner = ").push_bind(owner.as_ref().unwrap());
         }
@@ -252,7 +253,8 @@ pub async fn list_filtered(
                 .push_bind(audience.as_ref().unwrap());
         }
         if status.is_some() {
-            qb.push(" AND status = ").push_bind(status.as_ref().unwrap());
+            qb.push(" AND status = ")
+                .push_bind(status.as_ref().unwrap());
         }
         qb.push(" ORDER BY owner, audience LIMIT ")
             .push_bind(size as i64);
@@ -269,7 +271,8 @@ pub async fn list_filtered(
                 .push_bind(audience.as_ref().unwrap());
         }
         if status.is_some() {
-            qb.push(" AND status = ").push_bind(status.as_ref().unwrap());
+            qb.push(" AND status = ")
+                .push_bind(status.as_ref().unwrap());
         }
     })?;
 
@@ -444,9 +447,11 @@ pub async fn list_audit(
     let owner = owner.map(str::to_string);
     let audience = audience.map(str::to_string);
     let rows: Vec<GrantAuditRow> = db_qb_fetch_all!(pool, GrantAuditRow, |qb| {
-        qb.push("SELECT id, actor_id, actor_type, owner, audience, action, before_status, \
+        qb.push(
+            "SELECT id, actor_id, actor_type, owner, audience, action, before_status, \
                  after_status, request_id, result, detail, occurred_at \
-                 FROM token_service_jwt_grant_audit WHERE 1=1");
+                 FROM token_service_jwt_grant_audit WHERE 1=1",
+        );
         if owner.is_some() {
             qb.push(" AND owner = ").push_bind(owner.as_ref().unwrap());
         }

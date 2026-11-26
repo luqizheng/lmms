@@ -429,7 +429,10 @@ mod tests {
     #[test]
     fn migrations_are_versioned_in_order() {
         let versions: Vec<&str> = MIGRATIONS.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec!["V001", "V002", "V003", "V004", "V005", "V006"]);
+        assert_eq!(
+            versions,
+            vec!["V001", "V002", "V003", "V004", "V005", "V006"]
+        );
     }
 
     #[test]

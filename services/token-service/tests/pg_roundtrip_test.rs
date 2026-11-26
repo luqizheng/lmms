@@ -454,9 +454,7 @@ async fn pg_service_jwt_grants_roundtrip() {
         .await
         .expect("seed system grants on pg");
     assert_eq!(seeded, 2);
-    let again = grant::ensure_system_grants(&pool)
-        .await
-        .expect("re-seed");
+    let again = grant::ensure_system_grants(&pool).await.expect("re-seed");
     assert_eq!(again, 0, "seed must be idempotent");
 
     // 系统行 active 且受保护

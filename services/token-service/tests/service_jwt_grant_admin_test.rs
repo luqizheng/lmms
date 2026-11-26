@@ -52,8 +52,7 @@ fn wrong_aud_bearer() -> String {
 
 /// 签带指定权限码的 user-jwt（web 入口）。
 fn user_bearer(perms: &[&str]) -> String {
-    let issuer =
-        token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer");
+    let issuer = token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer");
     issuer
         .issue_user_jwt(
             "usr-1",
@@ -88,8 +87,7 @@ async fn insert_grant_raw(
         "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed) \
          VALUES (?, ?, ?, {flag})"
     );
-    db_execute!(pool, sql, owner, aud, status)
-        .unwrap_or_else(|e| panic!("insert grant raw: {e}"));
+    db_execute!(pool, sql, owner, aud, status).unwrap_or_else(|e| panic!("insert grant raw: {e}"));
 }
 
 fn req(method: &str, uri: &str, bearer: Option<&str>, body: Option<Value>) -> Request<Body> {
@@ -363,10 +361,7 @@ async fn service_entry_full_crud_flow_with_audit() {
          ORDER BY id"
     )
     .expect("query audit rows");
-    let summary: Vec<String> = rows
-        .iter()
-        .map(|(a, r, _)| format!("{a}/{r}"))
-        .collect();
+    let summary: Vec<String> = rows.iter().map(|(a, r, _)| format!("{a}/{r}")).collect();
     assert!(
         summary.contains(&"create/success".to_string()),
         "audit: {summary:?}"
@@ -424,7 +419,10 @@ async fn create_rejects_invalid_owner_and_audience() {
         "SELECT owner FROM token_service_jwt_grants"
     )
     .expect("query grants");
-    assert!(rows.is_empty(), "no grant may exist after injection attempts");
+    assert!(
+        rows.is_empty(),
+        "no grant may exist after injection attempts"
+    );
 }
 
 #[tokio::test]
@@ -723,9 +721,13 @@ async fn grant_lifecycle_controls_issuance() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body = json_body(resp).await;
     let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
-    let claims = verify_token(body["access_token"].as_str().unwrap(), &cache, Some("iam-service"))
-        .await
-        .unwrap();
+    let claims = verify_token(
+        body["access_token"].as_str().unwrap(),
+        &cache,
+        Some("iam-service"),
+    )
+    .await
+    .unwrap();
     assert_eq!(claims["sub"], "svc-a");
 
     // 未授权的 audience 仍拒绝（owner 只能签发已授权 audience）
@@ -862,24 +864,23 @@ async fn issuance_fails_closed_when_db_unavailable() {
 
     // grant 判定本身也必须把 DB 错误上抛（而非静默当作"无授权"）：
     // is_allowed 的 Err 传播是 handler 500 分支的来源。
-    let res = token_service::models::service_jwt_grant::is_allowed(
-        &pool,
-        "svc-a",
-        "iam-service",
-    )
-    .await;
+    let res =
+        token_service::models::service_jwt_grant::is_allowed(&pool, "svc-a", "iam-service").await;
     assert!(res.is_err(), "grant lookup must propagate db errors");
 }
 
 #[tokio::test]
 async fn upstream_system_seed_is_idempotent_and_its_rows_are_protected() {
     let pool = crate::common::spawn_mysql().await;
-    
 
     // 上游 WP-02 的 code-owned seed：精准 SYSTEM_GRANTS（2 条），幂等
-    let first = token_service::models::service_jwt_grant::ensure_system_grants(&pool).await.expect("first seed");
+    let first = token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("first seed");
     assert_eq!(first, 2);
-    let second = token_service::models::service_jwt_grant::ensure_system_grants(&pool).await.expect("second seed");
+    let second = token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("second seed");
     assert_eq!(second, 0, "seed must be idempotent");
 
     // 系统行是保护行
