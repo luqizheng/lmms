@@ -13,6 +13,9 @@ pub type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> +
 ///
 /// `presign_get` / `presign_put` 默认返回 `Ok(None)`，表示该 driver 不支持原生
 /// 预签名 URL。FileService 会明确返回 501，不会生成无法验证的伪签名代理 URL。
+// clippy 1.99 `double_must_use` 误报源于 async-trait 宏展开（生成的 must_use
+// 与 Future 自身重复），仅在宏产生点豁免。
+#[allow(clippy::double_must_use)]
 #[async_trait::async_trait]
 pub trait ObjectStore: Send + Sync {
     async fn put(&self, path: &str, data: Bytes) -> AppResult<()>;

@@ -92,21 +92,28 @@ async fn main() {
         tracing::info!("seeded {} bootstrap tokens", seeded_bt);
     }
 
-    // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: 系统授权初始化。grants 表为空时
-    // 灌入内置 dev 系统 grant（system_managed，管理面不可改删）；env
-    // SERVICE_JWT_GRANT_SEED（owner:audience 逗号分隔）补插普通 grant。格式
-    // 非法 → 拒绝启动（fail-closed，与 bootstrap seed 语义一致）。
-    let seeded_grants = token_service::models::service_jwt_grant::seed_system_grants(
-        &db,
-        std::env::var("SERVICE_JWT_GRANT_SEED")
-            .unwrap_or_default()
-            .as_str(),
-    )
-    .await
-    .expect("seed service jwt grants");
+    // WP-LMMS-SERVICE-JWT-AUDIENCE-02: 内置 owner→audience 系统授权。
+    // 顺序不变量：必须在 HTTP listener 接受请求之前完成——否则会出现
+    // "端点已就绪但授权表未就绪"的窗口，IAM 登录链会在该窗口拿到 403。
+    // 与 bootstrap token seed 解耦：无论密钥来自 env 注入还是 dev 默认值，
+    // 系统 grant 都必须 seed（生产密钥注入不得抑制授权引导）。
+    // fail-closed：任何一步失败 → 进程退出，listener 永不 bind。
+    let seeded_grants = token_service::models::service_jwt_grant::ensure_system_grants(&db)
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("ensure system service-jwt grants failed (fail-closed): {e}");
+            std::process::exit(1);
+        });
     if seeded_grants > 0 {
-        tracing::info!("seeded {} service jwt grants", seeded_grants);
+        tracing::info!("seeded {} built-in service-jwt grants", seeded_grants);
     }
+    token_service::models::service_jwt_grant::validate_required_principals(&db)
+        .await
+        .unwrap_or_else(|e| {
+            // 诊断信息不含任何 secret 材料。
+            eprintln!("service-jwt grant principal validation failed (fail-closed): {e}");
+            std::process::exit(1);
+        });
 
     // ── JWT signing keystore (2026-11-23 persistence design) ──
     // Single source of truth on disk: keystore.json. Fail-closed on any
@@ -238,8 +245,9 @@ async fn main() {
     // token.router.toml 转发）。service-jwt 端点保留给 CI / 运维脚本。
     app = app.merge(routes::bootstrap_token_web::routes(state.clone()));
 
-    // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: service-jwt audience grant 管理面
-    // （owner → audience 授权关系的 CRUD，双入口共用 ops 业务层）。
+    // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: grant 管理面（owner → audience
+    // 授权关系的 CRUD + 审计，双入口共用 ops 业务层）。上游 WP-02 只建了
+    // 运行时检查与 code-owned seed，管理能力由本任务补齐。
     app = app.merge(routes::service_jwt_grant_admin::routes(state.clone()));
     app = app.merge(routes::service_jwt_grant_web::routes(state.clone()));
 

@@ -6,11 +6,6 @@
 //!
 //! 每个业务服务在 `token_bootstrap_tokens` 表有一行（owner 唯一）；handler 按明文
 //! token 精确匹配 + status='active' + expires_at > NOW() 三条件筛选。
-//!
-//! WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01 (2026-11-26): 增加 owner → audience
-//! 授权检查（`token_service_jwt_grants` 表，默认拒绝）。bootstrap 只证明调用
-//! 方身份，grant 决定它能签发哪个 audience。管理面见
-//! `service_jwt_grant_{admin,web}.rs`。
 
 use axum::{
     extract::State,
@@ -67,30 +62,32 @@ pub async fn handle_service_jwt(
         }
     };
 
-    // 3. Validate request.
+    // 2a. WP-LMMS-SERVICE-JWT-AUDIENCE-02: 规范化授权主体——宽限期遗留行
+    // (`owner#old`) 与正式行解析到同一 canonical owner、同一 grant 集合。
+    // 签出的 sub 也用 canonical owner，宽限 token 与正式 token 完全等价。
+    let caller = crate::models::service_jwt_grant::canonical_owner(&caller).to_string();
+
+    // 3. Validate request (aud 语法/长度与 bootstrap admin 的 owner 规则一致).
     if req.aud.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "aud required".into()));
     }
-    // audience 字符集校验（与 grant 管理面一致）：不合法的 aud 永远不可能有
-    // 授权行，提前 400 避免 DB 空查。
-    if crate::models::service_jwt_grant::validate_name(&req.aud).is_err() {
-        return Err((StatusCode::BAD_REQUEST, "invalid aud".into()));
+    if let Err(msg) = crate::models::service_jwt_grant::validate_service_identity(&req.aud) {
+        tracing::warn!(aud = %req.aud, "service-jwt audience rejected: {msg}");
+        return Err((StatusCode::BAD_REQUEST, "aud invalid".into()));
     }
 
-    // 4. Audience authorization（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）：
-    //    bootstrap 只证明"你是某个服务"，grant 决定"你能签发哪个 audience"。
-    //    active → 放行；不存在 / disabled → 403（不区分原因，防探测）；
-    //    DB 错误 → 500 fail-closed，绝不放行。
-    //    rotate 宽限期的遗留行 owner 是 `<owner>#old`（见 bootstrap_token::rotate），
-    //    与原 owner 共享同一份 grant——宽限期只是换 token 的过渡，不改权限。
-    let grant_owner = caller.strip_suffix("#old").unwrap_or(caller.as_str());
-    match crate::models::service_jwt_grant::is_active_grant(&state.db, grant_owner, &req.aud)
-        .await
-    {
+    // 3a. WP-LMMS-SERVICE-JWT-AUDIENCE-02: 签发面强制授权检查。
+    // fail-closed：DB 错误绝不签发；缺 grant / disabled 一律 403。
+    // 无通配符、无隐式 owner==audience。
+    match crate::models::service_jwt_grant::is_allowed(&state.db, &caller, &req.aud).await {
         Ok(true) => {}
         Ok(false) => {
-            tracing::warn!(owner = %caller, aud = %req.aud, "service-jwt grant not authorized");
-            return Err((StatusCode::FORBIDDEN, "audience not authorized".into()));
+            tracing::warn!(
+                owner = %caller,
+                aud = %req.aud,
+                "service-jwt issuance denied: no active owner→audience grant"
+            );
+            return Err((StatusCode::FORBIDDEN, "audience not granted".into()));
         }
         Err(e) => {
             tracing::error!(error = %e, "service-jwt grant lookup failed (fail-closed)");
@@ -98,7 +95,7 @@ pub async fn handle_service_jwt(
         }
     }
 
-    // 5. Sign. `sub` = bootstrap owner from DB。
+    // 4. Sign. `sub` = canonical bootstrap owner from DB。
     let now = chrono::Utc::now().timestamp();
     let mut claims = serde_json::json!({
         "iss": "token-service",

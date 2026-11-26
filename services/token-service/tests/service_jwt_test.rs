@@ -5,10 +5,6 @@
 //! 起容器 / 连共享库，跑完 migrations 后往表里插行再打请求。
 //!
 //! `sub` = 命中的行的 `owner`（不再有 SERVICE_BOOTSTRAP_OWNERS 平行列表）。
-//!
-//! WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: 签发额外要求 owner → audience 的
-//! grant（`token_service_jwt_grants`，默认拒绝）。涉及签发成功的用例需先插
-//! grant 行（生产路径由 `seed_system_grants` / 管理 API 建立）。
 
 use axum::{
     body::Body,
@@ -37,14 +33,15 @@ async fn insert_tokens(pool: &token_service::db::DbPool, rows: &[(&str, &str, &s
     }
 }
 
-/// 往 grant 表插行（status: active / disabled）。
-async fn insert_grant(pool: &token_service::db::DbPool, owner: &str, aud: &str, status: &str) {
+/// 往 grant 表插一条显式授权（WP-LMMS-SERVICE-JWT-AUDIENCE-02 后，
+/// 签发前必须存在 active owner→audience grant）。
+async fn insert_grant(pool: &token_service::db::DbPool, owner: &str, audience: &str) {
     db_execute!(
         pool,
-        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed)          VALUES (?, ?, ?, FALSE)",
+        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed) \
+         VALUES (?, ?, 'active', FALSE)",
         owner,
-        aud,
-        status
+        audience
     )
     .expect("insert grant");
 }
@@ -60,16 +57,19 @@ async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
         ],
     )
     .await;
-    insert_grant(&pool, "token-service", "iam-service", "active").await;
+    // WP-02：iam-service → token-service 是 P0 系统 grant（登录链）
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure system grants");
     let app = token_service::service_jwt_routes(build_state(pool));
 
     let req = Request::builder()
         .method("POST")
         .uri("/tokens/service-jwt")
-        .header(header::AUTHORIZATION, "Bearer bt-token")
+        .header(header::AUTHORIZATION, "Bearer bt-iam")
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(
-            json!({"aud": "iam-service", "tid": 1}).to_string(),
+            json!({"aud": "token-service", "tid": 1}).to_string(),
         ))
         .unwrap();
 
@@ -83,14 +83,15 @@ async fn service_jwt_with_valid_bootstrap_returns_signed_jwt() {
 
     // Verify with the public key
     let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
-    let claims = verify_token(access_token, &cache, Some("iam-service"))
+    let claims = verify_token(access_token, &cache, Some("token-service"))
         .await
         .unwrap();
     // service-jwt always issued by token-service
     assert_eq!(claims["iss"], "token-service");
-    // sub = 命中行的 owner（bt-token → token-service）
-    assert_eq!(claims["sub"], "token-service");
-    assert_eq!(claims["aud"], "iam-service");
+    // sub = 命中行的 owner（bt-iam → iam-service）
+
+    assert_eq!(claims["sub"], "iam-service");
+    assert_eq!(claims["aud"], "token-service");
     assert_eq!(claims["tid"], 1);
     assert_eq!(claims["roles"][0], "service");
     assert_eq!(claims["purpose"], "service");
@@ -154,7 +155,9 @@ async fn service_jwt_with_empty_aud_returns_400() {
 async fn service_jwt_ct_claim_and_owner_from_db() {
     let pool = crate::common::spawn_mysql().await;
     insert_tokens(&pool, &[("project-manager", "bt-pm", "active")]).await;
-    insert_grant(&pool, "project-manager", "file-service", "active").await;
+    // WP-02：显式授予 project-manager → file-service（曾是"任意 audience 放行"
+    // 的旧语义用例，现必须先有 grant 才能签发）
+    insert_grant(&pool, "project-manager", "file-service").await;
     let app = token_service::service_jwt_routes(build_state(pool));
 
     let req = Request::builder()
@@ -235,12 +238,12 @@ async fn seed_defaults_falls_back_to_built_in_dev_tokens() {
         inserted.expect("seed") > 0,
         "should insert built-in defaults"
     );
-    // 与 main.rs 启动序一致：bootstrap seed 之后 seed 系统 grant
-    token_service::models::service_jwt_grant::seed_system_grants(&pool, "")
-        .await
-        .expect("seed system grants");
 
     // 内置默认值里的 token 可以换到 service-jwt，且 sub = 对应 owner
+    // WP-02：请求的必须是已授权 audience（iam-service → token-service，P0）
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure system grants");
     let state = build_state(pool);
     let app = token_service::service_jwt_routes(state);
     let req = Request::builder()
@@ -249,7 +252,7 @@ async fn seed_defaults_falls_back_to_built_in_dev_tokens() {
         .header(header::AUTHORIZATION, "Bearer dev-bt-iam-service")
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(
-            json!({"aud": "audit-service", "tid": 1}).to_string(),
+            json!({"aud": "token-service", "tid": 1}).to_string(),
         ))
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
@@ -260,7 +263,7 @@ async fn seed_defaults_falls_back_to_built_in_dev_tokens() {
     let claims = verify_token(
         parsed["access_token"].as_str().unwrap(),
         &cache,
-        Some("audit-service"),
+        Some("token-service"),
     )
     .await
     .unwrap();

@@ -21,7 +21,10 @@ use token_service::db::DbPool;
 /// （生产路径的 marker 逻辑由 `tests/migration_marker_test.rs` 单独覆盖）。
 pub use token_service::db::MIGRATIONS;
 
-pub async fn spawn_mysql() -> DbPool {
+/// 建测试库连接池（**不**跑迁移）。
+///
+/// 中断恢复测试（WP-02-R2）用它先构造 V001-V004 / 中间态，再单独驱动 V005。
+pub async fn spawn_mysql_unmigrated() -> DbPool {
     if let (Ok(host), Ok(port)) = (
         std::env::var("TEST_MYSQL_HOST"),
         std::env::var("TEST_MYSQL_PORT"),
@@ -43,10 +46,16 @@ pub async fn spawn_mysql() -> DbPool {
     let url = format!("mysql://root@{}:{}/test", host, port);
 
     let pool = build_pool(&url).await;
-    run_migrations(&pool).await;
     // 防止容器在函数返回后被 drop 回收，导致后续查询 PoolTimedOut
     std::mem::forget(container);
     DbPool::from(pool)
+}
+
+/// 建库 + 跑完全部迁移（rust_step 先于 SQL 脚本，与生产 `init_schema` 同序）。
+pub async fn spawn_mysql() -> DbPool {
+    let pool = spawn_mysql_unmigrated().await;
+    run_migrations(&pool).await;
+    pool
 }
 
 async fn spawn_shared(host: String, port: String) -> DbPool {
@@ -72,7 +81,6 @@ async fn spawn_shared(host: String, port: String) -> DbPool {
 
     let url = format!("mysql://root@{host}:{port}/{db_name}");
     let pool = build_pool(&url).await;
-    run_migrations(&pool).await;
     DbPool::from(pool)
 }
 
@@ -93,8 +101,16 @@ async fn build_pool(url: &str) -> MySqlPool {
         .expect("connect mysql")
 }
 
-async fn run_migrations(pool: &MySqlPool) {
+/// 与生产 `init_schema` 同序执行迁移（WP-02-R2）：rust_step 先于 SQL 脚本、
+/// 逐条 SQL 自动提交（无迁移级事务，忠实模拟真实执行边界）。
+pub async fn run_migrations(pool: &DbPool) {
+    let mysql = pool.as_mysql().expect("mysql pool for test migrations");
     for m in MIGRATIONS {
+        if let Some(step) = m.rust_step {
+            token_service::db::run_rust_step(pool, step)
+                .await
+                .expect("rust migration step");
+        }
         // 先剥离整行注释，避免以 `--` 开头的语句被整条跳过导致建表缺失
         let cleaned = m
             .sql_mysql
@@ -107,8 +123,27 @@ async fn run_migrations(pool: &MySqlPool) {
             if s.is_empty() {
                 continue;
             }
-            sqlx::query(s).execute(pool).await.expect("run migration");
+            sqlx::query(s).execute(mysql).await.expect("run migration");
         }
+    }
+}
+
+/// 手工执行一份 MySQL 迁移脚本（与生产 `apply_sql_script` 同口径：剥注释 +
+/// 分号切分、逐条自动提交）。中断恢复测试用它构造真实执行边界的前置状态。
+pub async fn apply_mysql_script(pool: &sqlx::MySqlPool, script: &str) {
+    let cleaned = script
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("--"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for stmt in cleaned.split(';') {
+        let s = stmt.trim();
+        if s.is_empty() {
+            continue;
+        }
+        sqlx::query(s).execute(pool).await.unwrap_or_else(|e| {
+            panic!("apply mysql stmt `{}`: {e}", s.lines().next().unwrap_or(""))
+        });
     }
 }
 

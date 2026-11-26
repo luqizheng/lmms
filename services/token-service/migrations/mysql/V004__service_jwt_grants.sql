@@ -1,11 +1,11 @@
--- V004: Service JWT audience grants + 管理审计（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）。
+-- V004: service-jwt owner→audience grants（WP-LMMS-SERVICE-JWT-AUDIENCE-02）。
 --
--- token_service_jwt_grants: owner → audience 签发授权关系。
--- POST /tokens/service-jwt 在 bootstrap token 校验通过后要求存在一行
--- status='active' 的 grant，否则拒绝签发（默认拒绝，fail-closed）。
+-- 签发面授权表：POST /tokens/service-jwt 在签名前必须确认
+-- (canonical owner, audience) 存在 active grant，缺省一律拒绝（fail-closed）。
+-- 无通配符、无隐式 owner==audience。
 --
--- token_service_jwt_grant_audit: 管理变更 append-only 审计（行形对齐
--- audit_events：actor/action/result/request_id/occurred_at），永不携带凭据。
+-- 内置系统授权由启动 seed 幂等补插（main.rs，listener 就绪前），
+-- system_managed = TRUE 的行不属于普通管理面（本阶段不提供 grant CRUD）。
 
 CREATE TABLE IF NOT EXISTS token_service_jwt_grants (
   owner          VARCHAR(64)  NOT NULL,
@@ -15,26 +15,10 @@ CREATE TABLE IF NOT EXISTS token_service_jwt_grants (
   created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (owner, audience),
-  INDEX idx_token_service_jwt_grants_status (status)
+  INDEX idx_token_service_jwt_grants_audience (audience)
 );
 
-CREATE TABLE IF NOT EXISTS token_service_jwt_grant_audit (
-  id            BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  actor_id      VARCHAR(128) NOT NULL,
-  actor_type    VARCHAR(16)  NOT NULL,
-  owner         VARCHAR(64)  NOT NULL,
-  audience      VARCHAR(64)  NOT NULL,
-  action        VARCHAR(16)  NOT NULL,
-  before_status VARCHAR(16)  NULL,
-  after_status  VARCHAR(16)  NULL,
-  request_id    VARCHAR(64)  NOT NULL,
-  result        VARCHAR(16)  NOT NULL,
-  detail        VARCHAR(255) NOT NULL DEFAULT '',
-  occurred_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_token_service_jwt_grant_audit_owner (owner, audience)
-);
-
--- 哨兵表：与 V001..V003 的 ensure_schema marker 探测逻辑保持一致。
+-- 哨兵表：与前几版 marker 探测逻辑一致。
 CREATE TABLE IF NOT EXISTS token_migration_v004_applied (
   applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

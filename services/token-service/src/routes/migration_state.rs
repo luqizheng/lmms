@@ -43,12 +43,26 @@ impl MigrationState for TokenMigrationState {
                 name: "bootstrap_tokens",
                 marker_table: "token_migration_v003_applied",
             },
-            // V004 建 token_service_jwt_grants + 审计表（service-jwt audience
-            // grant 管理面，WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）。
+            // V004 建 token_service_jwt_grants 表（service-jwt owner→audience
+            // 授权，WP-LMMS-SERVICE-JWT-AUDIENCE-02）。
             MigrationDescriptor {
                 version: "V004",
                 name: "service_jwt_grants",
                 marker_table: "token_migration_v004_applied",
+            },
+            // V005 给 grant 表兜底复合唯一约束（WP-LMMS-SERVICE-JWT-AUDIENCE-02-R1，
+            // dup-guard fail-closed 检查 + 幂等重建主键）。
+            MigrationDescriptor {
+                version: "V005",
+                name: "service_jwt_grants_unique",
+                marker_table: "token_migration_v005_applied",
+            },
+            // V006 建 token_service_jwt_grant_audit（grant 管理审计，
+            // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）。
+            MigrationDescriptor {
+                version: "V006",
+                name: "service_jwt_grant_audit",
+                marker_table: "token_migration_v006_applied",
             },
         ]
     }
@@ -114,11 +128,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn token_has_four_migrations() {
+    fn token_has_six_migrations() {
         let s = TokenMigrationState;
         assert_eq!(s.service_name(), "token-service");
         assert_eq!(s.dialect(), "mysql");
-        assert_eq!(s.migrations().len(), 4);
+        assert_eq!(s.migrations().len(), 6);
         assert_eq!(s.migrations()[0].version, "V001");
         assert_eq!(s.migrations()[0].marker_table, "token_oauth_clients");
         assert_eq!(s.migrations()[1].version, "V002");
@@ -135,6 +149,16 @@ mod tests {
         assert_eq!(
             s.migrations()[3].marker_table,
             "token_migration_v004_applied"
+        );
+        assert_eq!(s.migrations()[4].version, "V005");
+        assert_eq!(
+            s.migrations()[4].marker_table,
+            "token_migration_v005_applied"
+        );
+        assert_eq!(s.migrations()[5].version, "V006");
+        assert_eq!(
+            s.migrations()[5].marker_table,
+            "token_migration_v006_applied"
         );
     }
 

@@ -440,49 +440,44 @@ async fn pg_refresh_and_revoke_markers() {
 // Service JWT audience grants（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）
 // ---------------------------------------------------------------------------
 
-/// grants 全生命周期在 PG 上的往返：seed（system_managed）→ create（重复
-/// 冲突 23505 映射 Duplicate）→ set_status（updated_at 应用层维护）→
-/// is_active_grant → delete → 审计写入 / 读取。
+/// grants 全生命周期在 PG 上的往返：上游 code-owned seed → 管理面 create
+/// （重复冲突 23505 映射 Duplicate）→ set_grant_status（updated_at 应用层
+/// 维护）→ is_allowed → delete → 审计写入 / 读取。
 #[tokio::test]
 async fn pg_service_jwt_grants_roundtrip() {
     let Some(pool) = fresh_pool().await else {
         return;
     };
 
-    // 内置系统 seed：7 owner × 7 audience = 49 行保护行
-    let seeded = grant::seed_system_grants(&pool, "")
+    // 上游 WP-02 code-owned seed：精准 SYSTEM_GRANTS（2 条），幂等
+    let seeded = grant::ensure_system_grants(&pool)
         .await
         .expect("seed system grants on pg");
-    assert_eq!(seeded, 49);
-    // 幂等
-    let again = grant::seed_system_grants(&pool, "")
+    assert_eq!(seeded, 2);
+    let again = grant::ensure_system_grants(&pool)
         .await
         .expect("re-seed");
-    assert_eq!(again, 0);
+    assert_eq!(again, 0, "seed must be idempotent");
 
-    // env seed：普通行
-    let env_seeded = grant::seed_system_grants(&pool, "svc-x:iam-service")
-        .await
-        .expect("env seed");
-    assert_eq!(env_seeded, 1);
-
-    // 保护行 / 普通行标志正确
-    assert!(grant::is_active_grant(&pool, "iam-service", "iam-service")
+    // 系统行 active 且受保护
+    assert!(grant::is_allowed(&pool, "iam-service", "token-service")
         .await
         .expect("probe system grant"));
-    assert!(grant::is_active_grant(&pool, "svc-x", "iam-service")
+    let sys_row = grant::find_by_owner_and_audience(&pool, "iam-service", "token-service")
         .await
-        .expect("probe env grant"));
+        .expect("find system row")
+        .expect("system row exists");
+    assert!(sys_row.system_managed);
 
     // create：成功 + 重复映射 Duplicate
     assert_eq!(
-        grant::create(&pool, "svc-x", "audit-service")
+        grant::create_grant(&pool, "svc-x", "audit-service")
             .await
             .expect("create"),
         grant::CreateOutcome::Inserted
     );
     assert_eq!(
-        grant::create(&pool, "svc-x", "audit-service")
+        grant::create_grant(&pool, "svc-x", "audit-service")
             .await
             .expect("duplicate create"),
         grant::CreateOutcome::Duplicate,
@@ -490,24 +485,24 @@ async fn pg_service_jwt_grants_roundtrip() {
     );
 
     // set_status：disabled → 查询失活；updated_at 前进（应用层维护）
-    let before = grant::find(&pool, "svc-x", "audit-service")
+    let before = grant::find_by_owner_and_audience(&pool, "svc-x", "audit-service")
         .await
         .expect("find")
         .expect("row");
     assert_eq!(before.status, grant::STATUS_ACTIVE);
     assert!(!before.system_managed);
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-    let affected = grant::set_status(&pool, "svc-x", "audit-service", grant::STATUS_DISABLED)
+    let affected = grant::set_grant_status(&pool, "svc-x", "audit-service", grant::STATUS_DISABLED)
         .await
         .expect("set_status");
     assert_eq!(affected, 1);
     assert!(
-        !grant::is_active_grant(&pool, "svc-x", "audit-service")
+        !grant::is_allowed(&pool, "svc-x", "audit-service")
             .await
             .expect("probe disabled"),
         "disabled 后签发判定必须失活"
     );
-    let after = grant::find(&pool, "svc-x", "audit-service")
+    let after = grant::find_by_owner_and_audience(&pool, "svc-x", "audit-service")
         .await
         .expect("find after")
         .expect("row");
@@ -516,14 +511,25 @@ async fn pg_service_jwt_grants_roundtrip() {
         "PG 无 ON UPDATE CURRENT_TIMESTAMP，updated_at 必须由应用层推进"
     );
 
-    // list_filtered：过滤 + 分页 + 稳定排序
+    // list_filtered：过滤 + 分页 + 稳定排序（svc-x 只有本测试 create 的一行；
+    // 上游 WP-02 语义下没有 env seed，系统 seed 不含 svc-x）
     let (rows, total) = grant::list_filtered(&pool, Some("svc-x"), None, None, 1, 10)
         .await
         .expect("list");
-    assert_eq!(total, 2);
-    assert_eq!(rows.len(), 2);
-    assert_eq!(rows[0].audience, "audit-service", "ORDER BY audience 稳定排序");
-    let (page2, _) = grant::list_filtered(&pool, Some("svc-x"), None, None, 2, 1)
+    assert_eq!(total, 1);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].audience, "audit-service");
+    // 系统行可见 + 全表分页生效
+    let (_, sys_total) = grant::list_filtered(&pool, None, Some("token-service"), None, 1, 10)
+        .await
+        .expect("list by audience");
+    assert_eq!(sys_total, 1, "系统 grant（iam→token）可按 audience 过滤");
+    let (page1, total_all) = grant::list_filtered(&pool, None, None, None, 1, 2)
+        .await
+        .expect("page 1 of all");
+    assert_eq!(total_all, 3, "2 system + 1 created");
+    assert_eq!(page1.len(), 2, "LIMIT/OFFSET 在 PG 上生效");
+    let (page2, _) = grant::list_filtered(&pool, None, None, None, 2, 2)
         .await
         .expect("page 2");
     assert_eq!(page2.len(), 1, "LIMIT/OFFSET 在 PG 上生效");
@@ -555,11 +561,11 @@ async fn pg_service_jwt_grants_roundtrip() {
     assert_eq!(audits[0].after_status.as_deref(), Some("disabled"));
 
     // delete：再次删除 affected = 0
-    let affected = grant::delete(&pool, "svc-x", "audit-service")
+    let affected = grant::delete_grant(&pool, "svc-x", "audit-service")
         .await
         .expect("delete");
     assert_eq!(affected, 1);
-    let affected = grant::delete(&pool, "svc-x", "audit-service")
+    let affected = grant::delete_grant(&pool, "svc-x", "audit-service")
         .await
         .expect("delete again");
     assert_eq!(affected, 0, "已删行再次删除必须命中 0 行");

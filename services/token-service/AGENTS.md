@@ -45,7 +45,6 @@
 | RUST_LOG | info | 日志级别 |
 | SERVICE_BOOTSTRAP_TOKENS | 空 | 各业务服务的逗号分隔 bootstrap token。**可选**——与 OWNERS 都为空时回退到内置 dev 默认值（`models::bootstrap_token::DEFAULT_DEV_BOOTSTRAP`） |
 | SERVICE_BOOTSTRAP_OWNERS | 空 | 与 SERVICE_BOOTSTRAP_TOKENS 等长、顺序一一对应的服务名。seed 时写入 `token_bootstrap_tokens.owner`，JWT 的 `sub` 即该值。**长度不一致或缺失 → token-service 拒绝启动**（fail-closed，不回退 dev 默认值） |
-| SERVICE_JWT_GRANT_SEED | 空 | service-jwt audience grant 的声明式初始化，格式 `owner:audience` 逗号分隔（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）。启动时按行补插 `system_managed=false` 的 grant（幂等）；**格式非法 → 拒绝启动**。grants 表为空时另会灌入内置 dev 系统 grant（system_managed，管理面不可改删） |
 
 ## 端点域
 
@@ -56,7 +55,7 @@
 | /tokens/revoke | POST | 撤销 token（写入 Redis 黑名单） |
 | /tokens/resource | POST | 签发受限资源令牌（自定义 TTL 与 scope；service-jwt `aud=token-service` 准入——2026-11-26 WP-LMMS-HARDEN-01-R1 收紧，修复公开签名神谕） |
 | /tokens/user-jwt | POST | 签发用户身份 JWT |
-| /tokens/service-jwt | POST | 签发 1h 服务间 JWT（bootstrap token 准入 + owner→audience grant 检查：`token_service_jwt_grants` 无 active 行 → 403 默认拒绝，DB 异常 → 500 fail-closed。rotate 宽限期 `#old` 行与原 owner 共享 grant） |
+| /tokens/service-jwt | POST | 签发 1h 服务间 JWT（bootstrap token 准入 + owner→audience grant 检查（WP-02）：无 active grant → 403 默认拒绝，DB 异常 → 500 fail-closed；canonical owner 含宽限期 `#old` 归一；系统授权 code-owned（`SYSTEM_GRANTS`，启动 seed + P0 校验），管理面（ADMIN-01）可查不可改删 system_managed 行） |
 | /tokens/.well-known/jwks.json | GET | JWKS 公钥（active + retiring 全部密钥，各自 kid，RS256） |
 | /.well-known/jwks.json | GET | JWKS 别名 |
 | /api-keys | POST / GET | API Key 创建 / 列表（service-jwt `aud=token-service` 准入） |

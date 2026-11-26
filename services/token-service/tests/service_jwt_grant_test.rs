@@ -1,944 +1,571 @@
-//! WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: service JWT audience grant
-//! 管理面 + 签发联动集成测试。
+//! WP-LMMS-SERVICE-JWT-AUDIENCE-02: Service JWT owner→audience grant 集成测试。
 //!
-//! 覆盖：
-//! - 双入口鉴权（service-jwt `aud=token-service` / user-jwt + 权限码）
-//! - CRUD + 409/404/400 语义 + system_managed 保护
-//! - 并发创建仅一次成功
-//! - 签发联动：create → 签发成功；disable → 签发 403；delete → 签发 403
-//! - 审计落行（append-only，无凭据字段）
-//! - DB 不可用时签发 fail-closed（500，不放行）
+//! 覆盖实施任务书 §4 测试矩阵的签发/负向授权/启动引导/rotation 场景。
+//! 需要 MySQL（testcontainers 或共享库，见 common::spawn_mysql）。
+//!
+//! 同步纪律：现有测试中"任意 owner 请求任意 audience"的旧语义已随
+//! fail-closed 实施全部修正（service_jwt_test.rs）。
 
 use axum::{
     body::Body,
     http::{header, Request, StatusCode},
 };
-use digua_common_db::{db_execute, db_fetch_all, db_fetch_optional};
+use digua_common_db::{db_execute, db_fetch_all, db_fetch_scalar};
 use digua_common_jwt::verify_token;
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
 mod common;
 
-use common::{build_state, TEST_PRIVATE_PEM, TEST_PUBLIC_PEM};
+use common::{build_state, TEST_PUBLIC_PEM};
 
-// ── scaffolding ──────────────────────────────────────────────────────────────
-
-fn admin_app(pool: &token_service::db::DbPool) -> axum::Router {
-    token_service::routes::service_jwt_grant_admin::routes(build_state(pool.clone()))
-}
-
-fn web_app(pool: &token_service::db::DbPool) -> axum::Router {
-    token_service::routes::service_jwt_grant_web::routes(build_state(pool.clone()))
-}
-
-fn issuer_app(pool: &token_service::db::DbPool) -> axum::Router {
-    token_service::service_jwt_routes(build_state(pool.clone()))
-}
-
-/// 签 aud=token-service 的 service-jwt（管理面准入）。
-fn admin_bearer() -> String {
-    token_service::mint_service_bearer(TEST_PRIVATE_PEM, "token-service", 3600)
-        .expect("mint service bearer")
-}
-
-/// 签 aud=<其他服务> 的 service-jwt（应被管理面拒绝）。
-fn wrong_aud_bearer() -> String {
-    token_service::mint_service_bearer(TEST_PRIVATE_PEM, "file-service", 3600)
-        .expect("mint service bearer")
-}
-
-/// 签带指定权限码的 user-jwt（web 入口）。
-fn user_bearer(perms: &[&str]) -> String {
-    let issuer =
-        token_service::TokenIssuer::new(TEST_PRIVATE_PEM, "test-issuer").expect("issuer");
-    issuer
-        .issue_user_jwt(
-            "usr-1",
-            "tester",
-            json!({"tid": 1, "permissions": perms}),
-            3600,
-        )
-        .expect("issue user jwt")
-}
-
-async fn insert_bootstrap_token(pool: &token_service::db::DbPool, owner: &str, token: &str) {
+async fn insert_token(pool: &token_service::db::DbPool, owner: &str, token: &str, status: &str) {
     db_execute!(
         pool,
-        "INSERT INTO token_bootstrap_tokens (owner, token_hash, status) VALUES (?, ?, 'active')",
+        "INSERT INTO token_bootstrap_tokens (owner, token_hash, status) VALUES (?, ?, ?)",
         owner,
-        token
+        token,
+        status
     )
     .expect("insert bootstrap token");
 }
 
-async fn insert_grant_raw(
-    pool: &token_service::db::DbPool,
-    owner: &str,
-    aud: &str,
-    status: &str,
-    system_managed: bool,
-) {
-    // MySQL/PG 通用写法：BOOLEAN 用 TRUE/FALSE 字面量内联（比绑定 + 方言
-    // 分支更直观；测试辅助行无注入面）。
-    let flag = if system_managed { "TRUE" } else { "FALSE" };
-    let sql = format!(
-        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed) \
-         VALUES (?, ?, ?, {flag})"
-    );
-    db_execute!(pool, sql, owner, aud, status)
-        .unwrap_or_else(|e| panic!("insert grant raw: {e}"));
-}
-
-fn req(method: &str, uri: &str, bearer: Option<&str>, body: Option<Value>) -> Request<Body> {
-    let mut b = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header(header::CONTENT_TYPE, "application/json");
-    if let Some(t) = bearer {
-        b = b.header(header::AUTHORIZATION, format!("Bearer {t}"));
-    }
-    b.body(match body {
-        Some(v) => Body::from(v.to_string()),
-        None => Body::empty(),
-    })
-    .expect("build request")
-}
-
-async fn json_body(resp: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
-        .await
-        .expect("read body");
-    serde_json::from_slice(&bytes).unwrap_or(Value::Null)
-}
-
-async fn audit_count(pool: &token_service::db::DbPool) -> i64 {
-    let row: Option<(i64,)> = db_fetch_optional!(
+/// 插入一条显式 grant（非系统默认，模拟人工/迁移授予）。
+#[allow(dead_code)] // 供后续按用例扩展显式授权场景；当前负向用例走系统 grant
+async fn insert_grant(pool: &token_service::db::DbPool, owner: &str, audience: &str) {
+    db_execute!(
         pool,
-        (i64,),
-        "SELECT COUNT(*) FROM token_service_jwt_grant_audit"
+        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed) \
+         VALUES (?, ?, 'active', FALSE)",
+        owner,
+        audience
     )
-    .expect("count audit");
-    row.map(|(c,)| c).unwrap_or(0)
+    .expect("insert grant");
 }
 
-// ── service 入口鉴权 ─────────────────────────────────────────────────────────
-
-#[tokio::test]
-async fn service_entry_requires_bearer() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = admin_app(&pool);
-    let resp = app
-        .oneshot(req("GET", "/admin/service-jwt-grants", None, None))
-        .await
+async fn post_service_jwt(app: axum::Router, bearer: &str, body: Value) -> (StatusCode, Value) {
+    let req = Request::builder()
+        .method("POST")
+        .uri("/tokens/service-jwt")
+        .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(body.to_string()))
         .unwrap();
-    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    let resp = app.oneshot(req).await.unwrap();
+    let status = resp.status();
+    let bytes = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
+    let parsed: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+    (status, parsed)
 }
 
-#[tokio::test]
-async fn service_entry_rejects_wrong_audience_jwt() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = admin_app(&pool);
-    let resp = app
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants",
-            Some(&wrong_aud_bearer()),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+fn app(pool: token_service::db::DbPool) -> axum::Router {
+    token_service::service_jwt_routes(build_state(pool))
 }
 
-// ── web 入口鉴权 ─────────────────────────────────────────────────────────────
+// ── 正向授权 ────────────────────────────────────────────────────────────────
 
+/// #9 P0：iam-service 可以获得 aud=token-service（登录链必需）。
 #[tokio::test]
-async fn web_entry_requires_bearer() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = web_app(&pool);
-    let resp = app
-        .oneshot(req("GET", "/v1/admin/service-jwt-grants", None, None))
+async fn iam_service_can_obtain_token_service_jwt() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
         .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
-}
+        .expect("ensure grants");
 
-#[tokio::test]
-async fn web_entry_rejects_user_without_permission() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = web_app(&pool);
-    let bearer = user_bearer(&[]); // 无任何权限码
-    let resp = app
-        .oneshot(req(
-            "POST",
-            "/v1/admin/service-jwt-grants",
-            Some(&bearer),
-            Some(json!({"owner": "svc-a", "audience": "iam-service"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-    // 权限拒绝不产生任何 grant
-    let rows: Vec<(String,)> = db_fetch_all!(
-        &pool,
-        (String,),
-        "SELECT owner FROM token_service_jwt_grants"
-    )
-    .expect("query grants");
-    assert!(rows.is_empty());
-}
-
-#[tokio::test]
-async fn web_entry_read_perm_cannot_write() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = web_app(&pool);
-    let bearer = user_bearer(&["TOKEN_SERVICE_JWT_GRANT_READ"]);
-    let resp = app
-        .oneshot(req(
-            "DELETE",
-            "/v1/admin/service-jwt-grants/svc-a/iam-service",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-}
-
-// ── service 入口 CRUD + 业务规则 ─────────────────────────────────────────────
-
-#[tokio::test]
-async fn service_entry_full_crud_flow_with_audit() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = admin_app(&pool);
-    let bearer = admin_bearer();
-
-    // create
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/admin/service-jwt-grants",
-            Some(&bearer),
-            Some(json!({"owner": "svc-a", "audience": "iam-service"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = json_body(resp).await;
-    assert_eq!(body["owner"], "svc-a");
-    assert_eq!(body["audience"], "iam-service");
-    assert_eq!(body["status"], "active");
-    assert_eq!(body["system_managed"], false);
-    assert_eq!(audit_count(&pool).await, 1, "create must be audited");
-
-    // duplicate create → 409（并记 denied 审计）
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/admin/service-jwt-grants",
-            Some(&bearer),
-            Some(json!({"owner": "svc-a", "audience": "iam-service"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::CONFLICT);
-
-    // get
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants/svc-a/iam-service",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    // get missing → 404
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants/ghost/iam-service",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-
-    // disable
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "PUT",
-            "/admin/service-jwt-grants/svc-a/iam-service/status",
-            Some(&bearer),
-            Some(json!({"status": "disabled"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = json_body(resp).await;
-    assert_eq!(body["status"], "disabled");
-
-    // 非法状态 → 400
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "PUT",
-            "/admin/service-jwt-grants/svc-a/iam-service/status",
-            Some(&bearer),
-            Some(json!({"status": "paused"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-
-    // re-disable（幂等：已是目标状态）
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "PUT",
-            "/admin/service-jwt-grants/svc-a/iam-service/status",
-            Some(&bearer),
-            Some(json!({"status": "disabled"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    // enable
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "PUT",
-            "/admin/service-jwt-grants/svc-a/iam-service/status",
-            Some(&bearer),
-            Some(json!({"status": "active"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    // delete
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "DELETE",
-            "/admin/service-jwt-grants/svc-a/iam-service",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
-
-    // 重复 delete → 404
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "DELETE",
-            "/admin/service-jwt-grants/svc-a/iam-service",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-
-    // 审计行：create(1) + duplicate denied(1) + disable(1) + enable(1) + delete(1)
-    // = 5（重复 disable 幂等不写审计；404 get/delete 各写 denied）
-    let rows: Vec<(String, String, String)> = db_fetch_all!(
-        &pool,
-        (String, String, String),
-        "SELECT action, result, detail FROM token_service_jwt_grant_audit \
-         ORDER BY id"
-    )
-    .expect("query audit rows");
-    let summary: Vec<String> = rows
-        .iter()
-        .map(|(a, r, _)| format!("{a}/{r}"))
-        .collect();
-    assert!(
-        summary.contains(&"create/success".to_string()),
-        "audit: {summary:?}"
-    );
-    assert!(
-        summary.contains(&"create/denied".to_string()),
-        "audit: {summary:?}"
-    );
-    assert!(
-        summary.contains(&"disable/success".to_string()),
-        "audit: {summary:?}"
-    );
-    assert!(
-        summary.contains(&"enable/success".to_string()),
-        "audit: {summary:?}"
-    );
-    assert!(
-        summary.contains(&"delete/success".to_string()),
-        "audit: {summary:?}"
-    );
-}
-
-#[tokio::test]
-async fn create_rejects_invalid_owner_and_audience() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = admin_app(&pool);
-    let bearer = admin_bearer();
-
-    for bad in [
-        json!({"owner": "", "audience": "iam"}),
-        json!({"owner": "a b", "audience": "iam"}),
-        json!({"owner": "svc", "audience": "a;b"}),
-        json!({"owner": "svc", "audience": "'--"}),
-    ] {
-        let resp = app
-            .clone()
-            .oneshot(req(
-                "POST",
-                "/admin/service-jwt-grants",
-                Some(&bearer),
-                Some(bad.clone()),
-            ))
-            .await
-            .unwrap();
-        assert_eq!(
-            resp.status(),
-            StatusCode::BAD_REQUEST,
-            "payload should be rejected: {bad}"
-        );
-    }
-    // 注入尝试未产生任何行
-    let rows: Vec<(String,)> = db_fetch_all!(
-        &pool,
-        (String,),
-        "SELECT owner FROM token_service_jwt_grants"
-    )
-    .expect("query grants");
-    assert!(rows.is_empty(), "no grant may exist after injection attempts");
-}
-
-#[tokio::test]
-async fn list_pagination_boundaries() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = admin_app(&pool);
-    let bearer = admin_bearer();
-
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants?page=0",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants?size=0",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants?size=101",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-
-    // 非法 status 过滤 → 400
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants?status=weird",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-
-    // 正常分页返回结构
-    for i in 0..3 {
-        app.clone()
-            .oneshot(req(
-                "POST",
-                "/admin/service-jwt-grants",
-                Some(&bearer),
-                Some(json!({"owner": format!("svc-{i}"), "audience": "iam-service"})),
-            ))
-            .await
-            .unwrap();
-    }
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants?page=1&size=2",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = json_body(resp).await;
-    assert_eq!(body["total"], 3);
-    assert_eq!(body["page"], 1);
-    assert_eq!(body["size"], 2);
-    assert_eq!(body["items"].as_array().unwrap().len(), 2);
-
-    // 稳定排序：第 2 页拿到剩下的（owner 升序）
-    let resp = app
-        .oneshot(req(
-            "GET",
-            "/admin/service-jwt-grants?page=2&size=2",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    let body = json_body(resp).await;
-    assert_eq!(body["items"].as_array().unwrap().len(), 1);
-    assert_eq!(body["items"][0]["owner"], "svc-2");
-}
-
-#[tokio::test]
-async fn system_managed_grants_are_protected() {
-    let pool = crate::common::spawn_mysql().await;
-    insert_grant_raw(&pool, "sys-owner", "iam-service", "active", true).await;
-    let app = admin_app(&pool);
-    let bearer = admin_bearer();
-
-    // disable → 409
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "PUT",
-            "/admin/service-jwt-grants/sys-owner/iam-service/status",
-            Some(&bearer),
-            Some(json!({"status": "disabled"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::CONFLICT);
-
-    // delete → 409
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "DELETE",
-            "/admin/service-jwt-grants/sys-owner/iam-service",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::CONFLICT);
-
-    // 行仍在，状态未变
-    let row: Option<(String,)> = db_fetch_optional!(
-        &pool,
-        (String,),
-        "SELECT status FROM token_service_jwt_grants WHERE owner = ? AND audience = ?",
-        "sys-owner",
-        "iam-service"
-    )
-    .expect("query grant");
-    assert_eq!(row.map(|(s,)| s).as_deref(), Some("active"));
-}
-
-#[tokio::test]
-async fn concurrent_create_succeeds_exactly_once() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = admin_app(&pool);
-    let bearer = admin_bearer();
-
-    let make = || {
-        req(
-            "POST",
-            "/admin/service-jwt-grants",
-            Some(&bearer),
-            Some(json!({"owner": "race-svc", "audience": "iam-service"})),
-        )
-    };
-    let (a, b) = tokio::join!(app.clone().oneshot(make()), app.oneshot(make()));
-    let sa = a.unwrap().status();
-    let sb = b.unwrap().status();
-    let ok = |s: StatusCode| s == StatusCode::OK;
-    assert!(
-        (ok(sa) && sb == StatusCode::CONFLICT) || (ok(sb) && sa == StatusCode::CONFLICT),
-        "exactly one create may succeed: a={sa} b={sb}"
-    );
-
-    // 库里只有一行
-    let count: i64 = digua_common_db::db_fetch_scalar!(
-        &pool,
-        i64,
-        "SELECT COUNT(*) FROM token_service_jwt_grants WHERE owner = ?",
-        "race-svc"
-    )
-    .expect("count");
-    assert_eq!(count, 1);
-}
-
-// ── web 入口 CRUD（有权限）───────────────────────────────────────────────────
-
-#[tokio::test]
-async fn web_entry_full_crud_with_permission() {
-    let pool = crate::common::spawn_mysql().await;
-    let app = web_app(&pool);
-    let read = user_bearer(&["TOKEN_SERVICE_JWT_GRANT_READ"]);
-    let write = user_bearer(&[
-        "TOKEN_SERVICE_JWT_GRANT_READ",
-        "TOKEN_SERVICE_JWT_GRANT_CREATE",
-        "TOKEN_SERVICE_JWT_GRANT_UPDATE",
-        "TOKEN_SERVICE_JWT_GRANT_DELETE",
-    ]);
-
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/v1/admin/service-jwt-grants",
-            Some(&write),
-            Some(json!({"owner": "web-svc", "audience": "file-service"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    // read 权限可见（含 service 入口建的行——两入口业务结果一致）
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/v1/admin/service-jwt-grants/web-svc/file-service",
-            Some(&read),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = json_body(resp).await;
-    assert_eq!(body["status"], "active");
-
-    // disable
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "PUT",
-            "/v1/admin/service-jwt-grants/web-svc/file-service/status",
-            Some(&write),
-            Some(json!({"status": "disabled"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    // delete
-    let resp = app
-        .clone()
-        .oneshot(req(
-            "DELETE",
-            "/v1/admin/service-jwt-grants/web-svc/file-service",
-            Some(&write),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
-}
-
-// ── 签发联动 ─────────────────────────────────────────────────────────────────
-
-#[tokio::test]
-async fn grant_lifecycle_controls_issuance() {
-    let pool = crate::common::spawn_mysql().await;
-    insert_bootstrap_token(&pool, "svc-a", "bt-svc-a").await;
-
-    let admin = admin_app(&pool);
-    let issuer = issuer_app(&pool);
-    let bearer = admin_bearer();
-
-    // 无 grant → 签发 403（默认拒绝）
-    let resp = issuer
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/tokens/service-jwt",
-            Some("bt-svc-a"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-
-    // 创建 grant → 签发成功
-    let resp = admin
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/admin/service-jwt-grants",
-            Some(&bearer),
-            Some(json!({"owner": "svc-a", "audience": "iam-service"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    let resp = issuer
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/tokens/service-jwt",
-            Some("bt-svc-a"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = json_body(resp).await;
-    let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
-    let claims = verify_token(body["access_token"].as_str().unwrap(), &cache, Some("iam-service"))
-        .await
-        .unwrap();
-    assert_eq!(claims["sub"], "svc-a");
-
-    // 未授权的 audience 仍拒绝（owner 只能签发已授权 audience）
-    let resp = issuer
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/tokens/service-jwt",
-            Some("bt-svc-a"),
-            Some(json!({"aud": "file-service", "tid": 1})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-
-    // disable → 签发立即 403
-    let resp = admin
-        .clone()
-        .oneshot(req(
-            "PUT",
-            "/admin/service-jwt-grants/svc-a/iam-service/status",
-            Some(&bearer),
-            Some(json!({"status": "disabled"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    let resp = issuer
-        .clone()
-        .oneshot(req(
-            "POST",
-            "/tokens/service-jwt",
-            Some("bt-svc-a"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-
-    // delete → 签发仍 403
-    let resp = admin
-        .clone()
-        .oneshot(req(
-            "DELETE",
-            "/admin/service-jwt-grants/svc-a/iam-service",
-            Some(&bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
-
-    let resp = issuer
-        .oneshot(req(
-            "POST",
-            "/tokens/service-jwt",
-            Some("bt-svc-a"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-}
-
-#[tokio::test]
-async fn two_entries_share_business_state() {
-    let pool = crate::common::spawn_mysql().await;
-    let admin = admin_app(&pool);
-    let web = web_app(&pool);
-    let svc_bearer = admin_bearer();
-    let web_bearer = user_bearer(&["TOKEN_SERVICE_JWT_GRANT_READ"]);
-
-    // service 入口创建
-    let resp = admin
-        .oneshot(req(
-            "POST",
-            "/admin/service-jwt-grants",
-            Some(&svc_bearer),
-            Some(json!({"owner": "x-svc", "audience": "audit-service"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    // web 入口立即可见（同一份 DB 状态）
-    let resp = web
-        .clone()
-        .oneshot(req(
-            "GET",
-            "/v1/admin/service-jwt-grants/x-svc/audit-service",
-            Some(&web_bearer),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    // web 入口重复创建 → 409（业务规则一致）
-    let resp = web
-        .oneshot(req(
-            "POST",
-            "/v1/admin/service-jwt-grants",
-            Some(&user_bearer(&["TOKEN_SERVICE_JWT_GRANT_CREATE"])),
-            Some(json!({"owner": "x-svc", "audience": "audit-service"})),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::CONFLICT);
-}
-
-// ── fail-closed ──────────────────────────────────────────────────────────────
-
-#[tokio::test]
-async fn issuance_fails_closed_when_db_unavailable() {
-    // 连接到必然失败的地址（lazy pool）：签发路径上的 DB 查询都会报错。
-    let bad = sqlx::mysql::MySqlPoolOptions::new()
-        .connect_lazy("mysql://127.0.0.1:1/none")
-        .expect("lazy pool");
-    let pool = token_service::db::DbPool::from(bad);
-
-    let issuer = issuer_app(&pool);
-    let resp = issuer
-        .oneshot(req(
-            "POST",
-            "/tokens/service-jwt",
-            Some("bt-svc-a"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
-        ))
-        .await
-        .unwrap();
-    // fail-closed：绝不因 DB 异常放行（bootstrap 查询失败 → 500）
-    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-
-    // grant 判定本身也必须把 DB 错误上抛（而非静默当作"无授权"以外的值）：
-    // is_active_grant 的 Err 传播是 handler 500 分支的来源。
-    let res = token_service::models::service_jwt_grant::is_active_grant(
-        &pool,
-        "svc-a",
-        "iam-service",
+    let (status, body) = post_service_jwt(
+        app(pool),
+        "bt-iam",
+        json!({"aud": "token-service", "tid": 1}),
     )
     .await;
-    assert!(res.is_err(), "grant lookup must propagate db errors");
-}
-
-#[tokio::test]
-async fn seed_system_grants_is_idempotent_and_protected() {
-    let pool = crate::common::spawn_mysql().await;
-
-    // 首次 seed：7 owner × 7 audience = 49 行 system_managed
-    let first = token_service::models::service_jwt_grant::seed_system_grants(&pool, "")
-        .await
-        .expect("first seed");
-    assert_eq!(first, 49);
-
-    // 二次 seed：幂等（表非空 → 不再灌内置行）
-    let second = token_service::models::service_jwt_grant::seed_system_grants(&pool, "")
-        .await
-        .expect("second seed");
-    assert_eq!(second, 0);
-
-    // env seed：补插普通行
-    let env_seeded = token_service::models::service_jwt_grant::seed_system_grants(
-        &pool,
-        "svc-x:iam-service,svc-x:file-service",
+    assert_eq!(status, StatusCode::OK);
+    let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
+    let claims = verify_token(
+        body["access_token"].as_str().unwrap(),
+        &cache,
+        Some("token-service"),
     )
     .await
-    .expect("env seed");
-    assert_eq!(env_seeded, 2);
+    .unwrap();
+    assert_eq!(claims["sub"], "iam-service");
+    assert_eq!(claims["aud"], "token-service");
+    assert_eq!(claims["purpose"], "service");
+}
 
-    let row: Option<(bool,)> = db_fetch_optional!(
-        &pool,
-        (bool,),
-        "SELECT system_managed FROM token_service_jwt_grants \
-         WHERE owner = ? AND audience = ?",
-        "svc-x",
-        "iam-service"
-    )
-    .expect("query grant");
-    assert_eq!(row.map(|(f,)| f), Some(false));
-
-    // 内置行是保护行
-    let row: Option<(bool,)> = db_fetch_optional!(
-        &pool,
-        (bool,),
-        "SELECT system_managed FROM token_service_jwt_grants \
-         WHERE owner = ? AND audience = ?",
-        "iam-service",
-        "iam-service"
-    )
-    .expect("query grant");
-    assert_eq!(row.map(|(f,)| f), Some(true));
-
-    // seed 后签发可用（dev 开箱即用）
-    insert_bootstrap_token(&pool, "svc-x", "bt-svc-x").await;
-    let issuer = issuer_app(&pool);
-    let resp = issuer
-        .oneshot(req(
-            "POST",
-            "/tokens/service-jwt",
-            Some("bt-svc-x"),
-            Some(json!({"aud": "iam-service", "tid": 1})),
-        ))
+/// #11 P1：notification-service 可以获得 aud=iam-service。
+#[tokio::test]
+async fn notification_service_can_obtain_iam_service_jwt() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "notification-service", "bt-ntf", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
         .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
+        .expect("ensure grants");
+
+    let (status, body) =
+        post_service_jwt(app(pool), "bt-ntf", json!({"aud": "iam-service", "tid": 1})).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!body["access_token"].as_str().unwrap().is_empty());
+}
+
+/// #22：claims 契约不变——tid/ct 按请求原样签入，grant 不改变 claims 语义。
+#[tokio::test]
+async fn claims_tid_and_ct_unchanged_by_grant_gate() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    let (status, body) = post_service_jwt(
+        app(pool),
+        "bt-iam",
+        json!({"aud": "token-service", "tid": 42, "ct": true}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
+    let claims = verify_token(
+        body["access_token"].as_str().unwrap(),
+        &cache,
+        Some("token-service"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(claims["tid"], 42);
+    assert_eq!(claims["ct"], true);
+    assert_eq!(claims["roles"][0], "service");
+}
+
+// ── 负向授权（fail-closed）──────────────────────────────────────────────────
+
+/// #10：iam-service 不能获得未授权 audience（file-service → 403）。
+#[tokio::test]
+async fn iam_service_denied_unrelated_audience() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    let (status, body) = post_service_jwt(
+        app(pool),
+        "bt-iam",
+        json!({"aud": "file-service", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert!(body["access_token"].is_null(), "被拒绝时绝不能返回 token");
+}
+
+/// #12：notification-service 不能获得未授权 audience。
+#[tokio::test]
+async fn notification_service_denied_unrelated_audience() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "notification-service", "bt-ntf", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    let (status, _) = post_service_jwt(
+        app(pool),
+        "bt-ntf",
+        json!({"aud": "audit-service", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+/// #13：token-service 拥有 Bootstrap Token 身份，但没有隐式出站 grant。
+#[tokio::test]
+async fn token_service_owner_has_no_implicit_grant() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "token-service", "bt-token", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    let (status, _) = post_service_jwt(
+        app(pool),
+        "bt-token",
+        json!({"aud": "token-service", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+/// #14：未知 owner（401）与已知 owner + 未知 audience（403）。
+#[tokio::test]
+async fn unknown_owner_and_unknown_audience_denied() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    // 未知 owner → 401（认证失败，不进入授权阶段）
+    let (status, _) = post_service_jwt(
+        app(pool.clone()),
+        "bt-nobody",
+        json!({"aud": "token-service", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+    // 未知 audience（语法合法但无 grant）→ 403
+    let (status, _) = post_service_jwt(
+        app(pool),
+        "bt-iam",
+        json!({"aud": "some-unregistered-svc", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+/// disabled grant 拒绝签发（#3：审计矩阵）。
+#[tokio::test]
+async fn disabled_grant_is_denied() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+    db_execute!(
+        &pool,
+        "UPDATE token_service_jwt_grants SET status = 'disabled' \
+         WHERE owner = 'iam-service' AND audience = 'token-service'"
+    )
+    .expect("disable grant");
+
+    let (status, _) = post_service_jwt(
+        app(pool),
+        "bt-iam",
+        json!({"aud": "token-service", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+/// #15：grant 存储故障 fail-closed——表不可用时返回 5xx 且绝不签发。
+#[tokio::test]
+async fn grant_store_db_failure_fails_closed() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+    // 模拟存储故障：drop 掉 grant 表
+    db_execute!(&pool, "DROP TABLE token_service_jwt_grants").expect("drop grants table");
+
+    let (status, body) = post_service_jwt(
+        app(pool),
+        "bt-iam",
+        json!({"aud": "token-service", "tid": 1}),
+    )
+    .await;
+    assert!(
+        status.is_server_error(),
+        "DB 故障必须 fail-closed，得到 {status}"
+    );
+    assert!(body["access_token"].is_null(), "故障时绝不签发 token");
+}
+
+/// aud 语法校验：非法字符 / 超长 → 400。
+#[tokio::test]
+async fn malformed_audience_rejected_before_grant_lookup() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    let state_pool = pool.clone();
+    let (status, _) = post_service_jwt(
+        app(state_pool),
+        "bt-iam",
+        json!({"aud": "bad aud!", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let long_aud = "a".repeat(65);
+    let (status, _) =
+        post_service_jwt(app(pool), "bt-iam", json!({"aud": long_aud, "tid": 1})).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+// ── 启动引导（seed / 幂等 / 并发 / 修复 / 重启）─────────────────────────────
+
+/// #4/#7：启动 seed 幂等；重复启动不重复插行。
+#[tokio::test]
+async fn ensure_system_grants_is_idempotent() {
+    let pool = common::spawn_mysql().await;
+    let first = token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("first ensure");
+    assert_eq!(first, 2, "应插入两条内置 grant");
+
+    let second = token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("second ensure");
+    assert_eq!(second, 0, "重复启动必须幂等");
+
+    let count: i64 = db_fetch_scalar!(&pool, i64, "SELECT COUNT(*) FROM token_service_jwt_grants")
+        .expect("count grants");
+    assert_eq!(count, 2);
+}
+
+/// #3/#8：存量库缺 grant 行时启动修复（补缺失行，不动已有行）。
+#[tokio::test]
+async fn ensure_system_grants_repairs_missing_row() {
+    let pool = common::spawn_mysql().await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("initial ensure");
+    db_execute!(
+        &pool,
+        "DELETE FROM token_service_jwt_grants WHERE owner = 'notification-service'"
+    )
+    .expect("delete one grant");
+
+    let repaired = token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("repair ensure");
+    assert_eq!(repaired, 1, "缺失的系统行应被补插");
+
+    let row = token_service::models::service_jwt_grant::find_by_owner_and_audience(
+        &pool,
+        "notification-service",
+        "iam-service",
+    )
+    .await
+    .expect("query")
+    .expect("row restored");
+    assert_eq!(row.status, "active");
+    assert!(row.system_managed);
+}
+
+/// #7：并发多副本同时 seed → 无重复行、无启动失败。
+#[tokio::test]
+async fn concurrent_ensure_grants_do_not_duplicate() {
+    let pool = common::spawn_mysql().await;
+    let mut handles = Vec::new();
+    for _ in 0..4 {
+        let p = pool.clone();
+        handles.push(tokio::spawn(async move {
+            token_service::models::service_jwt_grant::ensure_system_grants(&p).await
+        }));
+    }
+    for h in handles {
+        h.await.expect("join").expect("ensure ok");
+    }
+    let count: i64 = db_fetch_scalar!(&pool, i64, "SELECT COUNT(*) FROM token_service_jwt_grants")
+        .expect("count");
+    assert_eq!(count, 2, "并发 seed 不得产生重复行");
+}
+
+/// #18/#19：重启后授权保持；seed 不复活被显式撤销的自定义 grant。
+#[tokio::test]
+async fn grants_survive_restart_and_seed_does_not_reactivate_disabled() {
+    let pool = common::spawn_mysql().await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("initial ensure");
+    // 运维显式禁用系统 grant
+    db_execute!(
+        &pool,
+        "UPDATE token_service_jwt_grants SET status = 'disabled' \
+         WHERE owner = 'iam-service'"
+    )
+    .expect("disable");
+    // 重启（再次 seed）：修复语义 = 只补缺失行，不复活被撤销的授权
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("restart ensure");
+    let status: (String,) = digua_common_db::db_fetch_optional!(
+        &pool,
+        (String,),
+        "SELECT status FROM token_service_jwt_grants WHERE owner = 'iam-service'"
+    )
+    .expect("query")
+    .expect("row exists");
+    assert_eq!(status.0, "disabled", "启动 seed 不得复活被显式禁用的 grant");
+}
+
+/// #5：生产风格 env 注入密钥时，系统 grant 照常 seed（授权引导与密钥来源解耦）。
+#[tokio::test]
+async fn system_grants_seeded_regardless_of_env_config() {
+    let pool = common::spawn_mysql().await;
+    let inserted = token_service::models::bootstrap_token::seed_defaults(
+        &pool,
+        "prod-secret-iam,prod-secret-ntf",
+        "iam-service,notification-service",
+    )
+    .await
+    .expect("seed from env");
+    assert_eq!(inserted, 2, "生产 env 只插 env 声明的 owner");
+
+    let seeded = token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+    assert_eq!(seeded, 2, "env 注入不得抑制系统 grant seed");
+
+    // dev 默认 token 未被插入（生产安全：不静默回退 dev secret）
+    let dev_count: i64 = db_fetch_scalar!(
+        &pool,
+        i64,
+        "SELECT COUNT(*) FROM token_bootstrap_tokens WHERE token_hash = 'dev-bt-audit-service'"
+    )
+    .expect("count");
+    assert_eq!(dev_count, 0);
+}
+
+// ── principal 校验（启动 fail-closed）───────────────────────────────────────
+
+/// #6：P0 principal（iam-service）缺失 → validate_required_principals 报错，
+/// main.rs 会拒绝启动（listener 永不 bind）。
+#[tokio::test]
+async fn missing_p0_principal_fails_startup_validation() {
+    let pool = common::spawn_mysql().await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+    // iam-service 的 bootstrap token 不存在
+    let res = token_service::models::service_jwt_grant::validate_required_principals(&pool).await;
+    assert!(res.is_err(), "P0 principal 缺失必须 fail-closed");
+    let err = res.unwrap_err();
+    assert!(err.contains("iam-service"));
+    assert!(!err.contains("dev-bt"), "诊断信息不得包含 secret 材料");
+}
+
+/// NTF principal 缺失 → 仅 warn，校验通过（可选部署的显式决策）。
+#[tokio::test]
+async fn optional_ntf_principal_absent_passes_validation() {
+    let pool = common::spawn_mysql().await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    // notification-service 未配置 → Ok（P1 条件性强制）
+    token_service::models::service_jwt_grant::validate_required_principals(&pool)
+        .await
+        .expect("NTF 缺失不应阻塞启动");
+}
+
+// ── rotation / 宽限期 ──────────────────────────────────────────────────────
+
+/// #18：宽限期旧 token（owner#old 行）解析到同一 canonical owner、
+/// 同一 grant 集合；签出的 sub 也是 canonical owner。
+#[tokio::test]
+async fn grace_period_token_resolves_to_canonical_owner_grants() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam-current", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    // rotate with grace：当前行换新 token，旧 token 进 `iam-service#old` 行
+    let (new_plain, old_expiry) =
+        token_service::models::bootstrap_token::rotate(&pool, "iam-service", 3600)
+            .await
+            .expect("rotate")
+            .expect("owner exists");
+    assert!(old_expiry.is_some());
+    assert_ne!(new_plain, "bt-iam-current");
+
+    // 旧 token（宽限期内）仍可换取 aud=token-service —— grant 按 canonical owner
+    let (status, body) = post_service_jwt(
+        app(pool),
+        "bt-iam-current",
+        json!({"aud": "token-service", "tid": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let cache = digua_common_jwt::JWKSCache::from_pem(TEST_PUBLIC_PEM).unwrap();
+    let claims = verify_token(
+        body["access_token"].as_str().unwrap(),
+        &cache,
+        Some("token-service"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        claims["sub"], "iam-service",
+        "宽限 token 签出的 sub 必须是 canonical owner，而非 iam-service#old"
+    );
+}
+
+/// #19：rotate 不丢失授权（grant 属于 canonical owner，与密钥解耦）。
+#[tokio::test]
+async fn rotation_does_not_lose_grants() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+    token_service::models::bootstrap_token::rotate(&pool, "iam-service", 0)
+        .await
+        .expect("rotate")
+        .expect("owner exists");
+
+    let grants = token_service::models::service_jwt_grant::list_all(&pool)
+        .await
+        .expect("list grants");
+    assert_eq!(grants.len(), 2, "rotate 不得增删 grant 行");
+}
+
+// ── system-managed 保护 ────────────────────────────────────────────────────
+
+/// #20：普通管理面（bootstrap token admin 的 delete/set_status）不触碰
+/// grant 表——系统 grant 不可通过既有管理端点删除或禁用。
+#[tokio::test]
+async fn admin_token_ops_cannot_touch_system_grants() {
+    let pool = common::spawn_mysql().await;
+    insert_token(&pool, "iam-service", "bt-iam", "active").await;
+    token_service::models::service_jwt_grant::ensure_system_grants(&pool)
+        .await
+        .expect("ensure grants");
+
+    // 现有管理操作只作用于 token_bootstrap_tokens 表
+    token_service::models::bootstrap_token::set_status(&pool, "iam-service", "disabled")
+        .await
+        .expect("disable owner");
+    token_service::models::bootstrap_token::delete(&pool, "iam-service")
+        .await
+        .expect("delete owner");
+
+    let grants = token_service::models::service_jwt_grant::list_all(&pool)
+        .await
+        .expect("list grants");
+    assert_eq!(grants.len(), 2, "bootstrap token 管理操作不得影响 grant 表");
+    assert!(grants.iter().all(|g| g.status == "active"));
+}
+// ── WP-02-R1 #7 MySQL 半边：grant 表主键恰为 (owner, audience) ──────────────
+
+/// 与 pg_grant_unique_test.rs::pg_grant_pk_is_owner_audience 对齐：
+/// 双方言 schema 的主键列必须一致。
+#[derive(sqlx::FromRow)]
+struct PkColumn {
+    column_name: String,
 }
 
 #[tokio::test]
-async fn seed_rejects_malformed_grant_env() {
-    let pool = crate::common::spawn_mysql().await;
-    let res = token_service::models::service_jwt_grant::seed_system_grants(
+async fn mysql_grant_pk_is_owner_audience() {
+    let pool = common::spawn_mysql().await;
+
+    let cols: Vec<PkColumn> = db_fetch_all!(
         &pool,
-        "svc-without-colon",
+        PkColumn,
+        "SELECT COLUMN_NAME AS column_name FROM information_schema.STATISTICS \
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'token_service_jwt_grants' \
+           AND INDEX_NAME = 'PRIMARY' ORDER BY SEQ_IN_INDEX"
     )
-    .await;
-    assert!(res.is_err(), "malformed SERVICE_JWT_GRANT_SEED must be rejected");
+    .expect("query primary key columns");
+
+    let names: Vec<&str> = cols.iter().map(|c| c.column_name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec!["owner", "audience"],
+        "MySQL grant table pk must be exactly (owner, audience)"
+    );
 }

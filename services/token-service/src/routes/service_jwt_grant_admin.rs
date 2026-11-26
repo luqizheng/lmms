@@ -1,5 +1,8 @@
 //! WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: service JWT audience grants 的管理端点。
 //!
+//! 上游 WP-LMMS-SERVICE-JWT-AUDIENCE-02 建立了运行时授权检查（is_allowed）
+//! 与 code-owned 系统 seed；本模块补齐管理面（CRUD + 审计）。
+//!
 //! 两套路由共用同一份业务逻辑（`ops` 模块）：
 //!
 //! | 路由 | 鉴权 | 用途 |
@@ -60,8 +63,8 @@ pub struct ServiceJwtGrantDto {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl From<grant::GrantRow> for ServiceJwtGrantDto {
-    fn from(r: grant::GrantRow) -> Self {
+impl From<grant::ServiceJwtGrantRow> for ServiceJwtGrantDto {
+    fn from(r: grant::ServiceJwtGrantRow) -> Self {
         Self {
             owner: r.owner,
             audience: r.audience,
@@ -159,7 +162,7 @@ pub mod ops {
         audience: &str,
     ) -> Result<ServiceJwtGrantDto, (StatusCode, &'static str)> {
         validate_pair(owner, audience)?;
-        let row = grant::find(db, owner, audience)
+        let row = grant::find_by_owner_and_audience(db, owner, audience)
             .await
             .map_err(internal)?
             .ok_or((StatusCode::NOT_FOUND, "grant not found"))?;
@@ -174,7 +177,7 @@ pub mod ops {
         request_id: &str,
     ) -> Result<ServiceJwtGrantDto, (StatusCode, &'static str)> {
         validate_pair(&req.owner, &req.audience)?;
-        match grant::create(db, &req.owner, &req.audience).await {
+        match grant::create_grant(db, &req.owner, &req.audience).await {
             Ok(CreateOutcome::Inserted) => {}
             Ok(CreateOutcome::Duplicate) => {
                 audit_best_effort_denied(
@@ -204,7 +207,7 @@ pub mod ops {
             "grant created",
         )
         .await?;
-        let row = grant::find(db, &req.owner, &req.audience)
+        let row = grant::find_by_owner_and_audience(db, &req.owner, &req.audience)
             .await
             .map_err(internal)?
             .ok_or((StatusCode::NOT_FOUND, "grant not found"))?;
@@ -226,7 +229,7 @@ pub mod ops {
         validate_pair(owner, audience)?;
         let target = grant::parse_status(status)
             .ok_or((StatusCode::BAD_REQUEST, "status must be active|disabled"))?;
-        let before = match grant::find(db, owner, audience).await {
+        let before = match grant::find_by_owner_and_audience(db, owner, audience).await {
             Ok(Some(row)) => row,
             Ok(None) => {
                 audit_best_effort_denied(
@@ -266,12 +269,12 @@ pub mod ops {
             // 幂等：已处于目标状态，直接返回当前行（不写"无操作"审计）。
             return Ok(ServiceJwtGrantDto::from(before));
         }
-        let affected = grant::set_status(db, owner, audience, target)
+        let affected = grant::set_grant_status(db, owner, audience, target)
             .await
             .map_err(internal)?;
         if affected == 0 {
             // 并发下被别人先改到目标状态（或行被删）。重查一次判定语义。
-            let now_row = grant::find(db, owner, audience)
+            let now_row = grant::find_by_owner_and_audience(db, owner, audience)
                 .await
                 .map_err(internal)?;
             match now_row {
@@ -304,7 +307,7 @@ pub mod ops {
             "status updated",
         )
         .await?;
-        let row = grant::find(db, owner, audience)
+        let row = grant::find_by_owner_and_audience(db, owner, audience)
             .await
             .map_err(internal)?
             .ok_or((StatusCode::NOT_FOUND, "grant not found"))?;
@@ -320,7 +323,7 @@ pub mod ops {
         request_id: &str,
     ) -> Result<StatusCode, (StatusCode, &'static str)> {
         validate_pair(owner, audience)?;
-        let before = match grant::find(db, owner, audience).await {
+        let before = match grant::find_by_owner_and_audience(db, owner, audience).await {
             Ok(Some(row)) => row,
             Ok(None) => {
                 audit_best_effort_denied(
@@ -356,7 +359,7 @@ pub mod ops {
                 "system-managed grant cannot be deleted",
             ));
         }
-        let affected = grant::delete(db, owner, audience)
+        let affected = grant::delete_grant(db, owner, audience)
             .await
             .map_err(internal)?;
         if affected == 0 {
@@ -394,18 +397,19 @@ pub mod ops {
         owner: &str,
         audience: &str,
     ) -> Result<(), (StatusCode, &'static str)> {
-        grant::validate_name(owner)
-            .map_err(|e| (StatusCode::BAD_REQUEST, owner_err(e)))?;
-        grant::validate_name(audience)
-            .map_err(|e| (StatusCode::BAD_REQUEST, audience_err(e)))?;
+        grant::validate_service_identity(owner)
+            .map_err(|e| (StatusCode::BAD_REQUEST, owner_err(&e)))?;
+        grant::validate_service_identity(audience)
+            .map_err(|e| (StatusCode::BAD_REQUEST, audience_err(&e)))?;
         Ok(())
     }
 
-    /// 静态文案（错误响应不携带动态内容，避免任何反射注入面）。
-    fn owner_err(_: &'static str) -> &'static str {
+    /// 静态文案（错误响应不携带动态内容，避免任何反射注入面）；
+    /// 上游校验器的具体原因不外泄。
+    fn owner_err(_: &str) -> &'static str {
         "invalid owner: length 1..=64, [a-zA-Z0-9_-]"
     }
-    fn audience_err(_: &'static str) -> &'static str {
+    fn audience_err(_: &str) -> &'static str {
         "invalid audience: length 1..=64, [a-zA-Z0-9_-]"
     }
 
