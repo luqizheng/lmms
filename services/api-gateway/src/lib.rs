@@ -23,6 +23,10 @@ pub struct AppState {
     pub perm_epoch_cache: perm_epoch_cache::PermEpochCache,
     pub redis_conn: MultiplexedConnection,
     pub redis_prefix: String,
+    /// 撤销名单业务服务（WP-TEST-01-R1 · DEC-02）：生产挂
+    /// `SharedRedisCache`（复用 `redis_conn` 同一连接），常规 CI 测试可挂
+    /// `MemoryCache`，业务逻辑与 Redis 存储解耦。
+    pub blacklist: digua_common_cache::TokenBlacklistService,
     pub router_cfg: Arc<RouterConfig>,
     pub route_table: Arc<arc_swap::ArcSwap<RouteTable>>,
     pub route_limiters: crate::middleware::rate_limit::RouteLimiterSet,

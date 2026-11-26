@@ -33,6 +33,7 @@ serde.workspace = true
 serde_json.workspace = true
 digua_common_jwt = { path = "../../libs/common-jwt" }
 digua_common_ratelimit = { path = "../../libs/common-ratelimit" }
+digua_common_cache = { path = "../../libs/common-cache", features = ["redis"] }
 redis.workspace = true
 reqwest.workspace = true
 rustls.workspace = true

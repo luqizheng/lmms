@@ -18,3 +18,5 @@ redis = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+# 仅供 shared_redis_cache_test.rs（cfg(feature = "redis")）构造连接用。
+redis = { workspace = true }

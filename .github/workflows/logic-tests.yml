@@ -1,0 +1,46 @@
+# WP-TEST-01：无基础设施逻辑测试（PURE / MEMORY / SQLITE）。
+#
+# 与 dialect-matrix / public-release 不同：本 job **不配置任何 services 容器**
+# （无 MySQL / PostgreSQL / Redis），跑的是 scripts/test-logic.js 白名单内的
+# 纯逻辑与内存替身测试。基础设施集成测试（MYSQL/REDIS/RABBITMQ/PG）仍由
+# dialect-matrix、rust_ci（GitLab --workspace --lib）与 e2e 门禁覆盖，本 job
+# 不替代、只补充。
+#
+# 清单治理：scripts/test-logic.js --check 校验白名单文件存在性并警告未分类文件。
+
+name: Logic Tests (no infra)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-logic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust builds
+        uses: Swatinem/rust-cache@v2
+
+      - name: Whitelist sanity check
+        run: node scripts/test-logic.js --check
+
+      # 沙箱自证：显式断言关键基础设施 env 未设置，随后由脚本再次清除并自检。
+      - name: Assert no infra env is configured
+        run: |
+          for v in TEST_MYSQL_HOST TEST_MYSQL_PORT TEST_PG_URL REDIS_URL DATABASE_URL; do
+            if [ -n "${!v}" ]; then
+              echo "::error::$v is set in a job that must not have infrastructure"
+              exit 1
+            fi
+          done
+          echo "no infra env present"
+
+      - name: Run logic tests
+        run: node scripts/test-logic.js

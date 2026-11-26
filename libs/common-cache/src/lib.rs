@@ -1,10 +1,12 @@
+pub mod blacklist;
 pub mod memory;
 #[cfg(feature = "redis")]
 pub mod redis;
 
+pub use blacklist::{blacklist_key, NowMsFn, TokenBlacklistService};
 pub use memory::MemoryCache;
 #[cfg(feature = "redis")]
-pub use redis::{DistributedLock, RedisCache};
+pub use redis::{DistributedLock, RedisCache, SharedRedisCache};
 
 use async_trait::async_trait;
 use digua_common_error::AppResult;

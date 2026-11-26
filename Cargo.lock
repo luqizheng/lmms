@@ -215,6 +215,7 @@ dependencies = [
  "clap",
  "config",
  "digua_common",
+ "digua_common_cache",
  "digua_common_consul",
  "digua_common_event",
  "digua_common_http",

@@ -13,6 +13,8 @@
     "docker:build:docs-site": "node packages/cli/bin/coder.js build images docs-site",
     "docker:build": "node packages/cli/bin/coder.js build images",
     "docker:build:clean": "node packages/cli/bin/coder.js build images prune",
+    "test:logic": "node scripts/test-logic.js",
+    "test:logic:check": "node scripts/test-logic.js --check",
     "test:scripts": "node --test scripts/check-db-naming.test.js scripts/check-pg-migrations.test.js scripts/update-image-env.test.js",
     "deploy:image-env": "node scripts/update-image-env.js",
     "deploy:image-env:check": "node scripts/update-image-env.js --check",

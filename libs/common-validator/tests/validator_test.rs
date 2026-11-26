@@ -25,11 +25,14 @@ fn strong_password_requires_classes_and_length() {
 
 #[test]
 fn strong_password_rejects_weak() {
+    // 契约（与 is_strong_password 实现、accepts_3_of_4 用例一致）：
+    // len(bytes) >= 8 且字符类别（小写/大写/数字/符号）>= 3。
     assert!(!is_strong_password("aaaaaaaa"));
     assert!(!is_strong_password("Aa1!aa"));
     assert!(!is_strong_password("Aa1aaaa"));
-    assert!(!is_strong_password("aa1!aaaa"));
-    assert!(!is_strong_password("AA1!AAAA"));
+    // 8 字节但只有 2 类（小写+数字 / 大写+数字）→ 弱，拒绝。
+    assert!(!is_strong_password("aaaa1234"));
+    assert!(!is_strong_password("AAAA1111"));
     assert!(!is_strong_password(""));
     assert!(!is_strong_password("a"));
     assert!(!is_strong_password("Aa1!"));
@@ -37,8 +40,10 @@ fn strong_password_rejects_weak() {
 
 #[test]
 fn strong_password_accepts_3_of_4_classes() {
-    assert!(is_strong_password("Abcdef1"));
-    assert!(is_strong_password("Abcdef!"));
+    // 3 类 + 8 字节 → 强（原样例 "Abcdef1"/"Abcdef!" 只有 7 字节，低于
+    // len>=8 契约，属测试笔误；该文件此前从未被任何 CI target 执行）。
+    assert!(is_strong_password("Abcdef12"));
+    assert!(is_strong_password("Abcdef1!"));
     assert!(is_strong_password("abcd123!"));
 }
 

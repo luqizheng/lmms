@@ -276,18 +276,22 @@ pub async fn auth_middleware(
         return (StatusCode::UNAUTHORIZED, "missing tenant claim").into_response();
     }
 
-    let mut conn: MultiplexedConnection = state.redis_conn.clone();
-    let blacklisted =
-        match crate::blacklist::is_blacklisted(&mut conn, &state.redis_prefix, &claims.jti).await {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::warn!(error = %e, "blacklist check error, failing open");
-                false
-            }
-        };
+    // 撤销名单检查走 TokenBlacklistService（WP-TEST-01-R1 · DEC-02，与
+    // Redis 存储解耦；iam-service logout 写入侧共用同一 key 契约）。
+    // 错误策略保持 2026-07-14 1910c405 既有决策：fail-open + warn，
+    // 避免 Redis 故障阻断全部请求；service 层本身如实传播错误、不吞错。
+    let blacklisted = match state.blacklist.is_revoked(&claims.jti).await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(error = %e, "blacklist check error, failing open");
+            false
+        }
+    };
     if blacklisted {
         return (StatusCode::UNAUTHORIZED, "Token revoked").into_response();
     }
+
+    let mut conn: MultiplexedConnection = state.redis_conn.clone();
 
     let sub_parsed: u64 = claims.sub.parse().unwrap_or(0u64);
     let (cached_epoch, hit) = state.perm_epoch_cache.get(sub_parsed);
