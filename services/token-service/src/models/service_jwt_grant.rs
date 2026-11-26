@@ -245,16 +245,14 @@ pub async fn list_filtered(
             "SELECT owner, audience, status, system_managed, created_at, updated_at \
                  FROM token_service_jwt_grants WHERE 1=1",
         );
-        if owner.is_some() {
-            qb.push(" AND owner = ").push_bind(owner.as_ref().unwrap());
+        if let Some(o) = owner.as_ref() {
+            qb.push(" AND owner = ").push_bind(o);
         }
-        if audience.is_some() {
-            qb.push(" AND audience = ")
-                .push_bind(audience.as_ref().unwrap());
+        if let Some(a) = audience.as_ref() {
+            qb.push(" AND audience = ").push_bind(a);
         }
-        if status.is_some() {
-            qb.push(" AND status = ")
-                .push_bind(status.as_ref().unwrap());
+        if let Some(st) = status.as_ref() {
+            qb.push(" AND status = ").push_bind(st);
         }
         qb.push(" ORDER BY owner, audience LIMIT ")
             .push_bind(size as i64);
@@ -263,16 +261,14 @@ pub async fn list_filtered(
 
     let total: (i64,) = db_qb_fetch_one!(pool, (i64,), |qb| {
         qb.push("SELECT COUNT(*) FROM token_service_jwt_grants WHERE 1=1");
-        if owner.is_some() {
-            qb.push(" AND owner = ").push_bind(owner.as_ref().unwrap());
+        if let Some(o) = owner.as_ref() {
+            qb.push(" AND owner = ").push_bind(o);
         }
-        if audience.is_some() {
-            qb.push(" AND audience = ")
-                .push_bind(audience.as_ref().unwrap());
+        if let Some(a) = audience.as_ref() {
+            qb.push(" AND audience = ").push_bind(a);
         }
-        if status.is_some() {
-            qb.push(" AND status = ")
-                .push_bind(status.as_ref().unwrap());
+        if let Some(st) = status.as_ref() {
+            qb.push(" AND status = ").push_bind(st);
         }
     })?;
 
@@ -452,12 +448,11 @@ pub async fn list_audit(
                  after_status, request_id, result, detail, occurred_at \
                  FROM token_service_jwt_grant_audit WHERE 1=1",
         );
-        if owner.is_some() {
-            qb.push(" AND owner = ").push_bind(owner.as_ref().unwrap());
+        if let Some(o) = owner.as_ref() {
+            qb.push(" AND owner = ").push_bind(o);
         }
-        if audience.is_some() {
-            qb.push(" AND audience = ")
-                .push_bind(audience.as_ref().unwrap());
+        if let Some(a) = audience.as_ref() {
+            qb.push(" AND audience = ").push_bind(a);
         }
         qb.push(" ORDER BY id DESC LIMIT ").push_bind(limit as i64);
     })?;

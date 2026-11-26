@@ -418,8 +418,6 @@ pub mod ops {
         }
     }
 
-    /// 404 时的 denied 审计由 `audit_best_effort_denied` 补记（见 set_status/delete）。
-
     /// best-effort denied 审计：失败只 log（denied 响应本身不受审计可用性影响）。
     async fn audit_best_effort_denied(
         db: &crate::db::DbPool,
