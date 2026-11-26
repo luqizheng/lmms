@@ -10,6 +10,9 @@ use async_trait::async_trait;
 use digua_common_error::AppResult;
 use std::time::Duration;
 
+// clippy 1.99 `double_must_use` 误报源于 async-trait 宏展开（生成的 must_use
+// 与 Future 自身重复），仅在宏产生点豁免。
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait Cache: Send + Sync {
     async fn get(&self, key: &str) -> AppResult<Option<Vec<u8>>>;

@@ -105,7 +105,7 @@ async fn notification_service_can_obtain_iam_service_jwt() {
     let (status, body) =
         post_service_jwt(app(pool), "bt-ntf", json!({"aud": "iam-service", "tid": 1})).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["access_token"].as_str().unwrap().len() > 0, true);
+    assert!(!body["access_token"].as_str().unwrap().is_empty());
 }
 
 /// #22：claims 契约不变——tid/ct 按请求原样签入，grant 不改变 claims 语义。
