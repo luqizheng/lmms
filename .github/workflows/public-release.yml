@@ -12,7 +12,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing release tag to publish (vMAJOR.MINOR.PATCH), e.g. v1.8.0'
+        description: 'Existing release tag to publish (vMAJOR.MINOR.PATCH)'
+        required: true
+        type: string
+      expected_sha:
+        description: 'Expected full commit SHA for the immutable release tag'
         required: true
         type: string
 
@@ -31,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
       - name: Resolve target release tag
         id: target
         if: github.event_name != 'pull_request'
@@ -55,8 +59,33 @@ jobs:
           git fetch origin "+refs/tags/${TAG}:refs/tags/${TAG}"
           git fetch origin main
           COMMIT="$(git rev-parse "${TAG}^{commit}")"
+          EXPECTED_SHA="${{ inputs.expected_sha }}"
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "expected_sha must be a full 40-character SHA"; exit 1; }
+          [[ "$COMMIT" == "$EXPECTED_SHA" ]] || { echo "tag SHA mismatch: expected $EXPECTED_SHA, got $COMMIT"; exit 1; }
           git merge-base --is-ancestor "$COMMIT" origin/main
-          echo "tag ${TAG} (${COMMIT}) 属于 main 历史"
+          echo "tag ${TAG} (${COMMIT}) belongs to main history"
+      - name: Prepare immutable tag source with current public-release tooling
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          ACTUAL_SHA="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "tag moved: expected $EXPECTED_SHA, got $ACTUAL_SHA"; exit 1; }
+          git worktree add --detach "$RELEASE_DIR" "$ACTUAL_SHA"
+          # Public release must resolve against crates.io, not the developer mirror configured in .cargo.
+          rm -f "$RELEASE_DIR/.cargo/config.toml"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
+      - name: Ensure Cargo uses the public crates.io source
+        shell: bash
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
+        run: rm -f .cargo/config.toml
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -69,14 +98,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install Node dependencies
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: pnpm install --frozen-lockfile
       - name: Rust formatting
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: cargo fmt --check --all
       - name: Rust Clippy
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Rust workspace library tests
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: cargo test --workspace --lib
       - name: Repository gates
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: |
           node scripts/check-service-standard.js
           node scripts/check-spec.js
@@ -87,13 +121,16 @@ jobs:
           node scripts/dump-openapi-specs.js
           git diff --exit-code -- 'services/*/openapi.yaml'
       - name: CLI tests
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: pnpm run test:cli
       - name: Build public npm packages
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: pnpm run packages:build
       - name: Validate release plans without publishing
+        working-directory: ${{ github.event_name == 'workflow_dispatch' && format('{0}/lmms-release-src', runner.temp) || github.workspace }}
         run: |
-          node packages/cli/bin/coder.js release sdk rust --dry-run
-          node packages/cli/bin/coder.js release sdk npm --dry-run
+          node packages/cli/bin/coder.js release sdk rust --dry-run --registry crates-io
+          node packages/cli/bin/coder.js release sdk npm --dry-run --registry https://registry.npmjs.org/
           node packages/cli/bin/coder.js release images --dry-run --registry docker.io --repo validation-only
 
   publish-crates:
@@ -104,7 +141,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
+      - name: Prepare immutable tag source with current public-release tooling
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          ACTUAL_SHA="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "tag moved: expected $EXPECTED_SHA, got $ACTUAL_SHA"; exit 1; }
+          git worktree add --detach "$RELEASE_DIR" "$ACTUAL_SHA"
+          # Public release must resolve against crates.io, not the developer mirror configured in .cargo.
+          rm -f "$RELEASE_DIR/.cargo/config.toml"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
+          echo "RELEASE_DIR=$RELEASE_DIR" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -114,21 +170,44 @@ jobs:
         with:
           node-version: 22
       - name: Install Node dependencies
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - name: Publish crates and Rust SDKs
         env:
           CARGO_REGISTRIES_CRATES_IO_TOKEN: ${{ secrets.CRATES }}
-        run: node packages/cli/bin/coder.js release sdk rust
+        working-directory: ${{ runner.temp }}/lmms-release-src
+        run: |
+          node packages/cli/bin/coder.js release sdk rust --registry crates-io
+          node scripts/verify-public-release.js rust
 
   publish-npm:
     if: github.event_name != 'pull_request'
     name: Publish TypeScript SDKs to npmjs.org
-    needs: validate
+    needs: publish-crates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
+      - name: Prepare immutable tag source with current public-release tooling
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          ACTUAL_SHA="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "tag moved: expected $EXPECTED_SHA, got $ACTUAL_SHA"; exit 1; }
+          git worktree add --detach "$RELEASE_DIR" "$ACTUAL_SHA"
+          # Public release must resolve against crates.io, not the developer mirror configured in .cargo.
+          rm -f "$RELEASE_DIR/.cargo/config.toml"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
+          echo "RELEASE_DIR=$RELEASE_DIR" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -137,21 +216,45 @@ jobs:
         with:
           version: 10
       - name: Install dependencies
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - name: Publish npm packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPMPUBLISHKEY }}
-        run: node packages/cli/bin/coder.js release sdk npm
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc
+        working-directory: ${{ runner.temp }}/lmms-release-src
+        run: |
+          node packages/cli/bin/coder.js release sdk npm --registry https://registry.npmjs.org/
+          node scripts/verify-public-release.js npm
 
   publish-docker:
     if: github.event_name != 'pull_request'
     name: Publish service images to Docker Hub
-    needs: validate
+    needs: publish-npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
+      - name: Prepare immutable tag source with current public-release tooling
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          RELEASE_DIR="$RUNNER_TEMP/lmms-release-src"
+          ACTUAL_SHA="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "tag moved: expected $EXPECTED_SHA, got $ACTUAL_SHA"; exit 1; }
+          git worktree add --detach "$RELEASE_DIR" "$ACTUAL_SHA"
+          # Public release must resolve against crates.io, not the developer mirror configured in .cargo.
+          rm -f "$RELEASE_DIR/.cargo/config.toml"
+          mkdir -p "$RELEASE_DIR/packages/cli/commands" "$RELEASE_DIR/packages/cli/lib" "$RELEASE_DIR/scripts"
+          cp packages/cli/commands/release.js "$RELEASE_DIR/packages/cli/commands/release.js"
+          cp packages/cli/lib/sdk-publish.js "$RELEASE_DIR/packages/cli/lib/sdk-publish.js"
+          cp scripts/verify-public-release.js "$RELEASE_DIR/scripts/verify-public-release.js"
+          echo "RELEASE_DIR=$RELEASE_DIR" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -161,6 +264,7 @@ jobs:
         with:
           node-version: 22
       - name: Install Node dependencies
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: pnpm install --frozen-lockfile
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -172,13 +276,16 @@ jobs:
       - name: Publish versioned service images
         env:
           DOCKER_USER_NAME: ${{ secrets.DOCKER_USER_NAME }}
+        working-directory: ${{ runner.temp }}/lmms-release-src
         run: |
           test -n "$DOCKER_USER_NAME"
+          node scripts/verify-public-release.js docker-preflight
           node packages/cli/bin/coder.js release images --push --registry docker.io --repo "$DOCKER_USER_NAME"
+          node scripts/verify-public-release.js docker
       - name: Upload generated image pins
         uses: actions/upload-artifact@v4
         with:
           name: docker-hub-image-pins-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           path: |
-            examples/docker-deploy/.image.env
-            examples/docker-deploy-full/.image.env
+            ${{ runner.temp }}/lmms-release-src/examples/docker-deploy/.image.env
+            ${{ runner.temp }}/lmms-release-src/examples/docker-deploy-full/.image.env

@@ -196,6 +196,12 @@ test('cargoPublishArgs 拒绝空 registry（禁止隐式回退 crates.io）', ()
   assert.deepEqual(args.slice(-2), ['--registry', 'kellnr']);
   const dry = cargoPublishArgs('digua_common_error', 'kellnr', true);
   assert.ok(dry.includes('--dry-run') && dry.includes('--registry'));
+  const publicArgs = cargoPublishArgs('digua_common_error', 'crates-io', false);
+  assert.ok(publicArgs.includes('publish'));
+  assert.ok(!publicArgs.includes('--registry'), 'crates.io must use Cargo default registry semantics');
+  const publicDry = cargoPublishArgs('digua_common_error', 'crates-io', true);
+  assert.ok(publicDry.includes('--dry-run'));
+  assert.ok(!publicDry.includes('--registry'));
 });
 
 test('rewritePathDeps supports the default crates.io registry without a private registry alias', () => {
