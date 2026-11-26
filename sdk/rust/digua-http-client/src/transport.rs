@@ -45,7 +45,11 @@ pub trait HttpTransport: Send + Sync {
         ))
     }
     /// DELETE（带可选 bearer）。管理面删除端点用。默认实现同 put_json。
-    async fn delete(&self, _url: &str, _bearer: Option<&str>) -> Result<HttpResponse, KudiHttpError> {
+    async fn delete(
+        &self,
+        _url: &str,
+        _bearer: Option<&str>,
+    ) -> Result<HttpResponse, KudiHttpError> {
         Err(KudiHttpError::Network(
             "delete not supported by this transport".into(),
         ))

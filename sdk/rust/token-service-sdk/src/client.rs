@@ -5,9 +5,9 @@ use digua_http_client::{transport::HttpResponse, SdkError};
 
 use crate::model::{
     AccessRequest, AccessResponse, ApiKeyCreated, CreateApiKeyRequest,
-    CreateServiceJwtGrantRequest, ListApiKeysQuery, ListApiKeysResponse,
-    ListServiceJwtGrantsQuery, ListServiceJwtGrantsResponse, RefreshRequest, RefreshResponse,
-    RevokeRequest, RevokeResponse, ServiceJwtGrant, SetServiceJwtGrantStatusRequest,
+    CreateServiceJwtGrantRequest, ListApiKeysQuery, ListApiKeysResponse, ListServiceJwtGrantsQuery,
+    ListServiceJwtGrantsResponse, RefreshRequest, RefreshResponse, RevokeRequest, RevokeResponse,
+    ServiceJwtGrant, SetServiceJwtGrantStatusRequest,
 };
 
 type BearerSupplier = Arc<dyn Fn() -> Option<String> + Send + Sync>;
@@ -118,9 +118,8 @@ impl TokenClient {
         );
         let resp = self.http.get(&url, (self.bearer)().as_deref()).await?;
         ensure_success(&resp, "token list_service_jwt_grants")?;
-        serde_json::from_str(&resp.body).map_err(|e| {
-            SdkError::Network(format!("decode ListServiceJwtGrantsResponse: {}", e))
-        })
+        serde_json::from_str(&resp.body)
+            .map_err(|e| SdkError::Network(format!("decode ListServiceJwtGrantsResponse: {}", e)))
     }
 
     /// 查单条授权（不存在 → `SdkError::Validation`，见 [`ensure_success`] 映射）。
@@ -129,7 +128,10 @@ impl TokenClient {
         owner: &str,
         audience: &str,
     ) -> Result<ServiceJwtGrant, SdkError> {
-        let url = format!("{}/admin/service-jwt-grants/{}/{}", self.base_url, owner, audience);
+        let url = format!(
+            "{}/admin/service-jwt-grants/{}/{}",
+            self.base_url, owner, audience
+        );
         let resp = self.http.get(&url, (self.bearer)().as_deref()).await?;
         ensure_success(&resp, "token get_service_jwt_grant")?;
         serde_json::from_str(&resp.body)
@@ -183,7 +185,10 @@ impl TokenClient {
         owner: &str,
         audience: &str,
     ) -> Result<(), SdkError> {
-        let url = format!("{}/admin/service-jwt-grants/{}/{}", self.base_url, owner, audience);
+        let url = format!(
+            "{}/admin/service-jwt-grants/{}/{}",
+            self.base_url, owner, audience
+        );
         let resp = self.http.delete(&url, (self.bearer)().as_deref()).await?;
         ensure_success(&resp, "token delete_service_jwt_grant")
     }

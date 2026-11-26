@@ -179,7 +179,9 @@ async fn list_service_jwt_grants_sends_filters_and_decodes_page() {
         .mount(&server)
         .await;
     let client = bearer_client(&server, "svc-jwt");
-    let q = ListServiceJwtGrantsQuery::new().owner("svc-a").status("active");
+    let q = ListServiceJwtGrantsQuery::new()
+        .owner("svc-a")
+        .status("active");
     let resp = client.list_service_jwt_grants(&q).await.unwrap();
     assert_eq!(resp.total, 1);
     let g = &resp.items[0];
@@ -226,7 +228,10 @@ async fn create_service_jwt_grant_maps_409_to_validation_error() {
     };
     let err = client.create_service_jwt_grant(&req).await.unwrap_err();
     assert!(
-        matches!(err, digua_http_client::SdkError::Validation { status: 409, .. }),
+        matches!(
+            err,
+            digua_http_client::SdkError::Validation { status: 409, .. }
+        ),
         "409 must surface as Validation: {err}"
     );
 }
@@ -274,7 +279,10 @@ async fn get_and_delete_service_jwt_grant_hit_path() {
         .mount(&server)
         .await;
     let client = bearer_client(&server, "svc-jwt");
-    let g = client.get_service_jwt_grant("svc-a", "iam-service").await.unwrap();
+    let g = client
+        .get_service_jwt_grant("svc-a", "iam-service")
+        .await
+        .unwrap();
     assert!(g.system_managed, "system_managed must round-trip");
     client
         .delete_service_jwt_grant("svc-a", "iam-service")

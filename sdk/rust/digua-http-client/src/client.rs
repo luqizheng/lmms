@@ -203,7 +203,11 @@ impl KudiWebClient {
     }
 
     /// DELETE（带可选 bearer）。token-service 管理面的删除端点用。
-    pub async fn delete(&self, url: &str, bearer: Option<&str>) -> Result<HttpResponse, KudiHttpError> {
+    pub async fn delete(
+        &self,
+        url: &str,
+        bearer: Option<&str>,
+    ) -> Result<HttpResponse, KudiHttpError> {
         let bearer = self.resolve_bearer(bearer).await?;
         self.transport.delete(url, bearer.as_deref()).await
     }

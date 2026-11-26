@@ -11,8 +11,8 @@ pub mod model;
 pub use crate::client::TokenClient;
 pub use crate::model::{
     AccessRequest, AccessResponse, ApiKeyCreated, ApiKeySummary, CreateApiKeyRequest,
-    CreateServiceJwtGrantRequest, ListApiKeysQuery, ListApiKeysResponse,
-    ListServiceJwtGrantsQuery, ListServiceJwtGrantsResponse, RefreshRequest, RefreshResponse,
-    RevokeRequest, RevokeResponse, ServiceJwtGrant, SetServiceJwtGrantStatusRequest,
+    CreateServiceJwtGrantRequest, ListApiKeysQuery, ListApiKeysResponse, ListServiceJwtGrantsQuery,
+    ListServiceJwtGrantsResponse, RefreshRequest, RefreshResponse, RevokeRequest, RevokeResponse,
+    ServiceJwtGrant, SetServiceJwtGrantStatusRequest,
 };
 pub use digua_http_client::SdkError;
