@@ -66,14 +66,10 @@ base64 = "0.22"
 rsa = "0.9"
 rustls = { version = "0.23", default-features = false, features = ["logging", "std", "tls12", "aws_lc_rs"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
-hyper = "1"
-hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
-http-body-util = "0.1"
 bytes = "1"
 dashmap = "6"
 moka = { version = "0.12", features = ["future"] }
 tempfile = "3"
-validator = { version = "0.18", features = ["derive"] }
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 aes-gcm = "0.10"

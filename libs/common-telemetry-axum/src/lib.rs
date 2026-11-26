@@ -21,6 +21,20 @@ mod otlp_impl {
     use opentelemetry::trace::{TraceContextExt, TraceId};
     use std::time::Instant;
     use tracing::Instrument;
+
+    /// 小写 hex 编码（输出与旧 hex::encode 一致）。内联实现以避免为单个
+    /// fallback 调用点引入整条 hex 依赖链；otlp 开启时本模块被 cfg 掉，
+    /// 故允许 dead_code。
+    #[allow(dead_code)]
+    fn hex_encode(bytes: &[u8; 16]) -> String {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut out = String::with_capacity(32);
+        for &b in bytes {
+            out.push(HEX[(b >> 4) as usize] as char);
+            out.push(HEX[(b & 0x0f) as usize] as char);
+        }
+        out
+    }
     use tracing_opentelemetry::OpenTelemetrySpanExt;
 
     pub async fn trace_request_middleware(request: Request<Body>, next: Next) -> Response {
@@ -103,6 +117,20 @@ mod fallback_impl {
     use std::time::Instant;
     use tracing::Instrument;
 
+    /// 小写 hex 编码（输出与旧 hex::encode 一致）。内联实现以避免为单个
+    /// fallback 调用点引入整条 hex 依赖链；otlp 开启时本模块被 cfg 掉，
+    /// 故允许 dead_code。
+    #[allow(dead_code)]
+    fn hex_encode(bytes: &[u8; 16]) -> String {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut out = String::with_capacity(32);
+        for &b in bytes {
+            out.push(HEX[(b >> 4) as usize] as char);
+            out.push(HEX[(b & 0x0f) as usize] as char);
+        }
+        out
+    }
+
     pub async fn trace_request_middleware(request: Request<Body>, next: Next) -> Response {
         let method = request.method().clone();
         let path = request.uri().path().to_string();
@@ -117,7 +145,7 @@ mod fallback_impl {
         let start = Instant::now();
         let mut response = next.run(request).instrument(span.clone()).await;
         let elapsed_ms = start.elapsed().as_millis() as u64;
-        let trace_id = hex::encode(rand::random::<[u8; 16]>());
+        let trace_id = hex_encode(&rand::random::<[u8; 16]>());
         span.record("http.status_code", response.status().as_u16() as i64);
         span.record("duration_ms", elapsed_ms as i64);
         span.record("trace_id", trace_id.as_str());

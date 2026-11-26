@@ -637,13 +637,11 @@ dependencies = [
  "csv",
  "digua_authz",
  "digua_common",
- "digua_common_cache",
  "digua_common_consul",
  "digua_common_db",
  "digua_common_error",
  "digua_common_event",
  "digua_common_jwt",
- "digua_common_log",
  "digua_common_telemetry",
  "digua_common_telemetry_axum",
  "digua_jwt_ctx",
@@ -1717,7 +1715,6 @@ dependencies = [
  "digua_common_jwt",
  "digua_jwt_ctx",
  "futures",
- "jwt-simple",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
@@ -1841,7 +1838,6 @@ dependencies = [
  "futures-util",
  "lapin",
  "opentelemetry",
- "prometheus",
  "redis",
  "serde",
  "serde_json",
@@ -1953,10 +1949,8 @@ name = "digua_common_telemetry_axum"
 version = "1.8.2"
 dependencies = [
  "axum 0.8.9",
- "digua_common_telemetry",
  "hex",
  "opentelemetry",
- "opentelemetry-otlp",
  "opentelemetry_sdk",
  "rand 0.8.6",
  "regex",
@@ -1970,10 +1964,6 @@ dependencies = [
 [[package]]
 name = "digua_common_validator"
 version = "1.8.2"
-dependencies = [
- "digua_common_error",
- "validator",
-]
 
 [[package]]
 name = "digua_file_sdk"
@@ -2333,12 +2323,10 @@ dependencies = [
  "bytes",
  "chrono",
  "digua_authz",
- "digua_common_cache",
  "digua_common_consul",
  "digua_common_db",
  "digua_common_error",
  "digua_common_jwt",
- "digua_common_log",
  "digua_common_telemetry",
  "digua_common_telemetry_axum",
  "digua_jwt_ctx",
@@ -3097,17 +3085,14 @@ dependencies = [
  "digua_authz",
  "digua_common",
  "digua_common_cache",
- "digua_common_config",
  "digua_common_consul",
  "digua_common_crypto",
  "digua_common_db",
  "digua_common_error",
  "digua_common_event",
  "digua_common_jwt",
- "digua_common_log",
  "digua_common_telemetry",
  "digua_common_telemetry_axum",
- "digua_common_validator",
  "digua_jwt_ctx",
  "hex",
  "http-body-util",
@@ -3882,7 +3867,6 @@ dependencies = [
  "axum 0.8.9",
  "bytes",
  "chrono",
- "config",
  "digua_authz",
  "digua_common_consul",
  "digua_common_db",
@@ -4718,7 +4702,6 @@ dependencies = [
  "digua_common_consul",
  "digua_common_db",
  "digua_common_jwt",
- "digua_common_log",
  "digua_common_telemetry",
  "digua_common_telemetry_axum",
  "digua_jwt_ctx",

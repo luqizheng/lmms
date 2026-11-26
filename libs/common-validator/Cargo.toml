@@ -6,5 +6,3 @@ description = "Validation rules (Chinese phone, strong password) for KudiCoder s
 edition = "2021"
 
 [dependencies]
-validator.workspace = true
-digua_common_error = { path = "../common-error", version = "1.8.2" }

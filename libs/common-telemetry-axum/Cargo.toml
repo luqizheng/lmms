@@ -6,25 +6,25 @@ description = "Axum middleware for OpenTelemetry tracing in KudiCoder services"
 edition = "2021"
 
 [dependencies]
-digua_common_telemetry = { path = "../common-telemetry", version = "1.8.2" }
 axum.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 rand = "0.8"
-hex = "0.4"
 
 # OpenTelemetry — opt-in, only enabled when otlp feature is on.
 # Mirrors the `otlp` feature on digua_common-telemetry: when a service enables
 # `otlp` on both crates, the middleware reads from the real OTel span
 # context. Without `otlp`, falls back to a random 128-bit hex id.
 opentelemetry = { version = "0.24", optional = true }
-opentelemetry-otlp = { version = "0.17", optional = true, default-features = false, features = ["grpc-tonic", "trace"] }
 opentelemetry_sdk = { version = "0.24", optional = true, features = ["rt-tokio"] }
 tracing-opentelemetry = { version = "0.25", optional = true }
+# 本 crate 代码不直接使用 opentelemetry-otlp（exporter 由 digua_common-telemetry
+# 的 otlp feature 负责），故不再在此声明。
+hex = { version = "0.4", optional = true }
 
 [features]
 default = []
-otlp = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
+otlp = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 
 [dev-dependencies]
 # Used by tests/access_log_trace_id.rs to spin up a minimal axum router
