@@ -67,6 +67,56 @@ Bootstrap Token rotation stores a grace-period token in an owner row suffixed wi
 
 The existing built-in development Bootstrap Tokens do not establish an authorization policy. Do not infer `owner == audience`, allow all internal services, or automatically grant every audience. Before implementation, inventory every legitimate caller→audience pair across LMMS deployment config, SDKs, and downstream repositories, then explicitly seed only those approved pairs. Unknown owners/audiences must be denied.
 
+
+## 4A. Built-in LMMS startup-critical authorization (priority 0)
+
+The first implementation slice must protect the LMMS built-in authentication/login path before adding generic service grants.
+
+### Verified in-repository call paths
+
+| Bootstrap owner (caller) | Requested audience | Evidence / purpose | Priority |
+|---|---|---|---|
+| `iam-service` | `token-service` | `services/iam-service/src/service/token_forward.rs` calls `ServiceJwtCache::get("token-service")` before `POST /tokens/user-jwt`. IAM delegates user-JWT signing to token-service. This is login/authentication critical. | **P0 — mandatory** |
+| `notification-service` | `iam-service` | `services/notification-service/src/iam_client.rs` calls `ServiceJwtCache::get("iam-service")` for `/iam/internal/membership-bootstrap` and fallback membership reads. Startup projection bootstrap invokes this path before HTTP serving; failure is logged and service continues degraded. | **P1 — mandatory for notification IAM integration** |
+
+Canonical service identity in this repository is `iam-service`, not `iam-user`. If “iam-user” refers to the IAM user/login component, its deployed service identity is still `iam-service`.
+
+### Token-service role in the built-in chain
+
+- `token-service` is the **audience/issuer endpoint** for the IAM login flow: IAM must be allowed to obtain `aud=token-service` in order to request user-JWT issuance.
+- The built-in code inspected does not show token-service using `ServiceJwtCache` to call another service. Its own Bootstrap Token row is currently seeded, but that alone is not evidence for an outbound owner→audience grant.
+- Do not create `token-service → token-service` or `token-service → *` grants merely because a `token-service` Bootstrap Token exists.
+- The token-service's receiver-side routes that require `aud=token-service` continue validating the exact audience; issuer-side grants are a separate gate.
+
+### Startup seeding requirement
+
+The P0 implementation must not depend on a human manually creating the first grants through an authenticated admin API. That would create a bootstrap deadlock: the IAM login path needs a Service JWT before the user can log in and reach the Web UI that manages grants.
+
+Required behavior:
+1. Add the built-in grants as code-owned, version-controlled LMMS system defaults, separate from the Bootstrap Token secret values.
+2. During token-service startup, after schema migrations and before the HTTP listener accepts requests, idempotently ensure the mandatory built-in grant rows exist.
+3. Seed these grants even when production Bootstrap Token secrets are supplied through `SERVICE_BOOTSTRAP_TOKENS` / `SERVICE_BOOTSTRAP_OWNERS`; secret injection must not suppress system authorization bootstrap.
+4. Verify that each required grant's owner has a corresponding active Bootstrap Token principal. If required owner configuration is absent or inconsistent, fail startup with a clear non-secret diagnostic; never fall back to a dev secret in production.
+5. Treat these rows as system-managed grants, not ordinary user-created grants. Generic admin operations must not accidentally delete/disable mandatory login-path grants. Changes require an explicit versioned code/config change and review.
+6. Startup seeding must be transactional/idempotent and safe under concurrent token-service replicas. Use dialect-compatible migrations and uniqueness constraints for both MySQL and PostgreSQL.
+7. Do not log Bootstrap Token values. Do log grant identifiers and seed/validation outcomes.
+
+**Important:** “ensure grants exist on every startup” means repair missing system-default rows idempotently, not silently restore arbitrary manually revoked custom grants. The mandatory built-in grants should be explicitly marked/system-owned so their lifecycle is unambiguous.
+
+### Required first-slice tests
+
+- Fresh empty DB: migrations + built-in Bootstrap Token seeding + built-in grant seeding completes before listener startup.
+- Production-style custom secrets with canonical owners: built-in grants are still created; no dev token is inserted.
+- IAM can obtain `aud=token-service` and complete the token-service user-JWT call.
+- IAM cannot obtain an unrelated audience (e.g. `file-service`) without a separate grant.
+- Notification can obtain `aud=iam-service` and complete membership bootstrap.
+- Notification cannot obtain unrelated audiences.
+- Missing required built-in owner or DB failure prevents token-service readiness/startup; no permissive fallback.
+- Concurrent token-service startup does not duplicate grants or fail due to seed races.
+- Built-in grants remain present after restart and after Bootstrap Token rotation; the old grace token resolves to the same canonical owner grant.
+- System-managed built-in grants cannot be disabled/deleted through generic admin endpoints.
+
+
 ## 5. Required audit/design closure before implementation
 
 - [ ] Inventory all callers of `POST /tokens/service-jwt` and their requested audiences across LMMS, ai-pm, smark-artifact-service and smark-sem.
