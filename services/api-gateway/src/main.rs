@@ -229,6 +229,13 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         }
     }
 
+    let blacklist_svc = digua_common_cache::TokenBlacklistService::new(
+        Arc::new(digua_common_cache::SharedRedisCache::new(
+            redis_conn.clone(),
+        )),
+        cfg.redis.prefix.clone(),
+    );
+
     let state = Arc::new(AppState {
         jwks_cache,
         perm_epoch_cache: api_gateway::perm_epoch_cache::PermEpochCache::new(
@@ -236,6 +243,7 @@ async fn serve(routes_dir: PathBuf, admin_port: u16) {
         ),
         redis_conn,
         redis_prefix: cfg.redis.prefix.clone(),
+        blacklist: blacklist_svc,
         router_cfg: router_cfg.clone(),
         route_table: route_table.clone(),
         route_limiters: {

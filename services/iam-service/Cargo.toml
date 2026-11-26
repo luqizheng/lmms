@@ -25,7 +25,7 @@ digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["ot
 digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
 digua_common_config = { path = "../../libs/common-config" }
 digua_common_db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
-digua_common_cache = { path = "../../libs/common-cache" }
+digua_common_cache = { path = "../../libs/common-cache", features = ["redis"] }
 digua_common_crypto = { path = "../../libs/common-crypto" }
 digua_common_validator = { path = "../../libs/common-validator" }
 digua_jwt_ctx = { path = "../../libs/jwt-ctx" }

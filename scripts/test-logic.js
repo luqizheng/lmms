@@ -34,7 +34,7 @@ const PURE_TEST_FILES = {
   // ── libs ──
   digua_authz: ['verify_aud_test'],
   digua_common: ['password_test'],
-  digua_common_cache: ['cache_test', 'tiered_cache_test'],
+  digua_common_cache: ['cache_test', 'tiered_cache_test', 'blacklist_service_test'],
   digua_common_config: ['config_test', 'hot_config_test', 'provider_test'],
   // provider_test 用 wiremock 桩 config-service 的 HTTP 导出端点，依赖
   // opt-in feature `config-service`（reqwest）。见 FEATURES 表。
@@ -82,7 +82,7 @@ const PURE_TEST_FILES = {
     'resilience_test',
     'router_streaming_test',
     'rate_limit_test', // 3 PURE 用例；2 个 #[ignore]（需真实 Redis）默认不执行
-    'blacklist_test', // REDIS_URL gate：未设 env 打印 [skip]，不连接
+    // blacklist_test 已按 DEC-02 第 9 条移入 INFRA_TEST_FILES（REDIS 类）。
     'blacklist_key_test',
   ],
   audit_service: ['models_test'],
@@ -103,9 +103,17 @@ const PKG_FEATURES = {
 };
 
 // 基础设施类测试文件（MYSQL / REDIS / RABBITMQ / POSTGRES / E2E）——
-// 原样保留、照常在 dialect-matrix / rust_ci / run-tests-docker 中执行，
-// 但绝不进入 test:logic。用于 --check 的"未分类文件"判定。
+// 原样保留、照常在 dialect-matrix（GitHub，带 services 容器）与本地
+// 开发机执行，但绝不进入 test:logic。用于 --check 的"未分类文件"判定。
 const INFRA_TEST_FILES = new Set([
+  // api-gateway blacklist_test：REDIS 类（DEC-02 第 9 条）——直连真实
+  // Redis（REDIS_URL，缺省 redis://127.0.0.1:6379），常规 CI 不执行；
+  // 本地执行方法见该文件头注释。业务逻辑回归由
+  // digua_common_cache/tests/blacklist_service_test.rs（MEMORY）承担。
+  'blacklist_test',
+  // SharedRedisCache（生产 blacklist 适配器）真实 Redis 往返/TTL 验证，
+  // REDIS_URL gate + cfg(feature = "redis")，同上仅本地执行。
+  'shared_redis_cache_test',
   // common-event（testcontainers rabbitmq/mysql/redis + TEST_PG_URL）
   'consumer_redelivery',
   'ephemeral_subscribe',

@@ -11,7 +11,6 @@ use digua_common_db::{db_execute, db_fetch_all, db_fetch_optional};
 use digua_common_event::events::{IamLoginFailed, IamLoginSucceeded};
 use digua_common_event::{AnyTx, Envelope, OutboxRepo};
 use nanoid::nanoid;
-use redis::AsyncCommands;
 use sha2::{Digest, Sha256};
 
 pub struct AuthService {
@@ -335,12 +334,23 @@ impl AuthService {
             user_id
         )?;
 
+        // 黑名单写入走 TokenBlacklistService（WP-TEST-01-R1 · DEC-02）：
+        // 与 api-gateway 读取侧共用同一 key 契约（{prefix}blacklist:{jti}）
+        // 与同一业务实现，防两侧格式漂移。
+        // 错误策略保持既有：best-effort 写入 + warn，不上抛——本调用的持久
+        // 撤销（refresh token revoked=TRUE）已在上方完成；blacklist 仅是
+        // 当前 access token 的提前 kill-switch，写失败时该 token 存活至
+        // 自然过期（风险已在 WP-TEST-01-R1 报告备案）。
         if let Some(conn) = self.state.redis.as_ref() {
             if !jti.is_empty() {
-                let mut conn = conn.clone();
-                let key = format!("{}blacklist:{}", self.state.redis_prefix, jti);
-                let ttl_sec = self.state.config.jwt.access_token_ttl_minutes * 60;
-                if let Err(e) = conn.set_ex::<_, _, ()>(&key, "1", ttl_sec).await {
+                let svc = digua_common_cache::TokenBlacklistService::new(
+                    std::sync::Arc::new(digua_common_cache::SharedRedisCache::new(conn.clone())),
+                    self.state.redis_prefix.clone(),
+                );
+                let ttl = std::time::Duration::from_secs(
+                    self.state.config.jwt.access_token_ttl_minutes * 60,
+                );
+                if let Err(e) = svc.revoke(jti, ttl).await {
                     tracing::warn!(error = %e, jti, "iam logout blacklist write failed");
                 }
             }
