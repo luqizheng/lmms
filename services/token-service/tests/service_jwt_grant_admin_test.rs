@@ -1226,7 +1226,7 @@ async fn status_update_race_cannot_touch_system_managed_row() {
         "iam-service"
     )
     .expect("query row");
-    assert_eq!(row.map(|(s, f)| (s, f)), Some(("active".into(), true)));
+    assert_eq!(row, Some(("active".into(), true)));
 
     // 4) HTTP 层：affected=0 → 重查归类为系统保护 → 409 + denied 审计
     let app = admin_app(&pool);
