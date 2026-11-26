@@ -62,12 +62,40 @@ pub async fn handle_service_jwt(
         }
     };
 
-    // 3. Validate request.
+    // 2a. WP-LMMS-SERVICE-JWT-AUDIENCE-02: 规范化授权主体——宽限期遗留行
+    // (`owner#old`) 与正式行解析到同一 canonical owner、同一 grant 集合。
+    // 签出的 sub 也用 canonical owner，宽限 token 与正式 token 完全等价。
+    let caller = crate::models::service_jwt_grant::canonical_owner(&caller).to_string();
+
+    // 3. Validate request (aud 语法/长度与 bootstrap admin 的 owner 规则一致).
     if req.aud.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "aud required".into()));
     }
+    if let Err(msg) = crate::models::service_jwt_grant::validate_service_identity(&req.aud) {
+        tracing::warn!(aud = %req.aud, "service-jwt audience rejected: {msg}");
+        return Err((StatusCode::BAD_REQUEST, "aud invalid".into()));
+    }
 
-    // 4. Sign. `sub` = bootstrap owner from DB。
+    // 3a. WP-LMMS-SERVICE-JWT-AUDIENCE-02: 签发面强制授权检查。
+    // fail-closed：DB 错误绝不签发；缺 grant / disabled 一律 403。
+    // 无通配符、无隐式 owner==audience。
+    match crate::models::service_jwt_grant::is_allowed(&state.db, &caller, &req.aud).await {
+        Ok(true) => {}
+        Ok(false) => {
+            tracing::warn!(
+                owner = %caller,
+                aud = %req.aud,
+                "service-jwt issuance denied: no active owner→audience grant"
+            );
+            return Err((StatusCode::FORBIDDEN, "audience not granted".into()));
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "service-jwt grant lookup failed (fail-closed)");
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "db error".into()));
+        }
+    }
+
+    // 4. Sign. `sub` = canonical bootstrap owner from DB。
     let now = chrono::Utc::now().timestamp();
     let mut claims = serde_json::json!({
         "iss": "token-service",
