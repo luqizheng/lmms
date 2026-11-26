@@ -186,10 +186,6 @@ async fn main() {
             axum::routing::post(routes::revoke::handle_revoke),
         )
         .route(
-            "/tokens/resource",
-            axum::routing::post(routes::resource::handle_resource),
-        )
-        .route(
             "/tokens/.well-known/jwks.json",
             axum::routing::get(routes::jwks::handle_jwks),
         )
@@ -228,6 +224,11 @@ async fn main() {
 
     // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
     app = app.merge(token_service::service_jwt_routes(state.clone()));
+
+    // WP-LMMS-HARDEN-01-R1: /tokens/resource 曾是签发类端点中唯一无认证的
+    // （公开签名神谕：任何调用方可让平台密钥签出任意 resource/permission JWT）。
+    // 现要求 service-jwt（aud=token-service）准入，与 /tokens/user-jwt 一致。
+    app = app.merge(routes::resource::routes(state.clone()));
 
     // /tokens/user-jwt is service-internal only — must require service-jwt
     // with aud=token-service, otherwise anyone on the network could mint

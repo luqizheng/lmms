@@ -255,7 +255,7 @@ cargo run --bin keygen
 | POST | /tokens/access                    | 获取 Access Token（authorization_code / client_credentials） |
 | POST | /tokens/refresh                   | 刷新 Token          |
 | POST | /tokens/revoke                    | 撤销 Token          |
-| POST | /tokens/resource                  | 获取 Resource Token |
+| POST | /tokens/resource                  | 获取 Resource Token（service-jwt 鉴权） |
 | GET  | /tokens/.well-known/jwks.json     | JWKS                |
 | GET  | /.well-known/jwks.json            | JWKS（别名）        |
 | POST/GET | /api-keys                    | 创建/列出 API Key（service-jwt 鉴权） |

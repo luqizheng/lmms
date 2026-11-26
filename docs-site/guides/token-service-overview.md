@@ -33,7 +33,7 @@ token-service 是 Rust + Axum 构建的独立微服务，是系统中 **JWT 签�
 | `/tokens/access` | POST | `public` | OAuth 2.0 授权码换 token（client_id + client_secret + code） |
 | `/tokens/refresh` | POST | `public` | 用 refresh_token 换新 access_token（单次使用，防重放） |
 | `/tokens/revoke` | POST | `public` | 撤销 token，jti 写入 Redis 黑名单 |
-| `/tokens/resource` | POST | `public` | 签发受限资源令牌（自定义 TTL + scope） |
+| `/tokens/resource` | POST | `service-jwt` | 签发受限资源令牌（自定义 TTL + scope；aud=token-service 准入，WP-LMMS-HARDEN-01-R1 收紧） |
 | `/tokens/user-jwt` | POST | `service-jwt` | 签发用户身份 JWT（由 iam-service 内部转发调用） |
 | `/tokens/service-jwt` | POST | `bootstrap token` | 签发服务间通信 JWT（1h 有效期） |
 
