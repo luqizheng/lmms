@@ -24,11 +24,15 @@ pub struct RefreshResponse {
     pub expires_in: i64,
 }
 
+#[derive(Debug)]
 struct RefreshTokenInfo {
     sub: String,
     jti: String,
     exp: i64,
     iat: i64,
+    /// Mandatory tenant binding (WP-LMMS-REFRESH-TID-01). Tokens without a
+    /// well-formed integer `tid` claim are rejected at decode time — no
+    /// default-tenant fallback, no legacy compatibility path.
     tid: i64,
     /// Issuance channel carried from the access/refresh family. `None` for
     /// legacy tokens — the rotated access token then stays purpose-less
@@ -56,13 +60,17 @@ fn decode_refresh_token_multi(
         if let Ok(claims) = public_key
             .verify_token::<HashMap<String, serde_json::Value>>(token, Some(options.clone()))
         {
-            return Ok(claims_into_info(claims));
+            return claims_into_info(claims);
         }
     }
     Err(StatusCode::UNAUTHORIZED)
 }
 
-fn claims_into_info(claims: JWTClaims<HashMap<String, serde_json::Value>>) -> RefreshTokenInfo {
+/// WP-LMMS-REFRESH-TID-01: `tid` must be present and a well-formed integer.
+/// Signature-verified tokens missing it (pre-fix issuance) are rejected with
+/// 401 — the caller must re-authenticate; we never fall back to a default
+/// tenant.
+fn claims_into_info(claims: JWTClaims<HashMap<String, serde_json::Value>>) -> Result<RefreshTokenInfo, StatusCode> {
     let sub = claims.subject.clone().unwrap_or_default();
     let jti = claims.jwt_id.clone().unwrap_or_default();
     let iat = claims.issued_at.map(|d| d.as_secs() as i64).unwrap_or(0);
@@ -71,21 +79,41 @@ fn claims_into_info(claims: JWTClaims<HashMap<String, serde_json::Value>>) -> Re
         .custom
         .get("tid")
         .and_then(|v| v.as_i64())
-        .unwrap_or(1);
+        .ok_or(StatusCode::UNAUTHORIZED)?;
     let purpose = claims
         .custom
         .get("purpose")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    RefreshTokenInfo {
+    Ok(RefreshTokenInfo {
         sub,
         jti,
         exp,
         iat,
         tid,
         purpose,
+    })
+}
+
+/// WP-LMMS-REFRESH-TID-01: the tenant resolved by iam must match the tenant
+/// bound into the refresh token. A mismatch means the user's tenant moved
+/// after issuance — refuse with 401 instead of silently switching tenant
+/// context. Also fails closed if iam omits `tenant_id`.
+fn ensure_tenant_consistency(rt_tid: i64, claims: &serde_json::Value) -> Result<(), StatusCode> {
+    let iam_tid = claims
+        .get("tenant_id")
+        .and_then(|v| v.as_i64())
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    if iam_tid != rt_tid {
+        tracing::warn!(
+            "refresh: tenant drift detected: refresh_token tid={} but iam tenant_id={}",
+            rt_tid,
+            iam_tid
+        );
+        return Err(StatusCode::UNAUTHORIZED);
     }
+    Ok(())
 }
 
 #[utoipa::path(
@@ -164,6 +192,10 @@ pub async fn handle_refresh(
         }
     };
 
+    // WP-LMMS-REFRESH-TID-01: refuse silent tenant context switching.
+    ensure_tenant_consistency(info.tid, &extra_claims)
+        .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid or expired refresh_token"))?;
+
     let issuer = &state.issuer;
     // Inherit the issuance channel from the refresh token family
     // (None for legacy tokens → purpose-less access token, see contract).
@@ -178,8 +210,10 @@ pub async fn handle_refresh(
         )
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
 
+    // Rotation keeps the verified tenant binding — the new refresh token
+    // carries the same tid as the one it replaces.
     let (rt, _family) = issuer
-        .issue_refresh_token(&info.sub, purpose, client.refresh_token_ttl_sec)
+        .issue_refresh_token(&info.sub, info.tid, purpose, client.refresh_token_ttl_sec)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "token issue failed"))?;
 
     Ok(Json(RefreshResponse {
@@ -206,22 +240,101 @@ mod tests {
     }
 
     #[test]
-    fn decode_reads_purpose_from_refresh_token() {
+    fn decode_reads_purpose_and_tid_from_refresh_token() {
         let (kp, public_pem) = keypair();
         let issuer = crate::issuer::TokenIssuer::new(&kp.to_pem().unwrap(), "test-issuer").unwrap();
         let (token, _fam) = issuer
-            .issue_refresh_token("user-1", Some(purpose::AUTH_CODE), 3600)
+            .issue_refresh_token("user-1", 42, Some(purpose::AUTH_CODE), 3600)
             .unwrap();
         let info = decode(&public_pem, &token).expect("decode");
         assert_eq!(info.purpose.as_deref(), Some(purpose::AUTH_CODE));
+        assert_eq!(info.tid, 42, "refresh token 必须携带签发时的租户绑定");
     }
 
     #[test]
-    fn decode_legacy_refresh_token_has_no_purpose() {
+    fn decode_legacy_refresh_token_without_tid_is_rejected() {
+        // WP-LMMS-REFRESH-TID-01: pre-fix tokens carry no tid. They must be
+        // rejected (401) instead of falling back to the default tenant.
+        let kp = RS256KeyPair::generate(2048).unwrap();
+        let public_pem = kp.public_key().to_pem().unwrap();
+        let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
+        claims.subject = Some("user-1".into());
+        claims.jwt_id = Some("legacy-jti".into());
+        claims.expires_at = Some(
+            jwt_simple::prelude::Duration::from_secs(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600,
+            ),
+        );
+        claims.custom = HashMap::from([(
+            "scope".to_string(),
+            serde_json::Value::String("refresh".into()),
+        )]);
+        let legacy = kp.sign(claims).unwrap();
+        let err = decode(&public_pem, &legacy).expect_err("缺 tid 必须拒绝");
+        assert_eq!(err, StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn decode_rejects_malformed_tid_type() {
+        let kp = RS256KeyPair::generate(2048).unwrap();
+        let public_pem = kp.public_key().to_pem().unwrap();
+        let mut claims: JWTClaims<HashMap<String, serde_json::Value>> = JWTClaims::new();
+        claims.subject = Some("user-1".into());
+        claims.jwt_id = Some("bad-tid-jti".into());
+        claims.expires_at = Some(
+            jwt_simple::prelude::Duration::from_secs(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600,
+            ),
+        );
+        claims.custom = HashMap::from([
+            ("scope".to_string(), serde_json::Value::String("refresh".into())),
+            ("tid".to_string(), serde_json::Value::String("7".into())),
+        ]);
+        let token = kp.sign(claims).unwrap();
+        let err = decode(&public_pem, &token).expect_err("tid 类型非法必须拒绝");
+        assert_eq!(err, StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn tenant_consistency_accepts_matching_tenant() {
+        let claims = serde_json::json!({"tenant_id": 42, "roles": ["member"]});
+        assert!(ensure_tenant_consistency(42, &claims).is_ok());
+    }
+
+    #[test]
+    fn tenant_consistency_rejects_tenant_drift() {
+        let claims = serde_json::json!({"tenant_id": 7});
+        let err = ensure_tenant_consistency(42, &claims).expect_err("租户漂移必须拒绝");
+        assert_eq!(err, StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn tenant_consistency_fails_closed_without_iam_tenant() {
+        let claims = serde_json::json!({"roles": ["member"]});
+        let err = ensure_tenant_consistency(42, &claims).expect_err("iam 缺 tenant_id 必须 fail-closed");
+        assert_eq!(err, StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn rotation_keeps_tenant_binding() {
+        // 刷新轮换继承：decode 出的 tid 原样传入下一次签发，全程一致。
         let (kp, public_pem) = keypair();
         let issuer = crate::issuer::TokenIssuer::new(&kp.to_pem().unwrap(), "test-issuer").unwrap();
-        let (token, _fam) = issuer.issue_refresh_token("user-1", None, 3600).unwrap();
+        let (token, _fam) = issuer.issue_refresh_token("user-1", 9, None, 3600).unwrap();
         let info = decode(&public_pem, &token).expect("decode");
-        assert!(info.purpose.is_none(), "legacy refresh token 无 purpose");
+        let (rotated, _fam2) = issuer
+            .issue_refresh_token(&info.sub, info.tid, info.purpose.as_deref(), 3600)
+            .unwrap();
+        let rotated_info = decode(&public_pem, &rotated).expect("decode rotated");
+        assert_eq!(rotated_info.tid, info.tid, "轮换后租户绑定不得丢失");
+        assert!(rotated_info.purpose.is_none(), "purpose=None 轮换后保持 legacy 语义");
     }
 }

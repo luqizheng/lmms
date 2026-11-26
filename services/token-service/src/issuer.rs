@@ -143,9 +143,14 @@ impl TokenIssuer {
         Ok(token)
     }
 
+    /// `tid` is mandatory (WP-LMMS-REFRESH-TID-01): every refresh token is
+    /// bound to the verified tenant at issuance and carries it through
+    /// rotation. Refresh-side decode rejects tokens without it — no default
+    /// tenant fallback, no legacy compatibility path.
     pub fn issue_refresh_token(
         &self,
         sub: &str,
+        tid: i64,
         purpose: Option<&str>,
         ttl_sec: i64,
     ) -> Result<(String, String), Box<dyn std::error::Error>> {
@@ -161,6 +166,7 @@ impl TokenIssuer {
             "scope".to_string(),
             serde_json::Value::String("refresh".to_string()),
         );
+        custom.insert("tid".to_string(), serde_json::Value::from(tid));
         custom.insert(
             "family".to_string(),
             serde_json::Value::String(family.clone()),

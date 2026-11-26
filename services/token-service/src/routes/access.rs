@@ -252,14 +252,28 @@ async fn handle_authorization_code(
             // failed with 400 due to the missing tenant_id), letting an
             // attacker who could disrupt iam reachability mint a privileged
             // token from a valid auth code.
+            // WP-LMMS-REFRESH-TID-01: a refresh token cannot be minted without
+            // a verified tenant binding, so unreachability now fails the whole
+            // issuance instead of returning a tenant-less refresh token.
             tracing::warn!(
-                    "user-service unreachable at {}: {}, issuing authorization_code token with empty permissions",
+                    "user-service unreachable at {}: {}, refusing authorization_code issuance (fail-closed)",
                     claims_url,
                     e
                 );
-            json!({"permissions": [], "user_code": user_id})
+            return Err((StatusCode::SERVICE_UNAVAILABLE, "user_service_unreachable"));
         }
     };
+
+    // WP-LMMS-REFRESH-TID-01: the tenant binding for the refresh token comes
+    // from iam's authoritative response (resolved against the user row).
+    // Missing/malformed tenant_id → fail the issuance, never guess.
+    let tenant_id = extra_claims
+        .get("tenant_id")
+        .and_then(|v| v.as_i64())
+        .ok_or((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "user service returned no tenant_id",
+        ))?;
 
     let issuer = &state.issuer;
     let at = issuer
@@ -275,6 +289,7 @@ async fn handle_authorization_code(
     let (rt, _family) = issuer
         .issue_refresh_token(
             &user_id,
+            tenant_id,
             Some(crate::issuer::purpose::AUTH_CODE),
             client.refresh_token_ttl_sec,
         )

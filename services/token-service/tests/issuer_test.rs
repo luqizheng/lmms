@@ -134,6 +134,7 @@ fn issue_refresh_token_returns_unique_family() {
     let (token1, fam1) = issuer
         .issue_refresh_token(
             "user-1",
+            7,
             Some(token_service::issuer::purpose::AUTH_CODE),
             86400,
         )
@@ -141,11 +142,14 @@ fn issue_refresh_token_returns_unique_family() {
     let (token2, fam2) = issuer
         .issue_refresh_token(
             "user-1",
+            7,
             Some(token_service::issuer::purpose::AUTH_CODE),
             86400,
         )
         .unwrap();
-    let (legacy, _fam3) = issuer.issue_refresh_token("user-1", None, 86400).unwrap();
+    let (legacy, _fam3) = issuer
+        .issue_refresh_token("user-1", 7, None, 86400)
+        .unwrap();
     assert_ne!(fam1, fam2, "每次签发 family 必须独立");
 
     let c1 = verify(&token1, &public_pem);
@@ -160,8 +164,9 @@ fn issue_refresh_token_returns_unique_family() {
         "refresh token 必须携带通道供刷新继承"
     );
     assert_eq!(
-        c1.custom.get("family").and_then(|v| v.as_str()),
-        Some(fam1.as_str())
+        c1.custom.get("tid").and_then(|v| v.as_i64()),
+        Some(7),
+        "refresh token 必须携带签发时的租户绑定（WP-LMMS-REFRESH-TID-01）"
     );
     assert_eq!(
         c2.custom.get("family").and_then(|v| v.as_str()),
@@ -174,6 +179,27 @@ fn issue_refresh_token_returns_unique_family() {
         !c_legacy.custom.contains_key("purpose"),
         "purpose=None 的 refresh token 不得写入该键"
     );
+    assert_eq!(
+        c_legacy.custom.get("tid").and_then(|v| v.as_i64()),
+        Some(7),
+        "legacy 通道（purpose 缺省）同样必须携带 tid"
+    );
+}
+
+#[test]
+fn issue_refresh_token_tids_differ_per_tenant() {
+    // WP-LMMS-REFRESH-TID-01: 同一用户在不同租户签发的 RT，tid 必须忠实区分。
+    let (issuer, public_pem) = build_issuer();
+    let (token_a, _) = issuer
+        .issue_refresh_token("user-1", 1, Some(token_service::issuer::purpose::AUTH_CODE), 86400)
+        .unwrap();
+    let (token_b, _) = issuer
+        .issue_refresh_token("user-1", 2, Some(token_service::issuer::purpose::AUTH_CODE), 86400)
+        .unwrap();
+    let ca = verify(&token_a, &public_pem);
+    let cb = verify(&token_b, &public_pem);
+    assert_eq!(ca.custom.get("tid").and_then(|v| v.as_i64()), Some(1));
+    assert_eq!(cb.custom.get("tid").and_then(|v| v.as_i64()), Some(2));
 }
 
 #[test]
