@@ -135,7 +135,7 @@ docker run -p 4000:4000 token-service:latest
 | POST | /api/tokens/access | 获取 Access Token |
 | POST | /api/tokens/refresh | 刷新 Token |
 | POST | /api/tokens/revoke | 撤销 Token |
-| POST | /api/tokens/resource | 获取 Resource Token |
+| POST | /api/tokens/resource | 获取 Resource Token（service-jwt 鉴权） |
 | GET | /api/tokens/.well-known/jwks.json | JWKS |
 | GET | /.well-known/jwks.json | JWKS（别名） |
 | POST | /api/api-keys | 创建 API Key |

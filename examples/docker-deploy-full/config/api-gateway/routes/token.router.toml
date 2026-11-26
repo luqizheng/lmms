@@ -16,11 +16,12 @@ downstream = "/tokens/revoke"
 service    = "token-service"
 public     = true
 
+# WP-LMMS-HARDEN-01-R1：resource token 签发不再公开——网关要求有效 JWT，
+# token-service 侧进一步要求 service-jwt（aud=token-service）。
 [[route]]
 upstream   = "/v1/tokens/resource"
 downstream = "/tokens/resource"
 service    = "token-service"
-public     = true
 
 [[route]]
 upstream   = "/v1/tokens/user-jwt"
