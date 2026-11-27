@@ -12,6 +12,7 @@
 use crate::db::{is_duplicate_key, DbPool};
 use digua_common_db::{
     db_execute, db_fetch_all, db_fetch_optional, db_fetch_scalar, db_qb_fetch_all, db_qb_fetch_one,
+    db_tx_execute, db_tx_fetch_optional, Transaction,
 };
 
 /// 内置系统授权（code-owned，版本控制）。
@@ -352,6 +353,132 @@ pub async fn delete_grant(pool: &DbPool, owner: &str, audience: &str) -> Result<
         audience
     )?;
     Ok(affected)
+}
+
+// ── 事务内执行（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 P1-02）────────────────
+//
+// 业务变更与成功审计必须同事务提交：任何一步失败整体回滚，不出现
+// "业务已变更但审计缺失"。读走 `FOR UPDATE` 行锁（双方言语法一致），
+// 把先查后改的 TOCTOU 窗口交给行锁闭合；system_managed 保护仍由
+// 条件 UPDATE / DELETE 在 SQL 内原子兜底。
+
+/// 事务内按主体+audience 取单行，`FOR UPDATE` 行锁至事务结束。
+/// 供 set_status / delete 在变更前锁定目标行并读取 before 状态。
+pub async fn find_by_owner_and_audience_for_update(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+) -> Result<Option<ServiceJwtGrantRow>, sqlx::Error> {
+    let row: Option<ServiceJwtGrantRow> = db_tx_fetch_optional!(
+        tx,
+        ServiceJwtGrantRow,
+        "SELECT owner, audience, status, system_managed, created_at, updated_at \
+         FROM token_service_jwt_grants WHERE owner = ? AND audience = ? FOR UPDATE",
+        owner,
+        audience
+    )?;
+    Ok(row)
+}
+
+/// 事务内新建 grant（`active`, `system_managed=false`）。
+///
+/// 唯一主键兜底并发：两个事务并发 INSERT 相同 `(owner, audience)` 时，
+/// 后者阻塞至前者提交 / 回滚——前者提交则后者报唯一键冲突映射
+/// `Duplicate`（调用方回滚 → 409），前者回滚则后者正常插入。
+/// 与池级 [`create_grant`] 的先查后插不同，事务内无需预查（冲突即真相，
+/// 且预查在 READ COMMITTED / REPEATABLE READ 下都有竞态窗口）。
+pub async fn create_grant_tx(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+) -> Result<CreateOutcome, sqlx::Error> {
+    let res = db_tx_execute!(
+        tx,
+        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed) \
+         VALUES (?, ?, 'active', FALSE)",
+        owner,
+        audience
+    );
+    match res {
+        Ok(_) => Ok(CreateOutcome::Inserted),
+        Err(ref e) if is_duplicate_key(e) => Ok(CreateOutcome::Duplicate),
+        Err(e) => Err(e),
+    }
+}
+
+/// 事务内启用 / 禁用。条件 UPDATE 与池级 [`set_grant_status`] 相同
+///（`AND status <> ? AND system_managed = FALSE`）：调用方已在 FOR UPDATE
+/// 锁下做过判定，此处条件仍原子兜底。返回受影响行数（0 = 未命中，
+/// 调用方回滚并按异常处理）。
+pub async fn set_grant_status_tx(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+    status: &str,
+) -> Result<u64, sqlx::Error> {
+    let affected = db_tx_execute!(
+        tx,
+        "UPDATE token_service_jwt_grants SET status = ?, updated_at = ? \
+         WHERE owner = ? AND audience = ? AND status <> ? AND system_managed = FALSE",
+        status,
+        chrono::Utc::now(),
+        owner,
+        audience,
+        status
+    )?;
+    Ok(affected)
+}
+
+/// 事务内删除 grant。条件 DELETE 与池级 [`delete_grant`] 相同
+///（`AND system_managed = FALSE`）。返回受影响行数。
+pub async fn delete_grant_tx(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+) -> Result<u64, sqlx::Error> {
+    let affected = db_tx_execute!(
+        tx,
+        "DELETE FROM token_service_jwt_grants \
+         WHERE owner = ? AND audience = ? AND system_managed = FALSE",
+        owner,
+        audience
+    )?;
+    Ok(affected)
+}
+
+/// 事务内写一行审计（append-only）。与业务变更同事务：审计失败 →
+/// 调用方回滚业务变更（P1-02 原子性契约）。
+#[allow(clippy::too_many_arguments)]
+pub async fn record_audit_tx(
+    tx: &mut Transaction<'_>,
+    actor: &Actor,
+    owner: &str,
+    audience: &str,
+    action: AuditAction,
+    before: Option<&str>,
+    after: Option<&str>,
+    request_id: &str,
+    result: &str,
+    detail: &str,
+) -> Result<(), sqlx::Error> {
+    db_tx_execute!(
+        tx,
+        "INSERT INTO token_service_jwt_grant_audit \
+         (actor_id, actor_type, owner, audience, action, before_status, after_status, \
+          request_id, result, detail) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        actor.actor_id(),
+        actor.actor_type(),
+        owner,
+        audience,
+        action.as_str(),
+        before,
+        after,
+        request_id,
+        result,
+        detail
+    )?;
+    Ok(())
 }
 
 // ── 审计（append-only 本地表，V006）─────────────────────────────────────────

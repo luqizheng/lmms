@@ -316,7 +316,7 @@ paths:
     get:
       tags:
       - service-jwt-grant
-      summary: List service JWT audience grants (requires service-jwt, aud=token-service)
+      summary: List service JWT audience grants (service-jwt aud=token-service + grant admin list)
       operationId: handle_list
       parameters:
       - name: owner
@@ -374,12 +374,14 @@ paths:
           description: bad request (paging / status)
         '401':
           description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list (TOKEN_SERVICE_JWT_GRANT_ADMINS)
       security:
       - bearer_auth: []
     post:
       tags:
       - service-jwt-grant
-      summary: Create a service JWT audience grant
+      summary: Create a service JWT audience grant (requires grant admin)
       operationId: handle_create
       requestBody:
         content:
@@ -398,6 +400,8 @@ paths:
           description: invalid owner/audience
         '401':
           description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
         '409':
           description: grant already exists
       security:
@@ -406,7 +410,7 @@ paths:
     get:
       tags:
       - service-jwt-grant
-      summary: Get one service JWT audience grant
+      summary: Get one service JWT audience grant (requires grant admin)
       operationId: handle_get
       parameters:
       - name: owner
@@ -430,6 +434,8 @@ paths:
           description: invalid path params
         '401':
           description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
         '404':
           description: not found
       security:
@@ -437,7 +443,7 @@ paths:
     delete:
       tags:
       - service-jwt-grant
-      summary: Delete a service JWT audience grant
+      summary: Delete a service JWT audience grant (requires grant admin)
       operationId: handle_delete
       parameters:
       - name: owner
@@ -457,6 +463,8 @@ paths:
           description: invalid path params
         '401':
           description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
         '404':
           description: not found
         '409':
@@ -467,7 +475,7 @@ paths:
     put:
       tags:
       - service-jwt-grant
-      summary: Enable or disable a service JWT audience grant
+      summary: Enable or disable a service JWT audience grant (requires grant admin)
       operationId: handle_set_status
       parameters:
       - name: owner
@@ -497,6 +505,8 @@ paths:
           description: bad request (status / path params)
         '401':
           description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
         '404':
           description: not found
         '409':

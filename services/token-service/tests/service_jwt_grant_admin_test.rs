@@ -15,18 +15,29 @@ use axum::{
     body::Body,
     http::{header, Request, StatusCode},
 };
-use digua_common_db::{db_execute, db_fetch_all, db_fetch_optional};
+use digua_common_db::{db_execute, db_fetch_all, db_fetch_one, db_fetch_optional};
 use digua_common_jwt::verify_token;
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
 mod common;
 
-use common::{build_state, TEST_PRIVATE_PEM, TEST_PUBLIC_PEM};
+use common::{build_state, build_state_with_admins, TEST_PRIVATE_PEM, TEST_PUBLIC_PEM};
 
 // ── scaffolding ──────────────────────────────────────────────────────────────
 
 fn admin_app(pool: &token_service::db::DbPool) -> axum::Router {
+    // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 (P1-01)：service 入口需要
+    // grant 管理员清单放行——现有测试的管理主体是 token-service
+    //（admin_bearer 的 sub）。
+    token_service::routes::service_jwt_grant_admin::routes(build_state_with_admins(
+        pool.clone(),
+        vec!["token-service"],
+    ))
+}
+
+/// P1-01 fail-closed 对照 app：管理员清单为空 → 任何 service-jwt 都 403。
+fn admin_app_no_admins(pool: &token_service::db::DbPool) -> axum::Router {
     token_service::routes::service_jwt_grant_admin::routes(build_state(pool.clone()))
 }
 
@@ -48,6 +59,28 @@ fn admin_bearer() -> String {
 fn wrong_aud_bearer() -> String {
     token_service::mint_service_bearer(TEST_PRIVATE_PEM, "file-service", 3600)
         .expect("mint service bearer")
+}
+
+/// 签 aud=token-service、sub=<subject> 的 service-jwt——模拟"拥有
+/// token-service 访问授权的普通业务服务"的出站凭证（P1-01 测试用）。
+fn service_jwt_with_subject(subject: &str) -> String {
+    let now = chrono::Utc::now().timestamp();
+    let claims = json!({
+        "iss": "test-issuer",
+        "sub": subject,
+        "aud": "token-service",
+        "tid": 0,
+        "iat": now,
+        "exp": now + 3600,
+        "roles": ["service"],
+    });
+    digua_common_jwt::sign_token_with_kid(
+        TEST_PRIVATE_PEM,
+        "default",
+        &claims,
+        std::time::Duration::from_secs(3600),
+    )
+    .expect("sign service jwt with subject")
 }
 
 /// 签带指定权限码的 user-jwt（web 入口）。
@@ -122,6 +155,16 @@ async fn audit_count(pool: &token_service::db::DbPool) -> i64 {
     row.map(|(c,)| c).unwrap_or(0)
 }
 
+async fn grant_count(pool: &token_service::db::DbPool) -> i64 {
+    let row: Option<(i64,)> = db_fetch_optional!(
+        pool,
+        (i64,),
+        "SELECT COUNT(*) FROM token_service_jwt_grants"
+    )
+    .expect("count grants");
+    row.map(|(c,)| c).unwrap_or(0)
+}
+
 // ── service 入口鉴权 ─────────────────────────────────────────────────────────
 
 #[tokio::test]
@@ -156,6 +199,244 @@ async fn service_entry_rejects_wrong_audience_jwt() {
         0,
         "auth rejection must not be audited"
     );
+}
+
+// ── P1-01（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02）：service 入口管理权限边界 ──
+//
+// `aud=token-service` 只证明"有权访问 token-service"，管理 grant 是独立的
+// 更高级权限：验签后的 JWT `sub` 必须命中 TOKEN_SERVICE_JWT_GRANT_ADMINS。
+
+#[tokio::test]
+async fn non_admin_service_jwt_is_denied_on_every_admin_route() {
+    let pool = crate::common::spawn_mysql().await;
+    // 预置一条普通 grant 作为"目标"，验证拒绝后业务数据零变更。
+    insert_grant_raw(&pool, "svc-a", "iam-service", "active", false).await;
+    let grants_before = grant_count(&pool).await;
+    let audit_before = audit_count(&pool).await;
+
+    let app = admin_app(&pool);
+    let bearer = service_jwt_with_subject("payment-service"); // aud=token-service，不在管理员清单
+
+    let cases: [(&str, &str, Option<serde_json::Value>); 5] = [
+        ("GET", "/admin/service-jwt-grants", None),
+        ("GET", "/admin/service-jwt-grants/svc-a/iam-service", None),
+        (
+            "POST",
+            "/admin/service-jwt-grants",
+            Some(json!({"owner": "payment-service", "audience": "audit-service"})),
+        ),
+        (
+            "PUT",
+            "/admin/service-jwt-grants/svc-a/iam-service/status",
+            Some(json!({"status": "disabled"})),
+        ),
+        (
+            "DELETE",
+            "/admin/service-jwt-grants/svc-a/iam-service",
+            None,
+        ),
+    ];
+    for (method, uri, body) in cases {
+        let resp = app
+            .clone()
+            .oneshot(req(method, uri, Some(&bearer), body))
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "{method} {uri} must be denied for a plain service-jwt (aud ok, not an admin)"
+        );
+    }
+
+    // 拒绝零业务变更：grant 总数不变、目标行状态不变。
+    assert_eq!(
+        grant_count(&pool).await,
+        grants_before,
+        "denied requests must not create grants"
+    );
+    let status: (String,) = db_fetch_one!(
+        &pool,
+        (String,),
+        "SELECT status FROM token_service_jwt_grants WHERE owner = 'svc-a' AND audience = 'iam-service'"
+    )
+    .expect("target grant still there");
+    assert_eq!(status.0, "active", "denied PUT must not change status");
+
+    // 变更类（create/update/delete）各落一行 denied 审计；查询类不落。
+    // 无 success 行——拒绝不得产生成功审计。
+    let rows: Vec<(String, String, String)> = db_fetch_all!(
+        &pool,
+        (String, String, String),
+        "SELECT action, result, detail FROM token_service_jwt_grant_audit \
+         WHERE actor_id = 'payment-service'"
+    )
+    .expect("query denied audits");
+    let mut actions: Vec<&str> = rows.iter().map(|(a, _, _)| a.as_str()).collect();
+    actions.sort_unstable();
+    assert_eq!(
+        actions,
+        vec!["create", "delete", "update"],
+        "one denied audit per mutating route"
+    );
+    for (_, result, detail) in &rows {
+        assert_eq!(result, "denied");
+        assert_eq!(detail, "permission denied");
+    }
+    let success = db_fetch_optional!(
+        &pool,
+        (i64,),
+        "SELECT COUNT(*) FROM token_service_jwt_grant_audit WHERE result = 'success'"
+    )
+    .expect("count success audits");
+    assert_eq!(
+        success.map(|(c,)| c).unwrap_or(0),
+        0,
+        "no success audit may exist"
+    );
+    // 审计总行数 = 变更类拒绝的 3 行（查询类拒绝不落审计）。
+    assert_eq!(
+        audit_count(&pool).await,
+        audit_before + 3,
+        "exactly the three mutating denials are audited"
+    );
+}
+
+#[tokio::test]
+async fn changing_request_params_cannot_escalate_service_jwt() {
+    let pool = crate::common::spawn_mysql().await;
+    // 预置高价值目标：系统授权行 + 普通 grant。
+    insert_grant_raw(&pool, "iam-service", "token-service", "active", true).await;
+    insert_grant_raw(&pool, "file-service", "iam-service", "active", false).await;
+
+    let app = admin_app(&pool);
+    let bearer = service_jwt_with_subject("payment-service");
+
+    // 改 owner / audience 指向已有行（含 system_managed 系统授权）也不越权：
+    // 权限只取决于调用者身份（JWT sub），与请求参数无关。
+    for (method, uri, body) in [
+        (
+            "GET",
+            "/admin/service-jwt-grants/iam-service/token-service",
+            None,
+        ),
+        (
+            "PUT",
+            "/admin/service-jwt-grants/iam-service/token-service/status",
+            Some(json!({"status": "disabled"})),
+        ),
+        (
+            "DELETE",
+            "/admin/service-jwt-grants/file-service/iam-service",
+            None,
+        ),
+        (
+            "POST",
+            "/admin/service-jwt-grants",
+            Some(json!({"owner": "iam-service", "audience": "iam-service"})),
+        ),
+    ] {
+        let resp = app
+            .clone()
+            .oneshot(req(method, uri, Some(&bearer), body))
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "{method} {uri}: params must not affect the permission decision"
+        );
+    }
+    // 两行目标数据都原样保留。
+    let rows: Vec<(String, String)> = db_fetch_all!(
+        &pool,
+        (String, String),
+        "SELECT owner, status FROM token_service_jwt_grants"
+    )
+    .expect("query grants");
+    assert_eq!(rows.len(), 2, "no grant may be created or deleted");
+    for (owner, status) in &rows {
+        assert_eq!(status, "active", "owner {owner} must keep status");
+    }
+}
+
+#[tokio::test]
+async fn empty_admin_list_is_fail_closed() {
+    let pool = crate::common::spawn_mysql().await;
+    let app = admin_app_no_admins(&pool);
+    // 即便 sub=token-service（历史默认管理主体），清单为空也必须全拒。
+    let resp = app
+        .clone()
+        .oneshot(req(
+            "GET",
+            "/admin/service-jwt-grants",
+            Some(&admin_bearer()),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+
+    let resp = app
+        .clone()
+        .oneshot(req(
+            "DELETE",
+            "/admin/service-jwt-grants/iam-service/token-service",
+            Some(&admin_bearer()),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn grant_admin_list_canonicalizes_grace_suffix() {
+    let pool = crate::common::spawn_mysql().await;
+    // 清单项带宽限期 `#old` 后缀：与 sub=token-service（canonical）仍匹配。
+    let app = token_service::routes::service_jwt_grant_admin::routes(build_state_with_admins(
+        pool.clone(),
+        vec!["token-service#old"],
+    ));
+    let resp = app
+        .oneshot(req(
+            "GET",
+            "/admin/service-jwt-grants",
+            Some(&admin_bearer()),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn admin_subject_still_operates_after_p1_fix() {
+    // 放行半边：清单内主体（sub=token-service）可完成 CRUD（放行语义
+    // 由 service_entry_full_crud_flow_with_audit 全量覆盖，这里只快速
+    // 断言 5 条路由的准入头一条 + 关键写路径）。
+    let pool = crate::common::spawn_mysql().await;
+    let app = admin_app(&pool);
+    let bearer = admin_bearer();
+    let resp = app
+        .clone()
+        .oneshot(req("GET", "/admin/service-jwt-grants", Some(&bearer), None))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let resp = app
+        .clone()
+        .oneshot(req(
+            "POST",
+            "/admin/service-jwt-grants",
+            Some(&bearer),
+            Some(json!({"owner": "admin-ok", "audience": "iam-service"})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = json_body(resp).await;
+    assert_eq!(body["owner"], "admin-ok");
 }
 
 // ── web 入口鉴权 ─────────────────────────────────────────────────────────────

@@ -109,6 +109,12 @@ pub struct TokenServerState {
     pub keys: Arc<std::sync::RwLock<crate::keystore::KeyStore>>,
     /// Phase 5-B: JWKS cache for verifying inbound tokens.
     pub jwks: Arc<digua_common_jwt::JWKSCache>,
+    /// WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 (P1-01): 可调用
+    /// `/admin/service-jwt-grants*` 管理面的 service-jwt 主体清单
+    /// （canonical bootstrap owner）。来自 `TOKEN_SERVICE_JWT_GRANT_ADMINS`
+    /// / yaml `service_jwt_grant_admins`；**空 = fail-closed**（任何
+    /// service-jwt 都被 403），不因缺配置而放权。
+    pub service_jwt_grant_admins: Arc<Vec<String>>,
 }
 
 impl TokenServerState {
@@ -121,6 +127,16 @@ impl TokenServerState {
             .active()
             .private_pem
             .clone()
+    }
+
+    /// P1-01：判定 service-jwt 主体（验签后的 `sub`，即 canonical bootstrap
+    /// owner）是否具备 grant 管理权限。清单比对前双方都做 canonical 归一
+    ///（strip 宽限期 `#old` 后缀），宽限 token 与正式 token 等价。
+    pub fn is_service_jwt_grant_admin(&self, subject: &str) -> bool {
+        let canonical = crate::models::service_jwt_grant::canonical_owner(subject);
+        self.service_jwt_grant_admins
+            .iter()
+            .any(|a| crate::models::service_jwt_grant::canonical_owner(a) == canonical)
     }
 }
 

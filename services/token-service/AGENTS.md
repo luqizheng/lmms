@@ -45,6 +45,7 @@
 | RUST_LOG | info | 日志级别 |
 | SERVICE_BOOTSTRAP_TOKENS | 空 | 各业务服务的逗号分隔 bootstrap token。**可选**——与 OWNERS 都为空时回退到内置 dev 默认值（`models::bootstrap_token::DEFAULT_DEV_BOOTSTRAP`） |
 | SERVICE_BOOTSTRAP_OWNERS | 空 | 与 SERVICE_BOOTSTRAP_TOKENS 等长、顺序一一对应的服务名。seed 时写入 `token_bootstrap_tokens.owner`，JWT 的 `sub` 即该值。**长度不一致或缺失 → token-service 拒绝启动**（fail-closed，不回退 dev 默认值） |
+| TOKEN_SERVICE_JWT_GRANT_ADMINS | 空 | 可调用 `/admin/service-jwt-grants*` 管理面的 **service-jwt 主体清单**（canonical bootstrap owner，逗号分隔，`#old` 归一）。**空 = fail-closed**：任何 service-jwt 调管理面都 403（Web UI 的 user-jwt + 权限码入口不受影响）。WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 P1-01 |
 
 ## 端点域
 
@@ -70,9 +71,15 @@
 | /v1/admin/bootstrap-tokens/{owner} | GET / DELETE | Web UI 用：查单条 / 删除（权限码 `_READ` / `_DELETE`） |
 | /v1/admin/bootstrap-tokens/{owner}/rotate | POST | Web UI 用：换新 token（body `{"grace_period_sec":N}`，权限码 `_UPDATE`） |
 | /v1/admin/bootstrap-tokens/{owner}/status | PUT | Web UI 用：启用 / 禁用（body `{"status":"active\|disabled"}`，权限码 `_UPDATE`） |
-| /admin/service-jwt-grants | POST / GET | audience grant 新建（重复 409）/ 分页查询（owner/audience/status 过滤；service-jwt 准入） |
-| /admin/service-jwt-grants/{owner}/{audience} | GET / DELETE | 查单条 / 删除（system_managed 行 409；service-jwt 准入） |
-| /admin/service-jwt-grants/{owner}/{audience}/status | PUT | 启用 / 禁用（`{"status":"active\|disabled"}`；service-jwt 准入） |
+| /admin/service-jwt-grants | POST / GET | audience grant 新建（重复 409）/ 分页查询（owner/audience/status 过滤；service-jwt 准入 + **grant 管理员清单** `TOKEN_SERVICE_JWT_GRANT_ADMINS`，非清单主体 403） |
+| /admin/service-jwt-grants/{owner}/{audience} | GET / DELETE | 查单条 / 删除（system_managed 行 409；service-jwt 准入 + grant 管理员清单） |
+| /admin/service-jwt-grants/{owner}/{audience}/status | PUT | 启用 / 禁用（`{"status":"active\|disabled"}`；service-jwt 准入 + grant 管理员清单） |
+
+> WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 (P1-01/P1-02)：service 入口不再仅凭
+> `aud=token-service` 放行——JWT `sub`（canonical bootstrap owner）必须命中
+> env `TOKEN_SERVICE_JWT_GRANT_ADMINS` / yaml `service_jwt_grant_admins`
+>（逗号分隔，**空 = fail-closed 全拒**）。所有变更操作与 success 审计
+> **同事务提交**（`DbPool::begin` + `db_tx_*!`）：审计失败 → 业务回滚 → 500。
 | /v1/admin/service-jwt-grants | POST / GET | **Web UI 用**：新建 / 分页查询（user-jwt + 权限码 `TOKEN_SERVICE_JWT_GRANT_*`） |
 | /v1/admin/service-jwt-grants/{owner}/{audience} | GET / DELETE | Web UI 用：查单条 / 删除（system_managed 行 409） |
 | /v1/admin/service-jwt-grants/{owner}/{audience}/status | PUT | Web UI 用：启用 / 禁用（权限码 `_UPDATE`） |

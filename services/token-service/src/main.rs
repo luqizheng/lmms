@@ -176,6 +176,7 @@ async fn main() {
         user_service_url: cfg.user_service_url.clone(),
         keys: Arc::new(std::sync::RwLock::new(keystore)),
         jwks: jwks_cache,
+        service_jwt_grant_admins: Arc::new(cfg.service_jwt_grant_admins.clone()),
     };
 
     async fn metrics() -> axum::response::Html<String> {

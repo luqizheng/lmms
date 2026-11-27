@@ -7,17 +7,25 @@
 //!
 //! | 路由 | 鉴权 | 用途 |
 //! |---|---|---|
-//! | `/admin/service-jwt-grants*` | service-jwt（`aud=token-service`） | CI / 运维程序 |
+//! | `/admin/service-jwt-grants*` | service-jwt（`aud=token-service`）+ **grant 管理员清单** | CI / 运维程序 |
 //! | `/v1/admin/service-jwt-grants*`（见 `service_jwt_grant_web.rs`） | user-jwt + 权限码 | Web UI |
 //!
-//! 与 `/admin/bootstrap-tokens*`（凭据发放面）同级安全：本面控制"谁能给自己
-//! 签发哪个 audience 的 service-jwt"，故 service 入口必须验签 + aud 强制
-//! `token-service`，普通业务服务不能仅凭自己的业务 JWT 进来。
+//! ⚠️ P1-01（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02）：service 入口**不再**
+//! 仅凭 `aud=token-service` 放行——`aud` 中间件只证明"有权访问
+//! token-service"，管理 grant 是独立的更高级权限。每个 handler 在任何业务
+//! 读写之前执行 [`require_grant_admin`]：验签后的 JWT `sub`（canonical
+//! bootstrap owner，客户端不可伪造）必须命中 `TOKEN_SERVICE_JWT_GRANT_ADMINS`
+//! 部署清单（空清单 = fail-closed 全拒）。清单缺失/不含该主体 → 403，
+//! 变更类另记一行 best-effort denied 审计。请求体 / 路径参数
+//!（owner、audience）只是操作目标，不参与权限判定。Web UI 的 user-jwt +
+//! 权限码入口不受影响。
 //!
-//! 每个变更操作写一行审计（`token_service_jwt_grant_audit`，append-only）；
-//! 审计写入失败 → 500（fail-closed：不留审计的变更视为失败）。审计与变更
-//! 非同事务（`db_*!` 宏不支持事务 executor）——审计失败时变更已生效，重试
-//! 会得到 409/404 的幂等结果。
+//! P1-02：每个变更操作与其 success 审计行**同一事务提交**
+//!（`DbPool::begin` + `db_tx_*!` 宏）：审计失败 → 业务变更整体回滚 → 500，
+//! 数据库不留"已变更但无审计"的状态。读走 `FOR UPDATE` 行锁闭合
+//! 先查后改窗口；system_managed 保护仍由条件 UPDATE / DELETE 在 SQL 内
+//! 原子兜底。denied / 404 / 权限拒绝路径无业务变更，审计 best-effort
+//!（失败只 log），语义与 ADMIN-01 一致。
 
 use crate::models::service_jwt_grant as grant;
 use crate::models::service_jwt_grant::{Actor, CreateOutcome};
@@ -25,12 +33,47 @@ use crate::TokenServerState;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
+use digua_common_db::Transaction;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 fn internal(e: sqlx::Error) -> (StatusCode, &'static str) {
     tracing::error!(error = %e, "service jwt grant admin op failed");
     (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
+}
+
+/// 显式回滚事务（错误仅 log——drop 未提交事务时 sqlx 连接层还会兜底回滚）。
+async fn rollback_quiet(tx: Transaction<'_>) {
+    if let Err(rb) = tx.rollback().await {
+        tracing::error!(error = %rb, "grant tx explicit rollback failed; relying on drop-rollback");
+    }
+}
+
+/// 回滚事务并把业务 SQL 错误映射 500。
+async fn rollback_internal(tx: Transaction<'_>, e: sqlx::Error) -> (StatusCode, &'static str) {
+    rollback_quiet(tx).await;
+    internal(e)
+}
+
+/// P1-01：service-jwt 管理面权限门。**必须在任何业务读写 / 审计之前调用**。
+///
+/// - 身份来源：验签后的 service-jwt `sub`（token-service 签发时从 DB
+///   bootstrap owner 写入，RS256 + aud 中间件保护，客户端不可伪造）；
+/// - 权限来源：`TOKEN_SERVICE_JWT_GRANT_ADMINS` 部署清单（空 = 全拒）；
+/// - 请求体 / 路径参数（owner、audience、status）只是操作目标，
+///   **不参与**判定，改参数无法越权。
+fn require_grant_admin(
+    state: &TokenServerState,
+    principal: &digua_jwt_ctx::Principal,
+) -> Result<(), (StatusCode, &'static str)> {
+    if state.is_service_jwt_grant_admin(&principal.user_id) {
+        return Ok(());
+    }
+    tracing::warn!(
+        subject = %principal.user_id,
+        "service-jwt grant admin denied: subject not in TOKEN_SERVICE_JWT_GRANT_ADMINS"
+    );
+    Err((StatusCode::FORBIDDEN, "grant admin permission denied"))
 }
 
 /// 分页默认值与上限：size 缺省 20，最大 100（防超大查询）；page 从 1 起。
@@ -176,6 +219,9 @@ pub mod ops {
     }
 
     /// 新建 grant（`active`, `system_managed=false`）。重复 → 409。
+    ///
+    /// P1-02：INSERT grant 与 success 审计**同事务**。审计失败 → 整体回滚
+    ///（grant 不存在）→ 500；并发 PK 冲突 → 回滚 → 409。
     pub async fn create(
         db: &crate::db::DbPool,
         req: &CreateServiceJwtGrantRequest,
@@ -183,25 +229,28 @@ pub mod ops {
         request_id: &str,
     ) -> Result<ServiceJwtGrantDto, (StatusCode, &'static str)> {
         validate_pair(&req.owner, &req.audience)?;
-        match grant::create_grant(db, &req.owner, &req.audience).await {
-            Ok(CreateOutcome::Inserted) => {}
-            Ok(CreateOutcome::Duplicate) => {
-                audit_best_effort_denied(
-                    db,
-                    actor,
-                    &req.owner,
-                    &req.audience,
-                    grant::AuditAction::Create,
-                    request_id,
-                    "duplicate",
-                )
-                .await;
-                return Err((StatusCode::CONFLICT, "grant already exists"));
-            }
-            Err(e) => return Err(internal(e)),
+        let mut tx = db.begin().await.map_err(internal)?;
+        let outcome = match grant::create_grant_tx(&mut tx, &req.owner, &req.audience).await {
+            Ok(o) => o,
+            Err(e) => return Err(rollback_internal(tx, e).await),
+        };
+        if outcome == CreateOutcome::Duplicate {
+            // 已存在（含并发双插判负）：回滚后 best-effort 记 denied 审计。
+            rollback_quiet(tx).await;
+            audit_best_effort_denied(
+                db,
+                actor,
+                &req.owner,
+                &req.audience,
+                grant::AuditAction::Create,
+                request_id,
+                "duplicate",
+            )
+            .await;
+            return Err((StatusCode::CONFLICT, "grant already exists"));
         }
-        write_audit(
-            db,
+        if let Err(e) = grant::record_audit_tx(
+            &mut tx,
             actor,
             &req.owner,
             &req.audience,
@@ -212,7 +261,13 @@ pub mod ops {
             "success",
             "grant created",
         )
-        .await?;
+        .await
+        {
+            tracing::error!(error = %e, "grant audit write failed; rolling back grant INSERT");
+            rollback_quiet(tx).await;
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "audit write failed"));
+        }
+        tx.commit().await.map_err(internal)?;
         let row = grant::find_by_owner_and_audience(db, &req.owner, &req.audience)
             .await
             .map_err(internal)?
@@ -222,8 +277,10 @@ pub mod ops {
 
     /// 启用 / 禁用。非法状态 400；行不存在 404；`system_managed` 行 409。
     ///
-    /// 条件 UPDATE（`AND status <> ?`）防并发覆盖：两个并发 disable 只有一个
-    /// 真正写库，另一个拿到 `affected=0` 后按"已是目标状态"幂等返回。
+    /// P1-02：状态变更与 success 审计**同事务**（审计失败 → 回滚 → 500，
+    /// 状态保持原值）。目标行先 `SELECT ... FOR UPDATE` 行锁锁定——
+    /// before 判定（不存在 / system_managed / 已是目标状态）在锁下完成，
+    /// 并发请求在锁上串行化，不存在锁下 `affected=0` 的合法路径。
     pub async fn set_status(
         db: &crate::db::DbPool,
         owner: &str,
@@ -235,24 +292,30 @@ pub mod ops {
         validate_pair(owner, audience)?;
         let target = grant::parse_status(status)
             .ok_or((StatusCode::BAD_REQUEST, "status must be active|disabled"))?;
-        let before = match grant::find_by_owner_and_audience(db, owner, audience).await {
-            Ok(Some(row)) => row,
-            Ok(None) => {
-                audit_best_effort_denied(
-                    db,
-                    actor,
-                    owner,
-                    audience,
-                    status_action(target),
-                    request_id,
-                    "not found",
-                )
-                .await;
-                return Err((StatusCode::NOT_FOUND, "grant not found"));
-            }
-            Err(e) => return Err(internal(e)),
-        };
+        let mut tx = db.begin().await.map_err(internal)?;
+        let before =
+            match grant::find_by_owner_and_audience_for_update(&mut tx, owner, audience).await {
+                Ok(Some(row)) => row,
+                Ok(None) => {
+                    rollback_quiet(tx).await;
+                    audit_best_effort_denied(
+                        db,
+                        actor,
+                        owner,
+                        audience,
+                        status_action(target),
+                        request_id,
+                        "not found",
+                    )
+                    .await;
+                    return Err((StatusCode::NOT_FOUND, "grant not found"));
+                }
+                Err(e) => return Err(rollback_internal(tx, e).await),
+            };
         if before.system_managed {
+            // 行锁下判定：无并发窗口。回滚（无业务变更）后 fail-closed 记
+            // denied 审计（写失败 → 500，与 ADMIN-01 语义一致）。
+            rollback_quiet(tx).await;
             write_audit(
                 db,
                 actor,
@@ -272,58 +335,23 @@ pub mod ops {
             ));
         }
         if before.status == target {
-            // 幂等：已处于目标状态，直接返回当前行（不写"无操作"审计）。
+            // 幂等：已处于目标状态，无业务变更、无审计，直接返回当前行。
+            rollback_quiet(tx).await;
             return Ok(ServiceJwtGrantDto::from(before));
         }
-        let affected = grant::set_grant_status(db, owner, audience, target)
-            .await
-            .map_err(internal)?;
+        let affected = match grant::set_grant_status_tx(&mut tx, owner, audience, target).await {
+            Ok(n) => n,
+            Err(e) => return Err(rollback_internal(tx, e).await),
+        };
         if affected == 0 {
-            // 写 SQL 未命中。重查一次判定语义（R1-02：保护条件已在 SQL 内
-            // 原子生效，这里只做**结果**归类，不再承担保护职责）：
-            //   不存在 → 404；前置查询后被并发置为 system_managed → 409；
-            //   已处于目标状态 → 幂等返回。
-            let now_row = grant::find_by_owner_and_audience(db, owner, audience)
-                .await
-                .map_err(internal)?;
-            match now_row {
-                None => {
-                    audit_best_effort_denied(
-                        db,
-                        actor,
-                        owner,
-                        audience,
-                        status_action(target),
-                        request_id,
-                        "not found",
-                    )
-                    .await;
-                    return Err((StatusCode::NOT_FOUND, "grant not found"));
-                }
-                Some(r) if r.system_managed => {
-                    write_audit(
-                        db,
-                        actor,
-                        owner,
-                        audience,
-                        status_action(target),
-                        Some(&r.status),
-                        Some(&r.status),
-                        request_id,
-                        "denied",
-                        "system-managed grant is protected",
-                    )
-                    .await?;
-                    return Err((
-                        StatusCode::CONFLICT,
-                        "system-managed grant cannot be modified",
-                    ));
-                }
-                Some(r) => return Ok(ServiceJwtGrantDto::from(r)),
-            }
+            // 锁下不可达（before 已排除 system_managed / 同状态）——
+            // 视为内部一致性异常，fail-closed 回滚，不做幂等伪装。
+            tracing::error!("conditional grant UPDATE missed under FOR UPDATE lock; rolling back");
+            rollback_quiet(tx).await;
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "internal error"));
         }
-        write_audit(
-            db,
+        if let Err(e) = grant::record_audit_tx(
+            &mut tx,
             actor,
             owner,
             audience,
@@ -334,7 +362,13 @@ pub mod ops {
             "success",
             "status updated",
         )
-        .await?;
+        .await
+        {
+            tracing::error!(error = %e, "grant audit write failed; rolling back grant UPDATE");
+            rollback_quiet(tx).await;
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "audit write failed"));
+        }
+        tx.commit().await.map_err(internal)?;
         let row = grant::find_by_owner_and_audience(db, owner, audience)
             .await
             .map_err(internal)?
@@ -343,6 +377,9 @@ pub mod ops {
     }
 
     /// 删除 grant。行不存在/已删 404；`system_managed` 行 409（系统授权保护）。
+    ///
+    /// P1-02：DELETE 与 success 审计**同事务**（审计失败 → 回滚 → 500，
+    /// grant 保留）。
     pub async fn delete(
         db: &crate::db::DbPool,
         owner: &str,
@@ -351,24 +388,28 @@ pub mod ops {
         request_id: &str,
     ) -> Result<StatusCode, (StatusCode, &'static str)> {
         validate_pair(owner, audience)?;
-        let before = match grant::find_by_owner_and_audience(db, owner, audience).await {
-            Ok(Some(row)) => row,
-            Ok(None) => {
-                audit_best_effort_denied(
-                    db,
-                    actor,
-                    owner,
-                    audience,
-                    grant::AuditAction::Delete,
-                    request_id,
-                    "not found",
-                )
-                .await;
-                return Err((StatusCode::NOT_FOUND, "grant not found"));
-            }
-            Err(e) => return Err(internal(e)),
-        };
+        let mut tx = db.begin().await.map_err(internal)?;
+        let before =
+            match grant::find_by_owner_and_audience_for_update(&mut tx, owner, audience).await {
+                Ok(Some(row)) => row,
+                Ok(None) => {
+                    rollback_quiet(tx).await;
+                    audit_best_effort_denied(
+                        db,
+                        actor,
+                        owner,
+                        audience,
+                        grant::AuditAction::Delete,
+                        request_id,
+                        "not found",
+                    )
+                    .await;
+                    return Err((StatusCode::NOT_FOUND, "grant not found"));
+                }
+                Err(e) => return Err(rollback_internal(tx, e).await),
+            };
         if before.system_managed {
+            rollback_quiet(tx).await;
             write_audit(
                 db,
                 actor,
@@ -387,53 +428,17 @@ pub mod ops {
                 "system-managed grant cannot be deleted",
             ));
         }
-        let affected = grant::delete_grant(db, owner, audience)
-            .await
-            .map_err(internal)?;
+        let affected = match grant::delete_grant_tx(&mut tx, owner, audience).await {
+            Ok(n) => n,
+            Err(e) => return Err(rollback_internal(tx, e).await),
+        };
         if affected == 0 {
-            // 写 SQL 未命中。重查一次判定语义（R1-02：system_managed 保护
-            // 已在 DELETE SQL 内原子生效）：不存在/已删 → 404；行还在但受
-            // 系统保护（前置查询后被并发标记）→ 409。
-            let now_row = grant::find_by_owner_and_audience(db, owner, audience)
-                .await
-                .map_err(internal)?;
-            match now_row {
-                None => {
-                    audit_best_effort_denied(
-                        db,
-                        actor,
-                        owner,
-                        audience,
-                        grant::AuditAction::Delete,
-                        request_id,
-                        "not found",
-                    )
-                    .await;
-                    return Err((StatusCode::NOT_FOUND, "grant not found"));
-                }
-                Some(r) => {
-                    write_audit(
-                        db,
-                        actor,
-                        owner,
-                        audience,
-                        grant::AuditAction::Delete,
-                        Some(&r.status),
-                        Some(&r.status),
-                        request_id,
-                        "denied",
-                        "system-managed grant is protected",
-                    )
-                    .await?;
-                    return Err((
-                        StatusCode::CONFLICT,
-                        "system-managed grant cannot be deleted",
-                    ));
-                }
-            }
+            tracing::error!("conditional grant DELETE missed under FOR UPDATE lock; rolling back");
+            rollback_quiet(tx).await;
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "internal error"));
         }
-        write_audit(
-            db,
+        if let Err(e) = grant::record_audit_tx(
+            &mut tx,
             actor,
             owner,
             audience,
@@ -444,7 +449,13 @@ pub mod ops {
             "success",
             "grant deleted",
         )
-        .await?;
+        .await
+        {
+            tracing::error!(error = %e, "grant audit write failed; rolling back grant DELETE");
+            rollback_quiet(tx).await;
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "audit write failed"));
+        }
+        tx.commit().await.map_err(internal)?;
         Ok(StatusCode::NO_CONTENT)
     }
 
@@ -476,7 +487,8 @@ pub mod ops {
     }
 
     /// best-effort denied 审计：失败只 log（denied 响应本身不受审计可用性影响）。
-    async fn audit_best_effort_denied(
+    /// 供 ops 内部与权限拒绝路径（handle_* 的 P1-01 门）共用。
+    pub(crate) async fn audit_best_effort_denied(
         db: &crate::db::DbPool,
         actor: &Actor,
         owner: &str,
@@ -525,20 +537,23 @@ pub mod ops {
 #[utoipa::path(
     get,
     path = "/admin/service-jwt-grants",
-    summary = "List service JWT audience grants (requires service-jwt, aud=token-service)",
+    summary = "List service JWT audience grants (service-jwt aud=token-service + grant admin list)",
     params(ListGrantsQuery),
     responses(
         (status = 200, body = ListServiceJwtGrantsResponse),
         (status = 400, description = "bad request (paging / status)"),
         (status = 401, description = "missing or invalid service-jwt"),
+        (status = 403, description = "subject not in the grant admin list (TOKEN_SERVICE_JWT_GRANT_ADMINS)"),
     ),
     security(("bearer_auth" = [])),
     tag = "service-jwt-grant"
 )]
 pub async fn handle_list(
     State(state): State<TokenServerState>,
+    principal: digua_jwt_ctx::Principal,
     Query(q): Query<ListGrantsQuery>,
 ) -> Result<Json<ListServiceJwtGrantsResponse>, (StatusCode, &'static str)> {
+    require_grant_admin(&state, &principal)?;
     Ok(Json(ops::list(&state.db, &q).await?))
 }
 
@@ -546,12 +561,13 @@ pub async fn handle_list(
 #[utoipa::path(
     get,
     path = "/admin/service-jwt-grants/{owner}/{audience}",
-    summary = "Get one service JWT audience grant",
+    summary = "Get one service JWT audience grant (requires grant admin)",
     params(("owner" = String, Path,), ("audience" = String, Path,)),
     responses(
         (status = 200, body = ServiceJwtGrantDto),
         (status = 400, description = "invalid path params"),
         (status = 401, description = "missing or invalid service-jwt"),
+        (status = 403, description = "subject not in the grant admin list"),
         (status = 404, description = "not found"),
     ),
     security(("bearer_auth" = [])),
@@ -559,8 +575,10 @@ pub async fn handle_list(
 )]
 pub async fn handle_get(
     State(state): State<TokenServerState>,
+    principal: digua_jwt_ctx::Principal,
     Path((owner, audience)): Path<(String, String)>,
 ) -> Result<Json<ServiceJwtGrantDto>, (StatusCode, &'static str)> {
+    require_grant_admin(&state, &principal)?;
     Ok(Json(ops::get(&state.db, &owner, &audience).await?))
 }
 
@@ -568,12 +586,13 @@ pub async fn handle_get(
 #[utoipa::path(
     post,
     path = "/admin/service-jwt-grants",
-    summary = "Create a service JWT audience grant",
+    summary = "Create a service JWT audience grant (requires grant admin)",
     request_body = CreateServiceJwtGrantRequest,
     responses(
         (status = 200, body = ServiceJwtGrantDto),
         (status = 400, description = "invalid owner/audience"),
         (status = 401, description = "missing or invalid service-jwt"),
+        (status = 403, description = "subject not in the grant admin list"),
         (status = 409, description = "grant already exists"),
     ),
     security(("bearer_auth" = [])),
@@ -589,6 +608,21 @@ pub async fn handle_create(
         subject: principal.user_id.clone(),
     };
     let request_id = request_id_from_headers(&headers);
+    if let Err(denied) = require_grant_admin(&state, &principal) {
+        // 变更类权限拒绝：best-effort 记 denied 审计（owner/audience 仅作为
+        // 被拒目标记录，不参与权限判定——改参数无法越权）。
+        ops::audit_best_effort_denied(
+            &state.db,
+            &actor,
+            &req.owner,
+            &req.audience,
+            grant::AuditAction::Create,
+            &request_id,
+            "permission denied",
+        )
+        .await;
+        return Err(denied);
+    }
     Ok(Json(
         ops::create(&state.db, &req, &actor, &request_id).await?,
     ))
@@ -598,13 +632,14 @@ pub async fn handle_create(
 #[utoipa::path(
     put,
     path = "/admin/service-jwt-grants/{owner}/{audience}/status",
-    summary = "Enable or disable a service JWT audience grant",
+    summary = "Enable or disable a service JWT audience grant (requires grant admin)",
     params(("owner" = String, Path,), ("audience" = String, Path,)),
     request_body = SetGrantStatusRequest,
     responses(
         (status = 200, body = ServiceJwtGrantDto),
         (status = 400, description = "bad request (status / path params)"),
         (status = 401, description = "missing or invalid service-jwt"),
+        (status = 403, description = "subject not in the grant admin list"),
         (status = 404, description = "not found"),
         (status = 409, description = "system-managed grant is protected"),
     ),
@@ -622,6 +657,19 @@ pub async fn handle_set_status(
         subject: principal.user_id.clone(),
     };
     let request_id = request_id_from_headers(&headers);
+    if let Err(denied) = require_grant_admin(&state, &principal) {
+        ops::audit_best_effort_denied(
+            &state.db,
+            &actor,
+            &owner,
+            &audience,
+            grant::AuditAction::Update,
+            &request_id,
+            "permission denied",
+        )
+        .await;
+        return Err(denied);
+    }
     Ok(Json(
         ops::set_status(
             &state.db,
@@ -639,12 +687,13 @@ pub async fn handle_set_status(
 #[utoipa::path(
     delete,
     path = "/admin/service-jwt-grants/{owner}/{audience}",
-    summary = "Delete a service JWT audience grant",
+    summary = "Delete a service JWT audience grant (requires grant admin)",
     params(("owner" = String, Path,), ("audience" = String, Path,)),
     responses(
         (status = 204, description = "deleted"),
         (status = 400, description = "invalid path params"),
         (status = 401, description = "missing or invalid service-jwt"),
+        (status = 403, description = "subject not in the grant admin list"),
         (status = 404, description = "not found"),
         (status = 409, description = "system-managed grant is protected"),
     ),
@@ -661,10 +710,24 @@ pub async fn handle_delete(
         subject: principal.user_id.clone(),
     };
     let request_id = request_id_from_headers(&headers);
+    if let Err(denied) = require_grant_admin(&state, &principal) {
+        ops::audit_best_effort_denied(
+            &state.db,
+            &actor,
+            &owner,
+            &audience,
+            grant::AuditAction::Delete,
+            &request_id,
+            "permission denied",
+        )
+        .await;
+        return Err(denied);
+    }
     ops::delete(&state.db, &owner, &audience, &actor, &request_id).await
 }
 
-/// `/admin/service-jwt-grants*` 路由（带 service-jwt 鉴权，aud=token-service）。
+/// `/admin/service-jwt-grants*` 路由（service-jwt 验签 + aud=token-service
+/// 中间件，handler 内再过 grant 管理员清单门——P1-01 双层防线）。
 pub fn routes(state: crate::TokenServerState) -> axum::Router {
     use axum::routing::{get, put};
 
