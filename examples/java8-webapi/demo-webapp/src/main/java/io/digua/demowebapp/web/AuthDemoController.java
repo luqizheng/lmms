@@ -1,10 +1,10 @@
 package io.digua.web;
 
-import io.digua.ApiResponse;
-import io.digua.TokenInfo;
-import io.digua.TokenServerUserClient;
-import io.digua.User;
-import io.digua.UserServiceUserClient;
+import io.digua.model.TokenInfo;
+import io.digua.shared.ApiResponse;
+import io.digua.token.TokenServerUserClient;
+import io.digua.user.User;
+import io.digua.user.UserServiceUserClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
