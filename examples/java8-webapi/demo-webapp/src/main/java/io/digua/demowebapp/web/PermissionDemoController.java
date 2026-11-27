@@ -1,10 +1,10 @@
 package io.digua.web;
 
-import io.digua.ApiResponse;
-import io.digua.ResourceTokenInfo;
-import io.digua.TokenServerUserClient;
-import io.digua.Role;
-import io.digua.UserServiceClientClient;
+import io.digua.model.ResourceTokenInfo;
+import io.digua.shared.ApiResponse;
+import io.digua.token.TokenServerUserClient;
+import io.digua.user.Role;
+import io.digua.user.UserServiceClientClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,7 +35,7 @@ public class PermissionDemoController {
     public ApiResponse<Role> internal() {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("name", "TASK_INTERNAL_ADMIN");
-        body.put("description", "demo role created via client-sdk");
+        body.put("description", "demo role created via current user client SDK");
         Role role = clientClient.createRole(body);
         return ApiResponse.ok(role);
     }
