@@ -9,7 +9,7 @@
 
 LMMS 首次部署时，需要通过 Bootstrap 流程创建第一个用户，并授予平台级和租户级管理权限。该操作具有一次性和高权限特征，必须防止多个请求或多个 IAM 实例同时创建首管理员。
 
-本设计采用**单请求 2 秒延时准入队列 + 数据库事务级原子保护**。不引入 Redis、RabbitMQ 或独立消息队列。
+本设计采用**数据库请求记录 + 2 秒自增 ID 仲裁 + 数据库唯一执行权 + JSON Step 状态持久化 + 人工触发恢复**。不引入 Redis、RabbitMQ 或独立消息队列。
 
 ## Q1：为什么首管理员初始化需要并发控制？
 
@@ -20,7 +20,7 @@ LMMS 首次部署时，需要通过 Bootstrap 流程创建第一个用户，并�
 - 多个请求同时通过“尚无用户”的检查。
 - 多个请求分别创建首用户，产生多个首管理员。
 - 用户创建成功，但角色绑定或初始化状态更新失败，留下半初始化数据。
-- 多个 IAM 实例各自接受一个请求，绕过单实例内存队列。
+- 多个 IAM 实例同时接受请求，若没有数据库级仲裁，可能由不同实例分别执行。
 
 因此，Bootstrap 必须同时具备请求准入控制和数据库级最终保护。
 
@@ -103,13 +103,13 @@ SET status = 'running',
     lease_expires_at = :lease_deadline,
     started_at = CURRENT_TIMESTAMP
 WHERE id = :selected_request_id
-  AND status IN ('selected', 'failed')
+  AND status IN ('selected', 'failed', 'running')
   AND (lease_expires_at IS NULL OR lease_expires_at < CURRENT_TIMESTAMP);
 ```
 
 实际 SQL 必须按 PostgreSQL 和 MySQL 方言实现，并检查受影响行数。只有影响行数为 1 的 IAM 实例取得执行权。执行期间按需要续租；每次续租和步骤状态更新都校验 owner/epoch。
 
-进程崩溃后，租约到期前其他请求仍返回 409。租约到期后也不会后台自动恢复；只有用户再次访问同一个 Bootstrap URL，才允许新请求取得执行权并恢复。若旧实例仍在运行，epoch fencing 可阻止它继续提交状态更新。
+进程崩溃后，租约到期前其他请求仍返回 409。租约到期后也不会后台自动恢复；只有用户再次访问同一个 Bootstrap URL，才允许新请求取得执行权并恢复。此时应复用首轮胜出的原记录（最小 id），不能新建一条独立 Bootstrap 流程。若旧实例仍在运行，epoch fencing 可阻止它继续提交状态更新。
 
 ## Q6：首管理员与后续初始化步骤如何保证一致？
 
@@ -153,7 +153,7 @@ IAM 不应直接读取或修改 Token Service 的私有数据库。跨服务 Ste
 2. 将 Bootstrap 总状态标记为 `failed`，释放或等待执行租约到期。
 3. 保留已经完成的 Step，不回滚其他服务已经成功提交的结果。
 4. 不自动选择本轮被拒绝的请求递补执行。
-5. 用户必须再次访问同一个 Bootstrap URL，显式触发恢复。
+5. 用户必须再次访问同一个 Bootstrap URL，显式触发恢复。恢复请求不再创建新的首轮候选记录，而是定位首轮胜出的最小 id 记录，并在执行租约允许时重新取得该记录的执行权。首轮被标记为 `rejected` 的其他记录始终不递补执行。
 
 恢复时读取同一胜出记录中的 `steps`：
 
@@ -375,12 +375,6 @@ AI-PM 后端必须：
 - [ ] Bootstrap 密码不被复用为登录密码或服务间凭据。
 - [ ] Step JSON、错误日志和普通 API 日志不包含明文密码或服务 Token。
 - [ ] 普通登录页不自动触发 Bootstrap status 请求。
-
-## 最终决策
-
-**采用数据库请求记录 + 2 秒自增 ID 仲裁 + 数据库唯一执行权 + JSON Step 状态持久化 + 人工触发恢复。**
-
-不引入 Redis 或独立消息队列。初始化是 LMMS 自身可恢复的多步骤流程；服务器重启不会自动执行，只有用户再次访问同一个 Bootstrap URL 才会继续。
 
 ## 最终决策
 
