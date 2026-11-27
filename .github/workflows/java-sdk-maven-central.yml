@@ -56,8 +56,15 @@ jobs:
             exit 1
           fi
           echo "Validated Java SDK release $TAG_VERSION"
-      - name: Build, test, attach Sources and Javadoc
-        run: mvn -B -ntp -f sdk/java/pom.xml -Pjava8 clean verify
+      - name: Build, test, attach Sources and Javadoc (Java 8 / 17 / 21)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in java8 java17 java21; do
+            echo "::group::Maven verify — $profile"
+            mvn -B -ntp -f sdk/java/pom.xml -P"$profile" clean verify
+            echo "::endgroup::"
+          done
 
   upload-central:
     name: Upload signed bundle to Sonatype Central (manual publish)
