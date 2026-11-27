@@ -14,7 +14,7 @@
 | 实际开发基线 | `7caefd3ef5dbe92b9ca143724b786a3576e4733f`（开工前经 `gh pr view 19` 实测确认，未发生变化） |
 | 分支名称 | `feat/wp-lmms-service-jwt-audience-admin-02`（自 PR #19 分支新建的独立 feature branch） |
 | 修复 commit | `e26cf465f9f42139a7d8b5be752e4fdabc73f68d` |
-| 最终 HEAD（含本报告） | 本报告提交后的分支 tip（见 commit 2 的 log；修复本体为上一行 SHA） |
+| 最终 HEAD（含本报告） | 本次状态修订提交后的分支 tip（见 GitHub 分支；修复本体为 `e26cf465f9f42139a7d8b5be752e4fdabc73f68d`） |
 
 两个 P1 均在 commit `e26cf465` 完成，本报告（交付文档）单独成 commit 以便记录最终 SHA。
 
@@ -173,8 +173,7 @@ HTTP 状态码，然后还原（每测试独立数据库，注入不外溢）：
 | 13 | `node scripts/contracts-gen.js --check` | ✅ Contracts in sync |
 | 14 | `node scripts/check-db-naming.js` | ✅ PASS |
 
-无失败项。（GitLab CI 的 `cargo test --workspace` + E2E 属推送后 CI 行为，
-本分支未推送远端，见 §E。）
+无失败项。上述为开发环境本地执行结果，不等同于远端 CI。当前 feature 分支已推送至 GitHub；由于仓库 Actions workflow 不对该 feature 分支的直接 push 触发，且它尚未成为 PR #19 的 head，因此 GitHub Actions 尚未运行。待本分支快进至 PR #19 head 后，由 PR #19（Draft，base=main）上下文触发 CI。
 
 ## E. 剩余风险（如实陈述）
 
@@ -190,9 +189,11 @@ HTTP 状态码，然后还原（每测试独立数据库，注入不外溢）：
 3. **管理员清单的运维治理**：清单由部署配置（env/yaml）管理，增删管理员
    需要变更部署配置并重启服务；配置本身无变更审计（与
    `SERVICE_BOOTSTRAP_TOKENS` 同级信任模型）。
-4. **未推送远端 / 未跑 GitLab CI**：按任务书要求仅本地提交，GitLab CI
-   `test` 阶段（workspace test + E2E + 门禁）待推送后触发；本报告 §D 的
-   门禁命令已本地逐项执行通过。
+4. **远端 CI 尚未运行**：本 feature 分支已推送至 GitHub，但直接 push feature
+   分支不会触发仓库当前配置的 GitHub Actions；截至本报告修订时，PR #19
+   head 仍为原分支 `feat/wp-lmms-service-jwt-audience-admin-01`，因此本修复尚未
+   进入 PR 触发上下文。待本分支快进合入 PR #19 head 后，GitHub Actions 才会
+   对更新后的 Draft PR 执行 CI。本报告 §D 的门禁命令均为本地执行记录。
 5. **create 成功后 commit 前的响应构造**：commit 后有一次池级重查构造 DTO，
    若该查询失败会返回 500 但业务已提交（与 ADMIN-01 既有行为一致，属
    "响应不可靠"而非"数据不一致"；业务+审计仍原子）。
@@ -210,5 +211,5 @@ HTTP 状态码，然后还原（每测试独立数据库，注入不外溢）：
 - 格式 / Clippy / 全量回归（default + postgres feature）/ 5 项 CI 门禁全部
   通过；无未验证事项被描述为通过（见 §E 如实清单）。
 
-等待独立安全审查；本分支未合并 PR #19、未推送远端、未执行生产迁移、
-未发布任何包或镜像。
+等待独立安全审查；修复分支已推送 GitHub，并将在本报告修订后快进至 PR #19
+head 分支；PR #19 仍保持 Draft，PR 本身未合并。未执行生产迁移，未发布任何包或镜像。
