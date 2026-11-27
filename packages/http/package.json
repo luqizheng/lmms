@@ -1,6 +1,6 @@
 {
   "name": "@digua/http",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "框架无关的 HTTP 客户端：token 注入 / 单飞刷新 / 错误码转文案",
   "type": "module",
   "main": "./dist/index.js",

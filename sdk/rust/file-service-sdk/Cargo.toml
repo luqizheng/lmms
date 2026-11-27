@@ -1,6 +1,6 @@
 [package]
 name = "digua_file_sdk"
-version = "1.8.2"
+version = "1.8.3"
 edition.workspace = true
 description = "Rust client SDK for the KudiCoder file-service"
 license = "Apache-2.0"
@@ -13,7 +13,7 @@ tls-rustls = ["digua_http_client/tls-rustls", "reqwest/rustls-tls-webpki-roots"]
 tls-native = ["digua_http_client/tls-native", "reqwest/native-tls"]
 
 [dependencies]
-digua_http_client = { path = "../digua-http-client", default-features = false, version = "1.8.2" }
+digua_http_client = { path = "../digua-http-client", default-features = false, version = "1.8.3" }
 # multipart/bytes paths (upload_file / download_file) need reqwest directly:
 # digua-http-client's transport is String-body only.
 reqwest = { version = "0.12", default-features = false, features = ["multipart"] }

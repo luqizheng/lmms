@@ -1,6 +1,6 @@
 {
   "name": "@digua/audit-services",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "lmms audit-service SDK：登录/操作日志查询、合规导出（CSV/JSON）、保留策略管理的零依赖 fetch 客户端（api-gateway /v1/audit 公开路径）",
   "type": "module",
   "main": "./dist/index.js",

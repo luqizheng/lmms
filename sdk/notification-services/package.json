@@ -1,6 +1,6 @@
 {
   "name": "@digua/notification-services",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "lmms notification-service SDK：公告管理与未读数的零依赖 fetch 客户端（api-gateway /v1/notification 公开路径，不含 WS）",
   "type": "module",
   "main": "./dist/index.js",

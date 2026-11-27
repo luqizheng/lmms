@@ -1,6 +1,6 @@
 {
   "name": "@digua/iam-services",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "lmms IAM SDK：登录 / 用户管理 / token 管理的零依赖 fetch 客户端（api-gateway /v1 公开路径）",
   "type": "module",
   "main": "./dist/index.js",

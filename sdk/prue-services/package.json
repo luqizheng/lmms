@@ -1,6 +1,6 @@
 {
   "name": "@digua/prue-services",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "lmms prue_backend SDK：动态路由与菜单配置版本管理（含 ETag 乐观锁）的零依赖 fetch 客户端（api-gateway /v1/pure 公开路径）",
   "type": "module",
   "main": "./dist/index.js",

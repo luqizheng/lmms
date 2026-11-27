@@ -7,12 +7,12 @@
     <parent>
         <groupId>io.github.luqizheng</groupId>
         <artifactId>digua-sdk-parent</artifactId>
-        <version>1.1.1</version>
+        <version>1.1.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>digua-notification-sdk</artifactId>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
     <packaging>jar</packaging>
 
     <name>digua-notification-sdk</name>

@@ -4,7 +4,7 @@
   <parent>
     <groupId>io.github.luqizheng</groupId>
     <artifactId>digua-sdk-parent</artifactId>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
   </parent>
   <artifactId>digua-http-client</artifactId>
   <packaging>jar</packaging>

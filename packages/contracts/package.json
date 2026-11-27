@@ -1,6 +1,6 @@
 {
   "name": "@digua/contracts",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "后端契约编译产物：错误码、权限码与 OpenAPI 客户端 —— 与后端同源生成，不手写",
   "type": "module",
   "main": "./dist/index.js",

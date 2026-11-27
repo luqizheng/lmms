@@ -1,12 +1,12 @@
 [package]
 name = "digua_jwt_ctx"
-version = "1.8.2"
+version = "1.8.3"
 license = "Apache-2.0"
 description = "Axum extractor for JWT principal context in KudiCoder services"
 edition = "2021"
 
 [dependencies]
-digua_common_jwt = { path = "../common-jwt", version = "1.8.2" }
+digua_common_jwt = { path = "../common-jwt", version = "1.8.3" }
 axum.workspace = true
 thiserror.workspace = true
 async-trait = "0.1"

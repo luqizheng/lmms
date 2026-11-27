@@ -14,7 +14,7 @@ LMMS Java SDK 是一个 Maven 多模块项目，支持 Java 8 / 17 / 21。Maven 
 | digua-http-client | `io.github.luqizheng:digua-http-client` |
 | digua-notification-sdk | `io.github.luqizheng:digua-notification-sdk` |
 
-父 POM：`io.github.luqizheng:digua-sdk-parent:1.1.1`。
+父 POM：`io.github.luqizheng:digua-sdk-parent:1.1.2`。
 
 ## 编译与测试
 
@@ -42,7 +42,7 @@ mvn -B -f sdk/java/pom.xml -Pjava21 clean verify
 <dependency>
     <groupId>io.github.luqizheng</groupId>
     <artifactId>digua-token-client-sdk</artifactId>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
 </dependency>
 ```
 
