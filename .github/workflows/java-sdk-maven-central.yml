@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: java-sdk-central-\${{ github.ref }}
+  group: java-sdk-central-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -44,12 +44,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="\${GITHUB_REF_NAME}"
+          TAG="${GITHUB_REF_NAME}"
           if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             echo "::error::Only vMAJOR.MINOR.PATCH tags may publish Java SDK artifacts: $TAG"
             exit 1
           fi
-          TAG_VERSION="\${BASH_REMATCH[1]}"
+          TAG_VERSION="${BASH_REMATCH[1]}"
           POM_VERSION="$(mvn -q -f sdk/java/pom.xml help:evaluate -Dexpression=project.version -DforceStdout)"
           if [[ "$POM_VERSION" != "$TAG_VERSION" ]]; then
             echo "::error::Tag version $TAG_VERSION does not match sdk/java/pom.xml version $POM_VERSION"
@@ -74,28 +74,28 @@ jobs:
       - name: Require Maven Central and GPG credentials
         shell: bash
         env:
-          MVN_USERNAME: \${{ secrets.MVN_USERNAME }}
-          MVN_PASSWORD: \${{ secrets.MVN_PASSWORD }}
-          GPG_PRIVATE_KEY: \${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: \${{ secrets.GPG_PASSPHRASE }}
+          MVN_USERNAME: ${{ secrets.MVN_USERNAME }}
+          MVN_PASSWORD: ${{ secrets.MVN_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
           for name in MVN_USERNAME MVN_PASSWORD GPG_PRIVATE_KEY GPG_PASSPHRASE; do
-            if [[ -z "\${!name:-}" ]]; then
+            if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing GitHub Actions secret: $name"
               exit 1
             fi
           done
       - name: Import GPG signing key
         env:
-          GPG_PRIVATE_KEY: \${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
       - name: Create Maven Central credentials
         env:
-          MVN_USERNAME: \${{ secrets.MVN_USERNAME }}
-          MVN_PASSWORD: \${{ secrets.MVN_PASSWORD }}
+          MVN_USERNAME: ${{ secrets.MVN_USERNAME }}
+          MVN_PASSWORD: ${{ secrets.MVN_PASSWORD }}
         run: |
           python3 - <<'PY'
           import os
@@ -118,7 +118,7 @@ jobs:
           PY
       - name: Upload signed bundle to Central for validation
         env:
-          GPG_PASSPHRASE: \${{ secrets.GPG_PASSPHRASE }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: mvn -B -ntp -f sdk/java/pom.xml -Pjava8,central-publishing,central-release clean deploy
       - name: Manual publication reminder
         run: |
