@@ -41,7 +41,7 @@ POST /file/upload  Authorization: Bearer <service-jwt>
 file-service validates audience and caller
 ```
 
-业务服务不能把用户身份判断委托给 file-service。调用方必须在通过用户鉴权后，按受信业务上下文填写文件的 user_id、tenant_id 等归属字段。
+业务服务不能把用户身份判断委托给 file-service。调用方必须在通过用户鉴权后，按受信业务上下文填写文件的 user_id 等归属字段；tenant_id 由 file-service 从 service-jwt 的 tid claim 派生。
 
 ## 5.4 Rust 服务内部调用
 
