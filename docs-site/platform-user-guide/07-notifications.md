@@ -43,15 +43,29 @@ OpenAPI 中公告状态包括：
 
 ## 7.5 WebSocket 实时推送
 
-公告发布事件会触发 WebSocket 推送扇出。客户端需：
+服务端内部路由为 `/notification/ws`（Axum upgrade）。外部连接路径由 Gateway router 决定，必须按部署配置核对，不能把内部服务端口直接提供给浏览器。
 
-1. 按部署配置连接 Gateway 暴露的 WebSocket 路由。
-2. 使用当前实现规定的认证方式建立连接。
-3. 处理连接关闭、网络切换和重连。
-4. 将推送视为“有新数据”的提示，随后调用 REST API 拉取公告/未读数；不要将 WebSocket 帧当作唯一持久化记录。
-5. 避免因重连重复展示；以公告 ID 和服务端已读状态去重。
+**认证：** WebSocket upgrade 使用 `Principal` extractor，通过 JWKS 验证用户 JWT，并从 JWT 的 `sub` 确定订阅用户。不要使用客户端自报的 `x-user-id` 作为身份。浏览器原生 WebSocket API 不能任意设置 Authorization header；若部署没有安全的 cookie/BFF 或受控 query-token 方案，应通过 BFF 代理 WebSocket，不要把长期 bearer token 放进 URL。
 
-WebSocket 路径、消息 envelope、鉴权时机和心跳协议必须从 notification-service 当前代码与 Gateway router 中确认。OpenAPI YAML 不完整描述 WebSocket 协议，本文不虚构其字段。
+当前服务端帧协议（JSON text frame）：
+
+| type | payload | 方向 | 说明 |
+|---|---|---|---|
+| `new` | 公告 JSON 对象 | 服务端 → 客户端 | 有新公告 |
+| `unread_count` | `{ "count": number }` | 服务端 → 客户端 | 未读数更新 |
+| `revoked` | `{ "id": number }` | 服务端 → 客户端 | 公告撤销 |
+| `pong` | 无业务 payload | 服务端 → 客户端 | 心跳响应 |
+
+服务端识别文本帧 `{"type":"ping"}` 并回复 `{"type":"pong"}`。其他客户端文本帧当前不作为业务命令处理。
+
+客户端建议：
+1. 通过部署配置确定 Gateway WebSocket URL 和认证方式。
+2. 使用短生命周期用户会话建立连接，连接失败时按退避策略重连。
+3. 收到 `new`、`unread_count`、`revoked` 后调用 REST API 刷新权威数据。
+4. 使用公告 ID 去重；断线重连后重新拉取公告列表和未读数。
+5. 处理连接关闭、网络切换和 token 过期；不要无限快速重连。
+
+注意：WebSocket 的 `new` payload 是公告对象 JSON；协议实现位于 `services/notification-service/src/ws.rs` 与 `ws_hub.rs`，OpenAPI YAML 本身不描述 WebSocket。
 
 ## 7.6 通知 UI 建议
 
