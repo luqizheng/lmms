@@ -18,15 +18,14 @@ iam-service 负责身份主体和授权基础数据，包括用户、角色、�
 
 权限码单一真相源位于 `contracts/permissions.yaml`。格式约定为 `SERVICE_RESOURCE_ACTION`，例如：
 
-- `IAM_USER_READ`
-- `IAM_ROLE_ASSIGN`（具体是否存在应以字典为准）
-- `AUD_LOG_READ`
+- `IAM_USER_READ`、`IAM_ROLE_READ`、`IAM_PERM_READ`
+- `IAM_ORG_READ`、`IAM_TENANT_CREATE`
+- `AUD_LOG_READ`、`AUD_LOG_EXPORT`
 - `FILE_READ`、`FILE_UPLOAD`、`FILE_DOWNLOAD`、`FILE_DELETE`
 - `NTF_MESSAGE_READ`
-- `TOKEN_BOOTSTRAP_CREATE`
-- `TOKEN_SERVICE_JWT_GRANT_READ`
+- `TOKEN_BOOTSTRAP_CREATE`、`TOKEN_SERVICE_JWT_GRANT_READ`
 
-上例仅作命名解释；**实际可用权限码必须查当前 YAML**。不要在前端、后端或 AI-PM 中自行创造看似合理但不存在的权限码。
+这些名称均可在当前权限字典中找到。注意：权限码存在不等于每个服务端点都使用该权限码；例如当前 notification-service 的公告管理 handler 使用 `admin`、`tenant_admin`、`notification.admin` 角色检查。具体端点授权仍以 handler 和 OpenAPI 为准。不要在前端、后端或 AI-PM 中自行创造看似合理但不存在的权限码。
 
 ## 4.4 UI 权限呈现建议
 
