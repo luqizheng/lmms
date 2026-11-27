@@ -24,7 +24,7 @@ Content-Type: application/json
 
 ## 2.3 响应格式
 
-仓库 `contracts/http-conventions.md` 定义的标准 JSON envelope：
+仓库 `contracts/http-conventions.md` 定义了标准 JSON envelope 约定：
 
 ```json
 {
@@ -38,8 +38,8 @@ Content-Type: application/json
 - 成功时 `code` 为 `OK`。
 - 业务数据位于 `data`。
 - `request_id` 用于定位请求。
-- 部分端点可能使用 204 等无 body 响应，或下载接口返回二进制流；不要假设每个响应都是 JSON envelope。
-- OpenAPI 中的响应 schema 和具体 handler 实现优先于通用示例。
+- 当前服务并非所有 handler 都统一包装 envelope：部分端点直接返回 OpenAPI 定义的 JSON 对象/数组，部分返回 204，文件下载返回二进制流。
+- **客户端必须按每个端点的 OpenAPI response schema 解析**，不得对所有响应统一假定存在 `data` 包装层。OpenAPI 与 handler 不一致时应作为契约缺陷处理。
 
 ## 2.4 分页、排序、时间和 ID
 
