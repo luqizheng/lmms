@@ -13,7 +13,7 @@ LMMS file-service 是文件对象管理服务，不是通用文件系统或网�
 - file-service 是内部服务；所有 `/file/*` 路径要求 `aud=file-service` service-jwt。
 - 用户 JWT 不能直接调用 file-service；Gateway 不应将其当成用户公开 API。
 - 用户面文件操作由业务服务提供接口。业务服务先验证用户、租户、业务对象和附件权限，再以 service-jwt 调用 file-service。
-- `tenant_id`、`user_id` 由可信调用方传递；file-service 不会从 service-jwt 推断真实用户。
+- `tenant_id` 由 file-service 从已验证 service-jwt 的 `tid` claim 取得；Rust SDK 的 `UploadFileMeta` 不包含 `tenant_id`。真实用户归属 `user_id` 由可信调用方在完成用户鉴权后传递。不要让客户端自行指定 tenant_id。
 - 文件 ID 不是访问授权凭证。每次下载/删除前，业务服务都必须验证该文件与业务对象的关联。
 
 ## 6.3 上传流程
@@ -28,7 +28,7 @@ Business API: persist file_id relation
 
 上传采用 multipart/form-data：
 
-- `metadata`：JSON 字符串，描述 filename、content_type、tenant_id、user_id、临时文件属性等。
+- `metadata`：JSON 字符串，描述 filename、content_type、user_id、临时文件属性等。
 - `file`：原始文件字节。
 - 当前文档记录默认上限 100 MiB；部署配置 `max_file_size` 是最终依据，客户端应读取/配置匹配限制。
 
@@ -37,7 +37,7 @@ Business API: persist file_id relation
 ```bash
 curl -X POST "$FILE_SERVICE_INTERNAL/file/upload" \
   -H "Authorization: Bearer $FILE_SERVICE_JWT" \
-  -F 'metadata={"filename":"design.pdf","content_type":"application/pdf","tenant_id":1,"user_id":"user-123"};type=application/json' \
+  -F 'metadata={"filename":"design.pdf","content_type":"application/pdf","user_id":"user-123"};type=application/json' \
   -F 'file=@design.pdf'
 ```
 
