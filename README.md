@@ -10,6 +10,8 @@ A microservices architecture for coder platform, built with Rust.
 
 **Full documentation**: [`docs-site/user-manual/`](docs-site/user-manual/) — comprehensive guide covering local dev, testing, observability, deployment, rate limiting, canary rollout, AI workflows, and troubleshooting (拆分章节、中文版).
 
+**Platform user guide**: [`docs-site/platform-user-guide/`](docs-site/platform-user-guide/) — LMMS 使用方与业务系统集成手册，覆盖用户鉴权、RBAC/租户、服务鉴权、文件对象、通知、审计、Rust SDK、Java SDK，以及 AI-PM 集成边界。
+
 **AI entry point**: [`docs-site/ai-context.md`](docs-site/ai-context.md) — service map, known pitfalls, digua_common commands (read first when starting work in this repo).
 
 ## 快速开始（本地开发与测试）
