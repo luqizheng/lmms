@@ -1,62 +1,39 @@
-name: Public Release
+name: Release Preflight
 
 on:
-  pull_request:
-    branches: [main]
-  # ⚠️ 无 push.tags 触发：内部发布不走 CI —— 在发布机上直接执行
-  #   `pnpm run release:sdk:rust / release:sdk:npm / release:images:push`
-  #   （目标由 release.toml 指向内部 Registry）。本 workflow 仅保留
-  #   workflow_dispatch 手动补发入口，供未来明确的公开发布流程使用；
-  #   推送 git tag 不会触发任何自动发布。
-  # 手动补发：对已经存在的 tag 指定执行发布（不新建、不移动 tag）。
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Existing release tag to publish (vMAJOR.MINOR.PATCH), e.g. v1.8.0'
-        required: true
-        type: string
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('public-release-pr-{0}', github.event.pull_request.number) || 'public-release-tags' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: release-preflight-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   validate:
-    name: Validate release candidate
+    name: Validate tagged release candidate (no publishing)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-      - name: Resolve target release tag
-        id: target
-        if: github.event_name != 'pull_request'
+          ref: ${{ github.ref }}
+      - name: Validate release tag and main ancestry
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${GITHUB_REF_NAME}"
-          fi
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid release tag: $TAG"; exit 1; }
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-      - name: Verify tag points to main history
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.target.outputs.tag }}"
-          # 手动补发时本地可能还没有该 tag，显式取一次；不存在则直接失败
-          git fetch origin "+refs/tags/${TAG}:refs/tags/${TAG}"
-          git fetch origin main
-          COMMIT="$(git rev-parse "${TAG}^{commit}")"
-          git merge-base --is-ancestor "$COMMIT" origin/main
-          echo "tag ${TAG} (${COMMIT}) 属于 main 历史"
+          TAG="${GITHUB_REF_NAME}"
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "::error::Invalid release tag: $TAG (expected vMAJOR.MINOR.PATCH)"
+            exit 1
+          }
+          git fetch origin main --no-tags
+          TAG_COMMIT="$(git rev-parse "${TAG}^{commit}")"
+          git merge-base --is-ancestor "$TAG_COMMIT" origin/main
+          echo "Validated $TAG at $TAG_COMMIT"
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -68,7 +45,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Install Node dependencies
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Rust formatting
         run: cargo fmt --check --all
@@ -90,95 +67,12 @@ jobs:
         run: pnpm run test:cli
       - name: Build public npm packages
         run: pnpm run packages:build
-      - name: Validate release plans without publishing
+      - name: Validate internal and public release plans (dry-run only)
         run: |
           node packages/cli/bin/coder.js release sdk rust --dry-run
           node packages/cli/bin/coder.js release sdk npm --dry-run
+          node packages/cli/bin/coder.js release images --dry-run
           node packages/cli/bin/coder.js release images --dry-run --registry docker.io --repo validation-only
-
-  publish-crates:
-    if: github.event_name != 'pull_request'
-    name: Publish Rust crates to crates.io
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Publish crates and Rust SDKs
-        env:
-          CARGO_REGISTRIES_CRATES_IO_TOKEN: ${{ secrets.CRATES }}
-        run: node packages/cli/bin/coder.js release sdk rust
-
-  publish-npm:
-    if: github.event_name != 'pull_request'
-    name: Publish TypeScript SDKs to npmjs.org
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org/
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Publish npm packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPMPUBLISHKEY }}
-        run: node packages/cli/bin/coder.js release sdk npm
-
-  publish-docker:
-    if: github.event_name != 'pull_request'
-    name: Publish service images to Docker Hub
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USER_NAME }}
-          password: ${{ secrets.DOCKER_KEY }}
-      - name: Publish versioned service images
-        env:
-          DOCKER_USER_NAME: ${{ secrets.DOCKER_USER_NAME }}
+      - name: Publish is intentionally disabled pending dual-registry CLI support
         run: |
-          test -n "$DOCKER_USER_NAME"
-          node packages/cli/bin/coder.js release images --push --registry docker.io --repo "$DOCKER_USER_NAME"
-      - name: Upload generated image pins
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-hub-image-pins-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          path: |
-            examples/docker-deploy/.image.env
-            examples/docker-deploy-full/.image.env
+          echo "::notice::Preflight only. No registry credentials are used and no artifacts are published."
