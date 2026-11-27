@@ -68,24 +68,33 @@ UserServiceClientClient client = UserServiceClientClient.create(
 
 ## 10.5 仓库内 Java Web 示例与集成测试
 
-仓库包含 `examples/java8-webapi/`，是一个 Spring Boot 2.1.18 + Java 8 的 Maven 多模块示例，包含 `demo-webapp`、`demo-shared`、MockMvc 测试和 `scripts/demo.sh`。入口见 [examples/java8-webapi README](../../examples/java8-webapi/README.md)。
+仓库包含 `examples/java8-webapi/`，是 Spring Boot 2.1.18 + Java 8 的 Maven 多模块示例，包含 `demo-webapp`、`demo-shared` 和 `scripts/demo.sh`。
 
-**重要：当前示例仍是旧版 SDK 集成，不能直接作为当前 `sdk/java/` 的兼容性验收。** 静态核对发现：
+**当前迁移状态：** 原示例使用旧 SDK 坐标、顶层 Java imports 和已删除的 Audit SDK。针对这些问题，已在 [PR #26](https://github.com/luqizheng/lmms/pull/26) 提交迁移，PR 尚未合并；因此在 PR #26 合并前，`main` 分支中的示例仍应视为旧版示例，不可作为当前 SDK 的兼容性验收依据。
 
-- 示例父 POM 的依赖坐标仍使用 `io.digua`，并将多个 SDK 固定为 `0.2.0`；当前 SDK 源码模块使用 `io.github.luqizheng` Maven 坐标，父 POM 版本为 `1.1.2`。
-- 示例源码仍从 `io.digua.*` 顶层导入旧客户端类；当前源码类位于 `io.digua.user`、`io.digua.token`、`io.digua.httpclient` 等 package。
-- 示例依赖 `audit-service-sdk`，但该模块不在当前 `sdk/java/pom.xml` 的模块列表中；当前 Java SDK 也没有独立的 Audit、Config、File SDK 模块。
-- 示例 README 中的 `pnpm run dev:infra` / `pnpm run dev` 与当前根 `package.json` 脚本不一致。当前脚本使用 `pnpm run dev:infra:pg`、`pnpm run dev:pg`（或对应 MySQL 脚本）。
+PR #26 的迁移内容包括：
 
-因此，示例现有 MockMvc 测试只能说明示例自身的 Spring MVC 逻辑，不证明当前 Java SDK 的依赖、API 或运行时兼容性。不要将示例 README 中“15 个 curl 全部成功”的预期当成已验证的当前版本结果。
+- Maven 依赖统一到 `io.github.luqizheng`，SDK artifact version 使用 `1.1.2`；Java 源码包名继续使用 `io.digua.*`。
+- 示例接入当前 SDK 提供的 IAM user/client、Token user/client、通用 HTTP 和 Notification 模块。
+- 删除当前 SDK 不提供的旧 Audit SDK、手写 Config Poller、File 接口及与 SDK 验收无关的本地工单示例。
+- 增加 Java 8 下游集成工作流：从源码构建并安装 SDK，再构建和测试 Spring Boot 示例。
+- 增加 Spring Boot 应用启动及 MockMvc 冒烟测试；真实 Gateway 联调仍需可访问的服务栈和有效凭据。
 
-当前建议的验证顺序：
+本地验证命令（在 PR #26 分支或合并后的 main 上执行）：
 
-1. 先运行当前 Java SDK 自身测试：`mvn -B -f sdk/java/pom.xml -Pjava8 clean verify`。
-2. 若需使用 `examples/java8-webapi` 做下游集成验收，先将其依赖坐标、版本、package imports 和被删除的 SDK 能力迁移到当前模块范围，再执行示例构建、MockMvc 测试和 Gateway 联调。
-3. 联调时明确记录平台服务端版本与 Maven SDK artifact 版本；两者是独立版本号，不能仅凭平台发布版本推断 Java SDK artifact 版本。
+```bash
+mvn -B -f sdk/java/pom.xml -Pjava8 clean install
+mvn -B -f examples/java8-webapi/pom.xml -Pjava8 clean verify
+```
 
-本次文档审查只完成了仓库静态核对；未在开发机或内部 Maven 仓库执行 Maven 构建，也未对正在运行的 LMMS 环境发起联调。
+真实服务联调：
+
+```bash
+mvn -f examples/java8-webapi/pom.xml -Pjava8 -pl demo-webapp spring-boot:run
+bash examples/java8-webapi/scripts/demo.sh
+```
+
+注意：MockMvc 冒烟测试不证明 Gateway 的真实 API、凭据或权限配置正确；必须单独运行 live smoke script 才能确认部署环境联通。本次代码迁移尚未在用户本机或真实 LMMS 服务环境执行 Maven 构建和 Gateway 联调。
 
 ## 10.6 与 Rust 的差异
 
