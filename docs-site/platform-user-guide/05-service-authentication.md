@@ -14,18 +14,14 @@ file-service 当前是明确的内部服务：`/file/*` 要求 `aud=file-service
 
 ## 5.2 Bootstrap 与服务身份
 
-平台采用受控 bootstrap 凭证建立服务身份，再获取目标 audience 的短期 service-jwt。管理接口可管理 bootstrap token 元数据、轮换/启停和 Service JWT audience grants。
+平台采用受控 bootstrap 凭证建立服务身份，再获取目标 audience 的短期 service-jwt。bootstrap 凭证和 audience grant 是两类不同对象：
 
-凭证管理入口涉及 token-service 管理 API。具体请求字段和交换协议必须以当前 `services/token-service/openapi.yaml`、`services/token-service/AGENTS.md` 及服务端实现为准。不要根据旧版示例自行拼接 token 交换流程。
+- **Bootstrap Token 管理（用户管理面）**：Gateway OpenAPI 提供 `/v1/admin/bootstrap-tokens`、`/{owner}`、`/{owner}/rotate`、`/{owner}/status` 等端点。使用有权限的管理员用户 JWT；权限码包括 `TOKEN_BOOTSTRAP_READ/CREATE/UPDATE/DELETE`。创建/轮换响应只返回一次明文 secret，列表/详情不返回明文。
+- **Service JWT Audience Grant 管理（用户管理面）**：`/v1/admin/service-jwt-grants` 及其 owner/audience 子路径使用管理员用户 JWT，并检查 `TOKEN_SERVICE_JWT_GRANT_*` 权限码。grant 定义某个服务 owner 可以申请哪个 audience。
+- **内部 grant 管理 API**：另有 `/admin/service-jwt-grants*` 路径，要求 `aud=token-service` 的 service-jwt，并且调用主体必须在 `TOKEN_SERVICE_JWT_GRANT_ADMINS` allowlist 中；该 allowlist 为空时 fail-closed。不要将它与上面的 Web UI 用户 API 混淆。
+- **服务凭证交换**：服务使用自己的 bootstrap token，通过平台内部约定的 token-service 交换流程取得短期 service-jwt。准确请求路径和字段以当前 `libs/common-jwt` 的 `ServiceJwtCache` 实现及部署配置为准；不要从旧的 OAuth/client_credentials 示例推断。
 
-核心安全原则：
-
-- 每个部署服务使用独立身份/凭证，不共享一个全平台万能 secret。
-- 只授权所需 audience；例如调用 file-service 的服务只申请 `file-service`。
-- 凭证只存服务端 secret store 或受保护环境变量。
-- bootstrap token 只用于建立/续发服务身份，不作为普通业务 API bearer token。
-- token 轮换时按配置的 grace period 完成新旧凭证切换；轮换返回的明文凭证应只在安全通道中读取一次。
-- 服务停止、退役或泄露时应禁用/轮换 bootstrap 凭证和相关授权关系。
+所有管理 API 的确切请求 schema 以 `services/token-service/openapi.yaml` 为准。
 
 ## 5.3 服务端调用示意
 
