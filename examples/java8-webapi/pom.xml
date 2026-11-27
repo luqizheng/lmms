@@ -11,12 +11,12 @@
         <relativePath/>
     </parent>
 
-    <groupId>io.digua.demo</groupId>
+    <groupId>io.github.luqizheng.examples</groupId>
     <artifactId>java8-webapi-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>java8-webapi-parent</name>
-    <description>Spring Boot 2.1 + Java 8 integration demo for coder-micro-services platform</description>
+    <name>LMMS Java 8 Web API Integration Example</name>
+    <description>Spring Boot 2.1 + Java 8 integration example for the LMMS Java SDK.</description>
 
     <modules>
         <module>demo-shared</module>
@@ -28,57 +28,46 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <audit.sdk.version>0.1.0-SNAPSHOT</audit.sdk.version>
+        <lmms.sdk.version>1.1.2</lmms.sdk.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.digua</groupId>
-                <artifactId>audit-service-sdk</artifactId>
-                <version>${audit.sdk.version}</version>
+                <groupId>io.github.luqizheng</groupId>
+                <artifactId>digua-sdk-common</artifactId>
+                <version>${lmms.sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.digua</groupId>
+                <groupId>io.github.luqizheng</groupId>
                 <artifactId>digua-user-user-sdk</artifactId>
-                <version>0.2.0</version>
+                <version>${lmms.sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.digua</groupId>
+                <groupId>io.github.luqizheng</groupId>
                 <artifactId>digua-user-client-sdk</artifactId>
-                <version>0.2.0</version>
+                <version>${lmms.sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.digua</groupId>
+                <groupId>io.github.luqizheng</groupId>
                 <artifactId>digua-token-user-sdk</artifactId>
-                <version>0.2.0</version>
+                <version>${lmms.sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.digua</groupId>
+                <groupId>io.github.luqizheng</groupId>
                 <artifactId>digua-token-client-sdk</artifactId>
-                <version>0.2.0</version>
+                <version>${lmms.sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.digua</groupId>
+                <groupId>io.github.luqizheng</groupId>
                 <artifactId>digua-http-client</artifactId>
-                <version>0.2.0</version>
+                <version>${lmms.sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.luqizheng</groupId>
+                <artifactId>digua-notification-sdk</artifactId>
+                <version>${lmms.sdk.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <repositories>
-        <repository>
-            <id>reposilite-repository-releases</id>
-            <name>Reposilite Repository</name>
-            <url>http://192.168.2.12:18181/releases</url>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>reposilite-repository-releases</id>
-            <name>Reposilite Repository</name>
-            <url>http://192.168.2.12:18181/releases</url>
-        </pluginRepository>
-    </pluginRepositories>
 </project>
