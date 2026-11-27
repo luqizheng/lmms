@@ -339,3 +339,49 @@ export interface ApiKeyCreated {
   api_key_id: string;
   api_key_secret: string;
 }
+
+// ── Service JWT audience grants（token-service web 管理入口）──
+
+/** 一条 owner → audience 签发授权关系（无任何凭据材料）。 */
+export interface ServiceJwtGrant {
+  owner: string;
+  audience: string;
+  /** "active" | "disabled" */
+  status: string;
+  /** true = 内置系统授权（服务端保护：改删返回 409）。 */
+  system_managed?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** grant 分页查询结果：{ items, total, page, size }。 */
+export interface ServiceJwtGrantListResponse {
+  items: ServiceJwtGrant[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+/** grant 列表查询参数（owner / audience 精确过滤 + status + 分页）。 */
+export interface ServiceJwtGrantListQuery {
+  owner?: string;
+  audience?: string;
+  /** "active" | "disabled"；其他值服务端返回 400。 */
+  status?: string;
+  /** 页码，从 1 起。 */
+  page?: number;
+  /** 每页条数（1..=100）。 */
+  size?: number;
+}
+
+/** 创建 grant 请求体。 */
+export interface CreateServiceJwtGrantRequest {
+  owner: string;
+  audience: string;
+}
+
+/** 启停 grant 请求体。 */
+export interface SetServiceJwtGrantStatusRequest {
+  /** "active" | "disabled" */
+  status: string;
+}

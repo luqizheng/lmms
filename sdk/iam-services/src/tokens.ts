@@ -8,7 +8,12 @@ import type {
   ApiKeyCreated,
   ApiKeyListResponse,
   CreateApiKeyRequest,
+  CreateServiceJwtGrantRequest,
   Jwks,
+  ServiceJwtGrant,
+  ServiceJwtGrantListQuery,
+  ServiceJwtGrantListResponse,
+  SetServiceJwtGrantStatusRequest,
   TokenAccessRequest,
   TokenRefreshRequest,
   TokenResponse,
@@ -39,8 +44,12 @@ export class TokensApi {
   /** API Key / OAuth 客户端管理。 */
   readonly apiKeys: ApiKeysApi;
 
+  /** Service JWT audience grant 管理。 */
+  readonly serviceJwtGrants: ServiceJwtGrantsApi;
+
   constructor(private readonly http: HttpCore) {
     this.apiKeys = new ApiKeysApi(http);
+    this.serviceJwtGrants = new ServiceJwtGrantsApi(http);
   }
 
   /** 签发 access token：POST /v1/tokens/access（公开）。 */
@@ -61,5 +70,60 @@ export class TokensApi {
   /** 验签公钥集：GET /v1/tokens/.well-known/jwks.json（公开，RS256）。 */
   jwks(): Promise<Jwks> {
     return this.http.get<Jwks>("/v1/tokens/.well-known/jwks.json");
+  }
+}
+
+/**
+ * Service JWT audience grant 管理（token-service web 管理入口）。
+ *
+ * 路径 `/v1/admin/service-jwt-grants*`（经网关转发到 token-service）。
+ * 鉴权：登录态 access token + `TOKEN_SERVICE_JWT_GRANT_*` 权限码在服务端强制
+ * 校验；无权限返回 403，重复创建 / 保护行返回 409。
+ */
+export class ServiceJwtGrantsApi {
+  constructor(private readonly http: HttpCore) {}
+
+  /** 分页查询 grant：GET /v1/admin/service-jwt-grants。 */
+  list(query: ServiceJwtGrantListQuery = {}): Promise<ServiceJwtGrantListResponse> {
+    return this.http.get<ServiceJwtGrantListResponse>("/v1/admin/service-jwt-grants", {
+      params: query,
+      auth: true,
+    });
+  }
+
+  /** 查单条 grant：GET /v1/admin/service-jwt-grants/{owner}/{audience}。 */
+  get(owner: string, audience: string): Promise<ServiceJwtGrant> {
+    return this.http.get<ServiceJwtGrant>(
+      `/v1/admin/service-jwt-grants/${encodeURIComponent(owner)}/${encodeURIComponent(audience)}`,
+      { auth: true },
+    );
+  }
+
+  /** 创建 grant：POST /v1/admin/service-jwt-grants（重复 → 409）。 */
+  create(request: CreateServiceJwtGrantRequest): Promise<ServiceJwtGrant> {
+    return this.http.post<ServiceJwtGrant>("/v1/admin/service-jwt-grants", request, {
+      auth: true,
+    });
+  }
+
+  /** 启用 / 禁用：PUT /v1/admin/service-jwt-grants/{owner}/{audience}/status。 */
+  setStatus(
+    owner: string,
+    audience: string,
+    request: SetServiceJwtGrantStatusRequest,
+  ): Promise<ServiceJwtGrant> {
+    return this.http.put<ServiceJwtGrant>(
+      `/v1/admin/service-jwt-grants/${encodeURIComponent(owner)}/${encodeURIComponent(audience)}/status`,
+      request,
+      { auth: true },
+    );
+  }
+
+  /** 删除 grant：DELETE /v1/admin/service-jwt-grants/{owner}/{audience}（204）。 */
+  async remove(owner: string, audience: string): Promise<void> {
+    await this.http.delete(
+      `/v1/admin/service-jwt-grants/${encodeURIComponent(owner)}/${encodeURIComponent(audience)}`,
+      { auth: true },
+    );
   }
 }

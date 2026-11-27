@@ -91,4 +91,123 @@ public class TokenServerClientClient extends SdkClient {
         HttpResponse r = executeWithAuth(HttpRequest.get(url("/tokens/.well-known/jwks.json")));
         return r.getBody();
     }
+
+    // ── Service JWT audience grants（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）──
+    //
+    // 走网关路径 /v1/admin/service-jwt-grants*（token-service 的 web 管理入口，
+    // user-jwt / 带 permissions 的 access token + TOKEN_SERVICE_JWT_GRANT_*
+    // 权限码鉴权）。重复创建 → 409，system_managed 行改删 → 409，均由
+    // ensureSuccess 抛出（带 HTTP 状态）。
+    //
+    // R1-03：所有动态 URL 参数必须编码后拼接——path segment 用
+    // {@link #pathSegment}，query value 用 {@link #queryValue}（标准库
+    // URLEncoder，UTF-8）。`/ ? # & %` 等结构字符被转义，无法改变请求的
+    // 路径切分或 query 结构。
+
+    /** 分页查询 grant。参数可传 {@code null} 表示不过滤；page/size 缺省由服务端决定。 */
+    public ServiceJwtGrantPage listServiceJwtGrants(
+            String owner, String audience, String status, Integer page, Integer size) {
+        StringBuilder qs = new StringBuilder();
+        appendParam(qs, "owner", owner);
+        appendParam(qs, "audience", audience);
+        appendParam(qs, "status", status);
+        if (page != null) {
+            appendParam(qs, "page", String.valueOf(page));
+        }
+        if (size != null) {
+            appendParam(qs, "size", String.valueOf(size));
+        }
+        String suffix = "/admin/service-jwt-grants" + qs;
+        HttpResponse r = executeWithAuth(HttpRequest.get(url(suffix)));
+        return mapBody(r, ServiceJwtGrantPage.class);
+    }
+
+    /** 查单条 grant（不存在 → 404 → ensureSuccess 抛出）。 */
+    public ServiceJwtGrantInfo getServiceJwtGrant(String owner, String audience) {
+        HttpResponse r = executeWithAuth(
+                HttpRequest.get(url("/admin/service-jwt-grants/" + pathSegment(owner)
+                        + "/" + pathSegment(audience))));
+        return mapBody(r, ServiceJwtGrantInfo.class);
+    }
+
+    /** 创建 grant（owner/audience 须匹配 [a-zA-Z0-9_-]，1..=64；重复 → 409）。 */
+    public ServiceJwtGrantInfo createServiceJwtGrant(String owner, String audience) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("owner", owner);
+        payload.put("audience", audience);
+        HttpResponse r = executeWithAuth(
+                HttpRequest.post(url("/admin/service-jwt-grants")).jsonBody(payload));
+        return mapBody(r, ServiceJwtGrantInfo.class);
+    }
+
+    /** 启用 / 禁用 grant（{@code status}: "active" | "disabled"；非法 → 400）。 */
+    public ServiceJwtGrantInfo setServiceJwtGrantStatus(String owner, String audience, String status) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("status", status);
+        HttpResponse r = executeWithAuth(HttpRequest
+                .put(url("/admin/service-jwt-grants/" + pathSegment(owner)
+                        + "/" + pathSegment(audience) + "/status"))
+                .jsonBody(payload));
+        return mapBody(r, ServiceJwtGrantInfo.class);
+    }
+
+    /** 删除 grant（不存在/已删 → 404；system_managed → 409）。 */
+    public void deleteServiceJwtGrant(String owner, String audience) {
+        HttpResponse r = executeWithAuth(
+                HttpRequest.delete(url("/admin/service-jwt-grants/" + pathSegment(owner)
+                        + "/" + pathSegment(audience))));
+        ensureSuccess(r);
+    }
+
+    public CompletableFuture<ServiceJwtGrantPage> listServiceJwtGrantsAsync(
+            String owner, String audience, String status, Integer page, Integer size) {
+        return wrapAsync(() -> listServiceJwtGrants(owner, audience, status, page, size));
+    }
+
+    public CompletableFuture<ServiceJwtGrantInfo> createServiceJwtGrantAsync(String owner, String audience) {
+        return wrapAsync(() -> createServiceJwtGrant(owner, audience));
+    }
+
+    public CompletableFuture<ServiceJwtGrantInfo> setServiceJwtGrantStatusAsync(
+            String owner, String audience, String status) {
+        return wrapAsync(() -> setServiceJwtGrantStatus(owner, audience, status));
+    }
+
+    public CompletableFuture<Void> deleteServiceJwtGrantAsync(String owner, String audience) {
+        return wrapAsync(() -> {
+            deleteServiceJwtGrant(owner, audience);
+            return null;
+        });
+    }
+
+    /** query value 编码（标准库 URLEncoder / UTF-8，application/x-www-form-urlencoded）。 */
+    private static String queryValue(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8.name());
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new AssertionError("UTF-8 is always supported", e);
+        }
+    }
+
+    /**
+     * path segment 编码：同一 URLEncoder 机制，但把表单语义的 {@code +}（空格）
+     * 还原为 RFC 3986 的 {@code %20}，避免 path 中的 {@code +} 被服务端按
+     * 空格以外的语义误读。
+     */
+    private static String pathSegment(String value) {
+        try {
+            return java.net.URLEncoder
+                    .encode(value, java.nio.charset.StandardCharsets.UTF_8.name())
+                    .replace("+", "%20");
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new AssertionError("UTF-8 is always supported", e);
+        }
+    }
+
+    private static void appendParam(StringBuilder qs, String name, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        qs.append(qs.length() == 0 ? '?' : '&').append(name).append('=').append(queryValue(value));
+    }
 }

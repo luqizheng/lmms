@@ -30,6 +30,30 @@ pub trait HttpTransport: Send + Sync {
         json_body: &str,
     ) -> Result<HttpResponse, KudiHttpError>;
     async fn get(&self, url: &str, bearer: Option<&str>) -> Result<HttpResponse, KudiHttpError>;
+    /// PUT JSON（带可选 bearer）。管理面状态更新端点用。
+    ///
+    /// 默认实现返回 Network 错误——已有（含下游的）transport
+    /// 实现不必同步扩展，需要 PUT/DELETE 能力的实现再覆写。
+    async fn put_json(
+        &self,
+        _url: &str,
+        _bearer: Option<&str>,
+        _json_body: &str,
+    ) -> Result<HttpResponse, KudiHttpError> {
+        Err(KudiHttpError::Network(
+            "put_json not supported by this transport".into(),
+        ))
+    }
+    /// DELETE（带可选 bearer）。管理面删除端点用。默认实现同 put_json。
+    async fn delete(
+        &self,
+        _url: &str,
+        _bearer: Option<&str>,
+    ) -> Result<HttpResponse, KudiHttpError> {
+        Err(KudiHttpError::Network(
+            "delete not supported by this transport".into(),
+        ))
+    }
 }
 
 pub struct ReqwestTransport {
@@ -87,6 +111,25 @@ impl HttpTransport for ReqwestTransport {
 
     async fn get(&self, url: &str, bearer: Option<&str>) -> Result<HttpResponse, KudiHttpError> {
         self.send_with_retry("GET", url, bearer, None).await
+    }
+
+    async fn put_json(
+        &self,
+        url: &str,
+        bearer: Option<&str>,
+        json_body: &str,
+    ) -> Result<HttpResponse, KudiHttpError> {
+        self.send_with_retry(
+            "PUT",
+            url,
+            bearer,
+            Some(("application/json", json_body.to_string())),
+        )
+        .await
+    }
+
+    async fn delete(&self, url: &str, bearer: Option<&str>) -> Result<HttpResponse, KudiHttpError> {
+        self.send_with_retry("DELETE", url, bearer, None).await
     }
 }
 

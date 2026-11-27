@@ -31,8 +31,6 @@ digua_common_error = { path = "../../libs/common-error" }
 digua_common_event = { path = "../../libs/common-event" }
 digua_common_db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
 digua_authz = { path = "../../libs/authz" }
-digua_common_log = { path = "../../libs/common-log" }
-digua_common_cache = { path = "../../libs/common-cache" }
 digua_common = { path = "../../libs/common" }
 digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }

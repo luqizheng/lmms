@@ -5,7 +5,7 @@ use utoipa::{
 
 use crate::routes::{
     access, admin, api_key, bootstrap_token_admin, bootstrap_token_web, keys_admin,
-    migration_state, refresh, revoke, user_jwt,
+    migration_state, refresh, revoke, service_jwt_grant_admin, service_jwt_grant_web, user_jwt,
 };
 
 pub struct SecurityAddon;
@@ -59,6 +59,16 @@ impl Modify for SecurityAddon {
         keys_admin::handle_rotate,
         keys_admin::handle_retire,
         keys_admin::handle_delete,
+        service_jwt_grant_admin::handle_list,
+        service_jwt_grant_admin::handle_get,
+        service_jwt_grant_admin::handle_create,
+        service_jwt_grant_admin::handle_set_status,
+        service_jwt_grant_admin::handle_delete,
+        service_jwt_grant_web::handle_list,
+        service_jwt_grant_web::handle_get,
+        service_jwt_grant_web::handle_create,
+        service_jwt_grant_web::handle_set_status,
+        service_jwt_grant_web::handle_delete,
     ),
     components(schemas(
         keys_admin::ListKeysResponse,
@@ -93,6 +103,10 @@ impl Modify for SecurityAddon {
         bootstrap_token_admin::RotateBootstrapTokenResponse,
         bootstrap_token_admin::SetStatusRequest,
         bootstrap_token_web::RotateRequest,
+        service_jwt_grant_admin::ServiceJwtGrantDto,
+        service_jwt_grant_admin::ListServiceJwtGrantsResponse,
+        service_jwt_grant_admin::CreateServiceJwtGrantRequest,
+        service_jwt_grant_admin::SetGrantStatusRequest,
     )),
     modifiers(&SecurityAddon),
     tags(
@@ -102,6 +116,10 @@ impl Modify for SecurityAddon {
         (
             name = "bootstrap-token",
             description = "Service-to-service credential management (Web UI)"
+        ),
+        (
+            name = "service-jwt-grant",
+            description = "Service JWT audience grant management (owner -> audience authorization)"
         ),
     )
 )]

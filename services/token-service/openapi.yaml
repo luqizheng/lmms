@@ -312,6 +312,207 @@ paths:
           description: not found
       security:
       - bearer_auth: []
+  /admin/service-jwt-grants:
+    get:
+      tags:
+      - service-jwt-grant
+      summary: List service JWT audience grants (service-jwt aud=token-service + grant admin list)
+      operationId: handle_list
+      parameters:
+      - name: owner
+        in: query
+        description: owner 精确筛选。
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: audience
+        in: query
+        description: audience 精确筛选。
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: status
+        in: query
+        description: '`active` | `disabled`；其他值 → 400。'
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        description: 页码，从 1 起；缺省 1。
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        description: 每页条数（1..=100）；缺省 20。
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListServiceJwtGrantsResponse'
+        '400':
+          description: bad request (paging / status)
+        '401':
+          description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list (TOKEN_SERVICE_JWT_GRANT_ADMINS)
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - service-jwt-grant
+      summary: Create a service JWT audience grant (requires grant admin)
+      operationId: handle_create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceJwtGrantRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceJwtGrantDto'
+        '400':
+          description: invalid owner/audience
+        '401':
+          description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
+        '409':
+          description: grant already exists
+      security:
+      - bearer_auth: []
+  /admin/service-jwt-grants/{owner}/{audience}:
+    get:
+      tags:
+      - service-jwt-grant
+      summary: Get one service JWT audience grant (requires grant admin)
+      operationId: handle_get
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: audience
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceJwtGrantDto'
+        '400':
+          description: invalid path params
+        '401':
+          description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
+        '404':
+          description: not found
+      security:
+      - bearer_auth: []
+    delete:
+      tags:
+      - service-jwt-grant
+      summary: Delete a service JWT audience grant (requires grant admin)
+      operationId: handle_delete
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: audience
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: deleted
+        '400':
+          description: invalid path params
+        '401':
+          description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
+        '404':
+          description: not found
+        '409':
+          description: system-managed grant is protected
+      security:
+      - bearer_auth: []
+  /admin/service-jwt-grants/{owner}/{audience}/status:
+    put:
+      tags:
+      - service-jwt-grant
+      summary: Enable or disable a service JWT audience grant (requires grant admin)
+      operationId: handle_set_status
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: audience
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetGrantStatusRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceJwtGrantDto'
+        '400':
+          description: bad request (status / path params)
+        '401':
+          description: missing or invalid service-jwt
+        '403':
+          description: subject not in the grant admin list
+        '404':
+          description: not found
+        '409':
+          description: system-managed grant is protected
+      security:
+      - bearer_auth: []
   /api-keys:
     get:
       tags:
@@ -704,6 +905,207 @@ paths:
           description: not found
       security:
       - bearer_auth: []
+  /v1/admin/service-jwt-grants:
+    get:
+      tags:
+      - service-jwt-grant
+      summary: List service JWT audience grants (Web UI, requires TOKEN_SERVICE_JWT_GRANT_READ)
+      operationId: handle_list
+      parameters:
+      - name: owner
+        in: query
+        description: owner 精确筛选。
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: audience
+        in: query
+        description: audience 精确筛选。
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: status
+        in: query
+        description: '`active` | `disabled`；其他值 → 400。'
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: page
+        in: query
+        description: 页码，从 1 起；缺省 1。
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      - name: size
+        in: query
+        description: 每页条数（1..=100）；缺省 20。
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListServiceJwtGrantsResponse'
+        '400':
+          description: bad request (paging / status)
+        '401':
+          description: missing or invalid user-jwt
+        '403':
+          description: permission denied
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - service-jwt-grant
+      summary: Create a service JWT audience grant (Web UI, requires TOKEN_SERVICE_JWT_GRANT_CREATE)
+      operationId: handle_create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceJwtGrantRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceJwtGrantDto'
+        '400':
+          description: invalid owner/audience
+        '401':
+          description: missing or invalid user-jwt
+        '403':
+          description: permission denied
+        '409':
+          description: grant already exists
+      security:
+      - bearer_auth: []
+  /v1/admin/service-jwt-grants/{owner}/{audience}:
+    get:
+      tags:
+      - service-jwt-grant
+      summary: Get one service JWT audience grant (Web UI)
+      operationId: handle_get
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: audience
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceJwtGrantDto'
+        '400':
+          description: invalid path params
+        '401':
+          description: missing or invalid user-jwt
+        '403':
+          description: permission denied
+        '404':
+          description: not found
+      security:
+      - bearer_auth: []
+    delete:
+      tags:
+      - service-jwt-grant
+      summary: Delete a service JWT audience grant (Web UI, requires TOKEN_SERVICE_JWT_GRANT_DELETE)
+      operationId: handle_delete
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: audience
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: deleted
+        '400':
+          description: invalid path params
+        '401':
+          description: missing or invalid user-jwt
+        '403':
+          description: permission denied
+        '404':
+          description: not found
+        '409':
+          description: system-managed grant is protected
+      security:
+      - bearer_auth: []
+  /v1/admin/service-jwt-grants/{owner}/{audience}/status:
+    put:
+      tags:
+      - service-jwt-grant
+      summary: Enable or disable a service JWT audience grant (Web UI, requires TOKEN_SERVICE_JWT_GRANT_UPDATE)
+      operationId: handle_set_status
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: audience
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetGrantStatusRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceJwtGrantDto'
+        '400':
+          description: bad request (status / path params)
+        '401':
+          description: missing or invalid user-jwt
+        '403':
+          description: permission denied
+        '404':
+          description: not found
+        '409':
+          description: system-managed grant is protected
+      security:
+      - bearer_auth: []
 components:
   schemas:
     AccessRequest:
@@ -967,6 +1369,16 @@ components:
           type: string
         client_secret:
           type: string
+    CreateServiceJwtGrantRequest:
+      type: object
+      required:
+      - owner
+      - audience
+      properties:
+        audience:
+          type: string
+        owner:
+          type: string
     KeyEntryView:
       type: object
       required:
@@ -1054,6 +1466,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClientDto'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+    ListServiceJwtGrantsResponse:
+      type: object
+      description: 统一分页返回结构：`{ items, total, page, size }`。
+      required:
+      - items
+      - total
+      - page
+      - size
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceJwtGrantDto'
         page:
           type: integer
           format: int32
@@ -1235,6 +1671,41 @@ components:
           - 'null'
           format: int64
           description: 旧 token 的宽限期（秒）。0 = 立即失效；>0 = 新旧 token 并存到该时刻。
+    ServiceJwtGrantDto:
+      type: object
+      description: grant 行视图（无任何凭据材料——grant 本身不含 secret）。
+      required:
+      - owner
+      - audience
+      - status
+      - system_managed
+      - created_at
+      - updated_at
+      properties:
+        audience:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        owner:
+          type: string
+        status:
+          type: string
+          description: '`active` | `disabled`。'
+        system_managed:
+          type: boolean
+          description: true = 内置系统授权（管理面禁止改删）。
+        updated_at:
+          type: string
+          format: date-time
+    SetGrantStatusRequest:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: '`active` | `disabled`。'
     SetStatusRequest:
       type: object
       required:
@@ -1319,3 +1790,5 @@ tags:
   description: Long-lived API key (client_credentials only)
 - name: bootstrap-token
   description: Service-to-service credential management (Web UI)
+- name: service-jwt-grant
+  description: Service JWT audience grant management (owner -> audience authorization)

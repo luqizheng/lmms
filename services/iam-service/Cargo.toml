@@ -20,14 +20,11 @@ digua_common_consul = { path = "../../libs/common-consul" }
 digua_common = { path = "../../libs/common" }
 digua_common_error = { path = "../../libs/common-error" }
 digua_common_event = { path = "../../libs/common-event" }
-digua_common_log = { path = "../../libs/common-log" }
 digua_common_telemetry = { path = "../../libs/common-telemetry", features = ["otlp"] }
 digua_common_telemetry_axum = { path = "../../libs/common-telemetry-axum", features = ["otlp"] }
-digua_common_config = { path = "../../libs/common-config" }
 digua_common_db = { path = "../../libs/common-db", features = ["mysql", "sqlite", "openapi"] }
 digua_common_cache = { path = "../../libs/common-cache", features = ["redis"] }
 digua_common_crypto = { path = "../../libs/common-crypto" }
-digua_common_validator = { path = "../../libs/common-validator" }
 digua_jwt_ctx = { path = "../../libs/jwt-ctx" }
 digua_authz = { path = "../../libs/authz" }
 digua_common_jwt = { path = "../../libs/common-jwt" }

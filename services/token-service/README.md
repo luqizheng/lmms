@@ -68,6 +68,10 @@ default_resource_ttl_sec: 300
 
 user_service_url: http://user-service:8080
 
+# service-jwt grant 管理主体清单（逗号分隔 canonical owner）。
+# 空 = fail-closed：任何 service-jwt 调 /admin/service-jwt-grants* 都 403。
+service_jwt_grant_admins: ["iam-service"]
+
 consul:
   addr: http://localhost:8500
   service_name: token-service
@@ -90,6 +94,7 @@ consul:
 | default_refresh_ttl_sec | Refresh Token 默认有效期(秒) | 2592000 |
 | default_resource_ttl_sec | Resource Token 默认有效期(秒) | 300 |
 | user_service_url | 用户服务地址 | http://user-service:8080 |
+| service_jwt_grant_admins | 可调 `/admin/service-jwt-grants*` 的 service-jwt 主体清单（env `TOKEN_SERVICE_JWT_GRANT_ADMINS`）；空 = fail-closed 全拒 | 空 |
 | consul.addr | Consul 地址 | http://localhost:8500 |
 | consul.service_name | 服务名称 | token-service |
 

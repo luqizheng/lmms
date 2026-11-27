@@ -536,3 +536,268 @@ macro_rules! db_qb_execute {
         }
     }};
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 事务内执行（`db_tx_*!` 宏族）
+//
+// 与池级 `db_*!` 宏族同一套 render + bind 计数契约，但 executor 是
+// `&mut Transaction`（经 `DerefMut` 到 `&mut DB::Connection`）。语句都在
+// `$tx` 的事务边界内：commit 前对其他连接不可见，任何一步失败可整体回滚
+// ——业务变更与审计写入原子性的基座（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02）。
+//
+// `$tx` 可以传拥有值或 `&mut Transaction`（宏内统一 `match &mut *$tx`）。
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// 事务内写操作（INSERT / UPDATE / DELETE），返回影响行数。
+#[macro_export]
+macro_rules! db_tx_execute {
+    ($tx:expr, $sql:expr $(, $bind:expr)* $(,)?) => {{
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
+        let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
+        match &mut *$tx {
+            #[cfg(feature = "mysql")]
+            $crate::Transaction::Mysql(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Mysql,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q = $crate::sqlx::query(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.execute(&mut **t).await.map(|r| r.rows_affected())
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "postgres")]
+            $crate::Transaction::Postgres(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Postgres,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q = $crate::sqlx::query(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.execute(&mut **t).await.map(|r| r.rows_affected())
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "sqlite")]
+            $crate::Transaction::Sqlite(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Sqlite,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q = $crate::sqlx::query(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.execute(&mut **t).await.map(|r| r.rows_affected())
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[allow(unreachable_patterns)]
+            _ => Err($crate::sqlx::Error::Configuration(
+                "db dialect not enabled for this crate".into(),
+            )),
+        }
+    }};
+}
+
+/// 事务内读取多行。
+#[macro_export]
+macro_rules! db_tx_fetch_all {
+    ($tx:expr, $ty:ty, $sql:expr $(, $bind:expr)* $(,)?) => {{
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
+        let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
+        match &mut *$tx {
+            #[cfg(feature = "mysql")]
+            $crate::Transaction::Mysql(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Mysql,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_as::<$crate::sqlx::MySql, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_all(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "postgres")]
+            $crate::Transaction::Postgres(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Postgres,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_as::<$crate::sqlx::Postgres, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_all(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "sqlite")]
+            $crate::Transaction::Sqlite(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Sqlite,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_as::<$crate::sqlx::Sqlite, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_all(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[allow(unreachable_patterns)]
+            _ => Err($crate::sqlx::Error::Configuration(
+                "db dialect not enabled for this crate".into(),
+            )),
+        }
+    }};
+}
+
+/// 事务内读取单行（可无行 → `Ok(None)`）。配合 `FOR UPDATE` 使用时，
+/// 命中的行在事务提交 / 回滚前被行锁保护（双方言语法一致）。
+#[macro_export]
+macro_rules! db_tx_fetch_optional {
+    ($tx:expr, $ty:ty, $sql:expr $(, $bind:expr)* $(,)?) => {{
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
+        let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
+        match &mut *$tx {
+            #[cfg(feature = "mysql")]
+            $crate::Transaction::Mysql(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Mysql,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_as::<$crate::sqlx::MySql, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_optional(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "postgres")]
+            $crate::Transaction::Postgres(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Postgres,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_as::<$crate::sqlx::Postgres, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_optional(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "sqlite")]
+            $crate::Transaction::Sqlite(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Sqlite,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_as::<$crate::sqlx::Sqlite, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_optional(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[allow(unreachable_patterns)]
+            _ => Err($crate::sqlx::Error::Configuration(
+                "db dialect not enabled for this crate".into(),
+            )),
+        }
+    }};
+}
+
+/// 事务内标量查询（`COUNT(*)` / `EXISTS` 等）。
+#[macro_export]
+macro_rules! db_tx_fetch_scalar {
+    ($tx:expr, $ty:ty, $sql:expr $(, $bind:expr)* $(,)?) => {{
+        let __sql_val = $sql;
+        let __sql_tpl: &str = &__sql_val;
+        let __n_binds: usize = 0usize $(+ { let _ = &$bind; 1usize })*;
+        match &mut *$tx {
+            #[cfg(feature = "mysql")]
+            $crate::Transaction::Mysql(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Mysql,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_scalar::<$crate::sqlx::MySql, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_one(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "postgres")]
+            $crate::Transaction::Postgres(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Postgres,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_scalar::<$crate::sqlx::Postgres, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_one(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[cfg(feature = "sqlite")]
+            $crate::Transaction::Sqlite(t) => {
+                match $crate::__db_prepare!(
+                    $crate::dialect::DialectKind::Sqlite,
+                    __sql_tpl,
+                    __n_binds
+                ) {
+                    Ok(__rq) => {
+                        let mut __q =
+                            $crate::sqlx::query_scalar::<$crate::sqlx::Sqlite, $ty>(__rq.sql());
+                        $( __q = __q.bind($bind); )*
+                        __q.fetch_one(&mut **t).await
+                    }
+                    Err(__e) => Err($crate::sqlx::Error::Configuration(Box::new(__e))),
+                }
+            }
+            #[allow(unreachable_patterns)]
+            _ => Err($crate::sqlx::Error::Configuration(
+                "db dialect not enabled for this crate".into(),
+            )),
+        }
+    }};
+}

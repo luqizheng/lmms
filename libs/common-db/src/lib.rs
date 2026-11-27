@@ -140,6 +140,27 @@ impl DbPool {
             _ => None,
         }
     }
+
+    /// 开启一个方言感知事务（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02）。
+    ///
+    /// 事务内的语句用 `db_tx_execute!` / `db_tx_fetch_optional!` /
+    /// `db_tx_fetch_scalar!` / `db_tx_fetch_all!` 宏执行——同一份 SQL 源码
+    /// 在 MySQL（`?`）与 PostgreSQL（`$N`）上按方言渲染，占位符改写与
+    /// bind 计数校验与池级 `db_*!` 宏完全一致。
+    ///
+    /// 隔离级别用各后端默认（MySQL InnoDB `REPEATABLE READ` / PG
+    /// `READ COMMITTED`）。需要行级串行化的读请加 `FOR UPDATE`
+    ///（双方言语法一致），把先查后改的 TOCTOU 窗口交给行锁闭合。
+    pub async fn begin(&self) -> Result<Transaction<'_>, sqlx::Error> {
+        match self {
+            #[cfg(feature = "mysql")]
+            Self::Mysql(p) => Ok(Transaction::Mysql(p.begin().await?)),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(p) => Ok(Transaction::Postgres(p.begin().await?)),
+            #[cfg(feature = "sqlite")]
+            Self::Sqlite(p) => Ok(Transaction::Sqlite(p.begin().await?)),
+        }
+    }
 }
 
 pub async fn init_pool(database_url: &str) -> AppResult<DbPool> {
@@ -234,59 +255,48 @@ pub async fn run_migrations(pool: &DbPool, migrations_path: &str) -> AppResult<(
     }
 }
 
-pub struct Transaction<'a> {
+/// 方言感知事务句柄（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 激活）。
+///
+/// 由 [`DbPool::begin`] 构造；事务内语句用 `db_tx_*!` 宏族执行（宏把
+/// `&mut Transaction` 分派到对应后端，executor 为 `&mut **t`，即
+/// `&mut DB::Connection`）。**drop 未提交的事务即回滚**（sqlx 语义），
+/// 但成功路径应显式 [`Transaction::commit`]，失败路径显式
+/// [`Transaction::rollback`] 以让错误可见。
+///
+/// 错误类型与 `db_*!` 宏族一致（`sqlx::Error`），调用方统一处理。
+pub enum Transaction<'a> {
     #[cfg(feature = "mysql")]
-    mysql: Option<sqlx::Transaction<'a, MySql>>,
+    Mysql(sqlx::Transaction<'a, MySql>),
     #[cfg(feature = "postgres")]
-    pg: Option<sqlx::Transaction<'a, Postgres>>,
+    Postgres(sqlx::Transaction<'a, Postgres>),
     #[cfg(feature = "sqlite")]
-    sqlite: Option<sqlx::Transaction<'a, Sqlite>>,
-    #[cfg(not(any(feature = "mysql", feature = "postgres", feature = "sqlite")))]
-    _phantom: std::marker::PhantomData<&'a ()>,
+    Sqlite(sqlx::Transaction<'a, Sqlite>),
 }
 
-impl<'a> Transaction<'a> {
-    pub async fn commit(mut self) -> AppResult<()> {
-        #[cfg(feature = "mysql")]
-        if let Some(tx) = self.mysql.take() {
-            tx.commit()
-                .await
-                .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
+impl Transaction<'_> {
+    /// 提交事务。任一后端 commit 失败 → `Err`（调用方必须视为操作失败，
+    /// 不得向客户端确认成功）。
+    pub async fn commit(self) -> Result<(), sqlx::Error> {
+        match self {
+            #[cfg(feature = "mysql")]
+            Self::Mysql(t) => t.commit().await,
+            #[cfg(feature = "postgres")]
+            Self::Postgres(t) => t.commit().await,
+            #[cfg(feature = "sqlite")]
+            Self::Sqlite(t) => t.commit().await,
         }
-        #[cfg(feature = "postgres")]
-        if let Some(tx) = self.pg.take() {
-            tx.commit()
-                .await
-                .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
-        }
-        #[cfg(feature = "sqlite")]
-        if let Some(tx) = self.sqlite.take() {
-            tx.commit()
-                .await
-                .map_err(|e| AppError::internal("TX_COMMIT", e.to_string()))?;
-        }
-        Ok(())
     }
 
-    pub async fn rollback(mut self) -> AppResult<()> {
-        #[cfg(feature = "mysql")]
-        if let Some(tx) = self.mysql.take() {
-            tx.rollback()
-                .await
-                .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;
+    /// 显式回滚。drop 未提交事务同样回滚（安全网），但失败路径应显式
+    /// 调用本方法，让回滚错误进入调用方错误处理。
+    pub async fn rollback(self) -> Result<(), sqlx::Error> {
+        match self {
+            #[cfg(feature = "mysql")]
+            Self::Mysql(t) => t.rollback().await,
+            #[cfg(feature = "postgres")]
+            Self::Postgres(t) => t.rollback().await,
+            #[cfg(feature = "sqlite")]
+            Self::Sqlite(t) => t.rollback().await,
         }
-        #[cfg(feature = "postgres")]
-        if let Some(tx) = self.pg.take() {
-            tx.rollback()
-                .await
-                .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;
-        }
-        #[cfg(feature = "sqlite")]
-        if let Some(tx) = self.sqlite.take() {
-            tx.rollback()
-                .await
-                .map_err(|e| AppError::internal("TX_ROLLBACK", e.to_string()))?;
-        }
-        Ok(())
     }
 }

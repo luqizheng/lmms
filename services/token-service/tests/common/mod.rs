@@ -155,7 +155,17 @@ pub const TEST_PUBLIC_PEM: &str =
 
 /// 构造带真实 DB pool 的 TokenServerState（HTTP 级测试用，oneshot 房规）。
 /// `user_service_url` 指向不可达地址 → claims 拉取走降级路径。
+///
+/// `service_jwt_grant_admins` 默认为**空清单**（fail-closed：任何 service-jwt
+/// 调 grant 管理面都会 403）——需要 service-jwt 管理面放行的测试用
+/// [`build_state_with_admins`]。
 pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
+    build_state_with_admins(pool, Vec::new())
+}
+
+/// 同 [`build_state`]，但可指定 grant 管理员清单
+///（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 P1-01）。
+pub fn build_state_with_admins(pool: DbPool, admins: Vec<&str>) -> token_service::TokenServerState {
     // fixture PEM 以 legacy kid="default" 进 keystore（内存构造，不落盘），
     // 与 mint_service_bearer / sign_token 的 legacy kid 链路一致。
     let keystore = token_service::keystore::KeyStore::from_legacy_pems(
@@ -183,5 +193,8 @@ pub fn build_state(pool: DbPool) -> token_service::TokenServerState {
         user_service_url: "http://iam-service:8081".into(),
         keys: std::sync::Arc::new(std::sync::RwLock::new(keystore)),
         jwks,
+        service_jwt_grant_admins: std::sync::Arc::new(
+            admins.into_iter().map(String::from).collect(),
+        ),
     }
 }

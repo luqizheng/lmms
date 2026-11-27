@@ -104,3 +104,60 @@ describe("TokensApi", () => {
     expect(res.api_key_secret).toBe("one-time-secret");
   });
 });
+
+describe("ServiceJwtGrantsApi", () => {
+  it("list 发送过滤与分页参数并带鉴权头", async () => {
+    const { impl, calls } = fakeFetch(() => ({
+      status: 200,
+      body: {
+        items: [
+          { owner: "svc-a", audience: "iam-service", status: "active", system_managed: false },
+        ],
+        total: 1,
+        page: 1,
+        size: 20,
+      },
+    }));
+    const tokens = makeApi(impl);
+    const page = await tokens.serviceJwtGrants.list({ owner: "svc-a", status: "active", page: 1, size: 20 });
+    expect(page.total).toBe(1);
+    expect(page.items[0].audience).toBe("iam-service");
+    const url = calls[0].url;
+    expect(url).toContain("/v1/admin/service-jwt-grants?");
+    expect(url).toContain("owner=svc-a");
+    expect(url).toContain("status=active");
+    expect(headersOf(calls[0])["Authorization"]).toBe("Bearer svc-tok");
+  });
+
+  it("create POST body 正确（重复创建服务端 409）", async () => {
+    const { impl, calls } = fakeFetch(() => ({
+      status: 200,
+      body: { owner: "svc-a", audience: "file-service", status: "active", system_managed: false },
+    }));
+    const tokens = makeApi(impl);
+    const g = await tokens.serviceJwtGrants.create({ owner: "svc-a", audience: "file-service" });
+    expect(g.audience).toBe("file-service");
+    expect(calls[0].url.endsWith("/v1/admin/service-jwt-grants")).toBe(true);
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ owner: "svc-a", audience: "file-service" });
+    expect(calls[0].init.method).toBe("POST");
+  });
+
+  it("setStatus 走 PUT 路径，remove 走 DELETE 路径", async () => {
+    const { impl, calls } = fakeFetch(() => ({
+      status: 200,
+      body: { owner: "svc-a", audience: "file-service", status: "disabled", system_managed: false },
+    }));
+    const tokens = makeApi(impl);
+    const g = await tokens.serviceJwtGrants.setStatus("svc-a", "file-service", { status: "disabled" });
+    expect(g.status).toBe("disabled");
+    expect(calls[0].init.method).toBe("PUT");
+    expect(calls[0].url).toContain("/v1/admin/service-jwt-grants/svc-a/file-service/status");
+
+    // 204 delete
+    const { impl: impl2, calls: calls2 } = fakeFetch(() => ({ status: 204, body: undefined }));
+    const tokens2 = makeApi(impl2);
+    await tokens2.serviceJwtGrants.remove("svc-a", "file-service");
+    expect(calls2[0].init.method).toBe("DELETE");
+    expect(calls2[0].url.endsWith("/v1/admin/service-jwt-grants/svc-a/file-service")).toBe(true);
+  });
+});

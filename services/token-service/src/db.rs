@@ -118,6 +118,15 @@ pub const MIGRATIONS: &[Migration] = &[
         marker_table: "token_migration_v005_applied",
         rust_step: Some(RustMigrationStep::V005GrantPk),
     },
+    // V006（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）：grant 管理审计表。
+    // 纯 CREATE TABLE IF NOT EXISTS 幂等脚本，无需 rust_step。
+    Migration {
+        version: "V006",
+        sql_mysql: include_str!("../migrations/mysql/V006__service_jwt_grant_audit.sql"),
+        sql_postgres: include_str!("../migrations/postgres/V006__service_jwt_grant_audit.sql"),
+        marker_table: "token_migration_v006_applied",
+        rust_step: None,
+    },
 ];
 
 /// 需要状态感知逻辑的迁移步（WP-02-R2）。纯 SQL 无法在「分号切分 +
@@ -420,7 +429,10 @@ mod tests {
     #[test]
     fn migrations_are_versioned_in_order() {
         let versions: Vec<&str> = MIGRATIONS.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec!["V001", "V002", "V003", "V004", "V005"]);
+        assert_eq!(
+            versions,
+            vec!["V001", "V002", "V003", "V004", "V005", "V006"]
+        );
     }
 
     #[test]

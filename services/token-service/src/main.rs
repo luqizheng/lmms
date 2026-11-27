@@ -176,6 +176,7 @@ async fn main() {
         user_service_url: cfg.user_service_url.clone(),
         keys: Arc::new(std::sync::RwLock::new(keystore)),
         jwks: jwks_cache,
+        service_jwt_grant_admins: Arc::new(cfg.service_jwt_grant_admins.clone()),
     };
 
     async fn metrics() -> axum::response::Html<String> {
@@ -244,6 +245,12 @@ async fn main() {
     // user-jwt + 权限码鉴权，供浏览器端 Web UI 调用（经 api-gateway 的
     // token.router.toml 转发）。service-jwt 端点保留给 CI / 运维脚本。
     app = app.merge(routes::bootstrap_token_web::routes(state.clone()));
+
+    // WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01: grant 管理面（owner → audience
+    // 授权关系的 CRUD + 审计，双入口共用 ops 业务层）。上游 WP-02 只建了
+    // 运行时检查与 code-owned seed，管理能力由本任务补齐。
+    app = app.merge(routes::service_jwt_grant_admin::routes(state.clone()));
+    app = app.merge(routes::service_jwt_grant_web::routes(state.clone()));
 
     // Phase 5-B: service-jwt endpoint (bootstrap-token auth).
     app = app.merge(token_service::service_jwt_routes(state.clone()));

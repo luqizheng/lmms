@@ -10,7 +10,10 @@
 //! 后缀），与 Bootstrap Token 密钥值解耦——rotate 不影响授权。
 
 use crate::db::{is_duplicate_key, DbPool};
-use digua_common_db::{db_execute, db_fetch_all, db_fetch_optional, db_fetch_scalar};
+use digua_common_db::{
+    db_execute, db_fetch_all, db_fetch_optional, db_fetch_scalar, db_qb_fetch_all, db_qb_fetch_one,
+    db_tx_execute, db_tx_fetch_optional, Transaction,
+};
 
 /// 内置系统授权（code-owned，版本控制）。
 ///
@@ -197,6 +200,417 @@ pub async fn validate_required_principals(pool: &DbPool) -> Result<(), String> {
     Ok(())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 管理面 CRUD + 审计（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-01）
+//
+// WP-02 只建立了运行时授权与 code-owned seed（"本阶段不提供 grant CRUD"）；
+// 本段补齐授权管理控制面，供 routes/service_jwt_grant_{admin,web}.rs 共用。
+// 并发语义：
+//   - create 依赖 PK (owner, audience) 兜底——并发双插时第二个 INSERT 报
+//     唯一键冲突，ops 层映射 409；
+//   - set_status / delete 的条件写（`AND status <> ?` / `AND system_managed
+//     = FALSE`）把并发去重与系统保护都下沉到写 SQL 内原子生效（R1-02），
+//     ops 层对 `affected=0` 重查归类 404 / 409 / 幂等。
+// 审计走同库 append-only 表 `token_service_jwt_grant_audit`（V006），记录
+// 变更与拒绝，**永不**携带 token/JWT/凭据。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// grant 的两种合法状态。
+pub const STATUS_ACTIVE: &str = "active";
+pub const STATUS_DISABLED: &str = "disabled";
+
+/// 归一化 status 字符串到合法枚举；非法输入返回 None（调用方映射 400）。
+pub fn parse_status(status: &str) -> Option<&'static str> {
+    match status {
+        STATUS_ACTIVE => Some(STATUS_ACTIVE),
+        STATUS_DISABLED => Some(STATUS_DISABLED),
+        _ => None,
+    }
+}
+
+/// 分页 + 过滤查询。`page` 从 1 起；稳定排序 `owner, audience`。
+/// 调用方（ops）已保证 page/size 边界合法。
+pub async fn list_filtered(
+    pool: &DbPool,
+    owner: Option<&str>,
+    audience: Option<&str>,
+    status: Option<&str>,
+    page: u32,
+    size: u32,
+) -> Result<(Vec<ServiceJwtGrantRow>, i64), sqlx::Error> {
+    let offset: i64 = ((page - 1) as i64) * (size as i64);
+    let owner = owner.map(str::to_string);
+    let audience = audience.map(str::to_string);
+    let status = status.map(str::to_string);
+
+    let rows: Vec<ServiceJwtGrantRow> = db_qb_fetch_all!(pool, ServiceJwtGrantRow, |qb| {
+        qb.push(
+            "SELECT owner, audience, status, system_managed, created_at, updated_at \
+                 FROM token_service_jwt_grants WHERE 1=1",
+        );
+        if let Some(o) = owner.as_ref() {
+            qb.push(" AND owner = ").push_bind(o);
+        }
+        if let Some(a) = audience.as_ref() {
+            qb.push(" AND audience = ").push_bind(a);
+        }
+        if let Some(st) = status.as_ref() {
+            qb.push(" AND status = ").push_bind(st);
+        }
+        qb.push(" ORDER BY owner, audience LIMIT ")
+            .push_bind(size as i64);
+        qb.push(" OFFSET ").push_bind(offset);
+    })?;
+
+    let total: (i64,) = db_qb_fetch_one!(pool, (i64,), |qb| {
+        qb.push("SELECT COUNT(*) FROM token_service_jwt_grants WHERE 1=1");
+        if let Some(o) = owner.as_ref() {
+            qb.push(" AND owner = ").push_bind(o);
+        }
+        if let Some(a) = audience.as_ref() {
+            qb.push(" AND audience = ").push_bind(a);
+        }
+        if let Some(st) = status.as_ref() {
+            qb.push(" AND status = ").push_bind(st);
+        }
+    })?;
+
+    Ok((rows, total.0))
+}
+
+/// create 的结果：`Inserted` 成功；`Duplicate` 已存在（含并发 PK 冲突）。
+#[derive(Debug, PartialEq, Eq)]
+pub enum CreateOutcome {
+    Inserted,
+    Duplicate,
+}
+
+/// 新建 grant（`active`, `system_managed=false`）。
+///
+/// 先查后插 + PK 唯一约束兜底：并发创建相同 `(owner, audience)` 时恰一次
+/// 返回 `Inserted`，另一边 INSERT 报唯一键冲突映射为 `Duplicate`。
+/// `owner`/`audience` 必须已通过 [`validate_service_identity`]（ops 层校验）。
+pub async fn create_grant(
+    pool: &DbPool,
+    owner: &str,
+    audience: &str,
+) -> Result<CreateOutcome, sqlx::Error> {
+    if find_by_owner_and_audience(pool, owner, audience)
+        .await?
+        .is_some()
+    {
+        return Ok(CreateOutcome::Duplicate);
+    }
+    let res = db_execute!(
+        pool,
+        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed) \
+         VALUES (?, ?, 'active', FALSE)",
+        owner,
+        audience
+    );
+    match res {
+        Ok(_) => Ok(CreateOutcome::Inserted),
+        Err(ref e) if is_duplicate_key(e) => Ok(CreateOutcome::Duplicate),
+        Err(e) => Err(e),
+    }
+}
+
+/// 启用 / 禁用。条件 UPDATE（`AND status <> ? AND system_managed = FALSE`）
+/// 保证并发下后写者不会把已被他人改到目标状态的行"再次变更"，且
+/// **system_managed 保护在写 SQL 内原子生效**（R1-02：先查后改的
+/// TOCTOU 窗口内，即使行刚被并发置为 system_managed，UPDATE 也不会命中）
+/// ——重复请求 / 系统保护行返回 `affected=0`，语义由调用方重查判定。
+/// 返回受影响行数（0 = 行不存在、已处于目标状态，或受系统保护）。
+pub async fn set_grant_status(
+    pool: &DbPool,
+    owner: &str,
+    audience: &str,
+    status: &str,
+) -> Result<u64, sqlx::Error> {
+    let affected = db_execute!(
+        pool,
+        "UPDATE token_service_jwt_grants SET status = ?, updated_at = ? \
+         WHERE owner = ? AND audience = ? AND status <> ? AND system_managed = FALSE",
+        status,
+        chrono::Utc::now(),
+        owner,
+        audience,
+        status
+    )?;
+    Ok(affected)
+}
+
+/// 删除 grant。条件 DELETE（`AND system_managed = FALSE`）把系统保护
+/// 下沉到写 SQL 内原子生效（R1-02）：先查后删的 TOCTOU 窗口内被并发
+/// 置为 system_managed 的行**不会**被删除。返回受影响行数（0 = 不存在、
+/// 已删，或受系统保护），语义由调用方重查判定。
+pub async fn delete_grant(pool: &DbPool, owner: &str, audience: &str) -> Result<u64, sqlx::Error> {
+    let affected = db_execute!(
+        pool,
+        "DELETE FROM token_service_jwt_grants \
+         WHERE owner = ? AND audience = ? AND system_managed = FALSE",
+        owner,
+        audience
+    )?;
+    Ok(affected)
+}
+
+// ── 事务内执行（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 P1-02）────────────────
+//
+// 业务变更与成功审计必须同事务提交：任何一步失败整体回滚，不出现
+// "业务已变更但审计缺失"。读走 `FOR UPDATE` 行锁（双方言语法一致），
+// 把先查后改的 TOCTOU 窗口交给行锁闭合；system_managed 保护仍由
+// 条件 UPDATE / DELETE 在 SQL 内原子兜底。
+
+/// 事务内按主体+audience 取单行，`FOR UPDATE` 行锁至事务结束。
+/// 供 set_status / delete 在变更前锁定目标行并读取 before 状态。
+pub async fn find_by_owner_and_audience_for_update(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+) -> Result<Option<ServiceJwtGrantRow>, sqlx::Error> {
+    let row: Option<ServiceJwtGrantRow> = db_tx_fetch_optional!(
+        tx,
+        ServiceJwtGrantRow,
+        "SELECT owner, audience, status, system_managed, created_at, updated_at \
+         FROM token_service_jwt_grants WHERE owner = ? AND audience = ? FOR UPDATE",
+        owner,
+        audience
+    )?;
+    Ok(row)
+}
+
+/// 事务内新建 grant（`active`, `system_managed=false`）。
+///
+/// 唯一主键兜底并发：两个事务并发 INSERT 相同 `(owner, audience)` 时，
+/// 后者阻塞至前者提交 / 回滚——前者提交则后者报唯一键冲突映射
+/// `Duplicate`（调用方回滚 → 409），前者回滚则后者正常插入。
+/// 与池级 [`create_grant`] 的先查后插不同，事务内无需预查（冲突即真相，
+/// 且预查在 READ COMMITTED / REPEATABLE READ 下都有竞态窗口）。
+pub async fn create_grant_tx(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+) -> Result<CreateOutcome, sqlx::Error> {
+    let res = db_tx_execute!(
+        tx,
+        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed) \
+         VALUES (?, ?, 'active', FALSE)",
+        owner,
+        audience
+    );
+    match res {
+        Ok(_) => Ok(CreateOutcome::Inserted),
+        Err(ref e) if is_duplicate_key(e) => Ok(CreateOutcome::Duplicate),
+        Err(e) => Err(e),
+    }
+}
+
+/// 事务内启用 / 禁用。条件 UPDATE 与池级 [`set_grant_status`] 相同
+///（`AND status <> ? AND system_managed = FALSE`）：调用方已在 FOR UPDATE
+/// 锁下做过判定，此处条件仍原子兜底。返回受影响行数（0 = 未命中，
+/// 调用方回滚并按异常处理）。
+pub async fn set_grant_status_tx(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+    status: &str,
+) -> Result<u64, sqlx::Error> {
+    let affected = db_tx_execute!(
+        tx,
+        "UPDATE token_service_jwt_grants SET status = ?, updated_at = ? \
+         WHERE owner = ? AND audience = ? AND status <> ? AND system_managed = FALSE",
+        status,
+        chrono::Utc::now(),
+        owner,
+        audience,
+        status
+    )?;
+    Ok(affected)
+}
+
+/// 事务内删除 grant。条件 DELETE 与池级 [`delete_grant`] 相同
+///（`AND system_managed = FALSE`）。返回受影响行数。
+pub async fn delete_grant_tx(
+    tx: &mut Transaction<'_>,
+    owner: &str,
+    audience: &str,
+) -> Result<u64, sqlx::Error> {
+    let affected = db_tx_execute!(
+        tx,
+        "DELETE FROM token_service_jwt_grants \
+         WHERE owner = ? AND audience = ? AND system_managed = FALSE",
+        owner,
+        audience
+    )?;
+    Ok(affected)
+}
+
+/// 事务内写一行审计（append-only）。与业务变更同事务：审计失败 →
+/// 调用方回滚业务变更（P1-02 原子性契约）。
+#[allow(clippy::too_many_arguments)]
+pub async fn record_audit_tx(
+    tx: &mut Transaction<'_>,
+    actor: &Actor,
+    owner: &str,
+    audience: &str,
+    action: AuditAction,
+    before: Option<&str>,
+    after: Option<&str>,
+    request_id: &str,
+    result: &str,
+    detail: &str,
+) -> Result<(), sqlx::Error> {
+    db_tx_execute!(
+        tx,
+        "INSERT INTO token_service_jwt_grant_audit \
+         (actor_id, actor_type, owner, audience, action, before_status, after_status, \
+          request_id, result, detail) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        actor.actor_id(),
+        actor.actor_type(),
+        owner,
+        audience,
+        action.as_str(),
+        before,
+        after,
+        request_id,
+        result,
+        detail
+    )?;
+    Ok(())
+}
+
+// ── 审计（append-only 本地表，V006）─────────────────────────────────────────
+
+/// 操作者身份（审计用）。service 入口来自 service-jwt 的 `sub`，web 入口来自
+/// user-jwt 的 `user_id`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Actor {
+    Service { subject: String },
+    User { user_id: String },
+}
+
+impl Actor {
+    pub fn actor_type(&self) -> &'static str {
+        match self {
+            Actor::Service { .. } => "service",
+            Actor::User { .. } => "user",
+        }
+    }
+    pub fn actor_id(&self) -> &str {
+        match self {
+            Actor::Service { subject } => subject,
+            Actor::User { user_id } => user_id,
+        }
+    }
+}
+
+/// 审计动作。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuditAction {
+    Create,
+    /// 仅用于权限拒绝（denied）场景：尝试状态变更但被 403 挡下，
+    /// 实际目标（enable/disable）未知。
+    Update,
+    Enable,
+    Disable,
+    Delete,
+}
+
+impl AuditAction {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AuditAction::Create => "create",
+            AuditAction::Update => "update",
+            AuditAction::Enable => "enable",
+            AuditAction::Disable => "disable",
+            AuditAction::Delete => "delete",
+        }
+    }
+}
+
+/// 写一行审计。append-only：无 UPDATE / DELETE 路径。
+///
+/// `before`/`after` 为变更前后状态（`None` = 无行 / 不适用）；`result` 取
+/// `success` / `denied`；`detail` 为简短机器可读原因，**不得**包含
+/// token / JWT / 凭据 / SQL。
+#[allow(clippy::too_many_arguments)]
+pub async fn record_audit(
+    pool: &DbPool,
+    actor: &Actor,
+    owner: &str,
+    audience: &str,
+    action: AuditAction,
+    before: Option<&str>,
+    after: Option<&str>,
+    request_id: &str,
+    result: &str,
+    detail: &str,
+) -> Result<(), sqlx::Error> {
+    db_execute!(
+        pool,
+        "INSERT INTO token_service_jwt_grant_audit \
+         (actor_id, actor_type, owner, audience, action, before_status, after_status, \
+          request_id, result, detail) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        actor.actor_id(),
+        actor.actor_type(),
+        owner,
+        audience,
+        action.as_str(),
+        before,
+        after,
+        request_id,
+        result,
+        detail
+    )?;
+    Ok(())
+}
+
+/// 按时间倒序读审计（管理面查询用；数量由调用方限制）。
+pub async fn list_audit(
+    pool: &DbPool,
+    owner: Option<&str>,
+    audience: Option<&str>,
+    limit: u32,
+) -> Result<Vec<GrantAuditRow>, sqlx::Error> {
+    let owner = owner.map(str::to_string);
+    let audience = audience.map(str::to_string);
+    let rows: Vec<GrantAuditRow> = db_qb_fetch_all!(pool, GrantAuditRow, |qb| {
+        qb.push(
+            "SELECT id, actor_id, actor_type, owner, audience, action, before_status, \
+                 after_status, request_id, result, detail, occurred_at \
+                 FROM token_service_jwt_grant_audit WHERE 1=1",
+        );
+        if let Some(o) = owner.as_ref() {
+            qb.push(" AND owner = ").push_bind(o);
+        }
+        if let Some(a) = audience.as_ref() {
+            qb.push(" AND audience = ").push_bind(a);
+        }
+        qb.push(" ORDER BY id DESC LIMIT ").push_bind(limit as i64);
+    })?;
+    Ok(rows)
+}
+
+/// `token_service_jwt_grant_audit` 行结构。
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct GrantAuditRow {
+    pub id: i64,
+    pub actor_id: String,
+    pub actor_type: String,
+    pub owner: String,
+    pub audience: String,
+    pub action: String,
+    pub before_status: Option<String>,
+    pub after_status: Option<String>,
+    pub request_id: String,
+    pub result: String,
+    pub detail: String,
+    pub occurred_at: chrono::DateTime<chrono::Utc>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,5 +645,38 @@ mod tests {
                 "禁止通配符"
             );
         }
+    }
+
+    #[test]
+    fn parse_status_only_accepts_enums() {
+        assert_eq!(parse_status("active"), Some(STATUS_ACTIVE));
+        assert_eq!(parse_status("disabled"), Some(STATUS_DISABLED));
+        assert_eq!(parse_status("ACTIVE"), None);
+        assert_eq!(parse_status("enabled"), None);
+        assert_eq!(parse_status(""), None);
+        assert_eq!(parse_status("'; DROP TABLE x"), None);
+    }
+
+    #[test]
+    fn actor_type_and_id_roundtrip() {
+        let s = Actor::Service {
+            subject: "iam-service".into(),
+        };
+        let u = Actor::User {
+            user_id: "usr-1".into(),
+        };
+        assert_eq!(s.actor_type(), "service");
+        assert_eq!(s.actor_id(), "iam-service");
+        assert_eq!(u.actor_type(), "user");
+        assert_eq!(u.actor_id(), "usr-1");
+    }
+
+    #[test]
+    fn audit_actions_are_stable_strings() {
+        assert_eq!(AuditAction::Create.as_str(), "create");
+        assert_eq!(AuditAction::Update.as_str(), "update");
+        assert_eq!(AuditAction::Enable.as_str(), "enable");
+        assert_eq!(AuditAction::Disable.as_str(), "disable");
+        assert_eq!(AuditAction::Delete.as_str(), "delete");
     }
 }

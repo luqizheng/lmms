@@ -188,4 +188,27 @@ impl KudiWebClient {
     ) -> Result<HttpResponse, KudiHttpError> {
         self.transport.get(url, Some(bearer)).await
     }
+
+    /// PUT JSON（带可选 bearer）。token-service 管理面的状态端点用。
+    pub async fn put(
+        &self,
+        url: &str,
+        json_body: &str,
+        bearer: Option<&str>,
+    ) -> Result<HttpResponse, KudiHttpError> {
+        let bearer = self.resolve_bearer(bearer).await?;
+        self.transport
+            .put_json(url, bearer.as_deref(), json_body)
+            .await
+    }
+
+    /// DELETE（带可选 bearer）。token-service 管理面的删除端点用。
+    pub async fn delete(
+        &self,
+        url: &str,
+        bearer: Option<&str>,
+    ) -> Result<HttpResponse, KudiHttpError> {
+        let bearer = self.resolve_bearer(bearer).await?;
+        self.transport.delete(url, bearer.as_deref()).await
+    }
 }

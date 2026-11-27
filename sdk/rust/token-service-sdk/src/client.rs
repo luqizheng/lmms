@@ -3,10 +3,20 @@ use std::sync::Arc;
 use digua_http_client::client::KudiWebClient;
 use digua_http_client::{transport::HttpResponse, SdkError};
 
+use crate::model::url_encode;
 use crate::model::{
-    AccessRequest, AccessResponse, ApiKeyCreated, CreateApiKeyRequest, ListApiKeysQuery,
-    ListApiKeysResponse, RefreshRequest, RefreshResponse, RevokeRequest, RevokeResponse,
+    AccessRequest, AccessResponse, ApiKeyCreated, CreateApiKeyRequest,
+    CreateServiceJwtGrantRequest, ListApiKeysQuery, ListApiKeysResponse, ListServiceJwtGrantsQuery,
+    ListServiceJwtGrantsResponse, RefreshRequest, RefreshResponse, RevokeRequest, RevokeResponse,
+    ServiceJwtGrant, SetServiceJwtGrantStatusRequest,
 };
+
+/// path segment 编码：与 query value 同一机制（[`url_encode`]，percent-encode
+/// 除 unreserved 外全部字节）。`/ ? # & %` 等结构字符被转义为 `%2F %3F %23
+/// %26 %25`，无法把恶意 owner/audience 拆成多段路径或注入 query（R1-03）。
+fn path_segment(s: &str) -> String {
+    url_encode(s)
+}
 
 type BearerSupplier = Arc<dyn Fn() -> Option<String> + Send + Sync>;
 
@@ -101,6 +111,101 @@ impl TokenClient {
         serde_json::from_str(&resp.body)
             .map_err(|e| SdkError::Network(format!("decode ApiKeyCreated: {}", e)))
     }
+
+    // ── Service JWT audience grants（管理面，service-jwt aud=token-service）──
+
+    /// 分页查询 owner → audience 授权关系。
+    pub async fn list_service_jwt_grants(
+        &self,
+        q: &ListServiceJwtGrantsQuery,
+    ) -> Result<ListServiceJwtGrantsResponse, SdkError> {
+        let url = format!(
+            "{}/admin/service-jwt-grants?{}",
+            self.base_url,
+            q.to_query_string()
+        );
+        let resp = self.http.get(&url, (self.bearer)().as_deref()).await?;
+        ensure_success(&resp, "token list_service_jwt_grants")?;
+        serde_json::from_str(&resp.body)
+            .map_err(|e| SdkError::Network(format!("decode ListServiceJwtGrantsResponse: {}", e)))
+    }
+
+    /// 查单条授权（不存在 → `SdkError::Validation`，见 [`ensure_success`] 映射）。
+    pub async fn get_service_jwt_grant(
+        &self,
+        owner: &str,
+        audience: &str,
+    ) -> Result<ServiceJwtGrant, SdkError> {
+        let url = format!(
+            "{}/admin/service-jwt-grants/{}/{}",
+            self.base_url,
+            path_segment(owner),
+            path_segment(audience)
+        );
+        let resp = self.http.get(&url, (self.bearer)().as_deref()).await?;
+        ensure_success(&resp, "token get_service_jwt_grant")?;
+        serde_json::from_str(&resp.body)
+            .map_err(|e| SdkError::Network(format!("decode ServiceJwtGrant: {}", e)))
+    }
+
+    /// 创建授权。重复 → HTTP 409（见 [`ensure_success`] 的状态码映射）。
+    pub async fn create_service_jwt_grant(
+        &self,
+        req: &CreateServiceJwtGrantRequest,
+    ) -> Result<ServiceJwtGrant, SdkError> {
+        let url = format!("{}/admin/service-jwt-grants", self.base_url);
+        let body = serde_json::to_string(req).map_err(|e| {
+            SdkError::Network(format!("serialize CreateServiceJwtGrantRequest: {}", e))
+        })?;
+        let resp = self
+            .http
+            .post(&url, &body, (self.bearer)().as_deref())
+            .await?;
+        ensure_success(&resp, "token create_service_jwt_grant")?;
+        serde_json::from_str(&resp.body)
+            .map_err(|e| SdkError::Network(format!("decode ServiceJwtGrant: {}", e)))
+    }
+
+    /// 启用 / 禁用授权（`status`: `active` | `disabled`；system_managed 行 → 409）。
+    pub async fn set_service_jwt_grant_status(
+        &self,
+        owner: &str,
+        audience: &str,
+        req: &SetServiceJwtGrantStatusRequest,
+    ) -> Result<ServiceJwtGrant, SdkError> {
+        let url = format!(
+            "{}/admin/service-jwt-grants/{}/{}/status",
+            self.base_url,
+            path_segment(owner),
+            path_segment(audience)
+        );
+        let body = serde_json::to_string(req).map_err(|e| {
+            SdkError::Network(format!("serialize SetServiceJwtGrantStatusRequest: {}", e))
+        })?;
+        let resp = self
+            .http
+            .put(&url, &body, (self.bearer)().as_deref())
+            .await?;
+        ensure_success(&resp, "token set_service_jwt_grant_status")?;
+        serde_json::from_str(&resp.body)
+            .map_err(|e| SdkError::Network(format!("decode ServiceJwtGrant: {}", e)))
+    }
+
+    /// 删除授权（不存在/已删 → 404；system_managed 行 → 409）。
+    pub async fn delete_service_jwt_grant(
+        &self,
+        owner: &str,
+        audience: &str,
+    ) -> Result<(), SdkError> {
+        let url = format!(
+            "{}/admin/service-jwt-grants/{}/{}",
+            self.base_url,
+            path_segment(owner),
+            path_segment(audience)
+        );
+        let resp = self.http.delete(&url, (self.bearer)().as_deref()).await?;
+        ensure_success(&resp, "token delete_service_jwt_grant")
+    }
 }
 
 fn ensure_success(resp: &HttpResponse, op: &str) -> Result<(), SdkError> {
@@ -120,7 +225,9 @@ fn ensure_success(resp: &HttpResponse, op: &str) -> Result<(), SdkError> {
             message: msg,
             details: Some(body),
         },
-        400 | 422 => SdkError::Validation {
+        // 404（不存在）/ 409（重复创建、system_managed 保护）也是确定性客户端类
+        // 错误——归 Validation，status 字段可供调用方区分具体情形。
+        400 | 404 | 409 | 422 => SdkError::Validation {
             status,
             message: msg,
             details: Some(body),

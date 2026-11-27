@@ -98,6 +98,13 @@ pub struct Config {
     pub default_refresh_ttl_sec: i64,
     pub default_resource_ttl_sec: i64,
     pub user_service_url: String,
+    /// WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 (P1-01)：允许管理 service-jwt
+    /// audience grants 的 **service-jwt 主体清单**（canonical bootstrap owner，
+    /// 逗号分隔）。空 = fail-closed：任何 service-jwt 都不能调用
+    /// `/admin/service-jwt-grants*` 管理面（Web UI 的 user-jwt + 权限码入口
+    /// 不受影响）。env：`TOKEN_SERVICE_JWT_GRANT_ADMINS`。
+    #[serde(default)]
+    pub service_jwt_grant_admins: Vec<String>,
 }
 
 impl Default for Config {
@@ -127,6 +134,7 @@ impl Default for Config {
             default_refresh_ttl_sec: 2592000,
             default_resource_ttl_sec: 300,
             user_service_url: String::new(),
+            service_jwt_grant_admins: Vec::new(),
         }
     }
 }
@@ -277,6 +285,25 @@ where
     if let Some(v) = env("TOKEN_USER_SERVICE_URL") {
         cfg.user_service_url = v;
     }
+
+    // ── grant 管理主体清单（WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 P1-01）──
+    if let Some(v) = env("TOKEN_SERVICE_JWT_GRANT_ADMINS") {
+        cfg.service_jwt_grant_admins = parse_grant_admins(&v);
+    }
+}
+
+/// 解析逗号分隔的 grant 管理主体清单：逐项 trim、剥宽限期 `#old` 后缀
+///（与 grant 的 canonical owner 语义一致）、过滤空项。重复项去重（保序）。
+pub fn parse_grant_admins(raw: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for item in raw.split(',') {
+        let canonical = crate::models::service_jwt_grant::canonical_owner(item.trim()).to_string();
+        if canonical.is_empty() || out.iter().any(|s| s == &canonical) {
+            continue;
+        }
+        out.push(canonical);
+    }
+    out
 }
 
 fn parse_or_warn<T: std::str::FromStr>(key: &str, raw: &str, slot: &mut T)
@@ -608,5 +635,71 @@ database:
         let cfg = load_config(path.to_str().unwrap()).expect("missing file → default");
         assert_eq!(cfg.server.port, 4000);
         assert!(cfg.database.url.is_empty());
+    }
+
+    /// WP-LMMS-SERVICE-JWT-AUDIENCE-ADMIN-02 (P1-01)：管理主体清单解析。
+    #[test]
+    fn default_config_has_empty_grant_admins() {
+        assert!(Config::default().service_jwt_grant_admins.is_empty());
+    }
+
+    #[test]
+    fn parse_grant_admins_trims_and_normalizes() {
+        let parsed =
+            parse_grant_admins(" iam-service , ops-service#old , , token-service,,iam-service ");
+        // `#old` 宽限期后缀剥成 canonical；空项丢弃；重复去重保序。
+        assert_eq!(
+            parsed,
+            vec![
+                "iam-service".to_string(),
+                "ops-service".to_string(),
+                "token-service".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_grant_admins_empty_input_is_fail_closed() {
+        for raw in ["", "   ", ",", ", ,"] {
+            assert!(
+                parse_grant_admins(raw).is_empty(),
+                "input {raw:?} must parse to an empty allow-list"
+            );
+        }
+    }
+
+    #[test]
+    fn env_overlay_sets_grant_admins() {
+        let mut cfg = Config::default();
+        let env = env_from(&[(
+            "TOKEN_SERVICE_JWT_GRANT_ADMINS",
+            "iam-service, token-service",
+        )]);
+        apply_env_overrides(&mut cfg, &env);
+        assert_eq!(
+            cfg.service_jwt_grant_admins,
+            vec!["iam-service".to_string(), "token-service".to_string()]
+        );
+        // 未设置 env 时保持 yaml / 默认值（空 = fail-closed）。
+        let mut untouched = Config::default();
+        apply_env_overrides(&mut untouched, &env_from(&[]));
+        assert!(untouched.service_jwt_grant_admins.is_empty());
+    }
+
+    #[test]
+    fn yaml_config_accepts_grant_admins_list() {
+        let yaml = r#"
+server: { host: "0.0.0.0", port: 4000 }
+database:
+  db_type: mysql
+  url: "mysql://u:p@localhost:3306/db"
+  max_connections: 8
+service_jwt_grant_admins: ["iam-service", "ops-service"]
+"#;
+        let cfg: Config = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            cfg.service_jwt_grant_admins,
+            vec!["iam-service".to_string(), "ops-service".to_string()]
+        );
     }
 }
