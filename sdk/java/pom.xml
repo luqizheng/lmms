@@ -53,8 +53,13 @@
       <executions><execution><id>sign-artifacts</id><phase>verify</phase><goals><goal>sign</goal></goals><configuration><passphrase>${env.GPG_PASSPHRASE}</passphrase><gpgArguments><arg>--pinentry-mode</arg><arg>loopback</arg></gpgArguments></configuration></execution></executions>
     </plugin></plugins></build></profile>
   </profiles>
-  <distributionManagement>
-    <repository><id>reposilite-repository-releases</id><url>http://192.168.2.12:18181/releases</url></repository>
-    <snapshotRepository><id>reposilite-repository-snapshots</id><url>http://192.168.2.12:18181/snapshots</url></snapshotRepository>
-  </distributionManagement>
+  <profiles>
+    <profile>
+      <id>reposilite-publishing</id>
+      <distributionManagement>
+        <repository><id>reposilite-repository-releases</id><url>http://192.168.2.12:18181/releases</url></repository>
+        <snapshotRepository><id>reposilite-repository-snapshots</id><url>http://192.168.2.12:18181/snapshots</url></snapshotRepository>
+      </distributionManagement>
+    </profile>
+  </profiles>
 </project>
