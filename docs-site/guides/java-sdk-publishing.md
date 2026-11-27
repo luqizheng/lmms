@@ -76,7 +76,7 @@ mvn -B -f sdk/java/pom.xml -Pjava21 clean verify
 
 | 事件 | 行为 |
 |---|---|
-| Pull Request 到 main | Java 8 构建、测试、Sources/Javadoc 验证；不读取发布凭据、不上传 |
+| Pull Request 到 main | Java 8 / 17 / 21 构建、测试、Sources/Javadoc 验证；不读取发布凭据、不上传 |
 | 普通 branch push | 不触发该工作流 |
 | 非 semver tag | 不匹配发布触发器 |
 | `vMAJOR.MINOR.PATCH` tag | 校验 tag 与父 POM version 一致，签名并上传 Central Portal |
@@ -119,4 +119,4 @@ Maven Central release 一经发布不可覆盖同一坐标版本；修复必须�
 
 ## 7. 内部 Reposilite 发布
 
-原有 `distributionManagement` 和内部发布 CLI 保留。默认 Maven 构建仍不激活 Central 插件；只有明确指定 `-Pcentral-publishing` 才切换为 Sonatype Central 上传。内部 Reposilite 凭证与 Central User Token 不应混用。
+原有内部发布 CLI（默认 curl 上传）保留。为避免私有地址进入公开发布的 POM，Reposilite 的 `distributionManagement` 已移动到非默认的 `reposilite-publishing` profile。若需要显式使用 `mvn deploy` 上传内部仓库，执行 `-Preposilite-publishing`。Central 上传使用独立的 `central-publishing` profile；两者不可同时启用。内部 Reposilite 凭证与 Central User Token 不应混用。
