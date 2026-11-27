@@ -90,7 +90,7 @@ token endpoint 的确切 URL、grant 和凭证类型以当前部署 OpenAPI/Gate
 
 ## 9.7 通知 SDK 与 WebSocket
 
-`digua_notification_sdk` 包含公告列表/详情/创建/发布/撤销和未读数方法；当前 SDK 未包装单条/全部已读以及 WebSocket。WebSocket 使用独立客户端，连接认证与帧格式见 [07 通知与实时推送](./07-notifications.md)。
+`digua_notification_sdk` 当前代码包含公告列表/详情/创建/发布/撤销和未读数方法；但当前 SDK 与服务契约存在已知响应模型漂移：OpenAPI 的列表响应是 `Announcement[]`，SDK 反序列化为 `PagedAnnouncements`；OpenAPI 创建响应 schema 为空（handler 实际返回 `{id}`），SDK 却按完整 `Announcement` 反序列化。**在该漂移修复并有测试验证前，不要将 SDK 的列表/创建方法当作可靠的生产集成契约**；可由应用后端按 OpenAPI 直接调用 REST，或先修正 SDK DTO/测试。SDK 当前未包装单条/全部已读以及 WebSocket。WebSocket 使用独立客户端，连接认证与帧格式见 [07 通知与实时推送](./07-notifications.md)。
 
 ## 9.8 错误处理
 
