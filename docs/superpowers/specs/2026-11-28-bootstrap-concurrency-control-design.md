@@ -2,7 +2,7 @@
 
 - 日期：2026-11-28
 - 状态：设计已确认，待实施
-- 范围：WP-BS-01（IAM Bootstrap 初始化）
+- 范围：WP-BS-01（LMMS 平台 Bootstrap 初始化，包含 LMMS 内部 SDK 与 AI-PM 调用集成）
 - 关联：LMMS 首管理员初始化、`LMMS_INIT_PASSWORD`、`/v1/bootstrap/status`、`/v1/bootstrap`
 
 ## 背景
@@ -174,10 +174,91 @@ WHERE id = 1
 - `LMMS_INIT_PASSWORD` 只用于保护 Bootstrap 初始化接口。
 - Bootstrap 密码不能用于用户登录。
 - Bootstrap 密码不能用于服务间认证。
-- AI-PM 等服务身份凭据由 token-service 独立创建和管理。
-- Bootstrap 成功后，一次性返回必要的服务身份凭据；凭据后续通过 token-service 管理能力轮换和撤销。
+- LMMS 内部服务身份凭据由 LMMS 自己创建和管理，不属于 AI-PM 的业务初始化参数。
+- 不向 AI-PM 返回 IAM、Token Service、Notification Service 等 LMMS 内部服务凭据。
 
-## Q11：最终采用什么方案？
+## Q11：AI-PM 与 LMMS 如何分工？
+
+**答：**
+
+Bootstrap 是由 AI-PM 触发、由 LMMS 负责执行的平台初始化操作。
+
+**AI-PM 是触发方，不是 LMMS 内部服务拓扑和授权关系的定义方。**
+
+AI-PM 负责：
+
+- 提供显式访问的初始化页面 `/init`。
+- 收集部署人员输入的 Bootstrap Password 和首管理员信息。
+- 由 AI-PM 后端调用 LMMS 仓库内的 SDK `BootstrapClient`。
+- 将初始化结果展示给部署人员。
+- 不直接从浏览器访问 LMMS Bootstrap API。
+- 不定义 LMMS 内部服务身份、audience、Grant 或授权关系。
+- 不持有或持久化 LMMS 内部服务凭据。
+
+LMMS 负责：
+
+- 定义 Bootstrap 请求和响应契约。
+- 验证 Bootstrap Password、控制初始化状态和并发。
+- 创建首管理员并授予 `platform_admin` 与 `tenant_admin`。
+- 创建和管理 LMMS 自身的内部服务身份。
+- 按 LMMS 内部架构建立服务间授权关系。
+- 管理服务凭据、JWT Grant 和初始化完成状态。
+
+AI-PM 发起 Bootstrap 只代表触发初始化时机，不代表 AI-PM 有权决定 LMMS 内部创建哪些身份或授权关系。
+
+## Q12：LMMS 内部服务身份和授权关系由谁定义？
+
+**答：**
+
+完全由 LMMS 自己定义、创建、维护和演进，属于 LMMS 平台内部架构资产。
+
+本次 Bootstrap 应依据 LMMS 当前内置服务拓扑建立既有关系，包括：
+
+- `iam-service → token-service`
+- `notification-service → iam-service`
+
+箭头表示服务 JWT 的 owner → audience 方向。具体服务身份、Grant 的 scope、system-managed 属性及凭据生成方式，必须复用 LMMS Token Service 现有模型和策略。
+
+上述关系是 LMMS 内部关系，不包含 AI-PM，也不由 AI-PM 的请求 Body 传入。未来 LMMS 增加、删除或调整内部服务时，只需修改 LMMS 自己的内部初始化定义，不要求 AI-PM 同步理解内部拓扑。
+
+Bootstrap 的实现还必须协调现有 `SERVICE_BOOTSTRAP_TOKENS` / `SERVICE_BOOTSTRAP_OWNERS` 启动初始化机制，避免产生重复身份、冲突凭据或绕过现有 Grant 管理规则。
+
+## Q13：LMMS SDK 如何支持 Bootstrap？
+
+**答：**
+
+SDK 位于 LMMS 仓库内部，与 LMMS API 同仓库演进，不创建独立 SDK 仓库。
+
+LMMS 应在现有 SDK 中提供独立的 `BootstrapClient` 能力，至少支持：
+
+- 查询 Bootstrap 状态。
+- 提交 Bootstrap 初始化请求。
+- 在 Bootstrap 请求中专用地传递 `X-LMMS-Init-Password`。
+- 解析初始化成功、密码错误、并发冲突、接口关闭等响应。
+- 提供超时、网络错误和服务端错误处理。
+- 提供 Rust SDK 与 Java SDK 的一致接口语义及测试（以仓库现有 SDK 支持范围为准）。
+
+Bootstrap Password 只能由 BootstrapClient 用于 Bootstrap API，不得进入普通 API 默认 Header、登录 Token、Service JWT、日志或持久化配置。SDK 不应把内部 Grant 管理能力暴露为 Bootstrap 请求参数。
+
+## Q14：AI-PM 是否直接访问 LMMS Bootstrap API？
+
+**答：**
+
+不直接访问。
+
+AI-PM 浏览器只与 AI-PM 后端通信。AI-PM 后端使用 LMMS 仓库提供的 SDK `BootstrapClient` 调用 LMMS Bootstrap API。
+
+这样可以避免浏览器直接依赖 LMMS 内部服务地址和 API 细节，也避免把平台内部集成逻辑暴露到前端。
+
+AI-PM 后端必须：
+
+- 不记录 Bootstrap Password 或完整请求 Header。
+- 不将 Bootstrap Password 写入数据库、缓存或持久化日志。
+- 不将密码写入浏览器持久化存储。
+- 仅在本次初始化请求生命周期内使用密码。
+- 在正式部署环境中通过 HTTPS 调用 LMMS。
+
+## Q15：最终采用什么方案？
 
 **答：**
 
@@ -193,6 +274,33 @@ WHERE id = 1
 | 服务重启 | 不恢复内存队列，以数据库持久状态为准 |
 | 初始化成功 | 永久关闭 Bootstrap，接口返回 404 |
 | 外部依赖 | 不增加 Redis 或独立消息队列 |
+| 内部服务关系 | 由 LMMS 自主定义和初始化，不接受 AI-PM 传入 |
+| SDK | 在 LMMS 仓库内升级，提供 BootstrapClient |
+| 调用路径 | AI-PM 后端 → LMMS SDK BootstrapClient → LMMS Bootstrap API |
+| 浏览器访问 | 浏览器只访问 AI-PM，不直接访问 LMMS Bootstrap API |
+
+## 跨项目实施验收要求
+
+### LMMS 平台与内部服务
+
+- [ ] Bootstrap API 契约由 LMMS 定义，AI-PM 请求不包含 owner、audience、Grant 或内部服务清单。
+- [ ] Bootstrap 成功创建首管理员，并授予 `platform_admin` 和 `tenant_admin`。
+- [ ] LMMS 自主创建或确认内部服务身份。
+- [ ] LMMS 建立 `iam-service → token-service` 内部授权关系。
+- [ ] LMMS 建立 `notification-service → iam-service` 内部授权关系。
+- [ ] 内部服务关系复用 Token Service 现有身份及 system-managed Grant 模型。
+- [ ] 不向 AI-PM 返回 LMMS 内部服务凭据。
+- [ ] 与现有 `SERVICE_BOOTSTRAP_TOKENS` / `SERVICE_BOOTSTRAP_OWNERS` 启动机制兼容，不产生重复或冲突身份。
+
+### LMMS SDK 与 AI-PM 集成
+
+- [ ] LMMS 仓库内 SDK 提供 `BootstrapClient`。
+- [ ] Rust SDK、Java SDK（按当前 SDK 支持范围）提供一致的 Bootstrap API 语义。
+- [ ] Bootstrap Password 只用于 BootstrapClient 请求，不进入普通 API 默认认证 Header。
+- [ ] AI-PM 后端通过 SDK 调用 LMMS Bootstrap API。
+- [ ] AI-PM 浏览器不直接访问 LMMS Bootstrap API。
+- [ ] AI-PM 不定义或提交 LMMS 内部服务授权关系。
+- [ ] AI-PM 不持久化 Bootstrap Password，不记录密码或敏感 Header。
 
 ## 实施验收要求
 
