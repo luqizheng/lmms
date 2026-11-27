@@ -33,13 +33,14 @@ OpenAPI 中公告状态包括：
 
 服务 OpenAPI 路径通常为内部路径，Gateway 对外路径要检查 route config。主要操作包括：
 
-- 公告创建、列表、详情、更新。
+- 公告创建、面向当前用户的列表、详情、租户公告管理列表。
 - 发布：`POST /notification/announcements/{id}/publish`
 - 撤销：`POST /notification/announcements/{id}/revoke`
-- 标记已读：`POST /notification/announcements/{id}/read`
+- 标记单条已读：`POST /notification/announcements/{id}/read`
+- 全部标记已读：`POST /notification/announcements/read-all`
 - 未读计数：`GET /notification/unread-count`
 
-请以 `services/notification-service/openapi.yaml` 为准，特别核对列表查询参数和创建/更新请求体。
+当前 OpenAPI 的用户公告列表响应是 `Announcement[]`，查询参数为 `pinned`、`active`；管理列表为租户范围内的 `Announcement[]`。当前 OpenAPI 未定义公告 update API，不要在 UI 中假设存在通用更新接口。以 `services/notification-service/openapi.yaml` 和 `services/notification-service/src/rest.rs` 为准。
 
 ## 7.5 WebSocket 实时推送
 
