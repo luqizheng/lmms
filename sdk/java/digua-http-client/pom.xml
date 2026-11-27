@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>io.digua</groupId>
+    <groupId>io.github.luqizheng</groupId>
     <artifactId>digua-sdk-parent</artifactId>
     <version>1.1.1</version>
   </parent>
