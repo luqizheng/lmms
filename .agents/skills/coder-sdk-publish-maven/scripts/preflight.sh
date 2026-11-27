@@ -10,7 +10,7 @@
 #   1. mvn --version 在 PATH
 #   2. curl --version 在 PATH（默认 upload mode 用）
 #   3. java --version 在 PATH + JAVA_HOME（可选但推荐）
-#   4. sdk/java/pom.xml 是合法 XML 且 groupId == io.digua
+#   4. sdk/java/pom.xml 是合法 XML 且 groupId == io.github.luqizheng
 #   5. 7 个 module 都存在且各自有 pom.xml（除非 --modules 过滤）
 #   6. <version> 格式与 release/snapshot 模式匹配
 #   7. Reposilite base URL HEAD 可达
@@ -119,8 +119,8 @@ GROUP_ID="$(node -e "
   const m = /<groupId>\s*([^<]+?)\s*<\/groupId>/.exec(xml);
   console.log(m ? m[1].trim() : '');
 ")"
-[[ "${GROUP_ID}" == "io.digua" ]] || fail "pom.xml groupId=${GROUP_ID:-<未找到>}，预期 io.digua"
-ok "pom.xml groupId == io.digua"
+[[ "${GROUP_ID}" == "io.github.luqizheng" ]] || fail "pom.xml groupId=${GROUP_ID:-<未找到>}，预期 io.github.luqizheng"
+ok "pom.xml groupId == io.github.luqizheng"
 
 CUR_POM_VERSION="$(node -e "
   const fs = require('fs');

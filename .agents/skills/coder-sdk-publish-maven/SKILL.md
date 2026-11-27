@@ -110,7 +110,7 @@ The pre-flight checks:
    `common`, `digua-user-user-sdk`, `digua-user-client-sdk`,
    `digua-token-user-sdk`, `digua-token-client-sdk`, `digua-http-client`,
    `digua-notification-sdk`
-6. `<groupId>` in pom is `io.digua`
+6. `<groupId>` in pom is `io.github.luqizheng`
 7. Current pom `<version>` is in the expected track (release / snapshot)
 8. Reposilite base URL is reachable (`curl --max-time 5 -o /dev/null -w '%{http_code}'`)
 9. At least one credential source is available (CLI / env / wizard /
@@ -273,6 +273,22 @@ artifacts forever). The recovery flow:
 
 There is no `mvn undeploy` workflow here. Don't try to remove broken
 release artifacts.
+
+## Maven Central — public publication
+
+The public Maven Central deployment is separate from the internal Reposilite workflow above.
+
+- Maven coordinates now use `io.github.luqizheng`; Java source packages remain `io.digua.*`.
+- Dedicated workflow: `.github/workflows/java-sdk-maven-central.yml`.
+- Only strict `vMAJOR.MINOR.PATCH` tags trigger Central upload. PRs and branch pushes only verify.
+- The workflow requires `MVN_USERNAME`, `MVN_PASSWORD`, `GPG_PRIVATE_KEY`, and `GPG_PASSPHRASE`. GPG secrets are not ready; do not create a release tag until configured.
+- Central Publishing uses `autoPublish=false`. After upload and validation, a maintainer must manually click Publish in Sonatype Central.
+- Never run `mvn deploy` with the Central profile during validation. Never create a release tag without explicit user authorization.
+- The Central publishing guide is `docs-site/guides/java-sdk-publishing.md`.
+
+For an explicit internal Maven deploy (not the normal curl-based CLI flow), activate
+`-Preposilite-publishing`. This profile is intentionally inactive during Central
+publication so the private Reposilite URL is not embedded in public POM metadata.
 
 ## Cross-references
 
