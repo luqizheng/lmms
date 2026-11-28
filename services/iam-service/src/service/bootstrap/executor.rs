@@ -8,11 +8,11 @@
 //! 不使用进程本地锁 / Mutex：跨实例互斥只由数据库保证。
 
 use chrono::{DateTime, Duration, Utc};
-use digua_common_db::{db_execute, db_fetch_optional, DbPool};
+use digua_common_db::{db_execute, db_fetch_optional, db_tx_fetch_optional, DbPool, Transaction};
 use serde_json::Value;
 use sqlx::Error;
 
-use super::gate::db_now;
+use super::gate::{db_now, tx_now};
 
 /// 执行租约时长（秒）。步骤失败时主动释放（Q7：释放或等待到期二选一，
 /// 本实现选择主动释放以便用户立即恢复）。
@@ -36,6 +36,27 @@ pub struct RequestRow {
     pub execution_epoch: i64,
     pub lease_expires_at: Option<DateTime<Utc>>,
     pub last_error: Option<String>,
+}
+
+/// 业务事务内 `FOR UPDATE` 锁定 request 行后的校验结果。
+#[derive(Debug, Clone)]
+pub struct VerifiedRow {
+    pub admin_user_id: Option<String>,
+}
+
+/// 业务事务内的执行权校验失败原因（摘要不含敏感信息）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerifyFailure {
+    /// 行不存在（记录被删除）。
+    Missing,
+    /// owner 不匹配（另一实例持有执行权）。
+    OwnerMismatch,
+    /// epoch 不匹配（执行权已被重新授予——旧执行者被 fencing）。
+    EpochMismatch,
+    /// 总状态不允许执行（completed / rejected / collecting / selected）。
+    StatusNotAllowed(String),
+    /// 租约已过期（执行者异常延迟；等待显式恢复重新 claim）。
+    LeaseExpired,
 }
 
 /// 按 id 读取请求记录。
@@ -67,6 +88,117 @@ pub async fn find_winner_request(
 /// - 租约空闲（NULL 或已过期）。
 ///
 /// 成功即 `execution_epoch += 1`（fencing token 递增）并写入租约。
+/// 业务事务内的执行权原子校验（WP-BOOTSTRAP-01-R1 / P1-02 原子边界）。
+///
+/// **事务锁协议**（调用方必须在同一事务内完成业务写入并提交/回滚）：
+///
+/// ```text
+/// L1: SELECT ... FROM iam_bootstrap_init_requests WHERE id = ? FOR UPDATE
+/// V2: 锁后校验 owner / epoch / status = 'running' / lease >= tx_now()
+/// W3: 同事务内执行 Step 的 Check / Insert / Verify
+/// COMMIT
+/// ```
+///
+/// **互斥证明**：`claim_execution` / `renew_lease` / `mark_*` 全部是对同
+/// 一 request 行的单条 UPDATE，都需要该行排他行锁。因此：
+///
+/// 1. 本事务 L1 持锁期间，恢复者的 claim（epoch+1）被阻塞——新执行者
+///    不可能在旧执行者的业务事务仍能合法提交时取得执行权；
+/// 2. 恢复者先 claim 成功后，本事务的 L1 锁定读（MySQL 当前读 / PG
+///    READ COMMITTED）读到最新已提交行 → epoch 不匹配 → 立即失败回滚，
+///    无业务副作用；
+/// 3. V2 校验在持锁期间恒成立（唯一能变更 owner/epoch/lease 的路径都
+///    需要行锁），提交即"持有效执行权时的副作用"，无需二次校验；
+/// 4. 所有路径锁序一致（request 行 → 业务表），无反向锁序死锁。
+///
+/// 锁后 DB 时钟判定租约（`tx_now`，不用本地时钟）；过期 → `LeaseExpired`
+/// （fail-closed：等待用户显式恢复重新 claim，不自动续期）。
+/// 锁定读的行形态（owner, epoch, status, lease, admin_user_id）。
+type LockedAuthorityRow = (
+    Option<String>,
+    i64,
+    String,
+    Option<DateTime<Utc>>,
+    Option<String>,
+);
+
+pub async fn lock_and_verify_in_tx(
+    tx: &mut Transaction<'_>,
+    handle: &ExecutionHandle,
+) -> Result<Result<VerifiedRow, VerifyFailure>, Error> {
+    let row: Option<LockedAuthorityRow> = db_tx_fetch_optional!(
+        tx,
+        (
+            Option<String>,
+            i64,
+            String,
+            Option<DateTime<Utc>>,
+            Option<String>
+        ),
+        "SELECT execution_owner, execution_epoch, status, lease_expires_at, admin_user_id \
+             FROM iam_bootstrap_init_requests WHERE id = ? FOR UPDATE",
+        handle.request_id
+    )?;
+    let Some((owner, epoch, status, lease, admin_user_id)) = row else {
+        return Ok(Err(VerifyFailure::Missing));
+    };
+    if owner.as_deref() != Some(handle.owner.as_str()) {
+        return Ok(Err(VerifyFailure::OwnerMismatch));
+    }
+    if epoch != handle.epoch {
+        return Ok(Err(VerifyFailure::EpochMismatch));
+    }
+    if status != "running" {
+        return Ok(Err(VerifyFailure::StatusNotAllowed(status)));
+    }
+    let now = tx_now(tx).await?;
+    match lease {
+        Some(expires) if expires >= now => {}
+        _ => return Ok(Err(VerifyFailure::LeaseExpired)),
+    }
+    Ok(Ok(VerifiedRow { admin_user_id }))
+}
+
+/// 在业务事务内原子认领首管理员（P1-01 / 4.4 唯一性保护）。
+///
+/// 前置条件：调用方已通过 [`lock_and_verify_in_tx`] 持有 request 行锁。
+/// 行已锁定 → 无并发竞争；`admin_user_id IS NULL` 条件兜底"上次执行已
+/// 认领但步骤状态未持久化"的恢复路径（此时返回 `AlreadyClaimed`，调用
+/// 方走已认领分支，不得覆盖）。
+pub async fn claim_admin_in_tx(
+    tx: &mut Transaction<'_>,
+    handle: &ExecutionHandle,
+    user_id: &str,
+) -> Result<bool, Error> {
+    let now = tx_now(tx).await?;
+    let n = digua_common_db::db_tx_execute!(
+        tx,
+        "UPDATE iam_bootstrap_init_requests SET admin_user_id = ?, updated_at = ? \
+         WHERE id = ? AND admin_user_id IS NULL \
+           AND execution_owner = ? AND execution_epoch = ?",
+        user_id,
+        now,
+        handle.request_id,
+        &handle.owner,
+        handle.epoch
+    )?;
+    Ok(n == 1)
+}
+
+/// 读取认领的首管理员 user id（无凭据恢复路径）。
+pub async fn claimed_admin_user_id(
+    pool: &DbPool,
+    request_id: i64,
+) -> Result<Option<String>, Error> {
+    let row: Option<(Option<String>,)> = db_fetch_optional!(
+        pool,
+        (Option<String>,),
+        "SELECT admin_user_id FROM iam_bootstrap_init_requests WHERE id = ?",
+        request_id
+    )?;
+    Ok(row.and_then(|(v,)| v))
+}
+
 pub async fn claim_execution(
     pool: &DbPool,
     request_id: i64,

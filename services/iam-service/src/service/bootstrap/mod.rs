@@ -366,7 +366,7 @@ impl BootstrapService {
             steps.set_running(key);
             self.persist(&handle, &steps).await?;
 
-            let outcome = self.run_single_step(key, creds.as_ref()).await;
+            let outcome = self.run_single_step(key, &handle, creds.as_ref()).await;
             match outcome {
                 Ok(()) => {
                     steps.set_completed(key);
@@ -409,7 +409,9 @@ impl BootstrapService {
             ));
         }
 
-        let admin_username = creds.map(|c| c.username);
+        let admin_username = self
+            .admin_username_for_response(creds.as_ref(), handle.request_id)
+            .await;
         Ok(BootstrapResponse {
             status: "completed".to_string(),
             admin_username,
@@ -443,27 +445,29 @@ impl BootstrapService {
     async fn run_single_step(
         &self,
         key: &str,
+        handle: &ExecutionHandle,
         creds: Option<&AdminCredentials>,
     ) -> Result<(), StepFailure> {
         match key {
             steps::STEP_DEFAULT_TENANT => admin_steps::run_default_tenant(&self.state.db).await,
             steps::STEP_FIRST_ADMIN_USER => {
                 let Some(creds) = creds else {
-                    // 步骤未完成但本请求未携带凭据（不该发生：HTTP 层已校验）。
+                    // S02 未完成但本请求未携带凭据（HTTP 层已校验，防御）。
                     return Err(StepFailure::Failed("admin credentials required"));
                 };
-                admin_steps::run_first_admin_user(&self.state, creds).await
+                // 事务协议：锁 request 行 → 校验执行权 → Check/Insert/Verify
+                // → 同事务原子认领 admin_user_id（R1 / P1-01 + P1-02）。
+                admin_steps::run_first_admin_user(&self.state, handle, creds)
+                    .await
+                    .map(|_| ())
             }
             steps::STEP_ADMIN_PLATFORM_ROLE | steps::STEP_ADMIN_TENANT_ROLE => {
-                // 绑定目标 = 首管理员（凭据中的用户名 → user id）。
-                let Some(creds) = creds else {
-                    return Err(StepFailure::Failed("admin credentials required"));
-                };
-                let user_id = self.lookup_admin_user_id(&creds.username).await?;
+                // 无凭据恢复（Q7）：绑定目标 = 持久化的 admin_user_id，
+                // 在绑定事务内 fail-closed 解析，不依赖本次请求凭据。
                 if key == steps::STEP_ADMIN_PLATFORM_ROLE {
-                    admin_steps::run_admin_platform_role(&self.state, &user_id).await
+                    admin_steps::run_admin_platform_role(&self.state, handle).await
                 } else {
-                    admin_steps::run_admin_tenant_role(&self.state, &user_id).await
+                    admin_steps::run_admin_tenant_role(&self.state, handle).await
                 }
             }
             steps::STEP_INTERNAL_IDENTITIES
@@ -484,17 +488,26 @@ impl BootstrapService {
         }
     }
 
-    async fn lookup_admin_user_id(&self, username: &str) -> Result<String, StepFailure> {
+    /// 响应中的首管理员用户名（优先本次凭据；无凭据恢复时按认领 id 反查）。
+    async fn admin_username_for_response(
+        &self,
+        creds: Option<&AdminCredentials>,
+        request_id: i64,
+    ) -> Option<String> {
+        if let Some(c) = creds {
+            return Some(c.username.clone());
+        }
+        let user_id = executor::claimed_admin_user_id(&self.state.db, request_id)
+            .await
+            .ok()??;
         let row: Option<(String,)> = digua_common_db::db_fetch_optional!(
             self.state.db,
             (String,),
-            "SELECT id FROM iam_users WHERE username = ? AND tenant_id = ? AND deleted_at IS NULL",
-            username,
-            admin_steps::DEFAULT_TENANT_ID
+            "SELECT username FROM iam_users WHERE id = ? AND deleted_at IS NULL",
+            &user_id
         )
-        .map_err(|_| StepFailure::Failed("admin lookup failed"))?;
-        row.map(|(id,)| id)
-            .ok_or(StepFailure::Failed("admin user missing"))
+        .ok()?;
+        row.map(|(u,)| u)
     }
 
     fn provisioner(&self) -> token_steps::BootstrapProvisioner {

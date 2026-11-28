@@ -380,6 +380,176 @@ async fn pg_old_epoch_cannot_write_step_state() {
     });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// WP-BOOTSTRAP-01-R1：PG 侧业务事务原子边界与首管理员认领（P1-02 / 4.4）
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// P1-02 核心并发时序（PG）：A 的业务事务 FOR UPDATE 持有 request 行锁
+/// 期间，B 的 claim UPDATE 被阻塞；A 提交 + 租约过期后 B 才能接管。
+#[tokio::test]
+async fn pg_r1_claim_blocked_while_business_tx_holds_row_lock() {
+    pg_case!(
+        "pg_r1_claim_blocked_while_business_tx_holds_row_lock",
+        pool,
+        {
+            let rid = seed_selected(pool).await;
+            let owner = executor::instance_id();
+            let handle_a = executor::claim_execution(pool, rid, &owner)
+                .await
+                .unwrap()
+                .expect("A claims epoch 1");
+
+            // A 开业务事务：锁 request 行 + 校验（不提交）。
+            let mut tx = pool.begin().await.unwrap();
+            let verified = executor::lock_and_verify_in_tx(&mut tx, &handle_a)
+                .await
+                .unwrap()
+                .expect("A verifies authority under lock");
+            assert!(verified.admin_user_id.is_none());
+
+            // B 尝试 claim。PG 与 MySQL 锁语义差异（同一安全不变量）：
+            // - MySQL：UPDATE 先锁行再评估 WHERE → B 物理阻塞至 A 提交，随后
+            //   因租约仍有效返回 None；
+            // - PG（READ COMMITTED）：UPDATE 在锁定前用快照评估 WHERE，租约
+            //   未过期 → 行被过滤 → 立即返回 None（未夺取执行权）。
+            // 两种路径下 B 都不得在 A 的业务事务仍能合法提交时取得 epoch2。
+            let pool2 = pool.clone();
+            let b_task =
+                tokio::spawn(
+                    async move { executor::claim_execution(&pool2, rid, "recovery").await },
+                );
+            tokio::time::sleep(Duration::from_millis(300)).await;
+
+            // A 提交认领副作用。
+            let claimed = executor::claim_admin_in_tx(&mut tx, &handle_a, "u-pg-admin")
+                .await
+                .unwrap();
+            assert!(claimed);
+            tx.commit().await.unwrap();
+
+            // B 的结果必须是 None（无论阻塞后评估还是快照过滤）。
+            let early = b_task.await.unwrap().unwrap();
+            assert!(early.is_none(), "B must not take over A's live lease (PG)");
+
+            // 租约过期 → B 接管（epoch 递增）。
+            db_execute!(
+            pool,
+            "UPDATE iam_bootstrap_init_requests SET lease_expires_at = clock_timestamp() - interval '1 second' WHERE id = ?",
+            rid
+        )
+        .unwrap();
+            let handle_b = executor::claim_execution(pool, rid, "recovery")
+                .await
+                .unwrap()
+                .expect("B claims after lease expiry");
+            assert_eq!(handle_b.epoch, handle_a.epoch + 1);
+
+            // 认领持久化。
+            let (admin,): (Option<String>,) = db_fetch_one!(
+                pool,
+                (Option<String>,),
+                "SELECT admin_user_id FROM iam_bootstrap_init_requests WHERE id = ?",
+                rid
+            )
+            .unwrap();
+            assert_eq!(admin.as_deref(), Some("u-pg-admin"));
+        }
+    );
+}
+
+/// P1-02：PG 上旧 epoch 执行者的业务事务校验失败（EpochMismatch），
+/// 认领列不可二次变更。
+#[tokio::test]
+async fn pg_r1_old_epoch_business_writes_rejected() {
+    pg_case!("pg_r1_old_epoch_business_writes_rejected", pool, {
+        let rid = seed_selected(pool).await;
+        let owner = executor::instance_id();
+        let handle_a = executor::claim_execution(pool, rid, &owner)
+            .await
+            .unwrap()
+            .expect("A claims epoch 1");
+
+        // 认领（epoch1 下合法）。
+        let mut tx = pool.begin().await.unwrap();
+        assert!(executor::claim_admin_in_tx(&mut tx, &handle_a, "u-pg-a")
+            .await
+            .unwrap());
+        tx.commit().await.unwrap();
+
+        // 租约过期 → B 接管 epoch2。
+        db_execute!(
+            pool,
+            "UPDATE iam_bootstrap_init_requests SET lease_expires_at = clock_timestamp() - interval '1 second' WHERE id = ?",
+            rid
+        )
+        .unwrap();
+        let handle_b = executor::claim_execution(pool, rid, "pg-new")
+            .await
+            .unwrap()
+            .expect("B claims epoch 2");
+        assert_eq!(handle_b.epoch, handle_a.epoch + 1);
+
+        // A 的新业务事务：lock_and_verify → fencing 拒绝（B 改写了 owner
+        // 与 epoch，先命中 OwnerMismatch——同为 fencing 失败）。
+        let mut tx = pool.begin().await.unwrap();
+        let verify = executor::lock_and_verify_in_tx(&mut tx, &handle_a)
+            .await
+            .unwrap();
+        match verify {
+            Err(executor::VerifyFailure::OwnerMismatch)
+            | Err(executor::VerifyFailure::EpochMismatch) => {}
+            other => panic!("expected fencing failure, got {other:?}"),
+        }
+        tx.rollback().await.unwrap();
+
+        // 认领不可被 A 二次改写（epoch fencing 在 claim UPDATE 内同样生效）。
+        let mut tx = pool.begin().await.unwrap();
+        let re_claim = executor::claim_admin_in_tx(&mut tx, &handle_a, "u-pg-stale")
+            .await
+            .unwrap();
+        assert!(!re_claim, "stale epoch cannot modify admin claim");
+        tx.rollback().await.unwrap();
+    });
+}
+
+/// 4.4（PG）：认领列唯一索引——同一 user id 不能被两个 request 行认领。
+#[tokio::test]
+async fn pg_r1_admin_claim_unique_across_requests() {
+    pg_case!("pg_r1_admin_claim_unique_across_requests", pool, {
+        let rid1 = seed_selected(pool).await;
+        let handle1 = executor::claim_execution(pool, rid1, "owner-1")
+            .await
+            .unwrap()
+            .expect("request 1 claims");
+        let mut tx = pool.begin().await.unwrap();
+        assert!(executor::claim_admin_in_tx(&mut tx, &handle1, "u-dup")
+            .await
+            .unwrap());
+        tx.commit().await.unwrap();
+
+        // 第二个 request 行认领同一 user → 唯一索引冲突 → claim 返回 Err，
+        // 调用方（业务事务）回滚。第二个 request 直接手工造行（gate 单轮
+        // 关闭后 admit 被拒是设计约束，与唯一性验证无关）。
+        let (rid2,): (i64,) = db_fetch_one!(
+            pool,
+            (i64,),
+            "INSERT INTO iam_bootstrap_init_requests (status) VALUES ('selected') RETURNING id"
+        )
+        .unwrap();
+        let handle2 = executor::claim_execution(pool, rid2, "owner-2")
+            .await
+            .unwrap()
+            .expect("request 2 claims");
+        let mut tx = pool.begin().await.unwrap();
+        let dup = executor::claim_admin_in_tx(&mut tx, &handle2, "u-dup").await;
+        assert!(
+            dup.is_err(),
+            "unique index must reject cross-run duplicate claim"
+        );
+        tx.rollback().await.unwrap();
+    });
+}
+
 #[tokio::test]
 async fn pg_completed_request_not_claimable() {
     pg_case!("pg_completed_request_not_claimable", pool, {

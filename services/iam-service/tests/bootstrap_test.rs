@@ -991,6 +991,422 @@ async fn reset_step(ctx: &Ctx, rid: i64, key: &str) {
     .unwrap();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// WP-BOOTSTRAP-01-R1：P1-01 无凭据恢复 / P1-02 原子边界 / 4.4 唯一性
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// 工具：跑完整 bootstrap（token stub 就绪）直到 completed。
+async fn run_full_bootstrap(ctx: &Ctx, stub_uri: &str, username: &str) {
+    let state = point_state_to(&ctx.state, stub_uri);
+    BootstrapService::with_init_password(state, Some("init-pw-123"))
+        .with_token_service_url(stub_uri.to_string())
+        .bootstrap(admin_req(username), Some("init-pw-123".into()))
+        .await
+        .await_ok();
+}
+
+fn empty_admin_request() -> iam_service::dto::BootstrapRequest {
+    iam_service::dto::BootstrapRequest {
+        username: None,
+        password: None,
+        email: None,
+        nickname: None,
+    }
+}
+
+/// P1-01：S02/S03 completed、S04 pending → 无凭据恢复成功，且 S04 绑定到
+/// 原首管理员（admin_user_id），不创建第二个管理员。
+#[tokio::test]
+async fn r1_s04_pending_recovers_without_credentials() {
+    let ctx = setup().await;
+    let stub = stub_token_service(true).await;
+    run_full_bootstrap(&ctx, &stub.uri(), "admin").await;
+    let rid = resp_steps_id(&ctx).await;
+
+    // S04 回拨 pending（模拟 S04 后进程崩溃，S02/S03 已持久化）。
+    reset_step(&ctx, rid, "admin_tenant_role").await;
+
+    // 无凭据恢复（username/password 均不提交）。
+    let state = point_state_to(&ctx.state, &stub.uri());
+    let resp = BootstrapService::with_init_password(state, Some("init-pw-123"))
+        .with_token_service_url(stub.uri())
+        .bootstrap(empty_admin_request(), Some("init-pw-123".into()))
+        .await
+        .expect("S02-completed recovery must not require credentials");
+    assert_eq!(resp.status, "completed");
+    assert_eq!(
+        resp.admin_username.as_deref(),
+        Some("admin"),
+        "response resolves claimed admin username"
+    );
+
+    // S04 绑定到原首管理员（admin_user_id 列指向的用户）。
+    let (admin_id,): (String,) = db_fetch_one!(
+        ctx.state.db,
+        (String,),
+        "SELECT admin_user_id FROM iam_bootstrap_init_requests WHERE id = ?",
+        rid
+    )
+    .unwrap();
+    let (users,): (i64,) = db_fetch_one!(
+        ctx.state.db,
+        (i64,),
+        "SELECT COUNT(*) FROM iam_users WHERE username = 'admin'"
+    )
+    .unwrap();
+    assert_eq!(users, 1, "no second admin created");
+    let (bindings,): (i64,) = db_fetch_one!(
+        ctx.state.db,
+        (i64,),
+        "SELECT COUNT(*) FROM iam_user_roles WHERE user_id = ?",
+        &admin_id
+    )
+    .unwrap();
+    assert_eq!(bindings, 2, "S03+S04 both bound to the claimed admin user");
+}
+
+/// P1-01：S02 completed、S03 pending → 无凭据恢复成功，绑定原管理员。
+#[tokio::test]
+async fn r1_s03_pending_recovers_without_credentials() {
+    let ctx = setup().await;
+    let stub = stub_token_service(true).await;
+    run_full_bootstrap(&ctx, &stub.uri(), "admin").await;
+    let rid = resp_steps_id(&ctx).await;
+    reset_step(&ctx, rid, "admin_platform_role").await;
+
+    let state = point_state_to(&ctx.state, &stub.uri());
+    let resp = BootstrapService::with_init_password(state, Some("init-pw-123"))
+        .with_token_service_url(stub.uri())
+        .bootstrap(empty_admin_request(), Some("init-pw-123".into()))
+        .await
+        .expect("S03 pending recovery must not require credentials");
+    assert_eq!(resp.status, "completed");
+    let (bindings,): (i64,) =
+        db_fetch_one!(ctx.state.db, (i64,), "SELECT COUNT(*) FROM iam_user_roles").unwrap();
+    assert_eq!(bindings, 2, "role re-binding is idempotent (no duplicates)");
+}
+
+/// P1-01（3.2.9）：admin_user_id 丢失（历史数据/字段缺失）→ fail-closed
+/// Conflict，不猜测管理员身份，不静默重建。
+#[tokio::test]
+async fn r1_missing_admin_claim_fails_closed() {
+    let ctx = setup().await;
+    let stub = stub_token_service(true).await;
+    run_full_bootstrap(&ctx, &stub.uri(), "admin").await;
+    let rid = resp_steps_id(&ctx).await;
+    reset_step(&ctx, rid, "admin_platform_role").await;
+
+    db_execute!(
+        ctx.state.db,
+        "UPDATE iam_bootstrap_init_requests SET admin_user_id = NULL WHERE id = ?",
+        rid
+    )
+    .unwrap();
+
+    let state = point_state_to(&ctx.state, &stub.uri());
+    let err = BootstrapService::with_init_password(state, Some("init-pw-123"))
+        .with_token_service_url(stub.uri())
+        .bootstrap(empty_admin_request(), Some("init-pw-123".into()))
+        .await
+        .expect_err("missing admin claim must fail closed");
+    assert!(matches!(
+        err,
+        iam_service::error::IamError::BootstrapConflict(_)
+    ));
+    let (bindings,): (i64,) =
+        db_fetch_one!(ctx.state.db, (i64,), "SELECT COUNT(*) FROM iam_user_roles").unwrap();
+    assert_eq!(bindings, 2, "no extra bindings on fail-closed path");
+}
+
+/// P1-01：认领用户已被删除 → fail-closed，不自动重建替代用户。
+#[tokio::test]
+async fn r1_claimed_user_missing_fails_closed() {
+    let ctx = setup().await;
+    let stub = stub_token_service(true).await;
+    run_full_bootstrap(&ctx, &stub.uri(), "admin").await;
+    let rid = resp_steps_id(&ctx).await;
+    reset_step(&ctx, rid, "admin_platform_role").await;
+    let (admin_id,): (String,) = db_fetch_one!(
+        ctx.state.db,
+        (String,),
+        "SELECT admin_user_id FROM iam_bootstrap_init_requests WHERE id = ?",
+        rid
+    )
+    .unwrap();
+
+    db_execute!(
+        ctx.state.db,
+        "UPDATE iam_users SET deleted_at = NOW() WHERE id = ?",
+        &admin_id
+    )
+    .unwrap();
+
+    let state = point_state_to(&ctx.state, &stub.uri());
+    let err = BootstrapService::with_init_password(state, Some("init-pw-123"))
+        .with_token_service_url(stub.uri())
+        .bootstrap(empty_admin_request(), Some("init-pw-123".into()))
+        .await
+        .expect_err("missing claimed user must fail closed");
+    assert!(matches!(
+        err,
+        iam_service::error::IamError::BootstrapStepFailed(_)
+    ));
+}
+
+/// 4.4：S02 已认领 admin X 时，用不同用户名 Y 恢复 → fail-closed Conflict，
+/// 不替换已有身份、不产生第二个管理员。
+#[tokio::test]
+async fn r1_different_username_recovery_conflicts() {
+    let ctx = setup().await;
+    let stub = stub_token_service(true).await;
+    run_full_bootstrap(&ctx, &stub.uri(), "admin").await;
+    let rid = resp_steps_id(&ctx).await;
+
+    reset_step(&ctx, rid, "first_admin_user").await;
+
+    let different = iam_service::dto::BootstrapRequest {
+        username: Some("intruder".into()),
+        password: Some("Intruder-Pw-1!".into()),
+        email: None,
+        nickname: None,
+    };
+    let state = point_state_to(&ctx.state, &stub.uri());
+    let err = BootstrapService::with_init_password(state, Some("init-pw-123"))
+        .with_token_service_url(stub.uri())
+        .bootstrap(different, Some("init-pw-123".into()))
+        .await
+        .expect_err("different username must not replace claimed admin");
+    assert!(matches!(
+        err,
+        iam_service::error::IamError::BootstrapConflict(_)
+    ));
+
+    let (users,): (i64,) =
+        db_fetch_one!(ctx.state.db, (i64,), "SELECT COUNT(*) FROM iam_users").unwrap();
+    assert_eq!(users, 1, "exactly one admin user exists");
+    let (admin_unchanged,): (i64,) = db_fetch_one!(
+        ctx.state.db,
+        (i64,),
+        "SELECT COUNT(*) FROM iam_users WHERE username = 'admin' AND deleted_at IS NULL"
+    )
+    .unwrap();
+    assert_eq!(admin_unchanged, 1, "original claimed admin untouched");
+}
+
+/// P1-02 核心并发时序：A 的 S02 业务事务持有 request 行锁期间，B 的
+/// claim（epoch+1）被阻塞——新执行者不能绕过仍可合法提交的旧执行者。
+#[tokio::test]
+async fn r1_claim_blocked_while_business_tx_holds_row_lock() {
+    let ctx = setup().await;
+    let pool = &ctx.state.db;
+    let rid = seed_selected_request(pool).await;
+    let owner = executor::instance_id();
+    let handle_a = executor::claim_execution(pool, rid, &owner)
+        .await
+        .unwrap()
+        .expect("A claims epoch 1");
+
+    // A 开业务事务：锁 request 行 + 校验（不提交）。
+    let mut tx = pool.begin().await.unwrap();
+    let verified =
+        iam_service::service::bootstrap::executor::lock_and_verify_in_tx(&mut tx, &handle_a)
+            .await
+            .unwrap()
+            .expect("A verifies authority under lock");
+
+    // B（模拟恢复实例）尝试 claim → 必须被行锁阻塞。
+    let pool2 = pool.clone();
+    let b_task =
+        tokio::spawn(
+            async move { executor::claim_execution(&pool2, rid, "recovery-instance").await },
+        );
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(
+        !b_task.is_finished(),
+        "B claim must block while A's business tx holds the request row lock"
+    );
+
+    // A 提交业务副作用（此处以认领代表副作用）。
+    let claimed = executor::claim_admin_in_tx(
+        &mut tx,
+        &handle_a,
+        &verified
+            .admin_user_id
+            .clone()
+            .unwrap_or_else(|| "u-x".into()),
+    )
+    .await
+    .unwrap();
+    assert!(claimed);
+    tx.commit().await.unwrap();
+
+    // A 提交后 B 的 claim UPDATE 才获得行锁；此时 A 的租约仍有效 →
+    // B 返回 None（租约保护）。把租约拨到过期（模拟租约耗尽/释放）后
+    // B 才能取得新 epoch——锁互斥与租约门同时被验证。
+    let early = b_task.await.unwrap().unwrap();
+    assert!(
+        early.is_none(),
+        "B must not take over while A's lease is live"
+    );
+
+    db_execute!(
+        pool,
+        "UPDATE iam_bootstrap_init_requests SET lease_expires_at = DATE_SUB(NOW(6), INTERVAL 1 SECOND) WHERE id = ?",
+        rid
+    )
+    .unwrap();
+    let handle_b = executor::claim_execution(pool, rid, "recovery-instance")
+        .await
+        .unwrap()
+        .expect("B claims new epoch after lease expiry");
+    assert_eq!(handle_b.epoch, handle_a.epoch + 1);
+}
+
+/// P1-02：旧 epoch 执行者在执行权被重新授予后，业务写入必须被
+/// lock_and_verify 拒绝（EpochMismatch → Conflict），无任何副作用。
+#[tokio::test]
+async fn r1_old_epoch_business_writes_rejected() {
+    let ctx = setup().await;
+    let stub = stub_token_service(true).await;
+    run_full_bootstrap(&ctx, &stub.uri(), "admin").await;
+    let rid = resp_steps_id(&ctx).await;
+
+    // 回拨为 failed（模拟 A 在步骤失败后持有旧 epoch），S03 置 pending。
+    db_execute!(
+        ctx.state.db,
+        "UPDATE iam_bootstrap_init_requests SET status = 'failed', lease_expires_at = NULL WHERE id = ?",
+        rid
+    )
+    .unwrap();
+    reset_step(&ctx, rid, "admin_platform_role").await;
+    let owner = executor::instance_id();
+    let handle_a = executor::claim_execution(&ctx.state.db, rid, &owner)
+        .await
+        .unwrap()
+        .expect("A re-claims");
+    db_execute!(
+        ctx.state.db,
+        "UPDATE iam_bootstrap_init_requests SET lease_expires_at = DATE_SUB(NOW(6), INTERVAL 1 SECOND) WHERE id = ?",
+        rid
+    )
+    .unwrap();
+    let _handle_b = executor::claim_execution(&ctx.state.db, rid, "new-instance")
+        .await
+        .unwrap()
+        .expect("B claims new epoch");
+
+    // A 的绑定业务事务：lock_and_verify → EpochMismatch → Conflict 无副作用。
+    let err = iam_service::service::bootstrap::admin_steps::run_admin_platform_role(
+        &ctx.state, &handle_a,
+    )
+    .await
+    .expect_err("old epoch must not write business data");
+    assert!(matches!(
+        err,
+        iam_service::service::bootstrap::admin_steps::StepFailure::Conflict(_)
+    ));
+
+    let (bindings,): (i64,) =
+        db_fetch_one!(ctx.state.db, (i64,), "SELECT COUNT(*) FROM iam_user_roles").unwrap();
+    assert_eq!(bindings, 2, "no third binding from the stale executor");
+}
+
+/// 4.4：不同用户名的并发首轮候选——gate 仲裁后仅胜者执行，最终只有一个
+/// 首管理员（数据库级 admin claim + 唯一索引兜底）。
+#[tokio::test]
+async fn r1_concurrent_candidates_single_admin() {
+    let ctx = setup().await;
+    let pool = &ctx.state.db;
+
+    let a = gate::admit_candidate(pool).await.unwrap();
+    let b = gate::admit_candidate(pool).await.unwrap();
+    let (a_id, ends) = match &a {
+        gate::AdmitOutcome::Admitted {
+            request_id,
+            window_ends_at,
+        } => (*request_id, *window_ends_at),
+        other => panic!("admit A failed: {other:?}"),
+    };
+    let b_id = match &b {
+        gate::AdmitOutcome::Admitted { request_id, .. } => *request_id,
+        other => panic!("admit B failed: {other:?}"),
+    };
+    let wait = (ends - gate::db_now(pool).await.unwrap())
+        .to_std()
+        .unwrap_or(Duration::ZERO);
+    tokio::time::sleep(wait + Duration::from_millis(50)).await;
+    let winner = match gate::try_close_window(pool).await.unwrap() {
+        gate::CloseOutcome::Closed { winner: Some(w) } => w,
+        other => panic!("close failed: {other:?}"),
+    };
+    let loser = if winner == a_id { b_id } else { a_id };
+
+    // 败者不可 claim → 只有胜者能进入 S02。
+    assert!(executor::claim_execution(pool, loser, "loser")
+        .await
+        .unwrap()
+        .is_none());
+    let winner_handle = executor::claim_execution(pool, winner, "winner")
+        .await
+        .unwrap()
+        .expect("winner claims");
+    let (status,): (String,) = db_fetch_one!(
+        pool,
+        (String,),
+        "SELECT status FROM iam_bootstrap_init_requests WHERE id = ?",
+        loser
+    )
+    .unwrap();
+    assert_eq!(status, "rejected", "loser stays rejected, never executes");
+    assert_eq!(winner_handle.request_id, winner);
+}
+
+/// 4.4（MySQL）：认领列唯一索引——同一 user id 不能被两个 request 行认领
+/// （gate 单轮关闭后手工造第二条 selected 行，绕过与验证无关的准入）。
+#[tokio::test]
+async fn r1_admin_claim_unique_across_requests() {
+    let ctx = setup().await;
+    let pool = &ctx.state.db;
+
+    let rid1 = seed_selected_request(pool).await;
+    let handle1 = executor::claim_execution(pool, rid1, "owner-1")
+        .await
+        .unwrap()
+        .expect("request 1 claims");
+    let mut tx = pool.begin().await.unwrap();
+    assert!(executor::claim_admin_in_tx(&mut tx, &handle1, "u-dup")
+        .await
+        .unwrap());
+    tx.commit().await.unwrap();
+
+    // INSERT + LAST_INSERT_ID 必须同连接（per-connection 值）→ 同事务。
+    let mut seed_tx = pool.begin().await.unwrap();
+    digua_common_db::db_tx_execute!(
+        &mut seed_tx,
+        "INSERT INTO iam_bootstrap_init_requests (status, created_at, updated_at)          VALUES ('selected', NOW(6), NOW(6))"
+    )
+    .unwrap();
+    let (rid2,): (i64,) = digua_common_db::db_tx_fetch_optional!(
+        &mut seed_tx,
+        (i64,),
+        "SELECT CAST(LAST_INSERT_ID() AS SIGNED)"
+    )
+    .unwrap()
+    .expect("last insert id");
+    seed_tx.commit().await.unwrap();
+    let handle2 = executor::claim_execution(pool, rid2, "owner-2")
+        .await
+        .unwrap()
+        .expect("request 2 claims");
+    let mut tx = pool.begin().await.unwrap();
+    let dup = executor::claim_admin_in_tx(&mut tx, &handle2, "u-dup").await;
+    assert!(
+        dup.is_err(),
+        "unique index must reject cross-run duplicate claim"
+    );
+    tx.rollback().await.unwrap();
+}
+
 trait BootstrapResultExt {
     fn await_ok(self);
 }
