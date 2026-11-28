@@ -635,6 +635,44 @@ paths:
           description: not found
       security:
       - bearer_auth: []
+  /internal/bootstrap/ensure-grants:
+    post:
+      tags:
+      - internal-bootstrap
+      operationId: handle_ensure_grants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnsureGrantsRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnsureGrantsResponse'
+        '500':
+          description: database error
+      security:
+      - bearer_auth: []
+  /internal/bootstrap/readiness:
+    get:
+      tags:
+      - internal-bootstrap
+      operationId: handle_readiness
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '500':
+          description: database error
+      security:
+      - bearer_auth: []
   /token/internal/migrations/state:
     get:
       tags:
@@ -1379,6 +1417,63 @@ components:
           type: string
         owner:
           type: string
+    EnsureGrantsRequest:
+      type: object
+      description: ensure-grants 请求体（预留；当前无参数——必需集合 code-owned）。
+    EnsureGrantsResponse:
+      type: object
+      description: POST /internal/bootstrap/ensure-grants 响应。
+      required:
+      - ensured
+      - conflicts
+      properties:
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalGrantState'
+          description: 已存在但被禁用的系统 Grant（不覆盖，fail-closed 上报）。
+        ensured:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalGrantState'
+          description: ensure 后处于 active 的系统 Grant（含本次补插与既有）。
+    InternalGrantState:
+      type: object
+      description: 必需系统 Grant 状态（无凭据材料）。
+      required:
+      - owner
+      - audience
+      - exists
+      properties:
+        audience:
+          type: string
+        exists:
+          type: boolean
+        owner:
+          type: string
+        status:
+          type:
+          - string
+          - 'null'
+        system_managed:
+          type:
+          - boolean
+          - 'null'
+    InternalIdentityState:
+      type: object
+      description: 必需服务身份状态（LMMS 内部清单 = SYSTEM_GRANTS owner 并集）。
+      required:
+      - owner
+      - exists
+      properties:
+        exists:
+          type: boolean
+        owner:
+          type: string
+        status:
+          type:
+          - string
+          - 'null'
     KeyEntryView:
       type: object
       required:
@@ -1566,6 +1661,21 @@ components:
           type: boolean
         status:
           type: string
+    ReadinessResponse:
+      type: object
+      description: GET /internal/bootstrap/readiness 响应。
+      required:
+      - identities
+      - grants
+      properties:
+        grants:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalGrantState'
+        identities:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalIdentityState'
     RefreshRequest:
       type: object
       required:

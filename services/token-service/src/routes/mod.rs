@@ -5,6 +5,7 @@ pub mod bootstrap_token_admin;
 pub mod bootstrap_token_web;
 pub mod jwks;
 pub mod keys_admin;
+pub mod internal_bootstrap;
 pub mod migration_state;
 pub mod refresh;
 pub mod resource;

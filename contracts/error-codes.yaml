@@ -59,6 +59,27 @@ codes:
   IAM_EXT_9202:
     message: "mail delivery failed"
     kind: External
+  IAM_BOOTSTRAP_4001:
+    message: "bootstrap is not available"
+    kind: NotFound
+  IAM_BOOTSTRAP_4002:
+    message: "bootstrap already completed"
+    kind: NotFound
+  IAM_BOOTSTRAP_4003:
+    message: "invalid bootstrap password"
+    kind: Forbidden
+  IAM_BOOTSTRAP_4004:
+    message: "bootstrap request conflict"
+    kind: Conflict
+  IAM_BOOTSTRAP_4005:
+    message: "invalid bootstrap request"
+    kind: BadRequest
+  IAM_BOOTSTRAP_5001:
+    message: "bootstrap step failed"
+    kind: Internal
+  IAM_BOOTSTRAP_5002:
+    message: "bootstrap dependency unavailable"
+    kind: External
 
   # === 校验 ===
   VALID_2001:

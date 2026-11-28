@@ -75,6 +75,29 @@ pub enum IamError {
     #[error("conflict: {0}")]
     Conflict(String),
 
+    #[error("bootstrap is not available")]
+    BootstrapDisabled,
+
+    #[error("bootstrap already completed")]
+    BootstrapCompleted,
+
+    #[error("invalid bootstrap password")]
+    BootstrapPasswordMismatch,
+
+    #[error("bootstrap conflict: {0}")]
+    BootstrapConflict(String),
+
+    #[error("invalid bootstrap request")]
+    BootstrapInvalidRequest,
+
+    /// Bootstrap step 执行失败（{0} = 安全错误摘要，不含凭据）。
+    #[error("bootstrap step failed: {0}")]
+    BootstrapStepFailed(String),
+
+    /// Bootstrap 跨服务依赖（token-service）不可用。
+    #[error("bootstrap dependency unavailable")]
+    BootstrapDependencyUnavailable,
+
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
 
@@ -117,6 +140,28 @@ impl From<IamError> for AppError {
             IamError::DuplicateOrgUnit => AppError::conflict("IAM_ORG_8002", e.to_string()),
             IamError::DuplicateTenant => AppError::conflict("IAM_TENANT_9100", e.to_string()),
             IamError::Conflict(msg) => AppError::conflict("IAM_SYS_9000", msg),
+            IamError::BootstrapDisabled => {
+                AppError::not_found("IAM_BOOTSTRAP_4001", "bootstrap is not available")
+            }
+            IamError::BootstrapCompleted => {
+                AppError::not_found("IAM_BOOTSTRAP_4002", "bootstrap already completed")
+            }
+            IamError::BootstrapPasswordMismatch => {
+                AppError::forbidden("IAM_BOOTSTRAP_4003", "invalid bootstrap password")
+            }
+            IamError::BootstrapConflict(msg) => {
+                AppError::conflict("IAM_BOOTSTRAP_4004", msg)
+            }
+            IamError::BootstrapInvalidRequest => {
+                AppError::bad_request("IAM_BOOTSTRAP_4005", "invalid bootstrap request")
+            }
+            IamError::BootstrapStepFailed(summary) => {
+                AppError::internal("IAM_BOOTSTRAP_5001", summary)
+            }
+            IamError::BootstrapDependencyUnavailable => AppError::external(
+                "IAM_BOOTSTRAP_5002",
+                "bootstrap dependency unavailable",
+            ),
             IamError::Database(e) => AppError::internal("IAM_SYS_9001", e.to_string()),
             IamError::Jwt(e) => AppError::internal("IAM_SYS_9003", e.to_string()),
             IamError::Validation(e) => AppError::bad_request("IAM_SYS_9005", e.to_string()),

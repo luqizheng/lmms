@@ -285,6 +285,33 @@ pub enum CreateOutcome {
     Duplicate,
 }
 
+/// Bootstrap provisioning：幂等补插**单个** code-owned 系统 Grant
+/// （WP-BS-01 / WP-01D）。
+///
+/// 与 [`ensure_system_grants`]（启动 seed，全量）互补：本函数由
+/// `/internal/bootstrap/ensure-grants` 按需调用，同样只补缺失行——
+/// 已存在（含被禁用）的行一律不动，由调用方上报 conflict / 复查。
+/// 插入行 `system_managed = TRUE`，受系统保护，不属于普通管理面。
+/// 主键 (owner, audience) 是稳定幂等键：重试与恢复不产生重复 Grant。
+pub async fn provision_system_grant(
+    pool: &DbPool,
+    owner: &str,
+    audience: &str,
+) -> Result<u64, sqlx::Error> {
+    let res = db_execute!(
+        pool,
+        "INSERT INTO token_service_jwt_grants (owner, audience, status, system_managed)          VALUES (?, ?, 'active', TRUE)",
+        owner,
+        audience
+    );
+    match res {
+        Ok(_) => Ok(1),
+        // 并发竞态：唯一约束判负的副本视为已完成。
+        Err(ref e) if is_duplicate_key(e) => Ok(0),
+        Err(e) => Err(e),
+    }
+}
+
 /// 新建 grant（`active`, `system_managed=false`）。
 ///
 /// 先查后插 + PK 唯一约束兜底：并发创建相同 `(owner, audience)` 时恰一次
