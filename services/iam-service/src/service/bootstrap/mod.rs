@@ -106,25 +106,30 @@ impl BootstrapService {
     }
 
     fn effective_token_service_url(&self) -> String {
-        self.token_service_url_override
-            .clone()
-            .unwrap_or_else(|| {
-                std::env::var("TOKEN_SERVICE_URL")
-                    .unwrap_or_else(|_| "http://token-service:8082".into())
-            })
+        self.token_service_url_override.clone().unwrap_or_else(|| {
+            std::env::var("TOKEN_SERVICE_URL")
+                .unwrap_or_else(|_| "http://token-service:8082".into())
+        })
     }
 
     // ── GET /v1/bootstrap/status ────────────────────────────────────────
 
-    pub async fn status(&self, password_header: Option<String>) -> Result<BootstrapStatusResponse, IamError> {
+    pub async fn status(
+        &self,
+        password_header: Option<String>,
+    ) -> Result<BootstrapStatusResponse, IamError> {
         // 1. 未配置密码 → 404（不查库、不泄漏功能存在性）。
-        let expected = self.effective_password().ok_or(IamError::BootstrapDisabled)?;
+        let expected = self
+            .effective_password()
+            .ok_or(IamError::BootstrapDisabled)?;
 
         // 2. 已完成 → 404（接口永久关闭；密码校验之前，设计 Q4/Q9）。
         let gate = gate::read_gate(&self.state.db)
             .await
             .map_err(|e| IamError::Internal(format!("bootstrap gate read failed: {e}")))?;
-        let winner = self.load_winner(gate.as_ref().and_then(|g| g.winner_request_id)).await?;
+        let winner = self
+            .load_winner(gate.as_ref().and_then(|g| g.winner_request_id))
+            .await?;
         if let Some(w) = &winner {
             if w.status == "completed" {
                 return Err(IamError::BootstrapCompleted);
@@ -146,7 +151,10 @@ impl BootstrapService {
                 (overall.to_string(), step_views(&s))
             }
         };
-        Ok(BootstrapStatusResponse { status: overall, steps })
+        Ok(BootstrapStatusResponse {
+            status: overall,
+            steps,
+        })
     }
 
     // ── POST /v1/bootstrap ──────────────────────────────────────────────
@@ -157,7 +165,9 @@ impl BootstrapService {
         password_header: Option<String>,
     ) -> Result<BootstrapResponse, IamError> {
         // 1. 未配置密码 → 404。
-        let expected = self.effective_password().ok_or(IamError::BootstrapDisabled)?;
+        let expected = self
+            .effective_password()
+            .ok_or(IamError::BootstrapDisabled)?;
 
         // 2. 前置状态检查：已完成 → 404（不创建请求记录）。
         let gate = gate::read_gate(&self.state.db)
@@ -302,7 +312,8 @@ impl BootstrapService {
                 .await
                 .map_err(|e| IamError::Internal(format!("bootstrap close failed: {e}")))?
             {
-                gate::CloseOutcome::Closed { winner: w } | gate::CloseOutcome::AlreadyClosed { winner: w } => {
+                gate::CloseOutcome::Closed { winner: w }
+                | gate::CloseOutcome::AlreadyClosed { winner: w } => {
                     winner = w;
                     break;
                 }
@@ -316,7 +327,9 @@ impl BootstrapService {
             }
         }
         let Some(winner_id) = winner else {
-            return Err(IamError::Internal("bootstrap window close timed out".into()));
+            return Err(IamError::Internal(
+                "bootstrap window close timed out".into(),
+            ));
         };
 
         if winner_id == my_request_id {
@@ -387,14 +400,9 @@ impl BootstrapService {
             ));
         }
         // 唯一完成入口：全部 Step 完成 → 总状态 completed（此后接口 404）。
-        let ok = executor::mark_completed(
-            &self.state.db,
-            &handle,
-            &steps.to_value(),
-            Utc::now(),
-        )
-        .await
-        .map_err(|e| IamError::Internal(format!("bootstrap completion failed: {e}")))?;
+        let ok = executor::mark_completed(&self.state.db, &handle, &steps.to_value(), Utc::now())
+            .await
+            .map_err(|e| IamError::Internal(format!("bootstrap completion failed: {e}")))?;
         if !ok {
             return Err(IamError::BootstrapConflict(
                 "bootstrap execution lost to a newer epoch".into(),
@@ -422,15 +430,14 @@ impl BootstrapService {
         }
     }
 
-    async fn persist(&self, handle: &ExecutionHandle, steps: &StepsState) -> Result<bool, IamError> {
-        executor::persist_step_progress(
-            &self.state.db,
-            handle,
-            &steps.to_value(),
-            Utc::now(),
-        )
-        .await
-        .map_err(|e| IamError::Internal(format!("bootstrap step persist failed: {e}")))
+    async fn persist(
+        &self,
+        handle: &ExecutionHandle,
+        steps: &StepsState,
+    ) -> Result<bool, IamError> {
+        executor::persist_step_progress(&self.state.db, handle, &steps.to_value(), Utc::now())
+            .await
+            .map_err(|e| IamError::Internal(format!("bootstrap step persist failed: {e}")))
     }
 
     async fn run_single_step(
@@ -439,9 +446,7 @@ impl BootstrapService {
         creds: Option<&AdminCredentials>,
     ) -> Result<(), StepFailure> {
         match key {
-            steps::STEP_DEFAULT_TENANT => {
-                admin_steps::run_default_tenant(&self.state.db).await
-            }
+            steps::STEP_DEFAULT_TENANT => admin_steps::run_default_tenant(&self.state.db).await,
             steps::STEP_FIRST_ADMIN_USER => {
                 let Some(creds) = creds else {
                     // 步骤未完成但本请求未携带凭据（不该发生：HTTP 层已校验）。
@@ -480,15 +485,14 @@ impl BootstrapService {
     }
 
     async fn lookup_admin_user_id(&self, username: &str) -> Result<String, StepFailure> {
-        let row: Option<(String,)> =
-            digua_common_db::db_fetch_optional!(
-                self.state.db,
-                (String,),
-                "SELECT id FROM iam_users WHERE username = ? AND tenant_id = ? AND deleted_at IS NULL",
-                username,
-                admin_steps::DEFAULT_TENANT_ID
-            )
-            .map_err(|_| StepFailure::Failed("admin lookup failed"))?;
+        let row: Option<(String,)> = digua_common_db::db_fetch_optional!(
+            self.state.db,
+            (String,),
+            "SELECT id FROM iam_users WHERE username = ? AND tenant_id = ? AND deleted_at IS NULL",
+            username,
+            admin_steps::DEFAULT_TENANT_ID
+        )
+        .map_err(|_| StepFailure::Failed("admin lookup failed"))?;
         row.map(|(id,)| id)
             .ok_or(StepFailure::Failed("admin user missing"))
     }

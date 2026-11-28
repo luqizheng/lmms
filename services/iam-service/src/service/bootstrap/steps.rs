@@ -169,8 +169,14 @@ mod tests {
         s.set_completed(STEP_DEFAULT_TENANT);
         let v = s.to_value();
         let parsed = StepsState::parse(Some(&v));
-        assert_eq!(parsed.get(STEP_DEFAULT_TENANT).status, StepStatus::Completed);
-        assert_eq!(parsed.get(STEP_FIRST_ADMIN_USER).status, StepStatus::Pending);
+        assert_eq!(
+            parsed.get(STEP_DEFAULT_TENANT).status,
+            StepStatus::Completed
+        );
+        assert_eq!(
+            parsed.get(STEP_FIRST_ADMIN_USER).status,
+            StepStatus::Pending
+        );
         // 缺项补 pending：手工裁剪 JSON 后解析仍完整。
         let mut trimmed = v.clone();
         trimmed["steps"] = serde_json::json!([]);

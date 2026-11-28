@@ -107,12 +107,14 @@ impl BootstrapProvisioner {
     }
 
     async fn get(&self, path: &str) -> Result<reqwest::Response, ProvisionError> {
-        let service_jwt = self
-            .service_jwt
-            .get("token-service")
-            .await
-            .map_err(|e| ProvisionError::Unreachable(format!("service-jwt mint failed: {e}")))?;
-        let url = format!("{}/internal/bootstrap{path}", self.token_service_url.trim_end_matches('/'));
+        let service_jwt =
+            self.service_jwt.get("token-service").await.map_err(|e| {
+                ProvisionError::Unreachable(format!("service-jwt mint failed: {e}"))
+            })?;
+        let url = format!(
+            "{}/internal/bootstrap{path}",
+            self.token_service_url.trim_end_matches('/')
+        );
         self.http
             .get(url)
             .bearer_auth(&service_jwt)
@@ -122,12 +124,14 @@ impl BootstrapProvisioner {
     }
 
     async fn post(&self, path: &str) -> Result<reqwest::Response, ProvisionError> {
-        let service_jwt = self
-            .service_jwt
-            .get("token-service")
-            .await
-            .map_err(|e| ProvisionError::Unreachable(format!("service-jwt mint failed: {e}")))?;
-        let url = format!("{}/internal/bootstrap{path}", self.token_service_url.trim_end_matches('/'));
+        let service_jwt =
+            self.service_jwt.get("token-service").await.map_err(|e| {
+                ProvisionError::Unreachable(format!("service-jwt mint failed: {e}"))
+            })?;
+        let url = format!(
+            "{}/internal/bootstrap{path}",
+            self.token_service_url.trim_end_matches('/')
+        );
         self.http
             .post(url)
             .bearer_auth(&service_jwt)
@@ -182,9 +186,10 @@ pub async fn run_internal_identities(
         }
     };
     for owner in REQUIRED_IDENTITIES {
-        let ok = readiness.identities.iter().any(|i| {
-            i.owner == owner && i.exists && i.status.as_deref() == Some("active")
-        });
+        let ok = readiness
+            .identities
+            .iter()
+            .any(|i| i.owner == owner && i.exists && i.status.as_deref() == Some("active"));
         if !ok {
             // 摘要不含服务名（不向调用方泄漏内部拓扑细节）。
             return Err(StepFailure::Failed("required service identity not ready"));
@@ -195,16 +200,11 @@ pub async fn run_internal_identities(
 
 // ── S06 / S07：内部授权关系 ensure（幂等 provisioning）──────────────────
 
-pub async fn run_grant_iam_to_token(
-    provisioner: &BootstrapProvisioner,
-) -> Result<(), StepFailure> {
-    ensure_single_grant(provisioner, GRANT_IAM_TO_TOKEN.0, GRANT_IAM_TO_TOKEN.1)
-        .await
+pub async fn run_grant_iam_to_token(provisioner: &BootstrapProvisioner) -> Result<(), StepFailure> {
+    ensure_single_grant(provisioner, GRANT_IAM_TO_TOKEN.0, GRANT_IAM_TO_TOKEN.1).await
 }
 
-pub async fn run_grant_ntf_to_iam(
-    provisioner: &BootstrapProvisioner,
-) -> Result<(), StepFailure> {
+pub async fn run_grant_ntf_to_iam(provisioner: &BootstrapProvisioner) -> Result<(), StepFailure> {
     ensure_single_grant(provisioner, GRANT_NTF_TO_IAM.0, GRANT_NTF_TO_IAM.1).await
 }
 

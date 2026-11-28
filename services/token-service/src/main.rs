@@ -292,16 +292,14 @@ async fn main() {
     // WP-BS-01 / WP-01D: /internal/bootstrap/* —— IAM Bootstrap 流程的
     // provisioning 调用面（readiness / ensure-grants）。鉴权与其他内部
     // 端点一致：service-jwt（aud=token-service）。
-    app = app.merge(
-        routes::internal_bootstrap::routes(state.clone()).layer(
-            axum::middleware::from_fn_with_state(
-                state.clone(),
-                digua_authz::verify_aud_principal_middleware::<token_service::TokenServerState>(
-                    "token-service",
-                ),
+    app = app.merge(routes::internal_bootstrap::routes(state.clone()).layer(
+        axum::middleware::from_fn_with_state(
+            state.clone(),
+            digua_authz::verify_aud_principal_middleware::<token_service::TokenServerState>(
+                "token-service",
             ),
         ),
-    );
+    ));
 
     // 自注册（libs/common-consul）：SERVICE_NAME 未设时为 no-op。
     let consul_guard = digua_common_consul::consul_guard();

@@ -73,9 +73,12 @@ macro_rules! pg_case {
 async fn pg_ensure_schema_creates_gate_with_control_row() {
     pg_case!("pg_ensure_schema_creates_gate_with_control_row", pool, {
         // gate 控制行必须已由迁移预插。
-        let (status,): (String,) =
-            db_fetch_one!(pool, (String,), "SELECT status FROM iam_bootstrap_init_gate WHERE id = 1")
-                .unwrap();
+        let (status,): (String,) = db_fetch_one!(
+            pool,
+            (String,),
+            "SELECT status FROM iam_bootstrap_init_gate WHERE id = 1"
+        )
+        .unwrap();
         assert_eq!(status, "idle");
 
         // 幂等：重复 ensure_schema 不炸、不重复插行。
@@ -113,13 +116,18 @@ async fn pg_concurrent_admission_selects_min_id() {
         let mut tasks = Vec::new();
         for _ in 0..8 {
             let pool = pool.clone();
-            tasks.push(tokio::spawn(async move { gate::admit_candidate(&pool).await }));
+            tasks.push(tokio::spawn(
+                async move { gate::admit_candidate(&pool).await },
+            ));
         }
         let mut ids = Vec::new();
         let mut ends = None;
         for t in tasks {
             match t.await.unwrap().unwrap() {
-                gate::AdmitOutcome::Admitted { request_id, window_ends_at } => {
+                gate::AdmitOutcome::Admitted {
+                    request_id,
+                    window_ends_at,
+                } => {
                     ids.push(request_id);
                     ends = Some(window_ends_at);
                 }
@@ -192,7 +200,11 @@ async fn pg_uncommitted_candidate_included_by_close() {
 
         match closer.await.unwrap().unwrap() {
             gate::CloseOutcome::Closed { winner } => {
-                assert_eq!(winner, Some(pending_id), "committed-late candidate must be arbitrated");
+                assert_eq!(
+                    winner,
+                    Some(pending_id),
+                    "committed-late candidate must be arbitrated"
+                );
             }
             other => panic!("expected Closed, got {other:?}"),
         }
@@ -282,7 +294,10 @@ async fn pg_admit_rejected_after_expired_and_closed() {
 async fn seed_selected(pool: &DbPool) -> i64 {
     let admitted = gate::admit_candidate(pool).await.unwrap();
     let (rid, ends) = match &admitted {
-        gate::AdmitOutcome::Admitted { request_id, window_ends_at } => (*request_id, *window_ends_at),
+        gate::AdmitOutcome::Admitted {
+            request_id,
+            window_ends_at,
+        } => (*request_id, *window_ends_at),
         other => panic!("seed admit failed: {other:?}"),
     };
     let wait = (ends - gate::db_now(pool).await.unwrap())
@@ -341,11 +356,27 @@ async fn pg_old_epoch_cannot_write_step_state() {
         assert_eq!(new.epoch, old.epoch + 1);
 
         let steps = iam_service::service::bootstrap::steps::StepsState::initial().to_value();
-        assert!(!executor::persist_step_progress(pool, &old, &steps, chrono::Utc::now()).await.unwrap());
-        assert!(!executor::mark_step_failed(pool, &old, &steps, "x", chrono::Utc::now()).await.unwrap());
-        assert!(!executor::mark_completed(pool, &old, &steps, chrono::Utc::now()).await.unwrap());
+        assert!(
+            !executor::persist_step_progress(pool, &old, &steps, chrono::Utc::now())
+                .await
+                .unwrap()
+        );
+        assert!(
+            !executor::mark_step_failed(pool, &old, &steps, "x", chrono::Utc::now())
+                .await
+                .unwrap()
+        );
+        assert!(
+            !executor::mark_completed(pool, &old, &steps, chrono::Utc::now())
+                .await
+                .unwrap()
+        );
         assert!(!executor::renew_lease(pool, &old).await.unwrap());
-        assert!(executor::persist_step_progress(pool, &new, &steps, chrono::Utc::now()).await.unwrap());
+        assert!(
+            executor::persist_step_progress(pool, &new, &steps, chrono::Utc::now())
+                .await
+                .unwrap()
+        );
     });
 }
 
@@ -359,6 +390,9 @@ async fn pg_completed_request_not_claimable() {
             rid
         )
         .unwrap();
-        assert!(executor::claim_execution(pool, rid, "late").await.unwrap().is_none());
+        assert!(executor::claim_execution(pool, rid, "late")
+            .await
+            .unwrap()
+            .is_none());
     });
 }

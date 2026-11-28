@@ -149,19 +149,16 @@ impl From<IamError> for AppError {
             IamError::BootstrapPasswordMismatch => {
                 AppError::forbidden("IAM_BOOTSTRAP_4003", "invalid bootstrap password")
             }
-            IamError::BootstrapConflict(msg) => {
-                AppError::conflict("IAM_BOOTSTRAP_4004", msg)
-            }
+            IamError::BootstrapConflict(msg) => AppError::conflict("IAM_BOOTSTRAP_4004", msg),
             IamError::BootstrapInvalidRequest => {
                 AppError::bad_request("IAM_BOOTSTRAP_4005", "invalid bootstrap request")
             }
             IamError::BootstrapStepFailed(summary) => {
                 AppError::internal("IAM_BOOTSTRAP_5001", summary)
             }
-            IamError::BootstrapDependencyUnavailable => AppError::external(
-                "IAM_BOOTSTRAP_5002",
-                "bootstrap dependency unavailable",
-            ),
+            IamError::BootstrapDependencyUnavailable => {
+                AppError::external("IAM_BOOTSTRAP_5002", "bootstrap dependency unavailable")
+            }
             IamError::Database(e) => AppError::internal("IAM_SYS_9001", e.to_string()),
             IamError::Jwt(e) => AppError::internal("IAM_SYS_9003", e.to_string()),
             IamError::Validation(e) => AppError::bad_request("IAM_SYS_9005", e.to_string()),

@@ -90,7 +90,11 @@ pub async fn tx_now(tx: &mut Transaction<'_>) -> Result<DateTime<Utc>, Error> {
         #[cfg(feature = "postgres")]
         Transaction::Postgres(_) => "SELECT clock_timestamp()",
         #[allow(unreachable_patterns)]
-        _ => return Err(Error::Configuration("bootstrap: dialect not enabled".into())),
+        _ => {
+            return Err(Error::Configuration(
+                "bootstrap: dialect not enabled".into(),
+            ))
+        }
     };
     db_tx_fetch_scalar!(tx, DateTime<Utc>, sql)
 }
@@ -227,16 +231,14 @@ async fn admit_once(pool: &DbPool) -> Result<AdmitOutcome, Error> {
 
     // 4. 同事务插入候选记录（自增 id 是窗口关闭后的仲裁顺序）。
     let request_id: i64 = match pool.dialect() {
-        digua_common_db::dialect::DialectKind::Postgres => {
-            db_tx_fetch_scalar!(
-                &mut tx,
-                i64,
-                "INSERT INTO iam_bootstrap_init_requests (status, created_at, updated_at) \
+        digua_common_db::dialect::DialectKind::Postgres => db_tx_fetch_scalar!(
+            &mut tx,
+            i64,
+            "INSERT INTO iam_bootstrap_init_requests (status, created_at, updated_at) \
                  VALUES ('collecting', ?, ?) RETURNING id",
-                now,
-                now
-            )?
-        }
+            now,
+            now
+        )?,
         _ => {
             db_tx_execute!(
                 &mut tx,
@@ -308,16 +310,17 @@ async fn close_once(pool: &DbPool) -> Result<CloseOutcome, Error> {
     };
     if now < ends {
         tx.rollback().await?;
-        return Ok(CloseOutcome::NotYet { window_ends_at: ends });
+        return Ok(CloseOutcome::NotYet {
+            window_ends_at: ends,
+        });
     }
 
     // 3. 选全部已提交候选中的最小自增 id 作为唯一胜出者。
-    let winner: Option<(i64,)> =
-        db_tx_fetch_optional!(
-            &mut tx,
-            (i64,),
-            "SELECT MIN(id) FROM iam_bootstrap_init_requests WHERE status = 'collecting'"
-        )?;
+    let winner: Option<(i64,)> = db_tx_fetch_optional!(
+        &mut tx,
+        (i64,),
+        "SELECT MIN(id) FROM iam_bootstrap_init_requests WHERE status = 'collecting'"
+    )?;
     let Some((winner_id,)) = winner else {
         // 空轮：保持 collecting，等候选出现（候选行不会被删除）。
         tx.rollback().await?;

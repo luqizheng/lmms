@@ -9,8 +9,8 @@
 //! IAM 本地步骤各自使用本地事务；不假设与 Token Service 共享事务。
 
 use digua_common_db::{db_fetch_one, db_fetch_optional, DbPool};
-use digua_common_event::AnyTx;
 use digua_common_event::events::IamUserCreated;
+use digua_common_event::AnyTx;
 use digua_common_event::{Envelope, OutboxRepo};
 
 use crate::dto::BootstrapRequest;
@@ -95,9 +95,7 @@ impl AdminCredentials {
 /// sqlx 错误 → 唯一约束冲突判定（MySQL 1062 / PG 23505）。
 pub(crate) fn is_duplicate_key(e: &sqlx::Error) -> bool {
     match e {
-        sqlx::Error::Database(db) => {
-            is_duplicate_code(db.code().as_deref(), db.message())
-        }
+        sqlx::Error::Database(db) => is_duplicate_code(db.code().as_deref(), db.message()),
         _ => false,
     }
 }
@@ -191,10 +189,7 @@ pub async fn run_first_admin_user(
     recheck_admin_user(state, creds).await
 }
 
-async fn recheck_admin_user(
-    state: &AppState,
-    creds: &AdminCredentials,
-) -> Result<(), StepFailure> {
+async fn recheck_admin_user(state: &AppState, creds: &AdminCredentials) -> Result<(), StepFailure> {
     let row: Option<(String,)> = db_fetch_optional!(
         state.db,
         (String,),
@@ -307,9 +302,11 @@ async fn enqueue_user_created(
         },
     )
     .with_tenant_id(tenant_id.to_string());
-    state.outbox_repo.enqueue(tx, &mut envelope).await.map_err(|e| {
-        sqlx::Error::Configuration(Box::new(std::io::Error::other(e.to_string())))
-    })
+    state
+        .outbox_repo
+        .enqueue(tx, &mut envelope)
+        .await
+        .map_err(|e| sqlx::Error::Configuration(Box::new(std::io::Error::other(e.to_string()))))
 }
 
 // ── S03 / S04：首管理员角色绑定（platform_admin + tenant_admin）──────────
@@ -327,7 +324,9 @@ pub async fn run_admin_platform_role(state: &AppState, user_id: &str) -> Result<
         Some((status,)) if status == "active" => {
             bind_admin_role(state, user_id, PLATFORM_ADMIN_ROLE_ID).await
         }
-        Some(_) => Err(StepFailure::Conflict("platform_admin role is disabled".into())),
+        Some(_) => Err(StepFailure::Conflict(
+            "platform_admin role is disabled".into(),
+        )),
         None => Err(StepFailure::Failed("platform_admin role missing")),
     }
 }
@@ -379,11 +378,7 @@ enum BindingOutcome {
     Failed(&'static str),
 }
 
-async fn insert_binding_sql(
-    state: &AppState,
-    user_id: &str,
-    role_id: &str,
-) -> BindingOutcome {
+async fn insert_binding_sql(state: &AppState, user_id: &str, role_id: &str) -> BindingOutcome {
     let ts = chrono::Utc::now().timestamp();
     match &state.db {
         #[cfg(feature = "mysql")]
@@ -547,7 +542,10 @@ mod tests {
     #[test]
     fn duplicate_code_detection() {
         assert!(is_duplicate_code(Some("1062"), "Duplicate entry 'x'"));
-        assert!(is_duplicate_code(Some("23505"), "duplicate key value violates unique constraint"));
+        assert!(is_duplicate_code(
+            Some("23505"),
+            "duplicate key value violates unique constraint"
+        ));
         assert!(!is_duplicate_code(Some("1064"), "syntax error"));
         assert!(!is_duplicate_code(None, "connection refused"));
     }

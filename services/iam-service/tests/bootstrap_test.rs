@@ -21,9 +21,7 @@ use iam_service::config::{
     AppConfig, Config, ConsulConfig, DatabaseConfig, JwtConfig, RedisConfig,
 };
 use iam_service::routes::build_router;
-use iam_service::service::bootstrap::{
-    executor, gate, BootstrapService, INIT_PASSWORD_HEADER,
-};
+use iam_service::service::bootstrap::{executor, gate, BootstrapService, INIT_PASSWORD_HEADER};
 use iam_service::service::token_forward::TokenForwardClient;
 use iam_service::state::AppState;
 use serde_json::json;
@@ -256,7 +254,10 @@ async fn http_password_contract() {
 
     // 未配置密码 → 404（GET/POST 皆然，且不产生候选记录）。
     for req in [
-        Request::builder().uri("/v1/bootstrap/status").body(Body::empty()).unwrap(),
+        Request::builder()
+            .uri("/v1/bootstrap/status")
+            .body(Body::empty())
+            .unwrap(),
         Request::builder()
             .method("POST")
             .uri("/v1/bootstrap")
@@ -265,7 +266,11 @@ async fn http_password_contract() {
             .unwrap(),
     ] {
         let resp = ctx.app.clone().oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), 404, "bootstrap must be 404 without init password");
+        assert_eq!(
+            resp.status(),
+            404,
+            "bootstrap must be 404 without init password"
+        );
     }
     let (count,): (i64,) = db_fetch_one!(
         ctx.state.db,
@@ -286,7 +291,9 @@ async fn http_password_contract() {
                 .uri("/v1/bootstrap")
                 .header("content-type", "application/json")
                 .header(INIT_PASSWORD_HEADER, "wrong-pw")
-                .body(Body::from(json!({"username": "admin", "password": ADMIN_PASSWORD}).to_string()))
+                .body(Body::from(
+                    json!({"username": "admin", "password": ADMIN_PASSWORD}).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -294,7 +301,10 @@ async fn http_password_contract() {
     assert_eq!(resp.status(), 403);
     let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert!(!body_str.contains("real-init-pw"), "response must never echo the password");
+    assert!(
+        !body_str.contains("real-init-pw"),
+        "response must never echo the password"
+    );
     std::env::remove_var("LMMS_INIT_PASSWORD");
 
     // 普通登录不受 Bootstrap Password 影响：正常创建用户并登录成功。
@@ -324,7 +334,11 @@ async fn http_password_contract() {
         )
         .await
         .unwrap();
-    assert_eq!(resp.status(), 200, "normal login must ignore bootstrap password env");
+    assert_eq!(
+        resp.status(),
+        200,
+        "normal login must ignore bootstrap password env"
+    );
 }
 
 // ── 5.1 首次初始化成功 + 完成后 404 ──────────────────────────────────────
@@ -381,7 +395,10 @@ async fn first_bootstrap_success_then_404() {
         &uid
     )
     .unwrap();
-    assert_eq!(distinct, 2, "platform_admin and tenant_admin must stay separate roles");
+    assert_eq!(
+        distinct, 2,
+        "platform_admin and tenant_admin must stay separate roles"
+    );
 
     // steps JSON 不含凭据。
     let (steps,): (Option<serde_json::Value>,) = db_fetch_one!(
@@ -392,8 +409,14 @@ async fn first_bootstrap_success_then_404() {
     )
     .unwrap();
     let steps_str = serde_json::to_string(&steps).unwrap().to_lowercase();
-    assert!(!steps_str.contains(ADMIN_PASSWORD), "steps must never contain admin password");
-    assert!(!steps_str.contains("init-pw-123"), "steps must never contain bootstrap password");
+    assert!(
+        !steps_str.contains(ADMIN_PASSWORD),
+        "steps must never contain admin password"
+    );
+    assert!(
+        !steps_str.contains("init-pw-123"),
+        "steps must never contain bootstrap password"
+    );
 
     // 完成后：winner completed → 404。
     assert!(matches!(
@@ -401,7 +424,9 @@ async fn first_bootstrap_success_then_404() {
         Err(iam_service::error::IamError::BootstrapCompleted)
     ));
     assert!(matches!(
-        service.bootstrap(admin_req("admin"), Some("init-pw-123".into())).await,
+        service
+            .bootstrap(admin_req("admin"), Some("init-pw-123".into()))
+            .await,
         Err(iam_service::error::IamError::BootstrapCompleted)
     ));
 }
@@ -427,19 +452,24 @@ async fn concurrent_admission_selects_min_id() {
     let mut tasks = Vec::new();
     for _ in 0..10 {
         let pool = pool.clone();
-        tasks.push(tokio::spawn(async move {
-            gate::admit_candidate(&pool).await
-        }));
+        tasks.push(tokio::spawn(
+            async move { gate::admit_candidate(&pool).await },
+        ));
     }
     let mut ids = Vec::new();
     let mut ends: Option<chrono::DateTime<chrono::Utc>> = None;
     for t in tasks {
         match t.await.unwrap().expect("admit ok") {
-            gate::AdmitOutcome::Admitted { request_id, window_ends_at } => {
+            gate::AdmitOutcome::Admitted {
+                request_id,
+                window_ends_at,
+            } => {
                 ids.push(request_id);
                 ends = Some(window_ends_at);
             }
-            other => panic!("all initial-check-passed requests must be admitted in window, got {other:?}"),
+            other => panic!(
+                "all initial-check-passed requests must be admitted in window, got {other:?}"
+            ),
         }
     }
     assert_eq!(ids.len(), 10);
@@ -453,7 +483,11 @@ async fn concurrent_admission_selects_min_id() {
         gate::CloseOutcome::Closed { winner } => winner.expect("winner elected"),
         other => panic!("expected Closed, got {other:?}"),
     };
-    assert_eq!(winner, ids.iter().copied().min().unwrap(), "winner must be min id");
+    assert_eq!(
+        winner,
+        ids.iter().copied().min().unwrap(),
+        "winner must be min id"
+    );
 
     // 其余全部 rejected，且不可执行。
     let (rejected,): (i64,) = db_fetch_one!(
@@ -467,8 +501,13 @@ async fn concurrent_admission_selects_min_id() {
         if *rid == winner {
             continue;
         }
-        let handle = executor::claim_execution(pool, *rid, "loser-instance").await.unwrap();
-        assert!(handle.is_none(), "rejected request {rid} must not be claimable");
+        let handle = executor::claim_execution(pool, *rid, "loser-instance")
+            .await
+            .unwrap();
+        assert!(
+            handle.is_none(),
+            "rejected request {rid} must not be claimable"
+        );
     }
 }
 
@@ -506,9 +545,10 @@ async fn uncommitted_candidate_is_included_by_close() {
         )
         .unwrap();
         let (id,): (u64,) = match &mut pending {
-            digua_common_db::Transaction::Mysql(t) => {
-                sqlx::query_as("SELECT LAST_INSERT_ID()").fetch_one(&mut **t).await.unwrap()
-            }
+            digua_common_db::Transaction::Mysql(t) => sqlx::query_as("SELECT LAST_INSERT_ID()")
+                .fetch_one(&mut **t)
+                .await
+                .unwrap(),
             _ => panic!("mysql fixture expected"),
         };
         i64::try_from(id).unwrap()
@@ -527,7 +567,11 @@ async fn uncommitted_candidate_is_included_by_close() {
     let outcome = closer.await.unwrap().unwrap();
     match outcome {
         gate::CloseOutcome::Closed { winner } => {
-            assert_eq!(winner, Some(pending_id), "uncommitted-then-committed candidate must win min-id arbitration");
+            assert_eq!(
+                winner,
+                Some(pending_id),
+                "uncommitted-then-committed candidate must win min-id arbitration"
+            );
         }
         other => panic!("expected Closed, got {other:?}"),
     }
@@ -637,17 +681,37 @@ async fn old_epoch_cannot_write_step_state() {
         .await
         .unwrap()
         .expect("recovery claim succeeds after lease expiry");
-    assert_eq!(new.epoch, old.epoch + 1, "epoch must be a monotonic fencing token");
+    assert_eq!(
+        new.epoch,
+        old.epoch + 1,
+        "epoch must be a monotonic fencing token"
+    );
 
     // 旧 epoch 的所有写入都被拒绝（fencing）。
     let steps = iam_service::service::bootstrap::steps::StepsState::initial().to_value();
-    assert!(!executor::persist_step_progress(pool, &old, &steps, chrono::Utc::now()).await.unwrap());
-    assert!(!executor::mark_step_failed(pool, &old, &steps, "x", chrono::Utc::now()).await.unwrap());
-    assert!(!executor::mark_completed(pool, &old, &steps, chrono::Utc::now()).await.unwrap());
+    assert!(
+        !executor::persist_step_progress(pool, &old, &steps, chrono::Utc::now())
+            .await
+            .unwrap()
+    );
+    assert!(
+        !executor::mark_step_failed(pool, &old, &steps, "x", chrono::Utc::now())
+            .await
+            .unwrap()
+    );
+    assert!(
+        !executor::mark_completed(pool, &old, &steps, chrono::Utc::now())
+            .await
+            .unwrap()
+    );
     assert!(!executor::renew_lease(pool, &old).await.unwrap());
 
     // 新 epoch 写入正常。
-    assert!(executor::persist_step_progress(pool, &new, &steps, chrono::Utc::now()).await.unwrap());
+    assert!(
+        executor::persist_step_progress(pool, &new, &steps, chrono::Utc::now())
+            .await
+            .unwrap()
+    );
 }
 
 #[tokio::test]
@@ -661,7 +725,10 @@ async fn completed_request_is_not_claimable() {
         rid
     )
     .unwrap();
-    assert!(executor::claim_execution(pool, rid, "someone").await.unwrap().is_none());
+    assert!(executor::claim_execution(pool, rid, "someone")
+        .await
+        .unwrap()
+        .is_none());
 }
 
 // ── 5.3 故障恢复 ─────────────────────────────────────────────────────────
@@ -701,7 +768,10 @@ async fn recovery_after_dependency_failure() {
          WHERE r.code = 'tenant_admin'"
     )
     .unwrap();
-    assert_eq!(s04_done, 1, "local steps S01-S04 complete before dependency failure");
+    assert_eq!(
+        s04_done, 1,
+        "local steps S01-S04 complete before dependency failure"
+    );
 
     // 恢复：token-service 就绪后重试 → 全部完成，且不重复创建。
     let stub = stub_token_service(true).await;
@@ -721,12 +791,8 @@ async fn recovery_after_dependency_failure() {
     )
     .unwrap();
     assert_eq!(users, 1, "admin must not be duplicated across recovery");
-    let (bindings,): (i64,) = db_fetch_one!(
-        ctx.state.db,
-        (i64,),
-        "SELECT COUNT(*) FROM iam_user_roles"
-    )
-    .unwrap();
+    let (bindings,): (i64,) =
+        db_fetch_one!(ctx.state.db, (i64,), "SELECT COUNT(*) FROM iam_user_roles").unwrap();
     assert_eq!(bindings, 2, "role bindings must not be duplicated");
 }
 
@@ -784,12 +850,8 @@ async fn recovery_confirms_remote_steps_via_check() {
     )
     .unwrap();
     assert_eq!(users, 1);
-    let (bindings,): (i64,) = db_fetch_one!(
-        ctx.state.db,
-        (i64,),
-        "SELECT COUNT(*) FROM iam_user_roles"
-    )
-    .unwrap();
+    let (bindings,): (i64,) =
+        db_fetch_one!(ctx.state.db, (i64,), "SELECT COUNT(*) FROM iam_user_roles").unwrap();
     assert_eq!(bindings, 2);
     // wiremock readiness 被再次调用（Check 语义）≥ 1 次。
     // （次数断言弱化为 > 0：Check 确实发生了。）
@@ -812,7 +874,10 @@ async fn lease_active_returns_conflict() {
         .bootstrap(admin_req("admin"), Some("init-pw-123".into()))
         .await
         .expect_err("lease active must conflict");
-    assert!(matches!(err, iam_service::error::IamError::BootstrapConflict(_)));
+    assert!(matches!(
+        err,
+        iam_service::error::IamError::BootstrapConflict(_)
+    ));
 }
 
 /// 窗口进行中的新请求 → 409（不加入已开启的首轮）。
@@ -828,7 +893,10 @@ async fn late_request_during_window_conflicts() {
         .bootstrap(admin_req("admin"), Some("init-pw-123".into()))
         .await
         .expect_err("in-window late request must conflict");
-    assert!(matches!(err, iam_service::error::IamError::BootstrapConflict(_)));
+    assert!(matches!(
+        err,
+        iam_service::error::IamError::BootstrapConflict(_)
+    ));
 }
 
 /// 首管理员已存在（同名+同密码）→ S02 幂等确认；同名+不同密码 → 冲突不覆盖。
@@ -853,12 +921,18 @@ async fn admin_conflict_not_overwritten() {
         email: None,
         nickname: None,
     };
-    let err = BootstrapService::with_init_password(point_state_to(&ctx.state, &stub.uri()), Some("init-pw-123"))
-        .with_token_service_url(stub.uri())
-        .bootstrap(different, Some("init-pw-123".into()))
-        .await
-        .expect_err("password mismatch must conflict");
-    assert!(matches!(err, iam_service::error::IamError::BootstrapConflict(_)));
+    let err = BootstrapService::with_init_password(
+        point_state_to(&ctx.state, &stub.uri()),
+        Some("init-pw-123"),
+    )
+    .with_token_service_url(stub.uri())
+    .bootstrap(different, Some("init-pw-123".into()))
+    .await
+    .expect_err("password mismatch must conflict");
+    assert!(matches!(
+        err,
+        iam_service::error::IamError::BootstrapConflict(_)
+    ));
 
     // 数据未被覆盖：原密码仍可验证。
     let (hash,): (String,) = db_fetch_one!(
@@ -877,7 +951,10 @@ async fn seed_selected_request(pool: &digua_common_db::DbPool) -> i64 {
     // 先走一轮完整准入+关闭拿到 selected 记录（语义与真实路径一致）。
     let admitted = gate::admit_candidate(pool).await.unwrap();
     let (rid, ends) = match &admitted {
-        gate::AdmitOutcome::Admitted { request_id, window_ends_at } => (*request_id, *window_ends_at),
+        gate::AdmitOutcome::Admitted {
+            request_id,
+            window_ends_at,
+        } => (*request_id, *window_ends_at),
         other => panic!("seed admit failed: {other:?}"),
     };
     let wait = (ends - gate::db_now(pool).await.unwrap())
@@ -918,11 +995,12 @@ trait BootstrapResultExt {
     fn await_ok(self);
 }
 
-impl BootstrapResultExt for Result<iam_service::dto::BootstrapResponse, iam_service::error::IamError> {
+impl BootstrapResultExt
+    for Result<iam_service::dto::BootstrapResponse, iam_service::error::IamError>
+{
     fn await_ok(self) {
         if let Err(e) = self {
             panic!("expected bootstrap success, got {e:?}");
         }
     }
 }
-

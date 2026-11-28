@@ -198,10 +198,7 @@ pub async fn handle_ensure_grants(
 
 pub fn routes(state: TokenServerState) -> Router {
     Router::new()
-        .route(
-            "/internal/bootstrap/readiness",
-            get(handle_readiness),
-        )
+        .route("/internal/bootstrap/readiness", get(handle_readiness))
         .route(
             "/internal/bootstrap/ensure-grants",
             axum::routing::post(handle_ensure_grants),
