@@ -54,6 +54,16 @@ LMMS 首次部署时，需要通过 Bootstrap 流程创建第一个用户，并�
 | `last_error` | 最近一次失败的错误代码或安全摘要 |
 | `updated_at` | 最近更新时间 |
 
+gate 控制行至少包含以下字段：
+
+| 字段 | 用途 |
+| --- | --- |
+| `id` | 固定单行主键（例如恒为 `1`） |
+| `status` | `idle`、`collecting`、`closed` |
+| `window_started_at` | 本轮收集窗口开始时间，由数据库时钟生成 |
+| `window_ends_at` | 本轮收集窗口截止时间 |
+| `winner_request_id` | 关闭窗口后确定的胜出请求 ID；关闭前为空 |
+
 首次初始化的一轮请求按以下方式工作：
 
 1. 数据库迁移预先创建唯一的 gate 控制行（例如 `iam_bootstrap_init_gate`，固定主键），初始状态为 `idle`。该行必须在业务请求到来前存在；不能依赖对空表加锁。
@@ -70,7 +80,7 @@ LMMS 首次部署时，需要通过 Bootstrap 流程创建第一个用户，并�
 - 候选准入和窗口关闭必须始终先锁 gate 行，再访问/更新候选记录；所有代码路径使用相同锁顺序，避免反向锁序导致死锁。
 - 候选 INSERT 与 gate 状态检查、首次窗口初始化必须在同一事务中；不得先提交候选，再单独更新 gate。
 - 窗口关闭、状态置为 `closed`、winner 选择及 `winner_request_id` 写入必须在同一事务中完成。
-- 窗口计时和边界判断使用数据库时钟，不使用各 IAM 实例本地时钟。边界采用 `db_now < window_ends_at` 可准入；`db_now >= window_ends_at` 不可准入并允许关闭。
+- 窗口计时和边界判断使用数据库时钟，不使用各 IAM 实例本地时钟。必须在取得 gate 行锁之后读取时间：PostgreSQL 使用 `clock_timestamp()`（不能使用事务开始时间语义的 `CURRENT_TIMESTAMP` 判断锁等待后的窗口边界）；MySQL 使用锁取得后的 `CURRENT_TIMESTAMP(6)`。边界采用 `db_now < window_ends_at` 可准入；`db_now >= window_ends_at` 不可准入并允许关闭。
 - 自增 ID 只定义数据库候选记录的仲裁顺序，不承诺严格等同于网络层请求到达时间。
 - PostgreSQL 与 MySQL 必须分别验证行锁、事务隔离级别、当前时间读取语义和受影响行数；死锁/序列化失败按有限次数重试整个事务，重试不得绕过 gate 状态检查。
 
@@ -306,7 +316,7 @@ AI-PM 后端必须：
 | 机制 | 决策 |
 | --- | --- |
 | 请求记录 | 数据库表 `iam_bootstrap_init_requests` |
-| 窗口控制 | 预先存在的单行 gate（例如 `iam_bootstrap_init_gate`），统一锁定准入与关闭 |
+| 窗口控制 | 预先存在的单行 gate（例如 `iam_bootstrap_init_gate`），含状态、窗口起止时间和 winner ID，统一锁定准入与关闭 |
 | 首轮准入 | 初始检查为空的并发请求，在 gate 锁保护下写入候选记录 |
 | 等待窗口 | 2 秒，以 gate 首次从 `idle` 进入 `collecting` 时的数据库时间为基准 |
 | 窗口关闭 | 锁定 gate 行、确认数据库时间到期、关闭 gate 并在同一事务中选 winner |
