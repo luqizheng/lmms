@@ -1,13 +1,7 @@
-[source.crates-io]
-replace-with = "coder-mirror"
+# crates.io is the default source for public Rust dependencies.
+# Private crates are published to kellnr and can be selected explicitly with
+# cargo publish --registry kellnr or cargo add/update --registry kellnr.
 
-[source.coder-mirror]
-registry = "sparse+https://rsproxy.cn/index/"
-
-# 私有 crate registry - 内部发布的唯一 Rust crate 目标（托管 libs/* 与 sdk/rust/*）
-# cargo publish --registry kellnr  发布到此处（release.toml [sdk].rust_registry = "kellnr"）
-# 公开发布（crates.io）不属于当前流程，仅在明确的公开 release 任务中另行配置。
-# [registries] 供 cargo publish --registry 查址；[source] 供依赖拉取（cargo add/update --registry kellnr）。
 [registries.kellnr]
 index = "sparse+http://192.168.2.12:16444/api/v1/crates/"
 protocol = "sparse"
@@ -18,6 +12,6 @@ registry = "sparse+http://192.168.2.12:16444/api/v1/crates/"
 [net]
 git-fetch-with-cli = true
 
-# 编译缓存加速 - 要求本机装有 sccache 且在 PATH, 没有的机器删掉本节即可
+# Compile cache acceleration - requires sccache on PATH.
 [build]
-# rustc-wrapper = "sccache"  # Docker 构建容器内无 sccache，COPY .cargo 会带进去导致编译挂；宿主机需要时手动启用
+# rustc-wrapper = "sccache"  # Enable manually on hosts that have sccache installed.
