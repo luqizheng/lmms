@@ -108,7 +108,7 @@ class NotificationServiceClientTest {
     void unreadCount_returns_long() throws Exception {
         server.enqueue(new MockResponse()
                 .setResponseCode(200)
-                .setBody("[7]")
+                .setBody("{\"count\":7}")
                 .addHeader("Content-Type", "application/json"));
         long count = client.unreadCount();
         assertEquals(7L, count);

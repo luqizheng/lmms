@@ -18,7 +18,6 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -113,9 +112,9 @@ public class NotificationServiceClient {
             try (Response resp = http.newCall(httpReq).execute()) {
                 String respBody = readBody(resp);
                 ensureSuccess(resp, respBody);
-                @SuppressWarnings("unchecked")
-                List<Object> arr = mapper.readValue(respBody, List.class);
-                return arr.isEmpty() ? 0L : Long.parseLong(arr.get(0).toString());
+                // notification-service answers `{"count": <n>}` (rest.rs unread_count),
+                // not an array — read the `count` field defensively.
+                return mapper.readTree(respBody).path("count").asLong(0L);
             }
         } catch (IOException e) {
             throw new NotificationException("notification unreadCount IO error: " + e.getMessage(), 0, e);

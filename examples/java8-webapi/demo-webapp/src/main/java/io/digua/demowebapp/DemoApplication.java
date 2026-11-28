@@ -1,11 +1,11 @@
 package io.digua.demowebapp;
 
-import io.digua.KudiCoderProperties;
+import io.digua.config.KudiCoderProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "io.digua")
 @EnableConfigurationProperties(KudiCoderProperties.class)
 public class DemoApplication {
     public static void main(String[] args) {
