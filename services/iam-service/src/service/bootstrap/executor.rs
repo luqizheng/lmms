@@ -65,6 +65,7 @@ pub async fn find_winner_request(
 /// 成功条件（单条 UPDATE 原子判定，受影响行数 == 1）：
 /// - 记录状态 ∈ {selected, failed, running}（rejected/completed/collecting 不可执行）；
 /// - 租约空闲（NULL 或已过期）。
+///
 /// 成功即 `execution_epoch += 1`（fencing token 递增）并写入租约。
 pub async fn claim_execution(
     pool: &DbPool,

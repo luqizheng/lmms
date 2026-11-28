@@ -250,7 +250,7 @@ fn point_state_to(state: &AppState, uri: &str) -> AppState {
 #[tokio::test]
 async fn http_password_contract() {
     let ctx = setup().await;
-    let _ = std::env::remove_var("LMMS_INIT_PASSWORD");
+    std::env::remove_var("LMMS_INIT_PASSWORD");
 
     // 未配置密码 → 404（GET/POST 皆然，且不产生候选记录）。
     for req in [
