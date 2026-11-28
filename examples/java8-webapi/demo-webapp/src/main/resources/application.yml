@@ -3,24 +3,6 @@ server:
 spring:
   application:
     name: demo-webapp
-  datasource:
-    url: jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: false
-    properties:
-      hibernate.format_sql: false
-  h2:
-    console:
-      enabled: false
-  sql:
-    init:
-      mode: always
-      data-locations: classpath:data.sql
 digua:
   gateway:
     base-url: ${KUDI_GATEWAY_URL:http://localhost:3000}
@@ -33,5 +15,5 @@ digua:
     code: ${DEMO_API_CODE:demo-code}
 logging:
   level:
-    io.digua.demowebapp: INFO
+    io.digua: INFO
     org.springframework.web: INFO

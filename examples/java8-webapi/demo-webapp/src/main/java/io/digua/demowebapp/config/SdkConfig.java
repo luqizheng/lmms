@@ -1,69 +1,59 @@
 package io.digua.config;
 
-import io.digua.AuditServiceClient;
-import io.digua.KudiHttpClient;
-import io.digua.TokenServerUserClient;
-import io.digua.UserServiceClientClient;
-import io.digua.UserServiceUserClient;
-import org.slf4j.MDC;
+import io.digua.httpclient.KudiHttpClient;
+import io.digua.notificationsdk.NotificationServiceClient;
+import io.digua.token.TokenServerClientClient;
+import io.digua.token.TokenServerUserClient;
+import io.digua.user.UserServiceClientClient;
+import io.digua.user.UserServiceUserClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestTemplate;
-
-import java.util.function.Supplier;
 
 @Configuration
 public class SdkConfig {
 
     @Bean
-    public AuditServiceClient auditClient(KudiCoderProperties p) {
-        Supplier<String> bearer = () -> null;
-        return new AuditServiceClient(p.getGateway().getBaseUrl(), bearer);
+    public UserServiceUserClient userServiceUserClient(KudiCoderProperties properties) {
+        return UserServiceUserClient.login(
+                properties.getGateway().getBaseUrl(),
+                properties.getIam().getUsername(),
+                properties.getIam().getPassword());
+    }
+
+    @Bean
+    public TokenServerUserClient tokenServerUserClient(KudiCoderProperties properties) {
+        return TokenServerUserClient.login(
+                properties.getGateway().getBaseUrl(),
+                properties.getIam().getUsername(),
+                properties.getIam().getPassword());
+    }
+
+    @Bean
+    public UserServiceClientClient userServiceClientClient(KudiCoderProperties properties) {
+        return UserServiceClientClient.create(
+                properties.getGateway().getBaseUrl(),
+                properties.getClient().getApiKey(),
+                properties.getClient().getApiSecret(),
+                properties.getClient().getCode());
+    }
+
+    @Bean
+    public TokenServerClientClient tokenServerClientClient(KudiCoderProperties properties) {
+        return TokenServerClientClient.create(
+                properties.getGateway().getBaseUrl(),
+                properties.getClient().getApiKey(),
+                properties.getClient().getApiSecret(),
+                properties.getClient().getCode());
     }
 
     @Bean
     public KudiHttpClient kudiHttpClient() {
-        // KudiHttpClient is stateless w.r.t. base URL: each call passes a full URL.
-        // Gateway base URL lives in KudiCoderProperties.gateway.baseUrl and is composed
-        // by callers (controllers) when issuing requests.
         return KudiHttpClient.create();
     }
 
     @Bean
-    public UserServiceUserClient userServiceUserClient(KudiCoderProperties p) {
-        return UserServiceUserClient.login(
-                p.getGateway().getBaseUrl(),
-                p.getIam().getUsername(),
-                p.getIam().getPassword());
-    }
-
-    @Bean
-    public TokenServerUserClient tokenServerUserClient(KudiCoderProperties p) {
-        return TokenServerUserClient.login(
-                p.getGateway().getBaseUrl(),
-                p.getIam().getUsername(),
-                p.getIam().getPassword());
-    }
-
-    @Bean
-    public UserServiceClientClient userServiceClientClient(KudiCoderProperties p) {
-        return UserServiceClientClient.create(
-                p.getGateway().getBaseUrl(),
-                p.getClient().getApiKey(),
-                p.getClient().getApiSecret(),
-                p.getClient().getCode());
-    }
-
-    @Bean
-    public RestTemplate restTemplate() {
-        RestTemplate rt = new RestTemplate();
-        rt.getInterceptors().add((req, body, ex) -> {
-            String rid = MDC.get("requestId");
-            if (rid != null) {
-                req.getHeaders().add("X-Request-Id", rid);
-            }
-            return ex.execute(req, body);
-        });
-        return rt;
+    public NotificationServiceClient notificationServiceClient(KudiCoderProperties properties) {
+        // Supply a current bearer token here when the host application manages one.
+        return new NotificationServiceClient(properties.getGateway().getBaseUrl(), () -> null);
     }
 }

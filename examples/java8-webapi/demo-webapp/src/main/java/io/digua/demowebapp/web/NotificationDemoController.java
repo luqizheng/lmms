@@ -1,56 +1,23 @@
 package io.digua.web;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.digua.ApiResponse;
-import io.digua.KudiCoderProperties;
-import io.digua.HttpTransport;
-import io.digua.KudiHttpClient;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import io.digua.notificationsdk.NotificationServiceClient;
+import io.digua.shared.ApiResponse;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/demo/notify")
 public class NotificationDemoController {
 
-    private final KudiHttpClient kudiHttpClient;
-    private final KudiCoderProperties properties;
-    private final ObjectMapper objectMapper;
+    private final NotificationServiceClient notificationClient;
 
-    public NotificationDemoController(KudiHttpClient kudiHttpClient,
-                                     KudiCoderProperties properties,
-                                     ObjectMapper objectMapper) {
-        this.kudiHttpClient = kudiHttpClient;
-        this.properties = properties;
-        this.objectMapper = objectMapper;
+    public NotificationDemoController(NotificationServiceClient notificationClient) {
+        this.notificationClient = notificationClient;
     }
 
-    @PostMapping("/task-done")
-    public ApiResponse<Map<String, Object>> taskDone(@RequestBody Map<String, String> body) throws Exception {
-        String userId = body.get("userId");
-        String taskId = body.get("taskId");
-        String title = body.get("title");
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("user_id", userId);
-        payload.put("task_id", taskId);
-        payload.put("title", title);
-
-        Map<String, Object> body0 = new HashMap<>();
-        body0.put("channel", "in_app");
-        body0.put("user_id", userId);
-        body0.put("template", "TASK_DONE");
-        body0.put("payload", payload);
-        String json = objectMapper.writeValueAsString(body0);
-
-        String url = properties.getGateway().getBaseUrl() + "/v1/ntf/notifications";
-        HttpTransport.Response resp = kudiHttpClient.post(url, json, null);
-
-        return ApiResponse.ok(Collections.<String, Object>singletonMap("accepted", Boolean.TRUE));
+    @GetMapping("/unread-count")
+    public ApiResponse<Long> unreadCount() {
+        return ApiResponse.ok(notificationClient.unreadCount());
     }
 }

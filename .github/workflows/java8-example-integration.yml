@@ -1,0 +1,39 @@
+name: Java 8 Example Integration
+
+on:
+  pull_request:
+    paths:
+      - "sdk/java/**"
+      - "examples/java8-webapi/**"
+      - ".github/workflows/java8-example-integration.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "sdk/java/**"
+      - "examples/java8-webapi/**"
+      - ".github/workflows/java8-example-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  java8-sdk-and-example:
+    name: Java 8 SDK + downstream example
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+          cache: maven
+
+      - name: Build and test Java SDK
+        run: mvn -B -f sdk/java/pom.xml -Pjava8 clean install
+
+      - name: Build and test downstream Spring Boot example
+        run: mvn -B -f examples/java8-webapi/pom.xml -Pjava8 clean verify
