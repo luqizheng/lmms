@@ -68,6 +68,24 @@
                 <artifactId>digua-notification-sdk</artifactId>
                 <version>${lmms.sdk.version}</version>
             </dependency>
+            <!-- Spring Boot 2.1.18 pins kotlin-stdlib 1.2.71, but okhttp 4.12 / okio 3.6
+                 shipped by digua-notification-sdk require Kotlin 1.9 APIs. Re-pin here
+                 (this example's BOM wins over the Spring Boot parent). -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>1.9.10</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk7</artifactId>
+                <version>1.9.10</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>1.9.10</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>
