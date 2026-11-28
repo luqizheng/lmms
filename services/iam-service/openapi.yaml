@@ -1126,6 +1126,52 @@ paths:
           description: user not found
       security:
       - bearer_auth: []
+  /v1/bootstrap:
+    post:
+      tags:
+      - bootstrap
+      operationId: post_bootstrap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootstrapRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+        '400':
+          description: invalid bootstrap request
+        '403':
+          description: invalid bootstrap password
+        '404':
+          description: bootstrap disabled or already completed
+        '409':
+          description: admission conflict / lease active / step conflict
+        '500':
+          description: bootstrap step failed
+        '502':
+          description: bootstrap dependency unavailable
+  /v1/bootstrap/status:
+    get:
+      tags:
+      - bootstrap
+      operationId: get_status
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapStatusResponse'
+        '403':
+          description: invalid bootstrap password
+        '404':
+          description: bootstrap disabled or already completed
 components:
   schemas:
     AcceptInvitationRequest:
@@ -1208,6 +1254,84 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CreateUserRequest'
+    BootstrapRequest:
+      type: object
+      description: POST /v1/bootstrap 请求体。
+      properties:
+        email:
+          type:
+          - string
+          - 'null'
+          description: 首管理员邮箱（可选）。
+        nickname:
+          type:
+          - string
+          - 'null'
+          description: 首管理员显示名（可选，缺省用用户名）。
+        password:
+          type:
+          - string
+          - 'null'
+          description: |-
+            首管理员密码（8..=128）。仅在首管理员 Step 未完成时必填；
+            服务端只用于 argon2 哈希 / 既有用户核对，绝不持久化明文。
+        username:
+          type:
+          - string
+          - 'null'
+          description: |-
+            首管理员用户名（3..=50，字母数字下划线）。`first_admin_user` Step
+            未完成时必填。
+    BootstrapResponse:
+      type: object
+      description: POST /v1/bootstrap 成功响应（全部 Step 完成后才返回 200）。
+      required:
+      - status
+      - steps
+      properties:
+        admin_username:
+          type:
+          - string
+          - 'null'
+          description: 首管理员用户名（非敏感；恢复场景可能为 None）。
+        status:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/BootstrapStepView'
+    BootstrapStatusResponse:
+      type: object
+      description: GET /v1/bootstrap/status 响应。
+      required:
+      - status
+      - steps
+      properties:
+        status:
+          type: string
+          description: |-
+            `pending`（尚无胜出请求）/ `initializing`（胜出流程进行中）/
+            `failed`（上次执行失败，等待人工恢复）。
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/BootstrapStepView'
+    BootstrapStepView:
+      type: object
+      description: 单个初始化 Step 的对外视图（无敏感字段）。
+      required:
+      - key
+      - status
+      - attempts
+      properties:
+        attempts:
+          type: integer
+          format: int32
+          minimum: 0
+        key:
+          type: string
+        status:
+          type: string
     ChangePasswordRequest:
       type: object
       required:

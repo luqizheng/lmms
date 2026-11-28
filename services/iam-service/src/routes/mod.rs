@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod bootstrap;
 pub mod internal_membership;
 pub mod internal_migration_state;
 pub mod internal_users;
@@ -48,6 +49,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(permissions::routes(state.clone()))
         .merge(org_units::routes(state.clone()))
         .merge(tenants::routes(state.clone()))
+        .merge(bootstrap::routes(state.clone()))
         .merge(internal_users)
         .merge(internal_membership)
         .merge(internal_migration_state)

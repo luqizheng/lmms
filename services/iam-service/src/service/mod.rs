@@ -1,4 +1,5 @@
 pub mod auth_svc;
+pub mod bootstrap;
 pub mod membership_event;
 pub mod org_svc;
 pub mod perm_change;

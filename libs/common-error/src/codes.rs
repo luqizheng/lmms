@@ -38,6 +38,20 @@ pub mod codes {
     pub const IAM_EXT_9201: &str = "IAM_EXT_9201";
     /// mail delivery failed
     pub const IAM_EXT_9202: &str = "IAM_EXT_9202";
+    /// bootstrap is not available
+    pub const IAM_BOOTSTRAP_4001: &str = "IAM_BOOTSTRAP_4001";
+    /// bootstrap already completed
+    pub const IAM_BOOTSTRAP_4002: &str = "IAM_BOOTSTRAP_4002";
+    /// invalid bootstrap password
+    pub const IAM_BOOTSTRAP_4003: &str = "IAM_BOOTSTRAP_4003";
+    /// bootstrap request conflict
+    pub const IAM_BOOTSTRAP_4004: &str = "IAM_BOOTSTRAP_4004";
+    /// invalid bootstrap request
+    pub const IAM_BOOTSTRAP_4005: &str = "IAM_BOOTSTRAP_4005";
+    /// bootstrap step failed
+    pub const IAM_BOOTSTRAP_5001: &str = "IAM_BOOTSTRAP_5001";
+    /// bootstrap dependency unavailable
+    pub const IAM_BOOTSTRAP_5002: &str = "IAM_BOOTSTRAP_5002";
     /// invalid input
     pub const VALID_2001: &str = "VALID_2001";
     /// missing required field
@@ -106,6 +120,13 @@ pub fn message(code: &str) -> &str {
         "IAM_VALID_2006" => "password required when invitation is disabled",
         "IAM_EXT_9201" => "mail is not configured",
         "IAM_EXT_9202" => "mail delivery failed",
+        "IAM_BOOTSTRAP_4001" => "bootstrap is not available",
+        "IAM_BOOTSTRAP_4002" => "bootstrap already completed",
+        "IAM_BOOTSTRAP_4003" => "invalid bootstrap password",
+        "IAM_BOOTSTRAP_4004" => "bootstrap request conflict",
+        "IAM_BOOTSTRAP_4005" => "invalid bootstrap request",
+        "IAM_BOOTSTRAP_5001" => "bootstrap step failed",
+        "IAM_BOOTSTRAP_5002" => "bootstrap dependency unavailable",
         "VALID_2001" => "invalid input",
         "VALID_2002" => "missing required field",
         "VALID_2003" => "invalid phone format",
@@ -155,6 +176,13 @@ pub fn kind(code: &str) -> ErrorKind {
         "IAM_VALID_2006" => ErrorKind::BadRequest,
         "IAM_EXT_9201" => ErrorKind::Internal,
         "IAM_EXT_9202" => ErrorKind::External,
+        "IAM_BOOTSTRAP_4001" => ErrorKind::NotFound,
+        "IAM_BOOTSTRAP_4002" => ErrorKind::NotFound,
+        "IAM_BOOTSTRAP_4003" => ErrorKind::Forbidden,
+        "IAM_BOOTSTRAP_4004" => ErrorKind::Conflict,
+        "IAM_BOOTSTRAP_4005" => ErrorKind::BadRequest,
+        "IAM_BOOTSTRAP_5001" => ErrorKind::Internal,
+        "IAM_BOOTSTRAP_5002" => ErrorKind::External,
         "VALID_2001" => ErrorKind::BadRequest,
         "VALID_2002" => ErrorKind::BadRequest,
         "VALID_2003" => ErrorKind::BadRequest,

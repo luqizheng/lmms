@@ -19,6 +19,13 @@ export type ErrorCode =
   | 'IAM_VALID_2006'
   | 'IAM_EXT_9201'
   | 'IAM_EXT_9202'
+  | 'IAM_BOOTSTRAP_4001'
+  | 'IAM_BOOTSTRAP_4002'
+  | 'IAM_BOOTSTRAP_4003'
+  | 'IAM_BOOTSTRAP_4004'
+  | 'IAM_BOOTSTRAP_4005'
+  | 'IAM_BOOTSTRAP_5001'
+  | 'IAM_BOOTSTRAP_5002'
   | 'VALID_2001'
   | 'VALID_2002'
   | 'VALID_2003'
@@ -62,6 +69,13 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   'IAM_VALID_2006': 'password required when invitation is disabled',
   'IAM_EXT_9201': 'mail is not configured',
   'IAM_EXT_9202': 'mail delivery failed',
+  'IAM_BOOTSTRAP_4001': 'bootstrap is not available',
+  'IAM_BOOTSTRAP_4002': 'bootstrap already completed',
+  'IAM_BOOTSTRAP_4003': 'invalid bootstrap password',
+  'IAM_BOOTSTRAP_4004': 'bootstrap request conflict',
+  'IAM_BOOTSTRAP_4005': 'invalid bootstrap request',
+  'IAM_BOOTSTRAP_5001': 'bootstrap step failed',
+  'IAM_BOOTSTRAP_5002': 'bootstrap dependency unavailable',
   'VALID_2001': 'invalid input',
   'VALID_2002': 'missing required field',
   'VALID_2003': 'invalid phone format',
